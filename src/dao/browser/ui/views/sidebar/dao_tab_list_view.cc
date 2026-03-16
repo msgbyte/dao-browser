@@ -112,7 +112,7 @@ void DaoTabListView::RebuildTabList() {
   // Today section
   auto* today_section = AddChildView(
       std::make_unique<DaoSidebarSectionView>(u"Today"));
-  for (int i = 0; i < count; ++i) {
+  for (int i = count - 1; i >= 0; --i) {
     if (tab_strip_model_->IsTabPinned(i)) {
       continue;
     }

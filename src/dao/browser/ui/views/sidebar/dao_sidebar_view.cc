@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
@@ -176,6 +177,9 @@ void DaoSidebarView::AddedToWidget() {
     GetFocusManager()->RegisterAccelerator(
         ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN),
         ui::AcceleratorManager::kNormalPriority, this);
+    GetFocusManager()->RegisterAccelerator(
+        ui::Accelerator(ui::VKEY_D, ui::EF_COMMAND_DOWN),
+        ui::AcceleratorManager::kHighPriority, this);
   }
 }
 
@@ -185,12 +189,21 @@ void DaoSidebarView::RemovedFromWidget() {
         ui::Accelerator(ui::VKEY_OEM_5, ui::EF_COMMAND_DOWN), this);
     GetFocusManager()->UnregisterAccelerator(
         ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN), this);
+    GetFocusManager()->UnregisterAccelerator(
+        ui::Accelerator(ui::VKEY_D, ui::EF_COMMAND_DOWN), this);
   }
   View::RemovedFromWidget();
 }
 
 bool DaoSidebarView::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
+  if (accelerator.key_code() == ui::VKEY_D) {
+    if (chrome::CanDuplicateTab(browser_)) {
+      chrome::DuplicateTab(browser_);
+    }
+    return true;
+  }
+  // Cmd+\ or Cmd+S: toggle sidebar
   ToggleCollapsed();
   return true;
 }
