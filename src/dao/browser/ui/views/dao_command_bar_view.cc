@@ -108,7 +108,8 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
     auto* item = dropdown_container_->AddChildView(
         std::make_unique<DaoSuggestionItemView>(
             i, base::BindRepeating(&DaoCommandBarView::OnSuggestionClicked,
-                                   base::Unretained(this))));
+                                   base::Unretained(this)),
+            browser_->profile()));
     item->SetVisible(false);
     suggestion_views_.push_back(item);
   }
