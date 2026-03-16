@@ -30,6 +30,11 @@ constexpr float kInkDropOpacity = 0.06f;
 constexpr SkColor kCommandBarScrim = SkColorSetARGB(120, 0, 0, 0);
 constexpr SkColor kCommandBarBackground = SkColorSetRGB(50, 42, 58);
 
+constexpr SkColor kSuggestionHover = SkColorSetARGB(20, 255, 255, 255);
+constexpr SkColor kSuggestionSelected = SkColorSetARGB(40, 255, 255, 255);
+constexpr SkColor kSuggestionIconColor = SkColorSetARGB(180, 255, 255, 255);
+constexpr SkColor kGhostTextColor = SkColorSetARGB(80, 255, 255, 255);
+
 // Content area styling
 constexpr int kContentCornerRadius = 10;
 constexpr int kContentShadowMargin = 8;

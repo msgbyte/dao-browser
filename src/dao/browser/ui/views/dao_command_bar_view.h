@@ -5,21 +5,31 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_COMMAND_BAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_COMMAND_BAR_VIEW_H_
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
+#include "components/omnibox/browser/autocomplete_controller.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/view.h"
 
 class Browser;
 
 namespace views {
+class Label;
 class Textfield;
 }
 
 namespace dao {
 
+class DaoSuggestionItemView;
+
 class DaoCommandBarView : public views::View,
-                          public views::TextfieldController {
+                          public views::TextfieldController,
+                          public AutocompleteController::Observer {
   METADATA_HEADER(DaoCommandBarView, views::View)
 
  public:
@@ -44,9 +54,18 @@ class DaoCommandBarView : public views::View,
   // views::TextfieldController:
   bool HandleKeyEvent(views::Textfield* sender,
                       const ui::KeyEvent& key_event) override;
+  void ContentsChanged(views::Textfield* sender,
+                       const std::u16string& new_contents) override;
+
+  // AutocompleteController::Observer:
+  void OnResultChanged(AutocompleteController* controller,
+                       bool default_match_changed) override;
 
  private:
+  static constexpr int kMaxSuggestions = 5;
+
   void Navigate(const std::u16string& text);
+  void NavigateToMatch(const AutocompleteMatch& match);
   static bool LooksLikeURL(const std::u16string& text);
   void DeferredRequestFocus();
 
@@ -54,9 +73,32 @@ class DaoCommandBarView : public views::View,
   void SetNewTabButtonHighlight(bool highlighted);
   void SetWebContentEventProcessing(bool enabled);
 
+  void InitAutocompleteController();
+  void StartAutocomplete(const std::u16string& text);
+  void StopAutocomplete();
+  void UpdateSuggestions();
+  void UpdateGhostText();
+  void PositionGhostText();
+  void ApplySelectedSuggestion();
+  void SetSelectedIndex(int index);
+  void OnSuggestionClicked(int index);
+
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> card_container_ = nullptr;
   raw_ptr<views::Textfield> textfield_ = nullptr;
+  raw_ptr<views::Label> ghost_text_label_ = nullptr;
+  raw_ptr<views::View> dropdown_container_ = nullptr;
+
+  std::vector<raw_ptr<DaoSuggestionItemView>> suggestion_views_;
+
+  std::unique_ptr<AutocompleteController> autocomplete_controller_;
+  std::unique_ptr<ChromeAutocompleteSchemeClassifier> scheme_classifier_;
+
+  int selected_index_ = -1;
+  std::u16string user_input_text_;
+  std::u16string inline_autocompletion_;
+  bool updating_textfield_ = false;
+  int visible_suggestion_count_ = 0;
 
   // When true, we are in "pre-new-tab" mode: no tab has been created yet.
   bool is_new_tab_mode_ = false;
