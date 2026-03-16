@@ -1,0 +1,40 @@
+---
+description: Complete all changes in one pass to minimize expensive recompilation
+alwaysApply: true
+---
+
+# Batch All Changes — Minimize Recompilation
+
+Chromium builds are slow and expensive. Plan thoroughly and deliver all changes in a single pass.
+
+## Before Writing Code
+
+1. **Read all relevant files first** — understand the full scope before making any edit
+2. **Identify every file that needs modification** — list them explicitly
+3. **Plan the dependency order** — know which changes depend on others (headers, BUILD.gn, implementations)
+4. **Check for missing includes, forward declarations, and BUILD.gn entries** upfront
+
+## During Implementation
+
+- Edit **all related files in one batch** — do not submit partial changes that require follow-up rounds
+- When adding a new class or feature, deliver everything together: header, implementation, BUILD.gn entry, and any call-site changes
+- When modifying a `.patch` file, also update any corresponding `src/dao/` files that depend on the patched code
+- Ensure all method signatures, includes, and symbol references are consistent across files before finishing
+
+## Common Pitfalls to Avoid
+
+- Missing `#include` for newly used types
+- Adding a source file but forgetting the BUILD.gn entry
+- Declaring a method in a header but not implementing it (or vice versa)
+- Changing a function signature in one file but not updating all callers
+- Forgetting namespace qualifiers or forward declarations
+
+## Verification Checklist
+
+Before considering the task complete, confirm:
+
+- [ ] All new/modified files are syntactically consistent with each other
+- [ ] BUILD.gn lists every new source file
+- [ ] All `#include` directives are present
+- [ ] No dangling references to renamed or removed symbols
+- [ ] Patch files and `src/dao/` files are both updated if needed

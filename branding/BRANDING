@@ -1,0 +1,9 @@
+COMPANY_FULLNAME=Dao Project
+COMPANY_SHORTNAME=Dao
+PRODUCT_FULLNAME=Dao Browser
+PRODUCT_SHORTNAME=Dao
+PRODUCT_INSTALLER_FULLNAME=Dao Browser Installer
+PRODUCT_INSTALLER_SHORTNAME=Dao Installer
+COPYRIGHT=Copyright (c) 2026 Dao Project Authors. All rights reserved.
+MAC_BUNDLE_ID=org.dao.browser
+MAC_TEAM_ID=

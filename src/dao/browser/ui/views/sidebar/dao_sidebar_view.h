@@ -1,0 +1,94 @@
+// Copyright 2026 Dao Browser Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_SIDEBAR_VIEW_H_
+#define DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_SIDEBAR_VIEW_H_
+
+#include "base/memory/raw_ptr.h"
+#include "ui/gfx/animation/animation_delegate.h"
+#include "ui/gfx/animation/linear_animation.h"
+#include "ui/views/controls/resize_area.h"
+#include "ui/views/controls/resize_area_delegate.h"
+#include "ui/views/view.h"
+
+class Browser;
+
+namespace views {
+class LabelButton;
+}
+
+namespace dao {
+
+class DaoFavoritesView;
+class DaoNewTabButton;
+class DaoTabListView;
+
+class DaoSidebarView : public views::View,
+                       public gfx::AnimationDelegate,
+                       public views::ResizeAreaDelegate {
+  METADATA_HEADER(DaoSidebarView, views::View)
+
+ public:
+  static constexpr int kDefaultWidth = 212;
+  static constexpr int kCollapsedWidth = 6;
+  static constexpr int kMinWidth = 150;
+  static constexpr int kMaxWidth = 400;
+  static constexpr int kResizeAreaWidth = 6;
+
+  explicit DaoSidebarView(Browser* browser);
+  DaoSidebarView(const DaoSidebarView&) = delete;
+  DaoSidebarView& operator=(const DaoSidebarView&) = delete;
+  ~DaoSidebarView() override;
+
+  void ToggleCollapsed();
+  bool collapsed() const { return collapsed_; }
+
+  DaoTabListView* tab_list_view() { return tab_list_view_; }
+  DaoNewTabButton* new_tab_button() { return new_tab_button_; }
+
+  void SetNewTabHighlighted(bool highlighted);
+  void ShowOmniboxPopup();
+  void HideOmniboxPopup();
+
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+  void Layout(PassKey) override;
+
+  // views::ResizeAreaDelegate:
+  void OnResize(int resize_amount, bool done_resizing) override;
+
+  // gfx::AnimationDelegate:
+  void AnimationProgressed(const gfx::Animation* animation) override;
+  void AnimationEnded(const gfx::Animation* animation) override;
+
+  // views::View:
+  bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
+  void AddedToWidget() override;
+  void RemovedFromWidget() override;
+  void OnMouseEntered(const ui::MouseEvent& event) override;
+  void OnMouseExited(const ui::MouseEvent& event) override;
+
+ private:
+  raw_ptr<Browser> browser_;
+  raw_ptr<views::View> inner_container_ = nullptr;
+  raw_ptr<DaoFavoritesView> favorites_ = nullptr;
+  raw_ptr<DaoTabListView> tab_list_view_ = nullptr;
+  raw_ptr<DaoNewTabButton> new_tab_button_ = nullptr;
+  raw_ptr<views::LabelButton> toggle_button_ = nullptr;
+  raw_ptr<views::ResizeArea> resize_area_ = nullptr;
+
+  bool collapsed_ = false;
+  bool auto_expanded_ = false;
+  bool is_resizing_ = false;
+  int user_width_ = kDefaultWidth;
+  int current_width_ = kDefaultWidth;
+  int start_width_ = kDefaultWidth;
+  int target_width_ = kDefaultWidth;
+  int resize_start_width_ = kDefaultWidth;
+  gfx::LinearAnimation collapse_animation_;
+};
+
+}  // namespace dao
+
+#endif  // DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_SIDEBAR_VIEW_H_

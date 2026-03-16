@@ -1,0 +1,35 @@
+diff --git a/chrome/browser/ui/browser_commands.cc b/chrome/browser/ui/browser_commands.cc
+index 9c0f626a1d..fc256f850a 100644
+--- a/chrome/browser/ui/browser_commands.cc
++++ b/chrome/browser/ui/browser_commands.cc
+@@ -106,7 +106,10 @@
+ #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
+ #include "chrome/browser/ui/webui/commerce/product_specifications_disclosure_dialog.h"
+ #include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/upgrade_detector/upgrade_detector.h"
++#include "dao/browser/ui/views/dao_command_bar_view.h"
++#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+ #include "chrome/browser/web_applications/web_app_constants.h"
+ #include "chrome/browser/web_applications/web_app_helpers.h"
+ #include "chrome/browser/web_applications/web_app_provider.h"
+@@ -946,6 +949,19 @@ void CloseWindow(Browser* browser) {
+ }
+ 
+ content::WebContents& NewTab(Browser* browser) {
++  // Dao: When the sidebar is active, don't create a tab immediately.
++  // Instead show the command bar so the user can type a URL first.
++  // The tab will be created when the user presses Enter.
++  BrowserView* dao_bv = BrowserView::GetBrowserViewForBrowser(browser);
++  if (dao_bv && dao_bv->dao_sidebar() && dao_bv->dao_sidebar()->GetVisible()) {
++    if (dao_bv->dao_command_bar()) {
++      dao_bv->dao_command_bar()->ShowForNewTab();
++    }
++    // Must still return a valid WebContents reference.  Return the
++    // currently-active tab (which hasn't changed).
++    return *browser->tab_strip_model()->GetActiveWebContents();
++  }
++
+   base::RecordAction(UserMetricsAction("NewTab"));
+   // TODO(asvitkine): This is invoked programmatically from several places.
+   // Audit the code and change it so that the histogram only gets collected for

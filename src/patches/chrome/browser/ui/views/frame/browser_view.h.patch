@@ -1,0 +1,43 @@
+diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
+index b9986c6e90..f80bd0e0ca 100644
+--- a/chrome/browser/ui/views/frame/browser_view.h
++++ b/chrome/browser/ui/views/frame/browser_view.h
+@@ -124,6 +124,13 @@ namespace glic {
+ class BorderView;
+ }  // namespace glic
+ 
++namespace dao {
++class DaoAddressBarView;
++class DaoCommandBarView;
++class DaoSidebarView;
++class DaoCornerOverlayView;
++}  // namespace dao
++
+ namespace segmentation_platform {
+ struct ClassificationResult;
+ }
+@@ -247,6 +254,11 @@ class BrowserView : public BrowserWindow,
+ 
+   SidePanel* unified_side_panel() { return unified_side_panel_; }
+ 
++  dao::DaoAddressBarView* dao_address_bar() { return dao_address_bar_; }
++  dao::DaoSidebarView* dao_sidebar() { return dao_sidebar_; }
++  dao::DaoCornerOverlayView* dao_corner_overlay() { return dao_corner_overlay_; }
++  dao::DaoCommandBarView* dao_command_bar() { return dao_command_bar_; }
++
+   void set_contents_border_widget(views::Widget* contents_border_widget) {
+     GetBrowserViewLayout()->set_contents_border_widget(contents_border_widget);
+   }
+@@ -1280,6 +1292,12 @@ class BrowserView : public BrowserWindow,
+   raw_ptr<views::View> left_aligned_side_panel_separator_ = nullptr;
+   raw_ptr<views::View> side_panel_rounded_corner_ = nullptr;
+ 
++  // Dao left sidebar, corner overlay, address bar, and command bar
++  raw_ptr<dao::DaoAddressBarView> dao_address_bar_ = nullptr;
++  raw_ptr<dao::DaoSidebarView> dao_sidebar_ = nullptr;
++  raw_ptr<dao::DaoCornerOverlayView> dao_corner_overlay_ = nullptr;
++  raw_ptr<dao::DaoCommandBarView> dao_command_bar_ = nullptr;
++
+   // Provides access to the toolbar buttons this browser view uses. Buttons may
+   // appear in a hosted app frame or in a tabbed UI toolbar.
+   raw_ptr<ToolbarButtonProvider> toolbar_button_provider_ = nullptr;

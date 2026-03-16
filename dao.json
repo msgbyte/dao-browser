@@ -1,0 +1,13 @@
+{
+  "name": "dao",
+  "display_name": "Dao Browser",
+  "version": {
+    "product": "chromium",
+    "version": "134.0.6998.35",
+    "display": "0.1.0"
+  },
+  "build": {
+    "target_os": "mac",
+    "target_cpu": "arm64"
+  }
+}

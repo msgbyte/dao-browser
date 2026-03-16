@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/ui/views/frame/browser_frame_mac.mm b/chrome/browser/ui/views/frame/browser_frame_mac.mm
+index 29ba0f48f5..8ece0770c2 100644
+--- a/chrome/browser/ui/views/frame/browser_frame_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_mac.mm
+@@ -21,6 +21,7 @@
+ #include "chrome/browser/ui/views/frame/browser_frame.h"
+ #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+ #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
+ #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+ #include "chrome/common/pref_names.h"
+@@ -160,9 +161,14 @@ - (NSTouchBar*)makeTouchBar {
+         browser_view_->GetTabStripHeight() +
+         browser_view_->frame()->GetFrameView()->GetTopInset(true);
+     if (!browser_view_->ShouldDrawTabStrip()) {
+-      *titlebar_height +=
+-          browser_view_->GetWebAppFrameToolbarPreferredSize().height() +
+-          kWebAppMenuMargin * 2;
++      // Dao: Use fixed titlebar height for traffic lights when sidebar is active
++      if (browser_view_->dao_sidebar()) {
++        *titlebar_height = 40;
++      } else {
++        *titlebar_height +=
++            browser_view_->GetWebAppFrameToolbarPreferredSize().height() +
++            kWebAppMenuMargin * 2;
++      }
+     }
+   } else {
+     *override_titlebar_height = false;

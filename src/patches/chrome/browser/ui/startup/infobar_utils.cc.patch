@@ -1,0 +1,18 @@
+diff --git a/chrome/browser/ui/startup/infobar_utils.cc b/chrome/browser/ui/startup/infobar_utils.cc
+index dac3d705a4..cfa26451dd 100644
+--- a/chrome/browser/ui/startup/infobar_utils.cc
++++ b/chrome/browser/ui/startup/infobar_utils.cc
+@@ -156,9 +156,10 @@ void AddInfoBarsIfNecessary(Browser* browser,
+     infobars::ContentInfoBarManager* infobar_manager =
+         infobars::ContentInfoBarManager::FromWebContents(web_contents);
+ 
+-    if (!google_apis::HasAPIKeyConfigured()) {
+-      GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
+-    }
++    // Dao: Suppress Google API keys missing infobar — no Google services used.
++    // if (!google_apis::HasAPIKeyConfigured()) {
++    //   GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
++    // }
+ 
+     if (ObsoleteSystem::IsObsoleteNowOrSoon()) {
+       PrefService* local_state = g_browser_process->local_state();

@@ -1,0 +1,11 @@
+---
+description: All source code and comments must be written in English
+alwaysApply: true
+---
+
+# English-First Source Code
+
+- All code, comments, commit messages, and documentation in the repository must be written in English
+- Variable names, function names, class names, and other identifiers must use English
+- Code comments must be in English, keep them concise
+- Communicate with the user in Chinese, but all code output must be in English

@@ -1,0 +1,151 @@
+diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
+index 46f6be18ac..a0215f159a 100644
+--- a/chrome/browser/ui/views/frame/browser_view_layout.cc
++++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
+@@ -31,6 +31,12 @@
+ #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/frame/top_container_view.h"
++#include "dao/browser/ui/views/dao_address_bar_view.h"
++#include "dao/browser/ui/views/dao_colors.h"
++#include "dao/browser/ui/views/dao_command_bar_view.h"
++#include "dao/browser/ui/views/dao_corner_overlay_view.h"
++#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
++#include "ui/compositor/layer.h"
+ #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip.h"
+@@ -337,6 +343,33 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+     }
+   }
+ 
++  // Dao: When command bar is visible, its entire area is client (clickable).
++  // This must come first so the scrim and textfield receive mouse events.
++  auto* dao_cmd_bar = browser_view_->dao_command_bar();
++  if (dao_cmd_bar && dao_cmd_bar->GetVisible() &&
++      dao_cmd_bar->bounds().Contains(point_in_browser_view_coords)) {
++    return HTCLIENT;
++  }
++
++  // Dao: When sidebar is active, make the area above content draggable.
++  // Return HTNOWHERE so NonClientView checks window controls first,
++  // then falls back to HTCAPTION (allows window dragging).
++  // But exclude the address bar so it remains clickable.
++  dao::DaoSidebarView* dao_sidebar_hit = browser_view_->dao_sidebar();
++  if (dao_sidebar_hit && dao_sidebar_hit->GetVisible()) {
++    auto* dao_addr_bar = browser_view_->dao_address_bar();
++    if (dao_addr_bar && dao_addr_bar->GetVisible() &&
++        dao_addr_bar->bounds().Contains(point_in_browser_view_coords)) {
++      return HTCLIENT;
++    }
++    int sidebar_right = dao_sidebar_hit->bounds().right();
++    int content_top = contents_container_->y();
++    if (point_in_browser_view_coords.x() >= sidebar_right &&
++        point_in_browser_view_coords.y() < content_top) {
++      return HTNOWHERE;
++    }
++  }
++
+   // Determine if the TabStrip exists and is capable of being clicked on. We
+   // might be a popup window without a TabStrip.
+   if (delegate_->ShouldDrawTabStrip()) {
+@@ -638,6 +671,17 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+   int browser_view_width = vertical_layout_rect_.width();
+   bool toolbar_visible = delegate_->IsToolbarVisible();
+   int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
++
++  // Dao: When sidebar is active, move toolbar off-screen
++  dao::DaoSidebarView* dao_sidebar_for_toolbar = browser_view_->dao_sidebar();
++  if (dao_sidebar_for_toolbar && dao_sidebar_for_toolbar->GetVisible() &&
++      toolbar_visible && height > 0) {
++    toolbar_->SetVisible(true);
++    toolbar_->SetBounds(vertical_layout_rect_.x(), -height,
++                        browser_view_width, height);
++    return top;
++  }
++
+   SetViewVisibility(toolbar_, toolbar_visible);
+   toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
+                       height);
+@@ -728,6 +772,81 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+   gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
+                                       vertical_layout_rect_.width(),
+                                       std::max(0, bottom - top));
++
++  // Dao: Layout the left sidebar and add content insets
++  dao::DaoSidebarView* dao_sidebar = browser_view_->dao_sidebar();
++  bool dao_sidebar_active = dao_sidebar && dao_sidebar->GetVisible();
++  if (dao_sidebar_active) {
++    int sidebar_width = dao_sidebar->GetPreferredSize().width();
++    dao_sidebar->SetBounds(
++        contents_container_bounds.x(), contents_container_bounds.y(),
++        sidebar_width, contents_container_bounds.height());
++    contents_container_bounds.set_x(
++        contents_container_bounds.x() + sidebar_width);
++    contents_container_bounds.set_width(
++        std::max(0, contents_container_bounds.width() - sidebar_width));
++  }
++
++  // Dao: Apply content insets (top, right, bottom) so the frame color
++  // shows through as a gap around the web content area
++  gfx::Rect dao_content_area = contents_container_bounds;
++  if (dao_sidebar_active) {
++    dao_content_area.Inset(
++        gfx::Insets::TLBR(dao::kContentInsetTop, 0,
++                           dao::kContentInsetBottom,
++                           dao::kContentInsetRight));
++  }
++
++  // Dao: Position address bar at top of content area
++  auto* address_bar = browser_view_->dao_address_bar();
++  int address_bar_height = 0;
++  if (address_bar && dao_sidebar_active) {
++    address_bar_height = dao::DaoAddressBarView::kBarHeight;
++    address_bar->SetBounds(dao_content_area.x(), dao_content_area.y(),
++                           dao_content_area.width(), address_bar_height);
++    address_bar->SetVisible(true);
++    // Shift content area down to make room for address bar
++    dao_content_area.Inset(gfx::Insets::TLBR(address_bar_height, 0, 0, 0));
++  } else if (address_bar) {
++    address_bar->SetVisible(false);
++  }
++
++  // Dao: Position corner overlay slightly larger than content for shadow
++  auto* corner_overlay = browser_view_->dao_corner_overlay();
++  if (corner_overlay) {
++    // Overlay covers address bar + content area
++    gfx::Rect overlay_content = dao_content_area;
++    overlay_content.Inset(gfx::Insets::TLBR(-address_bar_height, 0, 0, 0));
++    gfx::Rect overlay_bounds = overlay_content;
++    overlay_bounds.Inset(gfx::Insets(-dao::kContentShadowMargin));
++    corner_overlay->SetBoundsRect(overlay_bounds);
++  }
++
++  // Dao: Position command bar to match the content area (full, no inset)
++  auto* command_bar = browser_view_->dao_command_bar();
++  if (command_bar) {
++    command_bar->SetBoundsRect(contents_container_bounds);
++  }
++
++  // Dao: Apply rounded corners — only bottom corners on contents container
++  // (top corners are on the address bar view)
++  if (dao_sidebar_active) {
++    if (!contents_container_->layer()) {
++      contents_container_->SetPaintToLayer();
++      contents_container_->layer()->SetFillsBoundsOpaquely(false);
++    }
++    contents_container_->layer()->SetRoundedCornerRadius(
++        gfx::RoundedCornersF(0, 0,
++                              dao::kContentCornerRadius,
++                              dao::kContentCornerRadius));
++    contents_container_->layer()->SetIsFastRoundedCorner(true);
++  }
++
++  // Dao: Apply inset to the actual contents container
++  if (dao_sidebar_active) {
++    contents_container_bounds = dao_content_area;
++  }
++
+   if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
+     // The WebUI tab strip container should "push" the tab contents down without
+     // resizing it.

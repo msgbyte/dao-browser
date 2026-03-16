@@ -1,0 +1,6 @@
+{
+  "git.ignoredRepositories": ["engine"],
+  "files.watcherExclude": {
+    "engine/**": true
+  }
+}

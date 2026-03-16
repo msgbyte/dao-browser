@@ -1,0 +1,25 @@
+---
+description: Never modify Chromium source directly — always use patches
+alwaysApply: true
+---
+
+# No Direct Chromium Source Modification
+
+All changes to Chromium must go through the patch system. Never edit files inside `engine/` directly as a deliverable.
+
+## Allowed
+
+- Create or update `.patch` files in `src/patches/` (mirroring Chromium's directory structure)
+- Add new Dao-owned code in `src/dao/` (copied into `engine/` during import)
+
+## Forbidden
+
+- Writing, editing, or deleting any file under `engine/` as a final result
+- Committing `engine/` contents to version control
+
+## Workflow
+
+1. Write code in `src/dao/` for new features
+2. Write `.patch` files in `src/patches/` for modifications to existing Chromium files
+3. Run `npm run import` to apply patches and copy Dao code into the Chromium tree
+4. Iterate in `engine/` only for local testing, then `npm run export` to capture changes back as patches

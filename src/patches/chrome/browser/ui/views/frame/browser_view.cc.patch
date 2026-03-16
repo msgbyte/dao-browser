@@ -1,0 +1,77 @@
+diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
+index 76c889780c..7dde12beca 100644
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -119,6 +119,11 @@
+ #include "chrome/browser/ui/views/frame/browser_view_layout.h"
+ #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
+ #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
++#include "dao/browser/ui/views/dao_address_bar_view.h"
++#include "dao/browser/ui/views/dao_colors.h"
++#include "dao/browser/ui/views/dao_command_bar_view.h"
++#include "dao/browser/ui/views/dao_corner_overlay_view.h"
++#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+ #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+ #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+ #include "chrome/browser/ui/views/frame/native_browser_frame.h"
+@@ -1084,6 +1089,29 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
+   contents_container_ = AddChildView(std::move(contents_container));
+   set_contents_view(contents_container_);
+ 
++  // Dao: Only create sidebar UI for normal browser windows (not popups/devtools)
++  if (browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
++    // Dao: Set frame background color (visible behind sidebar + content insets)
++    SetBackground(views::CreateSolidBackground(dao::kSidebarBackground));
++
++    // Dao: Add left sidebar before the contents area
++    dao_sidebar_ = AddChildViewAt(
++        std::make_unique<dao::DaoSidebarView>(browser_.get()),
++        GetIndexOf(contents_container_).value());
++
++    // Dao: Address bar at top of content area
++    dao_address_bar_ = AddChildView(
++        std::make_unique<dao::DaoAddressBarView>(browser_.get()));
++
++    // Dao: Corner overlay painted on top of web contents
++    dao_corner_overlay_ = AddChildView(
++        std::make_unique<dao::DaoCornerOverlayView>());
++
++    // Dao: Command bar overlay (last child = highest z-order)
++    dao_command_bar_ = AddChildView(
++        std::make_unique<dao::DaoCommandBarView>(browser_.get()));
++  }
++
+   right_aligned_side_panel_separator_ =
+       AddChildView(std::make_unique<ContentsSeparator>());
+ 
+@@ -1338,6 +1365,11 @@ bool BrowserView::GetTabStripVisible() const {
+ }
+ 
+ bool BrowserView::ShouldDrawTabStrip() const {
++  // Dao: Hide the top tab strip when vertical sidebar tabs are active
++  if (dao_sidebar_ && dao_sidebar_->GetVisible()) {
++    return false;
++  }
++
+   // Return false if this window does not normally display a tabstrip or if the
+   // tabstrip is currently hidden, e.g. because we're in fullscreen.
+   if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
+@@ -2362,6 +2394,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+   // already. On Chrome OS, changing focus makes a view believe it has a focus
+   // even if the widget doens't have a focus. Either cases, we need to ignore
+   // this when the browser window isn't active.
++
++  // Dao: When sidebar is active, intercept focus-to-location-bar calls.
++  // - User-initiated (Cmd+L): show command bar with current URL pre-filled.
++  // - Automatic calls (startup, NTP load): suppress — Cmd+T is handled
++  //   directly in chrome::NewTab() via ShowForNewTab().
++  if (dao_sidebar_ && dao_sidebar_->GetVisible()) {
++    if (is_user_initiated && dao_command_bar_) {
++      dao_command_bar_->Show();
++    }
++    return;
++  }
++
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+   if (!IsActive()) {
+     return;

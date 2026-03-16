@@ -1,0 +1,84 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Dao Browser is a Chromium-based browser with a vertical tab sidebar (inspired by Arc), currently targeting macOS arm64. It builds on top of Chromium source using a patch-based architecture — only patch files and Dao's own C++ code are version-controlled; the full Chromium tree lives in `engine/` (gitignored).
+
+## Build Commands
+
+```bash
+npm run setup          # First-time: download Chromium + apply patches
+npm run rebuild        # Iterative dev: import patches + build
+npm run build          # Build only (gn gen + autoninja)
+npm run build:debug    # Debug build (is_debug=true, component build)
+npm run import         # Apply patches + copy src/dao/ into engine/
+npm run export         # Export unstaged engine/src changes as patch files
+npm run export -- <file>  # Export patch for a specific file
+npm run start          # Launch the built browser
+npm run start:debug    # Launch with stderr logging
+```
+
+All scripts go through a single CLI entrypoint: `scripts/cli.ts` (run via tsx).
+
+## Critical Rule: Never Edit engine/ Directly
+
+The `engine/` directory contains the full Chromium checkout and is gitignored. **Never write to files under `engine/` as a deliverable.** All changes must go through:
+
+1. **`src/patches/`** — Unified diff patches against Chromium files. Patch paths mirror the Chromium tree (e.g., `src/patches/chrome/browser/ui/BUILD.gn.patch` patches `engine/src/chrome/browser/ui/BUILD.gn`).
+2. **`src/dao/`** — Dao's own C++ code, copied into `engine/src/dao/` during import.
+
+Workflow: edit in `src/dao/` or `src/patches/`, run `npm run import` to apply, iterate in `engine/` for testing, then `npm run export` to capture changes back.
+
+### Source of Truth
+
+**`src/patches/` and `src/dao/` are the source of truth.** The code in `engine/` is unstable and may be in any state (partially applied patches, manual test edits, etc.). When reading Chromium integration code, always refer to `src/patches/*.patch` files for the canonical version. Only read `engine/` files when you need to see the original unpatched Chromium code for context, or when debugging a build failure.
+
+## Architecture
+
+### Patch System
+- Patches are applied via `git apply` inside `engine/src/`
+- The import command auto-detects already-applied patches (reverse-check)
+- Export generates per-file diffs from `git diff` in the Chromium tree
+
+### Dao UI Layer (C++ / Chromium Views)
+All Dao UI code lives under `src/dao/browser/ui/views/` in the `dao::` namespace. Key components:
+
+- **DaoSidebarView** — Main vertical sidebar (240px default, collapsible to 4px with animation). Contains address bar, favorites, tab list, and space bar sections.
+- **DaoTabListView / DaoTabItemView** — Vertical tab list replacing the top tab strip
+- **DaoAddressBarView** — URL bar embedded in the sidebar
+- **DaoFavoritesView** — Pinned sites section
+- **DaoSpaceBarView** — Workspace/space switcher
+- **DaoNewTabButton** — New tab button in the sidebar
+- **DaoCornerOverlayView** — Overlay painted on top of web contents
+- **DaoSidebarSectionView** — Reusable collapsible section container
+
+### Integration with Chromium
+Patches inject Dao components into the Chromium frame:
+- `browser_view.cc.patch` — Adds DaoSidebarView and DaoCornerOverlayView to BrowserView, hides the top tab strip
+- `browser_view.h.patch` — Declares sidebar/overlay member pointers
+- `browser_view_layout.cc.patch` — Adjusts layout to accommodate the sidebar
+- `browser_frame_mac.mm.patch` — macOS-specific frame modifications
+- `BUILD.gn.patch` files — Add Dao source files to the build graph
+
+### Build Configuration
+- `configs/common.gn` — Shared GN args (component build, no NaCl, proprietary codecs, no Google API keys)
+- `configs/macos.gn` — macOS-specific args (use_lld)
+- `dao.json` — Master config: Chromium version, target platform, branding info
+- Build outputs to `engine/src/out/dao/`
+- Post-build: auto-fixes lld duplicate dylib issue on macOS component builds
+
+## Code Conventions
+
+- All source code, comments, and commit messages must be in **English**
+- Communicate with the user in **Chinese**
+- Use the `dao::` C++ namespace for all Dao-owned code
+- Chromium coding style: `raw_ptr<>`, `METADATA_HEADER`, include guards with `#ifndef`
+- **Batch all changes** — Chromium builds are expensive. Deliver all related changes (headers, implementations, BUILD.gn entries, patches) in a single pass. Verify includes, forward declarations, and symbol references are consistent before finishing.
+
+## Prerequisites
+
+- macOS with depot_tools in PATH (`gclient`, `gn`, `autoninja`)
+- Node.js >= 18
+- ~100 GB disk space for Chromium source + build
