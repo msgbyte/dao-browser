@@ -27,6 +27,7 @@
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/compositor/layer.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -79,7 +80,8 @@ constexpr SkColor kProgressBarFill = SkColorSetRGB(100, 180, 255);
 std::vector<FileIconEntry> ScanDownloadDirectory(
     base::FilePath download_dir,
     int max_items,
-    int icon_size) {
+    int icon_size,
+    int thumb_size) {
   struct FileEntry {
     base::FilePath path;
     base::Time modified_time;
@@ -110,6 +112,9 @@ std::vector<FileIconEntry> ScanDownloadDirectory(
     FileIconEntry entry;
     entry.path = entries[i].path;
     entry.icon = GetFileIcon(entries[i].path, icon_size);
+    // Try to generate a thumbnail for image files.
+    entry.thumbnail = GetFileThumbnail(entries[i].path, thumb_size);
+    entry.has_thumbnail = !entry.thumbnail.isNull();
     result.push_back(std::move(entry));
   }
   // Reverse so oldest is at top, newest at bottom (closest to active
@@ -119,6 +124,11 @@ std::vector<FileIconEntry> ScanDownloadDirectory(
 }
 
 }  // namespace
+
+FileIconEntry::FileIconEntry() = default;
+FileIconEntry::FileIconEntry(FileIconEntry&&) = default;
+FileIconEntry& FileIconEntry::operator=(FileIconEntry&&) = default;
+FileIconEntry::~FileIconEntry() = default;
 
 BEGIN_METADATA(DaoDownloadButtonView)
 END_METADATA
@@ -137,9 +147,14 @@ DaoDownloadButtonView::DaoDownloadButtonView(Browser* browser)
   SetNotifyEnterExitOnChild(true);
 
   // File list container (completed downloads, oldest at top, newest at bottom).
+  // Uses a compositor layer with MasksToBounds so children are clipped during
+  // the expand/collapse animation (prevents rows from drawing over the button).
   file_list_container_ = AddChildView(std::make_unique<views::View>());
   file_list_container_->SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical));
+  file_list_container_->SetPaintToLayer();
+  file_list_container_->layer()->SetFillsBoundsOpaquely(false);
+  file_list_container_->layer()->SetMasksToBounds(true);
   file_list_container_->SetVisible(false);
 
   // Active download container (shown below completed files, closest to the
@@ -220,7 +235,7 @@ DaoDownloadButtonView::DaoDownloadButtonView(Browser* browser)
     active_items_.push_back(av);
   }
 
-  // Pre-create file item rows
+  // Pre-create file item rows with larger icons for thumbnail support.
   for (int i = 0; i < kMaxFileItems; ++i) {
     auto row = std::make_unique<views::View>();
     auto* row_layout = row->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -231,9 +246,13 @@ DaoDownloadButtonView::DaoDownloadButtonView(Browser* browser)
     row->SetPreferredSize(gfx::Size(0, kFileItemHeight));
 
     auto icon = std::make_unique<views::ImageView>();
-    icon->SetPreferredSize(gfx::Size(kFileIconSize, kFileIconSize));
+    icon->SetPreferredSize(gfx::Size(kThumbnailSize, kThumbnailSize));
     icon->SetImage(gfx::CreateVectorIcon(
-        vector_icons::kDescriptionIcon, kFileIconSize, kTextMuted));
+        vector_icons::kDescriptionIcon, kThumbnailSize, kTextMuted));
+    // Set up compositor layer for rounded corner clipping on thumbnails.
+    icon->SetPaintToLayer();
+    icon->layer()->SetFillsBoundsOpaquely(false);
+    icon->layer()->SetRoundedCornerRadius(gfx::RoundedCornersF(0));
     auto* icon_ptr = row->AddChildView(std::move(icon));
 
     auto name = std::make_unique<views::Label>();
@@ -337,8 +356,10 @@ bool DaoDownloadButtonView::OnMousePressed(const ui::MouseEvent& event) {
     return true;
   }
 
-  // Check if press is on button row
-  if (button_row_->bounds().Contains(point)) {
+  // Check if press is on button row (convert to button_row_'s coordinates).
+  gfx::Point btn_pt = point;
+  ConvertPointToTarget(this, button_row_, &btn_pt);
+  if (button_row_->GetLocalBounds().Contains(btn_pt)) {
     drag_file_index_ = -1;
     return true;  // Consume; release will handle click.
   }
@@ -400,7 +421,9 @@ void DaoDownloadButtonView::OnMouseReleased(const ui::MouseEvent& event) {
   gfx::Point point = event.location();
 
   // Click on button row → open downloads folder.
-  if (button_row_->bounds().Contains(point)) {
+  gfx::Point btn_pt = point;
+  ConvertPointToTarget(this, button_row_, &btn_pt);
+  if (button_row_->GetLocalBounds().Contains(btn_pt)) {
     OnButtonClicked();
     drag_file_index_ = -1;
     return;
@@ -492,7 +515,7 @@ void DaoDownloadButtonView::RefreshFileList() {
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce(&ScanDownloadDirectory, download_dir, kMaxFileItems,
-                     kFileIconSize),
+                     kThumbnailSize, kThumbnailSize),
       base::BindOnce(&DaoDownloadButtonView::OnFileListReady,
                      weak_factory_.GetWeakPtr()));
 }
@@ -506,8 +529,16 @@ void DaoDownloadButtonView::OnFileListReady(
       recent_file_paths_.push_back(entries[i].path);
       file_items_[i].name_label->SetText(
           entries[i].path.BaseName().LossyDisplayName());
-      if (!entries[i].icon.isNull()) {
+      if (entries[i].has_thumbnail) {
+        // Show image thumbnail with rounded corners.
+        file_items_[i].icon->SetImage(entries[i].thumbnail);
+        file_items_[i].icon->layer()->SetRoundedCornerRadius(
+            gfx::RoundedCornersF(kThumbnailRadius));
+      } else if (!entries[i].icon.isNull()) {
+        // Show system file icon without rounded corners.
         file_items_[i].icon->SetImage(entries[i].icon);
+        file_items_[i].icon->layer()->SetRoundedCornerRadius(
+            gfx::RoundedCornersF(0));
       }
       file_items_[i].row->SetVisible(true);
     } else {

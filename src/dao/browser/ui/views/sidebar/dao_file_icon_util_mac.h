@@ -14,6 +14,16 @@ namespace dao {
 // |icon_size| DIP. Must be called on a thread that allows blocking I/O.
 gfx::ImageSkia GetFileIcon(const base::FilePath& file_path, int icon_size);
 
+// Returns true if the file extension indicates an image format supported by
+// macOS ImageIO (JPEG, PNG, GIF, WebP, HEIC, etc.).
+bool IsImageFile(const base::FilePath& file_path);
+
+// Generates a square, center-cropped thumbnail for image files using macOS
+// CGImageSource. Returns an empty ImageSkia for non-image files or on failure.
+// Must be called on a thread that allows blocking I/O.
+gfx::ImageSkia GetFileThumbnail(const base::FilePath& file_path,
+                                int thumb_size);
+
 }  // namespace dao
 
 #endif  // DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_FILE_ICON_UTIL_MAC_H_

@@ -29,10 +29,17 @@ class Label;
 
 namespace dao {
 
-// Result from the background file scan: path + icon for each file.
+// Result from the background file scan: path + icon + optional thumbnail.
 struct FileIconEntry {
+  FileIconEntry();
+  FileIconEntry(FileIconEntry&&);
+  FileIconEntry& operator=(FileIconEntry&&);
+  ~FileIconEntry();
+
   base::FilePath path;
   gfx::ImageSkia icon;
+  gfx::ImageSkia thumbnail;
+  bool has_thumbnail = false;
 };
 
 class DaoDownloadButtonView
@@ -76,11 +83,13 @@ class DaoDownloadButtonView
 
  private:
   static constexpr int kMaxFileItems = 4;
-  static constexpr int kFileItemHeight = 32;
+  static constexpr int kFileItemHeight = 48;
   static constexpr int kActiveItemHeight = 40;
   static constexpr int kIconButtonSize = 32;
   static constexpr int kIconButtonRadius = 8;
   static constexpr int kFileIconSize = 16;
+  static constexpr int kThumbnailSize = 40;
+  static constexpr int kThumbnailRadius = 4;
   static constexpr int kDragThreshold = 5;
   static constexpr int kProgressBarHeight = 3;
 
