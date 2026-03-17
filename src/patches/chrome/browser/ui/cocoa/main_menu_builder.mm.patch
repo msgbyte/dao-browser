@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
+index 463639cbdb..99d66bee0e 100644
+--- a/chrome/browser/ui/cocoa/main_menu_builder.mm
++++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
+@@ -152,6 +152,18 @@
+           .Build();
+   // clang-format on
+ 
++  // Dao: Insert "New Little Dao" menu item after "New Incognito Window"
++  NSMenu* file_menu = item.submenu;
++  NSInteger incognito_index =
++      [file_menu indexOfItemWithTag:IDC_NEW_INCOGNITO_WINDOW];
++  NSInteger insert_index = (incognito_index != -1) ? incognito_index + 1 : 3;
++  NSMenuItem* little_dao_item = [[NSMenuItem alloc]
++      initWithTitle:@"New Little Dao"
++             action:@selector(commandDispatch:)
++      keyEquivalent:@""];
++  little_dao_item.tag = IDC_NEW_LITTLE_DAO;
++  [file_menu insertItem:little_dao_item atIndex:insert_index];
++
+   return item;
+ }
+ 

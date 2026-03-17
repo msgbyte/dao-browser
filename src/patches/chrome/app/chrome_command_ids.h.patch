@@ -1,0 +1,14 @@
+diff --git a/chrome/app/chrome_command_ids.h b/chrome/app/chrome_command_ids.h
+index 1234567890..abcdef1234 100644
+--- a/chrome/app/chrome_command_ids.h
++++ b/chrome/app/chrome_command_ids.h
+@@ -83,6 +83,9 @@
+ #define IDC_OPEN_IN_PWA_WINDOW          34053
+ #define IDC_MOVE_TAB_TO_NEW_WINDOW          34054
+
++// Dao commands
++#define IDC_NEW_LITTLE_DAO              34070
++
+ // Web app window commands
+ #define IDC_COPY_URL                    34060
+ #define IDC_OPEN_IN_CHROME              34061

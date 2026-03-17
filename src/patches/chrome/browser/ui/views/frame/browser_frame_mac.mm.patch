@@ -1,25 +1,31 @@
 diff --git a/chrome/browser/ui/views/frame/browser_frame_mac.mm b/chrome/browser/ui/views/frame/browser_frame_mac.mm
-index 29ba0f48f5..8ece0770c2 100644
+index 29ba0f48f5..5e50d71270 100644
 --- a/chrome/browser/ui/views/frame/browser_frame_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_frame_mac.mm
-@@ -21,6 +21,7 @@
+@@ -21,6 +21,10 @@
  #include "chrome/browser/ui/views/frame/browser_frame.h"
  #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
++#include "url/gurl.h"
  #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/common/pref_names.h"
-@@ -160,9 +161,14 @@ - (NSTouchBar*)makeTouchBar {
+@@ -160,9 +164,17 @@ - (NSTouchBar*)makeTouchBar {
          browser_view_->GetTabStripHeight() +
          browser_view_->frame()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
 -      *titlebar_height +=
 -          browser_view_->GetWebAppFrameToolbarPreferredSize().height() +
 -          kWebAppMenuMargin * 2;
-+      // Dao: Use fixed titlebar height for traffic lights when sidebar is active
++      // Dao: Use fixed titlebar height for traffic lights when sidebar
++      // or Little Dao is active
 +      if (browser_view_->dao_sidebar()) {
 +        *titlebar_height = 40;
++      } else if (browser_view_->dao_little_dao_view()) {
++        *titlebar_height = 48;
 +      } else {
 +        *titlebar_height +=
 +            browser_view_->GetWebAppFrameToolbarPreferredSize().height() +
@@ -28,3 +34,49 @@ index 29ba0f48f5..8ece0770c2 100644
      }
    } else {
      *override_titlebar_height = false;
+@@ -185,6 +197,13 @@ - (NSTouchBar*)makeTouchBar {
+ void BrowserFrameMac::ValidateUserInterfaceItem(
+     int32_t tag,
+     remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
++  // Dao: IDC_NEW_LITTLE_DAO is handled by AppController, not the browser
++  // command system. Always enable it here so the menu item is not grayed out.
++  if (tag == IDC_NEW_LITTLE_DAO) {
++    result->enable = true;
++    return;
++  }
++
+   Browser* browser = browser_view_->browser();
+   if (!chrome::SupportsCommand(browser, tag)) {
+     result->enable = false;
+@@ -341,6 +360,15 @@ - (NSTouchBar*)makeTouchBar {
+     int32_t command,
+     WindowOpenDisposition window_open_disposition,
+     bool is_before_first_responder) {
++  // Dao: Handle IDC_NEW_LITTLE_DAO directly since it's not registered
++  // in the browser command system.
++  if (command == IDC_NEW_LITTLE_DAO) {
++    Browser* browser = browser_view_->browser();
++    dao::DaoLittleDaoController::OpenInLittleDao(
++        browser->profile(), GURL("about:blank"));
++    return true;
++  }
++
+   if (!WillExecuteCommand(command, window_open_disposition,
+                           is_before_first_responder)) {
+     return false;
+@@ -379,6 +407,15 @@ - (NSTouchBar*)makeTouchBar {
+     if (browser_view_->GetIsWebAppType()) {
+       params->window_title_hidden = true;
+     }
++  } else if (dao::DaoLittleDaoController::IsLittleDaoWindow(
++                 browser_view_->browser()) ||
++             dao::DaoLittleDaoController::IsCreatingLittleDao()) {
++    // Dao: Little Dao windows use transparent titlebar with traffic lights
++    // integrated into the header bar, similar to the main browser window.
++    params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
++    params->style_mask |= NSWindowStyleMaskFullSizeContentView;
++    params->titlebar_appears_transparent = true;
++    params->window_title_hidden = true;
+   } else {
+     params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
+   }

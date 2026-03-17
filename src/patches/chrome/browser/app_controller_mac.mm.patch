@@ -1,0 +1,86 @@
+diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
+index ee7c61e824..f0bc6d4299 100644
+--- a/chrome/browser/app_controller_mac.mm
++++ b/chrome/browser/app_controller_mac.mm
+@@ -63,6 +63,7 @@
+ #include "chrome/browser/shortcuts/chrome_webloc_file.h"
+ #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
+ #include "chrome/browser/ui/browser.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+ #include "chrome/browser/ui/browser_command_controller.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_dialogs.h"
+@@ -1446,6 +1447,12 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
+       }
+     }
+ 
++    // Dao: IDC_NEW_LITTLE_DAO is not registered in _menuState, so handle it
++    // outside the SupportsCommand check. Enable when a profile is loaded.
++    if (tag == IDC_NEW_LITTLE_DAO) {
++      enable = canOpenNewBrowser;
++    }
++
+     // "Show as tab" should only appear when the current window is a popup.
+     // Since |validateUserInterfaceItem:| is called only when there are no
+     // key windows, we should just hide this.
+@@ -1558,6 +1565,9 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
+     case IDC_RESTORE_TAB:
+       app_controller_mac::TabRestorer::RestoreMostRecent(profile);
+       break;
++    case IDC_NEW_LITTLE_DAO:
++      dao::DaoLittleDaoController::OpenInLittleDao(profile, GURL("about:blank"));
++      break;
+     case IDC_OPEN_FILE:
+       chrome::ExecuteCommand(CreateBrowser(profile), IDC_OPEN_FILE);
+       break;
+@@ -2336,44 +2346,12 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
+                                   Profile* profile) {
+   if (!profile)
+     return;  // No suitable profile to open the URLs, do nothing.
+-  // Prefer a regular (non-incognito) profile
+-  if (profile->IsIncognitoProfile()) {
+-    profile = ProfileManager::MaybeForceOffTheRecordMode(
+-        profile->GetOriginalProfile());
+-  }
+-  Browser* browser = chrome::FindLastActiveWithProfile(profile);
+-  int startupIndex = TabStripModel::kNoTab;
+-  content::WebContents* startupContent = nullptr;
+-  if (browser && browser->tab_strip_model()->count() == 1) {
+-    // If there's only 1 tab and the tab is NTP, close this NTP tab and open all
+-    // startup urls in new tabs, because the omnibox will stay focused if we
+-    // load url in NTP tab.
+-    startupIndex = browser->tab_strip_model()->active_index();
+-    startupContent = browser->tab_strip_model()->GetActiveWebContents();
+-  } else if (!browser) {
+-    // if no browser window exists then create one with no tabs to be filled in.
+-    browser = Browser::Create(Browser::CreateParams(profile, true));
+-    browser->window()->Show();
+-  }
+-
+-  // Various methods to open URLs that we get in a native fashion. We use
+-  // StartupBrowserCreator here because on the other platforms, URLs to open
+-  // come through the ProcessSingleton, and it calls StartupBrowserCreator. It's
+-  // best to bottleneck the openings through that for uniform handling.
+-  base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
+-  chrome::startup::IsFirstRun first_run =
+-      first_run::IsChromeFirstRun() ? chrome::startup::IsFirstRun::kYes
+-                                    : chrome::startup::IsFirstRun::kNo;
+-  StartupBrowserCreatorImpl launch(base::FilePath(), dummy, first_run);
+-  launch.OpenURLsInBrowser(browser, chrome::startup::IsProcessStartup::kNo,
+-                           urls);
+-
+-  // This NTP check should be replaced once https://crbug.com/624410 is fixed.
+-  if (startupIndex != TabStripModel::kNoTab &&
+-      (startupContent->GetVisibleURL() == chrome::kChromeUINewTabURL ||
+-       startupContent->GetVisibleURL() == chrome::kChromeUINewTabPageURL)) {
+-    browser->tab_strip_model()->CloseWebContentsAt(startupIndex,
+-                                                   TabCloseTypes::CLOSE_NONE);
++
++  // Dao: Open external URLs in Little Dao windows instead of the main browser.
++  // Each URL gets its own simplified Little Dao popup window with an address
++  // bar and "Open in Dao" button to transfer into the main browser.
++  for (const auto& url : urls) {
++    dao::DaoLittleDaoController::OpenInLittleDao(profile, url);
+   }
+ }
+ 

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..a0215f159a 100644
+index 46f6be18ac..7c396ff980 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
-@@ -31,6 +31,13 @@
+@@ -31,6 +31,15 @@
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -10,13 +10,15 @@ index 46f6be18ac..a0215f159a 100644
 +#include "dao/browser/ui/views/dao_colors.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
 +#include "dao/browser/ui/views/dao_corner_overlay_view.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 +#include "ui/compositor/layer.h"
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
-@@ -337,6 +344,33 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+@@ -337,6 +346,54 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -47,17 +49,42 @@ index 46f6be18ac..a0215f159a 100644
 +    }
 +  }
 +
++  // Dao: Little Dao window — traffic lights are in the header bar,
++  // only the textfield and button are clickable, everything else is draggable.
++  auto* little_dao_view = browser_view_->dao_little_dao_view();
++  if (little_dao_view && little_dao_view->GetVisible()) {
++    // The "Open in Dao" button must remain clickable
++    gfx::Rect btn_bounds = little_dao_view->open_in_dao_button_bounds();
++    if (btn_bounds.Contains(point_in_browser_view_coords)) {
++      return HTCLIENT;
++    }
++    // The URL display button must remain clickable
++    gfx::Rect display_bounds = little_dao_view->url_display_bounds();
++    if (display_bounds.Contains(point_in_browser_view_coords)) {
++      return HTCLIENT;
++    }
++    // Everything else in and above the header bar — draggable
++    int content_top = contents_container_->y();
++    if (point_in_browser_view_coords.y() < content_top) {
++      return HTNOWHERE;
++    }
++  }
++
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip.
    if (delegate_->ShouldDrawTabStrip()) {
-@@ -638,6 +672,17 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+@@ -638,6 +695,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
    int browser_view_width = vertical_layout_rect_.width();
    bool toolbar_visible = delegate_->IsToolbarVisible();
    int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
 +
-+  // Dao: When sidebar is active, move toolbar off-screen
++  // Dao: When sidebar or Little Dao is active, move toolbar off-screen
 +  dao::DaoSidebarView* dao_sidebar_for_toolbar = browser_view_->dao_sidebar();
-+  if (dao_sidebar_for_toolbar && dao_sidebar_for_toolbar->GetVisible() &&
++  bool dao_has_sidebar = dao_sidebar_for_toolbar &&
++                         dao_sidebar_for_toolbar->GetVisible();
++  bool dao_is_little_dao = dao::DaoLittleDaoController::IsLittleDaoWindow(
++      browser_view_->browser());
++  if ((dao_has_sidebar || dao_is_little_dao) &&
 +      toolbar_visible && height > 0) {
 +    toolbar_->SetVisible(true);
 +    toolbar_->SetBounds(vertical_layout_rect_.x(), -height,
@@ -68,11 +95,12 @@ index 46f6be18ac..a0215f159a 100644
    SetViewVisibility(toolbar_, toolbar_visible);
    toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
                        height);
-@@ -648,33 +693,15 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
+@@ -648,32 +720,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
    TRACE_EVENT0("ui", "BrowserViewLayout::LayoutBookmarkAndInfoBars");
    dialog_top_y_ = top + browser_view_y - kConstrainedWindowOverlap;
  
--  if (bookmark_bar_) {
++  // Dao: Always skip bookmark bar and separator
+   if (bookmark_bar_) {
 -    top = std::max(toolbar_->bounds().bottom(), LayoutBookmarkBar(top));
 -  }
 -
@@ -98,21 +126,16 @@ index 46f6be18ac..a0215f159a 100644
 -    if (loading_bar_) {
 -      SetViewVisibility(loading_bar_, false);
 -    }
--  }
--
-+  // Dao: Always skip bookmark bar and separator
-+  if (bookmark_bar_) {
 +    SetViewVisibility(bookmark_bar_, false);
 +    bookmark_bar_->SetBounds(0, top, browser_view_->width(), 0);
 +  }
 +  SetViewVisibility(contents_separator_, false);
 +  if (loading_bar_) {
 +    SetViewVisibility(loading_bar_, false);
-+  }
-+
+   }
+ 
    return LayoutInfoBar(top);
- }
-@@ -728,6 +755,88 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +782,136 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -196,6 +219,54 @@ index 46f6be18ac..a0215f159a 100644
 +  // Dao: Apply inset to the actual contents container
 +  if (dao_sidebar_active) {
 +    contents_container_bounds = dao_content_area;
++  }
++
++  // Dao: Little Dao layout — content insets on all 4 sides, top bar above content
++  auto* little_dao_view = browser_view_->dao_little_dao_view();
++  bool dao_little_dao_active = little_dao_view && little_dao_view->GetVisible();
++  if (dao_little_dao_active) {
++    // Apply insets on all sides (no sidebar, so left also gets inset)
++    gfx::Rect little_dao_area = contents_container_bounds;
++    little_dao_area.Inset(
++        gfx::Insets::TLBR(dao::kContentInsetTop, dao::kContentInsetBottom,
++                           dao::kContentInsetBottom, dao::kContentInsetRight));
++
++    // Position the Little Dao bar at the top
++    int bar_height = dao::DaoLittleDaoView::kBarHeight;
++    little_dao_view->SetBounds(little_dao_area.x(), little_dao_area.y(),
++                               little_dao_area.width(), bar_height);
++    little_dao_view->SetVisible(true);
++
++    // Shift content below the bar
++    little_dao_area.Inset(gfx::Insets::TLBR(bar_height, 0, 0, 0));
++
++    // Position corner overlay for Little Dao
++    auto* ld_corner_overlay = browser_view_->dao_corner_overlay();
++    if (ld_corner_overlay) {
++      gfx::Rect overlay_content = little_dao_area;
++      overlay_content.Inset(gfx::Insets::TLBR(-bar_height, 0, 0, 0));
++      gfx::Rect overlay_bounds = overlay_content;
++      overlay_bounds.Inset(gfx::Insets(-dao::kContentShadowMargin));
++      ld_corner_overlay->SetBoundsRect(overlay_bounds);
++    }
++
++    // Apply rounded corners to bottom of contents container
++    if (!contents_container_->layer()) {
++      contents_container_->SetPaintToLayer();
++      contents_container_->layer()->SetFillsBoundsOpaquely(false);
++    }
++    contents_container_->layer()->SetRoundedCornerRadius(
++        gfx::RoundedCornersF(0, 0, dao::kContentCornerRadius,
++                              dao::kContentCornerRadius));
++    contents_container_->layer()->SetIsFastRoundedCorner(true);
++
++    // Dao: Position command bar to cover the full Little Dao content area
++    auto* ld_command_bar = browser_view_->dao_command_bar();
++    if (ld_command_bar) {
++      ld_command_bar->SetBoundsRect(contents_container_bounds);
++    }
++
++    contents_container_bounds = little_dao_area;
 +  }
 +
    if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
