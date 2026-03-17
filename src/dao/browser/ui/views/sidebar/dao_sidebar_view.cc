@@ -6,17 +6,30 @@
 
 #include <algorithm>
 
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
+#include "dao/browser/ui/views/sidebar/dao_download_button_view.h"
 #include "dao/browser/ui/views/sidebar/dao_favorites_view.h"
 #include "dao/browser/ui/views/sidebar/dao_new_tab_button.h"
+#include "dao/browser/ui/views/sidebar/dao_tab_item_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_list_view.h"
+#include "net/base/filename_util.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/dragdrop/drag_drop_types.h"
+#include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
+#include "ui/base/dragdrop/os_exchange_data.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/page_transition_types.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/layer_tree_owner.h"
 #include "ui/gfx/animation/tween.h"
+#include "ui/gfx/canvas.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/background.h"
 #include "ui/views/style/typography.h"
@@ -26,6 +39,62 @@
 #include "ui/views/layout/flex_layout_types.h"
 
 namespace dao {
+
+// Transparent overlay that paints on its own layer above all sidebar content.
+class DaoDropOverlayView : public views::View {
+  METADATA_HEADER(DaoDropOverlayView, views::View)
+
+ public:
+  DaoDropOverlayView() {
+    SetPaintToLayer();
+    layer()->SetFillsBoundsOpaquely(false);
+    SetCanProcessEventsWithinSubtree(false);
+  }
+
+  void SetActive(bool active) {
+    if (active_ == active) return;
+    active_ = active;
+    SchedulePaint();
+  }
+
+  void SetIndicatorY(int y) {
+    if (indicator_y_ == y) return;
+    indicator_y_ = y;
+    SchedulePaint();
+  }
+
+  void OnPaint(gfx::Canvas* canvas) override {
+    if (!active_ || indicator_y_ < 0) return;
+
+    constexpr int kLineInset = 12;
+    constexpr int kLineHeight = 2;
+    constexpr int kDotRadius = 3;
+    SkColor line_color = SkColorSetA(dao::kSpaceActive, 200);
+
+    cc::PaintFlags flags;
+    flags.setColor(line_color);
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+
+    int line_y = indicator_y_ - kLineHeight / 2;
+    canvas->DrawRect(
+        gfx::Rect(kLineInset, line_y,
+                   width() - 2 * kLineInset, kLineHeight),
+        flags);
+
+    canvas->DrawCircle(gfx::Point(kLineInset, indicator_y_),
+                       kDotRadius, flags);
+    canvas->DrawCircle(gfx::Point(width() - kLineInset, indicator_y_),
+                       kDotRadius, flags);
+  }
+
+ private:
+  bool active_ = false;
+  int indicator_y_ = -1;
+};
+
+BEGIN_METADATA(DaoDropOverlayView)
+END_METADATA
 
 BEGIN_METADATA(DaoSidebarView)
 END_METADATA
@@ -92,8 +161,15 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
       base::BindRepeating(&DaoSidebarView::ShowOmniboxPopup,
                           base::Unretained(this)));
 
+  // Download button at bottom
+  download_button_ = inner_container_->AddChildView(
+      std::make_unique<DaoDownloadButtonView>(browser));
+
   // Resize handle on the right edge
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
+
+  // Drop overlay — has its own layer so it paints above all sidebar content.
+  drop_overlay_ = AddChildView(std::make_unique<DaoDropOverlayView>());
 }
 
 DaoSidebarView::~DaoSidebarView() = default;
@@ -118,6 +194,9 @@ void DaoSidebarView::Layout(PassKey) {
     resize_area_->SetVisible(!collapsed_);
     resize_area_->SetBoundsRect(
         gfx::Rect(width() - kResizeAreaWidth, 0, kResizeAreaWidth, height()));
+  }
+  if (drop_overlay_) {
+    drop_overlay_->SetBoundsRect(gfx::Rect(0, 0, width(), height()));
   }
 }
 
@@ -256,6 +335,172 @@ void DaoSidebarView::HideOmniboxPopup() {
   if (browser_view && browser_view->dao_command_bar()) {
     browser_view->dao_command_bar()->Hide();
   }
+}
+
+// --- File / URL drop target -----------------------------------------------
+
+bool DaoSidebarView::GetDropFormats(
+    int* formats,
+    std::set<ui::ClipboardFormatType>* format_types) {
+  *formats = ui::OSExchangeData::URL | ui::OSExchangeData::FILE_NAME;
+  return true;
+}
+
+bool DaoSidebarView::CanDrop(const ui::OSExchangeData& data) {
+  // Reject internal tab drags — those carry a "dao-tab-drag" string marker.
+  std::optional<std::u16string> text = data.GetString();
+  if (text.has_value() && *text == u"dao-tab-drag") {
+    return false;
+  }
+  return data.HasURL(ui::FilenameToURLPolicy::CONVERT_FILENAMES) ||
+         data.HasFile();
+}
+
+void DaoSidebarView::OnDragEntered(const ui::DropTargetEvent& event) {
+  is_drop_target_active_ = true;
+  drop_target_index_ = -1;
+  auto* overlay = static_cast<DaoDropOverlayView*>(drop_overlay_.get());
+  overlay->SetActive(true);
+  overlay->SetIndicatorY(-1);
+  // Auto-expand sidebar if collapsed so the user sees the drop zone.
+  if (collapsed_ && !collapse_animation_.is_animating()) {
+    drop_auto_expanded_ = true;
+    collapsed_ = false;
+    start_width_ = current_width_;
+    target_width_ = user_width_;
+    collapse_animation_.Stop();
+    collapse_animation_.Start();
+  }
+}
+
+int DaoSidebarView::OnDragUpdated(const ui::DropTargetEvent& event) {
+  auto* overlay = static_cast<DaoDropOverlayView*>(drop_overlay_.get());
+  // Compute drop indicator position by checking tab items.
+  const auto& items = tab_list_view_->tab_items();
+  int indicator_y = -1;
+  if (items.empty()) {
+    drop_target_index_ = -1;
+  } else {
+    // Convert event y from sidebar coords to tab_list_view coords.
+    gfx::Point pt_in_tab_list(event.x(), event.y());
+    views::View::ConvertPointToTarget(this, tab_list_view_, &pt_in_tab_list);
+
+    TabStripModel* model = browser_->tab_strip_model();
+    bool found = false;
+    for (const auto& tab_item : items) {
+      gfx::Point mid(0, tab_item->height() / 2);
+      views::View::ConvertPointToTarget(tab_item.get(), tab_list_view_, &mid);
+      if (pt_in_tab_list.y() < mid.y()) {
+        int idx = tab_item->model_index();
+        // Today section is displayed in reverse model order:
+        // visually "above" a tab means "after" it in the model.
+        if (!model->IsTabPinned(idx)) {
+          drop_target_index_ = idx + 1;
+        } else {
+          drop_target_index_ = idx;
+        }
+        gfx::Point top(0, 0);
+        views::View::ConvertPointToTarget(tab_item.get(), this, &top);
+        indicator_y = top.y();
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      auto* last = items.back().get();
+      int idx = last->model_index();
+      // Bottom of reversed today section = lowest model index.
+      if (!model->IsTabPinned(idx)) {
+        drop_target_index_ = idx;
+      } else {
+        drop_target_index_ = idx + 1;
+      }
+      gfx::Point bottom(0, last->height());
+      views::View::ConvertPointToTarget(last, this, &bottom);
+      indicator_y = bottom.y();
+    }
+  }
+  overlay->SetIndicatorY(indicator_y);
+  return ui::DragDropTypes::DRAG_COPY;
+}
+
+void DaoSidebarView::OnDragExited() {
+  is_drop_target_active_ = false;
+  drop_target_index_ = -1;
+  auto* overlay = static_cast<DaoDropOverlayView*>(drop_overlay_.get());
+  overlay->SetActive(false);
+  overlay->SetIndicatorY(-1);
+  // Collapse back if we auto-expanded for the drag.
+  if (drop_auto_expanded_) {
+    drop_auto_expanded_ = false;
+    collapsed_ = true;
+    start_width_ = current_width_;
+    target_width_ = kCollapsedWidth;
+    collapse_animation_.Stop();
+    collapse_animation_.Start();
+  }
+}
+
+views::View::DropCallback DaoSidebarView::GetDropCallback(
+    const ui::DropTargetEvent& event) {
+  // Successful drop — clear highlight and keep sidebar open.
+  is_drop_target_active_ = false;
+  drop_auto_expanded_ = false;
+  int insert_index = drop_target_index_;
+  drop_target_index_ = -1;
+  auto* overlay = static_cast<DaoDropOverlayView*>(drop_overlay_.get());
+  overlay->SetActive(false);
+  overlay->SetIndicatorY(-1);
+
+  Browser* browser = browser_;
+  return base::BindOnce(
+      [](Browser* browser, int insert_index,
+         const ui::DropTargetEvent& event,
+         ui::mojom::DragOperation& output_drag_op,
+         std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner) {
+        const ui::OSExchangeData& data = event.data();
+        std::vector<GURL> urls;
+
+        // Try GetURLs which handles both URLs and file conversions.
+        auto maybe_urls =
+            data.GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
+        if (maybe_urls.has_value()) {
+          for (const auto& u : *maybe_urls) {
+            if (u.is_valid()) {
+              urls.push_back(u);
+            }
+          }
+        }
+
+        // Also pick up files via GetFilenames for multi-file drops.
+        auto maybe_files = data.GetFilenames();
+        if (maybe_files.has_value()) {
+          for (const auto& file : *maybe_files) {
+            GURL file_url = net::FilePathToFileURL(file.path);
+            if (file_url.is_valid() &&
+                std::find(urls.begin(), urls.end(), file_url) == urls.end()) {
+              urls.push_back(file_url);
+            }
+          }
+        }
+
+        for (size_t i = 0; i < urls.size(); ++i) {
+          NavigateParams params(browser, urls[i], ui::PAGE_TRANSITION_TYPED);
+          params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+          if (insert_index >= 0) {
+            params.tabstrip_index = insert_index + static_cast<int>(i);
+          }
+          Navigate(&params);
+        }
+
+        output_drag_op = urls.empty() ? ui::mojom::DragOperation::kNone
+                                      : ui::mojom::DragOperation::kCopy;
+      },
+      browser, insert_index);
+}
+
+void DaoSidebarView::OnPaint(gfx::Canvas* canvas) {
+  views::View::OnPaint(canvas);
 }
 
 }  // namespace dao

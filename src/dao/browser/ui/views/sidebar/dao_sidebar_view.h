@@ -5,7 +5,10 @@
 #ifndef DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_SIDEBAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_SIDEBAR_VIEW_H_
 
+#include <set>
+
 #include "base/memory/raw_ptr.h"
+#include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/controls/resize_area.h"
@@ -20,6 +23,7 @@ class LabelButton;
 
 namespace dao {
 
+class DaoDownloadButtonView;
 class DaoFavoritesView;
 class DaoNewTabButton;
 class DaoTabListView;
@@ -68,6 +72,17 @@ class DaoSidebarView : public views::View,
   void RemovedFromWidget() override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
+  void OnPaint(gfx::Canvas* canvas) override;
+
+  // views::View (drop target):
+  bool GetDropFormats(
+      int* formats,
+      std::set<ui::ClipboardFormatType>* format_types) override;
+  bool CanDrop(const ui::OSExchangeData& data) override;
+  void OnDragEntered(const ui::DropTargetEvent& event) override;
+  int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  void OnDragExited() override;
+  DropCallback GetDropCallback(const ui::DropTargetEvent& event) override;
 
  private:
   raw_ptr<Browser> browser_;
@@ -76,10 +91,14 @@ class DaoSidebarView : public views::View,
   raw_ptr<DaoTabListView> tab_list_view_ = nullptr;
   raw_ptr<DaoNewTabButton> new_tab_button_ = nullptr;
   raw_ptr<views::LabelButton> toggle_button_ = nullptr;
+  raw_ptr<DaoDownloadButtonView> download_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
+  raw_ptr<views::View> drop_overlay_ = nullptr;
 
   bool collapsed_ = false;
   bool auto_expanded_ = false;
+  bool is_drop_target_active_ = false;
+  bool drop_auto_expanded_ = false;
   bool is_resizing_ = false;
   int user_width_ = kDefaultWidth;
   int current_width_ = kDefaultWidth;
@@ -87,6 +106,8 @@ class DaoSidebarView : public views::View,
   int target_width_ = kDefaultWidth;
   int resize_start_width_ = kDefaultWidth;
   gfx::LinearAnimation collapse_animation_;
+
+  int drop_target_index_ = -1;   // Tab model index where file will be inserted
 };
 
 }  // namespace dao

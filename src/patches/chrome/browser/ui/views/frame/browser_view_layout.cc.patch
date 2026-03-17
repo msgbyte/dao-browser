@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/brows
 index 46f6be18ac..a0215f159a 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
-@@ -31,6 +31,12 @@
+@@ -31,6 +31,13 @@
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -10,12 +10,13 @@ index 46f6be18ac..a0215f159a 100644
 +#include "dao/browser/ui/views/dao_colors.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
 +#include "dao/browser/ui/views/dao_corner_overlay_view.h"
++#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 +#include "ui/compositor/layer.h"
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
-@@ -337,6 +343,33 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+@@ -337,6 +344,33 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -49,7 +50,7 @@ index 46f6be18ac..a0215f159a 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip.
    if (delegate_->ShouldDrawTabStrip()) {
-@@ -638,6 +671,17 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+@@ -638,6 +672,17 @@ int BrowserViewLayout::LayoutToolbar(int top) {
    int browser_view_width = vertical_layout_rect_.width();
    bool toolbar_visible = delegate_->IsToolbarVisible();
    int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
@@ -67,7 +68,51 @@ index 46f6be18ac..a0215f159a 100644
    SetViewVisibility(toolbar_, toolbar_visible);
    toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
                        height);
-@@ -728,6 +772,81 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -648,33 +693,15 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
+   TRACE_EVENT0("ui", "BrowserViewLayout::LayoutBookmarkAndInfoBars");
+   dialog_top_y_ = top + browser_view_y - kConstrainedWindowOverlap;
+ 
+-  if (bookmark_bar_) {
+-    top = std::max(toolbar_->bounds().bottom(), LayoutBookmarkBar(top));
+-  }
+-
+-  if (delegate_->IsContentsSeparatorEnabled() &&
+-      (toolbar_->GetVisible() || bookmark_bar_) && top > 0) {
+-    SetViewVisibility(contents_separator_, true);
+-    const int separator_height =
+-        contents_separator_->GetPreferredSize().height();
+-    contents_separator_->SetBounds(vertical_layout_rect_.x(), top,
+-                                   vertical_layout_rect_.width(),
+-                                   separator_height);
+-    if (loading_bar_) {
+-      SetViewVisibility(loading_bar_, true);
+-      loading_bar_->SetBounds(vertical_layout_rect_.x(), top - 2,
+-                              vertical_layout_rect_.width(),
+-                              separator_height + 2);
+-      top_container_->ReorderChildView(loading_bar_,
+-                                       top_container_->children().size());
+-    }
+-    top += separator_height;
+-  } else {
+-    SetViewVisibility(contents_separator_, false);
+-    if (loading_bar_) {
+-      SetViewVisibility(loading_bar_, false);
+-    }
+-  }
+-
++  // Dao: Always skip bookmark bar and separator
++  if (bookmark_bar_) {
++    SetViewVisibility(bookmark_bar_, false);
++    bookmark_bar_->SetBounds(0, top, browser_view_->width(), 0);
++  }
++  SetViewVisibility(contents_separator_, false);
++  if (loading_bar_) {
++    SetViewVisibility(loading_bar_, false);
++  }
++
+   return LayoutInfoBar(top);
+ }
+@@ -728,6 +755,88 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -125,6 +170,13 @@ index 46f6be18ac..a0215f159a 100644
 +  auto* command_bar = browser_view_->dao_command_bar();
 +  if (command_bar) {
 +    command_bar->SetBoundsRect(contents_container_bounds);
++  }
++
++  // Dao: Download flyout covers the entire BrowserView for arc animation
++  auto* download_flyout = browser_view_->dao_download_flyout();
++  if (download_flyout) {
++    download_flyout->SetBounds(0, 0, browser_view_->width(),
++                               browser_view_->height());
 +  }
 +
 +  // Dao: Apply rounded corners — only bottom corners on contents container

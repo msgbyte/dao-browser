@@ -8,6 +8,7 @@ export const ENGINE_DIR = path.join(ROOT_DIR, "engine");
 export const PATCHES_DIR = path.join(ROOT_DIR, "src", "patches");
 export const DAO_SRC_DIR = path.join(ROOT_DIR, "src", "dao");
 export const CONFIGS_DIR = path.join(ROOT_DIR, "configs");
+export const BRANDING_DIR = path.join(ROOT_DIR, "branding");
 
 export interface DaoConfig {
   name: string;

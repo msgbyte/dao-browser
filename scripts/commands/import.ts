@@ -7,6 +7,7 @@ import {
   ENGINE_DIR,
   PATCHES_DIR,
   DAO_SRC_DIR,
+  BRANDING_DIR,
   log,
   success,
   warn,
@@ -82,6 +83,44 @@ export const importCommand = new Command("import")
       } else {
         warn("No Dao source directory found at src/dao/");
       }
+    }
+
+    // Step 3: Copy branding assets into Chromium theme directory
+    log("Copying branding assets...");
+    const chromiumThemeDir = path.join(
+      srcDir,
+      "chrome",
+      "app",
+      "theme",
+      "chromium"
+    );
+
+    const brandingMap: Record<string, string> = {
+      "mac/app.icns": "mac/app.icns",
+      "mac/document.icns": "mac/document.icns",
+      "product_logo_16.png": "product_logo_16.png",
+      "product_logo_24.png": "product_logo_24.png",
+      "product_logo_48.png": "product_logo_48.png",
+      "product_logo_64.png": "product_logo_64.png",
+      "product_logo_128.png": "product_logo_128.png",
+      "product_logo_256.png": "product_logo_256.png",
+    };
+
+    let brandingCopied = 0;
+    for (const [src, dest] of Object.entries(brandingMap)) {
+      const srcPath = path.join(BRANDING_DIR, src);
+      if (existsSync(srcPath)) {
+        const destPath = path.join(chromiumThemeDir, dest);
+        fsExtra.copySync(srcPath, destPath, { overwrite: true });
+        success(`Branding: ${src} -> chrome/app/theme/chromium/${dest}`);
+        brandingCopied++;
+      }
+    }
+
+    if (brandingCopied > 0) {
+      log(`Branding: ${brandingCopied} asset(s) copied`);
+    } else {
+      warn("No branding assets found in branding/");
     }
 
     if (failed > 0) {

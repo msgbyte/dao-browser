@@ -38,6 +38,10 @@ class DaoTabListView : public views::View,
 
   void SetNewTabHighlighted(bool highlighted);
 
+  const std::vector<raw_ptr<DaoTabItemView>>& tab_items() const {
+    return tab_items_;
+  }
+
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,

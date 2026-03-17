@@ -40,6 +40,26 @@
 
 namespace dao {
 
+// Custom Textfield that prevents FocusManager from intercepting Tab for focus
+// traversal.  Without this, Tab events never reach HandleKeyEvent() because
+// FocusManager consumes them in its pre-target handler for AdvanceFocus().
+class CommandBarTextfield : public views::Textfield {
+  METADATA_HEADER(CommandBarTextfield, views::Textfield)
+
+ public:
+  CommandBarTextfield() = default;
+
+  bool SkipDefaultKeyEventProcessing(const ui::KeyEvent& event) override {
+    if (event.key_code() == ui::VKEY_TAB) {
+      return true;
+    }
+    return Textfield::SkipDefaultKeyEventProcessing(event);
+  }
+};
+
+BEGIN_METADATA(CommandBarTextfield)
+END_METADATA
+
 BEGIN_METADATA(DaoCommandBarView)
 END_METADATA
 
@@ -62,7 +82,7 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
           views::BoxLayout::Orientation::kHorizontal, gfx::Insets::VH(8, 16)));
 
   // Textfield inside the card
-  auto textfield = std::make_unique<views::Textfield>();
+  auto textfield = std::make_unique<CommandBarTextfield>();
   textfield->SetPlaceholderText(u"Type a URL or search...");
   textfield->set_controller(this);
   textfield->SetBorder(nullptr);
@@ -415,6 +435,10 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
         return true;
       }
     }
+  }
+
+  if (key_event.key_code() == ui::VKEY_TAB) {
+    return true;
   }
 
   return false;

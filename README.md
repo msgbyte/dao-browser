@@ -25,6 +25,8 @@ npm run build     # build Dao Browser
 | `npm run import` | Apply patches and copy Dao code into the Chromium tree |
 | `npm run export` | Generate patch files from modifications in the Chromium tree |
 | `npm run build` | Build Dao Browser (gn gen + autoninja) |
+| `npm run package` | Package into a `.dmg` for distribution |
+| `npm run package:zip` | Package into a `.zip` for distribution |
 | `npm run setup` | download + import (first-time setup) |
 | `npm run rebuild` | import + build (iterative development) |
 
@@ -47,6 +49,49 @@ dao-browser/
 ├── configs/          # GN build arguments
 └── branding/         # Brand assets (icons, logos)
 ```
+
+## Packaging
+
+After building, create a distributable package:
+
+```bash
+npm run package       # creates dist/dao-browser-<version>-mac-arm64.dmg
+npm run package:zip   # creates dist/dao-browser-<version>-mac-arm64.zip
+```
+
+Options:
+- `--zip` — produce a `.zip` instead of `.dmg`
+- `--sign` — apply ad-hoc code signature (off by default)
+
+## Installation (for users)
+
+### macOS
+
+Dao Browser is currently distributed without Apple notarization. macOS Gatekeeper will block the first launch. Use one of the following methods to open it:
+
+**Method 1 — Right-click to open (simplest)**
+
+1. Right-click (or Control-click) on `Dao Browser.app`
+2. Select **Open** from the context menu
+3. In the dialog that appears, click **Open**
+
+You only need to do this once.
+
+**Method 2 — System Settings**
+
+1. Double-click the app (it will be blocked)
+2. Open **System Settings → Privacy & Security**
+3. Scroll down and click **Open Anyway** next to the Dao Browser message
+
+**Method 3 — Terminal (recommended)**
+
+```bash
+xattr -cr /Applications/Dao\ Browser.app
+```
+
+This removes the quarantine attribute entirely. Run it once after each update.
+
+> **Note:** On macOS Sequoia (15+), Method 1 may not work. Use Method 2 or 3 instead.
 
 ## Architecture
 
