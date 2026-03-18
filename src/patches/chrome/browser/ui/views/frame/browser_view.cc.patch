@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..5c968cb78c 100644
+index 76c889780c..8c421a42af 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -119,6 +119,14 @@
+@@ -119,6 +119,15 @@
  #include "chrome/browser/ui/views/frame/browser_view_layout.h"
  #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
  #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
@@ -14,10 +14,11 @@ index 76c889780c..5c968cb78c 100644
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
++#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/native_browser_frame.h"
-@@ -1084,6 +1092,44 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
+@@ -1084,6 +1093,49 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -43,6 +44,11 @@ index 76c889780c..5c968cb78c 100644
 +    dao_download_flyout_ = AddChildView(
 +        std::make_unique<dao::DaoDownloadFlyoutView>());
 +
++    // Dao: Right agent sidebar (hidden by default, toggled via Cmd+I)
++    dao_agent_sidebar_ = AddChildView(
++        std::make_unique<dao::DaoAgentSidebarView>(browser_.get()));
++    dao_agent_sidebar_->SetVisible(false);
++
 +    // Dao: Command bar overlay (last child = highest z-order)
 +    dao_command_bar_ = AddChildView(
 +        std::make_unique<dao::DaoCommandBarView>(browser_.get()));
@@ -62,7 +68,7 @@ index 76c889780c..5c968cb78c 100644
    right_aligned_side_panel_separator_ =
        AddChildView(std::make_unique<ContentsSeparator>());
  
-@@ -1338,6 +1384,11 @@ bool BrowserView::GetTabStripVisible() const {
+@@ -1338,6 +1390,11 @@ bool BrowserView::GetTabStripVisible() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -74,7 +80,7 @@ index 76c889780c..5c968cb78c 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-@@ -2362,6 +2413,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2362,6 +2419,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.

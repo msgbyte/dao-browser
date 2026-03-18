@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..7c396ff980 100644
+index 46f6be18ac..7d4cacbe57 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
-@@ -31,6 +31,15 @@
+@@ -31,6 +31,16 @@
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -14,11 +14,12 @@ index 46f6be18ac..7c396ff980 100644
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
++#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 +#include "ui/compositor/layer.h"
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
-@@ -337,6 +346,54 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+@@ -337,6 +347,54 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -73,7 +74,7 @@ index 46f6be18ac..7c396ff980 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip.
    if (delegate_->ShouldDrawTabStrip()) {
-@@ -638,6 +695,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+@@ -638,6 +696,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
    int browser_view_width = vertical_layout_rect_.width();
    bool toolbar_visible = delegate_->IsToolbarVisible();
    int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
@@ -95,7 +96,7 @@ index 46f6be18ac..7c396ff980 100644
    SetViewVisibility(toolbar_, toolbar_visible);
    toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
                        height);
-@@ -648,32 +720,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
+@@ -648,32 +721,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
    TRACE_EVENT0("ui", "BrowserViewLayout::LayoutBookmarkAndInfoBars");
    dialog_top_y_ = top + browser_view_y - kConstrainedWindowOverlap;
  
@@ -135,7 +136,7 @@ index 46f6be18ac..7c396ff980 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +782,136 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +783,149 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -152,6 +153,19 @@ index 46f6be18ac..7c396ff980 100644
 +        contents_container_bounds.x() + sidebar_width);
 +    contents_container_bounds.set_width(
 +        std::max(0, contents_container_bounds.width() - sidebar_width));
++  }
++
++  // Dao: Layout right agent sidebar
++  auto* dao_agent_sidebar = browser_view_->dao_agent_sidebar();
++  if (dao_agent_sidebar && dao_agent_sidebar->GetVisible()) {
++    int agent_width = dao_agent_sidebar->GetPreferredSize().width();
++    dao_agent_sidebar->SetBounds(
++        contents_container_bounds.right() - agent_width,
++        contents_container_bounds.y(),
++        agent_width,
++        contents_container_bounds.height());
++    contents_container_bounds.set_width(
++        std::max(0, contents_container_bounds.width() - agent_width));
 +  }
 +
 +  // Dao: Apply content insets (top, right, bottom) so the frame color

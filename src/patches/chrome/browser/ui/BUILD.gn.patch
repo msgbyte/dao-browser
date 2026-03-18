@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..0aa4e517c9 100644
+index a66522f120..11758a6362 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -48,6 +48,39 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -48,6 +48,43 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
@@ -10,6 +10,10 @@ index a66522f120..0aa4e517c9 100644
 +    "//dao/browser/ui/views/little_dao/dao_little_dao_controller.h",
 +    "//dao/browser/ui/views/little_dao/dao_little_dao_view.cc",
 +    "//dao/browser/ui/views/little_dao/dao_little_dao_view.h",
++    "//dao/browser/ui/views/dao_agent_sidebar_view.cc",
++    "//dao/browser/ui/views/dao_agent_sidebar_view.h",
++    "//dao/browser/ui/webui/dao_agent_ui.cc",
++    "//dao/browser/ui/webui/dao_agent_ui.h",
 +    "//dao/browser/ui/views/dao_address_bar_view.cc",
 +    "//dao/browser/ui/views/dao_address_bar_view.h",
 +    "//dao/browser/ui/views/dao_colors.h",

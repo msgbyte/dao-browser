@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_download_button_view.h"
 #include "dao/browser/ui/views/sidebar/dao_favorites_view.h"
@@ -259,6 +260,9 @@ void DaoSidebarView::AddedToWidget() {
     GetFocusManager()->RegisterAccelerator(
         ui::Accelerator(ui::VKEY_D, ui::EF_COMMAND_DOWN),
         ui::AcceleratorManager::kHighPriority, this);
+    GetFocusManager()->RegisterAccelerator(
+        ui::Accelerator(ui::VKEY_I, ui::EF_COMMAND_DOWN),
+        ui::AcceleratorManager::kNormalPriority, this);
   }
 }
 
@@ -270,6 +274,8 @@ void DaoSidebarView::RemovedFromWidget() {
         ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN), this);
     GetFocusManager()->UnregisterAccelerator(
         ui::Accelerator(ui::VKEY_D, ui::EF_COMMAND_DOWN), this);
+    GetFocusManager()->UnregisterAccelerator(
+        ui::Accelerator(ui::VKEY_I, ui::EF_COMMAND_DOWN), this);
   }
   View::RemovedFromWidget();
 }
@@ -279,6 +285,16 @@ bool DaoSidebarView::AcceleratorPressed(
   if (accelerator.key_code() == ui::VKEY_D) {
     if (chrome::CanDuplicateTab(browser_)) {
       chrome::DuplicateTab(browser_);
+    }
+    return true;
+  }
+  if (accelerator.key_code() == ui::VKEY_I) {
+    // Cmd+I: toggle right agent sidebar
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser_);
+    if (browser_view && browser_view->dao_agent_sidebar()) {
+      browser_view->dao_agent_sidebar()->Toggle();
+      browser_view->InvalidateLayout();
     }
     return true;
   }
