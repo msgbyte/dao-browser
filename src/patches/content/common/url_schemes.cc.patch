@@ -1,0 +1,37 @@
+--- a/content/common/url_schemes.cc
++++ b/content/common/url_schemes.cc
+@@ -59,6 +59,10 @@ void RegisterContentSchemes(bool should_lock_registry) {
+
+   url::AddStandardScheme(kChromeDevToolsScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeUIScheme, url::SCHEME_WITH_HOST);
++  // Register legacy "chrome" scheme for backward compatibility.
++  // kChromeUIScheme is now "dao", but internal Chromium code still references
++  // "chrome://" URLs that need to parse correctly.
++  url::AddStandardScheme("chrome", url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeUIUntrustedScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeErrorScheme, url::SCHEME_WITH_HOST);
+   for (auto& scheme : schemes.standard_schemes)
+@@ -68,6 +72,7 @@ void RegisterContentSchemes(bool should_lock_registry) {
+
+   schemes.secure_schemes.push_back(kChromeDevToolsScheme);
+   schemes.secure_schemes.push_back(kChromeUIScheme);
++  schemes.secure_schemes.push_back("chrome");
+   schemes.secure_schemes.push_back(kChromeUIUntrustedScheme);
+   schemes.secure_schemes.push_back(kChromeErrorScheme);
+   for (auto& scheme : schemes.secure_schemes)
+@@ -85,6 +90,7 @@ void RegisterContentSchemes(bool should_lock_registry) {
+
+   schemes.cors_enabled_schemes.push_back(kChromeUIScheme);
+   schemes.cors_enabled_schemes.push_back(kChromeUIUntrustedScheme);
++  schemes.cors_enabled_schemes.push_back("chrome");
+   for (auto& scheme : schemes.cors_enabled_schemes)
+     url::AddCorsEnabledScheme(scheme.c_str());
+
+@@ -113,6 +119,7 @@ void RegisterContentSchemes(bool should_lock_registry) {
+   // enabled.
+   schemes.service_worker_schemes.push_back(kChromeUIScheme);
+   schemes.service_worker_schemes.push_back(kChromeUIUntrustedScheme);
++  schemes.service_worker_schemes.push_back("chrome");
+
+   // Prevent future modification of the scheme lists. This is to prevent
+   // accidental creation of data races in the program. Add*Scheme aren't

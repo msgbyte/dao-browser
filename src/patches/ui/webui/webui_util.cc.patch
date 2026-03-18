@@ -1,0 +1,55 @@
+diff --git a/ui/webui/webui_util.cc b/ui/webui/webui_util.cc
+index 02b622db74..acbbb65f1d 100644
+--- a/ui/webui/webui_util.cc
++++ b/ui/webui/webui_util.cc
+@@ -34,7 +34,7 @@ void SetJSModuleDefaults(content::WebUIDataSource* source) {
+   // below. Additional overrides should generally be added for individual
+   // data sources only.
+   source->OverrideContentSecurityPolicy(
+-      network::mojom::CSPDirectiveName::DefaultSrc, "default-src 'self';");
++      network::mojom::CSPDirectiveName::DefaultSrc, "default-src chrome: 'self';");
+   // Allow connecting to chrome://resources for trusted UIs and images from
+   // chrome://image, chrome://theme, chrome://favicon2, chrome://resources and
+   // data URLs.
+@@ -43,12 +43,13 @@ void SetJSModuleDefaults(content::WebUIDataSource* source) {
+   if (scheme == content::kChromeUIScheme) {
+     source->OverrideContentSecurityPolicy(
+         network::mojom::CSPDirectiveName::ConnectSrc,
+-        "connect-src chrome://resources chrome://theme 'self';");
++        "connect-src chrome: dao://resources dao://theme 'self';");
+     source->OverrideContentSecurityPolicy(
+         network::mojom::CSPDirectiveName::ImgSrc,
+-        "img-src chrome://resources chrome://theme chrome://image "
+-        "chrome://favicon2 chrome://app-icon chrome://extension-icon "
+-        "chrome://fileicon "
++        "img-src chrome: "
++        "dao://resources dao://theme dao://image "
++        "dao://favicon2 dao://app-icon dao://extension-icon "
++        "dao://fileicon "
+ #if BUILDFLAG(IS_CHROMEOS)
+         "chrome://chromeos-asset chrome://userimage "
+ #endif
+@@ -59,18 +60,20 @@ void SetJSModuleDefaults(content::WebUIDataSource* source) {
+   // for all UIs.
+   source->OverrideContentSecurityPolicy(
+       network::mojom::CSPDirectiveName::ScriptSrc,
+-      base::StringPrintf("script-src %s://resources %s://webui-test 'self';",
++      base::StringPrintf("script-src chrome: %s://resources %s://webui-test "
++                         "'self';",
+                          scheme.c_str(), scheme.c_str()));
+   // Allow loading fonts from //resources.
+   source->OverrideContentSecurityPolicy(
+       network::mojom::CSPDirectiveName::FontSrc,
+-      base::StringPrintf("font-src %s://resources 'self';", scheme.c_str()));
++      base::StringPrintf("font-src chrome: %s://resources 'self';",
++                         scheme.c_str()));
+   // unsafe-inline is required for Polymer. Allow styles to be imported from
+   // //resources and //theme.
+   source->OverrideContentSecurityPolicy(
+       network::mojom::CSPDirectiveName::StyleSrc,
+       base::StringPrintf(
+-          "style-src %s://resources %s://theme 'self' 'unsafe-inline';",
++          "style-src chrome: %s://resources %s://theme 'self' 'unsafe-inline';",
+           scheme.c_str(), scheme.c_str()));
+ 
+   source->UseStringsJs();

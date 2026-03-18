@@ -1,0 +1,22 @@
+diff --git a/content/browser/webui/url_data_manager_backend.cc b/content/browser/webui/url_data_manager_backend.cc
+index 3f732a5a21..d5b13453f7 100644
+--- a/content/browser/webui/url_data_manager_backend.cc
++++ b/content/browser/webui/url_data_manager_backend.cc
+@@ -69,6 +69,9 @@ bool g_disallow_webui_scheme_caching_for_testing = false;
+ std::vector<std::string> GetWebUISchemesSlow() {
+   std::vector<std::string> schemes;
+   schemes.emplace_back(kChromeUIScheme);
++  // Register legacy "chrome" scheme so that chrome://resources/ etc. still
++  // load correctly (TS/JS source files reference chrome:// at build time).
++  schemes.emplace_back("chrome");
+   schemes.emplace_back(kChromeUIUntrustedScheme);
+   GetContentClient()->browser()->GetAdditionalWebUISchemes(&schemes);
+   return schemes;
+@@ -262,6 +265,7 @@ scoped_refptr<net::HttpResponseHeaders> URLDataManagerBackend::GetHeaders(
+ bool URLDataManagerBackend::CheckURLIsValid(const GURL& url) {
+   std::vector<std::string> additional_schemes;
+   DCHECK(url.SchemeIs(kChromeUIScheme) ||
++         url.SchemeIs("chrome") ||
+          url.SchemeIs(kChromeUIUntrustedScheme) ||
+          (GetContentClient()->browser()->GetAdditionalWebUISchemes(
+               &additional_schemes),

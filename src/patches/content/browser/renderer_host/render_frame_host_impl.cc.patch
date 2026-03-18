@@ -1,0 +1,19 @@
+diff --git a/content/browser/renderer_host/render_frame_host_impl.cc b/content/browser/renderer_host/render_frame_host_impl.cc
+index 622142dcf6..003a2e418f 100644
+--- a/content/browser/renderer_host/render_frame_host_impl.cc
++++ b/content/browser/renderer_host/render_frame_host_impl.cc
+@@ -12104,6 +12104,14 @@ void RenderFrameHostImpl::CommitNavigation(
+         // access to the network loader as it might require it.
+         subresource_loader_factories->pending_scheme_specific_factories()
+             .emplace(effective_scheme, std::move(factory_for_webui));
++        // Register a factory for the legacy "chrome" scheme so that
++        // chrome://resources/ and chrome://theme/ subresource loads work from
++        // dao:// pages (compiled WebUI resources reference chrome:// URLs).
++        if (effective_scheme == kChromeUIScheme) {
++          subresource_loader_factories->pending_scheme_specific_factories()
++              .emplace("chrome",
++                       CreateWebUIURLLoaderFactory(this, "chrome", {}));
++        }
+       }
+     }
+ 

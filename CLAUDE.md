@@ -69,6 +69,14 @@ Patches inject Dao components into the Chromium frame:
 - Build outputs to `engine/src/out/dao/`
 - Post-build: auto-fixes lld duplicate dylib issue on macOS component builds
 
+## Design Language
+
+- **Color**: Dark purple-gray sidebar `(40,32,48)`. All UI elements use white at varying opacity for hierarchy (text 100%/59%/39%, backgrounds 14%, separators 12%). Accent color is purple `(140,100,220)` for active states only. Content area dynamically adopts the web page's background color, switching between light/dark adaptive text and separators based on luminance.
+- **Shape**: Content area has 10px rounded corners + 6-step progressive soft shadow, with 6–8px margin from the sidebar. Corner radius hierarchy: command bar 16px > URL pill 14px > tabs/buttons 12px > content 10px > favorite icons 8px.
+- **Interaction**: Uniform white 6% InkDrop ripple, FocusRing disabled globally. Spotlight-style command bar with translucent scrim + centered floating panel + ghost text completion. Hover reveals close buttons and background highlights; keyboard-first (arrow keys to select, Tab to complete, Esc to dismiss).
+- **Typography**: `system-ui` / `sans-serif`, 12–16px range. Titles use SemiBold, everything else Normal.
+- **Philosophy**: Dark minimalism + Arc-style vertical tabs, maximizing content immersion with a purple brand identity.
+
 ## Code Conventions
 
 - All source code, comments, and commit messages must be in **English**

@@ -8,12 +8,14 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/views/view.h"
 
 class Browser;
 class TabStripModel;
 
 namespace views {
+class Label;
 class LabelButton;
 }  // namespace views
 
@@ -57,17 +59,21 @@ class DaoLittleDaoView : public views::View,
   // views::View:
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
+  void Layout(PassKey) override;
+  bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
 
  private:
   void UpdateURLDisplay();
   void UpdateBackgroundColor();
   void ObserveActiveWebContents();
   void ShowCommandBar();
+  void OpenInDao();
 
   raw_ptr<Browser> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   raw_ptr<views::LabelButton> url_display_ = nullptr;
   raw_ptr<views::LabelButton> open_button_ = nullptr;
+  raw_ptr<views::Label> shortcut_label_ = nullptr;
 };
 
 }  // namespace dao

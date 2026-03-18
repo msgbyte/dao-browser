@@ -1,0 +1,22 @@
+diff --git a/content/public/browser/url_data_source.cc b/content/public/browser/url_data_source.cc
+index 577a8e77b2..1471053840 100644
+--- a/content/public/browser/url_data_source.cc
++++ b/content/public/browser/url_data_source.cc
+@@ -76,7 +76,7 @@ std::string URLDataSource::GetContentSecurityPolicy(
+       // specific pages that need it, see context http://crbug.com/525224.
+       return IsChromeUntrustedDataSource(this)
+                  ? "script-src chrome-untrusted://resources 'self';"
+-                 : "script-src chrome://resources 'self';";
++                 : "script-src chrome: dao://resources 'self';";
+     case network::mojom::CSPDirectiveName::FrameAncestors:
+       return "frame-ancestors 'none';";
+     case network::mojom::CSPDirectiveName::RequireTrustedTypesFor:
+@@ -133,7 +133,7 @@ bool URLDataSource::ShouldServiceRequest(const GURL& url,
+                                          BrowserContext* browser_context,
+                                          int render_process_id) {
+   return url.SchemeIs(kChromeDevToolsScheme) || url.SchemeIs(kChromeUIScheme) ||
+-         url.SchemeIs(kChromeUIUntrustedScheme);
++         url.SchemeIs("chrome") || url.SchemeIs(kChromeUIUntrustedScheme);
+ }
+ 
+ bool URLDataSource::ShouldServeMimeTypeAsContentTypeHeader() {

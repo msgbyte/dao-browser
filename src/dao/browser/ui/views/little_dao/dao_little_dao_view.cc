@@ -17,8 +17,10 @@
 #include "ui/compositor/layer.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
 
@@ -81,20 +83,33 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   views::InstallRoundRectHighlightPathGenerator(
       url_display_, gfx::Insets(), kDisplayCornerRadius);
 
-  // "Open in Dao" button — subtle rounded style
+  // "Open in Dao ⌘O" button
   open_button_ = AddChildView(std::make_unique<views::LabelButton>(
-      base::BindRepeating(
-          [](Browser* b) {
-            DaoLittleDaoController::TransferToMainBrowser(b);
-          },
-          browser_),
+      base::BindRepeating(&DaoLittleDaoView::OpenInDao,
+                          base::Unretained(this)),
       u"Open in Dao"));
   open_button_->SetEnabledTextColors(kTextPrimary);
   open_button_->SetBackground(views::CreateRoundedRectBackground(
       kButtonBackground, kButtonCornerRadius));
   open_button_->SetBorder(
-      views::CreateEmptyBorder(gfx::Insets::TLBR(5, 14, 5, 14)));
+      views::CreateEmptyBorder(gfx::Insets::TLBR(5, 14, 5, 10)));
   open_button_->SetAccessibleName(u"Open in Dao");
+
+  // Shortcut hint label — added as child of button, manually positioned
+  // in Layout() since LabelButton's internal layout ignores extra children.
+  shortcut_label_ =
+      open_button_->AddChildView(std::make_unique<views::Label>(u"\u2318+O"));
+  shortcut_label_->SetEnabledColor(SkColorSetARGB(100, 255, 255, 255));
+
+  // Expand button preferred size to include room for the shortcut label
+  gfx::Size btn_pref = open_button_->GetPreferredSize();
+  gfx::Size sc_pref = shortcut_label_->GetPreferredSize();
+  open_button_->SetPreferredSize(
+      gfx::Size(btn_pref.width() + sc_pref.width() + 6,
+                btn_pref.height()));
+
+  // Register Cmd+O accelerator
+  AddAccelerator(ui::Accelerator(ui::VKEY_O, ui::EF_COMMAND_DOWN));
 
   tab_strip_model_->AddObserver(this);
   ObserveActiveWebContents();
@@ -154,6 +169,21 @@ void DaoLittleDaoView::OnBackgroundColorChanged() {
 gfx::Size DaoLittleDaoView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
   return gfx::Size(0, kBarHeight);
+}
+
+void DaoLittleDaoView::Layout(PassKey) {
+  // Run the FlexLayout on this view's children first.
+  if (GetLayoutManager()) {
+    GetLayoutManager()->Layout(this);
+  }
+  // Manually position the shortcut label inside open_button_ since
+  // LabelButton's internal layout only handles its own label+image.
+  if (shortcut_label_ && open_button_ && open_button_->width() > 0) {
+    gfx::Size pref = shortcut_label_->GetPreferredSize();
+    int x = open_button_->width() - pref.width() - 10;
+    int y = (open_button_->height() - pref.height()) / 2;
+    shortcut_label_->SetBoundsRect(gfx::Rect(x, y, pref.width(), pref.height()));
+  }
 }
 
 void DaoLittleDaoView::UpdateURLDisplay() {
@@ -221,6 +251,12 @@ void DaoLittleDaoView::UpdateBackgroundColor() {
         kButtonCornerRadius));
   }
 
+  if (shortcut_label_) {
+    shortcut_label_->SetEnabledColor(
+        is_dark ? SkColorSetARGB(100, 255, 255, 255)
+                : SkColorSetARGB(80, 0, 0, 0));
+  }
+
   // Adaptive bottom separator
   SkColor separator_color = is_dark
       ? SkColorSetARGB(25, 255, 255, 255)
@@ -248,6 +284,20 @@ void DaoLittleDaoView::ShowCommandBar() {
   if (command_bar) {
     command_bar->Show();
   }
+}
+
+void DaoLittleDaoView::OpenInDao() {
+  DaoLittleDaoController::TransferToMainBrowser(browser_);
+}
+
+bool DaoLittleDaoView::AcceleratorPressed(
+    const ui::Accelerator& accelerator) {
+  if (accelerator.key_code() == ui::VKEY_O &&
+      accelerator.IsCmdDown()) {
+    OpenInDao();
+    return true;
+  }
+  return false;
 }
 
 }  // namespace dao

@@ -1,0 +1,1236 @@
+diff --git a/chrome/app/chromeos_strings.grdp b/chrome/app/chromeos_strings.grdp
+index d23c8e22d9..adfb8154f7 100644
+--- a/chrome/app/chromeos_strings.grdp
++++ b/chrome/app/chromeos_strings.grdp
+@@ -3102,7 +3102,7 @@
+     Browse faster and use less data with Lite mode. Click to learn more.
+   </message>
+ 
+-  <!-- chrome://mobilesetup strings -->
++  <!-- dao://mobilesetup strings -->
+   <message name="IDS_MOBILE_SETUP_TITLE" desc="ChromeOS mobile device activation page title">
+     Mobile data service management
+   </message>
+@@ -3455,7 +3455,7 @@
+     Learn more.
+   </message>
+ 
+-  <!-- About network UI (chrome://network) display strings (for developer
++  <!-- About network UI (dao://network) display strings (for developer
+        debugging) -->
+   <message name="IDS_NETWORK_UI_TITLE" desc="Title of the page">
+     Network
+@@ -3485,7 +3485,7 @@
+     WiFi Direct
+   </message>
+   <message name="IDS_NETWORK_UI_AUTO_REFRESH" desc="Instructions for how to auto-refresh the page">
+-    Add a query param in URL to auto-refresh the page: chrome://network/?refresh=&lt;sec&gt;
++    Add a query param in URL to auto-refresh the page: dao://network/?refresh=&lt;sec&gt;
+   </message>
+   <message name="IDS_NETWORK_UI_REFRESH" desc="Button label for refreshing networks">
+     Refresh Networks
+@@ -3508,7 +3508,7 @@
+   <message name="IDS_NETWORK_UI_FORMAT_SHILL" desc="Label in network property format dropdown for Shill properties">
+     Shill
+   </message>
+-  <message name="IDS_NETWORK_UI_DHCP_HOSTNAME" desc="Label for the DHCP Hostname field in the chrome://network debugging UI.">
++  <message name="IDS_NETWORK_UI_DHCP_HOSTNAME" desc="Label for the DHCP Hostname field in the dao://network debugging UI.">
+     DHCP Hostname
+   </message>
+   <message name="IDS_NETWORK_UI_GLOBAL_POLICY" desc="Label for global policy properties">
+@@ -3571,7 +3571,7 @@
+   <message name="IDS_NETWORK_UI_IMPORT_ONC_BUTTON_TEXT" desc="Text for button which, when pressed, selects and imports an ONC file for network configuration.">
+     Import ONC File
+   </message>
+-  <message name="IDS_NETWORK_UI_NETWORK_LOGS_DESCRIPTION" desc="Text describing the section for storing network logs in the chrome://network debugging UI.">
++  <message name="IDS_NETWORK_UI_NETWORK_LOGS_DESCRIPTION" desc="Text describing the section for storing network logs in the dao://network debugging UI.">
+     Store system logs to the Downloads directory.
+   </message>
+   <message name="IDS_NETWORK_UI_NETWORK_LOGS_SYSTEM_LOGS" desc="Text describing the checkbox option for storing the system logs file sent in feedback reports.">
+@@ -3683,8 +3683,8 @@
+     Refresh WiFi Direct Clients Info
+   </message>
+ 
+-  <message name="IDS_DEVICE_LOG_LINK_TEXT" desc="Message preceeding link to chrome://device-log">
+-    To view network UI logs, see: <ph name="DEVICE_LOG_LINK">&lt;a href="chrome://device-log"&gt;chrome://device-log&lt;/a&gt;</ph>
++  <message name="IDS_DEVICE_LOG_LINK_TEXT" desc="Message preceeding link to dao://device-log">
++    To view network UI logs, see: <ph name="DEVICE_LOG_LINK">&lt;a href="dao://device-log"&gt;dao://device-log&lt;/a&gt;</ph>
+   </message>
+ 
+   <!-- Device health display strings-->
+@@ -4553,7 +4553,7 @@
+   </message>
+   <message name="IDS_HW_DATA_COLLECTION_CONTENT" desc="Content of the hardware data collection notice screen.">
+     <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>To provide the best experience, <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> collects hardware data about devices and shares it with Google to determine which updates should be delivered. Optionally, you can allow Google to use this data for additional purposes like support and improvements to the <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> experience and service.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
+-    <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can log in on this device and view fields listed as chromeosflex_ in chrome://system to see the data sent to Google for update filtering, as well as any other instances where you choose to share data with Google.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
++    <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can log in on this device and view fields listed as chromeosflex_ in dao://system to see the data sent to Google for update filtering, as well as any other instances where you choose to share data with Google.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
+     <ph name="BEGIN_PARAGRAPH3">&lt;p&gt;</ph>For more details on data <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> may share with Google, and how it is used visit g.co/flex/HWDataCollection.<ph name="END_PARAGRAPH3">&lt;/p&gt;</ph>
+   </message>
+   <message name="IDS_HW_DATA_COLLECTION_USAGE_INFO" desc="Checkbox description for additional hardware data usage. This message is followed by a 'Learn more' link.">
+@@ -5026,7 +5026,7 @@
+     Couldn’t restore Linux backup
+   </message>
+   <message name="IDS_CROSTINI_UPGRADER_RESTORE_ERROR_MESSAGE" desc="Text shown by the Crostini upgrader when restoring from backup fails fails.">
+-    Linux may not have enough disk space. You can increase your Linux disk space and try to restore again in <ph name="LINK_START">&lt;a href="chrome://os-settings/crostini/details"&gt;</ph>Settings<ph name="LINK_END">&lt;/a&gt;</ph>.
++    Linux may not have enough disk space. You can increase your Linux disk space and try to restore again in <ph name="LINK_START">&lt;a href="dao://os-settings/crostini/details"&gt;</ph>Settings<ph name="LINK_END">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_CROSTINI_UPGRADER_RESTORE_SUCCEEDED_TITLE" desc="Title of the Crostini upgrader when the upgrade failed but the restore of a backup completed successfully.">
+     Linux backup restored
+@@ -5796,7 +5796,7 @@
+     Looking for file shares
+   </message>
+ 
+-  <!-- Strings for the VM status page (chrome://vm). -->
++  <!-- Strings for the VM status page (dao://vm). -->
+   <message name="IDS_VM_STATUS_INDEX_PAGE_TITLE" desc="The title for the VM (virtual machine) status index page. This string is used both for the heading and the page title.">
+     VM status
+   </message>
+@@ -6261,10 +6261,10 @@ Permissions you've already given to apps may apply to this account. You can cont
+   <message name="IDS_BOREALIS_DISALLOWED_ADMIN" desc="Message shown to the user when 'Steam for Chromebook' is blocked by their admin. The placeholders are the names of policy settings.">
+     Steam for Chromebook (Beta) is blocked by your administrator. Your administrator needs to turn on these policies:
+   </message>
+-  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when 'Steam for Chromebook' doesn't have the correct chrome://flags setting enabled">
++  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when 'Steam for Chromebook' doesn't have the correct dao://flags setting enabled">
+     You need to turn on the “Borealis Enabled” flag
+   </message>
+-  <message name="IDS_BOREALIS_DISALLOWED_FLAG_BUTTON" desc="Button label used to bring up the user's chrome://flags settings. Shown when users try to install borealis but are unable to due to their flags.">
++  <message name="IDS_BOREALIS_DISALLOWED_FLAG_BUTTON" desc="Button label used to bring up the user's dao://flags settings. Shown when users try to install borealis but are unable to due to their flags.">
+     ChromeOS flags
+   </message>
+   <message name="IDS_BOREALIS_INSTALLER_APP_NAME" desc="Name of a utility which is used to install the Steam application (Steam is a video game distribution service)">
+diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
+index b645fbd12d..620d231194 100644
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -719,49 +719,49 @@ Chromium is unable to recover your settings.
+         <ph name="FILE_NAME">$1<ex>malware.exe</ex></ph> is dangerous, so Chromium has blocked it.
+       </message>
+       <message name="IDS_BLOCK_REASON_PROMPT_FOR_SCANNING"
+-         desc="Message shown to the user on chrome://downloads page to explain that this download is recommended to be scanned.">
++         desc="Message shown to the user on dao://downloads page to explain that this download is recommended to be scanned.">
+         Chromium recommends scanning this file because it may be dangerous.
+       </message>
+ 
+-      <!-- chrome://downloads page dangerous file description strings -->
++      <!-- dao://downloads page dangerous file description strings -->
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_FILETYPE"
+-               desc="On the chrome://downloads page, the description shown for a blocked file with a dangerous filetype.">
++               desc="On the dao://downloads page, the description shown for a blocked file with a dangerous filetype.">
+         Chromium blocked this download because the file type isn't commonly downloaded and it may be dangerous
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is dangerous.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is dangerous.">
+         Chromium blocked this download because the file is dangerous
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_COOKIE_THEFT"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is dangerous because of cookie theft.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is dangerous because of cookie theft.">
+         Chromium blocked this download because the file can harm your personal and social network accounts
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_COOKIE_THEFT_AND_ACCOUNT"
+-               desc="On the chrome://downloads page, the description with account info shown for a blocked file that is dangerous because of cookie theft.">
++               desc="On the dao://downloads page, the description with account info shown for a blocked file that is dangerous because of cookie theft.">
+         Chromium blocked this download because the file can harm your personal and social network accounts, including <ph name="USER_EMAIL">$1<ex>john@google.com</ex></ph>
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNCOMMON"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is uncommon.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is uncommon.">
+         Chromium blocked this download because the file isn't commonly downloaded and it may be dangerous
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNCOMMON_SUSPICIOUS_ARCHIVE"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is suspicious archive.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is suspicious archive.">
+         Chromium blocked this download because the archive file includes other files that may hide malware
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_POTENTIALLY_UNWANTED"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is potentially unwanted.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is potentially unwanted.">
+         Chromium blocked this download because the file is deceptive and may make unexpected changes to your device
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_INSECURE"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is insecure.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is insecure.">
+         Chromium blocked this download because the site isn't using a secure connection and the file may have been tampered with
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNVERIFIED_NO_SAFE_BROWSING"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that could not be verified because Safe Browsing is off.">
++               desc="On the dao://downloads page, the description shown for a blocked file that could not be verified because Safe Browsing is off.">
+         Chromium blocked this download because you turned Safe Browsing off and the file can't be verified
+       </message>
+ 
+-      <!-- chrome://downloads page bypass dangerous download warning prompt-->
++      <!-- dao://downloads page bypass dangerous download warning prompt-->
+       <message name="IDS_DOWNLOAD_WARNING_BYPASS_PROMPT_LEARN_MORE_LINK"
+                desc="On the downloads page, the label for the link to the help center in the prompt to bypass a dangerous download warning.">
+         Learn why Chromium blocks some files
+@@ -863,7 +863,7 @@ Chromium is unable to recover your settings.
+         This extension hasn't published privacy practices, such as how it collects and uses data. Chromium recommends that you remove it.
+       </message>
+ 
+-      <!-- chrome://extensions page -->
++      <!-- dao://extensions page -->
+   <message name="IDS_EXTENSIONS_SC_DESCRIPTION" desc="Detailed message displayed in the Safety Check description section.">
+     {NUM_EXTENSIONS, plural,
+      =1 {Chromium recommends that you remove it}
+@@ -1914,7 +1914,7 @@ Chromium is unable to recover your settings.
+         </message>
+       </if>
+ 
+-      <!-- Welcome page (chrome://welcome) strings -->
++      <!-- Welcome page (dao://welcome) strings -->
+       <if expr="not is_chromeos and not is_android">
+         <message name="IDS_WELCOME_HEADER" desc="A message which will appear as the header on the Welcome UI if the user has never run Chromium before.">
+           Welcome to Chromium
+diff --git a/chrome/app/extensions_strings.grdp b/chrome/app/extensions_strings.grdp
+index a1bdf060a1..68b7179b44 100644
+--- a/chrome/app/extensions_strings.grdp
++++ b/chrome/app/extensions_strings.grdp
+@@ -43,13 +43,13 @@
+   <message name="IDS_EXTENSIONS_INSTALL_WARNINGS" desc="The text which says that an extension has warnings when it was installed.">
+     There were warnings when trying to install this extension:
+   </message>
+-  <message name="IDS_EXTENSIONS_LOG_LEVEL_ERROR" desc="Alt-text indicating a high severity level for the error icon in the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_LOG_LEVEL_ERROR" desc="Alt-text indicating a high severity level for the error icon in the dao://extensions page.">
+     Error
+   </message>
+-  <message name="IDS_EXTENSIONS_LOG_LEVEL_INFO" desc="Alt-text indicating a low severity level for the error icon in the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_LOG_LEVEL_INFO" desc="Alt-text indicating a low severity level for the error icon in the dao://extensions page.">
+     Log
+   </message>
+-  <message name="IDS_EXTENSIONS_LOG_LEVEL_WARN" desc="Alt-text indicating a medium severity level for the error icon in the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_LOG_LEVEL_WARN" desc="Alt-text indicating a medium severity level for the error icon in the dao://extensions page.">
+     Warning
+   </message>
+   <message name="IDS_EXTENSIONS_PATH" desc="The label in front of the extension load path.">
+@@ -424,10 +424,10 @@
+   <message name="IDS_EXTENSIONS_PACK_DIALOG_CONFIRM_BUTTON" desc="The label of the button to confirm the action to pack an extension.">
+     Pack extension
+   </message>
+-  <message name="IDS_EXTENSIONS_TOOLBAR_TITLE" desc="The text displayed in the toolbar of the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_TOOLBAR_TITLE" desc="The text displayed in the toolbar of the dao://extensions page.">
+     Extensions
+   </message>
+-  <message name="IDS_EXTENSIONS_SEARCH" desc="The text displayed in the search box on the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_SEARCH" desc="The text displayed in the search box on the dao://extensions page.">
+     Search extensions
+   </message>
+   <message name="IDS_EXTENSIONS_SITE_PERMISSIONS" desc="The text for the link to manage site permissions for extensions.">
+@@ -559,7 +559,7 @@
+   <message name="IDS_EXTENSIONS_SUBPAGE_BUTTON" is_accessibility_with_no_ui="true" desc="Accessibility description for a button navigating the user from an extension's settings page to its settings subpage.">
+     Subpage button
+   </message>
+-  <message name="IDS_EXTENSIONS_SECTION_HEADER" desc="The label for the extensions section in chrome://extensions.">
++  <message name="IDS_EXTENSIONS_SECTION_HEADER" desc="The label for the extensions section in dao://extensions.">
+     All Extensions
+   </message>
+   <!-- Extension Safety Check Review Panel strings -->
+diff --git a/chrome/app/generated_resources.grd b/chrome/app/generated_resources.grd
+index 4f78acb34f..52c5b65563 100644
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -872,7 +872,7 @@ are declared in tools/grit/grit_args.gni.
+           <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD" desc="This is a context menu entry in the passwords submenu. It triggers the password selection bubble.">
+             Select password
+           </message>
+-          <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS" desc="This is a context menu entry. It opens chrome://password-manager. It can be either in the context menu (for non-syncing users) or in the passwords submenu (for syncing users).">
++          <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS" desc="This is a context menu entry. It opens dao://password-manager. It can be either in the context menu (for non-syncing users) or in the passwords submenu (for syncing users).">
+             Import passwords
+           </message>
+           <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD" desc="This is a context menu entry in the passwords submenu. It triggers password generation.">
+@@ -1194,7 +1194,7 @@ are declared in tools/grit/grit_args.gni.
+           <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD" desc="In Title Case: This is a context menu entry in the passwords submenu. It triggers the password selection bubble.">
+             Select Password
+           </message>
+-          <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS" desc="In Title Case: This is a context menu entry. It opens chrome://password-manager. It can be either in the context menu (for non-syncing users) or in the passwords submenu (for syncing users).">
++          <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS" desc="In Title Case: This is a context menu entry. It opens dao://password-manager. It can be either in the context menu (for non-syncing users) or in the passwords submenu (for syncing users).">
+             Import Passwords
+           </message>
+           <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD" desc="In Title Case: This is a context menu entry in the passwords submenu. It triggers password generation.">
+@@ -1746,7 +1746,7 @@ are declared in tools/grit/grit_args.gni.
+         <message name="IDS_EXTENSIONS_SUBMENU" desc="The extensions menu in the app menu (title case).">
+           &amp;Extensions
+         </message>
+-        <message name="IDS_EXTENSIONS_SUBMENU_MANAGE_EXTENSIONS_ITEM" desc="The text for the link in the extensions menu, in the app menu, to visit chrome://extensions to view all extensions installed (title case).">
++        <message name="IDS_EXTENSIONS_SUBMENU_MANAGE_EXTENSIONS_ITEM" desc="The text for the link in the extensions menu, in the app menu, to visit dao://extensions to view all extensions installed (title case).">
+           Manage Extensions
+         </message>
+         <message name="IDS_EXTENSIONS_SUBMENU_CHROME_WEBSTORE_ITEM" desc="The text for the link in the extensions menu, in the app menu, to visit the Chrome Web Store to get more extensions (title case).">
+@@ -1802,7 +1802,7 @@ are declared in tools/grit/grit_args.gni.
+         <message name="IDS_EXTENSIONS_SUBMENU" desc="In Title Case: The extensions menu in the app menu.">
+           &amp;Extensions
+         </message>
+-        <message name="IDS_EXTENSIONS_SUBMENU_MANAGE_EXTENSIONS_ITEM" desc="In Title Case: The text for the link in the extensions menu, in the app menu, to visit chrome://extensions to view all extensions installed.">
++        <message name="IDS_EXTENSIONS_SUBMENU_MANAGE_EXTENSIONS_ITEM" desc="In Title Case: The text for the link in the extensions menu, in the app menu, to visit dao://extensions to view all extensions installed.">
+           Manage Extensions
+         </message>
+         <message name="IDS_EXTENSIONS_SUBMENU_CHROME_WEBSTORE_ITEM" desc="In Title Case: The text for the link in the extensions menu, in the app menu, to visit the Chrome Web Store to get more extensions.">
+@@ -2290,57 +2290,57 @@ are declared in tools/grit/grit_args.gni.
+         <ph name="FILE_NAME">$1<ex>bla.exe</ex></ph> may be dangerous. Send to Google for scanning?
+       </message>
+       <message name="IDS_BLOCK_REASON_UNCOMMON_DOWNLOAD_IN_ADVANCED_PROTECTION"
+-         desc="Message shown to the user on chrome://downloads page to explain that this download is blocked because it is uncommon. This variant is shown when the user is enrolled in the Advanced Protection program.">
++         desc="Message shown to the user on dao://downloads page to explain that this download is blocked because it is uncommon. This variant is shown when the user is enrolled in the Advanced Protection program.">
+         This file was blocked by Advanced Protection.
+       </message>
+       <message name="IDS_BLOCK_REASON_DEEP_SCANNING_UPDATED"
+-          desc="Message shown on chrome://downloads when a download is being scanned">
++          desc="Message shown on dao://downloads when a download is being scanned">
+         This file might be a virus or malware. You can send it to Google to check if it's unsafe.
+       </message>
+       <message name="IDS_BLOCK_REASON_DEEP_SCANNING_SECOND_UPDATED"
+-          desc="Second line of the message shown on chrome://downloads when a download is being scanned. Follows IDS_BLOCK_REASON_DEEP_SCANNING_UPDATED">
++          desc="Second line of the message shown on dao://downloads when a download is being scanned. Follows IDS_BLOCK_REASON_DEEP_SCANNING_UPDATED">
+         Scanning for malware...
+       </message>
+       <message name="IDS_BLOCK_REASON_PROMPT_FOR_SCANNING_UPDATED"
+-          desc="Message shown to the user on chrome://downloads page to explain that this download is recommended to be scanned.">
++          desc="Message shown to the user on dao://downloads page to explain that this download is recommended to be scanned.">
+         This file might be a virus or malware. You can send it to Google to check if it's unsafe.
+       </message>
+       <message name="IDS_BLOCK_REASON_PROMPT_FOR_LOCAL_PASSWORD_SCANNING"
+-          desc="Message shown to the user on chrome://downloads page to explain that this download is recommended to be scanned.">
++          desc="Message shown to the user on dao://downloads page to explain that this download is recommended to be scanned.">
+         This file may be dangerous
+       </message>
+       <message name="IDS_DEEP_SCANNED_OPENED_DANGEROUS_DESCRIPTION"
+-        desc="Message shown to the user on chrome://downloads page to explain this this download was deep scanned, and found to be malicious.">
++        desc="Message shown to the user on dao://downloads page to explain this this download was deep scanned, and found to be malicious.">
+         This file is dangerous
+       </message>
+-      <message name="IDS_BLOCK_REASON_SENSITIVE_CONTENT_WARNING" desc="Message shown to the user on chrome://downloads page to explain this download is showing a warning because it contains sensitive content">
++      <message name="IDS_BLOCK_REASON_SENSITIVE_CONTENT_WARNING" desc="Message shown to the user on dao://downloads page to explain this download is showing a warning because it contains sensitive content">
+         Your organization's policies aren't met
+       </message>
+-      <message name="IDS_SENSITIVE_CONTENT_BLOCKED_DESCRIPTION" desc="Message shown to the user on chrome://downloads page to explain this download is blocked because it contains sensitive content">
++      <message name="IDS_SENSITIVE_CONTENT_BLOCKED_DESCRIPTION" desc="Message shown to the user on dao://downloads page to explain this download is blocked because it contains sensitive content">
+         Your organization's policies aren't met
+       </message>
+-      <message name="IDS_BLOCKED_TOO_LARGE_DESCRIPTION" desc="Message shown to the user on chrome://downloads page to explain this download is blocked because it is too large for deep scanning">
++      <message name="IDS_BLOCKED_TOO_LARGE_DESCRIPTION" desc="Message shown to the user on dao://downloads page to explain this download is blocked because it is too large for deep scanning">
+         This file is too big for a security check. You can open files up to 50 MB.
+       </message>
+-      <message name="IDS_BLOCKED_PASSWORD_PROTECTED_DESCRIPTION" desc="Message shown to the user on chrome://downloads page to explain this download is blocked because it is password protected">
++      <message name="IDS_BLOCKED_PASSWORD_PROTECTED_DESCRIPTION" desc="Message shown to the user on dao://downloads page to explain this download is blocked because it is password protected">
+         This file is encrypted. Ask its owner to decrypt.
+       </message>
+       <message name="IDS_DEEP_SCANNED_FAILED_DESCRIPTION"
+-        desc="Message shown to the user on chrome://downloads page to explain this this download was deep scanned, but the scan failed.">
++        desc="Message shown to the user on dao://downloads page to explain this this download was deep scanned, but the scan failed.">
+         Scan failed. This file might be a virus or malware.
+       </message>
+ 
+       <message name="IDS_DOWNLOADS_TOAST_DELETED_FROM_HISTORY_STILL_ON_DEVICE"
+-               desc="On the chrome://downloads page, the text for the toast shown when the user removes a download from the download history. This is for normal files, which remain on the user's device.">
++               desc="On the dao://downloads page, the text for the toast shown when the user removes a download from the download history. This is for normal files, which remain on the user's device.">
+         Deleted <ph name="FILE_NAME">$1<ex>file.txt</ex></ph> from download history, but it's still on your device
+       </message>
+       <message name="IDS_DOWNLOADS_TOAST_DELETED_FROM_HISTORY"
+-               desc="On the chrome://downloads page, the text for the toast shown when the user removes a download from the download history. This is for blocked or deleted files, which do not remain on the user's device.">
++               desc="On the dao://downloads page, the text for the toast shown when the user removes a download from the download history. This is for blocked or deleted files, which do not remain on the user's device.">
+         Deleted <ph name="FILE_NAME">$1<ex>file.txt</ex></ph> from download history
+       </message>
+ 
+       <message name="IDS_DOWNLOADS_TOAST_COPIED_DOWNLOAD_LINK"
+-               desc="On the chrome://downloads page, the text for the toast shown when the user copies a download's url.">
++               desc="On the dao://downloads page, the text for the toast shown when the user copies a download's url.">
+         <ph name="DOWNLOAD_URL">$1<ex>https://example.com</ex></ph> copied to clipboard
+       </message>
+ 
+@@ -2414,7 +2414,7 @@ are declared in tools/grit/grit_args.gni.
+                desc="Placeholder text/label for the search input in the download history page">
+         Search download history
+       </message>
+-      <message name="IDS_DOWNLOAD_NO_DOWNLOADS" desc="A message shown when the user has no downloads to show on chrome://downloads.">
++      <message name="IDS_DOWNLOAD_NO_DOWNLOADS" desc="A message shown when the user has no downloads to show on dao://downloads.">
+         Files you download appear here
+       </message>
+       <message name="IDS_DOWNLOAD_ITEM_DROPDOWN_BUTTON_ACCESSIBLE_TEXT" desc="Text for the dropdown button that opens the download item options menu">
+@@ -5806,21 +5806,21 @@ are declared in tools/grit/grit_args.gni.
+         </message>
+ 
+         <if expr="not is_chromeos and not is_macosx">
+-          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the chrome://extensions/ management page">
++          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the dao://extensions/ management page">
+             Manage your extensions by clicking Extensions in the Tools menu.
+           </message>
+         </if>
+         <if expr="is_chromeos">
+-          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the chrome://extensions/ management page on ChromeOS">
++          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the dao://extensions/ management page on ChromeOS">
+             Manage your extensions by clicking Extensions in the "More tools" menu.
+           </message>
+         </if>
+         <if expr="is_macosx">
+-          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the chrome://extensions/ management page on MAC OS X">
++          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the dao://extensions/ management page on MAC OS X">
+             Manage your extensions by clicking Extensions in the Window menu.
+           </message>
+         </if>
+-        <message name="IDS_EXTENSION_INSTALLED_MANAGE_SHORTCUTS" desc="Text for the link in the InfoBubble that opens the chrome://extensions page with the Configure Commands UI visible.">
++        <message name="IDS_EXTENSION_INSTALLED_MANAGE_SHORTCUTS" desc="Text for the link in the InfoBubble that opens the dao://extensions page with the Configure Commands UI visible.">
+           Manage shortcuts
+         </message>
+         <message name="IDS_EXTENSION_LAUNCH_WEB_AUTH_FLOW_TAB_INFO_BAR_TEXT" desc="Text displayed in an info bar of an auth page generated by chrome.identity.launchWebAuthFlow() API. The extension asks the user to approve an auth request and give the extension permission to access the user account. The goal of this text is to make that the user is aware that the page was opened by an extension and an auth token will be shared with the extension after approving.">
+@@ -5858,7 +5858,7 @@ are declared in tools/grit/grit_args.gni.
+         </message>
+       </if>
+ 
+-      <!-- Extensions strings, which are not used by chrome://extensions. -->
++      <!-- Extensions strings, which are not used by dao://extensions. -->
+       <if expr="enable_extensions">
+         <message name="IDS_EXTENSIONS_WANTS_ACCESS_TO_SITE" desc="The message shown on mouseover when an extension wants to run on a specific site.">
+           Wants access to this site
+@@ -5931,7 +5931,7 @@ are declared in tools/grit/grit_args.gni.
+           <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES_V2" desc="The label in an extension's context menu to always allow the extension access on all sites (sentence case).">
+             Always on all sites
+           </message>
+-           <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_PERMISSIONS_PAGE" desc="The label in an extension's context menu that the user can click to open site permissions page in chrome://extensions (sentence case).">
++           <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_PERMISSIONS_PAGE" desc="The label in an extension's context menu that the user can click to open site permissions page in dao://extensions (sentence case).">
+             Manage site permissions
+           </message>
+           <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK" desc="The label in an extension's context menu to allow the extension access to the page only when the user clicks on the extension action (sentence case).">
+@@ -5985,13 +5985,13 @@ are declared in tools/grit/grit_args.gni.
+           <message name="IDS_EXTENSIONS_SUBMENU_CLOSE_SIDE_PANEL_ITEM" desc="The text for the link in the extensions menu to close the side panel corresponding to the extension (sentence case).">
+             Close side panel
+           </message>
+-          <message name="IDS_MANAGE_EXTENSION" desc="The text for the button in the extension's context menu used to open the chrome://extensions/?id=xxx page and manage a specific extension (sentence case).">
++          <message name="IDS_MANAGE_EXTENSION" desc="The text for the button in the extension's context menu used to open the dao://extensions/?id=xxx page and manage a specific extension (sentence case).">
+             Manage extension
+           </message>
+-          <message name="IDS_MANAGE_EXTENSIONS" desc="The text of the button in the extensions toolbar menu used to open the chrome://extensions page and manage all extensions (sentence case).">
++          <message name="IDS_MANAGE_EXTENSIONS" desc="The text of the button in the extensions toolbar menu used to open the dao://extensions page and manage all extensions (sentence case).">
+             Manage extensions
+           </message>
+-          <message name="IDS_VIEW_WEB_PERMISSIONS" desc="The text for the button in the extension context menu used to open the chrome://settings/content/siteDetails?site=xxx page and view the site details for a specific extension (sentence case).">
++          <message name="IDS_VIEW_WEB_PERMISSIONS" desc="The text for the button in the extension context menu used to open the dao://settings/content/siteDetails?site=xxx page and view the site details for a specific extension (sentence case).">
+             View web permissions
+           </message>
+           <message name="IDS_EXTENSION_ACTION_INSPECT_POPUP" desc="The text for the right-click menu of page and browser actions which shows the popup and opens the developer tools (sentence case).">
+@@ -6023,7 +6023,7 @@ are declared in tools/grit/grit_args.gni.
+           <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES_V2" desc="The label in an extension's context menu to always allow the extension access on all sites (title case).">
+             Always on All Sites
+           </message>
+-          <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_PERMISSIONS_PAGE" desc="The label in an extension's context menu that the user can click to open site permissions page in chrome://extensions (title case).">
++          <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_PERMISSIONS_PAGE" desc="The label in an extension's context menu that the user can click to open site permissions page in dao://extensions (title case).">
+             Manage Site Permissions
+           </message>
+           <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK" desc="The label in an extension's context menu to allow the extension access to the page only when the user clicks on the extension action (title case).">
+@@ -6086,13 +6086,13 @@ are declared in tools/grit/grit_args.gni.
+           <message name="IDS_EXTENSIONS_SUBMENU_CLOSE_SIDE_PANEL_ITEM" desc="The text for the link in the extensions menu to close the side panel corresponding to the extension (title case).">
+             Close Side Panel
+           </message>
+-          <message name="IDS_MANAGE_EXTENSION" desc="The text for the button in the extension's context menu used to open the chrome://extensions/?id=xxx page and manage a specific extension (title case).">
++          <message name="IDS_MANAGE_EXTENSION" desc="The text for the button in the extension's context menu used to open the dao://extensions/?id=xxx page and manage a specific extension (title case).">
+             Manage Extension
+           </message>
+-          <message name="IDS_MANAGE_EXTENSIONS" desc="The text for the button in the extensions toolbar menu used to open the chrome://extensions page and manage all extensions (title case).">
++          <message name="IDS_MANAGE_EXTENSIONS" desc="The text for the button in the extensions toolbar menu used to open the dao://extensions page and manage all extensions (title case).">
+             Manage Extensions
+           </message>
+-          <message name="IDS_VIEW_WEB_PERMISSIONS" desc="The text for the button in the extension context menu used to open the chrome://settings/content/siteDetails?site=xxx page and view the site details for a specific extension (title case).">
++          <message name="IDS_VIEW_WEB_PERMISSIONS" desc="The text for the button in the extension context menu used to open the dao://settings/content/siteDetails?site=xxx page and view the site details for a specific extension (title case).">
+             View Web Permissions
+           </message>
+           <message name="IDS_EXTENSION_ACTION_INSPECT_POPUP" desc="The text for the right-click menu of page and browser actions which shows the popup and opens the developer tools (title case).">
+@@ -6453,7 +6453,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+       <message name="IDS_DEPRECATED_APPS_LEARN_MORE_AX_LABEL" desc="Accessibility label text for IDS_DEPRECATED_APPS_LEARN_MORE link">
+         Learn more about unsupported Chrome apps
+       </message>
+-      <message name="IDS_DEPRECATED_APPS_DELETION_LINK" desc="Contains link to trigger the deprecated apps deletion dialog from chrome://apps">
++      <message name="IDS_DEPRECATED_APPS_DELETION_LINK" desc="Contains link to trigger the deprecated apps deletion dialog from dao://apps">
+         {NUM_APPS, plural,
+         =1 {Remove 1 unsupported app}
+         other {Remove # unsupported apps}}
+@@ -6844,7 +6844,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+           </message>
+         </then>
+         <else>
+-          <message name="IDS_WEB_APP_SETTINGS_LINK" desc="Text of the link pointing to the app settings page. The link appears in app window/tab -> page info bubble in place of Site Settings, and in chrome://apps right click menu">
++          <message name="IDS_WEB_APP_SETTINGS_LINK" desc="Text of the link pointing to the app settings page. The link appears in app window/tab -> page info bubble in place of Site Settings, and in dao://apps right click menu">
+             Settings
+           </message>
+           <message name="IDS_WEB_APP_SETTINGS_LINK_TOOLTIP" desc="The text of the tooltip on IDS_WEB_APP_SETTINGS_LINK.">
+@@ -6854,7 +6854,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+       </if>
+ 
+       <!-- Components -->
+-      <message name="IDS_COMPONENTS_TITLE" desc="Title for the chrome://components page.">
++      <message name="IDS_COMPONENTS_TITLE" desc="Title for the dao://components page.">
+         Components
+       </message>
+       <message name="IDS_COMPONENTS_VERSION" desc="The label in front of a component version number.">
+@@ -7120,52 +7120,52 @@ Keep your key file in a safe place. You will need it to create new versions of y
+       <!-- End of Sync Promo strings for Desktop Identity Consistency. -->
+ 
+       <!-- WebRTC logs -->
+-      <message name="IDS_WEBRTC_LOGS_TITLE" desc="Title for the chrome://webrtc-logs page.">
++      <message name="IDS_WEBRTC_LOGS_TITLE" desc="Title for the dao://webrtc-logs page.">
+         WebRTC logs
+       </message>
+-      <message name="IDS_WEBRTC_TEXT_LOGS_LOG_COUNT_BANNER_FORMAT" desc="Format for WebRTC text log count banner on chrome://webrtc-logs">
++      <message name="IDS_WEBRTC_TEXT_LOGS_LOG_COUNT_BANNER_FORMAT" desc="Format for WebRTC text log count banner on dao://webrtc-logs">
+         WebRTC text logs (<ph name="WEBRTC_TEXT_LOG_COUNT">$1<ex>3</ex></ph>)
+       </message>
+-      <message name="IDS_WEBRTC_EVENT_LOGS_LOG_COUNT_BANNER_FORMAT" desc="Format for WebRTC event log count banner on chrome://webrtc-logs">
++      <message name="IDS_WEBRTC_EVENT_LOGS_LOG_COUNT_BANNER_FORMAT" desc="Format for WebRTC event log count banner on dao://webrtc-logs">
+         WebRTC event logs (<ph name="WEBRTC_EVENT_LOG_COUNT">$1<ex>3</ex></ph>)
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_LOG_HEADER_FORMAT" desc="Format for uploaded log entry headings on chrome://webrtc-logs">
++      <message name="IDS_WEBRTC_LOGS_LOG_HEADER_FORMAT" desc="Format for uploaded log entry headings on dao://webrtc-logs">
+         WebRTC log captured <ph name="WEBRTC_LOG_CAPTURE_TIME">$1<ex>Tuesday, January 25, 2011 2:58:02 PM</ex></ph>
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_LOG_LOCAL_FILE_LABEL_FORMAT" desc="Format for local log entry label on chrome://webrtc-logs">
++      <message name="IDS_WEBRTC_LOGS_LOG_LOCAL_FILE_LABEL_FORMAT" desc="Format for local log entry label on dao://webrtc-logs">
+         Local file:
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_NO_LOCAL_LOG_FILE_MESSAGE" desc="The explanatory message for chrome://webrtc-logs when there is no local log file">
++      <message name="IDS_WEBRTC_LOGS_NO_LOCAL_LOG_FILE_MESSAGE" desc="The explanatory message for dao://webrtc-logs when there is no local log file">
+         No local log file.
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_LOG_UPLOAD_TIME_FORMAT" desc="Format for uploaded log entry upload time on chrome://webrtc-logs">
++      <message name="IDS_WEBRTC_LOGS_LOG_UPLOAD_TIME_FORMAT" desc="Format for uploaded log entry upload time on dao://webrtc-logs">
+         Uploaded <ph name="WEBRTC_LOG_UPLOAD_TIME">$1<ex>Tuesday, January 25, 2011 2:58:02 PM</ex></ph>
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_LOG_FAILED_UPLOAD_TIME_FORMAT" desc="Format for a log's failed upload attempt entry on chrome://webrtc-logs">
++      <message name="IDS_WEBRTC_LOGS_LOG_FAILED_UPLOAD_TIME_FORMAT" desc="Format for a log's failed upload attempt entry on dao://webrtc-logs">
+         Upload failed (<ph name="WEBRTC_LOG_UPLOAD_TIME">$1<ex>Tuesday, January 25, 2011 2:58:02 PM</ex></ph>).
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_LOG_REPORT_ID_FORMAT" desc="Format for uploaded log entry report ID on chrome://webrtc-logs. This is the ID on the server to which the log was uploaded.">
++      <message name="IDS_WEBRTC_LOGS_LOG_REPORT_ID_FORMAT" desc="Format for uploaded log entry report ID on dao://webrtc-logs. This is the ID on the server to which the log was uploaded.">
+         Report ID <ph name="WEBRTC_LOG_REPORT_ID">$1<ex>8fa95dbb6f2ec862</ex></ph>
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_BUG_LINK_LABEL" desc="Link text for filing a bug on chrome://webrtc-logs">
++      <message name="IDS_WEBRTC_LOGS_BUG_LINK_LABEL" desc="Link text for filing a bug on dao://webrtc-logs">
+         File bug
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_LOG_PENDING_MESSAGE" desc="The explanatory message for chrome://webrtc-logs when the log is still pending upload.">
++      <message name="IDS_WEBRTC_LOGS_LOG_PENDING_MESSAGE" desc="The explanatory message for dao://webrtc-logs when the log is still pending upload.">
+         Log upload pending.
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_LOG_ACTIVELY_UPLOADED_MESSAGE" desc="The explanatory message for chrome://webrtc-logs when the log is currently being uploaded.">
++      <message name="IDS_WEBRTC_LOGS_LOG_ACTIVELY_UPLOADED_MESSAGE" desc="The explanatory message for dao://webrtc-logs when the log is currently being uploaded.">
+         Log upload underway.
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_LOG_NOT_UPLOADED_MESSAGE" desc="The explanatory message for chrome://webrtc-logs when the log has not been uploaded">
++      <message name="IDS_WEBRTC_LOGS_LOG_NOT_UPLOADED_MESSAGE" desc="The explanatory message for dao://webrtc-logs when the log has not been uploaded">
+         Log not uploaded.
+       </message>
+       <message name="IDS_WEBRTC_LOGS_EVENT_LOG_LOCAL_LOG_ID" desc="The ID of the log. This ID is assigned even if the log is not uploaded.">
+         Local log ID: <ph name="WEBRTC_EVENT_LOG_LOCAL_ID">$1<ex>A83BC19927509874309F2EE002174235</ex></ph>.
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_NO_TEXT_LOGS_MESSAGE" desc="The explanatory message for chrome://webrtc-logs when there are no captured text logs">
++      <message name="IDS_WEBRTC_LOGS_NO_TEXT_LOGS_MESSAGE" desc="The explanatory message for dao://webrtc-logs when there are no captured text logs">
+         You have no recently captured WebRTC text logs.
+       </message>
+-      <message name="IDS_WEBRTC_LOGS_NO_EVENT_LOGS_MESSAGE" desc="The explanatory message for chrome://webrtc-logs when there are no captured event logs">
++      <message name="IDS_WEBRTC_LOGS_NO_EVENT_LOGS_MESSAGE" desc="The explanatory message for dao://webrtc-logs when there are no captured event logs">
+         You have no recently captured WebRTC event logs.
+       </message>
+ 
+@@ -7297,7 +7297,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+         </message>
+       </if>
+ 
+-      <!-- chrome://browser-switch strings -->
++      <!-- dao://browser-switch strings -->
+       <if expr="toolkit_views and not is_chromeos">
+         <message name="IDS_ABOUT_BROWSER_SWITCH_TITLE" desc="about:browser-switch page title">
+           Legacy Browser Support
+@@ -7330,14 +7330,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
+           Only http, https and file protocols are supported for browser redirects.
+         </message>
+ 
+-        <!-- chrome://browser-switch/internals strings -->
++        <!-- dao://browser-switch/internals strings -->
+         <message name="IDS_ABOUT_BROWSER_SWITCH_INTERNALS_DESC" desc="about:browser-switch/internals page description">
+           Legacy Browser Support (LBS) allows specific URLs patterns to be opened in an alternative browser that supports legacy features required to properly run those sites.
+         </message>
+         <message name="IDS_ABOUT_BROWSER_SWITCH_INTERNALS_TITLE" desc="about:browser-switch/internals page title">
+           Legacy Browser Support (LBS) - Internals
+         </message>
+-        <message name="IDS_ABOUT_BROWSER_SWITCH_INTERNALS_NOTHING_SHOWN" desc="nothing to show on chrome://browser-switch/internals, because the policy BrowserSwitcherEnabled is disabled">
++        <message name="IDS_ABOUT_BROWSER_SWITCH_INTERNALS_NOTHING_SHOWN" desc="nothing to show on dao://browser-switch/internals, because the policy BrowserSwitcherEnabled is disabled">
+           Nothing to show
+         </message>
+         <message name="IDS_ABOUT_BROWSER_SWITCH_INTERNALS_LBS_DISABLED" desc="about:browser-switch/internals text shown when the policy BrowserSwitcherEnabled is disabled">
+@@ -8719,13 +8719,13 @@ Keep your key file in a safe place. You will need it to create new versions of y
+ 
+       <!-- Extensions NTP Middle Slot Promo -->
+       <message name="IDS_EXTENSIONS_PROMO_PERFORMANCE">
+-        Web browsing should be fast. Take a moment to <ph name="BEGIN_LINK">&lt;a href="chrome://extensions"&gt;</ph>check your extensions<ph name="END_LINK">&lt;/a&gt;</ph> now.
++        Web browsing should be fast. Take a moment to <ph name="BEGIN_LINK">&lt;a href="dao://extensions"&gt;</ph>check your extensions<ph name="END_LINK">&lt;/a&gt;</ph> now.
+       </message>
+       <message name="IDS_EXTENSIONS_PROMO_PRIVACY">
+-        Safety matters. Take a moment and <ph name="BEGIN_LINK">&lt;a href="chrome://extensions"&gt;</ph>check your extensions now<ph name="END_LINK">&lt;/a&gt;</ph>
++        Safety matters. Take a moment and <ph name="BEGIN_LINK">&lt;a href="dao://extensions"&gt;</ph>check your extensions now<ph name="END_LINK">&lt;/a&gt;</ph>
+       </message>
+       <message name="IDS_EXTENSIONS_PROMO_NEUTRAL">
+-        Got extensions? <ph name="BEGIN_LINK">&lt;a href="chrome://extensions"&gt;</ph>Manage your extensions<ph name="END_LINK">&lt;/a&gt;</ph> in one easy place.
++        Got extensions? <ph name="BEGIN_LINK">&lt;a href="dao://extensions"&gt;</ph>Manage your extensions<ph name="END_LINK">&lt;/a&gt;</ph> in one easy place.
+       </message>
+ 
+       <!-- Star View menu -->
+@@ -12610,7 +12610,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+         </message>
+       </if>
+ 
+-      <!-- chrome://help -->
++      <!-- dao://help -->
+       <if expr="not is_android">
+         <if expr="not is_chromeos and use_titlecase">
+           <message name="IDS_RELAUNCH_BUTTON" desc="Titlecase: The label for the relaunch button that relaunches the browser once update is complete">
+@@ -12633,7 +12633,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+           </message>
+         </if>
+         <if expr="not is_chromeos">
+-          <message name="IDS_HELP_MANAGED_BY_YOUR_PARENT" desc="The text label shown in chrome://settings/help for users subject to parental controls.">
++          <message name="IDS_HELP_MANAGED_BY_YOUR_PARENT" desc="The text label shown in dao://settings/help for users subject to parental controls.">
+             Your browser is managed by your parent
+           </message>
+         </if>
+@@ -12648,7 +12648,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+         </message>
+       </if> <!-- is_chromeos -->
+ 
+-      <!-- Settings related strings not specific to chrome://settings.
++      <!-- Settings related strings not specific to dao://settings.
+            (Settings specific strings are in settings_strings.grdp).
+            Android uses native UI for settings -->
+       <if expr="not is_android">
+@@ -12711,7 +12711,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+         </message>
+ 
+         <!-- Enhanced Safe Browsing CRX allowlist warning -->
+-        <message name="IDS_EXTENSIONS_SAFE_BROWSING_CRX_ALLOWLIST_WARNING" desc="A warning shown in 'chrome://extensions' when the extension is not included in the Enhanced Safe Browsing CRX allowlist.">
++        <message name="IDS_EXTENSIONS_SAFE_BROWSING_CRX_ALLOWLIST_WARNING" desc="A warning shown in 'dao://extensions' when the extension is not included in the Enhanced Safe Browsing CRX allowlist.">
+            This extension is not trusted by Enhanced Safe Browsing.
+         </message>
+         <message name="IDS_EXTENSIONS_SAFE_BROWSING_CRX_ALLOWLIST_WARNING_LEARN_MORE" desc="Text read by screen readers for a link labeled 'Learn more' that links to a Help article about Enhanced Safe Browsing.">
+@@ -13395,7 +13395,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+         Your account <ph name="EMAIL">$1<ex>john.doe@example.com</ex></ph> is no longer allowed as the primary account. Because this account is managed by <ph name="DOMAIN">$2<ex>example.com</ex></ph>, your bookmarks, history, passwords, and other settings will be cleared from this device.
+       </message>
+ 
+-      <!-- Managed UI on pages like chrome://settings and chrome://downloads -->
++      <!-- Managed UI on pages like dao://settings and dao://downloads -->
+       <if expr="not is_android">
+         <if expr="is_chromeos">
+           <message name="IDS_DEVICE_MANAGED_WITH_HYPERLINK" desc="Message to end users in Enterprise/EDU, with a link for more info (ChromeOS)">
+@@ -16106,14 +16106,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
+       </message>
+ 
+       <!-- About device logs UI display strings -->
+-      <message name="IDS_DEVICE_LOG_TITLE" desc="Title of the chrome://device-log page">
++      <message name="IDS_DEVICE_LOG_TITLE" desc="Title of the dao://device-log page">
+         Device Log
+       </message>
+       <message name="IDS_DEVICE_AUTO_REFRESH" desc="Instructions for how to auto-refresh the page">
+-        Add a query param in URL to auto-refresh the page: chrome://device-log/?refresh=&lt;sec&gt;
++        Add a query param in URL to auto-refresh the page: dao://device-log/?refresh=&lt;sec&gt;
+       </message>
+       <message name="IDS_DEVICE_SELECT_TYPES" desc="Instructions for how to select types for the page on page load">
+-        Add a query param in the URL to select types on page load. Example: chrome://device-log/?types=Bluetooth,USB
++        Add a query param in the URL to select types on page load. Example: dao://device-log/?types=Bluetooth,USB
+       </message>
+       <message name="IDS_DEVICE_LOG_REFRESH" desc="Button to refresh device log entries">
+         Refresh
+@@ -16190,7 +16190,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
+       <message name="IDS_DEVICE_LOG_TIME_DETAIL" desc="Detailed timestamps checkbox in device event log">
+         Detailed Timestamps
+       </message>
+-      <message name="IDS_DEVICE_LOG_ENTRY" desc="Format string for lines in chrome://device-log.">
++      <message name="IDS_DEVICE_LOG_ENTRY" desc="Format string for lines in dao://device-log.">
+         [<ph name="TIMESTAMP">$1<ex>Timestamp</ex></ph>]
+         <ph name="FILE_INFO">$2<ex>file:123</ex></ph>
+         <ph name="EVENT_NAME">$3<ex>Event Description</ex></ph>
+@@ -18238,7 +18238,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
+       <message name="IDS_MEMORY_SAVER_DIALOG_TITLE" desc="Title text for a dialog with information about Memory Saver mode.">
+         Memory Saver
+       </message>
+-      <message name="IDS_MEMORY_SAVER_DIALOG_SETTINGS_BUTTON" desc="Label for a button on a dialog that opens the chrome://settings/performance page when clicked.">
++      <message name="IDS_MEMORY_SAVER_DIALOG_SETTINGS_BUTTON" desc="Label for a button on a dialog that opens the dao://settings/performance page when clicked.">
+         Settings
+       </message>
+       <message name="IDS_MEMORY_SAVER_DIALOG_SAVINGS_ACCNAME" desc="Accessible label for the memory savings shown on the Memory Saver dialog to provide context to the raw number.">
+diff --git a/chrome/app/google_chrome_strings.grd b/chrome/app/google_chrome_strings.grd
+index 275c3e84ef..9fe6a6e0ba 100644
+--- a/chrome/app/google_chrome_strings.grd
++++ b/chrome/app/google_chrome_strings.grd
+@@ -701,49 +701,49 @@ Google Chrome is unable to recover your settings.
+         <ph name="FILE_NAME">$1<ex>malware.exe</ex></ph> is dangerous, so Chrome has blocked it.
+       </message>
+       <message name="IDS_BLOCK_REASON_PROMPT_FOR_SCANNING"
+-         desc="Message shown to the user on chrome://downloads page to explain that this download is recommended to be scanned.">
++         desc="Message shown to the user on dao://downloads page to explain that this download is recommended to be scanned.">
+         Chrome recommends scanning this file because it may be dangerous.
+       </message>
+ 
+-      <!-- chrome://downloads page dangerous file description strings -->
++      <!-- dao://downloads page dangerous file description strings -->
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_FILETYPE"
+-               desc="On the chrome://downloads page, the description shown for a blocked file with a dangerous filetype.">
++               desc="On the dao://downloads page, the description shown for a blocked file with a dangerous filetype.">
+         Chrome blocked this download because the file type isn't commonly downloaded and it may be dangerous
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is dangerous.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is dangerous.">
+         Chrome blocked this download because the file is dangerous
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_COOKIE_THEFT"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is dangerous because of cookie theft.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is dangerous because of cookie theft.">
+         Chrome blocked this download because the file can harm your personal and social network accounts
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_COOKIE_THEFT_AND_ACCOUNT"
+-               desc="On the chrome://downloads page, the description with account info shown for a blocked file that is dangerous because of cookie theft.">
++               desc="On the dao://downloads page, the description with account info shown for a blocked file that is dangerous because of cookie theft.">
+         Chrome blocked this download because the file can harm your personal and social network accounts, including <ph name="USER_EMAIL">$1<ex>john@google.com</ex></ph>
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNCOMMON"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is uncommon.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is uncommon.">
+         Chrome blocked this download because the file isn't commonly downloaded and it may be dangerous
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNCOMMON_SUSPICIOUS_ARCHIVE"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is suspicious archive.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is suspicious archive.">
+         Chrome blocked this download because the archive file includes other files that may hide malware
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_POTENTIALLY_UNWANTED"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is potentially unwanted.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is potentially unwanted.">
+         Chrome blocked this download because the file is deceptive and may make unexpected changes to your device
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_INSECURE"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that is insecure.">
++               desc="On the dao://downloads page, the description shown for a blocked file that is insecure.">
+         Chrome blocked this download because the site isn't using a secure connection and the file may have been tampered with
+       </message>
+       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNVERIFIED_NO_SAFE_BROWSING"
+-               desc="On the chrome://downloads page, the description shown for a blocked file that could not be verified because Safe Browsing is off.">
++               desc="On the dao://downloads page, the description shown for a blocked file that could not be verified because Safe Browsing is off.">
+         Chrome blocked this download because you turned Safe Browsing off and the file can't be verified
+       </message>
+ 
+-      <!-- chrome://downloads page bypass dangerous download warning prompt-->
++      <!-- dao://downloads page bypass dangerous download warning prompt-->
+       <message name="IDS_DOWNLOAD_WARNING_BYPASS_PROMPT_LEARN_MORE_LINK"
+                desc="On the downloads page, the label for the link to the help center in the prompt to bypass a dangerous download warning.">
+         Learn why Chrome blocks some files
+@@ -842,7 +842,7 @@ Google Chrome is unable to recover your settings.
+         This extension hasn't published privacy practices, such as how it collects and uses data. Chrome recommends that you remove it.
+       </message>
+ 
+-      <!-- chrome://extensions page -->
++      <!-- dao://extensions page -->
+     <message name="IDS_EXTENSIONS_SC_DESCRIPTION" desc="Detailed message displayed in the Safety Check description section.">
+       {NUM_EXTENSIONS, plural,
+       =1 {Chrome recommends that you remove it}
+@@ -2091,7 +2091,7 @@ Google Chrome is unable to recover your settings.
+         </if>
+       </if>
+ 
+-      <!-- Welcome page (chrome://welcome) strings -->
++      <!-- Welcome page (dao://welcome) strings -->
+       <if expr="not is_chromeos">
+         <message name="IDS_WELCOME_HEADER" desc="A message which will appear as the header on the Welcome UI if the user has never run Chrome before.">
+           Welcome to Chrome
+diff --git a/chrome/app/media_router_strings.grdp b/chrome/app/media_router_strings.grdp
+index eee1ced9bf..fd4740cd7b 100644
+--- a/chrome/app/media_router_strings.grdp
++++ b/chrome/app/media_router_strings.grdp
+@@ -207,7 +207,7 @@
+     Display <ph name="DISPLAY_ID">$1<ex>1</ex></ph>
+   </message>
+ 
+-  <!-- Cast feedback dialog (chrome://cast-feedback) -->
++  <!-- Cast feedback dialog (dao://cast-feedback) -->
+   <message name="IDS_MEDIA_ROUTER_FEEDBACK_TITLE" desc="Title of the tab opened by selecting '''Report an issue' from the Cast menu.">
+     Google Cast Feedback
+   </message>
+diff --git a/chrome/app/os_settings_strings.grdp b/chrome/app/os_settings_strings.grdp
+index 23a45a9b1e..358949c080 100644
+--- a/chrome/app/os_settings_strings.grdp
++++ b/chrome/app/os_settings_strings.grdp
+@@ -4437,7 +4437,7 @@ Press an assigned switch or key to remove assignment.
+     End User License Agreement
+   </message>
+   <message name="IDS_SETTINGS_PRINTING_CUPS_EULA_NOTICE_HEADER" desc="The message shown to users if a printer has a EULA agreement attached to it.">
+-    End User License Agreement: <ph name="EULA_LINK">$1<ex>chrome://os-credits/#license</ex></ph>
++    End User License Agreement: <ph name="EULA_LINK">$1<ex>dao://os-credits/#license</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_PRINTING_CUPS_IPP_URI_UNREACHABLE" desc="The message shown on the uri field of the add/edit printer dialogs when attempting to connect to an IPP printer that is not found on the network.">
+     Couldn't detect a printer. Please enter printer address again.
+@@ -7319,10 +7319,10 @@ Press &amp; hold keyboard keys to see accent marks and special characters. This
+   </message>
+ 
+   <!-- Safety Hub -->
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_RESTART" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown above the subtitle 'Relaunch to finish update. Your tabs will reopen'.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_RESTART" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown above the subtitle 'Relaunch to finish update. Your tabs will reopen'.">
+     ChromeOS is out of date
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_UPDATED" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is up to date and the user does not need to take any action. Shown above the subtitle that is the Chrome version.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_UPDATED" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is up to date and the user does not need to take any action. Shown above the subtitle that is the Chrome version.">
+     ChromeOS is up to date
+   </message>
+ </if>
+diff --git a/chrome/app/password_manager_ui_strings.grdp b/chrome/app/password_manager_ui_strings.grdp
+index 48b4a3e92a..279b85be31 100644
+--- a/chrome/app/password_manager_ui_strings.grdp
++++ b/chrome/app/password_manager_ui_strings.grdp
+@@ -571,8 +571,8 @@
+   </message>
+   <message name="IDS_PASSWORD_MANAGER_UI_MOVE_PASSWORDS_TO_ACCOUNT" desc="Description for the password section entry used for managing passwords.">
+     {COUNT, plural,
+-      =1 {{COUNT} password is saved only to this device. To use it on your other devices, <ph name="BEGIN_LINK">&lt;a href='chrome://password-manager/'&gt;</ph>save it in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}
+-      other {{COUNT} passwords are saved only to this device. To use them on your other devices, <ph name="BEGIN_LINK">&lt;a href='chrome://password-manager/'&gt;</ph>save them in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}}
++      =1 {{COUNT} password is saved only to this device. To use it on your other devices, <ph name="BEGIN_LINK">&lt;a href='dao://password-manager/'&gt;</ph>save it in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}
++      other {{COUNT} passwords are saved only to this device. To use them on your other devices, <ph name="BEGIN_LINK">&lt;a href='dao://password-manager/'&gt;</ph>save them in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}}
+   </message>
+   <message name="IDS_PASSWORD_MANAGER_UI_OPENS_IN_NEW_TAB" desc="ARIA (accessibility) label describing a link which opens in a new tab.">
+     Opens in new tab
+@@ -807,7 +807,7 @@
+       Sign in with <ph name="CREDENTIAL_PROVIDER"><ex>Google</ex>$1</ph>
+   </message>
+   <message name="IDS_PASSWORD_MANAGER_UI_MOVE_SINGLE_PASSWORD_TO_ACCOUNT" desc="Description for the password details entry used for moving single password.">
+-    This password is saved only to this device. To use it on your other devices, <ph name="BEGIN_LINK">&lt;a href='chrome://password-manager/'&gt;</ph>save it in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.
++    This password is saved only to this device. To use it on your other devices, <ph name="BEGIN_LINK">&lt;a href='dao://password-manager/'&gt;</ph>save it in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_PASSWORD_MANAGER_UI_MOVE_SINGLE_PASSWORD_TITLE" desc="Title for the move password dialog.">
+     Use this password on all your devices
+diff --git a/chrome/app/settings_chromium_strings.grdp b/chrome/app/settings_chromium_strings.grdp
+index ef37268bc3..4674713a99 100644
+--- a/chrome/app/settings_chromium_strings.grdp
++++ b/chrome/app/settings_chromium_strings.grdp
+@@ -413,16 +413,16 @@
+   <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_NOTHING_TO_DO" desc="This text describes what Safety Hub does (regularly checking whether Chromium settings are safe) and indicates whether the user should take action. This text is shown when Safety Hub has not identified any issues at this time. There is nothing to do for the user. As future checks of Safety Hub may identify issues, this state may change. This text is shown on a card in privacy settings next to a button that leads to Safety Hub.">
+     Chromium regularly checks to make sure your browser has the safest settings. We'll let you know if anything needs your review.
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_HEADER" desc="Title of a row in Chrome's privacy settings (chrome://settings/privacy) explaining that Chrome recommends for the user to take action to improve their safety. Next to this text there is a button labeled 'Go to SafetyHub' that will take users to a dedicated page where users can take action.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_HEADER" desc="Title of a row in Chrome's privacy settings (dao://settings/privacy) explaining that Chrome recommends for the user to take action to improve their safety. Next to this text there is a button labeled 'Go to SafetyHub' that will take users to a dedicated page where users can take action.">
+     Chromium found some safety recommendations for your review
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_EMPTY_STATE_MODULE_SUBHEADER" desc="The header of the 'Empty State Module' in the Safety Hub page. The 'Empty State Module' is visible if there is no safety recommendation.">
+     Chromium will let you know if anything needs your review
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of Chromium update module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of Chromium update module.">
+     Chromium update
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of Chromium update module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of Chromium update module.">
+     Chromium update
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS" desc="This text explains that passwords saved in Chrome are automatically checked for issues (e.g. password is leaked or weak) by SafetyHub. However the user does not have any passwords stored in Chrome, therefore the feature does not operate. This text is shown as a subtitle of the passwords card of SafetyHub. It sits below the title 'No saved passwords'.">
+@@ -444,17 +444,17 @@
+     <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Chromium warns you<ph name="END_LINK">&lt;/a&gt;</ph> about unsafe sites and downloads
+   </message>
+   <if expr="not is_chromeos">
+-    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_RESTART" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown above the subtitle 'Relaunch to finish update. Your tabs will reopen'.">
++    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_RESTART" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown above the subtitle 'Relaunch to finish update. Your tabs will reopen'.">
+       Chromium is out of date
+     </message>
+-    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_UPDATED" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is up to date and the user does not need to take any action. Shown above the subtitle that is the Chrome version.">
++    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_UPDATED" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is up to date and the user does not need to take any action. Shown above the subtitle that is the Chrome version.">
+       Chromium is up to date
+     </message>
+   </if>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (chrome://settings/safetyCheck) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This string is for the accesibility label for the card to call out where to navigation will happen (chrome://settings/help) if the card is clicked.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (dao://settings/safetyCheck) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This string is for the accesibility label for the card to call out where to navigation will happen (dao://settings/help) if the card is clicked.">
+     Go to About Chromium page
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_RELAUNCH_ARIA_LABEL" desc="Safety Check settings page (chrome://settings/safetyCheck) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This string is for the accesibility label for the card to call out the click on card will result restarting the browser.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_RELAUNCH_ARIA_LABEL" desc="Safety Check settings page (dao://settings/safetyCheck) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This string is for the accesibility label for the card to call out the click on card will result restarting the browser.">
+     Relaunch Chromium
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_UNUSED_SITE_PERMISSIONS_REMOVED_ONE_PERMISSION_LABEL" desc="'Revoked Permissions' shows the revoked permissions of unused websites. This text describes which permission was removed from an unused site and is shown if there is exactly one permission.">
+diff --git a/chrome/app/settings_google_chrome_strings.grdp b/chrome/app/settings_google_chrome_strings.grdp
+index 03399961af..11255b182f 100644
+--- a/chrome/app/settings_google_chrome_strings.grdp
++++ b/chrome/app/settings_google_chrome_strings.grdp
+@@ -403,16 +403,16 @@
+   <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_NOTHING_TO_DO" desc="This text describes what Safety Hub does (regularly checking whether Chrome settings are safe) and indicates whether the user should take action. This text is shown when Safety Hub has not identified any issues at this time. There is nothing to do for the user. As future checks of Safety Hub may identify issues, this state may change. This text is shown on a card in privacy settings next to a button that leads to Safety Hub.">
+     Chrome regularly checks to make sure your browser has the safest settings. We'll let you know if anything needs your review.
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_HEADER" desc="Title of a row in Chrome's privacy settings (chrome://settings/privacy) explaining that Chrome recommends for the user to take action to improve their safety. Next to this text there is a button labeled 'Go to SafetyHub' that will take users to a dedicated page where users can take action.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_HEADER" desc="Title of a row in Chrome's privacy settings (dao://settings/privacy) explaining that Chrome recommends for the user to take action to improve their safety. Next to this text there is a button labeled 'Go to SafetyHub' that will take users to a dedicated page where users can take action.">
+     Chrome found some safety recommendations for your review
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_EMPTY_STATE_MODULE_SUBHEADER" desc="The header of the 'Empty State Module' in the Safety Hub page. The 'Empty State Module' is visible if there is no safety recommendation.">
+     Chrome will let you know if anything needs your review
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of Chrome update module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of Chrome update module.">
+     Chrome update
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of Chrome update module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of Chrome update module.">
+     Chrome update
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS" desc="This text explains that passwords saved in Chrome are automatically checked for issues (e.g. password is leaked or weak) by SafetyHub. However the user does not have any passwords stored in Chrome, therefore the feature does not operate. This text is shown as a subtitle of the passwords card of SafetyHub. It sits below the title 'No saved passwords'.">
+@@ -434,17 +434,17 @@
+     <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Chrome warns you<ph name="END_LINK">&lt;/a&gt;</ph> about unsafe sites and downloads
+   </message>
+   <if expr="not is_chromeos">
+-    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_RESTART" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown above the subtitle 'Relaunch to finish update. Your tabs will reopen'.">
++    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_RESTART" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown above the subtitle 'Relaunch to finish update. Your tabs will reopen'.">
+       Chrome is out of date
+     </message>
+-    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_UPDATED" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is up to date and the user does not need to take any action. Shown above the subtitle that is the Chrome version.">
++    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_UPDATED" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is up to date and the user does not need to take any action. Shown above the subtitle that is the Chrome version.">
+       Chrome is up to date
+     </message>
+   </if>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (chrome://settings/safetyCheck) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This string is for the accesibility label for the card to call out where to navigation will happen (chrome://settings/help) if the card is clicked.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (dao://settings/safetyCheck) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This string is for the accesibility label for the card to call out where to navigation will happen (dao://settings/help) if the card is clicked.">
+     Go to About Chrome page
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_RELAUNCH_ARIA_LABEL" desc="Safety Check settings page (chrome://settings/safetyCheck) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This string is for the accesibility label for the card to call out the click on card will result restarting the browser.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_RELAUNCH_ARIA_LABEL" desc="Safety Check settings page (dao://settings/safetyCheck) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This string is for the accesibility label for the card to call out the click on card will result restarting the browser.">
+     Relaunch Chrome
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_UNUSED_SITE_PERMISSIONS_REMOVED_ONE_PERMISSION_LABEL" desc="'Revoked Permissions' shows the revoked permissions of unused websites. This text describes which permission was removed from an unused site and is shown if there is exactly one permission.">
+diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
+index e3c0d13dac..c9bf805e9f 100644
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -482,7 +482,7 @@
+   <message name="IDS_SETTINGS_MULTIPLE_MIGRATABLE_CARDS_INFO" desc="Display text under the save cards to Google Pay label. This text indicates user has multiple migratable cards on this device.">
+     Right now, you have some cards that can only be used on this device
+   </message>
+-  <message name="IDS_SETTINGS_REMOTE_PAYMENT_METHODS_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in chrome://settings/payments that opens the payment methods settings on https://pay.google.com. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb.">
++  <message name="IDS_SETTINGS_REMOTE_PAYMENT_METHODS_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in dao://settings/payments that opens the payment methods settings on https://pay.google.com. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb.">
+     Your payment methods in Google Pay
+   </message>
+   <message name="IDS_SETTINGS_NAME_ON_CREDIT_CARD" desc="The title for the input that lets users modify the name on the credit card.">
+@@ -1514,10 +1514,10 @@
+   </message>
+ 
+   <!-- Privacy Sandbox Settings 4 - Privacy & Security Page -->
+-  <message name="IDS_SETTINGS_AD_PRIVACY_LINK_ROW_LABEL" desc="A new label that appears on the Privacy and security page (chrome://settings/privacy) between 'Third-party cookies' and 'Security'. This same text is used as a page title for the new Ad privacy section. This same pair of words is used in the Consent and Notice flow and must be consistently translated in both contexts. We mean privacy associated with ads, and not privacy from ads. **** CONTEXT PRIVACY SANDBOX **** Chrome’s Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_AD_PRIVACY_LINK_ROW_LABEL" desc="A new label that appears on the Privacy and security page (dao://settings/privacy) between 'Third-party cookies' and 'Security'. This same text is used as a page title for the new Ad privacy section. This same pair of words is used in the Consent and Notice flow and must be consistently translated in both contexts. We mean privacy associated with ads, and not privacy from ads. **** CONTEXT PRIVACY SANDBOX **** Chrome’s Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Ad privacy
+   </message>
+-  <message name="IDS_SETTINGS_AD_PRIVACY_LINK_ROW_SUB_LABEL" desc="A string that describes 'Ad privacy', the label that appears just above it. For context, this new 'Ad privacy' / 'Customize the info...' pair of strings is similar to the existing 'Clear browsing data' / 'Clear history, cookies...' that you find on chrome://settings/privacy. * 'Customize': From our word list: 'This word describes user agency in refining their personalized recommendations, elements of the experience, or sometimes products'. Please don't confuse with 'personalize', which we reserve to mean: '...when Google provides recommendations and other content for users based on their data'.  **** CONTEXT PRIVACY SANDBOX **** Chrome’s Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_AD_PRIVACY_LINK_ROW_SUB_LABEL" desc="A string that describes 'Ad privacy', the label that appears just above it. For context, this new 'Ad privacy' / 'Customize the info...' pair of strings is similar to the existing 'Clear browsing data' / 'Clear history, cookies...' that you find on dao://settings/privacy. * 'Customize': From our word list: 'This word describes user agency in refining their personalized recommendations, elements of the experience, or sometimes products'. Please don't confuse with 'personalize', which we reserve to mean: '...when Google provides recommendations and other content for users based on their data'.  **** CONTEXT PRIVACY SANDBOX **** Chrome’s Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Customize the info used by sites to show you ads
+   </message>
+   <message name="IDS_SETTINGS_AD_PRIVACY_RESTRICTED_LINK_ROW_SUB_LABEL" desc="A string like `IDS_SETTINGS_AD_PRIVACY_LINK_ROW_SUB_LABEL` that describes 'Ad privacy', but shown when some ads APIs are disabled (in other words, the privacy sandbox is in a restricted state). Intended to focus on ad measurement capabilities.">
+@@ -1525,10 +1525,10 @@
+   </message>
+ 
+   <!-- Privacy Sandbox Settings 4 - Ad Privacy Page -->
+-  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TITLE" desc="A new page title for a page that includes 3 settings. This same text appears as a label on chrome://settings/privacy between 'Third-party cookies' and 'Security'. This same pair of words is used in the Consent and Notice flow and must be consistently translated in both contexts. We mean privacy associated with ads, and not privacy from ads. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TITLE" desc="A new page title for a page that includes 3 settings. This same text appears as a label on dao://settings/privacy between 'Third-party cookies' and 'Security'. This same pair of words is used in the Consent and Notice flow and must be consistently translated in both contexts. We mean privacy associated with ads, and not privacy from ads. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Ad privacy
+   </message>
+-  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_LABEL" desc="The name of a new setting. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_LABEL" desc="The name of a new setting. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Ad topics
+   </message>
+   <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_SUB_LABEL_ENABLED" desc="Ad topics are derived from the user's browsing history. This help-center article explains 'browsing history' to users: https://support.google.com/chrome/answer/95589. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see.">
+@@ -1537,7 +1537,7 @@
+   <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_SUB_LABEL_DISABLED" desc="Ad topics are derived from the user's browsing history. This help-center article explains 'browsing history' to users: https://support.google.com/chrome/answer/95589. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see.">
+     Based on your browsing history. This setting is off.
+   </message>
+-  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_FLEDGE_LINK_ROW_LABEL" desc="The name of a new setting. This setting is described to users in the Notice moment as: Site-suggested ads help protect your browsing history and identity while enabling sites to show you relevant ads. Based on your activity, a site you visited can suggest related ads as you continue browsing. You can see a list of these sites and block the ones you don't want in settings. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_FLEDGE_LINK_ROW_LABEL" desc="The name of a new setting. This setting is described to users in the Notice moment as: Site-suggested ads help protect your browsing history and identity while enabling sites to show you relevant ads. Based on your activity, a site you visited can suggest related ads as you continue browsing. You can see a list of these sites and block the ones you don't want in settings. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Site-suggested ads
+   </message>
+   <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_FLEDGE_LINK_ROW_SUB_LABEL_ENABLED" desc="A site can suggest ads for a user based on the user's activity on their site. This setting is described to users in the Notice moment as: Site-suggested ads help protect your browsing history and identity while enabling sites to show you relevant ads. Based on your activity, a site you visited can suggest related ads as you continue browsing. You can see a list of these sites and block the ones you don't want in settings.">
+@@ -1546,7 +1546,7 @@
+   <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_FLEDGE_LINK_ROW_SUB_LABEL_DISABLED" desc="A site can suggest ads for a user based on the user's activity on their site. This setting is described to users in the Notice moment as: Site-suggested ads help protect your browsing history and identity while enabling sites to show you relevant ads. Based on your activity, a site you visited can suggest related ads as you continue browsing. You can see a list of these sites and block the ones you don't want in settings.">
+     Based on your activity on a site. This setting is off.
+   </message>
+-  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_AD_MEASUREMENT_LINK_ROW_LABEL" desc="The name of a new setting. This setting is described to users in the Notice moment as: With ad measurement, limited types of data are shared between sites to measure the performance of their ads, such as the time of day an ad was shown to you. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_AD_MEASUREMENT_LINK_ROW_LABEL" desc="The name of a new setting. This setting is described to users in the Notice moment as: With ad measurement, limited types of data are shared between sites to measure the performance of their ads, such as the time of day an ad was shown to you. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Ad measurement
+   </message>
+   <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_AD_MEASUREMENT_LINK_ROW_SUB_LABEL_ENABLED" desc="The name of a new setting. This setting is described to users in the Notice moment as: With ad measurement, limited types of data are shared between sites to measure the performance of their ads, such as the time of day an ad was shown to you.">
+@@ -1568,13 +1568,13 @@
+     Whether an ad you see is personalized can depend on many things including this setting, <ph name="BEGIN_LINK1">&lt;a href="$1" aria-description="$2" target="_blank"&gt;</ph>site-suggested ads<ph name="LINK_END1">&lt;/a&gt;</ph>, your <ph name="BEGIN_LINK2">&lt;a href="$3" aria-description="$4" target="_blank"&gt;</ph>cookie settings<ph name="LINK_END2">&lt;/a&gt;</ph>, and if the site you're viewing personalizes ads. Learn more about <ph name="BEGIN_LINK3">&lt;a href="$5" aria-description="$6" target="_blank"&gt;</ph>managing your ad privacy<ph name="LINK_END3">&lt;/a&gt;</ph>.
+   </message>
+   <!-- Privacy Sandbox Settings 4 - Fledge Page -->
+-  <message name="IDS_SETTINGS_FLEDGE_PAGE_TITLE" desc="A page title and the name of a new setting. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_FLEDGE_PAGE_TITLE" desc="A page title and the name of a new setting. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Site-suggested ads
+   </message>
+   <message name="IDS_SETTINGS_FLEDGE_PAGE_TOGGLE_LABEL" desc="The label for a new setting.">
+     Site-suggested ads
+   </message>
+-  <message name="IDS_SETTINGS_FLEDGE_PAGE_TOGGLE_SUB_LABEL" desc="A description of the new Site-suggested ads setting. This text appears beneath the name of the new setting, 'Site-suggested ads', and is associated with the control that a user can turn on or off. * 'determine what you like': Based on your interaction with a site, that site can define your interests any way it wants. For example, if you put a pair of red running shoes in a shopping cart, the site might define an interest as 'red_running_shoes_size_36'. * 'suggest ads as you continue browsing': 1) you interact with a site and if defines an interest for you. That information is saved with Chrome. 2) You continue browsing. 3) a new site you visit checks with Chrome if 'Site-suggested ads' is turned on and then can request information related to that user. 4) The site might end up showing ads related to 'red_running_shoes_size_36'. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_FLEDGE_PAGE_TOGGLE_SUB_LABEL" desc="A description of the new Site-suggested ads setting. This text appears beneath the name of the new setting, 'Site-suggested ads', and is associated with the control that a user can turn on or off. * 'determine what you like': Based on your interaction with a site, that site can define your interests any way it wants. For example, if you put a pair of red running shoes in a shopping cart, the site might define an interest as 'red_running_shoes_size_36'. * 'suggest ads as you continue browsing': 1) you interact with a site and if defines an interest for you. That information is saved with Chrome. 2) You continue browsing. 3) a new site you visit checks with Chrome if 'Site-suggested ads' is turned on and then can request information related to that user. 4) The site might end up showing ads related to 'red_running_shoes_size_36'. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Sites you visit can determine what you like and then suggest ads as you continue browsing
+   </message>
+   <message name="IDS_SETTINGS_FLEDGE_PAGE_CURRENT_SITES_HEADING" desc="A label for a list of sites the user has visited. The list of sites looks similar to the user's browsing history, but this is a distinct list. * 'browsing history' is a list of the sites the user has visited. To learn more about 'browsing history', search for that term in the Chrome Help Center. * This list of 'Sites' is a subset of the user's browsing history. 1) Only sites that use the 'Site-suggested ads' API (https://developer.chrome.com/docs/privacy-sandbox/fledge/) can appear on this list. 2) This list is based on recent sites the user has visited and sites older than 4 weeks are regularly deleted.">
+@@ -1639,13 +1639,13 @@
+   </message>
+ 
+   <!-- Privacy Sandbox Settings 4 - Ad Measurement Page -->
+-  <message name="IDS_SETTINGS_AD_MEASUREMENT_PAGE_TITLE" desc="A page title and the name of a new setting. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_AD_MEASUREMENT_PAGE_TITLE" desc="A page title and the name of a new setting. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Ad measurement
+   </message>
+   <message name="IDS_SETTINGS_AD_MEASUREMENT_PAGE_TOGGLE_LABEL" desc="The label for a new setting.">
+     Ad measurement
+   </message>
+-  <message name="IDS_SETTINGS_AD_MEASUREMENT_PAGE_TOGGLE_SUB_LABEL" desc="A description of the new Ad measurement setting. This text appears beneath the name of the new setting, 'Ad measurement', and is associated with the control that a user can turn on or off. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
++  <message name="IDS_SETTINGS_AD_MEASUREMENT_PAGE_TOGGLE_SUB_LABEL" desc="A description of the new Ad measurement setting. This text appears beneath the name of the new setting, 'Ad measurement', and is associated with the control that a user can turn on or off. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on dao://settings/privacy that opens dao://settings/security. Likewise, 'Ad privacy' on dao://settings/privacy will open dao://settings/AdPrivacy.">
+     Sites and advertisers can measure the performance of their ads
+   </message>
+   <message name="IDS_SETTINGS_AD_MEASUREMENT_PAGE_ENABLED_BULLET_1" desc="1 of 3 bullets in the 'When on' section that describes the Ad measurement setting. * 'Limited types of data': The Ad measurement API (for developers) and the Ad measurement control (for users) is offered by Chrome. But Chrome is a 'pass through', helping one site communicate information to another about the performance of an ad. That's where this passive construction comes from. Chrome facilitates, but shouldn't be seen as a major actor here. And we don't want to suggest anything like 'Chrome limits the types of data shared between sites,' because Chrome can't do that. Any 2 sites can have a side agreement to share as much info as they like.">
+@@ -2256,7 +2256,7 @@
+   <message name="IDS_SETTINGS_RESET_AUTOMATED_DIALOG_TITLE" desc="The title of the dialog informing the user that automated resetting of some settings occurred.">
+     Some settings were reset
+   </message>
+-  <message name="IDS_SETTINGS_RESET_BANNER_TEXT" desc="The text to show in a banner at the top of the chrome://settings page. The banner is displayed when Chrome detects that some settings have been tampered with and were reset to factory defaults.">
++  <message name="IDS_SETTINGS_RESET_BANNER_TEXT" desc="The text to show in a banner at the top of the dao://settings page. The banner is displayed when Chrome detects that some settings have been tampered with and were reset to factory defaults.">
+     Chrome detected that some of your settings were corrupted by another program and reset them to their original defaults.
+   </message>
+   <message name="IDS_SETTINGS_RESET_BANNER_RESET_BUTTON_TEXT" desc="The text on the reset button in the Automatic Settings Reset Banner suggesting to reset ALL settings after an automatic reset of SOME settings.">
+@@ -2399,16 +2399,16 @@
+   <message name="IDS_SETTINGS_SEARCH_ENGINES_ADDITIONAL_INACTIVE_SITES" desc="Label for button that expands the Inactive Sites list of search engines to show all entries">
+     Additional inactive sites
+   </message>
+-  <message name="IDS_SETTINGS_SEARCH_ENGINES_MORE_ACTIONS_ARIA_LABEL" desc="Accessibility label for the three-dot more actions menu button associated with each search engine on chrome://settings/searchEngines">
++  <message name="IDS_SETTINGS_SEARCH_ENGINES_MORE_ACTIONS_ARIA_LABEL" desc="Accessibility label for the three-dot more actions menu button associated with each search engine on dao://settings/searchEngines">
+     More actions for <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph>
+   </message>
+-  <message name="IDS_SETTINGS_SEARCH_ENGINES_ACTIVATE_BUTTON_ARIA_LABEL" desc="Accessibility label for the Activate button associated with each inactive search engine on chrome://settings/searchEngines">
++  <message name="IDS_SETTINGS_SEARCH_ENGINES_ACTIVATE_BUTTON_ARIA_LABEL" desc="Accessibility label for the Activate button associated with each inactive search engine on dao://settings/searchEngines">
+     Click to activate <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph>
+   </message>
+-  <message name="IDS_SETTINGS_SEARCH_ENGINES_ADD_SITE_SEARCH_BUTTON_ARIA_LABEL" desc="Accessibility label for the Add button that opens the Add Site search dialog on chrome://settings/searchEngines.">
++  <message name="IDS_SETTINGS_SEARCH_ENGINES_ADD_SITE_SEARCH_BUTTON_ARIA_LABEL" desc="Accessibility label for the Add button that opens the Add Site search dialog on dao://settings/searchEngines.">
+     Click to open Add Site Search dialog
+   </message>
+-  <message name="IDS_SETTINGS_SEARCH_ENGINES_EDIT_SEARCH_ENGINE_BUTTON_ARIA_LABEL" desc="Accessibility label for the Edit (pencil-icon) button that opens the Edit Site search/Search engine dialog for the associated search engine on chrome://settings/searchEngines.">
++  <message name="IDS_SETTINGS_SEARCH_ENGINES_EDIT_SEARCH_ENGINE_BUTTON_ARIA_LABEL" desc="Accessibility label for the Edit (pencil-icon) button that opens the Edit Site search/Search engine dialog for the associated search engine on dao://settings/searchEngines.">
+     Click to open Edit dialog for <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph>
+   </message>
+ 
+@@ -3098,25 +3098,25 @@
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_DESCRIPTION" desc="An explanation of what third-party cookies are that appear beneath the page title: 'Third-party cookies'. * 'embed': A site you visit uses HTML to construct the page. HTML tags include references to images, like img src='filename.jpg', that are used to show an image. 'filename.jpg' can be a local file owned by the site you visit or a site can embed an external file with something like img src='www.third-party-site.com/images/filename.jpg'. This image is embedded into the site you visit and www.third-party-site.com can set a third-party cookie onto your device.">
+     A site you visit can embed content from other sites, for example, images, ads, and text. Cookies set by these other sites are called third-party cookies.
+   </message>
+-  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_DEFAULT_BEHAVIOR_HEADING" desc="A label on a permissions page. For example, see the Microphone permission at chrome://settings/content/microphone.">
++  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_DEFAULT_BEHAVIOR_HEADING" desc="A label on a permissions page. For example, see the Microphone permission at dao://settings/content/microphone.">
+     Default behavior
+   </message>
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_ALIGNED_PAGE_DESCRIPTION" desc="Descriptive text on the 'Third-party cookies' settings page explaining that controls on the page are for managing information sites can use for tracking.">
+     Manage the types of information sites can use to track you as you browse.
+   </message>
+-  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_DEFAULT_BEHAVIOR_DESCRIPTION" desc="A description of what 'Default behavior' means. For example, see the Microphone permission at chrome://settings/content/microphone.">
++  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_DEFAULT_BEHAVIOR_DESCRIPTION" desc="A description of what 'Default behavior' means. For example, see the Microphone permission at dao://settings/content/microphone.">
+     Sites automatically follow this setting when you visit them
+   </message>
+-  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_CUSTOMIZED_BEHAVIOR_HEADING" desc="A label on a permissions page. For example, see the Microphone permission at chrome://settings/content/microphone.">
++  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_CUSTOMIZED_BEHAVIOR_HEADING" desc="A label on a permissions page. For example, see the Microphone permission at dao://settings/content/microphone.">
+     Customized behaviors
+   </message>
+-  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_CUSTOMIZED_BEHAVIOR_DESCRIPTION" desc="A description of 'customized behaviors' that appear beneath the 'Customized behaviors' title. For example, see the Microphone permission at chrome://settings/content/microphone.">
++  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_CUSTOMIZED_BEHAVIOR_DESCRIPTION" desc="A description of 'customized behaviors' that appear beneath the 'Customized behaviors' title. For example, see the Microphone permission at dao://settings/content/microphone.">
+     Sites listed below follow a custom setting instead of the default
+   </message>
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="A description of an exception bucket">
+     Allowed to use third-party cookies
+   </message>
+-  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_TITLE" desc="The title of a new page. Today, Chrome has a 'Cookies and other site data' page at chrome://settings/cookies. As part of the Privacy Sandbox project (see below), Chrome is deprecating third-party cookies but maintaining first-party cookies. As a step towards the ultimate deprecation of third-party cookies, we're first separating them from other forms of 'site data', making it easier to eventually remove this page completely. Cookies are often used for honorable objectives, and the difference between first and third-party cookies is important (see any of the many resources online such as https://termly.io/resources/articles/first-party-cookies-vs-third-party-cookies/.">
++  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_TITLE" desc="The title of a new page. Today, Chrome has a 'Cookies and other site data' page at dao://settings/cookies. As part of the Privacy Sandbox project (see below), Chrome is deprecating third-party cookies but maintaining first-party cookies. As a step towards the ultimate deprecation of third-party cookies, we're first separating them from other forms of 'site data', making it easier to eventually remove this page completely. Cookies are often used for honorable objectives, and the difference between first and third-party cookies is important (see any of the many resources online such as https://termly.io/resources/articles/first-party-cookies-vs-third-party-cookies/.">
+     Third-party cookies
+   </message>
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_LINK_ROW_LABEL" desc="This text is the label of a page. Here, it serves as a button that opens the new page.">
+@@ -3131,7 +3131,7 @@
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_LINK_ROW_SUB_LABEL_DISABLED" desc="3 of 3 possible states for the Third-party cookies setting. This text appears beneath the 'Third-party cookies' button label.">
+     Third-party cookies are blocked
+   </message>
+-  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_ALLOW_RADIO_LABEL" desc="1 of 3 options the user has to configure cookies. See the cookies page for context: chrome://settings/cookies.">
++  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_ALLOW_RADIO_LABEL" desc="1 of 3 options the user has to configure cookies. See the cookies page for context: dao://settings/cookies.">
+     Allow third-party cookies
+   </message>
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_ALLOW_EXPAND_A11Y_LABEL" desc="This text is read by screenreaders and helps users find more info about this choice.">
+@@ -3143,7 +3143,7 @@
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_ALLOW_BULLET_2" desc="2 of 2 bullets that describes the 'Allow all cookies' option. Sites use third-party cookies to 'see your browsing activity across different sites'. Third-party cookies aren't necessarily bad. 1) Personalized ads can be useful to the user (though the tracking that generally accompanies the use of third-party cookies for ads isn't). But 2) third-party cookies are also used for spam protection and for anti-tracking efforts.">
+     Sites can use cookies to see your browsing activity across different sites, for example, to personalize ads
+   </message>
+-  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_BLOCK_INCOGNITO_RADIO_LABEL" desc="2 of 3 options the user has to configure cookies. See the cookies page for context: chrome://settings/cookies. For more about Incognito mode, see Google Chrome's Help Center.">
++  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_BLOCK_INCOGNITO_RADIO_LABEL" desc="2 of 3 options the user has to configure cookies. See the cookies page for context: dao://settings/cookies. For more about Incognito mode, see Google Chrome's Help Center.">
+     Block third-party cookies in Incognito mode
+   </message>
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_BLOCK_INCOGNITO_EXPAND_A11Y_LABEL" desc="This text is read by screenreaders and helps users find more info about this choice.">
+@@ -3155,7 +3155,7 @@
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_BLOCK_INCOGNITO_BULLET_2" desc="2 of 2 bullets that describes the 'Block third-party cookies in Incognito mode' option.">
+     While in Incognito, sites can't use your cookies to see your browsing activity across sites. Your browsing activity isn't used for things like personalizing ads. Features on some sites may not work.
+   </message>
+-  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_BLOCK_RADIO_LABEL" desc="3 of 3 options the user has to configure cookies. See the cookies page for context: chrome://settings/cookies">
++  <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_BLOCK_RADIO_LABEL" desc="3 of 3 options the user has to configure cookies. See the cookies page for context: dao://settings/cookies">
+     Block third-party cookies
+   </message>
+   <message name="IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_BLOCK_EXPAND_A11Y_LABEL" desc="This text is read by screenreaders and helps users find more info about this choice.">
+@@ -3467,7 +3467,7 @@
+   <message name="IDS_SETTINGS_SITE_SETTINGS_SITE_DELETE_STORAGE_OFFLINE_DATA" desc="Text for the dialog that warns about loss of offline data when deleting all storage data.">
+     Any offline data will be deleted
+   </message>
+-  <message name="IDS_SETTINGS_SITE_SETTINGS_REMOVE_SITE_AD_PERSONALIZATION" desc="A bullet in a list of data that gets deleted from the user's device when they choose 'Clear data' for a specific site. 1) Go to chrome://settings/content. 2) From the 'Recent activity' list, choose a site. 3) Click the 'Clear data' button. The 'Clear site data?' dialog appears. This string will appear as a new bullet at the bottom of the dialog.">
++  <message name="IDS_SETTINGS_SITE_SETTINGS_REMOVE_SITE_AD_PERSONALIZATION" desc="A bullet in a list of data that gets deleted from the user's device when they choose 'Clear data' for a specific site. 1) Go to dao://settings/content. 2) From the 'Recent activity' list, choose a site. 3) Click the 'Clear data' button. The 'Clear site data?' dialog appears. This string will appear as a new bullet at the bottom of the dialog.">
+     Data that affects ad personalization is deleted
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_SITE_GROUP_DELETE_OFFLINE_DATA" desc="Text for the dialog that warns about loss of offline data when deleting all storage data.">
+@@ -3586,10 +3586,10 @@
+   <message name="IDS_SETTINGS_SITE_DATA_PAGE_DESCRIPTION" desc="A paragraph that appear beneath the page title: 'On-device site data'. It defines what on-device site data is. What is 'On-device site data'? When you interact with a site, that site can remember things about what you do. For example, you might place a pair of shoes in a shopping cart, close down your browser, and find those same shoes in your shopping cart when you visit the same site a week later. Sometimes that info is saved in the Cloud. Sometimes that info is saved on the user's device. There are several ways a site can save info to the user's device—for example, with cookies (text files saved to your device), small JavaScript databases, and even Chrome's new ad settings that are part of the Privacy Sandbox project (see details below). This page introduces the concept of on-device site data, allows the user to see which sites are using it, and allows the user to delete all saved data or just data from specific sites. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com.">
+     A site you visit can save info about what you're doing so that it works as expected — for example, to keep you signed in to a site or to save items in your shopping cart. Often sites save this info temporarily on your device.
+   </message>
+-  <message name="IDS_SETTINGS_SITE_DATA_PAGE_DEFAULT_BEHAVIOR_HEADING" desc="A label on a permissions page. For example, see the Microphone permission at chrome://settings/content/microphone.">
++  <message name="IDS_SETTINGS_SITE_DATA_PAGE_DEFAULT_BEHAVIOR_HEADING" desc="A label on a permissions page. For example, see the Microphone permission at dao://settings/content/microphone.">
+     Default behavior
+   </message>
+-  <message name="IDS_SETTINGS_SITE_DATA_PAGE_DEFAULT_BEHAVIOR_DESCRIPTION" desc="A description of what 'Default behavior' means. For example, see the Microphone permission at chrome://settings/content/microphone.">
++  <message name="IDS_SETTINGS_SITE_DATA_PAGE_DEFAULT_BEHAVIOR_DESCRIPTION" desc="A description of what 'Default behavior' means. For example, see the Microphone permission at dao://settings/content/microphone.">
+     Sites automatically follow this setting when you visit them
+   </message>
+   <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_RADIO_LABEL" desc="1 of 3 choices the user has regarding the 'default behavior' of the 'On-device site data' setting. This offers sites the most flexibility.">
+@@ -3607,10 +3607,10 @@
+   <message name="IDS_SETTINGS_SITE_DATA_PAGE_BLOCK_RADIO_SUB_LABEL" desc="A description of the benefit/cost of choosing 'Sites can save content on your device. * 'don't want to leave information on your device': We think that most users should allow all on-device site data because sites might break if they don't. But there are cases for which this info could prove harmful. Imagine a case of domestic abuse and a tech-savvy partner who can go into Chrome settings and find saved information about the activity of their partner. Or a journalist working in a sensitive environment. We want to convey the value of this option without alarming users.">
+     Sites may not work as you would expect. Choose this option if you don't want to leave information on your device about sites you visit.
+   </message>
+-  <message name="IDS_SETTINGS_SITE_DATA_PAGE_CUSTOMIZED_BEHAVIOR_HEADING" desc="A label on a permissions page. For example, see the Microphone permission at chrome://settings/content/microphone.">
++  <message name="IDS_SETTINGS_SITE_DATA_PAGE_CUSTOMIZED_BEHAVIOR_HEADING" desc="A label on a permissions page. For example, see the Microphone permission at dao://settings/content/microphone.">
+     Customized behaviors
+   </message>
+-  <message name="IDS_SETTINGS_SITE_DATA_PAGE_CUSTOMIZED_BEHAVIOR_DESCRIPTION" desc="A description of 'customized behaviors' that appear beneath the 'Customized behaviors' title. For example, see the Microphone permission at chrome://settings/content/microphone.">
++  <message name="IDS_SETTINGS_SITE_DATA_PAGE_CUSTOMIZED_BEHAVIOR_DESCRIPTION" desc="A description of 'customized behaviors' that appear beneath the 'Customized behaviors' title. For example, see the Microphone permission at dao://settings/content/microphone.">
+     Sites listed below follow a custom setting instead of the default
+   </message>
+   <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
+@@ -4393,40 +4393,40 @@
+   <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS_POLICY" desc="Subtitle of the passwords card in SafetyHub when there are no saved passwords and saving of passwords is disabled through enterprise policy. This text is shown below the header 'No saved passwords'. It explains that the SafetyHub features for passwords are not available since the user's organization has a policy in place that prevents the user from saving passwords in Chrome.">
+     Your organization turned off saving passwords
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (chrome://settings/safetyCheck) gives users an overview over their safety status. Password card in this page shows if there is any insecure password stored. This string is for the accesibility label for the card to call out where to navigation will happen (chrome://password-manager/passwords) if the card is clicked.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (dao://settings/safetyCheck) gives users an overview over their safety status. Password card in this page shows if there is any insecure password stored. This string is for the accesibility label for the card to call out where to navigation will happen (dao://password-manager/passwords) if the card is clicked.">
+     Go to Google Password Manager
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_ENHANCED_HEADER" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is the headline of the Safe Browsing card when the current state is Enhanced protection.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_ENHANCED_HEADER" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (dao://settings/security). This string is the headline of the Safe Browsing card when the current state is Enhanced protection.">
+     Enhanced Safe Browsing is on
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_ENHANCED_SUBHEADER" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is the body text of the Safe Browsing card when the current state is Enhanced protection.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_ENHANCED_SUBHEADER" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (dao://settings/security). This string is the body text of the Safe Browsing card when the current state is Enhanced protection.">
+     You have Chrome's strongest security
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_STANDARD_HEADER" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is the headline of the Safe Browsing card when the current state is Standard protection.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_STANDARD_HEADER" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (dao://settings/security). This string is the headline of the Safe Browsing card when the current state is Standard protection.">
+     Safe Browsing is on
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_STANDARD_SUBHEADER" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is the body text of the Safe Browsing card when the current state is Standard protection.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_STANDARD_SUBHEADER" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (dao://settings/security). This string is the body text of the Safe Browsing card when the current state is Standard protection.">
+     You're getting standard protection
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_OFF_HEADER" desc="Safety Hub settings page(chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting(chrome://settings/security). This string is the headline of the Safe Browsing card when the current state is No protection.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_OFF_HEADER" desc="Safety Hub settings page(dao://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting(dao://settings/security). This string is the headline of the Safe Browsing card when the current state is No protection.">
+     Safe Browsing is off
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_OFF_MANAGED_SUBHEADER" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is the body text of the Safe Browsing card when the current state is No protection because the user's organization (e.g. employer, university, etc.) has turned it off.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_OFF_MANAGED_SUBHEADER" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (dao://settings/security). This string is the body text of the Safe Browsing card when the current state is No protection because the user's organization (e.g. employer, university, etc.) has turned it off.">
+     Your organization turned off Safe Browsing
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_OFF_EXTENSION_SUBHEADER" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is the body text of the Safe Browsing card when the current state is No protection because one of the extensions installed on the user's browser has turned it off.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_OFF_EXTENSION_SUBHEADER" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (dao://settings/security). This string is the body text of the Safe Browsing card when the current state is No protection because one of the extensions installed on the user's browser has turned it off.">
+     An extension turned off Safe Browsing
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_OFF_USER_SUBHEADER" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is the body text of the Safe Browsing card when the current state is No protection because the user has turned it off.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_OFF_USER_SUBHEADER" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (dao://settings/security). This string is the body text of the Safe Browsing card when the current state is No protection because the user has turned it off.">
+     Turn on Safe Browsing to get protection against dangerous sites
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SB_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (chrome://settings/safetyCheck) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is for the accesibility label for the card to call out where to navigation will happen (chrome://settings/security) if the card is clicked.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SB_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (dao://settings/safetyCheck) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (dao://settings/security). This string is for the accesibility label for the card to call out where to navigation will happen (dao://settings/security) if the card is clicked.">
+     Go to Safe Browsing settings
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_GO_SITE_SETTINGS_ITEM" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. 'Unused Site Permissions' in this page shows unused websites for which permissions have been revoked. This label is for the action menu item that navigates users to the site settings page.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_GO_SITE_SETTINGS_ITEM" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. 'Unused Site Permissions' in this page shows unused websites for which permissions have been revoked. This label is for the action menu item that navigates users to the site settings page.">
+     Go to site settings
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_GO_NOTIFICATION_SETTINGS_ITEM" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. 'Review Notification Permissions' in this page shows the websites that send a lot of notifications. This label is for the action menu item that navigates users to notification the settings page.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_GO_NOTIFICATION_SETTINGS_ITEM" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. 'Review Notification Permissions' in this page shows the websites that send a lot of notifications. This label is for the action menu item that navigates users to notification the settings page.">
+     Go to notification settings
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_USER_EDU_INCOGNITO_SUBHEADER" desc="The subheader of the second item in the 'User Education Module' in the Safety Hub page. This item explains Incognito mode.">
+@@ -4436,21 +4436,21 @@
+     Safe Browsing
+   </message>
+   <if expr="not is_chromeos">
+-    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_SUBHEADER_RESTART" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This text is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown below the title 'Chrome is out of date'.">
++    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_SUBHEADER_RESTART" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This text is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown below the title 'Chrome is out of date'.">
+       Relaunch to finish update. Your tabs will reopen.
+     </message>
+   </if>
+   <if expr="is_chromeos">
+-    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_SUBHEADER_RESTART" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This text is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown below the title 'Chrome is out of date'.">
++    <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_SUBHEADER_RESTART" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This text is shown when Chrome is not up to date but there is an update available and the user needs to restart their browser to finish the update. Shown below the title 'Chrome is out of date'.">
+       Restart your device to finish updating
+     </message>
+   </if>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_NOTIFICATION_PERMISSIONS_PRIMARY_LABEL" desc="'Review Notification Permissions' shows the websites that send a lot of notifications. This label is the header of the module in the Safety Check page (chrome://settings/SafetyCheck). The number represents the number of notification permissions to be reviewed.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_NOTIFICATION_PERMISSIONS_PRIMARY_LABEL" desc="'Review Notification Permissions' shows the websites that send a lot of notifications. This label is the header of the module in the Safety Check page (dao://settings/SafetyCheck). The number represents the number of notification permissions to be reviewed.">
+     {NUM_SITES, plural,
+      =1 {Review 1 site that recently sent a lot of notifications}
+      other {Review {NUM_SITES} sites that recently sent a lot of notifications}}
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_NOTIFICATION_PERMISSIONS_SECONDARY_LABEL" desc="'Review Notification Permissions' shows the websites that send a lot of notifications. This label is the header of the module in the Safety Check page (chrome://settings/SafetyCheck). The number represents the number of notification permissions to be reviewed.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_NOTIFICATION_PERMISSIONS_SECONDARY_LABEL" desc="'Review Notification Permissions' shows the websites that send a lot of notifications. This label is the header of the module in the Safety Check page (dao://settings/SafetyCheck). The number represents the number of notification permissions to be reviewed.">
+     {NUM_SITES, plural,
+      =1 {You can stop this site from sending future notifications.}
+      other {You can stop these sites from sending future notifications.}}
+@@ -4483,31 +4483,31 @@
+   <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MENU_NOTIFICATION" desc="When Safe Browsing is disabled, the proactive Safety Hub feature encourages users to turn on the feature. This label is for the notification in Chrome's three-dot menu.">
+     Safe Browsing is off
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORDS_MODULE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of passwords module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORDS_MODULE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of passwords module.">
+     Passwords
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MODULE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of Safe Browsing module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MODULE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of Safe Browsing module.">
+     Safe Browsing
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_EXTENSIONS_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of extensions module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_EXTENSIONS_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of extensions module.">
+     Extensions
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_EXTENSIONS_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of extensions module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_EXTENSIONS_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of extensions module.">
+     extensions
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_NOTIFICATIONS_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of notifications module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_NOTIFICATIONS_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of notifications module.">
+     Notifications
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_NOTIFICATIONS_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of notifications module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_NOTIFICATIONS_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of notifications module.">
+     notifications
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_PERMISSIONS_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of permissions module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_PERMISSIONS_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of permissions module.">
+     Permissions
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_PERMISSIONS_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of permissions module.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_PERMISSIONS_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of permissions module.">
+     permissions
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_MODULE_NAME_SEPARATOR" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations using a separator between them (in English it is a comma used between all items in a series). This string is the separator between the module names and is used like 'Passwords, extensions, notifications'.">
++  <message name="IDS_SETTINGS_SAFETY_HUB_MODULE_NAME_SEPARATOR" desc="The entry point shown on the screenshot leads to Safety Check settings page (dao://settings/safetyCheck) when at least on of the Safety Check modules have recommendations. The subheader of the entry point lists the modules with recommendations using a separator between them (in English it is a comma used between all items in a series). This string is the separator between the module names and is used like 'Passwords, extensions, notifications'.">
+     ,
+   </message>
+ 
+diff --git a/chrome/app/support_tool_strings.grdp b/chrome/app/support_tool_strings.grdp
+index 156b0ed66e..776a6d118a 100644
+--- a/chrome/app/support_tool_strings.grdp
++++ b/chrome/app/support_tool_strings.grdp
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<!-- Support Tool UI (chrome://support-tool) strings (included from generated_resources.grd). -->
++<!-- Support Tool UI (dao://support-tool) strings (included from generated_resources.grd). -->
+ <grit-part>
+     <if expr="not is_android">
+         <message name="IDS_SUPPORT_TOOL_ISSUE_DETAILS_PAGE_TITLE" desc="The title of first page (out of four pages) of Support Tool. This page contains details about the issue that the user wants to collect diagnose data. The title describes that the user needs to describe the issue on those fields.">

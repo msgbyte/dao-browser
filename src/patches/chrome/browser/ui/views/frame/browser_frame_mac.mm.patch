@@ -64,16 +64,17 @@ index 29ba0f48f5..5e50d71270 100644
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -379,6 +407,15 @@ - (NSTouchBar*)makeTouchBar {
+@@ -379,6 +407,16 @@ - (NSTouchBar*)makeTouchBar {
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
 +  } else if (dao::DaoLittleDaoController::IsLittleDaoWindow(
 +                 browser_view_->browser()) ||
 +             dao::DaoLittleDaoController::IsCreatingLittleDao()) {
-+    // Dao: Little Dao windows use transparent titlebar with traffic lights
-+    // integrated into the header bar, similar to the main browser window.
-+    params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
++    // Dao: Little Dao windows use BrowserNativeWidgetWindow (kBrowser) so
++    // that BrowserWindowFrame is used, which provides _titlebarHeight
++    // override and _shouldCenterTrafficLights for vertical centering.
++    params->window_class = remote_cocoa::mojom::WindowClass::kBrowser;
 +    params->style_mask |= NSWindowStyleMaskFullSizeContentView;
 +    params->titlebar_appears_transparent = true;
 +    params->window_title_hidden = true;

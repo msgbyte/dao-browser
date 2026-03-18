@@ -1,0 +1,663 @@
+diff --git a/components/resources/terms/terms_am.html b/components/resources/terms/terms_am.html
+index 9075f1c50e..7bd40b85b3 100644
+--- a/components/resources/terms/terms_am.html
++++ b/components/resources/terms/terms_am.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome ወይም ChromeOSን በመጠቀምዎ https://policies.google.com/terms ላይ በሚገኘው የGoogle አገልግሎት ውል እና በእነዚህ የGoogle Chrome እና ChromeOS ተጨማሪ አገልግሎት ውል ይስማማሉ።
+ </p>
+ <p>
+- እነዚህ የGoogle Chrome እና የChromeOS ተጨማሪ አገልግሎት ውል በተፈጻሚው የChrome እና Chrome OW ኮድ ስሪት ላይ ይተገበራሉ። አብዛኛው የChrome ምንጭ ኮድ በክፍት ምንጭ ፈቃድ ስምምነቶች chrome://credits ላይ ባሉ የክፍት ምንጭ ሶፍትዌር ፈቃድ ስምምነቶች መሠረት ከክፍያ ነጻ የሚገኝ ነው።
++ እነዚህ የGoogle Chrome እና የChromeOS ተጨማሪ አገልግሎት ውል በተፈጻሚው የChrome እና Chrome OW ኮድ ስሪት ላይ ይተገበራሉ። አብዛኛው የChrome ምንጭ ኮድ በክፍት ምንጭ ፈቃድ ስምምነቶች dao://credits ላይ ባሉ የክፍት ምንጭ ሶፍትዌር ፈቃድ ስምምነቶች መሠረት ከክፍያ ነጻ የሚገኝ ነው።
+ </p>
+ <p>
+  የእርስዎ የተወሰኑ የChrome እና ChromeOS ክፍሎችን መጠቀም ለሚከተሉት ደንቦች ተገዢ ነው፦
+diff --git a/components/resources/terms/terms_ar.html b/components/resources/terms/terms_ar.html
+index b61761b34c..3ea54aea0e 100644
+--- a/components/resources/terms/terms_ar.html
++++ b/components/resources/terms/terms_ar.html
+@@ -40,7 +40,7 @@ h2 {
+  يعني استخدامك لمتصفح Chrome أو "نظام التشغيل Chrome" موافقتك على بنود خدمة Google المتاحة على الرابط https://policies.google.com/terms وبنود الخدمة الإضافية لكل من متصفح Google Chrome و"نظام التشغيل Chrome".
+ </p>
+ <p>
+- تنطبق بنود الخدمة الإضافية لمتصفح Google Chrome و"نظام التشغيل Chrome" على إصدار الرمز القابل للتنفيذ لمتصفح Chrome و"نظام التشغيل Chrome". وتتوفّر معظم رموز المصدر لمتصفح Chrome مجانًا بموجب اتفاقية ترخيص البرامج المفتوحة المصدر على chrome://credits.
++ تنطبق بنود الخدمة الإضافية لمتصفح Google Chrome و"نظام التشغيل Chrome" على إصدار الرمز القابل للتنفيذ لمتصفح Chrome و"نظام التشغيل Chrome". وتتوفّر معظم رموز المصدر لمتصفح Chrome مجانًا بموجب اتفاقية ترخيص البرامج المفتوحة المصدر على dao://credits.
+ </p>
+ <p>
+  يخضع استخدامك لمكوِّنات معيّنة من متصفح Chrome و"نظام التشغيل Chrome" للبنود التالية:
+diff --git a/components/resources/terms/terms_bg.html b/components/resources/terms/terms_bg.html
+index 1d5da214d2..bffdebc32b 100644
+--- a/components/resources/terms/terms_bg.html
++++ b/components/resources/terms/terms_bg.html
+@@ -40,7 +40,7 @@ h2 {
+  С използването на Chrome или ChromeOS приемате Общите условия на Google на адрес https://policies.google.com/terms и настоящите Допълнителни общи условия на Google Chrome и ChromeOS.
+ </p>
+ <p>
+- Допълнителните общи условия на Google Chrome и ChromeOS се прилагат към версията на изпълнимия код на тези продукти. По-голямата част от изходния код на Chrome е налице безплатно съгласно лицензи за софтуер с отворен код на адрес chrome://credits.
++ Допълнителните общи условия на Google Chrome и ChromeOS се прилагат към версията на изпълнимия код на тези продукти. По-голямата част от изходния код на Chrome е налице безплатно съгласно лицензи за софтуер с отворен код на адрес dao://credits.
+ </p>
+ <p>
+  Използването от ваша страна на определени компоненти от Chrome и ChromeOS е предмет на следните условия:
+diff --git a/components/resources/terms/terms_bn.html b/components/resources/terms/terms_bn.html
+index 35735d1574..d4fa5d0d77 100644
+--- a/components/resources/terms/terms_bn.html
++++ b/components/resources/terms/terms_bn.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome বা ChromeOS ব্যবহার করার মাধ্যমে, আপনি https://policies.google.com/terms লিঙ্কে দেওয়া Google-এর পরিষেবার শর্তাবলী ও এই সূত্রে দেওয়া Google Chrome ও ChromeOS-এর অতিরিক্ত পরিষেবার শর্তাবলী মেনে চলার ব্যাপারে সম্মত হয়েছেন।
+ </p>
+ <p>
+- Google Chrome ও ChromeOS-এর এই অতিরিক্ত পরিষেবার শর্তাবলী Chrome ও ChromeOS-এর চুক্তি নির্বাহকারী কোড ভার্সনের জন্য প্রযোজ্য হবে। Chrome-এর জন্য বেশির ভাগ সোর্স কোডই chrome://credits লিঙ্কে দেওয়া ওপেন সোর্স সফ্টওয়্যার লাইসেন্স চুক্তির অধীনে বিনামূল্যে পাওয়া যাবে।
++ Google Chrome ও ChromeOS-এর এই অতিরিক্ত পরিষেবার শর্তাবলী Chrome ও ChromeOS-এর চুক্তি নির্বাহকারী কোড ভার্সনের জন্য প্রযোজ্য হবে। Chrome-এর জন্য বেশির ভাগ সোর্স কোডই dao://credits লিঙ্কে দেওয়া ওপেন সোর্স সফ্টওয়্যার লাইসেন্স চুক্তির অধীনে বিনামূল্যে পাওয়া যাবে।
+ </p>
+ <p>
+  আপনি Chrome ও ChromeOS-এর যেসব নির্দিষ্ট উপাদান ব্যবহার করেন, তার জন্য আপনাকে নিচে উল্লিখিত শর্তাবলী মেনে চলতে হবে:
+diff --git a/components/resources/terms/terms_ca.html b/components/resources/terms/terms_ca.html
+index f239576246..b2d2f572ab 100644
+--- a/components/resources/terms/terms_ca.html
++++ b/components/resources/terms/terms_ca.html
+@@ -40,7 +40,7 @@ h2 {
+  En utilitzar Chrome o ChromeOS, accepteu les Condicions del servei de Google, que podeu consultar a https://policies.google.com/terms, i aquestes Condicions del servei addicionals de Google Chrome i ChromeOS.
+ </p>
+ <p>
+- Aquestes Condicions del servei addicionals de Google Chrome i ChromeOS s'apliquen a la versió de codi executable de Chrome i ChromeOS. La major part del codi font de Chrome està disponible sense cap càrrec d'acord amb els acords de llicència de programari lliure que es poden consultar a chrome://credits.
++ Aquestes Condicions del servei addicionals de Google Chrome i ChromeOS s'apliquen a la versió de codi executable de Chrome i ChromeOS. La major part del codi font de Chrome està disponible sense cap càrrec d'acord amb els acords de llicència de programari lliure que es poden consultar a dao://credits.
+ </p>
+ <p>
+  L'ús que feu de determinats components de Chrome i ChromeOS està subjecte a les condicions següents:
+diff --git a/components/resources/terms/terms_cs.html b/components/resources/terms/terms_cs.html
+index b74a21859a..0be7fd1731 100644
+--- a/components/resources/terms/terms_cs.html
++++ b/components/resources/terms/terms_cs.html
+@@ -40,7 +40,7 @@ h2 {
+  Používáním prohlížeče Chrome nebo systému ChromeOS vyjadřujete souhlas se smluvními podmínkami společnosti Google na adrese https://policies.google.com/terms a těmito dodatečnými smluvními podmínkami pro Google Chrome a ChromeOS.
+ </p>
+ <p>
+- Tyto dodatečné smluvní podmínky prohlížeče Google Chrome a systému ChromeOS se vztahují na spustitelný kód aplikace Chrome a systému ChromeOS. Většina zdrojového kódu aplikace Chrome je k dispozici bezplatně s licenční smlouvou na software s otevřeným zdrojovým kódem na adrese chrome://credits.
++ Tyto dodatečné smluvní podmínky prohlížeče Google Chrome a systému ChromeOS se vztahují na spustitelný kód aplikace Chrome a systému ChromeOS. Většina zdrojového kódu aplikace Chrome je k dispozici bezplatně s licenční smlouvou na software s otevřeným zdrojovým kódem na adrese dao://credits.
+ </p>
+ <p>
+  Na vaše používání některých součástí prohlížeče Chrome a systému ChromeOS se vztahují následující podmínky:
+diff --git a/components/resources/terms/terms_da.html b/components/resources/terms/terms_da.html
+index a30d2db01f..74cb2b35d7 100644
+--- a/components/resources/terms/terms_da.html
++++ b/components/resources/terms/terms_da.html
+@@ -40,7 +40,7 @@ h2 {
+  Når du bruger Chrome eller ChromeOS, accepterer du Googles servicevilkår, som kan findes på https://policies.google.com/terms, og disse yderligere servicevilkår for Google Chrome og ChromeOS.
+ </p>
+ <p>
+- Disse Yderligere servicevilkår for Google Chrome og ChromeOS gælder for den version af Chrome og ChromeOS med eksekverbar kode. Det meste af kildekoden til Chrome kan findes gratis i henhold til open source-softwarelicensaftaler på chrome://credits.
++ Disse Yderligere servicevilkår for Google Chrome og ChromeOS gælder for den version af Chrome og ChromeOS med eksekverbar kode. Det meste af kildekoden til Chrome kan findes gratis i henhold til open source-softwarelicensaftaler på dao://credits.
+ </p>
+ <p>
+  Din brug af bestemte dele af Chrome og ChromeOS er underlagt følgende vilkår:
+diff --git a/components/resources/terms/terms_de.html b/components/resources/terms/terms_de.html
+index b044bbe611..63cdfb0972 100644
+--- a/components/resources/terms/terms_de.html
++++ b/components/resources/terms/terms_de.html
+@@ -40,7 +40,7 @@ h2 {
+  Wenn Sie Chrome oder ChromeOS nutzen, stimmen Sie damit den Nutzungsbedingungen von Google unter https://policies.google.com/terms sowie diesen zusätzlichen Nutzungsbedingungen für Google Chrome und ChromeOS zu.
+ </p>
+ <p>
+- Diese zusätzlichen Nutzungsbedingungen für Google Chrome und ChromeOS gelten für die ausführbare Codeversion von Chrome und ChromeOS. Der größte Teil des Quellcodes von Chrome ist im Rahmen von Open-Source-Softwarelizenzvereinbarungen auf chrome://credits kostenlos erhältlich.
++ Diese zusätzlichen Nutzungsbedingungen für Google Chrome und ChromeOS gelten für die ausführbare Codeversion von Chrome und ChromeOS. Der größte Teil des Quellcodes von Chrome ist im Rahmen von Open-Source-Softwarelizenzvereinbarungen auf dao://credits kostenlos erhältlich.
+ </p>
+ <p>
+  Die Nutzung bestimmter Komponenten von Chrome und ChromeOS unterliegt den folgenden Bedingungen:
+diff --git a/components/resources/terms/terms_el.html b/components/resources/terms/terms_el.html
+index 6b01840c7c..f84d93cb04 100644
+--- a/components/resources/terms/terms_el.html
++++ b/components/resources/terms/terms_el.html
+@@ -40,7 +40,7 @@ h2 {
+  Χρησιμοποιώντας το Chrome ή το ChromeOS, συμφωνείτε με τους Όρους Παροχής Υπηρεσιών της Google που μπορείτε να βρείτε στη διεύθυνση https://policies.google.com/terms και με τους Πρόσθετους Όρους Παροχής Υπηρεσιών του Google Chrome και του ChromeOS.
+ </p>
+ <p>
+- Αυτοί οι Πρόσθετοι Όροι Παροχής Υπηρεσιών του Google Chrome και του ChromeOS ισχύουν για την έκδοση εκτελέσιμου κώδικα του Chrome και του ChromeOS. Το μεγαλύτερο μέρος του πηγαίου κώδικα του Chrome διατίθεται δωρεάν μέσω αδειών χρήσης λογισμικού ανοικτού κώδικα στη διεύθυνση chrome://credits.
++ Αυτοί οι Πρόσθετοι Όροι Παροχής Υπηρεσιών του Google Chrome και του ChromeOS ισχύουν για την έκδοση εκτελέσιμου κώδικα του Chrome και του ChromeOS. Το μεγαλύτερο μέρος του πηγαίου κώδικα του Chrome διατίθεται δωρεάν μέσω αδειών χρήσης λογισμικού ανοικτού κώδικα στη διεύθυνση dao://credits.
+ </p>
+ <p>
+  Η από μέρους σας χρήση συγκεκριμένων στοιχείων του Chrome και του ChromeOS υπόκειται στους παρακάτω όρους:
+diff --git a/components/resources/terms/terms_en-GB.html b/components/resources/terms/terms_en-GB.html
+index ed512f4db3..24866dd285 100644
+--- a/components/resources/terms/terms_en-GB.html
++++ b/components/resources/terms/terms_en-GB.html
+@@ -40,7 +40,7 @@ h2 {
+  By using Chrome or ChromeOS, you agree to the Google Terms of Service located at https://policies.google.com/terms and these Google Chrome and ChromeOS additional Terms of Service.
+ </p>
+ <p>
+- These Google Chrome and ChromeOS additional Terms of Service apply to the executable code version of Chrome and ChromeOS. Most source code for Chrome is available free of charge under open source software licence agreements at chrome://credits.
++ These Google Chrome and ChromeOS additional Terms of Service apply to the executable code version of Chrome and ChromeOS. Most source code for Chrome is available free of charge under open source software licence agreements at dao://credits.
+ </p>
+ <p>
+  Your use of certain components of Chrome and ChromeOS is subject to the following terms:
+diff --git a/components/resources/terms/terms_en.html b/components/resources/terms/terms_en.html
+index d2734a3de5..ef13a765f0 100644
+--- a/components/resources/terms/terms_en.html
++++ b/components/resources/terms/terms_en.html
+@@ -40,7 +40,7 @@ h2 {
+  By using Chrome or ChromeOS, you agree to the Google Terms of Service located at https://policies.google.com/terms and these Google Chrome and ChromeOS Additional Terms of Service.
+ </p>
+ <p>
+- These Google Chrome and ChromeOS Additional Terms of Service apply to the executable code version of Chrome and ChromeOS. Most source code for Chrome is available free of charge under open source software license agreements at chrome://credits.
++ These Google Chrome and ChromeOS Additional Terms of Service apply to the executable code version of Chrome and ChromeOS. Most source code for Chrome is available free of charge under open source software license agreements at dao://credits.
+ </p>
+ <p>
+  Your use of certain components of Chrome and ChromeOS is subject to the following terms:
+diff --git a/components/resources/terms/terms_es-419.html b/components/resources/terms/terms_es-419.html
+index a0af695253..377781cdb9 100644
+--- a/components/resources/terms/terms_es-419.html
++++ b/components/resources/terms/terms_es-419.html
+@@ -40,7 +40,7 @@ h2 {
+  Al usar Chrome o el ChromeOS, confirma que acepta las Condiciones del Servicio de Google (que se encuentran en https://policies.google.com/terms) y estas Condiciones del Servicio Adicionales de Google Chrome y el ChromeOS.
+ </p>
+ <p>
+- Estas Condiciones del Servicio Adicionales de Google Chrome y el ChromeOS se aplicarán a la versión de código ejecutable de Chrome y del ChromeOS. La mayor parte del código fuente de Chrome está disponible de forma gratuita de conformidad con acuerdos de licencia de software de código abierto que se encuentran en chrome://credits.
++ Estas Condiciones del Servicio Adicionales de Google Chrome y el ChromeOS se aplicarán a la versión de código ejecutable de Chrome y del ChromeOS. La mayor parte del código fuente de Chrome está disponible de forma gratuita de conformidad con acuerdos de licencia de software de código abierto que se encuentran en dao://credits.
+ </p>
+ <p>
+  El uso que usted haga de ciertos componentes de Chrome y el ChromeOS también está sujeto a las siguientes condiciones:
+diff --git a/components/resources/terms/terms_es.html b/components/resources/terms/terms_es.html
+index 0e6ba160be..3f15c16ed5 100644
+--- a/components/resources/terms/terms_es.html
++++ b/components/resources/terms/terms_es.html
+@@ -40,7 +40,7 @@ h2 {
+  Al utilizar Google Chrome o ChromeOS, aceptas los Términos del Servicio de Google disponibles en https://policies.google.com/terms y estos Términos del Servicio Adicionales de Google Chrome y ChromeOS.
+ </p>
+ <p>
+- Estos Términos del Servicio Adicionales de Google Chrome y de ChromeOS se aplican a la versión de código ejecutable de Google Chrome y de ChromeOS. La mayor parte del código fuente de Google Chrome está disponible de forma gratuita y se rige por los acuerdos de licencia de software libre disponibles en la página chrome://credits.
++ Estos Términos del Servicio Adicionales de Google Chrome y de ChromeOS se aplican a la versión de código ejecutable de Google Chrome y de ChromeOS. La mayor parte del código fuente de Google Chrome está disponible de forma gratuita y se rige por los acuerdos de licencia de software libre disponibles en la página dao://credits.
+ </p>
+ <p>
+  El uso que hagas de determinados componentes de Google Chrome y ChromeOS está sujeto a los siguientes términos:
+diff --git a/components/resources/terms/terms_et.html b/components/resources/terms/terms_et.html
+index 547c95e898..da4b2d63b2 100644
+--- a/components/resources/terms/terms_et.html
++++ b/components/resources/terms/terms_et.html
+@@ -40,7 +40,7 @@ h2 {
+  Kasutades Chrome'i või ChromeOS-i, nõustute Google'i teenusetingimustega, mis asuvad saidil https://policies.google.com/terms, ning Google Chrome'i ja ChromeOS-i lisateenusetingimustega.
+ </p>
+ <p>
+- Need Google Chrome'i ja ChromeOS-i lisateenusetingimused kehtivad Chrome'i ning ChromeOS-i täitmiskoodiga versioonide korral. Enamik Chrome'i lähtekoodist on tasuta saadaval avatud lähtekoodiga tarkvara litsentsilepingu alusel aadressil chrome://credits.
++ Need Google Chrome'i ja ChromeOS-i lisateenusetingimused kehtivad Chrome'i ning ChromeOS-i täitmiskoodiga versioonide korral. Enamik Chrome'i lähtekoodist on tasuta saadaval avatud lähtekoodiga tarkvara litsentsilepingu alusel aadressil dao://credits.
+ </p>
+ <p>
+  Chrome'i ja ChromeOS-i teatud komponentide kasutamisel kehtivad järgmised tingimused.
+diff --git a/components/resources/terms/terms_fa.html b/components/resources/terms/terms_fa.html
+index fae53e4ff2..ebb836f211 100644
+--- a/components/resources/terms/terms_fa.html
++++ b/components/resources/terms/terms_fa.html
+@@ -40,7 +40,7 @@ h2 {
+  درصورت استفاده از Chrome یا «سیستم‌عامل Chrome»، با «شرایط و ضوابط Google» موجود در https://policies.google.com/terms و این «شرایط خدمات تکمیلی» Google Chrome و «سیستم‌عامل Chrome» موافقت می‌کنید.
+ </p>
+ <p>
+- این «شرایط خدمات تکمیلی Google Chrome و سیستم عامل Chrome» در مورد نسخه قابل‌اجرای کد Chrome و «سیستم عامل Chrome» اعمال می‌شود. براساس قراردادهای پروانه نرم‌افزار متن‌باز در chrome://credits، بیشتر کدهای منبع برای Chrome به‌صورت رایگان در دسترس است.
++ این «شرایط خدمات تکمیلی Google Chrome و سیستم عامل Chrome» در مورد نسخه قابل‌اجرای کد Chrome و «سیستم عامل Chrome» اعمال می‌شود. براساس قراردادهای پروانه نرم‌افزار متن‌باز در dao://credits، بیشتر کدهای منبع برای Chrome به‌صورت رایگان در دسترس است.
+ </p>
+ <p>
+  استفاده شما از برخی بخش‌های Chrome و «سیستم‌عامل Chrome» تابع شرایط زیر است:
+diff --git a/components/resources/terms/terms_fi.html b/components/resources/terms/terms_fi.html
+index 8869a538e5..5397d945d8 100644
+--- a/components/resources/terms/terms_fi.html
++++ b/components/resources/terms/terms_fi.html
+@@ -40,7 +40,7 @@ h2 {
+  Käyttämällä Chromea tai Chrome-käyttöjärjestelmää hyväksyt osoitteessa https://policies.google.com/terms olevat Googlen käyttöehdot sekä nämä Google Chromen ja Chrome-käyttöjärjestelmän lisäkäyttöehdot.
+ </p>
+ <p>
+- Nämä Google Chromen ja Chrome-käyttöjärjestelmän lisäkäyttöehdot koskevat Chromen ja Chrome-käyttöjärjestelmän suoritettavaa koodiversiota. Suurin osa Chromen lähdekoodista on saatavilla maksutta avoimen lähdekoodin lisenssisopimusten mukaisesti osoitteesta chrome://credits.
++ Nämä Google Chromen ja Chrome-käyttöjärjestelmän lisäkäyttöehdot koskevat Chromen ja Chrome-käyttöjärjestelmän suoritettavaa koodiversiota. Suurin osa Chromen lähdekoodista on saatavilla maksutta avoimen lähdekoodin lisenssisopimusten mukaisesti osoitteesta dao://credits.
+ </p>
+ <p>
+  Tiettyjen Chromen ja Chrome-käyttöjärjestelmän osien käyttöösi sovelletaan seuraavia ehtoja:
+diff --git a/components/resources/terms/terms_fil.html b/components/resources/terms/terms_fil.html
+index 430b28915a..e2edfb357d 100644
+--- a/components/resources/terms/terms_fil.html
++++ b/components/resources/terms/terms_fil.html
+@@ -40,7 +40,7 @@ h2 {
+  Sa paggamit sa Chrome o ChromeOS, sumasang-ayon ka sa Mga Tuntunin ng Serbisyo ng Google na makikita sa https://policies.google.com/terms at sa Mga Karagdagang Tuntunin ng Serbisyo ng Google Chrome at ChromeOS na ito.
+ </p>
+ <p>
+- Nalalapat ang Mga Karagdagang Tuntunin ng Serbisyong ito ng Google Chrome at ChromeOS sa naipapatupad na bersyon ng code ng Chrome at ChromeOS. Available ang karamihan ng source code para sa Google Chrome nang libre sa ilalim ng mga kasunduan sa lisensya ng open source na software sa chrome://credits.
++ Nalalapat ang Mga Karagdagang Tuntunin ng Serbisyong ito ng Google Chrome at ChromeOS sa naipapatupad na bersyon ng code ng Chrome at ChromeOS. Available ang karamihan ng source code para sa Google Chrome nang libre sa ilalim ng mga kasunduan sa lisensya ng open source na software sa dao://credits.
+ </p>
+ <p>
+  Ang paggamit mo sa ilang partikular na bahagi ng Chrome at ChromeOS ay napapailalim sa mga sumusunod na tuntunin:
+diff --git a/components/resources/terms/terms_fr.html b/components/resources/terms/terms_fr.html
+index e6fcbda4e4..3b2b7c9229 100644
+--- a/components/resources/terms/terms_fr.html
++++ b/components/resources/terms/terms_fr.html
+@@ -40,7 +40,7 @@ h2 {
+  En utilisant Chrome ou ChromeOS, vous acceptez les Conditions d'utilisation de Google disponibles sur https://policies.google.com/terms et les présentes Conditions d'utilisation supplémentaires de Google Chrome et ChromeOS.
+ </p>
+ <p>
+- Ces Conditions d'utilisation supplémentaires de Google Chrome et ChromeOS s'appliquent à la version du code exécutable de Google Chrome et ChromeOS. La majeure partie du code source de Google Chrome est disponible gratuitement dans le cadre de contrats de licence de logiciel Open Source à l'adresse suivante : chrome://credits.
++ Ces Conditions d'utilisation supplémentaires de Google Chrome et ChromeOS s'appliquent à la version du code exécutable de Google Chrome et ChromeOS. La majeure partie du code source de Google Chrome est disponible gratuitement dans le cadre de contrats de licence de logiciel Open Source à l'adresse suivante : dao://credits.
+ </p>
+ <p>
+  Votre utilisation de certains composants de Chrome et ChromeOS est régie par les conditions ci-dessous :
+diff --git a/components/resources/terms/terms_gu.html b/components/resources/terms/terms_gu.html
+index 6252fc2f62..f95682fe37 100644
+--- a/components/resources/terms/terms_gu.html
++++ b/components/resources/terms/terms_gu.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome અથવા ChromeOSનો ઉપયોગ કરીને, તમે https://policies.google.com/terms ખાતે દર્શાવેલી Google સેવાની શરતો અને આ Google Chrome અને ChromeOSની વધારાની સેવાની શરતો સાથે સંમત થાઓ છો.
+ </p>
+ <p>
+- આ Google Chrome અને ChromeOSની વધારાની સેવાની શરતો Chrome અને ChromeOSનાં અમલ કરવા યોગ્ય કોડ વર્ઝન પર લાગુ થાય છે. Chrome માટે મોટેભાગના સૉર્સ કોડ chrome://credits પર ઓપન સૉર્સ સૉફ્ટવેર લાઇસન્સના કરાર હેઠળ મફતમાં ઉપલબ્ધ છે.
++ આ Google Chrome અને ChromeOSની વધારાની સેવાની શરતો Chrome અને ChromeOSનાં અમલ કરવા યોગ્ય કોડ વર્ઝન પર લાગુ થાય છે. Chrome માટે મોટેભાગના સૉર્સ કોડ dao://credits પર ઓપન સૉર્સ સૉફ્ટવેર લાઇસન્સના કરાર હેઠળ મફતમાં ઉપલબ્ધ છે.
+ </p>
+ <p>
+  Chrome અને ChromeOSનાં અમુક ઘટકોનો તમારો ઉપયોગ નીચે આપેલી શરતોને આધીન છે:
+diff --git a/components/resources/terms/terms_he.html b/components/resources/terms/terms_he.html
+index 98407fa389..38674ef804 100644
+--- a/components/resources/terms/terms_he.html
++++ b/components/resources/terms/terms_he.html
+@@ -40,7 +40,7 @@ h2 {
+  שימוש ב-Chrome או ב-ChromeOS מצידך מבטא את הסכמתך לתנאים ולהגבלות של Google, המפורטים בכתובת https://policies.google.com/terms, ולתנאים ולהגבלות הנוספים של Google Chrome ושל ChromeOS, המפורטים כאן.
+ </p>
+ <p>
+- התנאים וההגבלות הנוספים של Google Chrome ושל ChromeOS, המפורטים כאן, חלים על גרסת קוד ההפעלה של Chrome ושל ChromeOS. רוב קוד המקור של Chrome זמין ללא תשלום בכפוף להסכמי רישיון תוכנה של קוד פתוח, בכתובת chrome://credits.
++ התנאים וההגבלות הנוספים של Google Chrome ושל ChromeOS, המפורטים כאן, חלים על גרסת קוד ההפעלה של Chrome ושל ChromeOS. רוב קוד המקור של Chrome זמין ללא תשלום בכפוף להסכמי רישיון תוכנה של קוד פתוח, בכתובת dao://credits.
+ </p>
+ <p>
+  השימוש שלך ברכיבים מסוימים של Chrome ו-ChromeOS כפוף לתנאים הבאים:
+diff --git a/components/resources/terms/terms_hi.html b/components/resources/terms/terms_hi.html
+index 29b1be37b9..f11bcfb2f4 100644
+--- a/components/resources/terms/terms_hi.html
++++ b/components/resources/terms/terms_hi.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome या ChromeOS इस्तेमाल करने का मतलब है कि आप https://policies.google.com/terms पर दी गई Google सेवा की शर्तों से सहमत हैं. इसका मतलब यह भी है कि आप Google Chrome और ChromeOS की सेवा की इन अतिरिक्त शर्तों से भी सहमत हैं.
+ </p>
+ <p>
+- Google Chrome और ChromeOS की सेवा की ये अतिरिक्त शर्तें, Chrome और ChromeOS के एक्ज़ीक्यूटेबल कोड वर्शन पर लागू होती हैं. Chrome के ज़्यादातर सोर्स कोड chrome://credits पर ओपन सोर्स सॉफ़्टवेयर लाइसेंस के कानूनी समझौते के तहत मुफ़्त में उपलब्ध हैं.
++ Google Chrome और ChromeOS की सेवा की ये अतिरिक्त शर्तें, Chrome और ChromeOS के एक्ज़ीक्यूटेबल कोड वर्शन पर लागू होती हैं. Chrome के ज़्यादातर सोर्स कोड dao://credits पर ओपन सोर्स सॉफ़्टवेयर लाइसेंस के कानूनी समझौते के तहत मुफ़्त में उपलब्ध हैं.
+ </p>
+ <p>
+  Chrome और ChromeOS के कुछ खास हिस्सों के इस्तेमाल पर ये शर्तें लागू होती हैं:
+diff --git a/components/resources/terms/terms_hr.html b/components/resources/terms/terms_hr.html
+index c5ea52e8f5..2b3b9954e3 100644
+--- a/components/resources/terms/terms_hr.html
++++ b/components/resources/terms/terms_hr.html
+@@ -40,7 +40,7 @@ h2 {
+  Korištenjem Chromea ili OS Chromea prihvaćate Googleove uvjete pružanja usluge na https://policies.google.com/terms i ove Dodatne uvjete pružanja usluge za Google Chrome i OS Chrome.
+ </p>
+ <p>
+- Ovi Dodatni uvjeti pružanja usluge za Google Chrome i OS Chrome primjenjuju se na izvršnu verziju koda Chromea i OS-a Chrome. Većina otvorenog izvornog koda za Chrome dostupna je besplatno u skladu s ugovorima o licenci za softver otvorenog izvornog koda na stranici chrome://credits.
++ Ovi Dodatni uvjeti pružanja usluge za Google Chrome i OS Chrome primjenjuju se na izvršnu verziju koda Chromea i OS-a Chrome. Većina otvorenog izvornog koda za Chrome dostupna je besplatno u skladu s ugovorima o licenci za softver otvorenog izvornog koda na stranici dao://credits.
+ </p>
+ <p>
+  Na vašu upotrebu određenih komponenti Chromea i OS-a Chrome primjenjuju se sljedeći uvjeti:
+diff --git a/components/resources/terms/terms_hu.html b/components/resources/terms/terms_hu.html
+index cdb6217042..276d31b277 100644
+--- a/components/resources/terms/terms_hu.html
++++ b/components/resources/terms/terms_hu.html
+@@ -40,7 +40,7 @@ h2 {
+  A Chrome vagy a ChromeOS használatával Ön elfogadja a https://policies.google.com/terms oldalon hozzáférhető Google Általános Szerződési Feltételeket, továbbá a Google Chrome és a ChromeOS jelen Kiegészítő Általános Szerződési Feltételeit.
+ </p>
+ <p>
+- Ezek a Google Chrome és ChromeOS Kiegészítő Általános Szerződési Feltételek vonatkoznak a Chrome és a ChromeOS futtatható kódú verziójára. A Chrome forráskódjának legnagyobb része nyílt forráskódú szoftverekre vonatkozó licencszerződések keretében díjmentesen rendelkezésre áll a következő címen: chrome://credits.
++ Ezek a Google Chrome és ChromeOS Kiegészítő Általános Szerződési Feltételek vonatkoznak a Chrome és a ChromeOS futtatható kódú verziójára. A Chrome forráskódjának legnagyobb része nyílt forráskódú szoftverekre vonatkozó licencszerződések keretében díjmentesen rendelkezésre áll a következő címen: dao://credits.
+ </p>
+ <p>
+  A Chrome és a ChromeOS egyes összetevőinek használatára a következő feltételek vonatkoznak:
+diff --git a/components/resources/terms/terms_id.html b/components/resources/terms/terms_id.html
+index cca7f89867..976b804431 100644
+--- a/components/resources/terms/terms_id.html
++++ b/components/resources/terms/terms_id.html
+@@ -40,7 +40,7 @@ h2 {
+  Dengan menggunakan Chrome atau ChromeOS, Anda menyetujui Persyaratan Layanan Google yang ada di https://policies.google.com/terms serta Persyaratan Layanan Tambahan Google Chrome dan ChromeOS ini.
+ </p>
+ <p>
+- Persyaratan Layanan Tambahan Google Chrome dan ChromeOS ini berlaku untuk versi kode Chrome dan ChromeOS yang dapat dijalankan. Sebagian besar kode sumber untuk Chrome tersedia secara gratis di bawah perjanjian lisensi software open source di chrome://credits.
++ Persyaratan Layanan Tambahan Google Chrome dan ChromeOS ini berlaku untuk versi kode Chrome dan ChromeOS yang dapat dijalankan. Sebagian besar kode sumber untuk Chrome tersedia secara gratis di bawah perjanjian lisensi software open source di dao://credits.
+ </p>
+ <p>
+  Penggunaan Anda atas komponen Chrome dan ChromeOS tertentu juga diatur dalam persyaratan berikut:
+diff --git a/components/resources/terms/terms_it.html b/components/resources/terms/terms_it.html
+index e208d9fcd4..1870b496b1 100644
+--- a/components/resources/terms/terms_it.html
++++ b/components/resources/terms/terms_it.html
+@@ -40,7 +40,7 @@ h2 {
+  Con l'utilizzo di Chrome o ChromeOS, l'utente accetta i Termini di servizio di Google disponibili all'indirizzo https://policies.google.com/terms, nonché i presenti Termini di servizio aggiuntivi di Google Chrome e ChromeOS.
+ </p>
+ <p>
+- I presenti Termini di servizio aggiuntivi di Google Chrome e ChromeOS si applicano alla versione del codice eseguibile di Chrome e ChromeOS. Gran parte del codice sorgente di Chrome è disponibile gratuitamente ai sensi di contratti di licenza del software open source all'indirizzo chrome://credits.
++ I presenti Termini di servizio aggiuntivi di Google Chrome e ChromeOS si applicano alla versione del codice eseguibile di Chrome e ChromeOS. Gran parte del codice sorgente di Chrome è disponibile gratuitamente ai sensi di contratti di licenza del software open source all'indirizzo dao://credits.
+ </p>
+ <p>
+  L'utilizzo da parte dell'utente di determinati componenti di Chrome e ChromeOS è soggetto ai termini elencati di seguito:
+diff --git a/components/resources/terms/terms_ja.html b/components/resources/terms/terms_ja.html
+index ed1f52f073..1017e4d15e 100644
+--- a/components/resources/terms/terms_ja.html
++++ b/components/resources/terms/terms_ja.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome または ChromeOS を使用することにより、Google 利用規約 https://policies.google.com/terms と、この Google Chrome および ChromeOS 追加利用規約に同意したことになります。
+ </p>
+ <p>
+- この Google Chrome および ChromeOS 追加利用規約は、Chrome および ChromeOS の実行コード バージョンに適用されます。Chrome のソースコードの大半は、chrome://credits のオープンソース ソフトウェア ライセンスに基づき無料でご利用いただけます。
++ この Google Chrome および ChromeOS 追加利用規約は、Chrome および ChromeOS の実行コード バージョンに適用されます。Chrome のソースコードの大半は、dao://credits のオープンソース ソフトウェア ライセンスに基づき無料でご利用いただけます。
+ </p>
+ <p>
+  Chrome および ChromeOS の特定コンポーネントの利用については以下の条項が適用されます。
+diff --git a/components/resources/terms/terms_kn.html b/components/resources/terms/terms_kn.html
+index 2bb37b0a24..040189ecd5 100644
+--- a/components/resources/terms/terms_kn.html
++++ b/components/resources/terms/terms_kn.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome ಅಥವಾ ChromeOS ಅನ್ನು ಬಳಸುವ ಮೂಲಕ, https://policies.google.com/terms ನಲ್ಲಿನ Google ಸೇವಾ ನಿಯಮಗಳು ಮತ್ತು ಈ Google Chrome ಮತ್ತು ChromeOS ನ ಹಚ್ಚುವರಿ ಸೇವಾ ನಿಯಮಗಳಿಗೆ ನೀವು ಸಮ್ಮತಿಸುತ್ತೀರಿ.
+ </p>
+ <p>
+- ಈ Google Chrome ಮತ್ತು ChromeOS ನ ಹೆಚ್ಚುವರಿ ಸೇವಾ ನಿಯಮಗಳು, Chrome ಮತ್ತು ChromeOS ನ ಕಾರ್ಯಗತಗೊಳಿಸಬಹುದಾದ ಕೋಡ್ ಆವೃತ್ತಿಗೆ ಅನ್ವಯಿಸುತ್ತವೆ. ಓಪನ್ ಸೋರ್ಸ್ ಸಾಫ್ಟ್‌ವೇರ್ ಪರವಾನಗಿ ಒಪ್ಪಂದಗಳ ಅಡಿಯಲ್ಲಿ, Chrome ‌ನ ಬಹುಪಾಲು ಮೂಲ ಕೋಡ್ ಅನ್ನು chrome://credits ನಲ್ಲಿ ಉಚಿತವಾಗಿ ಪಡೆಯಬಹುದು.
++ ಈ Google Chrome ಮತ್ತು ChromeOS ನ ಹೆಚ್ಚುವರಿ ಸೇವಾ ನಿಯಮಗಳು, Chrome ಮತ್ತು ChromeOS ನ ಕಾರ್ಯಗತಗೊಳಿಸಬಹುದಾದ ಕೋಡ್ ಆವೃತ್ತಿಗೆ ಅನ್ವಯಿಸುತ್ತವೆ. ಓಪನ್ ಸೋರ್ಸ್ ಸಾಫ್ಟ್‌ವೇರ್ ಪರವಾನಗಿ ಒಪ್ಪಂದಗಳ ಅಡಿಯಲ್ಲಿ, Chrome ‌ನ ಬಹುಪಾಲು ಮೂಲ ಕೋಡ್ ಅನ್ನು dao://credits ನಲ್ಲಿ ಉಚಿತವಾಗಿ ಪಡೆಯಬಹುದು.
+ </p>
+ <p>
+  Chrome ಮತ್ತು ChromeOS ನ ಕೆಲವು ಘಟಕಗಳ ನಿಮ್ಮ ಬಳಕೆಯು ಈ ಕೆಳಗಿನ ನಿಯಮಗಳಿಗೆ ಒಳಪಟ್ಟಿರುತ್ತದೆ:
+diff --git a/components/resources/terms/terms_ko.html b/components/resources/terms/terms_ko.html
+index 8aa6f0f6d2..596838612c 100644
+--- a/components/resources/terms/terms_ko.html
++++ b/components/resources/terms/terms_ko.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome 또는 ChromeOS를 사용하면 Google 서비스 약관(https://policies.google.com/terms) 및 다음 Chrome 및 ChromeOS 추가 서비스 약관에 동의하는 것으로 간주됩니다.
+ </p>
+ <p>
+- 본 Chrome 및 ChromeOS 추가 서비스 약관은 Chrome 및 ChromeOS의 실행 가능한 코드 버전에 적용됩니다. 대부분의 Chrome 소스 코드는 chrome://credits 페이지에 명시된 오픈소스 소프트웨어 라이선스 계약에 따라 무료로 제공됩니다.
++ 본 Chrome 및 ChromeOS 추가 서비스 약관은 Chrome 및 ChromeOS의 실행 가능한 코드 버전에 적용됩니다. 대부분의 Chrome 소스 코드는 dao://credits 페이지에 명시된 오픈소스 소프트웨어 라이선스 계약에 따라 무료로 제공됩니다.
+ </p>
+ <p>
+  Chrome 및 ChromeOS의 일부 구성요소를 사용하는 경우 다음 약관이 적용됩니다.
+diff --git a/components/resources/terms/terms_lt.html b/components/resources/terms/terms_lt.html
+index baa3418bcd..5125b9f5dd 100644
+--- a/components/resources/terms/terms_lt.html
++++ b/components/resources/terms/terms_lt.html
+@@ -40,7 +40,7 @@ h2 {
+  Naudodami „Chrome“ arba „ChromeOS“ sutinkate su „Google“ paslaugų teikimo sąlygomis, pateiktomis adresu https://policies.google.com/terms, ir šiomis „Google Chrome“ bei „ChromeOS“ papildomomis paslaugų teikimo sąlygomis.
+ </p>
+ <p>
+- Šios „Google Chrome“ ir „ChromeOS“ papildomos paslaugų teikimo sąlygos taikomos vykdomojo kodo versijai sistemoje „Chrome“ ir „ChromeOS“. Didžioji dalis „Chrome“ šaltinio kodo pasiekiama nemokamai pagal atvirojo šaltinio programinės įrangos licencijos sutartį adresu chrome://credits.
++ Šios „Google Chrome“ ir „ChromeOS“ papildomos paslaugų teikimo sąlygos taikomos vykdomojo kodo versijai sistemoje „Chrome“ ir „ChromeOS“. Didžioji dalis „Chrome“ šaltinio kodo pasiekiama nemokamai pagal atvirojo šaltinio programinės įrangos licencijos sutartį adresu dao://credits.
+ </p>
+ <p>
+  Naudojant tam tikrus „Chrome“ ir „ChromeOS“ komponentus, taikomos toliau nurodytos sąlygos.
+diff --git a/components/resources/terms/terms_lv.html b/components/resources/terms/terms_lv.html
+index def8ca4c5d..8cc5d5f7a5 100644
+--- a/components/resources/terms/terms_lv.html
++++ b/components/resources/terms/terms_lv.html
+@@ -40,7 +40,7 @@ h2 {
+  Izmantojot pārlūkprogrammu Chrome vai operētājsistēmu ChromeOS, jūs piekrītat Google pakalpojumu sniegšanas noteikumiem, kas norādīti vietnē https://policies.google.com/terms, un šiem Google Chrome un ChromeOS pakalpojumu sniegšanas papildu noteikumiem.
+ </p>
+ <p>
+- Šie Google Chrome un ChromeOS pakalpojumu sniegšanas papildu noteikumi attiecas uz Chrome un ChromeOS izpildāmā koda versiju. Visdrošākais Chrome kods ir pieejams bez maksas saskaņā ar atklātā pirmkoda programmatūras licences līgumiem vietnē chrome://credits.
++ Šie Google Chrome un ChromeOS pakalpojumu sniegšanas papildu noteikumi attiecas uz Chrome un ChromeOS izpildāmā koda versiju. Visdrošākais Chrome kods ir pieejams bez maksas saskaņā ar atklātā pirmkoda programmatūras licences līgumiem vietnē dao://credits.
+ </p>
+ <p>
+  Uz Chrome un ChromeOS lietošanu attiecas tālāk norādītie noteikumi.
+diff --git a/components/resources/terms/terms_ml.html b/components/resources/terms/terms_ml.html
+index 62efec1f77..02fddb26c0 100644
+--- a/components/resources/terms/terms_ml.html
++++ b/components/resources/terms/terms_ml.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome അല്ലെങ്കിൽ ChromeOS ഉപയോഗിക്കുന്നതിലൂടെ, https://policies.google.com/terms -ൽ ഉള്ള Google സേവന നിബന്ധനകളും ഈ Google Chrome, ChromeOS അധിക സേവന നിബന്ധനകളും നിങ്ങൾ അംഗീകരിക്കുന്നു.
+ </p>
+ <p>
+- Chrome, ChromeOS എന്നിവയുടെ നിർവഹിക്കാൻ കഴിയുന്ന കോഡ് പതിപ്പിന് ഈ Google Chrome, ChromeOS അധിക സേവന നിബന്ധനകൾ ബാധകമാണ്. Chrome-നായുള്ള മിക്ക സോഴ്‌സ് കോഡും chrome://credits -ൽ ഓപ്പൺ സോഴ്‌സ് സോഫ്റ്റ്‌വെയർ ലൈസൻസ് ഉടമ്പടി പ്രകാരം സൗജന്യമായി ലഭ്യമാണ്.
++ Chrome, ChromeOS എന്നിവയുടെ നിർവഹിക്കാൻ കഴിയുന്ന കോഡ് പതിപ്പിന് ഈ Google Chrome, ChromeOS അധിക സേവന നിബന്ധനകൾ ബാധകമാണ്. Chrome-നായുള്ള മിക്ക സോഴ്‌സ് കോഡും dao://credits -ൽ ഓപ്പൺ സോഴ്‌സ് സോഫ്റ്റ്‌വെയർ ലൈസൻസ് ഉടമ്പടി പ്രകാരം സൗജന്യമായി ലഭ്യമാണ്.
+ </p>
+ <p>
+  Chrome, ChromeOS എന്നിവയുടെ ചില ഘടകങ്ങൾ നിങ്ങൾ ഉപയോഗിക്കുന്നത് ഇനിപ്പറയുന്ന നിബന്ധനകൾക്ക് വിധേയമാണ്:
+diff --git a/components/resources/terms/terms_mr.html b/components/resources/terms/terms_mr.html
+index d727f36720..bbf78034a8 100644
+--- a/components/resources/terms/terms_mr.html
++++ b/components/resources/terms/terms_mr.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome किंवा ChromeOS वापरून, तुम्ही https://policies.google.com/terms येथे असलेल्या Google सेवा अटींना आणि या Google Chrome व ChromeOS अतिरिक्त सेवा अटींना सहमती दर्शवता.
+ </p>
+ <p>
+- या Google Chrome आणि ChromeOS अतिरिक्त सेवा अटी Chrome आणि ChromeOS यांच्या अंमलबजावणीक्षम कोड आवृत्त्यांना लागू होतात. Chrome साठी बहुतांश स्रोत कोड chrome://credits येथे मुक्त स्रोत परवाना करारनाम्याअंतर्गत विनाशुल्क उपलब्ध आहे.
++ या Google Chrome आणि ChromeOS अतिरिक्त सेवा अटी Chrome आणि ChromeOS यांच्या अंमलबजावणीक्षम कोड आवृत्त्यांना लागू होतात. Chrome साठी बहुतांश स्रोत कोड dao://credits येथे मुक्त स्रोत परवाना करारनाम्याअंतर्गत विनाशुल्क उपलब्ध आहे.
+ </p>
+ <p>
+  Chrome आणि ChromeOS च्या ठरावीक घटकांचा तुमचा वापर पुढील अटींच्या अधीन आहे:
+diff --git a/components/resources/terms/terms_nb.html b/components/resources/terms/terms_nb.html
+index 336b3c5064..9a4b6c266b 100644
+--- a/components/resources/terms/terms_nb.html
++++ b/components/resources/terms/terms_nb.html
+@@ -40,7 +40,7 @@ h2 {
+  Ved å bruke Chrome eller ChromeOS godtar du Googles vilkår for bruk, som du finner på https://policies.google.com/terms, samt disse tilleggsvilkårene for bruk av Google Chrome og ChromeOS.
+ </p>
+ <p>
+- Disse tilleggsvilkårene for bruk av Google Chrome og ChromeOS gjelder for versjonene av Chrome og ChromeOS med kjørbar kode. Det meste av kildekoden for Chrome er tilgjengelig gratis under lisensavtaler for programvare med åpen kildekode, på chrome://credits.
++ Disse tilleggsvilkårene for bruk av Google Chrome og ChromeOS gjelder for versjonene av Chrome og ChromeOS med kjørbar kode. Det meste av kildekoden for Chrome er tilgjengelig gratis under lisensavtaler for programvare med åpen kildekode, på dao://credits.
+ </p>
+ <p>
+  Bruken din av enkelte komponenter i Chrome og ChromeOS reguleres av disse vilkårene:
+diff --git a/components/resources/terms/terms_nl.html b/components/resources/terms/terms_nl.html
+index 5f843eb6d5..4da27e23f1 100644
+--- a/components/resources/terms/terms_nl.html
++++ b/components/resources/terms/terms_nl.html
+@@ -40,7 +40,7 @@ h2 {
+  Als u Chrome of ChromeOS gebruikt, gaat u akkoord met de Servicevoorwaarden van Google die te vinden zijn op https://policies.google.com/terms en met deze Aanvullende servicevoorwaarden van Google Chrome en ChromeOS.
+ </p>
+ <p>
+- Deze Aanvullende servicevoorwaarden van Google Chrome en ChromeOS zijn van toepassing op de versie met uitvoerbare code van Chrome en ChromeOS. De meeste broncode van Chrome is kosteloos beschikbaar op grond van licentieovereenkomsten voor opensource-software op chrome://credits.
++ Deze Aanvullende servicevoorwaarden van Google Chrome en ChromeOS zijn van toepassing op de versie met uitvoerbare code van Chrome en ChromeOS. De meeste broncode van Chrome is kosteloos beschikbaar op grond van licentieovereenkomsten voor opensource-software op dao://credits.
+ </p>
+ <p>
+  Op uw gebruik van bepaalde componenten van Chrome en ChromeOS zijn de volgende voorwaarden van toepassing:
+diff --git a/components/resources/terms/terms_pl.html b/components/resources/terms/terms_pl.html
+index fb52302808..c8e26f561d 100644
+--- a/components/resources/terms/terms_pl.html
++++ b/components/resources/terms/terms_pl.html
+@@ -40,7 +40,7 @@ h2 {
+  Używając Chrome lub ChromeOS, użytkownik wyraża zgodę na Warunki korzystania z usług Google dostępne na stronie https://policies.google.com/terms oraz niniejsze Dodatkowe warunki korzystania z Google Chrome i ChromeOS.
+ </p>
+ <p>
+- Dodatkowe warunki korzystania z Google Chrome i ChromeOS dotyczą kodu wykonywalnego Chrome i ChromeOS. Większość kodu źródłowego Chrome jest dostępna bezpłatnie na zasadach licencji open source, której treść można znaleźć na stronie chrome://credits
++ Dodatkowe warunki korzystania z Google Chrome i ChromeOS dotyczą kodu wykonywalnego Chrome i ChromeOS. Większość kodu źródłowego Chrome jest dostępna bezpłatnie na zasadach licencji open source, której treść można znaleźć na stronie dao://credits
+ </p>
+ <p>
+  Korzystanie z określonych komponentów Chrome i ChromeOS podlega następującym warunkom:
+diff --git a/components/resources/terms/terms_pt-BR.html b/components/resources/terms/terms_pt-BR.html
+index 379cbef1fb..8b9f750e29 100644
+--- a/components/resources/terms/terms_pt-BR.html
++++ b/components/resources/terms/terms_pt-BR.html
+@@ -40,7 +40,7 @@ h2 {
+  Ao usar o Chrome ou o ChromeOS, você concorda com os Termos de Serviço do Google localizados em https://policies.google.com/terms e com estes Termos de Serviço adicionais do Google Chrome e do ChromeOS.
+ </p>
+ <p>
+- Estes Termos de Serviço adicionais do Google Chrome e do ChromeOS se aplicam à versão do código executável do Chrome e do ChromeOS. A maioria dos códigos-fonte do Chrome está disponível gratuitamente mediante contratos de licença de software de código aberto em chrome://credits.
++ Estes Termos de Serviço adicionais do Google Chrome e do ChromeOS se aplicam à versão do código executável do Chrome e do ChromeOS. A maioria dos códigos-fonte do Chrome está disponível gratuitamente mediante contratos de licença de software de código aberto em dao://credits.
+ </p>
+ <p>
+  O uso de determinados componentes do Chrome e do ChromeOS está sujeito aos seguintes termos:
+diff --git a/components/resources/terms/terms_pt-PT.html b/components/resources/terms/terms_pt-PT.html
+index 597b88c565..10b26ee5d2 100644
+--- a/components/resources/terms/terms_pt-PT.html
++++ b/components/resources/terms/terms_pt-PT.html
+@@ -40,7 +40,7 @@ h2 {
+  Ao utilizar o Chrome ou o ChromeOS, aceita os Termos de Utilização do Google localizados em https://policies.google.com/terms?hl=pt-PT e estes Termos de Utilização Adicionais do Google Chrome e do ChromeOS.
+ </p>
+ <p>
+- Os presentes Termos de Utilização Adicionais do Google Chrome e do ChromeOS aplicam-se à versão do código executável do Chrome e do ChromeOS. A maior parte do código-fonte do Chrome está disponível gratuitamente ao abrigo de contratos de licença de software de código aberto em chrome://credits.
++ Os presentes Termos de Utilização Adicionais do Google Chrome e do ChromeOS aplicam-se à versão do código executável do Chrome e do ChromeOS. A maior parte do código-fonte do Chrome está disponível gratuitamente ao abrigo de contratos de licença de software de código aberto em dao://credits.
+ </p>
+ <p>
+  A sua utilização de determinados componentes do Chrome e do ChromeOS está sujeita aos seguintes termos:
+diff --git a/components/resources/terms/terms_ro.html b/components/resources/terms/terms_ro.html
+index 0b05b359e6..684ac4ef52 100644
+--- a/components/resources/terms/terms_ro.html
++++ b/components/resources/terms/terms_ro.html
+@@ -40,7 +40,7 @@ h2 {
+  Dacă folosești Chrome sau ChromeOS, ești de acord cu Termenii și condițiile Google de la https://policies.google.com/terms și cu acest set de Termeni și condiții suplimentare pentru Google Chrome și ChromeOS.
+ </p>
+ <p>
+- Acest set de Termeni și condiții suplimentare pentru Google Chrome și ChromeOS se aplică versiunii cu cod executabil a browserului Chrome și a ChromeOS. Majoritatea codului sursă pentru Chrome este disponibil gratuit, în baza acordurilor de licență pentru software open source, la chrome://credits.
++ Acest set de Termeni și condiții suplimentare pentru Google Chrome și ChromeOS se aplică versiunii cu cod executabil a browserului Chrome și a ChromeOS. Majoritatea codului sursă pentru Chrome este disponibil gratuit, în baza acordurilor de licență pentru software open source, la dao://credits.
+ </p>
+ <p>
+  Folosirea anumitor componente din Chrome și ChromeOS este supusă următoarelor condiții:
+diff --git a/components/resources/terms/terms_ru.html b/components/resources/terms/terms_ru.html
+index d1f3ba42e1..14af0e5a43 100644
+--- a/components/resources/terms/terms_ru.html
++++ b/components/resources/terms/terms_ru.html
+@@ -40,7 +40,7 @@ h2 {
+  Используя Chrome или ChromeOS, Вы принимаете Условия использования Google, опубликованные на странице https://policies.google.com/terms, а также настоящие Дополнительные условия использования Chrome и ChromeOS.
+ </p>
+ <p>
+- Настоящие Дополнительные условия использования Google Chrome и ChromeOS применяются к исполняемому коду Chrome и ChromeOS. Большая часть исходного кода Google Chrome предоставляется бесплатно на условиях лицензионного соглашения на программное обеспечение с открытым исходным кодом. Соглашение опубликовано на странице chrome://credits.
++ Настоящие Дополнительные условия использования Google Chrome и ChromeOS применяются к исполняемому коду Chrome и ChromeOS. Большая часть исходного кода Google Chrome предоставляется бесплатно на условиях лицензионного соглашения на программное обеспечение с открытым исходным кодом. Соглашение опубликовано на странице dao://credits.
+ </p>
+ <p>
+  Использование некоторых компонентов Chrome и ChromeOS регулируется следующими условиями:
+diff --git a/components/resources/terms/terms_sk.html b/components/resources/terms/terms_sk.html
+index 65870dff70..a7f6e179c8 100644
+--- a/components/resources/terms/terms_sk.html
++++ b/components/resources/terms/terms_sk.html
+@@ -40,7 +40,7 @@ h2 {
+  Používaním prehliadača Chrome alebo systému ChromeOS vyjadrujete súhlas so zmluvnými podmienkami spoločnosti Google na adrese https://policies.google.com/terms a týmito dodatočnými zmluvnými podmienkami prehliadača Google Chrome a systému ChromeOS.
+ </p>
+ <p>
+- Tieto dodatočné zmluvné podmienky prehliadača Chrome a systému ChromeOS platia pre verziu prehliadača Chrome a systému ChromeOS so spustiteľným kódom. Väčšina zdrojových kódov pre prehliadač Chrome je k dispozícii bezplatne na základe licenčných zmlúv týkajúcich sa softvéru open source uvedených na adrese chrome://credits.
++ Tieto dodatočné zmluvné podmienky prehliadača Chrome a systému ChromeOS platia pre verziu prehliadača Chrome a systému ChromeOS so spustiteľným kódom. Väčšina zdrojových kódov pre prehliadač Chrome je k dispozícii bezplatne na základe licenčných zmlúv týkajúcich sa softvéru open source uvedených na adrese dao://credits.
+ </p>
+ <p>
+  Na vaše používanie určitých komponentov prehliadača Chrome a systému ChromeOS sa tiež vzťahujú nasledujúce zmluvné podmienky:
+diff --git a/components/resources/terms/terms_sl.html b/components/resources/terms/terms_sl.html
+index 2ff07d8ad0..47facb303b 100644
+--- a/components/resources/terms/terms_sl.html
++++ b/components/resources/terms/terms_sl.html
+@@ -40,7 +40,7 @@ h2 {
+  Z uporabo Chroma in sistema ChromeOS se strinjate z Googlovimi pogoji storitve, objavljenimi na https://policies.google.com/terms, in temi dodatnimi pogoji storitve za Google Chrome in ChromeOS.
+ </p>
+ <p>
+- Ti dodatni pogoji storitve za Google Chrome in ChromeOS veljajo za različico Chroma in sistema ChromeOS z izvršljivo kodo. Večina izvorne kode za Chrome je na voljo brezplačno v okviru licenčnih pogodb o odprtokodni programski opremi na chrome://credits.
++ Ti dodatni pogoji storitve za Google Chrome in ChromeOS veljajo za različico Chroma in sistema ChromeOS z izvršljivo kodo. Večina izvorne kode za Chrome je na voljo brezplačno v okviru licenčnih pogodb o odprtokodni programski opremi na dao://credits.
+ </p>
+ <p>
+  Za vašo uporabo nekaterih komponent Chroma in sistema ChromeOS veljajo tudi ti pogoji:
+diff --git a/components/resources/terms/terms_sr.html b/components/resources/terms/terms_sr.html
+index b4c5bbe273..abc60d5fa0 100644
+--- a/components/resources/terms/terms_sr.html
++++ b/components/resources/terms/terms_sr.html
+@@ -40,7 +40,7 @@ h2 {
+  Коришћењем Chrome-а или ChromeOS-а прихватате Google услове коришћења услуге који се налазе на https://policies.google.com/terms и ове додатне услове коришћења услуге за Google Chrome и ChromeOS.
+ </p>
+ <p>
+- Ови додатни услови коришћења услуге за Google Chrome и ChromeOS примењују се на извршну верзију кода за Chrome и ChromeOS. Већина изворног кода за Chrome је доступна бесплатно по основу уговора о лиценцирању софтвера отвореног кода који је доступан на chrome://credits.
++ Ови додатни услови коришћења услуге за Google Chrome и ChromeOS примењују се на извршну верзију кода за Chrome и ChromeOS. Већина изворног кода за Chrome је доступна бесплатно по основу уговора о лиценцирању софтвера отвореног кода који је доступан на dao://credits.
+ </p>
+ <p>
+  Коришћење одређених компонената Chrome-а и ChromeOS-а подлеже следећим условима:
+diff --git a/components/resources/terms/terms_sv.html b/components/resources/terms/terms_sv.html
+index e3d7c83b24..f3c00881f6 100644
+--- a/components/resources/terms/terms_sv.html
++++ b/components/resources/terms/terms_sv.html
+@@ -40,7 +40,7 @@ h2 {
+  Genom att använda Chrome eller ChromeOS godkänner du dessa ytterligare användarvillkor för Google Chrome och ChromeOS samt Googles användarvillkor, som finns här: https://policies.google.com/terms.
+ </p>
+ <p>
+- Dessa ytterligare användarvillkor för Google Chrome och ChromeOS gäller den körbara versionen av Chrome och ChromeOS. Merparten av källkoden till Chrome är tillgänglig utan kostnad enligt de programlicensavtal för öppen källkod som finns på chrome://credits.
++ Dessa ytterligare användarvillkor för Google Chrome och ChromeOS gäller den körbara versionen av Chrome och ChromeOS. Merparten av källkoden till Chrome är tillgänglig utan kostnad enligt de programlicensavtal för öppen källkod som finns på dao://credits.
+ </p>
+ <p>
+  Din användning av vissa komponenter i Chrome och ChromeOS omfattas av följande villkor:
+diff --git a/components/resources/terms/terms_sw.html b/components/resources/terms/terms_sw.html
+index e74c94b508..4c715989ef 100644
+--- a/components/resources/terms/terms_sw.html
++++ b/components/resources/terms/terms_sw.html
+@@ -40,7 +40,7 @@ h2 {
+  Kwa kutumia Chrome au ChromeOS, unakubali Sheria na Masharti ya Google kwenye https://policies.google.com/terms na Sheria na Masharti haya ya Ziada ya Google Chrome na ChromeOS.
+ </p>
+ <p>
+- Sheria na Masharti haya ya Ziada ya Chrome na ChromeOS yatatumika kwa misimbo inayoweza kutekelezwa ya matoleo ya Chrome na ChromeOS. Sehemu kubwa ya msimbo wa tovuti wa Chrome inapatikana bila malipo chini ya makubaliano ya leseni za programu huria kwenye chrome://credits.
++ Sheria na Masharti haya ya Ziada ya Chrome na ChromeOS yatatumika kwa misimbo inayoweza kutekelezwa ya matoleo ya Chrome na ChromeOS. Sehemu kubwa ya msimbo wa tovuti wa Chrome inapatikana bila malipo chini ya makubaliano ya leseni za programu huria kwenye dao://credits.
+ </p>
+ <p>
+  Utumiaji wako wa vipengele fulani vya Chrome na ChromeOS unategemea sheria na masharti yafuatayo:
+diff --git a/components/resources/terms/terms_ta.html b/components/resources/terms/terms_ta.html
+index 42cf1db60c..5f24b894be 100644
+--- a/components/resources/terms/terms_ta.html
++++ b/components/resources/terms/terms_ta.html
+@@ -40,7 +40,7 @@ h2 {
+  Chrome அல்லது ChromeOSஸைப் பயன்படுத்துவதன் மூலம், https://policies.google.com/terms என்ற தளத்திலுள்ள Google சேவை விதிமுறைகளையும் Google Chrome, ChromeOS ஆகியவை தொடர்பான கூடுதல் சேவை விதிமுறைகளையும் ஏற்கிறீர்கள்.
+ </p>
+ <p>
+- இந்த Google Chrome, ChromeOS ஆகியவற்றுக்கான கூடுதல் சேவை விதிமுறைகள், Chrome மற்றும் ChromeOSஸின் செயலாக்கக் குறியீட்டுப் பதிப்புக்குப் பொருந்தும். பெரும்பாலான Chrome மூலக் குறியீடுகள் chrome://credits என்ற தளத்தில் உள்ள ஓப்பன் சோர்ஸ் மென்பொருள் உரிம ஒப்பந்தங்கள் என்பதன் கீழ் இலவசமாகக் கிடைக்கும்.
++ இந்த Google Chrome, ChromeOS ஆகியவற்றுக்கான கூடுதல் சேவை விதிமுறைகள், Chrome மற்றும் ChromeOSஸின் செயலாக்கக் குறியீட்டுப் பதிப்புக்குப் பொருந்தும். பெரும்பாலான Chrome மூலக் குறியீடுகள் dao://credits என்ற தளத்தில் உள்ள ஓப்பன் சோர்ஸ் மென்பொருள் உரிம ஒப்பந்தங்கள் என்பதன் கீழ் இலவசமாகக் கிடைக்கும்.
+ </p>
+ <p>
+  பின்வரும் விதிமுறைகளுக்கு உட்பட்டே Chrome, ChromeOS ஆகியவற்றின் சில கூறுகளை உங்களால் பயன்படுத்த முடியும்:
+diff --git a/components/resources/terms/terms_te.html b/components/resources/terms/terms_te.html
+index 8c1e5d2e29..4d4320b777 100644
+--- a/components/resources/terms/terms_te.html
++++ b/components/resources/terms/terms_te.html
+@@ -40,7 +40,7 @@ h2 {
+  మీరు Chrome లేదా ChromeOSను ఉపయోగించడం ద్వారా https://policies.google.com/terms లింక్‌లోని Google సేవా నిబంధనలకు, అలాగే ఈ Google Chrome, ChromeOS అదనపు సేవా నిబంధనలకు అంగీకరిస్తారు.
+ </p>
+ <p>
+- ఈ Google Chrome, ChromeOS అదనపు సేవా నిబంధనలు అనేవి Chrome, ChromeOS యొక్క అమలు చేయదగిన కోడ్ వెర్షన్‌కు వర్తిస్తాయి. Chromeకు సంబంధించిన చాలా వరకు సోర్స్ కోడ్, ఓపెన్ సోర్స్ సాప్ట్‌వేర్ లైసెన్స్ ఒప్పందాల ప్రకారం ఎటువంటి ఛార్జీ లేకుండా ఉచితంగా chrome://credits లింక్‌లో అందుబాటులో ఉంచబడుతుంది.
++ ఈ Google Chrome, ChromeOS అదనపు సేవా నిబంధనలు అనేవి Chrome, ChromeOS యొక్క అమలు చేయదగిన కోడ్ వెర్షన్‌కు వర్తిస్తాయి. Chromeకు సంబంధించిన చాలా వరకు సోర్స్ కోడ్, ఓపెన్ సోర్స్ సాప్ట్‌వేర్ లైసెన్స్ ఒప్పందాల ప్రకారం ఎటువంటి ఛార్జీ లేకుండా ఉచితంగా dao://credits లింక్‌లో అందుబాటులో ఉంచబడుతుంది.
+ </p>
+ <p>
+  Chrome, ChromeOSలలోని నిర్దిష్ట కాంపొనెంట్‌లను మీరు వినియోగించే విధానం కింది నిబంధనలకు కట్టుబడి ఉండాలి:
+diff --git a/components/resources/terms/terms_th.html b/components/resources/terms/terms_th.html
+index 928d500a6c..272fb90b83 100644
+--- a/components/resources/terms/terms_th.html
++++ b/components/resources/terms/terms_th.html
+@@ -40,7 +40,7 @@ h2 {
+  การใช้ Chrome หรือ ChromeOS หมายความว่า คุณยอมรับข้อกำหนดในการให้บริการของ Google ซึ่งอยู่ที่ https://policies.google.com/terms และข้อกำหนดในการให้บริการเพิ่มเติมของ Google Chrome และ ChromeOS เหล่านี้
+ </p>
+ <p>
+- ข้อกำหนดในการให้บริการเพิ่มเติมของ Google Chrome และ ChromeOS เหล่านี้มีผลกับเวอร์ชันโค้ดที่สั่งการได้ของ Chrome และ ChromeOS ซอร์สโค้ดส่วนใหญ่ของ Chrome มีให้บริการฟรีภายใต้ข้อตกลงใบอนุญาตซอฟต์แวร์แบบโอเพนซอร์สที่ chrome://credits
++ ข้อกำหนดในการให้บริการเพิ่มเติมของ Google Chrome และ ChromeOS เหล่านี้มีผลกับเวอร์ชันโค้ดที่สั่งการได้ของ Chrome และ ChromeOS ซอร์สโค้ดส่วนใหญ่ของ Chrome มีให้บริการฟรีภายใต้ข้อตกลงใบอนุญาตซอฟต์แวร์แบบโอเพนซอร์สที่ dao://credits
+ </p>
+ <p>
+  การใช้งานคอมโพเนนต์บางอย่างของ Chrome และ ChromeOS ขึ้นอยู่กับข้อกำหนดต่อไปนี้
+diff --git a/components/resources/terms/terms_uk.html b/components/resources/terms/terms_uk.html
+index e882f20bc6..5363378ae3 100644
+--- a/components/resources/terms/terms_uk.html
++++ b/components/resources/terms/terms_uk.html
+@@ -40,7 +40,7 @@ h2 {
+  Використовуючи Chrome або ChromeOS, ви погоджуєтесь із Загальними положеннями та умовами Google на сторінці https://policies.google.com/terms і цими Додатковими умовами використання Google Chrome та ChromeOS.
+ </p>
+ <p>
+- Ці додаткові Умови використання Google Chrome та ChromeOS застосовуються до версії виконуваного коду Chrome і ChromeOS. Більша частина вихідного коду Chrome, розміщеного на сайті chrome://credits, доступна безкоштовно на умовах ліцензійної угоди щодо програмного забезпечення з відкритим кодом.
++ Ці додаткові Умови використання Google Chrome та ChromeOS застосовуються до версії виконуваного коду Chrome і ChromeOS. Більша частина вихідного коду Chrome, розміщеного на сайті dao://credits, доступна безкоштовно на умовах ліцензійної угоди щодо програмного забезпечення з відкритим кодом.
+ </p>
+ <p>
+  Використання певних компонентів Chrome і ChromeOS регулюється такими умовами:
+diff --git a/components/resources/terms/terms_vi.html b/components/resources/terms/terms_vi.html
+index fc92c0c166..ad75be7207 100644
+--- a/components/resources/terms/terms_vi.html
++++ b/components/resources/terms/terms_vi.html
+@@ -40,7 +40,7 @@ h2 {
+  Bằng việc sử dụng Chrome hoặc ChromeOS, bạn đồng ý với Điều khoản dịch vụ của Google có tại https://policies.google.com/terms cũng như các Điều khoản dịch vụ bổ sung sau đây của Google Chrome và ChromeOS.
+ </p>
+ <p>
+- Các Điều khoản dịch vụ bổ sung này của Google Chrome và ChromeOS áp dụng cho phiên bản mã thực thi của Chrome và ChromeOS. Bạn có thể sử dụng miễn phí hầu hết mã nguồn dành cho Chrome theo thỏa thuận cấp phép phần mềm nguồn mở tại chrome://credits.
++ Các Điều khoản dịch vụ bổ sung này của Google Chrome và ChromeOS áp dụng cho phiên bản mã thực thi của Chrome và ChromeOS. Bạn có thể sử dụng miễn phí hầu hết mã nguồn dành cho Chrome theo thỏa thuận cấp phép phần mềm nguồn mở tại dao://credits.
+ </p>
+ <p>
+  Bạn phải tuân thủ các điều khoản bổ sung dưới đây khi sử dụng một số thành phần của Chrome và ChromeOS:
+diff --git a/components/resources/terms/terms_zh-CN.html b/components/resources/terms/terms_zh-CN.html
+index 420b80ba98..6b631ccd82 100644
+--- a/components/resources/terms/terms_zh-CN.html
++++ b/components/resources/terms/terms_zh-CN.html
+@@ -40,7 +40,7 @@ h2 {
+  使用 Chrome 或 ChromeOS 即表示您同意接受《Google 服务条款》（全文请见 https://policies.google.com/terms）以及这些 Google Chrome 和 ChromeOS 附加服务条款。
+ </p>
+ <p>
+- 这些 Google Chrome 和 ChromeOS 附加服务条款适用于 Chrome 和 ChromeOS 的可执行代码版本。Chrome 的大部分源代码都根据开源软件许可协议（详见 chrome://credits）免费提供。
++ 这些 Google Chrome 和 ChromeOS 附加服务条款适用于 Chrome 和 ChromeOS 的可执行代码版本。Chrome 的大部分源代码都根据开源软件许可协议（详见 dao://credits）免费提供。
+ </p>
+ <p>
+  您在使用 Chrome 和 ChromeOS 的某些组件时应遵守以下条款：
+diff --git a/components/resources/terms/terms_zh-TW.html b/components/resources/terms/terms_zh-TW.html
+index b2cc397474..6c35cd7c47 100644
+--- a/components/resources/terms/terms_zh-TW.html
++++ b/components/resources/terms/terms_zh-TW.html
+@@ -40,7 +40,7 @@ h2 {
+  使用 Chrome 或 ChromeOS ，即表示您同意 https://policies.google.com/terms 所述的《Google 服務條款》，以及 Google Chrome 和 ChromeOS 的《附加服務條款》。
+ </p>
+ <p>
+- 這些 Google Chrome 和 ChromeOS 的《附加服務條款》適用於 Chrome 和 ChromeOS 的可執行程式碼版本。依據開放原始碼軟體授權協議 (位於 chrome://credits)，您可以免費取得 Chrome 大部分的原始碼。
++ 這些 Google Chrome 和 ChromeOS 的《附加服務條款》適用於 Chrome 和 ChromeOS 的可執行程式碼版本。依據開放原始碼軟體授權協議 (位於 dao://credits)，您可以免費取得 Chrome 大部分的原始碼。
+ </p>
+ <p>
+  您使用 Chrome 和 ChromeOS 的特定元件時，應遵守下列條款的規定：

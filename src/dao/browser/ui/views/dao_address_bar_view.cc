@@ -119,7 +119,7 @@ void DaoAddressBarView::UpdateURL() {
     return;
   }
 
-  // For non-standard schemes (about:blank, chrome://, etc.), show full URL
+  // For non-standard schemes (about:blank, dao://, etc.), show full URL
   // in the host label with no path split.
   if (!url.SchemeIsHTTPOrHTTPS()) {
     host_label_->SetText(base::UTF8ToUTF16(url.spec()));
