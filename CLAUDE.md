@@ -75,6 +75,7 @@ Patches inject Dao components into the Chromium frame:
 - **Shape**: Content area has 10px rounded corners + 6-step progressive soft shadow, with 6–8px margin from the sidebar. Corner radius hierarchy: command bar 16px > URL pill 14px > tabs/buttons 12px > content 10px > favorite icons 8px.
 - **Interaction**: Uniform white 6% InkDrop ripple, FocusRing disabled globally. Spotlight-style command bar with translucent scrim + centered floating panel + ghost text completion. Hover reveals close buttons and background highlights; keyboard-first (arrow keys to select, Tab to complete, Esc to dismiss).
 - **Typography**: `system-ui` / `sans-serif`, 12–16px range. Titles use SemiBold, everything else Normal.
+- **Icons**: All icons use [Lucide](https://lucide.dev/) — inline SVG with `stroke="currentColor"`, `fill="none"`, `stroke-width="2"`, and `stroke-linecap/linejoin="round"`. Never use emoji or custom icon paths; always pick from the Lucide set.
 - **Philosophy**: Dark minimalism + Arc-style vertical tabs, maximizing content immersion with a purple brand identity.
 
 ## Code Conventions
