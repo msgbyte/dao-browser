@@ -5,13 +5,24 @@
 #ifndef DAO_BROWSER_UI_WEBUI_DAO_AGENT_UI_H_
 #define DAO_BROWSER_UI_WEBUI_DAO_AGENT_UI_H_
 
+#include <map>
+#include <string>
+
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/values.h"
+#include "content/public/browser/devtools_agent_host.h"
+#include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/web_ui_controller.h"
+#include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
 
 namespace dao {
 
 class DaoAgentUI;
 
+// WebUI config for chrome://agent
 class DaoAgentUIConfig : public content::WebUIConfig {
  public:
   DaoAgentUIConfig();
@@ -22,6 +33,63 @@ class DaoAgentUIConfig : public content::WebUIConfig {
       const GURL& url) override;
 };
 
+// CDP client that bridges WebUI JS to DevTools protocol on the active tab.
+class DaoAgentDevToolsClient : public content::DevToolsAgentHostClient {
+ public:
+  using ResponseCallback = base::OnceCallback<void(base::Value)>;
+
+  DaoAgentDevToolsClient();
+  ~DaoAgentDevToolsClient() override;
+
+  // Attach to the given WebContents. Detaches from any previous host.
+  bool AttachTo(content::WebContents* web_contents);
+
+  // Detach from the current host.
+  void Detach();
+
+  // Send a CDP command. |callback| receives the JSON result.
+  void SendCommand(const std::string& method,
+                   base::Value::Dict params,
+                   ResponseCallback callback);
+
+  // content::DevToolsAgentHostClient:
+  void DispatchProtocolMessage(content::DevToolsAgentHost* agent_host,
+                               base::span<const uint8_t> message) override;
+  void AgentHostClosed(content::DevToolsAgentHost* agent_host) override;
+  bool IsTrusted() override;
+  std::string GetTypeForMetrics() override;
+
+ private:
+  scoped_refptr<content::DevToolsAgentHost> agent_host_;
+  int next_command_id_ = 1;
+  std::map<int, ResponseCallback> pending_callbacks_;
+};
+
+// WebUI message handler for Dao Agent sidebar.
+class DaoAgentUIHandler : public content::WebUIMessageHandler {
+ public:
+  DaoAgentUIHandler();
+  ~DaoAgentUIHandler() override;
+
+  // content::WebUIMessageHandler:
+  void RegisterMessages() override;
+
+ private:
+  // Ensures the CDP client is attached to the active tab.
+  // Returns the active WebContents, or nullptr on failure.
+  content::WebContents* EnsureAttached();
+
+  // Message handlers called from JS via chrome.send().
+  void HandleGetPageContent(const base::Value::List& args);
+  void HandleGetPageInfo(const base::Value::List& args);
+  void HandleClickElement(const base::Value::List& args);
+  void HandleExecuteScript(const base::Value::List& args);
+
+  std::unique_ptr<DaoAgentDevToolsClient> devtools_client_;
+  base::WeakPtrFactory<DaoAgentUIHandler> weak_factory_{this};
+};
+
+// WebUI controller for chrome://agent
 class DaoAgentUI : public content::WebUIController {
  public:
   explicit DaoAgentUI(content::WebUI* web_ui);

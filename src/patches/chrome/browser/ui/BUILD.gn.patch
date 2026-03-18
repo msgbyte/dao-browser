@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..11758a6362 100644
+index a66522f120..481402d1c9 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -48,6 +48,43 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
@@ -46,3 +46,11 @@ index a66522f120..11758a6362 100644
      "accelerator_utils.h",
      "bluetooth/bluetooth_dialogs.h",
      "browser_dialogs.cc",
+@@ -318,6 +355,7 @@ static_library("ui") {
+   deps = [
+     ":browser_element_identifiers",
+     ":ui_features",
++    "//dao/browser/ui/webui/resources/agent:resources",
+     ":url_identity",
+     "//base",
+     "//base:i18n",

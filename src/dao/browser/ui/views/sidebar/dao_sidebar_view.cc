@@ -262,7 +262,7 @@ void DaoSidebarView::AddedToWidget() {
         ui::AcceleratorManager::kHighPriority, this);
     GetFocusManager()->RegisterAccelerator(
         ui::Accelerator(ui::VKEY_I, ui::EF_COMMAND_DOWN),
-        ui::AcceleratorManager::kNormalPriority, this);
+        ui::AcceleratorManager::kHighPriority, this);
   }
 }
 

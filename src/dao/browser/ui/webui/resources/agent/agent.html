@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="agent.css">
+</head>
+<body>
+
+<!-- Header with settings gear -->
+<div class="header">
+  <span class="header-title">Dao Agent</span>
+  <button class="gear-btn" id="settingsToggle" title="Settings">
+    <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+  </button>
+</div>
+
+<!-- Settings Panel (dropdown from gear) -->
+<div class="settings-panel" id="settingsPanel">
+  <label>API Key</label>
+  <input type="password" id="apiKey" placeholder="sk-...">
+  <label>Base URL</label>
+  <input type="text" id="baseUrl" placeholder="https://api.openai.com/v1">
+  <label>Model</label>
+  <input type="text" id="model" placeholder="gpt-5">
+</div>
+
+<!-- Chat Area -->
+<div class="chat-area" id="chatArea">
+  <div class="empty-state" id="emptyState">
+    <div class="icon">&#129302;</div>
+    <div class="title">Dao Agent</div>
+    <div class="hint">Ask me anything about the current page,<br>or request actions like summarizing content.</div>
+  </div>
+</div>
+
+<!-- Input Area -->
+<div class="input-area">
+  <button class="tool-btn" id="pageBtn" title="Inject page content into context">&#128196;</button>
+  <div class="input-wrapper">
+    <textarea id="userInput" rows="1" placeholder="Message Dao Agent..."></textarea>
+  </div>
+  <button class="send-btn" id="sendBtn" title="Send">&#9654;</button>
+</div>
+
+<script src="agent.js"></script>
+</body>
+</html>
