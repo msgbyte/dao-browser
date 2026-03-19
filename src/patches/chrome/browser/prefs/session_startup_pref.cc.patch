@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/prefs/session_startup_pref.cc b/chrome/browser/prefs/session_startup_pref.cc
-index abcdef1234..5678abcdef 100644
+index 266dc5f675..3fe94ab156 100644
 --- a/chrome/browser/prefs/session_startup_pref.cc
 +++ b/chrome/browser/prefs/session_startup_pref.cc
-@@ -65,9 +65,7 @@ void SessionStartupPref::RegisterProfilePrefs(
-
+@@ -66,11 +66,8 @@ void SessionStartupPref::RegisterProfilePrefs(
+ 
  // static
  SessionStartupPref::Type SessionStartupPref::GetDefaultStartupType() {
 -#if BUILDFLAG(IS_CHROMEOS)
@@ -13,3 +13,5 @@ index abcdef1234..5678abcdef 100644
 -  return SessionStartupPref::DEFAULT;
 -#endif
  }
+ 
+ // static
