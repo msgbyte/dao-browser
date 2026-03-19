@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..f6097b9cbe 100644
+index 46f6be18ac..692c46918d 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
-@@ -31,6 +31,16 @@
+@@ -31,6 +31,17 @@
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -15,14 +15,22 @@ index 46f6be18ac..f6097b9cbe 100644
 +#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 +#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
++#include "dao/browser/ui/views/dao_control_center_popup.h"
 +#include "ui/compositor/layer.h"
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
-@@ -337,6 +347,59 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+@@ -337,6 +348,66 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
++  // Dao: When control center popup is visible, make it clickable.
++  auto* dao_cc_popup = browser_view_->dao_control_center_popup();
++  if (dao_cc_popup && dao_cc_popup->GetVisible() &&
++      dao_cc_popup->bounds().Contains(point_in_browser_view_coords)) {
++    return HTCLIENT;
++  }
++
 +  // Dao: When command bar is visible, its entire area is client (clickable).
 +  // This must come first so the scrim and textfield receive mouse events.
 +  auto* dao_cmd_bar = browser_view_->dao_command_bar();
@@ -79,7 +87,7 @@ index 46f6be18ac..f6097b9cbe 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip.
    if (delegate_->ShouldDrawTabStrip()) {
-@@ -638,6 +701,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+@@ -638,6 +709,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
    int browser_view_width = vertical_layout_rect_.width();
    bool toolbar_visible = delegate_->IsToolbarVisible();
    int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
@@ -101,7 +109,7 @@ index 46f6be18ac..f6097b9cbe 100644
    SetViewVisibility(toolbar_, toolbar_visible);
    toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
                        height);
-@@ -648,32 +726,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
+@@ -648,32 +734,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
    TRACE_EVENT0("ui", "BrowserViewLayout::LayoutBookmarkAndInfoBars");
    dialog_top_y_ = top + browser_view_y - kConstrainedWindowOverlap;
  
@@ -141,7 +149,7 @@ index 46f6be18ac..f6097b9cbe 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +788,149 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +796,157 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -212,6 +220,14 @@ index 46f6be18ac..f6097b9cbe 100644
 +  auto* command_bar = browser_view_->dao_command_bar();
 +  if (command_bar) {
 +    command_bar->SetBoundsRect(contents_container_bounds);
++  }
++
++  // Dao: Position control center popup over the entire BrowserView so
++  // clicking anywhere outside the card closes it.
++  auto* cc_popup = browser_view_->dao_control_center_popup();
++  if (cc_popup) {
++    cc_popup->SetBounds(0, 0, browser_view_->width(),
++                         browser_view_->height());
 +  }
 +
 +  // Dao: Download flyout covers the entire BrowserView for arc animation

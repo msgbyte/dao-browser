@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/ui/tab_helpers.cc b/chrome/browser/ui/tab_helpers.cc
+index 1234567890..abcdef1234 100644
+--- a/chrome/browser/ui/tab_helpers.cc
++++ b/chrome/browser/ui/tab_helpers.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/tab_helpers.h"
+ 
+ #include <memory>
++#include "dao/browser/dao_webstore_branding_tab_helper.h"
+ #include <utility>
+ 
+ #include "base/command_line.h"
+@@ -566,6 +567,7 @@
+   vr::VrTabHelper::CreateForWebContents(web_contents);
+   OneTimePermissionsTrackerHelper::CreateForWebContents(web_contents);
+ 
++  dao::DaoWebstoreBrandingTabHelper::CreateForWebContents(web_contents);
+   // NO! Do not just add your tab helper here. This is a large alphabetized
+   // block; please insert your tab helper above in alphabetical order.
+ 

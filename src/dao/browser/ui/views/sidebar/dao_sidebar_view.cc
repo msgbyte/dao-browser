@@ -13,8 +13,14 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "base/task/single_thread_task_runner.h"
+#include "dao/browser/ui/views/dao_address_bar_view.h"
+#include "ui/compositor/layer_animator.h"
+#include "ui/compositor/scoped_layer_animation_settings.h"
+#include "ui/gfx/geometry/transform.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
+#include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/sidebar/dao_download_button_view.h"
 #include "dao/browser/ui/views/sidebar/dao_favorites_view.h"
 #include "dao/browser/ui/views/sidebar/dao_new_tab_button.h"
@@ -227,13 +233,84 @@ void DaoSidebarView::OnResize(int resize_amount, bool done_resizing) {
 void DaoSidebarView::ToggleCollapsed() {
   auto_expanded_ = false;
   collapsed_ = !collapsed_;
-  start_width_ = current_width_;
-  target_width_ = collapsed_ ? kCollapsedWidth : user_width_;
+
+  int old_width = current_width_;
+  int new_width = collapsed_ ? kCollapsedWidth : user_width_;
+  current_width_ = new_width;
+  target_width_ = new_width;
+
+  // Stop any in-flight LinearAnimation (used only for resize).
   collapse_animation_.Stop();
-  collapse_animation_.Start();
+
+  // Commit final layout immediately (one layout pass).
+  PreferredSizeChanged();
+
+  // Animate via compositor layers.
+  AnimateLayerSlide(old_width, new_width);
+}
+
+void DaoSidebarView::AnimateLayerSlide(int old_width, int new_width) {
+  int delta = old_width - new_width;
+  if (delta == 0) {
+    return;
+  }
+
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!bv) {
+    return;
+  }
+
+  // Collect layers to the right of sidebar: address bar, corner overlay,
+  // contents container. These all need to slide together.
+  std::vector<ui::Layer*> slide_layers;
+  if (bv->dao_address_bar() && bv->dao_address_bar()->layer()) {
+    slide_layers.push_back(bv->dao_address_bar()->layer());
+  }
+  if (bv->dao_corner_overlay() && bv->dao_corner_overlay()->layer()) {
+    slide_layers.push_back(bv->dao_corner_overlay()->layer());
+  }
+  if (bv->contents_container() && bv->contents_container()->layer()) {
+    slide_layers.push_back(bv->contents_container()->layer());
+  }
+
+  // Snap all layers to old position (undo the layout jump).
+  gfx::Transform start_transform;
+  start_transform.Translate(delta, 0);
+  for (auto* l : slide_layers) {
+    l->SetTransform(start_transform);
+  }
+  if (layer()) {
+    layer()->SetTransform(start_transform);
+  }
+
+  // Animate all layers to final position (identity transform).
+  // GPU compositor drives this — zero per-frame relayout.
+  constexpr auto kDuration = base::Milliseconds(150);
+  {
+    ui::ScopedLayerAnimationSettings settings(layer()->GetAnimator());
+    settings.SetTransitionDuration(kDuration);
+    settings.SetTweenType(gfx::Tween::EASE_OUT);
+    settings.AddObserver(this);
+    layer()->SetTransform(gfx::Transform());
+  }
+  for (auto* l : slide_layers) {
+    ui::ScopedLayerAnimationSettings settings(l->GetAnimator());
+    settings.SetTransitionDuration(kDuration);
+    settings.SetTweenType(gfx::Tween::EASE_OUT);
+    l->SetTransform(gfx::Transform());
+  }
+}
+
+void DaoSidebarView::OnImplicitAnimationsCompleted() {
+  // Notify address bar about sidebar collapse state after animation.
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (bv && bv->dao_address_bar()) {
+    bv->dao_address_bar()->SetSidebarCollapsed(collapsed_);
+  }
 }
 
 void DaoSidebarView::AnimationProgressed(const gfx::Animation* animation) {
+  // Only used for live resize, not collapse/expand.
   double t = gfx::Tween::CalculateValue(gfx::Tween::EASE_IN_OUT,
                                          animation->GetCurrentValue());
   current_width_ =
@@ -242,6 +319,7 @@ void DaoSidebarView::AnimationProgressed(const gfx::Animation* animation) {
 }
 
 void DaoSidebarView::AnimationEnded(const gfx::Animation* animation) {
+  // Only used for live resize, not collapse/expand.
   current_width_ = target_width_;
   PreferredSizeChanged();
 }
@@ -250,6 +328,14 @@ void DaoSidebarView::AnimationEnded(const gfx::Animation* animation) {
 
 void DaoSidebarView::AddedToWidget() {
   View::AddedToWidget();
+  // Wire toggle callback to address bar (deferred to here because address
+  // bar is created after sidebar during BrowserView construction).
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (bv && bv->dao_address_bar()) {
+    bv->dao_address_bar()->set_toggle_callback(
+        base::BindRepeating(&DaoSidebarView::ToggleCollapsed,
+                            base::Unretained(this)));
+  }
   if (GetFocusManager()) {
     GetFocusManager()->RegisterAccelerator(
         ui::Accelerator(ui::VKEY_OEM_5, ui::EF_COMMAND_DOWN),
@@ -306,13 +392,16 @@ bool DaoSidebarView::AcceleratorPressed(
 // --- Edge hover auto-expand ----------------------------------------------
 
 void DaoSidebarView::OnMouseEntered(const ui::MouseEvent& event) {
-  if (collapsed_ && !collapse_animation_.is_animating()) {
+  if (collapsed_ && !layer()->GetAnimator()->is_animating()) {
     auto_expanded_ = true;
     collapsed_ = false;
-    start_width_ = current_width_;
+    // Reuse ToggleCollapsed's layer animation approach
+    int old_width = current_width_;
+    current_width_ = user_width_;
     target_width_ = user_width_;
     collapse_animation_.Stop();
-    collapse_animation_.Start();
+    PreferredSizeChanged();
+    AnimateLayerSlide(old_width, user_width_);
   }
 }
 
@@ -320,10 +409,12 @@ void DaoSidebarView::OnMouseExited(const ui::MouseEvent& event) {
   if (auto_expanded_) {
     auto_expanded_ = false;
     collapsed_ = true;
-    start_width_ = current_width_;
+    int old_width = current_width_;
+    current_width_ = kCollapsedWidth;
     target_width_ = kCollapsedWidth;
     collapse_animation_.Stop();
-    collapse_animation_.Start();
+    PreferredSizeChanged();
+    AnimateLayerSlide(old_width, kCollapsedWidth);
   }
 }
 
@@ -379,13 +470,15 @@ void DaoSidebarView::OnDragEntered(const ui::DropTargetEvent& event) {
   overlay->SetActive(true);
   overlay->SetIndicatorY(-1);
   // Auto-expand sidebar if collapsed so the user sees the drop zone.
-  if (collapsed_ && !collapse_animation_.is_animating()) {
+  if (collapsed_ && !layer()->GetAnimator()->is_animating()) {
     drop_auto_expanded_ = true;
     collapsed_ = false;
-    start_width_ = current_width_;
+    int old_width = current_width_;
+    current_width_ = user_width_;
     target_width_ = user_width_;
     collapse_animation_.Stop();
-    collapse_animation_.Start();
+    PreferredSizeChanged();
+    AnimateLayerSlide(old_width, user_width_);
   }
 }
 
@@ -450,10 +543,12 @@ void DaoSidebarView::OnDragExited() {
   if (drop_auto_expanded_) {
     drop_auto_expanded_ = false;
     collapsed_ = true;
-    start_width_ = current_width_;
+    int old_width = current_width_;
+    current_width_ = kCollapsedWidth;
     target_width_ = kCollapsedWidth;
     collapse_animation_.Stop();
-    collapse_animation_.Start();
+    PreferredSizeChanged();
+    AnimateLayerSlide(old_width, kCollapsedWidth);
   }
 }
 

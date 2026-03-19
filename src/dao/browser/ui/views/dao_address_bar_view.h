@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_ADDRESS_BAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_ADDRESS_BAR_VIEW_H_
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -15,6 +16,11 @@ class TabStripModel;
 
 namespace views {
 class Label;
+class LabelButton;
+}
+
+namespace dao {
+class DaoControlCenterButton;
 }
 
 namespace dao {
@@ -46,6 +52,17 @@ class DaoAddressBarView : public views::View,
   // content::WebContentsObserver:
   void OnBackgroundColorChanged() override;
 
+  // Called by the sidebar to update toggle button visibility.
+  void SetSidebarCollapsed(bool collapsed);
+
+  // Set the callback invoked when the toggle button is clicked.
+  void set_toggle_callback(base::RepeatingClosure callback) {
+    toggle_callback_ = std::move(callback);
+  }
+
+  // Returns the control center button for popup anchoring.
+  views::View* control_center_button() const;
+
   // views::View:
   bool OnMousePressed(const ui::MouseEvent& event) override;
   gfx::Size CalculatePreferredSize(const views::SizeBounds& available_size) const override;
@@ -53,12 +70,20 @@ class DaoAddressBarView : public views::View,
  private:
   void UpdateURL();
   void UpdateBackgroundColor();
+  void UpdateToggleButtonColor();
   void ObserveActiveWebContents();
+  void OnToggleButtonPressed();
 
   raw_ptr<Browser> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
+  raw_ptr<views::View> traffic_light_spacer_ = nullptr;
+  raw_ptr<views::View> left_spacer_ = nullptr;
+  raw_ptr<views::LabelButton> sidebar_toggle_button_ = nullptr;
   raw_ptr<views::Label> host_label_ = nullptr;
   raw_ptr<views::Label> path_label_ = nullptr;
+  raw_ptr<DaoControlCenterButton> control_center_button_ = nullptr;
+  base::RepeatingClosure toggle_callback_;
+  bool sidebar_collapsed_ = false;
 };
 
 }  // namespace dao

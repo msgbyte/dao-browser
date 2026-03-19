@@ -9,6 +9,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "ui/base/clipboard/clipboard_format_type.h"
+#include "ui/compositor/layer_animation_observer.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/controls/resize_area.h"
@@ -30,7 +31,8 @@ class DaoTabListView;
 
 class DaoSidebarView : public views::View,
                        public gfx::AnimationDelegate,
-                       public views::ResizeAreaDelegate {
+                       public views::ResizeAreaDelegate,
+                       public ui::ImplicitAnimationObserver {
   METADATA_HEADER(DaoSidebarView, views::View)
 
  public:
@@ -62,9 +64,12 @@ class DaoSidebarView : public views::View,
   // views::ResizeAreaDelegate:
   void OnResize(int resize_amount, bool done_resizing) override;
 
-  // gfx::AnimationDelegate:
+  // gfx::AnimationDelegate (used only for resize):
   void AnimationProgressed(const gfx::Animation* animation) override;
   void AnimationEnded(const gfx::Animation* animation) override;
+
+  // ui::ImplicitAnimationObserver:
+  void OnImplicitAnimationsCompleted() override;
 
   // views::View:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
@@ -94,6 +99,8 @@ class DaoSidebarView : public views::View,
   raw_ptr<DaoDownloadButtonView> download_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
   raw_ptr<views::View> drop_overlay_ = nullptr;
+
+  void AnimateLayerSlide(int old_width, int new_width);
 
   bool collapsed_ = false;
   bool auto_expanded_ = false;

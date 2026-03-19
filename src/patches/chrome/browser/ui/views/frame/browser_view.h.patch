@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index b9986c6e90..dbc391f889 100644
+index b9986c6e90..b42aff4674 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -124,6 +124,16 @@ namespace glic {
+@@ -124,6 +124,17 @@ namespace glic {
  class BorderView;
  }  // namespace glic
  
@@ -14,12 +14,13 @@ index b9986c6e90..dbc391f889 100644
 +class DaoDownloadFlyoutView;
 +class DaoLittleDaoView;
 +class DaoAgentSidebarView;
++class DaoControlCenterPopup;
 +}  // namespace dao
 +
  namespace segmentation_platform {
  struct ClassificationResult;
  }
-@@ -247,6 +257,14 @@ class BrowserView : public BrowserWindow,
+@@ -247,6 +258,15 @@ class BrowserView : public BrowserWindow,
  
    SidePanel* unified_side_panel() { return unified_side_panel_; }
  
@@ -30,11 +31,12 @@ index b9986c6e90..dbc391f889 100644
 +  dao::DaoDownloadFlyoutView* dao_download_flyout() { return dao_download_flyout_; }
 +  dao::DaoLittleDaoView* dao_little_dao_view() { return dao_little_dao_view_; }
 +  dao::DaoAgentSidebarView* dao_agent_sidebar() { return dao_agent_sidebar_; }
++  dao::DaoControlCenterPopup* dao_control_center_popup() { return dao_control_center_popup_; }
 +
    void set_contents_border_widget(views::Widget* contents_border_widget) {
      GetBrowserViewLayout()->set_contents_border_widget(contents_border_widget);
    }
-@@ -1280,6 +1298,15 @@ class BrowserView : public BrowserWindow,
+@@ -1280,6 +1300,16 @@ class BrowserView : public BrowserWindow,
    raw_ptr<views::View> left_aligned_side_panel_separator_ = nullptr;
    raw_ptr<views::View> side_panel_rounded_corner_ = nullptr;
  
@@ -46,6 +48,7 @@ index b9986c6e90..dbc391f889 100644
 +  raw_ptr<dao::DaoDownloadFlyoutView> dao_download_flyout_ = nullptr;
 +  raw_ptr<dao::DaoLittleDaoView> dao_little_dao_view_ = nullptr;
 +  raw_ptr<dao::DaoAgentSidebarView> dao_agent_sidebar_ = nullptr;
++  raw_ptr<dao::DaoControlCenterPopup> dao_control_center_popup_ = nullptr;
 +
    // Provides access to the toolbar buttons this browser view uses. Buttons may
    // appear in a hosted app frame or in a tabbed UI toolbar.
