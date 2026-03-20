@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/views/dao_control_center_extensions_section.h"
 
+
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
@@ -31,7 +32,10 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handlers/icons_handler.h"
 #include "extensions/grit/extensions_browser_resources.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/gfx/image/image_skia.h"
@@ -57,6 +61,7 @@ constexpr int kExtIconPadding = 8;
 constexpr int kExtGridItemSize = kExtIconSize + kExtIconPadding * 2;
 constexpr int kExtBtnRadius = 8;
 constexpr SkColor kHoverBg = SkColorSetARGB(15, 0, 0, 0);  // black ~6%
+constexpr SkColor kActionIconColor = SkColorSetRGB(130, 130, 130);
 
 // An ImageButton that shows a rounded-rect hover highlight.
 class ExtIconButton : public views::ImageButton {
@@ -76,6 +81,41 @@ class ExtIconButton : public views::ImageButton {
     SetBackground(nullptr);
     SchedulePaint();
   }
+};
+
+// A grid action button that draws a Lucide icon and has hover highlight.
+class GridActionButton : public views::Button {
+ public:
+  GridActionButton(LucideIcon icon, PressedCallback callback)
+      : Button(std::move(callback)), icon_(icon) {
+    SetPreferredSize(gfx::Size(kExtGridItemSize, kExtGridItemSize));
+    SetInstallFocusRingOnFocus(false);
+  }
+
+  void OnMouseEntered(const ui::MouseEvent& event) override {
+    Button::OnMouseEntered(event);
+    SetBackground(
+        views::CreateRoundedRectBackground(kHoverBg, kExtBtnRadius));
+    SchedulePaint();
+  }
+
+  void OnMouseExited(const ui::MouseEvent& event) override {
+    Button::OnMouseExited(event);
+    SetBackground(nullptr);
+    SchedulePaint();
+  }
+
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    float icon_size = static_cast<float>(kExtIconSize);
+    float ox = (width() - icon_size) / 2.0f;
+    float oy = (height() - icon_size) / 2.0f;
+    DrawLucideIcon(canvas, icon_,
+                   gfx::RectF(ox, oy, icon_size, icon_size),
+                   kActionIconColor);
+  }
+
+ private:
+  LucideIcon icon_;
 };
 
 }  // namespace
@@ -101,36 +141,6 @@ DaoControlCenterExtensionsSection::DaoControlCenterExtensionsSection(
       views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
                                views::MaximumFlexSizeRule::kPreferred,
                                /*adjust_height_for_width=*/true));
-
-  // "Add" + "Manage" buttons row
-  buttons_row_ = AddChildView(std::make_unique<views::View>());
-  auto* btn_layout =
-      buttons_row_->SetLayoutManager(std::make_unique<views::BoxLayout>(
-          views::BoxLayout::Orientation::kHorizontal, gfx::Insets(), 4));
-  btn_layout->set_main_axis_alignment(
-      views::BoxLayout::MainAxisAlignment::kStart);
-
-  auto add_btn = std::make_unique<views::LabelButton>(
-      base::BindRepeating(
-          &DaoControlCenterExtensionsSection::OnAddClicked,
-          base::Unretained(this)),
-      u"Add");
-  add_btn->SetInstallFocusRingOnFocus(false);
-  add_btn->SetAccessibleName(u"Add");
-  add_btn->SetEnabledTextColors(SkColorSetRGB(100, 100, 100));
-  add_btn->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 8)));
-  buttons_row_->AddChildView(std::move(add_btn));
-
-  auto manage_btn = std::make_unique<views::LabelButton>(
-      base::BindRepeating(
-          &DaoControlCenterExtensionsSection::OnManageClicked,
-          base::Unretained(this)),
-      u"Manage");
-  manage_btn->SetInstallFocusRingOnFocus(false);
-  manage_btn->SetAccessibleName(u"Manage");
-  manage_btn->SetEnabledTextColors(SkColorSetRGB(100, 100, 100));
-  manage_btn->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 8)));
-  buttons_row_->AddChildView(std::move(manage_btn));
 
   // Observe toolbar model for changes
   auto* profile = browser_->profile();
@@ -245,15 +255,25 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
            action_ids.end();
   });
 
-  // Show empty state if no extensions
-  if (action_ids.empty()) {
-    auto* empty_label =
-        grid_->AddChildView(std::make_unique<views::Label>(u"No extensions"));
-    empty_label->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL,
-                                            12, gfx::Font::Weight::NORMAL));
-    empty_label->SetEnabledColor(SkColorSetRGB(160, 160, 160));
-    empty_label->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(8, 4)));
-  }
+  // "Add" action button — appended after extension icons.
+  auto add_btn = std::make_unique<GridActionButton>(
+      LucideIcon::kPlus,
+      base::BindRepeating(
+          &DaoControlCenterExtensionsSection::OnAddClicked,
+          base::Unretained(this)));
+  add_btn->SetAccessibleName(u"Add extension");
+  add_btn->SetTooltipText(u"Add extension");
+  grid_->AddChildView(static_cast<views::View*>(add_btn.release()));
+
+  // "Manage" action button.
+  auto manage_btn = std::make_unique<GridActionButton>(
+      LucideIcon::kSettings,
+      base::BindRepeating(
+          &DaoControlCenterExtensionsSection::OnManageClicked,
+          base::Unretained(this)));
+  manage_btn->SetAccessibleName(u"Manage extensions");
+  manage_btn->SetTooltipText(u"Manage extensions");
+  grid_->AddChildView(static_cast<views::View*>(manage_btn.release()));
 
   InvalidateLayout();
 }

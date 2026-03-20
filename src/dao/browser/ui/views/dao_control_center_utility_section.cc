@@ -12,9 +12,10 @@
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
-#include "ui/gfx/geometry/point_f.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/label.h"
@@ -34,141 +35,13 @@ constexpr int kUtilCornerRadius = 10;
 constexpr int kUtilFontSize = 10;
 constexpr SkColor kIconColor = SkColorSetRGB(55, 55, 60);
 
-enum class IconType { kShare, kQr, kLock, kMore };
-
-// Paints a Lucide icon. Each icon is drawn at 18x18 to match Lucide's 24x24
-// canonical grid scaled to the available area.
-class IconPainterView : public views::View {
- public:
-  explicit IconPainterView(IconType icon_type) : icon_type_(icon_type) {
-    SetCanProcessEventsWithinSubtree(false);
-    SetPreferredSize(gfx::Size(kUtilIconSize, kUtilIconSize));
-  }
-
-  void OnPaint(gfx::Canvas* canvas) override {
-    views::View::OnPaint(canvas);
-
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setStyle(cc::PaintFlags::kStroke_Style);
-    flags.setStrokeWidth(1.5f);
-    flags.setStrokeCap(cc::PaintFlags::kRound_Cap);
-    flags.setStrokeJoin(cc::PaintFlags::kRound_Join);
-    flags.setColor(kIconColor);
-
-    // Scale factor: map Lucide's 24x24 viewport to our kUtilIconSize
-    float s = kUtilIconSize / 24.0f;
-
-    switch (icon_type_) {
-      case IconType::kShare:
-        DrawLucideShare(canvas, flags, s);
-        break;
-      case IconType::kQr:
-        DrawLucideQrCode(canvas, flags, s);
-        break;
-      case IconType::kLock:
-        DrawLucideShieldCheck(canvas, flags, s);
-        break;
-      case IconType::kMore:
-        DrawLucideEllipsis(canvas, flags, s);
-        break;
-    }
-  }
-
- private:
-  // Lucide "share" icon: polyline path + arrow
-  void DrawLucideShare(gfx::Canvas* canvas, cc::PaintFlags& flags, float s) {
-    // Path: M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8
-    SkPath box;
-    box.moveTo(4 * s, 12 * s);
-    box.lineTo(4 * s, 20 * s);
-    box.cubicTo(4 * s, 21.1f * s, 4.9f * s, 22 * s, 6 * s, 22 * s);
-    box.lineTo(18 * s, 22 * s);
-    box.cubicTo(19.1f * s, 22 * s, 20 * s, 21.1f * s, 20 * s, 20 * s);
-    box.lineTo(20 * s, 12 * s);
-    canvas->DrawPath(box, flags);
-    // polyline: 16 6 12 2 8 6
-    SkPath arrow;
-    arrow.moveTo(16 * s, 6 * s);
-    arrow.lineTo(12 * s, 2 * s);
-    arrow.lineTo(8 * s, 6 * s);
-    canvas->DrawPath(arrow, flags);
-    // line: 12 2 -> 12 15
-    canvas->DrawLine(gfx::PointF(12 * s, 2 * s),
-                     gfx::PointF(12 * s, 15 * s), flags);
-  }
-
-  // Lucide "qr-code" icon
-  void DrawLucideQrCode(gfx::Canvas* canvas, cc::PaintFlags& flags, float s) {
-    // Top-left rect
-    canvas->DrawRect(gfx::RectF(3 * s, 3 * s, 7 * s, 7 * s), flags);
-    // Bottom-left rect
-    canvas->DrawRect(gfx::RectF(3 * s, 14 * s, 7 * s, 7 * s), flags);
-    // Top-right rect
-    canvas->DrawRect(gfx::RectF(14 * s, 3 * s, 7 * s, 7 * s), flags);
-    // Dots inside the three rects
-    cc::PaintFlags fill = flags;
-    fill.setStyle(cc::PaintFlags::kFill_Style);
-    canvas->DrawRect(gfx::RectF(5.5f * s, 5.5f * s, 2 * s, 2 * s), fill);
-    canvas->DrawRect(gfx::RectF(5.5f * s, 16.5f * s, 2 * s, 2 * s), fill);
-    canvas->DrawRect(gfx::RectF(16.5f * s, 5.5f * s, 2 * s, 2 * s), fill);
-    // Bottom-right pattern lines
-    canvas->DrawLine(gfx::PointF(14 * s, 14 * s),
-                     gfx::PointF(14 * s, 17 * s), flags);
-    canvas->DrawLine(gfx::PointF(14 * s, 17 * s),
-                     gfx::PointF(17 * s, 17 * s), flags);
-    canvas->DrawLine(gfx::PointF(17 * s, 14 * s),
-                     gfx::PointF(21 * s, 14 * s), flags);
-    canvas->DrawLine(gfx::PointF(21 * s, 14 * s),
-                     gfx::PointF(21 * s, 17 * s), flags);
-    canvas->DrawLine(gfx::PointF(17 * s, 20 * s),
-                     gfx::PointF(21 * s, 20 * s), flags);
-  }
-
-  // Lucide "shield-check" icon
-  void DrawLucideShieldCheck(gfx::Canvas* canvas, cc::PaintFlags& flags,
-                             float s) {
-    // Shield outline: M20 13c0 5-3.5 7.5-8 8.5-4.5-1-8-3.5-8-8.5V5l8-3 8 3z
-    SkPath shield;
-    shield.moveTo(20 * s, 13 * s);
-    shield.cubicTo(20 * s, 18 * s, 16.5f * s, 20.5f * s, 12 * s, 21.5f * s);
-    shield.cubicTo(7.5f * s, 20.5f * s, 4 * s, 18 * s, 4 * s, 13 * s);
-    shield.lineTo(4 * s, 5 * s);
-    shield.lineTo(12 * s, 2 * s);
-    shield.lineTo(20 * s, 5 * s);
-    shield.close();
-    canvas->DrawPath(shield, flags);
-    // Check mark: M9 12l2 2 4-4
-    SkPath check;
-    check.moveTo(9 * s, 12 * s);
-    check.lineTo(11 * s, 14 * s);
-    check.lineTo(15 * s, 10 * s);
-    canvas->DrawPath(check, flags);
-  }
-
-  // Lucide "ellipsis" icon: three circles
-  void DrawLucideEllipsis(gfx::Canvas* canvas, cc::PaintFlags& /*flags*/,
-                          float s) {
-    cc::PaintFlags fill;
-    fill.setAntiAlias(true);
-    fill.setStyle(cc::PaintFlags::kFill_Style);
-    fill.setColor(kIconColor);
-    float r = 1.2f * s;
-    canvas->DrawCircle(gfx::PointF(5 * s, 12 * s), r, fill);
-    canvas->DrawCircle(gfx::PointF(12 * s, 12 * s), r, fill);
-    canvas->DrawCircle(gfx::PointF(19 * s, 12 * s), r, fill);
-  }
-
-  IconType icon_type_;
-};
-
-// A utility button with an icon child view and a text label.
+// A utility button with a Lucide icon and a text label.
 class UtilityButton : public views::Button {
  public:
   UtilityButton(const std::u16string& label_text,
-                IconType icon_type,
+                LucideIcon icon,
                 views::Button::PressedCallback callback)
-      : Button(std::move(callback)) {
+      : Button(std::move(callback)), icon_(icon) {
     auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
         views::BoxLayout::Orientation::kVertical, gfx::Insets::VH(6, 0), 2));
     layout->set_cross_axis_alignment(
@@ -176,8 +49,11 @@ class UtilityButton : public views::Button {
     layout->set_main_axis_alignment(
         views::BoxLayout::MainAxisAlignment::kCenter);
 
-    AddChildView(static_cast<views::View*>(
-        std::make_unique<IconPainterView>(icon_type).release()));
+    // Spacer for the icon area (painted in PaintButtonContents).
+    auto icon_spacer = std::make_unique<views::View>();
+    icon_spacer->SetPreferredSize(gfx::Size(kUtilIconSize, kUtilIconSize));
+    icon_spacer->SetCanProcessEventsWithinSubtree(false);
+    AddChildView(icon_spacer.release());
 
     auto* label =
         AddChildView(std::make_unique<views::Label>(label_text));
@@ -204,6 +80,20 @@ class UtilityButton : public views::Button {
     SetBackground(nullptr);
     SchedulePaint();
   }
+
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    // Draw the icon centered in the spacer area (first child).
+    if (!children().empty()) {
+      gfx::Rect icon_bounds = children().front()->bounds();
+      DrawLucideIcon(canvas, icon_,
+                     gfx::RectF(icon_bounds.x(), icon_bounds.y(),
+                                kUtilIconSize, kUtilIconSize),
+                     kIconColor);
+    }
+  }
+
+ private:
+  LucideIcon icon_;
 };
 
 }  // namespace
@@ -221,7 +111,7 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
-          u"Share", IconType::kShare,
+          u"Share", LucideIcon::kShare,
           base::BindRepeating(
               &DaoControlCenterUtilitySection::OnShareClicked,
               base::Unretained(this)))
@@ -229,7 +119,7 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
-          u"QR Code", IconType::kQr,
+          u"QR Code", LucideIcon::kQrCode,
           base::BindRepeating(
               &DaoControlCenterUtilitySection::OnQrClicked,
               base::Unretained(this)))
@@ -237,7 +127,7 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
-          u"Security", IconType::kLock,
+          u"Security", LucideIcon::kShieldCheck,
           base::BindRepeating(
               &DaoControlCenterUtilitySection::OnLockClicked,
               base::Unretained(this)))
@@ -245,7 +135,7 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
-          u"More", IconType::kMore,
+          u"More", LucideIcon::kEllipsis,
           base::BindRepeating(
               &DaoControlCenterUtilitySection::OnMoreClicked,
               base::Unretained(this)))

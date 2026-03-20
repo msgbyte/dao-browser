@@ -89,7 +89,6 @@ class DaoControlCenterExtensionsSection
 
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> grid_ = nullptr;
-  raw_ptr<views::View> buttons_row_ = nullptr;
   raw_ptr<ToolbarActionsModel> model_ = nullptr;
   bool grid_dirty_ = true;
 

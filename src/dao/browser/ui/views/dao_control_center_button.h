@@ -26,6 +26,7 @@ class DaoControlCenterButton : public views::Button {
   // views::Button:
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
+  void PaintButtonContents(gfx::Canvas* canvas) override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
 
