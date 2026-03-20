@@ -185,8 +185,10 @@ void DaoControlCenterUtilitySection::OnLockClicked() {
   if (!web_contents) {
     return;
   }
-  ShowPageInfoDialog(web_contents, PageInfoClosingCallback(),
-                     bubble_anchor_util::Anchor::kLocationBar);
+  ShowPageInfoDialog(
+      web_contents,
+      base::BindOnce([](views::Widget::ClosedReason, bool) {}),
+      bubble_anchor_util::Anchor::kLocationBar);
   if (popup_) {
     popup_->Hide();
   }
