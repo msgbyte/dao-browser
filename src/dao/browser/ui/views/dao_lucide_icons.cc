@@ -179,6 +179,38 @@ void DrawSlidersHorizontal(gfx::Canvas* canvas,
   canvas->DrawCircle(gfx::PointF(ox + 9 * s, y2), 2.5f * s, flags);
 }
 
+// Lucide "volume-2" (speaker with sound waves)
+void DrawVolume2(gfx::Canvas* canvas,
+                 float s,
+                 float ox,
+                 float oy,
+                 const cc::PaintFlags& flags) {
+  // Speaker body: polygon 11,5 6,9 2,9 2,15 6,15 11,19 11,5
+  DrawSvgPath(canvas, "M11 5L6 9H2v6h4l5 4V5Z", s, ox, oy, flags);
+  // Sound waves
+  DrawSvgPath(canvas,
+              "M15.54 8.46a5 5 0 0 1 0 7.07",
+              s, ox, oy, flags);
+  DrawSvgPath(canvas,
+              "M19.07 4.93a10 10 0 0 1 0 14.14",
+              s, ox, oy, flags);
+}
+
+// Lucide "volume-off" (speaker with X)
+void DrawVolumeOff(gfx::Canvas* canvas,
+                   float s,
+                   float ox,
+                   float oy,
+                   const cc::PaintFlags& flags) {
+  // Speaker body
+  DrawSvgPath(canvas, "M11 5L6 9H2v6h4l5 4V5Z", s, ox, oy, flags);
+  // X mark
+  canvas->DrawLine(gfx::PointF(ox + 22 * s, oy + 9 * s),
+                   gfx::PointF(ox + 16 * s, oy + 15 * s), flags);
+  canvas->DrawLine(gfx::PointF(ox + 16 * s, oy + 9 * s),
+                   gfx::PointF(ox + 22 * s, oy + 15 * s), flags);
+}
+
 }  // namespace
 
 void DrawLucideIcon(gfx::Canvas* canvas,
@@ -211,6 +243,19 @@ void DrawLucideIcon(gfx::Canvas* canvas,
       break;
     case LucideIcon::kSlidersHorizontal:
       DrawSlidersHorizontal(canvas, s, ox, oy, flags);
+      break;
+    case LucideIcon::kVolume2:
+      DrawVolume2(canvas, s, ox, oy, flags);
+      break;
+    case LucideIcon::kVolumeOff:
+      DrawVolumeOff(canvas, s, ox, oy, flags);
+      break;
+    case LucideIcon::kX:
+      // Lucide X: two diagonal lines from (18,6)-(6,18) and (6,6)-(18,18)
+      canvas->DrawLine(gfx::PointF(ox + 18 * s, oy + 6 * s),
+                       gfx::PointF(ox + 6 * s, oy + 18 * s), flags);
+      canvas->DrawLine(gfx::PointF(ox + 6 * s, oy + 6 * s),
+                       gfx::PointF(ox + 18 * s, oy + 18 * s), flags);
       break;
   }
 }

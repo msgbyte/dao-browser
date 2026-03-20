@@ -25,6 +25,9 @@ enum class LucideIcon {
   kShieldCheck,
   kEllipsis,
   kSlidersHorizontal,
+  kVolume2,
+  kVolumeOff,
+  kX,
 };
 
 // Draw a Lucide icon into |rect| on |canvas| using |color|.

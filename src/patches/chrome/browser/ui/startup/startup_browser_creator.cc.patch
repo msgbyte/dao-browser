@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/ui/startup/startup_browser_creator.cc b/chrome/browser/ui/startup/startup_browser_creator.cc
+index d26f0998c8..0f3ae8efd8 100644
+--- a/chrome/browser/ui/startup/startup_browser_creator.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator.cc
+@@ -882,11 +882,10 @@ SessionStartupPref StartupBrowserCreator::GetSessionStartupPref(
+   // The pref has an OS-dependent default value. For the first run only, this
+   // default is overridden with SessionStartupPref::DEFAULT so that first run
+   // behavior (sync promo, welcome page) is consistently invoked.
+-  // This applies only if the pref is still at its default and has not been
+-  // set by the user, managed prefs or policy.
+-  if (is_first_run && SessionStartupPref::TypeIsDefault(prefs)) {
+-    pref.type = SessionStartupPref::DEFAULT;
+-  }
++  // Dao Browser: Skip the first-run override so that the default startup type
++  // (LAST) is always respected, even on the very first launch. Dao has no
++  // sync promo or welcome page that would need SessionStartupPref::DEFAULT.
++  (void)is_first_run;
+ 
+   // The switches::kRestoreLastSession command line switch is used to restore
+   // sessions after a browser self restart (e.g. after a Chrome upgrade).

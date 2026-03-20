@@ -54,6 +54,14 @@ void DaoTabListView::OnTabStripModelChanged(
 void DaoTabListView::TabChangedAt(content::WebContents* contents,
                                   int index,
                                   TabChangeType change_type) {
+  // Update tab display (favicon, title, audio) without full rebuild.
+  for (const auto& item : tab_items_) {
+    if (item->model_index() == index) {
+      item->UpdateTab(contents);
+      return;
+    }
+  }
+  // Fallback: full rebuild if item not found.
   RebuildTabList();
 }
 
@@ -83,7 +91,7 @@ void DaoTabListView::RebuildTabList() {
       auto* contents = tab_strip_model_->GetWebContentsAt(i);
       auto* item = static_cast<DaoTabItemView*>(
           pinned_section->AddTabItem(std::make_unique<DaoTabItemView>(
-              contents, i, i == active,
+              browser_, contents, i, i == active,
               base::BindRepeating(&DaoTabListView::OnTabClicked,
                                   base::Unretained(this), i),
               base::BindRepeating(&DaoTabListView::OnTabClosed,
@@ -119,7 +127,7 @@ void DaoTabListView::RebuildTabList() {
     auto* contents = tab_strip_model_->GetWebContentsAt(i);
     auto* item = static_cast<DaoTabItemView*>(
         today_section->AddTabItem(std::make_unique<DaoTabItemView>(
-            contents, i, i == active,
+            browser_, contents, i, i == active,
             base::BindRepeating(&DaoTabListView::OnTabClicked,
                                 base::Unretained(this), i),
             base::BindRepeating(&DaoTabListView::OnTabClosed,
