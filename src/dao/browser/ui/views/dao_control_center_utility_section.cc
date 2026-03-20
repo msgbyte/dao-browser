@@ -277,7 +277,6 @@ void DaoControlCenterUtilitySection::OnShareClicked() {
   gfx::NativeView native_view = browser_view->GetWidget()->GetNativeView();
   gfx::Rect anchor_rect = GetBoundsInScreen();
   dao::ShowNativeShareMac(url, title, native_view, anchor_rect);
-  popup_->Hide();
 #endif
 }
 

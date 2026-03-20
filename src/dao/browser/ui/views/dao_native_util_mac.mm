@@ -9,9 +9,13 @@
 #include "content/public/browser/web_contents.h"
 
 // A transparent NSView placed on top of the web content's native view.
-// It intercepts all mouse hit-tests and forwards the resulting events
-// to its superview (the compositor / BridgedContentView), which then
-// dispatches them through the Chromium views event pipeline.
+// It intercepts mouse clicks via hit-testing and forwards them to the
+// compositor's BridgedContentView through the superview chain.
+//
+// Mouse-move / enter / exit events are NOT routed through this view.
+// Instead, a global NSEvent local monitor is installed so that the
+// BridgedContentView's own tracking area continues to fire, allowing
+// the Chromium Views hover pipeline to work normally.
 @interface DaoEventInterceptor : NSView
 @end
 
@@ -38,8 +42,8 @@
   return nil;
 }
 
-// Forward mouse events to the compositor view so the views framework
-// can dispatch them to the command bar overlay.
+// Forward mouse click events to the compositor view so the views framework
+// can dispatch them to the popup overlay.
 - (void)mouseDown:(NSEvent*)event {
   [self.superview mouseDown:event];
 }
@@ -68,6 +72,12 @@
 @end
 
 static DaoEventInterceptor* g_interceptor = nil;
+
+// Global local-event monitor that re-sends mouse-move events to the
+// window's contentView (BridgedContentView) so that the Chromium Views
+// hover / enter / exit pipeline works regardless of which NSView AppKit's
+// hit-test picks.
+static id g_mouse_monitor = nil;
 
 namespace dao {
 
@@ -100,11 +110,48 @@ void BlockWebContentNativeEvents(content::WebContents* web_contents) {
   [parent addSubview:g_interceptor
           positioned:NSWindowAbove
           relativeTo:native];
+
+  // Install a local event monitor so that mouse-move / enter / exit events
+  // bypass the interceptor's hit-test and still reach BridgedContentView.
+  if (!g_mouse_monitor) {
+    NSEventMask mask = NSEventMaskMouseMoved | NSEventMaskMouseEntered |
+                       NSEventMaskMouseExited;
+    NSWindow* window = [native window];
+    g_mouse_monitor = [NSEvent
+        addLocalMonitorForEventsMatchingMask:mask
+                                    handler:^NSEvent*(NSEvent* event) {
+                                      if ([event window] == window) {
+                                        NSView* cv = [window contentView];
+                                        // Directly call the BaseView method
+                                        // which routes to
+                                        // BridgedContentView::mouseEvent:.
+                                        switch ([event type]) {
+                                          case NSEventTypeMouseMoved:
+                                            [cv mouseMoved:event];
+                                            break;
+                                          case NSEventTypeMouseEntered:
+                                            [cv mouseEntered:event];
+                                            break;
+                                          case NSEventTypeMouseExited:
+                                            [cv mouseExited:event];
+                                            break;
+                                          default:
+                                            break;
+                                        }
+                                      }
+                                      return event;
+                                    }];
+  }
 }
 
 void UnblockWebContentNativeEvents(content::WebContents* web_contents) {
   if (g_interceptor && [g_interceptor superview]) {
     [g_interceptor removeFromSuperview];
+  }
+
+  if (g_mouse_monitor) {
+    [NSEvent removeMonitor:g_mouse_monitor];
+    g_mouse_monitor = nil;
   }
 }
 

@@ -5,14 +5,37 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_CONTROL_CENTER_EXTENSIONS_SECTION_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_CONTROL_CENTER_EXTENSIONS_SECTION_H_
 
+#include <map>
+#include <memory>
+#include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
+#include "extensions/browser/extension_icon_image.h"
+#include "ui/views/context_menu_controller.h"
 #include "ui/views/view.h"
 
 class Browser;
+
+namespace gfx {
+class Point;
+}
+
+namespace ui {
+class MenuModel;
+}
+
+namespace ui::mojom {
+enum class MenuSourceType;
+}
+
+namespace views {
+class ImageButton;
+class MenuModelAdapter;
+class MenuRunner;
+}  // namespace views
 
 namespace dao {
 
@@ -20,7 +43,9 @@ namespace dao {
 // Includes "Add" and "Manage" shortcut buttons at the bottom.
 class DaoControlCenterExtensionsSection
     : public views::View,
-      public ToolbarActionsModel::Observer {
+      public ToolbarActionsModel::Observer,
+      public views::ContextMenuController,
+      public extensions::IconImage::Observer {
   METADATA_HEADER(DaoControlCenterExtensionsSection, views::View)
 
  public:
@@ -43,17 +68,44 @@ class DaoControlCenterExtensionsSection
   void OnToolbarModelInitialized() override;
   void OnToolbarPinnedActionsChanged() override;
 
+  // views::ContextMenuController:
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override;
+
+  // extensions::IconImage::Observer:
+  void OnExtensionIconImageChanged(extensions::IconImage* image) override;
+
  private:
   void RebuildGrid();
   void OnExtensionClicked(const std::string& extension_id);
   void OnAddClicked();
   void OnManageClicked();
+  void OnContextMenuClosed();
+
+  // Returns the extension_id associated with a button view, or empty string.
+  std::string GetExtensionIdForView(views::View* view) const;
 
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> grid_ = nullptr;
   raw_ptr<views::View> buttons_row_ = nullptr;
   raw_ptr<ToolbarActionsModel> model_ = nullptr;
   bool grid_dirty_ = true;
+
+  // Maps icon button pointers to extension IDs for context menu lookup.
+  std::map<views::View*, std::string> button_to_extension_id_;
+
+  // Cached IconImages keyed by extension ID. Persisted across rebuilds.
+  std::map<std::string, std::unique_ptr<extensions::IconImage>> icon_images_;
+
+  // Maps extension ID to the corresponding button for async icon updates.
+  std::map<std::string, raw_ptr<views::ImageButton>> id_to_button_;
+
+  // Context menu state.
+  std::unique_ptr<ui::MenuModel> context_menu_model_;
+  std::unique_ptr<views::MenuModelAdapter> context_menu_adapter_;
+  std::unique_ptr<views::MenuRunner> context_menu_runner_;
 
   base::ScopedObservation<ToolbarActionsModel, ToolbarActionsModel::Observer>
       observation_{this};
