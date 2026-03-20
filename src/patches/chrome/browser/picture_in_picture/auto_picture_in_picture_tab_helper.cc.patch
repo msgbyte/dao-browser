@@ -1,0 +1,59 @@
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+index 551842d642..083ace54cb 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+@@ -204,6 +204,7 @@ void AutoPictureInPictureTabHelper::MediaSessionInfoChanged(
+   is_playing_ =
+       session_info && session_info->playback_state ==
+                           media_session::mojom::MediaPlaybackState::kPlaying;
++  MaybeStartOrStopObservingTabStrip();
+ }
+ 
+ void AutoPictureInPictureTabHelper::MediaSessionActionsChanged(
+@@ -226,7 +227,11 @@ void AutoPictureInPictureTabHelper::MaybeEnterAutoPictureInPicture() {
+   }
+   auto_picture_in_picture_activation_time_ =
+       base::TimeTicks::Now() + blink::kActivationLifespan;
+-  content::MediaSession::Get(web_contents())->EnterAutoPictureInPicture();
++  // Dao: Use EnterPictureInPicture() instead of EnterAutoPictureInPicture()
++  // to support sites without a registered enterpictureinpicture handler.
++  // EnterPictureInPicture() has a fallback that directly calls
++  // RequestEnterPictureInPicture via Mojo on the media player.
++  content::MediaSession::Get(web_contents())->EnterPictureInPicture();
+   MaybeRecordPictureInPictureChanged(true);
+ }
+ 
+@@ -278,7 +283,8 @@ void AutoPictureInPictureTabHelper::MaybeExitAutoPictureInPicture() {
+ 
+ void AutoPictureInPictureTabHelper::MaybeStartOrStopObservingTabStrip() {
+   if (is_enter_auto_picture_in_picture_available_ ||
+-      is_in_auto_picture_in_picture_) {
++      is_in_auto_picture_in_picture_ ||
++      is_playing_) {
+     tab_strip_observer_helper_->StartObserving();
+   } else {
+     tab_strip_observer_helper_->StopObserving();
+@@ -304,10 +310,8 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
+     return false;
+   }
+ 
+-  // The website must have registered for autopip.
+-  if (!is_enter_auto_picture_in_picture_available_) {
+-    return false;
+-  }
++  // Dao: Skip website handler registration check — allow auto-PiP for any
++  // site with video playback.
+ 
+   // Do not replace any PiP with autopip.  In the special case where the
+   // incoming active tab owns a pip window that will close as a result of the
+@@ -354,8 +358,8 @@ bool AutoPictureInPictureTabHelper::MeetsVideoPlaybackConditions() const {
+     return false;
+   }
+ 
+-  return has_audio_focus_ && is_playing_ && WasRecentlyAudible() &&
+-         has_safe_url_ && MeetsMediaEngagementConditions();
++  // Dao: Relaxed conditions — skip media engagement and safe browsing checks.
++  return has_audio_focus_ && is_playing_ && WasRecentlyAudible();
+ }
+ 
+ bool AutoPictureInPictureTabHelper::IsUsingCameraOrMicrophone() const {

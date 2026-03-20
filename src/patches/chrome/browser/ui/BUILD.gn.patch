@@ -1,11 +1,13 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..73cff45c1a 100644
+index a66522f120..c80275ea36 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -48,6 +48,61 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -48,6 +48,63 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
++    "//dao/browser/dao_auto_pip_visibility_helper.cc",
++    "//dao/browser/dao_auto_pip_visibility_helper.h",
 +    "//dao/browser/dao_webstore_branding_tab_helper.cc",
 +    "//dao/browser/dao_webstore_branding_tab_helper.h",
 +    "//dao/browser/ui/views/little_dao/dao_little_dao_controller.cc",
@@ -64,7 +66,7 @@ index a66522f120..73cff45c1a 100644
      "accelerator_utils.h",
      "bluetooth/bluetooth_dialogs.h",
      "browser_dialogs.cc",
-@@ -318,6 +373,7 @@ static_library("ui") {
+@@ -318,6 +375,7 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
@@ -72,7 +74,7 @@ index a66522f120..73cff45c1a 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -564,6 +620,7 @@ static_library("ui") {
+@@ -564,6 +622,7 @@ static_library("ui") {
      "//components/privacy_sandbox:tracking_protection_settings",
      "//components/profile_metrics",
      "//components/proxy_config",

@@ -1,19 +1,21 @@
 diff --git a/chrome/browser/ui/tab_helpers.cc b/chrome/browser/ui/tab_helpers.cc
-index 1234567890..abcdef1234 100644
+index 2d39a00a30..a9d224ec93 100644
 --- a/chrome/browser/ui/tab_helpers.cc
 +++ b/chrome/browser/ui/tab_helpers.cc
-@@ -5,6 +5,7 @@
+@@ -5,6 +5,8 @@
  #include "chrome/browser/ui/tab_helpers.h"
  
  #include <memory>
++#include "dao/browser/dao_auto_pip_visibility_helper.h"
 +#include "dao/browser/dao_webstore_branding_tab_helper.h"
  #include <utility>
  
  #include "base/command_line.h"
-@@ -566,6 +567,7 @@
+@@ -566,6 +568,8 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
    vr::VrTabHelper::CreateForWebContents(web_contents);
    OneTimePermissionsTrackerHelper::CreateForWebContents(web_contents);
  
++  dao::DaoAutoPipVisibilityHelper::CreateForWebContents(web_contents);
 +  dao::DaoWebstoreBrandingTabHelper::CreateForWebContents(web_contents);
    // NO! Do not just add your tab helper here. This is a large alphabetized
    // block; please insert your tab helper above in alphabetical order.

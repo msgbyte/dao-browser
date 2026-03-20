@@ -1,0 +1,63 @@
+diff --git a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
+index ea4646388c..d21d649e33 100644
+--- a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
++++ b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
+@@ -481,56 +481,8 @@ std::unique_ptr<AutoPipSettingOverlayView>
+ PictureInPictureWindowManager::GetOverlayView(
+     views::View* anchor_view,
+     views::BubbleBorder::Arrow arrow) {
+-  // This should probably CHECK, but tests often can't set the controller.
+-  if (!pip_window_controller_) {
+-    return nullptr;
+-  }
+-
+-  // This is redundant with the check for `auto_pip_tab_helper`, below.
+-  // However, for safety, early-out here when the flag is off.
+-  if (!base::FeatureList::IsEnabled(
+-          blink::features::kMediaSessionEnterPictureInPicture)) {
+-    return nullptr;
+-  }
+-
+-  // It would be nice to create this in `EnterPictureInPicture*`, but detecting
+-  // auto-pip while pip is in the process of opening doesn't work.
+-  //
+-  // Remember that this can be called more than once per pip window instance,
+-  // such as on theme change in some cases or on Linux at any time at all, when
+-  // the window frame is destroyed and recreated.  Thus, one must be careful not
+-  // to get confused between the user closing the pip window and the pip window
+-  // closing itself.  Otherwise, these events would adjust the embargo counter
+-  // incorrectly.  As it is, we explicitly call back when the user closes the
+-  // pip window for that purpose.
+-
+-  auto* const web_contents = pip_window_controller_->GetWebContents();
+-  CHECK(web_contents);
+-
+-  auto* auto_pip_tab_helper =
+-      AutoPictureInPictureTabHelper::FromWebContents(web_contents);
+-  if (!auto_pip_tab_helper) {
+-    return nullptr;
+-  }
+-
+-  // See if we should display the allow / block UI.  This might call back the
+-  // close cb, if the pip window should be blocked.
+-  auto overlay_view = auto_pip_tab_helper->CreateOverlayPermissionViewIfNeeded(
+-      base::BindOnce(&PictureInPictureWindowManager::ExitPictureInPictureSoon),
+-      anchor_view, arrow);
+-
+-  if (!overlay_view) {
+-    // It's already allowed or blocked / embargoed.
+-    return nullptr;
+-  }
+-
+-  // We need to ask the user.
+-  if (auto* pip_contents = GetChildWebContents()) {
+-    // For document pip, block input too while the permission dialog is shown.
+-    overlay_view->IgnoreInputEvents(pip_contents);
+-  }
+-
+-  return overlay_view;
++  // Dao: Skip the auto-PiP permission overlay entirely — always allow.
++  return nullptr;
+ }
+ 
+ PictureInPictureOcclusionTracker*
