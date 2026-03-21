@@ -30,14 +30,6 @@ cc::PaintFlags MakeStrokeFlags(SkColor color, float scale) {
   return flags;
 }
 
-cc::PaintFlags MakeFillFlags(SkColor color) {
-  cc::PaintFlags flags;
-  flags.setAntiAlias(true);
-  flags.setStyle(cc::PaintFlags::kFill_Style);
-  flags.setColor(color);
-  return flags;
-}
-
 // Helper: parse an SVG path string, scale and translate, then draw.
 void DrawSvgPath(gfx::Canvas* canvas,
                  const char* svg,
@@ -85,7 +77,7 @@ void DrawSettings(gfx::Canvas* canvas,
               " 2.34 2.34 0 0 1-2.33-4.033"
               " 2.34 2.34 0 0 0 0-3.831"
               "A2.34 2.34 0 0 1 6.35 6.051"
-              "a2.34 2.34 0 0 0 3.319-1.915Z",
+              "a2.34 2.34 0 0 0 3.319-1.915",
               s, ox, oy, flags);
   canvas->DrawCircle(gfx::PointF(ox + 12 * s, oy + 12 * s), 3.0f * s, flags);
 }
@@ -109,30 +101,32 @@ void DrawQrCode(gfx::Canvas* canvas,
                 float ox,
                 float oy,
                 const cc::PaintFlags& flags) {
-  // Outer rectangles (stroke)
-  canvas->DrawRect(gfx::RectF(ox + 3 * s, oy + 3 * s, 7 * s, 7 * s), flags);
-  canvas->DrawRect(gfx::RectF(ox + 3 * s, oy + 14 * s, 7 * s, 7 * s), flags);
-  canvas->DrawRect(gfx::RectF(ox + 14 * s, oy + 3 * s, 7 * s, 7 * s), flags);
-  // Center dots (fill)
-  cc::PaintFlags fill = flags;
-  fill.setStyle(cc::PaintFlags::kFill_Style);
-  canvas->DrawRect(
-      gfx::RectF(ox + 5.5f * s, oy + 5.5f * s, 2 * s, 2 * s), fill);
-  canvas->DrawRect(
-      gfx::RectF(ox + 5.5f * s, oy + 16.5f * s, 2 * s, 2 * s), fill);
-  canvas->DrawRect(
-      gfx::RectF(ox + 16.5f * s, oy + 5.5f * s, 2 * s, 2 * s), fill);
-  // Bottom-right pattern
-  canvas->DrawLine(gfx::PointF(ox + 14 * s, oy + 14 * s),
-                   gfx::PointF(ox + 14 * s, oy + 17 * s), flags);
-  canvas->DrawLine(gfx::PointF(ox + 14 * s, oy + 17 * s),
-                   gfx::PointF(ox + 17 * s, oy + 17 * s), flags);
-  canvas->DrawLine(gfx::PointF(ox + 17 * s, oy + 14 * s),
-                   gfx::PointF(ox + 21 * s, oy + 14 * s), flags);
-  canvas->DrawLine(gfx::PointF(ox + 21 * s, oy + 14 * s),
-                   gfx::PointF(ox + 21 * s, oy + 17 * s), flags);
-  canvas->DrawLine(gfx::PointF(ox + 17 * s, oy + 20 * s),
-                   gfx::PointF(ox + 21 * s, oy + 20 * s), flags);
+  // Top-left rounded rect 5x5 at (3,3) rx=1
+  DrawSvgPath(canvas,
+              "M4 3h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H4"
+              "a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z",
+              s, ox, oy, flags);
+  // Top-right rounded rect 5x5 at (16,3) rx=1
+  DrawSvgPath(canvas,
+              "M17 3h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3"
+              "a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z",
+              s, ox, oy, flags);
+  // Bottom-left rounded rect 5x5 at (3,16) rx=1
+  DrawSvgPath(canvas,
+              "M4 16h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H4"
+              "a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z",
+              s, ox, oy, flags);
+  // Bottom-right curved path
+  DrawSvgPath(canvas, "M21 16h-3a2 2 0 0 0-2 2v3", s, ox, oy, flags);
+  // Data pattern dots and lines
+  DrawSvgPath(canvas, "M21 21v.01", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M12 7v3a2 2 0 0 1-2 2H7", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M3 12h.01", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M12 3h.01", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M12 16v.01", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M16 12h1", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M21 12v.01", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M12 21v-1", s, ox, oy, flags);
 }
 
 // Lucide "shield-check"
@@ -142,9 +136,11 @@ void DrawShieldCheck(gfx::Canvas* canvas,
                      float oy,
                      const cc::PaintFlags& flags) {
   DrawSvgPath(canvas,
-              "M20 13c0 5-3.5 7.5-8 8.5-4.5-1-8-3.5-8-8.5V5l8-3 8 3Z"
-              "M9 12l2 2 4-4",
+              "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01"
+              "C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72"
+              "a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",
               s, ox, oy, flags);
+  DrawSvgPath(canvas, "M9 12l2 2 4-4", s, ox, oy, flags);
 }
 
 // Lucide "ellipsis"
@@ -152,12 +148,10 @@ void DrawEllipsis(gfx::Canvas* canvas,
                   float s,
                   float ox,
                   float oy,
-                  SkColor color) {
-  cc::PaintFlags fill = MakeFillFlags(color);
-  float r = 1.2f * s;
-  canvas->DrawCircle(gfx::PointF(ox + 5 * s, oy + 12 * s), r, fill);
-  canvas->DrawCircle(gfx::PointF(ox + 12 * s, oy + 12 * s), r, fill);
-  canvas->DrawCircle(gfx::PointF(ox + 19 * s, oy + 12 * s), r, fill);
+                  const cc::PaintFlags& flags) {
+  canvas->DrawCircle(gfx::PointF(ox + 12 * s, oy + 12 * s), 1.0f * s, flags);
+  canvas->DrawCircle(gfx::PointF(ox + 19 * s, oy + 12 * s), 1.0f * s, flags);
+  canvas->DrawCircle(gfx::PointF(ox + 5 * s, oy + 12 * s), 1.0f * s, flags);
 }
 
 // Lucide "sliders-horizontal"
@@ -166,17 +160,18 @@ void DrawSlidersHorizontal(gfx::Canvas* canvas,
                            float ox,
                            float oy,
                            const cc::PaintFlags& flags) {
-  // Top line y=8, bottom line y=16
-  float y1 = oy + 8 * s;
-  float y2 = oy + 16 * s;
-  float left = ox + 3 * s;
-  float right = ox + 21 * s;
-  canvas->DrawLine(gfx::PointF(left, y1), gfx::PointF(right, y1), flags);
-  canvas->DrawLine(gfx::PointF(left, y2), gfx::PointF(right, y2), flags);
-  // Circle on top line (right side)
-  canvas->DrawCircle(gfx::PointF(ox + 15 * s, y1), 2.5f * s, flags);
-  // Circle on bottom line (left side)
-  canvas->DrawCircle(gfx::PointF(ox + 9 * s, y2), 2.5f * s, flags);
+  // Top slider (y=5), handle at x=14
+  DrawSvgPath(canvas, "M10 5H3", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M21 5h-7", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M14 3v4", s, ox, oy, flags);
+  // Middle slider (y=12), handle at x=8
+  DrawSvgPath(canvas, "M8 12H3", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M21 12h-9", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M8 10v4", s, ox, oy, flags);
+  // Bottom slider (y=19), handle at x=16
+  DrawSvgPath(canvas, "M12 19H3", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M21 19h-5", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M16 17v4", s, ox, oy, flags);
 }
 
 // Lucide "volume-2" (speaker with sound waves)
@@ -185,26 +180,29 @@ void DrawVolume2(gfx::Canvas* canvas,
                  float ox,
                  float oy,
                  const cc::PaintFlags& flags) {
-  // Speaker body: polygon 11,5 6,9 2,9 2,15 6,15 11,19 11,5
-  DrawSvgPath(canvas, "M11 5L6 9H2v6h4l5 4V5Z", s, ox, oy, flags);
-  // Sound waves
   DrawSvgPath(canvas,
-              "M15.54 8.46a5 5 0 0 1 0 7.07",
+              "M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587"
+              "A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6"
+              "a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413"
+              "l3.383 3.384A.705.705 0 0 0 11 19.298z",
               s, ox, oy, flags);
-  DrawSvgPath(canvas,
-              "M19.07 4.93a10 10 0 0 1 0 14.14",
+  DrawSvgPath(canvas, "M16 9a5 5 0 0 1 0 6", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M19.364 18.364a9 9 0 0 0 0-12.728",
               s, ox, oy, flags);
 }
 
-// Lucide "volume-off" (speaker with X)
-void DrawVolumeOff(gfx::Canvas* canvas,
-                   float s,
-                   float ox,
-                   float oy,
-                   const cc::PaintFlags& flags) {
-  // Speaker body
-  DrawSvgPath(canvas, "M11 5L6 9H2v6h4l5 4V5Z", s, ox, oy, flags);
-  // X mark
+// Lucide "volume-x" (speaker with X)
+void DrawVolumeX(gfx::Canvas* canvas,
+                 float s,
+                 float ox,
+                 float oy,
+                 const cc::PaintFlags& flags) {
+  DrawSvgPath(canvas,
+              "M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587"
+              "A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6"
+              "a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413"
+              "l3.383 3.384A.705.705 0 0 0 11 19.298z",
+              s, ox, oy, flags);
   canvas->DrawLine(gfx::PointF(ox + 22 * s, oy + 9 * s),
                    gfx::PointF(ox + 16 * s, oy + 15 * s), flags);
   canvas->DrawLine(gfx::PointF(ox + 16 * s, oy + 9 * s),
@@ -239,7 +237,7 @@ void DrawLucideIcon(gfx::Canvas* canvas,
       DrawShieldCheck(canvas, s, ox, oy, flags);
       break;
     case LucideIcon::kEllipsis:
-      DrawEllipsis(canvas, s, ox, oy, color);
+      DrawEllipsis(canvas, s, ox, oy, flags);
       break;
     case LucideIcon::kSlidersHorizontal:
       DrawSlidersHorizontal(canvas, s, ox, oy, flags);
@@ -247,8 +245,8 @@ void DrawLucideIcon(gfx::Canvas* canvas,
     case LucideIcon::kVolume2:
       DrawVolume2(canvas, s, ox, oy, flags);
       break;
-    case LucideIcon::kVolumeOff:
-      DrawVolumeOff(canvas, s, ox, oy, flags);
+    case LucideIcon::kVolumeX:
+      DrawVolumeX(canvas, s, ox, oy, flags);
       break;
     case LucideIcon::kX:
       // Lucide X: two diagonal lines from (18,6)-(6,18) and (6,6)-(18,18)

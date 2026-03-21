@@ -26,7 +26,7 @@ enum class LucideIcon {
   kEllipsis,
   kSlidersHorizontal,
   kVolume2,
-  kVolumeOff,
+  kVolumeX,
   kX,
 };
 
