@@ -85,6 +85,7 @@ Patches inject Dao components into the Chromium frame:
 - Use the `dao::` C++ namespace for all Dao-owned code
 - Chromium coding style: `raw_ptr<>`, `METADATA_HEADER`, include guards with `#ifndef`
 - **Batch all changes** — Chromium builds are expensive. Deliver all related changes (headers, implementations, BUILD.gn entries, patches) in a single pass. Verify includes, forward declarations, and symbol references are consistent before finishing.
+- **Always verify with build** — After a complete task's code changes are all done, run `npm run rebuild` (import + build) to verify compilation. Do not consider the task finished until the build passes.
 
 ## Prerequisites
 
