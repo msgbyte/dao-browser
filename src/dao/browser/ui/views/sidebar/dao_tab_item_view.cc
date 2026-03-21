@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/views/sidebar/dao_tab_item_view.h"
 
+#include "cc/paint/paint_flags.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -41,11 +42,31 @@ class DaoCloseIconView : public views::View {
     SetPreferredSize(gfx::Size(kCloseButtonSize, kCloseButtonSize));
   }
 
+  void SetHovered(bool hovered) {
+    if (hovered_ == hovered) {
+      return;
+    }
+    hovered_ = hovered;
+    SchedulePaint();
+  }
+
   void OnPaint(gfx::Canvas* canvas) override {
+    if (hovered_) {
+      cc::PaintFlags bg_flags;
+      bg_flags.setAntiAlias(true);
+      bg_flags.setStyle(cc::PaintFlags::kFill_Style);
+      bg_flags.setColor(SkColorSetA(SK_ColorWHITE, 0x1A));  // white 10%
+      canvas->DrawRoundRect(
+          gfx::RectF(0, 0, kCloseButtonSize, kCloseButtonSize), 4, bg_flags);
+    }
     gfx::RectF icon_rect(0, 0, kCloseButtonSize, kCloseButtonSize);
     icon_rect.Inset(3);
-    DrawLucideIcon(canvas, LucideIcon::kX, icon_rect, dao::kTextMuted);
+    SkColor icon_color = hovered_ ? dao::kTextPrimary : dao::kTextMuted;
+    DrawLucideIcon(canvas, LucideIcon::kX, icon_rect, icon_color);
   }
+
+ private:
+  bool hovered_ = false;
 };
 
 // Custom button that draws a Lucide volume icon.
@@ -78,7 +99,7 @@ class DaoAudioButton : public views::Button {
     // Shrink to leave some padding.
     icon_rect.Inset(2);
     LucideIcon icon =
-        is_muted_ ? LucideIcon::kVolumeOff : LucideIcon::kVolume2;
+        is_muted_ ? LucideIcon::kVolumeX : LucideIcon::kVolume2;
     DrawLucideIcon(canvas, icon, icon_rect, dao::kTextSecondary);
   }
 
@@ -227,7 +248,16 @@ void DaoTabItemView::OnMouseEntered(const ui::MouseEvent& event) {
 void DaoTabItemView::OnMouseExited(const ui::MouseEvent& event) {
   Button::OnMouseExited(event);
   if (close_button_) {
+    static_cast<DaoCloseIconView*>(close_button_.get())->SetHovered(false);
     close_button_->SetVisible(false);
+  }
+}
+
+void DaoTabItemView::OnMouseMoved(const ui::MouseEvent& event) {
+  Button::OnMouseMoved(event);
+  if (close_button_ && close_button_->GetVisible()) {
+    bool over_close = IsPointInCloseButton(event.location());
+    static_cast<DaoCloseIconView*>(close_button_.get())->SetHovered(over_close);
   }
 }
 

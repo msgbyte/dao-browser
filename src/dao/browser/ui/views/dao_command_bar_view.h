@@ -14,6 +14,7 @@
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/view.h"
 
 class Browser;
@@ -85,6 +86,7 @@ class DaoCommandBarView : public views::View,
 
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> card_container_ = nullptr;
+  raw_ptr<views::ImageView> favicon_icon_ = nullptr;
   raw_ptr<views::Textfield> textfield_ = nullptr;
   raw_ptr<views::Label> ghost_text_label_ = nullptr;
   raw_ptr<views::View> dropdown_container_ = nullptr;

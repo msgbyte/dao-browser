@@ -7,6 +7,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
+#include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -31,6 +32,7 @@
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/range/range.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/views/background.h"
@@ -79,7 +81,15 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
 
   auto* card_layout =
       card_container_->SetLayoutManager(std::make_unique<views::BoxLayout>(
-          views::BoxLayout::Orientation::kHorizontal, gfx::Insets::VH(8, 16)));
+          views::BoxLayout::Orientation::kHorizontal, gfx::Insets::VH(8, 12),
+          10));
+
+  // Favicon icon inside the card (before textfield)
+  auto favicon_view = std::make_unique<views::ImageView>();
+  favicon_view->SetImageSize(gfx::Size(18, 18));
+  favicon_view->SetPreferredSize(gfx::Size(24, 24));
+  favicon_view->SetVisible(false);
+  favicon_icon_ = card_container_->AddChildView(std::move(favicon_view));
 
   // Textfield inside the card
   auto textfield = std::make_unique<CommandBarTextfield>();
@@ -191,11 +201,10 @@ void DaoCommandBarView::Show() {
   // Prevent web content's native view from stealing events
   SetWebContentEventProcessing(false);
 
-  // Pre-fill with current tab URL
-  if (browser_->tab_strip_model()->GetActiveWebContents()) {
-    GURL url = browser_->tab_strip_model()
-                   ->GetActiveWebContents()
-                   ->GetVisibleURL();
+  // Pre-fill with current tab URL and set favicon
+  auto* contents = browser_->tab_strip_model()->GetActiveWebContents();
+  if (contents) {
+    GURL url = contents->GetVisibleURL();
     if (url.is_valid() && !url.IsAboutBlank()) {
       std::u16string url_text = base::UTF8ToUTF16(url.spec());
       updating_textfield_ = true;
@@ -204,13 +213,28 @@ void DaoCommandBarView::Show() {
       updating_textfield_ = false;
       user_input_text_ = url_text;
       StartAutocomplete(url_text);
+
+      // Show favicon for the current page
+      gfx::Image favicon = favicon::TabFaviconFromWebContents(contents);
+      if (!favicon.IsEmpty()) {
+        favicon_icon_->SetImage(
+            gfx::ImageSkiaOperations::CreateResizedImage(
+                *favicon.ToImageSkia(),
+                skia::ImageOperations::RESIZE_BEST,
+                gfx::Size(18, 18)));
+        favicon_icon_->SetVisible(true);
+      } else {
+        favicon_icon_->SetVisible(false);
+      }
     } else {
       textfield_->SetText(u"");
       user_input_text_.clear();
+      favicon_icon_->SetVisible(false);
     }
   } else {
     textfield_->SetText(u"");
     user_input_text_.clear();
+    favicon_icon_->SetVisible(false);
   }
 
   // Defer focus request to avoid being overridden by Chromium's focus
@@ -229,6 +253,7 @@ void DaoCommandBarView::ShowForNewTab() {
   selected_index_ = -1;
   inline_autocompletion_.clear();
   ghost_text_label_->SetVisible(false);
+  favicon_icon_->SetVisible(false);
   user_input_text_.clear();
 
   InitAutocompleteController();
