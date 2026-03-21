@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/ui/views/overlay/back_to_tab_button.cc b/chrome/browser/ui/views/overlay/back_to_tab_button.cc
+index 6e1ac37f88..b5d5686b08 100644
+--- a/chrome/browser/ui/views/overlay/back_to_tab_button.cc
++++ b/chrome/browser/ui/views/overlay/back_to_tab_button.cc
+@@ -16,7 +16,7 @@
+ namespace {
+ 
+ constexpr int kBackToTabButtonVerticalMargin = 5;
+-constexpr int kBackToTabButtonHorizontalMargin = 28;
++constexpr int kBackToTabButtonHorizontalMargin = 8;
+ constexpr int kBackToTabButtonSize = 24;
+ constexpr int kBackToTabButtonIconSize = 16;
+ 
+@@ -51,7 +51,7 @@ void OverlayWindowBackToTabButton::SetPosition(
+ #endif
+ 
+   views::ImageButton::SetPosition(gfx::Point(
+-      size.width() - kBackToTabButtonSize - kBackToTabButtonHorizontalMargin,
++      kBackToTabButtonHorizontalMargin,
+       kBackToTabButtonVerticalMargin));
+ }
+ 

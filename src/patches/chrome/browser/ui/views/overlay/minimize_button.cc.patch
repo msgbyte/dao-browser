@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/views/overlay/minimize_button.cc b/chrome/browser/ui/views/overlay/minimize_button.cc
+index 133ce964ad..15a1b630af 100644
+--- a/chrome/browser/ui/views/overlay/minimize_button.cc
++++ b/chrome/browser/ui/views/overlay/minimize_button.cc
+@@ -16,7 +16,7 @@
+ namespace {
+ 
+ constexpr int kMinimizeButtonVerticalMargin = 5;
+-constexpr int kMinimizeButtonHorizontalMargin = 52;
++constexpr int kMinimizeButtonHorizontalMargin = 32;
+ constexpr int kMinimizeButtonSize = 24;
+ constexpr int kMinimizeButtonIconSize = 16;
+ 
