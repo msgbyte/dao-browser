@@ -185,6 +185,7 @@ void DaoControlCenterPopup::ShowQrView() {
     qr_view_->GenerateQrCode();
   }
   InvalidateLayout();
+  SchedulePaint();
 }
 
 void DaoControlCenterPopup::ShowMoreMenu() {
@@ -196,6 +197,7 @@ void DaoControlCenterPopup::ShowMoreMenu() {
   }
   if (more_menu_) more_menu_->SetVisible(true);
   InvalidateLayout();
+  SchedulePaint();
 }
 
 void DaoControlCenterPopup::ShowMainPanel() {
@@ -207,6 +209,7 @@ void DaoControlCenterPopup::ShowMainPanel() {
     card_->children()[1]->SetVisible(true);
   }
   InvalidateLayout();
+  SchedulePaint();
 }
 
 void DaoControlCenterPopup::OnTabStripModelChanged(
