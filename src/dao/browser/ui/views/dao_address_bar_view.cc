@@ -29,8 +29,10 @@
 namespace dao {
 
 namespace {
-constexpr SkColor kHostColor = SkColorSetRGB(100, 100, 100);
+constexpr SkColor kHostColor = SkColorSetRGB(60, 60, 60);
 constexpr SkColor kPathColor = SkColorSetRGB(124, 124, 124);
+constexpr int kUrlPillRadius = 8;
+constexpr SkColor kUrlHoverBg = SkColorSetARGB(15, 0, 0, 0);
 constexpr int kFontSize = 12;
 }  // namespace
 
@@ -40,6 +42,7 @@ END_METADATA
 DaoAddressBarView::DaoAddressBarView(Browser* browser)
     : browser_(browser), tab_strip_model_(browser->tab_strip_model()) {
   SetBackground(views::CreateSolidBackground(SK_ColorWHITE));  // default
+  SetNotifyEnterExitOnChild(true);
 
   // Top rounded corners (bottom corners are on the contents container)
   SetPaintToLayer();
@@ -50,7 +53,7 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
 
   auto* layout = SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal);
-  layout->SetMainAxisAlignment(views::LayoutAlignment::kCenter);
+  layout->SetMainAxisAlignment(views::LayoutAlignment::kStart);
   layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
 
   gfx::FontList font({"system-ui"}, gfx::Font::NORMAL, kFontSize,
@@ -86,34 +89,55 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   left_spacer->SetPreferredSize(gfx::Size(28, 1));
   left_spacer_ = AddChildView(std::move(left_spacer));
 
-  // Center group: host + path labels
-  auto* center_group = AddChildView(std::make_unique<views::View>());
-  auto* center_layout =
-      center_group->SetLayoutManager(std::make_unique<views::FlexLayout>());
-  center_layout->SetOrientation(views::LayoutOrientation::kHorizontal);
-  center_layout->SetMainAxisAlignment(views::LayoutAlignment::kCenter);
-  center_layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
-  center_group->SetProperty(
+  // Left flex spacer — pushes URL pill toward center
+  auto left_flex = std::make_unique<views::View>();
+  left_flex->SetProperty(
       views::kFlexBehaviorKey,
-      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
-                               views::MaximumFlexSizeRule::kUnbounded));
-  center_group->SetCanProcessEventsWithinSubtree(false);
+      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
+                               views::MaximumFlexSizeRule::kUnbounded)
+          .WithWeight(1));
+  AddChildView(std::move(left_flex));
 
-  host_label_ = center_group->AddChildView(std::make_unique<views::Label>());
+  // URL pill: wraps host + path labels, sized to content, centered by spacers.
+  url_container_ = AddChildView(std::make_unique<views::View>());
+  auto* url_layout =
+      url_container_->SetLayoutManager(std::make_unique<views::FlexLayout>());
+  url_layout->SetOrientation(views::LayoutOrientation::kHorizontal);
+  url_layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
+  url_layout->SetInteriorMargin(gfx::Insets::VH(2, 8));
+  url_container_->SetCanProcessEventsWithinSubtree(false);
+  url_container_->SetPaintToLayer();
+  url_container_->layer()->SetFillsBoundsOpaquely(false);
+  url_container_->layer()->SetRoundedCornerRadius(
+      gfx::RoundedCornersF(kUrlPillRadius));
+  url_container_->layer()->SetIsFastRoundedCorner(true);
+
+  host_label_ = url_container_->AddChildView(std::make_unique<views::Label>());
   host_label_->SetFontList(font);
   host_label_->SetEnabledColor(kHostColor);
   host_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  host_label_->SetSubpixelRenderingEnabled(false);
   host_label_->SetCanProcessEventsWithinSubtree(false);
 
-  path_label_ = center_group->AddChildView(std::make_unique<views::Label>());
+  path_label_ = url_container_->AddChildView(std::make_unique<views::Label>());
   path_label_->SetFontList(font);
   path_label_->SetEnabledColor(kPathColor);
   path_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  path_label_->SetSubpixelRenderingEnabled(false);
   path_label_->SetCanProcessEventsWithinSubtree(false);
   path_label_->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
                                views::MaximumFlexSizeRule::kPreferred));
+
+  // Right flex spacer — pushes CC button to far right
+  auto right_flex = std::make_unique<views::View>();
+  right_flex->SetProperty(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
+                               views::MaximumFlexSizeRule::kUnbounded)
+          .WithWeight(1));
+  AddChildView(std::move(right_flex));
 
   // Control center button (fixed at right edge)
   control_center_button_ = AddChildView(
@@ -222,6 +246,31 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
     browser_view->dao_command_bar()->Show();
   }
   return true;
+}
+
+void DaoAddressBarView::OnMouseMoved(const ui::MouseEvent& event) {
+  bool over_url = url_container_ &&
+                  url_container_->GetMirroredBounds().Contains(event.location());
+  UpdateUrlContainerHover(over_url);
+}
+
+void DaoAddressBarView::OnMouseExited(const ui::MouseEvent& event) {
+  UpdateUrlContainerHover(false);
+}
+
+void DaoAddressBarView::UpdateUrlContainerHover(bool hovered) {
+  if (url_hovered_ == hovered) {
+    return;
+  }
+  url_hovered_ = hovered;
+  if (url_container_) {
+    if (hovered) {
+      url_container_->SetBackground(
+          views::CreateRoundedRectBackground(kUrlHoverBg, kUrlPillRadius));
+    } else {
+      url_container_->SetBackground(nullptr);
+    }
+  }
 }
 
 views::View* DaoAddressBarView::control_center_button() const {

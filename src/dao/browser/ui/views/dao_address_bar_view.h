@@ -33,7 +33,7 @@ class DaoAddressBarView : public views::View,
   METADATA_HEADER(DaoAddressBarView, views::View)
 
  public:
-  static constexpr int kBarHeight = 28;
+  static constexpr int kBarHeight = 30;
 
   explicit DaoAddressBarView(Browser* browser);
   DaoAddressBarView(const DaoAddressBarView&) = delete;
@@ -65,12 +65,15 @@ class DaoAddressBarView : public views::View,
 
   // views::View:
   bool OnMousePressed(const ui::MouseEvent& event) override;
+  void OnMouseMoved(const ui::MouseEvent& event) override;
+  void OnMouseExited(const ui::MouseEvent& event) override;
   gfx::Size CalculatePreferredSize(const views::SizeBounds& available_size) const override;
 
  private:
   void UpdateURL();
   void UpdateBackgroundColor();
   void UpdateToggleButtonColor();
+  void UpdateUrlContainerHover(bool hovered);
   void ObserveActiveWebContents();
   void OnToggleButtonPressed();
 
@@ -79,11 +82,13 @@ class DaoAddressBarView : public views::View,
   raw_ptr<views::View> traffic_light_spacer_ = nullptr;
   raw_ptr<views::View> left_spacer_ = nullptr;
   raw_ptr<views::LabelButton> sidebar_toggle_button_ = nullptr;
+  raw_ptr<views::View> url_container_ = nullptr;
   raw_ptr<views::Label> host_label_ = nullptr;
   raw_ptr<views::Label> path_label_ = nullptr;
   raw_ptr<DaoControlCenterButton> control_center_button_ = nullptr;
   base::RepeatingClosure toggle_callback_;
   bool sidebar_collapsed_ = false;
+  bool url_hovered_ = false;
 };
 
 }  // namespace dao
