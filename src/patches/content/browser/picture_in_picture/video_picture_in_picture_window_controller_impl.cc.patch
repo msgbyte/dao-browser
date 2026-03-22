@@ -1,0 +1,18 @@
+diff --git a/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc b/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc
+index 1234567890..abcdef1234 100644
+--- a/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc
++++ b/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc
+@@ -374,9 +374,10 @@
+ }
+
+ void VideoPictureInPictureWindowControllerImpl::SeekTo(base::TimeDelta time) {
+-  if (media_session_action_seek_to_handled_) {
+-    MediaSession::Get(web_contents())->SeekTo(time);
+-  }
++  // Dao: Always forward SeekTo to MediaSession regardless of whether the
++  // website registered a seekto action handler. MediaSession::SeekTo() has
++  // a fallback path that calls OnSeekTo() on native media players directly.
++  MediaSession::Get(web_contents())->SeekTo(time);
+ }
+
+ void VideoPictureInPictureWindowControllerImpl::MediaSessionInfoChanged(

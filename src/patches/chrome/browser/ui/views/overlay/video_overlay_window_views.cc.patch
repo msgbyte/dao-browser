@@ -1,8 +1,28 @@
 diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
-index d1bfeca485..8e5f0ad843 100644
+index d1bfeca485..0b8ad1ae9d 100644
 --- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 +++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
-@@ -1443,7 +1443,7 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+@@ -385,6 +385,9 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
+   params.remove_standard_frame = true;
+   params.name = "PictureInPictureWindow";
+   params.layer_type = ui::LAYER_NOT_DRAWN;
++  // Dao: Make window translucent so rounded corner clipping shows through
++  // instead of revealing a white window background.
++  params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
+   params.delegate = new OverlayWindowWidgetDelegate();
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -1355,6 +1358,9 @@ void VideoOverlayWindowViews::OnRootViewReady() {
+   GetRootView()->SetPaintToLayer(ui::LAYER_TEXTURED);
+   GetRootView()->layer()->SetName("RootView");
+   GetRootView()->layer()->SetMasksToBounds(true);
++  // Dao: Apply rounded corners to the PiP window for a polished look.
++  GetRootView()->layer()->SetRoundedCornerRadius(gfx::RoundedCornersF(10));
++  GetRootView()->layer()->SetIsFastRoundedCorner(true);
+ 
+   views::View* const contents_view = GetContentsView();
+   for (std::unique_ptr<views::View>& child : view_holder_) {
+@@ -1443,7 +1449,7 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
    // The 2024 updated UI lays out controls differently.
    if (Use2024UI()) {
      constexpr int kTopControlsHeight = 34;
@@ -11,7 +31,7 @@ index d1bfeca485..8e5f0ad843 100644
      constexpr int kTopScrimHeight = 160;
      constexpr int kBottomScrimHeight = 160;
      constexpr int kFaviconLeftMargin = 8;
-@@ -1492,6 +1492,7 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+@@ -1492,6 +1498,7 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
                                     top_controls_bounds.y() + kFaviconTopMargin},
                                    kFaviconSize);
      favicon_view_->SetPosition(favicon_view_bounds.origin());
@@ -19,7 +39,7 @@ index d1bfeca485..8e5f0ad843 100644
  
      gfx::Point origin_position(
          favicon_view_bounds.right() + kFaviconRightMargin, kOriginTopMargin);
-@@ -1499,6 +1500,7 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+@@ -1499,6 +1506,7 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
      origin_->SetSize(
          {top_controls_bounds.width() - origin_position.x() - kOriginRightMargin,
           kOriginHeight});
@@ -27,7 +47,7 @@ index d1bfeca485..8e5f0ad843 100644
  
      minimize_button_->SetPosition(GetBounds().size(), quadrant);
      back_to_tab_button_->SetPosition(GetBounds().size(), quadrant);
-@@ -1536,15 +1538,11 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+@@ -1536,15 +1544,11 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
      // previous and next buttons. Here we calculate how much horizontal space
      // one of those buttons takes up and use that to calculate the width and x
      // position of the progress view.
@@ -45,7 +65,7 @@ index d1bfeca485..8e5f0ad843 100644
           kProgressBarHeight});
  
      timestamp_->SetPosition(
-@@ -1562,13 +1560,16 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+@@ -1562,13 +1566,16 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
          global_media_controls::DragState::kDragStarted;
      play_pause_controls_view_->SetVisible(show_play_pause_button_ &&
                                            !is_dragging_progress_bar);
