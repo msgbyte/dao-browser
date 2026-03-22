@@ -92,6 +92,7 @@ class DaoSidebarView : public views::View,
  private:
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> inner_container_ = nullptr;
+  raw_ptr<views::View> header_row_ = nullptr;
   raw_ptr<DaoFavoritesView> favorites_ = nullptr;
   raw_ptr<DaoTabListView> tab_list_view_ = nullptr;
   raw_ptr<DaoNewTabButton> new_tab_button_ = nullptr;

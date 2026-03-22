@@ -24,6 +24,7 @@
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/style/typography.h"
+#include "ui/views/widget/widget.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 
 namespace dao {
@@ -334,7 +335,9 @@ void DaoAddressBarView::SetSidebarCollapsed(bool collapsed) {
   sidebar_collapsed_ = collapsed;
 
   if (traffic_light_spacer_) {
-    traffic_light_spacer_->SetVisible(collapsed);
+    // In fullscreen there are no traffic lights, so never show the spacer.
+    bool fullscreen = GetWidget() && GetWidget()->IsFullscreen();
+    traffic_light_spacer_->SetVisible(collapsed && !fullscreen);
   }
   if (left_spacer_) {
     left_spacer_->SetVisible(!collapsed);

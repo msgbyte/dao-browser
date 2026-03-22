@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/ui/views/frame/immersive_mode_controller_mac.mm b/chrome/browser/ui/views/frame/immersive_mode_controller_mac.mm
+index 3907dafa13..3a7c73a09a 100644
+--- a/chrome/browser/ui/views/frame/immersive_mode_controller_mac.mm
++++ b/chrome/browser/ui/views/frame/immersive_mode_controller_mac.mm
+@@ -102,8 +102,13 @@
+                                 browser_view_->frame()->GetFrameView())
+                                 ->GetTopInset(false);
+ 
+-      browser_view_->tab_overlay_widget()->SetSize(gfx::Size(
+-          browser_view_->top_container()->size().width(), tab_widget_height_));
++      // Dao: Ensure non-zero size — Dao hides the tab strip so height may
++      // be 0, which triggers a FATAL on macOS (zero-sized windows).
++      int tab_overlay_width =
++          std::max(1, browser_view_->top_container()->size().width());
++      int tab_overlay_height = std::max(1, tab_widget_height_);
++      browser_view_->tab_overlay_widget()->SetSize(
++          gfx::Size(tab_overlay_width, tab_overlay_height));
+       browser_view_->tab_overlay_widget()->Show();
+ 
+       // Move the tab strip to the `tab_overlay_widget`, the host of the
+@@ -347,7 +352,8 @@
+   }
+   overlay_height_ = bounds.height();
+   if (separate_tab_strip_) {
+-    gfx::Size new_size(bounds.width(), tab_widget_height_);
++    // Dao: Ensure non-zero height for tab overlay widget.
++    gfx::Size new_size(bounds.width(), std::max(1, tab_widget_height_));
+     browser_view_->tab_overlay_widget()->SetSize(new_size);
+     browser_view_->tab_overlay_view()->SetSize(new_size);
+     browser_view_->tab_strip_region_view()->SetSize(gfx::Size(

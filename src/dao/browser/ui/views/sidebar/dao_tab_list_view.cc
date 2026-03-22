@@ -117,9 +117,9 @@ void DaoTabListView::RebuildTabList() {
     new_tab_button_->SetHighlighted(true);
   }
 
-  // Today section
+  // Unpinned tabs section
   auto* today_section = AddChildView(
-      std::make_unique<DaoSidebarSectionView>(u"Today"));
+      std::make_unique<DaoSidebarSectionView>(u""));
   for (int i = count - 1; i >= 0; --i) {
     if (tab_strip_model_->IsTabPinned(i)) {
       continue;

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..1deb2564fa 100644
+index 76c889780c..365ea1030a 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -119,6 +119,16 @@
@@ -73,7 +73,30 @@ index 76c889780c..1deb2564fa 100644
    right_aligned_side_panel_separator_ =
        AddChildView(std::make_unique<ContentsSeparator>());
  
-@@ -1338,6 +1395,11 @@ bool BrowserView::GetTabStripVisible() const {
+@@ -1301,6 +1358,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
+ 
+ #if BUILDFLAG(IS_MAC)
+ bool BrowserView::UsesImmersiveFullscreenMode() const {
++  // Dao: Sidebar windows skip immersive mode — the sidebar stays visible in
++  // fullscreen, so we don't need the top-chrome overlay.
++  if (dao_sidebar_) {
++    return false;
++  }
+   const bool is_pwa =
+       base::FeatureList::IsEnabled(features::kImmersiveFullscreenPWAs) &&
+       GetIsWebAppType();
+@@ -1310,6 +1372,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
+ }
+ 
+ bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
++  // Dao: Same as above — no immersive tab strip for sidebar windows.
++  if (dao_sidebar_) {
++    return false;
++  }
+   return (GetSupportsTabStrip() &&
+           base::FeatureList::IsEnabled(features::kImmersiveFullscreen) &&
+           base::FeatureList::IsEnabled(features::kImmersiveFullscreenTabs)) &&
+@@ -1338,6 +1404,11 @@ bool BrowserView::GetTabStripVisible() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -85,7 +108,7 @@ index 76c889780c..1deb2564fa 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-@@ -2362,6 +2424,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2362,6 +2433,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.

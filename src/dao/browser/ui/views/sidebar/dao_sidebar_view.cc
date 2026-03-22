@@ -44,6 +44,7 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
+#include "ui/views/widget/widget.h"
 
 namespace dao {
 
@@ -152,7 +153,7 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
   toggle_btn->SetTooltipText(u"Toggle Sidebar (\u2318S)");
   toggle_button_ = header_row->AddChildView(std::move(toggle_btn));
 
-  inner_container_->AddChildView(std::move(header_row));
+  header_row_ = inner_container_->AddChildView(std::move(header_row));
 
   // Favorites row
   favorites_ = inner_container_->AddChildView(
@@ -187,6 +188,14 @@ gfx::Size DaoSidebarView::CalculatePreferredSize(
 }
 
 void DaoSidebarView::Layout(PassKey) {
+  // Dao: Hide traffic-light spacing in fullscreen (no window controls).
+  if (header_row_) {
+    bool fullscreen = GetWidget() && GetWidget()->IsFullscreen();
+    auto* header_layout = static_cast<views::FlexLayout*>(
+        header_row_->GetLayoutManager());
+    int left_inset = fullscreen ? 0 : 70;
+    header_layout->SetInteriorMargin(gfx::Insets::TLBR(0, left_inset, 0, 0));
+  }
   if (inner_container_) {
     // During collapse/expand animation, keep inner at user_width_ so content
     // is clipped smoothly. During resize, use current_width_ so background

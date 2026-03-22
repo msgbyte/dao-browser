@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..692c46918d 100644
+index 46f6be18ac..43f772093c 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
 @@ -31,6 +31,17 @@
@@ -307,3 +307,17 @@ index 46f6be18ac..692c46918d 100644
    if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
      // The WebUI tab strip container should "push" the tab contents down without
      // resizing it.
+@@ -881,6 +1100,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
+   // layout and we assume that this is the case.
+   height = std::max(height, delegate_->GetTopInsetInBrowserView());
+ 
++  // Dao: When toolbar is offscreen (y < 0) but visible, its bounds().bottom()
++  // is 0, giving top_container zero height. Immersive fullscreen needs a
++  // non-zero overlay widget size, so ensure minimum height from the toolbar.
++  if (height == 0 && toolbar_->GetVisible() && toolbar_->bounds().y() < 0) {
++    height = toolbar_->GetPreferredSize().height();
++  }
++
+   gfx::Rect top_container_bounds(vertical_layout_rect_.width(), height);
+ 
+   if (delegate_->IsTopControlsSlideBehaviorEnabled()) {
