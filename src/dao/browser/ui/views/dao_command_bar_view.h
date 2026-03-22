@@ -11,7 +11,9 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/cancelable_task_tracker.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
+#include "components/favicon_base/favicon_types.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/controls/image_view.h"
@@ -80,6 +82,9 @@ class DaoCommandBarView : public views::View,
   void UpdateSuggestions();
   void UpdateGhostText();
   void PositionGhostText();
+  void UpdateInputIcon();
+  void OnInputFaviconFetched(const GURL& page_url,
+                             const favicon_base::FaviconImageResult& result);
   void ApplySelectedSuggestion();
   void SetSelectedIndex(int index);
   void OnSuggestionClicked(int index);
@@ -104,6 +109,10 @@ class DaoCommandBarView : public views::View,
 
   // When true, we are in "pre-new-tab" mode: no tab has been created yet.
   bool is_new_tab_mode_ = false;
+
+  // Tracks the URL for the current input icon favicon request.
+  GURL pending_icon_favicon_url_;
+  base::CancelableTaskTracker icon_favicon_tracker_;
 
   base::WeakPtrFactory<DaoCommandBarView> weak_factory_{this};
 };

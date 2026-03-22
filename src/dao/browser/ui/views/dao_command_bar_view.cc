@@ -7,6 +7,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
+#include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
@@ -17,11 +18,15 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/favicon/core/favicon_service.h"
+#include "components/keyed_service/core/service_access_type.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "content/public/browser/web_contents.h"
+#include "components/omnibox/browser/vector_icons.h"
+#include "components/vector_icons/vector_icons.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/dao_suggestion_item_view.h"
@@ -33,6 +38,7 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/image/image_skia_operations.h"
+#include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/range/range.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/views/background.h"
@@ -84,11 +90,10 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
           views::BoxLayout::Orientation::kHorizontal, gfx::Insets::VH(8, 12),
           10));
 
-  // Favicon icon inside the card (before textfield)
+  // Intent icon inside the card (before textfield): shows search/URL/favicon
   auto favicon_view = std::make_unique<views::ImageView>();
   favicon_view->SetImageSize(gfx::Size(18, 18));
   favicon_view->SetPreferredSize(gfx::Size(24, 24));
-  favicon_view->SetVisible(false);
   favicon_icon_ = card_container_->AddChildView(std::move(favicon_view));
 
   // Textfield inside the card
@@ -224,17 +229,18 @@ void DaoCommandBarView::Show() {
                 gfx::Size(18, 18)));
         favicon_icon_->SetVisible(true);
       } else {
-        favicon_icon_->SetVisible(false);
+        // No favicon — show URL intent icon
+        UpdateInputIcon();
       }
     } else {
       textfield_->SetText(u"");
       user_input_text_.clear();
-      favicon_icon_->SetVisible(false);
+      UpdateInputIcon();
     }
   } else {
     textfield_->SetText(u"");
     user_input_text_.clear();
-    favicon_icon_->SetVisible(false);
+    UpdateInputIcon();
   }
 
   // Defer focus request to avoid being overridden by Chromium's focus
@@ -253,7 +259,6 @@ void DaoCommandBarView::ShowForNewTab() {
   selected_index_ = -1;
   inline_autocompletion_.clear();
   ghost_text_label_->SetVisible(false);
-  favicon_icon_->SetVisible(false);
   user_input_text_.clear();
 
   InitAutocompleteController();
@@ -279,6 +284,9 @@ void DaoCommandBarView::ShowForNewTab() {
   updating_textfield_ = true;
   textfield_->SetText(u"");
   updating_textfield_ = false;
+
+  // Show search icon for new tab mode (empty input)
+  UpdateInputIcon();
 
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&DaoCommandBarView::DeferredRequestFocus,
@@ -390,6 +398,9 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
   ghost_text_label_->SetVisible(false);
   selected_index_ = -1;
 
+  // Update the intent icon based on input
+  UpdateInputIcon();
+
   if (new_contents.empty()) {
     StopAutocomplete();
     dropdown_container_->SetVisible(false);
@@ -473,6 +484,7 @@ void DaoCommandBarView::OnResultChanged(AutocompleteController* controller,
                                         bool default_match_changed) {
   UpdateSuggestions();
   UpdateGhostText();
+  UpdateInputIcon();
 }
 
 void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
@@ -584,6 +596,82 @@ void DaoCommandBarView::PositionGhostText() {
   }
 }
 
+void DaoCommandBarView::UpdateInputIcon() {
+  if (!favicon_icon_) {
+    return;
+  }
+
+  // Cancel any pending favicon request for the input icon
+  icon_favicon_tracker_.TryCancelAll();
+  pending_icon_favicon_url_ = GURL();
+
+  // If there's a selected autocomplete match, use its type
+  if (autocomplete_controller_ && selected_index_ >= 0) {
+    const AutocompleteResult& result = autocomplete_controller_->result();
+    if (selected_index_ < static_cast<int>(result.size())) {
+      const AutocompleteMatch& match = result.match_at(selected_index_);
+      bool is_search = AutocompleteMatch::IsSearchType(match.type);
+      if (is_search) {
+        favicon_icon_->SetImage(gfx::CreateVectorIcon(
+            vector_icons::kSearchChromeRefreshIcon, 18, kSuggestionIconColor));
+      } else {
+        // Set page icon as immediate fallback, then try loading favicon
+        favicon_icon_->SetImage(gfx::CreateVectorIcon(
+            omnibox::kPageChromeRefreshIcon, 18, kSuggestionIconColor));
+
+        if (match.destination_url.is_valid() &&
+            match.destination_url.SchemeIsHTTPOrHTTPS()) {
+          favicon::FaviconService* favicon_service =
+              FaviconServiceFactory::GetForProfile(
+                  browser_->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+          if (favicon_service) {
+            pending_icon_favicon_url_ = match.destination_url;
+            favicon_service->GetFaviconImageForPageURL(
+                match.destination_url,
+                base::BindOnce(&DaoCommandBarView::OnInputFaviconFetched,
+                               base::Unretained(this),
+                               match.destination_url),
+                &icon_favicon_tracker_);
+          }
+        }
+      }
+      favicon_icon_->SetVisible(true);
+      return;
+    }
+  }
+
+  // Fallback: determine icon from input text
+  if (user_input_text_.empty()) {
+    favicon_icon_->SetImage(gfx::CreateVectorIcon(
+        vector_icons::kSearchChromeRefreshIcon, 18, kSuggestionIconColor));
+  } else if (LooksLikeURL(user_input_text_)) {
+    favicon_icon_->SetImage(gfx::CreateVectorIcon(
+        omnibox::kPageChromeRefreshIcon, 18, kSuggestionIconColor));
+  } else {
+    favicon_icon_->SetImage(gfx::CreateVectorIcon(
+        vector_icons::kSearchChromeRefreshIcon, 18, kSuggestionIconColor));
+  }
+  favicon_icon_->SetVisible(true);
+}
+
+void DaoCommandBarView::OnInputFaviconFetched(
+    const GURL& page_url,
+    const favicon_base::FaviconImageResult& result) {
+  // Ignore stale callbacks
+  if (page_url != pending_icon_favicon_url_) {
+    return;
+  }
+  pending_icon_favicon_url_ = GURL();
+
+  if (result.image.IsEmpty() || !favicon_icon_) {
+    return;  // Keep the vector icon fallback
+  }
+
+  gfx::ImageSkia favicon = result.image.AsImageSkia();
+  favicon_icon_->SetImage(gfx::ImageSkiaOperations::CreateResizedImage(
+      favicon, skia::ImageOperations::RESIZE_BEST, gfx::Size(18, 18)));
+}
+
 void DaoCommandBarView::SetSelectedIndex(int index) {
   if (index == selected_index_) {
     return;
@@ -600,6 +688,9 @@ void DaoCommandBarView::SetSelectedIndex(int index) {
   if (selected_index_ >= 0 && selected_index_ < kMaxSuggestions) {
     suggestion_views_[selected_index_]->SetSelected(true);
   }
+
+  // Update the input icon to reflect the selected match type
+  UpdateInputIcon();
 }
 
 void DaoCommandBarView::ApplySelectedSuggestion() {
