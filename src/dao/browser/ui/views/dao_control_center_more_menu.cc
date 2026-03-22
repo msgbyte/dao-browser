@@ -34,7 +34,7 @@ class MenuItemButton : public views::LabelButton {
     SetAccessibleName(text);
     label()->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 13,
                                         gfx::Font::Weight::NORMAL));
-    label()->SetEnabledColor(SkColorSetRGB(50, 50, 50));
+    SetEnabledTextColors(SkColorSetRGB(50, 50, 50));
     SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(8, 12)));
     SetHorizontalAlignment(gfx::ALIGN_LEFT);
   }

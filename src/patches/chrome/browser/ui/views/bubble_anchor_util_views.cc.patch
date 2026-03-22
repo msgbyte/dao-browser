@@ -1,0 +1,33 @@
+diff --git a/chrome/browser/ui/views/bubble_anchor_util_views.cc b/chrome/browser/ui/views/bubble_anchor_util_views.cc
+index 8adb106d2f..93c549f724 100644
+--- a/chrome/browser/ui/views/bubble_anchor_util_views.cc
++++ b/chrome/browser/ui/views/bubble_anchor_util_views.cc
+@@ -11,6 +11,8 @@
+ #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
++#include "dao/browser/ui/views/dao_address_bar_view.h"
++#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+ #include "components/content_settings/core/common/features.h"
+ #include "ui/views/bubble/bubble_border.h"
+ 
+@@ -22,6 +24,19 @@ namespace bubble_anchor_util {
+ AnchorConfiguration GetPageInfoAnchorConfiguration(Browser* browser,
+                                                    Anchor anchor) {
+   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++
++  // Dao: When sidebar is active, anchor PageInfo bubble to the address bar's
++  // control center button so it appears below the address bar on the right.
++  auto* dao_sidebar = browser_view->dao_sidebar();
++  if (anchor == Anchor::kLocationBar && dao_sidebar &&
++      dao_sidebar->GetVisible()) {
++    auto* address_bar = browser_view->dao_address_bar();
++    if (address_bar && address_bar->control_center_button()) {
++      return {address_bar->control_center_button(), nullptr,
++              views::BubbleBorder::TOP_RIGHT};
++    }
++  }
++
+   auto* location_bar_view = browser_view->GetLocationBarView();
+ 
+   if (base::FeatureList::IsEnabled(

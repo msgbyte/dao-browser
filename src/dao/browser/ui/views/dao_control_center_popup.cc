@@ -229,9 +229,9 @@ void DaoControlCenterPopup::Layout(PassKey) {
   int card_width = kCardWidth;
   int card_height = card_pref.height();
 
-  // Right-aligned with comfortable margin from edges
+  // Right-align the card so its right edge aligns with the anchor point's x.
   constexpr int kMargin = 16;
-  int card_x = width() - card_width - kMargin;
+  int card_x = anchor_.x() - card_width;
   int card_y = anchor_.y();
 
   if (card_x < kMargin) card_x = kMargin;
