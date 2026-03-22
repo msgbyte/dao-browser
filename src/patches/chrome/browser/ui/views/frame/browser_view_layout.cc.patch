@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..43f772093c 100644
+index 46f6be18ac..8af292c5b6 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
 @@ -31,6 +31,17 @@
@@ -149,7 +149,7 @@ index 46f6be18ac..43f772093c 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +796,157 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +796,173 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -181,10 +181,16 @@ index 46f6be18ac..43f772093c 100644
 +        std::max(0, contents_container_bounds.width() - agent_width));
 +  }
 +
++  // Dao: Detect fullscreen + collapsed sidebar → true full-screen content
++  bool dao_is_fullscreen = browser_view_->GetWidget() &&
++                            browser_view_->GetWidget()->IsFullscreen();
++  bool dao_sidebar_collapsed = dao_sidebar && dao_sidebar->collapsed();
++  bool dao_true_fullscreen = dao_is_fullscreen && dao_sidebar_collapsed;
++
 +  // Dao: Apply content insets (top, right, bottom) so the frame color
 +  // shows through as a gap around the web content area
 +  gfx::Rect dao_content_area = contents_container_bounds;
-+  if (dao_sidebar_active) {
++  if (dao_sidebar_active && !dao_true_fullscreen) {
 +    dao_content_area.Inset(
 +        gfx::Insets::TLBR(dao::kContentInsetTop, 0,
 +                           dao::kContentInsetBottom,
@@ -194,7 +200,7 @@ index 46f6be18ac..43f772093c 100644
 +  // Dao: Position address bar at top of content area
 +  auto* address_bar = browser_view_->dao_address_bar();
 +  int address_bar_height = 0;
-+  if (address_bar && dao_sidebar_active) {
++  if (address_bar && dao_sidebar_active && !dao_true_fullscreen) {
 +    address_bar_height = dao::DaoAddressBarView::kBarHeight;
 +    address_bar->SetBounds(dao_content_area.x(), dao_content_area.y(),
 +                           dao_content_area.width(), address_bar_height);
@@ -208,12 +214,17 @@ index 46f6be18ac..43f772093c 100644
 +  // Dao: Position corner overlay slightly larger than content for shadow
 +  auto* corner_overlay = browser_view_->dao_corner_overlay();
 +  if (corner_overlay) {
-+    // Overlay covers address bar + content area
-+    gfx::Rect overlay_content = dao_content_area;
-+    overlay_content.Inset(gfx::Insets::TLBR(-address_bar_height, 0, 0, 0));
-+    gfx::Rect overlay_bounds = overlay_content;
-+    overlay_bounds.Inset(gfx::Insets(-dao::kContentShadowMargin));
-+    corner_overlay->SetBoundsRect(overlay_bounds);
++    if (dao_true_fullscreen) {
++      corner_overlay->SetVisible(false);
++    } else {
++      corner_overlay->SetVisible(true);
++      // Overlay covers address bar + content area
++      gfx::Rect overlay_content = dao_content_area;
++      overlay_content.Inset(gfx::Insets::TLBR(-address_bar_height, 0, 0, 0));
++      gfx::Rect overlay_bounds = overlay_content;
++      overlay_bounds.Inset(gfx::Insets(-dao::kContentShadowMargin));
++      corner_overlay->SetBoundsRect(overlay_bounds);
++    }
 +  }
 +
 +  // Dao: Position command bar to match the content area (full, no inset)
@@ -238,16 +249,21 @@ index 46f6be18ac..43f772093c 100644
 +  }
 +
 +  // Dao: Apply rounded corners — only bottom corners on contents container
-+  // (top corners are on the address bar view)
++  // (top corners are on the address bar view). Skip in true fullscreen.
 +  if (dao_sidebar_active) {
 +    if (!contents_container_->layer()) {
 +      contents_container_->SetPaintToLayer();
 +      contents_container_->layer()->SetFillsBoundsOpaquely(false);
 +    }
-+    contents_container_->layer()->SetRoundedCornerRadius(
-+        gfx::RoundedCornersF(0, 0,
-+                              dao::kContentCornerRadius,
-+                              dao::kContentCornerRadius));
++    if (dao_true_fullscreen) {
++      contents_container_->layer()->SetRoundedCornerRadius(
++          gfx::RoundedCornersF(0, 0, 0, 0));
++    } else {
++      contents_container_->layer()->SetRoundedCornerRadius(
++          gfx::RoundedCornersF(0, 0,
++                                dao::kContentCornerRadius,
++                                dao::kContentCornerRadius));
++    }
 +    contents_container_->layer()->SetIsFastRoundedCorner(true);
 +  }
 +
@@ -307,7 +323,7 @@ index 46f6be18ac..43f772093c 100644
    if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
      // The WebUI tab strip container should "push" the tab contents down without
      // resizing it.
-@@ -881,6 +1100,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
+@@ -881,6 +1116,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
    // layout and we assume that this is the case.
    height = std::max(height, delegate_->GetTopInsetInBrowserView());
  
