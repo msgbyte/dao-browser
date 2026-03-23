@@ -48,7 +48,56 @@ interface CrNamespace {
       (id: string, isSuccess: boolean, response: unknown) => void;
 }
 
-// ---- Settings ----
+// ---- Default Soul Template ----
+
+const DEFAULT_SOUL = `# SOUL.md - Who You Are
+
+_You're not a chatbot. You're becoming someone._
+
+## Core Truths
+
+**Be genuinely helpful, not performatively helpful.** Skip the "Great question!" and "I'd be happy to help!" — just help. Actions speak louder than filler words.
+
+**Have opinions.** You're allowed to disagree, prefer things, find stuff amusing or boring. An assistant with no personality is just a search engine with extra steps.
+
+**Be resourceful before asking.** Try to figure it out. Read the file. Check the context. Search for it. _Then_ ask if you're stuck. The goal is to come back with answers, not questions.
+
+**Earn trust through competence.** Your human gave you access to their stuff. Don't make them regret it. Be careful with external actions (emails, tweets, anything public). Be bold with internal ones (reading, organizing, learning).
+
+**Remember you're a guest.** You have access to someone's life — their messages, files, calendar, maybe even their home. That's intimacy. Treat it with respect.
+
+## Boundaries
+
+- Private things stay private. Period.
+- When in doubt, ask before acting externally.
+- Never send half-baked replies to messaging surfaces.
+- You're not the user's voice — be careful in group chats.
+
+## Vibe
+
+Be the assistant you'd actually want to talk to. Concise when needed, thorough when it matters. Not a corporate drone. Not a sycophant. Just... good.
+
+## Continuity
+
+Each session, you wake up fresh. These files _are_ your memory. Read them. Update them. They're how you persist.
+
+If you change this file, tell the user — it's your soul, and they should know.
+
+---
+
+_This file is yours to evolve. As you learn who you are, update it._`;
+
+// ---- Soul Management ----
+
+function loadSoul(): string {
+  return localStorage.getItem('dao_agent_soul') || DEFAULT_SOUL;
+}
+
+function saveSoul(text: string): void {
+  localStorage.setItem('dao_agent_soul', text);
+}
+
+// ---- Settings (Connection) ----
 
 const apiKeyInput =
     document.getElementById('apiKey') as HTMLInputElement;
@@ -56,10 +105,6 @@ const baseUrlInput =
     document.getElementById('baseUrl') as HTMLInputElement;
 const modelInput =
     document.getElementById('model') as HTMLInputElement;
-const settingsToggle =
-    document.getElementById('settingsToggle') as HTMLElement;
-const settingsPanel =
-    document.getElementById('settingsPanel') as HTMLElement;
 
 function loadSettings(): void {
   apiKeyInput.value = localStorage.getItem('dao_agent_api_key') || '';
@@ -80,10 +125,69 @@ baseUrlInput.addEventListener('change', saveSettings);
 modelInput.addEventListener('change', saveSettings);
 loadSettings();
 
-settingsToggle.addEventListener('click', () => {
-  settingsPanel.classList.toggle('open');
-  settingsToggle.classList.toggle('open');
+// ---- Tab Switching ----
+
+const chatView = document.getElementById('chatView') as HTMLElement;
+const settingsView = document.getElementById('settingsView') as HTMLElement;
+const mainTabs =
+    document.querySelectorAll('.tab-bar .tab') as NodeListOf<HTMLElement>;
+const subTabs =
+    document.querySelectorAll('.settings-sub-tabs .sub-tab') as NodeListOf<HTMLElement>;
+const soulPanel = document.getElementById('soulPanel') as HTMLElement;
+const connectionPanel =
+    document.getElementById('connectionPanel') as HTMLElement;
+const soulEditor =
+    document.getElementById('soulEditor') as HTMLTextAreaElement;
+const saveSoulBtn =
+    document.getElementById('saveSoulBtn') as HTMLButtonElement;
+const resetSoulBtn =
+    document.getElementById('resetSoulBtn') as HTMLButtonElement;
+const saveStatus = document.getElementById('saveStatus') as HTMLElement;
+
+function switchMainTab(tab: string): void {
+  mainTabs.forEach(t => t.classList.toggle('active', t.dataset['tab'] === tab));
+  chatView.style.display = tab === 'chat' ? '' : 'none';
+  settingsView.style.display = tab === 'settings' ? '' : 'none';
+
+  if (tab === 'settings') {
+    soulEditor.value = loadSoul();
+  }
+}
+
+function switchSettingsTab(tab: string): void {
+  subTabs.forEach(
+      t => t.classList.toggle('active', t.dataset['subtab'] === tab));
+  soulPanel.style.display = tab === 'soul' ? '' : 'none';
+  connectionPanel.style.display = tab === 'connection' ? '' : 'none';
+}
+
+mainTabs.forEach(t => {
+  t.addEventListener('click', () => switchMainTab(t.dataset['tab'] || 'chat'));
 });
+
+subTabs.forEach(t => {
+  t.addEventListener(
+      'click', () => switchSettingsTab(t.dataset['subtab'] || 'soul'));
+});
+
+// Soul save/reset handlers
+saveSoulBtn.addEventListener('click', () => {
+  saveSoul(soulEditor.value);
+  saveStatus.textContent = 'Saved';
+  saveStatus.classList.add('visible');
+  setTimeout(() => saveStatus.classList.remove('visible'), 2000);
+});
+
+resetSoulBtn.addEventListener('click', () => {
+  soulEditor.value = DEFAULT_SOUL;
+  saveSoul(DEFAULT_SOUL);
+  saveStatus.textContent = 'Reset to default';
+  saveStatus.classList.add('visible');
+  setTimeout(() => saveStatus.classList.remove('visible'), 2000);
+});
+
+// Load soul editor content on startup
+soulEditor.value = loadSoul();
 
 // ---- Chat State ----
 
@@ -275,8 +379,8 @@ async function sendMessage(): Promise<void> {
 
   if (!apiKeyInput.value) {
     showError('Please set your API Key in Settings first.');
-    settingsPanel.classList.add('open');
-    settingsToggle.classList.add('open');
+    switchMainTab('settings');
+    switchSettingsTab('connection');
     return;
   }
 
@@ -324,13 +428,11 @@ async function runConversation(): Promise<void> {
   isStreaming = true;
   sendBtn.disabled = true;
 
+  // Hot-reload: read soul from localStorage on every conversation turn
+  const soulContent = loadSoul();
   const systemPrompt: ChatMessage = {
     role: 'system',
-    content:
-        'You are Dao Agent, an AI assistant embedded in the Dao Browser sidebar. ' +
-        'You can interact with the current webpage using the provided tools. ' +
-        'Use tools when the user asks about page content or wants to perform actions on the page. ' +
-        'Be concise and helpful. Reply in the same language the user uses.',
+    content: soulContent,
   };
 
   try {
