@@ -6,7 +6,6 @@
 #define DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_NEW_TAB_BUTTON_H_
 
 #include "base/memory/raw_ptr.h"
-#include "ui/events/event.h"
 #include "ui/views/controls/button/button.h"
 
 class Browser;
@@ -24,17 +23,13 @@ class DaoNewTabButton : public views::Button {
 
   void SetHighlighted(bool highlighted);
 
-  // views::Button:
-  void OnMouseEntered(const ui::MouseEvent& event) override;
-  void OnMouseExited(const ui::MouseEvent& event) override;
-
  private:
   void UpdateBackground();
   void OnNewTabClicked();
 
   raw_ptr<Browser> browser_;
+  raw_ptr<views::View> plus_icon_ = nullptr;
   bool highlighted_ = false;
-  bool hovered_ = false;
 };
 
 }  // namespace dao

@@ -110,16 +110,18 @@ void DaoTabListView::RebuildTabList() {
     AddChildView(std::move(sep_wrapper));
   }
 
-  // New tab button
-  new_tab_button_ = AddChildView(
-      std::make_unique<DaoNewTabButton>(browser_));
+  // Unpinned tabs section (includes new tab button as first item)
+  auto* today_section = AddChildView(
+      std::make_unique<DaoSidebarSectionView>(u""));
+
+  // New tab button — inside the section, same level as tab items.
+  new_tab_button_ = static_cast<DaoNewTabButton*>(
+      today_section->AddTabItem(
+          std::make_unique<DaoNewTabButton>(browser_)));
   if (new_tab_highlighted_) {
     new_tab_button_->SetHighlighted(true);
   }
 
-  // Unpinned tabs section
-  auto* today_section = AddChildView(
-      std::make_unique<DaoSidebarSectionView>(u""));
   for (int i = count - 1; i >= 0; --i) {
     if (tab_strip_model_->IsTabPinned(i)) {
       continue;

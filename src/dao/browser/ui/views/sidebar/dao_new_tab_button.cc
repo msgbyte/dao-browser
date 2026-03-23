@@ -8,13 +8,41 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/gfx/canvas.h"
+#include "ui/views/animation/ink_drop.h"
+#include "ui/views/animation/ink_drop_highlight.h"
 #include "ui/views/background.h"
-#include "ui/views/border.h"
+#include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
 
 namespace dao {
+
+namespace {
+constexpr int kItemHeight = 40;
+constexpr int kCornerRadius = 12;
+}  // namespace
+
+// A simple view that draws a Lucide Plus icon at 16x16.
+class DaoPlusIconView : public views::View {
+  METADATA_HEADER(DaoPlusIconView, views::View)
+
+ public:
+  DaoPlusIconView() {
+    SetPreferredSize(gfx::Size(16, 16));
+  }
+
+  void OnPaint(gfx::Canvas* canvas) override {
+    gfx::RectF icon_rect(0, 0, 16, 16);
+    icon_rect.Inset(1);
+    DrawLucideIcon(canvas, LucideIcon::kPlus, icon_rect, dao::kTextSecondary);
+  }
+};
+
+BEGIN_METADATA(DaoPlusIconView)
+END_METADATA
 
 BEGIN_METADATA(DaoNewTabButton)
 END_METADATA
@@ -23,29 +51,43 @@ DaoNewTabButton::DaoNewTabButton(Browser* browser)
     : Button(base::BindRepeating(&DaoNewTabButton::OnNewTabClicked,
                                  base::Unretained(this))),
       browser_(browser) {
-  SetLayoutManager(std::make_unique<views::BoxLayout>(
+  // Match DaoTabItemView layout: same padding and spacing.
+  auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal,
-      gfx::Insets::TLBR(0, 6, 0, 10), 6));
+      gfx::Insets::VH(0, 10), 10));
+  layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kCenter);
 
-  auto* plus_label = AddChildView(std::make_unique<views::Label>(u"+"));
-  plus_label->SetFontList(gfx::FontList(
-      {"sans-serif"}, gfx::Font::FontStyle::NORMAL, 13,
-      gfx::Font::Weight::MEDIUM));
-  plus_label->SetEnabledColor(dao::kTextSecondary);
-  plus_label->SetSubpixelRenderingEnabled(false);
+  // Plus icon (same 16x16 as favicon in tab items).
+  plus_icon_ = AddChildView(std::make_unique<DaoPlusIconView>());
 
   auto* text_label =
       AddChildView(std::make_unique<views::Label>(u"New Tab"));
+  text_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   text_label->SetFontList(gfx::FontList(
-      {"sans-serif"}, gfx::Font::FontStyle::NORMAL, 12,
-      gfx::Font::Weight::NORMAL));
+      {"sans-serif"}, gfx::Font::FontStyle::NORMAL, 13,
+      gfx::Font::Weight::SEMIBOLD));
   text_label->SetEnabledColor(dao::kTextSecondary);
   text_label->SetSubpixelRenderingEnabled(false);
+  layout->SetFlexForView(text_label, 1);
 
+  // InkDrop ripple matching tab items.
+  views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
+  views::InkDrop::Get(this)->SetBaseColor(dao::kInkDropBase);
+  views::InkDrop::Get(this)->SetVisibleOpacity(dao::kInkDropOpacity);
+  views::InkDrop::Get(this)->SetCreateHighlightCallback(base::BindRepeating(
+      [](views::Button* host) {
+        auto highlight = std::make_unique<views::InkDropHighlight>(
+            gfx::SizeF(host->size()), dao::kInkDropBase);
+        highlight->set_visible_opacity(dao::kInkDropOpacity);
+        return highlight;
+      },
+      this));
+  views::InstallRoundRectHighlightPathGenerator(this, gfx::Insets(),
+                                                 kCornerRadius);
   SetInstallFocusRingOnFocus(false);
-  SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(0, 6)));
 
-  SetPreferredSize(gfx::Size(0, 40));
+  SetPreferredSize(gfx::Size(0, kItemHeight));
   SetAccessibleName(u"New Tab");
 }
 
@@ -59,21 +101,8 @@ void DaoNewTabButton::SetHighlighted(bool highlighted) {
   UpdateBackground();
 }
 
-void DaoNewTabButton::OnMouseEntered(const ui::MouseEvent& event) {
-  Button::OnMouseEntered(event);
-  hovered_ = true;
-  UpdateBackground();
-}
-
-void DaoNewTabButton::OnMouseExited(const ui::MouseEvent& event) {
-  Button::OnMouseExited(event);
-  hovered_ = false;
-  UpdateBackground();
-}
-
 void DaoNewTabButton::UpdateBackground() {
-  constexpr int kCornerRadius = 12;
-  if (highlighted_ || hovered_) {
+  if (highlighted_) {
     SetBackground(views::CreateRoundedRectBackground(
         dao::kActiveTabBackground, kCornerRadius));
   } else {
