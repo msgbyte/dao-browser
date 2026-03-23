@@ -22,7 +22,8 @@ export const buildCommand = new Command("build")
   .action(async (opts: { debug?: boolean; genOnly?: boolean; j?: string }) => {
     const config = loadConfig();
     const srcDir = path.join(ENGINE_DIR, "src");
-    const outDir = path.join(srcDir, "out", "dao");
+    const outName = opts.debug ? "dao-debug" : "dao";
+    const outDir = path.join(srcDir, "out", outName);
 
     if (!existsSync(srcDir)) {
       error("engine/src not found. Run 'npm run download' first.");
@@ -53,15 +54,16 @@ export const buildCommand = new Command("build")
     if (opts.debug) {
       args += "is_debug = true\n";
       args += "is_component_build = true\n";
+      args += "is_official_build = false\n";
     }
 
     mkdirSync(outDir, { recursive: true });
     writeFileSync(path.join(outDir, "args.gn"), args);
-    success(`Written args.gn to out/dao/`);
+    success(`Written args.gn to out/${outName}/`);
 
     // Run gn gen
     log("Running gn gen...");
-    const gnCode = await runStreaming("gn", ["gen", "out/dao"], { cwd: srcDir });
+    const gnCode = await runStreaming("gn", ["gen", `out/${outName}`], { cwd: srcDir });
 
     if (gnCode !== 0) {
       error("gn gen failed");
@@ -75,7 +77,7 @@ export const buildCommand = new Command("build")
 
     // Run autoninja
     log("Building Dao Browser...");
-    const ninjaArgs = ["-C", "out/dao", "chrome"];
+    const ninjaArgs = ["-C", `out/${outName}`, "chrome"];
     if (opts.j) {
       ninjaArgs.unshift(`-j${opts.j}`);
     }
@@ -95,11 +97,11 @@ export const buildCommand = new Command("build")
     }
 
     // Post-build: fix lld duplicate dylib issue on macOS component builds
-    if (config.build.target_os === "mac") {
+    if (opts.debug && config.build.target_os === "mac") {
       fixDuplicateDylib(outDir);
     }
 
-    success("Build complete! Output: engine/src/out/dao/");
+    success(`Build complete! Output: engine/src/out/${outName}/`);
   });
 
 function fixDuplicateDylib(outDir: string) {
