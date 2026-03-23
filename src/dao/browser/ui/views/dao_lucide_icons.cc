@@ -255,6 +255,14 @@ void DrawLucideIcon(gfx::Canvas* canvas,
       canvas->DrawLine(gfx::PointF(ox + 6 * s, oy + 6 * s),
                        gfx::PointF(ox + 18 * s, oy + 18 * s), flags);
       break;
+    case LucideIcon::kChevronLeft:
+      // Lucide chevron-left: polyline (15,18)-(9,12)-(15,6)
+      DrawSvgPath(canvas, "M15 18l-6-6 6-6", s, ox, oy, flags);
+      break;
+    case LucideIcon::kChevronRight:
+      // Lucide chevron-right: polyline (9,18)-(15,12)-(9,6)
+      DrawSvgPath(canvas, "M9 18l6-6-6-6", s, ox, oy, flags);
+      break;
   }
 }
 

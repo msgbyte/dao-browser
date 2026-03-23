@@ -28,6 +28,8 @@ enum class LucideIcon {
   kVolume2,
   kVolumeX,
   kX,
+  kChevronLeft,
+  kChevronRight,
 };
 
 // Draw a Lucide icon into |rect| on |canvas| using |color|.

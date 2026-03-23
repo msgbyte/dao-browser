@@ -8,17 +8,20 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_button.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/font_list.h"
 #include "ui/compositor/layer.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/flex_layout.h"
@@ -35,7 +38,63 @@ constexpr SkColor kPathColor = SkColorSetRGB(124, 124, 124);
 constexpr int kUrlPillRadius = 8;
 constexpr SkColor kUrlHoverBg = SkColorSetARGB(15, 0, 0, 0);
 constexpr int kFontSize = 12;
+constexpr int kNavButtonSize = 24;
+constexpr int kNavIconSize = 14;
+constexpr int kNavButtonRadius = 6;
+
 }  // namespace
+
+// A small icon button used for back/forward/close in the address bar.
+class NavIconButton : public views::Button {
+  METADATA_HEADER(NavIconButton, views::Button)
+
+ public:
+  NavIconButton(views::Button::PressedCallback callback,
+                LucideIcon icon,
+                const std::u16string& accessible_name)
+      : Button(std::move(callback)), icon_(icon) {
+    SetInstallFocusRingOnFocus(false);
+    SetAccessibleName(accessible_name);
+  }
+
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
+    return gfx::Size(kNavButtonSize, kNavButtonSize);
+  }
+
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    float icon_size = static_cast<float>(kNavIconSize);
+    float ox = (width() - icon_size) / 2.0f;
+    float oy = (height() - icon_size) / 2.0f;
+    DrawLucideIcon(canvas, icon_,
+                   gfx::RectF(ox, oy, icon_size, icon_size), icon_color_);
+  }
+
+  void OnMouseEntered(const ui::MouseEvent& event) override {
+    Button::OnMouseEntered(event);
+    SetBackground(views::CreateRoundedRectBackground(
+        SkColorSetARGB(20, 0, 0, 0), kNavButtonRadius));
+    SchedulePaint();
+  }
+
+  void OnMouseExited(const ui::MouseEvent& event) override {
+    Button::OnMouseExited(event);
+    SetBackground(nullptr);
+    SchedulePaint();
+  }
+
+  void SetIconColor(SkColor color) {
+    icon_color_ = color;
+    SchedulePaint();
+  }
+
+ private:
+  LucideIcon icon_;
+  SkColor icon_color_ = SkColorSetARGB(180, 100, 100, 100);
+};
+
+BEGIN_METADATA(NavIconButton)
+END_METADATA
 
 BEGIN_METADATA(DaoAddressBarView)
 END_METADATA
@@ -87,8 +146,24 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
 
   // Left spacer to balance the right-side button for URL centering
   auto left_spacer = std::make_unique<views::View>();
-  left_spacer->SetPreferredSize(gfx::Size(28, 1));
+  left_spacer->SetPreferredSize(gfx::Size(4, 1));
   left_spacer_ = AddChildView(std::move(left_spacer));
+
+  // Navigation buttons: back, forward, close
+  back_button_ = AddChildView(std::make_unique<NavIconButton>(
+      base::BindRepeating(&DaoAddressBarView::OnBackButtonPressed,
+                          base::Unretained(this)),
+      LucideIcon::kChevronLeft, u"Go Back"));
+
+  forward_button_ = AddChildView(std::make_unique<NavIconButton>(
+      base::BindRepeating(&DaoAddressBarView::OnForwardButtonPressed,
+                          base::Unretained(this)),
+      LucideIcon::kChevronRight, u"Go Forward"));
+
+  close_button_ = AddChildView(std::make_unique<NavIconButton>(
+      base::BindRepeating(&DaoAddressBarView::OnCloseButtonPressed,
+                          base::Unretained(this)),
+      LucideIcon::kX, u"Close Tab"));
 
   // Left flex spacer — pushes URL pill toward center
   auto left_flex = std::make_unique<views::View>();
@@ -240,6 +315,17 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
       return false;  // Let the button handle the click
     }
   }
+  // If the click lands on any nav button, let it handle it
+  for (views::Button* btn : {back_button_.get(), forward_button_.get(),
+                              close_button_.get()}) {
+    if (btn) {
+      gfx::Point pt = event.location();
+      views::View::ConvertPointToTarget(this, btn, &pt);
+      if (btn->HitTestPoint(pt)) {
+        return false;
+      }
+    }
+  }
   // Click elsewhere on address bar opens the command bar
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(browser_);
@@ -315,6 +401,7 @@ void DaoAddressBarView::UpdateBackgroundColor() {
       gfx::Insets::TLBR(0, 0, 1, 0), separator_color));
 
   UpdateToggleButtonColor();
+  UpdateNavButtonColors();
   SchedulePaint();
 }
 
@@ -405,6 +492,72 @@ void DaoAddressBarView::OnToggleButtonPressed() {
       BrowserView::GetBrowserViewForBrowser(browser_);
   if (browser_view && browser_view->dao_sidebar()) {
     browser_view->dao_sidebar()->ToggleCollapsed();
+  }
+}
+
+void DaoAddressBarView::OnBackButtonPressed() {
+  if (!tab_strip_model_) {
+    return;
+  }
+  content::WebContents* contents =
+      tab_strip_model_->GetActiveWebContents();
+  if (contents && contents->GetController().CanGoBack()) {
+    contents->GetController().GoBack();
+  }
+}
+
+void DaoAddressBarView::OnForwardButtonPressed() {
+  if (!tab_strip_model_) {
+    return;
+  }
+  content::WebContents* contents =
+      tab_strip_model_->GetActiveWebContents();
+  if (contents && contents->GetController().CanGoForward()) {
+    contents->GetController().GoForward();
+  }
+}
+
+void DaoAddressBarView::OnCloseButtonPressed() {
+  if (!tab_strip_model_) {
+    return;
+  }
+  if (tab_strip_model_->count() > 1) {
+    tab_strip_model_->CloseWebContentsAt(
+        tab_strip_model_->active_index(),
+        TabCloseTypes::CLOSE_USER_GESTURE);
+  }
+}
+
+void DaoAddressBarView::UpdateNavButtonColors() {
+  SkColor bg_color = SK_ColorWHITE;
+  if (tab_strip_model_) {
+    auto* web_contents = tab_strip_model_->GetActiveWebContents();
+    if (web_contents) {
+      auto* rwhv = web_contents->GetRenderWidgetHostView();
+      if (rwhv) {
+        auto color = rwhv->GetBackgroundColor();
+        if (color.has_value()) {
+          bg_color = color.value();
+        }
+      }
+    }
+  }
+  int r = SkColorGetR(bg_color);
+  int g = SkColorGetG(bg_color);
+  int b = SkColorGetB(bg_color);
+  double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  SkColor icon_color = luminance < 128
+      ? SkColorSetARGB(180, 255, 255, 255)
+      : SkColorSetARGB(160, 0, 0, 0);
+
+  if (back_button_) {
+    static_cast<NavIconButton*>(back_button_.get())->SetIconColor(icon_color);
+  }
+  if (forward_button_) {
+    static_cast<NavIconButton*>(forward_button_.get())->SetIconColor(icon_color);
+  }
+  if (close_button_) {
+    static_cast<NavIconButton*>(close_button_.get())->SetIconColor(icon_color);
   }
 }
 

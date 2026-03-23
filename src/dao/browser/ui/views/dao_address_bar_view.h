@@ -15,6 +15,7 @@ class Browser;
 class TabStripModel;
 
 namespace views {
+class Button;
 class Label;
 class LabelButton;
 }
@@ -73,15 +74,22 @@ class DaoAddressBarView : public views::View,
   void UpdateURL();
   void UpdateBackgroundColor();
   void UpdateToggleButtonColor();
+  void UpdateNavButtonColors();
   void UpdateUrlContainerHover(bool hovered);
   void ObserveActiveWebContents();
   void OnToggleButtonPressed();
+  void OnBackButtonPressed();
+  void OnForwardButtonPressed();
+  void OnCloseButtonPressed();
 
   raw_ptr<Browser> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   raw_ptr<views::View> traffic_light_spacer_ = nullptr;
   raw_ptr<views::View> left_spacer_ = nullptr;
   raw_ptr<views::LabelButton> sidebar_toggle_button_ = nullptr;
+  raw_ptr<views::Button> back_button_ = nullptr;
+  raw_ptr<views::Button> forward_button_ = nullptr;
+  raw_ptr<views::Button> close_button_ = nullptr;
   raw_ptr<views::View> url_container_ = nullptr;
   raw_ptr<views::Label> host_label_ = nullptr;
   raw_ptr<views::Label> path_label_ = nullptr;
