@@ -1,11 +1,21 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..c80275ea36 100644
+index a66522f120..b8da99017a 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -48,6 +48,63 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -48,6 +48,73 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
++    "//dao/browser/agent/dao_agent_memory_service.cc",
++    "//dao/browser/agent/dao_agent_memory_service.h",
++    "//dao/browser/agent/dao_agent_memory_service_factory.cc",
++    "//dao/browser/agent/dao_agent_memory_service_factory.h",
++    "//dao/browser/agent/dao_agent_memory_store.cc",
++    "//dao/browser/agent/dao_agent_memory_store.h",
++    "//dao/browser/agent/dao_agent_memory_types.cc",
++    "//dao/browser/agent/dao_agent_memory_types.h",
++    "//dao/browser/agent/dao_agent_proactive_engine.cc",
++    "//dao/browser/agent/dao_agent_proactive_engine.h",
 +    "//dao/browser/dao_auto_pip_visibility_helper.cc",
 +    "//dao/browser/dao_auto_pip_visibility_helper.h",
 +    "//dao/browser/dao_webstore_branding_tab_helper.cc",
@@ -66,15 +76,16 @@ index a66522f120..c80275ea36 100644
      "accelerator_utils.h",
      "bluetooth/bluetooth_dialogs.h",
      "browser_dialogs.cc",
-@@ -318,6 +375,7 @@ static_library("ui") {
+@@ -318,6 +385,8 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
 +    "//dao/browser/ui/webui/resources/agent:resources",
++    "//sql",
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -564,6 +622,7 @@ static_library("ui") {
+@@ -564,6 +633,7 @@ static_library("ui") {
      "//components/privacy_sandbox:tracking_protection_settings",
      "//components/profile_metrics",
      "//components/proxy_config",
@@ -82,3 +93,20 @@ index a66522f120..c80275ea36 100644
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
+@@ -5673,7 +5743,7 @@ static_library("ui") {
+ # //chrome/browser. These are semantically a part of
+ # //chrome/browser:browser_public_dependencies since //chrome/browser and
+ # //chrome/browser/ui allow circular dependencies.
+-static_library("ui_public_dependencies") {
++group("ui_public_dependencies") {
+   visibility = [ "//chrome/browser:browser_public_dependencies" ]
+   public_deps = [
+     "//components/cross_device/logging",
+@@ -5707,7 +5777,6 @@ static_library("ui_public_dependencies") {
+     public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
+   }
+   if (is_win) {
+-    arflags = [ "/llvmlibempty" ]
+     public_deps += [
+       "//build:branding_buildflags",
+       "//ui/views",

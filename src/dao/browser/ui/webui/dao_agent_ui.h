@@ -17,9 +17,12 @@
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
+#include "dao/browser/agent/dao_agent_memory_types.h"
+#include "dao/browser/agent/dao_agent_proactive_engine.h"
 
 namespace dao {
 
+class DaoAgentMemoryService;
 class DaoAgentUI;
 
 // WebUI config for chrome://agent
@@ -87,6 +90,40 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
 
   std::unique_ptr<DaoAgentDevToolsClient> devtools_client_;
   base::WeakPtrFactory<DaoAgentUIHandler> weak_factory_{this};
+};
+
+// Memory-specific message handler, separate from tool handler.
+class DaoAgentMemoryHandler : public content::WebUIMessageHandler,
+                               public DaoAgentProactiveEngine::Delegate {
+ public:
+  DaoAgentMemoryHandler();
+  ~DaoAgentMemoryHandler() override;
+
+  // content::WebUIMessageHandler:
+  void RegisterMessages() override;
+  void OnJavascriptAllowed() override;
+  void OnJavascriptDisallowed() override;
+
+  // DaoAgentProactiveEngine::Delegate:
+  void OnProactiveSuggestion(const ProactiveSuggestion& suggestion) override;
+
+ private:
+  DaoAgentMemoryService* GetMemoryService();
+
+  void HandleGetMemoryContext(const base::Value::List& args);
+  void HandleEndSession(const base::Value::List& args);
+  void HandleLoadConversations(const base::Value::List& args);
+  void HandleGetPreferences(const base::Value::List& args);
+  void HandleUpdatePreference(const base::Value::List& args);
+  void HandleDeleteMemory(const base::Value::List& args);
+  void HandleGetEpisodes(const base::Value::List& args);
+  void HandleClearAllMemory(const base::Value::List& args);
+  void HandleGetStorageStats(const base::Value::List& args);
+  void HandleDismissSuggestion(const base::Value::List& args);
+  void HandleAcceptSuggestion(const base::Value::List& args);
+
+  std::unique_ptr<DaoAgentProactiveEngine> proactive_engine_;
+  base::WeakPtrFactory<DaoAgentMemoryHandler> weak_factory_{this};
 };
 
 // WebUI controller for chrome://agent

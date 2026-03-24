@@ -46,6 +46,7 @@ interface PendingCallback {
 interface CrNamespace {
   webUIResponse:
       (id: string, isSuccess: boolean, response: unknown) => void;
+  addWebUIListener: (event: string, callback: (...args: any[]) => void) => void;
 }
 
 // ---- Default Soul Template ----
@@ -159,6 +160,10 @@ function switchSettingsTab(tab: string): void {
       t => t.classList.toggle('active', t.dataset['subtab'] === tab));
   soulPanel.style.display = tab === 'soul' ? '' : 'none';
   connectionPanel.style.display = tab === 'connection' ? '' : 'none';
+  memoryPanel.style.display = tab === 'memory' ? '' : 'none';
+  if (tab === 'memory') {
+    loadStorageStats();
+  }
 }
 
 mainTabs.forEach(t => {
@@ -189,11 +194,256 @@ resetSoulBtn.addEventListener('click', () => {
 // Load soul editor content on startup
 soulEditor.value = loadSoul();
 
+// ---- Memory Settings ----
+
+const memoryPanel =
+    document.getElementById('memoryPanel') as HTMLElement;
+const memoryEnabled =
+    document.getElementById('memoryEnabled') as HTMLInputElement;
+const proactiveEnabled =
+    document.getElementById('proactiveEnabled') as HTMLInputElement;
+const pageContextEnabled =
+    document.getElementById('pageContextEnabled') as HTMLInputElement;
+const conversationEnabled =
+    document.getElementById('conversationEnabled') as HTMLInputElement;
+const clearAllBtn =
+    document.getElementById('clearAllBtn') as HTMLButtonElement;
+const confirmScrim =
+    document.getElementById('confirmScrim') as HTMLElement;
+const confirmCancel =
+    document.getElementById('confirmCancel') as HTMLButtonElement;
+const confirmClear =
+    document.getElementById('confirmClear') as HTMLButtonElement;
+const chipArea =
+    document.getElementById('chipArea') as HTMLElement;
+const chipText =
+    document.getElementById('chipText') as HTMLElement;
+const chipClose =
+    document.getElementById('chipClose') as HTMLButtonElement;
+const proactiveChip =
+    document.getElementById('proactiveChip') as HTMLElement;
+const toastEl =
+    document.getElementById('toast') as HTMLElement;
+const startChatBtn =
+    document.getElementById('startChatBtn') as HTMLButtonElement;
+
+// Segment selector
+const segments =
+    document.querySelectorAll('.segment') as NodeListOf<HTMLButtonElement>;
+
+function loadMemorySettings(): void {
+  memoryEnabled.checked =
+      localStorage.getItem('dao_memory_enabled') !== 'false';
+  proactiveEnabled.checked =
+      localStorage.getItem('dao_proactive_enabled') !== 'false';
+  pageContextEnabled.checked =
+      localStorage.getItem('dao_page_context_enabled') !== 'false';
+  conversationEnabled.checked =
+      localStorage.getItem('dao_conversation_enabled') !== 'false';
+  const threshold = localStorage.getItem('dao_proactive_threshold') || 'balanced';
+  segments.forEach(s => {
+    const isActive = s.dataset['value'] === threshold;
+    s.classList.toggle('active', isActive);
+    s.setAttribute('aria-checked', String(isActive));
+  });
+}
+
+function saveMemorySetting(key: string, value: string): void {
+  localStorage.setItem(key, value);
+}
+
+memoryEnabled.addEventListener('change', () =>
+    saveMemorySetting('dao_memory_enabled', String(memoryEnabled.checked)));
+proactiveEnabled.addEventListener('change', () =>
+    saveMemorySetting('dao_proactive_enabled', String(proactiveEnabled.checked)));
+pageContextEnabled.addEventListener('change', () =>
+    saveMemorySetting('dao_page_context_enabled', String(pageContextEnabled.checked)));
+conversationEnabled.addEventListener('change', () =>
+    saveMemorySetting('dao_conversation_enabled', String(conversationEnabled.checked)));
+
+segments.forEach(s => {
+  s.addEventListener('click', () => {
+    segments.forEach(seg => {
+      seg.classList.remove('active');
+      seg.setAttribute('aria-checked', 'false');
+    });
+    s.classList.add('active');
+    s.setAttribute('aria-checked', 'true');
+    saveMemorySetting('dao_proactive_threshold', s.dataset['value'] || 'balanced');
+  });
+});
+
+// Arrow key navigation for segment selector
+const segmentSelector = document.querySelector('.segment-selector');
+if (segmentSelector) {
+  segmentSelector.addEventListener('keydown', (e: Event) => {
+    const ke = e as KeyboardEvent;
+    if (ke.key !== 'ArrowLeft' && ke.key !== 'ArrowRight') return;
+    const active = segmentSelector.querySelector('.segment.active') as HTMLButtonElement;
+    const sibling = ke.key === 'ArrowRight'
+        ? active?.nextElementSibling as HTMLButtonElement
+        : active?.previousElementSibling as HTMLButtonElement;
+    if (sibling) sibling.click();
+  });
+}
+
+loadMemorySettings();
+
+// ---- Session Management ----
+
+let sessionId = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+let currentDomain = '';
+let hasFirstMemory = false;
+
+function generateSessionId(): string {
+  return Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+async function endSession(): Promise<void> {
+  if (messages.length === 0 || !conversationEnabled.checked) return;
+  const messageData = messages.map(m => ({
+    role: m.role,
+    content: m.content || '',
+    pageUrl: currentDomain ? ('https://' + currentDomain) : '',
+  }));
+  try {
+    await callNativeArgs('endSession', sessionId, messageData);
+  } catch (_) {
+    // Best-effort save
+  }
+}
+
+// Set up the cr namespace early so listeners can be registered.
+const cr = ((window as unknown as {cr: CrNamespace}).cr) || {} as CrNamespace;
+(window as unknown as {cr: CrNamespace}).cr = cr;
+
+// Listen for sidebar state changes (C++ push)
+if (cr.addWebUIListener) {
+  cr.addWebUIListener('sidebarStateChanged', (expanded: boolean) => {
+    if (!expanded) {
+      endSession();
+      sessionId = generateSessionId();
+    }
+  });
+}
+
+// ---- Proactive Suggestions ----
+
+let currentSuggestionEpisodeId = 0;
+
+function showChip(text: string, episodeId: number): void {
+  if (!proactiveEnabled.checked || !memoryEnabled.checked) return;
+  chipText.textContent = text;
+  currentSuggestionEpisodeId = episodeId;
+  chipArea.style.display = '';
+  chipArea.classList.remove('hiding');
+}
+
+function hideChip(): void {
+  chipArea.classList.add('hiding');
+  setTimeout(() => {
+    chipArea.style.display = 'none';
+    chipArea.classList.remove('hiding');
+  }, 150);
+}
+
+chipClose.addEventListener('click', (e) => {
+  e.stopPropagation();
+  hideChip();
+  if (currentSuggestionEpisodeId) {
+    callNativeArgs('dismissSuggestion', currentSuggestionEpisodeId).catch(() => {});
+  }
+});
+
+proactiveChip.addEventListener('click', () => {
+  if (currentSuggestionEpisodeId) {
+    callNativeArgs('acceptSuggestion', currentSuggestionEpisodeId).catch(() => {});
+  }
+  const text = chipText.textContent || '';
+  hideChip();
+  if (text) {
+    userInput.value = text;
+    sendMessage();
+  }
+});
+
+proactiveChip.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Enter') proactiveChip.click();
+  if (e.key === 'Escape') chipClose.click();
+});
+
+// Listen for proactive suggestions from C++
+if (cr.addWebUIListener) {
+  cr.addWebUIListener('proactiveSuggestion',
+      (data: {text: string; episodeId: number}) => {
+    showChip(data.text, data.episodeId);
+  });
+}
+
+// ---- Toast ----
+
+function showToast(text: string, duration = 3000): void {
+  toastEl.textContent = text;
+  toastEl.style.display = '';
+  setTimeout(() => { toastEl.style.display = 'none'; }, duration);
+}
+
+// ---- Clear All Memory ----
+
+clearAllBtn.addEventListener('click', () => {
+  confirmScrim.style.display = '';
+});
+
+confirmCancel.addEventListener('click', () => {
+  confirmScrim.style.display = 'none';
+});
+
+confirmScrim.addEventListener('click', (e) => {
+  if (e.target === confirmScrim) confirmScrim.style.display = 'none';
+});
+
+confirmClear.addEventListener('click', async () => {
+  confirmScrim.style.display = 'none';
+  try {
+    await callNativeArgs('clearAllMemory');
+    showToast('All memory cleared');
+    loadStorageStats();
+  } catch (_) {
+    showToast('Failed to clear memory');
+  }
+});
+
+// ---- Storage Stats ----
+
+async function loadStorageStats(): Promise<void> {
+  try {
+    const stats = await callNativeArgs('getStorageStats') as
+        {totalSize?: number; conversationCount?: number;
+         episodeCount?: number; preferenceCount?: number};
+    const el = (id: string) => document.getElementById(id);
+    const setCount = (id: string, v?: number) => {
+      const node = el(id);
+      if (node) node.textContent = String(v || 0);
+    };
+    setCount('statConversations', stats.conversationCount);
+    setCount('statPreferences', stats.preferenceCount);
+    setCount('statEpisodes', stats.episodeCount);
+    const totalEl = el('statTotal');
+    if (totalEl) {
+      const kb = ((stats.totalSize || 0) / 1024).toFixed(1);
+      totalEl.textContent = 'Total: ' + kb + ' KB';
+    }
+  } catch (_) {
+    // Stats are non-critical
+  }
+}
+
 // ---- Chat State ----
 
 const messages: ChatMessage[] = [];
 let isStreaming = false;
 let pageContentInjected = false;
+let memoryContextLoaded = false;
 
 const chatArea = document.getElementById('chatArea') as HTMLElement;
 const emptyState = document.getElementById('emptyState') as HTMLElement;
@@ -267,8 +517,6 @@ let callbackCounter = 0;
 
 // Set up the cr.webUIResponse callback that Chromium's
 // ResolveJavascriptCallback / RejectJavascriptCallback invokes.
-const cr = ((window as unknown as {cr: CrNamespace}).cr) || {} as CrNamespace;
-(window as unknown as {cr: CrNamespace}).cr = cr;
 cr.webUIResponse =
     function(id: string, isSuccess: boolean, response: unknown): void {
   const entry = pendingCallbacks[id];
@@ -289,6 +537,23 @@ function callNative(
     const id = method + '_' + (++callbackCounter);
     pendingCallbacks[id] = {resolve, reject};
     chrome.send(method, [id, params || {}]);
+
+    setTimeout(() => {
+      if (pendingCallbacks[id]) {
+        delete pendingCallbacks[id];
+        reject(new Error('Timeout calling ' + method));
+      }
+    }, 15000);
+  });
+}
+
+// Variant that sends multiple positional args (not wrapped in an object)
+function callNativeArgs(
+    method: string, ...args: unknown[]): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const id = method + '_' + (++callbackCounter);
+    pendingCallbacks[id] = {resolve, reject};
+    chrome.send(method, [id, ...args]);
 
     setTimeout(() => {
       if (pendingCallbacks[id]) {
@@ -330,12 +595,20 @@ function renderMarkdown(text: string): string {
 
 // ---- UI Helpers ----
 
-function addMessageBubble(role: string, content: string): HTMLDivElement {
+function addMessageBubble(
+    role: string, content: string, usedMemory = false): HTMLDivElement {
   emptyState.style.display = 'none';
   const div = document.createElement('div');
   div.className = 'message ' + role;
   if (role === 'assistant') {
     div.innerHTML = renderMarkdown(content);
+    if (usedMemory && memoryContextLoaded) {
+      const badge = document.createElement('span');
+      badge.className = 'memory-badge';
+      badge.textContent = '\u2727';
+      badge.title = 'This response used your memory';
+      div.appendChild(badge);
+    }
   } else {
     div.textContent = content;
   }
@@ -429,7 +702,59 @@ async function runConversation(): Promise<void> {
   sendBtn.disabled = true;
 
   // Hot-reload: read soul from localStorage on every conversation turn
-  const soulContent = loadSoul();
+  let soulContent = loadSoul();
+
+  // Inject memory context if enabled
+  if (memoryEnabled.checked && !memoryContextLoaded) {
+    try {
+      const pageInfo = await callNative('getPageInfo') as
+          {url?: string; title?: string};
+      if (pageInfo.url) {
+        try {
+          const urlObj = new URL(pageInfo.url);
+          currentDomain = urlObj.hostname;
+        } catch (_) {
+          currentDomain = '';
+        }
+      }
+      const ctx = await callNativeArgs('getMemoryContext',
+          pageInfo.url || '', currentDomain, sessionId) as
+          {preferences?: Array<{key: string; value: string}>;
+           episodes?: Array<{intent: string; outcome: string}>;
+           recentMessages?: Array<{role: string; content: string}>};
+
+      let memoryBlock = '';
+      if (ctx.preferences && ctx.preferences.length > 0) {
+        memoryBlock += '\n\n## User Preferences (from memory)\n';
+        for (const p of ctx.preferences) {
+          memoryBlock += '- ' + p.key + ': ' + p.value + '\n';
+        }
+      }
+      if (ctx.episodes && ctx.episodes.length > 0) {
+        memoryBlock += '\n## Previous context on this page\n';
+        for (const e of ctx.episodes) {
+          memoryBlock += '- Intent: ' + e.intent + ' → Outcome: ' + e.outcome + '\n';
+        }
+      }
+      if (memoryBlock) {
+        soulContent += memoryBlock;
+      }
+
+      // First Memory Moment: show toast if this is the first time memory is used
+      if (memoryBlock && !hasFirstMemory) {
+        hasFirstMemory = true;
+        if (!localStorage.getItem('dao_first_memory_shown')) {
+          localStorage.setItem('dao_first_memory_shown', 'true');
+          showToast('Memory activated — your Agent is learning');
+        }
+      }
+
+      memoryContextLoaded = true;
+    } catch (_) {
+      // Memory context is best-effort
+    }
+  }
+
   const systemPrompt: ChatMessage = {
     role: 'system',
     content: soulContent,
@@ -495,7 +820,7 @@ async function runConversation(): Promise<void> {
         continueLoop = true;
       } else {
         messages.push({role: 'assistant', content: msg.content || ''});
-        addMessageBubble('assistant', msg.content || '');
+        addMessageBubble('assistant', msg.content || '', memoryContextLoaded);
       }
     }
   } catch (e) {
@@ -565,3 +890,9 @@ async function executeTool(
       return {error: 'Unknown tool: ' + name};
   }
 }
+
+// ---- Start Chatting Button ----
+
+startChatBtn.addEventListener('click', () => {
+  userInput.focus();
+});

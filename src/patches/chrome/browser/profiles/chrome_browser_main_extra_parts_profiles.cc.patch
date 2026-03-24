@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+index 1c1210ee88..e31ec4b163 100644
+--- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
++++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+@@ -570,6 +570,8 @@
+ #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) ||
+         // BUILDFLAG(IS_WIN)
+ 
++#include "dao/browser/agent/dao_agent_memory_service_factory.h"
++
+ void AddProfilesExtraParts(ChromeBrowserMainParts* main_parts) {
+   main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsProfiles>());
+ }
+@@ -803,6 +805,7 @@ void ChromeBrowserMainExtraPartsProfiles::
+   }
+ #endif
+   DataTypeStoreServiceFactory::GetInstance();
++  dao::DaoAgentMemoryServiceFactory::GetInstance();
+ 
+ // TODO(b/352728209): Add back this service when reporting is supported on
+ // Android.

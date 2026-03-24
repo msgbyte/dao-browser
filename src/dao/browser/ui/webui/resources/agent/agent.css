@@ -408,3 +408,280 @@ body {
 .settings-panel-content input:focus {
   border-color: var(--accent);
 }
+
+/* ---- Proactive Chip ---- */
+.chip-area {
+  padding: 8px 14px 0;
+  flex-shrink: 0;
+  animation: chipSlideDown 200ms ease-out;
+}
+.chip {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 8px 0 12px;
+  background: var(--accent-dim);
+  border-radius: 8px;
+  cursor: pointer;
+  gap: 8px;
+}
+.chip:hover { background: rgba(140, 100, 220, 0.4); }
+.chip-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip-close {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.chip-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+@keyframes chipSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chip-area.hiding {
+  animation: chipFadeOut 150ms ease-in forwards;
+}
+@keyframes chipFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ---- Memory Flashback Badge ---- */
+.message.assistant { position: relative; }
+.memory-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 12px;
+  color: var(--accent);
+  opacity: 0.6;
+  cursor: default;
+  transition: opacity 150ms;
+}
+.memory-badge:hover { opacity: 1; }
+
+/* ---- macOS Toggle ---- */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.toggle-name {
+  font-size: 13px;
+  color: var(--text);
+}
+.toggle-desc {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.toggle input { display: none; }
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: background 150ms, border-color 150ms;
+}
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 150ms;
+}
+.toggle input:checked + .toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.toggle input:checked + .toggle-track::after {
+  transform: translateX(16px);
+}
+
+/* ---- Three-Segment Selector ---- */
+.setting-group {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.segment-selector {
+  display: flex;
+  gap: 0;
+  margin-top: 8px;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.segment {
+  flex: 1;
+  height: 28px;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+}
+.segment:hover { background: var(--surface-hover); }
+.segment.active {
+  background: var(--accent);
+  color: white;
+}
+
+/* ---- Memory Stats ---- */
+.memory-stats {
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-accent { background: var(--accent); }
+.dot-blue { background: #60a5fa; }
+.dot-green { background: #4ade80; }
+.stat-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.stat-total {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ---- Danger Button ---- */
+.btn-danger {
+  display: block;
+  width: 100%;
+  height: 36px;
+  margin-top: 16px;
+  background: rgba(239, 68, 68, 0.15);
+  border: none;
+  border-radius: 8px;
+  color: var(--error);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* ---- Confirmation Dialog ---- */
+.confirm-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.confirm-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  max-width: 280px;
+  width: 90%;
+}
+.confirm-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.confirm-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 200;
+  animation: toastIn 200ms ease-out;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ---- Empty State Updates ---- */
+.empty-icon {
+  color: var(--accent);
+  opacity: 0.5;
+  margin-bottom: 4px;
+}
+.empty-cta {
+  margin-top: 8px;
+}
