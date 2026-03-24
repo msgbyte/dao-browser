@@ -1,6 +1,15 @@
 import { Command } from "commander";
-import { existsSync, writeFileSync } from "node:fs";
-import fsExtra from "fs-extra";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  readdirSync,
+  statSync,
+  mkdirSync,
+  rmdirSync,
+  copyFileSync,
+  unlinkSync,
+} from "node:fs";
 import { glob } from "glob";
 import path from "node:path";
 import {
@@ -72,20 +81,22 @@ export const importCommand = new Command("import")
 
     log(`Patches: ${applied} applied, ${failed} failed`);
 
-    // Step 2: Copy Dao source code into Chromium tree
+    // Step 2: Copy Dao source code into Chromium tree (only changed files)
     if (!opts.patchesOnly) {
       log("Copying Dao source code...");
 
       if (existsSync(DAO_SRC_DIR)) {
         const destDir = path.join(srcDir, "dao");
-        fsExtra.copySync(DAO_SRC_DIR, destDir, { overwrite: true });
-        success(`Copied src/dao/ -> engine/src/dao/`);
+        const stats = smartCopySync(DAO_SRC_DIR, destDir);
+        success(
+          `Synced src/dao/ -> engine/src/dao/ (${stats.copied} updated, ${stats.skipped} unchanged, ${stats.removed} removed)`
+        );
       } else {
         warn("No Dao source directory found at src/dao/");
       }
     }
 
-    // Step 3: Copy branding assets into Chromium theme directory
+    // Step 3: Copy branding assets into Chromium theme directory (only changed)
     log("Copying branding assets...");
     const chromiumThemeDir = path.join(
       srcDir,
@@ -111,16 +122,17 @@ export const importCommand = new Command("import")
       const srcPath = path.join(BRANDING_DIR, src);
       if (existsSync(srcPath)) {
         const destPath = path.join(chromiumThemeDir, dest);
-        fsExtra.copySync(srcPath, destPath, { overwrite: true });
-        success(`Branding: ${src} -> chrome/app/theme/chromium/${dest}`);
-        brandingCopied++;
+        if (copyIfDifferent(srcPath, destPath)) {
+          success(`Branding: ${src} -> chrome/app/theme/chromium/${dest}`);
+          brandingCopied++;
+        }
       }
     }
 
     if (brandingCopied > 0) {
       log(`Branding: ${brandingCopied} asset(s) copied`);
     } else {
-      warn("No branding assets found in branding/");
+      log("Branding: all assets up to date");
     }
 
     if (failed > 0) {
@@ -130,3 +142,76 @@ export const importCommand = new Command("import")
 
     success("Import complete");
   });
+
+function copyIfDifferent(src: string, dest: string): boolean {
+  try {
+    const srcStat = statSync(src);
+    const destStat = statSync(dest);
+    if (
+      srcStat.size === destStat.size &&
+      Buffer.compare(readFileSync(src), readFileSync(dest)) === 0
+    ) {
+      return false;
+    }
+  } catch {
+    // dest doesn't exist — need to copy
+  }
+  mkdirSync(path.dirname(dest), { recursive: true });
+  copyFileSync(src, dest);
+  return true;
+}
+
+function smartCopySync(
+  srcDir: string,
+  destDir: string
+): { copied: number; skipped: number; removed: number } {
+  const stats = { copied: 0, skipped: 0, removed: 0 };
+
+  const srcFiles = new Set<string>();
+
+  function walkAndCopy(dir: string) {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = path.join(dir, entry.name);
+      const relPath = path.relative(srcDir, srcPath);
+      const destPath = path.join(destDir, relPath);
+
+      if (entry.isDirectory()) {
+        walkAndCopy(srcPath);
+      } else {
+        srcFiles.add(relPath);
+        if (copyIfDifferent(srcPath, destPath)) {
+          stats.copied++;
+        } else {
+          stats.skipped++;
+        }
+      }
+    }
+  }
+
+  walkAndCopy(srcDir);
+
+  // Remove files in dest that no longer exist in src
+  function walkAndClean(dir: string) {
+    if (!existsSync(dir)) return;
+    const entries = readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relPath = path.relative(destDir, fullPath);
+      if (entry.isDirectory()) {
+        walkAndClean(fullPath);
+        // Remove directory if now empty (rmdirSync throws on non-empty)
+        try {
+          rmdirSync(fullPath);
+        } catch {}
+      } else if (!srcFiles.has(relPath)) {
+        unlinkSync(fullPath);
+        stats.removed++;
+      }
+    }
+  }
+
+  walkAndClean(destDir);
+
+  return stats;
+}

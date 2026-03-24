@@ -52,15 +52,21 @@ export const buildCommand = new Command("build")
     }
 
     if (opts.debug) {
-      args += "is_debug = true\n";
+      // args += "is_debug = true\n"; // dont use debug mode as too slow.
       args += "is_component_build = true\n";
       args += "is_official_build = false\n";
       args += "use_lld = false\n";
     }
 
     mkdirSync(outDir, { recursive: true });
-    writeFileSync(path.join(outDir, "args.gn"), args);
-    success(`Written args.gn to out/${outName}/`);
+    const argsPath = path.join(outDir, "args.gn");
+    const existing = existsSync(argsPath) ? readFileSync(argsPath, "utf-8") : null;
+    if (existing !== args) {
+      writeFileSync(argsPath, args);
+      success(`Written args.gn to out/${outName}/`);
+    } else {
+      success(`args.gn unchanged, skipping write`);
+    }
 
     // Run gn gen
     log("Running gn gen...");

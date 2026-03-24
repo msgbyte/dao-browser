@@ -19,3 +19,5 @@ google_default_client_secret = ""
 # Disable telemetry and reporting
 enable_reporting = false
 safe_browsing_mode = 1
+enable_gcm_driver = false
+disable_fieldtrial_testing_config = true

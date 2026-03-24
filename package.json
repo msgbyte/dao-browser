@@ -11,7 +11,7 @@
     "build": "tsx scripts/cli.ts build",
     "build:debug": "tsx scripts/cli.ts build --debug",
     "start": "open 'engine/src/out/dao/Dao Browser.app' --args --use-mock-keychain",
-    "start:debug": "'engine/src/out/dao-debug/Dao Browser.app/Contents/MacOS/Dao Browser' --use-mock-keychain --enable-logging=stderr",
+    "start:debug": "'engine/src/out/dao-debug/Dao Browser.app/Contents/MacOS/Dao Browser' --use-mock-keychain --enable-logging=stderr --log-level=2",
     "start:debug:view": "'engine/src/out/dao-debug/Dao Browser.app/Contents/MacOS/Dao Browser' --use-mock-keychain --enable-ui-devtools=9223 --enable-logging=stderr --v=1",
     "start:little": "open -a \"$(pwd)/engine/src/out/dao/Dao Browser.app\" 'https://bing.com' --args --use-mock-keychain",
     "package": "tsx scripts/cli.ts package",
