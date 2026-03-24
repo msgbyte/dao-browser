@@ -387,6 +387,46 @@ bool DaoCommandBarView::OnMousePressed(const ui::MouseEvent& event) {
   return true;
 }
 
+void DaoCommandBarView::AddedToWidget() {
+  if (auto* fm = GetFocusManager()) {
+    fm->AddFocusChangeListener(this);
+  }
+}
+
+void DaoCommandBarView::RemovedFromWidget() {
+  if (auto* fm = GetFocusManager()) {
+    fm->RemoveFocusChangeListener(this);
+  }
+}
+
+void DaoCommandBarView::OnWillChangeFocus(views::View* focused_before,
+                                           views::View* focused_now) {}
+
+void DaoCommandBarView::OnDidChangeFocus(views::View* focused_before,
+                                          views::View* focused_now) {
+  if (!GetVisible()) {
+    return;
+  }
+  // If focus moved to a view outside the command bar, auto-dismiss.
+  if (focused_now && !Contains(focused_now)) {
+    // Post a task to avoid re-entrant state during focus change.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&DaoCommandBarView::Dismiss,
+                                  weak_factory_.GetWeakPtr()));
+  }
+}
+
+void DaoCommandBarView::Dismiss() {
+  if (!GetVisible()) {
+    return;
+  }
+  if (is_new_tab_mode_) {
+    CancelNewTab();
+  } else {
+    Hide();
+  }
+}
+
 void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
                                         const std::u16string& new_contents) {
   if (updating_textfield_) {

@@ -153,12 +153,12 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   back_button_ = AddChildView(std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnBackButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kChevronLeft, u"Go Back"));
+      LucideIcon::kArrowLeft, u"Go Back"));
 
   forward_button_ = AddChildView(std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnForwardButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kChevronRight, u"Go Forward"));
+      LucideIcon::kArrowRight, u"Go Forward"));
 
   close_button_ = AddChildView(std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnCloseButtonPressed,

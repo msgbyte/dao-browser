@@ -8,8 +8,6 @@
 #include "base/memory/raw_ptr.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "ui/base/metadata/metadata_header_macros.h"
-#include "ui/gfx/animation/animation_delegate.h"
-#include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/view.h"
 
@@ -22,7 +20,6 @@ class WebView;
 namespace dao {
 
 class DaoAgentSidebarView : public views::View,
-                            public gfx::AnimationDelegate,
                             public content::WebContentsDelegate {
   METADATA_HEADER(DaoAgentSidebarView, views::View)
 
@@ -32,7 +29,7 @@ class DaoAgentSidebarView : public views::View,
   explicit DaoAgentSidebarView(Browser* browser);
   ~DaoAgentSidebarView() override;
 
-  // Toggle visibility with animation; returns new expanded state.
+  // Toggle visibility; returns new expanded state.
   bool Toggle();
 
   bool is_expanded() const { return expanded_; }
@@ -41,24 +38,19 @@ class DaoAgentSidebarView : public views::View,
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
 
-  // gfx::AnimationDelegate:
-  void AnimationProgressed(const gfx::Animation* animation) override;
-  void AnimationEnded(const gfx::Animation* animation) override;
-
   // content::WebContentsDelegate:
   bool HandleKeyboardEvent(
       content::WebContents* source,
       const input::NativeWebKeyboardEvent& event) override;
 
  private:
+  void EnsureLoaded();
+
   raw_ptr<Browser> browser_;
   raw_ptr<views::WebView> web_view_ = nullptr;
 
+  bool loaded_ = false;
   bool expanded_ = false;
-  int current_width_ = 0;
-  int start_width_ = 0;
-  int target_width_ = 0;
-  gfx::LinearAnimation animation_;
   views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
 };
 

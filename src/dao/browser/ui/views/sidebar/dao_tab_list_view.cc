@@ -10,11 +10,16 @@
 #include "dao/browser/ui/views/sidebar/dao_new_tab_button.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_section_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_item_view.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/drop_target_event.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
+#include "ui/base/dragdrop/os_exchange_data_provider.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/compositor/canvas_painter.h"
+#include "ui/gfx/image/image_skia.h"
+#include "ui/views/paint_info.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/compositor/layer_tree_owner.h"
@@ -143,11 +148,8 @@ void DaoTabListView::RebuildTabList() {
 
 void DaoTabListView::OnTabClicked(int index) {
   if (tab_strip_model_ && index >= 0 && index < tab_strip_model_->count()) {
-    // Clicking the already-active tab opens the floating omnibox
+    // Clicking the already-active tab does nothing.
     if (tab_strip_model_->active_index() == index) {
-      if (show_omnibox_callback_) {
-        show_omnibox_callback_.Run();
-      }
       return;
     }
     tab_strip_model_->ActivateTabAt(index);
@@ -169,6 +171,23 @@ void DaoTabListView::WriteDragDataForView(views::View* sender,
   auto* tab_item = static_cast<DaoTabItemView*>(sender);
   drag_source_index_ = tab_item->model_index();
   data->SetString(u"dao-tab-drag");
+
+  // macOS requires a non-zero drag image; without one the drag session
+  // crashes in DragDropClientMac::StartDragAndDrop.
+  gfx::Size size = sender->size();
+  if (!size.IsEmpty()) {
+    SkBitmap bitmap;
+    {
+      ui::CanvasPainter canvas_painter(&bitmap, size, 1.f,
+                                       SK_ColorTRANSPARENT, false);
+      sender->Paint(views::PaintInfo::CreateRootPaintInfo(
+          canvas_painter.context(), size));
+    }
+    gfx::ImageSkia drag_image =
+        gfx::ImageSkia::CreateFromBitmap(bitmap, 1.f);
+    data->provider().SetDragImage(
+        drag_image, gfx::Vector2d(press_pt.x(), press_pt.y()));
+  }
 }
 
 int DaoTabListView::GetDragOperationsForView(views::View* sender,

@@ -17,6 +17,7 @@
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/controls/image_view.h"
+#include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 
 class Browser;
@@ -32,7 +33,8 @@ class DaoSuggestionItemView;
 
 class DaoCommandBarView : public views::View,
                           public views::TextfieldController,
-                          public AutocompleteController::Observer {
+                          public AutocompleteController::Observer,
+                          public views::FocusChangeListener {
   METADATA_HEADER(DaoCommandBarView, views::View)
 
  public:
@@ -53,6 +55,14 @@ class DaoCommandBarView : public views::View,
   void Layout(PassKey) override;
   void OnPaint(gfx::Canvas* canvas) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
+  void AddedToWidget() override;
+  void RemovedFromWidget() override;
+
+  // views::FocusChangeListener:
+  void OnWillChangeFocus(views::View* focused_before,
+                         views::View* focused_now) override;
+  void OnDidChangeFocus(views::View* focused_before,
+                        views::View* focused_now) override;
 
   // views::TextfieldController:
   bool HandleKeyEvent(views::Textfield* sender,
@@ -71,6 +81,7 @@ class DaoCommandBarView : public views::View,
   void NavigateToMatch(const AutocompleteMatch& match);
   static bool LooksLikeURL(const std::u16string& text);
   void DeferredRequestFocus();
+  void Dismiss();
 
   void CancelNewTab();
   void SetNewTabButtonHighlight(bool highlighted);

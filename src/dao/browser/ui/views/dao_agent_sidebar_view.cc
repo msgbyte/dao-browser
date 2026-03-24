@@ -9,7 +9,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/gfx/animation/tween.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/fill_layout.h"
 #include "url/gurl.h"
@@ -20,63 +19,53 @@ BEGIN_METADATA(DaoAgentSidebarView)
 END_METADATA
 
 DaoAgentSidebarView::DaoAgentSidebarView(Browser* browser)
-    : browser_(browser),
-      animation_(base::Milliseconds(150), 60, this) {
+    : browser_(browser) {
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
+  // WebView is created but NOT loaded until the first Toggle() expansion.
   web_view_ = AddChildView(
       std::make_unique<views::WebView>(browser->profile()));
-  web_view_->LoadInitialURL(
-      GURL(std::string(content::kChromeUIScheme) + "://agent"));
-
-  // Set this view as the WebContentsDelegate so that unhandled keyboard
-  // events (Cmd+C, Cmd+V, Cmd+A, etc.) are forwarded to the focus manager.
-  if (web_view_->GetWebContents()) {
-    web_view_->GetWebContents()->SetDelegate(this);
-  }
 }
 
 DaoAgentSidebarView::~DaoAgentSidebarView() {
-  // Clear the delegate to avoid dangling pointer.
   if (web_view_ && web_view_->GetWebContents()) {
     web_view_->GetWebContents()->SetDelegate(nullptr);
   }
 }
 
+void DaoAgentSidebarView::EnsureLoaded() {
+  if (loaded_) {
+    return;
+  }
+
+  loaded_ = true;
+  web_view_->LoadInitialURL(
+      GURL(std::string(content::kChromeUIScheme) + "://agent"));
+
+  if (web_view_->GetWebContents()) {
+    web_view_->GetWebContents()->SetDelegate(this);
+  }
+}
+
 bool DaoAgentSidebarView::Toggle() {
   expanded_ = !expanded_;
-  start_width_ = current_width_;
-  target_width_ = expanded_ ? kDefaultWidth : 0;
 
-  // Ensure visible during animation so it paints while collapsing.
-  SetVisible(true);
+  if (expanded_) {
+    EnsureLoaded();
+    SetVisible(true);
+  } else {
+    SetVisible(false);
+  }
 
-  animation_.Stop();
-  animation_.Start();
+  // Single layout pass — web content repaints exactly once.
+  PreferredSizeChanged();
 
   return expanded_;
 }
 
 gfx::Size DaoAgentSidebarView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
-  return gfx::Size(current_width_, 0);
-}
-
-void DaoAgentSidebarView::AnimationProgressed(
-    const gfx::Animation* animation) {
-  double t = gfx::Tween::CalculateValue(gfx::Tween::EASE_IN_OUT,
-                                         animation->GetCurrentValue());
-  current_width_ =
-      start_width_ + static_cast<int>((target_width_ - start_width_) * t);
-  PreferredSizeChanged();
-}
-
-void DaoAgentSidebarView::AnimationEnded(const gfx::Animation* animation) {
-  current_width_ = target_width_;
-  if (!expanded_) {
-    SetVisible(false);
-  }
-  PreferredSizeChanged();
+  return gfx::Size(expanded_ ? kDefaultWidth : 0, 0);
 }
 
 bool DaoAgentSidebarView::HandleKeyboardEvent(
