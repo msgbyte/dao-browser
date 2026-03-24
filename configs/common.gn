@@ -19,4 +19,3 @@ google_default_client_secret = ""
 # Disable telemetry and reporting
 enable_reporting = false
 safe_browsing_mode = 1
-fieldtrial_testing_like_official_build = true

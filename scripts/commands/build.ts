@@ -55,6 +55,7 @@ export const buildCommand = new Command("build")
       args += "is_debug = true\n";
       args += "is_component_build = true\n";
       args += "is_official_build = false\n";
+      args += "use_lld = false\n";
     }
 
     mkdirSync(outDir, { recursive: true });
