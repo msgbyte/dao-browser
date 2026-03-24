@@ -2,6 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Chromium WebUI enforces Trusted Types. Create a default policy that
+// passes HTML through — our markdown renderer already escapes user input.
+{
+  const w = window as unknown as
+      {trustedTypes?: {createPolicy: (name: string, rules: object) => void}};
+  if (w.trustedTypes && w.trustedTypes.createPolicy) {
+    w.trustedTypes.createPolicy('default', {
+      createHTML: (s: string) => s,
+      createScript: (s: string) => s,
+      createScriptURL: (s: string) => s,
+    });
+  }
+}
+
 // ---- Interfaces ----
 
 interface ChatMessage {
@@ -158,8 +172,8 @@ function switchMainTab(tab: string): void {
 function switchSettingsTab(tab: string): void {
   subTabs.forEach(
       t => t.classList.toggle('active', t.dataset['subtab'] === tab));
-  soulPanel.style.display = tab === 'soul' ? '' : 'none';
   connectionPanel.style.display = tab === 'connection' ? '' : 'none';
+  soulPanel.style.display = tab === 'soul' ? '' : 'none';
   memoryPanel.style.display = tab === 'memory' ? '' : 'none';
   if (tab === 'memory') {
     loadStorageStats();
@@ -232,8 +246,8 @@ const segments =
     document.querySelectorAll('.segment') as NodeListOf<HTMLButtonElement>;
 
 function loadMemorySettings(): void {
-  memoryEnabled.checked =
-      localStorage.getItem('dao_memory_enabled') !== 'false';
+  // Master switch is read from C++ pref (async); default to off until loaded.
+  memoryEnabled.checked = false;
   proactiveEnabled.checked =
       localStorage.getItem('dao_proactive_enabled') !== 'false';
   pageContextEnabled.checked =
@@ -246,14 +260,20 @@ function loadMemorySettings(): void {
     s.classList.toggle('active', isActive);
     s.setAttribute('aria-checked', String(isActive));
   });
+
+  // Fetch the real pref value from C++.
+  callNativeArgs('getMemoryEnabled').then(enabled => {
+    memoryEnabled.checked = !!enabled;
+  }).catch(() => {});
 }
 
 function saveMemorySetting(key: string, value: string): void {
   localStorage.setItem(key, value);
 }
 
-memoryEnabled.addEventListener('change', () =>
-    saveMemorySetting('dao_memory_enabled', String(memoryEnabled.checked)));
+memoryEnabled.addEventListener('change', () => {
+  callNativeArgs('setMemoryEnabled', memoryEnabled.checked).catch(() => {});
+});
 proactiveEnabled.addEventListener('change', () =>
     saveMemorySetting('dao_proactive_enabled', String(proactiveEnabled.checked)));
 pageContextEnabled.addEventListener('change', () =>
@@ -442,6 +462,7 @@ async function loadStorageStats(): Promise<void> {
 
 const messages: ChatMessage[] = [];
 let isStreaming = false;
+let currentAbortController: AbortController|null = null;
 let pageContentInjected = false;
 let memoryContextLoaded = false;
 
@@ -617,14 +638,150 @@ function addMessageBubble(
   return div;
 }
 
-function addToolMessage(name: string, result: string): void {
-  const truncated =
-      result.length > 200 ? result.substring(0, 200) + '...' : result;
-  addMessageBubble('tool', '\u{1F527} ' + name + ': ' + truncated);
+// ---- Thinking Indicator ----
+
+function addThinkingIndicator(): HTMLDivElement {
+  emptyState.style.display = 'none';
+  const div = document.createElement('div');
+  div.className = 'message assistant';
+  div.innerHTML = '<span class="typing-indicator"><span></span><span></span><span></span></span>';
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return div;
+}
+
+function removeThinkingIndicator(el: HTMLDivElement|null): void {
+  if (el && el.parentNode) {
+    el.parentNode.removeChild(el);
+  }
+}
+
+// ---- Streaming Bubble ----
+
+interface StreamingBubble {
+  el: HTMLDivElement;
+  appendToken: (text: string) => void;
+  finish: (usedMemory: boolean) => void;
+}
+
+function createStreamingBubble(): StreamingBubble {
+  emptyState.style.display = 'none';
+  const div = document.createElement('div');
+  div.className = 'message assistant streaming';
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  let buffer = '';
+  let renderTimer: ReturnType<typeof setTimeout>|null = null;
+
+  function render(): void {
+    renderTimer = null;
+    div.innerHTML = renderMarkdown(buffer);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  return {
+    el: div,
+    appendToken(text: string): void {
+      buffer += text;
+      if (!renderTimer) {
+        renderTimer = setTimeout(render, 50);
+      }
+    },
+    finish(usedMemory: boolean): void {
+      if (renderTimer) {
+        clearTimeout(renderTimer);
+      }
+      div.classList.remove('streaming');
+      div.innerHTML = renderMarkdown(buffer);
+      if (usedMemory) {
+        const badge = document.createElement('span');
+        badge.className = 'memory-badge';
+        badge.textContent = '\u2727';
+        badge.title = 'This response used your memory';
+        div.appendChild(badge);
+      }
+      chatArea.scrollTop = chatArea.scrollHeight;
+    },
+  };
+}
+
+// ---- Tool Call Bubble ----
+
+function addToolCallBubble(name: string): HTMLDivElement {
+  const div = document.createElement('div');
+  div.className = 'message tool-call';
+  div.innerHTML =
+      '<div class="tool-call-header">' +
+      '<span class="tool-call-spinner"></span>' +
+      '<span class="tool-call-name">' + escapeHtml(name) + '</span>' +
+      '<span class="tool-call-status">running...</span>' +
+      '</div>' +
+      '<div class="tool-call-result"></div>';
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return div;
+}
+
+function updateToolCallBubble(
+    el: HTMLDivElement, result: string, isError: boolean): void {
+  const header = el.querySelector('.tool-call-header');
+  const statusEl = el.querySelector('.tool-call-status');
+  const spinnerEl = el.querySelector('.tool-call-spinner');
+  const resultEl = el.querySelector('.tool-call-result');
+
+  if (spinnerEl) {
+    spinnerEl.outerHTML = isError ? '<span class="tool-call-icon">\u2717</span>'
+                                  : '<span class="tool-call-icon">\u2713</span>';
+  }
+  if (statusEl) {
+    statusEl.textContent = isError ? 'failed' : 'done';
+  }
+  el.classList.add(isError ? 'error' : 'success');
+
+  if (resultEl && result) {
+    const truncated = result.length > 300 ? result.substring(0, 300) + '...' : result;
+    resultEl.textContent = truncated;
+    // Add toggle button
+    const toggle = document.createElement('button');
+    toggle.className = 'tool-call-toggle';
+    toggle.textContent = 'show detail';
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const expanded = resultEl.classList.toggle('expanded');
+      toggle.textContent = expanded ? 'hide detail' : 'show detail';
+    });
+    if (header) {
+      header.appendChild(toggle);
+    }
+  }
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+// ---- Error Bubble ----
+
+function showErrorBubble(shortMsg: string, fullError: string): void {
+  emptyState.style.display = 'none';
+  const div = document.createElement('div');
+  div.className = 'message error';
+  div.innerHTML =
+      '<div class="error-summary">' +
+      '<span class="error-icon">\u26A0</span>' +
+      '<span class="error-text">' + escapeHtml(shortMsg) + '</span>' +
+      '</div>' +
+      '<div class="error-detail">' + escapeHtml(fullError) + '</div>';
+  div.addEventListener('click', () => {
+    const detail = div.querySelector('.error-detail');
+    if (detail) {
+      detail.classList.toggle('expanded');
+    }
+  });
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
 
 function showError(msg: string): void {
-  addMessageBubble('error', msg);
+  showErrorBubble(msg.length > 80 ? msg.substring(0, 80) + '...' : msg, msg);
 }
 
 // ---- Textarea auto-resize ----
@@ -642,7 +799,26 @@ userInput.addEventListener('keydown', (e: KeyboardEvent) => {
     sendMessage();
   }
 });
-sendBtn.addEventListener('click', sendMessage);
+sendBtn.addEventListener('click', () => {
+  if (isStreaming) {
+    stopStreaming();
+  } else {
+    sendMessage();
+  }
+});
+
+function stopStreaming(): void {
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+}
+
+function setStreamingUI(streaming: boolean): void {
+  isStreaming = streaming;
+  sendBtn.disabled = false;
+  sendBtn.classList.toggle('streaming', streaming);
+}
 
 async function sendMessage(): Promise<void> {
   const text = userInput.value.trim();
@@ -698,30 +874,33 @@ pageBtn.addEventListener('click', async () => {
 // ---- Conversation Loop (with function calling) ----
 
 async function runConversation(): Promise<void> {
-  isStreaming = true;
-  sendBtn.disabled = true;
+  setStreamingUI(true);
+  currentAbortController = new AbortController();
 
   // Hot-reload: read soul from localStorage on every conversation turn
   let soulContent = loadSoul();
 
-  // Inject memory context if enabled
+  // Inject memory context if enabled (best-effort, non-blocking with 3s timeout).
   if (memoryEnabled.checked && !memoryContextLoaded) {
     try {
-      const pageInfo = await callNative('getPageInfo') as
-          {url?: string; title?: string};
-      if (pageInfo.url) {
-        try {
-          const urlObj = new URL(pageInfo.url);
-          currentDomain = urlObj.hostname;
-        } catch (_) {
-          currentDomain = '';
+      const memoryTimeout = new Promise<never>((_, rej) =>
+          setTimeout(() => rej(new Error('memory timeout')), 3000));
+      const memoryLoad = (async () => {
+        const pageInfo = await callNative('getPageInfo') as
+            {url?: string; title?: string};
+        if (pageInfo.url) {
+          try {
+            currentDomain = new URL(pageInfo.url).hostname;
+          } catch (_) {
+            currentDomain = '';
+          }
         }
-      }
-      const ctx = await callNativeArgs('getMemoryContext',
-          pageInfo.url || '', currentDomain, sessionId) as
-          {preferences?: Array<{key: string; value: string}>;
-           episodes?: Array<{intent: string; outcome: string}>;
-           recentMessages?: Array<{role: string; content: string}>};
+        return await callNativeArgs('getMemoryContext',
+            pageInfo.url || '', currentDomain, sessionId) as
+            {preferences?: Array<{key: string; value: string}>;
+             episodes?: Array<{intent: string; outcome: string}>};
+      })();
+      const ctx = await Promise.race([memoryLoad, memoryTimeout]);
 
       let memoryBlock = '';
       if (ctx.preferences && ctx.preferences.length > 0) {
@@ -738,107 +917,198 @@ async function runConversation(): Promise<void> {
       }
       if (memoryBlock) {
         soulContent += memoryBlock;
-      }
-
-      // First Memory Moment: show toast if this is the first time memory is used
-      if (memoryBlock && !hasFirstMemory) {
-        hasFirstMemory = true;
-        if (!localStorage.getItem('dao_first_memory_shown')) {
-          localStorage.setItem('dao_first_memory_shown', 'true');
-          showToast('Memory activated — your Agent is learning');
+        if (!hasFirstMemory) {
+          hasFirstMemory = true;
+          if (!localStorage.getItem('dao_first_memory_shown')) {
+            localStorage.setItem('dao_first_memory_shown', 'true');
+            showToast('Memory activated — your Agent is learning');
+          }
         }
       }
-
       memoryContextLoaded = true;
     } catch (_) {
-      // Memory context is best-effort
+      memoryContextLoaded = true;
     }
   }
 
-  const systemPrompt: ChatMessage = {
-    role: 'system',
-    content: soulContent,
-  };
+  const systemPrompt: ChatMessage = {role: 'system', content: soulContent};
 
   try {
     let continueLoop = true;
     while (continueLoop) {
       continueLoop = false;
 
-      const response = await callLLM([systemPrompt, ...messages]);
+      // Show thinking indicator immediately
+      let thinkingEl: HTMLDivElement|null = addThinkingIndicator();
+      let streamBubble: StreamingBubble|null = null;
+      let hadError = false;
+      const toolCallBubbles: Record<string, HTMLDivElement> = {};
+      const signal = currentAbortController?.signal;
 
-      if (response.error) {
-        showError('API Error: ' + response.error);
-        break;
-      }
+      await new Promise<void>((resolve) => {
+        callLLMStreaming([systemPrompt, ...messages], {
+          onToken(text: string): void {
+            // First token: replace thinking indicator with streaming bubble
+            if (thinkingEl) {
+              removeThinkingIndicator(thinkingEl);
+              thinkingEl = null;
+              streamBubble = createStreamingBubble();
+            }
+            if (streamBubble) {
+              streamBubble.appendToken(text);
+            }
+          },
 
-      const choice = response.choices && response.choices[0];
-      if (!choice) {
-        showError('No response from LLM');
-        break;
-      }
+          onToolCall(tc: ToolCall): void {
+            // Remove thinking indicator if still showing
+            if (thinkingEl) {
+              removeThinkingIndicator(thinkingEl);
+              thinkingEl = null;
+            }
+            const bubble = addToolCallBubble(tc.function.name);
+            toolCallBubbles[tc.id] = bubble;
+          },
 
-      const msg = choice.message;
+          onDone(fullContent: string, toolCalls: ToolCall[]): void {
+            // Clean up thinking indicator if no content was received
+            if (thinkingEl) {
+              removeThinkingIndicator(thinkingEl);
+              thinkingEl = null;
+            }
 
-      if (msg.tool_calls && msg.tool_calls.length > 0) {
-        messages.push({
-          role: 'assistant',
-          content: msg.content || null,
-          tool_calls: msg.tool_calls,
+            if (toolCalls.length > 0) {
+              // Finish any streaming content first
+              if (streamBubble) {
+                streamBubble.finish(false);
+                streamBubble = null;
+              }
+
+              messages.push({
+                role: 'assistant',
+                content: fullContent || null,
+                tool_calls: toolCalls,
+              });
+
+              // Execute tool calls and continue
+              (async () => {
+                try {
+                  for (const tc of toolCalls) {
+                    const fn = tc.function;
+                    let args: Record<string, string> = {};
+                    try {
+                      args = fn.arguments ? JSON.parse(fn.arguments) : {};
+                    } catch (_) {
+                      // ignore parse errors
+                    }
+
+                    const bubble = toolCallBubbles[tc.id];
+
+                    let result: unknown;
+                    let isToolError = false;
+                    try {
+                      result = await executeTool(fn.name, args);
+                    } catch (e) {
+                      result = {error: (e as Error).message};
+                      isToolError = true;
+                    }
+
+                    const resultStr =
+                        typeof result === 'string' ? result : JSON.stringify(result);
+
+                    if (bubble) {
+                      updateToolCallBubble(bubble, resultStr, isToolError);
+                    }
+
+                    messages.push({
+                      role: 'tool',
+                      tool_call_id: tc.id,
+                      content: resultStr,
+                    });
+                  }
+
+                  continueLoop = true;
+                } catch (e) {
+                  hadError = true;
+                  showErrorBubble('Tool Error', (e as Error).message || 'Tool execution failed');
+                }
+                resolve();
+              })();
+            } else {
+              // No tool calls — just finish the streaming bubble
+              if (streamBubble) {
+                streamBubble.finish(memoryContextLoaded);
+              } else if (fullContent) {
+                addMessageBubble('assistant', fullContent, memoryContextLoaded);
+              }
+              messages.push({role: 'assistant', content: fullContent || ''});
+              resolve();
+            }
+          },
+
+          onError(shortMsg: string, fullError: string): void {
+            if (thinkingEl) {
+              removeThinkingIndicator(thinkingEl);
+              thinkingEl = null;
+            }
+            hadError = true;
+            showErrorBubble(shortMsg, fullError);
+            resolve();
+          },
+        }, signal).catch((e: Error) => {
+          if (thinkingEl) {
+            removeThinkingIndicator(thinkingEl);
+            thinkingEl = null;
+          }
+          if (e.name === 'AbortError') {
+            // User cancelled — finish any partial streaming content
+            if (streamBubble) {
+              streamBubble.finish(false);
+            }
+            hadError = true;
+            resolve();
+            return;
+          }
+          hadError = true;
+          showErrorBubble(
+              'Network Error',
+              e.message || 'Failed to connect to API');
+          resolve();
         });
-        if (msg.content) {
-          addMessageBubble('assistant', msg.content);
-        }
+      });
 
-        for (const tc of msg.tool_calls) {
-          const fn = tc.function;
-          let args: Record<string, string> = {};
-          try {
-            args = fn.arguments ? JSON.parse(fn.arguments) : {};
-          } catch (_) {
-            // ignore parse errors
-          }
-
-          let result: unknown;
-          try {
-            result = await executeTool(fn.name, args);
-          } catch (e) {
-            result = {error: (e as Error).message};
-          }
-
-          const resultStr =
-              typeof result === 'string' ? result : JSON.stringify(result);
-          addToolMessage(fn.name, resultStr);
-
-          messages.push({
-            role: 'tool',
-            tool_call_id: tc.id,
-            content: resultStr,
-          });
-        }
-
-        continueLoop = true;
-      } else {
-        messages.push({role: 'assistant', content: msg.content || ''});
-        addMessageBubble('assistant', msg.content || '', memoryContextLoaded);
-      }
+      if (hadError) break;
     }
   } catch (e) {
-    showError('Error: ' + (e as Error).message);
+    if ((e as Error).name !== 'AbortError') {
+      showErrorBubble('Error', (e as Error).message || 'Unknown error');
+    }
+  } finally {
+    currentAbortController = null;
+    setStreamingUI(false);
   }
-
-  isStreaming = false;
-  sendBtn.disabled = false;
 }
 
-// ---- LLM API Call ----
+// ---- LLM API Call (Streaming) ----
 
-async function callLLM(msgs: ChatMessage[]): Promise<LLMResponse> {
-  const baseUrl = baseUrlInput.value.replace(/\/+$/, '');
+interface StreamCallbacks {
+  onToken: (text: string) => void;
+  onToolCall: (toolCall: ToolCall) => void;
+  onDone: (fullContent: string, toolCalls: ToolCall[]) => void;
+  onError: (shortMsg: string, fullError: string) => void;
+}
+
+async function callLLMStreaming(
+    msgs: ChatMessage[], callbacks: StreamCallbacks,
+    signal?: AbortSignal): Promise<void> {
+  let baseUrl = baseUrlInput.value.replace(/\/+$/, '');
+  if (!baseUrl.endsWith('/v1')) {
+    baseUrl += '/v1';
+  }
   const url = baseUrl + '/chat/completions';
 
   const body = {
     model: modelInput.value,
+    stream: true,
     messages: msgs.map(m => {
       const obj: Record<string, unknown> = {role: m.role, content: m.content};
       if (m.tool_calls) {
@@ -856,21 +1126,107 @@ async function callLLM(msgs: ChatMessage[]): Promise<LLMResponse> {
     tool_choice: 'auto',
   };
 
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKeyInput.value,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    return {error: resp.status + ' ' + text.substring(0, 200)};
+  let resp: Response;
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKeyInput.value,
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (e) {
+    // fetch itself can throw (network error, CORS, AbortError, etc.)
+    const err = e as Error;
+    if (err.name === 'AbortError') throw err;
+    callbacks.onError('Connection Failed', err.message || 'Cannot reach API');
+    return;
   }
 
-  return await resp.json();
+  if (!resp.ok) {
+    let text = '';
+    try { text = await resp.text(); } catch (_) { /* ignore */ }
+    callbacks.onError(
+        'API Error: ' + resp.status,
+        resp.status + ' ' + text.substring(0, 500));
+    return;
+  }
+
+  if (!resp.body) {
+    callbacks.onError('No Response Body', 'The API returned no streaming body');
+    return;
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let partialLine = '';
+  let fullContent = '';
+  const toolCallMap: Record<number, {id: string; type: 'function'; function: {name: string; arguments: string}}> = {};
+  const toolCallsEmitted = new Set<number>();
+
+  try {
+    while (true) {
+      if (signal?.aborted) break;
+      const {done, value} = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, {stream: true});
+      const lines = (partialLine + chunk).split('\n');
+      partialLine = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        const data = trimmed.slice(6);
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta;
+          if (!delta) continue;
+
+          if (delta.content) {
+            fullContent += delta.content;
+            callbacks.onToken(delta.content);
+          }
+
+          if (delta.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              const idx = tc.index ?? 0;
+              if (!toolCallMap[idx]) {
+                toolCallMap[idx] = {
+                  id: tc.id || '',
+                  type: 'function',
+                  function: {name: '', arguments: ''},
+                };
+              }
+              if (tc.id) toolCallMap[idx].id = tc.id;
+              if (tc.function?.name) toolCallMap[idx].function.name += tc.function.name;
+              if (tc.function?.arguments) toolCallMap[idx].function.arguments += tc.function.arguments;
+
+              if (toolCallMap[idx].function.name && !toolCallsEmitted.has(idx)) {
+                toolCallsEmitted.add(idx);
+                callbacks.onToolCall(toolCallMap[idx]);
+              }
+            }
+          }
+        } catch (_) {
+          // Skip malformed JSON lines
+        }
+      }
+    }
+  } catch (e) {
+    const err = e as Error;
+    if (err.name === 'AbortError') throw err;
+    // Stream read error — still deliver whatever we have
+    callbacks.onError('Stream Error', err.message || 'Error reading response stream');
+    return;
+  }
+
+  const allToolCalls = Object.values(toolCallMap);
+  callbacks.onDone(fullContent, allToolCalls);
 }
 
 // ---- Tool Execution ----

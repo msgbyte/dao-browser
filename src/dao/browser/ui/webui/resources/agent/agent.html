@@ -47,7 +47,8 @@
       <textarea id="userInput" rows="1" placeholder="Message Dao Agent..."></textarea>
     </div>
     <button class="send-btn" id="sendBtn" title="Send">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      <svg class="send-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      <svg class="stop-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
     </button>
   </div>
 </div>
@@ -55,25 +56,13 @@
 <!-- Settings View (hidden) -->
 <div class="settings-view" id="settingsView" style="display:none;">
   <div class="settings-sub-tabs">
-    <button class="sub-tab active" data-subtab="soul">Soul</button>
-    <button class="sub-tab" data-subtab="connection">Connection</button>
+    <button class="sub-tab active" data-subtab="connection">Connection</button>
+    <button class="sub-tab" data-subtab="soul">Soul</button>
     <button class="sub-tab" data-subtab="memory">Memory</button>
   </div>
 
-  <!-- Soul Panel -->
-  <div class="settings-panel-content" id="soulPanel">
-    <div class="section-title">Soul Prompt</div>
-    <div class="section-desc">Define the AI agent's personality and behavior. This is used as the system prompt in every conversation.</div>
-    <textarea id="soulEditor" class="soul-editor" placeholder="Enter your soul prompt here..."></textarea>
-    <div class="soul-actions">
-      <button class="btn-primary" id="saveSoulBtn">Save</button>
-      <button class="btn-secondary" id="resetSoulBtn">Reset to Default</button>
-      <span class="save-status" id="saveStatus"></span>
-    </div>
-  </div>
-
   <!-- Connection Panel -->
-  <div class="settings-panel-content" id="connectionPanel" style="display:none;">
+  <div class="settings-panel-content" id="connectionPanel">
     <div class="section-title">API Connection</div>
     <div class="section-desc">Configure the LLM API endpoint for the agent.</div>
     <label>API Key</label>
@@ -82,6 +71,18 @@
     <input type="text" id="baseUrl" placeholder="https://api.openai.com/v1">
     <label>Model</label>
     <input type="text" id="model" placeholder="gpt-5">
+  </div>
+
+  <!-- Soul Panel -->
+  <div class="settings-panel-content" id="soulPanel" style="display:none;">
+    <div class="section-title">Soul Prompt</div>
+    <div class="section-desc">Define the AI agent's personality and behavior. This is used as the system prompt in every conversation.</div>
+    <textarea id="soulEditor" class="soul-editor" placeholder="Enter your soul prompt here..."></textarea>
+    <div class="soul-actions">
+      <button class="btn-primary" id="saveSoulBtn">Save</button>
+      <button class="btn-secondary" id="resetSoulBtn">Reset to Default</button>
+      <span class="save-status" id="saveStatus"></span>
+    </div>
   </div>
 
   <!-- Memory Panel -->
