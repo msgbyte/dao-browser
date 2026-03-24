@@ -20,8 +20,10 @@
 #include "content/public/common/url_constants.h"
 #include "chrome/grit/dao_agent_resources.h"
 #include "chrome/grit/dao_agent_resources_map.h"
+#include "components/prefs/pref_service.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
+#include "dao/browser/dao_pref_names.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 
 namespace dao {
@@ -445,6 +447,14 @@ void DaoAgentMemoryHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "acceptSuggestion",
       base::BindRepeating(&DaoAgentMemoryHandler::HandleAcceptSuggestion,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getMemoryEnabled",
+      base::BindRepeating(&DaoAgentMemoryHandler::HandleGetMemoryEnabled,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setMemoryEnabled",
+      base::BindRepeating(&DaoAgentMemoryHandler::HandleSetMemoryEnabled,
                           base::Unretained(this)));
 }
 
@@ -938,6 +948,31 @@ void DaoAgentMemoryHandler::HandleAcceptSuggestion(
           weak_factory_.GetWeakPtr(), callback_id));
 }
 
+void DaoAgentMemoryHandler::HandleGetMemoryEnabled(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  bool enabled = profile->GetPrefs()->GetBoolean(prefs::kDaoAgentMemoryEnabled);
+  ResolveJavascriptCallback(base::Value(callback_id), base::Value(enabled));
+}
+
+void DaoAgentMemoryHandler::HandleSetMemoryEnabled(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_bool()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  bool enabled = args[1].GetBool();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  profile->GetPrefs()->SetBoolean(prefs::kDaoAgentMemoryEnabled, enabled);
+  ResolveJavascriptCallback(base::Value(callback_id), base::Value(true));
+}
+
 // ---- DaoAgentUIConfig ----
 
 DaoAgentUIConfig::DaoAgentUIConfig()
@@ -965,6 +1000,11 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui)
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ConnectSrc,
       "connect-src * 'self';");
+
+  // Allow innerHTML usage (streaming markdown rendering).
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::TrustedTypes,
+      "trusted-types default;");
 
   // Register message handlers.
   web_ui->AddMessageHandler(std::make_unique<DaoAgentUIHandler>());

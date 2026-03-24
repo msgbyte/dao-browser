@@ -6,13 +6,18 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
+#include "components/prefs/pref_service.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
+#include "dao/browser/dao_pref_names.h"
 
 namespace dao {
 
 // static
 DaoAgentMemoryService* DaoAgentMemoryServiceFactory::GetForProfile(
     Profile* profile) {
+  if (!profile->GetPrefs()->GetBoolean(prefs::kDaoAgentMemoryEnabled)) {
+    return nullptr;
+  }
   return static_cast<DaoAgentMemoryService*>(
       GetInstance()->GetServiceForBrowserContext(profile, /*create=*/true));
 }

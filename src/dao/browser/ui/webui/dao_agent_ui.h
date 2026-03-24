@@ -121,6 +121,8 @@ class DaoAgentMemoryHandler : public content::WebUIMessageHandler,
   void HandleGetStorageStats(const base::Value::List& args);
   void HandleDismissSuggestion(const base::Value::List& args);
   void HandleAcceptSuggestion(const base::Value::List& args);
+  void HandleGetMemoryEnabled(const base::Value::List& args);
+  void HandleSetMemoryEnabled(const base::Value::List& args);
 
   std::unique_ptr<DaoAgentProactiveEngine> proactive_engine_;
   base::WeakPtrFactory<DaoAgentMemoryHandler> weak_factory_{this};
