@@ -5,6 +5,8 @@
 // Shared non-UI utilities: chrome.send bridge, interfaces, LLM streaming,
 // markdown rendering, constants.
 
+import {READABILITY_INJECT_SCRIPT} from './readability_bundle.js';
+
 // ---- Interfaces ----
 
 export interface ChatMessage {
@@ -135,7 +137,8 @@ export const BASE_SYSTEM_PROMPT =
 
 You have the following browser tools at your disposal — use them proactively when they help answer the user's request:
 
-- **get_page_content** — Extract the main text content of the current webpage. Use this when the user asks about what's on the page, wants a summary, or needs you to analyze page content.
+- **get_page_content** — Extract the raw text content of the current webpage (document.body.innerText). Use this as a fallback when get_readable_content fails or for non-article pages.
+- **get_readable_content** — Extract the main article content using Mozilla Readability. Strips navigation, ads, sidebars, and boilerplate, returning only the article title, byline, excerpt, and clean text. **Prefer this over get_page_content** for news articles, blog posts, and documentation — it produces much smaller, focused output.
 - **get_page_info** — Get the current page URL, title, and meta description. Use this for context about where the user is browsing.
 - **click_element** — Click an element on the page by CSS selector. Use this when the user asks you to interact with the page (e.g. "click the login button", "close that popup").
 - **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover.
@@ -143,7 +146,7 @@ You have the following browser tools at your disposal — use them proactively w
 
 ## Guidelines
 
-- When the user asks about page content, call \`get_page_content\` or \`get_page_info\` first — don't guess.
+- When the user asks about page content, call \`get_readable_content\` first for articles/news/docs (smaller, cleaner output), or \`get_page_content\` for other pages — don't guess.
 - Prefer precise CSS selectors when clicking elements.
 - For \`execute_script\`, return serializable values (strings, numbers, plain objects). Avoid returning DOM nodes directly.
 - Always tell the user what you did after using a tool.
@@ -321,6 +324,15 @@ export const tools: ToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'get_readable_content',
+      description:
+          'Extract the main article content from the current webpage using Mozilla Readability. Returns the cleaned article title, byline, excerpt, and text content with navigation/ads/sidebars removed. Best for news articles, blog posts, and documentation pages.',
+      parameters: {type: 'object', properties: {}, required: []},
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'update_soul',
       description:
           'Update your SOUL.md. Use when the user asks you to change your personality, behavior, or expresses a persistent preference. Always tell the user what you changed.',
@@ -365,6 +377,19 @@ export async function executeTool(
       return await callNative('clickElement', {selector: args['selector']});
     case 'execute_script':
       return await callNative('executeScript', {code: args['code']});
+    case 'get_readable_content': {
+      const raw = await callNative(
+          'executeScript', {code: READABILITY_INJECT_SCRIPT}) as
+          {result?: string; error?: string};
+      if (raw.error) {
+        return {error: raw.error};
+      }
+      try {
+        return JSON.parse(raw.result || '{}');
+      } catch {
+        return {error: 'Failed to parse readability result'};
+      }
+    }
     case 'update_soul':
       return updateSoulByAction(
           args['action'] || '', args['content'] || '', args['section']);

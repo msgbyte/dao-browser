@@ -17,7 +17,8 @@
     "package": "tsx scripts/cli.ts package",
     "package:zip": "tsx scripts/cli.ts package --zip",
     "setup": "npm run download && npm run import",
-    "rebuild": "npm run import && npm run build:debug"
+    "rebuild": "npm run import && npm run build:debug",
+    "gen:readability": "tsx scripts/gen_readability_bundle.ts"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
@@ -25,6 +26,7 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "fs-extra": "^11.3.0",
