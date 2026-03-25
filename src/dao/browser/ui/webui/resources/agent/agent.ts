@@ -63,6 +63,32 @@ interface CrNamespace {
   addWebUIListener: (event: string, callback: (...args: any[]) => void) => void;
 }
 
+// ---- Base System Prompt (fixed, not user-editable) ----
+
+const BASE_SYSTEM_PROMPT = `You are Dao Agent — a built-in AI assistant living inside the Dao Browser. You can see and interact with the webpage the user is currently viewing.
+
+## Environment
+
+- You run inside a Chromium-based browser as a sidebar panel.
+- The user is browsing the web; you can read, analyze, and act on the current page.
+
+## Available Tools
+
+You have the following browser tools at your disposal — use them proactively when they help answer the user's request:
+
+- **get_page_content** — Extract the main text content of the current webpage. Use this when the user asks about what's on the page, wants a summary, or needs you to analyze page content.
+- **get_page_info** — Get the current page URL, title, and meta description. Use this for context about where the user is browsing.
+- **click_element** — Click an element on the page by CSS selector. Use this when the user asks you to interact with the page (e.g. "click the login button", "close that popup").
+- **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover.
+
+## Guidelines
+
+- When the user asks about page content, call \`get_page_content\` or \`get_page_info\` first — don't guess.
+- Prefer precise CSS selectors when clicking elements.
+- For \`execute_script\`, return serializable values (strings, numbers, plain objects). Avoid returning DOM nodes directly.
+- Always tell the user what you did after using a tool.
+`;
+
 // ---- Default Soul Template ----
 
 const DEFAULT_SOUL = `# SOUL.md - Who You Are
@@ -110,7 +136,25 @@ function loadSoul(): string {
 
 function saveSoul(text: string): void {
   localStorage.setItem('dao_agent_soul', text);
+  currentSoulContent = text;
+  soulChannel.postMessage({type: 'soul_updated'});
 }
+
+// ---- Soul Sync (cross-tab + in-loop hot-reload) ----
+
+const soulChannel = new BroadcastChannel('dao_agent_soul_sync');
+let currentSoulContent: string = loadSoul();
+
+soulChannel.addEventListener('message', () => {
+  const newSoul = loadSoul();
+  const oldSoul = currentSoulContent;
+  currentSoulContent = newSoul;
+
+  if (soulEditor.value === oldSoul) {
+    soulEditor.value = newSoul;
+  }
+  showToast('Soul updated from another tab');
+});
 
 // ---- Settings (Connection) ----
 
@@ -1169,8 +1213,8 @@ async function runConversation(): Promise<void> {
   setStreamingUI(true);
   currentAbortController = new AbortController();
 
-  // Hot-reload: read soul from localStorage on every conversation turn
-  let soulContent = loadSoul();
+  // Build system prompt: fixed base prompt + user-editable soul + memory context
+  let soulContent = BASE_SYSTEM_PROMPT + '\n' + loadSoul();
 
   // Inject memory context if enabled (best-effort, non-blocking with 3s timeout).
   if (memoryEnabled.checked && !memoryContextLoaded) {
