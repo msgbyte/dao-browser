@@ -4,6 +4,8 @@
 
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 
+#include <algorithm>
+
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "content/public/browser/web_contents.h"
@@ -20,7 +22,8 @@ END_METADATA
 
 DaoAgentSidebarView::DaoAgentSidebarView(Browser* browser)
     : browser_(browser) {
-  SetLayoutManager(std::make_unique<views::FillLayout>());
+  // Resize handle on the left edge (drag to resize).
+  resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
 
   // WebView is created but NOT loaded until the first Toggle() expansion.
   web_view_ = AddChildView(
@@ -65,7 +68,22 @@ bool DaoAgentSidebarView::Toggle() {
 
 gfx::Size DaoAgentSidebarView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
-  return gfx::Size(expanded_ ? kDefaultWidth : 0, 0);
+  return gfx::Size(expanded_ ? current_width_ : 0, 0);
+}
+
+void DaoAgentSidebarView::Layout(PassKey) {
+  // Position the resize area on the left edge.
+  if (resize_area_) {
+    resize_area_->SetBoundsRect(
+        gfx::Rect(0, 0, kResizeAreaWidth, height()));
+  }
+
+  // WebView fills the remaining area after the resize handle.
+  if (web_view_) {
+    web_view_->SetBoundsRect(
+        gfx::Rect(kResizeAreaWidth, 0,
+                   std::max(0, width() - kResizeAreaWidth), height()));
+  }
 }
 
 bool DaoAgentSidebarView::HandleKeyboardEvent(
@@ -73,6 +91,30 @@ bool DaoAgentSidebarView::HandleKeyboardEvent(
     const input::NativeWebKeyboardEvent& event) {
   return unhandled_keyboard_event_handler_.HandleKeyboardEvent(
       event, GetFocusManager());
+}
+
+void DaoAgentSidebarView::OnResize(int resize_amount, bool done_resizing) {
+  if (!expanded_) {
+    return;
+  }
+
+  if (!is_resizing_) {
+    is_resizing_ = true;
+    resize_start_width_ = current_width_;
+  }
+
+  // Left-edge drag: dragging left (negative resize_amount) should increase
+  // width, dragging right should decrease it.
+  int new_width = resize_start_width_ - resize_amount;
+  new_width = std::clamp(new_width, kMinWidth, kMaxWidth);
+  current_width_ = new_width;
+
+  if (done_resizing) {
+    is_resizing_ = false;
+    user_width_ = new_width;
+  }
+
+  PreferredSizeChanged();
 }
 
 }  // namespace dao

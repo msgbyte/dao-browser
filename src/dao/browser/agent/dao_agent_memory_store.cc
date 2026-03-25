@@ -193,6 +193,43 @@ bool DaoAgentMemoryStore::CreateSchema() {
       "  VALUES (new.id, new.key, new.value);"
       "END");
 
+  // Scenarios table (personal scenarios only — seeds are hard-coded)
+  if (!db_->Execute(
+          "CREATE TABLE IF NOT EXISTS scenarios ("
+          "  id TEXT PRIMARY KEY,"
+          "  type TEXT NOT NULL,"
+          "  name TEXT NOT NULL,"
+          "  description TEXT,"
+          "  url_pattern TEXT NOT NULL,"
+          "  page_hints TEXT,"
+          "  action_prompt TEXT NOT NULL,"
+          "  action_label TEXT NOT NULL,"
+          "  requires_page_content INTEGER DEFAULT 1,"
+          "  times_triggered INTEGER DEFAULT 0,"
+          "  times_accepted INTEGER DEFAULT 0,"
+          "  times_dismissed INTEGER DEFAULT 0,"
+          "  created_at INTEGER NOT NULL,"
+          "  last_triggered_at INTEGER DEFAULT 0"
+          ")")) {
+    return false;
+  }
+
+  // Action feedback table
+  if (!db_->Execute(
+          "CREATE TABLE IF NOT EXISTS action_feedback ("
+          "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+          "  scenario_id TEXT,"
+          "  action_label TEXT NOT NULL,"
+          "  domain TEXT NOT NULL,"
+          "  url TEXT NOT NULL,"
+          "  trigger_confidence REAL,"
+          "  outcome TEXT NOT NULL,"
+          "  timestamp INTEGER NOT NULL,"
+          "  session_id TEXT"
+          ")")) {
+    return false;
+  }
+
   // Indexes
   std::ignore = db_->Execute(
       "CREATE INDEX IF NOT EXISTS idx_conversations_session "
@@ -212,13 +249,15 @@ bool DaoAgentMemoryStore::CreateSchema() {
   std::ignore = db_->Execute(
       "CREATE INDEX IF NOT EXISTS idx_summaries_domain "
       "ON conversation_summaries(primary_domain)");
+  std::ignore = db_->Execute(
+      "CREATE INDEX IF NOT EXISTS idx_feedback_lookup "
+      "ON action_feedback(scenario_id, domain, timestamp)");
 
   return transaction.Commit();
 }
 
 bool DaoAgentMemoryStore::MigrateIfNeeded() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Version 1 is the initial schema. Future migrations go here.
   int version = meta_table_->GetVersionNumber();
   if (version == kCurrentSchemaVersion) {
     return true;
@@ -229,7 +268,18 @@ bool DaoAgentMemoryStore::MigrateIfNeeded() {
                  << " is newer than expected " << kCurrentSchemaVersion;
     return false;
   }
-  // Future migration logic goes here.
+
+  // v1 → v2: Add scenarios table, action_feedback table, and episode columns.
+  if (version == 1) {
+    // New columns on episodes (nullable, so existing rows are unaffected).
+    std::ignore =
+        db_->Execute("ALTER TABLE episodes ADD COLUMN user_action TEXT");
+    std::ignore =
+        db_->Execute("ALTER TABLE episodes ADD COLUMN action_result TEXT");
+    std::ignore = meta_table_->SetVersionNumber(2);
+    std::ignore = meta_table_->SetCompatibleVersionNumber(2);
+  }
+
   return true;
 }
 
@@ -520,8 +570,8 @@ bool DaoAgentMemoryStore::SaveEpisode(const Episode& episode) {
       SQL_FROM_HERE,
       "INSERT INTO episodes "
       "(domain, path_template, url, title, intent, entities, tools_used, "
-      "outcome, timestamp, confidence) "
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
+      "outcome, timestamp, confidence, user_action, action_result) "
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
   stmt.BindString(0, episode.domain);
   stmt.BindString(1, episode.path_template);
   stmt.BindString(2, episode.url);
@@ -532,6 +582,8 @@ bool DaoAgentMemoryStore::SaveEpisode(const Episode& episode) {
   stmt.BindString(7, episode.outcome);
   stmt.BindInt64(8, TimeToInt(episode.timestamp));
   stmt.BindDouble(9, episode.confidence);
+  stmt.BindString(10, episode.user_action);
+  stmt.BindString(11, episode.action_result);
   return stmt.Run();
 }
 
@@ -544,7 +596,7 @@ std::vector<Episode> DaoAgentMemoryStore::GetEpisodesByDomain(
   sql::Statement stmt(db_->GetCachedStatement(
       SQL_FROM_HERE,
       "SELECT id, domain, path_template, url, title, intent, entities, "
-      "tools_used, outcome, timestamp, confidence "
+      "tools_used, outcome, timestamp, confidence, user_action, action_result "
       "FROM episodes WHERE domain=? "
       "ORDER BY timestamp DESC LIMIT ?"));
   stmt.BindString(0, domain);
@@ -563,6 +615,8 @@ std::vector<Episode> DaoAgentMemoryStore::GetEpisodesByDomain(
     e.outcome = stmt.ColumnString(8);
     e.timestamp = TimeFromInt(stmt.ColumnInt64(9));
     e.confidence = stmt.ColumnDouble(10);
+    e.user_action = stmt.ColumnString(11);
+    e.action_result = stmt.ColumnString(12);
     result.push_back(std::move(e));
   }
   return result;
@@ -579,7 +633,7 @@ std::vector<Episode> DaoAgentMemoryStore::SearchEpisodes(
       SQL_FROM_HERE,
       "SELECT e.id, e.domain, e.path_template, e.url, e.title, "
       "e.intent, e.entities, e.tools_used, e.outcome, e.timestamp, "
-      "e.confidence "
+      "e.confidence, e.user_action, e.action_result "
       "FROM episodes e "
       "JOIN episodes_fts f ON e.id = f.rowid "
       "WHERE episodes_fts MATCH ? AND e.domain=? "
@@ -601,6 +655,8 @@ std::vector<Episode> DaoAgentMemoryStore::SearchEpisodes(
     e.outcome = stmt.ColumnString(8);
     e.timestamp = TimeFromInt(stmt.ColumnInt64(9));
     e.confidence = stmt.ColumnDouble(10);
+    e.user_action = stmt.ColumnString(11);
+    e.action_result = stmt.ColumnString(12);
     result.push_back(std::move(e));
   }
   return result;
@@ -667,6 +723,8 @@ bool DaoAgentMemoryStore::ClearAll() {
   std::ignore = db_->Execute("DELETE FROM conversation_summaries");
   std::ignore = db_->Execute("DELETE FROM preferences");
   std::ignore = db_->Execute("DELETE FROM episodes");
+  std::ignore = db_->Execute("DELETE FROM scenarios");
+  std::ignore = db_->Execute("DELETE FROM action_feedback");
 
   return transaction.Commit();
 }
@@ -745,6 +803,192 @@ bool DaoAgentMemoryStore::EnforceRowLimits() {
       ")");
 
   return transaction.Commit();
+}
+
+// --- Episodes (extended) ---
+
+int DaoAgentMemoryStore::GetDomainEpisodeCountWithAction(
+    const std::string& domain) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "SELECT COUNT(*) FROM episodes "
+      "WHERE domain=? AND user_action IS NOT NULL AND user_action != ''"));
+  stmt.BindString(0, domain);
+  if (stmt.Step()) {
+    return stmt.ColumnInt(0);
+  }
+  return 0;
+}
+
+// --- Scenarios ---
+
+bool DaoAgentMemoryStore::SavePersonalScenario(
+    const ScenarioDefinition& scenario) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "INSERT OR REPLACE INTO scenarios "
+      "(id, type, name, description, url_pattern, page_hints, action_prompt, "
+      "action_label, requires_page_content, times_triggered, times_accepted, "
+      "times_dismissed, created_at, last_triggered_at) "
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
+  stmt.BindString(0, scenario.id);
+  stmt.BindString(1, scenario.type);
+  stmt.BindString(2, scenario.name);
+  stmt.BindString(3, scenario.description);
+  stmt.BindString(4, scenario.url_pattern);
+  stmt.BindString(5, scenario.page_hints);
+  stmt.BindString(6, scenario.action_prompt);
+  stmt.BindString(7, scenario.action_label);
+  stmt.BindInt(8, scenario.requires_page_content ? 1 : 0);
+  stmt.BindInt(9, scenario.times_triggered);
+  stmt.BindInt(10, scenario.times_accepted);
+  stmt.BindInt(11, scenario.times_dismissed);
+  stmt.BindInt64(12, TimeToInt(scenario.created_at));
+  stmt.BindInt64(13, TimeToInt(scenario.last_triggered_at));
+  return stmt.Run();
+}
+
+std::vector<ScenarioDefinition> DaoAgentMemoryStore::GetPersonalScenarios() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::vector<ScenarioDefinition> result;
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "SELECT id, type, name, description, url_pattern, page_hints, "
+      "action_prompt, action_label, requires_page_content, times_triggered, "
+      "times_accepted, times_dismissed, created_at, last_triggered_at "
+      "FROM scenarios ORDER BY created_at DESC"));
+
+  while (stmt.Step()) {
+    ScenarioDefinition s;
+    s.id = stmt.ColumnString(0);
+    s.type = stmt.ColumnString(1);
+    s.name = stmt.ColumnString(2);
+    s.description = stmt.ColumnString(3);
+    s.url_pattern = stmt.ColumnString(4);
+    s.page_hints = stmt.ColumnString(5);
+    s.action_prompt = stmt.ColumnString(6);
+    s.action_label = stmt.ColumnString(7);
+    s.requires_page_content = stmt.ColumnInt(8) != 0;
+    s.times_triggered = stmt.ColumnInt(9);
+    s.times_accepted = stmt.ColumnInt(10);
+    s.times_dismissed = stmt.ColumnInt(11);
+    s.created_at = TimeFromInt(stmt.ColumnInt64(12));
+    s.last_triggered_at = TimeFromInt(stmt.ColumnInt64(13));
+    result.push_back(std::move(s));
+  }
+  return result;
+}
+
+bool DaoAgentMemoryStore::DeleteScenario(const std::string& id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(
+      db_->GetCachedStatement(SQL_FROM_HERE,
+                              "DELETE FROM scenarios WHERE id=?"));
+  stmt.BindString(0, id);
+  return stmt.Run();
+}
+
+bool DaoAgentMemoryStore::UpdateScenarioStats(const std::string& id,
+                                               const std::string& stat_column) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // stat_column is one of: "times_triggered", "times_accepted",
+  // "times_dismissed". We build the SQL dynamically but validate the column.
+  if (stat_column != "times_triggered" && stat_column != "times_accepted" &&
+      stat_column != "times_dismissed") {
+    LOG(ERROR) << "Invalid stat column: " << stat_column;
+    return false;
+  }
+  std::string sql = "UPDATE scenarios SET " + stat_column + "=" + stat_column +
+                    "+1, last_triggered_at=? WHERE id=?";
+  sql::Statement stmt(db_->GetUniqueStatement(sql));
+  stmt.BindInt64(0, TimeToInt(base::Time::Now()));
+  stmt.BindString(1, id);
+  return stmt.Run();
+}
+
+// --- Action Feedback ---
+
+bool DaoAgentMemoryStore::RecordActionFeedback(const ActionFeedback& feedback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "INSERT INTO action_feedback "
+      "(scenario_id, action_label, domain, url, trigger_confidence, "
+      "outcome, timestamp, session_id) "
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"));
+  stmt.BindString(0, feedback.scenario_id);
+  stmt.BindString(1, feedback.action_label);
+  stmt.BindString(2, feedback.domain);
+  stmt.BindString(3, feedback.url);
+  stmt.BindDouble(4, feedback.trigger_confidence);
+  stmt.BindString(5, feedback.outcome);
+  stmt.BindInt64(6, TimeToInt(feedback.timestamp));
+  stmt.BindString(7, feedback.session_id);
+  return stmt.Run();
+}
+
+double DaoAgentMemoryStore::GetCooldownScore(const std::string& domain,
+                                              const std::string& scenario_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // Find the last "clicked" timestamp for this domain+scenario.
+  int64_t last_click_ts = 0;
+  {
+    sql::Statement stmt(db_->GetCachedStatement(
+        SQL_FROM_HERE,
+        "SELECT MAX(timestamp) FROM action_feedback "
+        "WHERE scenario_id=? AND domain=? AND outcome='clicked'"));
+    stmt.BindString(0, scenario_id);
+    stmt.BindString(1, domain);
+    if (stmt.Step() && stmt.GetColumnType(0) != sql::ColumnType::kNull) {
+      last_click_ts = stmt.ColumnInt64(0);
+    }
+  }
+
+  // Sum cooldown contributions since the last click.
+  double score = 0.0;
+  {
+    sql::Statement stmt(db_->GetCachedStatement(
+        SQL_FROM_HERE,
+        "SELECT outcome, timestamp FROM action_feedback "
+        "WHERE scenario_id=? AND domain=? AND timestamp>? "
+        "ORDER BY timestamp ASC"));
+    stmt.BindString(0, scenario_id);
+    stmt.BindString(1, domain);
+    stmt.BindInt64(2, last_click_ts);
+
+    base::Time now = base::Time::Now();
+    while (stmt.Step()) {
+      std::string outcome = stmt.ColumnString(0);
+      base::Time ts = TimeFromInt(stmt.ColumnInt64(1));
+      // Apply 7-day decay: subtract weeks elapsed.
+      int weeks_elapsed =
+          (now - ts).InDays() / 7;
+      double decay = static_cast<double>(weeks_elapsed);
+
+      double contribution = 0.0;
+      if (outcome == "dismissed") {
+        contribution = 1.0;
+      } else if (outcome == "ignored") {
+        contribution = 0.5;
+      }
+      score += std::max(0.0, contribution - decay);
+    }
+  }
+  return score;
+}
+
+bool DaoAgentMemoryStore::ClearDismissedFeedback() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "DELETE FROM action_feedback WHERE outcome='dismissed'"));
+  return stmt.Run();
 }
 
 }  // namespace dao

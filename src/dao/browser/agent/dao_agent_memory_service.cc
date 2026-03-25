@@ -261,6 +261,124 @@ void DaoAgentMemoryService::DeleteEpisode(
       std::move(callback));
 }
 
+// --- Episodes (extended) ---
+
+void DaoAgentMemoryService::GetDomainEpisodeCountWithAction(
+    const std::string& domain,
+    base::OnceCallback<void(int)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string dom) {
+            return store->GetDomainEpisodeCountWithAction(dom);
+          },
+          store_.get(), domain),
+      std::move(callback));
+}
+
+// --- Scenarios ---
+
+void DaoAgentMemoryService::SavePersonalScenario(
+    ScenarioDefinition scenario,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, ScenarioDefinition s) {
+            return store->SavePersonalScenario(s);
+          },
+          store_.get(), std::move(scenario)),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetPersonalScenarios(
+    base::OnceCallback<void(std::vector<ScenarioDefinition>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store) {
+            return store->GetPersonalScenarios();
+          },
+          store_.get()),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::DeleteScenario(
+    const std::string& id,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string i) {
+            return store->DeleteScenario(i);
+          },
+          store_.get(), id),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::UpdateScenarioStats(
+    const std::string& id,
+    const std::string& stat_column,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string i, std::string col) {
+            return store->UpdateScenarioStats(i, col);
+          },
+          store_.get(), id, stat_column),
+      std::move(callback));
+}
+
+// --- Action Feedback ---
+
+void DaoAgentMemoryService::RecordActionFeedback(
+    ActionFeedback feedback,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, ActionFeedback f) {
+            return store->RecordActionFeedback(f);
+          },
+          store_.get(), std::move(feedback)),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetCooldownScore(
+    const std::string& domain,
+    const std::string& scenario_id,
+    base::OnceCallback<void(double)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string dom, std::string sid) {
+            return store->GetCooldownScore(dom, sid);
+          },
+          store_.get(), domain, scenario_id),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::ClearDismissedFeedback(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store) {
+            return store->ClearDismissedFeedback();
+          },
+          store_.get()),
+      std::move(callback));
+}
+
 // --- Deletion ---
 
 void DaoAgentMemoryService::DeleteConversation(

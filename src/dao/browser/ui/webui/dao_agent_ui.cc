@@ -15,8 +15,10 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/common/url_constants.h"
 #include "chrome/grit/dao_agent_resources.h"
 #include "chrome/grit/dao_agent_resources_map.h"
@@ -27,6 +29,33 @@
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 
 namespace dao {
+
+namespace {
+
+// Populate an ActionFeedback from a JS dict. Caller sets outcome separately.
+ActionFeedback ParseActionFeedbackFromDict(const base::Value::Dict& d) {
+  ActionFeedback feedback;
+  if (auto* sid = d.FindString("scenarioId")) {
+    feedback.scenario_id = *sid;
+  }
+  if (auto* label = d.FindString("actionLabel")) {
+    feedback.action_label = *label;
+  }
+  if (auto* domain = d.FindString("domain")) {
+    feedback.domain = *domain;
+  }
+  if (auto* url = d.FindString("url")) {
+    feedback.url = *url;
+  }
+  if (auto* outcome = d.FindString("outcome")) {
+    feedback.outcome = *outcome;
+  }
+  feedback.trigger_confidence = d.FindDouble("confidence").value_or(0.0);
+  feedback.timestamp = base::Time::Now();
+  return feedback;
+}
+
+}  // namespace
 
 // ---- DaoAgentDevToolsClient ----
 
@@ -456,6 +485,23 @@ void DaoAgentMemoryHandler::RegisterMessages() {
       "setMemoryEnabled",
       base::BindRepeating(&DaoAgentMemoryHandler::HandleSetMemoryEnabled,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setProactiveEnabled",
+      base::BindRepeating(&DaoAgentMemoryHandler::HandleSetProactiveEnabled,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setConfidenceThreshold",
+      base::BindRepeating(&DaoAgentMemoryHandler::HandleSetConfidenceThreshold,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "recordActionFeedback",
+      base::BindRepeating(&DaoAgentMemoryHandler::HandleRecordActionFeedback,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getPageContentForScenario",
+      base::BindRepeating(
+          &DaoAgentMemoryHandler::HandleGetPageContentForScenario,
+          base::Unretained(this)));
 }
 
 void DaoAgentMemoryHandler::OnJavascriptAllowed() {
@@ -485,6 +531,16 @@ void DaoAgentMemoryHandler::OnProactiveSuggestion(
   dict.Set("text", suggestion.text);
   dict.Set("confidence", suggestion.confidence);
   dict.Set("type", suggestion.type);
+
+  // Scenario-based fields.
+  dict.Set("actionType", static_cast<int>(suggestion.action_type));
+  dict.Set("scenarioId", suggestion.scenario_id);
+  dict.Set("scenarioName", suggestion.scenario_name);
+  dict.Set("actionLabel", suggestion.action_label);
+  dict.Set("actionPrompt", suggestion.action_prompt);
+  dict.Set("requiresPageContent", suggestion.requires_page_content);
+  dict.Set("tabId", suggestion.tab_id);
+
   FireWebUIListener("proactiveSuggestion", dict);
 }
 
@@ -895,17 +951,48 @@ void DaoAgentMemoryHandler::HandleDismissSuggestion(
     return;
   }
   const std::string callback_id = args[0].GetString();
-  int64_t episode_id = args[1].is_int() ? args[1].GetInt() : 0;
 
   auto* service = GetMemoryService();
-  if (!service || episode_id == 0) {
+  if (!service) {
     ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
     return;
   }
 
-  // Lower confidence by 0.1 on dismiss.
+  // If the arg is a dict, it's a structured scenario dismissal.
+  if (args[1].is_dict()) {
+    auto feedback = ParseActionFeedbackFromDict(args[1].GetDict());
+    feedback.outcome = "dismissed";
+
+    // Also bump scenario dismiss stats.
+    if (!feedback.scenario_id.empty() && proactive_engine_) {
+      service->UpdateScenarioStats(
+          feedback.scenario_id, "times_dismissed",
+          base::DoNothing());
+    }
+
+    service->RecordActionFeedback(
+        std::move(feedback),
+        base::BindOnce(
+            [](base::WeakPtr<DaoAgentMemoryHandler> handler,
+               std::string cb_id, bool success) {
+              if (!handler) {
+                return;
+              }
+              handler->ResolveJavascriptCallback(base::Value(cb_id),
+                                                 base::Value(success));
+            },
+            weak_factory_.GetWeakPtr(), callback_id));
+    return;
+  }
+
+  // Legacy: episode-based dismiss (lower confidence).
+  int64_t episode_id = args[1].is_int() ? args[1].GetInt() : 0;
+  if (episode_id == 0) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
+    return;
+  }
   service->UpdateEpisodeConfidence(
-      episode_id, -1.0,  // Will be clamped in a smarter way if needed.
+      episode_id, -1.0,
       base::BindOnce(
           [](base::WeakPtr<DaoAgentMemoryHandler> handler,
              std::string cb_id, bool success) {
@@ -925,15 +1012,46 @@ void DaoAgentMemoryHandler::HandleAcceptSuggestion(
     return;
   }
   const std::string callback_id = args[0].GetString();
-  int64_t episode_id = args[1].is_int() ? args[1].GetInt() : 0;
 
   auto* service = GetMemoryService();
-  if (!service || episode_id == 0) {
+  if (!service) {
     ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
     return;
   }
 
-  // Boost confidence by updating to max.
+  // If the arg is a dict, it's a structured scenario acceptance.
+  if (args[1].is_dict()) {
+    auto feedback = ParseActionFeedbackFromDict(args[1].GetDict());
+    feedback.outcome = "clicked";
+
+    // Bump scenario accepted stats.
+    if (!feedback.scenario_id.empty() && proactive_engine_) {
+      service->UpdateScenarioStats(
+          feedback.scenario_id, "times_accepted",
+          base::DoNothing());
+    }
+
+    service->RecordActionFeedback(
+        std::move(feedback),
+        base::BindOnce(
+            [](base::WeakPtr<DaoAgentMemoryHandler> handler,
+               std::string cb_id, bool success) {
+              if (!handler) {
+                return;
+              }
+              handler->ResolveJavascriptCallback(base::Value(cb_id),
+                                                 base::Value(success));
+            },
+            weak_factory_.GetWeakPtr(), callback_id));
+    return;
+  }
+
+  // Legacy: episode-based accept (boost confidence).
+  int64_t episode_id = args[1].is_int() ? args[1].GetInt() : 0;
+  if (episode_id == 0) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
+    return;
+  }
   service->UpdateEpisodeConfidence(
       episode_id, 1.0,
       base::BindOnce(
@@ -971,6 +1089,143 @@ void DaoAgentMemoryHandler::HandleSetMemoryEnabled(
   Profile* profile = Profile::FromWebUI(web_ui());
   profile->GetPrefs()->SetBoolean(prefs::kDaoAgentMemoryEnabled, enabled);
   ResolveJavascriptCallback(base::Value(callback_id), base::Value(true));
+}
+
+void DaoAgentMemoryHandler::HandleSetProactiveEnabled(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_bool()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  bool enabled = args[1].GetBool();
+
+  if (proactive_engine_) {
+    if (enabled) {
+      proactive_engine_->Start();
+    } else {
+      proactive_engine_->Stop();
+    }
+  }
+
+  ResolveJavascriptCallback(base::Value(callback_id), base::Value(true));
+}
+
+void DaoAgentMemoryHandler::HandleSetConfidenceThreshold(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  double threshold = args[1].is_double()
+                         ? args[1].GetDouble()
+                         : (args[1].is_int() ? static_cast<double>(args[1].GetInt())
+                                             : 0.7);
+
+  if (proactive_engine_) {
+    proactive_engine_->SetConfidenceThreshold(threshold);
+  }
+
+  ResolveJavascriptCallback(base::Value(callback_id), base::Value(true));
+}
+
+void DaoAgentMemoryHandler::HandleRecordActionFeedback(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const auto& d = args[1].GetDict();
+
+  auto* service = GetMemoryService();
+  if (!service) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
+    return;
+  }
+
+  auto feedback = ParseActionFeedbackFromDict(d);
+
+  service->RecordActionFeedback(
+      std::move(feedback),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentMemoryHandler> handler,
+             std::string cb_id, bool success) {
+            if (!handler) {
+              return;
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id),
+                                               base::Value(success));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  int tab_id = args[1].is_int() ? args[1].GetInt() : -1;
+
+  // Find the tab by unique ID across all browsers.
+  content::WebContents* target = nullptr;
+  for (Browser* browser : *BrowserList::GetInstance()) {
+    TabStripModel* model = browser->tab_strip_model();
+    for (int i = 0; i < model->count(); ++i) {
+      content::WebContents* wc = model->GetWebContentsAt(i);
+      if (wc && wc->GetPrimaryMainFrame()->GetRoutingID() == tab_id) {
+        target = wc;
+        break;
+      }
+    }
+    if (target) {
+      break;
+    }
+  }
+
+  if (!target) {
+    base::Value::Dict error;
+    error.Set("error", "Tab not found");
+    ResolveJavascriptCallback(base::Value(callback_id), error);
+    return;
+  }
+
+  // Extract text content via JS.
+  static constexpr char kExtractScript[] = R"js(
+    (function() {
+      return document.body ? document.body.innerText : '';
+    })()
+  )js";
+
+  content::RenderFrameHost* rfh = target->GetPrimaryMainFrame();
+  if (!rfh || !rfh->IsRenderFrameLive()) {
+    base::Value::Dict error;
+    error.Set("error", "Frame not available");
+    ResolveJavascriptCallback(base::Value(callback_id), error);
+    return;
+  }
+
+  rfh->ExecuteJavaScriptInIsolatedWorld(
+      base::UTF8ToUTF16(std::string_view(kExtractScript)),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentMemoryHandler> handler,
+             std::string cb_id, base::Value result) {
+            if (!handler) {
+              return;
+            }
+            base::Value::Dict response;
+            if (result.is_string()) {
+              response.Set("text", result.GetString());
+            } else {
+              response.Set("text", "");
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id),
+      content::ISOLATED_WORLD_ID_CONTENT_END);
 }
 
 // ---- DaoAgentUIConfig ----

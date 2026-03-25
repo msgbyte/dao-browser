@@ -6,6 +6,22 @@
 
 namespace dao {
 
+ScenarioDefinition::ScenarioDefinition() = default;
+ScenarioDefinition::~ScenarioDefinition() = default;
+ScenarioDefinition::ScenarioDefinition(const ScenarioDefinition&) = default;
+ScenarioDefinition& ScenarioDefinition::operator=(const ScenarioDefinition&) =
+    default;
+ScenarioDefinition::ScenarioDefinition(ScenarioDefinition&&) = default;
+ScenarioDefinition& ScenarioDefinition::operator=(ScenarioDefinition&&) =
+    default;
+
+ActionFeedback::ActionFeedback() = default;
+ActionFeedback::~ActionFeedback() = default;
+ActionFeedback::ActionFeedback(const ActionFeedback&) = default;
+ActionFeedback& ActionFeedback::operator=(const ActionFeedback&) = default;
+ActionFeedback::ActionFeedback(ActionFeedback&&) = default;
+ActionFeedback& ActionFeedback::operator=(ActionFeedback&&) = default;
+
 ConversationMessage::ConversationMessage() = default;
 ConversationMessage::~ConversationMessage() = default;
 ConversationMessage::ConversationMessage(const ConversationMessage&) = default;

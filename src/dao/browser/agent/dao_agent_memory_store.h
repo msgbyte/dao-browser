@@ -66,6 +66,20 @@ class DaoAgentMemoryStore {
                                       int limit);
   bool UpdateEpisodeConfidence(int64_t id, double confidence);
   bool DeleteEpisode(int64_t id);
+  int GetDomainEpisodeCountWithAction(const std::string& domain);
+
+  // Scenarios (personal only — seeds are hard-coded in C++)
+  bool SavePersonalScenario(const ScenarioDefinition& scenario);
+  std::vector<ScenarioDefinition> GetPersonalScenarios();
+  bool DeleteScenario(const std::string& id);
+  bool UpdateScenarioStats(const std::string& id,
+                           const std::string& stat_column);
+
+  // Action feedback
+  bool RecordActionFeedback(const ActionFeedback& feedback);
+  double GetCooldownScore(const std::string& domain,
+                          const std::string& scenario_id);
+  bool ClearDismissedFeedback();
 
   // Deletion
   bool DeleteConversation(const std::string& session_id);
@@ -82,7 +96,7 @@ class DaoAgentMemoryStore {
   bool MigrateIfNeeded();
   void DatabaseErrorCallback(int error, sql::Statement* stmt);
 
-  static constexpr int kCurrentSchemaVersion = 1;
+  static constexpr int kCurrentSchemaVersion = 2;
   static constexpr int kMaxConversationRows = 10000;
   static constexpr int kMaxEpisodes = 500;
   static constexpr int kMaxPreferences = 100;

@@ -245,6 +245,13 @@ const startChatBtn =
 const segments =
     document.querySelectorAll('.segment') as NodeListOf<HTMLButtonElement>;
 
+// Map UI threshold names to numeric confidence values for the C++ engine.
+const CONFIDENCE_THRESHOLD_MAP: Record<string, number> = {
+  'quiet': 0.85,
+  'balanced': 0.7,
+  'active': 0.5,
+};
+
 function loadMemorySettings(): void {
   // Master switch is read from C++ pref (async); default to off until loaded.
   memoryEnabled.checked = false;
@@ -265,6 +272,11 @@ function loadMemorySettings(): void {
   callNativeArgs('getMemoryEnabled').then(enabled => {
     memoryEnabled.checked = !!enabled;
   }).catch(() => {});
+
+  // Sync proactive settings to C++ engine on load.
+  callNativeArgs('setProactiveEnabled', proactiveEnabled.checked).catch(() => {});
+  callNativeArgs('setConfidenceThreshold',
+      CONFIDENCE_THRESHOLD_MAP[threshold] ?? 0.7).catch(() => {});
 }
 
 function saveMemorySetting(key: string, value: string): void {
@@ -274,8 +286,10 @@ function saveMemorySetting(key: string, value: string): void {
 memoryEnabled.addEventListener('change', () => {
   callNativeArgs('setMemoryEnabled', memoryEnabled.checked).catch(() => {});
 });
-proactiveEnabled.addEventListener('change', () =>
-    saveMemorySetting('dao_proactive_enabled', String(proactiveEnabled.checked)));
+proactiveEnabled.addEventListener('change', () => {
+  saveMemorySetting('dao_proactive_enabled', String(proactiveEnabled.checked));
+  callNativeArgs('setProactiveEnabled', proactiveEnabled.checked).catch(() => {});
+});
 pageContextEnabled.addEventListener('change', () =>
     saveMemorySetting('dao_page_context_enabled', String(pageContextEnabled.checked)));
 conversationEnabled.addEventListener('change', () =>
@@ -289,7 +303,10 @@ segments.forEach(s => {
     });
     s.classList.add('active');
     s.setAttribute('aria-checked', 'true');
-    saveMemorySetting('dao_proactive_threshold', s.dataset['value'] || 'balanced');
+    const value = s.dataset['value'] || 'balanced';
+    saveMemorySetting('dao_proactive_threshold', value);
+    callNativeArgs('setConfidenceThreshold',
+        CONFIDENCE_THRESHOLD_MAP[value] ?? 0.7).catch(() => {});
   });
 });
 
@@ -340,7 +357,10 @@ const cr = ((window as unknown as {cr: CrNamespace}).cr) || {} as CrNamespace;
 // Listen for sidebar state changes (C++ push)
 if (cr.addWebUIListener) {
   cr.addWebUIListener('sidebarStateChanged', (expanded: boolean) => {
-    if (!expanded) {
+    if (expanded) {
+      // Delay to ensure WebView has rendered before focusing
+      setTimeout(() => userInput.focus(), 100);
+    } else {
       endSession();
       sessionId = generateSessionId();
     }
@@ -350,6 +370,17 @@ if (cr.addWebUIListener) {
 // ---- Proactive Suggestions ----
 
 let currentSuggestionEpisodeId = 0;
+
+// Structured scenario data for the current suggestion (null = legacy episode).
+let currentScenarioData: {
+  scenarioId: string;
+  scenarioName: string;
+  actionLabel: string;
+  actionPrompt: string;
+  requiresPageContent: boolean;
+  tabId: number;
+  confidence: number;
+} | null = null;
 
 function showChip(text: string, episodeId: number): void {
   if (!proactiveEnabled.checked || !memoryEnabled.checked) return;
@@ -364,18 +395,54 @@ function hideChip(): void {
   setTimeout(() => {
     chipArea.style.display = 'none';
     chipArea.classList.remove('hiding');
+    currentScenarioData = null;
   }, 150);
 }
 
 chipClose.addEventListener('click', (e) => {
   e.stopPropagation();
-  hideChip();
-  if (currentSuggestionEpisodeId) {
+  if (currentScenarioData) {
+    // Structured scenario dismissal
+    callNativeArgs('dismissSuggestion', {
+      scenarioId: currentScenarioData.scenarioId,
+      actionLabel: currentScenarioData.actionLabel,
+    }).catch(() => {});
+  } else if (currentSuggestionEpisodeId) {
     callNativeArgs('dismissSuggestion', currentSuggestionEpisodeId).catch(() => {});
   }
+  hideChip();
 });
 
-proactiveChip.addEventListener('click', () => {
+proactiveChip.addEventListener('click', async () => {
+  if (currentScenarioData) {
+    // Structured scenario acceptance → fetch page content → LLM
+    const scenario = currentScenarioData;
+    callNativeArgs('acceptSuggestion', {
+      scenarioId: scenario.scenarioId,
+      actionLabel: scenario.actionLabel,
+    }).catch(() => {});
+    hideChip();
+
+    let prompt = scenario.actionPrompt;
+    if (scenario.requiresPageContent && scenario.tabId) {
+      try {
+        const result = await callNativeArgs(
+            'getPageContentForScenario', scenario.tabId) as
+            {text?: string} | null;
+        if (result && result.text) {
+          prompt = prompt.replace('{page_content}', result.text);
+        }
+      } catch (_) {
+        // If page content fetch fails, send prompt without substitution
+      }
+    }
+    // Send the assembled prompt to the LLM
+    userInput.value = prompt;
+    sendMessage();
+    return;
+  }
+
+  // Legacy episode-based flow
   if (currentSuggestionEpisodeId) {
     callNativeArgs('acceptSuggestion', currentSuggestionEpisodeId).catch(() => {});
   }
@@ -395,8 +462,35 @@ proactiveChip.addEventListener('keydown', (e: KeyboardEvent) => {
 // Listen for proactive suggestions from C++
 if (cr.addWebUIListener) {
   cr.addWebUIListener('proactiveSuggestion',
-      (data: {text: string; episodeId: number}) => {
-    showChip(data.text, data.episodeId);
+      (data: {
+        text: string;
+        episodeId?: number;
+        actionType?: number;
+        scenarioId?: string;
+        scenarioName?: string;
+        actionLabel?: string;
+        actionPrompt?: string;
+        requiresPageContent?: boolean;
+        tabId?: number;
+        confidence?: number;
+      }) => {
+    if (data.scenarioId) {
+      // Structured scenario suggestion
+      currentScenarioData = {
+        scenarioId: data.scenarioId,
+        scenarioName: data.scenarioName || '',
+        actionLabel: data.actionLabel || '',
+        actionPrompt: data.actionPrompt || '',
+        requiresPageContent: !!data.requiresPageContent,
+        tabId: data.tabId || 0,
+        confidence: data.confidence || 0,
+      };
+      showChip(data.actionLabel || data.text, 0);
+    } else {
+      // Legacy episode-based suggestion
+      currentScenarioData = null;
+      showChip(data.text, data.episodeId || 0);
+    }
   });
 }
 
@@ -474,6 +568,57 @@ const sendBtn =
     document.getElementById('sendBtn') as HTMLButtonElement;
 const pageBtn =
     document.getElementById('pageBtn') as HTMLButtonElement;
+
+// ---- Chat History Persistence ----
+
+const CHAT_HISTORY_KEY = 'dao_agent_chat_history';
+
+function saveChatHistory(): void {
+  // Save only user and assistant messages (skip tool internals for simplicity)
+  const toSave = messages.filter(
+      m => m.role === 'user' || (m.role === 'assistant' && m.content));
+  try {
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(toSave));
+  } catch (_) {
+    // Storage full — best effort
+  }
+}
+
+function loadChatHistory(): void {
+  try {
+    const raw = localStorage.getItem(CHAT_HISTORY_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw) as ChatMessage[];
+    if (!Array.isArray(saved) || saved.length === 0) return;
+
+    emptyState.style.display = 'none';
+    for (const msg of saved) {
+      messages.push(msg);
+      addMessageBubble(msg.role, msg.content || '');
+    }
+  } catch (_) {
+    // Corrupt data — ignore
+  }
+}
+
+function clearChatHistory(): void {
+  messages.length = 0;
+  localStorage.removeItem(CHAT_HISTORY_KEY);
+  // Clear chat area DOM and show empty state
+  while (chatArea.firstChild) {
+    chatArea.removeChild(chatArea.firstChild);
+  }
+  // Re-add the empty state
+  chatArea.appendChild(emptyState);
+  emptyState.style.display = '';
+  // Reset session
+  memoryContextLoaded = false;
+  pageContentInjected = false;
+  sessionId = generateSessionId();
+}
+
+// Restore history on load
+loadChatHistory();
 
 // ---- Tools Definition ----
 
@@ -793,7 +938,41 @@ userInput.addEventListener('input', () => {
 
 // ---- Send Message ----
 
+let isComposing = false;
+userInput.addEventListener('compositionstart', () => { isComposing = true; });
+userInput.addEventListener('compositionend', () => { isComposing = false; });
+
 userInput.addEventListener('keydown', (e: KeyboardEvent) => {
+  // Skip during IME composition
+  if (isComposing || e.isComposing) return;
+
+  // Slash menu keyboard navigation
+  if (slashMenuVisible) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectSlashMenuItem(
+          Math.min(slashMenuIndex + 1, slashMenuFiltered.length - 1));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectSlashMenuItem(Math.max(slashMenuIndex - 1, 0));
+      return;
+    }
+    if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+      e.preventDefault();
+      if (slashMenuIndex >= 0) {
+        executeSlashMenuItem(slashMenuIndex);
+      }
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      hideSlashMenu();
+      return;
+    }
+  }
+
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
@@ -820,9 +999,121 @@ function setStreamingUI(streaming: boolean): void {
   sendBtn.classList.toggle('streaming', streaming);
 }
 
+// ---- Slash Commands ----
+
+interface SlashCommand {
+  name: string;
+  description: string;
+  action: () => void;
+}
+
+const slashCommands: SlashCommand[] = [
+  {name: '/clear', description: 'Clear chat history', action: () => {
+    clearChatHistory();
+    showToast('Chat history cleared');
+  }},
+  {name: '/reset', description: 'Reset session & memory context', action: () => {
+    clearChatHistory();
+    memoryContextLoaded = false;
+    showToast('Session reset');
+  }},
+  {name: '/help', description: 'Show available commands', action: () => {
+    const helpText = slashCommands.map(c => c.name + ' — ' + c.description).join('\n');
+    addMessageBubble('system-msg', helpText);
+  }},
+];
+
+// ---- Slash Menu UI ----
+
+const slashMenu = document.getElementById('slashMenu') as HTMLElement;
+let slashMenuIndex = -1;
+let slashMenuVisible = false;
+let slashMenuFiltered: SlashCommand[] = [];
+
+function showSlashMenu(filter: string): void {
+  const query = filter.toLowerCase();
+  slashMenuFiltered = slashCommands.filter(
+      c => c.name.startsWith(query) || query === '/');
+  if (slashMenuFiltered.length === 0) {
+    hideSlashMenu();
+    return;
+  }
+  slashMenuIndex = 0;
+  slashMenu.innerHTML = '';
+  for (let i = 0; i < slashMenuFiltered.length; i++) {
+    const cmd = slashMenuFiltered[i]!;
+    const item = document.createElement('div');
+    item.className = 'slash-menu-item' + (i === 0 ? ' selected' : '');
+    item.setAttribute('role', 'option');
+    item.innerHTML =
+        '<span class="slash-menu-item-name">' + escapeHtml(cmd.name) + '</span>' +
+        '<span class="slash-menu-item-desc">' + escapeHtml(cmd.description) + '</span>';
+    item.addEventListener('mouseenter', () => {
+      selectSlashMenuItem(i);
+    });
+    item.addEventListener('click', () => {
+      executeSlashMenuItem(i);
+    });
+    slashMenu.appendChild(item);
+  }
+  slashMenu.style.display = '';
+  slashMenuVisible = true;
+}
+
+function hideSlashMenu(): void {
+  slashMenu.style.display = 'none';
+  slashMenuVisible = false;
+  slashMenuIndex = -1;
+}
+
+function selectSlashMenuItem(index: number): void {
+  const items = slashMenu.querySelectorAll('.slash-menu-item');
+  items.forEach((el, i) => el.classList.toggle('selected', i === index));
+  slashMenuIndex = index;
+}
+
+function executeSlashMenuItem(index: number): void {
+  const cmd = slashMenuFiltered[index];
+  if (!cmd) return;
+  userInput.value = cmd.name;
+  hideSlashMenu();
+  sendMessage();
+}
+
+// Show/hide slash menu on input
+userInput.addEventListener('input', () => {
+  const text = userInput.value;
+  if (text.startsWith('/') && !isStreaming) {
+    showSlashMenu(text);
+  } else {
+    hideSlashMenu();
+  }
+});
+
+function handleSlashCommand(text: string): boolean {
+  const cmd = text.toLowerCase().trim();
+  const matched = slashCommands.find(c => c.name === cmd);
+  if (matched) {
+    matched.action();
+    return true;
+  }
+  return false;
+}
+
 async function sendMessage(): Promise<void> {
   const text = userInput.value.trim();
   if (!text || isStreaming) {
+    return;
+  }
+
+  // Handle slash commands
+  if (text.startsWith('/')) {
+    userInput.value = '';
+    userInput.style.height = 'auto';
+    hideSlashMenu();
+    if (handleSlashCommand(text)) return;
+    // Unknown command — show error
+    showToast('Unknown command: ' + text);
     return;
   }
 
@@ -835,6 +1126,7 @@ async function sendMessage(): Promise<void> {
 
   messages.push({role: 'user', content: text});
   addMessageBubble('user', text);
+  saveChatHistory();
   userInput.value = '';
   userInput.style.height = 'auto';
 
@@ -1041,6 +1333,7 @@ async function runConversation(): Promise<void> {
                 addMessageBubble('assistant', fullContent, memoryContextLoaded);
               }
               messages.push({role: 'assistant', content: fullContent || ''});
+              saveChatHistory();
               resolve();
             }
           },
@@ -1252,3 +1545,6 @@ async function executeTool(
 startChatBtn.addEventListener('click', () => {
   userInput.focus();
 });
+
+// Auto-focus input on page load
+setTimeout(() => userInput.focus(), 100);

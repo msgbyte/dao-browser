@@ -13,6 +13,59 @@
 
 namespace dao {
 
+// Action types for proactive suggestions.
+enum class DaoAgentActionType {
+  kNone,               // Legacy memory-based suggestion
+  kSeedScenario,       // Matched a built-in seed scenario
+  kPersonalScenario,   // Matched a user-learned scenario
+  kLearningProposal,   // Learning pipeline proposes a new pattern
+};
+
+// Defines a scenario (seed or personal) for proactive actions.
+struct ScenarioDefinition {
+  ScenarioDefinition();
+  ~ScenarioDefinition();
+  ScenarioDefinition(const ScenarioDefinition&);
+  ScenarioDefinition& operator=(const ScenarioDefinition&);
+  ScenarioDefinition(ScenarioDefinition&&);
+  ScenarioDefinition& operator=(ScenarioDefinition&&);
+
+  std::string id;
+  std::string type;  // "seed" or "personal"
+  std::string name;
+  std::string description;
+  std::string url_pattern;          // Regex for URL matching
+  std::string page_hints;           // JSON array of keywords/selectors
+  std::string action_prompt;        // LLM prompt template ({page_content})
+  std::string action_label;         // Category: "review_code", etc.
+  bool requires_page_content = true;
+  int times_triggered = 0;
+  int times_accepted = 0;
+  int times_dismissed = 0;
+  base::Time created_at;
+  base::Time last_triggered_at;
+};
+
+// Records user interaction with a scenario action.
+struct ActionFeedback {
+  ActionFeedback();
+  ~ActionFeedback();
+  ActionFeedback(const ActionFeedback&);
+  ActionFeedback& operator=(const ActionFeedback&);
+  ActionFeedback(ActionFeedback&&);
+  ActionFeedback& operator=(ActionFeedback&&);
+
+  int64_t id = 0;
+  std::string scenario_id;
+  std::string action_label;
+  std::string domain;
+  std::string url;
+  double trigger_confidence = 0.0;
+  std::string outcome;  // "shown","clicked","dismissed","ignored","completed","error"
+  base::Time timestamp;
+  std::string session_id;
+};
+
 struct ConversationMessage {
   ConversationMessage();
   ~ConversationMessage();
@@ -82,6 +135,8 @@ struct Episode {
   std::string outcome;
   base::Time timestamp;
   double confidence = 0.7;
+  std::string user_action;   // What the user asked the agent to do
+  std::string action_result; // "helpful", "not_helpful", or empty
 };
 
 struct StorageStats {
@@ -104,6 +159,15 @@ struct ProactiveSuggestion {
   std::string text;
   double confidence = 0.0;
   std::string type;  // "repeat_action" or "continue_conversation"
+
+  // Scenario-based fields (populated when action_type != kNone).
+  DaoAgentActionType action_type = DaoAgentActionType::kNone;
+  std::string scenario_id;
+  std::string scenario_name;
+  std::string action_label;
+  std::string action_prompt;
+  bool requires_page_content = false;
+  int tab_id = -1;
 };
 
 struct MemoryContext {

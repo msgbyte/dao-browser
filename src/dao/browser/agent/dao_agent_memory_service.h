@@ -90,6 +90,30 @@ class DaoAgentMemoryService : public KeyedService {
                                base::OnceCallback<void(bool)> callback);
   void DeleteEpisode(int64_t id, base::OnceCallback<void(bool)> callback);
 
+  // Episodes (extended)
+  void GetDomainEpisodeCountWithAction(
+      const std::string& domain,
+      base::OnceCallback<void(int)> callback);
+
+  // Scenarios
+  void SavePersonalScenario(ScenarioDefinition scenario,
+                            base::OnceCallback<void(bool)> callback);
+  void GetPersonalScenarios(
+      base::OnceCallback<void(std::vector<ScenarioDefinition>)> callback);
+  void DeleteScenario(const std::string& id,
+                      base::OnceCallback<void(bool)> callback);
+  void UpdateScenarioStats(const std::string& id,
+                           const std::string& stat_column,
+                           base::OnceCallback<void(bool)> callback);
+
+  // Action feedback
+  void RecordActionFeedback(ActionFeedback feedback,
+                            base::OnceCallback<void(bool)> callback);
+  void GetCooldownScore(const std::string& domain,
+                        const std::string& scenario_id,
+                        base::OnceCallback<void(double)> callback);
+  void ClearDismissedFeedback(base::OnceCallback<void(bool)> callback);
+
   // Deletion
   void DeleteConversation(const std::string& session_id,
                           base::OnceCallback<void(bool)> callback);

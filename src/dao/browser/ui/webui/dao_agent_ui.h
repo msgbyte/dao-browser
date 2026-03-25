@@ -124,6 +124,12 @@ class DaoAgentMemoryHandler : public content::WebUIMessageHandler,
   void HandleGetMemoryEnabled(const base::Value::List& args);
   void HandleSetMemoryEnabled(const base::Value::List& args);
 
+  // Scenario & proactive settings handlers.
+  void HandleSetProactiveEnabled(const base::Value::List& args);
+  void HandleSetConfidenceThreshold(const base::Value::List& args);
+  void HandleRecordActionFeedback(const base::Value::List& args);
+  void HandleGetPageContentForScenario(const base::Value::List& args);
+
   std::unique_ptr<DaoAgentProactiveEngine> proactive_engine_;
   base::WeakPtrFactory<DaoAgentMemoryHandler> weak_factory_{this};
 };
