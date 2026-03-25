@@ -61,24 +61,35 @@ class DaoTabListView : public views::View,
                            const gfx::Point& press_pt,
                            const gfx::Point& p) override;
 
+  // views::View overrides:
+  void Layout(PassKey) override;
+
   // Drop target (views::View):
   bool GetDropFormats(
       int* formats,
       std::set<ui::ClipboardFormatType>* format_types) override;
   bool CanDrop(const ui::OSExchangeData& data) override;
+  void OnDragEntered(const ui::DropTargetEvent& event) override;
   int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  void OnDragExited() override;
   DropCallback GetDropCallback(const ui::DropTargetEvent& event) override;
 
  private:
+  struct DropTarget {
+    int model_index = -1;
+    int indicator_y = -1;
+  };
+
   void RebuildTabList();
   void OnTabClicked(int index);
   void OnTabClosed(int index);
-  int GetDropTargetModelIndex(int y_in_view);
+  DropTarget ComputeDropTarget(int y_in_view);
 
   raw_ptr<Browser> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   std::vector<raw_ptr<DaoTabItemView>> tab_items_;
   raw_ptr<DaoNewTabButton> new_tab_button_ = nullptr;
+  raw_ptr<views::View> drop_indicator_ = nullptr;
   int drag_source_index_ = -1;
   bool new_tab_highlighted_ = false;
   base::RepeatingClosure show_omnibox_callback_;

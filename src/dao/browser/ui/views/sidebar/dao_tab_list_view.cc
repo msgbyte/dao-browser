@@ -23,11 +23,68 @@
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/compositor/layer_tree_owner.h"
+#include "ui/compositor/layer.h"
+#include "ui/gfx/canvas.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/layout/box_layout.h"
 
 namespace dao {
+
+class DaoTabDropIndicatorView : public views::View {
+  METADATA_HEADER(DaoTabDropIndicatorView, views::View)
+
+ public:
+  DaoTabDropIndicatorView() {
+    SetPaintToLayer();
+    layer()->SetFillsBoundsOpaquely(false);
+    SetCanProcessEventsWithinSubtree(false);
+  }
+
+  void SetActive(bool active) {
+    if (active_ == active) return;
+    active_ = active;
+    SchedulePaint();
+  }
+
+  void SetIndicatorY(int y) {
+    if (indicator_y_ == y) return;
+    indicator_y_ = y;
+    SchedulePaint();
+  }
+
+  void OnPaint(gfx::Canvas* canvas) override {
+    if (!active_ || indicator_y_ < 0) return;
+
+    constexpr int kLineInset = 12;
+    constexpr int kLineHeight = 2;
+    constexpr int kDotRadius = 3;
+    SkColor line_color = SkColorSetA(dao::kSpaceActive, 200);
+
+    cc::PaintFlags flags;
+    flags.setColor(line_color);
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+
+    int line_y = indicator_y_ - kLineHeight / 2;
+    canvas->DrawRect(
+        gfx::Rect(kLineInset, line_y,
+                   width() - 2 * kLineInset, kLineHeight),
+        flags);
+
+    canvas->DrawCircle(gfx::Point(kLineInset, indicator_y_),
+                       kDotRadius, flags);
+    canvas->DrawCircle(gfx::Point(width() - kLineInset, indicator_y_),
+                       kDotRadius, flags);
+  }
+
+ private:
+  bool active_ = false;
+  int indicator_y_ = -1;
+};
+
+BEGIN_METADATA(DaoTabDropIndicatorView)
+END_METADATA
 
 BEGIN_METADATA(DaoTabListView)
 END_METADATA
@@ -143,6 +200,7 @@ void DaoTabListView::RebuildTabList() {
     tab_items_.push_back(item);
   }
 
+  drop_indicator_ = AddChildView(std::make_unique<DaoTabDropIndicatorView>());
   InvalidateLayout();
 }
 
@@ -219,15 +277,33 @@ bool DaoTabListView::CanDrop(const ui::OSExchangeData& data) {
   return text.has_value() && *text == u"dao-tab-drag";
 }
 
+void DaoTabListView::OnDragEntered(const ui::DropTargetEvent& event) {
+  auto* indicator = static_cast<DaoTabDropIndicatorView*>(drop_indicator_.get());
+  indicator->SetActive(true);
+}
+
 int DaoTabListView::OnDragUpdated(const ui::DropTargetEvent& event) {
+  auto target = ComputeDropTarget(event.y());
+  auto* indicator = static_cast<DaoTabDropIndicatorView*>(drop_indicator_.get());
+  indicator->SetIndicatorY(target.indicator_y);
   return ui::DragDropTypes::DRAG_MOVE;
+}
+
+void DaoTabListView::OnDragExited() {
+  auto* indicator = static_cast<DaoTabDropIndicatorView*>(drop_indicator_.get());
+  indicator->SetActive(false);
+  indicator->SetIndicatorY(-1);
 }
 
 views::View::DropCallback DaoTabListView::GetDropCallback(
     const ui::DropTargetEvent& event) {
-  int target = GetDropTargetModelIndex(event.y());
+  auto target = ComputeDropTarget(event.y());
   int source = drag_source_index_;
   drag_source_index_ = -1;
+
+  auto* indicator = static_cast<DaoTabDropIndicatorView*>(drop_indicator_.get());
+  indicator->SetActive(false);
+  indicator->SetIndicatorY(-1);
 
   TabStripModel* model = tab_strip_model_;
   return base::BindOnce(
@@ -240,7 +316,7 @@ views::View::DropCallback DaoTabListView::GetDropCallback(
           op = ui::mojom::DragOperation::kMove;
         }
       },
-      model, source, target);
+      model, source, target.model_index);
 }
 
 void DaoTabListView::SetNewTabHighlighted(bool highlighted) {
@@ -250,15 +326,45 @@ void DaoTabListView::SetNewTabHighlighted(bool highlighted) {
   }
 }
 
-int DaoTabListView::GetDropTargetModelIndex(int y_in_view) {
+void DaoTabListView::Layout(PassKey) {
+  LayoutSuperclass<views::View>(this);
+  if (drop_indicator_) {
+    drop_indicator_->SetBoundsRect(gfx::Rect(0, 0, width(), height()));
+  }
+}
+
+DaoTabListView::DropTarget DaoTabListView::ComputeDropTarget(int y_in_view) {
   for (const auto& tab_item : tab_items_) {
-    gfx::Point pt(0, tab_item->height() / 2);
-    views::View::ConvertPointToTarget(tab_item.get(), this, &pt);
-    if (y_in_view < pt.y()) {
-      return tab_item->model_index();
+    gfx::Point mid(0, tab_item->height() / 2);
+    views::View::ConvertPointToTarget(tab_item.get(), this, &mid);
+    if (y_in_view < mid.y()) {
+      int idx = tab_item->model_index();
+      int target = idx;
+      // MoveWebContentsAt uses remove-then-insert semantics, so the target
+      // index must account for the shift caused by removing the source tab.
+      // Unpinned tabs are displayed in reverse model order, so visually
+      // "above" means higher model index; pinned tabs are in normal order.
+      if (drag_source_index_ >= 0) {
+        bool unpinned = !tab_strip_model_->IsTabPinned(idx);
+        if (unpinned && drag_source_index_ > idx) {
+          target = idx + 1;
+        } else if (!unpinned && drag_source_index_ < idx) {
+          target = idx - 1;
+        }
+      }
+      gfx::Point top(0, 0);
+      views::View::ConvertPointToTarget(tab_item.get(), this, &top);
+      return {target, top.y()};
     }
   }
-  return tab_items_.empty() ? 0 : tab_items_.back()->model_index();
+  if (tab_items_.empty()) {
+    return {0, -1};
+  }
+  auto* last = tab_items_.back().get();
+  int idx = last->model_index();
+  gfx::Point bottom(0, last->height());
+  views::View::ConvertPointToTarget(last, this, &bottom);
+  return {idx, bottom.y()};
 }
 
 }  // namespace dao
