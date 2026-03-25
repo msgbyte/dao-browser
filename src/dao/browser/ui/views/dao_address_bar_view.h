@@ -14,6 +14,10 @@
 class Browser;
 class TabStripModel;
 
+namespace content {
+class NavigationHandle;
+}
+
 namespace views {
 class Button;
 class Label;
@@ -52,6 +56,10 @@ class DaoAddressBarView : public views::View,
 
   // content::WebContentsObserver:
   void OnBackgroundColorChanged() override;
+  void DidStartLoading() override;
+  void DidStopLoading() override;
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
 
   // Called by the sidebar to update toggle button visibility.
   void SetSidebarCollapsed(bool collapsed);
@@ -75,12 +83,15 @@ class DaoAddressBarView : public views::View,
   void UpdateBackgroundColor();
   void UpdateToggleButtonColor();
   void UpdateNavButtonColors();
+  void UpdateNavButtonEnabled();
+  void UpdateStopRefreshButton();
   void UpdateUrlContainerHover(bool hovered);
   void ObserveActiveWebContents();
   void OnToggleButtonPressed();
   void OnBackButtonPressed();
   void OnForwardButtonPressed();
-  void OnCloseButtonPressed();
+  void OnStopRefreshButtonPressed();
+  void OnChatButtonPressed();
 
   raw_ptr<Browser> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
@@ -89,7 +100,8 @@ class DaoAddressBarView : public views::View,
   raw_ptr<views::LabelButton> sidebar_toggle_button_ = nullptr;
   raw_ptr<views::Button> back_button_ = nullptr;
   raw_ptr<views::Button> forward_button_ = nullptr;
-  raw_ptr<views::Button> close_button_ = nullptr;
+  raw_ptr<views::Button> stop_refresh_button_ = nullptr;
+  raw_ptr<views::Button> chat_button_ = nullptr;
   raw_ptr<views::View> url_container_ = nullptr;
   raw_ptr<views::Label> host_label_ = nullptr;
   raw_ptr<views::Label> path_label_ = nullptr;
@@ -97,6 +109,7 @@ class DaoAddressBarView : public views::View,
   base::RepeatingClosure toggle_callback_;
   bool sidebar_collapsed_ = false;
   bool url_hovered_ = false;
+  bool is_loading_ = false;
 };
 
 }  // namespace dao

@@ -9,8 +9,10 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_button.h"
@@ -44,7 +46,7 @@ constexpr int kNavButtonRadius = 6;
 
 }  // namespace
 
-// A small icon button used for back/forward/close in the address bar.
+// A small icon button used for back/forward/stop/refresh/chat in the address bar.
 class NavIconButton : public views::Button {
   METADATA_HEADER(NavIconButton, views::Button)
 
@@ -66,11 +68,15 @@ class NavIconButton : public views::Button {
     float icon_size = static_cast<float>(kNavIconSize);
     float ox = (width() - icon_size) / 2.0f;
     float oy = (height() - icon_size) / 2.0f;
+    SkColor color = highlighted_ ? dao::kSpaceActive
+                   : nav_enabled_ ? icon_color_
+                   : disabled_color_;
     DrawLucideIcon(canvas, icon_,
-                   gfx::RectF(ox, oy, icon_size, icon_size), icon_color_);
+                   gfx::RectF(ox, oy, icon_size, icon_size), color);
   }
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
+    if (!nav_enabled_) return;
     Button::OnMouseEntered(event);
     SetBackground(views::CreateRoundedRectBackground(
         SkColorSetARGB(20, 0, 0, 0), kNavButtonRadius));
@@ -85,12 +91,39 @@ class NavIconButton : public views::Button {
 
   void SetIconColor(SkColor color) {
     icon_color_ = color;
+    // Compute disabled color: same hue but much lower opacity
+    disabled_color_ = SkColorSetA(color, SkColorGetA(color) / 3);
     SchedulePaint();
   }
+
+  void SetNavEnabled(bool enabled) {
+    nav_enabled_ = enabled;
+    SetEnabled(enabled);
+    if (!enabled) {
+      SetBackground(nullptr);
+    }
+    SchedulePaint();
+  }
+
+  void SetIcon(LucideIcon icon) {
+    icon_ = icon;
+    SchedulePaint();
+  }
+
+  void SetHighlighted(bool highlighted) {
+    highlighted_ = highlighted;
+    SchedulePaint();
+  }
+
+  bool highlighted() const { return highlighted_; }
+  bool nav_enabled() const { return nav_enabled_; }
 
  private:
   LucideIcon icon_;
   SkColor icon_color_ = SkColorSetARGB(180, 100, 100, 100);
+  SkColor disabled_color_ = SkColorSetARGB(60, 100, 100, 100);
+  bool nav_enabled_ = true;
+  bool highlighted_ = false;
 };
 
 BEGIN_METADATA(NavIconButton)
@@ -160,10 +193,11 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
                           base::Unretained(this)),
       LucideIcon::kArrowRight, u"Go Forward"));
 
-  close_button_ = AddChildView(std::make_unique<NavIconButton>(
-      base::BindRepeating(&DaoAddressBarView::OnCloseButtonPressed,
+  // Stop/Refresh button: shows X (stop) while loading, RotateCw (refresh) when loaded
+  stop_refresh_button_ = AddChildView(std::make_unique<NavIconButton>(
+      base::BindRepeating(&DaoAddressBarView::OnStopRefreshButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kX, u"Close Tab"));
+      LucideIcon::kRotateCw, u"Reload"));
 
   // Left flex spacer — pushes URL pill toward center
   auto left_flex = std::make_unique<views::View>();
@@ -214,6 +248,12 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
                                views::MaximumFlexSizeRule::kUnbounded)
           .WithWeight(1));
   AddChildView(std::move(right_flex));
+
+  // Chat button (opens agent sidebar)
+  chat_button_ = AddChildView(std::make_unique<NavIconButton>(
+      base::BindRepeating(&DaoAddressBarView::OnChatButtonPressed,
+                          base::Unretained(this)),
+      LucideIcon::kMessageCircle, u"Toggle Chat"));
 
   // Control center button (fixed at right edge)
   control_center_button_ = AddChildView(
@@ -317,7 +357,7 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
   }
   // If the click lands on any nav button, let it handle it
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
-                              close_button_.get()}) {
+                              stop_refresh_button_.get(), chat_button_.get()}) {
     if (btn) {
       gfx::Point pt = event.location();
       views::View::ConvertPointToTarget(this, btn, &pt);
@@ -413,6 +453,8 @@ void DaoAddressBarView::ObserveActiveWebContents() {
   if (web_contents != content::WebContentsObserver::web_contents()) {
     content::WebContentsObserver::Observe(web_contents);
   }
+  UpdateNavButtonEnabled();
+  UpdateStopRefreshButton();
 }
 
 void DaoAddressBarView::SetSidebarCollapsed(bool collapsed) {
@@ -517,15 +559,78 @@ void DaoAddressBarView::OnForwardButtonPressed() {
   }
 }
 
-void DaoAddressBarView::OnCloseButtonPressed() {
+void DaoAddressBarView::OnStopRefreshButtonPressed() {
   if (!tab_strip_model_) {
     return;
   }
-  if (tab_strip_model_->count() > 1) {
-    tab_strip_model_->CloseWebContentsAt(
-        tab_strip_model_->active_index(),
-        TabCloseTypes::CLOSE_USER_GESTURE);
+  content::WebContents* contents = tab_strip_model_->GetActiveWebContents();
+  if (!contents) {
+    return;
   }
+  if (is_loading_) {
+    contents->Stop();
+  } else {
+    contents->GetController().Reload(content::ReloadType::NORMAL, true);
+  }
+}
+
+void DaoAddressBarView::OnChatButtonPressed() {
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser_);
+  if (browser_view && browser_view->dao_agent_sidebar()) {
+    bool expanded = browser_view->dao_agent_sidebar()->Toggle();
+    if (chat_button_) {
+      static_cast<NavIconButton*>(chat_button_.get())->SetHighlighted(expanded);
+    }
+  }
+}
+
+void DaoAddressBarView::UpdateNavButtonEnabled() {
+  if (!tab_strip_model_) {
+    return;
+  }
+  content::WebContents* contents = tab_strip_model_->GetActiveWebContents();
+  bool can_back = contents && contents->GetController().CanGoBack();
+  bool can_forward = contents && contents->GetController().CanGoForward();
+
+  if (back_button_) {
+    static_cast<NavIconButton*>(back_button_.get())->SetNavEnabled(can_back);
+  }
+  if (forward_button_) {
+    static_cast<NavIconButton*>(forward_button_.get())->SetNavEnabled(can_forward);
+  }
+}
+
+void DaoAddressBarView::UpdateStopRefreshButton() {
+  if (!tab_strip_model_ || !stop_refresh_button_) {
+    return;
+  }
+  content::WebContents* contents = tab_strip_model_->GetActiveWebContents();
+  is_loading_ = contents && contents->IsLoading();
+
+  auto* btn = static_cast<NavIconButton*>(stop_refresh_button_.get());
+  if (is_loading_) {
+    btn->SetIcon(LucideIcon::kX);
+    btn->SetAccessibleName(u"Stop Loading");
+  } else {
+    btn->SetIcon(LucideIcon::kRotateCw);
+    btn->SetAccessibleName(u"Reload");
+  }
+}
+
+void DaoAddressBarView::DidStartLoading() {
+  UpdateStopRefreshButton();
+}
+
+void DaoAddressBarView::DidStopLoading() {
+  UpdateStopRefreshButton();
+  UpdateNavButtonEnabled();
+}
+
+void DaoAddressBarView::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  UpdateNavButtonEnabled();
+  UpdateStopRefreshButton();
 }
 
 void DaoAddressBarView::UpdateNavButtonColors() {
@@ -550,14 +655,14 @@ void DaoAddressBarView::UpdateNavButtonColors() {
       ? SkColorSetARGB(180, 255, 255, 255)
       : SkColorSetARGB(160, 0, 0, 0);
 
-  if (back_button_) {
-    static_cast<NavIconButton*>(back_button_.get())->SetIconColor(icon_color);
+  for (views::Button* btn : {back_button_.get(), forward_button_.get(),
+                              stop_refresh_button_.get(), chat_button_.get()}) {
+    if (btn) {
+      static_cast<NavIconButton*>(btn)->SetIconColor(icon_color);
+    }
   }
-  if (forward_button_) {
-    static_cast<NavIconButton*>(forward_button_.get())->SetIconColor(icon_color);
-  }
-  if (close_button_) {
-    static_cast<NavIconButton*>(close_button_.get())->SetIconColor(icon_color);
+  if (control_center_button_) {
+    control_center_button_->SetIconColor(icon_color);
   }
 }
 

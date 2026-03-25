@@ -20,7 +20,7 @@ namespace {
 constexpr int kButtonSize = 28;
 constexpr int kIconSize = 14;
 constexpr int kCornerRadius = 8;
-constexpr SkColor kIconColor = SkColorSetARGB(140, 100, 100, 100);
+constexpr SkColor kDefaultIconColor = SkColorSetARGB(160, 0, 0, 0);
 
 }  // namespace
 
@@ -30,7 +30,8 @@ END_METADATA
 DaoControlCenterButton::DaoControlCenterButton(Browser* browser)
     : Button(base::BindRepeating(&DaoControlCenterButton::OnClicked,
                                  base::Unretained(this))),
-      browser_(browser) {
+      browser_(browser),
+      icon_color_(kDefaultIconColor) {
   SetInstallFocusRingOnFocus(false);
   SetAccessibleName(u"Control Center");
 
@@ -43,12 +44,17 @@ gfx::Size DaoControlCenterButton::CalculatePreferredSize(
   return gfx::Size(kButtonSize, kButtonSize);
 }
 
+void DaoControlCenterButton::SetIconColor(SkColor color) {
+  icon_color_ = color;
+  SchedulePaint();
+}
+
 void DaoControlCenterButton::PaintButtonContents(gfx::Canvas* canvas) {
   float icon_size = static_cast<float>(kIconSize);
   float ox = (width() - icon_size) / 2.0f;
   float oy = (height() - icon_size) / 2.0f;
   DrawLucideIcon(canvas, LucideIcon::kSlidersHorizontal,
-                 gfx::RectF(ox, oy, icon_size, icon_size), kIconColor);
+                 gfx::RectF(ox, oy, icon_size, icon_size), icon_color_);
 }
 
 void DaoControlCenterButton::OnMouseEntered(const ui::MouseEvent& event) {

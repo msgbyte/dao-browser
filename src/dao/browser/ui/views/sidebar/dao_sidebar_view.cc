@@ -182,6 +182,25 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
 
 DaoSidebarView::~DaoSidebarView() = default;
 
+gfx::Rect DaoSidebarView::header_bounds_in_sidebar() const {
+  if (!header_row_ || !inner_container_) {
+    return gfx::Rect();
+  }
+  gfx::Rect r = header_row_->bounds();
+  r.Offset(inner_container_->bounds().origin().OffsetFromOrigin());
+  return r;
+}
+
+gfx::Rect DaoSidebarView::toggle_button_bounds_in_sidebar() const {
+  if (!toggle_button_ || !header_row_ || !inner_container_) {
+    return gfx::Rect();
+  }
+  gfx::Rect r = toggle_button_->bounds();
+  r.Offset(header_row_->bounds().origin().OffsetFromOrigin());
+  r.Offset(inner_container_->bounds().origin().OffsetFromOrigin());
+  return r;
+}
+
 gfx::Size DaoSidebarView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
   return gfx::Size(current_width_, 0);

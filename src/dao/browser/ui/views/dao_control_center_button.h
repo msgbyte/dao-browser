@@ -6,6 +6,7 @@
 #define DAO_BROWSER_UI_VIEWS_DAO_CONTROL_CENTER_BUTTON_H_
 
 #include "base/memory/raw_ptr.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/views/controls/button/button.h"
 
 class Browser;
@@ -23,6 +24,9 @@ class DaoControlCenterButton : public views::Button {
   DaoControlCenterButton& operator=(const DaoControlCenterButton&) = delete;
   ~DaoControlCenterButton() override;
 
+  // Update icon color to match address bar adaptive theme.
+  void SetIconColor(SkColor color);
+
   // views::Button:
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
@@ -35,6 +39,7 @@ class DaoControlCenterButton : public views::Button {
   void UpdateBackground();
 
   raw_ptr<Browser> browser_;
+  SkColor icon_color_;
   bool hovered_ = false;
 };
 

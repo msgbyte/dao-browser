@@ -52,6 +52,10 @@ class DaoSidebarView : public views::View,
 
   DaoTabListView* tab_list_view() { return tab_list_view_; }
   DaoNewTabButton* new_tab_button() { return new_tab_button_; }
+  // Returns the header row and toggle button bounds in the sidebar's own
+  // coordinate space (caller adds sidebar->bounds().origin() for BrowserView).
+  gfx::Rect header_bounds_in_sidebar() const;
+  gfx::Rect toggle_button_bounds_in_sidebar() const;
 
   void SetNewTabHighlighted(bool highlighted);
   void ShowOmniboxPopup();
