@@ -1259,7 +1259,7 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui)
   // Allow innerHTML usage (streaming markdown rendering).
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes,
-      "trusted-types default;");
+      "trusted-types default lit-html-desktop;");
 
   // Register message handlers.
   web_ui->AddMessageHandler(std::make_unique<DaoAgentUIHandler>());

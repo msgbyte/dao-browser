@@ -1,0 +1,46 @@
+diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/tab_strip_model.cc
+index 21e1496f7e..a37263c052 100644
+--- a/chrome/browser/ui/tabs/tab_strip_model.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model.cc
+@@ -3418,33 +3418,25 @@ int TabStripModel::DetermineInsertionIndex(ui::PageTransition transition,
+ 
+   if (ui::PageTransitionCoreTypeIs(transition, ui::PAGE_TRANSITION_LINK) &&
+       active_index() != -1) {
++    // Dao: Insert link-opened tabs at active_index() (before the active tab
++    // in model order) so they appear visually below the current tab in the
++    // reverse-rendered vertical tab list.
+     if (foreground) {
+-      // If the page was opened in the foreground by a link click in another
+-      // tab, insert it adjacent to the tab that opened that link.
+-      return active_index() + 1;
++      return active_index();
+     }
+     content::WebContents* const opener = GetActiveWebContents();
+-    // Figure out the last tab opened by the current tab.
+     const int index = GetIndexOfLastWebContentsOpenedBy(opener, active_index());
+-    // If no such tab exists, simply place next to the current tab.
+     if (index == TabStripModel::kNoTab) {
+-      return active_index() + 1;
++      return active_index();
+     }
+ 
+-    // Normally we'd add the tab immediately after the most recent tab
+-    // associated with `opener`. However, if there is a group discontinuity
+-    // between the active tab and where we'd like to place the tab, we'll place
+-    // it just before the discontinuity instead (see crbug.com/1246421).
+     const auto opener_group = GetTabGroupForTab(active_index());
+-    for (int i = active_index() + 1; i <= index; ++i) {
+-      // Insert before the first tab that differs in group.
++    for (int i = active_index() - 1; i >= index; --i) {
+       if (GetTabGroupForTab(i) != opener_group) {
+-        return i;
++        return i + 1;
+       }
+     }
+-    // If there is no discontinuity, add after the last tab already associated
+-    // with the opener.
+-    return index + 1;
++    return index;
+   }
+   // In other cases, such as Ctrl+T, open at the end of the strip.
+   return count();
