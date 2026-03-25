@@ -21,6 +21,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/font_list.h"
 #include "ui/compositor/layer.h"
+#include "ui/gfx/canvas.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
@@ -31,6 +32,8 @@
 #include "ui/views/style/typography.h"
 #include "ui/views/widget/widget.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
+#include "ui/gfx/animation/linear_animation.h"
+#include "ui/gfx/geometry/transform.h"
 
 namespace dao {
 
@@ -71,8 +74,21 @@ class NavIconButton : public views::Button {
     SkColor color = highlighted_ ? dao::kSpaceActive
                    : nav_enabled_ ? icon_color_
                    : disabled_color_;
-    DrawLucideIcon(canvas, icon_,
-                   gfx::RectF(ox, oy, icon_size, icon_size), color);
+
+    if (rotation_degrees_ != 0) {
+      canvas->Save();
+      gfx::Transform rotate;
+      rotate.Translate(width() / 2.0f, height() / 2.0f);
+      rotate.Rotate(rotation_degrees_);
+      rotate.Translate(-width() / 2.0f, -height() / 2.0f);
+      canvas->Transform(rotate);
+      DrawLucideIcon(canvas, icon_,
+                     gfx::RectF(ox, oy, icon_size, icon_size), color);
+      canvas->Restore();
+    } else {
+      DrawLucideIcon(canvas, icon_,
+                     gfx::RectF(ox, oy, icon_size, icon_size), color);
+    }
   }
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
@@ -107,6 +123,8 @@ class NavIconButton : public views::Button {
 
   void SetIcon(LucideIcon icon) {
     icon_ = icon;
+    // Reset rotation when icon changes (e.g. refresh → stop).
+    StopRotation();
     SchedulePaint();
   }
 
@@ -115,15 +133,61 @@ class NavIconButton : public views::Button {
     SchedulePaint();
   }
 
+  // Enable press-rotation animation (e.g. for the refresh button).
+  void SetAnimateOnPress(bool animate) { animate_on_press_ = animate; }
+
   bool highlighted() const { return highlighted_; }
   bool nav_enabled() const { return nav_enabled_; }
 
+  // gfx::AnimationDelegate:
+  void AnimationProgressed(const gfx::Animation* animation) override {
+    rotation_degrees_ = 90.0 * animation->GetCurrentValue();
+    SchedulePaint();
+  }
+
+  void AnimationEnded(const gfx::Animation* animation) override {
+    // Keep rotation at 90° — don't reset. Reset happens on release or icon switch.
+    rotation_degrees_ = 90.0;
+    SchedulePaint();
+  }
+
+ protected:
+  void StateChanged(ButtonState old_state) override {
+    Button::StateChanged(old_state);
+    if (!animate_on_press_) {
+      return;
+    }
+    if (GetState() == STATE_PRESSED && icon_ == LucideIcon::kRotateCw) {
+      // Animate icon rotation 0→90° on press.
+      rotation_degrees_ = 0;
+      rotation_animation_ = std::make_unique<gfx::LinearAnimation>(
+          base::Milliseconds(120), 60,
+          static_cast<gfx::AnimationDelegate*>(this));
+      rotation_animation_->Start();
+    } else if (old_state == STATE_PRESSED && GetState() != STATE_PRESSED) {
+      // Released — snap rotation back.
+      StopRotation();
+      SchedulePaint();
+    }
+  }
+
  private:
+  void StopRotation() {
+    if (rotation_animation_) {
+      rotation_animation_->Stop();
+      rotation_animation_.reset();
+    }
+    rotation_degrees_ = 0;
+  }
+
   LucideIcon icon_;
   SkColor icon_color_ = SkColorSetARGB(180, 100, 100, 100);
   SkColor disabled_color_ = SkColorSetARGB(60, 100, 100, 100);
   bool nav_enabled_ = true;
   bool highlighted_ = false;
+  bool animate_on_press_ = false;
+  double rotation_degrees_ = 0;
+  std::unique_ptr<gfx::LinearAnimation> rotation_animation_;
 };
 
 BEGIN_METADATA(NavIconButton)
@@ -194,10 +258,12 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
       LucideIcon::kArrowRight, u"Go Forward"));
 
   // Stop/Refresh button: shows X (stop) while loading, RotateCw (refresh) when loaded
-  stop_refresh_button_ = AddChildView(std::make_unique<NavIconButton>(
+  auto stop_refresh_btn = std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnStopRefreshButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kRotateCw, u"Reload"));
+      LucideIcon::kRotateCw, u"Reload");
+  stop_refresh_btn->SetAnimateOnPress(true);
+  stop_refresh_button_ = AddChildView(std::move(stop_refresh_btn));
 
   // Left flex spacer — pushes URL pill toward center
   auto left_flex = std::make_unique<views::View>();

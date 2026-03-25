@@ -49,6 +49,7 @@ class DaoTabItemView : public views::Button {
   void OnMouseExited(const ui::MouseEvent& event) override;
   void OnMouseMoved(const ui::MouseEvent& event) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
+  void OnMouseReleased(const ui::MouseEvent& event) override;
 
  private:
   bool IsPointInCloseButton(const gfx::Point& point) const;
@@ -65,6 +66,7 @@ class DaoTabItemView : public views::Button {
   base::RepeatingClosure close_callback_;
   bool is_audible_ = false;
   bool is_muted_ = false;
+  bool close_button_pressed_ = false;
 };
 
 }  // namespace dao

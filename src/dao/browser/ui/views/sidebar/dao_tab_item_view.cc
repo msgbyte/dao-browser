@@ -12,6 +12,7 @@
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/views/animation/ink_drop.h"
@@ -29,17 +30,23 @@ namespace {
 constexpr int kItemHeight = 40;
 constexpr int kCornerRadius = 12;
 constexpr int kAudioButtonSize = 18;
-constexpr int kCloseButtonSize = 18;
+constexpr int kCloseButtonSize = 20;
 }  // namespace
 
 // A simple view that draws a Lucide X icon (not a Button, to avoid nested
 // button issues).  Hit-testing is handled by the parent DaoTabItemView.
+// Uses its own compositing layer so the hover highlight renders above the
+// parent Button's InkDrop.
 class DaoCloseIconView : public views::View {
   METADATA_HEADER(DaoCloseIconView, views::View)
 
  public:
   DaoCloseIconView() {
     SetPreferredSize(gfx::Size(kCloseButtonSize, kCloseButtonSize));
+    // This view is purely visual — all hit-testing and interaction is handled
+    // by the parent DaoTabItemView.  Without this, the view intercepts
+    // OnMouseMoved events, preventing the parent from driving hover state.
+    SetCanProcessEventsWithinSubtree(false);
   }
 
   void SetHovered(bool hovered) {
@@ -50,23 +57,34 @@ class DaoCloseIconView : public views::View {
     SchedulePaint();
   }
 
+  void SetPressed(bool pressed) {
+    if (pressed_ == pressed) {
+      return;
+    }
+    pressed_ = pressed;
+    SchedulePaint();
+  }
+
   void OnPaint(gfx::Canvas* canvas) override {
-    if (hovered_) {
+    if (pressed_ || hovered_) {
       cc::PaintFlags bg_flags;
       bg_flags.setAntiAlias(true);
       bg_flags.setStyle(cc::PaintFlags::kFill_Style);
-      bg_flags.setColor(SkColorSetA(SK_ColorWHITE, 0x1A));  // white 10%
+      bg_flags.setColor(pressed_ ? SkColorSetA(SK_ColorWHITE, 0x33)   // white 20%
+                                 : SkColorSetA(SK_ColorWHITE, 0x22));  // white 13%
       canvas->DrawRoundRect(
-          gfx::RectF(0, 0, kCloseButtonSize, kCloseButtonSize), 4, bg_flags);
+          gfx::RectF(0, 0, kCloseButtonSize, kCloseButtonSize), 5, bg_flags);
     }
     gfx::RectF icon_rect(0, 0, kCloseButtonSize, kCloseButtonSize);
-    icon_rect.Inset(3);
-    SkColor icon_color = hovered_ ? dao::kTextPrimary : dao::kTextMuted;
+    icon_rect.Inset(4);
+    SkColor icon_color =
+        (hovered_ || pressed_) ? dao::kTextPrimary : dao::kTextMuted;
     DrawLucideIcon(canvas, LucideIcon::kX, icon_rect, icon_color);
   }
 
  private:
   bool hovered_ = false;
+  bool pressed_ = false;
 };
 
 // Custom button that draws a Lucide volume icon.
@@ -249,8 +267,10 @@ void DaoTabItemView::OnMouseExited(const ui::MouseEvent& event) {
   Button::OnMouseExited(event);
   if (close_button_) {
     static_cast<DaoCloseIconView*>(close_button_.get())->SetHovered(false);
+    static_cast<DaoCloseIconView*>(close_button_.get())->SetPressed(false);
     close_button_->SetVisible(false);
   }
+  close_button_pressed_ = false;
 }
 
 void DaoTabItemView::OnMouseMoved(const ui::MouseEvent& event) {
@@ -262,12 +282,26 @@ void DaoTabItemView::OnMouseMoved(const ui::MouseEvent& event) {
 }
 
 bool DaoTabItemView::OnMousePressed(const ui::MouseEvent& event) {
-  // If click lands on the close icon, handle close instead of tab switch.
+  // If press lands on the close icon, track pressed state but don't close yet.
+  // Close fires on release for a complete click.
   if (IsPointInCloseButton(event.location())) {
-    OnCloseClicked();
+    close_button_pressed_ = true;
+    static_cast<DaoCloseIconView*>(close_button_.get())->SetPressed(true);
     return true;
   }
   return Button::OnMousePressed(event);
+}
+
+void DaoTabItemView::OnMouseReleased(const ui::MouseEvent& event) {
+  if (close_button_pressed_) {
+    close_button_pressed_ = false;
+    static_cast<DaoCloseIconView*>(close_button_.get())->SetPressed(false);
+    if (IsPointInCloseButton(event.location())) {
+      OnCloseClicked();
+    }
+    return;
+  }
+  Button::OnMouseReleased(event);
 }
 
 bool DaoTabItemView::IsPointInCloseButton(const gfx::Point& point) const {
