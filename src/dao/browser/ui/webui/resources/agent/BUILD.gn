@@ -18,6 +18,7 @@ build_webui("build") {
     "dao_agent_app.ts",
     "dao_chat_view.ts",
     "dao_settings_view.ts",
+    "markdown_renderer.ts",
   ]
 
   ts_definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]

@@ -154,11 +154,10 @@ export class DaoChatView extends CrLitElement {
 
       /* Messages */
       .message {
-        max-width: 95%; padding: 6px 10px; border-radius: var(--radius);
-        font-size: 13px; line-height: 1.4;
+        max-width: 95%; padding: 8px 12px; border-radius: var(--radius);
+        font-size: 13px; line-height: 1.5;
         word-break: break-word;
       }
-      .message p { margin: 0; }
       .message.user {
         align-self: flex-end; background: var(--user-bubble);
         border-bottom-right-radius: 4px; white-space: pre-wrap;
@@ -166,29 +165,124 @@ export class DaoChatView extends CrLitElement {
       .message.assistant {
         align-self: flex-start; background: var(--assistant-bubble);
         border-bottom-left-radius: 4px; position: relative;
-        white-space: pre-line;
       }
       .message.system-msg {
         align-self: center; color: var(--text-tertiary);
         font-size: 11px; text-align: center;
         background: none; padding: 2px 4px;
       }
-      .message code {
+
+      /* Markdown — Paragraphs */
+      .message.assistant p {
+        margin: 0 0 6px 0;
+      }
+      .message.assistant p:last-child { margin-bottom: 0; }
+
+      /* Markdown — Headings */
+      .message.assistant .md-heading {
+        margin: 10px 0 4px 0; font-weight: 600; line-height: 1.3;
+        color: var(--text);
+      }
+      .message.assistant h1.md-heading { font-size: 17px; }
+      .message.assistant h2.md-heading { font-size: 15px; }
+      .message.assistant h3.md-heading { font-size: 14px; }
+      .message.assistant h4.md-heading,
+      .message.assistant h5.md-heading,
+      .message.assistant h6.md-heading { font-size: 13px; }
+      .message.assistant .md-heading:first-child { margin-top: 0; }
+
+      /* Markdown — Inline code */
+      .message.assistant code {
         background: rgba(255,255,255,0.1);
-        padding: 1px 4px; border-radius: 4px; font-size: 12px;
+        padding: 1px 5px; border-radius: 4px;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12px;
       }
-      .message pre {
-        background: rgba(0,0,0,0.3); padding: 6px 8px;
-        border-radius: 6px; overflow-x: auto; margin: 4px 0;
-        white-space: pre;
+
+      /* Markdown — Code blocks */
+      .message.assistant .md-code-block {
+        position: relative; margin: 6px 0;
+        border-radius: 8px; overflow: hidden;
+        background: rgba(0,0,0,0.35);
       }
-      .message pre code { background: none; padding: 0; }
-      .message strong { font-weight: 600; }
-      .message ul, .message ol { padding-left: 16px; margin: 2px 0; }
-      .message li { margin: 0; }
+      .message.assistant .md-code-block pre {
+        margin: 0; padding: 10px 12px;
+        overflow-x: auto; white-space: pre;
+      }
+      .message.assistant .md-code-block code {
+        background: none; padding: 0; border-radius: 0;
+        font-size: 12px; line-height: 1.45;
+        color: rgba(255,255,255,0.82);
+      }
+      .message.assistant .md-code-lang {
+        position: absolute; top: 0; right: 0;
+        padding: 2px 8px;
+        font-size: 10px; color: var(--text-tertiary);
+        background: rgba(255,255,255,0.06);
+        border-bottom-left-radius: 6px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+        user-select: none;
+      }
+
+      /* Markdown — Blockquote */
+      .message.assistant .md-blockquote {
+        margin: 6px 0; padding: 4px 10px;
+        border-left: 3px solid var(--accent);
+        background: rgba(140,100,220,0.06);
+        color: var(--text-secondary);
+      }
+      .message.assistant .md-blockquote p {
+        margin: 2px 0;
+      }
+
+      /* Markdown — Lists */
+      .message.assistant .md-list {
+        padding-left: 18px; margin: 4px 0;
+      }
+      .message.assistant .md-list li {
+        margin: 2px 0; line-height: 1.45;
+      }
+
+      /* Markdown — Tables */
+      .message.assistant .md-table {
+        width: 100%; border-collapse: collapse;
+        margin: 6px 0; font-size: 12px;
+      }
+      .message.assistant .md-table th,
+      .message.assistant .md-table td {
+        padding: 4px 8px; text-align: left;
+        border: 1px solid rgba(255,255,255,0.1);
+      }
+      .message.assistant .md-table th {
+        background: rgba(255,255,255,0.06);
+        font-weight: 600; color: var(--text);
+      }
+      .message.assistant .md-table tr:nth-child(even) td {
+        background: rgba(255,255,255,0.02);
+      }
+
+      /* Markdown — Horizontal rule */
+      .message.assistant .md-hr {
+        border: none; height: 1px;
+        background: rgba(255,255,255,0.1);
+        margin: 8px 0;
+      }
+
+      /* Markdown — Links */
+      .message.assistant a {
+        color: var(--accent); text-decoration: none;
+      }
+      .message.assistant a:hover { text-decoration: underline; }
+
+      /* Markdown — Bold / Italic / Strikethrough */
+      .message.assistant strong { font-weight: 600; }
+      .message.assistant em { font-style: italic; }
+      .message.assistant del {
+        text-decoration: line-through;
+        color: var(--text-secondary);
+      }
 
       /* Streaming cursor */
-      .message.streaming { white-space: normal; }
       .message.streaming::after {
         content: '\\25AE'; display: inline;
         animation: cursorBlink 0.8s step-end infinite;
