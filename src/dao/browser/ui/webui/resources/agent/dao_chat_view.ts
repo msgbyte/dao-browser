@@ -434,19 +434,6 @@ export class DaoChatView extends CrLitElement {
         padding: 8px 14px;
         border-top: 1px solid var(--border); flex-shrink: 0;
       }
-      .tool-btn {
-        width: 28px; height: 28px;
-        display: flex; align-items: center; justify-content: center;
-        background: var(--surface); border: none; border-radius: 8px;
-        color: var(--text-secondary); cursor: pointer;
-        font-size: 14px; flex-shrink: 0;
-      }
-      .tool-btn:hover {
-        background: var(--surface-hover); color: var(--text);
-      }
-      .tool-btn.active {
-        background: var(--accent-dim); color: var(--accent);
-      }
       .input-wrapper {
         flex: 1; display: flex; align-items: flex-end;
         background: var(--surface); border: 1px solid var(--border);
@@ -704,12 +691,6 @@ export class DaoChatView extends CrLitElement {
   }
 
   private renderInputArea_() {
-    const pageIcon = html`<svg width="16" height="16" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0
-        0 2-2V7Z"/>
-      <path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
     const sendIcon = html`<svg class="send-icon" width="16" height="16"
         viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -723,8 +704,6 @@ export class DaoChatView extends CrLitElement {
 
     return html`
       <div class="input-area">
-        <button class="tool-btn" title="Inject page content into context"
-            @click=${this.onPageBtnClick_}>${pageIcon}</button>
         <div class="input-wrapper">
           <textarea rows="1" placeholder="Message Dao Agent..."
               @input=${this.onInput_}
@@ -797,31 +776,6 @@ export class DaoChatView extends CrLitElement {
     } else {
       this.sendMessage_();
     }
-  }
-
-  private async onPageBtnClick_(e: Event) {
-    if (this.isStreaming_) return;
-    const btn = e.currentTarget as HTMLElement;
-    btn.classList.add('active');
-    try {
-      const content = await callNative('getPageContent') as {text?: string};
-      const info = await callNative('getPageInfo') as
-          {title?: string; url?: string};
-      const contextMsg = 'Current page: ' + (info.title || 'Unknown') +
-          '\nURL: ' + (info.url || 'Unknown') + '\n\nPage content:\n' +
-          (content.text || '(empty)');
-      this.messages_.push({
-        role: 'user',
-        content: '[Page context injected]\n\n' + contextMsg,
-      });
-      this.pushUIMessage_(
-          'system-msg',
-          '\u{1F4C4} Page content loaded (' +
-              (content.text || '').length + ' chars)');
-    } catch (e) {
-      this.pushErrorMessage_((e as Error).message);
-    }
-    btn.classList.remove('active');
   }
 
   private onChipClick_() {
