@@ -139,6 +139,7 @@ You have the following browser tools at your disposal — use them proactively w
 - **get_page_info** — Get the current page URL, title, and meta description. Use this for context about where the user is browsing.
 - **click_element** — Click an element on the page by CSS selector. Use this when the user asks you to interact with the page (e.g. "click the login button", "close that popup").
 - **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover.
+- **update_soul** — Modify your SOUL.md (the personality prompt you see above). Supports three actions: \`append\` (add content at the end), \`replace_section\` (replace a specific ## section), \`replace_all\` (rewrite entirely).
 
 ## Guidelines
 
@@ -146,6 +147,16 @@ You have the following browser tools at your disposal — use them proactively w
 - Prefer precise CSS selectors when clicking elements.
 - For \`execute_script\`, return serializable values (strings, numbers, plain objects). Avoid returning DOM nodes directly.
 - Always tell the user what you did after using a tool.
+
+## Soul Self-Update
+
+Your personality is defined by a SOUL.md file loaded into every conversation. You can read and update it:
+
+- When the user expresses a **persistent preference** (e.g. "reply in Chinese from now on", "be more concise"), use \`update_soul\` to save it.
+- When the user asks you to **change your behavior or personality**, update the relevant section.
+- **Always tell the user** what you changed and why before or after updating.
+- Do **not** modify your soul for one-off requests — only for things the user wants to persist.
+- Your current soul is already in this system prompt above — no need to read it separately.
 `;
 
 export const DEFAULT_SOUL = `# SOUL.md - Who You Are
@@ -210,6 +221,49 @@ export function refreshSoulContent(): void {
   currentSoulContent = loadSoul();
 }
 
+function updateSoulByAction(
+    action: string, content: string,
+    section?: string): {ok: boolean; message: string} {
+  const current = loadSoul();
+
+  switch (action) {
+    case 'append':
+      saveSoul(current + '\n\n' + content);
+      return {ok: true, message: 'Content appended to soul.'};
+
+    case 'replace_section': {
+      if (!section) {
+        return {ok: false, message: 'Missing "section" for replace_section.'};
+      }
+      // Match the section heading and everything until the next same-level
+      // heading or end of string.
+      const level = (section.match(/^(#+)/) || ['', '##'])[1];
+      const escaped = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern =
+          new RegExp(`(${escaped}[^\\n]*)\\n[\\s\\S]*?(?=\\n${level} |$)`);
+      if (!pattern.test(current)) {
+        // Section not found — append as a new section.
+        saveSoul(current + '\n\n' + section + '\n\n' + content);
+        return {ok: true, message: `New section "${section}" added.`};
+      }
+      const updated = current.replace(pattern, `$1\n\n${content}`);
+      saveSoul(updated);
+      return {ok: true, message: `Section "${section}" updated.`};
+    }
+
+    case 'replace_all':
+      saveSoul(content);
+      return {ok: true, message: 'Soul replaced entirely.'};
+
+    default:
+      return {
+        ok: false,
+        message: 'Unknown action: ' + action +
+            '. Use "append", "replace_section", or "replace_all".',
+      };
+  }
+}
+
 // ---- Tools Definition ----
 
 export const tools: ToolDefinition[] = [
@@ -264,6 +318,34 @@ export const tools: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'update_soul',
+      description:
+          'Update your SOUL.md. Use when the user asks you to change your personality, behavior, or expresses a persistent preference. Always tell the user what you changed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            description:
+                'How to update: "append" adds content at the end, "replace_section" replaces a markdown section (## heading), "replace_all" replaces the entire soul',
+          },
+          section: {
+            type: 'string',
+            description:
+                'For replace_section: the markdown heading to replace (e.g. "## Vibe"). Ignored for other actions.',
+          },
+          content: {
+            type: 'string',
+            description: 'The new content to write',
+          },
+        },
+        required: ['action', 'content'],
+      },
+    },
+  },
 ];
 
 // ---- Markdown Rendering ----
@@ -300,6 +382,9 @@ export async function executeTool(
       return await callNative('clickElement', {selector: args['selector']});
     case 'execute_script':
       return await callNative('executeScript', {code: args['code']});
+    case 'update_soul':
+      return updateSoulByAction(
+          args['action'] || '', args['content'] || '', args['section']);
     default:
       return {error: 'Unknown tool: ' + name};
   }
