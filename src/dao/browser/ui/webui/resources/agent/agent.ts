@@ -209,7 +209,7 @@ function switchMainTab(tab: string): void {
   settingsView.style.display = tab === 'settings' ? '' : 'none';
 
   if (tab === 'settings') {
-    soulEditor.value = loadSoul();
+    soulEditor.value = currentSoulContent;
   }
 }
 
@@ -250,7 +250,7 @@ resetSoulBtn.addEventListener('click', () => {
 });
 
 // Load soul editor content on startup
-soulEditor.value = loadSoul();
+soulEditor.value = currentSoulContent;
 
 // ---- Memory Settings ----
 
@@ -1213,10 +1213,8 @@ async function runConversation(): Promise<void> {
   setStreamingUI(true);
   currentAbortController = new AbortController();
 
-  // Build system prompt: fixed base prompt + user-editable soul + memory context
-  let soulContent = BASE_SYSTEM_PROMPT + '\n' + loadSoul();
-
   // Inject memory context if enabled (best-effort, non-blocking with 3s timeout).
+  let memoryBlock = '';
   if (memoryEnabled.checked && !memoryContextLoaded) {
     try {
       const memoryTimeout = new Promise<never>((_, rej) =>
@@ -1238,7 +1236,6 @@ async function runConversation(): Promise<void> {
       })();
       const ctx = await Promise.race([memoryLoad, memoryTimeout]);
 
-      let memoryBlock = '';
       if (ctx.preferences && ctx.preferences.length > 0) {
         memoryBlock += '\n\n## User Preferences (from memory)\n';
         for (const p of ctx.preferences) {
@@ -1252,7 +1249,6 @@ async function runConversation(): Promise<void> {
         }
       }
       if (memoryBlock) {
-        soulContent += memoryBlock;
         if (!hasFirstMemory) {
           hasFirstMemory = true;
           if (!localStorage.getItem('dao_first_memory_shown')) {
@@ -1267,11 +1263,14 @@ async function runConversation(): Promise<void> {
     }
   }
 
-  const systemPrompt: ChatMessage = {role: 'system', content: soulContent};
-
   try {
     let continueLoop = true;
     while (continueLoop) {
+      // Hot-reload: rebuild system prompt each iteration with latest soul
+      const systemPrompt: ChatMessage = {
+        role: 'system',
+        content: BASE_SYSTEM_PROMPT + '\n' + currentSoulContent + memoryBlock
+      };
       continueLoop = false;
 
       // Show thinking indicator immediately
