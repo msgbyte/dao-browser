@@ -37,7 +37,7 @@ export class DaoAgentApp extends CrLitElement {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 6px 10px 0 14px;
+        padding: 6px 10px;
         flex-shrink: 0;
       }
       .header-title {

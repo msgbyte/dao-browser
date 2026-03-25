@@ -5,10 +5,13 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_ADDRESS_BAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_ADDRESS_BAR_VIEW_H_
 
+#include <vector>
+
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/views/view.h"
 
 class Browser;
@@ -71,6 +74,13 @@ class DaoAddressBarView : public views::View,
 
   // Returns the control center button for popup anchoring.
   views::View* control_center_button() const;
+
+  // Returns the URL pill bounds in address bar coordinates.
+  gfx::Rect url_container_bounds() const;
+
+  // Returns rects of all interactive elements (buttons, URL pill, control
+  // center) in address bar coordinates, for hit-testing in the layout.
+  std::vector<gfx::Rect> interactive_rects() const;
 
   // views::View:
   bool OnMousePressed(const ui::MouseEvent& event) override;

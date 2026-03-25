@@ -38,7 +38,7 @@ namespace {
 constexpr SkColor kHostColor = SkColorSetRGB(60, 60, 60);
 constexpr SkColor kPathColor = SkColorSetRGB(124, 124, 124);
 constexpr int kUrlPillRadius = 8;
-constexpr SkColor kUrlHoverBg = SkColorSetARGB(15, 0, 0, 0);
+constexpr SkColor kUrlHoverBg = SkColorSetARGB(30, 0, 0, 0);
 constexpr int kFontSize = 12;
 constexpr int kNavButtonSize = 24;
 constexpr int kNavIconSize = 14;
@@ -366,13 +366,18 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
       }
     }
   }
-  // Click elsewhere on address bar opens the command bar
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(browser_);
-  if (browser_view && browser_view->dao_command_bar()) {
-    browser_view->dao_command_bar()->Show();
+  // Only clicking the URL pill opens the command bar; other empty areas
+  // are left unhandled so the window can be dragged.
+  if (url_container_ &&
+      url_container_->GetMirroredBounds().Contains(event.location())) {
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser_);
+    if (browser_view && browser_view->dao_command_bar()) {
+      browser_view->dao_command_bar()->Show();
+    }
+    return true;
   }
-  return true;
+  return false;
 }
 
 void DaoAddressBarView::OnMouseMoved(const ui::MouseEvent& event) {
@@ -664,6 +669,37 @@ void DaoAddressBarView::UpdateNavButtonColors() {
   if (control_center_button_) {
     control_center_button_->SetIconColor(icon_color);
   }
+}
+
+gfx::Rect DaoAddressBarView::url_container_bounds() const {
+  if (!url_container_) {
+    return gfx::Rect();
+  }
+  return url_container_->GetMirroredBounds();
+}
+
+std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
+  std::vector<gfx::Rect> rects;
+  // URL pill
+  if (url_container_) {
+    rects.push_back(url_container_->GetMirroredBounds());
+  }
+  // Navigation buttons
+  for (views::Button* btn : {back_button_.get(), forward_button_.get(),
+                              stop_refresh_button_.get(), chat_button_.get()}) {
+    if (btn && btn->GetVisible()) {
+      rects.push_back(btn->GetMirroredBounds());
+    }
+  }
+  // Toggle button
+  if (sidebar_toggle_button_ && sidebar_toggle_button_->GetVisible()) {
+    rects.push_back(sidebar_toggle_button_->GetMirroredBounds());
+  }
+  // Control center button
+  if (control_center_button_) {
+    rects.push_back(control_center_button_->GetMirroredBounds());
+  }
+  return rects;
 }
 
 }  // namespace dao
