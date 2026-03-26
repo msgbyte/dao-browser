@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..365ea1030a 100644
+index 76c889780c..41443c063b 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -119,6 +119,16 @@
+@@ -119,6 +119,18 @@
  #include "chrome/browser/ui/views/frame/browser_view_layout.h"
  #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
  #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
@@ -14,12 +14,14 @@ index 76c889780c..365ea1030a 100644
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
++#include "dao/browser/ui/views/sidebar/dao_tab_list_view.h"
 +#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 +#include "dao/browser/ui/views/dao_control_center_popup.h"
++#include "dao/browser/ui/views/split/dao_split_view.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/native_browser_frame.h"
-@@ -1084,6 +1094,53 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
+@@ -1084,6 +1096,65 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -32,6 +34,18 @@ index 76c889780c..365ea1030a 100644
 +    dao_sidebar_ = AddChildViewAt(
 +        std::make_unique<dao::DaoSidebarView>(browser_.get()),
 +        GetIndexOf(contents_container_).value());
++
++    // Dao: Split view inside contents_container_ for multi-pane browsing
++    dao_split_view_ = contents_container_->AddChildView(
++        std::make_unique<dao::DaoSplitView>(browser_.get()));
++
++    // Dao: Wire tab drag callback so split view becomes hit-testable during drags
++    dao_sidebar_->tab_list_view()->set_tab_drag_callback(
++        base::BindRepeating(
++            [](dao::DaoSplitView* sv, bool active) {
++              sv->SetTabDragActive(active);
++            },
++            base::Unretained(dao_split_view_)));
 +
 +    // Dao: Address bar at top of content area
 +    dao_address_bar_ = AddChildView(
@@ -73,7 +87,7 @@ index 76c889780c..365ea1030a 100644
    right_aligned_side_panel_separator_ =
        AddChildView(std::make_unique<ContentsSeparator>());
  
-@@ -1301,6 +1358,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
+@@ -1301,6 +1372,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -85,7 +99,7 @@ index 76c889780c..365ea1030a 100644
    const bool is_pwa =
        base::FeatureList::IsEnabled(features::kImmersiveFullscreenPWAs) &&
        GetIsWebAppType();
-@@ -1310,6 +1372,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
+@@ -1310,6 +1386,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
  }
  
  bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
@@ -96,7 +110,7 @@ index 76c889780c..365ea1030a 100644
    return (GetSupportsTabStrip() &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreen) &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreenTabs)) &&
-@@ -1338,6 +1404,11 @@ bool BrowserView::GetTabStripVisible() const {
+@@ -1338,6 +1418,11 @@ bool BrowserView::GetTabStripVisible() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -108,7 +122,41 @@ index 76c889780c..365ea1030a 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-@@ -2362,6 +2433,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -1876,6 +1961,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+   // Visibility API under Windows, as ChangeWebContents will briefly hide
+   // the WebContents window.
+   bool change_tab_contents = contents_web_view_->web_contents() != new_contents;
++  const bool dao_split_tab_active =
++      dao_split_view_ && dao_split_view_->IsActiveSplitTab(new_contents);
+ 
+ #if BUILDFLAG(IS_MAC)
+   // Widget::IsActive is inconsistent between Mac and Aura, so don't check for
+@@ -1951,13 +2038,19 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+     }
+ 
+     web_contents_close_handler_->ActiveTabChanged();
+-    if (loading_bar_) {
++    if (loading_bar_ && !dao_split_tab_active) {
+       loading_bar_->SetWebContents(new_contents);
++    } else if (loading_bar_) {
++      loading_bar_->SetWebContents(nullptr);
+     }
+-    contents_web_view_->SetWebContents(new_contents);
+-    SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
+-    if (sad_tab_helper) {
+-      sad_tab_helper->ReinstallInWebView();
++    if (dao_split_tab_active) {
++      contents_web_view_->SetWebContents(nullptr);
++    } else {
++      contents_web_view_->SetWebContents(new_contents);
++      SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
++      if (sad_tab_helper) {
++        sad_tab_helper->ReinstallInWebView();
++      }
+     }
+ 
+     // The second layout update should be no-op. It will just set the
+@@ -2362,6 +2455,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.

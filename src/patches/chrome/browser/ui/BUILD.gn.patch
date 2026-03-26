@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..1b10354ba3 100644
+index a66522f120..d6ec679b9a 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -48,6 +48,77 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -48,6 +48,85 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
@@ -59,6 +59,14 @@ index a66522f120..1b10354ba3 100644
 +    "//dao/browser/ui/views/dao_suggestion_item_view.h",
 +    "//dao/browser/ui/views/dao_corner_overlay_view.cc",
 +    "//dao/browser/ui/views/dao_corner_overlay_view.h",
++    "//dao/browser/ui/views/split/dao_split_divider_view.cc",
++    "//dao/browser/ui/views/split/dao_split_divider_view.h",
++    "//dao/browser/ui/views/split/dao_split_node.cc",
++    "//dao/browser/ui/views/split/dao_split_node.h",
++    "//dao/browser/ui/views/split/dao_split_pane_view.cc",
++    "//dao/browser/ui/views/split/dao_split_pane_view.h",
++    "//dao/browser/ui/views/split/dao_split_view.cc",
++    "//dao/browser/ui/views/split/dao_split_view.h",
 +    "//dao/browser/ui/views/sidebar/dao_download_button_view.cc",
 +    "//dao/browser/ui/views/sidebar/dao_download_button_view.h",
 +    "//dao/browser/ui/views/sidebar/dao_download_flyout_view.cc",
@@ -80,7 +88,7 @@ index a66522f120..1b10354ba3 100644
      "accelerator_utils.h",
      "bluetooth/bluetooth_dialogs.h",
      "browser_dialogs.cc",
-@@ -318,6 +389,8 @@ static_library("ui") {
+@@ -318,6 +397,8 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
@@ -89,7 +97,7 @@ index a66522f120..1b10354ba3 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -564,6 +637,7 @@ static_library("ui") {
+@@ -564,6 +645,7 @@ static_library("ui") {
      "//components/privacy_sandbox:tracking_protection_settings",
      "//components/profile_metrics",
      "//components/proxy_config",
@@ -97,7 +105,7 @@ index a66522f120..1b10354ba3 100644
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
-@@ -5673,7 +5747,7 @@ static_library("ui") {
+@@ -5673,7 +5755,7 @@ static_library("ui") {
  # //chrome/browser. These are semantically a part of
  # //chrome/browser:browser_public_dependencies since //chrome/browser and
  # //chrome/browser/ui allow circular dependencies.
@@ -106,7 +114,7 @@ index a66522f120..1b10354ba3 100644
    visibility = [ "//chrome/browser:browser_public_dependencies" ]
    public_deps = [
      "//components/cross_device/logging",
-@@ -5707,7 +5781,6 @@ static_library("ui_public_dependencies") {
+@@ -5707,7 +5789,6 @@ static_library("ui_public_dependencies") {
      public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
    }
    if (is_win) {

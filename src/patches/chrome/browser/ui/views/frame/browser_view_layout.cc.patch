@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..b1a9856d33 100644
+index 46f6be18ac..d7443e7371 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
-@@ -31,6 +31,17 @@
+@@ -31,6 +31,18 @@
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -16,11 +16,12 @@ index 46f6be18ac..b1a9856d33 100644
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 +#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 +#include "dao/browser/ui/views/dao_control_center_popup.h"
++#include "dao/browser/ui/views/split/dao_split_view.h"
 +#include "ui/compositor/layer.h"
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
-@@ -337,6 +348,93 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+@@ -337,6 +349,93 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -114,7 +115,7 @@ index 46f6be18ac..b1a9856d33 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip.
    if (delegate_->ShouldDrawTabStrip()) {
-@@ -638,6 +736,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+@@ -638,6 +737,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
    int browser_view_width = vertical_layout_rect_.width();
    bool toolbar_visible = delegate_->IsToolbarVisible();
    int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
@@ -136,7 +137,7 @@ index 46f6be18ac..b1a9856d33 100644
    SetViewVisibility(toolbar_, toolbar_visible);
    toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
                        height);
-@@ -648,32 +761,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
+@@ -648,32 +762,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
    TRACE_EVENT0("ui", "BrowserViewLayout::LayoutBookmarkAndInfoBars");
    dialog_top_y_ = top + browser_view_y - kConstrainedWindowOverlap;
  
@@ -176,7 +177,7 @@ index 46f6be18ac..b1a9856d33 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +823,173 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +824,192 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -224,10 +225,15 @@ index 46f6be18ac..b1a9856d33 100644
 +                           dao::kContentInsetRight));
 +  }
 +
-+  // Dao: Position address bar at top of content area
++  // Dao: Check if split view is active (each pane has its own address bar)
++  auto* dao_split_view = browser_view_->dao_split_view();
++  bool dao_split_active = dao_split_view && dao_split_view->IsSplitActive();
++
++  // Dao: Position address bar at top of content area (hidden in split mode)
 +  auto* address_bar = browser_view_->dao_address_bar();
 +  int address_bar_height = 0;
-+  if (address_bar && dao_sidebar_active && !dao_true_fullscreen) {
++  if (address_bar && dao_sidebar_active && !dao_true_fullscreen &&
++      !dao_split_active) {
 +    address_bar_height = dao::DaoAddressBarView::kBarHeight;
 +    address_bar->SetBounds(dao_content_area.x(), dao_content_area.y(),
 +                           dao_content_area.width(), address_bar_height);
@@ -238,16 +244,30 @@ index 46f6be18ac..b1a9856d33 100644
 +    address_bar->SetVisible(false);
 +  }
 +
-+  // Dao: Position corner overlay slightly larger than content for shadow
++  // Dao: DaoSplitView always gets the full content area bounds.
++  // Even in single-pane mode it must be sized so it can receive drag-drop
++  // events when a tab is dragged from the sidebar.
++  // Use local coordinates (0,0) since DaoSplitView is a child of
++  // contents_container_ which itself is positioned at dao_content_area.
++  if (dao_split_view) {
++    dao_split_view->SetBounds(0, 0, dao_content_area.width(),
++                               dao_content_area.height());
++  }
++
++  // Dao: Position corner overlay slightly larger than content for shadow.
++  // In split mode, the overlay covers the entire split area (no address bar
++  // offset, since each pane manages its own address bar internally).
 +  auto* corner_overlay = browser_view_->dao_corner_overlay();
 +  if (corner_overlay) {
 +    if (dao_true_fullscreen) {
 +      corner_overlay->SetVisible(false);
 +    } else {
 +      corner_overlay->SetVisible(true);
-+      // Overlay covers address bar + content area
 +      gfx::Rect overlay_content = dao_content_area;
-+      overlay_content.Inset(gfx::Insets::TLBR(-address_bar_height, 0, 0, 0));
++      if (!dao_split_active) {
++        // Single-pane: overlay extends up to cover address bar too
++        overlay_content.Inset(gfx::Insets::TLBR(-address_bar_height, 0, 0, 0));
++      }
 +      gfx::Rect overlay_bounds = overlay_content;
 +      overlay_bounds.Inset(gfx::Insets(-dao::kContentShadowMargin));
 +      corner_overlay->SetBoundsRect(overlay_bounds);
@@ -350,7 +370,7 @@ index 46f6be18ac..b1a9856d33 100644
    if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
      // The WebUI tab strip container should "push" the tab contents down without
      // resizing it.
-@@ -881,6 +1143,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
+@@ -881,6 +1163,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
    // layout and we assume that this is the case.
    height = std::max(height, delegate_->GetTopInsetInBrowserView());
  

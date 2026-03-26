@@ -1,0 +1,74 @@
+// Copyright 2026 Dao Browser Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef DAO_BROWSER_UI_VIEWS_SPLIT_DAO_SPLIT_PANE_VIEW_H_
+#define DAO_BROWSER_UI_VIEWS_SPLIT_DAO_SPLIT_PANE_VIEW_H_
+
+#include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/view.h"
+
+class Browser;
+class ContentsWebView;
+
+namespace content {
+class WebContents;
+}
+
+namespace dao {
+
+class DaoAddressBarView;
+class DaoSplitView;
+
+// A single pane in the split view tree.  Each pane owns its own address bar
+// and ContentsWebView, bound to a specific WebContents from TabStripModel.
+class DaoSplitPaneView : public views::View {
+  METADATA_HEADER(DaoSplitPaneView, views::View)
+
+ public:
+  DaoSplitPaneView(Browser* browser,
+                   DaoSplitView* split_view,
+                   int pane_index);
+  DaoSplitPaneView(const DaoSplitPaneView&) = delete;
+  DaoSplitPaneView& operator=(const DaoSplitPaneView&) = delete;
+  ~DaoSplitPaneView() override;
+
+  // Bind this pane to display |web_contents|.
+  void SetWebContents(content::WebContents* web_contents);
+
+  // The currently displayed WebContents.
+  content::WebContents* web_contents() const { return web_contents_; }
+
+  // Mark this pane as the focused/active one.
+  void SetActive(bool active);
+  bool is_active() const { return is_active_; }
+
+  // Address bar accessor (for bubble anchoring in split mode).
+  DaoAddressBarView* address_bar() const { return address_bar_; }
+
+  // Update address bar with current tab's URL.
+  void UpdateAddressBar();
+
+  // Keep WasShown/WasHidden transitions idempotent.
+  void SetContentsVisible(bool visible);
+
+  // views::View:
+  void Layout(PassKey) override;
+  bool OnMousePressed(const ui::MouseEvent& event) override;
+
+ private:
+  void OnPaneFocused();
+
+  raw_ptr<Browser> browser_;
+  raw_ptr<DaoSplitView> split_view_;
+  raw_ptr<DaoAddressBarView> address_bar_ = nullptr;
+  raw_ptr<ContentsWebView> contents_web_view_ = nullptr;
+  raw_ptr<content::WebContents> web_contents_ = nullptr;
+  bool is_active_ = false;
+  bool contents_visible_ = false;
+};
+
+}  // namespace dao
+
+#endif  // DAO_BROWSER_UI_VIEWS_SPLIT_DAO_SPLIT_PANE_VIEW_H_

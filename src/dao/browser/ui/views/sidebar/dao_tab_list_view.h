@@ -36,6 +36,13 @@ class DaoTabListView : public views::View,
     show_omnibox_callback_ = std::move(callback);
   }
 
+  void set_tab_drag_callback(
+      base::RepeatingCallback<void(bool)> callback) {
+    tab_drag_callback_ = std::move(callback);
+  }
+
+  void RefreshForSplitStateChange();
+
   void SetNewTabHighlighted(bool highlighted);
 
   const std::vector<raw_ptr<DaoTabItemView>>& tab_items() const {
@@ -93,6 +100,7 @@ class DaoTabListView : public views::View,
   int drag_source_index_ = -1;
   bool new_tab_highlighted_ = false;
   base::RepeatingClosure show_omnibox_callback_;
+  base::RepeatingCallback<void(bool)> tab_drag_callback_;
 };
 
 }  // namespace dao

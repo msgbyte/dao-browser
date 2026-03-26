@@ -484,7 +484,7 @@ bool DaoSidebarView::GetDropFormats(
 bool DaoSidebarView::CanDrop(const ui::OSExchangeData& data) {
   // Reject internal tab drags — those carry a "dao-tab-drag" string marker.
   std::optional<std::u16string> text = data.GetString();
-  if (text.has_value() && *text == u"dao-tab-drag") {
+  if (text.has_value() && text->starts_with(u"dao-tab-drag")) {
     return false;
   }
   return data.HasURL(ui::FilenameToURLPolicy::CONVERT_FILENAMES) ||

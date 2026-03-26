@@ -4,9 +4,16 @@
 
 #include "dao/browser/ui/views/sidebar/dao_tab_list_view.h"
 
+#include <algorithm>
+#include <map>
+#include <set>
+
+#include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/split/dao_split_view.h"
 #include "dao/browser/ui/views/sidebar/dao_new_tab_button.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_section_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_item_view.h"
@@ -25,11 +32,117 @@
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
+#include "ui/views/controls/label.h"
+#include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/layout/box_layout.h"
 
 namespace dao {
+
+namespace {
+
+std::u16string BuildSplitGroupTitle(
+    const std::vector<content::WebContents*>& contents) {
+  std::u16string title;
+  for (size_t i = 0; i < contents.size(); ++i) {
+    std::u16string item_title =
+        contents[i] && !contents[i]->GetTitle().empty()
+            ? contents[i]->GetTitle()
+            : u"Tab";
+    if (!title.empty()) {
+      title += u"  |  ";
+    }
+    title += item_title;
+  }
+  return title.empty() ? u"Split view" : title;
+}
+
+std::u16string GetSplitPreviewTitle(content::WebContents* contents) {
+  if (!contents || contents->GetTitle().empty()) {
+    return u"Tab";
+  }
+  return contents->GetTitle();
+}
+
+std::unique_ptr<views::View> CreateSplitPreviewChip(const std::u16string& title,
+                                                    bool is_active) {
+  auto chip = std::make_unique<views::View>();
+  auto* layout = chip->SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kHorizontal, gfx::Insets::VH(0, 8), 0));
+  layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kCenter);
+  chip->SetPreferredSize(gfx::Size(0, 28));
+  chip->SetBackground(views::CreateRoundedRectBackground(
+      is_active ? dao::kActiveTabBackground : dao::kAddressBarBackground, 10));
+
+  auto* label = chip->AddChildView(std::make_unique<views::Label>(title));
+  label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  label->SetElideBehavior(gfx::ELIDE_TAIL);
+  label->SetSubpixelRenderingEnabled(false);
+  label->SetEnabledColor(is_active ? dao::kTextPrimary : dao::kTextSecondary);
+  label->SetFontList(gfx::FontList({"sans-serif"}, gfx::Font::FontStyle::NORMAL,
+                                   12, gfx::Font::Weight::MEDIUM));
+  layout->SetFlexForView(label, 1);
+  return chip;
+}
+
+class DaoSplitGroupItemView : public views::Button {
+  METADATA_HEADER(DaoSplitGroupItemView, views::Button)
+
+ public:
+  DaoSplitGroupItemView(const std::vector<content::WebContents*>& contents,
+                        bool is_active,
+                        base::RepeatingClosure on_click)
+      : Button(std::move(on_click)) {
+    auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kHorizontal,
+        gfx::Insets::VH(0, 10), 6));
+    layout->set_cross_axis_alignment(
+        views::BoxLayout::CrossAxisAlignment::kCenter);
+
+    auto* previews = AddChildView(std::make_unique<views::View>());
+    auto* previews_layout =
+        previews->SetLayoutManager(std::make_unique<views::BoxLayout>(
+            views::BoxLayout::Orientation::kHorizontal, gfx::Insets(), 6));
+    previews_layout->set_cross_axis_alignment(
+        views::BoxLayout::CrossAxisAlignment::kCenter);
+    layout->SetFlexForView(previews, 1);
+
+    const size_t visible_count = std::min<size_t>(contents.size(), 2);
+    for (size_t i = 0; i < visible_count; ++i) {
+      auto chip = CreateSplitPreviewChip(GetSplitPreviewTitle(contents[i]),
+                                         is_active);
+      previews_layout->SetFlexForView(previews->AddChildView(std::move(chip)), 1);
+    }
+
+    if (contents.size() > visible_count) {
+      previews->AddChildView(CreateSplitPreviewChip(
+          u"+" + base::NumberToString16(static_cast<int>(contents.size() -
+                                                         visible_count)),
+          is_active));
+    }
+
+    if (is_active) {
+      SetBackground(views::CreateRoundedRectBackground(
+          dao::kActiveTabBackground, 12));
+    }
+
+    views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
+    views::InkDrop::Get(this)->SetBaseColor(dao::kInkDropBase);
+    views::InkDrop::Get(this)->SetVisibleOpacity(dao::kInkDropOpacity);
+    views::InstallRoundRectHighlightPathGenerator(this, gfx::Insets(), 12);
+    SetInstallFocusRingOnFocus(false);
+    SetPreferredSize(gfx::Size(0, 40));
+    SetAccessibleName(BuildSplitGroupTitle(contents));
+  }
+};
+
+BEGIN_METADATA(DaoSplitGroupItemView)
+END_METADATA
+
+}  // namespace
 
 class DaoTabDropIndicatorView : public views::View {
   METADATA_HEADER(DaoTabDropIndicatorView, views::View)
@@ -104,6 +217,10 @@ DaoTabListView::~DaoTabListView() {
   if (tab_strip_model_) {
     tab_strip_model_->RemoveObserver(this);
   }
+}
+
+void DaoTabListView::RefreshForSplitStateChange() {
+  RebuildTabList();
 }
 
 void DaoTabListView::OnTabStripModelChanged(
@@ -184,8 +301,70 @@ void DaoTabListView::RebuildTabList() {
     new_tab_button_->SetHighlighted(true);
   }
 
+  struct SplitGroupEntry {
+    std::vector<content::WebContents*> contents;
+    std::set<int> indices;
+    int representative_index = TabStripModel::kNoTab;
+    bool is_active = false;
+  };
+
+  std::vector<SplitGroupEntry> split_groups;
+  std::map<int, size_t> split_group_by_index;
+  if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_)) {
+    if (auto* split_view = browser_view->dao_split_view()) {
+      for (const auto& summary : split_view->GetSplitGroupSummaries()) {
+        SplitGroupEntry entry;
+        entry.contents = summary.contents;
+        entry.is_active = summary.is_active;
+        if (summary.representative) {
+          entry.representative_index =
+              tab_strip_model_->GetIndexOfWebContents(summary.representative);
+        }
+
+        for (content::WebContents* contents : summary.contents) {
+          int index = tab_strip_model_->GetIndexOfWebContents(contents);
+          if (index == TabStripModel::kNoTab || tab_strip_model_->IsTabPinned(index)) {
+            continue;
+          }
+          entry.indices.insert(index);
+        }
+
+        if (entry.indices.size() < 2) {
+          continue;
+        }
+
+        if (entry.representative_index == TabStripModel::kNoTab) {
+          entry.representative_index = *entry.indices.rbegin();
+        }
+
+        size_t group_index = split_groups.size();
+        for (int index : entry.indices) {
+          split_group_by_index[index] = group_index;
+        }
+        split_groups.push_back(std::move(entry));
+      }
+    }
+  }
+
+  std::set<size_t> rendered_split_groups;
+
   for (int i = count - 1; i >= 0; --i) {
     if (tab_strip_model_->IsTabPinned(i)) {
+      continue;
+    }
+    auto split_group_it = split_group_by_index.find(i);
+    if (split_group_it != split_group_by_index.end()) {
+      size_t split_group_index = split_group_it->second;
+      if (rendered_split_groups.contains(split_group_index)) {
+        continue;
+      }
+      rendered_split_groups.insert(split_group_index);
+      const SplitGroupEntry& group = split_groups[split_group_index];
+      today_section->AddTabItem(std::make_unique<DaoSplitGroupItemView>(
+          group.contents, group.is_active,
+          base::BindRepeating(&DaoTabListView::OnTabClicked,
+                              base::Unretained(this),
+                              group.representative_index)));
       continue;
     }
     auto* contents = tab_strip_model_->GetWebContentsAt(i);
@@ -228,7 +407,12 @@ void DaoTabListView::WriteDragDataForView(views::View* sender,
                                           ui::OSExchangeData* data) {
   auto* tab_item = static_cast<DaoTabItemView*>(sender);
   drag_source_index_ = tab_item->model_index();
-  data->SetString(u"dao-tab-drag");
+  data->SetString(u"dao-tab-drag:" +
+                   base::NumberToString16(tab_item->model_index()));
+
+  // Notify split view that a tab drag has started.
+  if (tab_drag_callback_)
+    tab_drag_callback_.Run(true);
 
   // macOS requires a non-zero drag image; without one the drag session
   // crashes in DragDropClientMac::StartDragAndDrop.
@@ -274,7 +458,7 @@ bool DaoTabListView::CanDrop(const ui::OSExchangeData& data) {
     return false;
   }
   auto text = data.GetString();
-  return text.has_value() && *text == u"dao-tab-drag";
+  return text.has_value() && text->starts_with(u"dao-tab-drag");
 }
 
 void DaoTabListView::OnDragEntered(const ui::DropTargetEvent& event) {
@@ -304,6 +488,10 @@ views::View::DropCallback DaoTabListView::GetDropCallback(
   auto* indicator = static_cast<DaoTabDropIndicatorView*>(drop_indicator_.get());
   indicator->SetActive(false);
   indicator->SetIndicatorY(-1);
+
+  // Notify split view that the tab drag has ended (dropped back on tab list).
+  if (tab_drag_callback_)
+    tab_drag_callback_.Run(false);
 
   TabStripModel* model = tab_strip_model_;
   return base::BindOnce(

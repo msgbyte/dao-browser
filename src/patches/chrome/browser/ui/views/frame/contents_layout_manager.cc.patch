@@ -1,0 +1,38 @@
+diff --git a/chrome/browser/ui/views/frame/contents_layout_manager.cc b/chrome/browser/ui/views/frame/contents_layout_manager.cc
+index d383eaa02a..89a350042a 100644
+--- a/chrome/browser/ui/views/frame/contents_layout_manager.cc
++++ b/chrome/browser/ui/views/frame/contents_layout_manager.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
+ 
++#include "dao/browser/ui/views/split/dao_split_view.h"
+ #include "ui/views/view.h"
+ 
+ ContentsLayoutManager::ContentsLayoutManager(views::View* devtools_view,
+@@ -47,6 +48,25 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
+   ApplyDevToolsContentsResizingStrategy(
+       strategy_, container_size, &new_devtools_bounds, &new_contents_bounds);
+ 
++  // Dao: When split view is active, shrink the original ContentsWebView to a
++  // tiny non-zero rect so Chromium status bubble anchoring still has a valid
++  // base view, while DaoSplitView takes over the visible content area.
++  for (views::View* child : host_view()->children()) {
++    if (auto* split_view =
++            views::AsViewClass<dao::DaoSplitView>(child)) {
++      if (split_view->IsSplitActive()) {
++        const int placeholder_width = std::min(width, 3);
++        const int placeholder_height = std::min(height, 1);
++        new_contents_bounds = gfx::Rect(
++            std::max(0, width - placeholder_width),
++            std::max(0, height - placeholder_height),
++            placeholder_width, placeholder_height);
++        new_devtools_bounds = gfx::Rect();
++        break;
++      }
++    }
++  }
++
+   // DevTools cares about the specific position, so we have to compensate RTL
+   // layout here.
+   layouts.child_layouts.emplace_back(

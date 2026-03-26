@@ -9,17 +9,41 @@
 #include "content/public/browser/web_contents.h"
 
 // A transparent NSView placed on top of the web content's native view.
-// It intercepts mouse clicks via hit-testing and forwards them to the
-// compositor's BridgedContentView through the superview chain.
+// It intercepts mouse clicks AND drag-and-drop events via hit-testing and
+// forwards them through the correct channels.
 //
-// Mouse-move / enter / exit events are NOT routed through this view.
-// Instead, a global NSEvent local monitor is installed so that the
-// BridgedContentView's own tracking area continues to fire, allowing
-// the Chromium Views hover pipeline to work normally.
+// Mouse events are forwarded to the superview so the Chromium Views hover
+// and click pipeline works normally.
+//
+// Drag-and-drop events use a different path: they are forwarded to the
+// window's contentView (BridgedContentView), which is the NSView that
+// implements NSDraggingDestination and routes events through Chromium's
+// DragDropClientMac → DropHelper → views::View hierarchy.  This is
+// necessary because the interceptor's superview is typically an
+// intermediate clipping container, NOT the BridgedContentView.
+//
+// The interceptor must register for dragged types so macOS recognizes it
+// as a valid drag destination and sends NSDraggingDestination messages
+// to it (instead of walking past it to RWHV underneath).
 @interface DaoEventInterceptor : NSView
 @end
 
 @implementation DaoEventInterceptor
+
+- (instancetype)initWithFrame:(NSRect)frame {
+  self = [super initWithFrame:frame];
+  if (self) {
+    // Register for common drag types so macOS treats this view as a
+    // valid drag destination.  Without this, macOS skips this view
+    // during hitTest-based drag routing and sends events directly to
+    // RenderWidgetHostViewCocoa underneath.
+    [self registerForDraggedTypes:@[
+      NSPasteboardTypeString, NSPasteboardTypeURL,
+      NSPasteboardTypeFileURL
+    ]];
+  }
+  return self;
+}
 
 - (BOOL)isOpaque {
   return NO;
@@ -42,7 +66,7 @@
   return nil;
 }
 
-// Forward mouse click events to the compositor view so the views framework
+// Forward mouse click events to the superview so the views framework
 // can dispatch them to the popup overlay.
 - (void)mouseDown:(NSEvent*)event {
   [self.superview mouseDown:event];
@@ -69,15 +93,55 @@
   [self.superview scrollWheel:event];
 }
 
+// --- NSDraggingDestination protocol ---
+// Forward all drag-and-drop events to the window's contentView
+// (BridgedContentView).  BridgedContentView.draggingUpdated: calls
+// DragDropClientMac.DragUpdate which walks the views::View tree via
+// DropHelper to find the correct drop target (DaoSplitView).
+//
+// We CANNOT forward to self.superview because that is an intermediate
+// clipping container that does NOT implement NSDraggingDestination.
+
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender {
+  NSView* cv = [[self window] contentView];
+  return cv ? [cv draggingEntered:sender] : NSDragOperationNone;
+}
+
+- (NSDragOperation)draggingUpdated:(id<NSDraggingInfo>)sender {
+  NSView* cv = [[self window] contentView];
+  return cv ? [cv draggingUpdated:sender] : NSDragOperationNone;
+}
+
+- (void)draggingExited:(id<NSDraggingInfo>)sender {
+  NSView* cv = [[self window] contentView];
+  if (cv) [cv draggingExited:sender];
+}
+
+- (BOOL)prepareForDragOperation:(id<NSDraggingInfo>)sender {
+  NSView* cv = [[self window] contentView];
+  return cv ? [cv prepareForDragOperation:sender] : NO;
+}
+
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)sender {
+  NSView* cv = [[self window] contentView];
+  return cv ? [cv performDragOperation:sender] : NO;
+}
+
+- (void)concludeDragOperation:(id<NSDraggingInfo>)sender {
+  NSView* cv = [[self window] contentView];
+  if (cv) [cv concludeDragOperation:sender];
+}
+
+- (void)draggingEnded:(id<NSDraggingInfo>)sender {
+  NSView* cv = [[self window] contentView];
+  if (cv && [cv respondsToSelector:@selector(draggingEnded:)]) {
+    [cv draggingEnded:sender];
+  }
+}
+
 @end
 
 static DaoEventInterceptor* g_interceptor = nil;
-
-// Global local-event monitor that re-sends mouse-move events to the
-// window's contentView (BridgedContentView) so that the Chromium Views
-// hover / enter / exit pipeline works regardless of which NSView AppKit's
-// hit-test picks.
-static id g_mouse_monitor = nil;
 
 namespace dao {
 
@@ -89,8 +153,12 @@ void BlockWebContentNativeEvents(content::WebContents* web_contents) {
   if (!native) {
     return;
   }
-  NSView* parent = [native superview];
-  if (!parent) {
+  NSWindow* window = [native window];
+  if (!window) {
+    return;
+  }
+  NSView* contentView = [window contentView];
+  if (!contentView) {
     return;
   }
 
@@ -103,55 +171,24 @@ void BlockWebContentNativeEvents(content::WebContents* web_contents) {
     g_interceptor = [[DaoEventInterceptor alloc] init];
   }
 
-  g_interceptor.frame = native.frame;
+  // Cover the ENTIRE window contentView so that no native WebContents view
+  // (RenderWidgetHostViewCocoa) can intercept drag events.  Placing the
+  // interceptor as the topmost subview of BridgedContentView ensures that
+  // macOS hit-tests land on the interceptor first.  The interceptor's
+  // NSDraggingDestination methods forward to the contentView
+  // (BridgedContentView), which routes through DragDropClientMac →
+  // DropHelper → views::View tree, reaching DaoSplitView.
+  g_interceptor.frame = contentView.bounds;
   g_interceptor.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 
-  // Insert directly above the web content's native view.
-  [parent addSubview:g_interceptor
+  [contentView addSubview:g_interceptor
           positioned:NSWindowAbove
-          relativeTo:native];
-
-  // Install a local event monitor so that mouse-move / enter / exit events
-  // bypass the interceptor's hit-test and still reach BridgedContentView.
-  if (!g_mouse_monitor) {
-    NSEventMask mask = NSEventMaskMouseMoved | NSEventMaskMouseEntered |
-                       NSEventMaskMouseExited;
-    NSWindow* window = [native window];
-    g_mouse_monitor = [NSEvent
-        addLocalMonitorForEventsMatchingMask:mask
-                                    handler:^NSEvent*(NSEvent* event) {
-                                      if ([event window] == window) {
-                                        NSView* cv = [window contentView];
-                                        // Directly call the BaseView method
-                                        // which routes to
-                                        // BridgedContentView::mouseEvent:.
-                                        switch ([event type]) {
-                                          case NSEventTypeMouseMoved:
-                                            [cv mouseMoved:event];
-                                            break;
-                                          case NSEventTypeMouseEntered:
-                                            [cv mouseEntered:event];
-                                            break;
-                                          case NSEventTypeMouseExited:
-                                            [cv mouseExited:event];
-                                            break;
-                                          default:
-                                            break;
-                                        }
-                                      }
-                                      return event;
-                                    }];
-  }
+          relativeTo:nil];
 }
 
 void UnblockWebContentNativeEvents(content::WebContents* web_contents) {
   if (g_interceptor && [g_interceptor superview]) {
     [g_interceptor removeFromSuperview];
-  }
-
-  if (g_mouse_monitor) {
-    [NSEvent removeMonitor:g_mouse_monitor];
-    g_mouse_monitor = nil;
   }
 }
 

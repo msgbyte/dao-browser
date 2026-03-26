@@ -18,6 +18,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 // engine does not run, and the agent sidebar WebUI is not loaded.
 inline constexpr char kDaoAgentMemoryEnabled[] = "dao.agent_memory_enabled";
 
+// Dictionary pref storing the split view tree layout per window.
+// Keyed by window session ID, each entry holds a serialized tree.
+inline constexpr char kDaoSplitLayout[] = "dao.split_layout";
+
 }  // namespace dao::prefs
 
 #endif  // DAO_BROWSER_DAO_PREF_NAMES_H_

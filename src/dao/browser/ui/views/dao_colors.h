@@ -42,6 +42,20 @@ constexpr int kContentInsetTop = 6;
 constexpr int kContentInsetRight = 6;
 constexpr int kContentInsetBottom = 6;
 
+// Split view styling
+constexpr SkColor kDividerColor =
+    SkColorSetARGB(30, 255, 255, 255);                // white 12%
+constexpr SkColor kDividerHoverColor =
+    SkColorSetARGB(128, 140, 100, 220);               // purple 50%
+constexpr SkColor kDropZoneOverlay =
+    SkColorSetARGB(38, 140, 100, 220);                // purple 15%
+constexpr SkColor kActivePaneBorder =
+    SkColorSetARGB(102, 140, 100, 220);               // purple 40%
+constexpr int kActivePaneBorderWidth = 1;
+constexpr int kDividerWidth = 4;
+constexpr int kDropZoneEdgeSize = 40;
+constexpr int kMinPaneSize = 200;
+
 }  // namespace dao
 
 #endif  // DAO_BROWSER_UI_VIEWS_DAO_COLORS_H_
