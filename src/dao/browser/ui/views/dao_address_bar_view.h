@@ -24,7 +24,6 @@ class NavigationHandle;
 namespace views {
 class Button;
 class Label;
-class LabelButton;
 }
 
 namespace dao {
@@ -72,6 +71,7 @@ class DaoAddressBarView : public views::View,
     toggle_callback_ = std::move(callback);
   }
 
+
   // Returns the control center button for popup anchoring.
   views::View* control_center_button() const;
 
@@ -107,7 +107,7 @@ class DaoAddressBarView : public views::View,
   raw_ptr<TabStripModel> tab_strip_model_;
   raw_ptr<views::View> traffic_light_spacer_ = nullptr;
   raw_ptr<views::View> left_spacer_ = nullptr;
-  raw_ptr<views::LabelButton> sidebar_toggle_button_ = nullptr;
+  raw_ptr<views::Button> sidebar_toggle_button_ = nullptr;
   raw_ptr<views::Button> back_button_ = nullptr;
   raw_ptr<views::Button> forward_button_ = nullptr;
   raw_ptr<views::Button> stop_refresh_button_ = nullptr;

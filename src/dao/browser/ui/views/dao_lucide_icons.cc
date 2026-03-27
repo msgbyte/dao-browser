@@ -209,6 +209,42 @@ void DrawVolumeX(gfx::Canvas* canvas,
                    gfx::PointF(ox + 22 * s, oy + 15 * s), flags);
 }
 
+// Lucide "panel-left-close"
+void DrawPanelLeftClose(gfx::Canvas* canvas,
+                        float s,
+                        float ox,
+                        float oy,
+                        const cc::PaintFlags& flags) {
+  SkPath rect_path;
+  rect_path.addRoundRect(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2);
+  SkMatrix matrix;
+  matrix.setScale(s, s);
+  matrix.postTranslate(ox, oy);
+  rect_path.transform(matrix);
+  canvas->DrawPath(rect_path, flags);
+  canvas->DrawLine(gfx::PointF(ox + 9 * s, oy + 3 * s),
+                   gfx::PointF(ox + 9 * s, oy + 21 * s), flags);
+  DrawSvgPath(canvas, "M16 15l-3-3 3-3", s, ox, oy, flags);
+}
+
+// Lucide "panel-left-open"
+void DrawPanelLeftOpen(gfx::Canvas* canvas,
+                       float s,
+                       float ox,
+                       float oy,
+                       const cc::PaintFlags& flags) {
+  SkPath rect_path;
+  rect_path.addRoundRect(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2);
+  SkMatrix matrix;
+  matrix.setScale(s, s);
+  matrix.postTranslate(ox, oy);
+  rect_path.transform(matrix);
+  canvas->DrawPath(rect_path, flags);
+  canvas->DrawLine(gfx::PointF(ox + 9 * s, oy + 3 * s),
+                   gfx::PointF(ox + 9 * s, oy + 21 * s), flags);
+  DrawSvgPath(canvas, "M14 9l3 3-3 3", s, ox, oy, flags);
+}
+
 }  // namespace
 
 void DrawLucideIcon(gfx::Canvas* canvas,
@@ -284,6 +320,12 @@ void DrawLucideIcon(gfx::Canvas* canvas,
       DrawSvgPath(canvas,
                   "M7.9 20A9 9 0 1 0 4 16.1L2 22z",
                   s, ox, oy, flags);
+      break;
+    case LucideIcon::kPanelLeftClose:
+      DrawPanelLeftClose(canvas, s, ox, oy, flags);
+      break;
+    case LucideIcon::kPanelLeftOpen:
+      DrawPanelLeftOpen(canvas, s, ox, oy, flags);
       break;
   }
 }

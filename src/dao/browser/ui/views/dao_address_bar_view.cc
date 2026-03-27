@@ -25,13 +25,11 @@
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
-#include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/widget/widget.h"
-#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/gfx/geometry/transform.h"
 
@@ -224,21 +222,12 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   traffic_light_spacer->SetVisible(false);
   traffic_light_spacer_ = AddChildView(std::move(traffic_light_spacer));
 
-  auto toggle_btn = std::make_unique<views::LabelButton>(
+  auto toggle_btn = std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnToggleButtonPressed,
                           base::Unretained(this)),
-      u"\u2630");  // ☰ hamburger icon
-  toggle_btn->SetEnabledTextColors(kHostColor);
-  toggle_btn->SetTextSubpixelRenderingEnabled(false);
-  toggle_btn->SetLabelStyle(views::style::STYLE_BODY_3_EMPHASIS);
-  toggle_btn->SetPreferredSize(gfx::Size(kBarHeight, kBarHeight));
-  toggle_btn->SetInstallFocusRingOnFocus(false);
+      LucideIcon::kPanelLeftOpen, u"Toggle Sidebar");
   toggle_btn->SetTooltipText(u"Toggle Sidebar (\u2318S)");
-  toggle_btn->SetAccessibleName(u"Toggle Sidebar");
   toggle_btn->SetVisible(false);
-  toggle_btn->SetPaintToLayer();
-  toggle_btn->layer()->SetFillsBoundsOpaquely(false);
-  toggle_btn->layer()->SetOpacity(0.0f);
   sidebar_toggle_button_ = AddChildView(std::move(toggle_btn));
 
   // Left spacer to balance the right-side button for URL centering
@@ -544,31 +533,15 @@ void DaoAddressBarView::SetSidebarCollapsed(bool collapsed) {
   }
 
   if (sidebar_toggle_button_) {
+    sidebar_toggle_button_->SetVisible(collapsed);
     if (collapsed) {
-      // Show button and fade in smoothly.
-      // The button slides from right to left naturally as the address bar
-      // repositions during sidebar collapse animation.
-      sidebar_toggle_button_->SetVisible(true);
       UpdateToggleButtonColor();
-      sidebar_toggle_button_->layer()->SetOpacity(0.0f);
-      {
-        ui::ScopedLayerAnimationSettings settings(
-            sidebar_toggle_button_->layer()->GetAnimator());
-        settings.SetTransitionDuration(base::Milliseconds(200));
-        settings.SetTweenType(gfx::Tween::EASE_OUT);
-        sidebar_toggle_button_->layer()->SetOpacity(1.0f);
-      }
-    } else {
-      // Hide immediately when expanding (sidebar covers the area anyway)
-      sidebar_toggle_button_->layer()->GetAnimator()->StopAnimating();
-      sidebar_toggle_button_->layer()->SetOpacity(0.0f);
-      sidebar_toggle_button_->SetVisible(false);
     }
   }
 }
 
 void DaoAddressBarView::UpdateToggleButtonColor() {
-  if (!sidebar_toggle_button_ || !sidebar_toggle_button_->GetVisible()) {
+  if (!sidebar_toggle_button_) {
     return;
   }
   // Adapt icon color to match the address bar background luminance
@@ -592,7 +565,8 @@ void DaoAddressBarView::UpdateToggleButtonColor() {
   SkColor icon_color = luminance < 128
       ? SkColorSetARGB(230, 255, 255, 255)  // dark bg → white icon
       : SkColorSetARGB(200, 0, 0, 0);       // light bg → dark icon
-  sidebar_toggle_button_->SetEnabledTextColors(icon_color);
+  static_cast<NavIconButton*>(sidebar_toggle_button_.get())
+      ->SetIconColor(icon_color);
 }
 
 void DaoAddressBarView::OnToggleButtonPressed() {

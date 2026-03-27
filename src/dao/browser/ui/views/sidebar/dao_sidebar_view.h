@@ -19,7 +19,7 @@
 class Browser;
 
 namespace views {
-class LabelButton;
+class Button;
 }
 
 namespace dao {
@@ -100,7 +100,7 @@ class DaoSidebarView : public views::View,
   raw_ptr<DaoFavoritesView> favorites_ = nullptr;
   raw_ptr<DaoTabListView> tab_list_view_ = nullptr;
   raw_ptr<DaoNewTabButton> new_tab_button_ = nullptr;
-  raw_ptr<views::LabelButton> toggle_button_ = nullptr;
+  raw_ptr<views::Button> toggle_button_ = nullptr;
   raw_ptr<DaoDownloadButtonView> download_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
   raw_ptr<views::View> drop_overlay_ = nullptr;

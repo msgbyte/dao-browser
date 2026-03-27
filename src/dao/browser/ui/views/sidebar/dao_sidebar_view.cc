@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "base/task/single_thread_task_runner.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "ui/compositor/layer_animator.h"
@@ -39,8 +40,7 @@
 #include "ui/gfx/canvas.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/background.h"
-#include "ui/views/style/typography.h"
-#include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -104,6 +104,31 @@ class DaoDropOverlayView : public views::View {
 BEGIN_METADATA(DaoDropOverlayView)
 END_METADATA
 
+class DaoToggleButton : public views::Button {
+  METADATA_HEADER(DaoToggleButton, views::Button)
+
+ public:
+  explicit DaoToggleButton(PressedCallback callback)
+      : Button(std::move(callback)) {
+    SetPreferredSize(gfx::Size(32, 32));
+    SetInstallFocusRingOnFocus(false);
+    SetTooltipText(u"Toggle Sidebar (\u2318S)");
+    SetAccessibleName(u"Toggle Sidebar");
+  }
+
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    float icon_size = 16.0f;
+    float x = (width() - icon_size) / 2.0f;
+    float y = (height() - icon_size) / 2.0f;
+    DrawLucideIcon(canvas, LucideIcon::kPanelLeftClose,
+                   gfx::RectF(x, y, icon_size, icon_size),
+                   dao::kTextSecondary);
+  }
+};
+
+BEGIN_METADATA(DaoToggleButton)
+END_METADATA
+
 BEGIN_METADATA(DaoSidebarView)
 END_METADATA
 
@@ -141,16 +166,9 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
   header_row->AddChildView(std::move(spacer));
 
   // Toggle sidebar button
-  auto toggle_btn = std::make_unique<views::LabelButton>(
+  auto toggle_btn = std::make_unique<DaoToggleButton>(
       base::BindRepeating(&DaoSidebarView::ToggleCollapsed,
-                          base::Unretained(this)),
-      u"\u2630");  // ☰ hamburger icon
-  toggle_btn->SetEnabledTextColors(dao::kTextSecondary);
-  toggle_btn->SetTextSubpixelRenderingEnabled(false);
-  toggle_btn->SetLabelStyle(views::style::STYLE_BODY_1);
-  toggle_btn->SetPreferredSize(gfx::Size(32, 32));
-  toggle_btn->SetInstallFocusRingOnFocus(false);
-  toggle_btn->SetTooltipText(u"Toggle Sidebar (\u2318S)");
+                          base::Unretained(this)));
   toggle_button_ = header_row->AddChildView(std::move(toggle_btn));
 
   header_row_ = inner_container_->AddChildView(std::move(header_row));
@@ -192,7 +210,8 @@ gfx::Rect DaoSidebarView::header_bounds_in_sidebar() const {
 }
 
 gfx::Rect DaoSidebarView::toggle_button_bounds_in_sidebar() const {
-  if (!toggle_button_ || !header_row_ || !inner_container_) {
+  if (!toggle_button_ || !toggle_button_->GetVisible() || !header_row_ ||
+      !inner_container_) {
     return gfx::Rect();
   }
   gfx::Rect r = toggle_button_->bounds();
@@ -203,6 +222,9 @@ gfx::Rect DaoSidebarView::toggle_button_bounds_in_sidebar() const {
 
 gfx::Size DaoSidebarView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
+  if (collapsed_ && GetWidget() && GetWidget()->IsFullscreen()) {
+    return gfx::Size(0, 0);
+  }
   return gfx::Size(current_width_, 0);
 }
 
@@ -214,6 +236,9 @@ void DaoSidebarView::Layout(PassKey) {
         header_row_->GetLayoutManager());
     int left_inset = fullscreen ? 0 : 70;
     header_layout->SetInteriorMargin(gfx::Insets::TLBR(0, left_inset, 0, 0));
+  }
+  if (toggle_button_) {
+    toggle_button_->SetVisible(!collapsed_);
   }
   if (inner_container_) {
     // During collapse/expand animation, keep inner at user_width_ so content
@@ -423,7 +448,6 @@ void DaoSidebarView::OnMouseEntered(const ui::MouseEvent& event) {
   if (collapsed_ && !layer()->GetAnimator()->is_animating()) {
     auto_expanded_ = true;
     collapsed_ = false;
-    // Reuse ToggleCollapsed's layer animation approach
     int old_width = current_width_;
     current_width_ = user_width_;
     target_width_ = user_width_;
@@ -497,7 +521,6 @@ void DaoSidebarView::OnDragEntered(const ui::DropTargetEvent& event) {
   auto* overlay = static_cast<DaoDropOverlayView*>(drop_overlay_.get());
   overlay->SetActive(true);
   overlay->SetIndicatorY(-1);
-  // Auto-expand sidebar if collapsed so the user sees the drop zone.
   if (collapsed_ && !layer()->GetAnimator()->is_animating()) {
     drop_auto_expanded_ = true;
     collapsed_ = false;
@@ -567,7 +590,6 @@ void DaoSidebarView::OnDragExited() {
   auto* overlay = static_cast<DaoDropOverlayView*>(drop_overlay_.get());
   overlay->SetActive(false);
   overlay->SetIndicatorY(-1);
-  // Collapse back if we auto-expanded for the drag.
   if (drop_auto_expanded_) {
     drop_auto_expanded_ = false;
     collapsed_ = true;
