@@ -51,9 +51,10 @@ class DaoSplitPaneView : public views::View {
   // Update address bar with current tab's URL.
   void UpdateAddressBar();
 
-  // Keep WasShown/WasHidden transitions idempotent.
   void SetContentsVisible(bool visible);
   void EnsureContentsAttached(bool force_reattach = false);
+  void SetHeaderHovered(bool hovered);
+  void SetHeaderDragActive(bool active);
 
   // views::View:
   void Layout(PassKey) override;
@@ -62,7 +63,6 @@ class DaoSplitPaneView : public views::View {
 
  private:
   void OnPaneFocused();
-  void UpdateHeaderVisibility();
 
   raw_ptr<Browser> browser_;
   raw_ptr<DaoSplitView> split_view_;
@@ -72,6 +72,8 @@ class DaoSplitPaneView : public views::View {
   raw_ptr<content::WebContents> web_contents_ = nullptr;
   bool is_active_ = false;
   bool contents_visible_ = false;
+  bool header_hovered_ = false;
+  bool header_drag_active_ = false;
 };
 
 }  // namespace dao

@@ -33,6 +33,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_tree_owner.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/canvas.h"
 
 namespace dao {
@@ -133,6 +134,7 @@ DaoSplitView::DaoSplitView(Browser* browser)
 }
 
 DaoSplitView::~DaoSplitView() {
+  hover_timer_.Stop();
   if (tab_strip_model_) {
     tab_strip_model_->RemoveObserver(this);
   }
@@ -277,6 +279,7 @@ bool DaoSplitView::SplitPane(content::WebContents* existing_contents,
   EnsureAllPanesShown();
   SyncActivePaneWithActiveTab();
   RefreshSplitLayout(browser_, this);
+  UpdateHoverTracking();
   return true;
 }
 
@@ -314,26 +317,40 @@ bool DaoSplitView::MovePane(content::WebContents* source_contents,
     return false;
   }
 
-  auto new_root = dao::SplitLeaf(target_group->root, target_leaf, direction,
-                                 source_first, source_contents);
-  if (!new_root || new_root->CountLeaves() <= 1) {
+  // SplitLeaf updates target_group->root via the reference parameter.
+  // Its return value is not the new root — do not overwrite root with it.
+  dao::SplitLeaf(target_group->root, target_leaf, direction,
+                 source_first, source_contents);
+  if (!target_group->root || target_group->root->CountLeaves() <= 1) {
     return false;
   }
 
-  target_group->root = std::move(new_root);
   target_group->root->Layout(GetLocalBounds());
   active_group_ = target_group;
 
   DetachPrimaryContentsHost(target_contents, source_contents);
   RebuildViews();
+  UpdatePaneVisibility();
+
   if (int source_index = tab_strip_model_->GetIndexOfWebContents(source_contents);
       source_index != TabStripModel::kNoTab) {
     tab_strip_model_->ActivateTabAt(source_index);
   }
   SaveLayout();
-  EnsureAllPanesShown();
+
+  // Force all panes to cycle visibility so the native views reposition
+  // to their new bounds (panes are reused, so contents_visible_ is already
+  // true and EnsureAllPanesShown would be a no-op).
+  for (DaoSplitPaneView* pane : pane_views_) {
+    if (pane && pane->web_contents()) {
+      pane->SetContentsVisible(false);
+      pane->SetContentsVisible(true);
+    }
+  }
+
   SyncActivePaneWithActiveTab();
   RefreshSplitLayout(browser_, this);
+  UpdateHoverTracking();
   return true;
 }
 
@@ -358,6 +375,7 @@ bool DaoSplitView::ClosePane(content::WebContents* web_contents) {
   SaveLayout();
   SyncActivePaneWithActiveTab();
   RefreshSplitLayout(browser_, this);
+  UpdateHoverTracking();
   return true;
 }
 
@@ -610,6 +628,7 @@ void DaoSplitView::OnTabStripModelChanged(
       UpdatePaneVisibility();
       EnsureAllPanesShown();
       RefreshSplitLayout(browser_, this);
+      UpdateHoverTracking();
     }
     SyncActivePaneWithActiveTab();
   }
@@ -873,6 +892,45 @@ void DaoSplitView::UpdatePaneVisibility() {
   }
 }
 
+void DaoSplitView::UpdateHoverTracking() {
+  if (IsSplitActive()) {
+    if (!hover_timer_.IsRunning()) {
+      hover_timer_.Start(FROM_HERE, base::Milliseconds(120),
+                         this, &DaoSplitView::CheckCursorOverPanes);
+    }
+  } else {
+    hover_timer_.Stop();
+    for (DaoSplitPaneView* pane : pane_views_) {
+      if (pane) {
+        pane->SetHeaderHovered(false);
+      }
+    }
+  }
+}
+
+void DaoSplitView::CheckCursorOverPanes() {
+  if (!IsSplitActive() || !GetWidget()) {
+    hover_timer_.Stop();
+    return;
+  }
+
+  gfx::Point cursor_screen =
+      display::Screen::GetScreen()->GetCursorScreenPoint();
+
+  for (DaoSplitPaneView* pane : pane_views_) {
+    if (!pane || !pane->GetVisible())
+      continue;
+
+    gfx::Point local = cursor_screen;
+    views::View::ConvertPointFromScreen(pane, &local);
+
+    bool in_top_area = local.x() >= 0 && local.x() < pane->width() &&
+                       local.y() >= 0 &&
+                       local.y() < DaoAddressBarView::kBarHeight;
+    pane->SetHeaderHovered(in_top_area);
+  }
+}
+
 DaoSplitView::SplitGroup* DaoSplitView::FindGroupForContents(
     content::WebContents* web_contents) {
   if (!web_contents) {
@@ -1038,8 +1096,19 @@ void DaoSplitView::RebuildViews() {
   }
   divider_views_.clear();
 
-  if (!active_group_ || !active_group_->root)
+  if (!active_group_ || !active_group_->root) {
+    for (const auto& [wc, pane] : existing_panes) {
+      static_cast<void>(wc);
+      if (!pane)
+        continue;
+      pane->SetContentsVisible(false);
+      pane->SetWebContents(nullptr);
+      RemoveChildView(pane);
+      delete pane;
+    }
+    pane_views_.clear();
     return;
+  }
 
   std::vector<raw_ptr<DaoSplitPaneView>> rebuilt_panes;
   std::function<void(DaoSplitNode*)> rebuild_node = [&](DaoSplitNode* node) {
@@ -1080,6 +1149,7 @@ void DaoSplitView::RebuildViews() {
     if (!pane) {
       continue;
     }
+    pane->SetContentsVisible(false);
     pane->SetWebContents(nullptr);
     RemoveChildView(pane);
     delete pane;

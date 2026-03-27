@@ -17,6 +17,7 @@
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/compositor/layer.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
@@ -44,7 +45,8 @@ class PaneHeaderButton : public views::Button {
   PaneHeaderButton(dao::LucideIcon icon,
                    const std::u16string& accessible_name,
                    PressedCallback callback)
-      : Button(std::move(callback)), icon_(icon) {
+      : Button(std::move(callback)),
+        icon_(icon) {
     SetPreferredSize(
         gfx::Size(kPaneHeaderButtonSize, kPaneHeaderButtonSize));
     SetInstallFocusRingOnFocus(false);
@@ -97,6 +99,7 @@ class PaneRearrangeButton : public PaneHeaderButton {
 
     split_view_->SetActivePane(pane_);
     split_view_->BeginPaneRearrange(pane_->web_contents());
+    pane_->SetHeaderDragActive(true);
     dragging_ = true;
     UpdateDrag(event);
     return true;
@@ -119,6 +122,8 @@ class PaneRearrangeButton : public PaneHeaderButton {
     UpdateDrag(event);
     split_view_->EndPaneRearrange(last_drag_point_);
     dragging_ = false;
+    if (pane_)
+      pane_->SetHeaderDragActive(false);
   }
 
   void OnMouseCaptureLost() override {
@@ -128,6 +133,8 @@ class PaneRearrangeButton : public PaneHeaderButton {
 
     split_view_->EndPaneRearrange(last_drag_point_);
     dragging_ = false;
+    if (pane_)
+      pane_->SetHeaderDragActive(false);
   }
 
  private:
@@ -173,7 +180,9 @@ DaoSplitPaneView::DaoSplitPaneView(Browser* browser,
   header_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kCenter);
   header_container->SetBackground(views::CreateRoundedRectBackground(
-      dao::kAddressBarBackground, kPaneHeaderCornerRadius));
+      SkColorSetARGB(220, 40, 34, 48), kPaneHeaderCornerRadius));
+  header_container->SetPaintToLayer();
+  header_container->layer()->SetFillsBoundsOpaquely(false);
   header_container->SetVisible(false);
   header_container_ = AddChildView(std::move(header_container));
 
@@ -221,7 +230,6 @@ void DaoSplitPaneView::SetWebContents(content::WebContents* web_contents) {
   }
 
   UpdateAddressBar();
-  UpdateHeaderVisibility();
 }
 
 void DaoSplitPaneView::SetContentsVisible(bool visible) {
@@ -269,7 +277,6 @@ void DaoSplitPaneView::SetActive(bool active) {
   } else {
     SetBorder(nullptr);
   }
-  UpdateHeaderVisibility();
   SchedulePaint();
 }
 
@@ -320,9 +327,24 @@ void DaoSplitPaneView::OnPaneFocused() {
   }
 }
 
-void DaoSplitPaneView::UpdateHeaderVisibility() {
+void DaoSplitPaneView::SetHeaderHovered(bool hovered) {
+  if (header_hovered_ == hovered)
+    return;
+  header_hovered_ = hovered;
   if (header_container_) {
-    header_container_->SetVisible(is_active_ && web_contents_);
+    bool should_show = (hovered || header_drag_active_) && web_contents_;
+    header_container_->SetVisible(should_show);
+  }
+}
+
+void DaoSplitPaneView::SetHeaderDragActive(bool active) {
+  header_drag_active_ = active;
+  if (header_container_) {
+    if (active && web_contents_) {
+      header_container_->SetVisible(true);
+    } else if (!active && !header_hovered_) {
+      header_container_->SetVisible(false);
+    }
   }
 }
 

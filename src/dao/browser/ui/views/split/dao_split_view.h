@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "dao/browser/ui/views/split/dao_split_node.h"
 #include "ui/base/dragdrop/drop_target_event.h"
@@ -205,6 +206,10 @@ class DaoSplitView : public views::View,
   // Block/unblock native events on all visible pane web contents (drag support).
   void BlockAllNativeEvents(bool block);
 
+  // Periodically check cursor position to show/hide pane headers on hover.
+  void UpdateHoverTracking();
+  void CheckCursorOverPanes();
+
   // Handle the actual drop.
   void OnDrop(const ui::DropTargetEvent& event,
               ui::mojom::DragOperation& output_drag_op,
@@ -234,6 +239,9 @@ class DaoSplitView : public views::View,
 
   // True while a tab is being dragged from the sidebar.
   bool tab_drag_active_ = false;
+
+  // Cursor hover tracking for pane headers.
+  base::RepeatingTimer hover_timer_;
 
   base::WeakPtrFactory<DaoSplitView> weak_factory_{this};
 };
