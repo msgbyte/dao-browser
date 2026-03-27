@@ -273,6 +273,35 @@ void DrawExternalLink(gfx::Canvas* canvas,
               s, ox, oy, flags);
 }
 
+// Lucide "bot" (robot face)
+void DrawBot(gfx::Canvas* canvas,
+             float s,
+             float ox,
+             float oy,
+             const cc::PaintFlags& flags) {
+  // Head: rounded rect x=4 y=8 w=16 h=12 rx=2
+  SkPath head;
+  head.addRoundRect(SkRect::MakeXYWH(4, 8, 16, 12), 2, 2);
+  SkMatrix matrix;
+  matrix.setScale(s, s);
+  matrix.postTranslate(ox, oy);
+  head.transform(matrix);
+  canvas->DrawPath(head, flags);
+  // Left ear
+  DrawSvgPath(canvas, "M2 14h2", s, ox, oy, flags);
+  // Right ear
+  DrawSvgPath(canvas, "M20 14h2", s, ox, oy, flags);
+  // Left eye
+  DrawSvgPath(canvas, "M9 13v2", s, ox, oy, flags);
+  // Right eye
+  DrawSvgPath(canvas, "M15 13v2", s, ox, oy, flags);
+  // Antenna stem
+  canvas->DrawLine(gfx::PointF(ox + 12 * s, oy + 8 * s),
+                   gfx::PointF(ox + 12 * s, oy + 4 * s), flags);
+  // Antenna ball
+  canvas->DrawCircle(gfx::PointF(ox + 12 * s, oy + 4 * s), 1.0f * s, flags);
+}
+
 }  // namespace
 
 void DrawLucideIcon(gfx::Canvas* canvas,
@@ -360,6 +389,9 @@ void DrawLucideIcon(gfx::Canvas* canvas,
       break;
     case LucideIcon::kExternalLink:
       DrawExternalLink(canvas, s, ox, oy, flags);
+      break;
+    case LucideIcon::kBot:
+      DrawBot(canvas, s, ox, oy, flags);
       break;
   }
 }

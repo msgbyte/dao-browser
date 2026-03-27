@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -143,7 +144,9 @@ DaoTabItemView::DaoTabItemView(Browser* browser,
     : Button(std::move(on_click)),
       browser_(browser),
       model_index_(model_index),
-      close_callback_(std::move(on_close)) {
+      close_callback_(std::move(on_close)),
+      agent_lock_throb_(static_cast<gfx::AnimationDelegate*>(this)) {
+  agent_lock_throb_.SetThrobDuration(base::Milliseconds(1200));
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal,
       gfx::Insets::VH(0, 10), 10));
@@ -209,9 +212,10 @@ DaoTabItemView::DaoTabItemView(Browser* browser,
   }
   SetAccessibleName(accessible_title);
 
-  // Initialize audio state.
+  // Initialize audio and agent lock state.
   if (contents) {
     UpdateAudioState(contents);
+    UpdateAgentLockState(contents);
   }
 }
 
@@ -236,6 +240,9 @@ void DaoTabItemView::UpdateTab(content::WebContents* contents) {
 
   // Update audio.
   UpdateAudioState(contents);
+
+  // Update agent lock badge.
+  UpdateAgentLockState(contents);
 }
 
 void DaoTabItemView::UpdateAudioState(content::WebContents* contents) {
@@ -344,6 +351,45 @@ void DaoTabItemView::UpdateFavicon(content::WebContents* contents) {
         *favicon.ToImageSkia(), skia::ImageOperations::RESIZE_BEST,
         gfx::Size(16, 16));
     favicon_->SetImage(resized);
+  }
+}
+
+void DaoTabItemView::UpdateAgentLockState(content::WebContents* contents) {
+  bool locked = DaoAgentLockTabHelper::IsLocked(contents);
+  if (locked == is_agent_locked_) {
+    return;
+  }
+  is_agent_locked_ = locked;
+  if (locked) {
+    agent_lock_throb_.StartThrobbing(-1);  // infinite throb
+  } else {
+    agent_lock_throb_.Stop();
+  }
+  SchedulePaint();
+}
+
+void DaoTabItemView::OnPaintBackground(gfx::Canvas* canvas) {
+  views::Button::OnPaintBackground(canvas);
+
+  // Draw agent lock badge: purple pulsing dot at favicon bottom-right.
+  if (is_agent_locked_ && favicon_) {
+    gfx::Rect favicon_bounds = favicon_->GetMirroredBounds();
+    float alpha = 0.5f + 0.5f * static_cast<float>(
+                                     agent_lock_throb_.GetCurrentValue());
+    cc::PaintFlags dot_flags;
+    dot_flags.setAntiAlias(true);
+    dot_flags.setStyle(cc::PaintFlags::kFill_Style);
+    dot_flags.setColor(
+        SkColorSetA(dao::kSpaceActive, static_cast<U8CPU>(alpha * 255)));
+    canvas->DrawCircle(
+        gfx::PointF(favicon_bounds.right() - 1, favicon_bounds.bottom() - 1),
+        3.0f, dot_flags);
+  }
+}
+
+void DaoTabItemView::AnimationProgressed(const gfx::Animation* animation) {
+  if (animation == &agent_lock_throb_) {
+    SchedulePaint();
   }
 }
 
