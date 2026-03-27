@@ -46,24 +46,29 @@ class DaoSplitPaneView : public views::View {
 
   // Address bar accessor (for bubble anchoring in split mode).
   DaoAddressBarView* address_bar() const { return address_bar_; }
+  DaoSplitView* split_view() const { return split_view_; }
 
   // Update address bar with current tab's URL.
   void UpdateAddressBar();
 
   // Keep WasShown/WasHidden transitions idempotent.
   void SetContentsVisible(bool visible);
+  void EnsureContentsAttached(bool force_reattach = false);
 
   // views::View:
   void Layout(PassKey) override;
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
 
  private:
   void OnPaneFocused();
+  void UpdateHeaderVisibility();
 
   raw_ptr<Browser> browser_;
   raw_ptr<DaoSplitView> split_view_;
   raw_ptr<DaoAddressBarView> address_bar_ = nullptr;
   raw_ptr<ContentsWebView> contents_web_view_ = nullptr;
+  raw_ptr<views::View> header_container_ = nullptr;
   raw_ptr<content::WebContents> web_contents_ = nullptr;
   bool is_active_ = false;
   bool contents_visible_ = false;

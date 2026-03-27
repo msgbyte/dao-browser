@@ -95,6 +95,14 @@ class DaoSplitView : public views::View,
   // and re-calls WasShown() on all visible panes.
   void SetActivePane(DaoSplitPaneView* pane);
 
+  // Start/update/finish pane rearranging from the pane header drag handle.
+  void BeginPaneRearrange(content::WebContents* source_contents);
+  void UpdatePaneRearrange(const gfx::Point& point_in_view);
+  void EndPaneRearrange(const gfx::Point& point_in_view);
+
+  // Pop the current pane into a standalone browser window.
+  bool PopOutPane(content::WebContents* web_contents);
+
   // Called by divider during drag to relayout.
   void OnDividerDragged();
   void OnDividerDragFinished();
@@ -150,6 +158,10 @@ class DaoSplitView : public views::View,
   void SyncActivePaneWithActiveTab();
   bool HasSplitLayout() const;
   void UpdatePaneVisibility();
+  bool MovePane(content::WebContents* source_contents,
+                content::WebContents* target_contents,
+                SplitDirection direction,
+                bool source_first);
   SplitGroup* FindGroupForContents(content::WebContents* web_contents);
   const SplitGroup* FindGroupForContents(
       content::WebContents* web_contents) const;
@@ -215,6 +227,7 @@ class DaoSplitView : public views::View,
   // Drop zone tracking.
   raw_ptr<DaoSplitLeafNode> drop_target_leaf_ = nullptr;
   std::optional<SplitDirection> drop_zone_direction_;
+  raw_ptr<content::WebContents> rearrange_source_contents_ = nullptr;
 
   // Drop zone overlay view (shown during drag).
   raw_ptr<views::View> drop_overlay_ = nullptr;

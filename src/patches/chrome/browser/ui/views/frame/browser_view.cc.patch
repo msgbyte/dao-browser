@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..41443c063b 100644
+index 76c889780c..10089abf47 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -119,6 +119,18 @@
@@ -127,7 +127,7 @@ index 76c889780c..41443c063b 100644
    // the WebContents window.
    bool change_tab_contents = contents_web_view_->web_contents() != new_contents;
 +  const bool dao_split_tab_active =
-+      dao_split_view_ && dao_split_view_->IsActiveSplitTab(new_contents);
++      dao_split_view_ && dao_split_view_->ContainsWebContents(new_contents);
  
  #if BUILDFLAG(IS_MAC)
    // Widget::IsActive is inconsistent between Mac and Aura, so don't check for

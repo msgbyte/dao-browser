@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/contents_layout_manager.cc b/chrome/browser/ui/views/frame/contents_layout_manager.cc
-index d383eaa02a..89a350042a 100644
+index d383eaa02a..7bfe5449e6 100644
 --- a/chrome/browser/ui/views/frame/contents_layout_manager.cc
 +++ b/chrome/browser/ui/views/frame/contents_layout_manager.cc
 @@ -4,6 +4,7 @@
@@ -10,7 +10,7 @@ index d383eaa02a..89a350042a 100644
  #include "ui/views/view.h"
  
  ContentsLayoutManager::ContentsLayoutManager(views::View* devtools_view,
-@@ -47,6 +48,25 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
+@@ -47,6 +48,27 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
    ApplyDevToolsContentsResizingStrategy(
        strategy_, container_size, &new_devtools_bounds, &new_contents_bounds);
  
@@ -21,8 +21,10 @@ index d383eaa02a..89a350042a 100644
 +    if (auto* split_view =
 +            views::AsViewClass<dao::DaoSplitView>(child)) {
 +      if (split_view->IsSplitActive()) {
-+        const int placeholder_width = std::min(width, 3);
-+        const int placeholder_height = std::min(height, 1);
++        // Keep a guaranteed non-zero anchor rect for StatusBubbleViews even
++        // during transient resize frames where the host container reports 0.
++        const int placeholder_width = std::max(1, std::min(width, 3));
++        const int placeholder_height = std::max(1, std::min(height, 1));
 +        new_contents_bounds = gfx::Rect(
 +            std::max(0, width - placeholder_width),
 +            std::max(0, height - placeholder_height),

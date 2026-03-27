@@ -280,6 +280,63 @@ bool DaoSplitView::SplitPane(content::WebContents* existing_contents,
   return true;
 }
 
+bool DaoSplitView::MovePane(content::WebContents* source_contents,
+                            content::WebContents* target_contents,
+                            SplitDirection direction,
+                            bool source_first) {
+  if (!source_contents || !target_contents || source_contents == target_contents) {
+    return false;
+  }
+
+  SplitGroup* source_group = FindGroupForContents(source_contents);
+  SplitGroup* target_group = FindGroupForContents(target_contents);
+  if (!source_group || !target_group || !source_group->root ||
+      !target_group->root) {
+    return false;
+  }
+
+  const bool same_group = source_group == target_group;
+  RemoveContentsFromGroup(source_group, source_contents);
+  if (same_group && !source_group->root) {
+    source_group->root = std::make_unique<DaoSplitLeafNode>(target_contents);
+    source_group->root->Layout(GetLocalBounds());
+  } else if (!same_group) {
+    RemoveEmptyOrCollapsedGroups();
+  }
+
+  target_group = FindGroupForContents(target_contents);
+  if (!target_group || !target_group->root) {
+    return false;
+  }
+
+  DaoSplitLeafNode* target_leaf = target_group->root->FindLeaf(target_contents);
+  if (!target_leaf) {
+    return false;
+  }
+
+  auto new_root = dao::SplitLeaf(target_group->root, target_leaf, direction,
+                                 source_first, source_contents);
+  if (!new_root || new_root->CountLeaves() <= 1) {
+    return false;
+  }
+
+  target_group->root = std::move(new_root);
+  target_group->root->Layout(GetLocalBounds());
+  active_group_ = target_group;
+
+  DetachPrimaryContentsHost(target_contents, source_contents);
+  RebuildViews();
+  if (int source_index = tab_strip_model_->GetIndexOfWebContents(source_contents);
+      source_index != TabStripModel::kNoTab) {
+    tab_strip_model_->ActivateTabAt(source_index);
+  }
+  SaveLayout();
+  EnsureAllPanesShown();
+  SyncActivePaneWithActiveTab();
+  RefreshSplitLayout(browser_, this);
+  return true;
+}
+
 bool DaoSplitView::ClosePane(content::WebContents* web_contents) {
   SplitGroup* group = FindGroupForContents(web_contents);
   if (!group || !group->root)
@@ -316,7 +373,6 @@ void DaoSplitView::SetActivePane(DaoSplitPaneView* pane) {
   if (active_pane_) {
     active_pane_->SetActive(true);
 
-    // Update TabStripModel active index.
     content::WebContents* wc = active_pane_->web_contents();
     if (wc && tab_strip_model_) {
       int index = tab_strip_model_->GetIndexOfWebContents(wc);
@@ -325,10 +381,127 @@ void DaoSplitView::SetActivePane(DaoSplitPaneView* pane) {
         tab_strip_model_->ActivateTabAt(index);
       }
     }
-
-    // Re-call WasShown() on all visible panes to prevent render throttling.
-    EnsureAllPanesShown();
   }
+}
+
+void DaoSplitView::BeginPaneRearrange(content::WebContents* source_contents) {
+  if (!source_contents || !IsSplitActive()) {
+    return;
+  }
+
+  rearrange_source_contents_ = source_contents;
+  drop_target_leaf_ = nullptr;
+  drop_zone_direction_.reset();
+  BlockAllNativeEvents(true);
+}
+
+void DaoSplitView::UpdatePaneRearrange(const gfx::Point& point_in_view) {
+  if (!rearrange_source_contents_ || !IsSplitActive()) {
+    return;
+  }
+
+  DaoSplitLeafNode* leaf = FindLeafAtPoint(point_in_view);
+  if (!leaf || leaf->web_contents() == rearrange_source_contents_) {
+    drop_target_leaf_ = nullptr;
+    drop_zone_direction_.reset();
+    if (drop_overlay_) {
+      drop_overlay_->SetVisible(false);
+    }
+    return;
+  }
+
+  drop_target_leaf_ = leaf;
+  drop_zone_direction_ = DetectDropZone(leaf, point_in_view);
+  if (!drop_zone_direction_.has_value()) {
+    if (drop_overlay_) {
+      drop_overlay_->SetVisible(false);
+    }
+    return;
+  }
+
+  gfx::Rect overlay_bounds = leaf->bounds();
+  switch (drop_zone_direction_.value()) {
+    case SplitDirection::kHorizontal:
+      if (point_in_view.x() > leaf->bounds().CenterPoint().x()) {
+        overlay_bounds.set_x(overlay_bounds.CenterPoint().x());
+        overlay_bounds.set_width(overlay_bounds.width() / 2);
+      } else {
+        overlay_bounds.set_width(overlay_bounds.width() / 2);
+      }
+      break;
+    case SplitDirection::kVertical:
+      if (point_in_view.y() > leaf->bounds().CenterPoint().y()) {
+        overlay_bounds.set_y(overlay_bounds.CenterPoint().y());
+        overlay_bounds.set_height(overlay_bounds.height() / 2);
+      } else {
+        overlay_bounds.set_height(overlay_bounds.height() / 2);
+      }
+      break;
+  }
+
+  if (drop_overlay_) {
+    drop_overlay_->SetBoundsRect(overlay_bounds);
+    drop_overlay_->SetVisible(true);
+  }
+}
+
+void DaoSplitView::EndPaneRearrange(const gfx::Point& point_in_view) {
+  if (!rearrange_source_contents_) {
+    return;
+  }
+
+  UpdatePaneRearrange(point_in_view);
+
+  content::WebContents* source_contents = rearrange_source_contents_.get();
+  content::WebContents* target_contents =
+      drop_target_leaf_ ? drop_target_leaf_->web_contents() : nullptr;
+
+  if (target_contents && drop_zone_direction_.has_value() &&
+      source_contents != target_contents) {
+    const bool source_first =
+        drop_zone_direction_.value() == SplitDirection::kHorizontal
+            ? point_in_view.x() <= drop_target_leaf_->bounds().CenterPoint().x()
+            : point_in_view.y() <= drop_target_leaf_->bounds().CenterPoint().y();
+    MovePane(source_contents, target_contents, drop_zone_direction_.value(),
+             source_first);
+  }
+
+  rearrange_source_contents_ = nullptr;
+  drop_target_leaf_ = nullptr;
+  drop_zone_direction_.reset();
+  if (drop_overlay_) {
+    drop_overlay_->SetVisible(false);
+  }
+  BlockAllNativeEvents(false);
+}
+
+bool DaoSplitView::PopOutPane(content::WebContents* web_contents) {
+  if (!web_contents || !tab_strip_model_) {
+    return false;
+  }
+
+  int index = tab_strip_model_->GetIndexOfWebContents(web_contents);
+  if (index == TabStripModel::kNoTab) {
+    return false;
+  }
+
+  std::unique_ptr<content::WebContents> detached_contents =
+      tab_strip_model_->DetachWebContentsAtForInsertion(index);
+  if (!detached_contents) {
+    return false;
+  }
+
+  Browser::CreateParams params(browser_->profile(), /*user_gesture=*/true);
+  Browser* new_browser = Browser::Create(params);
+  if (!new_browser) {
+    return false;
+  }
+
+  new_browser->window()->Show();
+  new_browser->tab_strip_model()->InsertWebContentsAt(
+      -1, std::move(detached_contents), AddTabTypes::ADD_ACTIVE);
+  new_browser->window()->Activate();
+  return true;
 }
 
 void DaoSplitView::OnDividerDragged() {
@@ -431,11 +604,14 @@ void DaoSplitView::OnTabStripModelChanged(
   if (selection.active_tab_changed()) {
     SplitGroup* previous_group = active_group_;
     SyncActiveGroupWithActiveTab();
-    if (previous_group != active_group_) {
+    const bool group_changed = previous_group != active_group_;
+    if (group_changed) {
       RebuildViews();
+      UpdatePaneVisibility();
+      EnsureAllPanesShown();
+      RefreshSplitLayout(browser_, this);
     }
     SyncActivePaneWithActiveTab();
-    RefreshSplitLayout(browser_, this);
   }
 }
 
@@ -446,16 +622,11 @@ void DaoSplitView::Layout(PassKey) {
   if (!root)
     return;
 
-  // Always layout the tree so that leaf bounds are current even in
-  // single-pane mode.  This is necessary for drag-drop hit-testing
-  // (FindLeafAtPoint) to work before the first split occurs.
   root->Layout(GetLocalBounds());
-  UpdatePaneVisibility();
 
   if (!IsSplitActive())
     return;
 
-  // Position pane views according to leaf bounds.
   for (DaoSplitPaneView* pane : pane_views_) {
     if (pane && pane->web_contents()) {
       DaoSplitLeafNode* leaf = active_group_->root->FindLeaf(pane->web_contents());
@@ -465,7 +636,6 @@ void DaoSplitView::Layout(PassKey) {
     }
   }
 
-  // Position dividers.
   UpdateDividerPositions();
 }
 
@@ -686,6 +856,9 @@ void DaoSplitView::UpdatePaneVisibility() {
       continue;
     }
     pane->SetVisible(split_active);
+    if (split_active) {
+      pane->EnsureContentsAttached();
+    }
     pane->SetContentsVisible(split_active);
   }
 
@@ -877,6 +1050,7 @@ void DaoSplitView::RebuildViews() {
       if (existing_it != existing_panes.end()) {
         pane = existing_it->second;
         existing_panes.erase(existing_it);
+        pane->EnsureContentsAttached();
       } else {
         pane = AddChildView(std::make_unique<DaoSplitPaneView>(
             browser_, this, static_cast<int>(rebuilt_panes.size())));
