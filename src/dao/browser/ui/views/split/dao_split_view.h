@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -202,6 +203,18 @@ class DaoSplitView : public views::View,
 
   // Update divider view positions from branch node bounds.
   void UpdateDividerPositions();
+
+  // Animate pane bounds from |start| to |end| over the given duration.
+  void AnimatePaneBounds(DaoSplitPaneView* pane,
+                         const gfx::Rect& start,
+                         const gfx::Rect& end,
+                         base::TimeDelta duration);
+
+  // Animate divider bounds similarly.
+  void AnimateDividerBounds(DaoSplitDividerView* divider,
+                            const gfx::Rect& start,
+                            const gfx::Rect& end,
+                            base::TimeDelta duration);
 
   // Block/unblock native events on all visible pane web contents (drag support).
   void BlockAllNativeEvents(bool block);

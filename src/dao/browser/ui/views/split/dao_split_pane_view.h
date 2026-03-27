@@ -7,6 +7,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/gfx/animation/animation_delegate.h"
+#include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/view.h"
 
 class Browser;
@@ -23,7 +25,8 @@ class DaoSplitView;
 
 // A single pane in the split view tree.  Each pane owns its own address bar
 // and ContentsWebView, bound to a specific WebContents from TabStripModel.
-class DaoSplitPaneView : public views::View {
+class DaoSplitPaneView : public views::View,
+                         public gfx::AnimationDelegate {
   METADATA_HEADER(DaoSplitPaneView, views::View)
 
  public:
@@ -58,11 +61,17 @@ class DaoSplitPaneView : public views::View {
 
   // views::View:
   void Layout(PassKey) override;
+  void OnPaint(gfx::Canvas* canvas) override;
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
 
  private:
   void OnPaneFocused();
+  void AnimateHeaderVisibility(bool visible);
+
+  // gfx::AnimationDelegate:
+  void AnimationProgressed(const gfx::Animation* animation) override;
+  void AnimationEnded(const gfx::Animation* animation) override;
 
   raw_ptr<Browser> browser_;
   raw_ptr<DaoSplitView> split_view_;
@@ -74,6 +83,9 @@ class DaoSplitPaneView : public views::View {
   bool contents_visible_ = false;
   bool header_hovered_ = false;
   bool header_drag_active_ = false;
+  float glow_opacity_ = 0.0f;
+  bool glow_target_active_ = false;
+  gfx::LinearAnimation glow_animation_;
 };
 
 }  // namespace dao

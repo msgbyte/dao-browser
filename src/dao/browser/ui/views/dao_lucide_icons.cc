@@ -245,6 +245,34 @@ void DrawPanelLeftOpen(gfx::Canvas* canvas,
   DrawSvgPath(canvas, "M14 9l3 3-3 3", s, ox, oy, flags);
 }
 
+// Lucide "grip-horizontal" (6 dots in a 3x2 grid — drag handle)
+void DrawGripHorizontal(gfx::Canvas* canvas,
+                        float s,
+                        float ox,
+                        float oy,
+                        const cc::PaintFlags& flags) {
+  cc::PaintFlags fill_flags = flags;
+  fill_flags.setStyle(cc::PaintFlags::kFill_Style);
+  canvas->DrawCircle(gfx::PointF(ox + 12 * s, oy + 9 * s), 1.0f * s, fill_flags);
+  canvas->DrawCircle(gfx::PointF(ox + 19 * s, oy + 9 * s), 1.0f * s, fill_flags);
+  canvas->DrawCircle(gfx::PointF(ox + 5 * s, oy + 9 * s), 1.0f * s, fill_flags);
+  canvas->DrawCircle(gfx::PointF(ox + 12 * s, oy + 15 * s), 1.0f * s, fill_flags);
+  canvas->DrawCircle(gfx::PointF(ox + 19 * s, oy + 15 * s), 1.0f * s, fill_flags);
+  canvas->DrawCircle(gfx::PointF(ox + 5 * s, oy + 15 * s), 1.0f * s, fill_flags);
+}
+
+// Lucide "external-link" (arrow pointing out of a box)
+void DrawExternalLink(gfx::Canvas* canvas,
+                      float s,
+                      float ox,
+                      float oy,
+                      const cc::PaintFlags& flags) {
+  DrawSvgPath(canvas, "M15 3h6v6", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M10 14 21 3", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6",
+              s, ox, oy, flags);
+}
+
 }  // namespace
 
 void DrawLucideIcon(gfx::Canvas* canvas,
@@ -326,6 +354,12 @@ void DrawLucideIcon(gfx::Canvas* canvas,
       break;
     case LucideIcon::kPanelLeftOpen:
       DrawPanelLeftOpen(canvas, s, ox, oy, flags);
+      break;
+    case LucideIcon::kGripHorizontal:
+      DrawGripHorizontal(canvas, s, ox, oy, flags);
+      break;
+    case LucideIcon::kExternalLink:
+      DrawExternalLink(canvas, s, ox, oy, flags);
       break;
   }
 }

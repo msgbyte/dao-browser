@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "dao/browser/ui/views/dao_colors.h"
+#include "ui/compositor/layer.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/cursor/cursor.h"
@@ -23,6 +24,8 @@ DaoSplitDividerView::DaoSplitDividerView(DaoSplitBranchNode* branch_node,
                                            DaoSplitView* split_view)
     : branch_node_(branch_node), split_view_(split_view) {
   GetViewAccessibility().SetRole(ax::mojom::Role::kSplitter);
+  SetPaintToLayer();
+  layer()->SetFillsBoundsOpaquely(false);
 }
 
 DaoSplitDividerView::~DaoSplitDividerView() = default;

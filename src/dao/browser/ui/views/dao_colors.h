@@ -49,12 +49,30 @@ constexpr SkColor kDividerHoverColor =
     SkColorSetARGB(128, 140, 100, 220);               // purple 50%
 constexpr SkColor kDropZoneOverlay =
     SkColorSetARGB(38, 140, 100, 220);                // purple 15%
-constexpr SkColor kActivePaneBorder =
-    SkColorSetARGB(102, 140, 100, 220);               // purple 40%
-constexpr int kActivePaneBorderWidth = 1;
 constexpr int kDividerWidth = 4;
 constexpr int kDropZoneEdgeSize = 40;
 constexpr int kMinPaneSize = 200;
+
+// Pane header (frosted glass pill)
+constexpr SkColor kPaneHeaderBackground =
+    SkColorSetARGB(217, 30, 24, 38);                  // rgba(30,24,38,0.85)
+constexpr SkColor kPaneHeaderShadow =
+    SkColorSetARGB(77, 0, 0, 0);                      // rgba(0,0,0,0.3)
+constexpr SkColor kPaneHeaderButtonHover =
+    SkColorSetARGB(26, 255, 255, 255);                // white 10%
+constexpr SkColor kPaneHeaderButtonIcon =
+    SkColorSetARGB(179, 255, 255, 255);               // white 70%
+constexpr int kPaneHeaderCornerRadius = 8;
+constexpr int kPaneHeaderButtonSize = 22;
+constexpr int kPaneHeaderButtonRadius = 6;
+
+// Active pane indicator (glow border)
+constexpr SkColor kActivePaneBorder =
+    SkColorSetARGB(153, 140, 100, 220);               // purple 60%
+constexpr SkColor kActivePaneGlow =
+    SkColorSetARGB(38, 140, 100, 220);                // purple 15%
+constexpr int kActivePaneBorderWidth = 2;
+constexpr int kActivePaneGlowRadius = 12;
 
 }  // namespace dao
 

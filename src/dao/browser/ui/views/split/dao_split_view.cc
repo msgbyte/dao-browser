@@ -33,7 +33,9 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_tree_owner.h"
+#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/display/screen.h"
+#include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 
 namespace dao {
@@ -279,6 +281,31 @@ bool DaoSplitView::SplitPane(content::WebContents* existing_contents,
   EnsureAllPanesShown();
   SyncActivePaneWithActiveTab();
   RefreshSplitLayout(browser_, this);
+
+  // Animate new pane sliding in from the split edge.
+  constexpr auto kCreateDuration = base::Milliseconds(250);
+  for (DaoSplitPaneView* pane : pane_views_) {
+    if (!pane || !pane->web_contents())
+      continue;
+    if (pane->web_contents() == new_contents) {
+      gfx::Rect target = pane->bounds();
+      gfx::Rect start = target;
+      if (direction == SplitDirection::kHorizontal) {
+        start.set_width(0);
+        if (!new_contents_first) {
+          start.set_x(target.right());
+        }
+      } else {
+        start.set_height(0);
+        if (!new_contents_first) {
+          start.set_y(target.bottom());
+        }
+      }
+      AnimatePaneBounds(pane, start, target, kCreateDuration);
+      break;
+    }
+  }
+
   UpdateHoverTracking();
   return true;
 }
@@ -328,6 +355,14 @@ bool DaoSplitView::MovePane(content::WebContents* source_contents,
   target_group->root->Layout(GetLocalBounds());
   active_group_ = target_group;
 
+  // Snapshot current pane bounds for animation.
+  std::map<content::WebContents*, gfx::Rect> old_bounds;
+  for (DaoSplitPaneView* pane : pane_views_) {
+    if (pane && pane->web_contents()) {
+      old_bounds[pane->web_contents()] = pane->bounds();
+    }
+  }
+
   DetachPrimaryContentsHost(target_contents, source_contents);
   RebuildViews();
   UpdatePaneVisibility();
@@ -348,6 +383,17 @@ bool DaoSplitView::MovePane(content::WebContents* source_contents,
     }
   }
 
+  // Animate panes from old bounds to new bounds.
+  constexpr auto kRearrangeDuration = base::Milliseconds(200);
+  for (DaoSplitPaneView* pane : pane_views_) {
+    if (!pane || !pane->web_contents())
+      continue;
+    auto it = old_bounds.find(pane->web_contents());
+    if (it != old_bounds.end() && it->second != pane->bounds()) {
+      AnimatePaneBounds(pane, it->second, pane->bounds(), kRearrangeDuration);
+    }
+  }
+
   SyncActivePaneWithActiveTab();
   RefreshSplitLayout(browser_, this);
   UpdateHoverTracking();
@@ -363,9 +409,24 @@ bool DaoSplitView::ClosePane(content::WebContents* web_contents) {
   if (!leaf)
     return false;
 
-  // Last pane protection.
   if (group->root->CountLeaves() <= 1)
     return false;
+
+  // Snapshot closing pane info for animation.
+  gfx::Rect closing_bounds;
+  for (DaoSplitPaneView* pane : pane_views_) {
+    if (pane && pane->web_contents() == web_contents) {
+      closing_bounds = pane->bounds();
+      break;
+    }
+  }
+
+  SplitDirection close_dir = SplitDirection::kHorizontal;
+  bool is_first_child = false;
+  if (leaf->parent()) {
+    close_dir = leaf->parent()->direction();
+    is_first_child = (leaf->parent()->first() == leaf);
+  }
 
   dao::CloseLeaf(group->root, leaf);
   RemoveEmptyOrCollapsedGroups();
@@ -376,6 +437,34 @@ bool DaoSplitView::ClosePane(content::WebContents* web_contents) {
   SyncActivePaneWithActiveTab();
   RefreshSplitLayout(browser_, this);
   UpdateHoverTracking();
+
+  // Animate surviving panes expanding to fill the closed pane's space.
+  constexpr auto kCloseDuration = base::Milliseconds(200);
+  for (DaoSplitPaneView* pane : pane_views_) {
+    if (!pane)
+      continue;
+    gfx::Rect target = pane->bounds();
+    gfx::Rect start = target;
+    if (close_dir == SplitDirection::kHorizontal) {
+      if (is_first_child) {
+        start.set_x(start.x() + closing_bounds.width());
+        start.set_width(start.width() - closing_bounds.width());
+      } else {
+        start.set_width(start.width() - closing_bounds.width());
+      }
+    } else {
+      if (is_first_child) {
+        start.set_y(start.y() + closing_bounds.height());
+        start.set_height(start.height() - closing_bounds.height());
+      } else {
+        start.set_height(start.height() - closing_bounds.height());
+      }
+    }
+    if (start != target) {
+      AnimatePaneBounds(pane, start, target, kCloseDuration);
+    }
+  }
+
   return true;
 }
 
@@ -1279,6 +1368,40 @@ void DaoSplitView::BlockAllNativeEvents(bool block) {
       }
     }
   }
+}
+
+void DaoSplitView::AnimatePaneBounds(DaoSplitPaneView* pane,
+                                     const gfx::Rect& start,
+                                     const gfx::Rect& end,
+                                     base::TimeDelta duration) {
+  if (!pane || !pane->layer())
+    return;
+
+  pane->SetBoundsRect(start);
+
+  ui::ScopedLayerAnimationSettings settings(pane->layer()->GetAnimator());
+  settings.SetTransitionDuration(duration);
+  settings.SetTweenType(gfx::Tween::EASE_OUT);
+  settings.SetPreemptionStrategy(
+      ui::LayerAnimator::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
+  pane->SetBoundsRect(end);
+}
+
+void DaoSplitView::AnimateDividerBounds(DaoSplitDividerView* divider,
+                                        const gfx::Rect& start,
+                                        const gfx::Rect& end,
+                                        base::TimeDelta duration) {
+  if (!divider || !divider->layer())
+    return;
+
+  divider->SetBoundsRect(start);
+
+  ui::ScopedLayerAnimationSettings settings(divider->layer()->GetAnimator());
+  settings.SetTransitionDuration(duration);
+  settings.SetTweenType(gfx::Tween::EASE_OUT);
+  settings.SetPreemptionStrategy(
+      ui::LayerAnimator::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
+  divider->SetBoundsRect(end);
 }
 
 }  // namespace dao

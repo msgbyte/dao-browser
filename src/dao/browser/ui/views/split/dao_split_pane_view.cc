@@ -18,11 +18,13 @@
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/views/controls/button/button.h"
@@ -34,11 +36,7 @@ namespace dao {
 namespace {
 
 constexpr int kPaneHeaderHeight = 28;
-constexpr int kPaneHeaderPadding = 6;
-constexpr int kPaneHeaderButtonSize = 20;
-constexpr int kPaneHeaderSpacing = 4;
-constexpr int kPaneHeaderTopInset = 5;
-constexpr int kPaneHeaderCornerRadius = 10;
+constexpr int kPaneHeaderTopInset = 4;
 
 class PaneHeaderButton : public views::Button {
  public:
@@ -70,13 +68,13 @@ class PaneHeaderButton : public views::Button {
       cc::PaintFlags flags;
       flags.setAntiAlias(true);
       flags.setStyle(cc::PaintFlags::kFill_Style);
-      flags.setColor(SkColorSetARGB(24, 255, 255, 255));
+      flags.setColor(kPaneHeaderButtonHover);
       canvas->DrawRoundRect(
-          gfx::RectF(0, 0, width(), height()), kPaneHeaderCornerRadius, flags);
+          gfx::RectF(0, 0, width(), height()), kPaneHeaderButtonRadius, flags);
     }
 
     gfx::RectF icon_rect(2, 2, width() - 4, height() - 4);
-    DrawLucideIcon(canvas, icon_, icon_rect, dao::kTextSecondary);
+    DrawLucideIcon(canvas, icon_, icon_rect, kPaneHeaderButtonIcon);
   }
 
  private:
@@ -87,7 +85,7 @@ class PaneHeaderButton : public views::Button {
 class PaneRearrangeButton : public PaneHeaderButton {
  public:
   PaneRearrangeButton(DaoSplitPaneView* pane, DaoSplitView* split_view)
-      : PaneHeaderButton(LucideIcon::kEllipsis, u"Rearrange pane",
+      : PaneHeaderButton(LucideIcon::kGripHorizontal, u"Rearrange pane",
                          PressedCallback()),
         pane_(pane),
         split_view_(split_view) {}
@@ -159,9 +157,13 @@ END_METADATA
 DaoSplitPaneView::DaoSplitPaneView(Browser* browser,
                                    DaoSplitView* split_view,
                                    int pane_index)
-    : browser_(browser), split_view_(split_view) {
+    : browser_(browser), split_view_(split_view),
+      glow_animation_(base::Milliseconds(200), 60, this) {
   static_cast<void>(pane_index);
   GetViewAccessibility().SetRole(ax::mojom::Role::kGroup);
+
+  SetPaintToLayer();
+  layer()->SetFillsBoundsOpaquely(false);
 
   // Create per-pane address bar.
   address_bar_ = AddChildView(
@@ -175,22 +177,22 @@ DaoSplitPaneView::DaoSplitPaneView(Browser* browser,
   auto* header_layout = header_container->SetLayoutManager(
       std::make_unique<views::BoxLayout>(
           views::BoxLayout::Orientation::kHorizontal,
-          gfx::Insets::VH(kPaneHeaderPadding, kPaneHeaderPadding),
-          kPaneHeaderSpacing));
+          gfx::Insets::VH(3, 4),
+          2));
   header_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kCenter);
   header_container->SetBackground(views::CreateRoundedRectBackground(
-      SkColorSetARGB(220, 40, 34, 48), kPaneHeaderCornerRadius));
+      kPaneHeaderBackground, kPaneHeaderCornerRadius));
   header_container->SetPaintToLayer();
   header_container->layer()->SetFillsBoundsOpaquely(false);
-  header_container->SetVisible(false);
+  header_container->layer()->SetOpacity(0.0f);
   header_container_ = AddChildView(std::move(header_container));
 
   header_container_->AddChildView(static_cast<views::View*>(
       std::make_unique<PaneRearrangeButton>(this, split_view_).release()));
   header_container_->AddChildView(static_cast<views::View*>(
       std::make_unique<PaneHeaderButton>(
-          LucideIcon::kShare, u"Pop out pane",
+          LucideIcon::kExternalLink, u"Pop out pane",
           base::BindRepeating(
               [](DaoSplitPaneView* pane) {
                 if (pane && pane->split_view() && pane->web_contents()) {
@@ -270,14 +272,11 @@ void DaoSplitPaneView::SetActive(bool active) {
   if (is_active_ == active)
     return;
   is_active_ = active;
+  SetBorder(nullptr);
 
-  if (active) {
-    SetBorder(views::CreateRoundedRectBorder(
-        kActivePaneBorderWidth, kContentCornerRadius, kActivePaneBorder));
-  } else {
-    SetBorder(nullptr);
-  }
-  SchedulePaint();
+  glow_target_active_ = active;
+  glow_animation_.Stop();
+  glow_animation_.Start();
 }
 
 void DaoSplitPaneView::UpdateAddressBar() {
@@ -331,20 +330,84 @@ void DaoSplitPaneView::SetHeaderHovered(bool hovered) {
   if (header_hovered_ == hovered)
     return;
   header_hovered_ = hovered;
-  if (header_container_) {
-    bool should_show = (hovered || header_drag_active_) && web_contents_;
-    header_container_->SetVisible(should_show);
-  }
+  AnimateHeaderVisibility(hovered || header_drag_active_);
 }
 
 void DaoSplitPaneView::SetHeaderDragActive(bool active) {
   header_drag_active_ = active;
-  if (header_container_) {
-    if (active && web_contents_) {
-      header_container_->SetVisible(true);
-    } else if (!active && !header_hovered_) {
-      header_container_->SetVisible(false);
-    }
+  if (active) {
+    AnimateHeaderVisibility(true);
+  } else if (!header_hovered_) {
+    AnimateHeaderVisibility(false);
+  }
+}
+
+void DaoSplitPaneView::AnimateHeaderVisibility(bool visible) {
+  if (!header_container_ || !web_contents_)
+    return;
+
+  float target_opacity = visible ? 1.0f : 0.0f;
+  if (header_container_->layer()->GetTargetOpacity() == target_opacity)
+    return;
+
+  ui::ScopedLayerAnimationSettings settings(
+      header_container_->layer()->GetAnimator());
+  settings.SetTransitionDuration(base::Milliseconds(150));
+  settings.SetTweenType(visible ? gfx::Tween::EASE_OUT : gfx::Tween::EASE_IN);
+  header_container_->layer()->SetOpacity(target_opacity);
+}
+
+void DaoSplitPaneView::AnimationProgressed(const gfx::Animation* animation) {
+  double t = gfx::Tween::CalculateValue(gfx::Tween::EASE_IN_OUT,
+                                         animation->GetCurrentValue());
+  glow_opacity_ = glow_target_active_
+                       ? static_cast<float>(t)
+                       : static_cast<float>(1.0 - t);
+  SchedulePaint();
+}
+
+void DaoSplitPaneView::AnimationEnded(const gfx::Animation* animation) {
+  glow_opacity_ = glow_target_active_ ? 1.0f : 0.0f;
+  SchedulePaint();
+}
+
+void DaoSplitPaneView::OnPaint(gfx::Canvas* canvas) {
+  View::OnPaint(canvas);
+
+  if (glow_opacity_ <= 0.0f)
+    return;
+
+  const gfx::Rect bounds = GetLocalBounds();
+  const float r = static_cast<float>(kContentCornerRadius);
+
+  // Outer glow.
+  {
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kStroke_Style);
+    flags.setStrokeWidth(static_cast<float>(kActivePaneGlowRadius));
+    flags.setColor(SkColorSetA(
+        kActivePaneGlow,
+        static_cast<int>(SkColorGetA(kActivePaneGlow) * glow_opacity_)));
+    float inset = static_cast<float>(kActivePaneGlowRadius) / 2.0f;
+    gfx::RectF glow_rect(bounds);
+    glow_rect.Inset(inset);
+    canvas->DrawRoundRect(glow_rect, r, flags);
+  }
+
+  // Border.
+  {
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kStroke_Style);
+    flags.setStrokeWidth(static_cast<float>(kActivePaneBorderWidth));
+    flags.setColor(SkColorSetA(
+        kActivePaneBorder,
+        static_cast<int>(SkColorGetA(kActivePaneBorder) * glow_opacity_)));
+    float inset = static_cast<float>(kActivePaneBorderWidth) / 2.0f;
+    gfx::RectF border_rect(bounds);
+    border_rect.Inset(inset);
+    canvas->DrawRoundRect(border_rect, r, flags);
   }
 }
 

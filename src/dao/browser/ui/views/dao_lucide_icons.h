@@ -36,6 +36,8 @@ enum class LucideIcon {
   kMessageCircle,
   kPanelLeftClose,
   kPanelLeftOpen,
+  kGripHorizontal,
+  kExternalLink,
 };
 
 // Draw a Lucide icon into |rect| on |canvas| using |color|.
