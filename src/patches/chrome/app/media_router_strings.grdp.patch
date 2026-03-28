@@ -1,0 +1,13 @@
+diff --git a/chrome/app/media_router_strings.grdp b/chrome/app/media_router_strings.grdp
+index eee1ced9bf..fd4740cd7b 100644
+--- a/chrome/app/media_router_strings.grdp
++++ b/chrome/app/media_router_strings.grdp
+@@ -207,7 +207,7 @@
+     Display <ph name="DISPLAY_ID">$1<ex>1</ex></ph>
+   </message>
+ 
+-  <!-- Cast feedback dialog (chrome://cast-feedback) -->
++  <!-- Cast feedback dialog (dao://cast-feedback) -->
+   <message name="IDS_MEDIA_ROUTER_FEEDBACK_TITLE" desc="Title of the tab opened by selecting '''Report an issue' from the Cast menu.">
+     Google Cast Feedback
+   </message>

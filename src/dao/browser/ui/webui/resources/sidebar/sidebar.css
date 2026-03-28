@@ -1,0 +1,52 @@
+/* Dao Sidebar WebUI — global styles and design tokens */
+
+:root {
+  --sidebar-bg: rgb(40, 32, 48);
+  --surface: rgba(255, 255, 255, 0.08);
+  --surface-active: rgba(255, 255, 255, 0.14);
+  --separator: rgba(255, 255, 255, 0.12);
+  --text-primary: rgba(255, 255, 255, 1.0);
+  --text-secondary: rgba(255, 255, 255, 0.59);
+  --text-muted: rgba(255, 255, 255, 0.39);
+  --accent: rgb(140, 100, 220);
+  --accent-subtle: rgba(140, 100, 220, 0.15);
+  --ink-drop: rgba(255, 255, 255, 0.06);
+  --radius-tab: 12px;
+  --radius-favorite: 8px;
+  --font-family: system-ui, -apple-system, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--sidebar-bg);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}

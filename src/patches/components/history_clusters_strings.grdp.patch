@@ -1,0 +1,25 @@
+diff --git a/components/history_clusters_strings.grdp b/components/history_clusters_strings.grdp
+index 3a11599579..38cb16e173 100644
+--- a/components/history_clusters_strings.grdp
++++ b/components/history_clusters_strings.grdp
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ 
+-<!-- Strings for the chrome://history/journeys page -->
++<!-- Strings for the dao://history/journeys page -->
+ 
+ <grit-part>
+   <message name="IDS_HISTORY_CLUSTERS_ACTION_MENU_DESCRIPTION" desc="Text used to identify the history clusters drop-down menu for screen readers">
+@@ -12,10 +12,10 @@
+   <message name="IDS_HISTORY_CLUSTERS_DELETE_PRIOR_VISITS_WARNING" desc="Warning shown before deleting from the history clusters page">
+     Are you sure you want to delete these pages from your history?
+   </message>
+-  <message name="IDS_HISTORY_CLUSTERS_BY_GROUP_TAB_LABEL" desc="A label for the section in Chrome History (chrome://history) where a list of history items organized into groups of pages are shown to the user.">
++  <message name="IDS_HISTORY_CLUSTERS_BY_GROUP_TAB_LABEL" desc="A label for the section in Chrome History (dao://history) where a list of history items organized into groups of pages are shown to the user.">
+     By group
+   </message>
+-  <message name="IDS_HISTORY_CLUSTERS_BY_DATE_TAB_LABEL" desc="A label for the section in Chrome History (chrome://history) where a list of history items are shown to the user.">
++  <message name="IDS_HISTORY_CLUSTERS_BY_DATE_TAB_LABEL" desc="A label for the section in Chrome History (dao://history) where a list of history items are shown to the user.">
+     By date
+   </message>
+   <message name="IDS_HISTORY_CLUSTERS_CLUSTER_LABEL_SEARCH_TERMS" desc="The header used for Journeys that are anchored by search terms. The header is just the search terms in locale-specific quotation marks.">

@@ -1,0 +1,43 @@
+diff --git a/chrome/app/extensions_strings.grdp b/chrome/app/extensions_strings.grdp
+index a1bdf060a1..68b7179b44 100644
+--- a/chrome/app/extensions_strings.grdp
++++ b/chrome/app/extensions_strings.grdp
+@@ -43,13 +43,13 @@
+   <message name="IDS_EXTENSIONS_INSTALL_WARNINGS" desc="The text which says that an extension has warnings when it was installed.">
+     There were warnings when trying to install this extension:
+   </message>
+-  <message name="IDS_EXTENSIONS_LOG_LEVEL_ERROR" desc="Alt-text indicating a high severity level for the error icon in the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_LOG_LEVEL_ERROR" desc="Alt-text indicating a high severity level for the error icon in the dao://extensions page.">
+     Error
+   </message>
+-  <message name="IDS_EXTENSIONS_LOG_LEVEL_INFO" desc="Alt-text indicating a low severity level for the error icon in the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_LOG_LEVEL_INFO" desc="Alt-text indicating a low severity level for the error icon in the dao://extensions page.">
+     Log
+   </message>
+-  <message name="IDS_EXTENSIONS_LOG_LEVEL_WARN" desc="Alt-text indicating a medium severity level for the error icon in the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_LOG_LEVEL_WARN" desc="Alt-text indicating a medium severity level for the error icon in the dao://extensions page.">
+     Warning
+   </message>
+   <message name="IDS_EXTENSIONS_PATH" desc="The label in front of the extension load path.">
+@@ -424,10 +424,10 @@
+   <message name="IDS_EXTENSIONS_PACK_DIALOG_CONFIRM_BUTTON" desc="The label of the button to confirm the action to pack an extension.">
+     Pack extension
+   </message>
+-  <message name="IDS_EXTENSIONS_TOOLBAR_TITLE" desc="The text displayed in the toolbar of the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_TOOLBAR_TITLE" desc="The text displayed in the toolbar of the dao://extensions page.">
+     Extensions
+   </message>
+-  <message name="IDS_EXTENSIONS_SEARCH" desc="The text displayed in the search box on the chrome://extensions page.">
++  <message name="IDS_EXTENSIONS_SEARCH" desc="The text displayed in the search box on the dao://extensions page.">
+     Search extensions
+   </message>
+   <message name="IDS_EXTENSIONS_SITE_PERMISSIONS" desc="The text for the link to manage site permissions for extensions.">
+@@ -559,7 +559,7 @@
+   <message name="IDS_EXTENSIONS_SUBPAGE_BUTTON" is_accessibility_with_no_ui="true" desc="Accessibility description for a button navigating the user from an extension's settings page to its settings subpage.">
+     Subpage button
+   </message>
+-  <message name="IDS_EXTENSIONS_SECTION_HEADER" desc="The label for the extensions section in chrome://extensions.">
++  <message name="IDS_EXTENSIONS_SECTION_HEADER" desc="The label for the extensions section in dao://extensions.">
+     All Extensions
+   </message>
+   <!-- Extension Safety Check Review Panel strings -->

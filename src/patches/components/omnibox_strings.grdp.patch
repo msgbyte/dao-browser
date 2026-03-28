@@ -1,0 +1,47 @@
+diff --git a/components/omnibox_strings.grdp b/components/omnibox_strings.grdp
+index d3bb3c8bc5..70f60242bf 100644
+--- a/components/omnibox_strings.grdp
++++ b/components/omnibox_strings.grdp
+@@ -304,25 +304,25 @@
+   </message>
+ 
+   <!-- Site Search/Keyword mode Starter Pack strings. Note: kCurrentDataVersion in template_url_starter_pack_data.cc must also be updated when changing these values. -->
+-  <message name="IDS_SEARCH_ENGINES_STARTER_PACK_BOOKMARKS_NAME" desc = "The name of the chrome bookmarks search engine as it appears on chrome://settings/searchEngines">
++  <message name="IDS_SEARCH_ENGINES_STARTER_PACK_BOOKMARKS_NAME" desc = "The name of the chrome bookmarks search engine as it appears on dao://settings/searchEngines">
+     Bookmarks
+   </message>
+   <message name="IDS_SEARCH_ENGINES_STARTER_PACK_BOOKMARKS_KEYWORD" desc = "The keyword required to trigger bookmarks search in keyword mode. This will be prepended with an '@'.">
+     Bookmarks
+   </message>
+-  <message name="IDS_SEARCH_ENGINES_STARTER_PACK_HISTORY_NAME" desc = "The name of the chrome history search engine as it appears on chrome://settings/searchEngines">
++  <message name="IDS_SEARCH_ENGINES_STARTER_PACK_HISTORY_NAME" desc = "The name of the chrome history search engine as it appears on dao://settings/searchEngines">
+     History
+   </message>
+   <message name="IDS_SEARCH_ENGINES_STARTER_PACK_HISTORY_KEYWORD" desc = "The keyword required to trigger history search in keyword mode. This will be prepended with an '@'.">
+     History
+   </message>
+-  <message name="IDS_SEARCH_ENGINES_STARTER_PACK_TABS_NAME" desc = "The name of the search engine to search through open Chrome Tabs as it appears on chrome://settings/searchEngines.">
++  <message name="IDS_SEARCH_ENGINES_STARTER_PACK_TABS_NAME" desc = "The name of the search engine to search through open Chrome Tabs as it appears on dao://settings/searchEngines.">
+     Tabs
+   </message>
+   <message name="IDS_SEARCH_ENGINES_STARTER_PACK_TABS_KEYWORD" desc = "The keyword required to trigger tab search in keyword mode. This will be prepended with an '@'.">
+     Tabs
+   </message>
+-  <message name="IDS_SEARCH_ENGINES_STARTER_PACK_GEMINI_NAME" desc = "The name of the Gemini engine as it appears on chrome://settings/searchEngines.">
++  <message name="IDS_SEARCH_ENGINES_STARTER_PACK_GEMINI_NAME" desc = "The name of the Gemini engine as it appears on dao://settings/searchEngines.">
+     Gemini
+   </message>
+   <message name="IDS_SEARCH_ENGINES_STARTER_PACK_GEMINI_KEYWORD" desc = "The keyword required to trigger Ask Gemini in keyword mode. This will be prepended with an '@'.">
+@@ -351,10 +351,10 @@
+     Type @ to search <ph name="FEATURED_SEARCH_LIST">$1<ex>jira.atlassian.com, office.com, salesforce.com</ex></ph>
+   </message>
+ 
+-  <message name="IDS_OMNIBOX_HISTORY_EMBEDDINGS_SETTINGS_PROMO_IPH" desc="The string displayed as the last row in the Omnibox as IPH directing users to the chrome://settings/ai page to enable the history embeddings setting.">
++  <message name="IDS_OMNIBOX_HISTORY_EMBEDDINGS_SETTINGS_PROMO_IPH" desc="The string displayed as the last row in the Omnibox as IPH directing users to the dao://settings/ai page to enable the history embeddings setting.">
+     For a more powerful way to search your browsing history, turn on
+   </message>
+-  <message name="IDS_OMNIBOX_HISTORY_EMBEDDINGS_SETTINGS_PROMO_IPH_LINK_TEXT" desc="The link displayed on the last row in the Omnibox as IPH directing users to the chrome://settings/ai page to enable the history embeddings setting.">
++  <message name="IDS_OMNIBOX_HISTORY_EMBEDDINGS_SETTINGS_PROMO_IPH_LINK_TEXT" desc="The link displayed on the last row in the Omnibox as IPH directing users to the dao://settings/ai page to enable the history embeddings setting.">
+     History search, powered by AI
+   </message>
+ 

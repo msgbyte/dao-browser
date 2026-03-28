@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/resources/history/history.html b/chrome/browser/resources/history/history.html
+index 942f67f870..eecf6c5ad6 100644
+--- a/chrome/browser/resources/history/history.html
++++ b/chrome/browser/resources/history/history.html
+@@ -1,7 +1,7 @@
+ <!doctype html>
+ <html dir="$i18n{textdirection}" lang="$i18n{language}">
+ <head>
+-  <base href="chrome://history">
++  <base href="dao://history">
+   <meta charset="utf8">
+   <meta name="color-scheme" content="light dark">
+   <title>$i18n{title}</title>

@@ -1,11 +1,12 @@
+diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
+index 7603c2662b..b6071f9c3c 100644
 --- a/chrome/browser/browser_about_handler.cc
 +++ b/chrome/browser/browser_about_handler.cc
-@@ -31,8 +31,17 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+@@ -31,7 +31,16 @@ bool HandleChromeAboutAndChromeSyncRewrite(
    DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
           !url->SchemeIs(url::kAboutScheme));
-
+ 
 -  // Only handle chrome: URLs.
--  if (!url->SchemeIs(content::kChromeUIScheme))
 +  // Rewrite legacy chrome:// URLs to dao://.
 +  if (url->SchemeIs("chrome")) {
 +    GURL::Replacements replacements;
@@ -16,7 +17,6 @@
 +  // Only handle dao: URLs (kChromeUIScheme is now "dao").
 +  // Also accept legacy "chrome" scheme URLs that were not rewritten above
 +  // (should not happen, but defensive).
-+  if (!url->SchemeIs(content::kChromeUIScheme))
+   if (!url->SchemeIs(content::kChromeUIScheme))
      return false;
-
-   std::string host(url->host());
+ 

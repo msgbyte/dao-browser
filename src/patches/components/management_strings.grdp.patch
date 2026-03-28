@@ -1,0 +1,75 @@
+diff --git a/components/management_strings.grdp b/components/management_strings.grdp
+index ad3a213d66..c9af98e482 100644
+--- a/components/management_strings.grdp
++++ b/components/management_strings.grdp
+@@ -23,10 +23,10 @@
+ 
+   <!-- Subtitles of the ChromeOS version of the management page -->
+   <if expr="chromeos_ash">
+-    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED" desc="Title of chrome://management page, shows when device is managed by an unknown manager">
++    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED" desc="Title of dao://management page, shows when device is managed by an unknown manager">
+       Your <ph name="DEVICE_NAME">$1<ex>Chromebook</ex></ph> is managed
+     </message>
+-    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED_BY" desc="Title of chrome://management page, shows when device managed by a known manager. MANAGER can be a domain or an email address.">
++    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED_BY" desc="Title of dao://management page, shows when device managed by a known manager. MANAGER can be a domain or an email address.">
+       Your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> is managed by <ph name="MANAGER">$2<ex>example.com</ex></ph>
+     </message>
+     <message name="IDS_MANAGEMENT_NOT_MANAGED_SUBTITLE" desc="Message indicating that the device is not managed">
+@@ -36,13 +36,13 @@
+ 
+   <!-- Subtitles of the browser version of the management page -->
+   <if expr="not chromeos_ash">
+-    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED_BY" desc="Title of chrome://management page, which shows the administrator's capabilities in a managed environment. MANAGER can be a domain or an email address.">
++    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED_BY" desc="Title of dao://management page, which shows the administrator's capabilities in a managed environment. MANAGER can be a domain or an email address.">
+       Your browser is managed by <ph name="MANAGER">$1<ex>example.com</ex></ph>
+     </message>
+-    <message name="IDS_MANAGEMENT_NOT_MANAGED_SUBTITLE" desc="Title of chrome://management page for a browser that is not managed">
++    <message name="IDS_MANAGEMENT_NOT_MANAGED_SUBTITLE" desc="Title of dao://management page for a browser that is not managed">
+       Your browser is not managed
+     </message>
+-    <message name="IDS_MANAGEMENT_SUBTITLE" desc="Title of chrome://management page, which shows the administrator's capabilities in a managed environment">
++    <message name="IDS_MANAGEMENT_SUBTITLE" desc="Title of dao://management page, which shows the administrator's capabilities in a managed environment">
+       Your browser is managed by your organization
+     </message>
+     <message name="IDS_MANAGEMENT_SUBTITLE_BROWSER_AND_PROFILE_DIFFERENT_MANAGED_BY" desc="Text displayed to inform that the browser is managed by BROWSER_DOMAIN and the profile by PROFILE_DOMAIN.">
+@@ -105,7 +105,7 @@
+ 
+   <!--
+   If you are adding or modifying a privacy string to be displayed on
+-  chrome://management for managed devices, please add it to
++  dao://management for managed devices, please add it to
+   go/chrome-policy-privacy-note-mappings
+   -->
+   <if expr="is_chromeos">
+@@ -225,8 +225,8 @@
+     <message name="IDS_MANAGEMENT_REPORT_PLUGIN_VM" desc="Message telling users that Plugin VM can collect data.">
+       Your administrator has allowed <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> to collect diagnostics data to improve the product experience. See <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://www.parallels.com/pcep"&gt;</ph>https://www.parallels.com/pcep<ph name="END_LINK">&lt;/a&gt;</ph> for more information.
+     </message>
+-    <message name="IDS_MANAGEMENT_OPEN_CHROME_MANAGEMENT" desc="Message telling users to open chrome://management for additional information.">
+-      For additional information and policies that may apply, open chrome://management in your browser.
++    <message name="IDS_MANAGEMENT_OPEN_CHROME_MANAGEMENT" desc="Message telling users to open dao://management for additional information.">
++      For additional information and policies that may apply, open dao://management in your browser.
+     </message>
+     <message name="IDS_MANAGEMENT_REPORT_FILE_EVENTS" desc="Message stating that administrators may see file information">
+       Recent file access and modifications, including file names, digital fingerprints of the file content, download source, and metadata
+@@ -424,16 +424,16 @@
+   </if>
+ 
+   <if expr="is_ios">
+-    <message name="IDS_IOS_MANAGEMENT_UI_DESC" desc="The descriptive text on chrome://management page when the browser is managed.">
++    <message name="IDS_IOS_MANAGEMENT_UI_DESC" desc="The descriptive text on dao://management page when the browser is managed.">
+       Your administrator can change your browser setup remotely. Activity on this device may also be managed outside of Chrome.
+     </message>
+-    <message name="IDS_IOS_MANAGEMENT_UI_LEARN_MORE_LINK" desc="The clickable text on chrome://management.">
++    <message name="IDS_IOS_MANAGEMENT_UI_LEARN_MORE_LINK" desc="The clickable text on dao://management.">
+       Learn more
+     </message>
+-    <message name="IDS_IOS_MANAGEMENT_UI_MESSAGE" desc="The main message at the top of chrome://management page when the browser is managed.">
++    <message name="IDS_IOS_MANAGEMENT_UI_MESSAGE" desc="The main message at the top of dao://management page when the browser is managed.">
+       Your browser is managed by your administrator.
+     </message>
+-    <message name="IDS_IOS_MANAGEMENT_UI_UNMANAGED_DESC" desc="The descriptive text on chrome://management page when the browser is not managed.">
++    <message name="IDS_IOS_MANAGEMENT_UI_UNMANAGED_DESC" desc="The descriptive text on dao://management page when the browser is not managed.">
+       Your browser is not managed.
+     </message>
+   </if>

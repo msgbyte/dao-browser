@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..10089abf47 100644
+index 76c889780c..ce729b972b 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -119,6 +119,20 @@
@@ -23,7 +23,7 @@ index 76c889780c..10089abf47 100644
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/native_browser_frame.h"
-@@ -1084,6 +1098,69 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
+@@ -1084,6 +1098,72 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -42,12 +42,15 @@ index 76c889780c..10089abf47 100644
 +        std::make_unique<dao::DaoSplitView>(browser_.get()));
 +
 +    // Dao: Wire tab drag callback so split view becomes hit-testable during drags
-+    dao_sidebar_->tab_list_view()->set_tab_drag_callback(
-+        base::BindRepeating(
-+            [](dao::DaoSplitView* sv, bool active) {
-+              sv->SetTabDragActive(active);
-+            },
-+            base::Unretained(dao_split_view_)));
++    // (tab_list_view is null when sidebar uses WebUI rendering)
++    if (dao_sidebar_->tab_list_view()) {
++      dao_sidebar_->tab_list_view()->set_tab_drag_callback(
++          base::BindRepeating(
++              [](dao::DaoSplitView* sv, bool active) {
++                sv->SetTabDragActive(active);
++              },
++              base::Unretained(dao_split_view_)));
++    }
 +
 +    // Dao: Address bar at top of content area
 +    dao_address_bar_ = AddChildView(
@@ -93,7 +96,7 @@ index 76c889780c..10089abf47 100644
    right_aligned_side_panel_separator_ =
        AddChildView(std::make_unique<ContentsSeparator>());
  
-@@ -1301,6 +1378,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
+@@ -1301,6 +1381,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -105,7 +108,7 @@ index 76c889780c..10089abf47 100644
    const bool is_pwa =
        base::FeatureList::IsEnabled(features::kImmersiveFullscreenPWAs) &&
        GetIsWebAppType();
-@@ -1310,6 +1392,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
+@@ -1310,6 +1395,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
  }
  
  bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
@@ -116,7 +119,7 @@ index 76c889780c..10089abf47 100644
    return (GetSupportsTabStrip() &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreen) &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreenTabs)) &&
-@@ -1338,6 +1424,11 @@ bool BrowserView::GetTabStripVisible() const {
+@@ -1338,6 +1427,11 @@ bool BrowserView::GetTabStripVisible() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -128,7 +131,7 @@ index 76c889780c..10089abf47 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-@@ -1876,6 +1967,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1876,6 +1970,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
    // Visibility API under Windows, as ChangeWebContents will briefly hide
    // the WebContents window.
    bool change_tab_contents = contents_web_view_->web_contents() != new_contents;
@@ -137,7 +140,7 @@ index 76c889780c..10089abf47 100644
  
  #if BUILDFLAG(IS_MAC)
    // Widget::IsActive is inconsistent between Mac and Aura, so don't check for
-@@ -1951,13 +2044,25 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1951,13 +2047,25 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
      }
  
      web_contents_close_handler_->ActiveTabChanged();
@@ -146,11 +149,7 @@ index 76c889780c..10089abf47 100644
        loading_bar_->SetWebContents(new_contents);
 +    } else if (loading_bar_) {
 +      loading_bar_->SetWebContents(nullptr);
-     }
--    contents_web_view_->SetWebContents(new_contents);
--    SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
--    if (sad_tab_helper) {
--      sad_tab_helper->ReinstallInWebView();
++    }
 +    if (dao_split_tab_active) {
 +      contents_web_view_->SetWebContents(nullptr);
 +    } else {
@@ -159,16 +158,20 @@ index 76c889780c..10089abf47 100644
 +      if (sad_tab_helper) {
 +        sad_tab_helper->ReinstallInWebView();
 +      }
-+    }
+     }
+-    contents_web_view_->SetWebContents(new_contents);
+-    SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
+-    if (sad_tab_helper) {
+-      sad_tab_helper->ReinstallInWebView();
 +
 +    // Dao: Update agent lock banner visibility for the newly active tab.
 +    if (dao_agent_lock_banner_) {
 +      dao_agent_lock_banner_->SetLocked(
 +          dao::DaoAgentLockTabHelper::IsLocked(new_contents));
      }
-
+ 
      // The second layout update should be no-op. It will just set the
-@@ -2362,6 +2467,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2362,6 +2470,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -187,7 +190,7 @@ index 76c889780c..10089abf47 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3815,6 +3932,14 @@ LocationBarView* BrowserView::GetLocationBarView() const {
+@@ -3710,6 +3830,14 @@ LocationBarView* BrowserView::GetLocationBarView() const {
  void BrowserView::TabChangedAt(content::WebContents* contents,
                                 int index,
                                 TabChangeType change_type) {

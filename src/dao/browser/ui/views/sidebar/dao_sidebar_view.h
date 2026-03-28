@@ -7,19 +7,27 @@
 
 #include <set>
 
+#include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents_delegate.h"
+#include "content/public/common/drop_data.h"
+#include "third_party/blink/public/common/page/drag_operation.h"
 #include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/compositor/layer_animation_observer.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/controls/resize_area.h"
 #include "ui/views/controls/resize_area_delegate.h"
+#include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/view.h"
 
 class Browser;
 
 namespace views {
 class Button;
+class WebView;
 }
 
 namespace dao {
@@ -32,7 +40,8 @@ class DaoTabListView;
 class DaoSidebarView : public views::View,
                        public gfx::AnimationDelegate,
                        public views::ResizeAreaDelegate,
-                       public ui::ImplicitAnimationObserver {
+                       public ui::ImplicitAnimationObserver,
+                       public content::WebContentsDelegate {
   METADATA_HEADER(DaoSidebarView, views::View)
 
  public:
@@ -81,7 +90,25 @@ class DaoSidebarView : public views::View,
   void RemovedFromWidget() override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
-  void OnPaint(gfx::Canvas* canvas) override;
+
+  // content::WebContentsDelegate:
+  bool HandleKeyboardEvent(
+      content::WebContents* source,
+      const input::NativeWebKeyboardEvent& event) override;
+  bool CanDragEnter(content::WebContents* source,
+                    const content::DropData& data,
+                    blink::DragOperationsMask operations_allowed) override;
+  content::WebContents* OpenURLFromTab(
+      content::WebContents* source,
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
+
+  // WebUI sidebar management
+  bool use_webui() const { return use_webui_; }
+  void SetUseWebUI(bool use_webui);
+  void SetWebUIDropInsertIndex(int index) { webui_drop_insert_index_ = index; }
+  void StartFileDrag(const base::FilePath& path);
 
   // views::View (drop target):
   bool GetDropFormats(
@@ -104,9 +131,14 @@ class DaoSidebarView : public views::View,
   raw_ptr<DaoDownloadButtonView> download_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
   raw_ptr<views::View> drop_overlay_ = nullptr;
+  raw_ptr<views::WebView> sidebar_web_view_ = nullptr;
 
   void AnimateLayerSlide(int old_width, int new_width);
+  void EnsureWebUILoaded();
+  void DoStartFileDrag(const base::FilePath& path);
 
+  bool use_webui_ = true;
+  bool webui_loaded_ = false;
   bool collapsed_ = false;
   bool auto_expanded_ = false;
   bool is_drop_target_active_ = false;
@@ -120,6 +152,11 @@ class DaoSidebarView : public views::View,
   gfx::LinearAnimation collapse_animation_;
 
   int drop_target_index_ = -1;   // Tab model index where file will be inserted
+  int webui_drop_insert_index_ = -1;  // Drop index set by WebUI JS
+
+  views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
+
+  base::WeakPtrFactory<DaoSidebarView> weak_factory_{this};
 };
 
 }  // namespace dao

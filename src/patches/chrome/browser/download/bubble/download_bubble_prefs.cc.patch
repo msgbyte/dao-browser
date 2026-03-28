@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/download/bubble/download_bubble_prefs.cc b/chrome/browser/download/bubble/download_bubble_prefs.cc
-index 1234567890..abcdef1234 100644
+index e1e1093c80..50ad0446f3 100644
 --- a/chrome/browser/download/bubble/download_bubble_prefs.cc
 +++ b/chrome/browser/download/bubble/download_bubble_prefs.cc
-@@ -31,10 +31,8 @@ bool IsDownloadBubbleEnabled() {
+@@ -30,11 +30,9 @@ bool IsDownloadBubbleEnabled() {
  }
-
+ 
  bool ShouldShowDownloadBubble(Profile* profile) {
 -  // If the download UI is disabled by at least one extension, do not show the
 -  // bubble and the toolbar icon.
@@ -15,4 +15,5 @@ index 1234567890..abcdef1234 100644
 +  // animation). Downloads are handled by DaoDownloadButtonView in the sidebar.
 +  return false;
  }
-
+ 
+ bool DoesDownloadConnectorBlock(Profile* profile, const GURL& url) {

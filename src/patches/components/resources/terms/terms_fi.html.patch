@@ -1,0 +1,13 @@
+diff --git a/components/resources/terms/terms_fi.html b/components/resources/terms/terms_fi.html
+index 8869a538e5..5397d945d8 100644
+--- a/components/resources/terms/terms_fi.html
++++ b/components/resources/terms/terms_fi.html
+@@ -40,7 +40,7 @@ h2 {
+  Käyttämällä Chromea tai Chrome-käyttöjärjestelmää hyväksyt osoitteessa https://policies.google.com/terms olevat Googlen käyttöehdot sekä nämä Google Chromen ja Chrome-käyttöjärjestelmän lisäkäyttöehdot.
+ </p>
+ <p>
+- Nämä Google Chromen ja Chrome-käyttöjärjestelmän lisäkäyttöehdot koskevat Chromen ja Chrome-käyttöjärjestelmän suoritettavaa koodiversiota. Suurin osa Chromen lähdekoodista on saatavilla maksutta avoimen lähdekoodin lisenssisopimusten mukaisesti osoitteesta chrome://credits.
++ Nämä Google Chromen ja Chrome-käyttöjärjestelmän lisäkäyttöehdot koskevat Chromen ja Chrome-käyttöjärjestelmän suoritettavaa koodiversiota. Suurin osa Chromen lähdekoodista on saatavilla maksutta avoimen lähdekoodin lisenssisopimusten mukaisesti osoitteesta dao://credits.
+ </p>
+ <p>
+  Tiettyjen Chromen ja Chrome-käyttöjärjestelmän osien käyttöösi sovelletaan seuraavia ehtoja:

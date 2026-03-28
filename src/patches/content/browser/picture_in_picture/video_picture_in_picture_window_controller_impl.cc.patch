@@ -1,10 +1,10 @@
 diff --git a/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc b/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc
-index 1234567890..abcdef1234 100644
+index dd02ebb242..084252fc92 100644
 --- a/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc
 +++ b/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc
-@@ -374,9 +374,10 @@
+@@ -374,9 +374,10 @@ void VideoPictureInPictureWindowControllerImpl::HangUp() {
  }
-
+ 
  void VideoPictureInPictureWindowControllerImpl::SeekTo(base::TimeDelta time) {
 -  if (media_session_action_seek_to_handled_) {
 -    MediaSession::Get(web_contents())->SeekTo(time);
@@ -14,5 +14,5 @@ index 1234567890..abcdef1234 100644
 +  // a fallback path that calls OnSeekTo() on native media players directly.
 +  MediaSession::Get(web_contents())->SeekTo(time);
  }
-
+ 
  void VideoPictureInPictureWindowControllerImpl::MediaSessionInfoChanged(

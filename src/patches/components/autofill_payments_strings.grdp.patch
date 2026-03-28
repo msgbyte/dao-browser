@@ -1,0 +1,13 @@
+diff --git a/components/autofill_payments_strings.grdp b/components/autofill_payments_strings.grdp
+index 9a48f40dc9..7a6f75d0b4 100644
+--- a/components/autofill_payments_strings.grdp
++++ b/components/autofill_payments_strings.grdp
+@@ -681,7 +681,7 @@
+   <message name="IDS_AUTOFILL_IBAN_SAVED" desc="Title text for the Autofill save IBAN (International Bank Account Number) bubble view when the IBAN  has been saved. Also label for icon animation.">
+     IBAN saved
+   </message>
+-  <message name="IDS_AUTOFILL_MANAGE_SAVED_PAYMENT_METHODS" desc="Text to show for the button in the save IBAN (International Bank Account Number) manage bubble, or in the save card manager bubble which appears after either IBAN or credit card had been saved. The user will be redirected to chrome://settings/payments if the 'Manage payment methods' button is clicked.">
++  <message name="IDS_AUTOFILL_MANAGE_SAVED_PAYMENT_METHODS" desc="Text to show for the button in the save IBAN (International Bank Account Number) manage bubble, or in the save card manager bubble which appears after either IBAN or credit card had been saved. The user will be redirected to dao://settings/payments if the 'Manage payment methods' button is clicked.">
+     Manage payment methods
+   </message>
+   <message name="IDS_AUTOFILL_SAVE_IBAN_PROMPT_TITLE_SERVER" desc="Title text for the Autofill save IBAN (International Bank Account Number) to the GPay server prompt when a user submits a form with a valid IBAN.">

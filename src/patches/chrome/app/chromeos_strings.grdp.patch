@@ -1,0 +1,100 @@
+diff --git a/chrome/app/chromeos_strings.grdp b/chrome/app/chromeos_strings.grdp
+index d23c8e22d9..adfb8154f7 100644
+--- a/chrome/app/chromeos_strings.grdp
++++ b/chrome/app/chromeos_strings.grdp
+@@ -3102,7 +3102,7 @@
+     Browse faster and use less data with Lite mode. Click to learn more.
+   </message>
+ 
+-  <!-- chrome://mobilesetup strings -->
++  <!-- dao://mobilesetup strings -->
+   <message name="IDS_MOBILE_SETUP_TITLE" desc="ChromeOS mobile device activation page title">
+     Mobile data service management
+   </message>
+@@ -3455,7 +3455,7 @@
+     Learn more.
+   </message>
+ 
+-  <!-- About network UI (chrome://network) display strings (for developer
++  <!-- About network UI (dao://network) display strings (for developer
+        debugging) -->
+   <message name="IDS_NETWORK_UI_TITLE" desc="Title of the page">
+     Network
+@@ -3485,7 +3485,7 @@
+     WiFi Direct
+   </message>
+   <message name="IDS_NETWORK_UI_AUTO_REFRESH" desc="Instructions for how to auto-refresh the page">
+-    Add a query param in URL to auto-refresh the page: chrome://network/?refresh=&lt;sec&gt;
++    Add a query param in URL to auto-refresh the page: dao://network/?refresh=&lt;sec&gt;
+   </message>
+   <message name="IDS_NETWORK_UI_REFRESH" desc="Button label for refreshing networks">
+     Refresh Networks
+@@ -3508,7 +3508,7 @@
+   <message name="IDS_NETWORK_UI_FORMAT_SHILL" desc="Label in network property format dropdown for Shill properties">
+     Shill
+   </message>
+-  <message name="IDS_NETWORK_UI_DHCP_HOSTNAME" desc="Label for the DHCP Hostname field in the chrome://network debugging UI.">
++  <message name="IDS_NETWORK_UI_DHCP_HOSTNAME" desc="Label for the DHCP Hostname field in the dao://network debugging UI.">
+     DHCP Hostname
+   </message>
+   <message name="IDS_NETWORK_UI_GLOBAL_POLICY" desc="Label for global policy properties">
+@@ -3571,7 +3571,7 @@
+   <message name="IDS_NETWORK_UI_IMPORT_ONC_BUTTON_TEXT" desc="Text for button which, when pressed, selects and imports an ONC file for network configuration.">
+     Import ONC File
+   </message>
+-  <message name="IDS_NETWORK_UI_NETWORK_LOGS_DESCRIPTION" desc="Text describing the section for storing network logs in the chrome://network debugging UI.">
++  <message name="IDS_NETWORK_UI_NETWORK_LOGS_DESCRIPTION" desc="Text describing the section for storing network logs in the dao://network debugging UI.">
+     Store system logs to the Downloads directory.
+   </message>
+   <message name="IDS_NETWORK_UI_NETWORK_LOGS_SYSTEM_LOGS" desc="Text describing the checkbox option for storing the system logs file sent in feedback reports.">
+@@ -3683,8 +3683,8 @@
+     Refresh WiFi Direct Clients Info
+   </message>
+ 
+-  <message name="IDS_DEVICE_LOG_LINK_TEXT" desc="Message preceeding link to chrome://device-log">
+-    To view network UI logs, see: <ph name="DEVICE_LOG_LINK">&lt;a href="chrome://device-log"&gt;chrome://device-log&lt;/a&gt;</ph>
++  <message name="IDS_DEVICE_LOG_LINK_TEXT" desc="Message preceeding link to dao://device-log">
++    To view network UI logs, see: <ph name="DEVICE_LOG_LINK">&lt;a href="dao://device-log"&gt;dao://device-log&lt;/a&gt;</ph>
+   </message>
+ 
+   <!-- Device health display strings-->
+@@ -4553,7 +4553,7 @@
+   </message>
+   <message name="IDS_HW_DATA_COLLECTION_CONTENT" desc="Content of the hardware data collection notice screen.">
+     <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>To provide the best experience, <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> collects hardware data about devices and shares it with Google to determine which updates should be delivered. Optionally, you can allow Google to use this data for additional purposes like support and improvements to the <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> experience and service.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
+-    <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can log in on this device and view fields listed as chromeosflex_ in chrome://system to see the data sent to Google for update filtering, as well as any other instances where you choose to share data with Google.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
++    <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can log in on this device and view fields listed as chromeosflex_ in dao://system to see the data sent to Google for update filtering, as well as any other instances where you choose to share data with Google.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
+     <ph name="BEGIN_PARAGRAPH3">&lt;p&gt;</ph>For more details on data <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> may share with Google, and how it is used visit g.co/flex/HWDataCollection.<ph name="END_PARAGRAPH3">&lt;/p&gt;</ph>
+   </message>
+   <message name="IDS_HW_DATA_COLLECTION_USAGE_INFO" desc="Checkbox description for additional hardware data usage. This message is followed by a 'Learn more' link.">
+@@ -5026,7 +5026,7 @@
+     Couldn’t restore Linux backup
+   </message>
+   <message name="IDS_CROSTINI_UPGRADER_RESTORE_ERROR_MESSAGE" desc="Text shown by the Crostini upgrader when restoring from backup fails fails.">
+-    Linux may not have enough disk space. You can increase your Linux disk space and try to restore again in <ph name="LINK_START">&lt;a href="chrome://os-settings/crostini/details"&gt;</ph>Settings<ph name="LINK_END">&lt;/a&gt;</ph>.
++    Linux may not have enough disk space. You can increase your Linux disk space and try to restore again in <ph name="LINK_START">&lt;a href="dao://os-settings/crostini/details"&gt;</ph>Settings<ph name="LINK_END">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_CROSTINI_UPGRADER_RESTORE_SUCCEEDED_TITLE" desc="Title of the Crostini upgrader when the upgrade failed but the restore of a backup completed successfully.">
+     Linux backup restored
+@@ -5796,7 +5796,7 @@
+     Looking for file shares
+   </message>
+ 
+-  <!-- Strings for the VM status page (chrome://vm). -->
++  <!-- Strings for the VM status page (dao://vm). -->
+   <message name="IDS_VM_STATUS_INDEX_PAGE_TITLE" desc="The title for the VM (virtual machine) status index page. This string is used both for the heading and the page title.">
+     VM status
+   </message>
+@@ -6261,10 +6261,10 @@ Permissions you've already given to apps may apply to this account. You can cont
+   <message name="IDS_BOREALIS_DISALLOWED_ADMIN" desc="Message shown to the user when 'Steam for Chromebook' is blocked by their admin. The placeholders are the names of policy settings.">
+     Steam for Chromebook (Beta) is blocked by your administrator. Your administrator needs to turn on these policies:
+   </message>
+-  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when 'Steam for Chromebook' doesn't have the correct chrome://flags setting enabled">
++  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when 'Steam for Chromebook' doesn't have the correct dao://flags setting enabled">
+     You need to turn on the “Borealis Enabled” flag
+   </message>
+-  <message name="IDS_BOREALIS_DISALLOWED_FLAG_BUTTON" desc="Button label used to bring up the user's chrome://flags settings. Shown when users try to install borealis but are unable to due to their flags.">
++  <message name="IDS_BOREALIS_DISALLOWED_FLAG_BUTTON" desc="Button label used to bring up the user's dao://flags settings. Shown when users try to install borealis but are unable to due to their flags.">
+     ChromeOS flags
+   </message>
+   <message name="IDS_BOREALIS_INSTALLER_APP_NAME" desc="Name of a utility which is used to install the Steam application (Steam is a video game distribution service)">

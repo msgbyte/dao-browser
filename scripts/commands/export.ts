@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { glob } from "glob";
 import path from "node:path";
+import { execSync } from "node:child_process";
 import {
   ENGINE_DIR,
   PATCHES_DIR,
@@ -73,7 +74,14 @@ async function exportSingleFile(
 
   let diff: string;
   try {
-    diff = run(`git diff -- "${filePath}"`, { cwd: srcDir, silent: true });
+    // Use execSync directly (not run()) to avoid .trim() stripping trailing
+    // context lines from diffs. Also pass --binary for binary file patches.
+    diff = execSync(`git diff --binary -- "${filePath}"`, {
+      cwd: srcDir,
+      encoding: "utf-8",
+      stdio: "pipe",
+      maxBuffer: 50 * 1024 * 1024, // 50 MB for large binary diffs
+    });
   } catch {
     error(`Failed to generate diff for: ${filePath}`);
     return;
@@ -85,6 +93,10 @@ async function exportSingleFile(
   }
 
   mkdirSync(path.dirname(patchFullPath), { recursive: true });
-  writeFileSync(patchFullPath, diff + "\n");
+  // Write raw diff output as-is. For text diffs, ensure trailing newline.
+  // For binary diffs (contain "GIT binary patch"), write exactly as received.
+  const isBinary = diff.includes("GIT binary patch");
+  const output = isBinary ? diff : diff.replace(/\n*$/, "\n");
+  writeFileSync(patchFullPath, output);
   success(`Exported: ${patchRelPath}`);
 }

@@ -1,0 +1,13 @@
+diff --git a/components/resources/terms/terms_lt.html b/components/resources/terms/terms_lt.html
+index baa3418bcd..5125b9f5dd 100644
+--- a/components/resources/terms/terms_lt.html
++++ b/components/resources/terms/terms_lt.html
+@@ -40,7 +40,7 @@ h2 {
+  Naudodami „Chrome“ arba „ChromeOS“ sutinkate su „Google“ paslaugų teikimo sąlygomis, pateiktomis adresu https://policies.google.com/terms, ir šiomis „Google Chrome“ bei „ChromeOS“ papildomomis paslaugų teikimo sąlygomis.
+ </p>
+ <p>
+- Šios „Google Chrome“ ir „ChromeOS“ papildomos paslaugų teikimo sąlygos taikomos vykdomojo kodo versijai sistemoje „Chrome“ ir „ChromeOS“. Didžioji dalis „Chrome“ šaltinio kodo pasiekiama nemokamai pagal atvirojo šaltinio programinės įrangos licencijos sutartį adresu chrome://credits.
++ Šios „Google Chrome“ ir „ChromeOS“ papildomos paslaugų teikimo sąlygos taikomos vykdomojo kodo versijai sistemoje „Chrome“ ir „ChromeOS“. Didžioji dalis „Chrome“ šaltinio kodo pasiekiama nemokamai pagal atvirojo šaltinio programinės įrangos licencijos sutartį adresu dao://credits.
+ </p>
+ <p>
+  Naudojant tam tikrus „Chrome“ ir „ChromeOS“ komponentus, taikomos toliau nurodytos sąlygos.

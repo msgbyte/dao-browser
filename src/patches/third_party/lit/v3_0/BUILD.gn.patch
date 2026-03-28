@@ -1,10 +1,13 @@
+diff --git a/third_party/lit/v3_0/BUILD.gn b/third_party/lit/v3_0/BUILD.gn
+index 2380b3f217..939d481b43 100644
 --- a/third_party/lit/v3_0/BUILD.gn
 +++ b/third_party/lit/v3_0/BUILD.gn
-@@ -98,6 +98,7 @@ ts_library("build_ts") {
+@@ -87,6 +87,8 @@ ts_library("build_ts") {
      "//content/browser/resources/service_worker:build_ts",
      "//content/browser/resources/traces_internals:build_ts",
      "//ui/webui/resources/cr_components/certificate_manager:build_ts",
 +    "//dao/browser/ui/webui/resources/agent:build_ts",
++    "//dao/browser/ui/webui/resources/sidebar:build_ts",
      "//ui/webui/resources/cr_components/cr_shortcut_input:build_ts",
      "//ui/webui/resources/cr_components/customize_color_scheme_mode:build_ts",
      "//ui/webui/resources/cr_components/help_bubble:build_ts",

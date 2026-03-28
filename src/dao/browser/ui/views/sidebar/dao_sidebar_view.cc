@@ -6,12 +6,16 @@
 
 #include <algorithm>
 
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_ui.h"
+#include "content/public/common/url_constants.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "base/task/single_thread_task_runner.h"
@@ -23,10 +27,12 @@
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/sidebar/dao_download_button_view.h"
+#include "dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h"
 #include "dao/browser/ui/views/sidebar/dao_favorites_view.h"
 #include "dao/browser/ui/views/sidebar/dao_new_tab_button.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_item_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_list_view.h"
+#include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "net/base/filename_util.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
@@ -41,6 +47,7 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
+#include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -102,6 +109,25 @@ class DaoDropOverlayView : public views::View {
 };
 
 BEGIN_METADATA(DaoDropOverlayView)
+END_METADATA
+
+// WebView subclass that rejects native drag-drop so events propagate
+// up to DaoSidebarView (which handles file/URL drops in both modes).
+class DaoNonDropWebView : public views::WebView {
+  METADATA_HEADER(DaoNonDropWebView, views::WebView)
+
+ public:
+  using WebView::WebView;
+
+  bool GetDropFormats(
+      int* formats,
+      std::set<ui::ClipboardFormatType>* format_types) override {
+    return false;
+  }
+  bool CanDrop(const ui::OSExchangeData& data) override { return false; }
+};
+
+BEGIN_METADATA(DaoNonDropWebView)
 END_METADATA
 
 class DaoToggleButton : public views::Button {
@@ -173,23 +199,29 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
 
   header_row_ = inner_container_->AddChildView(std::move(header_row));
 
-  // Favorites row
-  favorites_ = inner_container_->AddChildView(
-      std::make_unique<DaoFavoritesView>(browser));
+  if (!use_webui_) {
+    // Legacy C++ path: create child views directly.
+    // Favorites row
+    favorites_ = inner_container_->AddChildView(
+        std::make_unique<DaoFavoritesView>(browser));
 
-  // Tab list (pinned section + new-tab button + today section)
-  tab_list_view_ = inner_container_->AddChildView(
-      std::make_unique<DaoTabListView>(browser));
-  layout->SetFlexForView(tab_list_view_, 1);
+    // Tab list (pinned section + new-tab button + today section)
+    tab_list_view_ = inner_container_->AddChildView(
+        std::make_unique<DaoTabListView>(browser));
+    layout->SetFlexForView(tab_list_view_, 1);
 
-  // Wire active-tab click to show floating omnibox
-  tab_list_view_->set_show_omnibox_callback(
-      base::BindRepeating(&DaoSidebarView::ShowOmniboxPopup,
-                          base::Unretained(this)));
+    // Wire active-tab click to show floating omnibox
+    tab_list_view_->set_show_omnibox_callback(
+        base::BindRepeating(&DaoSidebarView::ShowOmniboxPopup,
+                            base::Unretained(this)));
 
-  // Download button at bottom
-  download_button_ = inner_container_->AddChildView(
-      std::make_unique<DaoDownloadButtonView>(browser));
+    // Download button at bottom
+    download_button_ = inner_container_->AddChildView(
+        std::make_unique<DaoDownloadButtonView>(browser));
+  } else {
+    // WebUI path: WebView will be created lazily in AddedToWidget()
+    // to avoid creating it too early during BrowserView construction.
+  }
 
   // Resize handle on the right edge
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
@@ -198,7 +230,109 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
   drop_overlay_ = AddChildView(std::make_unique<DaoDropOverlayView>());
 }
 
-DaoSidebarView::~DaoSidebarView() = default;
+DaoSidebarView::~DaoSidebarView() {
+  if (sidebar_web_view_ && sidebar_web_view_->GetWebContents()) {
+    sidebar_web_view_->GetWebContents()->SetDelegate(nullptr);
+  }
+}
+
+void DaoSidebarView::EnsureWebUILoaded() {
+  if (webui_loaded_ || !sidebar_web_view_) {
+    return;
+  }
+  webui_loaded_ = true;
+  sidebar_web_view_->LoadInitialURL(
+      GURL(std::string(content::kChromeUIScheme) + "://sidebar"));
+
+  if (sidebar_web_view_->GetWebContents()) {
+    sidebar_web_view_->GetWebContents()->SetDelegate(this);
+
+    // Pass Browser* to the WebUI handler after load.
+    content::WebUI* webui =
+        sidebar_web_view_->GetWebContents()->GetWebUI();
+    if (webui) {
+      auto* controller = static_cast<DaoSidebarUI*>(webui->GetController());
+      if (controller) {
+        controller->SetBrowser(browser_);
+      }
+    }
+  }
+}
+
+void DaoSidebarView::SetUseWebUI(bool use_webui) {
+  use_webui_ = use_webui;
+}
+
+bool DaoSidebarView::HandleKeyboardEvent(
+    content::WebContents* source,
+    const input::NativeWebKeyboardEvent& event) {
+  return unhandled_keyboard_event_handler_.HandleKeyboardEvent(
+      event, GetFocusManager());
+}
+
+bool DaoSidebarView::CanDragEnter(
+    content::WebContents* source,
+    const content::DropData& data,
+    blink::DragOperationsMask operations_allowed) {
+  // Allow the renderer to handle drags. Actual file/URL drops are
+  // intercepted in OpenURLFromTab() and redirected to new tabs.
+  return true;
+}
+
+content::WebContents* DaoSidebarView::OpenURLFromTab(
+    content::WebContents* source,
+    const content::OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
+  // When a file or URL is dropped on the sidebar WebView, the renderer
+  // tries to navigate chrome://sidebar to that URL. Intercept and open
+  // in a new browser tab instead.
+  if (params.url.SchemeIsFile() || params.url.SchemeIsHTTPOrHTTPS()) {
+    NavigateParams nav_params(browser_, params.url, ui::PAGE_TRANSITION_TYPED);
+    nav_params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    if (webui_drop_insert_index_ >= 0) {
+      nav_params.tabstrip_index = webui_drop_insert_index_;
+    }
+    webui_drop_insert_index_ = -1;
+    Navigate(&nav_params);
+    return nullptr;
+  }
+  // Allow chrome:// navigations (unlikely but safe).
+  return source;
+}
+
+void DaoSidebarView::StartFileDrag(const base::FilePath& path) {
+  // Post to the message loop so chrome.send() returns first.
+  // RunShellDrag blocks (enters a nested run loop on macOS) and would
+  // otherwise freeze the WebUI if called synchronously from a message handler.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DaoSidebarView::DoStartFileDrag,
+                     weak_factory_.GetWeakPtr(), path));
+}
+
+void DaoSidebarView::DoStartFileDrag(const base::FilePath& path) {
+  auto* widget = GetWidget();
+  if (!widget) return;
+
+  auto data = std::make_unique<ui::OSExchangeData>();
+  data->SetFilename(path);
+
+  // Use the file's system icon as the drag image.
+  gfx::ImageSkia drag_image = GetFileIcon(path, 32);
+  if (!drag_image.isNull()) {
+    data->provider().SetDragImage(drag_image,
+                                  gfx::Vector2d(drag_image.width() / 2,
+                                                drag_image.height() / 2));
+  }
+
+  views::View* source_view =
+      sidebar_web_view_ ? static_cast<views::View*>(sidebar_web_view_.get())
+                        : static_cast<views::View*>(this);
+  widget->RunShellDrag(source_view, std::move(data), gfx::Point(),
+                       ui::DragDropTypes::DRAG_COPY,
+                       ui::mojom::DragEventSource::kMouse);
+}
 
 gfx::Rect DaoSidebarView::header_bounds_in_sidebar() const {
   if (!header_row_ || !inner_container_) {
@@ -286,6 +420,11 @@ void DaoSidebarView::OnResize(int resize_amount, bool done_resizing) {
 void DaoSidebarView::ToggleCollapsed() {
   auto_expanded_ = false;
   collapsed_ = !collapsed_;
+
+  // Lazy-load WebUI on first expand.
+  if (use_webui_ && !collapsed_) {
+    EnsureWebUILoaded();
+  }
 
   int old_width = current_width_;
   int new_width = collapsed_ ? kCollapsedWidth : user_width_;
@@ -381,6 +520,22 @@ void DaoSidebarView::AnimationEnded(const gfx::Animation* animation) {
 
 void DaoSidebarView::AddedToWidget() {
   View::AddedToWidget();
+
+  // Create WebView lazily here (not in constructor) to avoid creating
+  // WebContents too early during BrowserView construction.
+  if (use_webui_ && !sidebar_web_view_) {
+    sidebar_web_view_ = inner_container_->AddChildView(
+        std::make_unique<DaoNonDropWebView>(browser_->profile()));
+    auto* layout = static_cast<views::BoxLayout*>(
+        inner_container_->GetLayoutManager());
+    layout->SetFlexForView(sidebar_web_view_, 1);
+  }
+
+  // Load WebUI sidebar content (deferred until widget is attached).
+  if (use_webui_ && !collapsed_) {
+    EnsureWebUILoaded();
+  }
+
   // Wire toggle callback to address bar (deferred to here because address
   // bar is created after sidebar during BrowserView construction).
   BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
@@ -535,6 +690,11 @@ void DaoSidebarView::OnDragEntered(const ui::DropTargetEvent& event) {
 
 int DaoSidebarView::OnDragUpdated(const ui::DropTargetEvent& event) {
   auto* overlay = static_cast<DaoDropOverlayView*>(drop_overlay_.get());
+  // WebUI mode: no C++ tab list, just accept drop at end.
+  if (!tab_list_view_) {
+    drop_target_index_ = -1;
+    return ui::DragDropTypes::DRAG_COPY;
+  }
   // Compute drop indicator position by checking tab items.
   const auto& items = tab_list_view_->tab_items();
   int indicator_y = -1;
@@ -658,10 +818,6 @@ views::View::DropCallback DaoSidebarView::GetDropCallback(
                                       : ui::mojom::DragOperation::kCopy;
       },
       browser, insert_index);
-}
-
-void DaoSidebarView::OnPaint(gfx::Canvas* canvas) {
-  views::View::OnPaint(canvas);
 }
 
 }  // namespace dao

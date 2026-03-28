@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index b9986c6e90..e53454463f 100644
+index b9986c6e90..c42a3bc584 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
 @@ -124,6 +124,19 @@ namespace glic {
@@ -22,7 +22,7 @@ index b9986c6e90..e53454463f 100644
  namespace segmentation_platform {
  struct ClassificationResult;
  }
-@@ -247,6 +261,17 @@ class BrowserView : public BrowserWindow,
+@@ -247,6 +260,17 @@ class BrowserView : public BrowserWindow,
  
    SidePanel* unified_side_panel() { return unified_side_panel_; }
  
@@ -40,7 +40,7 @@ index b9986c6e90..e53454463f 100644
    void set_contents_border_widget(views::Widget* contents_border_widget) {
      GetBrowserViewLayout()->set_contents_border_widget(contents_border_widget);
    }
-@@ -1280,6 +1305,18 @@ class BrowserView : public BrowserWindow,
+@@ -1280,6 +1304,18 @@ class BrowserView : public BrowserWindow,
    raw_ptr<views::View> left_aligned_side_panel_separator_ = nullptr;
    raw_ptr<views::View> side_panel_rounded_corner_ = nullptr;
  

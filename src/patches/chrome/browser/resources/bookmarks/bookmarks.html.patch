@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/resources/bookmarks/bookmarks.html b/chrome/browser/resources/bookmarks/bookmarks.html
+index d28056ba63..a10c916409 100644
+--- a/chrome/browser/resources/bookmarks/bookmarks.html
++++ b/chrome/browser/resources/bookmarks/bookmarks.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="utf8">
+   <meta name="color-scheme" content="light dark">
+-  <base href="chrome://bookmarks">
++  <base href="dao://bookmarks">
+   <title>$i18n{title}</title>
+   <link rel="stylesheet" href="chrome://resources/css/md_colors.css">
+   <style>

@@ -1,8 +1,8 @@
 diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
-index 80494b5bb3..b42d96758e 100644
+index 80494b5bb3..0b58fcd85a 100644
 --- a/tools/gritsettings/resource_ids.spec
 +++ b/tools/gritsettings/resource_ids.spec
-@@ -1258,6 +1258,12 @@
+@@ -1258,6 +1258,16 @@
    },
    # END content/ section.
  
@@ -10,6 +10,10 @@ index 80494b5bb3..b42d96758e 100644
 +  "<(SHARED_INTERMEDIATE_DIR)/dao/browser/ui/webui/resources/agent/resources.grd": {
 +    "META": {"sizes": {"includes": [10]}},
 +    "includes": [8400],
++  },
++  "<(SHARED_INTERMEDIATE_DIR)/dao/browser/ui/webui/resources/sidebar/resources.grd": {
++    "META": {"sizes": {"includes": [20]}},
++    "includes": [8420],
 +  },
 +
    # START "everything else" section.
