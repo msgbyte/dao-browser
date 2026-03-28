@@ -87,6 +87,7 @@ Patches inject Dao components into the Chromium frame:
 - **Batch all changes** — Chromium builds are expensive. Deliver all related changes (headers, implementations, BUILD.gn entries, patches) in a single pass. Verify includes, forward declarations, and symbol references are consistent before finishing.
 - **Always verify with build** — After a complete task's code changes are all done, run `npm run rebuild` (import + build) to verify compilation. Do not consider the task finished until the build passes.
 - **NEVER use `npm run build`** — Always use `npm run build:debug` (debug build) instead. The release build is extremely slow and not needed during development. This applies to all build-related commands: use `npm run rebuild` (which uses debug) for iterative dev, and `npm run build:debug` for build-only.
+- **NEVER run `autoninja -C out/dao-debug chrome` directly** — Always go through the project scripts (`npm run rebuild` or `npm run build:debug`) so the build directory, GN args, and import/export workflow stay consistent. If the output directory reports a Ninja/Siso mismatch, run `gn clean out/dao-debug` before rebuilding instead of invoking `autoninja` manually.
 
 ## gstack
 
