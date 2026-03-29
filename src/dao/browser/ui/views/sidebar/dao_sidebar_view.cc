@@ -9,7 +9,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -26,12 +25,7 @@
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
-#include "dao/browser/ui/views/sidebar/dao_download_button_view.h"
 #include "dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h"
-#include "dao/browser/ui/views/sidebar/dao_favorites_view.h"
-#include "dao/browser/ui/views/sidebar/dao_new_tab_button.h"
-#include "dao/browser/ui/views/sidebar/dao_tab_item_view.h"
-#include "dao/browser/ui/views/sidebar/dao_tab_list_view.h"
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "net/base/filename_util.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -166,7 +160,7 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
 
   // Inner container always keeps full width; outer view clips it
   inner_container_ = AddChildView(std::make_unique<views::View>());
-  auto* layout = inner_container_->SetLayoutManager(
+  inner_container_->SetLayoutManager(
       std::make_unique<views::BoxLayout>(
           views::BoxLayout::Orientation::kVertical,
           gfx::Insets::TLBR(0, 4, 0, 4), 16));
@@ -199,29 +193,7 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
 
   header_row_ = inner_container_->AddChildView(std::move(header_row));
 
-  if (!use_webui_) {
-    // Legacy C++ path: create child views directly.
-    // Favorites row
-    favorites_ = inner_container_->AddChildView(
-        std::make_unique<DaoFavoritesView>(browser));
-
-    // Tab list (pinned section + new-tab button + today section)
-    tab_list_view_ = inner_container_->AddChildView(
-        std::make_unique<DaoTabListView>(browser));
-    layout->SetFlexForView(tab_list_view_, 1);
-
-    // Wire active-tab click to show floating omnibox
-    tab_list_view_->set_show_omnibox_callback(
-        base::BindRepeating(&DaoSidebarView::ShowOmniboxPopup,
-                            base::Unretained(this)));
-
-    // Download button at bottom
-    download_button_ = inner_container_->AddChildView(
-        std::make_unique<DaoDownloadButtonView>(browser));
-  } else {
-    // WebUI path: WebView will be created lazily in AddedToWidget()
-    // to avoid creating it too early during BrowserView construction.
-  }
+  // WebUI sidebar content is loaded lazily in AddedToWidget().
 
   // Resize handle on the right edge
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
@@ -257,10 +229,6 @@ void DaoSidebarView::EnsureWebUILoaded() {
       }
     }
   }
-}
-
-void DaoSidebarView::SetUseWebUI(bool use_webui) {
-  use_webui_ = use_webui;
 }
 
 bool DaoSidebarView::HandleKeyboardEvent(
@@ -421,8 +389,7 @@ void DaoSidebarView::ToggleCollapsed() {
   auto_expanded_ = false;
   collapsed_ = !collapsed_;
 
-  // Lazy-load WebUI on first expand.
-  if (use_webui_ && !collapsed_) {
+  if (!collapsed_) {
     EnsureWebUILoaded();
   }
 
@@ -523,7 +490,7 @@ void DaoSidebarView::AddedToWidget() {
 
   // Create WebView lazily here (not in constructor) to avoid creating
   // WebContents too early during BrowserView construction.
-  if (use_webui_ && !sidebar_web_view_) {
+  if (!sidebar_web_view_) {
     sidebar_web_view_ = inner_container_->AddChildView(
         std::make_unique<DaoNonDropWebView>(browser_->profile()));
     auto* layout = static_cast<views::BoxLayout*>(
@@ -531,8 +498,7 @@ void DaoSidebarView::AddedToWidget() {
     layout->SetFlexForView(sidebar_web_view_, 1);
   }
 
-  // Load WebUI sidebar content (deferred until widget is attached).
-  if (use_webui_ && !collapsed_) {
+  if (!collapsed_) {
     EnsureWebUILoaded();
   }
 
@@ -625,14 +591,6 @@ void DaoSidebarView::OnMouseExited(const ui::MouseEvent& event) {
   }
 }
 
-// --- New tab button highlight -----------------------------------------------
-
-void DaoSidebarView::SetNewTabHighlighted(bool highlighted) {
-  if (tab_list_view_) {
-    tab_list_view_->SetNewTabHighlighted(highlighted);
-  }
-}
-
 // --- Command bar delegation -------------------------------------------------
 
 void DaoSidebarView::ShowOmniboxPopup() {
@@ -689,58 +647,9 @@ void DaoSidebarView::OnDragEntered(const ui::DropTargetEvent& event) {
 }
 
 int DaoSidebarView::OnDragUpdated(const ui::DropTargetEvent& event) {
-  auto* overlay = static_cast<DaoDropOverlayView*>(drop_overlay_.get());
-  // WebUI mode: no C++ tab list, just accept drop at end.
-  if (!tab_list_view_) {
-    drop_target_index_ = -1;
-    return ui::DragDropTypes::DRAG_COPY;
-  }
-  // Compute drop indicator position by checking tab items.
-  const auto& items = tab_list_view_->tab_items();
-  int indicator_y = -1;
-  if (items.empty()) {
-    drop_target_index_ = -1;
-  } else {
-    // Convert event y from sidebar coords to tab_list_view coords.
-    gfx::Point pt_in_tab_list(event.x(), event.y());
-    views::View::ConvertPointToTarget(this, tab_list_view_, &pt_in_tab_list);
-
-    TabStripModel* model = browser_->tab_strip_model();
-    bool found = false;
-    for (const auto& tab_item : items) {
-      gfx::Point mid(0, tab_item->height() / 2);
-      views::View::ConvertPointToTarget(tab_item.get(), tab_list_view_, &mid);
-      if (pt_in_tab_list.y() < mid.y()) {
-        int idx = tab_item->model_index();
-        // Today section is displayed in reverse model order:
-        // visually "above" a tab means "after" it in the model.
-        if (!model->IsTabPinned(idx)) {
-          drop_target_index_ = idx + 1;
-        } else {
-          drop_target_index_ = idx;
-        }
-        gfx::Point top(0, 0);
-        views::View::ConvertPointToTarget(tab_item.get(), this, &top);
-        indicator_y = top.y();
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      auto* last = items.back().get();
-      int idx = last->model_index();
-      // Bottom of reversed today section = lowest model index.
-      if (!model->IsTabPinned(idx)) {
-        drop_target_index_ = idx;
-      } else {
-        drop_target_index_ = idx + 1;
-      }
-      gfx::Point bottom(0, last->height());
-      views::View::ConvertPointToTarget(last, this, &bottom);
-      indicator_y = bottom.y();
-    }
-  }
-  overlay->SetIndicatorY(indicator_y);
+  // Drop position is computed by WebUI JS (setDropInsertIndex message).
+  // C++ just accepts the drop; the insert index comes from webui_drop_insert_index_.
+  drop_target_index_ = webui_drop_insert_index_;
   return ui::DragDropTypes::DRAG_COPY;
 }
 

@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
 index a66522f120..98fe4e35d5 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -48,6 +48,91 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -48,6 +48,79 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
@@ -73,28 +73,16 @@ index a66522f120..98fe4e35d5 100644
 +    "//dao/browser/ui/views/split/dao_split_pane_view.h",
 +    "//dao/browser/ui/views/split/dao_split_view.cc",
 +    "//dao/browser/ui/views/split/dao_split_view.h",
-+    "//dao/browser/ui/views/sidebar/dao_download_button_view.cc",
-+    "//dao/browser/ui/views/sidebar/dao_download_button_view.h",
 +    "//dao/browser/ui/views/sidebar/dao_download_flyout_view.cc",
 +    "//dao/browser/ui/views/sidebar/dao_download_flyout_view.h",
-+    "//dao/browser/ui/views/sidebar/dao_favorites_view.cc",
-+    "//dao/browser/ui/views/sidebar/dao_favorites_view.h",
 +    "//dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h",
 +    "//dao/browser/ui/views/sidebar/dao_file_icon_util_mac.mm",
-+    "//dao/browser/ui/views/sidebar/dao_new_tab_button.cc",
-+    "//dao/browser/ui/views/sidebar/dao_new_tab_button.h",
-+    "//dao/browser/ui/views/sidebar/dao_sidebar_section_view.cc",
-+    "//dao/browser/ui/views/sidebar/dao_sidebar_section_view.h",
 +    "//dao/browser/ui/views/sidebar/dao_sidebar_view.cc",
 +    "//dao/browser/ui/views/sidebar/dao_sidebar_view.h",
-+    "//dao/browser/ui/views/sidebar/dao_tab_item_view.cc",
-+    "//dao/browser/ui/views/sidebar/dao_tab_item_view.h",
-+    "//dao/browser/ui/views/sidebar/dao_tab_list_view.cc",
-+    "//dao/browser/ui/views/sidebar/dao_tab_list_view.h",
      "accelerator_utils.h",
      "bluetooth/bluetooth_dialogs.h",
      "browser_dialogs.cc",
-@@ -318,6 +403,9 @@ static_library("ui") {
+@@ -318,6 +391,9 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
@@ -104,7 +92,7 @@ index a66522f120..98fe4e35d5 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -564,6 +652,7 @@ static_library("ui") {
+@@ -564,6 +640,7 @@ static_library("ui") {
      "//components/privacy_sandbox:tracking_protection_settings",
      "//components/profile_metrics",
      "//components/proxy_config",
@@ -112,7 +100,7 @@ index a66522f120..98fe4e35d5 100644
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
-@@ -5673,7 +5762,7 @@ static_library("ui") {
+@@ -5673,7 +5750,7 @@ static_library("ui") {
  # //chrome/browser. These are semantically a part of
  # //chrome/browser:browser_public_dependencies since //chrome/browser and
  # //chrome/browser/ui allow circular dependencies.
@@ -121,7 +109,7 @@ index a66522f120..98fe4e35d5 100644
    visibility = [ "//chrome/browser:browser_public_dependencies" ]
    public_deps = [
      "//components/cross_device/logging",
-@@ -5707,7 +5796,6 @@ static_library("ui_public_dependencies") {
+@@ -5707,7 +5784,6 @@ static_library("ui_public_dependencies") {
      public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
    }
    if (is_win) {

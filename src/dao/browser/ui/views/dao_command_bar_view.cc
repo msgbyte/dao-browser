@@ -913,11 +913,7 @@ void DaoCommandBarView::CancelNewTab() {
 }
 
 void DaoCommandBarView::SetNewTabButtonHighlight(bool highlighted) {
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(browser_);
-  if (browser_view && browser_view->dao_sidebar()) {
-    browser_view->dao_sidebar()->SetNewTabHighlighted(highlighted);
-  }
+  // No-op: new tab button highlight is handled by WebUI sidebar.
 }
 
 void DaoCommandBarView::SetWebContentEventProcessing(bool enabled) {

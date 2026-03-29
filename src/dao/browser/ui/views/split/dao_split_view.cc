@@ -22,7 +22,6 @@
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
-#include "dao/browser/ui/views/sidebar/dao_tab_list_view.h"
 #include "dao/browser/ui/views/split/dao_split_divider_view.h"
 #include "dao/browser/ui/views/split/dao_split_node.h"
 #include "dao/browser/ui/views/split/dao_split_pane_view.h"
@@ -52,11 +51,7 @@ void RefreshSplitLayout(Browser* browser, views::View* view) {
   view->SchedulePaint();
 
   if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser)) {
-    if (auto* sidebar = browser_view->dao_sidebar()) {
-      if (auto* tab_list_view = sidebar->tab_list_view()) {
-        tab_list_view->RefreshForSplitStateChange();
-      }
-    }
+    // Split state changes are reflected in WebUI via PushFullState().
     browser_view->InvalidateLayout();
     browser_view->SchedulePaint();
   }

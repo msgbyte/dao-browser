@@ -32,11 +32,6 @@ class WebView;
 
 namespace dao {
 
-class DaoDownloadButtonView;
-class DaoFavoritesView;
-class DaoNewTabButton;
-class DaoTabListView;
-
 class DaoSidebarView : public views::View,
                        public gfx::AnimationDelegate,
                        public views::ResizeAreaDelegate,
@@ -59,14 +54,11 @@ class DaoSidebarView : public views::View,
   void ToggleCollapsed();
   bool collapsed() const { return collapsed_; }
 
-  DaoTabListView* tab_list_view() { return tab_list_view_; }
-  DaoNewTabButton* new_tab_button() { return new_tab_button_; }
   // Returns the header row and toggle button bounds in the sidebar's own
   // coordinate space (caller adds sidebar->bounds().origin() for BrowserView).
   gfx::Rect header_bounds_in_sidebar() const;
   gfx::Rect toggle_button_bounds_in_sidebar() const;
 
-  void SetNewTabHighlighted(bool highlighted);
   void ShowOmniboxPopup();
   void HideOmniboxPopup();
 
@@ -105,8 +97,7 @@ class DaoSidebarView : public views::View,
           navigation_handle_callback) override;
 
   // WebUI sidebar management
-  bool use_webui() const { return use_webui_; }
-  void SetUseWebUI(bool use_webui);
+  bool use_webui() const { return true; }
   void SetWebUIDropInsertIndex(int index) { webui_drop_insert_index_ = index; }
   void StartFileDrag(const base::FilePath& path);
 
@@ -124,11 +115,7 @@ class DaoSidebarView : public views::View,
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> inner_container_ = nullptr;
   raw_ptr<views::View> header_row_ = nullptr;
-  raw_ptr<DaoFavoritesView> favorites_ = nullptr;
-  raw_ptr<DaoTabListView> tab_list_view_ = nullptr;
-  raw_ptr<DaoNewTabButton> new_tab_button_ = nullptr;
   raw_ptr<views::Button> toggle_button_ = nullptr;
-  raw_ptr<DaoDownloadButtonView> download_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
   raw_ptr<views::View> drop_overlay_ = nullptr;
   raw_ptr<views::WebView> sidebar_web_view_ = nullptr;
@@ -137,7 +124,6 @@ class DaoSidebarView : public views::View,
   void EnsureWebUILoaded();
   void DoStartFileDrag(const base::FilePath& path);
 
-  bool use_webui_ = true;
   bool webui_loaded_ = false;
   bool collapsed_ = false;
   bool auto_expanded_ = false;

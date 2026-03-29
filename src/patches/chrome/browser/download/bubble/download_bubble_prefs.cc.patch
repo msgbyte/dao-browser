@@ -12,7 +12,7 @@ index e1e1093c80..50ad0446f3 100644
 -             profile->GetOriginalProfile())
 -      ->IsDownloadUiEnabled();
 +  // Dao: Suppress all default Chromium download UI (toolbar button, bubble,
-+  // animation). Downloads are handled by DaoDownloadButtonView in the sidebar.
++  // animation). Downloads are handled by the WebUI sidebar download button.
 +  return false;
  }
  
