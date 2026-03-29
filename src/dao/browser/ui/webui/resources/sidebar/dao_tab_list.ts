@@ -50,6 +50,24 @@ export class DaoTabList extends CrLitElement {
       :host(.drag-over) .drop-indicator {
         display: block;
       }
+
+      .split-group {
+        position: relative;
+        margin-left: 10px;
+        padding: 2px 0;
+      }
+
+      .split-group::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 4px;
+        bottom: 4px;
+        width: 2px;
+        background: var(--accent);
+        border-radius: 1px;
+        opacity: 0.4;
+      }
     `;
   }
 
@@ -63,6 +81,7 @@ export class DaoTabList extends CrLitElement {
 
   private dropIndicatorY_: number = 0;
   private dropInsertIndex_: number = -1;
+  private tabDragActivated_: boolean = false;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -75,15 +94,43 @@ export class DaoTabList extends CrLitElement {
   override render() {
     // Show tabs in reverse order (newest at top) to match C++ behavior
     const reversed = [...this.tabs].reverse();
+
+    // Group consecutive split tabs into wrapped containers.
+    const fragments: unknown[] = [];
+    let splitRun: TabData[] = [];
+
+    const flushSplitRun = () => {
+      if (splitRun.length > 0) {
+        const items = splitRun.map(tab => html`
+          <dao-tab-item
+            .tabData=${tab}
+            ?active=${tab.isActive}>
+          </dao-tab-item>
+        `);
+        fragments.push(html`<div class="split-group">${items}</div>`);
+        splitRun = [];
+      }
+    };
+
+    for (const tab of reversed) {
+      if (tab.isInSplit) {
+        splitRun.push(tab);
+      } else {
+        flushSplitRun();
+        fragments.push(html`
+          <dao-tab-item
+            .tabData=${tab}
+            ?active=${tab.isActive}>
+          </dao-tab-item>
+        `);
+      }
+    }
+    flushSplitRun();
+
     return html`
       <div class="drop-indicator"
            style="top: ${this.dropIndicatorY_}px"></div>
-      ${reversed.map(tab => html`
-        <dao-tab-item
-          .tabData=${tab}
-          ?active=${tab.isActive}>
-        </dao-tab-item>
-      `)}
+      ${fragments}
     `;
   }
 
@@ -128,8 +175,6 @@ export class DaoTabList extends CrLitElement {
         const midY = el.offsetTop + el.offsetHeight / 2;
         if (y < midY) {
           indicatorY = el.offsetTop;
-          // This item is rendered in reverse, so "above" this item means
-          // inserting AFTER it in model order.
           const tabData = (item as unknown as {tabData: TabData}).tabData;
           insertIndex = tabData.index + 1;
           found = true;
@@ -142,6 +187,35 @@ export class DaoTabList extends CrLitElement {
         const lastTab =
             (items[items.length - 1] as unknown as {tabData: TabData}).tabData;
         insertIndex = lastTab.index;
+      }
+
+      // Prevent inserting between split-group tabs.
+      // If the insertion point lands inside a split group, snap to the
+      // nearest boundary (above or below the whole group).
+      const splitGroups =
+          this.shadowRoot!.querySelectorAll('.split-group');
+      for (const splitGroup of splitGroups) {
+        const group = splitGroup as HTMLElement;
+        const groupTop = group.offsetTop;
+        const groupBottom = groupTop + group.offsetHeight;
+        const splitItems = group.querySelectorAll('dao-tab-item');
+        if (splitItems.length > 0 && y >= groupTop && y <= groupBottom) {
+          const midGroup = groupTop + group.offsetHeight / 2;
+          if (y < midGroup) {
+            indicatorY = groupTop;
+            const firstTab =
+                (splitItems[0] as unknown as {tabData: TabData}).tabData;
+            insertIndex = firstTab.index + 1;
+          } else {
+            indicatorY = groupBottom;
+            const lastTab =
+                (splitItems[splitItems.length - 1] as unknown as
+                     {tabData: TabData})
+                    .tabData;
+            insertIndex = lastTab.index;
+          }
+          break;
+        }
       }
     }
 
@@ -167,6 +241,15 @@ export class DaoTabList extends CrLitElement {
     this.classList.remove('drag-over');
     this.dropInsertIndex_ = -1;
     sendNative('setDropInsertIndex', -1);
+
+    // Activate native event blocking so DaoSplitView can receive the
+    // drag that just left the sidebar WebView.  This must happen AFTER
+    // the drag leaves, not at dragstart, because the interceptor covers
+    // the entire window and would kill HTML5 drag inside the WebView.
+    if (!this.tabDragActivated_) {
+      this.tabDragActivated_ = true;
+      sendNative('tabDragActive', true);
+    }
   }
 
   private onDragEnd_(_e: DragEvent) {
@@ -174,6 +257,10 @@ export class DaoTabList extends CrLitElement {
     // when any drag ends, preventing the sidebar from getting stuck.
     this.classList.remove('drag-over');
     this.dropInsertIndex_ = -1;
+    if (this.tabDragActivated_) {
+      this.tabDragActivated_ = false;
+      sendNative('tabDragActive', false);
+    }
   }
 
   private onDrop_(e: DragEvent) {
@@ -182,10 +269,10 @@ export class DaoTabList extends CrLitElement {
     // Handle internal tab reorder
     if (e.dataTransfer) {
       const data = e.dataTransfer.getData('text/plain');
-      if (data.startsWith('dao-webui-reorder:')) {
+      if (data.startsWith('dao-tab-drag:')) {
         e.preventDefault();
         e.stopPropagation();
-        const fromIndex = parseInt(data.substring('dao-webui-reorder:'.length), 10);
+        const fromIndex = parseInt(data.substring('dao-tab-drag:'.length), 10);
         if (!isNaN(fromIndex) && this.dropInsertIndex_ >= 0) {
           // Adjust target: if moving down, the target shifts after removal
           let toIndex = this.dropInsertIndex_;

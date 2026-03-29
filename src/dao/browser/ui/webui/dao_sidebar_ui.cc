@@ -6,10 +6,12 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "base/base64.h"
+#include "base/functional/bind.h"
 #include "base/files/file_enumerator.h"
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
@@ -25,6 +27,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "dao/browser/ui/views/split/dao_split_view.h"
 #include "chrome/grit/dao_sidebar_resources.h"
 #include "chrome/grit/dao_sidebar_resources_map.h"
 #include "components/download/public/common/download_item.h"
@@ -161,6 +164,59 @@ DaoSidebarUIConfig::CreateWebUIController(content::WebUI* web_ui,
 
 // ---- DaoSidebarUIHandler ----
 
+DaoSplitView* DaoSidebarUIHandler::GetSplitView() const {
+  if (!browser_) return nullptr;
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  return bv ? bv->dao_split_view() : nullptr;
+}
+
+bool DaoSidebarUIHandler::IsInAnySplitGroup(
+    content::WebContents* contents) const {
+  DaoSplitView* split = GetSplitView();
+  if (!split) return false;
+  for (const auto& summary : split->GetSplitGroupSummaries()) {
+    for (auto* wc : summary.contents) {
+      if (wc == contents) return true;
+    }
+  }
+  return false;
+}
+
+void DaoSidebarUIHandler::PlaceGroupAroundAnchor(
+    const std::vector<content::WebContents*>& group_ordered,
+    content::WebContents* anchor) {
+  TabStripModel* model = browser_->tab_strip_model();
+
+  size_t anchor_pos = 0;
+  for (size_t i = 0; i < group_ordered.size(); i++) {
+    if (group_ordered[i] == anchor) {
+      anchor_pos = i;
+      break;
+    }
+  }
+
+  // Insert members before anchor in reverse so each lands just before it.
+  for (int i = static_cast<int>(anchor_pos) - 1; i >= 0; i--) {
+    int a = model->GetIndexOfWebContents(anchor);
+    int cur = model->GetIndexOfWebContents(group_ordered[i]);
+    if (cur == TabStripModel::kNoTab) continue;
+    int target = (cur < a) ? a - 1 : a;
+    if (cur != target)
+      model->MoveWebContentsAt(cur, target, false);
+  }
+
+  // Insert members after anchor in order.
+  for (size_t i = anchor_pos + 1; i < group_ordered.size(); i++) {
+    int a = model->GetIndexOfWebContents(anchor);
+    int offset = static_cast<int>(i - anchor_pos);
+    int cur = model->GetIndexOfWebContents(group_ordered[i]);
+    if (cur == TabStripModel::kNoTab) continue;
+    int target = (cur < a) ? a + offset - 1 : a + offset;
+    if (cur != target)
+      model->MoveWebContentsAt(cur, target, false);
+  }
+}
+
 DaoSidebarUIHandler::DaoSidebarUIHandler() = default;
 
 DaoSidebarUIHandler::~DaoSidebarUIHandler() {
@@ -178,6 +234,8 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
   browser_ = browser;
   if (browser_) {
     browser_->tab_strip_model()->AddObserver(this);
+    // Split callback is wired lazily in HandleGetInitialState because
+    // BrowserView may not be ready when SetBrowser is called.
     // Initialize download observer.
     auto* profile = browser_->profile();
     if (profile) {
@@ -245,6 +303,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
       "startFileDrag",
       base::BindRepeating(&DaoSidebarUIHandler::HandleStartFileDrag,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "tabDragActive",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleTabDragActive,
+                          base::Unretained(this)));
 }
 
 void DaoSidebarUIHandler::OnJavascriptAllowed() {
@@ -270,12 +332,10 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
     return;
   }
 
-  // Selection-only change: just push an active-index update to avoid
-  // overwriting in-flight audio state from TabChangedAt.
+  // Selection-only change: push full state because split group membership
+  // depends on which tab is active (IsSplitActive / GetSplitContents).
   if (selection.active_tab_changed()) {
-    base::Value::Dict update;
-    update.Set("activeIndex", tab_strip_model->active_index());
-    FireWebUIListener("activeTabChanged", update);
+    PushFullState();
   }
 }
 
@@ -288,6 +348,46 @@ void DaoSidebarUIHandler::TabChangedAt(content::WebContents* contents,
   PushTabUpdate(index);
 }
 
+void DaoSidebarUIHandler::OnSplitStateChanged() {
+  ConsolidateSplitGroupTabs();
+  PushFullState();
+}
+
+void DaoSidebarUIHandler::ConsolidateSplitGroupTabs() {
+  DaoSplitView* split = GetSplitView();
+  if (!split) return;
+
+  TabStripModel* model = browser_->tab_strip_model();
+  for (const auto& summary : split->GetSplitGroupSummaries()) {
+    // Sort group members by current model index to get canonical order.
+    std::vector<std::pair<int, content::WebContents*>> indexed;
+    for (auto* wc : summary.contents) {
+      int idx = model->GetIndexOfWebContents(wc);
+      if (idx != TabStripModel::kNoTab)
+        indexed.emplace_back(idx, wc);
+    }
+    std::sort(indexed.begin(), indexed.end());
+    if (indexed.size() <= 1) continue;
+
+    // Skip if already contiguous.
+    bool contiguous = true;
+    for (size_t i = 1; i < indexed.size(); i++) {
+      if (indexed[i].first != indexed[i - 1].first + 1) {
+        contiguous = false;
+        break;
+      }
+    }
+    if (contiguous) continue;
+
+    // Use lowest-index member as anchor and consolidate around it.
+    std::vector<content::WebContents*> ordered;
+    ordered.reserve(indexed.size());
+    for (auto& [idx, wc] : indexed)
+      ordered.push_back(wc);
+    PlaceGroupAroundAnchor(ordered, ordered.front());
+  }
+}
+
 void DaoSidebarUIHandler::PushFullState() {
   if (!browser_) {
     return;
@@ -295,6 +395,14 @@ void DaoSidebarUIHandler::PushFullState() {
   TabStripModel* model = browser_->tab_strip_model();
   base::Value::List pinned_tabs;
   base::Value::List unpinned_tabs;
+
+  std::set<content::WebContents*> split_contents;
+  DaoSplitView* split = GetSplitView();
+  if (split) {
+    for (const auto& summary : split->GetSplitGroupSummaries())
+      split_contents.insert(summary.contents.begin(),
+                            summary.contents.end());
+  }
 
   for (int i = 0; i < model->count(); ++i) {
     content::WebContents* contents = model->GetWebContentsAt(i);
@@ -309,6 +417,7 @@ void DaoSidebarUIHandler::PushFullState() {
     tab.Set("isPinned", model->IsTabPinned(i));
     tab.Set("isAudible", IsTabAudible(contents));
     tab.Set("isMuted", contents->IsAudioMuted());
+    tab.Set("isInSplit", split_contents.count(contents) > 0);
 
     if (model->IsTabPinned(i)) {
       pinned_tabs.Append(std::move(tab));
@@ -348,6 +457,8 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
   tab.Set("isAudible", IsTabAudible(contents));
   tab.Set("isMuted", contents->IsAudioMuted());
 
+  tab.Set("isInSplit", IsInAnySplitGroup(contents));
+
   FireWebUIListener("tabUpdated", tab);
 }
 
@@ -375,6 +486,14 @@ void DaoSidebarUIHandler::HandleGetInitialState(
     }
   }
   AllowJavascript();
+
+  // Wire split-state callback now that BrowserView is guaranteed to exist.
+  if (DaoSplitView* split = GetSplitView()) {
+    split->set_split_state_changed_callback(
+        base::BindRepeating(&DaoSidebarUIHandler::OnSplitStateChanged,
+                            weak_factory_.GetWeakPtr()));
+  }
+
   PushFullState();
 }
 
@@ -413,8 +532,42 @@ void DaoSidebarUIHandler::HandleMoveTab(
   int from_index = args[0].GetIfInt().value_or(-1);
   int to_index = args[1].GetIfInt().value_or(-1);
   if (from_index < 0 || to_index < 0) return;
-  browser_->tab_strip_model()->MoveWebContentsAt(
-      from_index, to_index, /*select_after_move=*/false);
+
+  TabStripModel* model = browser_->tab_strip_model();
+  content::WebContents* moved = model->GetWebContentsAt(from_index);
+  if (!moved) return;
+
+  // Collect the split group (sorted by model index) before any moves.
+  std::vector<content::WebContents*> group_ordered;
+  if (DaoSplitView* split = GetSplitView()) {
+    for (const auto& summary : split->GetSplitGroupSummaries()) {
+      bool in_group = false;
+      for (auto* wc : summary.contents) {
+        if (wc == moved) { in_group = true; break; }
+      }
+      if (!in_group) continue;
+
+      std::vector<std::pair<int, content::WebContents*>> indexed;
+      for (auto* wc : summary.contents) {
+        int idx = model->GetIndexOfWebContents(wc);
+        if (idx != TabStripModel::kNoTab)
+          indexed.emplace_back(idx, wc);
+      }
+      std::sort(indexed.begin(), indexed.end());
+      for (auto& [idx, wc] : indexed)
+        group_ordered.push_back(wc);
+      break;
+    }
+  }
+
+  if (group_ordered.size() <= 1) {
+    model->MoveWebContentsAt(from_index, to_index, false);
+    return;
+  }
+
+  // Move dragged tab first, then consolidate group around it.
+  model->MoveWebContentsAt(from_index, to_index, false);
+  PlaceGroupAroundAnchor(group_ordered, moved);
 }
 
 void DaoSidebarUIHandler::HandleShowCommandBarForNewTab(
@@ -609,6 +762,16 @@ void DaoSidebarUIHandler::HandleStartFileDrag(
   if (browser_view && browser_view->dao_sidebar()) {
     browser_view->dao_sidebar()->StartFileDrag(recent_file_paths_[index]);
   }
+}
+
+void DaoSidebarUIHandler::HandleTabDragActive(
+    const base::Value::List& args) {
+  if (!browser_ || args.empty()) return;
+  bool active = args[0].GetIfBool().value_or(false);
+  if (DaoSplitView* split = GetSplitView())
+    split->SetTabDragActive(active);
+  if (!active && IsJavascriptAllowed())
+    PushFullState();
 }
 
 // ---- DaoSidebarUI ----

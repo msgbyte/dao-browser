@@ -30,6 +30,7 @@ class DownloadItem;
 namespace dao {
 
 class DaoSidebarUI;
+class DaoSplitView;
 
 // WebUI config for dao://sidebar
 class DaoSidebarUIConfig : public content::WebUIConfig {
@@ -77,8 +78,22 @@ class DaoSidebarUIHandler
                          download::DownloadItem* item) override;
 
  private:
+  // Returns the split view for this browser, or nullptr.
+  DaoSplitView* GetSplitView() const;
+
+  // Whether |contents| belongs to any split group with 2+ members.
+  bool IsInAnySplitGroup(content::WebContents* contents) const;
+
+  // Move group members around |anchor|, preserving their relative order
+  // as given by |group_ordered|.
+  void PlaceGroupAroundAnchor(
+      const std::vector<content::WebContents*>& group_ordered,
+      content::WebContents* anchor);
+
   void PushFullState();
   void PushTabUpdate(int index);
+  void OnSplitStateChanged();
+  void ConsolidateSplitGroupTabs();
   void PushDownloadState();
   void PushActiveDownloads();
   base::Value::List BuildActiveDownloadList();
@@ -97,6 +112,7 @@ class DaoSidebarUIHandler
   void HandleOpenRecentFile(const base::Value::List& args);
   void HandleCancelDownload(const base::Value::List& args);
   void HandleStartFileDrag(const base::Value::List& args);
+  void HandleTabDragActive(const base::Value::List& args);
 
   void OnScanResultReady(base::Value::List file_entries,
                          std::vector<base::FilePath> paths);

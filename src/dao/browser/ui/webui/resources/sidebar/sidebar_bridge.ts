@@ -76,6 +76,7 @@ export interface TabData {
   isAudible: boolean;
   isMuted: boolean;
   isAgentLocked?: boolean;
+  isInSplit?: boolean;
 }
 
 export interface SidebarState {

@@ -276,6 +276,8 @@ bool DaoSplitView::SplitPane(content::WebContents* existing_contents,
   EnsureAllPanesShown();
   SyncActivePaneWithActiveTab();
   RefreshSplitLayout(browser_, this);
+  if (split_state_changed_callback_)
+    split_state_changed_callback_.Run();
 
   // Animate new pane sliding in from the split edge.
   constexpr auto kCreateDuration = base::Milliseconds(250);
@@ -432,6 +434,8 @@ bool DaoSplitView::ClosePane(content::WebContents* web_contents) {
   SyncActivePaneWithActiveTab();
   RefreshSplitLayout(browser_, this);
   UpdateHoverTracking();
+  if (split_state_changed_callback_)
+    split_state_changed_callback_.Run();
 
   // Animate surviving panes expanding to fill the closed pane's space.
   constexpr auto kCloseDuration = base::Milliseconds(200);

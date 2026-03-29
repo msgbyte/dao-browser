@@ -219,7 +219,7 @@ export class DaoTabItem extends CrLitElement {
   private onDragStart_(e: DragEvent) {
     if (!e.dataTransfer) return;
     e.dataTransfer.setData('text/plain',
-        `dao-webui-reorder:${this.tabData.index}`);
+        `dao-tab-drag:${this.tabData.index}`);
     e.dataTransfer.effectAllowed = 'move';
   }
 

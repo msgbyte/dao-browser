@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/memory/weak_ptr.h"
@@ -133,6 +134,11 @@ class DaoSplitView : public views::View,
   // this view becomes hit-testable so it can receive drop events.
   void SetTabDragActive(bool active);
 
+  // Callback invoked when split state changes (split created/destroyed).
+  void set_split_state_changed_callback(base::RepeatingClosure callback) {
+    split_state_changed_callback_ = std::move(callback);
+  }
+
   // views::View:
   void Layout(PassKey) override;
   bool GetCanProcessEventsWithinSubtree() const override;
@@ -255,6 +261,8 @@ class DaoSplitView : public views::View,
 
   // Cursor hover tracking for pane headers.
   base::RepeatingTimer hover_timer_;
+
+  base::RepeatingClosure split_state_changed_callback_;
 
   base::WeakPtrFactory<DaoSplitView> weak_factory_{this};
 };
