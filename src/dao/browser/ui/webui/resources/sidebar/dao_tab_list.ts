@@ -74,17 +74,21 @@ export class DaoTabList extends CrLitElement {
   static override get properties() {
     return {
       tabs: {type: Array},
+      sessionId: {type: Number},
     };
   }
 
   tabs: TabData[] = [];
+  sessionId: number = 0;
 
   private dropIndicatorY_: number = 0;
   private dropInsertIndex_: number = -1;
   private tabDragActivated_: boolean = false;
+  private draggedTabIndex_: number = -1;
 
   override connectedCallback() {
     super.connectedCallback();
+    this.addEventListener('dragstart', this.onDragStart_.bind(this));
     this.addEventListener('dragover', this.onDragOver_.bind(this));
     this.addEventListener('dragleave', this.onDragLeave_.bind(this));
     this.addEventListener('drop', this.onDrop_.bind(this));
@@ -104,6 +108,7 @@ export class DaoTabList extends CrLitElement {
         const items = splitRun.map(tab => html`
           <dao-tab-item
             .tabData=${tab}
+            .sessionId=${this.sessionId}
             ?active=${tab.isActive}>
           </dao-tab-item>
         `);
@@ -120,6 +125,7 @@ export class DaoTabList extends CrLitElement {
         fragments.push(html`
           <dao-tab-item
             .tabData=${tab}
+            .sessionId=${this.sessionId}
             ?active=${tab.isActive}>
           </dao-tab-item>
         `);
@@ -132,6 +138,20 @@ export class DaoTabList extends CrLitElement {
            style="top: ${this.dropIndicatorY_}px"></div>
       ${fragments}
     `;
+  }
+
+  private onDragStart_(e: DragEvent) {
+    // Capture the dragged tab index from the bubbled event data.
+    if (!e.dataTransfer) return;
+    // The data is set by dao-tab-item; extract the tab index from the
+    // composed event. We can't read dataTransfer in dragstart due to
+    // protection, so find the source tab-item element.
+    const target = e.composedPath().find(
+        el => (el as HTMLElement).tagName === 'DAO-TAB-ITEM') as
+        (HTMLElement & {tabData: TabData}) | undefined;
+    if (target) {
+      this.draggedTabIndex_ = target.tabData.index;
+    }
   }
 
   private isInternalReorder_(e: DragEvent): boolean {
@@ -252,11 +272,20 @@ export class DaoTabList extends CrLitElement {
     }
   }
 
-  private onDragEnd_(_e: DragEvent) {
+  private onDragEnd_(e: DragEvent) {
     // Defensive cleanup: ensure drag-over state is always cleared
     // when any drag ends, preventing the sidebar from getting stuck.
     this.classList.remove('drag-over');
     this.dropInsertIndex_ = -1;
+
+    // If no target accepted the drop, detach to a new window at cursor.
+    if (e.dataTransfer && e.dataTransfer.dropEffect === 'none' &&
+        this.draggedTabIndex_ >= 0) {
+      sendNative('detachTabToNewWindow', this.draggedTabIndex_,
+          e.screenX, e.screenY);
+    }
+    this.draggedTabIndex_ = -1;
+
     if (this.tabDragActivated_) {
       this.tabDragActivated_ = false;
       sendNative('tabDragActive', false);
@@ -266,21 +295,45 @@ export class DaoTabList extends CrLitElement {
   private onDrop_(e: DragEvent) {
     this.classList.remove('drag-over');
 
-    // Handle internal tab reorder
+    // Handle internal tab reorder or cross-window tab move
     if (e.dataTransfer) {
       const data = e.dataTransfer.getData('text/plain');
       if (data.startsWith('dao-tab-drag:')) {
         e.preventDefault();
         e.stopPropagation();
-        const fromIndex = parseInt(data.substring('dao-tab-drag:'.length), 10);
-        if (!isNaN(fromIndex) && this.dropInsertIndex_ >= 0) {
-          // Adjust target: if moving down, the target shifts after removal
-          let toIndex = this.dropInsertIndex_;
-          if (fromIndex < toIndex) {
-            toIndex--;
+        // Parse format: "dao-tab-drag:<sessionId>:<tabIndex>"
+        const parts = data.substring('dao-tab-drag:'.length).split(':');
+        if (parts.length === 2) {
+          const sourceSessionId = parseInt(parts[0]!, 10);
+          const fromIndex = parseInt(parts[1]!, 10);
+          if (!isNaN(sourceSessionId) && !isNaN(fromIndex) &&
+              this.dropInsertIndex_ >= 0) {
+            if (sourceSessionId === this.sessionId) {
+              // Same window: reorder
+              let toIndex = this.dropInsertIndex_;
+              if (fromIndex < toIndex) {
+                toIndex--;
+              }
+              if (fromIndex !== toIndex) {
+                sendNative('moveTab', fromIndex, toIndex);
+              }
+            } else {
+              // Cross-window: move tab from source window to this window
+              sendNative('moveTabCrossWindow', sourceSessionId, fromIndex,
+                  this.dropInsertIndex_);
+            }
           }
-          if (fromIndex !== toIndex) {
-            sendNative('moveTab', fromIndex, toIndex);
+        } else if (parts.length === 1) {
+          // Legacy format: "dao-tab-drag:<tabIndex>" (same-window only)
+          const fromIndex = parseInt(parts[0]!, 10);
+          if (!isNaN(fromIndex) && this.dropInsertIndex_ >= 0) {
+            let toIndex = this.dropInsertIndex_;
+            if (fromIndex < toIndex) {
+              toIndex--;
+            }
+            if (fromIndex !== toIndex) {
+              sendNative('moveTab', fromIndex, toIndex);
+            }
           }
         }
         this.dropInsertIndex_ = -1;

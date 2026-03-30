@@ -53,11 +53,13 @@ export class DaoSidebarApp extends CrLitElement {
     return {
       pinnedTabs_: {type: Array},
       unpinnedTabs_: {type: Array},
+      sessionId_: {type: Number},
     };
   }
 
   protected pinnedTabs_: TabData[] = [];
   protected unpinnedTabs_: TabData[] = [];
+  protected sessionId_: number = 0;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -66,6 +68,7 @@ export class DaoSidebarApp extends CrLitElement {
       const state = args[0] as SidebarState;
       this.pinnedTabs_ = state.pinnedTabs;
       this.unpinnedTabs_ = state.unpinnedTabs;
+      this.sessionId_ = state.sessionId;
     });
 
     addListener('tabUpdated', (...args: unknown[]) => {
@@ -104,7 +107,8 @@ export class DaoSidebarApp extends CrLitElement {
           <dao-sidebar-section sectionTitle="Today">
             <dao-new-tab-button></dao-new-tab-button>
             <dao-tab-list
-              .tabs=${this.unpinnedTabs_}>
+              .tabs=${this.unpinnedTabs_}
+              .sessionId=${this.sessionId_}>
             </dao-tab-list>
           </dao-sidebar-section>
         </div>

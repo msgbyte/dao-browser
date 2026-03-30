@@ -23,6 +23,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -33,6 +35,7 @@
 #include "components/download/public/common/download_item.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/gfx/geometry/rect.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
@@ -307,6 +310,14 @@ void DaoSidebarUIHandler::RegisterMessages() {
       "tabDragActive",
       base::BindRepeating(&DaoSidebarUIHandler::HandleTabDragActive,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "moveTabCrossWindow",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleMoveTabCrossWindow,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "detachTabToNewWindow",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleDetachTabToNewWindow,
+                          base::Unretained(this)));
 }
 
 void DaoSidebarUIHandler::OnJavascriptAllowed() {
@@ -430,6 +441,8 @@ void DaoSidebarUIHandler::PushFullState() {
   state.Set("pinnedTabs", std::move(pinned_tabs));
   state.Set("unpinnedTabs", std::move(unpinned_tabs));
   state.Set("activeIndex", model->active_index());
+  state.Set("sessionId",
+            static_cast<int>(browser_->session_id().id()));
 
   FireWebUIListener("sidebarStateChanged", state);
 }
@@ -768,10 +781,91 @@ void DaoSidebarUIHandler::HandleTabDragActive(
     const base::Value::List& args) {
   if (!browser_ || args.empty()) return;
   bool active = args[0].GetIfBool().value_or(false);
-  if (DaoSplitView* split = GetSplitView())
-    split->SetTabDragActive(active);
+  // Activate/deactivate tab drag on ALL windows' split views so any
+  // window can receive the cross-window drop.
+  for (Browser* browser : *BrowserList::GetInstance()) {
+    BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser);
+    if (bv && bv->dao_split_view()) {
+      bv->dao_split_view()->SetTabDragActive(active);
+    }
+  }
   if (!active && IsJavascriptAllowed())
     PushFullState();
+}
+
+void DaoSidebarUIHandler::HandleMoveTabCrossWindow(
+    const base::Value::List& args) {
+  if (!browser_ || args.size() < 3) return;
+  int source_session_id = args[0].GetIfInt().value_or(-1);
+  int source_tab_index = args[1].GetIfInt().value_or(-1);
+  int target_insert_index = args[2].GetIfInt().value_or(-1);
+  if (source_session_id < 0 || source_tab_index < 0 ||
+      target_insert_index < 0) {
+    return;
+  }
+
+  // Find source browser by session ID.
+  Browser* source_browser = nullptr;
+  for (Browser* b : *BrowserList::GetInstance()) {
+    if (static_cast<int>(b->session_id().id()) == source_session_id) {
+      source_browser = b;
+      break;
+    }
+  }
+  if (!source_browser || source_browser == browser_) return;
+
+  TabStripModel* source_model = source_browser->tab_strip_model();
+  if (source_tab_index >= source_model->count()) return;
+
+  std::unique_ptr<content::WebContents> detached =
+      source_model->DetachWebContentsAtForInsertion(source_tab_index);
+  if (!detached) return;
+
+  TabStripModel* target_model = browser_->tab_strip_model();
+  int clamped_index =
+      std::min(target_insert_index, target_model->count());
+  target_model->InsertWebContentsAt(
+      clamped_index, std::move(detached), AddTabTypes::ADD_ACTIVE);
+
+  // Auto-close source window if empty.
+  if (source_model->count() == 0) {
+    source_browser->window()->Close();
+  }
+}
+
+void DaoSidebarUIHandler::HandleDetachTabToNewWindow(
+    const base::Value::List& args) {
+  if (!browser_ || args.size() < 3) return;
+  int tab_index = args[0].GetIfInt().value_or(-1);
+  int screen_x = args[1].GetIfInt().value_or(0);
+  int screen_y = args[2].GetIfInt().value_or(0);
+  if (tab_index < 0) return;
+
+  TabStripModel* model = browser_->tab_strip_model();
+  if (tab_index >= model->count()) return;
+
+  // Don't detach the last tab — just move the window instead.
+  if (model->count() <= 1) return;
+
+  std::unique_ptr<content::WebContents> detached =
+      model->DetachWebContentsAtForInsertion(tab_index);
+  if (!detached) return;
+
+  // Use the source window's size so the new window feels natural.
+  gfx::Rect source_bounds = browser_->window()->GetBounds();
+  Browser::CreateParams params(browser_->profile(), /*user_gesture=*/true);
+  params.initial_bounds = gfx::Rect(
+      screen_x - source_bounds.width() / 4,
+      screen_y - 40,
+      source_bounds.width(),
+      source_bounds.height());
+  Browser* new_browser = Browser::Create(params);
+  if (!new_browser) return;
+
+  new_browser->tab_strip_model()->InsertWebContentsAt(
+      -1, std::move(detached), AddTabTypes::ADD_ACTIVE);
+  new_browser->window()->Show();
+  new_browser->window()->Activate();
 }
 
 // ---- DaoSidebarUI ----

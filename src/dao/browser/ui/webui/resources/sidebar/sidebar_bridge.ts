@@ -83,6 +83,7 @@ export interface SidebarState {
   pinnedTabs: TabData[];
   unpinnedTabs: TabData[];
   activeIndex: number;
+  sessionId: number;
 }
 
 // ---- Download Data Types ----

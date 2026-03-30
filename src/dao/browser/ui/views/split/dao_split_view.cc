@@ -15,6 +15,9 @@
 #include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/web_contents.h"
@@ -869,25 +872,77 @@ void DaoSplitView::OnDrop(
     return;
   }
 
-  // Parse tab index from drag string.
+  // Parse drag data: "dao-tab-drag:<session_id>:<tab_index>" or legacy
+  // "dao-tab-drag:<tab_index>".
   auto text = event.data().GetString();
   if (!text.has_value() || !text->starts_with(u"dao-tab-drag:")) {
     output_drag_op = ui::mojom::DragOperation::kNone;
     return;
   }
 
-  std::u16string index_str = text->substr(13);  // len("dao-tab-drag:") = 13
+  std::u16string payload = text->substr(13);  // len("dao-tab-drag:") = 13
   int tab_index = 0;
-  if (!base::StringToInt(index_str, &tab_index)) {
+  bool is_cross_window = false;
+  Browser* source_browser = browser_;
+
+  size_t colon_pos = payload.find(u':');
+  if (colon_pos != std::u16string::npos) {
+    // New format: "<session_id>:<tab_index>"
+    int source_session_id = 0;
+    if (!base::StringToInt(payload.substr(0, colon_pos),
+                           &source_session_id) ||
+        !base::StringToInt(payload.substr(colon_pos + 1), &tab_index)) {
+      output_drag_op = ui::mojom::DragOperation::kNone;
+      return;
+    }
+    if (static_cast<int>(browser_->session_id().id()) !=
+        source_session_id) {
+      is_cross_window = true;
+      source_browser = nullptr;
+      for (Browser* b : *BrowserList::GetInstance()) {
+        if (static_cast<int>(b->session_id().id()) == source_session_id) {
+          source_browser = b;
+          break;
+        }
+      }
+      if (!source_browser) {
+        output_drag_op = ui::mojom::DragOperation::kNone;
+        return;
+      }
+    }
+  } else {
+    // Legacy format: "<tab_index>"
+    if (!base::StringToInt(payload, &tab_index)) {
+      output_drag_op = ui::mojom::DragOperation::kNone;
+      return;
+    }
+  }
+
+  TabStripModel* source_model = source_browser->tab_strip_model();
+  content::WebContents* dragged_contents =
+      source_model->GetWebContentsAt(tab_index);
+  if (!dragged_contents) {
     output_drag_op = ui::mojom::DragOperation::kNone;
     return;
   }
 
-  content::WebContents* dragged_contents =
-      tab_strip_model_->GetWebContentsAt(tab_index);
-  if (!dragged_contents) {
-    output_drag_op = ui::mojom::DragOperation::kNone;
-    return;
+  // Cross-window: detach from source and insert into local model.
+  if (is_cross_window) {
+    std::unique_ptr<content::WebContents> detached =
+        source_model->DetachWebContentsAtForInsertion(tab_index);
+    if (!detached) {
+      output_drag_op = ui::mojom::DragOperation::kNone;
+      return;
+    }
+    dragged_contents = detached.get();
+    tab_strip_model_->InsertWebContentsAt(
+        tab_strip_model_->count(), std::move(detached),
+        AddTabTypes::ADD_ACTIVE);
+    tab_index = tab_strip_model_->GetIndexOfWebContents(dragged_contents);
+    // Auto-close source window if empty.
+    if (source_model->count() == 0) {
+      source_browser->window()->Close();
+    }
   }
 
   if (target_zone.has_value()) {

@@ -129,6 +129,7 @@ export class DaoTabItem extends CrLitElement {
     return {
       tabData: {type: Object},
       active: {type: Boolean, reflect: true},
+      sessionId: {type: Number},
     };
   }
 
@@ -143,6 +144,7 @@ export class DaoTabItem extends CrLitElement {
     isMuted: false,
   };
   active: boolean = false;
+  sessionId: number = 0;
 
   override render() {
     const tab = this.tabData;
@@ -219,7 +221,7 @@ export class DaoTabItem extends CrLitElement {
   private onDragStart_(e: DragEvent) {
     if (!e.dataTransfer) return;
     e.dataTransfer.setData('text/plain',
-        `dao-tab-drag:${this.tabData.index}`);
+        `dao-tab-drag:${this.sessionId}:${this.tabData.index}`);
     e.dataTransfer.effectAllowed = 'move';
   }
 

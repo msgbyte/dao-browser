@@ -113,6 +113,8 @@ class DaoSidebarUIHandler
   void HandleCancelDownload(const base::Value::List& args);
   void HandleStartFileDrag(const base::Value::List& args);
   void HandleTabDragActive(const base::Value::List& args);
+  void HandleMoveTabCrossWindow(const base::Value::List& args);
+  void HandleDetachTabToNewWindow(const base::Value::List& args);
 
   void OnScanResultReady(base::Value::List file_entries,
                          std::vector<base::FilePath> paths);
