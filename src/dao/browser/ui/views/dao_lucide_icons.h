@@ -38,6 +38,7 @@ enum class LucideIcon {
   kPanelLeftOpen,
   kGripHorizontal,
   kExternalLink,
+  kSquareArrowDownLeft,
   kBot,
 };
 

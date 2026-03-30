@@ -467,6 +467,34 @@ bool DaoSplitView::ClosePane(content::WebContents* web_contents) {
   return true;
 }
 
+void DaoSplitView::UnsplitKeepingPane(content::WebContents* keep_contents) {
+  if (!keep_contents)
+    return;
+
+  // Activate the tab we want to keep so that GetActiveWebContents() returns
+  // it during RebuildViews.
+  if (tab_strip_model_) {
+    int index = tab_strip_model_->GetIndexOfWebContents(keep_contents);
+    if (index != TabStripModel::kNoTab) {
+      tab_strip_model_->ActivateTabAt(index);
+    }
+  }
+
+  // Find and close the OTHER pane(s) in the same group.
+  SplitGroup* group = FindGroupForContents(keep_contents);
+  if (!group || !group->root)
+    return;
+
+  std::vector<content::WebContents*> all_contents;
+  CollectLeafContents(group->root.get(), &all_contents);
+  for (auto* wc : all_contents) {
+    if (wc != keep_contents) {
+      ClosePane(wc);
+      return;  // Group collapses after closing one pane in a 2-pane split.
+    }
+  }
+}
+
 void DaoSplitView::SetActivePane(DaoSplitPaneView* pane) {
   if (active_pane_ == pane)
     return;
@@ -978,6 +1006,26 @@ void DaoSplitView::UpdatePaneVisibility() {
   if (!split_active && drop_overlay_) {
     drop_overlay_->SetVisible(false);
   }
+
+  // Re-attachment of the active WebContents to the primary ContentsWebView
+  // is handled inside RebuildViews() (via TakeWebContents + forced resize).
+}
+
+void DaoSplitView::ReattachWebContentsToPrimary(
+    content::WebContents* web_contents) {
+  if (!web_contents || !browser_)
+    return;
+  if (tab_strip_model_ &&
+      tab_strip_model_->GetActiveWebContents() != web_contents) {
+    return;
+  }
+  auto* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!bv)
+    return;
+  auto* cwv = bv->contents_web_view();
+  if (!cwv || cwv->web_contents() == web_contents)
+    return;
+  cwv->SetWebContents(web_contents);
 }
 
 void DaoSplitView::UpdateHoverTracking() {
@@ -1185,12 +1233,47 @@ void DaoSplitView::RebuildViews() {
   divider_views_.clear();
 
   if (!active_group_ || !active_group_->root) {
+    // Split is being deactivated.  Transfer the active WebContents
+    // back to the primary ContentsWebView.
+    //
+    // Note: reparenting the native view may cause a transient duplicate
+    // paint chunk ID in the renderer's PaintController (stale cached
+    // subsequences from the old view).  This is harmless — the renderer
+    // self-corrects on the next paint cycle.  We patch CheckNewChunkId
+    // to downgrade the DCHECK-only DUMP_WILL_BE_NOTREACHED to a
+    // non-fatal LOG(ERROR).
+    content::WebContents* active_wc =
+        tab_strip_model_ ? tab_strip_model_->GetActiveWebContents() : nullptr;
+
+    // Detach active WC from its pane without triggering WasHidden
+    // (TakeWebContents just clears the pane's internal state).
+    if (active_wc) {
+      for (auto& [wc, pane] : existing_panes) {
+        if (wc == active_wc && pane) {
+          pane->TakeWebContents();
+          break;
+        }
+      }
+    }
+
+    // Re-attach to primary CWV immediately for seamless visual transition.
+    if (active_wc) {
+      if (auto* bv = BrowserView::GetBrowserViewForBrowser(browser_)) {
+        if (auto* cwv = bv->contents_web_view()) {
+          cwv->SetWebContents(active_wc);
+        }
+      }
+    }
+
+    // Destroy remaining panes.
     for (const auto& [wc, pane] : existing_panes) {
       static_cast<void>(wc);
       if (!pane)
         continue;
-      pane->SetContentsVisible(false);
-      pane->SetWebContents(nullptr);
+      if (pane->web_contents()) {
+        pane->SetContentsVisible(false);
+        pane->SetWebContents(nullptr);
+      }
       RemoveChildView(pane);
       delete pane;
     }

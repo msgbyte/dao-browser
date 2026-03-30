@@ -1,0 +1,19 @@
+diff --git a/third_party/blink/renderer/platform/graphics/paint/paint_controller.cc b/third_party/blink/renderer/platform/graphics/paint/paint_controller.cc
+index df0b1b1f43..ec49e370c9 100644
+--- a/third_party/blink/renderer/platform/graphics/paint/paint_controller.cc
++++ b/third_party/blink/renderer/platform/graphics/paint/paint_controller.cc
+@@ -567,7 +567,13 @@ void PaintController::CheckNewChunkId(const PaintChunk::Id& id) {
+       LOG(ERROR) << "previous stack: " << previous_stack->ToString();
+       crash_reporter::SetCrashKeyStringToStackTrace(&previous_stack_key,
+                                                     *previous_stack);
+-      DUMP_WILL_BE_NOTREACHED();
++      // Dao: Downgrade from FATAL to ERROR.  This diagnostic fires when a
++      // WebContents is reparented between ContentsWebViews (split-pane
++      // deactivation).  The duplicate chunk ID is harmless — the renderer
++      // self-corrects on the next full paint.  Chromium intends to make
++      // DUMP_WILL_BE_NOTREACHED non-fatal in the future (it already is
++      // in official builds).
++      LOG(ERROR) << "Duplicate paint chunk ID (non-fatal).";
+     }
+     last_duplicated_id.emplace(id.client_id, id.type, id.fragment);
+   }

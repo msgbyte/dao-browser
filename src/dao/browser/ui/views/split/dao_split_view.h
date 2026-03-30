@@ -94,6 +94,10 @@ class DaoSplitView : public views::View,
   // returns false (no-op).
   bool ClosePane(content::WebContents* web_contents);
 
+  // Exit split mode keeping |keep_contents| as the surviving tab.
+  // Activates that tab and closes all other panes.
+  void UnsplitKeepingPane(content::WebContents* keep_contents);
+
   // Set the active (focused) pane.  Updates TabStripModel active tab
   // and re-calls WasShown() on all visible panes.
   void SetActivePane(DaoSplitPaneView* pane);
@@ -228,6 +232,11 @@ class DaoSplitView : public views::View,
   // Periodically check cursor position to show/hide pane headers on hover.
   void UpdateHoverTracking();
   void CheckCursorOverPanes();
+
+  // Re-attach a WebContents to the primary ContentsWebView after split
+  // deactivation.  Called via PostTask to give the renderer time to process
+  // WasHidden and discard stale paint caches.
+  void ReattachWebContentsToPrimary(content::WebContents* web_contents);
 
   // Handle the actual drop.
   void OnDrop(const ui::DropTargetEvent& event,

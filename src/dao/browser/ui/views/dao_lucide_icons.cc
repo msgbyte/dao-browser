@@ -273,6 +273,26 @@ void DrawExternalLink(gfx::Canvas* canvas,
               s, ox, oy, flags);
 }
 
+// Lucide "square-arrow-down-left" (arrow into corner of a square)
+void DrawSquareArrowDownLeft(gfx::Canvas* canvas,
+                             float s,
+                             float ox,
+                             float oy,
+                             const cc::PaintFlags& flags) {
+  // Rounded rect: x=3 y=3 w=18 h=18 rx=2
+  SkPath rect;
+  rect.addRoundRect(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2);
+  SkMatrix matrix;
+  matrix.setScale(s, s);
+  matrix.postTranslate(ox, oy);
+  rect.transform(matrix);
+  canvas->DrawPath(rect, flags);
+  // Diagonal arrow: M16 8 L8 16
+  DrawSvgPath(canvas, "M16 8 8 16", s, ox, oy, flags);
+  // Arrow head: M16 16 H8 V8
+  DrawSvgPath(canvas, "M16 16H8V8", s, ox, oy, flags);
+}
+
 // Lucide "bot" (robot face)
 void DrawBot(gfx::Canvas* canvas,
              float s,
@@ -389,6 +409,9 @@ void DrawLucideIcon(gfx::Canvas* canvas,
       break;
     case LucideIcon::kExternalLink:
       DrawExternalLink(canvas, s, ox, oy, flags);
+      break;
+    case LucideIcon::kSquareArrowDownLeft:
+      DrawSquareArrowDownLeft(canvas, s, ox, oy, flags);
       break;
     case LucideIcon::kBot:
       DrawBot(canvas, s, ox, oy, flags);

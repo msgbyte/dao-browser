@@ -192,22 +192,12 @@ DaoSplitPaneView::DaoSplitPaneView(Browser* browser,
       std::make_unique<PaneRearrangeButton>(this, split_view_).release()));
   header_container_->AddChildView(static_cast<views::View*>(
       std::make_unique<PaneHeaderButton>(
-          LucideIcon::kExternalLink, u"Pop out pane",
+          LucideIcon::kSquareArrowDownLeft, u"Unsplit pane",
           base::BindRepeating(
               [](DaoSplitPaneView* pane) {
                 if (pane && pane->split_view() && pane->web_contents()) {
-                  pane->split_view()->PopOutPane(pane->web_contents());
-                }
-              },
-              base::Unretained(this)))
-          .release()));
-  header_container_->AddChildView(static_cast<views::View*>(
-      std::make_unique<PaneHeaderButton>(
-          LucideIcon::kX, u"Unsplit pane",
-          base::BindRepeating(
-              [](DaoSplitPaneView* pane) {
-                if (pane && pane->split_view() && pane->web_contents()) {
-                  pane->split_view()->ClosePane(pane->web_contents());
+                  pane->split_view()->UnsplitKeepingPane(
+                      pane->web_contents());
                 }
               },
               base::Unretained(this)))
@@ -266,6 +256,16 @@ void DaoSplitPaneView::EnsureContentsAttached(bool force_reattach) {
   }
 
   contents_web_view_->SetWebContents(web_contents_);
+}
+
+content::WebContents* DaoSplitPaneView::TakeWebContents() {
+  content::WebContents* wc = web_contents_;
+  web_contents_ = nullptr;
+  contents_visible_ = false;
+  if (contents_web_view_) {
+    contents_web_view_->SetWebContents(nullptr);
+  }
+  return wc;
 }
 
 void DaoSplitPaneView::SetActive(bool active) {

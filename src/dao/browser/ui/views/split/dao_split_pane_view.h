@@ -59,6 +59,12 @@ class DaoSplitPaneView : public views::View,
   void SetHeaderHovered(bool hovered);
   void SetHeaderDragActive(bool active);
 
+  // Detach and return the WebContents WITHOUT calling WasHidden().
+  // Used when transferring a visible WebContents to the primary
+  // ContentsWebView so the renderer avoids a hidden→shown transition
+  // that corrupts the PaintController state.
+  content::WebContents* TakeWebContents();
+
   // views::View:
   void Layout(PassKey) override;
   void OnPaint(gfx::Canvas* canvas) override;
