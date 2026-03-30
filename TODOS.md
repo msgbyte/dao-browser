@@ -13,3 +13,4 @@ Deferred items from Agent Memory System planning.
 - [ ] **Clear Browsing Data Integration** — Hook into Chromium's "Clear browsing data" flow (BrowsingDataRemover) so that clearing site data also offers to clear Dao agent memories for that domain.
 - [ ] **Token Budget Management** — Dynamic context window budgeting for memory injection. Currently the design injects all relevant memories; at scale this will exceed token limits. Needs a scoring/ranking system to select the most relevant memories within a token budget.
 - [ ] **Scenario Import/Export** — JSON export/import of personal scenarios for community sharing. Depends on Scenario Editor. Enables open-source network effects where users share scenario configurations (e.g., "Jira sprint analysis" scenario).
+- [x] **DESIGN.md — Formal Design System** — Created via `/design-consultation`. See `DESIGN.md` at project root.
