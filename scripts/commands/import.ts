@@ -10,6 +10,8 @@ import {
   copyFileSync,
   unlinkSync,
 } from "node:fs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { glob } from "glob";
 import path from "node:path";
 import {
@@ -23,6 +25,8 @@ import {
   error,
   run,
 } from "../utils.js";
+
+const execFileAsync = promisify(execFile);
 
 export const importCommand = new Command("import")
   .description("Apply patches and copy Dao code into the Chromium tree")
@@ -51,35 +55,62 @@ export const importCommand = new Command("import")
     }
 
     let applied = 0;
+    let skipped = 0;
     let failed = 0;
 
-    for (const patchFile of patchFiles.sort()) {
-      const fullPatchPath = path.join(PATCHES_DIR, patchFile);
+    const sortedPatches = patchFiles.sort();
+
+    // Phase 1: parallel reverse-check to find already-applied patches
+    const reverseResults = await Promise.allSettled(
+      sortedPatches.map((patchFile) =>
+        execFileAsync("git", [
+          "apply", "--check", "--reverse",
+          path.join(PATCHES_DIR, patchFile),
+        ], { cwd: srcDir })
+      )
+    );
+
+    const unapplied: string[] = [];
+    for (let i = 0; i < sortedPatches.length; i++) {
+      if (reverseResults[i].status === "fulfilled") {
+        warn(`Already applied: ${sortedPatches[i]}`);
+        skipped++;
+      } else {
+        unapplied.push(sortedPatches[i]);
+      }
+    }
+
+    // Phase 2: batch-apply all unapplied patches at once
+    if (unapplied.length > 0) {
+      const fullPaths = unapplied.map((p) => path.join(PATCHES_DIR, p));
       try {
-        run(`git apply --check "${fullPatchPath}"`, {
-          cwd: srcDir,
-          silent: true,
-        });
-        run(`git apply "${fullPatchPath}"`, { cwd: srcDir, silent: true });
-        success(`Applied: ${patchFile}`);
-        applied++;
-      } catch (e) {
-        // Check if already applied
-        try {
-          run(`git apply --check --reverse "${fullPatchPath}"`, {
-            cwd: srcDir,
-            silent: true,
-          });
-          warn(`Already applied: ${patchFile}`);
-          applied++;
-        } catch {
-          error(`Failed to apply: ${patchFile}`);
-          failed++;
+        run(
+          `git apply ${fullPaths.map((p) => `"${p}"`).join(" ")}`,
+          { cwd: srcDir, silent: true }
+        );
+        for (const p of unapplied) {
+          success(`Applied: ${p}`);
+        }
+        applied += unapplied.length;
+      } catch {
+        // Batch failed — fallback to individual apply for precise error reporting
+        for (const patchFile of unapplied) {
+          const fullPatchPath = path.join(PATCHES_DIR, patchFile);
+          try {
+            run(`git apply "${fullPatchPath}"`, { cwd: srcDir, silent: true });
+            success(`Applied: ${patchFile}`);
+            applied++;
+          } catch {
+            error(`Failed to apply: ${patchFile}`);
+            failed++;
+          }
         }
       }
     }
 
-    log(`Patches: ${applied} applied, ${failed} failed`);
+    log(
+      `Patches: ${applied} applied, ${skipped} already applied, ${failed} failed`
+    );
 
     // Step 2: Copy Dao source code into Chromium tree (only changed files)
     if (!opts.patchesOnly) {
