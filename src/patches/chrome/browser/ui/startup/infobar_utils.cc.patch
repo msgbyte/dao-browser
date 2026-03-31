@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/startup/infobar_utils.cc b/chrome/browser/ui/startup/infobar_utils.cc
-index dac3d705a4..c2ca0aa6f5 100644
+index dac3d705a4..25595c3d1d 100644
 --- a/chrome/browser/ui/startup/infobar_utils.cc
 +++ b/chrome/browser/ui/startup/infobar_utils.cc
 @@ -11,7 +11,8 @@
@@ -44,3 +44,25 @@ index dac3d705a4..c2ca0aa6f5 100644
  
      if (ObsoleteSystem::IsObsoleteNowOrSoon()) {
        PrefService* local_state = g_browser_process->local_state();
+@@ -169,13 +178,14 @@ void AddInfoBarsIfNecessary(Browser* browser,
+     }
+ 
+ #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+-    if (!is_web_app &&
+-        !startup_command_line.HasSwitch(switches::kNoDefaultBrowserCheck)) {
+-      // The default browser prompt should only be shown after the first run.
+-      if (is_first_run == chrome::startup::IsFirstRun::kNo) {
+-        ShowDefaultBrowserPrompt(profile);
+-      }
+-    }
++    // Dao: Suppress default browser prompt — not needed for Dao Browser.
++    // if (!is_web_app &&
++    //     !startup_command_line.HasSwitch(switches::kNoDefaultBrowserCheck)) {
++    //   // The default browser prompt should only be shown after the first run.
++    //   if (is_first_run == chrome::startup::IsFirstRun::kNo) {
++    //     ShowDefaultBrowserPrompt(profile);
++    //   }
++    // }
+ #endif
+   }
+ }
