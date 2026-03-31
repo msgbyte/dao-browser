@@ -1,0 +1,53 @@
+diff --git a/chrome/browser/ui/browser_command_controller.cc b/chrome/browser/ui/browser_command_controller.cc
+index 47e19e2f12..10a1c2a07a 100644
+--- a/chrome/browser/ui/browser_command_controller.cc
++++ b/chrome/browser/ui/browser_command_controller.cc
+@@ -178,20 +178,7 @@ void AppInfoDialogClosedCallback(SessionID session_id,
+   }
+ }
+ 
+-bool CanOpenFile(Browser* browser) {
+-  if (browser->is_type_devtools() || browser->is_type_app() ||
+-      browser->is_type_app_popup()) {
+-    return false;
+-  }
+-
+-  PrefService* local_state = g_browser_process->local_state();
+-  // May be null in unit tests.
+-  if (local_state) {
+-    return local_state->GetBoolean(prefs::kAllowFileSelectionDialogs);
+-  }
+-
+-  return true;
+-}
++// Dao: CanOpenFile removed — IDC_OPEN_FILE is permanently disabled.
+ 
+ void InvokeAction(actions::ActionId id, actions::ActionItem* scope) {
+   actions::ActionManager::Get().FindAction(id, scope)->InvokeAction();
+@@ -1295,7 +1282,7 @@ void BrowserCommandController::InitCommandState() {
+       << "Ought to never have browser for the system profile.";
+   const bool normal_window = browser_->is_type_normal();
+   const bool guest_session = profile()->IsGuestSession();
+-  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
++  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, false);
+   UpdateCommandsForDevTools();
+   command_updater_.UpdateCommandEnabled(IDC_TASK_MANAGER, CanOpenTaskManager());
+   command_updater_.UpdateCommandEnabled(IDC_TASK_MANAGER_APP_MENU,
+@@ -1609,7 +1596,7 @@ void BrowserCommandController::UpdateCommandsForTabState() {
+   command_updater_.UpdateCommandEnabled(IDC_VIEW_SOURCE,
+                                         CanViewSource(browser_));
+ 
+-  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
++  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, false);
+ 
+   bool can_create_web_app = web_app::CanCreateWebApp(browser_);
+   command_updater_.UpdateCommandEnabled(IDC_INSTALL_PWA, can_create_web_app);
+@@ -1743,7 +1730,7 @@ void BrowserCommandController::UpdateCommandsForFileSelectionDialogs() {
+   }
+ 
+   UpdateSaveAsState();
+-  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
++  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, false);
+ }
+ 
+ void BrowserCommandController::UpdateCommandsForFullscreenMode() {
