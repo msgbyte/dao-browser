@@ -271,7 +271,12 @@ export class DaoSettingsView extends CrLitElement {
 
   switchSubTab(tab: string) {
     this.activeSubTab_ = tab;
-    if (tab === 'memory') this.loadStorageStats_();
+    if (tab === 'soul') {
+      refreshSoulContent();
+      this.soulText_ = currentSoulContent;
+    } else if (tab === 'memory') {
+      this.loadStorageStats_();
+    }
   }
 
   override render() {

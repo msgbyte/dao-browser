@@ -143,7 +143,7 @@ You have the following browser tools at your disposal — use them proactively w
 - **get_page_info** — Get the current page URL, title, and meta description. Use this for context about where the user is browsing.
 - **click_element** — Click an element on the page by CSS selector. Use this when the user asks you to interact with the page (e.g. "click the login button", "close that popup").
 - **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover.
-- **update_soul** — Modify your SOUL.md (the personality prompt you see above). Supports three actions: \`append\` (add content at the end), \`replace_section\` (replace a specific ## section), \`replace_all\` (rewrite entirely).
+- **update_soul** — Modify your SOUL.md (the personality prompt you see above). Two actions: \`replace_section\` (replace or add a specific ## section), \`replace_all\` (rewrite entirely).
 
 ## Guidelines
 
@@ -156,8 +156,10 @@ You have the following browser tools at your disposal — use them proactively w
 
 Your personality is defined by a SOUL.md file loaded into every conversation. You can read and update it:
 
-- When the user expresses a **persistent preference** (e.g. "reply in Chinese from now on", "be more concise"), use \`update_soul\` to save it.
-- When the user asks you to **change your behavior or personality**, update the relevant section.
+- When the user expresses a **persistent preference** (e.g. "reply in Chinese from now on", "be more concise"), use \`update_soul\` with \`replace_section\` to save it under a descriptive ## heading.
+- When the user asks you to **change your behavior or personality**, use \`replace_section\` to update the relevant section.
+- **Always prefer \`replace_section\` over \`replace_all\`** — only use \`replace_all\` when the user wants a complete rewrite.
+- If the section already exists, \`replace_section\` will update it in place. If it doesn't exist, it will be added automatically.
 - **Always tell the user** what you changed and why before or after updating.
 - Do **not** modify your soul for one-off requests — only for things the user wants to persist.
 - Your current soul is already in this system prompt above — no need to read it separately.
@@ -231,10 +233,6 @@ function updateSoulByAction(
   const current = loadSoul();
 
   switch (action) {
-    case 'append':
-      saveSoul(current + '\n\n' + content);
-      return {ok: true, message: 'Content appended to soul.'};
-
     case 'replace_section': {
       if (!section) {
         return {ok: false, message: 'Missing "section" for replace_section.'};
@@ -263,7 +261,7 @@ function updateSoulByAction(
       return {
         ok: false,
         message: 'Unknown action: ' + action +
-            '. Use "append", "replace_section", or "replace_all".',
+            '. Use "replace_section" or "replace_all".',
       };
   }
 }
@@ -343,7 +341,7 @@ export const tools: ToolDefinition[] = [
           action: {
             type: 'string',
             description:
-                'How to update: "append" adds content at the end, "replace_section" replaces a markdown section (## heading), "replace_all" replaces the entire soul',
+                'How to update: "replace_section" replaces a specific ## section (adds it if not found), "replace_all" replaces the entire soul. Prefer replace_section.',
           },
           section: {
             type: 'string',
