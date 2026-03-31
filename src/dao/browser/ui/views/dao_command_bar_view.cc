@@ -102,7 +102,7 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   textfield->set_controller(this);
   textfield->SetBorder(nullptr);
   textfield->SetBackgroundColor(SK_ColorTRANSPARENT);
-  textfield->SetTextColor(SK_ColorWHITE);
+  textfield->SetTextColor(SkColorSetRGB(30, 20, 40));
   textfield->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 16,
                                         gfx::Font::Weight::NORMAL));
   textfield_ = card_container_->AddChildView(std::move(textfield));

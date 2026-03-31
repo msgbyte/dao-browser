@@ -16,7 +16,7 @@ namespace dao {
 
 namespace {
 constexpr int kBannerHeight = 32;
-constexpr SkColor kBannerBackground = SkColorSetARGB(200, 50, 42, 58);
+constexpr SkColor kBannerBackground = SkColorSetARGB(200, 201, 197, 208);
 constexpr int kIconSize = 16;
 constexpr int kHorizontalPadding = 12;
 constexpr int kIconTextGap = 8;

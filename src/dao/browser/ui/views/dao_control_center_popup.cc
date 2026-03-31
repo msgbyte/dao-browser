@@ -46,7 +46,7 @@ void PaintCardShadow(gfx::Canvas* canvas,
 }
 
 // Card background color: semi-transparent white for frosted glass effect.
-constexpr SkColor kCardBgColor = SkColorSetARGB(210, 245, 245, 248);
+constexpr SkColor kCardBgColor = SkColorSetARGB(230, 255, 255, 255);
 
 }  // namespace
 

@@ -1,16 +1,16 @@
 /* Dao Sidebar WebUI — global styles and design tokens */
 
 :root {
-  --sidebar-bg: rgb(40, 32, 48);
-  --surface: rgba(255, 255, 255, 0.08);
-  --surface-active: rgba(255, 255, 255, 0.14);
-  --separator: rgba(255, 255, 255, 0.12);
-  --text-primary: rgba(255, 255, 255, 1.0);
-  --text-secondary: rgba(255, 255, 255, 0.59);
-  --text-muted: rgba(255, 255, 255, 0.39);
+  --sidebar-bg: rgb(201, 197, 208);
+  --surface: rgba(0, 0, 0, 0.05);
+  --surface-active: rgba(0, 0, 0, 0.08);
+  --separator: rgba(0, 0, 0, 0.08);
+  --text-primary: rgba(30, 20, 40, 1.0);
+  --text-secondary: rgba(30, 20, 40, 0.60);
+  --text-muted: rgba(30, 20, 40, 0.40);
   --accent: rgb(140, 100, 220);
-  --accent-subtle: rgba(140, 100, 220, 0.15);
-  --ink-drop: rgba(255, 255, 255, 0.06);
+  --accent-subtle: rgba(140, 100, 220, 0.10);
+  --ink-drop: rgba(0, 0, 0, 0.04);
   --radius-tab: 12px;
   --radius-favorite: 8px;
   --font-family: system-ui, -apple-system, sans-serif;
@@ -43,10 +43,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.25);
 }

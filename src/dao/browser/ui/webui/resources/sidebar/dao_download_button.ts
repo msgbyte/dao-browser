@@ -44,7 +44,7 @@ export class DaoDownloadButton extends CrLitElement {
         padding: 0 10px;
         gap: 8px;
         border-radius: 8px;
-        cursor: pointer;
+        cursor: default;
         transition: background 0.1s ease;
       }
 
@@ -116,7 +116,7 @@ export class DaoDownloadButton extends CrLitElement {
 
       .progress-bar {
         height: 3px;
-        background: rgba(255,255,255,0.16);
+        background: rgba(0,0,0,0.10);
         border-radius: 1.5px;
         overflow: hidden;
       }
@@ -141,7 +141,7 @@ export class DaoDownloadButton extends CrLitElement {
         border: none;
         background: transparent;
         color: var(--text-muted);
-        cursor: pointer;
+        cursor: default;
         padding: 0;
         display: flex;
         align-items: center;
@@ -163,12 +163,12 @@ export class DaoDownloadButton extends CrLitElement {
         border-radius: 8px;
         background: transparent;
         color: var(--text-secondary);
-        cursor: pointer;
+        cursor: default;
         transition: background 0.15s ease;
       }
 
       .download-btn:hover {
-        background: rgba(255,255,255,0.24);
+        background: rgba(0,0,0,0.08);
       }
     `;
   }

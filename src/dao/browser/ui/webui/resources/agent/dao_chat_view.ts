@@ -190,7 +190,7 @@ export class DaoChatView extends CrLitElement {
         padding: 0 8px 0 10px; background: var(--accent-dim);
         border-radius: 8px; cursor: pointer; gap: 6px;
       }
-      .chip:hover { background: rgba(140, 100, 220, 0.4); }
+      .chip:hover { background: rgba(140, 100, 220, 0.2); }
       .chip-icon { flex-shrink: 0; color: var(--accent); }
       .chip-text {
         flex: 1; font-size: 13px; color: var(--text);
@@ -204,7 +204,7 @@ export class DaoChatView extends CrLitElement {
         font-size: 14px; flex-shrink: 0;
       }
       .chip-close:hover {
-        background: rgba(255,255,255,0.1); color: var(--text);
+        background: rgba(0,0,0,0.08); color: var(--text);
       }
       @keyframes chipSlideDown {
         from { opacity: 0; transform: translateY(-8px); }
@@ -222,7 +222,7 @@ export class DaoChatView extends CrLitElement {
       .chat-area::-webkit-scrollbar { width: 4px; }
       .chat-area::-webkit-scrollbar-track { background: transparent; }
       .chat-area::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.15); border-radius: 2px;
+        background: rgba(0,0,0,0.15); border-radius: 2px;
       }
 
       /* Messages */
@@ -266,7 +266,7 @@ export class DaoChatView extends CrLitElement {
 
       /* Markdown — Inline code */
       .message.assistant code {
-        background: rgba(255,255,255,0.1);
+        background: rgba(0,0,0,0.06);
         padding: 1px 5px; border-radius: 4px;
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
         font-size: 12px;
@@ -276,7 +276,7 @@ export class DaoChatView extends CrLitElement {
       .message.assistant .md-code-block {
         position: relative; margin: 6px 0;
         border-radius: 8px; overflow: hidden;
-        background: rgba(0,0,0,0.35);
+        background: rgba(0,0,0,0.06);
       }
       .message.assistant .md-code-block pre {
         margin: 0; padding: 10px 12px;
@@ -285,13 +285,13 @@ export class DaoChatView extends CrLitElement {
       .message.assistant .md-code-block code {
         background: none; padding: 0; border-radius: 0;
         font-size: 12px; line-height: 1.45;
-        color: rgba(255,255,255,0.82);
+        color: rgba(30,20,40,0.82);
       }
       .message.assistant .md-code-lang {
         position: absolute; top: 0; right: 0;
         padding: 2px 8px;
         font-size: 10px; color: var(--text-tertiary);
-        background: rgba(255,255,255,0.06);
+        background: rgba(0,0,0,0.04);
         border-bottom-left-radius: 6px;
         text-transform: uppercase; letter-spacing: 0.5px;
         user-select: none;
@@ -324,20 +324,20 @@ export class DaoChatView extends CrLitElement {
       .message.assistant .md-table th,
       .message.assistant .md-table td {
         padding: 4px 8px; text-align: left;
-        border: 1px solid rgba(255,255,255,0.1);
+        border: 1px solid rgba(0,0,0,0.08);
       }
       .message.assistant .md-table th {
-        background: rgba(255,255,255,0.06);
+        background: rgba(0,0,0,0.04);
         font-weight: 600; color: var(--text);
       }
       .message.assistant .md-table tr:nth-child(even) td {
-        background: rgba(255,255,255,0.02);
+        background: rgba(0,0,0,0.02);
       }
 
       /* Markdown — Horizontal rule */
       .message.assistant .md-hr {
         border: none; height: 1px;
-        background: rgba(255,255,255,0.1);
+        background: rgba(0,0,0,0.08);
         margin: 8px 0;
       }
 
@@ -392,7 +392,7 @@ export class DaoChatView extends CrLitElement {
       /* Tool call bubble */
       .message.tool-call {
         align-self: flex-start;
-        background: rgba(255,255,255,0.04);
+        background: rgba(0,0,0,0.03);
         border-left: 2px solid var(--accent);
         font-size: 12px; color: var(--text-secondary);
         padding: 4px 8px;

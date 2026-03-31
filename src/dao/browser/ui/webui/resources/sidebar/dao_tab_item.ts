@@ -24,7 +24,7 @@ export class DaoTabItem extends CrLitElement {
         height: 40px;
         padding: 0 10px;
         border-radius: var(--radius-tab, 12px);
-        cursor: pointer;
+        cursor: default;
         gap: 8px;
         position: relative;
         transition: background 0.15s ease;
@@ -91,7 +91,7 @@ export class DaoTabItem extends CrLitElement {
         border: none;
         background: transparent;
         color: var(--text-secondary);
-        cursor: pointer;
+        cursor: default;
         padding: 0;
         display: flex;
         align-items: center;
@@ -105,7 +105,7 @@ export class DaoTabItem extends CrLitElement {
         border: none;
         background: transparent;
         color: var(--text-muted);
-        cursor: pointer;
+        cursor: default;
         padding: 0;
         opacity: 0;
         flex-shrink: 0;

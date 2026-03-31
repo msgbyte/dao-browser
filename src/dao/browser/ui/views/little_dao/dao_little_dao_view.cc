@@ -34,8 +34,8 @@ constexpr int kDisplayHeight = 28;
 constexpr int kButtonCornerRadius = 8;
 constexpr int kDisplayCornerRadius = 14;  // Pill shape (half of height)
 constexpr int kElementSpacing = 8;
-constexpr SkColor kButtonBackground = SkColorSetARGB(20, 255, 255, 255);
-constexpr SkColor kDisplayBackground = SkColorSetARGB(20, 255, 255, 255);
+constexpr SkColor kButtonBackground = SkColorSetARGB(15, 0, 0, 0);
+constexpr SkColor kDisplayBackground = SkColorSetARGB(15, 0, 0, 0);
 }  // namespace
 
 BEGIN_METADATA(DaoLittleDaoView)
@@ -99,7 +99,7 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   // in Layout() since LabelButton's internal layout ignores extra children.
   shortcut_label_ =
       open_button_->AddChildView(std::make_unique<views::Label>(u"\u2318+O"));
-  shortcut_label_->SetEnabledColor(SkColorSetARGB(100, 255, 255, 255));
+  shortcut_label_->SetEnabledColor(SkColorSetARGB(80, 0, 0, 0));
 
   // Expand button preferred size to include room for the shortcut label
   gfx::Size btn_pref = open_button_->GetPreferredSize();

@@ -30,7 +30,7 @@ export class DaoNewTabButton extends CrLitElement {
         color: var(--text-secondary);
         font-family: var(--font-family, system-ui);
         font-size: 13px;
-        cursor: pointer;
+        cursor: default;
         transition: background 0.15s ease;
       }
 

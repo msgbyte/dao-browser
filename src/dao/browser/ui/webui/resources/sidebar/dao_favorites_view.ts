@@ -28,7 +28,7 @@ export class DaoFavoritesView extends CrLitElement {
         border: none;
         border-radius: var(--radius-favorite, 8px);
         background: transparent;
-        cursor: pointer;
+        cursor: default;
         display: flex;
         align-items: center;
         justify-content: center;

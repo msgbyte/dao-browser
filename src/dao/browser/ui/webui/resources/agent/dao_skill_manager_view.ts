@@ -108,7 +108,7 @@ export class DaoSkillManagerView extends CrLitElement {
       .list-panel::-webkit-scrollbar { width: 4px; }
       .list-panel::-webkit-scrollbar-track { background: transparent; }
       .list-panel::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
+        background: rgba(0, 0, 0, 0.15);
         border-radius: 2px;
       }
 

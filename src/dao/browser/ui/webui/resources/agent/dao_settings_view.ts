@@ -87,7 +87,7 @@ export class DaoSettingsView extends CrLitElement {
       .panel::-webkit-scrollbar { width: 4px; }
       .panel::-webkit-scrollbar-track { background: transparent; }
       .panel::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.15); border-radius: 2px;
+        background: rgba(0,0,0,0.15); border-radius: 2px;
       }
 
       .section-title {
