@@ -11,14 +11,15 @@ index acc4db4ef2..b224e231fb 100644
  #include "chrome/browser/optimization_guide/optimization_guide_internals_ui.h"
  #include "chrome/browser/ui/webui/about/about_ui.h"
  #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
-@@ -202,6 +204,10 @@ void RegisterChromeWebUIConfigs() {
+@@ -202,6 +204,11 @@ void RegisterChromeWebUIConfigs() {
    auto& map = content::WebUIConfigMap::GetInstance();
    map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
 +
-+  // Dao: Register agent sidebar WebUI
++  // Dao: Register WebUI pages
 +  map.AddWebUIConfig(std::make_unique<dao::DaoAgentUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoSidebarUIConfig>());
++  map.AddWebUIConfig(std::make_unique<dao::DaoSkillsUIConfig>());
    map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
    map.AddWebUIConfig(std::make_unique<BrowsingTopicsInternalsUIConfig>());
    map.AddWebUIConfig(std::make_unique<chromeos::DeviceLogUIConfig>());

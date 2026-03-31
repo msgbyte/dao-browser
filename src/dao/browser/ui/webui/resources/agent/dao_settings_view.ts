@@ -14,14 +14,6 @@ import {
   saveSoul,
   soulChannel,
 } from './agent_bridge.js';
-import {
-  deleteUserSkill,
-  getAllSkills,
-  initSkillRegistry,
-  loadSkillInstructions,
-  saveUserSkill,
-} from './skill_registry.js';
-import type {SkillRegistryEntry} from './skill_registry.js';
 
 export class DaoSettingsView extends CrLitElement {
   static override get properties() {
@@ -43,12 +35,6 @@ export class DaoSettingsView extends CrLitElement {
       statEpisodes_: {type: Number, state: true},
       statTotal_: {type: String, state: true},
       showConfirmDialog_: {type: Boolean, state: true},
-      skillList_: {type: Array, state: true},
-      selectedSkillId_: {type: String, state: true},
-      skillEditorContent_: {type: String, state: true},
-      skillEditorReadonly_: {type: Boolean, state: true},
-      showSkillDeleteConfirm_: {type: Boolean, state: true},
-      isNewSkill_: {type: Boolean, state: true},
     };
   }
 
@@ -70,12 +56,6 @@ export class DaoSettingsView extends CrLitElement {
   private statTotal_ = 'Total: 0 KB';
   private showConfirmDialog_ = false;
   private saveStatusTimer_ = 0;
-  private skillList_: SkillRegistryEntry[] = [];
-  private selectedSkillId_ = '';
-  private skillEditorContent_ = '';
-  private skillEditorReadonly_ = false;
-  private showSkillDeleteConfirm_ = false;
-  private isNewSkill_ = false;
 
   static override get styles() {
     return css`
@@ -252,71 +232,6 @@ export class DaoSettingsView extends CrLitElement {
       }
       .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
 
-      /* Skill list */
-      .skill-list {
-        display: flex; flex-direction: column; gap: 2px;
-        margin-bottom: 12px;
-      }
-      .skill-item {
-        display: flex; flex-direction: column; gap: 2px;
-        padding: 8px 10px; border-radius: 8px;
-        cursor: pointer; transition: background 150ms;
-      }
-      .skill-item:hover { background: var(--surface-hover); }
-      .skill-item.selected { background: var(--accent-dim); }
-      .skill-item-header {
-        display: flex; align-items: center; gap: 6px;
-      }
-      .skill-name {
-        font-size: 13px; color: var(--text); font-weight: 500;
-      }
-      .skill-badge {
-        font-size: 10px; padding: 1px 5px; border-radius: 4px;
-        color: var(--text-tertiary); background: var(--surface);
-      }
-      .skill-badge.builtin { color: var(--accent); background: var(--accent-dim); }
-      .skill-host-badge {
-        font-size: 10px; padding: 1px 5px; border-radius: 4px;
-        color: var(--text-tertiary); background: var(--surface);
-        margin-left: auto;
-      }
-      .skill-desc {
-        font-size: 11px; color: var(--text-tertiary);
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      }
-      .skill-editor {
-        width: 100%; min-height: 200px; padding: 10px 12px;
-        background: var(--surface); border: 1px solid var(--border);
-        border-radius: 8px; color: var(--text);
-        font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
-        font-size: 12px; line-height: 1.5;
-        resize: vertical; outline: none;
-      }
-      .skill-editor:focus { border-color: var(--accent); }
-      .skill-editor:disabled {
-        opacity: 0.6; cursor: not-allowed;
-      }
-      .skill-actions {
-        display: flex; align-items: center; gap: 8px; margin-top: 10px;
-      }
-      .skill-header-row {
-        display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 4px;
-      }
-      .btn-small {
-        padding: 4px 12px; background: var(--surface);
-        border: 1px solid var(--border); border-radius: 6px;
-        color: var(--text-secondary);
-        font-size: 11px; font-family: inherit; cursor: pointer;
-      }
-      .btn-small:hover {
-        background: var(--surface-hover); color: var(--text);
-      }
-      .skill-empty {
-        padding: 20px; text-align: center;
-        font-size: 12px; color: var(--text-tertiary);
-      }
-
       /* Confirm dialog */
       .confirm-scrim {
         position: fixed; inset: 0;
@@ -357,7 +272,6 @@ export class DaoSettingsView extends CrLitElement {
   switchSubTab(tab: string) {
     this.activeSubTab_ = tab;
     if (tab === 'memory') this.loadStorageStats_();
-    if (tab === 'skills') this.loadSkillList_();
   }
 
   override render() {
@@ -374,8 +288,6 @@ export class DaoSettingsView extends CrLitElement {
         this.activeSubTab_ === 'skills' ? this.renderSkills_() :
         this.renderMemory_()}
       ${this.showConfirmDialog_ ? this.renderConfirmDialog_() : nothing}
-      ${this.showSkillDeleteConfirm_ ?
-          this.renderSkillDeleteConfirm_() : nothing}
     `;
   }
 
@@ -667,190 +579,28 @@ export class DaoSettingsView extends CrLitElement {
 
   // ---- Skills ----
 
-  private async loadSkillList_() {
-    await initSkillRegistry();
-    this.skillList_ = getAllSkills();
-  }
-
-  private async selectSkill_(id: string) {
-    this.selectedSkillId_ = id;
-    this.isNewSkill_ = false;
-    const content = await loadSkillInstructions(id);
-    if (content) {
-      this.skillEditorReadonly_ = content.metadata.source === 'builtin';
-      // Reconstruct the full SKILL.md from metadata + instructions.
-      const meta = content.metadata;
-      let frontmatter = '---\n';
-      frontmatter += 'name: ' + meta.name + '\n';
-      frontmatter += 'description: ' + meta.description + '\n';
-      if (meta.hosts && meta.hosts.length > 0) {
-        frontmatter += 'hosts:\n';
-        for (const h of meta.hosts) {
-          frontmatter += '  - "' + h + '"\n';
-        }
-      }
-      if (meta.requiresPageContent) {
-        frontmatter += 'requiresPageContent: true\n';
-      }
-      frontmatter += '---\n';
-      this.skillEditorContent_ = frontmatter + '\n' + content.instructions;
-    } else {
-      this.skillEditorContent_ = '';
-      this.skillEditorReadonly_ = true;
-    }
-  }
-
-  private createNewSkill_() {
-    this.selectedSkillId_ = '';
-    this.isNewSkill_ = true;
-    this.skillEditorReadonly_ = false;
-    this.skillEditorContent_ = `---
-name: my-new-skill
-description: Describe what this skill does
-hosts:
-  - "*"
-requiresPageContent: false
----
-
-# My New Skill
-
-## Instructions
-1. First step...
-2. Second step...
-`;
-  }
-
-  private async saveSkill_() {
-    const content = this.skillEditorContent_;
-    // Parse skill ID from frontmatter 'name' field.
-    const nameMatch = content.match(/^name:\s*(.+)$/m);
-    if (!nameMatch) {
-      this.fireToast_('Missing "name" in frontmatter');
-      return;
-    }
-    const skillId = nameMatch[1]!.trim();
-
-    // Parse host from frontmatter (use first host, or empty for global).
-    const hostMatch = content.match(/^\s*-\s*"?([^"*\n]+)"?\s*$/m);
-    const host = hostMatch ? hostMatch[1]!.trim() : '';
-
-    const ok = await saveUserSkill(skillId, content, host);
-    if (ok) {
-      this.isNewSkill_ = false;
-      this.selectedSkillId_ = skillId;
-      this.showSaveStatus_('Skill saved');
-      await this.loadSkillList_();
-    } else {
-      this.fireToast_('Failed to save skill');
-    }
-  }
-
-  private async deleteSkill_() {
-    this.showSkillDeleteConfirm_ = false;
-    const ok = await deleteUserSkill(this.selectedSkillId_);
-    if (ok) {
-      this.selectedSkillId_ = '';
-      this.skillEditorContent_ = '';
-      this.fireToast_('Skill deleted');
-      await this.loadSkillList_();
-    } else {
-      this.fireToast_('Failed to delete skill');
-    }
-  }
-
-  private openSkillsDirectory_() {
-    chrome.send('openSkillsDirectory', []);
-  }
-
   private renderSkills_() {
-    const selectedIsUser = this.skillList_.find(
-        s => s.id === this.selectedSkillId_)?.source === 'user';
-    const showEditor = this.selectedSkillId_ || this.isNewSkill_;
     return html`
       <div class="panel">
-        <div class="skill-header-row">
-          <div class="section-title">Skills</div>
-          <button class="btn-small" @click=${this.createNewSkill_}>
-            + New
-          </button>
-        </div>
+        <div class="section-title">Skills</div>
         <div class="section-desc">
-          Manage slash-command skills for the agent.</div>
-
-        <div class="skill-list">
-          ${this.skillList_.length === 0 ? html`
-            <div class="skill-empty">No skills found</div>` :
-            this.skillList_.map(s => html`
-              <div class="skill-item ${
-                  this.selectedSkillId_ === s.id ? 'selected' : ''}"
-                  @click=${() => this.selectSkill_(s.id)}>
-                <div class="skill-item-header">
-                  <span class="skill-name">/${s.name}</span>
-                  <span class="skill-badge ${
-                      s.source === 'builtin' ? 'builtin' : ''}">
-                    ${s.source}</span>
-                  ${s.hosts && s.hosts.length > 0 &&
-                      !s.hosts.includes('*') ? html`
-                    <span class="skill-host-badge">
-                      ${s.hosts[0]}</span>` : nothing}
-                </div>
-                <span class="skill-desc">${s.description}</span>
-              </div>`)}
-        </div>
-
-        ${showEditor ? html`
-          <textarea class="skill-editor"
-              ?disabled=${this.skillEditorReadonly_}
-              .value=${this.skillEditorContent_}
-              @input=${(e: Event) =>
-                this.skillEditorContent_ =
-                    (e.target as HTMLTextAreaElement).value}
-          ></textarea>
-          <div class="skill-actions">
-            ${!this.skillEditorReadonly_ ? html`
-              <button class="btn-primary"
-                  @click=${this.saveSkill_}>Save</button>` : nothing}
-            ${selectedIsUser ? html`
-              <button class="btn-secondary" style="color: var(--error)"
-                  @click=${() => this.showSkillDeleteConfirm_ = true}>
-                Delete</button>` : nothing}
-            ${this.skillEditorReadonly_ ? html`
-              <span style="font-size: 11px; color: var(--text-tertiary)">
-                Built-in skills are read-only</span>` : nothing}
-            <span class="save-status ${this.saveStatusVisible_ ?
-                'visible' : ''}">${this.saveStatusText_}</span>
-          </div>` : nothing}
-
+          Manage slash-command skills for the agent. Open the Skill Manager
+          to create, edit, and delete skills in a full-page editor.</div>
+        <button class="btn-primary"
+            style="width: 100%; height: 36px; margin-top: 8px"
+            @click=${this.openSkillManager_}>
+          Open Skill Manager
+        </button>
         <button class="btn-secondary"
-            style="width: 100%; margin-top: 16px"
-            @click=${this.openSkillsDirectory_}>
+            style="width: 100%; margin-top: 8px"
+            @click=${() => chrome.send('openSkillsDirectory', [])}>
           Open Skills Directory
         </button>
       </div>`;
   }
 
-  private renderSkillDeleteConfirm_() {
-    return html`
-      <div class="confirm-scrim" role="alertdialog"
-          @click=${(e: Event) => {
-            if (e.target === e.currentTarget) {
-              this.showSkillDeleteConfirm_ = false;
-            }
-          }}>
-        <div class="confirm-card">
-          <div class="confirm-title">Delete Skill?</div>
-          <div class="confirm-desc">
-            This will permanently delete the skill
-            "${this.selectedSkillId_}". This action cannot be undone.</div>
-          <div class="confirm-actions">
-            <button class="btn-secondary"
-                @click=${() => this.showSkillDeleteConfirm_ = false}>
-              Cancel</button>
-            <button class="btn-danger"
-                @click=${this.deleteSkill_}>Delete</button>
-          </div>
-        </div>
-      </div>`;
+  private openSkillManager_() {
+    chrome.send('openSkillManager', []);
   }
 
   private fireToast_(text: string) {

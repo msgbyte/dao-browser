@@ -152,6 +152,7 @@ class DaoAgentSkillHandler : public content::WebUIMessageHandler {
   void HandleSaveUserSkill(const base::Value::List& args);
   void HandleDeleteUserSkill(const base::Value::List& args);
   void HandleOpenSkillsDirectory(const base::Value::List& args);
+  void HandleOpenSkillManager(const base::Value::List& args);
 
   base::WeakPtrFactory<DaoAgentSkillHandler> weak_factory_{this};
 };
@@ -161,6 +162,24 @@ class DaoAgentUI : public content::WebUIController {
  public:
   explicit DaoAgentUI(content::WebUI* web_ui);
   ~DaoAgentUI() override;
+};
+
+// WebUI config for chrome://skills (standalone skill manager page)
+class DaoSkillsUIConfig : public content::WebUIConfig {
+ public:
+  DaoSkillsUIConfig();
+
+  // content::WebUIConfig:
+  std::unique_ptr<content::WebUIController> CreateWebUIController(
+      content::WebUI* web_ui,
+      const GURL& url) override;
+};
+
+// WebUI controller for chrome://skills
+class DaoSkillsUI : public content::WebUIController {
+ public:
+  explicit DaoSkillsUI(content::WebUI* web_ui);
+  ~DaoSkillsUI() override;
 };
 
 }  // namespace dao

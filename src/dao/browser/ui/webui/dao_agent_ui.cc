@@ -15,6 +15,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -30,6 +32,8 @@
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
 #include "dao/browser/dao_pref_names.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/base/page_transition_types.h"
+#include "ui/base/window_open_disposition.h"
 
 namespace dao {
 
@@ -1263,6 +1267,10 @@ void DaoAgentSkillHandler::RegisterMessages() {
       "openSkillsDirectory",
       base::BindRepeating(&DaoAgentSkillHandler::HandleOpenSkillsDirectory,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "openSkillManager",
+      base::BindRepeating(&DaoAgentSkillHandler::HandleOpenSkillManager,
+                          base::Unretained(this)));
 }
 
 void DaoAgentSkillHandler::HandleGetSkillRegistry(
@@ -1434,6 +1442,18 @@ void DaoAgentSkillHandler::HandleOpenSkillsDirectory(
                           platform_util::OpenOperationCallback());
 }
 
+void DaoAgentSkillHandler::HandleOpenSkillManager(
+    const base::Value::List& args) {
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  if (!browser) {
+    return;
+  }
+  GURL skills_url(std::string(content::kChromeUIScheme) + "://skills");
+  NavigateParams params(browser, skills_url, ui::PAGE_TRANSITION_TYPED);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&params);
+}
+
 // ---- DaoAgentUIConfig ----
 
 DaoAgentUIConfig::DaoAgentUIConfig()
@@ -1474,5 +1494,39 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui)
 }
 
 DaoAgentUI::~DaoAgentUI() = default;
+
+// ---- DaoSkillsUIConfig ----
+
+DaoSkillsUIConfig::DaoSkillsUIConfig()
+    : WebUIConfig(content::kChromeUIScheme, "skills") {}
+
+std::unique_ptr<content::WebUIController>
+DaoSkillsUIConfig::CreateWebUIController(content::WebUI* web_ui,
+                                         const GURL& url) {
+  return std::make_unique<DaoSkillsUI>(web_ui);
+}
+
+// ---- DaoSkillsUI ----
+
+DaoSkillsUI::DaoSkillsUI(content::WebUI* web_ui)
+    : WebUIController(web_ui) {
+  Profile* profile = Profile::FromWebUI(web_ui);
+  content::WebUIDataSource* source =
+      content::WebUIDataSource::CreateAndAdd(profile, "skills");
+
+  // Reuse the agent resource bundle (skills.html is compiled there).
+  source->AddResourcePaths(kDaoAgentResources);
+  source->SetDefaultResource(IDR_DAO_AGENT_SKILLS_HTML);
+
+  // Allow Lit HTML rendering.
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::TrustedTypes,
+      "trusted-types default lit-html-desktop;");
+
+  // Register skill message handler only.
+  web_ui->AddMessageHandler(std::make_unique<DaoAgentSkillHandler>());
+}
+
+DaoSkillsUI::~DaoSkillsUI() = default;
 
 }  // namespace dao
