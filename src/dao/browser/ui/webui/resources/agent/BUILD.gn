@@ -20,6 +20,7 @@ build_webui("build") {
     "dao_settings_view.ts",
     "markdown_renderer.ts",
     "readability_bundle.ts",
+    "skill_registry.ts",
   ]
 
   ts_definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]

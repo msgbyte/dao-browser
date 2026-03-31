@@ -1,0 +1,13 @@
+diff --git a/chrome/common/chrome_paths_mac.mm b/chrome/common/chrome_paths_mac.mm
+index 05d23fc6a6..9911141262 100644
+--- a/chrome/common/chrome_paths_mac.mm
++++ b/chrome/common/chrome_paths_mac.mm
+@@ -60,7 +60,7 @@
+ #elif BUILDFLAG(GOOGLE_CHROME_BRANDING)
+       product_dir_name = "Google/Chrome";
+ #else
+-      product_dir_name = "Chromium";
++      product_dir_name = "Dao Browser";
+ #endif
+     }
+ 

@@ -26,11 +26,19 @@ import type {
   ToolCall,
   UIMessage,
 } from './agent_bridge.js';
+import {
+  getAvailableSkills,
+  initSkillRegistry,
+  loadSkillInstructions,
+} from './skill_registry.js';
+import type {SkillRegistryEntry} from './skill_registry.js';
 
 interface SlashCommand {
   name: string;
   description: string;
   action: () => void;
+  type: 'builtin'|'skill';
+  skillId?: string;
 }
 
 const CHAT_HISTORY_KEY = 'dao_agent_chat_history';
@@ -75,24 +83,89 @@ export class DaoChatView extends CrLitElement {
   private currentSuggestionEpisodeId_ = 0;
   private currentScenarioData_: ScenarioData|null = null;
   private streamUsedMemory_ = false;
+  private activeSkillInstructions_: string|null = null;
 
-  private readonly slashCommands_: SlashCommand[] = [
-    {name: '/clear', description: 'Clear chat history', action: () => {
-      this.clearChatHistory_();
-      this.fireToast_('Chat history cleared');
-    }},
-    {name: '/reset', description: 'Reset session & memory context',
+  private readonly builtinCommands_: SlashCommand[] = [
+    {name: '/clear', description: 'Clear chat history', type: 'builtin',
       action: () => {
+        this.clearChatHistory_();
+        this.fireToast_('Chat history cleared');
+      }},
+    {name: '/reset', description: 'Reset session & memory context',
+      type: 'builtin', action: () => {
         this.clearChatHistory_();
         this.memoryContextLoaded_ = false;
         this.fireToast_('Session reset');
       }},
-    {name: '/help', description: 'Show available commands', action: () => {
-      const helpText = this.slashCommands_
-          .map(c => c.name + ' — ' + c.description).join('\n');
-      this.pushUIMessage_('system-msg', helpText);
-    }},
+    {name: '/help', description: 'Show available commands', type: 'builtin',
+      action: () => {
+        const helpText = this.getSlashCommands_()
+            .map(c => c.name + ' — ' + c.description).join('\n');
+        this.pushUIMessage_('system-msg', helpText);
+      }},
   ];
+
+  private getSlashCommands_(): SlashCommand[] {
+    const skills = getAvailableSkills(this.currentDomain_);
+    const skillCommands: SlashCommand[] = skills.map(skill => ({
+      name: '/' + skill.name,
+      description: skill.description,
+      type: 'skill' as const,
+      skillId: skill.id,
+      action: () => this.executeSkill_(skill),
+    }));
+    return [...this.builtinCommands_, ...skillCommands];
+  }
+
+  private async executeSkill_(skill: SkillRegistryEntry) {
+    const apiKey = localStorage.getItem('dao_agent_api_key') || '';
+    if (!apiKey) {
+      this.pushErrorMessage_(
+          'Please set your API Key in Settings first.');
+      this.dispatchEvent(new CustomEvent('switch-tab', {
+        bubbles: true, composed: true,
+        detail: {tab: 'settings', subTab: 'connection'},
+      }));
+      return;
+    }
+
+    const content = await loadSkillInstructions(skill.id);
+    if (!content || !content.instructions) {
+      this.pushErrorMessage_(
+          'Failed to load skill: ' + skill.name);
+      return;
+    }
+
+    this.activeSkillInstructions_ = content.instructions;
+
+    // If the skill requires page content, pre-fetch it.
+    let pageContentBlock = '';
+    if (skill.requiresPageContent) {
+      try {
+        const pageContent = await callNative('getPageContent') as string;
+        if (pageContent) {
+          pageContentBlock =
+              '\n\n## Current Page Content\n' + pageContent;
+        }
+      } catch (_) {
+        // Non-fatal — the LLM can still call tools manually.
+      }
+    }
+
+    // Push a UI message showing the slash command.
+    this.pushUIMessage_('user', '/' + skill.name);
+
+    // Add the user message to conversation with page content if available.
+    const userContent = 'Execute the /' + skill.name + ' skill.' +
+        pageContentBlock;
+    this.messages_.push({role: 'user', content: userContent});
+    this.saveChatHistory_();
+
+    await this.runConversation_();
+
+    // Clear active skill instructions after execution.
+    this.activeSkillInstructions_ = null;
+  }
 
   static override get styles() {
     return css`
@@ -472,6 +545,17 @@ export class DaoChatView extends CrLitElement {
   override connectedCallback() {
     super.connectedCallback();
     this.loadChatHistory_();
+
+    // Initialize skill registry + early domain fetch.
+    initSkillRegistry();
+    callNative('getPageInfo').then((info) => {
+      const pageInfo = info as {url?: string};
+      if (pageInfo.url) {
+        try {
+          this.currentDomain_ = new URL(pageInfo.url).hostname;
+        } catch (_) { /* ignore */ }
+      }
+    }).catch(() => {});
 
     if (cr.addWebUIListener) {
       cr.addWebUIListener('proactiveSuggestion',
@@ -873,7 +957,8 @@ export class DaoChatView extends CrLitElement {
 
   private showSlashMenu_(filter: string) {
     const query = filter.toLowerCase();
-    const filtered = this.slashCommands_.filter(
+    const allCommands = this.getSlashCommands_();
+    const filtered = allCommands.filter(
         c => c.name.startsWith(query) || query === '/');
     if (filtered.length === 0) {
       this.hideSlashMenu_();
@@ -928,7 +1013,7 @@ export class DaoChatView extends CrLitElement {
     if (text.startsWith('/')) {
       this.clearInput_();
       this.hideSlashMenu_();
-      const matched = this.slashCommands_.find(
+      const matched = this.getSlashCommands_().find(
           c => c.name === text.toLowerCase().trim());
       if (matched) {
         matched.action();
@@ -1027,10 +1112,14 @@ export class DaoChatView extends CrLitElement {
       let continueLoop = true;
       while (continueLoop) {
         refreshSoulContent();
+        const skillBlock = this.activeSkillInstructions_
+            ? '\n\n## Active Skill Instructions\n' +
+                this.activeSkillInstructions_
+            : '';
         const systemPrompt: ChatMessage = {
           role: 'system',
           content: BASE_SYSTEM_PROMPT + '\n' + currentSoulContent +
-              memoryBlock,
+              memoryBlock + skillBlock,
         };
         continueLoop = false;
 

@@ -23,6 +23,7 @@
 namespace dao {
 
 class DaoAgentMemoryService;
+class DaoAgentSkillService;
 class DaoAgentUI;
 
 // WebUI config for chrome://agent
@@ -132,6 +133,27 @@ class DaoAgentMemoryHandler : public content::WebUIMessageHandler,
 
   std::unique_ptr<DaoAgentProactiveEngine> proactive_engine_;
   base::WeakPtrFactory<DaoAgentMemoryHandler> weak_factory_{this};
+};
+
+// Skill-specific message handler for managing agent skills.
+class DaoAgentSkillHandler : public content::WebUIMessageHandler {
+ public:
+  DaoAgentSkillHandler();
+  ~DaoAgentSkillHandler() override;
+
+  // content::WebUIMessageHandler:
+  void RegisterMessages() override;
+
+ private:
+  DaoAgentSkillService* GetSkillService();
+
+  void HandleGetSkillRegistry(const base::Value::List& args);
+  void HandleGetSkillContent(const base::Value::List& args);
+  void HandleSaveUserSkill(const base::Value::List& args);
+  void HandleDeleteUserSkill(const base::Value::List& args);
+  void HandleOpenSkillsDirectory(const base::Value::List& args);
+
+  base::WeakPtrFactory<DaoAgentSkillHandler> weak_factory_{this};
 };
 
 // WebUI controller for chrome://agent

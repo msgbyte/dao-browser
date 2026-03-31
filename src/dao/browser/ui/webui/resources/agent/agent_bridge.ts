@@ -6,6 +6,7 @@
 // markdown rendering, constants.
 
 import {READABILITY_INJECT_SCRIPT} from './readability_bundle.js';
+import {saveUserSkill} from './skill_registry.js';
 
 // ---- Interfaces ----
 
@@ -358,6 +359,34 @@ export const tools: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'save_skill',
+      description:
+          'Save a new user skill for the Dao Agent. The skill is defined as a SKILL.md file with YAML frontmatter (name, description, hosts, requiresPageContent) and markdown instructions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          skill_id: {
+            type: 'string',
+            description:
+                'Unique skill identifier (lowercase, hyphens, no spaces)',
+          },
+          skill_md: {
+            type: 'string',
+            description: 'Complete SKILL.md content including YAML frontmatter',
+          },
+          host: {
+            type: 'string',
+            description:
+                'Target hostname for the skill. Use empty string for a global skill.',
+          },
+        },
+        required: ['skill_id', 'skill_md', 'host'],
+      },
+    },
+  },
 ];
 
 // ---- Markdown Rendering (re-exported from markdown_renderer.ts) ----
@@ -393,6 +422,14 @@ export async function executeTool(
     case 'update_soul':
       return updateSoulByAction(
           args['action'] || '', args['content'] || '', args['section']);
+    case 'save_skill': {
+      const ok = await saveUserSkill(
+          args['skill_id'] || '', args['skill_md'] || '',
+          args['host'] || '');
+      return ok
+          ? {success: true, message: 'Skill saved successfully.'}
+          : {success: false, message: 'Failed to save skill.'};
+    }
     default:
       return {error: 'Unknown tool: ' + name};
   }

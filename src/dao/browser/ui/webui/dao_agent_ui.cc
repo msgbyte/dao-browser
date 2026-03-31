@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -25,6 +26,8 @@
 #include "components/prefs/pref_service.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
+#include "dao/browser/agent/dao_agent_skill_service.h"
+#include "dao/browser/agent/dao_agent_skill_service_factory.h"
 #include "dao/browser/dao_pref_names.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 
@@ -1228,6 +1231,209 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
       content::ISOLATED_WORLD_ID_CONTENT_END);
 }
 
+// ---- DaoAgentSkillHandler ----
+
+DaoAgentSkillHandler::DaoAgentSkillHandler() = default;
+
+DaoAgentSkillHandler::~DaoAgentSkillHandler() = default;
+
+DaoAgentSkillService* DaoAgentSkillHandler::GetSkillService() {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  return DaoAgentSkillServiceFactory::GetForProfile(profile);
+}
+
+void DaoAgentSkillHandler::RegisterMessages() {
+  web_ui()->RegisterMessageCallback(
+      "getSkillRegistry",
+      base::BindRepeating(&DaoAgentSkillHandler::HandleGetSkillRegistry,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getSkillContent",
+      base::BindRepeating(&DaoAgentSkillHandler::HandleGetSkillContent,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "saveUserSkill",
+      base::BindRepeating(&DaoAgentSkillHandler::HandleSaveUserSkill,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "deleteUserSkill",
+      base::BindRepeating(&DaoAgentSkillHandler::HandleDeleteUserSkill,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "openSkillsDirectory",
+      base::BindRepeating(&DaoAgentSkillHandler::HandleOpenSkillsDirectory,
+                          base::Unretained(this)));
+}
+
+void DaoAgentSkillHandler::HandleGetSkillRegistry(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+
+  auto* service = GetSkillService();
+  if (!service) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              base::Value(base::Value::List()));
+    return;
+  }
+
+  service->GetSkillRegistry(base::BindOnce(
+      [](base::WeakPtr<DaoAgentSkillHandler> handler, std::string cb_id,
+         std::vector<SkillRegistryEntry> entries) {
+        if (!handler) {
+          return;
+        }
+        base::Value::List list;
+        for (const auto& entry : entries) {
+          base::Value::Dict dict;
+          dict.Set("id", entry.id);
+          dict.Set("name", entry.name);
+          dict.Set("description", entry.description);
+          dict.Set("source", entry.source);
+          dict.Set("requiresPageContent", entry.requires_page_content);
+
+          base::Value::List hosts_list;
+          for (const auto& host : entry.hosts) {
+            hosts_list.Append(host);
+          }
+          dict.Set("hosts", std::move(hosts_list));
+
+          list.Append(std::move(dict));
+        }
+        handler->ResolveJavascriptCallback(base::Value(cb_id), list);
+      },
+      weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentSkillHandler::HandleGetSkillContent(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const std::string skill_id =
+      args[1].is_string() ? args[1].GetString() : "";
+
+  auto* service = GetSkillService();
+  if (!service || skill_id.empty()) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              base::Value(base::Value::Dict()));
+    return;
+  }
+
+  service->GetSkillContent(
+      skill_id,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentSkillHandler> handler, std::string cb_id,
+             std::optional<SkillContent> content) {
+            if (!handler) {
+              return;
+            }
+            if (!content.has_value()) {
+              handler->ResolveJavascriptCallback(
+                  base::Value(cb_id), base::Value(base::Value::Dict()));
+              return;
+            }
+            base::Value::Dict result;
+            result.Set("instructions", content->instructions);
+
+            base::Value::Dict metadata;
+            metadata.Set("id", content->metadata.id);
+            metadata.Set("name", content->metadata.name);
+            metadata.Set("description", content->metadata.description);
+            metadata.Set("source", content->metadata.source);
+            metadata.Set("requiresPageContent",
+                         content->metadata.requires_page_content);
+
+            base::Value::List hosts_list;
+            for (const auto& host : content->metadata.hosts) {
+              hosts_list.Append(host);
+            }
+            metadata.Set("hosts", std::move(hosts_list));
+
+            result.Set("metadata", std::move(metadata));
+            handler->ResolveJavascriptCallback(base::Value(cb_id), result);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentSkillHandler::HandleSaveUserSkill(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 4 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const std::string skill_id =
+      args[1].is_string() ? args[1].GetString() : "";
+  const std::string skill_md =
+      args[2].is_string() ? args[2].GetString() : "";
+  const std::string host =
+      args[3].is_string() ? args[3].GetString() : "";
+
+  auto* service = GetSkillService();
+  if (!service || skill_id.empty() || skill_md.empty()) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
+    return;
+  }
+
+  service->SaveUserSkill(
+      skill_id, skill_md, host,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentSkillHandler> handler, std::string cb_id,
+             bool success) {
+            if (!handler) {
+              return;
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id),
+                                               base::Value(success));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentSkillHandler::HandleDeleteUserSkill(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const std::string skill_id =
+      args[1].is_string() ? args[1].GetString() : "";
+
+  auto* service = GetSkillService();
+  if (!service || skill_id.empty()) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
+    return;
+  }
+
+  service->DeleteUserSkill(
+      skill_id,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentSkillHandler> handler, std::string cb_id,
+             bool success) {
+            if (!handler) {
+              return;
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id),
+                                               base::Value(success));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentSkillHandler::HandleOpenSkillsDirectory(
+    const base::Value::List& args) {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  base::FilePath skills_path =
+      profile->GetPath().AppendASCII("DaoAgentSkills");
+  platform_util::OpenItem(profile, skills_path, platform_util::OPEN_FOLDER,
+                          platform_util::OpenOperationCallback());
+}
+
 // ---- DaoAgentUIConfig ----
 
 DaoAgentUIConfig::DaoAgentUIConfig()
@@ -1264,6 +1470,7 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui)
   // Register message handlers.
   web_ui->AddMessageHandler(std::make_unique<DaoAgentUIHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentMemoryHandler>());
+  web_ui->AddMessageHandler(std::make_unique<DaoAgentSkillHandler>());
 }
 
 DaoAgentUI::~DaoAgentUI() = default;

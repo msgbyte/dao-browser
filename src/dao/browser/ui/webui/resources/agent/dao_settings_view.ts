@@ -318,6 +318,17 @@ export class DaoSettingsView extends CrLitElement {
                 'dao_agent_model',
                 (e.target as HTMLInputElement).value,
                 v => this.model_ = v)}>
+
+        <div style="margin-top: 20px; padding-top: 16px;
+            border-top: 1px solid var(--border);">
+          <div class="section-title">Skills</div>
+          <div class="section-desc">
+            Manage agent skill files on disk.</div>
+          <button class="btn-secondary" style="width: 100%"
+              @click=${this.openSkillsDirectory_}>
+            Open Skills Directory
+          </button>
+        </div>
       </div>`;
   }
 
@@ -575,6 +586,10 @@ export class DaoSettingsView extends CrLitElement {
     } catch (_) {
       this.fireToast_('Failed to clear memory');
     }
+  }
+
+  private openSkillsDirectory_() {
+    chrome.send('openSkillsDirectory', []);
   }
 
   private fireToast_(text: string) {
