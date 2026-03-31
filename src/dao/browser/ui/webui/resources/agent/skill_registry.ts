@@ -37,6 +37,10 @@ export async function refreshSkillRegistry(): Promise<void> {
   await initSkillRegistry();
 }
 
+export function getAllSkills(): SkillRegistryEntry[] {
+  return cachedRegistry;
+}
+
 export function getAvailableSkills(currentHost: string): SkillRegistryEntry[] {
   return cachedRegistry.filter(
       skill => isSkillAvailableForHost(skill, currentHost));
