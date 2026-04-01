@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/common/url_constants.h"
@@ -25,6 +26,7 @@
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
+#include "dao/browser/ui/views/split/dao_split_view.h"
 #include "dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h"
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "net/base/filename_util.h"
@@ -465,6 +467,46 @@ void DaoSidebarView::OnImplicitAnimationsCompleted() {
   BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
   if (bv && bv->dao_address_bar()) {
     bv->dao_address_bar()->SetSidebarCollapsed(collapsed_);
+  }
+
+  // After the layer slide animation, explicitly reset all transforms to
+  // identity and force a synchronous re-layout.  On macOS the WebView's
+  // native NSView frame is determined by NativeViewHost::Layout() which
+  // reads ConvertRectToWidget() — if a residual layer transform exists
+  // (even identity with float rounding) the NSView frame can become stale,
+  // breaking hit-testing.  DeprecatedLayoutImmediately() forces
+  // NativeViewHost to call [native_view_ setFrame:] synchronously.
+  if (layer()) {
+    layer()->SetTransform(gfx::Transform());
+  }
+  if (bv) {
+    if (bv->dao_address_bar() && bv->dao_address_bar()->layer()) {
+      bv->dao_address_bar()->layer()->SetTransform(gfx::Transform());
+    }
+    if (bv->dao_corner_overlay() && bv->dao_corner_overlay()->layer()) {
+      bv->dao_corner_overlay()->layer()->SetTransform(gfx::Transform());
+    }
+    if (bv->contents_container() && bv->contents_container()->layer()) {
+      bv->contents_container()->layer()->SetTransform(gfx::Transform());
+    }
+    bv->InvalidateLayout();
+    bv->DeprecatedLayoutImmediately();
+    if (bv->contents_container()) {
+      bv->contents_container()->InvalidateLayout();
+      bv->contents_container()->DeprecatedLayoutImmediately();
+    }
+    if (bv->contents_web_view()) {
+      bv->contents_web_view()->InvalidateLayout();
+      bv->contents_web_view()->DeprecatedLayoutImmediately();
+    }
+    if (bv->dao_split_view()) {
+      bv->dao_split_view()->InvalidateLayout();
+      bv->dao_split_view()->DeprecatedLayoutImmediately();
+    }
+  }
+  if (sidebar_web_view_) {
+    sidebar_web_view_->InvalidateLayout();
+    sidebar_web_view_->DeprecatedLayoutImmediately();
   }
 }
 

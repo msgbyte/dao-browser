@@ -641,6 +641,19 @@ export class DaoChatView extends CrLitElement {
     try {
       await callNativeArgs('endSession', this.sessionId_, messageData);
     } catch (_) { /* best-effort */ }
+    // Auto-save conversation summary.
+    const firstUserMsg = this.messages_.find(m => m.role === 'user');
+    const summaryText = firstUserMsg?.content
+        ? (firstUserMsg.content as string).substring(0, 200)
+        : 'Chat session';
+    try {
+      await callNative('saveSummary', {
+        sessionId: this.sessionId_,
+        summary: summaryText,
+        messageCount: this.messages_.length,
+        primaryDomain: this.currentDomain_ || '',
+      });
+    } catch (_) { /* best-effort */ }
     this.sessionId_ = generateSessionId();
   }
 

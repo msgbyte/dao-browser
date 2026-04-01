@@ -1,0 +1,35 @@
+diff --git a/chrome/browser/ui/views/frame/contents_web_view.cc b/chrome/browser/ui/views/frame/contents_web_view.cc
+index 6bdd187588..8d1ddcefe9 100644
+--- a/chrome/browser/ui/views/frame/contents_web_view.cc
++++ b/chrome/browser/ui/views/frame/contents_web_view.cc
+@@ -53,6 +53,16 @@ void ContentsWebView::SetBackgroundVisible(bool background_visible) {
+   }
+ }
+ 
++void ContentsWebView::SetBackgroundOverrideColor(std::optional<SkColor> color) {
++  background_override_color_ = color;
++  if (GetWidget()) {
++    UpdateBackgroundColor();
++  } else if (layer() && background_override_color_.has_value()) {
++    layer()->SetColor(background_visible_ ? *background_override_color_
++                                          : SK_ColorTRANSPARENT);
++  }
++}
++
+ const gfx::RoundedCornersF& ContentsWebView::GetBackgroundRadii() const {
+   const ui::Layer* background_layer = layer();
+ 
+@@ -90,9 +100,10 @@ void ContentsWebView::OnLetterboxingChanged() {
+ }
+ 
+ void ContentsWebView::UpdateBackgroundColor() {
+-  const SkColor color = GetColorProvider()->GetColor(
+-      is_letterboxing() ? kColorWebContentsBackgroundLetterboxing
+-                        : kColorWebContentsBackground);
++  const SkColor color = background_override_color_.value_or(
++      GetColorProvider()->GetColor(
++          is_letterboxing() ? kColorWebContentsBackgroundLetterboxing
++                            : kColorWebContentsBackground));
+ 
+   ui::Layer* background_layer = layer();
+   background_layer->SetColor(background_visible_ ? color : SK_ColorTRANSPARENT);

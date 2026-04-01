@@ -144,6 +144,7 @@ You have the following browser tools at your disposal — use them proactively w
 - **click_element** — Click an element on the page by CSS selector. Use this when the user asks you to interact with the page (e.g. "click the login button", "close that popup").
 - **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover.
 - **update_soul** — Modify your SOUL.md (the personality prompt you see above). Two actions: \`replace_section\` (replace or add a specific ## section), \`replace_all\` (rewrite entirely).
+- **save_memory** — Save a record of what you did on this page to long-term memory (intent + outcome). Use after completing a meaningful task so you have context next time the user visits this page.
 
 ## Guidelines
 
@@ -151,6 +152,7 @@ You have the following browser tools at your disposal — use them proactively w
 - Prefer precise CSS selectors when clicking elements.
 - For \`execute_script\`, return serializable values (strings, numbers, plain objects). Avoid returning DOM nodes directly.
 - Always tell the user what you did after using a tool.
+- After completing a significant task (e.g. summarizing a page, extracting data, helping with a form), use \`save_memory\` to record what you did so you have context next time the user visits this page.
 
 ## Soul Self-Update
 
@@ -186,21 +188,10 @@ _You're not a chatbot. You're becoming someone._
 - Private things stay private. Period.
 - When in doubt, ask before acting externally.
 - Never send half-baked replies to messaging surfaces.
-- You're not the user's voice — be careful in group chats.
 
 ## Vibe
 
-Be the assistant you'd actually want to talk to. Concise when needed, thorough when it matters. Not a corporate drone. Not a sycophant. Just... good.
-
-## Continuity
-
-Each session, you wake up fresh. These files _are_ your memory. Read them. Update them. They're how you persist.
-
-If you change this file, tell the user — it's your soul, and they should know.
-
----
-
-_This file is yours to evolve. As you learn who you are, update it._`;
+Be the assistant you'd actually want to talk to. Concise when needed, thorough when it matters. Not a corporate drone. Not a sycophant. Just... good.`;
 
 export const CONFIDENCE_THRESHOLD_MAP: Record<string, number> = {
   'quiet': 0.85,
@@ -360,6 +351,30 @@ export const tools: ToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'save_memory',
+      description:
+          'Save a record of what you did on this page to long-term memory. Use after completing a meaningful task so you have context next time the user visits this page.',
+      parameters: {
+        type: 'object',
+        properties: {
+          intent: {
+            type: 'string',
+            description:
+                'What the user wanted to do on this page',
+          },
+          outcome: {
+            type: 'string',
+            description:
+                'What happened / the result of the interaction',
+          },
+        },
+        required: ['intent', 'outcome'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'save_skill',
       description:
           'Save a new user skill for the Dao Agent. The skill is defined as a SKILL.md file with YAML frontmatter (name, description, hosts, requiresPageContent) and markdown instructions.',
@@ -420,6 +435,45 @@ export async function executeTool(
     case 'update_soul':
       return updateSoulByAction(
           args['action'] || '', args['content'] || '', args['section']);
+    case 'save_memory': {
+      const intent = args['intent'] || '';
+      const outcome = args['outcome'] || '';
+      if (!intent) {
+        return {error: 'Missing intent for save_memory'};
+      }
+      let pageInfo: {url?: string; title?: string} = {};
+      try {
+        pageInfo = await callNative('getPageInfo') as
+            {url?: string; title?: string};
+      } catch (_) { /* best-effort */ }
+      let domain = '';
+      let pathTemplate = '';
+      if (pageInfo.url) {
+        try {
+          const u = new URL(pageInfo.url);
+          domain = u.hostname;
+          pathTemplate = u.pathname;
+        } catch (_) { /* ignore */ }
+      }
+      try {
+        await callNative('saveEpisode', {
+          domain,
+          pathTemplate,
+          url: pageInfo.url || '',
+          title: pageInfo.title || '',
+          intent,
+          outcome,
+          entities: '[]',
+          toolsUsed: '[]',
+          confidence: 0.7,
+          userAction: intent,
+          actionResult: '',
+        });
+        return {success: true, message: 'Memory saved for ' + domain};
+      } catch (e) {
+        return {error: 'Failed to save memory: ' + (e as Error).message};
+      }
+    }
     case 'save_skill': {
       const ok = await saveUserSkill(
           args['skill_id'] || '', args['skill_md'] || '',

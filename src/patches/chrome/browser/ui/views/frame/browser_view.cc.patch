@@ -1,14 +1,12 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..ce729b972b 100644
+index 76c889780c..09bc54f26e 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -119,6 +119,19 @@
+@@ -119,6 +119,17 @@
  #include "chrome/browser/ui/views/frame/browser_view_layout.h"
  #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
  #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
-+#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 +#include "dao/browser/ui/views/dao_address_bar_view.h"
-+#include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
 +#include "dao/browser/ui/views/dao_colors.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
 +#include "dao/browser/ui/views/dao_corner_overlay_view.h"
@@ -22,7 +20,7 @@ index 76c889780c..ce729b972b 100644
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/native_browser_frame.h"
-@@ -1084,6 +1097,62 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
+@@ -1084,6 +1095,63 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -30,6 +28,11 @@ index 76c889780c..ce729b972b 100644
 +  if (browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
 +    // Dao: Set frame background color (visible behind sidebar + content insets)
 +    SetBackground(views::CreateSolidBackground(dao::kSidebarBackground));
++    contents_web_view_->SetBackgroundOverrideColor(SK_ColorWHITE);
++    contents_container_->SetPaintToLayer();
++    contents_container_->layer()->SetFillsBoundsOpaquely(false);
++    contents_container_->SetBackground(
++        views::CreateSolidBackground(SK_ColorWHITE));
 +
 +    // Dao: Add left sidebar before the contents area
 +    dao_sidebar_ = AddChildViewAt(
@@ -40,7 +43,6 @@ index 76c889780c..ce729b972b 100644
 +    dao_split_view_ = contents_container_->AddChildView(
 +        std::make_unique<dao::DaoSplitView>(browser_.get()));
 +
-+
 +    // Dao: Address bar at top of content area
 +    dao_address_bar_ = AddChildView(
 +        std::make_unique<dao::DaoAddressBarView>(browser_.get()));
@@ -48,10 +50,6 @@ index 76c889780c..ce729b972b 100644
 +    // Dao: Corner overlay painted on top of web contents
 +    dao_corner_overlay_ = AddChildView(
 +        std::make_unique<dao::DaoCornerOverlayView>());
-+
-+    // Dao: Agent lock banner (shown when active tab is AI-locked)
-+    dao_agent_lock_banner_ = AddChildView(
-+        std::make_unique<dao::DaoAgentLockBannerView>());
 +
 +    // Dao: Download flyout animation overlay (click-through, covers window)
 +    dao_download_flyout_ = AddChildView(
@@ -73,6 +71,7 @@ index 76c889780c..ce729b972b 100644
 +             dao::DaoLittleDaoController::IsLittleDaoWindow(browser_.get())) {
 +    // Dao: Little Dao window — simplified popup for external URLs
 +    SetBackground(views::CreateSolidBackground(dao::kSidebarBackground));
++    contents_web_view_->SetBackgroundOverrideColor(SK_ColorWHITE);
 +    dao_little_dao_view_ = AddChildView(
 +        std::make_unique<dao::DaoLittleDaoView>(browser_.get()));
 +    dao_corner_overlay_ = AddChildView(
@@ -85,7 +84,7 @@ index 76c889780c..ce729b972b 100644
    right_aligned_side_panel_separator_ =
        AddChildView(std::make_unique<ContentsSeparator>());
  
-@@ -1301,6 +1370,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
+@@ -1301,6 +1369,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -97,7 +96,7 @@ index 76c889780c..ce729b972b 100644
    const bool is_pwa =
        base::FeatureList::IsEnabled(features::kImmersiveFullscreenPWAs) &&
        GetIsWebAppType();
-@@ -1310,6 +1384,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
+@@ -1310,6 +1383,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
  }
  
  bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
@@ -108,7 +107,7 @@ index 76c889780c..ce729b972b 100644
    return (GetSupportsTabStrip() &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreen) &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreenTabs)) &&
-@@ -1338,6 +1416,11 @@ bool BrowserView::GetTabStripVisible() const {
+@@ -1338,6 +1415,11 @@ bool BrowserView::GetTabStripVisible() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -120,7 +119,7 @@ index 76c889780c..ce729b972b 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-@@ -1876,6 +1959,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1876,6 +1958,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
    // Visibility API under Windows, as ChangeWebContents will briefly hide
    // the WebContents window.
    bool change_tab_contents = contents_web_view_->web_contents() != new_contents;
@@ -129,7 +128,7 @@ index 76c889780c..ce729b972b 100644
  
  #if BUILDFLAG(IS_MAC)
    // Widget::IsActive is inconsistent between Mac and Aura, so don't check for
-@@ -1951,13 +2036,25 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1951,13 +2035,19 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
      }
  
      web_contents_close_handler_->ActiveTabChanged();
@@ -138,7 +137,11 @@ index 76c889780c..ce729b972b 100644
        loading_bar_->SetWebContents(new_contents);
 +    } else if (loading_bar_) {
 +      loading_bar_->SetWebContents(nullptr);
-+    }
+     }
+-    contents_web_view_->SetWebContents(new_contents);
+-    SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
+-    if (sad_tab_helper) {
+-      sad_tab_helper->ReinstallInWebView();
 +    if (dao_split_tab_active) {
 +      contents_web_view_->SetWebContents(nullptr);
 +    } else {
@@ -148,19 +151,9 @@ index 76c889780c..ce729b972b 100644
 +        sad_tab_helper->ReinstallInWebView();
 +      }
      }
--    contents_web_view_->SetWebContents(new_contents);
--    SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
--    if (sad_tab_helper) {
--      sad_tab_helper->ReinstallInWebView();
-+
-+    // Dao: Update agent lock banner visibility for the newly active tab.
-+    if (dao_agent_lock_banner_) {
-+      dao_agent_lock_banner_->SetLocked(
-+          dao::DaoAgentLockTabHelper::IsLocked(new_contents));
-     }
  
      // The second layout update should be no-op. It will just set the
-@@ -2362,6 +2459,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2362,6 +2452,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -179,18 +172,3 @@ index 76c889780c..ce729b972b 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3710,6 +3819,14 @@ LocationBarView* BrowserView::GetLocationBarView() const {
- void BrowserView::TabChangedAt(content::WebContents* contents,
-                                int index,
-                                TabChangeType change_type) {
-+  // Dao: Update agent lock banner when the active tab's state changes.
-+  if (dao_agent_lock_banner_ && contents == GetActiveWebContents()) {
-+    dao_agent_lock_banner_->SetLocked(
-+        dao::DaoAgentLockTabHelper::IsLocked(contents));
-+    if (dao_agent_lock_banner_->GetVisible()) {
-+      InvalidateLayout();
-+    }
-+  }
-   if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
-     return;
-   }

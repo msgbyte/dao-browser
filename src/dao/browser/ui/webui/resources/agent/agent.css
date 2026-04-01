@@ -1,7 +1,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: rgb(201, 197, 208);
+  --bg: transparent;
   --surface: rgba(0,0,0,0.05);
   --surface-hover: rgba(0,0,0,0.08);
   --border: rgba(0,0,0,0.10);

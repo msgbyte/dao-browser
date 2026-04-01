@@ -8,9 +8,13 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
+#include "dao/browser/ui/views/dao_colors.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/background.h"
+#include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/fill_layout.h"
 #include "url/gurl.h"
@@ -22,6 +26,8 @@ END_METADATA
 
 DaoAgentSidebarView::DaoAgentSidebarView(Browser* browser)
     : browser_(browser) {
+  SetBackground(views::CreateSolidBackground(dao::kSidebarBackground));
+
   // Resize handle on the left edge (drag to resize).
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
 
@@ -42,12 +48,20 @@ void DaoAgentSidebarView::EnsureLoaded() {
   }
 
   loaded_ = true;
+
+  if (content::WebContents* web_contents = web_view_->GetWebContents()) {
+    web_contents->SetPageBaseBackgroundColor(dao::kSidebarBackground);
+    views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+        web_contents, dao::kSidebarBackground);
+    if (content::RenderWidgetHostView* host_view =
+            web_contents->GetRenderWidgetHostView()) {
+      host_view->SetBackgroundColor(dao::kSidebarBackground);
+    }
+    web_contents->SetDelegate(this);
+  }
+
   web_view_->LoadInitialURL(
       GURL(std::string(content::kChromeUIScheme) + "://agent"));
-
-  if (web_view_->GetWebContents()) {
-    web_view_->GetWebContents()->SetDelegate(this);
-  }
 }
 
 bool DaoAgentSidebarView::Toggle() {

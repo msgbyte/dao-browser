@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..71a4ec88f7 100644
+index 46f6be18ac..ccf71b9165 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
-@@ -31,6 +31,20 @@
+@@ -31,6 +31,21 @@
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -20,10 +20,11 @@ index 46f6be18ac..71a4ec88f7 100644
 +#include "dao/browser/ui/views/dao_control_center_popup.h"
 +#include "dao/browser/ui/views/split/dao_split_view.h"
 +#include "ui/compositor/layer.h"
++#include "ui/views/background.h"
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
-@@ -337,6 +351,93 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+@@ -337,6 +352,93 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -117,7 +118,7 @@ index 46f6be18ac..71a4ec88f7 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip.
    if (delegate_->ShouldDrawTabStrip()) {
-@@ -638,6 +739,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+@@ -638,6 +740,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
    int browser_view_width = vertical_layout_rect_.width();
    bool toolbar_visible = delegate_->IsToolbarVisible();
    int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
@@ -139,7 +140,7 @@ index 46f6be18ac..71a4ec88f7 100644
    SetViewVisibility(toolbar_, toolbar_visible);
    toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
                        height);
-@@ -648,32 +764,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
+@@ -648,32 +765,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
    TRACE_EVENT0("ui", "BrowserViewLayout::LayoutBookmarkAndInfoBars");
    dialog_top_y_ = top + browser_view_y - kConstrainedWindowOverlap;
  
@@ -179,7 +180,7 @@ index 46f6be18ac..71a4ec88f7 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +826,200 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +827,207 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -217,14 +218,17 @@ index 46f6be18ac..71a4ec88f7 100644
 +  bool dao_sidebar_collapsed = dao_sidebar && dao_sidebar->collapsed();
 +  bool dao_true_fullscreen = dao_is_fullscreen && dao_sidebar_collapsed;
 +
-+  // Dao: Apply content insets (top, right, bottom) so the frame color
-+  // shows through as a gap around the web content area
++  // Dao: Apply content insets so the frame color shows through around the
++  // main web content area. When the right agent sidebar is visible, keep the
++  // content flush against it with no extra right gap.
 +  gfx::Rect dao_content_area = contents_container_bounds;
 +  if (dao_sidebar_active && !dao_true_fullscreen) {
 +    dao_content_area.Inset(
 +        gfx::Insets::TLBR(dao::kContentInsetTop, 0,
 +                           dao::kContentInsetBottom,
-+                           dao::kContentInsetRight));
++                           dao_agent_sidebar && dao_agent_sidebar->GetVisible()
++                               ? 0
++                               : dao::kContentInsetRight));
 +  }
 +
 +  // Dao: Check if split view is active (each pane has its own address bar)
@@ -311,6 +315,8 @@ index 46f6be18ac..71a4ec88f7 100644
 +    if (!contents_container_->layer()) {
 +      contents_container_->SetPaintToLayer();
 +      contents_container_->layer()->SetFillsBoundsOpaquely(false);
++      contents_container_->SetBackground(
++          views::CreateSolidBackground(SK_ColorWHITE));
 +    }
 +    if (dao_true_fullscreen) {
 +      contents_container_->layer()->SetRoundedCornerRadius(
@@ -362,6 +368,8 @@ index 46f6be18ac..71a4ec88f7 100644
 +    if (!contents_container_->layer()) {
 +      contents_container_->SetPaintToLayer();
 +      contents_container_->layer()->SetFillsBoundsOpaquely(false);
++      contents_container_->SetBackground(
++          views::CreateSolidBackground(SK_ColorWHITE));
 +    }
 +    contents_container_->layer()->SetRoundedCornerRadius(
 +        gfx::RoundedCornersF(0, 0, dao::kContentCornerRadius,
@@ -380,7 +388,7 @@ index 46f6be18ac..71a4ec88f7 100644
    if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
      // The WebUI tab strip container should "push" the tab contents down without
      // resizing it.
-@@ -881,6 +1173,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
+@@ -881,6 +1181,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
    // layout and we assume that this is the case.
    height = std::max(height, delegate_->GetTopInsetInBrowserView());
  

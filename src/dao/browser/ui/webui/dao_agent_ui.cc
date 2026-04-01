@@ -505,6 +505,14 @@ void DaoAgentMemoryHandler::RegisterMessages() {
       base::BindRepeating(&DaoAgentMemoryHandler::HandleRecordActionFeedback,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "saveEpisode",
+      base::BindRepeating(&DaoAgentMemoryHandler::HandleSaveEpisode,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "saveSummary",
+      base::BindRepeating(&DaoAgentMemoryHandler::HandleSaveSummary,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "getPageContentForScenario",
       base::BindRepeating(
           &DaoAgentMemoryHandler::HandleGetPageContentForScenario,
@@ -1156,6 +1164,86 @@ void DaoAgentMemoryHandler::HandleRecordActionFeedback(
 
   service->RecordActionFeedback(
       std::move(feedback),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentMemoryHandler> handler,
+             std::string cb_id, bool success) {
+            if (!handler) {
+              return;
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id),
+                                               base::Value(success));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentMemoryHandler::HandleSaveEpisode(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const auto& d = args[1].GetDict();
+
+  auto* service = GetMemoryService();
+  if (!service) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
+    return;
+  }
+
+  Episode episode;
+  if (auto* v = d.FindString("domain")) episode.domain = *v;
+  if (auto* v = d.FindString("pathTemplate")) episode.path_template = *v;
+  if (auto* v = d.FindString("url")) episode.url = *v;
+  if (auto* v = d.FindString("title")) episode.title = *v;
+  if (auto* v = d.FindString("intent")) episode.intent = *v;
+  if (auto* v = d.FindString("entities")) episode.entities = *v;
+  if (auto* v = d.FindString("toolsUsed")) episode.tools_used = *v;
+  if (auto* v = d.FindString("outcome")) episode.outcome = *v;
+  episode.confidence = d.FindDouble("confidence").value_or(0.7);
+  if (auto* v = d.FindString("userAction")) episode.user_action = *v;
+  if (auto* v = d.FindString("actionResult")) episode.action_result = *v;
+  episode.timestamp = base::Time::Now();
+
+  service->SaveEpisode(
+      std::move(episode),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentMemoryHandler> handler,
+             std::string cb_id, bool success) {
+            if (!handler) {
+              return;
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id),
+                                               base::Value(success));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentMemoryHandler::HandleSaveSummary(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const auto& d = args[1].GetDict();
+
+  auto* service = GetMemoryService();
+  if (!service) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
+    return;
+  }
+
+  ConversationSummary summary;
+  if (auto* v = d.FindString("sessionId")) summary.session_id = *v;
+  if (auto* v = d.FindString("summary")) summary.summary = *v;
+  summary.message_count = d.FindInt("messageCount").value_or(0);
+  if (auto* v = d.FindString("primaryDomain")) summary.primary_domain = *v;
+  summary.first_timestamp = base::Time::Now();
+  summary.last_timestamp = base::Time::Now();
+
+  service->SaveConversationSummary(
+      std::move(summary),
       base::BindOnce(
           [](base::WeakPtr<DaoAgentMemoryHandler> handler,
              std::string cb_id, bool success) {
