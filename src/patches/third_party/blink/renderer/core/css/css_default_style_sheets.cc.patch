@@ -1,0 +1,17 @@
+diff --git a/third_party/blink/renderer/core/css/css_default_style_sheets.cc b/third_party/blink/renderer/core/css/css_default_style_sheets.cc
+index aca3fa933d..8e375dbce7 100644
+--- a/third_party/blink/renderer/core/css/css_default_style_sheets.cc
++++ b/third_party/blink/renderer/core/css/css_default_style_sheets.cc
+@@ -158,9 +158,10 @@ void CSSDefaultStyleSheets::VerifyUniversalRuleCount() {
+   // Universal bucket rules need to be checked against every single element,
+   // thus we want avoid them in UA stylesheets.
+   default_html_style_->CompactRulesIfNeeded();
+-  DCHECK(default_html_style_->UniversalRules().empty());
++  // Dao Browser: allow up to 5 universal rules for custom scrollbar styling.
++  DCHECK_LE(default_html_style_->UniversalRules().size(), 5u);
+   default_html_quirks_style_->CompactRulesIfNeeded();
+-  DCHECK(default_html_quirks_style_->UniversalRules().empty());
++  DCHECK_LE(default_html_quirks_style_->UniversalRules().size(), 5u);
+ 
+   // The RuleSets below currently contain universal bucket rules.
+   // Ideally these should also be empty, DCHECK the current size to only

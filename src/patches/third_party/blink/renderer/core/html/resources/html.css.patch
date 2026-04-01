@@ -1,0 +1,32 @@
+diff --git a/third_party/blink/renderer/core/html/resources/html.css b/third_party/blink/renderer/core/html/resources/html.css
+index a6e58b7450..35e1eb9869 100644
+--- a/third_party/blink/renderer/core/html/resources/html.css
++++ b/third_party/blink/renderer/core/html/resources/html.css
+@@ -1862,3 +1862,27 @@ dialog:where(:modal) {
+     display: none;
+   }
+ }
++
++/* Dao Browser: slim transparent scrollbar */
++::-webkit-scrollbar {
++  width: 6px;
++  height: 6px;
++  background: transparent;
++}
++
++::-webkit-scrollbar-track {
++  background: transparent;
++}
++
++::-webkit-scrollbar-thumb {
++  background: rgba(128, 128, 128, 0.3);
++  border-radius: 3px;
++}
++
++::-webkit-scrollbar-thumb:hover {
++  background: rgba(128, 128, 128, 0.5);
++}
++
++::-webkit-scrollbar-corner {
++  background: transparent;
++}
