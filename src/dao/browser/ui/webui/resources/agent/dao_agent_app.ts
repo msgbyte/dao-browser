@@ -37,34 +37,40 @@ export class DaoAgentApp extends CrLitElement {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 6px 10px;
+        padding: 8px 12px;
         flex-shrink: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.12);
       }
       .header-title {
         font-size: 13px;
         font-weight: 600;
         color: var(--text-secondary);
+        letter-spacing: 0.2px;
       }
-      .tab-bar { display: flex; gap: 2px; }
+      .tab-bar { display: flex; gap: 3px; }
       .tab-bar .tab {
         width: 28px; height: 28px;
         display: flex; align-items: center; justify-content: center;
-        background: none; border: none; border-radius: 6px;
+        background: none; border: none; border-radius: 8px;
         color: var(--text-tertiary); cursor: pointer;
         transition: color 0.15s, background 0.15s;
       }
       .tab-bar .tab:hover {
-        color: var(--text-secondary); background: var(--surface);
+        color: var(--text-secondary);
+        background: rgba(255,255,255,0.18);
       }
       .tab-bar .tab.active {
-        color: var(--accent); background: var(--accent-dim);
+        color: var(--accent);
+        background: var(--accent-dim);
+        box-shadow: 0 1px 4px rgba(140, 100, 220, 0.12);
       }
       .toast {
         position: fixed; top: 16px; left: 50%;
         transform: translateX(-50%);
         background: var(--accent); color: white;
-        padding: 8px 16px; border-radius: 8px;
+        padding: 8px 18px; border-radius: 10px;
         font-size: 12px; z-index: 200;
+        box-shadow: 0 4px 16px rgba(140, 100, 220, 0.3);
         animation: toastIn 200ms ease-out;
       }
       @keyframes toastIn {

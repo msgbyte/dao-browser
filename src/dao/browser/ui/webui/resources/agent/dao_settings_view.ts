@@ -67,7 +67,7 @@ export class DaoSettingsView extends CrLitElement {
 
       .settings-sub-tabs {
         display: flex; gap: 2px; padding: 6px 14px 0;
-        border-bottom: 1px solid var(--border); flex-shrink: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.15); flex-shrink: 0;
       }
       .sub-tab {
         background: none; border: none;
@@ -87,7 +87,10 @@ export class DaoSettingsView extends CrLitElement {
       .panel::-webkit-scrollbar { width: 4px; }
       .panel::-webkit-scrollbar-track { background: transparent; }
       .panel::-webkit-scrollbar-thumb {
-        background: rgba(0,0,0,0.15); border-radius: 2px;
+        background: rgba(0,0,0,0.12); border-radius: 4px;
+      }
+      .panel::-webkit-scrollbar-thumb:hover {
+        background: rgba(0,0,0,0.2);
       }
 
       .section-title {
@@ -107,41 +110,57 @@ export class DaoSettingsView extends CrLitElement {
       }
       label:first-of-type { margin-top: 0; }
       input {
-        width: 100%; padding: 6px 8px;
-        background: var(--surface); border: 1px solid var(--border);
-        border-radius: 8px; color: var(--text);
+        width: 100%; padding: 7px 10px;
+        background: var(--glass); border: 1px solid var(--glass-border);
+        border-radius: 10px; color: var(--text);
         font-size: 12px; outline: none;
+        box-shadow: var(--shadow-sm);
+        transition: border-color 0.15s, box-shadow 0.15s;
       }
-      input:focus { border-color: var(--accent); }
+      input:focus {
+        border-color: rgba(140, 100, 220, 0.4);
+        box-shadow: 0 0 0 3px rgba(140, 100, 220, 0.08);
+      }
 
       /* Soul editor */
       .soul-editor {
         width: 100%; min-height: 300px; padding: 10px 12px;
-        background: var(--surface); border: 1px solid var(--border);
-        border-radius: 8px; color: var(--text);
+        background: var(--glass); border: 1px solid var(--glass-border);
+        border-radius: 10px; color: var(--text);
         font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
         font-size: 12px; line-height: 1.5;
         resize: vertical; outline: none;
+        box-shadow: var(--shadow-sm);
+        transition: border-color 0.15s, box-shadow 0.15s;
       }
-      .soul-editor:focus { border-color: var(--accent); }
+      .soul-editor:focus {
+        border-color: rgba(140, 100, 220, 0.4);
+        box-shadow: 0 0 0 3px rgba(140, 100, 220, 0.08);
+      }
       .soul-editor::placeholder { color: var(--text-tertiary); }
       .soul-actions {
         display: flex; align-items: center; gap: 8px; margin-top: 10px;
       }
       .btn-primary {
-        padding: 6px 16px; background: var(--accent); border: none;
-        border-radius: 8px; color: white;
+        padding: 7px 18px; background: var(--accent); border: none;
+        border-radius: 10px; color: white;
         font-size: 12px; font-family: inherit; cursor: pointer;
+        box-shadow: 0 2px 6px rgba(140, 100, 220, 0.25);
+        transition: filter 0.15s, box-shadow 0.15s;
       }
-      .btn-primary:hover { filter: brightness(1.15); }
+      .btn-primary:hover {
+        filter: brightness(1.12);
+        box-shadow: 0 3px 10px rgba(140, 100, 220, 0.35);
+      }
       .btn-secondary {
-        padding: 6px 16px; background: var(--surface);
-        border: 1px solid var(--border); border-radius: 8px;
+        padding: 7px 18px; background: var(--glass);
+        border: 1px solid var(--glass-border); border-radius: 10px;
         color: var(--text-secondary);
         font-size: 12px; font-family: inherit; cursor: pointer;
+        transition: background 0.15s, color 0.15s;
       }
       .btn-secondary:hover {
-        background: var(--surface-hover); color: var(--text);
+        background: var(--glass-strong); color: var(--text);
       }
       .save-status {
         font-size: 11px; color: var(--accent);
@@ -167,13 +186,14 @@ export class DaoSettingsView extends CrLitElement {
       .toggle input { display: none; }
       .toggle-track {
         position: absolute; inset: 0;
-        background: var(--surface); border: 1px solid var(--border);
+        background: var(--glass); border: 1px solid var(--glass-border);
         border-radius: 10px; transition: background 150ms, border-color 150ms;
       }
       .toggle-track::after {
         content: ''; position: absolute; top: 2px; left: 2px;
         width: 14px; height: 14px; background: white;
         border-radius: 50%; transition: transform 150ms;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       }
       .toggle input:checked + .toggle-track {
         background: var(--accent); border-color: var(--accent);
@@ -187,17 +207,22 @@ export class DaoSettingsView extends CrLitElement {
         padding: 10px 0; border-bottom: 1px solid var(--border);
       }
       .segment-selector {
-        display: flex; gap: 0; margin-top: 8px;
-        background: var(--surface); border-radius: 8px; overflow: hidden;
+        display: flex; gap: 2px; margin-top: 8px; padding: 2px;
+        background: var(--glass); border: 1px solid var(--glass-border);
+        border-radius: 10px; overflow: hidden;
       }
       .segment {
-        flex: 1; height: 28px; background: transparent;
+        flex: 1; height: 26px; background: transparent;
         border: none; font-size: 12px; font-family: inherit;
         color: var(--text-secondary); cursor: pointer;
+        border-radius: 8px;
         transition: background 150ms, color 150ms;
       }
-      .segment:hover { background: var(--surface-hover); }
-      .segment.active { background: var(--accent); color: white; }
+      .segment:hover { background: rgba(255,255,255,0.2); }
+      .segment.active {
+        background: var(--accent); color: white;
+        box-shadow: 0 1px 4px rgba(140, 100, 220, 0.3);
+      }
 
       /* Memory stats */
       .memory-stats { margin-top: 16px; padding-top: 12px; }
@@ -225,12 +250,15 @@ export class DaoSettingsView extends CrLitElement {
       /* Danger button */
       .btn-danger {
         display: block; width: 100%; height: 36px; margin-top: 16px;
-        background: rgba(239, 68, 68, 0.15); border: none;
-        border-radius: 8px; color: var(--error);
+        background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.15);
+        border-radius: 10px; color: var(--error);
         font-size: 13px; font-family: inherit; cursor: pointer;
-        transition: background 150ms;
+        transition: background 150ms, border-color 150ms;
       }
-      .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+      .btn-danger:hover {
+        background: rgba(239, 68, 68, 0.18);
+        border-color: rgba(239, 68, 68, 0.25);
+      }
 
       /* Confirm dialog */
       .confirm-scrim {
@@ -240,9 +268,10 @@ export class DaoSettingsView extends CrLitElement {
         z-index: 100;
       }
       .confirm-card {
-        background: var(--bg); border: 1px solid var(--border);
-        border-radius: var(--radius); padding: 20px;
+        background: rgba(210, 205, 222, 0.95); border: 1px solid var(--glass-border);
+        border-radius: 16px; padding: 20px;
         max-width: 280px; width: 90%;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
       }
       .confirm-title {
         font-size: 14px; font-weight: 600;

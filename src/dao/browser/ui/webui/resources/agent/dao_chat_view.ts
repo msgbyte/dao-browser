@@ -188,9 +188,11 @@ export class DaoChatView extends CrLitElement {
       .chip {
         display: flex; align-items: center; height: 32px;
         padding: 0 8px 0 10px; background: var(--accent-dim);
-        border-radius: 8px; cursor: pointer; gap: 6px;
+        border: 1px solid rgba(140, 100, 220, 0.12);
+        border-radius: 10px; cursor: pointer; gap: 6px;
+        box-shadow: var(--shadow-sm);
       }
-      .chip:hover { background: rgba(140, 100, 220, 0.2); }
+      .chip:hover { background: rgba(140, 100, 220, 0.22); }
       .chip-icon { flex-shrink: 0; color: var(--accent); }
       .chip-text {
         flex: 1; font-size: 13px; color: var(--text);
@@ -222,7 +224,10 @@ export class DaoChatView extends CrLitElement {
       .chat-area::-webkit-scrollbar { width: 4px; }
       .chat-area::-webkit-scrollbar-track { background: transparent; }
       .chat-area::-webkit-scrollbar-thumb {
-        background: rgba(0,0,0,0.15); border-radius: 2px;
+        background: rgba(0,0,0,0.12); border-radius: 4px;
+      }
+      .chat-area::-webkit-scrollbar-thumb:hover {
+        background: rgba(0,0,0,0.2);
       }
 
       /* Messages */
@@ -233,11 +238,15 @@ export class DaoChatView extends CrLitElement {
       }
       .message.user {
         align-self: flex-end; background: var(--user-bubble);
+        border: 1px solid rgba(140, 100, 220, 0.1);
         border-bottom-right-radius: 4px; white-space: pre-wrap;
+        box-shadow: var(--shadow-sm);
       }
       .message.assistant {
         align-self: flex-start; background: var(--assistant-bubble);
+        border: 1px solid var(--assistant-border);
         border-bottom-left-radius: 4px; position: relative;
+        box-shadow: var(--shadow-sm);
       }
       .message.system-msg {
         align-self: center; color: var(--text-tertiary);
@@ -276,7 +285,8 @@ export class DaoChatView extends CrLitElement {
       .message.assistant .md-code-block {
         position: relative; margin: 6px 0;
         border-radius: 8px; overflow: hidden;
-        background: rgba(0,0,0,0.06);
+        background: rgba(0,0,0,0.05);
+        border: 1px solid rgba(0,0,0,0.04);
       }
       .message.assistant .md-code-block pre {
         margin: 0; padding: 10px 12px;
@@ -392,11 +402,13 @@ export class DaoChatView extends CrLitElement {
       /* Tool call bubble */
       .message.tool-call {
         align-self: flex-start;
-        background: rgba(0,0,0,0.03);
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.12);
         border-left: 2px solid var(--accent);
         font-size: 12px; color: var(--text-secondary);
         padding: 4px 8px;
         display: flex; flex-direction: column; gap: 2px;
+        box-shadow: var(--shadow-sm);
       }
       .tool-call-header {
         display: flex; align-items: center; gap: 5px;
@@ -437,11 +449,13 @@ export class DaoChatView extends CrLitElement {
       /* Error bubble */
       .message.error {
         align-self: flex-start;
-        background: rgba(239,68,68,0.1); color: var(--text);
+        background: rgba(239,68,68,0.08); color: var(--text);
+        border: 1px solid rgba(239,68,68,0.12);
         font-size: 12px; cursor: pointer;
         display: flex; flex-direction: column; gap: 2px;
         border-left: 2px solid var(--error);
         padding: 4px 8px;
+        box-shadow: var(--shadow-sm);
       }
       .error-summary { display: flex; align-items: center; gap: 5px; }
       .error-icon {
@@ -477,10 +491,11 @@ export class DaoChatView extends CrLitElement {
 
       /* Slash menu */
       .slash-menu {
-        margin: 0 14px; background: var(--bg);
-        border: 1px solid var(--border); border-radius: 8px;
+        margin: 0 14px; background: var(--glass);
+        border: 1px solid var(--glass-border); border-radius: 10px;
         overflow: hidden; flex-shrink: 0;
         animation: slashIn 100ms ease-out;
+        box-shadow: var(--shadow-md);
       }
       .slash-menu-item {
         display: flex; align-items: center; gap: 8px;
@@ -504,15 +519,20 @@ export class DaoChatView extends CrLitElement {
       /* Input area */
       .input-area {
         display: flex; align-items: flex-end; gap: 6px;
-        padding: 8px 14px;
-        border-top: 1px solid var(--border); flex-shrink: 0;
+        padding: 10px 14px;
+        border-top: 1px solid rgba(255,255,255,0.15); flex-shrink: 0;
       }
       .input-wrapper {
         flex: 1; display: flex; align-items: flex-end;
-        background: var(--surface); border: 1px solid var(--border);
-        border-radius: 12px; padding: 4px;
+        background: var(--glass); border: 1px solid var(--glass-border);
+        border-radius: 14px; padding: 4px;
+        box-shadow: var(--shadow-sm);
+        transition: border-color 0.15s, box-shadow 0.15s;
       }
-      .input-wrapper:focus-within { border-color: var(--accent); }
+      .input-wrapper:focus-within {
+        border-color: rgba(140, 100, 220, 0.4);
+        box-shadow: 0 0 0 3px rgba(140, 100, 220, 0.08);
+      }
       .input-wrapper textarea {
         flex: 1; background: transparent; border: none;
         color: var(--text); font-size: 13px; font-family: inherit;
@@ -522,12 +542,17 @@ export class DaoChatView extends CrLitElement {
       }
       .input-wrapper textarea::placeholder { color: var(--text-tertiary); }
       .send-btn {
-        width: 28px; height: 28px;
+        width: 30px; height: 30px;
         display: flex; align-items: center; justify-content: center;
-        background: var(--accent); border: none; border-radius: 8px;
+        background: var(--accent); border: none; border-radius: 10px;
         color: white; cursor: pointer; font-size: 14px; flex-shrink: 0;
+        box-shadow: 0 2px 6px rgba(140, 100, 220, 0.25);
+        transition: filter 0.15s, box-shadow 0.15s;
       }
-      .send-btn:hover { filter: brightness(1.15); }
+      .send-btn:hover {
+        filter: brightness(1.12);
+        box-shadow: 0 3px 10px rgba(140, 100, 220, 0.35);
+      }
       .send-btn.streaming { background: var(--error); }
       .send-btn.streaming .send-icon { display: none; }
       .send-btn.streaming .stop-icon { display: block !important; }

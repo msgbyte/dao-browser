@@ -2,18 +2,25 @@
 
 :root {
   --bg: transparent;
-  --surface: rgba(0,0,0,0.05);
-  --surface-hover: rgba(0,0,0,0.08);
-  --border: rgba(0,0,0,0.10);
+  --surface: rgba(255,255,255,0.18);
+  --surface-hover: rgba(255,255,255,0.28);
+  --border: rgba(255,255,255,0.22);
+  --border-subtle: rgba(0,0,0,0.06);
+  --glass: rgba(255,255,255,0.22);
+  --glass-border: rgba(255,255,255,0.26);
+  --glass-strong: rgba(255,255,255,0.32);
   --text: rgba(30,20,40,0.87);
   --text-secondary: rgba(30,20,40,0.60);
   --text-tertiary: rgba(30,20,40,0.40);
   --accent: rgb(140, 100, 220);
   --accent-dim: rgba(140, 100, 220, 0.15);
-  --user-bubble: rgba(140, 100, 220, 0.12);
-  --assistant-bubble: rgba(0,0,0,0.04);
+  --user-bubble: rgba(140, 100, 220, 0.15);
+  --assistant-bubble: rgba(255,255,255,0.25);
+  --assistant-border: rgba(255,255,255,0.20);
   --error: #ef4444;
   --radius: 12px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.07);
 }
 
 html, body {
