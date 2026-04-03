@@ -5,14 +5,14 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_AGENT_LOCK_BANNER_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_AGENT_LOCK_BANNER_VIEW_H_
 
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "ui/views/view.h"
 
 namespace dao {
 
-// A thin, translucent purple banner shown at the top of the content area
-// when the active tab is locked by the AI agent.  The banner is purely
-// informational and does not block input (input is already blocked at the
-// WebContents level by DaoAgentLockTabHelper).
+// A translucent lock overlay shown over the page content when the active tab
+// is controlled by the AI agent.
 class DaoAgentLockBannerView : public views::View {
   METADATA_HEADER(DaoAgentLockBannerView, views::View)
 
@@ -28,6 +28,13 @@ class DaoAgentLockBannerView : public views::View {
 
  protected:
   void OnPaint(gfx::Canvas* canvas) override;
+
+ private:
+  float GetAnimationPhase() const;
+
+  bool locked_ = false;
+  base::TimeTicks animation_start_time_;
+  base::RepeatingTimer animation_timer_;
 };
 
 }  // namespace dao

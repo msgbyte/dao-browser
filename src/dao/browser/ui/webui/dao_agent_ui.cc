@@ -26,6 +26,7 @@
 #include "chrome/grit/dao_agent_resources.h"
 #include "chrome/grit/dao_agent_resources_map.h"
 #include "components/prefs/pref_service.h"
+#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_skill_service.h"
@@ -60,6 +61,13 @@ ActionFeedback ParseActionFeedbackFromDict(const base::Value::Dict& d) {
   feedback.trigger_confidence = d.FindDouble("confidence").value_or(0.0);
   feedback.timestamp = base::Time::Now();
   return feedback;
+}
+
+void UnlockLockedTab(content::WebContents* contents) {
+  if (!contents) {
+    return;
+  }
+  DaoAgentLockTabHelper::UnlockContents(contents);
 }
 
 }  // namespace
@@ -337,6 +345,7 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
                    "'); if (el) { el.click(); return 'clicked'; } "
                    "return 'element not found'; })()";
 
+  DaoAgentLockTabHelper::LockContents(contents);
   base::Value::Dict params;
   params.Set("expression", js);
   params.Set("returnByValue", true);
@@ -345,7 +354,10 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
       "Runtime.evaluate", std::move(params),
       base::BindOnce(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
-             std::string callback_id, base::Value result) {
+             std::string callback_id,
+             content::WebContents* locked_contents,
+             base::Value result) {
+            UnlockLockedTab(locked_contents);
             if (!handler) {
               return;
             }
@@ -359,7 +371,7 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
             handler->ResolveJavascriptCallback(base::Value(callback_id),
                                                response);
           },
-          weak_factory_.GetWeakPtr(), callback_id));
+          weak_factory_.GetWeakPtr(), callback_id, contents));
 }
 
 void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
@@ -371,11 +383,13 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
   const std::string callback_id = args[0].GetString();
 
   std::string code;
+  bool lock_tab = false;
   if (args[1].is_dict()) {
     auto* c = args[1].GetDict().FindString("code");
     if (c) {
       code = *c;
     }
+    lock_tab = args[1].GetDict().FindBool("lockTab").value_or(false);
   }
 
   content::WebContents* contents = EnsureAttached();
@@ -386,6 +400,9 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
     return;
   }
 
+  if (lock_tab) {
+    DaoAgentLockTabHelper::LockContents(contents);
+  }
   base::Value::Dict params;
   params.Set("expression", code);
   params.Set("returnByValue", true);
@@ -394,7 +411,10 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
       "Runtime.evaluate", std::move(params),
       base::BindOnce(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
-             std::string callback_id, base::Value result) {
+             std::string callback_id,
+             content::WebContents* locked_contents,
+             base::Value result) {
+            UnlockLockedTab(locked_contents);
             if (!handler) {
               return;
             }
@@ -421,7 +441,8 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
             handler->ResolveJavascriptCallback(base::Value(callback_id),
                                                response);
           },
-          weak_factory_.GetWeakPtr(), callback_id));
+          weak_factory_.GetWeakPtr(), callback_id,
+          lock_tab ? contents : nullptr));
 }
 
 // ---- DaoAgentMemoryHandler ----

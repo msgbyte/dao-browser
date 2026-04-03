@@ -29,7 +29,7 @@ export interface ToolDefinition {
   function: {
     name: string; description: string; parameters: {
       type: string;
-      properties: Record<string, {type: string; description?: string}>;
+        properties: Record<string, {type: string; description?: string}>;
       required: string[];
     };
   };
@@ -142,7 +142,7 @@ You have the following browser tools at your disposal — use them proactively w
 - **get_readable_content** — Extract the main article content using Mozilla Readability. Strips navigation, ads, sidebars, and boilerplate, returning only the article title, byline, excerpt, and clean text. **Prefer this over get_page_content** for news articles, blog posts, and documentation — it produces much smaller, focused output.
 - **get_page_info** — Get the current page URL, title, and meta description. Use this for context about where the user is browsing.
 - **click_element** — Click an element on the page by CSS selector. Use this when the user asks you to interact with the page (e.g. "click the login button", "close that popup").
-- **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover.
+- **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover. Set \`lock_tab\` to true when the script will manipulate the page so the browser can briefly block user input and show an AI control state.
 - **update_soul** — Modify your SOUL.md (the personality prompt you see above). Two actions: \`replace_section\` (replace or add a specific ## section), \`replace_all\` (rewrite entirely).
 - **save_memory** — Save a record of what you did on this page to long-term memory (intent + outcome). Use after completing a meaningful task so you have context next time the user visits this page.
 
@@ -151,6 +151,7 @@ You have the following browser tools at your disposal — use them proactively w
 - When the user asks about page content, call \`get_readable_content\` first for articles/news/docs (smaller, cleaner output), or \`get_page_content\` for other pages — don't guess.
 - Prefer precise CSS selectors when clicking elements.
 - For \`execute_script\`, return serializable values (strings, numbers, plain objects). Avoid returning DOM nodes directly.
+- When \`execute_script\` will click, type, submit, scroll, or otherwise manipulate the page, set \`lock_tab\` to true. Leave it false for read-only extraction scripts.
 - Always tell the user what you did after using a tool.
 - After completing a significant task (e.g. summarizing a page, extracting data, helping with a form), use \`save_memory\` to record what you did so you have context next time the user visits this page.
 
@@ -306,6 +307,11 @@ export const tools: ToolDefinition[] = [
             type: 'string',
             description: 'JavaScript code to execute',
           },
+          lock_tab: {
+            type: 'boolean',
+            description:
+                'Whether to temporarily lock the current tab while this script manipulates the page. Use false for read-only scripts.',
+          },
         },
         required: ['code'],
       },
@@ -408,20 +414,33 @@ export {renderMarkdown} from './markdown_renderer.js';
 
 // ---- Tool Execution ----
 
+function getStringArg(args: Record<string, unknown>, key: string): string {
+  return typeof args[key] === 'string' ? args[key] as string : '';
+}
+
+function getBooleanArg(args: Record<string, unknown>, key: string): boolean {
+  return args[key] === true;
+}
+
 export async function executeTool(
-    name: string, args: Record<string, string>): Promise<unknown> {
+    name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case 'get_page_content':
       return await callNative('getPageContent');
     case 'get_page_info':
       return await callNative('getPageInfo');
     case 'click_element':
-      return await callNative('clickElement', {selector: args['selector']});
+      return await callNative(
+          'clickElement', {selector: getStringArg(args, 'selector')});
     case 'execute_script':
-      return await callNative('executeScript', {code: args['code']});
+      return await callNative('executeScript', {
+        code: getStringArg(args, 'code'),
+        lockTab: getBooleanArg(args, 'lock_tab'),
+      });
     case 'get_readable_content': {
       const raw = await callNative(
-          'executeScript', {code: READABILITY_INJECT_SCRIPT}) as
+          'executeScript',
+          {code: READABILITY_INJECT_SCRIPT, lockTab: false}) as
           {result?: string; error?: string};
       if (raw.error) {
         return {error: raw.error};
@@ -434,10 +453,11 @@ export async function executeTool(
     }
     case 'update_soul':
       return updateSoulByAction(
-          args['action'] || '', args['content'] || '', args['section']);
+          getStringArg(args, 'action'), getStringArg(args, 'content'),
+          getStringArg(args, 'section') || undefined);
     case 'save_memory': {
-      const intent = args['intent'] || '';
-      const outcome = args['outcome'] || '';
+      const intent = getStringArg(args, 'intent');
+      const outcome = getStringArg(args, 'outcome');
       if (!intent) {
         return {error: 'Missing intent for save_memory'};
       }
@@ -476,8 +496,8 @@ export async function executeTool(
     }
     case 'save_skill': {
       const ok = await saveUserSkill(
-          args['skill_id'] || '', args['skill_md'] || '',
-          args['host'] || '');
+          getStringArg(args, 'skill_id'), getStringArg(args, 'skill_md'),
+          getStringArg(args, 'host'));
       return ok
           ? {success: true, message: 'Skill saved successfully.'}
           : {success: false, message: 'Failed to save skill.'};

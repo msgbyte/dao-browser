@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "chrome/grit/dao_sidebar_resources.h"
 #include "chrome/grit/dao_sidebar_resources_map.h"
@@ -428,6 +429,7 @@ void DaoSidebarUIHandler::PushFullState() {
     tab.Set("isPinned", model->IsTabPinned(i));
     tab.Set("isAudible", IsTabAudible(contents));
     tab.Set("isMuted", contents->IsAudioMuted());
+    tab.Set("isAgentLocked", DaoAgentLockTabHelper::IsLocked(contents));
     tab.Set("isInSplit", split_contents.count(contents) > 0);
 
     if (model->IsTabPinned(i)) {
@@ -469,6 +471,7 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
   tab.Set("isPinned", model->IsTabPinned(index));
   tab.Set("isAudible", IsTabAudible(contents));
   tab.Set("isMuted", contents->IsAudioMuted());
+  tab.Set("isAgentLocked", DaoAgentLockTabHelper::IsLocked(contents));
 
   tab.Set("isInSplit", IsInAnySplitGroup(contents));
 

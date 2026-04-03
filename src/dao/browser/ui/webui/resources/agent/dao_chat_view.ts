@@ -1212,7 +1212,7 @@ export class DaoChatView extends CrLitElement {
                   try {
                     for (const tc of toolCalls) {
                       const fn = tc.function;
-                      let args: Record<string, string> = {};
+                      let args: Record<string, unknown> = {};
                       try {
                         args = fn.arguments ?
                             JSON.parse(fn.arguments) : {};
