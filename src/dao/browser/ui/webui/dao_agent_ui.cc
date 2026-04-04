@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/isolated_world_ids.h"
@@ -614,12 +615,20 @@ void DaoAgentUIHandler::HandleMoveCursor(const base::Value::List& args) {
     return;
   }
 
-  // Convert viewport coords to cursor view coords.
-  gfx::Rect content_bounds =
-      browser_view->contents_container()->GetBoundsInScreen();
+  // Convert viewport coords to cursor view local coords.
+  // Viewport coords (from getBoundingClientRect) are relative to the web
+  // content render area, so use the RenderWidgetHostView bounds.
+  content::WebContents* wc =
+      browser->tab_strip_model()->GetActiveWebContents();
+  gfx::Rect viewport_screen;
+  if (wc && wc->GetRenderWidgetHostView()) {
+    viewport_screen = wc->GetRenderWidgetHostView()->GetViewBounds();
+  } else {
+    viewport_screen = browser_view->contents_container()->GetBoundsInScreen();
+  }
   gfx::Rect cursor_bounds = cursor_view->GetBoundsInScreen();
-  float view_x = static_cast<float>(content_bounds.x() - cursor_bounds.x()) + vx;
-  float view_y = static_cast<float>(content_bounds.y() - cursor_bounds.y()) + vy;
+  float view_x = static_cast<float>(viewport_screen.x() - cursor_bounds.x()) + vx;
+  float view_y = static_cast<float>(viewport_screen.y() - cursor_bounds.y()) + vy;
 
   cursor_view->AnimateTo(view_x, view_y,
       base::BindOnce(
@@ -724,13 +733,22 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
               return;
             }
 
-            gfx::Rect content_bounds =
-                bv->contents_container()->GetBoundsInScreen();
+            // Use RenderWidgetHostView bounds for accurate viewport→screen
+            // mapping (getBoundingClientRect coords are relative to this).
+            gfx::Rect viewport_screen;
+            if (locked_contents &&
+                locked_contents->GetRenderWidgetHostView()) {
+              viewport_screen =
+                  locked_contents->GetRenderWidgetHostView()->GetViewBounds();
+            } else {
+              viewport_screen =
+                  bv->contents_container()->GetBoundsInScreen();
+            }
             gfx::Rect cursor_bounds = cursor->GetBoundsInScreen();
             float cx = static_cast<float>(
-                content_bounds.x() - cursor_bounds.x()) + vx;
+                viewport_screen.x() - cursor_bounds.x()) + vx;
             float cy = static_cast<float>(
-                content_bounds.y() - cursor_bounds.y()) + vy;
+                viewport_screen.y() - cursor_bounds.y()) + vy;
 
             if (!cursor->is_visible()) {
               cursor->ShowAtCenter();
