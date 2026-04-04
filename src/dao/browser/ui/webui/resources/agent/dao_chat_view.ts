@@ -17,6 +17,8 @@ import {
   refreshSoulContent,
   renderMarkdown,
   soulChannel,
+  recordApiCall,
+  recordToolCall,
   uid,
 } from './agent_bridge.js';
 import type {
@@ -1197,8 +1199,14 @@ export class DaoChatView extends CrLitElement {
               }];
             },
 
-            onDone: (fullContent: string, toolCalls: ToolCall[]) => {
+            onDone: (fullContent: string, toolCalls: ToolCall[],
+                     usage?: {prompt_tokens: number;
+                              completion_tokens: number;
+                              total_tokens: number}) => {
               if (this.isThinking_) this.isThinking_ = false;
+              recordApiCall(
+                  usage?.prompt_tokens || 0,
+                  usage?.completion_tokens || 0);
 
               if (toolCalls.length > 0) {
                 this.finishStreaming_(false);
@@ -1218,6 +1226,7 @@ export class DaoChatView extends CrLitElement {
                             JSON.parse(fn.arguments) : {};
                       } catch (_) { /* ignore */ }
 
+                      recordToolCall(fn.name);
                       let result: unknown;
                       let isToolError = false;
                       try {

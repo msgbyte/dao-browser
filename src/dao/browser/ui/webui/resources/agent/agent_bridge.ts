@@ -583,10 +583,18 @@ export async function executeTool(
 
 // ---- LLM Streaming ----
 
+export interface UsageInfo {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
 export interface StreamCallbacks {
   onToken: (text: string) => void;
   onToolCall: (toolCall: ToolCall) => void;
-  onDone: (fullContent: string, toolCalls: ToolCall[]) => void;
+  onDone:
+      (fullContent: string, toolCalls: ToolCall[],
+       usage?: UsageInfo) => void;
   onError: (shortMsg: string, fullError: string) => void;
 }
 
@@ -603,6 +611,7 @@ export async function callLLMStreaming(
   const body = {
     model,
     stream: true,
+    stream_options: {include_usage: true},
     messages: msgs.map(m => {
       const obj: Record<string, unknown> = {role: m.role, content: m.content};
       if (m.tool_calls) obj['tool_calls'] = m.tool_calls;
@@ -650,6 +659,7 @@ export async function callLLMStreaming(
   const decoder = new TextDecoder();
   let partialLine = '';
   let fullContent = '';
+  let usage: UsageInfo|undefined;
   const toolCallMap: Record<
       number,
       {id: string; type: 'function'; function: {name: string; arguments: string}}
@@ -674,6 +684,16 @@ export async function callLLMStreaming(
 
         try {
           const parsed = JSON.parse(data);
+
+          // Capture usage from the final chunk (OpenAI stream_options)
+          if (parsed.usage) {
+            usage = {
+              prompt_tokens: parsed.usage.prompt_tokens || 0,
+              completion_tokens: parsed.usage.completion_tokens || 0,
+              total_tokens: parsed.usage.total_tokens || 0,
+            };
+          }
+
           const delta = parsed.choices?.[0]?.delta;
           if (!delta) continue;
 
@@ -719,7 +739,71 @@ export async function callLLMStreaming(
     return;
   }
 
-  callbacks.onDone(fullContent, Object.values(toolCallMap));
+  callbacks.onDone(fullContent, Object.values(toolCallMap), usage);
+}
+
+// ---- Agent Stats ----
+
+export interface AgentStats {
+  apiCalls: number;
+  toolCalls: Record<string, number>;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCost: number;
+  lastReset: number;
+}
+
+const STATS_KEY = 'dao_agent_stats';
+
+function loadStats(): AgentStats {
+  try {
+    const raw = localStorage.getItem(STATS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) { /* ignore */ }
+  return {
+    apiCalls: 0, toolCalls: {}, promptTokens: 0,
+    completionTokens: 0, totalTokens: 0,
+    estimatedCost: 0, lastReset: Date.now(),
+  };
+}
+
+let cachedStats: AgentStats = loadStats();
+
+function saveStats() {
+  localStorage.setItem(STATS_KEY, JSON.stringify(cachedStats));
+}
+
+export function recordApiCall(
+    promptTokens: number, completionTokens: number,
+    costPerPromptToken = 0, costPerCompletionToken = 0) {
+  cachedStats.apiCalls++;
+  cachedStats.promptTokens += promptTokens;
+  cachedStats.completionTokens += completionTokens;
+  cachedStats.totalTokens += promptTokens + completionTokens;
+  cachedStats.estimatedCost +=
+      promptTokens * costPerPromptToken +
+      completionTokens * costPerCompletionToken;
+  saveStats();
+}
+
+export function recordToolCall(toolName: string) {
+  cachedStats.toolCalls[toolName] =
+      (cachedStats.toolCalls[toolName] || 0) + 1;
+  saveStats();
+}
+
+export function getAgentStats(): AgentStats {
+  return {...cachedStats, toolCalls: {...cachedStats.toolCalls}};
+}
+
+export function resetAgentStats() {
+  cachedStats = {
+    apiCalls: 0, toolCalls: {}, promptTokens: 0,
+    completionTokens: 0, totalTokens: 0,
+    estimatedCost: 0, lastReset: Date.now(),
+  };
+  saveStats();
 }
 
 // ---- Unique ID Generator ----

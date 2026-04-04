@@ -10,10 +10,13 @@ import {
   CONFIDENCE_THRESHOLD_MAP,
   currentSoulContent,
   DEFAULT_SOUL,
+  getAgentStats,
   refreshSoulContent,
+  resetAgentStats,
   saveSoul,
   soulChannel,
 } from './agent_bridge.js';
+import type {AgentStats} from './agent_bridge.js';
 
 export class DaoSettingsView extends CrLitElement {
   static override get properties() {
@@ -35,6 +38,8 @@ export class DaoSettingsView extends CrLitElement {
       statEpisodes_: {type: Number, state: true},
       statTotal_: {type: String, state: true},
       showConfirmDialog_: {type: Boolean, state: true},
+      agentStats_: {type: Object, state: true},
+      showResetStatsDialog_: {type: Boolean, state: true},
     };
   }
 
@@ -56,6 +61,8 @@ export class DaoSettingsView extends CrLitElement {
   private statTotal_ = 'Total: 0 KB';
   private showConfirmDialog_ = false;
   private saveStatusTimer_ = 0;
+  private agentStats_: AgentStats|null = null;
+  private showResetStatsDialog_ = false;
 
   static override get styles() {
     return css`
@@ -82,7 +89,7 @@ export class DaoSettingsView extends CrLitElement {
       }
 
       .panel {
-        flex: 1; overflow-y: auto; padding: 14px;
+        flex: 1; overflow-y: auto; overflow-x: hidden; padding: 14px;
       }
       .panel::-webkit-scrollbar { width: 4px; }
       .panel::-webkit-scrollbar-track { background: transparent; }
@@ -111,6 +118,7 @@ export class DaoSettingsView extends CrLitElement {
       label:first-of-type { margin-top: 0; }
       input {
         width: 100%; padding: 7px 10px;
+        box-sizing: border-box;
         background: var(--glass); border: 1px solid var(--glass-border);
         border-radius: 10px; color: var(--text);
         font-size: 12px; outline: none;
@@ -125,6 +133,7 @@ export class DaoSettingsView extends CrLitElement {
       /* Soul editor */
       .soul-editor {
         width: 100%; min-height: 300px; padding: 10px 12px;
+        box-sizing: border-box;
         background: var(--glass); border: 1px solid var(--glass-border);
         border-radius: 10px; color: var(--text);
         font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
@@ -260,6 +269,55 @@ export class DaoSettingsView extends CrLitElement {
         border-color: rgba(239, 68, 68, 0.25);
       }
 
+      /* Stats cards */
+      .stats-cards {
+        display: flex; flex-direction: column; gap: 10px;
+        margin-bottom: 16px;
+      }
+      .stats-card {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px; background: var(--glass);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+      }
+      .stats-icon {
+        width: 36px; height: 36px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+      }
+      .stats-icon.purple { background: rgba(140, 100, 220, 0.15); color: var(--accent); }
+      .stats-icon.blue { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+      .stats-icon.green { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+      .stats-icon.orange { background: rgba(251, 146, 60, 0.15); color: #fb923c; }
+      .stats-value {
+        font-size: 18px; font-weight: 600; color: var(--text);
+        font-variant-numeric: tabular-nums;
+      }
+      .stats-label {
+        font-size: 11px; color: var(--text-tertiary);
+      }
+      .tool-table {
+        width: 100%; border-collapse: collapse; margin-top: 8px;
+      }
+      .tool-table th, .tool-table td {
+        padding: 6px 8px; text-align: left;
+        font-size: 12px; border-bottom: 1px solid var(--border);
+      }
+      .tool-table th {
+        color: var(--text-tertiary); font-weight: 500;
+      }
+      .tool-table td {
+        color: var(--text);
+      }
+      .tool-table td:last-child {
+        text-align: right; font-variant-numeric: tabular-nums;
+        color: var(--text-secondary);
+      }
+      .empty-state {
+        text-align: center; padding: 24px 16px;
+        color: var(--text-tertiary); font-size: 12px;
+      }
+
       /* Confirm dialog */
       .confirm-scrim {
         position: fixed; inset: 0;
@@ -305,13 +363,15 @@ export class DaoSettingsView extends CrLitElement {
       this.soulText_ = currentSoulContent;
     } else if (tab === 'memory') {
       this.loadStorageStats_();
+    } else if (tab === 'stats') {
+      this.agentStats_ = getAgentStats();
     }
   }
 
   override render() {
     return html`
       <div class="settings-sub-tabs">
-        ${['connection', 'soul', 'memory', 'skills'].map(tab => html`
+        ${['connection', 'soul', 'memory', 'skills', 'stats'].map(tab => html`
           <button class="sub-tab ${this.activeSubTab_ === tab ? 'active' : ''}"
               @click=${() => this.switchSubTab(tab)}>
             ${tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -320,8 +380,10 @@ export class DaoSettingsView extends CrLitElement {
       ${this.activeSubTab_ === 'connection' ? this.renderConnection_() :
         this.activeSubTab_ === 'soul' ? this.renderSoul_() :
         this.activeSubTab_ === 'skills' ? this.renderSkills_() :
+        this.activeSubTab_ === 'stats' ? this.renderStats_() :
         this.renderMemory_()}
       ${this.showConfirmDialog_ ? this.renderConfirmDialog_() : nothing}
+      ${this.showResetStatsDialog_ ? this.renderResetStatsDialog_() : nothing}
     `;
   }
 
@@ -503,6 +565,133 @@ export class DaoSettingsView extends CrLitElement {
           </div>
         </div>
       </div>`;
+  }
+
+  // ---- Stats ----
+
+  private renderStats_() {
+    const s = this.agentStats_ || getAgentStats();
+    const toolEntries = Object.entries(s.toolCalls)
+        .sort((a, b) => b[1] - a[1]);
+    const totalToolCalls = toolEntries.reduce((sum, [, c]) => sum + c, 0);
+    const resetDate = new Date(s.lastReset);
+    const sinceStr = resetDate.toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+
+    // SVG icons for stats cards
+    const apiIcon = html`<svg width="18" height="18" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9m-9 9a9 9 0 0 1 9-9"/></svg>`;
+    const toolIcon = html`<svg width="18" height="18" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+    const tokenIcon = html`<svg width="18" height="18" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/>
+      <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/>
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>`;
+    const costIcon = html`<svg width="18" height="18" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/>
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
+
+    return html`
+      <div class="panel">
+        <div class="section-title">Agent Statistics</div>
+        <div class="section-desc">
+          Usage since ${sinceStr}</div>
+
+        <div class="stats-cards">
+          <div class="stats-card">
+            <div class="stats-icon purple">${apiIcon}</div>
+            <div>
+              <div class="stats-value">${s.apiCalls}</div>
+              <div class="stats-label">API Calls</div>
+            </div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-icon blue">${toolIcon}</div>
+            <div>
+              <div class="stats-value">${totalToolCalls}</div>
+              <div class="stats-label">Tool Calls</div>
+            </div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-icon green">${tokenIcon}</div>
+            <div>
+              <div class="stats-value">${this.formatNumber_(s.totalTokens)}</div>
+              <div class="stats-label">Total Tokens (${this.formatNumber_(s.promptTokens)} in / ${this.formatNumber_(s.completionTokens)} out)</div>
+            </div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-icon orange">${costIcon}</div>
+            <div>
+              <div class="stats-value">$${s.estimatedCost.toFixed(4)}</div>
+              <div class="stats-label">Estimated Cost</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Tool Breakdown</div>
+        ${toolEntries.length > 0 ? html`
+          <table class="tool-table">
+            <thead>
+              <tr><th>Tool</th><th>Calls</th></tr>
+            </thead>
+            <tbody>
+              ${toolEntries.map(([name, count]) => html`
+                <tr><td>${name}</td><td>${count}</td></tr>`)}
+            </tbody>
+          </table>` :
+          html`<div class="empty-state">No tool calls recorded yet.</div>`}
+
+        <button class="btn-danger"
+            @click=${() => this.showResetStatsDialog_ = true}>
+          Reset Statistics
+        </button>
+      </div>`;
+  }
+
+  private formatNumber_(n: number): string {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  private renderResetStatsDialog_() {
+    return html`
+      <div class="confirm-scrim" role="alertdialog"
+          @click=${(e: Event) => {
+            if (e.target === e.currentTarget) {
+              this.showResetStatsDialog_ = false;
+            }
+          }}>
+        <div class="confirm-card">
+          <div class="confirm-title">Reset Statistics?</div>
+          <div class="confirm-desc">This will clear all recorded API calls,
+            tool usage counts, token usage, and cost data. This action
+            cannot be undone.</div>
+          <div class="confirm-actions">
+            <button class="btn-secondary"
+                @click=${() => this.showResetStatsDialog_ = false}>
+              Cancel</button>
+            <button class="btn-danger"
+                @click=${this.resetStats_}>Reset</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  private resetStats_() {
+    this.showResetStatsDialog_ = false;
+    resetAgentStats();
+    this.agentStats_ = getAgentStats();
+    this.fireToast_('Statistics reset');
   }
 
   // ---- Settings Persistence ----
