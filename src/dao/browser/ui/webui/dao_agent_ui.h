@@ -88,6 +88,15 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   void HandleGetPageInfo(const base::Value::List& args);
   void HandleClickElement(const base::Value::List& args);
   void HandleExecuteScript(const base::Value::List& args);
+  void HandleMoveCursor(const base::Value::List& args);
+  void HandleAgentClick(const base::Value::List& args);
+  void HandleHighlightElement(const base::Value::List& args);
+  void HandleClearHighlight(const base::Value::List& args);
+  void PerformCDPClick(const std::string& callback_id,
+                       const std::string& escaped_selector,
+                       double viewport_x,
+                       double viewport_y,
+                       content::WebContents* locked_contents);
 
   std::unique_ptr<DaoAgentDevToolsClient> devtools_client_;
   base::WeakPtrFactory<DaoAgentUIHandler> weak_factory_{this};

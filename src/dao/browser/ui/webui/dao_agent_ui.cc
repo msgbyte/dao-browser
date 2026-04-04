@@ -12,6 +12,8 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/platform_util.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -69,6 +71,53 @@ void UnlockLockedTab(content::WebContents* contents) {
   }
   DaoAgentLockTabHelper::UnlockContents(contents);
 }
+
+// JS to inject highlight infrastructure into a page.
+// Creates a Shadow DOM container so styles don't leak.
+constexpr char kHighlightInjectScript[] = R"js(
+(function() {
+  if (window.__dao_agent__) return;
+  const host = document.createElement('div');
+  host.id = 'dao-agent-overlay-host';
+  host.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;';
+  document.documentElement.appendChild(host);
+  const shadow = host.attachShadow({mode:'closed'});
+  const highlight = document.createElement('div');
+  highlight.style.cssText = 'position:fixed;border:2px solid rgba(140,100,220,0.6);background:rgba(140,100,220,0.08);border-radius:0;pointer-events:none;opacity:0;transition:opacity 150ms ease;display:none;';
+  shadow.appendChild(highlight);
+  let rafId = 0;
+  let currentEl = null;
+  function updatePos() {
+    if (!currentEl || !currentEl.isConnected) { highlight.style.display='none'; return; }
+    const r = currentEl.getBoundingClientRect();
+    const br = getComputedStyle(currentEl).borderRadius || '0';
+    highlight.style.left = r.left + 'px';
+    highlight.style.top = r.top + 'px';
+    highlight.style.width = r.width + 'px';
+    highlight.style.height = r.height + 'px';
+    highlight.style.borderRadius = br;
+    rafId = requestAnimationFrame(updatePos);
+  }
+  window.__dao_agent__ = {
+    showHighlight: function(selector) {
+      const el = document.querySelector(selector);
+      if (!el) return false;
+      currentEl = el;
+      highlight.style.display = 'block';
+      highlight.style.opacity = '1';
+      cancelAnimationFrame(rafId);
+      updatePos();
+      return true;
+    },
+    clearHighlight: function() {
+      highlight.style.opacity = '0';
+      currentEl = null;
+      cancelAnimationFrame(rafId);
+      setTimeout(function(){ highlight.style.display='none'; }, 150);
+    }
+  };
+})()
+)js";
 
 }  // namespace
 
@@ -213,6 +262,22 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "executeScript",
       base::BindRepeating(&DaoAgentUIHandler::HandleExecuteScript,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "moveCursor",
+      base::BindRepeating(&DaoAgentUIHandler::HandleMoveCursor,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "agentClick",
+      base::BindRepeating(&DaoAgentUIHandler::HandleAgentClick,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "highlightElement",
+      base::BindRepeating(&DaoAgentUIHandler::HandleHighlightElement,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "clearHighlight",
+      base::BindRepeating(&DaoAgentUIHandler::HandleClearHighlight,
                           base::Unretained(this)));
 }
 
@@ -443,6 +508,332 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
           },
           weak_factory_.GetWeakPtr(), callback_id,
           lock_tab ? contents : nullptr));
+}
+
+void DaoAgentUIHandler::HandleHighlightElement(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string selector;
+  if (args[1].is_dict()) {
+    auto* sel = args[1].GetDict().FindString("selector");
+    if (sel) selector = *sel;
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents || selector.empty()) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab or invalid selector");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  std::string escaped;
+  for (char c : selector) {
+    if (c == '\'') escaped += "\\'";
+    else if (c == '\\') escaped += "\\\\";
+    else escaped += c;
+  }
+
+  std::string inject_then_show =
+      std::string(kHighlightInjectScript) +
+      "; window.__dao_agent__.showHighlight('" + escaped + "')";
+
+  base::Value::Dict params;
+  params.Set("expression", inject_then_show);
+  params.Set("returnByValue", true);
+
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value result) {
+            if (!handler) return;
+            base::Value::Dict response;
+            response.Set("success", true);
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleClearHighlight(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(true));
+    return;
+  }
+
+  base::Value::Dict params;
+  params.Set("expression",
+      "window.__dao_agent__ && window.__dao_agent__.clearHighlight()");
+  params.Set("returnByValue", true);
+
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value) {
+            if (!handler) return;
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), base::Value(true));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleMoveCursor(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  double vx = 0, vy = 0;
+  if (args[1].is_dict()) {
+    vx = args[1].GetDict().FindDouble("x").value_or(0);
+    vy = args[1].GetDict().FindDouble("y").value_or(0);
+  }
+
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  if (!browser) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              base::Value("No browser"));
+    return;
+  }
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+  auto* cursor_view = browser_view ? browser_view->dao_agent_cursor() : nullptr;
+  if (!cursor_view) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              base::Value("No cursor view"));
+    return;
+  }
+
+  // Convert viewport coords to cursor view coords.
+  gfx::Rect content_bounds =
+      browser_view->contents_container()->GetBoundsInScreen();
+  gfx::Rect cursor_bounds = cursor_view->GetBoundsInScreen();
+  float view_x = static_cast<float>(content_bounds.x() - cursor_bounds.x()) + vx;
+  float view_y = static_cast<float>(content_bounds.y() - cursor_bounds.y()) + vy;
+
+  cursor_view->AnimateTo(view_x, view_y,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id) {
+            if (!handler) return;
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), base::Value(true));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string selector;
+  std::string description;
+  if (args[1].is_dict()) {
+    auto* sel = args[1].GetDict().FindString("selector");
+    if (sel) selector = *sel;
+    auto* desc = args[1].GetDict().FindString("description");
+    if (desc) description = *desc;
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents || selector.empty()) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab or invalid selector");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  std::string escaped;
+  for (char c : selector) {
+    if (c == '\'') escaped += "\\'";
+    else if (c == '\\') escaped += "\\\\";
+    else escaped += c;
+  }
+
+  DaoAgentLockTabHelper::LockContents(contents);
+
+  // Inject highlight + get element center coordinates.
+  std::string script =
+      std::string(kHighlightInjectScript) +
+      "; (function() {"
+      "  window.__dao_agent__.showHighlight('" + escaped + "');"
+      "  var el = document.querySelector('" + escaped + "');"
+      "  if (!el) return JSON.stringify({error:'element not found'});"
+      "  var r = el.getBoundingClientRect();"
+      "  return JSON.stringify({x: r.left + r.width/2, y: r.top + r.height/2});"
+      "})()";
+
+  base::Value::Dict params;
+  params.Set("expression", script);
+  params.Set("returnByValue", true);
+
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id,
+             std::string escaped_selector,
+             content::WebContents* locked_contents,
+             base::Value result) {
+            if (!handler) {
+              UnlockLockedTab(locked_contents);
+              return;
+            }
+
+            std::string json_str;
+            if (result.is_dict()) {
+              auto* value =
+                  result.GetDict().FindByDottedPath("result.value");
+              if (value && value->is_string())
+                json_str = value->GetString();
+            }
+
+            auto parsed = base::JSONReader::Read(json_str);
+            if (!parsed || !parsed->is_dict() ||
+                parsed->GetDict().FindString("error")) {
+              UnlockLockedTab(locked_contents);
+              base::Value::Dict r;
+              r.Set("error", json_str.empty() ? "element not found" : json_str);
+              handler->ResolveJavascriptCallback(
+                  base::Value(callback_id), r);
+              return;
+            }
+
+            double vx = parsed->GetDict().FindDouble("x").value_or(0);
+            double vy = parsed->GetDict().FindDouble("y").value_or(0);
+
+            Browser* browser = BrowserList::GetInstance()->GetLastActive();
+            BrowserView* bv = browser ?
+                BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
+            auto* cursor = bv ? bv->dao_agent_cursor() : nullptr;
+
+            if (!cursor) {
+              handler->PerformCDPClick(callback_id, escaped_selector,
+                                       vx, vy, locked_contents);
+              return;
+            }
+
+            gfx::Rect content_bounds =
+                bv->contents_container()->GetBoundsInScreen();
+            gfx::Rect cursor_bounds = cursor->GetBoundsInScreen();
+            float cx = static_cast<float>(
+                content_bounds.x() - cursor_bounds.x()) + vx;
+            float cy = static_cast<float>(
+                content_bounds.y() - cursor_bounds.y()) + vy;
+
+            if (!cursor->is_visible()) {
+              cursor->ShowAtCenter();
+            }
+
+            cursor->AnimateTo(cx, cy,
+                base::BindOnce(
+                    [](base::WeakPtr<DaoAgentUIHandler> h,
+                       std::string cb_id,
+                       std::string esc_sel,
+                       double vx, double vy,
+                       content::WebContents* locked) {
+                      if (!h) {
+                        UnlockLockedTab(locked);
+                        return;
+                      }
+                      Browser* br =
+                          BrowserList::GetInstance()->GetLastActive();
+                      BrowserView* view = br ?
+                          BrowserView::GetBrowserViewForBrowser(br) : nullptr;
+                      auto* cur = view ?
+                          view->dao_agent_cursor() : nullptr;
+                      if (cur) {
+                        cur->PlayClickRipple();
+                      }
+                      h->PerformCDPClick(cb_id, esc_sel, vx, vy, locked);
+                    },
+                    handler, callback_id, escaped_selector,
+                    vx, vy, locked_contents));
+          },
+          weak_factory_.GetWeakPtr(), callback_id, escaped,
+          contents));
+}
+
+void DaoAgentUIHandler::PerformCDPClick(
+    const std::string& callback_id,
+    const std::string& escaped_selector,
+    double viewport_x,
+    double viewport_y,
+    content::WebContents* locked_contents) {
+  base::Value::Dict press_params;
+  press_params.Set("type", "mousePressed");
+  press_params.Set("x", static_cast<int>(viewport_x));
+  press_params.Set("y", static_cast<int>(viewport_y));
+  press_params.Set("button", "left");
+  press_params.Set("clickCount", 1);
+
+  devtools_client_->SendCommand(
+      "Input.dispatchMouseEvent", std::move(press_params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id,
+             double vx, double vy,
+             content::WebContents* locked,
+             base::Value) {
+            if (!handler) {
+              UnlockLockedTab(locked);
+              return;
+            }
+            base::Value::Dict release_params;
+            release_params.Set("type", "mouseReleased");
+            release_params.Set("x", static_cast<int>(vx));
+            release_params.Set("y", static_cast<int>(vy));
+            release_params.Set("button", "left");
+            release_params.Set("clickCount", 1);
+
+            handler->devtools_client_->SendCommand(
+                "Input.dispatchMouseEvent", std::move(release_params),
+                base::BindOnce(
+                    [](base::WeakPtr<DaoAgentUIHandler> h,
+                       std::string cb_id,
+                       content::WebContents* lk,
+                       base::Value) {
+                      if (h) {
+                        base::Value::Dict clear_params;
+                        clear_params.Set("expression",
+                            "window.__dao_agent__ && "
+                            "window.__dao_agent__.clearHighlight()");
+                        clear_params.Set("returnByValue", true);
+                        h->devtools_client_->SendCommand(
+                            "Runtime.evaluate",
+                            std::move(clear_params),
+                            base::BindOnce(
+                                [](base::WeakPtr<DaoAgentUIHandler> h2,
+                                   std::string cb,
+                                   content::WebContents* lk2,
+                                   base::Value) {
+                                  UnlockLockedTab(lk2);
+                                  if (!h2) return;
+                                  base::Value::Dict r;
+                                  r.Set("success", true);
+                                  h2->ResolveJavascriptCallback(
+                                      base::Value(cb), std::move(r));
+                                },
+                                h, cb_id, lk));
+                      } else {
+                        UnlockLockedTab(lk);
+                      }
+                    },
+                    handler, callback_id, locked));
+          },
+          weak_factory_.GetWeakPtr(), callback_id,
+          viewport_x, viewport_y, locked_contents));
 }
 
 // ---- DaoAgentMemoryHandler ----

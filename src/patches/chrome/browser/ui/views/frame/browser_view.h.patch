@@ -2,12 +2,13 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/vi
 index b9986c6e90..c42a3bc584 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -124,6 +124,19 @@ namespace glic {
+@@ -124,6 +124,20 @@ namespace glic {
  class BorderView;
  }  // namespace glic
  
 +namespace dao {
 +class DaoAddressBarView;
++class DaoAgentCursorView;
 +class DaoAgentLockBannerView;
 +class DaoCommandBarView;
 +class DaoSidebarView;
@@ -22,7 +23,7 @@ index b9986c6e90..c42a3bc584 100644
  namespace segmentation_platform {
  struct ClassificationResult;
  }
-@@ -247,6 +260,17 @@ class BrowserView : public BrowserWindow,
+@@ -247,6 +260,18 @@ class BrowserView : public BrowserWindow,
  
    SidePanel* unified_side_panel() { return unified_side_panel_; }
  
@@ -36,11 +37,12 @@ index b9986c6e90..c42a3bc584 100644
 +  dao::DaoControlCenterPopup* dao_control_center_popup() { return dao_control_center_popup_; }
 +  dao::DaoSplitView* dao_split_view() { return dao_split_view_; }
 +  dao::DaoAgentLockBannerView* dao_agent_lock_banner() { return dao_agent_lock_banner_; }
++  dao::DaoAgentCursorView* dao_agent_cursor() { return dao_agent_cursor_; }
 +
    void set_contents_border_widget(views::Widget* contents_border_widget) {
      GetBrowserViewLayout()->set_contents_border_widget(contents_border_widget);
    }
-@@ -1280,6 +1304,18 @@ class BrowserView : public BrowserWindow,
+@@ -1280,6 +1304,19 @@ class BrowserView : public BrowserWindow,
    raw_ptr<views::View> left_aligned_side_panel_separator_ = nullptr;
    raw_ptr<views::View> side_panel_rounded_corner_ = nullptr;
  
@@ -55,6 +57,7 @@ index b9986c6e90..c42a3bc584 100644
 +  raw_ptr<dao::DaoControlCenterPopup> dao_control_center_popup_ = nullptr;
 +  raw_ptr<dao::DaoSplitView> dao_split_view_ = nullptr;
 +  raw_ptr<dao::DaoAgentLockBannerView> dao_agent_lock_banner_ = nullptr;
++  raw_ptr<dao::DaoAgentCursorView> dao_agent_cursor_ = nullptr;
 +
    // Provides access to the toolbar buttons this browser view uses. Buttons may
    // appear in a hosted app frame or in a tabbed UI toolbar.

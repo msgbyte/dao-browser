@@ -2,12 +2,13 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 index 76c889780c..9d6dd2a409 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -119,6 +119,19 @@
+@@ -119,6 +119,20 @@
  #include "chrome/browser/ui/views/frame/browser_view_layout.h"
  #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
  #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
 +#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 +#include "dao/browser/ui/views/dao_address_bar_view.h"
++#include "dao/browser/ui/views/dao_agent_cursor_view.h"
 +#include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
 +#include "dao/browser/ui/views/dao_colors.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
@@ -22,7 +23,7 @@ index 76c889780c..9d6dd2a409 100644
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/native_browser_frame.h"
-@@ -1084,6 +1097,72 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
+@@ -1084,6 +1097,76 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -56,6 +57,10 @@ index 76c889780c..9d6dd2a409 100644
 +    // Dao: Corner overlay painted on top of web contents
 +    dao_corner_overlay_ = AddChildView(
 +        std::make_unique<dao::DaoCornerOverlayView>());
++
++    // Dao: Agent cursor overlay for visualizing AI actions
++    dao_agent_cursor_ = AddChildView(
++        std::make_unique<dao::DaoAgentCursorView>());
 +
 +    // Dao: Download flyout animation overlay (click-through, covers window)
 +    dao_download_flyout_ = AddChildView(
@@ -139,7 +144,7 @@ index 76c889780c..9d6dd2a409 100644
  
  #if BUILDFLAG(IS_MAC)
    // Widget::IsActive is inconsistent between Mac and Aura, so don't check for
-@@ -1951,13 +2046,25 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1951,13 +2046,32 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
      }
  
      web_contents_close_handler_->ActiveTabChanged();
@@ -167,6 +172,13 @@ index 76c889780c..9d6dd2a409 100644
 +          dao::DaoAgentLockTabHelper::IsLocked(new_contents));
 +      InvalidateLayout();
 +      GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
++    }
++    if (dao_agent_cursor_) {
++      if (dao::DaoAgentLockTabHelper::IsLocked(new_contents)) {
++        dao_agent_cursor_->ShowAtCenter();
++      } else {
++        dao_agent_cursor_->Hide();
++      }
      }
  
      // The second layout update should be no-op. It will just set the
@@ -189,7 +201,7 @@ index 76c889780c..9d6dd2a409 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3710,6 +3829,13 @@ LocationBarView* BrowserView::GetLocationBarView() const {
+@@ -3710,6 +3829,20 @@ LocationBarView* BrowserView::GetLocationBarView() const {
  void BrowserView::TabChangedAt(content::WebContents* contents,
                                 int index,
                                 TabChangeType change_type) {
@@ -198,6 +210,13 @@ index 76c889780c..9d6dd2a409 100644
 +        dao::DaoAgentLockTabHelper::IsLocked(contents));
 +    InvalidateLayout();
 +    GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
++  }
++  if (contents == GetActiveWebContents() && dao_agent_cursor_) {
++    if (dao::DaoAgentLockTabHelper::IsLocked(contents)) {
++      dao_agent_cursor_->ShowAtCenter();
++    } else {
++      dao_agent_cursor_->Hide();
++    }
 +  }
 +
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {

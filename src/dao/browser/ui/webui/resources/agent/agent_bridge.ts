@@ -142,6 +142,9 @@ You have the following browser tools at your disposal — use them proactively w
 - **get_readable_content** — Extract the main article content using Mozilla Readability. Strips navigation, ads, sidebars, and boilerplate, returning only the article title, byline, excerpt, and clean text. **Prefer this over get_page_content** for news articles, blog posts, and documentation — it produces much smaller, focused output.
 - **get_page_info** — Get the current page URL, title, and meta description. Use this for context about where the user is browsing.
 - **click_element** — Click an element on the page by CSS selector. Use this when the user asks you to interact with the page (e.g. "click the login button", "close that popup").
+- **agent_click** — Click an element with visual cursor animation. Shows a moving pointer, highlights the target, and clicks. Preferred over click_element when performing multi-step agent tasks.
+- **move_cursor** — Move the visual cursor to viewport coordinates without clicking.
+- **highlight_element** — Highlight an element on the page with a purple border overlay.
 - **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover. Set \`lock_tab\` to true when the script will manipulate the page so the browser can briefly block user input and show an AI control state.
 - **update_soul** — Modify your SOUL.md (the personality prompt you see above). Two actions: \`replace_section\` (replace or add a specific ## section), \`replace_all\` (rewrite entirely).
 - **save_memory** — Save a record of what you did on this page to long-term memory (intent + outcome). Use after completing a meaningful task so you have context next time the user visits this page.
@@ -297,6 +300,63 @@ export const tools: ToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'agent_click',
+      description:
+          'Click an element with visual cursor animation. Shows a purple pointer moving to the element, highlights it, and performs the click. Use this instead of click_element when the tab is being controlled by the agent.',
+      parameters: {
+        type: 'object',
+        properties: {
+          selector: {
+            type: 'string',
+            description: 'CSS selector of the element to click',
+          },
+          description: {
+            type: 'string',
+            description:
+                'Human-readable description of the action (e.g. "Click the Submit button")',
+          },
+        },
+        required: ['selector'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'move_cursor',
+      description:
+          'Move the visual cursor to viewport coordinates without clicking',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: {type: 'number', description: 'Viewport X coordinate'},
+          y: {type: 'number', description: 'Viewport Y coordinate'},
+        },
+        required: ['x', 'y'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'highlight_element',
+      description:
+          'Highlight an element on the page with a purple border overlay',
+      parameters: {
+        type: 'object',
+        properties: {
+          selector: {
+            type: 'string',
+            description: 'CSS selector of the element to highlight',
+          },
+        },
+        required: ['selector'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'execute_script',
       description:
           'Execute JavaScript code on the current page and return the result',
@@ -432,6 +492,20 @@ export async function executeTool(
     case 'click_element':
       return await callNative(
           'clickElement', {selector: getStringArg(args, 'selector')});
+    case 'agent_click':
+      return await callNative('agentClick', {
+        selector: getStringArg(args, 'selector'),
+        description: getStringArg(args, 'description'),
+      });
+    case 'move_cursor':
+      return await callNative('moveCursor', {
+        x: args['x'] as number,
+        y: args['y'] as number,
+      });
+    case 'highlight_element':
+      return await callNative('highlightElement', {
+        selector: getStringArg(args, 'selector'),
+      });
     case 'execute_script':
       return await callNative('executeScript', {
         code: getStringArg(args, 'code'),

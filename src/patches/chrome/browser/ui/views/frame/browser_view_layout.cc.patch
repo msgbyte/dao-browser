@@ -2,12 +2,13 @@ diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/brows
 index 46f6be18ac..ccf71b9165 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
-@@ -31,6 +31,21 @@
+@@ -31,6 +31,22 @@
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
 +#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 +#include "dao/browser/ui/views/dao_address_bar_view.h"
++#include "dao/browser/ui/views/dao_agent_cursor_view.h"
 +#include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
 +#include "dao/browser/ui/views/dao_colors.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
@@ -180,7 +181,7 @@ index 46f6be18ac..ccf71b9165 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +827,207 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +827,213 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -286,6 +287,12 @@ index 46f6be18ac..ccf71b9165 100644
 +      overlay_bounds.Inset(gfx::Insets(-dao::kContentShadowMargin));
 +      corner_overlay->SetBoundsRect(overlay_bounds);
 +    }
++  }
++
++  // Dao: Position agent cursor overlay to cover the content area
++  auto* agent_cursor = browser_view_->dao_agent_cursor();
++  if (agent_cursor) {
++    agent_cursor->SetBoundsRect(dao_content_area);
 +  }
 +
 +  // Dao: Position command bar to match the content area (full, no inset)
