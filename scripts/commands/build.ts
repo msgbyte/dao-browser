@@ -18,8 +18,9 @@ export const buildCommand = new Command("build")
   .description("Build Dao Browser (gn gen + autoninja)")
   .option("--debug", "Build in debug mode")
   .option("--gen-only", "Only run gn gen, skip compilation")
+  .option("--target <target>", "Build target (default: chrome)", "chrome")
   .option("-j <jobs>", "Number of parallel build jobs")
-  .action(async (opts: { debug?: boolean; genOnly?: boolean; j?: string }) => {
+  .action(async (opts: { debug?: boolean; genOnly?: boolean; target: string; j?: string }) => {
     const config = loadConfig();
     const srcDir = path.join(ENGINE_DIR, "src");
     const outName = opts.debug ? "dao-debug" : "dao";
@@ -84,7 +85,7 @@ export const buildCommand = new Command("build")
 
     // Run autoninja
     log("Building Dao Browser...");
-    const ninjaArgs = ["-C", `out/${outName}`, "chrome"];
+    const ninjaArgs = ["-C", `out/${outName}`, opts.target];
     if (opts.j) {
       ninjaArgs.unshift(`-j${opts.j}`);
     }
