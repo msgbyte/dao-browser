@@ -28,6 +28,7 @@ class Label;
 
 namespace dao {
 class DaoControlCenterButton;
+class DaoPinnedExtensionsContainer;
 }
 
 namespace dao {
@@ -111,6 +112,7 @@ class DaoAddressBarView : public views::View,
   raw_ptr<views::Button> back_button_ = nullptr;
   raw_ptr<views::Button> forward_button_ = nullptr;
   raw_ptr<views::Button> stop_refresh_button_ = nullptr;
+  raw_ptr<DaoPinnedExtensionsContainer> pinned_extensions_ = nullptr;
   raw_ptr<views::Button> chat_button_ = nullptr;
   raw_ptr<views::View> url_container_ = nullptr;
   raw_ptr<views::Label> host_label_ = nullptr;

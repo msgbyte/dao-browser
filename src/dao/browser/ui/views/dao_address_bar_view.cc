@@ -16,6 +16,7 @@
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_button.h"
+#include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -304,6 +305,10 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
           .WithWeight(1));
   AddChildView(std::move(right_flex));
 
+  // Pinned extension icons (between right spacer and chat button)
+  pinned_extensions_ = AddChildView(
+      std::make_unique<DaoPinnedExtensionsContainer>(browser));
+
   // Chat button (opens agent sidebar)
   chat_button_ = AddChildView(std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnChatButtonPressed,
@@ -419,6 +424,14 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
       if (btn->HitTestPoint(pt)) {
         return false;
       }
+    }
+  }
+  // If the click lands on any pinned extension icon, let it handle it
+  if (pinned_extensions_ && pinned_extensions_->GetVisible()) {
+    gfx::Point pt = event.location();
+    views::View::ConvertPointToTarget(this, pinned_extensions_, &pt);
+    if (pinned_extensions_->HitTestPoint(pt)) {
+      return false;
     }
   }
   // Only clicking the URL pill opens the command bar; other empty areas
@@ -729,6 +742,15 @@ std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
                               stop_refresh_button_.get(), chat_button_.get()}) {
     if (btn && btn->GetVisible()) {
       rects.push_back(btn->GetMirroredBounds());
+    }
+  }
+  // Pinned extension buttons
+  if (pinned_extensions_ && pinned_extensions_->GetVisible()) {
+    for (const auto& rect : pinned_extensions_->GetButtonRects()) {
+      gfx::Rect adjusted = rect;
+      adjusted.Offset(
+          pinned_extensions_->GetMirroredBounds().origin().OffsetFromOrigin());
+      rects.push_back(adjusted);
     }
   }
   // Toggle button
