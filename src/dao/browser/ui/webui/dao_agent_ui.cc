@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -120,6 +121,215 @@ constexpr char kHighlightInjectScript[] = R"js(
 })()
 )js";
 
+// JS to generate an accessibility tree representation of the current page.
+// Walks the DOM, assigns data-dao-ref attributes to interactive elements,
+// and returns a text tree suitable for LLM consumption.
+constexpr char kAccessibilityTreeScript[] = R"js(
+(function(filterMode) {
+  var MAX_DEPTH = 15;
+  var MAX_CHARS = 50000;
+  var refCounter = 0;
+  var output = '';
+  var charCount = 0;
+  var truncated = false;
+
+  // Clear old refs.
+  var oldRefs = document.querySelectorAll('[data-dao-ref]');
+  for (var i = 0; i < oldRefs.length; i++) {
+    oldRefs[i].removeAttribute('data-dao-ref');
+  }
+
+  var SKIP_TAGS = {
+    SCRIPT:1, STYLE:1, NOSCRIPT:1, TEMPLATE:1, IFRAME:1,
+    SVG:1, PATH:1, CIRCLE:1, RECT:1, LINE:1, POLYGON:1, POLYLINE:1,
+    ELLIPSE:1, DEFS:1, CLIPPATH:1, G:1, USE:1, SYMBOL:1, MASK:1
+  };
+
+  function isVisible(el) {
+    if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
+    var style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    return true;
+  }
+
+  function isInViewport(el) {
+    var r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight &&
+           r.right > 0 && r.left < window.innerWidth;
+  }
+
+  function isInteractive(el) {
+    var tag = el.tagName;
+    if (tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' ||
+        tag === 'SELECT' || tag === 'TEXTAREA') return true;
+    var role = el.getAttribute('role');
+    if (role === 'button' || role === 'link' || role === 'tab' ||
+        role === 'menuitem' || role === 'checkbox' || role === 'radio' ||
+        role === 'switch' || role === 'option' || role === 'combobox' ||
+        role === 'textbox' || role === 'searchbox' || role === 'slider') return true;
+    if (el.hasAttribute('onclick') || el.hasAttribute('tabindex')) return true;
+    if (el.contentEditable === 'true') return true;
+    return false;
+  }
+
+  function getRole(el) {
+    var role = el.getAttribute('role');
+    if (role) return role;
+    var tag = el.tagName.toLowerCase();
+    var map = {
+      a:'link', button:'button', input:'textbox', select:'combobox',
+      textarea:'textbox', img:'image', nav:'navigation', main:'main',
+      header:'banner', footer:'contentinfo', aside:'complementary',
+      form:'form', table:'table', tr:'row', td:'cell', th:'columnheader',
+      ul:'list', ol:'list', li:'listitem', h1:'heading', h2:'heading',
+      h3:'heading', h4:'heading', h5:'heading', h6:'heading',
+      details:'group', summary:'button', dialog:'dialog',
+      section:'region', article:'article'
+    };
+    if (tag === 'input') {
+      var t = (el.type || 'text').toLowerCase();
+      if (t === 'checkbox') return 'checkbox';
+      if (t === 'radio') return 'radio';
+      if (t === 'submit' || t === 'button' || t === 'reset') return 'button';
+      if (t === 'range') return 'slider';
+      return 'textbox';
+    }
+    return map[tag] || 'generic';
+  }
+
+  function getName(el) {
+    var name = el.getAttribute('aria-label') ||
+               el.getAttribute('alt') ||
+               el.getAttribute('title') ||
+               el.getAttribute('placeholder') || '';
+    if (!name && (el.tagName === 'A' || el.tagName === 'BUTTON' ||
+                  el.tagName === 'LABEL')) {
+      name = (el.textContent || '').trim();
+    }
+    if (!name && el.tagName === 'IMG') {
+      name = el.getAttribute('src') || '';
+      if (name.length > 40) name = '...' + name.slice(-37);
+    }
+    if (name.length > 80) name = name.substring(0, 77) + '...';
+    name = name.replace(/[\n\r\t]+/g, ' ').trim();
+    return name;
+  }
+
+  function getExtras(el) {
+    var parts = [];
+    var tag = el.tagName;
+    if (tag === 'INPUT') {
+      parts.push('type="' + (el.type || 'text') + '"');
+      if (el.placeholder) parts.push('placeholder="' + el.placeholder + '"');
+      if (el.value) parts.push('value="' + el.value.substring(0,40) + '"');
+      if (el.checked) parts.push('checked');
+      if (el.disabled) parts.push('disabled');
+    }
+    if (tag === 'A' && el.href) {
+      var h = el.getAttribute('href') || '';
+      if (h.length > 60) h = h.substring(0, 57) + '...';
+      parts.push('href="' + h + '"');
+    }
+    if (tag === 'SELECT') {
+      var sel = el.options && el.options[el.selectedIndex];
+      if (sel) parts.push('selected="' + sel.text + '"');
+    }
+    if (/^H[1-6]$/.test(tag)) {
+      parts.push('level=' + tag[1]);
+    }
+    if (el.disabled) parts.push('disabled');
+    if (el.getAttribute('aria-expanded')) {
+      parts.push('expanded=' + el.getAttribute('aria-expanded'));
+    }
+    return parts.join(' ');
+  }
+
+  function appendLine(depth, text) {
+    if (truncated) return;
+    var line = '  '.repeat(depth) + text + '\n';
+    if (charCount + line.length > MAX_CHARS) {
+      output += '  '.repeat(depth) + '... (truncated)\n';
+      truncated = true;
+      return;
+    }
+    output += line;
+    charCount += line.length;
+  }
+
+  var elementCount = 0;
+  var interactiveCount = 0;
+
+  function walk(el, depth) {
+    if (truncated || depth > MAX_DEPTH) return;
+    if (SKIP_TAGS[el.tagName]) return;
+    if (!isVisible(el)) return;
+    if (filterMode === 'visible' && !isInViewport(el)) {
+      // Still walk children - a container might be partially visible.
+    }
+
+    elementCount++;
+    var interactive = isInteractive(el);
+    var role = getRole(el);
+    var name = getName(el);
+
+    if (filterMode === 'interactive' && !interactive &&
+        role === 'generic' && !name) {
+      // Skip non-meaningful generic elements, but still walk children.
+      for (var c = el.firstElementChild; c; c = c.nextElementSibling) {
+        walk(c, depth);
+      }
+      return;
+    }
+
+    var refStr = '';
+    if (interactive) {
+      interactiveCount++;
+      var refId = 'ref_' + (++refCounter);
+      el.setAttribute('data-dao-ref', refId);
+      refStr = ' [' + refId + ']';
+    }
+
+    var nameStr = name ? ' "' + name + '"' : '';
+    var extras = getExtras(el);
+    var extraStr = extras ? ' ' + extras : '';
+    appendLine(depth, role + nameStr + refStr + extraStr);
+
+    // For leaf text nodes in non-interactive elements, show text.
+    if (!interactive && el.childElementCount === 0) {
+      var text = (el.textContent || '').trim();
+      if (text && text.length > 0 && role !== 'generic') {
+        // Already shown via name for some roles.
+      } else if (text && text.length > 0 && !name) {
+        if (text.length > 120) text = text.substring(0, 117) + '...';
+        text = text.replace(/[\n\r\t]+/g, ' ');
+        if (text) appendLine(depth + 1, '"' + text + '"');
+      }
+    }
+
+    for (var c = el.firstElementChild; c; c = c.nextElementSibling) {
+      walk(c, depth + 1);
+    }
+  }
+
+  var header = '[viewport: ' + window.innerWidth + 'x' + window.innerHeight +
+               ', scroll: ' + Math.round(window.scrollY) + '/' +
+               document.documentElement.scrollHeight + ']\n';
+  output = header;
+  charCount = header.length;
+
+  walk(document.body || document.documentElement, 0);
+
+  return JSON.stringify({
+    tree: output,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    scrollY: Math.round(window.scrollY),
+    scrollHeight: document.documentElement.scrollHeight,
+    elementCount: elementCount,
+    interactiveCount: interactiveCount
+  });
+})
+)js";
+
 }  // namespace
 
 // ---- DaoAgentDevToolsClient ----
@@ -189,6 +399,10 @@ void DaoAgentDevToolsClient::SendCommand(const std::string& method,
       this, base::as_byte_span(json));
 }
 
+void DaoAgentDevToolsClient::SetEventCallback(EventCallback callback) {
+  event_callback_ = std::move(callback);
+}
+
 void DaoAgentDevToolsClient::DispatchProtocolMessage(
     content::DevToolsAgentHost* agent_host,
     base::span<const uint8_t> message) {
@@ -203,7 +417,16 @@ void DaoAgentDevToolsClient::DispatchProtocolMessage(
   auto& dict = parsed->GetDict();
   auto id = dict.FindInt("id");
   if (!id) {
-    return;  // Event or notification — ignore for now.
+    // CDP event — dispatch to event callback if set.
+    if (event_callback_) {
+      auto* method = dict.FindString("method");
+      auto* params = dict.FindDict("params");
+      if (method) {
+        base::Value::Dict empty;
+        event_callback_.Run(*method, params ? *params : empty);
+      }
+    }
+    return;
   }
 
   auto it = pending_callbacks_.find(*id);
@@ -243,7 +466,11 @@ std::string DaoAgentDevToolsClient::GetTypeForMetrics() {
 // ---- DaoAgentUIHandler ----
 
 DaoAgentUIHandler::DaoAgentUIHandler()
-    : devtools_client_(std::make_unique<DaoAgentDevToolsClient>()) {}
+    : devtools_client_(std::make_unique<DaoAgentDevToolsClient>()) {
+  devtools_client_->SetEventCallback(
+      base::BindRepeating(&DaoAgentUIHandler::OnCDPEvent,
+                          base::Unretained(this)));
+}
 
 DaoAgentUIHandler::~DaoAgentUIHandler() = default;
 
@@ -279,6 +506,78 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "clearHighlight",
       base::BindRepeating(&DaoAgentUIHandler::HandleClearHighlight,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getAccessibilityTree",
+      base::BindRepeating(&DaoAgentUIHandler::HandleGetAccessibilityTree,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "clickByRef",
+      base::BindRepeating(&DaoAgentUIHandler::HandleClickByRef,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "captureScreenshot",
+      base::BindRepeating(&DaoAgentUIHandler::HandleCaptureScreenshot,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "scrollPage",
+      base::BindRepeating(&DaoAgentUIHandler::HandleScrollPage,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "scrollToElement",
+      base::BindRepeating(&DaoAgentUIHandler::HandleScrollToElement,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setExpectedDomain",
+      base::BindRepeating(&DaoAgentUIHandler::HandleSetExpectedDomain,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "listTabs",
+      base::BindRepeating(&DaoAgentUIHandler::HandleListTabs,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "switchTab",
+      base::BindRepeating(&DaoAgentUIHandler::HandleSwitchTab,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "openTab",
+      base::BindRepeating(&DaoAgentUIHandler::HandleOpenTab,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "closeTab",
+      base::BindRepeating(&DaoAgentUIHandler::HandleCloseTab,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "pressKeyChord",
+      base::BindRepeating(&DaoAgentUIHandler::HandlePressKeyChord,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "typeText",
+      base::BindRepeating(&DaoAgentUIHandler::HandleTypeText,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "enableNetworkTracking",
+      base::BindRepeating(&DaoAgentUIHandler::HandleEnableNetworkTracking,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getNetworkRequests",
+      base::BindRepeating(&DaoAgentUIHandler::HandleGetNetworkRequests,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "clearNetworkRequests",
+      base::BindRepeating(&DaoAgentUIHandler::HandleClearNetworkRequests,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "enableConsoleTracking",
+      base::BindRepeating(&DaoAgentUIHandler::HandleEnableConsoleTracking,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getConsoleMessages",
+      base::BindRepeating(&DaoAgentUIHandler::HandleGetConsoleMessages,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "clearConsoleMessages",
+      base::BindRepeating(&DaoAgentUIHandler::HandleClearConsoleMessages,
                           base::Unretained(this)));
 }
 
@@ -394,6 +693,19 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
     return;
   }
 
+  // Domain security check.
+  if (!expected_domain_.empty()) {
+    std::string current_domain = contents->GetURL().host();
+    if (current_domain != expected_domain_) {
+      base::Value::Dict response;
+      response.Set("error",
+                   "Security: domain changed from " + expected_domain_ +
+                   " to " + current_domain);
+      ResolveJavascriptCallback(base::Value(callback_id), response);
+      return;
+    }
+  }
+
   // Escape single quotes in selector for safe JS injection.
   std::string escaped_selector;
   for (char c : selector) {
@@ -464,6 +776,19 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
     response.Set("error", "No active tab or empty code");
     ResolveJavascriptCallback(base::Value(callback_id), response);
     return;
+  }
+
+  // Domain security check for locked (page-manipulating) scripts.
+  if (lock_tab && !expected_domain_.empty()) {
+    std::string current_domain = contents->GetURL().host();
+    if (current_domain != expected_domain_) {
+      base::Value::Dict response;
+      response.Set("error",
+                   "Security: domain changed from " + expected_domain_ +
+                   " to " + current_domain);
+      ResolveJavascriptCallback(base::Value(callback_id), response);
+      return;
+    }
   }
 
   if (lock_tab) {
@@ -663,6 +988,19 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
     return;
   }
 
+  // Domain security check.
+  if (!expected_domain_.empty()) {
+    std::string current_domain = contents->GetURL().host();
+    if (current_domain != expected_domain_) {
+      base::Value::Dict r;
+      r.Set("error",
+            "Security: domain changed from " + expected_domain_ +
+            " to " + current_domain);
+      ResolveJavascriptCallback(base::Value(callback_id), r);
+      return;
+    }
+  }
+
   std::string escaped;
   for (char c : selector) {
     if (c == '\'') escaped += "\\'";
@@ -852,6 +1190,968 @@ void DaoAgentUIHandler::PerformCDPClick(
           },
           weak_factory_.GetWeakPtr(), callback_id,
           viewport_x, viewport_y, locked_contents));
+}
+
+void DaoAgentUIHandler::HandleGetAccessibilityTree(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string filter = "interactive";
+  if (args[1].is_dict()) {
+    auto* f = args[1].GetDict().FindString("filter");
+    if (f) filter = *f;
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    base::Value::Dict response;
+    response.Set("error", "No active tab");
+    ResolveJavascriptCallback(base::Value(callback_id), response);
+    return;
+  }
+
+  // Escape filter for safe inclusion in the IIFE call.
+  std::string js = std::string(kAccessibilityTreeScript) +
+                   "('" + filter + "')";
+
+  base::Value::Dict params;
+  params.Set("expression", js);
+  params.Set("returnByValue", true);
+
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value result) {
+            if (!handler) return;
+            base::Value::Dict response;
+            if (result.is_dict()) {
+              auto* value =
+                  result.GetDict().FindByDottedPath("result.value");
+              if (value && value->is_string()) {
+                auto parsed = base::JSONReader::Read(value->GetString());
+                if (parsed && parsed->is_dict()) {
+                  response = std::move(parsed->GetDict());
+                } else {
+                  response.Set("tree", value->GetString());
+                }
+              }
+              auto* exception =
+                  result.GetDict().FindByDottedPath("exceptionDetails");
+              if (exception) {
+                std::string json;
+                base::JSONWriter::Write(*exception, &json);
+                response.Set("error", json);
+              }
+            }
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string ref_id;
+  if (args[1].is_dict()) {
+    auto* r = args[1].GetDict().FindString("ref_id");
+    if (r) ref_id = *r;
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents || ref_id.empty()) {
+    base::Value::Dict response;
+    response.Set("error", "No active tab or invalid ref_id");
+    ResolveJavascriptCallback(base::Value(callback_id), response);
+    return;
+  }
+
+  // Domain security check.
+  if (!expected_domain_.empty()) {
+    std::string current_domain = contents->GetURL().host();
+    if (current_domain != expected_domain_) {
+      base::Value::Dict response;
+      response.Set("error",
+                   "Security: domain changed from " + expected_domain_ +
+                   " to " + current_domain);
+      ResolveJavascriptCallback(base::Value(callback_id), response);
+      return;
+    }
+  }
+
+  // Escape ref_id for safe JS injection.
+  std::string escaped_ref;
+  for (char c : ref_id) {
+    if (c == '"') escaped_ref += "\\\"";
+    else if (c == '\\') escaped_ref += "\\\\";
+    else escaped_ref += c;
+  }
+
+  DaoAgentLockTabHelper::LockContents(contents);
+
+  // Inject highlight + get element bounds via ref_id.
+  std::string script =
+      std::string(kHighlightInjectScript) +
+      "; (function() {"
+      "  var el = document.querySelector('[data-dao-ref=\"" +
+      escaped_ref + "\"]');"
+      "  if (!el) return JSON.stringify({error:'Element not found'});"
+      "  window.__dao_agent__.showHighlight('[data-dao-ref=\"" +
+      escaped_ref + "\"]');"
+      "  var r = el.getBoundingClientRect();"
+      "  return JSON.stringify({x: r.left + r.width/2, y: r.top + r.height/2});"
+      "})()";
+
+  base::Value::Dict params;
+  params.Set("expression", script);
+  params.Set("returnByValue", true);
+
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id,
+             std::string escaped_ref,
+             content::WebContents* locked_contents,
+             base::Value result) {
+            if (!handler) {
+              UnlockLockedTab(locked_contents);
+              return;
+            }
+
+            std::string json_str;
+            if (result.is_dict()) {
+              auto* value =
+                  result.GetDict().FindByDottedPath("result.value");
+              if (value && value->is_string())
+                json_str = value->GetString();
+            }
+
+            auto parsed = base::JSONReader::Read(json_str);
+            if (!parsed || !parsed->is_dict() ||
+                parsed->GetDict().FindString("error")) {
+              UnlockLockedTab(locked_contents);
+              base::Value::Dict r;
+              r.Set("error",
+                    json_str.empty() ? "element not found" : json_str);
+              handler->ResolveJavascriptCallback(
+                  base::Value(callback_id), r);
+              return;
+            }
+
+            double vx = parsed->GetDict().FindDouble("x").value_or(0);
+            double vy = parsed->GetDict().FindDouble("y").value_or(0);
+
+            // Move cursor then click, same as HandleAgentClick.
+            Browser* browser =
+                BrowserList::GetInstance()->GetLastActive();
+            BrowserView* bv = browser
+                ? BrowserView::GetBrowserViewForBrowser(browser)
+                : nullptr;
+            auto* cursor = bv ? bv->dao_agent_cursor() : nullptr;
+
+            std::string selector_for_click =
+                "[data-dao-ref=\"" + escaped_ref + "\"]";
+
+            if (!cursor) {
+              handler->PerformCDPClick(callback_id, selector_for_click,
+                                       vx, vy, locked_contents);
+              return;
+            }
+
+            gfx::Rect viewport_screen;
+            if (locked_contents &&
+                locked_contents->GetRenderWidgetHostView()) {
+              viewport_screen =
+                  locked_contents->GetRenderWidgetHostView()
+                      ->GetViewBounds();
+            } else {
+              viewport_screen =
+                  bv->contents_container()->GetBoundsInScreen();
+            }
+            gfx::Rect cursor_bounds = cursor->GetBoundsInScreen();
+            float cx = static_cast<float>(
+                viewport_screen.x() - cursor_bounds.x()) + vx;
+            float cy = static_cast<float>(
+                viewport_screen.y() - cursor_bounds.y()) + vy;
+
+            if (!cursor->is_visible()) {
+              cursor->ShowAtCenter();
+            }
+
+            cursor->AnimateTo(cx, cy,
+                base::BindOnce(
+                    [](base::WeakPtr<DaoAgentUIHandler> h,
+                       std::string cb_id,
+                       std::string sel,
+                       double vx, double vy,
+                       content::WebContents* locked) {
+                      if (!h) {
+                        UnlockLockedTab(locked);
+                        return;
+                      }
+                      Browser* br =
+                          BrowserList::GetInstance()->GetLastActive();
+                      BrowserView* view = br
+                          ? BrowserView::GetBrowserViewForBrowser(br)
+                          : nullptr;
+                      auto* cur = view
+                          ? view->dao_agent_cursor() : nullptr;
+                      if (cur) {
+                        cur->PlayClickRipple();
+                      }
+                      h->PerformCDPClick(cb_id, sel, vx, vy, locked);
+                    },
+                    handler, callback_id, selector_for_click,
+                    vx, vy, locked_contents));
+          },
+          weak_factory_.GetWeakPtr(), callback_id, escaped_ref,
+          contents));
+}
+
+void DaoAgentUIHandler::HandleCaptureScreenshot(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    base::Value::Dict response;
+    response.Set("error", "No active tab");
+    ResolveJavascriptCallback(base::Value(callback_id), response);
+    return;
+  }
+
+  base::Value::Dict params;
+  params.Set("format", "jpeg");
+  params.Set("quality", 60);
+
+  devtools_client_->SendCommand(
+      "Page.captureScreenshot", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value result) {
+            if (!handler) return;
+            base::Value::Dict response;
+            if (result.is_dict()) {
+              auto* data = result.GetDict().FindString("data");
+              if (data) {
+                response.Set("data", *data);
+                response.Set("format", "jpeg");
+              } else {
+                response.Set("error", "No screenshot data returned");
+              }
+            } else {
+              response.Set("error", "Screenshot failed");
+            }
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleScrollPage(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string direction = "down";
+  int pixel_amount = 0;  // 0 means use viewport-based default.
+  if (args[1].is_dict()) {
+    auto* d = args[1].GetDict().FindString("direction");
+    if (d) direction = *d;
+    pixel_amount = static_cast<int>(
+        args[1].GetDict().FindDouble("amount").value_or(0));
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    base::Value::Dict response;
+    response.Set("error", "No active tab");
+    ResolveJavascriptCallback(base::Value(callback_id), response);
+    return;
+  }
+
+  // If pixel_amount is specified, use it directly; otherwise default to 80%
+  // of viewport height.
+  std::string amount_expr;
+  if (pixel_amount > 0) {
+    std::string sign = (direction == "up") ? "-" : "";
+    amount_expr = sign + std::to_string(pixel_amount);
+  } else {
+    std::string sign = (direction == "up") ? "-" : "";
+    amount_expr = sign + "Math.round(window.innerHeight * 0.8)";
+  }
+  std::string js =
+      "(function() {"
+      "  var amount = " + amount_expr + ";"
+      "  window.scrollBy({top: amount, behavior: 'smooth'});"
+      "  return JSON.stringify({"
+      "    scrollY: Math.round(window.scrollY + amount),"
+      "    scrollHeight: document.documentElement.scrollHeight,"
+      "    viewportHeight: window.innerHeight"
+      "  });"
+      "})()";
+
+  base::Value::Dict params;
+  params.Set("expression", js);
+  params.Set("returnByValue", true);
+
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value result) {
+            if (!handler) return;
+            base::Value::Dict response;
+            if (result.is_dict()) {
+              auto* value =
+                  result.GetDict().FindByDottedPath("result.value");
+              if (value && value->is_string()) {
+                auto parsed = base::JSONReader::Read(value->GetString());
+                if (parsed && parsed->is_dict()) {
+                  response = std::move(parsed->GetDict());
+                }
+              }
+            }
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleScrollToElement(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string selector;
+  std::string ref_id;
+  if (args[1].is_dict()) {
+    auto* s = args[1].GetDict().FindString("selector");
+    if (s) selector = *s;
+    auto* r = args[1].GetDict().FindString("ref_id");
+    if (r) ref_id = *r;
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents || (selector.empty() && ref_id.empty())) {
+    base::Value::Dict response;
+    response.Set("error", "No active tab or no selector/ref_id");
+    ResolveJavascriptCallback(base::Value(callback_id), response);
+    return;
+  }
+
+  // Build the JS query — prefer ref_id, fallback to selector.
+  std::string query;
+  if (!ref_id.empty()) {
+    std::string escaped;
+    for (char c : ref_id) {
+      if (c == '"') escaped += "\\\"";
+      else if (c == '\\') escaped += "\\\\";
+      else escaped += c;
+    }
+    query = "[data-dao-ref=\\\"" + escaped + "\\\"]";
+  } else {
+    std::string escaped;
+    for (char c : selector) {
+      if (c == '\'') escaped += "\\'";
+      else if (c == '\\') escaped += "\\\\";
+      else escaped += c;
+    }
+    query = escaped;
+  }
+
+  std::string js =
+      "(function() {"
+      "  var el = document.querySelector('" + query + "');"
+      "  if (!el) return JSON.stringify({error: 'element not found'});"
+      "  el.scrollIntoView({behavior: 'smooth', block: 'center'});"
+      "  return JSON.stringify({scrolled: true});"
+      "})()";
+
+  base::Value::Dict params;
+  params.Set("expression", js);
+  params.Set("returnByValue", true);
+
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value result) {
+            if (!handler) return;
+            base::Value::Dict response;
+            if (result.is_dict()) {
+              auto* value =
+                  result.GetDict().FindByDottedPath("result.value");
+              if (value && value->is_string()) {
+                auto parsed = base::JSONReader::Read(value->GetString());
+                if (parsed && parsed->is_dict()) {
+                  response = std::move(parsed->GetDict());
+                }
+              }
+            }
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleSetExpectedDomain(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  if (args[1].is_dict()) {
+    auto* domain = args[1].GetDict().FindString("domain");
+    if (domain) {
+      expected_domain_ = *domain;
+    }
+  }
+
+  base::Value::Dict response;
+  response.Set("success", true);
+  response.Set("domain", expected_domain_);
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+// ---- Tab Management ----
+
+void DaoAgentUIHandler::HandleListTabs(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  base::Value::List tabs_list;
+
+  if (browser) {
+    TabStripModel* model = browser->tab_strip_model();
+    int active_index = model->active_index();
+    for (int i = 0; i < model->count(); ++i) {
+      content::WebContents* wc = model->GetWebContentsAt(i);
+      if (!wc) continue;
+      base::Value::Dict tab;
+      tab.Set("index", i);
+      tab.Set("url", wc->GetURL().spec());
+      tab.Set("title", base::UTF16ToUTF8(wc->GetTitle()));
+      tab.Set("active", i == active_index);
+      tabs_list.Append(std::move(tab));
+    }
+  }
+
+  base::Value::Dict response;
+  response.Set("tabs", std::move(tabs_list));
+  response.Set("count", static_cast<int>(tabs_list.size()));
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleSwitchTab(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  int index = -1;
+  if (args[1].is_dict()) {
+    index = args[1].GetDict().FindInt("index").value_or(-1);
+  }
+
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  base::Value::Dict response;
+
+  if (!browser || index < 0 ||
+      index >= browser->tab_strip_model()->count()) {
+    response.Set("error", "Invalid tab index");
+  } else {
+    browser->tab_strip_model()->ActivateTabAt(index);
+    // Re-attach devtools to the new active tab.
+    content::WebContents* wc =
+        browser->tab_strip_model()->GetWebContentsAt(index);
+    response.Set("success", true);
+    response.Set("url", wc ? wc->GetURL().spec() : "");
+    response.Set("title",
+                 wc ? base::UTF16ToUTF8(wc->GetTitle()) : "");
+  }
+
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleOpenTab(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string url_str;
+  if (args[1].is_dict()) {
+    auto* u = args[1].GetDict().FindString("url");
+    if (u) url_str = *u;
+  }
+
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  base::Value::Dict response;
+
+  if (!browser) {
+    response.Set("error", "No active browser");
+  } else {
+    GURL url(url_str);
+    if (!url.is_valid()) {
+      url = GURL("about:blank");
+    }
+    NavigateParams params(browser, url, ui::PAGE_TRANSITION_TYPED);
+    params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    Navigate(&params);
+    response.Set("success", true);
+    response.Set("url", url.spec());
+  }
+
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleCloseTab(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  int index = -1;
+  if (args[1].is_dict()) {
+    index = args[1].GetDict().FindInt("index").value_or(-1);
+  }
+
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  base::Value::Dict response;
+
+  if (!browser) {
+    response.Set("error", "No active browser");
+  } else {
+    TabStripModel* model = browser->tab_strip_model();
+    // Default to active tab.
+    if (index < 0) {
+      index = model->active_index();
+    }
+    if (index < 0 || index >= model->count()) {
+      response.Set("error", "Invalid tab index");
+    } else if (model->count() <= 1) {
+      response.Set("error", "Cannot close the last tab");
+    } else {
+      model->CloseWebContentsAt(index,
+                                TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
+      response.Set("success", true);
+    }
+  }
+
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+// ---- Keyboard Input ----
+
+void DaoAgentUIHandler::HandlePressKeyChord(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string key_combo;
+  if (args[1].is_dict()) {
+    auto* k = args[1].GetDict().FindString("keys");
+    if (k) key_combo = *k;
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents || key_combo.empty()) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab or empty key combo");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  // Build JS to simulate key events via CDP-compatible dispatchKeyEvent.
+  // Parse key combo: "ctrl+a", "cmd+c", "Enter", "Tab", "Escape", etc.
+  // Use Input.dispatchKeyEvent CDP command for each key.
+  std::string js =
+      "(function() {"
+      "  var combo = '" + key_combo + "'.toLowerCase();"
+      "  var parts = combo.split('+');"
+      "  var key = parts[parts.length - 1].trim();"
+      "  var opts = {"
+      "    bubbles: true, cancelable: true,"
+      "    ctrlKey: combo.includes('ctrl'),"
+      "    metaKey: combo.includes('cmd') || combo.includes('meta'),"
+      "    shiftKey: combo.includes('shift'),"
+      "    altKey: combo.includes('alt')"
+      "  };"
+      "  var keyMap = {"
+      "    'enter':'Enter', 'tab':'Tab', 'escape':'Escape', 'esc':'Escape',"
+      "    'backspace':'Backspace', 'delete':'Delete', 'space':' ',"
+      "    'up':'ArrowUp', 'down':'ArrowDown', 'left':'ArrowLeft', 'right':'ArrowRight'"
+      "  };"
+      "  opts.key = keyMap[key] || key;"
+      "  var el = document.activeElement || document.body;"
+      "  el.dispatchEvent(new KeyboardEvent('keydown', opts));"
+      "  el.dispatchEvent(new KeyboardEvent('keyup', opts));"
+      "  if (opts.key.length === 1 && !opts.ctrlKey && !opts.metaKey) {"
+      "    el.dispatchEvent(new InputEvent('input', {data: opts.key, inputType:'insertText', bubbles:true}));"
+      "  }"
+      "  return 'pressed: ' + combo;"
+      "})()";
+
+  base::Value::Dict params;
+  params.Set("expression", js);
+  params.Set("returnByValue", true);
+
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value result) {
+            if (!handler) return;
+            base::Value::Dict response;
+            if (result.is_dict()) {
+              auto* value =
+                  result.GetDict().FindByDottedPath("result.value");
+              if (value && value->is_string()) {
+                response.Set("result", value->GetString());
+              }
+            }
+            response.Set("success", true);
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string text;
+  bool clear_first = false;
+  if (args[1].is_dict()) {
+    auto* t = args[1].GetDict().FindString("text");
+    if (t) text = *t;
+    clear_first = args[1].GetDict().FindBool("clear").value_or(false);
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents || text.empty()) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab or empty text");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  // Escape the text for safe JS string inclusion.
+  std::string escaped_text;
+  for (char c : text) {
+    if (c == '\\') escaped_text += "\\\\";
+    else if (c == '\'') escaped_text += "\\'";
+    else if (c == '\n') escaped_text += "\\n";
+    else if (c == '\r') escaped_text += "\\r";
+    else if (c == '\t') escaped_text += "\\t";
+    else escaped_text += c;
+  }
+
+  // Use CDP Input.insertText for reliable text input that works with
+  // all input types including contentEditable and shadow DOM inputs.
+  // First optionally clear, then insert text.
+  if (clear_first) {
+    // Select all then delete before typing.
+    std::string clear_js =
+        "(function() {"
+        "  var el = document.activeElement;"
+        "  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {"
+        "    el.select();"
+        "  } else {"
+        "    document.execCommand('selectAll');"
+        "  }"
+        "  return 'selected';"
+        "})()";
+    base::Value::Dict clear_params;
+    clear_params.Set("expression", clear_js);
+    clear_params.Set("returnByValue", true);
+
+    devtools_client_->SendCommand(
+        "Runtime.evaluate", std::move(clear_params),
+        base::BindOnce(
+            [](base::WeakPtr<DaoAgentUIHandler> handler,
+               std::string callback_id,
+               std::string escaped_text,
+               base::Value) {
+              if (!handler) return;
+              // Now insert the text via CDP.
+              base::Value::Dict insert_params;
+              insert_params.Set("text", escaped_text);
+              handler->devtools_client_->SendCommand(
+                  "Input.insertText", std::move(insert_params),
+                  base::BindOnce(
+                      [](base::WeakPtr<DaoAgentUIHandler> h,
+                         std::string cb_id,
+                         std::string text,
+                         base::Value) {
+                        if (!h) return;
+                        base::Value::Dict r;
+                        r.Set("success", true);
+                        r.Set("typed", text);
+                        h->ResolveJavascriptCallback(
+                            base::Value(cb_id), r);
+                      },
+                      handler, callback_id, escaped_text));
+            },
+            weak_factory_.GetWeakPtr(), callback_id, text));
+  } else {
+    // Direct insert without clearing.
+    base::Value::Dict insert_params;
+    insert_params.Set("text", text);
+    devtools_client_->SendCommand(
+        "Input.insertText", std::move(insert_params),
+        base::BindOnce(
+            [](base::WeakPtr<DaoAgentUIHandler> handler,
+               std::string callback_id,
+               std::string text,
+               base::Value) {
+              if (!handler) return;
+              base::Value::Dict r;
+              r.Set("success", true);
+              r.Set("typed", text);
+              handler->ResolveJavascriptCallback(
+                  base::Value(callback_id), r);
+            },
+            weak_factory_.GetWeakPtr(), callback_id, text));
+  }
+}
+
+// ---- Network/Console Debugging ----
+
+void DaoAgentUIHandler::OnCDPEvent(const std::string& method,
+                                    const base::Value::Dict& params) {
+  if (network_tracking_enabled_) {
+    if (method == "Network.requestWillBeSent") {
+      base::Value::Dict entry;
+      auto* request = params.FindDict("request");
+      if (request) {
+        auto* url = request->FindString("url");
+        auto* req_method = request->FindString("method");
+        if (url) entry.Set("url", *url);
+        if (req_method) entry.Set("method", *req_method);
+      }
+      auto* type = params.FindString("type");
+      if (type) entry.Set("type", *type);
+      entry.Set("timestamp", params.FindDouble("timestamp").value_or(0));
+      entry.Set("phase", "request");
+      // Cap stored requests at 200.
+      if (network_requests_.size() < 200) {
+        network_requests_.push_back(std::move(entry));
+      }
+    } else if (method == "Network.responseReceived") {
+      base::Value::Dict entry;
+      auto* response = params.FindDict("response");
+      if (response) {
+        auto* url = response->FindString("url");
+        auto status = response->FindInt("status");
+        auto* mime = response->FindString("mimeType");
+        if (url) entry.Set("url", *url);
+        if (status) entry.Set("status", *status);
+        if (mime) entry.Set("mimeType", *mime);
+      }
+      auto* type = params.FindString("type");
+      if (type) entry.Set("type", *type);
+      entry.Set("phase", "response");
+      if (network_requests_.size() < 200) {
+        network_requests_.push_back(std::move(entry));
+      }
+    }
+  }
+
+  if (console_tracking_enabled_) {
+    if (method == "Runtime.consoleAPICalled") {
+      base::Value::Dict entry;
+      auto* type = params.FindString("type");
+      if (type) entry.Set("type", *type);
+      auto* msg_args = params.FindList("args");
+      if (msg_args && !msg_args->empty()) {
+        std::string text;
+        for (const auto& arg : *msg_args) {
+          if (arg.is_dict()) {
+            auto* val = arg.GetDict().FindString("value");
+            auto* desc = arg.GetDict().FindString("description");
+            if (val) {
+              if (!text.empty()) text += " ";
+              text += *val;
+            } else if (desc) {
+              if (!text.empty()) text += " ";
+              text += *desc;
+            }
+          }
+        }
+        entry.Set("text", text);
+      }
+      entry.Set("timestamp", params.FindDouble("timestamp").value_or(0));
+      if (console_messages_.size() < 500) {
+        console_messages_.push_back(std::move(entry));
+      }
+    } else if (method == "Runtime.exceptionThrown") {
+      base::Value::Dict entry;
+      entry.Set("type", "error");
+      auto* exception_details = params.FindDict("exceptionDetails");
+      if (exception_details) {
+        auto* text = exception_details->FindString("text");
+        if (text) entry.Set("text", *text);
+        auto line = exception_details->FindInt("lineNumber");
+        if (line) entry.Set("line", *line);
+        auto* url = exception_details->FindString("url");
+        if (url) entry.Set("url", *url);
+      }
+      entry.Set("timestamp", params.FindDouble("timestamp").value_or(0));
+      if (console_messages_.size() < 500) {
+        console_messages_.push_back(std::move(entry));
+      }
+    }
+  }
+}
+
+void DaoAgentUIHandler::HandleEnableNetworkTracking(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  network_tracking_enabled_ = true;
+  network_requests_.clear();
+
+  base::Value::Dict params;
+  devtools_client_->SendCommand(
+      "Network.enable", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value) {
+            if (!handler) return;
+            base::Value::Dict r;
+            r.Set("success", true);
+            r.Set("message", "Network tracking enabled");
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), r);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleGetNetworkRequests(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  base::Value::List list;
+  for (const auto& entry : network_requests_) {
+    list.Append(entry.Clone());
+  }
+
+  base::Value::Dict response;
+  response.Set("requests", std::move(list));
+  response.Set("count", static_cast<int>(network_requests_.size()));
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleClearNetworkRequests(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  network_requests_.clear();
+
+  base::Value::Dict response;
+  response.Set("success", true);
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleEnableConsoleTracking(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  console_tracking_enabled_ = true;
+  console_messages_.clear();
+
+  base::Value::Dict params;
+  devtools_client_->SendCommand(
+      "Runtime.enable", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id, base::Value) {
+            if (!handler) return;
+            base::Value::Dict r;
+            r.Set("success", true);
+            r.Set("message", "Console tracking enabled");
+            handler->ResolveJavascriptCallback(
+                base::Value(callback_id), r);
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::HandleGetConsoleMessages(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string filter;
+  if (args.size() >= 2 && args[1].is_dict()) {
+    auto* f = args[1].GetDict().FindString("filter");
+    if (f) filter = *f;
+  }
+
+  base::Value::List list;
+  for (const auto& entry : console_messages_) {
+    if (!filter.empty()) {
+      auto* type = entry.FindString("type");
+      if (type && *type != filter) continue;
+    }
+    list.Append(entry.Clone());
+  }
+
+  base::Value::Dict response;
+  int count = static_cast<int>(list.size());
+  response.Set("messages", std::move(list));
+  response.Set("count", count);
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleClearConsoleMessages(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  console_messages_.clear();
+
+  base::Value::Dict response;
+  response.Set("success", true);
+  ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
 // ---- DaoAgentMemoryHandler ----

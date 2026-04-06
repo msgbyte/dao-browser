@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -41,6 +42,9 @@ class DaoAgentUIConfig : public content::WebUIConfig {
 class DaoAgentDevToolsClient : public content::DevToolsAgentHostClient {
  public:
   using ResponseCallback = base::OnceCallback<void(base::Value)>;
+  using EventCallback =
+      base::RepeatingCallback<void(const std::string& method,
+                                   const base::Value::Dict& params)>;
 
   DaoAgentDevToolsClient();
   ~DaoAgentDevToolsClient() override;
@@ -56,6 +60,9 @@ class DaoAgentDevToolsClient : public content::DevToolsAgentHostClient {
                    base::Value::Dict params,
                    ResponseCallback callback);
 
+  // Set a callback for CDP events (messages without an "id" field).
+  void SetEventCallback(EventCallback callback);
+
   // content::DevToolsAgentHostClient:
   void DispatchProtocolMessage(content::DevToolsAgentHost* agent_host,
                                base::span<const uint8_t> message) override;
@@ -67,6 +74,7 @@ class DaoAgentDevToolsClient : public content::DevToolsAgentHostClient {
   scoped_refptr<content::DevToolsAgentHost> agent_host_;
   int next_command_id_ = 1;
   std::map<int, ResponseCallback> pending_callbacks_;
+  EventCallback event_callback_;
 };
 
 // WebUI message handler for Dao Agent sidebar.
@@ -92,11 +100,51 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   void HandleAgentClick(const base::Value::List& args);
   void HandleHighlightElement(const base::Value::List& args);
   void HandleClearHighlight(const base::Value::List& args);
+  void HandleGetAccessibilityTree(const base::Value::List& args);
+  void HandleClickByRef(const base::Value::List& args);
+  void HandleCaptureScreenshot(const base::Value::List& args);
+  void HandleScrollPage(const base::Value::List& args);
+  void HandleScrollToElement(const base::Value::List& args);
+  void HandleSetExpectedDomain(const base::Value::List& args);
+
+  // Tab management handlers.
+  void HandleListTabs(const base::Value::List& args);
+  void HandleSwitchTab(const base::Value::List& args);
+  void HandleOpenTab(const base::Value::List& args);
+  void HandleCloseTab(const base::Value::List& args);
+
+  // Keyboard/text input handlers.
+  void HandlePressKeyChord(const base::Value::List& args);
+  void HandleTypeText(const base::Value::List& args);
+
+  // Network/console debugging handlers.
+  void HandleEnableNetworkTracking(const base::Value::List& args);
+  void HandleGetNetworkRequests(const base::Value::List& args);
+  void HandleClearNetworkRequests(const base::Value::List& args);
+  void HandleEnableConsoleTracking(const base::Value::List& args);
+  void HandleGetConsoleMessages(const base::Value::List& args);
+  void HandleClearConsoleMessages(const base::Value::List& args);
+
   void PerformCDPClick(const std::string& callback_id,
                        const std::string& escaped_selector,
                        double viewport_x,
                        double viewport_y,
                        content::WebContents* locked_contents);
+
+  // CDP event handler for network/console tracking.
+  void OnCDPEvent(const std::string& method,
+                  const base::Value::Dict& params);
+
+  // Domain security: expected domain set at session start.
+  std::string expected_domain_;
+
+  // Network tracking state.
+  bool network_tracking_enabled_ = false;
+  std::vector<base::Value::Dict> network_requests_;
+
+  // Console tracking state.
+  bool console_tracking_enabled_ = false;
+  std::vector<base::Value::Dict> console_messages_;
 
   std::unique_ptr<DaoAgentDevToolsClient> devtools_client_;
   base::WeakPtrFactory<DaoAgentUIHandler> weak_factory_{this};

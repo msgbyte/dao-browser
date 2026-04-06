@@ -23,6 +23,7 @@ import {
 } from './agent_bridge.js';
 import type {
   ChatMessage,
+  ContentPart,
   ScenarioData,
   StreamCallbacks,
   ToolCall,
@@ -1110,6 +1111,9 @@ export class DaoChatView extends CrLitElement {
           if (pageInfo.url) {
             try {
               this.currentDomain_ = new URL(pageInfo.url).hostname;
+              // Set expected domain for security validation.
+              callNative('setExpectedDomain',
+                  {domain: this.currentDomain_}).catch(() => {});
             } catch (_) {
               this.currentDomain_ = '';
             }
@@ -1235,6 +1239,22 @@ export class DaoChatView extends CrLitElement {
                         result = {error: (e as Error).message};
                         isToolError = true;
                       }
+                      // Handle screenshot: extract base64, insert as
+                      // multimodal user message for the LLM.
+                      let screenshotBase64: string|undefined;
+                      if (fn.name === 'capture_screenshot' && result &&
+                          typeof result === 'object' &&
+                          '_base64' in (result as Record<string, unknown>)) {
+                        screenshotBase64 =
+                            (result as Record<string, unknown>)['_base64'] as
+                            string;
+                        // Remove _base64 from the displayed result.
+                        result = {
+                          screenshot_taken: true,
+                          message: 'Screenshot captured.',
+                        };
+                      }
+
                       const resultStr = typeof result === 'string'
                           ? result : JSON.stringify(result);
 
@@ -1253,6 +1273,24 @@ export class DaoChatView extends CrLitElement {
                         role: 'tool', tool_call_id: tc.id,
                         content: resultStr,
                       });
+
+                      // Insert screenshot as multimodal user message.
+                      if (screenshotBase64) {
+                        this.messages_.push({
+                          role: 'user',
+                          content: [
+                            {type: 'text', text: '[Screenshot of current page]'},
+                            {
+                              type: 'image_url',
+                              image_url: {
+                                url: 'data:image/jpeg;base64,' +
+                                    screenshotBase64,
+                                detail: 'low',
+                              },
+                            },
+                          ] as ContentPart[],
+                        });
+                      }
                     }
                     continueLoop = true;
                   } catch (e) {
@@ -1368,9 +1406,11 @@ export class DaoChatView extends CrLitElement {
       if (!Array.isArray(saved) || saved.length === 0) return;
       for (const msg of saved) {
         this.messages_.push(msg);
+        const displayContent = Array.isArray(msg.content)
+            ? '[Screenshot]' : (msg.content || '');
         this.pushUIMessage_(
             msg.role === 'user' ? 'user' : 'assistant',
-            msg.content || '');
+            displayContent);
       }
     } catch (_) { /* corrupt data */ }
   }
