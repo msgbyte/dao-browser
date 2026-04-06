@@ -28,7 +28,9 @@ constexpr SkColor kInkDropBase = SK_ColorBLACK;
 constexpr float kInkDropOpacity = 0.04f;
 
 constexpr SkColor kCommandBarScrim = SkColorSetARGB(80, 0, 0, 0);
-constexpr SkColor kCommandBarBackground = SkColorSetRGB(255, 255, 255);
+constexpr SkColor kCommandBarBackground = SkColorSetARGB(186, 255, 255, 255);
+constexpr SkColor kCommandBarBorder = SkColorSetARGB(40, 0, 0, 0);
+constexpr float kCommandBarBlurSigma = 16.0f;
 
 constexpr SkColor kSuggestionHover = SkColorSetARGB(15, 0, 0, 0);
 constexpr SkColor kSuggestionSelected = SkColorSetARGB(25, 0, 0, 0);

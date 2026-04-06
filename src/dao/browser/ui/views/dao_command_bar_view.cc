@@ -45,6 +45,7 @@
 #include "ui/gfx/range/range.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/views/background.h"
+#include "ui/views/border.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/layout/box_layout.h"
@@ -71,22 +72,98 @@ class CommandBarTextfield : public views::Textfield {
 BEGIN_METADATA(CommandBarTextfield)
 END_METADATA
 
+// A Background that paints a translucent color but reports an opaque color
+// from get_color().  This satisfies Chromium's Label subpixel-rendering
+// DCHECK (which walks ancestors looking for an opaque background) while
+// still allowing SetBackgroundBlur to show through.
+class FrostedGlassBackground : public views::Background {
+ public:
+  explicit FrostedGlassBackground(SkColor paint_color)
+      : paint_color_(paint_color) {
+    // Report opaque white so the DCHECK in Label::PaintText passes.
+    SetNativeControlColor(SK_ColorWHITE);
+  }
+
+  void Paint(gfx::Canvas* canvas, views::View* view) const override {
+    canvas->DrawColor(paint_color_);
+  }
+
+ private:
+  SkColor paint_color_;
+};
+
+// A view whose sole job is to paint a DrawLooper shadow.
+// It has its own layer so it can render outside its clip without
+// requiring the parent DaoCommandBarView to have a layer (which
+// would block glass_container_'s backdrop blur).
+// The view is sized larger than the glass container by kShadowPadding
+// on each side so the blurred shadow is not clipped by the layer bounds.
+class CommandBarShadowView : public views::View {
+  METADATA_HEADER(CommandBarShadowView, views::View)
+
+ public:
+  // Enough padding for blur radius 80 (blur 160 / 2) + offset 20.
+  static constexpr int kShadowPadding = 100;
+
+  CommandBarShadowView() {
+    SetPaintToLayer();
+    layer()->SetFillsBoundsOpaquely(false);
+    SetCanProcessEventsWithinSubtree(false);
+  }
+
+  void OnPaint(gfx::Canvas* canvas) override {
+    std::vector<gfx::ShadowValue> shadows;
+    shadows.emplace_back(gfx::Vector2d(0, 20), 160,
+                         SkColorSetARGB(130, 0, 0, 0));
+    shadows.emplace_back(gfx::Vector2d(0, 6), 40,
+                         SkColorSetARGB(80, 0, 0, 0));
+
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+    flags.setColor(SK_ColorTRANSPARENT);
+    flags.setLooper(gfx::CreateShadowDrawLooper(shadows));
+
+    // Draw the card shape inset by the padding so the shadow extends
+    // into the padding area without being clipped.
+    gfx::RectF card_rect(kShadowPadding, kShadowPadding,
+                         width() - 2 * kShadowPadding,
+                         height() - 2 * kShadowPadding);
+    canvas->DrawRoundRect(card_rect, 16.0f, flags);
+  }
+};
+
+BEGIN_METADATA(CommandBarShadowView)
+END_METADATA
+
 BEGIN_METADATA(DaoCommandBarView)
 END_METADATA
 
 DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   SetVisible(false);
-  SetPaintToLayer();
-  layer()->SetFillsBoundsOpaquely(false);
+  // NOTE: No SetPaintToLayer() here — an intermediate layer would block
+  // glass_container_'s backdrop blur from reaching the webpage content.
 
-  // Card container: centered panel with rounded corners
-  card_container_ = AddChildView(std::make_unique<views::View>());
-  card_container_->SetPaintToLayer();
-  card_container_->layer()->SetFillsBoundsOpaquely(false);
-  card_container_->layer()->SetRoundedCornerRadius(gfx::RoundedCornersF(16));
-  card_container_->layer()->SetIsFastRoundedCorner(true);
-  card_container_->SetBackground(
-      views::CreateSolidBackground(kCommandBarBackground));
+  // Shadow view: rendered before (behind) the glass container so its
+  // DrawLooper shadow appears underneath.
+  shadow_view_ = AddChildView(std::make_unique<CommandBarShadowView>());
+
+  // Unified frosted glass container: single layer with blur + background
+  // that wraps both the input card and the dropdown suggestions.
+  glass_container_ = AddChildView(std::make_unique<views::View>());
+  glass_container_->SetPaintToLayer();
+  glass_container_->layer()->SetFillsBoundsOpaquely(false);
+  glass_container_->layer()->SetRoundedCornerRadius(gfx::RoundedCornersF(16));
+  glass_container_->layer()->SetIsFastRoundedCorner(true);
+  glass_container_->layer()->SetBackgroundBlur(kCommandBarBlurSigma);
+  glass_container_->SetBackground(
+      std::make_unique<FrostedGlassBackground>(kCommandBarBackground));
+  glass_container_->SetBorder(
+      views::CreateRoundedRectBorder(1, 16, kCommandBarBorder));
+
+  // Card container: input area inside the glass container (no own layer)
+  card_container_ = glass_container_->AddChildView(
+      std::make_unique<views::View>());
 
   auto* card_layout =
       card_container_->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -124,19 +201,12 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   ghost_label->SetSubpixelRenderingEnabled(false);
   ghost_label->SetVisible(false);
   ghost_label->SetCanProcessEventsWithinSubtree(false);
-  ghost_label->SetPaintToLayer();
-  ghost_label->layer()->SetFillsBoundsOpaquely(false);
+  ghost_label->SetBackgroundColor(SK_ColorTRANSPARENT);
   ghost_text_label_ = AddChildView(std::move(ghost_label));
 
-  // Dropdown container: below the card, same kCommandBarBackground
-  dropdown_container_ = AddChildView(std::make_unique<views::View>());
-  dropdown_container_->SetPaintToLayer();
-  dropdown_container_->layer()->SetFillsBoundsOpaquely(false);
-  dropdown_container_->layer()->SetRoundedCornerRadius(
-      gfx::RoundedCornersF(0, 0, 16, 16));
-  dropdown_container_->layer()->SetIsFastRoundedCorner(true);
-  dropdown_container_->SetBackground(
-      views::CreateSolidBackground(kCommandBarBackground));
+  // Dropdown container: inside the glass container (no own layer)
+  dropdown_container_ = glass_container_->AddChildView(
+      std::make_unique<views::View>());
   dropdown_container_->SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical, gfx::Insets::VH(4, 0)));
   dropdown_container_->SetVisible(false);
@@ -202,8 +272,19 @@ void DaoCommandBarView::Show() {
 
   SetVisible(true);
 
-  for (ui::Layer* l = layer(); l && l->parent(); l = l->parent()) {
-    l->parent()->StackAtTop(l);
+  // Stack child layers (shadow + glass) above siblings so compositor
+  // hit-testing and painting order is correct.
+  if (shadow_view_ && shadow_view_->layer()) {
+    for (ui::Layer* l = shadow_view_->layer(); l && l->parent();
+         l = l->parent()) {
+      l->parent()->StackAtTop(l);
+    }
+  }
+  if (glass_container_ && glass_container_->layer()) {
+    for (ui::Layer* l = glass_container_->layer(); l && l->parent();
+         l = l->parent()) {
+      l->parent()->StackAtTop(l);
+    }
   }
 
   // Prevent web content's native view from stealing events
@@ -276,8 +357,18 @@ void DaoCommandBarView::ShowForNewTab() {
 
   SetVisible(true);
 
-  for (ui::Layer* l = layer(); l && l->parent(); l = l->parent()) {
-    l->parent()->StackAtTop(l);
+  // Stack child layers above siblings for correct painting/hit-testing.
+  if (shadow_view_ && shadow_view_->layer()) {
+    for (ui::Layer* l = shadow_view_->layer(); l && l->parent();
+         l = l->parent()) {
+      l->parent()->StackAtTop(l);
+    }
+  }
+  if (glass_container_ && glass_container_->layer()) {
+    for (ui::Layer* l = glass_container_->layer(); l && l->parent();
+         l = l->parent()) {
+      l->parent()->StackAtTop(l);
+    }
   }
 
   // Prevent web content's native view from stealing events
@@ -331,7 +422,7 @@ void DaoCommandBarView::Hide() {
 }
 
 void DaoCommandBarView::Layout(PassKey) {
-  // Position card centered horizontally, ~38% from top
+  // Position glass container centered horizontally, ~38% from top
   const int kCardWidth = 600;
   const int kCardHeight = 52;
 
@@ -340,67 +431,55 @@ void DaoCommandBarView::Layout(PassKey) {
   int card_y = static_cast<int>(height() * 0.38) - kCardHeight / 2;
   card_y = std::max(20, card_y);
 
-  if (card_container_) {
-    card_container_->SetBounds(card_x, card_y, card_width, kCardHeight);
+  // Calculate total glass container height
+  int glass_height = kCardHeight;
+  bool has_dropdown = dropdown_container_ &&
+                      dropdown_container_->GetVisible();
+  int dropdown_height = 0;
+  if (has_dropdown) {
+    dropdown_height = visible_suggestion_count_ * 40 + 8;
+    glass_height += dropdown_height;
   }
 
-  // Position dropdown directly below the card
-  if (dropdown_container_ && dropdown_container_->GetVisible()) {
-    int dropdown_height = visible_suggestion_count_ * 40 + 8;
-    dropdown_container_->SetBounds(card_x, card_y + kCardHeight, card_width,
-                                   dropdown_height);
+  // Position the shadow view behind the glass container, expanded by
+  // kShadowPadding so the blurred shadow is not clipped by the layer.
+  constexpr int kPad = CommandBarShadowView::kShadowPadding;
+  if (shadow_view_) {
+    shadow_view_->SetBounds(card_x - kPad, card_y - kPad,
+                            card_width + 2 * kPad,
+                            glass_height + 2 * kPad);
+  }
 
-    // When dropdown is visible, make card have no bottom rounding
-    card_container_->layer()->SetRoundedCornerRadius(
-        gfx::RoundedCornersF(16, 16, 0, 0));
-  } else {
-    // Restore full rounding when dropdown is hidden
-    card_container_->layer()->SetRoundedCornerRadius(
-        gfx::RoundedCornersF(16));
+  // Position the unified glass container
+  if (glass_container_) {
+    glass_container_->SetBounds(card_x, card_y, card_width, glass_height);
+  }
+
+  // Card is at the top of glass_container_ (local coords)
+  if (card_container_) {
+    card_container_->SetBounds(0, 0, card_width, kCardHeight);
+  }
+
+  // Dropdown is directly below the card (local coords)
+  if (has_dropdown) {
+    dropdown_container_->SetBounds(0, kCardHeight, card_width,
+                                   dropdown_height);
   }
 
   PositionGhostText();
 }
 
 void DaoCommandBarView::OnPaint(gfx::Canvas* canvas) {
-  // Draw a real blurred shadow behind the card (and dropdown if visible)
-  // using Chromium's DrawLooper-based shadow infrastructure.
-  if (!card_container_) {
-    return;
-  }
-
-  gfx::Rect card_rect = card_container_->bounds();
-  if (dropdown_container_ && dropdown_container_->GetVisible()) {
-    card_rect.Union(dropdown_container_->bounds());
-  }
-
-  std::vector<gfx::ShadowValue> shadows;
-  shadows.emplace_back(gfx::Vector2d(0, 20), 160,
-                       SkColorSetARGB(130, 0, 0, 0));
-  shadows.emplace_back(gfx::Vector2d(0, 6), 40,
-                       SkColorSetARGB(80, 0, 0, 0));
-
-  cc::PaintFlags flags;
-  flags.setAntiAlias(true);
-  flags.setStyle(cc::PaintFlags::kFill_Style);
-  flags.setColor(SK_ColorTRANSPARENT);
-  flags.setLooper(gfx::CreateShadowDrawLooper(shadows));
-
-  gfx::RectF card_f(card_rect);
-  canvas->DrawRoundRect(card_f, 16.0f, flags);
+  // Shadow is painted by CommandBarShadowView (a sibling child with its
+  // own layer).  Nothing else to paint here — the glass container handles
+  // the frosted glass effect via its own layer + backdrop blur.
 }
 
 bool DaoCommandBarView::OnMousePressed(const ui::MouseEvent& event) {
   gfx::Point loc = event.location();
 
-  // Click inside card = normal (textfield interaction)
-  if (card_container_ && card_container_->bounds().Contains(loc)) {
-    return false;
-  }
-
-  // Click inside dropdown = handled by suggestion item views
-  if (dropdown_container_ && dropdown_container_->GetVisible() &&
-      dropdown_container_->bounds().Contains(loc)) {
+  // Click inside glass container (card + dropdown) = normal interaction
+  if (glass_container_ && glass_container_->bounds().Contains(loc)) {
     return false;
   }
 
@@ -652,7 +731,7 @@ void DaoCommandBarView::PositionGhostText() {
 
   int ghost_x = tf_origin.x() + text_width;
   int ghost_y = tf_origin.y();
-  int max_width = card_container_->bounds().right() - ghost_x - 16;
+  int max_width = glass_container_->bounds().right() - ghost_x - 16;
 
   if (max_width > 0) {
     ghost_text_label_->SetBounds(ghost_x, ghost_y, max_width,

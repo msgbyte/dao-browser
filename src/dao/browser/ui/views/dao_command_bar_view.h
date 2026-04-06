@@ -101,6 +101,8 @@ class DaoCommandBarView : public views::View,
   void OnSuggestionClicked(int index);
 
   raw_ptr<Browser> browser_;
+  raw_ptr<views::View> shadow_view_ = nullptr;
+  raw_ptr<views::View> glass_container_ = nullptr;
   raw_ptr<views::View> card_container_ = nullptr;
   raw_ptr<views::ImageView> favicon_icon_ = nullptr;
   raw_ptr<views::Textfield> textfield_ = nullptr;
