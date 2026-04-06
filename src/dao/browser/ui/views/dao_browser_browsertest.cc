@@ -105,6 +105,143 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, CommandBarShowAndHide) {
   EXPECT_FALSE(command_bar->GetVisible());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowIsIdempotent) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->Show();
+  EXPECT_TRUE(command_bar->GetVisible());
+
+  // Calling Show() again should not crash or change state.
+  command_bar->Show();
+  EXPECT_TRUE(command_bar->GetVisible());
+
+  command_bar->Hide();
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, HideIsIdempotent) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  // Hide when already hidden should be a no-op.
+  command_bar->Hide();
+  EXPECT_FALSE(command_bar->GetVisible());
+
+  command_bar->Show();
+  EXPECT_TRUE(command_bar->GetVisible());
+
+  command_bar->Hide();
+  EXPECT_FALSE(command_bar->GetVisible());
+
+  // Double-hide should not crash.
+  command_bar->Hide();
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowForNewTabMode) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  EXPECT_TRUE(command_bar->GetVisible());
+
+  command_bar->Hide();
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ShowForNewTabThenShowSwitchesMode) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  // Show in new-tab mode first.
+  command_bar->ShowForNewTab();
+  EXPECT_TRUE(command_bar->GetVisible());
+
+  // Hide then re-show in normal mode.
+  command_bar->Hide();
+  command_bar->Show();
+  EXPECT_TRUE(command_bar->GetVisible());
+
+  command_bar->Hide();
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowThenShowForNewTab) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  // Show in normal mode first.
+  command_bar->Show();
+  EXPECT_TRUE(command_bar->GetVisible());
+
+  // Hide then show in new-tab mode.
+  command_bar->Hide();
+  command_bar->ShowForNewTab();
+  EXPECT_TRUE(command_bar->GetVisible());
+
+  command_bar->Hide();
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLWithHTTPS) {
+  // Static method — test URL detection heuristics.
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"https://example.com"));
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"http://example.com"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLWithDot) {
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"example.com"));
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"github.com/user/repo"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLWithLocalhost) {
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"localhost"));
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"localhost:3000"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLReturnsFalse) {
+  // Plain search terms should not look like URLs.
+  EXPECT_FALSE(DaoCommandBarView::LooksLikeURL(u"hello world"));
+  EXPECT_FALSE(DaoCommandBarView::LooksLikeURL(u"search query"));
+  EXPECT_FALSE(DaoCommandBarView::LooksLikeURL(u""));
+  EXPECT_FALSE(DaoCommandBarView::LooksLikeURL(u"singleword"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, MultipleShowHideCycles) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  // Rapid show/hide cycles should not crash or leave stale state.
+  for (int i = 0; i < 5; ++i) {
+    command_bar->Show();
+    EXPECT_TRUE(command_bar->GetVisible());
+    command_bar->Hide();
+    EXPECT_FALSE(command_bar->GetVisible());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ShowForNewTabMultipleCycles) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  for (int i = 0; i < 3; ++i) {
+    command_bar->ShowForNewTab();
+    EXPECT_TRUE(command_bar->GetVisible());
+    command_bar->Hide();
+    EXPECT_FALSE(command_bar->GetVisible());
+  }
+}
+
 // =============================================================================
 // DaoTabBrowserTest
 // =============================================================================

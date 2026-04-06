@@ -74,12 +74,14 @@ class DaoCommandBarView : public views::View,
   void OnResultChanged(AutocompleteController* controller,
                        bool default_match_changed) override;
 
+  // URL detection heuristic (public for testing).
+  static bool LooksLikeURL(const std::u16string& text);
+
  private:
   static constexpr int kMaxSuggestions = 5;
 
   void Navigate(const std::u16string& text);
   void NavigateToMatch(const AutocompleteMatch& match);
-  static bool LooksLikeURL(const std::u16string& text);
   void DeferredRequestFocus();
   void Dismiss();
 
