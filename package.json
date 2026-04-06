@@ -18,7 +18,8 @@
     "package:zip": "tsx scripts/cli.ts package --zip",
     "setup": "npm run download && npm run import",
     "rebuild": "npm run import && npm run build:debug",
-    "test": "tsx scripts/cli.ts build --debug --target browser_tests && engine/src/out/dao-debug/browser_tests --gtest_filter=\"Dao*\"",
+    "test:build": "tsx scripts/cli.ts build --debug --target browser_tests",
+    "test": "npm run test:build && engine/src/out/dao-debug/browser_tests --gtest_filter=\"Dao*\"",
     "gen:readability": "tsx scripts/gen_readability_bundle.ts"
   },
   "devDependencies": {

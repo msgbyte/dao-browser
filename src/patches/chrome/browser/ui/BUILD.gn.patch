@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..134727049a 100644
+index a66522f120..460ae90c01 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -48,6 +48,89 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
@@ -127,3 +127,23 @@ index a66522f120..134727049a 100644
      public_deps += [
        "//build:branding_buildflags",
        "//ui/views",
+@@ -5952,3 +6038,19 @@ if (is_android) {
+     sources = [ "android/toolbar/adaptive_toolbar_enums.h" ]
+   }
+ }
++
++# Dao Browser browser tests
++source_set("dao_browser_tests") {
++  testonly = true
++  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
++  sources = [
++    "//dao/browser/ui/views/dao_browser_browsertest.cc",
++  ]
++  deps = [
++    ":ui",
++    "//chrome/test:test_support",
++    "//chrome/test:test_support_ui",
++    "//content/test:test_support",
++    "//testing/gtest",
++  ]
++}

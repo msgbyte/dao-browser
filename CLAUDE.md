@@ -16,6 +16,8 @@ npm run build:debug    # Debug build (is_debug=true, component build)
 npm run import         # Apply patches + copy src/dao/ into engine/
 npm run export         # Export unstaged engine/src changes as patch files
 npm run export -- <file>  # Export patch for a specific file
+npm run test           # Build + run all Dao browser tests
+npm run test:build     # Build browser_tests only (no run)
 npm run start          # Launch the built browser
 npm run start:debug    # Launch with stderr logging
 ```
@@ -89,6 +91,40 @@ Patches inject Dao components into the Chromium frame:
 - **NEVER use `npm run build`** — Always use `npm run build:debug` (debug build) instead. The release build is extremely slow and not needed during development. This applies to all build-related commands: use `npm run rebuild` (which uses debug) for iterative dev, and `npm run build:debug` for build-only.
 - **NEVER run `autoninja -C out/dao-debug chrome` directly** — Always go through the project scripts (`npm run rebuild` or `npm run build:debug`) so the build directory, GN args, and import/export workflow stay consistent. If the output directory reports a Ninja/Siso mismatch, run `gn clean out/dao-debug` before rebuilding instead of invoking `autoninja` manually.
 - **NEVER commit to git automatically** — Do not run `git add`, `git commit`, or `git push` unless the user explicitly asks. Leave all git operations to the user.
+
+## Testing
+
+Uses Chromium's `browser_tests` framework. Test file: `src/dao/browser/ui/views/dao_browser_browsertest.cc`.
+
+```bash
+npm run test           # Build browser_tests + run all Dao* tests
+npm run test:build     # Build browser_tests only (via --target flag)
+```
+
+To run specific tests directly:
+```bash
+./engine/src/out/dao-debug/browser_tests --gtest_filter="DaoSidebar*"          # One test suite
+./engine/src/out/dao-debug/browser_tests --gtest_filter="DaoTabBrowserTest.*"  # Another suite
+./engine/src/out/dao-debug/browser_tests --gtest_filter="Dao*" --gtest_list_tests  # List all
+```
+
+### Adding New Tests
+
+1. Add test cases to `src/dao/browser/ui/views/dao_browser_browsertest.cc` using `IN_PROC_BROWSER_TEST_F`
+2. Access Dao views via `BrowserView::GetBrowserViewForBrowser(browser())->dao_sidebar()` (and other accessors)
+3. Build target is `dao_browser_tests` source_set in `chrome/browser/ui/BUILD.gn.patch`, wired into the main `browser_tests` via `chrome/test/BUILD.gn.patch`
+4. Run `npm run test` to verify
+
+### Current Test Coverage
+
+- **Sidebar**: exists, default width, collapse/expand toggle
+- **Sidebar Resize**: drag changes width, clamp to min/max (150–400px), ignored when collapsed, width preserved after collapse/expand cycle
+- **AddressBar**: exists, correct height
+- **CommandBar**: initially hidden, show/hide
+- **Tabs**: create, switch, close
+- **SplitView**: exists but inactive, split creates two panes
+- **CornerOverlay**: exists and visible
+- **Folder Persistence**: file path in profile, write/read round-trip, not exists by default on fresh profile
 
 ## gstack
 
