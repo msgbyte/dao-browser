@@ -32,6 +32,9 @@
 #include "dao/browser/ui/views/dao_suggestion_item_view.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/shadow_value.h"
+#include "ui/gfx/skia_paint_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/event.h"
@@ -360,8 +363,31 @@ void DaoCommandBarView::Layout(PassKey) {
 }
 
 void DaoCommandBarView::OnPaint(gfx::Canvas* canvas) {
-  // Draw semi-transparent scrim over full bounds
-  canvas->DrawColor(kCommandBarScrim);
+  // Draw a real blurred shadow behind the card (and dropdown if visible)
+  // using Chromium's DrawLooper-based shadow infrastructure.
+  if (!card_container_) {
+    return;
+  }
+
+  gfx::Rect card_rect = card_container_->bounds();
+  if (dropdown_container_ && dropdown_container_->GetVisible()) {
+    card_rect.Union(dropdown_container_->bounds());
+  }
+
+  std::vector<gfx::ShadowValue> shadows;
+  shadows.emplace_back(gfx::Vector2d(0, 20), 160,
+                       SkColorSetARGB(130, 0, 0, 0));
+  shadows.emplace_back(gfx::Vector2d(0, 6), 40,
+                       SkColorSetARGB(80, 0, 0, 0));
+
+  cc::PaintFlags flags;
+  flags.setAntiAlias(true);
+  flags.setStyle(cc::PaintFlags::kFill_Style);
+  flags.setColor(SK_ColorTRANSPARENT);
+  flags.setLooper(gfx::CreateShadowDrawLooper(shadows));
+
+  gfx::RectF card_f(card_rect);
+  canvas->DrawRoundRect(card_f, 16.0f, flags);
 }
 
 bool DaoCommandBarView::OnMousePressed(const ui::MouseEvent& event) {

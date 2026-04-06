@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..ccf71b9165 100644
+index 46f6be18ac..01ca518533 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
 @@ -31,6 +31,22 @@
@@ -25,7 +25,7 @@ index 46f6be18ac..ccf71b9165 100644
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
-@@ -337,6 +352,93 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+@@ -337,6 +353,93 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -119,7 +119,7 @@ index 46f6be18ac..ccf71b9165 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip.
    if (delegate_->ShouldDrawTabStrip()) {
-@@ -638,6 +740,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+@@ -638,6 +741,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
    int browser_view_width = vertical_layout_rect_.width();
    bool toolbar_visible = delegate_->IsToolbarVisible();
    int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
@@ -141,7 +141,7 @@ index 46f6be18ac..ccf71b9165 100644
    SetViewVisibility(toolbar_, toolbar_visible);
    toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
                        height);
-@@ -648,32 +765,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
+@@ -648,32 +766,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
    TRACE_EVENT0("ui", "BrowserViewLayout::LayoutBookmarkAndInfoBars");
    dialog_top_y_ = top + browser_view_y - kConstrainedWindowOverlap;
  
@@ -181,7 +181,7 @@ index 46f6be18ac..ccf71b9165 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +827,213 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +828,216 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -295,10 +295,12 @@ index 46f6be18ac..ccf71b9165 100644
 +    agent_cursor->SetBoundsRect(dao_content_area);
 +  }
 +
-+  // Dao: Position command bar to match the content area (full, no inset)
++  // Dao: Position command bar to cover the entire BrowserView so the scrim
++  // and card are centered relative to the whole window, not just content.
 +  auto* command_bar = browser_view_->dao_command_bar();
 +  if (command_bar) {
-+    command_bar->SetBoundsRect(contents_container_bounds);
++    command_bar->SetBounds(0, 0, browser_view_->width(),
++                            browser_view_->height());
 +  }
 +
 +  // Dao: Position control center popup over the entire BrowserView so
@@ -383,10 +385,11 @@ index 46f6be18ac..ccf71b9165 100644
 +                              dao::kContentCornerRadius));
 +    contents_container_->layer()->SetIsFastRoundedCorner(true);
 +
-+    // Dao: Position command bar to cover the full Little Dao content area
++    // Dao: Position command bar to cover the entire BrowserView (Little Dao)
 +    auto* ld_command_bar = browser_view_->dao_command_bar();
 +    if (ld_command_bar) {
-+      ld_command_bar->SetBoundsRect(contents_container_bounds);
++      ld_command_bar->SetBounds(0, 0, browser_view_->width(),
++                                 browser_view_->height());
 +    }
 +
 +    contents_container_bounds = little_dao_area;
@@ -395,7 +398,7 @@ index 46f6be18ac..ccf71b9165 100644
    if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
      // The WebUI tab strip container should "push" the tab contents down without
      // resizing it.
-@@ -881,6 +1181,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
+@@ -881,6 +1191,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
    // layout and we assume that this is the case.
    height = std::max(height, delegate_->GetTopInsetInBrowserView());
  
