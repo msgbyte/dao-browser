@@ -106,3 +106,106 @@ export interface DownloadState {
   recentFiles: RecentFileData[];
   activeDownloads: ActiveDownloadData[];
 }
+
+// ---- Folder Data Types ----
+
+export interface FolderData {
+  type: 'folder';
+  id: string;
+  name: string;
+  collapsed: boolean;
+  children: SidebarTabRef[];
+}
+
+export interface SidebarTabRef {
+  type: 'tab';
+  url: string;
+  title: string;
+}
+
+export type SidebarItem = SidebarTabRef | FolderData;
+
+export interface FolderFileData {
+  version: number;
+  items: SidebarItem[];
+}
+
+// ---- Drag-and-Drop Constants ----
+
+export const TAB_DRAG_PREFIX = 'dao-tab-drag:';
+export const FOLDER_MIME_TYPE = 'application/x-dao-folder';
+
+/**
+ * Parse a tab drag data string ("dao-tab-drag:<sessionId>:<tabIndex>").
+ * Returns {sessionId, tabIndex} or null if the format is invalid.
+ */
+export function parseTabDragData(
+    data: string): {sessionId: number; tabIndex: number} | null {
+  if (!data.startsWith(TAB_DRAG_PREFIX)) return null;
+  const parts = data.substring(TAB_DRAG_PREFIX.length).split(':');
+  if (parts.length < 2) return null;
+  const sessionId = parseInt(parts[0]!, 10);
+  const tabIndex = parseInt(parts[1]!, 10);
+  if (isNaN(sessionId) || isNaN(tabIndex)) return null;
+  return {sessionId, tabIndex};
+}
+
+// ---- Folder Action Types (discriminated union) ----
+
+export type FolderAction =
+  | {action: 'toggleCollapse'; folderId: string}
+  | {action: 'rename'; folderId: string; name: string}
+  | {action: 'delete'; folderId: string}
+  | {action: 'tabDrop'; folderId: string; dragData: string}
+  | {action: 'childReorder'; folderId: string; dragData: string;
+     dropIndex: number}
+  | {action: 'removeFromFolder'; folderId: string; tabUrl: string;
+     tabTitle: string; toModelIndex?: number}
+  | {action: 'reorderModel'; tabUrl: string; tabTitle: string;
+     toModelIndex: number}
+  | {action: 'reorderFolder'; folderId: string; toModelIndex: number};
+
+// ---- Request-Response Bridge ----
+
+let asyncCallbackId = 0;
+
+/**
+ * Send a message to C++ and return a Promise that resolves with the response.
+ * The C++ handler must call FireWebUIListener with the callback ID.
+ */
+export function sendNativeAsync<T>(method: string, ...args: unknown[]): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const callbackId = `${method}_${asyncCallbackId++}`;
+    const listener = addListener(callbackId, (...responseArgs: unknown[]) => {
+      removeListener(listener);
+      resolve(responseArgs[0] as T);
+    });
+    chrome.send(method, [callbackId, ...args]);
+  });
+}
+
+// ---- Folder Bridge Functions ----
+
+/**
+ * Load folder data from dao_folders.json via C++.
+ * Returns the raw JSON string, or empty string if file doesn't exist.
+ */
+export function loadFolders(): Promise<string> {
+  return sendNativeAsync<string>('loadFolders');
+}
+
+/**
+ * Save folder data to dao_folders.json via C++.
+ * Debounced to avoid excessive disk I/O during rapid operations
+ * (drag-reorder, collapse toggling).
+ */
+let saveFoldersTimer_: ReturnType<typeof setTimeout> | null = null;
+export function saveFolders(json: string): void {
+  if (saveFoldersTimer_) {
+    clearTimeout(saveFoldersTimer_);
+  }
+  saveFoldersTimer_ = setTimeout(() => {
+    saveFoldersTimer_ = null;
+    sendNative('saveFolders', json);
+  }, 300);
+}

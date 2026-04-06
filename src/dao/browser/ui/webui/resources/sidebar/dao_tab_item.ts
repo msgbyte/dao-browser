@@ -4,7 +4,7 @@
 
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {sendNative} from './sidebar_bridge.js';
+import {sendNative, TAB_DRAG_PREFIX} from './sidebar_bridge.js';
 import type {TabData} from './sidebar_bridge.js';
 
 export class DaoTabItem extends CrLitElement {
@@ -221,7 +221,7 @@ export class DaoTabItem extends CrLitElement {
   private onDragStart_(e: DragEvent) {
     if (!e.dataTransfer) return;
     e.dataTransfer.setData('text/plain',
-        `dao-tab-drag:${this.sessionId}:${this.tabData.index}`);
+        `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}`);
     e.dataTransfer.effectAllowed = 'move';
   }
 

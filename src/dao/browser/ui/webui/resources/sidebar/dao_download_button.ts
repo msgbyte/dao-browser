@@ -18,7 +18,7 @@ export class DaoDownloadButton extends CrLitElement {
     return css`
       :host {
         display: block;
-        padding: 0 6px 6px;
+        position: relative;
       }
 
       .container {
@@ -28,9 +28,15 @@ export class DaoDownloadButton extends CrLitElement {
       }
 
       .file-list {
+        position: absolute;
+        bottom: 100%;
+        left: -6px;
+        width: calc(100vw - 12px);
         max-height: 0;
         overflow: hidden;
         transition: max-height 0.15s ease-out;
+        padding: 0 6px;
+        box-sizing: content-box;
       }
 
       :host(.expanded) .file-list {
@@ -157,8 +163,8 @@ export class DaoDownloadButton extends CrLitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
+        width: 26px;
+        height: 26px;
         border: none;
         border-radius: 8px;
         background: transparent;
@@ -264,7 +270,7 @@ export class DaoDownloadButton extends CrLitElement {
 
         <button class="download-btn" title="Downloads"
                 @click=${this.onButtonClick_}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

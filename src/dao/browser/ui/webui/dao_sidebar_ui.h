@@ -115,6 +115,8 @@ class DaoSidebarUIHandler
   void HandleTabDragActive(const base::Value::List& args);
   void HandleMoveTabCrossWindow(const base::Value::List& args);
   void HandleDetachTabToNewWindow(const base::Value::List& args);
+  void HandleLoadFolders(const base::Value::List& args);
+  void HandleSaveFolders(const base::Value::List& args);
 
   void OnScanResultReady(base::Value::List file_entries,
                          std::vector<base::FilePath> paths);
@@ -123,6 +125,7 @@ class DaoSidebarUIHandler
   raw_ptr<Browser> browser_ = nullptr;
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
   std::vector<base::FilePath> recent_file_paths_;
+  std::string folder_json_;  // Per-window folder data (in-memory)
   base::WeakPtrFactory<DaoSidebarUIHandler> weak_factory_{this};
 };
 

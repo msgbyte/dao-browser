@@ -13,6 +13,7 @@
 #include "base/base64.h"
 #include "base/functional/bind.h"
 #include "base/files/file_enumerator.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
@@ -318,6 +319,14 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "detachTabToNewWindow",
       base::BindRepeating(&DaoSidebarUIHandler::HandleDetachTabToNewWindow,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "loadFolders",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleLoadFolders,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "saveFolders",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleSaveFolders,
                           base::Unretained(this)));
 }
 
@@ -869,6 +878,61 @@ void DaoSidebarUIHandler::HandleDetachTabToNewWindow(
       -1, std::move(detached), AddTabTypes::ADD_ACTIVE);
   new_browser->window()->Show();
   new_browser->window()->Activate();
+}
+
+void DaoSidebarUIHandler::HandleLoadFolders(
+    const base::Value::List& args) {
+  AllowJavascript();
+
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+
+  // If we already have in-memory data for this window, return it directly.
+  if (!folder_json_.empty()) {
+    FireWebUIListener(callback_id, base::Value(folder_json_));
+    return;
+  }
+
+  // Otherwise, read from the shared profile file on a background thread.
+  Profile* profile = Profile::FromWebUI(web_ui());
+  base::FilePath path = profile->GetPath().AppendASCII("dao_folders.json");
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([](base::FilePath file_path) -> std::string {
+        std::string contents;
+        base::ReadFileToString(file_path, &contents);
+        return contents;
+      }, path),
+      base::BindOnce(
+          [](base::WeakPtr<DaoSidebarUIHandler> self,
+             std::string callback_id, std::string contents) {
+            if (!self || !self->IsJavascriptAllowed()) return;
+            self->FireWebUIListener(callback_id, base::Value(contents));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoSidebarUIHandler::HandleSaveFolders(
+    const base::Value::List& args) {
+  if (args.empty()) return;
+  const std::string* json = args[0].GetIfString();
+  if (!json) return;
+
+  // Update in-memory cache for this window.
+  folder_json_ = *json;
+
+  // Persist to shared profile file on a background thread.
+  Profile* profile = Profile::FromWebUI(web_ui());
+  base::FilePath path = profile->GetPath().AppendASCII("dao_folders.json");
+
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+      base::BindOnce([](base::FilePath file_path, std::string data) {
+        base::WriteFile(file_path, data);
+      }, path, *json));
 }
 
 // ---- DaoSidebarUI ----

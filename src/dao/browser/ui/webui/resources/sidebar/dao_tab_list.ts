@@ -4,9 +4,11 @@
 
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {sendNative} from './sidebar_bridge.js';
-import type {TabData} from './sidebar_bridge.js';
+import {sendNative, TAB_DRAG_PREFIX, FOLDER_MIME_TYPE} from './sidebar_bridge.js';
+import type {TabData, FolderData, FolderAction} from './sidebar_bridge.js';
+import type {FolderModel} from './dao_folder_model.js';
 import './dao_tab_item.js';
+import './dao_folder_item.js';
 
 export class DaoTabList extends CrLitElement {
   static get is() {
@@ -75,14 +77,19 @@ export class DaoTabList extends CrLitElement {
     return {
       tabs: {type: Array},
       sessionId: {type: Number},
+      folderModel: {type: Object},
+      folderModelVersion: {type: Number},
     };
   }
 
   tabs: TabData[] = [];
   sessionId: number = 0;
+  folderModel: FolderModel | null = null;
+  folderModelVersion: number = 0;
 
   private dropIndicatorY_: number = 0;
   private dropInsertIndex_: number = -1;
+  private dropModelIndex_: number = -1;
   private tabDragActivated_: boolean = false;
   private draggedTabIndex_: number = -1;
 
@@ -93,9 +100,114 @@ export class DaoTabList extends CrLitElement {
     this.addEventListener('dragleave', this.onDragLeave_.bind(this));
     this.addEventListener('drop', this.onDrop_.bind(this));
     this.addEventListener('dragend', this.onDragEnd_.bind(this));
+
+    // Intercept folder-action events that involve drops to clean up
+    // drag state (folder's stopPropagation prevents our onDrop_).
+    // The event itself continues to bubble to DaoSidebarApp.
+    this.addEventListener('folder-action', ((e: CustomEvent) => {
+      const action = e.detail?.action;
+      if (action === 'tabDrop' || action === 'childReorder') {
+        this.classList.remove('drag-over');
+        this.dropInsertIndex_ = -1;
+        this.dropModelIndex_ = -1;
+      }
+    }) as EventListener);
   }
 
   override render() {
+    // If a folder model is available and has data, render from the
+    // model's ordered items tree. Otherwise, fall back to the flat
+    // tab array (original behavior).
+    if (this.folderModel && this.folderModel.hasData()) {
+      return this.renderFromModel_();
+    }
+    return this.renderFlat_();
+  }
+
+  /**
+   * Render from the folder model's items tree.
+   * Matches stored tab refs to actual TabData by URL for each item.
+   */
+  private renderFromModel_() {
+    const items = this.folderModel!.getOrderedItems();
+
+    // Build a consumption pool of actual tabs keyed by URL.
+    // Each URL may have multiple tabs — we consume them in order.
+    const pool = new Map<string, TabData[]>();
+    // Tabs are displayed newest-first (reversed), so build pool
+    // from the reversed list to maintain order.
+    const reversed = [...this.tabs].reverse();
+    for (const tab of reversed) {
+      const list = pool.get(tab.url) || [];
+      list.push(tab);
+      pool.set(tab.url, list);
+    }
+
+    const consume = (url: string): TabData | null => {
+      const list = pool.get(url);
+      if (!list || list.length === 0) return null;
+      return list.shift()!;
+    };
+
+    const fragments: unknown[] = [];
+
+    for (const item of items) {
+      if (item.type === 'tab') {
+        const matched = consume(item.url);
+        if (matched) {
+          fragments.push(html`
+            <dao-tab-item
+              .tabData=${matched}
+              .sessionId=${this.sessionId}
+              ?active=${matched.isActive}>
+            </dao-tab-item>
+          `);
+        }
+      } else if (item.type === 'folder') {
+        const folder = item as FolderData;
+        // Match folder children to actual tabs.
+        const matchedChildren: TabData[] = [];
+        for (const child of folder.children) {
+          const matched = consume(child.url);
+          if (matched) {
+            matchedChildren.push(matched);
+          }
+        }
+
+        fragments.push(html`
+          <dao-folder-item
+            .folder=${folder}
+            .matchedTabs=${matchedChildren}
+            .sessionId=${this.sessionId}>
+          </dao-folder-item>
+        `);
+      }
+    }
+
+    // Any remaining unmatched tabs from the pool — render as loose tabs.
+    for (const [, list] of pool) {
+      for (const tab of list) {
+        fragments.push(html`
+          <dao-tab-item
+            .tabData=${tab}
+            .sessionId=${this.sessionId}
+            ?active=${tab.isActive}>
+          </dao-tab-item>
+        `);
+      }
+    }
+
+    return html`
+      <div class="drop-indicator"
+           style="top: ${this.dropIndicatorY_}px"></div>
+      ${fragments}
+    `;
+  }
+
+  /**
+   * Original flat rendering — used when no folder model data exists.
+   */
+  private renderFlat_() {
     // Show tabs in reverse order (newest at top) to match C++ behavior
     const reversed = [...this.tabs].reverse();
 
@@ -156,7 +268,8 @@ export class DaoTabList extends CrLitElement {
 
   private isInternalReorder_(e: DragEvent): boolean {
     if (!e.dataTransfer) return false;
-    return e.dataTransfer.types.includes('text/plain');
+    return e.dataTransfer.types.includes('text/plain') ||
+        e.dataTransfer.types.includes(FOLDER_MIME_TYPE);
   }
 
   private isExternalFileDrop_(e: DragEvent): boolean {
@@ -178,10 +291,86 @@ export class DaoTabList extends CrLitElement {
 
     this.classList.add('drag-over');
 
-    // Compute indicator position and insertion index.
-    // Tabs are rendered in reverse model order (highest index = top).
+    const useModel = this.folderModel && this.folderModel.hasData();
+
+    if (useModel) {
+      this.computeModelDropPosition_(e);
+    } else {
+      this.computeFlatDropPosition_(e, isExternal);
+    }
+  }
+
+  /**
+   * Compute drop position when folder model is active.
+   * Uses all top-level rendered items (tabs + folders) in model order.
+   */
+  private computeModelDropPosition_(e: DragEvent) {
+    const allItems = this.shadowRoot!.querySelectorAll(
+        'dao-tab-item, dao-folder-item');
+    const clientY = e.clientY;
+    let indicatorY = 0;
+    let modelIndex = allItems.length;  // default: after last
+
+    if (allItems.length === 0) {
+      indicatorY = 0;
+      modelIndex = 0;
+    } else {
+      let found = false;
+      for (let i = 0; i < allItems.length; i++) {
+        const el = allItems[i] as HTMLElement;
+        const rect = el.getBoundingClientRect();
+        if (clientY < rect.top + rect.height / 2) {
+          indicatorY = el.offsetTop;
+          modelIndex = i;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        const lastEl = allItems[allItems.length - 1] as HTMLElement;
+        indicatorY = lastEl.offsetTop + lastEl.offsetHeight;
+        modelIndex = allItems.length;
+      }
+    }
+
+    // Also compute a Chromium tab index for sendNative('moveTab').
+    // Find the nearest dao-tab-item to get its tabData.index.
+    let insertIndex = -1;
+    const tabItems = this.shadowRoot!.querySelectorAll('dao-tab-item');
+    if (tabItems.length > 0) {
+      for (const item of tabItems) {
+        const el = item as HTMLElement;
+        const rect = el.getBoundingClientRect();
+        if (clientY < rect.top + rect.height / 2) {
+          const tabData = (item as unknown as {tabData: TabData}).tabData;
+          insertIndex = tabData.index + 1;
+          break;
+        }
+      }
+      if (insertIndex === -1) {
+        const lastTab = (tabItems[tabItems.length - 1] as unknown as
+            {tabData: TabData}).tabData;
+        insertIndex = lastTab.index;
+      }
+    }
+
+    this.dropIndicatorY_ = indicatorY;
+    const indicator =
+        this.shadowRoot!.querySelector('.drop-indicator') as HTMLElement;
+    if (indicator) {
+      indicator.style.top = `${indicatorY}px`;
+    }
+
+    this.dropInsertIndex_ = insertIndex;
+    this.dropModelIndex_ = modelIndex;
+  }
+
+  /**
+   * Original flat drop position calculation (no folder model).
+   */
+  private computeFlatDropPosition_(e: DragEvent, isExternal: boolean) {
     const items = this.shadowRoot!.querySelectorAll('dao-tab-item');
-    const y = e.offsetY;
+    const clientY = e.clientY;
     let indicatorY = 0;
     let insertIndex = -1;  // -1 = append at end
 
@@ -192,8 +381,8 @@ export class DaoTabList extends CrLitElement {
       let found = false;
       for (const item of items) {
         const el = item as HTMLElement;
-        const midY = el.offsetTop + el.offsetHeight / 2;
-        if (y < midY) {
+        const rect = el.getBoundingClientRect();
+        if (clientY < rect.top + rect.height / 2) {
           indicatorY = el.offsetTop;
           const tabData = (item as unknown as {tabData: TabData}).tabData;
           insertIndex = tabData.index + 1;
@@ -210,24 +399,22 @@ export class DaoTabList extends CrLitElement {
       }
 
       // Prevent inserting between split-group tabs.
-      // If the insertion point lands inside a split group, snap to the
-      // nearest boundary (above or below the whole group).
       const splitGroups =
           this.shadowRoot!.querySelectorAll('.split-group');
       for (const splitGroup of splitGroups) {
         const group = splitGroup as HTMLElement;
-        const groupTop = group.offsetTop;
-        const groupBottom = groupTop + group.offsetHeight;
+        const groupRect = group.getBoundingClientRect();
         const splitItems = group.querySelectorAll('dao-tab-item');
-        if (splitItems.length > 0 && y >= groupTop && y <= groupBottom) {
-          const midGroup = groupTop + group.offsetHeight / 2;
-          if (y < midGroup) {
-            indicatorY = groupTop;
+        if (splitItems.length > 0 &&
+            clientY >= groupRect.top && clientY <= groupRect.bottom) {
+          const midGroup = groupRect.top + groupRect.height / 2;
+          if (clientY < midGroup) {
+            indicatorY = group.offsetTop;
             const firstTab =
                 (splitItems[0] as unknown as {tabData: TabData}).tabData;
             insertIndex = firstTab.index + 1;
           } else {
-            indicatorY = groupBottom;
+            indicatorY = group.offsetTop + group.offsetHeight;
             const lastTab =
                 (splitItems[splitItems.length - 1] as unknown as
                      {tabData: TabData})
@@ -247,11 +434,11 @@ export class DaoTabList extends CrLitElement {
     }
 
     if (isExternal) {
-      // Tell C++ the desired insert position for file drops
       sendNative('setDropInsertIndex', insertIndex);
     }
 
     this.dropInsertIndex_ = insertIndex;
+    this.dropModelIndex_ = -1;
   }
 
   private onDragLeave_(e: DragEvent) {
@@ -260,6 +447,7 @@ export class DaoTabList extends CrLitElement {
     if (related && this.contains(related)) return;
     this.classList.remove('drag-over');
     this.dropInsertIndex_ = -1;
+    this.dropModelIndex_ = -1;
     sendNative('setDropInsertIndex', -1);
 
     // Activate native event blocking so DaoSplitView can receive the
@@ -277,10 +465,14 @@ export class DaoTabList extends CrLitElement {
     // when any drag ends, preventing the sidebar from getting stuck.
     this.classList.remove('drag-over');
     this.dropInsertIndex_ = -1;
+    this.dropModelIndex_ = -1;
 
     // If no target accepted the drop, detach to a new window at cursor.
     if (e.dataTransfer && e.dataTransfer.dropEffect === 'none' &&
         this.draggedTabIndex_ >= 0) {
+      // Remove from folder model before detaching so the folder
+      // membership doesn't persist after the tab leaves this window.
+      this.maybeRemoveFromFolder_(this.draggedTabIndex_);
       sendNative('detachTabToNewWindow', this.draggedTabIndex_,
           e.screenX, e.screenY);
     }
@@ -298,24 +490,35 @@ export class DaoTabList extends CrLitElement {
     // Handle internal tab reorder or cross-window tab move
     if (e.dataTransfer) {
       const data = e.dataTransfer.getData('text/plain');
-      if (data.startsWith('dao-tab-drag:')) {
+      if (data.startsWith(TAB_DRAG_PREFIX)) {
         e.preventDefault();
         e.stopPropagation();
-        // Parse format: "dao-tab-drag:<sessionId>:<tabIndex>"
-        const parts = data.substring('dao-tab-drag:'.length).split(':');
+
+        const useModel = this.folderModel && this.folderModel.hasData();
+
+        const parts = data.substring(TAB_DRAG_PREFIX.length).split(':');
         if (parts.length === 2) {
           const sourceSessionId = parseInt(parts[0]!, 10);
           const fromIndex = parseInt(parts[1]!, 10);
           if (!isNaN(sourceSessionId) && !isNaN(fromIndex) &&
               this.dropInsertIndex_ >= 0) {
+            // Check if the dragged tab is inside a folder — if so,
+            // remove it from the folder first.
+            const wasInFolder = this.maybeRemoveFromFolder_(fromIndex);
+
             if (sourceSessionId === this.sessionId) {
-              // Same window: reorder
+              // Same window: reorder in Chromium tab strip
               let toIndex = this.dropInsertIndex_;
               if (fromIndex < toIndex) {
                 toIndex--;
               }
               if (fromIndex !== toIndex) {
                 sendNative('moveTab', fromIndex, toIndex);
+              }
+
+              // Also reorder in the folder model if active.
+              if (useModel && !wasInFolder && this.dropModelIndex_ >= 0) {
+                this.dispatchModelReorder_(fromIndex, this.dropModelIndex_);
               }
             } else {
               // Cross-window: move tab from source window to this window
@@ -324,9 +527,11 @@ export class DaoTabList extends CrLitElement {
             }
           }
         } else if (parts.length === 1) {
-          // Legacy format: "dao-tab-drag:<tabIndex>" (same-window only)
+          // Legacy format: "<prefix><tabIndex>" (same-window only)
           const fromIndex = parseInt(parts[0]!, 10);
           if (!isNaN(fromIndex) && this.dropInsertIndex_ >= 0) {
+            const wasInFolder = this.maybeRemoveFromFolder_(fromIndex);
+
             let toIndex = this.dropInsertIndex_;
             if (fromIndex < toIndex) {
               toIndex--;
@@ -334,9 +539,29 @@ export class DaoTabList extends CrLitElement {
             if (fromIndex !== toIndex) {
               sendNative('moveTab', fromIndex, toIndex);
             }
+
+            if (useModel && !wasInFolder && this.dropModelIndex_ >= 0) {
+              this.dispatchModelReorder_(fromIndex, this.dropModelIndex_);
+            }
           }
         }
         this.dropInsertIndex_ = -1;
+        this.dropModelIndex_ = -1;
+        return;
+      }
+
+      // Handle folder reorder drag (custom MIME type)
+      const folderData = e.dataTransfer.getData(FOLDER_MIME_TYPE);
+      if (folderData && this.folderModel && this.dropModelIndex_ >= 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.dispatchFolderAction_({
+          action: 'reorderFolder',
+          folderId: folderData,
+          toModelIndex: this.dropModelIndex_,
+        });
+        this.dropInsertIndex_ = -1;
+        this.dropModelIndex_ = -1;
         return;
       }
     }
@@ -344,6 +569,67 @@ export class DaoTabList extends CrLitElement {
     // External file drops — don't prevent default, let the renderer handle
     // so OpenURLFromTab can intercept the navigation.
     this.dropInsertIndex_ = -1;
+    this.dropModelIndex_ = -1;
+  }
+
+  private dispatchFolderAction_(detail: FolderAction) {
+    this.dispatchEvent(new CustomEvent('folder-action', {
+      bubbles: true, composed: true, detail,
+    }));
+  }
+
+  /**
+   * Trigger rename mode on a folder item by ID.
+   * Used by the parent app after creating a new folder.
+   */
+  async startFolderRename(folderId: string) {
+    await this.updateComplete;
+    const items = this.shadowRoot!.querySelectorAll('dao-folder-item');
+    for (const item of items) {
+      const fi = item as HTMLElement & {folder: {id: string}; startRename: () => void};
+      if (fi.folder?.id === folderId) {
+        fi.startRename();
+        return;
+      }
+    }
+  }
+
+  /**
+   * Dispatch a model reorder action for a loose tab.
+   */
+  private dispatchModelReorder_(tabIndex: number, toModelIndex: number) {
+    const tab = this.tabs.find(t => t.index === tabIndex);
+    if (!tab) return;
+    this.dispatchFolderAction_({
+      action: 'reorderModel',
+      tabUrl: tab.url,
+      tabTitle: tab.title,
+      toModelIndex,
+    });
+  }
+
+  /**
+   * If the tab at the given index is inside a folder in the model,
+   * dispatch a removeFromFolder action so the app updates the model.
+   * Returns true if the tab was found in a folder.
+   */
+  private maybeRemoveFromFolder_(tabIndex: number): boolean {
+    if (!this.folderModel) return false;
+    const tab = this.tabs.find(t => t.index === tabIndex);
+    if (!tab) return false;
+
+    const folderId = this.folderModel.findTabFolder(tab.url, tab.title);
+    if (!folderId) return false;
+
+    this.dispatchFolderAction_({
+      action: 'removeFromFolder',
+      folderId,
+      tabUrl: tab.url,
+      tabTitle: tab.title,
+      toModelIndex: this.dropModelIndex_ >= 0 ?
+          this.dropModelIndex_ : undefined,
+    });
+    return true;
   }
 }
 
