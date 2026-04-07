@@ -21,6 +21,7 @@ export class DaoTabList extends CrLitElement {
         display: flex;
         flex-direction: column;
         position: relative;
+        gap: 2px;
       }
 
       .drop-indicator {

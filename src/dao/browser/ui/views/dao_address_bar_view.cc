@@ -211,6 +211,7 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   layout->SetOrientation(views::LayoutOrientation::kHorizontal);
   layout->SetMainAxisAlignment(views::LayoutAlignment::kStart);
   layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
+  layout->SetDefault(views::kMarginsKey, gfx::Insets::VH(0, 1));
 
   gfx::FontList font({"system-ui"}, gfx::Font::NORMAL, kFontSize,
                       gfx::Font::Weight::NORMAL);
@@ -221,6 +222,7 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   auto traffic_light_spacer = std::make_unique<views::View>();
   traffic_light_spacer->SetPreferredSize(gfx::Size(70, kBarHeight));
   traffic_light_spacer->SetVisible(false);
+  traffic_light_spacer->SetProperty(views::kMarginsKey, gfx::Insets());
   traffic_light_spacer_ = AddChildView(std::move(traffic_light_spacer));
 
   auto toggle_btn = std::make_unique<NavIconButton>(
@@ -234,6 +236,7 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   // Left spacer to balance the right-side button for URL centering
   auto left_spacer = std::make_unique<views::View>();
   left_spacer->SetPreferredSize(gfx::Size(4, 1));
+  left_spacer->SetProperty(views::kMarginsKey, gfx::Insets());
   left_spacer_ = AddChildView(std::move(left_spacer));
 
   // Navigation buttons: back, forward, close
@@ -262,6 +265,7 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
                                views::MaximumFlexSizeRule::kUnbounded)
           .WithWeight(1));
+  left_flex->SetProperty(views::kMarginsKey, gfx::Insets());
   AddChildView(std::move(left_flex));
 
   // URL pill: wraps host + path labels, sized to content, centered by spacers.
@@ -272,6 +276,7 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   url_layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
   url_layout->SetInteriorMargin(gfx::Insets::VH(2, 8));
   url_container_->SetCanProcessEventsWithinSubtree(false);
+  url_container_->SetProperty(views::kMarginsKey, gfx::Insets());
   url_container_->SetPaintToLayer();
   url_container_->layer()->SetFillsBoundsOpaquely(false);
   url_container_->layer()->SetRoundedCornerRadius(
@@ -303,11 +308,13 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
                                views::MaximumFlexSizeRule::kUnbounded)
           .WithWeight(1));
+  right_flex->SetProperty(views::kMarginsKey, gfx::Insets());
   AddChildView(std::move(right_flex));
 
   // Pinned extension icons (between right spacer and chat button)
   pinned_extensions_ = AddChildView(
       std::make_unique<DaoPinnedExtensionsContainer>(browser));
+  pinned_extensions_->SetProperty(views::kMarginsKey, gfx::Insets::VH(0, 2));
 
   // Chat button (opens agent sidebar)
   chat_button_ = AddChildView(std::make_unique<NavIconButton>(
