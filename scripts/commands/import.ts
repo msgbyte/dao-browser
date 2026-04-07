@@ -24,6 +24,7 @@ import {
   warn,
   error,
   run,
+  loadConfig,
 } from "../utils.js";
 
 const execFileAsync = promisify(execFile);
@@ -112,6 +113,25 @@ export const importCommand = new Command("import")
       `Patches: ${applied} applied, ${skipped} already applied, ${failed} failed`
     );
 
+    // Step 1.5: Inject Dao version into version_ui.cc
+    const config = loadConfig();
+    const daoVersion = config.version.display;
+    const versionUiPath = path.join(
+      srcDir,
+      "chrome/browser/ui/webui/version/version_ui.cc"
+    );
+    if (existsSync(versionUiPath)) {
+      const content = readFileSync(versionUiPath, "utf-8");
+      const original = "base::UTF8ToUTF16(version_info::GetVersionNumber()),";
+      const replacement =
+        `u"(${daoVersion}) (chromium: " +\n` +
+        `          base::UTF8ToUTF16(version_info::GetVersionNumber()) + u")",`;
+      if (content.includes(original)) {
+        writeFileSync(versionUiPath, content.replace(original, replacement));
+        success(`Injected Dao version ${daoVersion} into version_ui.cc`);
+      }
+    }
+
     // Step 2: Copy Dao source code into Chromium tree (only changed files)
     if (!opts.patchesOnly) {
       log("Copying Dao source code...");
@@ -140,13 +160,48 @@ export const importCommand = new Command("import")
     const brandingMap: Record<string, string> = {
       "mac/app.icns": "mac/app.icns",
       "mac/document.icns": "mac/document.icns",
+      "product_logo.svg": "product_logo.svg",
       "product_logo_16.png": "product_logo_16.png",
       "product_logo_24.png": "product_logo_24.png",
+      "product_logo_32.png": "product_logo_32.png",
       "product_logo_48.png": "product_logo_48.png",
       "product_logo_64.png": "product_logo_64.png",
       "product_logo_128.png": "product_logo_128.png",
       "product_logo_256.png": "product_logo_256.png",
     };
+
+    // Additional branding: scaled icons used by chrome://theme/ URLs
+    // (e.g., settings page header logo)
+    const themeBaseDir = path.join(srcDir, "chrome", "app", "theme");
+    const scaledBrandingMap: Record<string, { src: string; size: number }> = {
+      "default_100_percent/chromium/product_logo_16.png": {
+        src: "product_logo_16.png",
+        size: 16,
+      },
+      "default_100_percent/chromium/product_logo_32.png": {
+        src: "product_logo_32.png",
+        size: 32,
+      },
+      "default_200_percent/chromium/product_logo_16.png": {
+        src: "product_logo_32.png",
+        size: 32,
+      },
+      "default_200_percent/chromium/product_logo_32.png": {
+        src: "product_logo_64.png",
+        size: 64,
+      },
+    };
+
+    // Dark mode SVG for settings header
+    const darkSvgSrc = path.join(BRANDING_DIR, "product_logo_dark.svg");
+    const darkSvgDest = path.join(
+      srcDir,
+      "ui",
+      "webui",
+      "resources",
+      "images",
+      "chrome_logo_dark.svg"
+    );
 
     let brandingCopied = 0;
     for (const [src, dest] of Object.entries(brandingMap)) {
@@ -157,6 +212,24 @@ export const importCommand = new Command("import")
           success(`Branding: ${src} -> chrome/app/theme/chromium/${dest}`);
           brandingCopied++;
         }
+      }
+    }
+
+    for (const [dest, info] of Object.entries(scaledBrandingMap)) {
+      const srcPath = path.join(BRANDING_DIR, info.src);
+      if (existsSync(srcPath)) {
+        const destPath = path.join(themeBaseDir, dest);
+        if (copyIfDifferent(srcPath, destPath)) {
+          success(`Branding: ${info.src} -> chrome/app/theme/${dest}`);
+          brandingCopied++;
+        }
+      }
+    }
+
+    if (existsSync(darkSvgSrc)) {
+      if (copyIfDifferent(darkSvgSrc, darkSvgDest)) {
+        success("Branding: product_logo_dark.svg -> ui/webui/resources/images/chrome_logo_dark.svg");
+        brandingCopied++;
       }
     }
 

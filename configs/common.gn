@@ -21,3 +21,4 @@ enable_reporting = false
 safe_browsing_mode = 1
 enable_gcm_driver = false
 disable_fieldtrial_testing_config = true
+enable_hangout_services_extension = false

@@ -1,7 +1,23 @@
 diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
-index b645fbd12d..620d231194 100644
+index b645fbd12d..4a5c44f8f2 100644
 --- a/chrome/app/chromium_strings.grd
 +++ b/chrome/app/chromium_strings.grd
+@@ -293,11 +293,11 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+           </message>
+         </then>
+         <else>
+-          <message name="IDS_PRODUCT_NAME" desc="The Chrome application name" translateable="false">
+-            Chromium
++          <message name="IDS_PRODUCT_NAME" desc="The Dao application name" translateable="false">
++            Dao
+           </message>
+-          <message name="IDS_SHORT_PRODUCT_NAME" desc="The Chrome application short name." translateable="false">
+-            Chromium
++          <message name="IDS_SHORT_PRODUCT_NAME" desc="The Dao application short name." translateable="false">
++            Dao
+           </message>
+         </else>
+       </if>
 @@ -719,49 +719,49 @@ Chromium is unable to recover your settings.
          <ph name="FILE_NAME">$1<ex>malware.exe</ex></ph> is dangerous, so Chromium has blocked it.
        </message>
@@ -73,6 +89,74 @@ index b645fbd12d..620d231194 100644
    <message name="IDS_EXTENSIONS_SC_DESCRIPTION" desc="Detailed message displayed in the Safety Check description section.">
      {NUM_EXTENSIONS, plural,
       =1 {Chromium recommends that you remove it}
+@@ -916,35 +916,35 @@ Chromium is unable to recover your settings.
+             </message>
+           </then>
+           <else>
+-            <message name="IDS_ABOUT" desc="In Title Case: The text label of the About Chrome menu item">
+-              About &amp;Chromium
++            <message name="IDS_ABOUT" desc="In Title Case: The text label of the About Dao menu item">
++              About &amp;Dao
+             </message>
+           </else>
+         </if>
+-        <message name="IDS_RELAUNCH_TO_UPDATE" desc="In Title Case: The text label of the relaunch to update Chrome menu item">
+-          Relaunch to Update &amp;Chromium
++        <message name="IDS_RELAUNCH_TO_UPDATE" desc="In Title Case: The text label of the relaunch to update Dao menu item">
++          Relaunch to Update &amp;Dao
+         </message>
+       </if>
+       <if expr="not use_titlecase and not is_chromeos">
+         <if expr="_is_chrome_for_testing_branded">
+           <then>
+-            <message name="IDS_ABOUT" desc="The text label of the About Chrome for Testing menu item">
++            <message name="IDS_ABOUT" desc="The text label of the About Dao for Testing menu item">
+               About &amp;Google Chrome for Testing
+             </message>
+           </then>
+           <else>
+-            <message name="IDS_ABOUT" desc="The text label of the About Chrome menu item">
+-              About &amp;Chromium
++            <message name="IDS_ABOUT" desc="The text label of the About Dao menu item">
++              About &amp;Dao
+             </message>
+           </else>
+         </if>
+-        <message name="IDS_RELAUNCH_TO_UPDATE" desc="The text label of the relaunch to update Chrome menu item">
+-          Relaunch to update &amp;Chromium
++        <message name="IDS_RELAUNCH_TO_UPDATE" desc="The text label of the relaunch to update Dao menu item">
++          Relaunch to update &amp;Dao
+         </message>
+       </if>
+       <if expr="is_chromeos">
+-        <message name="IDS_ABOUT" desc="The text label of the About Chrome menu item">
+-          About &amp;Chromium
++        <message name="IDS_ABOUT" desc="The text label of the About Dao menu item">
++          About &amp;Dao
+         </message>
+         <message name="IDS_RELAUNCH_TO_UPDATE" desc="The text label of the relaunch to update ChromeOS menu item">
+           Relaunch to update &amp;ChromiumOS
+@@ -952,14 +952,14 @@ Chromium is unable to recover your settings.
+       </if>
+ 
+       <if expr="is_macosx">
+-        <message name="IDS_APP_MENU_PRODUCT_NAME" desc="The application's short name, used for the Mac's application menu, activity monitor, etc. This should be less than 16 characters. Example: Chrome, not Google Chrome." translateable="false">
+-          Chromium
++        <message name="IDS_APP_MENU_PRODUCT_NAME" desc="The application's short name, used for the Mac's application menu, activity monitor, etc. This should be less than 16 characters. Example: Dao, not Dao Browser." translateable="false">
++          Dao
+         </message>
+-        <message name="IDS_HELPER_NAME" desc="The helper application's name.  Should contain the Chrome application name (IDS_PRODUCT_NAME). Example: Google Chrome Helper.">
+-          Chromium Helper
++        <message name="IDS_HELPER_NAME" desc="The helper application's name.  Should contain the Dao application name (IDS_PRODUCT_NAME). Example: Dao Helper.">
++          Dao Helper
+         </message>
+-        <message name="IDS_SHORT_HELPER_NAME" desc="The helper application's short name, used for the Mac's application menu, activity monitor, etc. Example: Chrome Helper, not Google Chrome Helper.">
+-          Chromium Helper
++        <message name="IDS_SHORT_HELPER_NAME" desc="The helper application's short name, used for the Mac's application menu, activity monitor, etc. Example: Dao Helper.">
++          Dao Helper
+         </message>
+       </if>
+ 
 @@ -1914,7 +1914,7 @@ Chromium is unable to recover your settings.
          </message>
        </if>

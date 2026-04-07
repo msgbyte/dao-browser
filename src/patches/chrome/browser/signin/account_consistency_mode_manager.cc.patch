@@ -1,0 +1,9 @@
+diff --git a/chrome/browser/signin/account_consistency_mode_manager.cc b/chrome/browser/signin/account_consistency_mode_manager.cc
+index 1234567890..abcdef1234 100644
+--- a/chrome/browser/signin/account_consistency_mode_manager.cc
++++ b/chrome/browser/signin/account_consistency_mode_manager.cc
+@@ -118,3 +118,3 @@ void AccountConsistencyModeManager::RegisterProfilePrefs(
+     user_prefs::PrefRegistrySyncable* registry) {
+-  registry->RegisterBooleanPref(prefs::kSigninAllowedOnNextStartup, true);
++  registry->RegisterBooleanPref(prefs::kSigninAllowedOnNextStartup, false);
+ }

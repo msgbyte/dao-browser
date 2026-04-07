@@ -1,0 +1,15 @@
+diff --git a/chrome/browser/ui/webui/settings/settings_ui.cc b/chrome/browser/ui/webui/settings/settings_ui.cc
+index 62a3181e66..3d86bbc312 100644
+--- a/chrome/browser/ui/webui/settings/settings_ui.cc
++++ b/chrome/browser/ui/webui/settings/settings_ui.cc
+@@ -308,9 +308,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+   }
+ #endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+ 
+-  html_source->AddBoolean("signinAllowed", !profile->IsGuestSession() &&
+-                                               profile->GetPrefs()->GetBoolean(
+-                                                   prefs::kSigninAllowed));
++  html_source->AddBoolean("signinAllowed", false);
+   ProfileAttributesEntry* entry =
+       g_browser_process->profile_manager()
+           ->GetProfileAttributesStorage()
