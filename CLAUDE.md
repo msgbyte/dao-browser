@@ -24,6 +24,8 @@ npm run start:debug    # Launch with stderr logging
 
 All scripts go through a single CLI entrypoint: `scripts/cli.ts` (run via tsx).
 
+> **⚠️ NEVER run `autoninja`, `ninja`, or `siso` directly. ALWAYS use the npm scripts above. Direct build tool invocation corrupts build state and causes full rebuilds. ⚠️**
+
 ## Critical Rule: Never Edit engine/ Directly
 
 The `engine/` directory contains the full Chromium checkout and is gitignored. **Never write to files under `engine/` as a deliverable.** All changes must go through:
@@ -89,7 +91,7 @@ Patches inject Dao components into the Chromium frame:
 - **Batch all changes** — Chromium builds are expensive. Deliver all related changes (headers, implementations, BUILD.gn entries, patches) in a single pass. Verify includes, forward declarations, and symbol references are consistent before finishing.
 - **Always verify with build** — After a complete task's code changes are all done, run `npm run rebuild` (import + build) to verify compilation. Do not consider the task finished until the build passes.
 - **NEVER use `npm run build`** — Always use `npm run build:debug` (debug build) instead. The release build is extremely slow and not needed during development. This applies to all build-related commands: use `npm run rebuild` (which uses debug) for iterative dev, and `npm run build:debug` for build-only.
-- **NEVER run `autoninja -C out/dao-debug chrome` directly** — Always go through the project scripts (`npm run rebuild` or `npm run build:debug`) so the build directory, GN args, and import/export workflow stay consistent. If the output directory reports a Ninja/Siso mismatch, run `gn clean out/dao-debug` before rebuilding instead of invoking `autoninja` manually.
+- **⚠️ NEVER run `autoninja`, `ninja`, `siso`, or any build tool directly ⚠️** — This is the single most important build rule. NEVER run `autoninja -C ...`, `ninja -C ...`, or any direct build command. ALWAYS use the project npm scripts (`npm run rebuild`, `npm run build:debug`). Direct invocation causes Siso/Ninja state mismatches that corrupt the build directory and trigger expensive full rebuilds. If you see a build state mismatch error, run `gn clean out/dao-debug` and then `npm run build:debug` — do NOT attempt to fix it by running ninja/autoninja directly, that will make it worse.
 - **NEVER commit to git automatically** — Do not run `git add`, `git commit`, or `git push` unless the user explicitly asks. Leave all git operations to the user.
 
 ## Testing
@@ -131,6 +133,13 @@ To run specific tests directly:
 Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
 
 Available skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/retro`, `/investigate`, `/document-release`, `/codex`, `/cso`, `/autoplan`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`.
+
+## ABSOLUTE BUILD RULES (READ BEFORE ANY BUILD ACTION)
+
+1. **NEVER run `autoninja`, `ninja`, or `siso` directly** — not even for a single object file, not even "just to check the error". There are NO exceptions.
+2. **ALWAYS use `npm run rebuild` or `npm run build:debug`** — these are the ONLY approved ways to build.
+3. **NEVER run `gn gen` directly** — the npm scripts handle this automatically.
+4. If build state is corrupted (Siso/Ninja mismatch), run `gn clean out/dao-debug` then `npm run build:debug`.
 
 ## Prerequisites
 
