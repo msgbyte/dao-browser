@@ -60,6 +60,7 @@ class DaoLittleDaoView : public views::View,
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   void Layout(PassKey) override;
+  void AddedToWidget() override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
 
  private:

@@ -26,6 +26,7 @@
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
+#include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h"
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
@@ -333,6 +334,14 @@ gfx::Size DaoSidebarView::CalculatePreferredSize(
 }
 
 void DaoSidebarView::Layout(PassKey) {
+  // Reposition traffic lights on every layout pass so macOS cannot reset them.
+  if (GetWidget()) {
+    constexpr int kTrafficLightX = 13;
+    constexpr int kTrafficLightY = 6;
+    dao::SetTrafficLightsPosition(GetWidget()->GetNativeWindow(),
+                                   kTrafficLightX, kTrafficLightY);
+  }
+
   // Dao: Hide traffic-light spacing in fullscreen (no window controls).
   if (header_row_) {
     bool fullscreen = GetWidget() && GetWidget()->IsFullscreen();

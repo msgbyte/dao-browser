@@ -8,31 +8,31 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
+#include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/compositor/layer.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
+#include "ui/views/widget/widget.h"
 
 namespace dao {
 
 namespace {
 constexpr int kLeftPadding = 80;      // Space for traffic lights (~76px)
-constexpr int kRightPadding = 16;
+constexpr int kRightPadding = 0;
 constexpr int kVerticalPadding = 8;   // Top/bottom padding inside 48px header
-constexpr int kDisplayHeight = 28;
 constexpr int kButtonCornerRadius = 8;
-constexpr int kDisplayCornerRadius = 14;  // Pill shape (half of height)
+constexpr int kDisplayCornerRadius = 8;   // Rounded rectangle
 constexpr int kElementSpacing = 8;
 constexpr SkColor kButtonBackground = SkColorSetARGB(15, 0, 0, 0);
 constexpr SkColor kDisplayBackground = SkColorSetARGB(15, 0, 0, 0);
@@ -43,19 +43,12 @@ END_METADATA
 
 DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
     : browser_(browser), tab_strip_model_(browser->tab_strip_model()) {
-  SetBackground(views::CreateSolidBackground(SK_ColorWHITE));
-
-  // Top rounded corners
-  SetPaintToLayer();
-  layer()->SetFillsBoundsOpaquely(false);
-  layer()->SetRoundedCornerRadius(gfx::RoundedCornersF(
-      dao::kContentCornerRadius, dao::kContentCornerRadius, 0, 0));
-  layer()->SetIsFastRoundedCorner(true);
+  SetBackground(views::CreateSolidBackground(SkColorSetRGB(202, 197, 208)));
 
   auto* layout = SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal);
   layout->SetMainAxisAlignment(views::LayoutAlignment::kStart);
-  layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
+  layout->SetCrossAxisAlignment(views::LayoutAlignment::kStretch);
   layout->SetInteriorMargin(gfx::Insets::TLBR(
       kVerticalPadding, kLeftPadding, kVerticalPadding, kRightPadding));
   layout->SetDefault(views::kMarginsKey,
@@ -71,7 +64,7 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
       kDisplayBackground, kDisplayCornerRadius));
   url_display_->SetBorder(
       views::CreateEmptyBorder(gfx::Insets::TLBR(0, 12, 0, 12)));
-  url_display_->SetPreferredSize(gfx::Size(0, kDisplayHeight));
+  url_display_->SetPreferredSize(gfx::Size(0, 0));
   url_display_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   url_display_->SetAccessibleName(u"Address");
   url_display_->SetFocusBehavior(views::View::FocusBehavior::NEVER);
@@ -79,9 +72,13 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
                                views::MaximumFlexSizeRule::kUnbounded));
-  // Install pill-shaped highlight for hover/focus ink effects
+  // Install rounded-rect highlight path and enable InkDrop hover effect
   views::InstallRoundRectHighlightPathGenerator(
       url_display_, gfx::Insets(), kDisplayCornerRadius);
+  views::InkDrop::Get(url_display_)->SetMode(
+      views::InkDropHost::InkDropMode::ON_NO_GESTURE_HANDLER);
+  views::InkDrop::Get(url_display_)->SetBaseColor(SK_ColorBLACK);
+  views::InkDrop::Get(url_display_)->SetVisibleOpacity(0.04f);
 
   // "Open in Dao ⌘O" button
   open_button_ = AddChildView(std::make_unique<views::LabelButton>(
@@ -92,8 +89,15 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   open_button_->SetBackground(views::CreateRoundedRectBackground(
       kButtonBackground, kButtonCornerRadius));
   open_button_->SetBorder(
-      views::CreateEmptyBorder(gfx::Insets::TLBR(5, 14, 5, 10)));
+      views::CreateEmptyBorder(gfx::Insets::TLBR(0, 14, 0, 10)));
   open_button_->SetAccessibleName(u"Open in Dao");
+  // Hover effect for open button
+  views::InstallRoundRectHighlightPathGenerator(
+      open_button_, gfx::Insets(), kButtonCornerRadius);
+  views::InkDrop::Get(open_button_)->SetMode(
+      views::InkDropHost::InkDropMode::ON_NO_GESTURE_HANDLER);
+  views::InkDrop::Get(open_button_)->SetBaseColor(SK_ColorBLACK);
+  views::InkDrop::Get(open_button_)->SetVisibleOpacity(0.04f);
 
   // Shortcut hint label — added as child of button, manually positioned
   // in Layout() since LabelButton's internal layout ignores extra children.
@@ -101,12 +105,12 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
       open_button_->AddChildView(std::make_unique<views::Label>(u"\u2318+O"));
   shortcut_label_->SetEnabledColor(SkColorSetARGB(80, 0, 0, 0));
 
-  // Expand button preferred size to include room for the shortcut label
+  // Expand button preferred size to include room for the shortcut label,
+  // and force the same height as the URL display for visual alignment.
   gfx::Size btn_pref = open_button_->GetPreferredSize();
   gfx::Size sc_pref = shortcut_label_->GetPreferredSize();
   open_button_->SetPreferredSize(
-      gfx::Size(btn_pref.width() + sc_pref.width() + 6,
-                btn_pref.height()));
+      gfx::Size(btn_pref.width() + sc_pref.width() + 6, 0));
 
   // Register Cmd+O accelerator
   AddAccelerator(ui::Accelerator(ui::VKEY_O, ui::EF_COMMAND_DOWN));
@@ -166,6 +170,8 @@ void DaoLittleDaoView::OnBackgroundColorChanged() {
   UpdateBackgroundColor();
 }
 
+void DaoLittleDaoView::AddedToWidget() {}
+
 gfx::Size DaoLittleDaoView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
   return gfx::Size(0, kBarHeight);
@@ -176,6 +182,15 @@ void DaoLittleDaoView::Layout(PassKey) {
   if (GetLayoutManager()) {
     GetLayoutManager()->Layout(this);
   }
+
+  // Reposition traffic lights on every layout pass so macOS cannot reset them.
+  if (GetWidget()) {
+    constexpr int kTrafficLightX = 13;
+    constexpr int kTrafficLightY = 6;
+    dao::SetTrafficLightsPosition(GetWidget()->GetNativeWindow(),
+                                   kTrafficLightX, kTrafficLightY);
+  }
+
   // Manually position the shortcut label inside open_button_ since
   // LabelButton's internal layout only handles its own label+image.
   if (shortcut_label_ && open_button_ && open_button_->width() > 0) {
@@ -212,57 +227,11 @@ void DaoLittleDaoView::UpdateURLDisplay() {
 }
 
 void DaoLittleDaoView::UpdateBackgroundColor() {
-  SkColor bg_color = SK_ColorWHITE;
-  if (tab_strip_model_) {
-    auto* web_contents = tab_strip_model_->GetActiveWebContents();
-    if (web_contents) {
-      auto* rwhv = web_contents->GetRenderWidgetHostView();
-      if (rwhv) {
-        auto color = rwhv->GetBackgroundColor();
-        if (color.has_value()) {
-          bg_color = color.value();
-        }
-      }
-    }
-  }
-  SetBackground(views::CreateSolidBackground(bg_color));
+  SetBackground(views::CreateSolidBackground(
+      SkColorSetRGB(202, 197, 208)));
 
-  // Adaptive text colors based on background luminance
-  int r = SkColorGetR(bg_color);
-  int g = SkColorGetG(bg_color);
-  int b = SkColorGetB(bg_color);
-  double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-  bool is_dark = luminance < 128;
-
-  if (url_display_) {
-    url_display_->SetEnabledTextColors(
-        is_dark ? SkColorSetRGB(220, 220, 220) : SkColorSetRGB(60, 60, 60));
-    url_display_->SetBackground(views::CreateRoundedRectBackground(
-        is_dark ? SkColorSetARGB(20, 255, 255, 255)
-                : SkColorSetARGB(15, 0, 0, 0),
-        kDisplayCornerRadius));
-  }
-
-  if (open_button_) {
-    open_button_->SetEnabledTextColors(
-        is_dark ? kTextPrimary : SkColorSetRGB(40, 40, 40));
-    open_button_->SetBackground(views::CreateRoundedRectBackground(
-        is_dark ? kButtonBackground : SkColorSetARGB(15, 0, 0, 0),
-        kButtonCornerRadius));
-  }
-
-  if (shortcut_label_) {
-    shortcut_label_->SetEnabledColor(
-        is_dark ? SkColorSetARGB(100, 255, 255, 255)
-                : SkColorSetARGB(80, 0, 0, 0));
-  }
-
-  // Adaptive bottom separator
-  SkColor separator_color = is_dark
-      ? SkColorSetARGB(25, 255, 255, 255)
-      : SkColorSetARGB(25, 0, 0, 0);
   SetBorder(views::CreateSolidSidedBorder(
-      gfx::Insets::TLBR(0, 0, 1, 0), separator_color));
+      gfx::Insets::TLBR(0, 0, 1, 0), SkColorSetARGB(25, 0, 0, 0)));
 
   SchedulePaint();
 }

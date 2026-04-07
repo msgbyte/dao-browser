@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..9d6dd2a409 100644
+index 76c889780c..b5b9663a1e 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -119,6 +119,20 @@
@@ -23,7 +23,7 @@ index 76c889780c..9d6dd2a409 100644
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/native_browser_frame.h"
-@@ -1084,6 +1097,76 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
+@@ -1084,6 +1098,72 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -85,13 +85,9 @@ index 76c889780c..9d6dd2a409 100644
 +    }
 +  } else if (dao::DaoLittleDaoController::IsCreatingLittleDao() ||
 +             dao::DaoLittleDaoController::IsLittleDaoWindow(browser_.get())) {
-+    // Dao: Little Dao window — simplified popup for external URLs
-+    SetBackground(views::CreateSolidBackground(dao::kSidebarBackground));
-+    contents_web_view_->SetBackgroundOverrideColor(SK_ColorWHITE);
++    // Dao: Little Dao window — simplified popup for external URLs (no frame)
 +    dao_little_dao_view_ = AddChildView(
 +        std::make_unique<dao::DaoLittleDaoView>(browser_.get()));
-+    dao_corner_overlay_ = AddChildView(
-+        std::make_unique<dao::DaoCornerOverlayView>());
 +    // Dao: Command bar overlay for Little Dao (Cmd+L / address click)
 +    dao_command_bar_ = AddChildView(
 +        std::make_unique<dao::DaoCommandBarView>(browser_.get()));
@@ -100,7 +96,7 @@ index 76c889780c..9d6dd2a409 100644
    right_aligned_side_panel_separator_ =
        AddChildView(std::make_unique<ContentsSeparator>());
  
-@@ -1301,6 +1380,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
+@@ -1301,6 +1381,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -112,7 +108,7 @@ index 76c889780c..9d6dd2a409 100644
    const bool is_pwa =
        base::FeatureList::IsEnabled(features::kImmersiveFullscreenPWAs) &&
        GetIsWebAppType();
-@@ -1310,6 +1394,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
+@@ -1310,6 +1395,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
  }
  
  bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
@@ -123,7 +119,7 @@ index 76c889780c..9d6dd2a409 100644
    return (GetSupportsTabStrip() &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreen) &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreenTabs)) &&
-@@ -1338,6 +1426,11 @@ bool BrowserView::GetTabStripVisible() const {
+@@ -1338,6 +1427,11 @@ bool BrowserView::GetTabStripVisible() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -135,7 +131,7 @@ index 76c889780c..9d6dd2a409 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-@@ -1876,6 +1969,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1876,6 +1970,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
    // Visibility API under Windows, as ChangeWebContents will briefly hide
    // the WebContents window.
    bool change_tab_contents = contents_web_view_->web_contents() != new_contents;
@@ -144,7 +140,7 @@ index 76c889780c..9d6dd2a409 100644
  
  #if BUILDFLAG(IS_MAC)
    // Widget::IsActive is inconsistent between Mac and Aura, so don't check for
-@@ -1951,13 +2046,32 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1951,13 +2047,32 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
      }
  
      web_contents_close_handler_->ActiveTabChanged();
@@ -153,11 +149,7 @@ index 76c889780c..9d6dd2a409 100644
        loading_bar_->SetWebContents(new_contents);
 +    } else if (loading_bar_) {
 +      loading_bar_->SetWebContents(nullptr);
-     }
--    contents_web_view_->SetWebContents(new_contents);
--    SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
--    if (sad_tab_helper) {
--      sad_tab_helper->ReinstallInWebView();
++    }
 +    if (dao_split_tab_active) {
 +      contents_web_view_->SetWebContents(nullptr);
 +    } else {
@@ -166,7 +158,11 @@ index 76c889780c..9d6dd2a409 100644
 +      if (sad_tab_helper) {
 +        sad_tab_helper->ReinstallInWebView();
 +      }
-+    }
+     }
+-    contents_web_view_->SetWebContents(new_contents);
+-    SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
+-    if (sad_tab_helper) {
+-      sad_tab_helper->ReinstallInWebView();
 +    if (dao_agent_lock_banner_) {
 +      dao_agent_lock_banner_->SetLocked(
 +          dao::DaoAgentLockTabHelper::IsLocked(new_contents));
@@ -182,7 +178,7 @@ index 76c889780c..9d6dd2a409 100644
      }
  
      // The second layout update should be no-op. It will just set the
-@@ -2362,6 +2469,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2362,6 +2477,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -201,7 +197,7 @@ index 76c889780c..9d6dd2a409 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3710,6 +3829,20 @@ LocationBarView* BrowserView::GetLocationBarView() const {
+@@ -3710,6 +3837,20 @@ LocationBarView* BrowserView::GetLocationBarView() const {
  void BrowserView::TabChangedAt(content::WebContents* contents,
                                 int index,
                                 TabChangeType change_type) {

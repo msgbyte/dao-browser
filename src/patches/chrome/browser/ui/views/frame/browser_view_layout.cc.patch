@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..01ca518533 100644
+index 46f6be18ac..a615dda2ce 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
 @@ -31,6 +31,22 @@
@@ -181,7 +181,7 @@ index 46f6be18ac..01ca518533 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +828,216 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +828,190 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -344,15 +344,11 @@ index 46f6be18ac..01ca518533 100644
 +    contents_container_bounds = dao_content_area;
 +  }
 +
-+  // Dao: Little Dao layout — content insets on all 4 sides, top bar above content
++  // Dao: Little Dao layout — no insets, bar at top, content below
 +  auto* little_dao_view = browser_view_->dao_little_dao_view();
 +  bool dao_little_dao_active = little_dao_view && little_dao_view->GetVisible();
 +  if (dao_little_dao_active) {
-+    // Apply insets on all sides (no sidebar, so left also gets inset)
 +    gfx::Rect little_dao_area = contents_container_bounds;
-+    little_dao_area.Inset(
-+        gfx::Insets::TLBR(dao::kContentInsetTop, dao::kContentInsetBottom,
-+                           dao::kContentInsetBottom, dao::kContentInsetRight));
 +
 +    // Position the Little Dao bar at the top
 +    int bar_height = dao::DaoLittleDaoView::kBarHeight;
@@ -362,28 +358,6 @@ index 46f6be18ac..01ca518533 100644
 +
 +    // Shift content below the bar
 +    little_dao_area.Inset(gfx::Insets::TLBR(bar_height, 0, 0, 0));
-+
-+    // Position corner overlay for Little Dao
-+    auto* ld_corner_overlay = browser_view_->dao_corner_overlay();
-+    if (ld_corner_overlay) {
-+      gfx::Rect overlay_content = little_dao_area;
-+      overlay_content.Inset(gfx::Insets::TLBR(-bar_height, 0, 0, 0));
-+      gfx::Rect overlay_bounds = overlay_content;
-+      overlay_bounds.Inset(gfx::Insets(-dao::kContentShadowMargin));
-+      ld_corner_overlay->SetBoundsRect(overlay_bounds);
-+    }
-+
-+    // Apply rounded corners to bottom of contents container
-+    if (!contents_container_->layer()) {
-+      contents_container_->SetPaintToLayer();
-+      contents_container_->layer()->SetFillsBoundsOpaquely(false);
-+      contents_container_->SetBackground(
-+          views::CreateSolidBackground(SK_ColorWHITE));
-+    }
-+    contents_container_->layer()->SetRoundedCornerRadius(
-+        gfx::RoundedCornersF(0, 0, dao::kContentCornerRadius,
-+                              dao::kContentCornerRadius));
-+    contents_container_->layer()->SetIsFastRoundedCorner(true);
 +
 +    // Dao: Position command bar to cover the entire BrowserView (Little Dao)
 +    auto* ld_command_bar = browser_view_->dao_command_bar();
@@ -398,14 +372,18 @@ index 46f6be18ac..01ca518533 100644
    if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
      // The WebUI tab strip container should "push" the tab contents down without
      // resizing it.
-@@ -881,6 +1191,13 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
+@@ -881,6 +1165,17 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
    // layout and we assume that this is the case.
    height = std::max(height, delegate_->GetTopInsetInBrowserView());
  
 +  // Dao: When toolbar is offscreen (y < 0) but visible, its bounds().bottom()
 +  // is 0, giving top_container zero height. Immersive fullscreen needs a
 +  // non-zero overlay widget size, so ensure minimum height from the toolbar.
-+  if (height == 0 && toolbar_->GetVisible() && toolbar_->bounds().y() < 0) {
++  // Skip for Little Dao — it has no sidebar and needs zero top offset.
++  bool is_little_dao_window = dao::DaoLittleDaoController::IsLittleDaoWindow(
++      browser_view_->browser());
++  if (height == 0 && toolbar_->GetVisible() && toolbar_->bounds().y() < 0 &&
++      !is_little_dao_window) {
 +    height = toolbar_->GetPreferredSize().height();
 +  }
 +

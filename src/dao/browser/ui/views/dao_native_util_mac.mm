@@ -192,4 +192,41 @@ void UnblockWebContentNativeEvents(content::WebContents* web_contents) {
   }
 }
 
+void SetTrafficLightsPosition(gfx::NativeWindow native_window, int x, int y) {
+  if (!native_window)
+    return;
+  NSWindow* window = native_window.GetNativeNSWindow();
+  if (!window)
+    return;
+
+  // BrowserWindowFrame._shouldCenterTrafficLights runs during the native
+  // layout cycle and resets button positions AFTER views::View::Layout().
+  // Use dispatch_async to schedule our repositioning after the native layout
+  // completes, so our changes stick.
+  CGFloat targetX = (CGFloat)x;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSButton* close = [window standardWindowButton:NSWindowCloseButton];
+    NSButton* minimize = [window standardWindowButton:NSWindowMiniaturizeButton];
+    NSButton* zoom = [window standardWindowButton:NSWindowZoomButton];
+    if (!close || !minimize || !zoom)
+      return;
+
+    CGFloat shift = targetX - close.frame.origin.x;
+    if (fabs(shift) < 0.5)
+      return;  // Already in position, skip.
+
+    NSRect closeFrame = close.frame;
+    closeFrame.origin.x += shift;
+    close.frame = closeFrame;
+
+    NSRect minFrame = minimize.frame;
+    minFrame.origin.x += shift;
+    minimize.frame = minFrame;
+
+    NSRect zoomFrame = zoom.frame;
+    zoomFrame.origin.x += shift;
+    zoom.frame = zoomFrame;
+  });
+}
+
 }  // namespace dao
