@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..fe12d52eb5 100644
+index 46f6be18ac..bff2ff9899 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
 @@ -31,6 +31,23 @@
@@ -302,7 +302,7 @@ index 46f6be18ac..fe12d52eb5 100644
 +    gfx::Size toast_size = dao_toast->GetPreferredSize();
 +    dao_toast->SetBounds(
 +        dao_content_area.right() - toast_size.width() - 12,
-+        dao_content_area.y() + 12,
++        dao_content_area.y() + 4,
 +        toast_size.width(), toast_size.height());
 +  }
 +
