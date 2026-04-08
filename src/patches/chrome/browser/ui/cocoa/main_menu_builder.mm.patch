@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
-index 463639cbdb..99d66bee0e 100644
+index 463639cbdb..00ec72866c 100644
 --- a/chrome/browser/ui/cocoa/main_menu_builder.mm
 +++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
 @@ -152,6 +152,18 @@
@@ -17,6 +17,27 @@ index 463639cbdb..99d66bee0e 100644
 +      keyEquivalent:@""];
 +  little_dao_item.tag = IDC_NEW_LITTLE_DAO;
 +  [file_menu insertItem:little_dao_item atIndex:insert_index];
++
+   return item;
+ }
+ 
+@@ -262,6 +274,20 @@
+           })
+           .Build();
+   // clang-format on
++
++  // Dao: Insert "Copy URL" menu item after "Copy" with Cmd+Shift+C
++  NSMenu* edit_menu = item.submenu;
++  NSInteger copy_index =
++      [edit_menu indexOfItemWithTag:IDC_CONTENT_CONTEXT_COPY];
++  NSMenuItem* copy_url_item = [[NSMenuItem alloc]
++      initWithTitle:@"Copy URL"
++             action:@selector(commandDispatch:)
++      keyEquivalent:@"c"];
++  copy_url_item.keyEquivalentModifierMask =
++      NSEventModifierFlagCommand | NSEventModifierFlagShift;
++  copy_url_item.tag = IDC_DAO_COPY_URL;
++  [edit_menu insertItem:copy_url_item atIndex:copy_index + 1];
 +
    return item;
  }

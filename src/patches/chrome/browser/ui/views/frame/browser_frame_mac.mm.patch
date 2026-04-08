@@ -1,19 +1,23 @@
 diff --git a/chrome/browser/ui/views/frame/browser_frame_mac.mm b/chrome/browser/ui/views/frame/browser_frame_mac.mm
-index 29ba0f48f5..1b4b722c7c 100644
+index 29ba0f48f5..6aa6ffce38 100644
 --- a/chrome/browser/ui/views/frame/browser_frame_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_frame_mac.mm
-@@ -21,6 +21,10 @@
+@@ -21,6 +21,14 @@
  #include "chrome/browser/ui/views/frame/browser_frame.h"
  #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "base/strings/utf_string_conversions.h"
++#include "content/public/browser/web_contents.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
++#include "ui/base/clipboard/scoped_clipboard_writer.h"
 +#include "url/gurl.h"
  #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/common/pref_names.h"
-@@ -160,9 +164,17 @@ - (NSTouchBar*)makeTouchBar {
+@@ -160,9 +168,17 @@ - (NSTouchBar*)makeTouchBar {
          browser_view_->GetTabStripHeight() +
          browser_view_->frame()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
@@ -34,7 +38,7 @@ index 29ba0f48f5..1b4b722c7c 100644
      }
    } else {
      *override_titlebar_height = false;
-@@ -185,6 +197,13 @@ - (NSTouchBar*)makeTouchBar {
+@@ -185,6 +201,21 @@ - (NSTouchBar*)makeTouchBar {
  void BrowserFrameMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -45,10 +49,18 @@ index 29ba0f48f5..1b4b722c7c 100644
 +    return;
 +  }
 +
++  // Dao: IDC_DAO_COPY_URL copies the active tab's URL to clipboard.
++  if (tag == IDC_DAO_COPY_URL) {
++    result->enable = browser_view_->browser()
++                         ->tab_strip_model()
++                         ->GetActiveWebContents() != nullptr;
++    return;
++  }
++
    Browser* browser = browser_view_->browser();
    if (!chrome::SupportsCommand(browser, tag)) {
      result->enable = false;
-@@ -341,6 +360,15 @@ - (NSTouchBar*)makeTouchBar {
+@@ -341,6 +372,30 @@ - (NSTouchBar*)makeTouchBar {
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
@@ -61,10 +73,25 @@ index 29ba0f48f5..1b4b722c7c 100644
 +    return true;
 +  }
 +
++  // Dao: Copy active tab URL to clipboard and show toast.
++  if (command == IDC_DAO_COPY_URL) {
++    content::WebContents* web_contents =
++        browser_view_->browser()->tab_strip_model()->GetActiveWebContents();
++    if (web_contents) {
++      ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);
++      scw.WriteText(base::UTF8ToUTF16(web_contents->GetVisibleURL().spec()));
++      if (auto* toast = browser_view_->dao_toast()) {
++        toast->ShowToast(u"Copied Current Url");
++        browser_view_->InvalidateLayout();
++      }
++    }
++    return true;
++  }
++
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -379,6 +407,16 @@ - (NSTouchBar*)makeTouchBar {
+@@ -379,6 +434,16 @@ - (NSTouchBar*)makeTouchBar {
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -81,3 +108,16 @@ index 29ba0f48f5..1b4b722c7c 100644
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
+@@ -450,6 +515,12 @@ - (NSTouchBar*)makeTouchBar {
+   views::Widget::InitParams params(
+       views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+   params.native_widget = this;
++  // Dao: Make the window translucent so NSVisualEffectView can show
++  // through, producing the frosted glass sidebar effect.
++  if (browser_view_->browser()->SupportsWindowFeature(
++          Browser::FEATURE_TABSTRIP)) {
++    params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
++  }
+   return params;
+ }
+ 

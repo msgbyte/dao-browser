@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/cocoa/accelerators_cocoa.mm b/chrome/browser/ui/cocoa/accelerators_cocoa.mm
+index f7a2074579..ede3ea5b7e 100644
+--- a/chrome/browser/ui/cocoa/accelerators_cocoa.mm
++++ b/chrome/browser/ui/cocoa/accelerators_cocoa.mm
+@@ -33,6 +33,8 @@
+     // Accelerators used in the toolbar menu.
+     {IDC_CLEAR_BROWSING_DATA, ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN,
+      ui::VKEY_BACK},
++    // Dao: Cmd+Shift+C copies the active tab URL
++    {IDC_DAO_COPY_URL, ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN, ui::VKEY_C},
+     {IDC_COPY, ui::EF_COMMAND_DOWN, ui::VKEY_C},
+     {IDC_CUT, ui::EF_COMMAND_DOWN, ui::VKEY_X},
+     {IDC_DEV_TOOLS, ui::EF_COMMAND_DOWN | ui::EF_ALT_DOWN, ui::VKEY_I},
