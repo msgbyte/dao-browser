@@ -5,6 +5,8 @@
 #ifndef DAO_BROWSER_UI_WEBUI_DAO_SIDEBAR_UI_H_
 #define DAO_BROWSER_UI_WEBUI_DAO_SIDEBAR_UI_H_
 
+#include <memory>
+#include <set>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -16,6 +18,7 @@
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
+#include "ui/menus/simple_menu_model.h"
 
 class Browser;
 
@@ -26,6 +29,10 @@ class DownloadManager;
 namespace download {
 class DownloadItem;
 }  // namespace download
+
+namespace views {
+class MenuRunner;
+}  // namespace views
 
 namespace dao {
 
@@ -47,7 +54,8 @@ class DaoSidebarUIConfig : public content::WebUIConfig {
 class DaoSidebarUIHandler
     : public content::WebUIMessageHandler,
       public TabStripModelObserver,
-      public download::AllDownloadItemNotifier::Observer {
+      public download::AllDownloadItemNotifier::Observer,
+      public ui::SimpleMenuModel::Delegate {
  public:
   DaoSidebarUIHandler();
   ~DaoSidebarUIHandler() override;
@@ -76,6 +84,11 @@ class DaoSidebarUIHandler
                          download::DownloadItem* item) override;
   void OnDownloadRemoved(content::DownloadManager* manager,
                          download::DownloadItem* item) override;
+
+  // ui::SimpleMenuModel::Delegate:
+  bool IsCommandIdEnabled(int command_id) const override;
+  void ExecuteCommand(int command_id, int event_flags) override;
+  void MenuClosed(ui::SimpleMenuModel* source) override;
 
  private:
   // Returns the split view for this browser, or nullptr.
@@ -117,15 +130,40 @@ class DaoSidebarUIHandler
   void HandleDetachTabToNewWindow(const base::Value::List& args);
   void HandleLoadFolders(const base::Value::List& args);
   void HandleSaveFolders(const base::Value::List& args);
+  void HandleShowTabContextMenu(const base::Value::List& args);
+
+  // Context menu helpers.
+  int FindVisualPosition(int tab_index) const;
+  void CloseTabsInVisualRange(int from, int to);
+  void ClearContextMenuState();
 
   void OnScanResultReady(base::Value::List file_entries,
                          std::vector<base::FilePath> paths);
   static std::string FormatSpeed(int64_t bytes_per_sec);
 
+  // Tab context menu command IDs.
+  enum TabContextMenuCommand {
+    kDuplicateTab = 0,
+    kCopyLink,
+    kToggleMute,
+    kCloseTab,
+    kCloseOtherTabs,
+    kCloseTabsAbove,
+    kCloseTabsBelow,
+  };
+
   raw_ptr<Browser> browser_ = nullptr;
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
   std::vector<base::FilePath> recent_file_paths_;
   std::string folder_json_;  // Per-window folder data (in-memory)
+
+  // Context menu state.
+  int context_menu_tab_index_ = -1;
+  std::set<int> folder_tab_indices_;
+  std::vector<int> visual_tab_order_;  // Tab model indices in visual order (top to bottom)
+  std::unique_ptr<ui::SimpleMenuModel> tab_context_menu_model_;
+  std::unique_ptr<views::MenuRunner> tab_context_menu_runner_;
+
   base::WeakPtrFactory<DaoSidebarUIHandler> weak_factory_{this};
 };
 

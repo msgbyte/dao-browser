@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -45,8 +46,11 @@
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/mojom/menu_source_type.mojom-shared.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
+#include "ui/views/controls/menu/menu_runner.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
@@ -328,6 +332,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "saveFolders",
       base::BindRepeating(&DaoSidebarUIHandler::HandleSaveFolders,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "showTabContextMenu",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleShowTabContextMenu,
                           base::Unretained(this)));
 }
 
@@ -936,6 +944,224 @@ void DaoSidebarUIHandler::HandleSaveFolders(
       base::BindOnce([](base::FilePath file_path, std::string data) {
         base::WriteFile(file_path, data);
       }, path, *json));
+}
+
+void DaoSidebarUIHandler::HandleShowTabContextMenu(
+    const base::Value::List& args) {
+  if (!browser_ || args.size() < 3) return;
+  int tab_index = args[0].GetIfInt().value_or(-1);
+  int screen_x = args[1].GetIfInt().value_or(0);
+  int screen_y = args[2].GetIfInt().value_or(0);
+  if (tab_index < 0) return;
+
+  TabStripModel* model = browser_->tab_strip_model();
+  if (tab_index >= model->count()) return;
+
+  context_menu_tab_index_ = tab_index;
+  content::WebContents* contents = model->GetWebContentsAt(tab_index);
+  if (!contents) return;
+
+  // Parse folder tab indices (arg[3] is an optional array of indices).
+  folder_tab_indices_.clear();
+  if (args.size() > 3 && args[3].is_list()) {
+    for (const auto& val : args[3].GetList()) {
+      if (val.is_int()) {
+        folder_tab_indices_.insert(val.GetInt());
+      }
+    }
+  }
+
+  // Parse visual tab order (arg[4] is an array of model indices in
+  // top-to-bottom visual order).
+  visual_tab_order_.clear();
+  if (args.size() > 4 && args[4].is_list()) {
+    for (const auto& val : args[4].GetList()) {
+      if (val.is_int()) {
+        visual_tab_order_.push_back(val.GetInt());
+      }
+    }
+  }
+
+  // Build the menu model.
+  tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
+
+  tab_context_menu_model_->AddItem(kDuplicateTab, u"Duplicate Tab");
+  tab_context_menu_model_->AddItem(kCopyLink, u"Copy Link");
+
+  bool is_muted = contents->IsAudioMuted();
+  tab_context_menu_model_->AddItem(
+      kToggleMute, is_muted ? u"Unmute Site" : u"Mute Site");
+
+  tab_context_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
+
+  tab_context_menu_model_->AddItem(kCloseTab, u"Close Tab");
+  tab_context_menu_model_->AddItem(kCloseOtherTabs, u"Close Other Tabs");
+  tab_context_menu_model_->AddItem(kCloseTabsAbove, u"Close Tabs Above");
+  tab_context_menu_model_->AddItem(kCloseTabsBelow, u"Close Tabs Below");
+
+  // Get the Widget from the sidebar.
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view || !browser_view->dao_sidebar()) return;
+
+  views::Widget* widget = browser_view->dao_sidebar()->GetWidget();
+  if (!widget) return;
+
+  // Create the menu runner and show the menu.
+  tab_context_menu_runner_ = std::make_unique<views::MenuRunner>(
+      tab_context_menu_model_.get(),
+      views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU);
+
+  gfx::Rect anchor_rect(gfx::Point(screen_x, screen_y), gfx::Size());
+  tab_context_menu_runner_->RunMenuAt(
+      widget, nullptr, anchor_rect,
+      views::MenuAnchorPosition::kTopLeft,
+      ui::mojom::MenuSourceType::kMouse);
+}
+
+int DaoSidebarUIHandler::FindVisualPosition(int tab_index) const {
+  auto it = std::find(visual_tab_order_.begin(), visual_tab_order_.end(),
+                      tab_index);
+  if (it == visual_tab_order_.end()) return -1;
+  return static_cast<int>(std::distance(visual_tab_order_.begin(), it));
+}
+
+void DaoSidebarUIHandler::CloseTabsInVisualRange(int from, int to) {
+  TabStripModel* model = browser_->tab_strip_model();
+  std::vector<int> to_close;
+  int end = std::min(to, static_cast<int>(visual_tab_order_.size()));
+  for (int i = from; i < end; ++i) {
+    int idx = visual_tab_order_[i];
+    if (idx != context_menu_tab_index_ &&
+        folder_tab_indices_.find(idx) == folder_tab_indices_.end()) {
+      to_close.push_back(idx);
+    }
+  }
+  // Sort descending so closing doesn't shift earlier indices.
+  std::sort(to_close.begin(), to_close.end(), std::greater<int>());
+  for (int idx : to_close) {
+    model->CloseWebContentsAt(idx, TabCloseTypes::CLOSE_USER_GESTURE);
+  }
+}
+
+void DaoSidebarUIHandler::ClearContextMenuState() {
+  context_menu_tab_index_ = -1;
+  folder_tab_indices_.clear();
+  visual_tab_order_.clear();
+}
+
+bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
+  if (!browser_) return false;
+  TabStripModel* model = browser_->tab_strip_model();
+  if (context_menu_tab_index_ < 0 ||
+      context_menu_tab_index_ >= model->count()) {
+    return false;
+  }
+
+  int visual_pos = FindVisualPosition(context_menu_tab_index_);
+  int total = static_cast<int>(visual_tab_order_.size());
+
+  // Helper: count closable tabs in a visual range.
+  auto countClosable = [&](int from, int to) -> int {
+    int count = 0;
+    int end = std::min(to, total);
+    for (int i = from; i < end; ++i) {
+      int idx = visual_tab_order_[i];
+      if (idx != context_menu_tab_index_ &&
+          folder_tab_indices_.find(idx) == folder_tab_indices_.end()) {
+        count++;
+      }
+    }
+    return count;
+  };
+
+  switch (command_id) {
+    case kDuplicateTab:
+      return chrome::CanDuplicateTabAt(browser_, context_menu_tab_index_);
+    case kCopyLink:
+    case kToggleMute:
+    case kCloseTab:
+      return true;
+    case kCloseOtherTabs:
+      return countClosable(0, total) > 0;
+    case kCloseTabsAbove:
+      return visual_pos > 0 && countClosable(0, visual_pos) > 0;
+    case kCloseTabsBelow:
+      return visual_pos >= 0 && countClosable(visual_pos + 1, total) > 0;
+    default:
+      return false;
+  }
+}
+
+void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
+  if (!browser_) return;
+  TabStripModel* model = browser_->tab_strip_model();
+  if (context_menu_tab_index_ < 0 ||
+      context_menu_tab_index_ >= model->count()) {
+    return;
+  }
+
+  switch (command_id) {
+    case kDuplicateTab:
+      chrome::DuplicateTabAt(browser_, context_menu_tab_index_);
+      break;
+
+    case kCopyLink: {
+      content::WebContents* contents =
+          model->GetWebContentsAt(context_menu_tab_index_);
+      if (contents) {
+        ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
+        writer.WriteText(
+            base::UTF8ToUTF16(contents->GetVisibleURL().spec()));
+      }
+      break;
+    }
+
+    case kToggleMute: {
+      content::WebContents* contents =
+          model->GetWebContentsAt(context_menu_tab_index_);
+      if (contents) {
+        contents->SetAudioMuted(!contents->IsAudioMuted());
+      }
+      break;
+    }
+
+    case kCloseTab:
+      model->CloseWebContentsAt(context_menu_tab_index_,
+                                TabCloseTypes::CLOSE_USER_GESTURE);
+      break;
+
+    case kCloseOtherTabs:
+      CloseTabsInVisualRange(0,
+                             static_cast<int>(visual_tab_order_.size()));
+      break;
+
+    case kCloseTabsAbove: {
+      int visual_pos = FindVisualPosition(context_menu_tab_index_);
+      if (visual_pos > 0) {
+        CloseTabsInVisualRange(0, visual_pos);
+      }
+      break;
+    }
+
+    case kCloseTabsBelow: {
+      int visual_pos = FindVisualPosition(context_menu_tab_index_);
+      if (visual_pos >= 0) {
+        CloseTabsInVisualRange(visual_pos + 1,
+                               static_cast<int>(visual_tab_order_.size()));
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  ClearContextMenuState();
+}
+
+void DaoSidebarUIHandler::MenuClosed(ui::SimpleMenuModel* source) {
+  ClearContextMenuState();
 }
 
 // ---- DaoSidebarUI ----

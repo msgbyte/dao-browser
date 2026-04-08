@@ -155,7 +155,8 @@ export class DaoTabItem extends CrLitElement {
       <div class="tab-row"
            draggable="true"
            @click=${this.onActivate_}
-           @dragstart=${this.onDragStart_}>
+           @dragstart=${this.onDragStart_}
+           @contextmenu=${this.onContextMenu_}>
         <div class="favicon">
           ${tab.faviconUrl
               ? html`<img src=${tab.faviconUrl} alt="">`
@@ -224,6 +225,20 @@ export class DaoTabItem extends CrLitElement {
     e.dataTransfer.setData('text/plain',
         `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}`);
     e.dataTransfer.effectAllowed = 'move';
+  }
+
+  private onContextMenu_(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.dispatchEvent(new CustomEvent('tab-context-menu', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        index: this.tabData.index,
+        screenX: e.screenX,
+        screenY: e.screenY,
+      },
+    }));
   }
 
 }

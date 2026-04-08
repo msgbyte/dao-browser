@@ -101,6 +101,8 @@ export class DaoTabList extends CrLitElement {
     this.addEventListener('dragleave', this.onDragLeave_.bind(this));
     this.addEventListener('drop', this.onDrop_.bind(this));
     this.addEventListener('dragend', this.onDragEnd_.bind(this));
+    this.addEventListener('tab-context-menu',
+        ((e: CustomEvent) => this.onTabContextMenu_(e)) as EventListener);
 
     // Intercept folder-action events that involve drops to clean up
     // drag state (folder's stopPropagation prevents our onDrop_).
@@ -605,6 +607,81 @@ export class DaoTabList extends CrLitElement {
       tabId: tab.tabId,
       toModelIndex,
     });
+  }
+
+  /**
+   * Handle right-click on a tab item. Computes visual tab order and
+   * folder tab indices, then sends context menu request to C++.
+   */
+  private onTabContextMenu_(e: CustomEvent) {
+    const {index, screenX, screenY} = e.detail;
+    const {visualOrder, folderTabIndices} = this.computeContextMenuData_();
+    sendNative('showTabContextMenu', index, screenX, screenY,
+        folderTabIndices, visualOrder);
+  }
+
+  /**
+   * Compute both visual tab order and folder tab indices in a single pass.
+   */
+  private computeContextMenuData_():
+      {visualOrder: number[]; folderTabIndices: number[]} {
+    if (!this.folderModel || !this.folderModel.hasData()) {
+      return {
+        visualOrder: [...this.tabs].reverse().map(t => t.index),
+        folderTabIndices: [],
+      };
+    }
+
+    // Build lookup maps for O(1) matching instead of O(n) findIndex.
+    const byTabId = new Map<string, TabData>();
+    const byUrlTitle = new Map<string, TabData>();
+    const byUrl = new Map<string, TabData>();
+    for (const tab of [...this.tabs].reverse()) {
+      if (tab.tabId) byTabId.set(tab.tabId, tab);
+      byUrlTitle.set(`${tab.url}\0${tab.title}`, tab);
+      if (!byUrl.has(tab.url)) byUrl.set(tab.url, tab);
+    }
+    const consumed = new Set<string>();
+
+    const consume = (
+        ref: {tabId?: string; url: string; title: string}): TabData | null => {
+      let tab: TabData | undefined;
+      if (ref.tabId) tab = byTabId.get(ref.tabId);
+      if (!tab) tab = byUrlTitle.get(`${ref.url}\0${ref.title}`);
+      if (!tab) tab = byUrl.get(ref.url);
+      if (!tab || consumed.has(tab.tabId)) return null;
+      consumed.add(tab.tabId);
+      return tab;
+    };
+
+    const items = this.folderModel.getOrderedItems();
+    const visualOrder: number[] = [];
+    const folderTabIndices: number[] = [];
+
+    for (const item of items) {
+      if (item.type === 'tab') {
+        const matched = consume(item);
+        if (matched) visualOrder.push(matched.index);
+      } else if (item.type === 'folder') {
+        const folder = item as import('./sidebar_bridge.js').FolderData;
+        for (const child of folder.children) {
+          const matched = consume(child);
+          if (matched) {
+            visualOrder.push(matched.index);
+            folderTabIndices.push(matched.index);
+          }
+        }
+      }
+    }
+
+    // Remaining unmatched tabs.
+    for (const tab of [...this.tabs].reverse()) {
+      if (!consumed.has(tab.tabId)) {
+        visualOrder.push(tab.index);
+      }
+    }
+
+    return {visualOrder, folderTabIndices};
   }
 
   /**
