@@ -8,7 +8,6 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -18,6 +17,7 @@
 #include "content/public/common/url_constants.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
+#include "dao/browser/ui/views/dao_tab_commands.h"
 #include "base/task/single_thread_task_runner.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "ui/compositor/layer_animator.h"
@@ -594,9 +594,7 @@ void DaoSidebarView::RemovedFromWidget() {
 bool DaoSidebarView::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
   if (accelerator.key_code() == ui::VKEY_D) {
-    if (chrome::CanDuplicateTab(browser_)) {
-      chrome::DuplicateTab(browser_);
-    }
+    DuplicateActiveTab(browser_);
     return true;
   }
   if (accelerator.key_code() == ui::VKEY_I) {

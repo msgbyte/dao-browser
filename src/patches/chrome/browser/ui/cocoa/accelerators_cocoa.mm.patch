@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/cocoa/accelerators_cocoa.mm b/chrome/browser/ui/cocoa/accelerators_cocoa.mm
-index f7a2074579..ede3ea5b7e 100644
+index f7a2074579..e2ddab5fef 100644
 --- a/chrome/browser/ui/cocoa/accelerators_cocoa.mm
 +++ b/chrome/browser/ui/cocoa/accelerators_cocoa.mm
 @@ -33,6 +33,8 @@
@@ -11,3 +11,13 @@ index f7a2074579..ede3ea5b7e 100644
      {IDC_COPY, ui::EF_COMMAND_DOWN, ui::VKEY_C},
      {IDC_CUT, ui::EF_COMMAND_DOWN, ui::VKEY_X},
      {IDC_DEV_TOOLS, ui::EF_COMMAND_DOWN | ui::EF_ALT_DOWN, ui::VKEY_I},
+@@ -51,7 +53,8 @@
+      ui::VKEY_B},
+     {IDC_SHOW_BOOKMARK_MANAGER, ui::EF_COMMAND_DOWN | ui::EF_ALT_DOWN,
+      ui::VKEY_B},
+-    {IDC_BOOKMARK_THIS_TAB, ui::EF_COMMAND_DOWN, ui::VKEY_D},
++    // Dao: Cmd+D duplicates the active tab (was IDC_BOOKMARK_THIS_TAB)
++    {IDC_DAO_DUPLICATE_TAB, ui::EF_COMMAND_DOWN, ui::VKEY_D},
+     {IDC_SHOW_DOWNLOADS, ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN, ui::VKEY_J},
+     {IDC_SHOW_HISTORY, ui::EF_COMMAND_DOWN, ui::VKEY_Y},
+     {IDC_VIEW_SOURCE, ui::EF_COMMAND_DOWN | ui::EF_ALT_DOWN, ui::VKEY_U},

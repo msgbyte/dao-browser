@@ -132,29 +132,30 @@ export class DaoTabList extends CrLitElement {
   private renderFromModel_() {
     const items = this.folderModel!.getOrderedItems();
 
-    // Build a consumption pool of actual tabs keyed by URL.
-    // Each URL may have multiple tabs — we consume them in order.
-    const pool = new Map<string, TabData[]>();
-    // Tabs are displayed newest-first (reversed), so build pool
-    // from the reversed list to maintain order.
-    const reversed = [...this.tabs].reverse();
-    for (const tab of reversed) {
-      const list = pool.get(tab.url) || [];
-      list.push(tab);
-      pool.set(tab.url, list);
-    }
+    // Tabs are displayed newest-first (reversed), so consume from the
+    // reversed runtime list to preserve visual order.
+    const remaining = [...this.tabs].reverse();
 
-    const consume = (url: string): TabData | null => {
-      const list = pool.get(url);
-      if (!list || list.length === 0) return null;
-      return list.shift()!;
+    const consume = (
+        ref: {tabId?: string; url: string; title: string}): TabData | null => {
+      let idx = ref.tabId ?
+          remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
+      if (idx === -1) {
+        idx = remaining.findIndex(
+            tab => tab.url === ref.url && tab.title === ref.title);
+      }
+      if (idx === -1) {
+        idx = remaining.findIndex(tab => tab.url === ref.url);
+      }
+      if (idx === -1) return null;
+      return remaining.splice(idx, 1)[0]!;
     };
 
     const fragments: unknown[] = [];
 
     for (const item of items) {
       if (item.type === 'tab') {
-        const matched = consume(item.url);
+        const matched = consume(item);
         if (matched) {
           fragments.push(html`
             <dao-tab-item
@@ -169,7 +170,7 @@ export class DaoTabList extends CrLitElement {
         // Match folder children to actual tabs.
         const matchedChildren: TabData[] = [];
         for (const child of folder.children) {
-          const matched = consume(child.url);
+          const matched = consume(child);
           if (matched) {
             matchedChildren.push(matched);
           }
@@ -186,16 +187,14 @@ export class DaoTabList extends CrLitElement {
     }
 
     // Any remaining unmatched tabs from the pool — render as loose tabs.
-    for (const [, list] of pool) {
-      for (const tab of list) {
-        fragments.push(html`
-          <dao-tab-item
-            .tabData=${tab}
-            .sessionId=${this.sessionId}
-            ?active=${tab.isActive}>
-          </dao-tab-item>
-        `);
-      }
+    for (const tab of remaining) {
+      fragments.push(html`
+        <dao-tab-item
+          .tabData=${tab}
+          .sessionId=${this.sessionId}
+          ?active=${tab.isActive}>
+        </dao-tab-item>
+      `);
     }
 
     return html`
@@ -603,8 +602,7 @@ export class DaoTabList extends CrLitElement {
     if (!tab) return;
     this.dispatchFolderAction_({
       action: 'reorderModel',
-      tabUrl: tab.url,
-      tabTitle: tab.title,
+      tabId: tab.tabId,
       toModelIndex,
     });
   }
@@ -619,14 +617,14 @@ export class DaoTabList extends CrLitElement {
     const tab = this.tabs.find(t => t.index === tabIndex);
     if (!tab) return false;
 
-    const folderId = this.folderModel.findTabFolder(tab.url, tab.title);
+    const tabRef = {tabId: tab.tabId, url: tab.url, title: tab.title};
+    const folderId = this.folderModel.findTabFolder(tabRef);
     if (!folderId) return false;
 
     this.dispatchFolderAction_({
       action: 'removeFromFolder',
       folderId,
-      tabUrl: tab.url,
-      tabTitle: tab.title,
+      tabId: tab.tabId,
       toModelIndex: this.dropModelIndex_ >= 0 ?
           this.dropModelIndex_ : undefined,
     });

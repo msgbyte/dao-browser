@@ -36,6 +36,46 @@ export class FolderModel {
   private items_: SidebarItem[] = [];
   private version_: number = 1;
 
+  private matchesTabRef_(
+      ref: SidebarTabRef,
+      tab: Pick<TabData, 'tabId'|'url'|'title'>): boolean {
+    if (ref.tabId && tab.tabId) {
+      return ref.tabId === tab.tabId;
+    }
+    return ref.url === tab.url && ref.title === tab.title;
+  }
+
+  private toTabRef_(tab: Pick<TabData, 'tabId'|'url'|'title'>): SidebarTabRef {
+    return {
+      type: 'tab',
+      tabId: tab.tabId,
+      url: tab.url,
+      title: tab.title,
+    };
+  }
+
+  private toPersistedItem_(item: SidebarItem): SidebarItem {
+    if (item.type === 'tab') {
+      return {
+        type: 'tab',
+        url: item.url,
+        title: item.title,
+      };
+    }
+
+    return {
+      type: 'folder',
+      id: item.id,
+      name: item.name,
+      collapsed: item.collapsed,
+      children: item.children.map(child => ({
+        type: 'tab',
+        url: child.url,
+        title: child.title,
+      })),
+    };
+  }
+
   /**
    * Parse stored JSON data into the items tree.
    * Returns true if data was loaded successfully, false otherwise.
@@ -65,7 +105,7 @@ export class FolderModel {
   toJson(): string {
     const data: FolderFileData = {
       version: this.version_,
-      items: this.items_,
+      items: this.items_.map(item => this.toPersistedItem_(item)),
     };
     return JSON.stringify(data, null, 2);
   }
@@ -121,18 +161,17 @@ export class FolderModel {
   }
 
   /**
-   * Move a tab (identified by URL + title match at a flat position)
+   * Move a tab (identified by stable tabId, with URL + title fallback)
    * into a folder. The tab is removed from its current position and
    * appended to the folder's children. If the folder is collapsed,
    * it is auto-expanded.
    *
-   * @param tabUrl  URL of the tab to move
-   * @param tabTitle  Title of the tab to move
+   * @param tab  Runtime tab identity to move
    * @param folderId  Target folder ID
    * @param sourceFolderId  If the tab is already in a folder, its ID
    */
   moveTabToFolder(
-      tabUrl: string, tabTitle: string, folderId: string,
+      tab: Pick<TabData, 'tabId'|'url'|'title'>, folderId: string,
       sourceFolderId?: string): void {
     const targetFolder = this.findFolder_(folderId);
     if (!targetFolder) return;
@@ -143,7 +182,7 @@ export class FolderModel {
       const sourceFolder = this.findFolder_(sourceFolderId);
       if (sourceFolder) {
         const childIdx = sourceFolder.children.findIndex(
-            c => c.url === tabUrl && c.title === tabTitle);
+            c => this.matchesTabRef_(c, tab));
         if (childIdx !== -1) {
           removed = sourceFolder.children.splice(childIdx, 1)[0]!;
         }
@@ -152,7 +191,7 @@ export class FolderModel {
       // Remove from top-level items.
       const idx = this.items_.findIndex(
           item => item.type === 'tab' &&
-              item.url === tabUrl && item.title === tabTitle);
+              this.matchesTabRef_(item, tab));
       if (idx !== -1) {
         removed = this.items_.splice(idx, 1)[0] as SidebarTabRef;
       }
@@ -160,7 +199,7 @@ export class FolderModel {
 
     if (!removed) {
       // Tab not found in model — create a new ref.
-      removed = {type: 'tab', url: tabUrl, title: tabTitle};
+      removed = this.toTabRef_(tab);
     }
 
     targetFolder.children.push(removed);
@@ -175,19 +214,18 @@ export class FolderModel {
    * Remove a tab from a folder, placing it as a loose tab immediately
    * after the folder in the items array.
    *
-   * @param tabUrl  URL of the tab
-   * @param tabTitle  Title of the tab
+   * @param tab  Runtime tab identity to remove
    * @param folderId  Source folder ID
    * @param insertIndex  Optional: top-level items index to insert at
    */
   removeTabFromFolder(
-      tabUrl: string, tabTitle: string, folderId: string,
+      tab: Pick<TabData, 'tabId'|'url'|'title'>, folderId: string,
       insertIndex?: number): void {
     const folder = this.findFolder_(folderId);
     if (!folder) return;
 
     const childIdx = folder.children.findIndex(
-        c => c.url === tabUrl && c.title === tabTitle);
+        c => this.matchesTabRef_(c, tab));
     if (childIdx === -1) return;
 
     const removed = folder.children.splice(childIdx, 1)[0]!;
@@ -223,24 +261,21 @@ export class FolderModel {
 
   /**
    * Reconcile stored folder data with actual browser tabs after
-   * session restore. Matches stored tab refs to actual tabs by URL,
-   * consuming each match once. Unmatched actual tabs become loose
+   * session restore. Matches stored tab refs to actual tabs by stable
+   * tabId first, then falls back to URL. Unmatched actual tabs become loose
    * tabs appended at the end. Stored refs with no match are discarded.
    */
   reconcile(actualTabs: TabData[]): void {
-    // Build a pool of available actual tabs (URL -> list of TabData).
-    const pool = new Map<string, TabData[]>();
-    for (const tab of actualTabs) {
-      const list = pool.get(tab.url) || [];
-      list.push(tab);
-      pool.set(tab.url, list);
-    }
+    const remaining = [...actualTabs];
 
-    // Consume helper: find and remove a matching tab from the pool.
-    const consume = (url: string): TabData | null => {
-      const list = pool.get(url);
-      if (!list || list.length === 0) return null;
-      return list.shift()!;
+    const consume = (ref: SidebarTabRef): TabData | null => {
+      let idx = ref.tabId ?
+          remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
+      if (idx === -1) {
+        idx = remaining.findIndex(tab => tab.url === ref.url);
+      }
+      if (idx === -1) return null;
+      return remaining.splice(idx, 1)[0]!;
     };
 
     // Walk the stored items tree, matching each tab ref to an actual tab.
@@ -248,27 +283,18 @@ export class FolderModel {
 
     for (const item of this.items_) {
       if (item.type === 'tab') {
-        const matched = consume(item.url);
+        const matched = consume(item);
         if (matched) {
-          // Update title from actual tab (may have changed).
-          newItems.push({
-            type: 'tab',
-            url: matched.url,
-            title: matched.title,
-          });
+          newItems.push(this.toTabRef_(matched));
         }
         // If no match, discard this stored entry.
       } else if (item.type === 'folder') {
         const folder = item as FolderData;
         const newChildren: SidebarTabRef[] = [];
         for (const child of folder.children) {
-          const matched = consume(child.url);
+          const matched = consume(child);
           if (matched) {
-            newChildren.push({
-              type: 'tab',
-              url: matched.url,
-              title: matched.title,
-            });
+            newChildren.push(this.toTabRef_(matched));
           }
           // If no match, discard this stored child entry.
         }
@@ -286,14 +312,37 @@ export class FolderModel {
       }
     }
 
-    // Remaining unmatched actual tabs become loose tabs at the end.
-    for (const [, list] of pool) {
-      for (const tab of list) {
-        newItems.push({
-          type: 'tab',
-          url: tab.url,
-          title: tab.title,
-        });
+    // Remaining unmatched actual tabs — insert near their tab-strip
+    // neighbor so that e.g. duplicated tabs appear next to the original
+    // rather than at the very bottom.
+    for (const tab of remaining) {
+      const actualIdx = actualTabs.indexOf(tab);
+      let inserted = false;
+
+      if (actualIdx > 0) {
+        const pred = actualTabs[actualIdx - 1]!;
+        for (let i = 0; i < newItems.length; i++) {
+          const item = newItems[i]!;
+          if (item.type === 'tab' &&
+              this.matchesTabRef_(item as SidebarTabRef, pred)) {
+            newItems.splice(i + 1, 0, this.toTabRef_(tab));
+            inserted = true;
+            break;
+          }
+          if (item.type === 'folder') {
+            const folder = item as FolderData;
+            if (folder.children.some(
+                    c => this.matchesTabRef_(c, pred))) {
+              newItems.splice(i + 1, 0, this.toTabRef_(tab));
+              inserted = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!inserted) {
+        newItems.push(this.toTabRef_(tab));
       }
     }
 
@@ -323,15 +372,15 @@ export class FolderModel {
   }
 
   /**
-   * Find which folder contains a tab with the given URL and title.
+   * Find which folder contains the given tab.
    * Returns the folder ID or null if the tab is not in any folder.
    */
-  findTabFolder(url: string, title: string): string | null {
+  findTabFolder(tab: Pick<TabData, 'tabId'|'url'|'title'>): string | null {
     for (const item of this.items_) {
       if (item.type !== 'folder') continue;
       const folder = item as FolderData;
       for (const child of folder.children) {
-        if (child.url === url && child.title === title) {
+        if (this.matchesTabRef_(child, tab)) {
           return folder.id;
         }
       }

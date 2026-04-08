@@ -31,6 +31,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
+#include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "chrome/grit/dao_sidebar_resources.h"
 #include "chrome/grit/dao_sidebar_resources_map.h"
@@ -430,6 +431,7 @@ void DaoSidebarUIHandler::PushFullState() {
     if (!contents) continue;
 
     base::Value::Dict tab;
+    tab.Set("tabId", GetSidebarTabId(contents));
     tab.Set("index", i);
     tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
     tab.Set("url", contents->GetVisibleURL().spec());
@@ -472,6 +474,7 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
   }
 
   base::Value::Dict tab;
+  tab.Set("tabId", GetSidebarTabId(contents));
   tab.Set("index", index);
   tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   tab.Set("url", contents->GetVisibleURL().spec());

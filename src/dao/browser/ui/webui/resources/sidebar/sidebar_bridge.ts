@@ -67,6 +67,7 @@ export function removeListener(listener: WebUiListener): boolean {
 // ---- Tab Data Types ----
 
 export interface TabData {
+  tabId: string;
   index: number;
   title: string;
   url: string;
@@ -119,6 +120,7 @@ export interface FolderData {
 
 export interface SidebarTabRef {
   type: 'tab';
+  tabId?: string;
   url: string;
   title: string;
 }
@@ -159,10 +161,9 @@ export type FolderAction =
   | {action: 'tabDrop'; folderId: string; dragData: string}
   | {action: 'childReorder'; folderId: string; dragData: string;
      dropIndex: number}
-  | {action: 'removeFromFolder'; folderId: string; tabUrl: string;
-     tabTitle: string; toModelIndex?: number}
-  | {action: 'reorderModel'; tabUrl: string; tabTitle: string;
-     toModelIndex: number}
+  | {action: 'removeFromFolder'; folderId: string; tabId: string;
+     toModelIndex?: number}
+  | {action: 'reorderModel'; tabId: string; toModelIndex: number}
   | {action: 'reorderFolder'; folderId: string; toModelIndex: number};
 
 // ---- Request-Response Bridge ----

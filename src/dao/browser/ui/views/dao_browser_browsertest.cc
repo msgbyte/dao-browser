@@ -17,6 +17,8 @@
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
+#include "dao/browser/ui/views/dao_tab_commands.h"
+#include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 
@@ -276,6 +278,48 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, TabClose) {
   model->CloseWebContentsAt(model->active_index(),
                             TabCloseTypes::CLOSE_NONE);
   EXPECT_EQ(count_after_add - 1, model->count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateActiveTabInsertsAfterOriginal) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  ASSERT_EQ(3, model->count());
+
+  model->ActivateTabAt(1);
+  content::WebContents* original = model->GetWebContentsAt(1);
+  ASSERT_NE(nullptr, original);
+
+  ASSERT_TRUE(DuplicateActiveTab(browser()));
+  ASSERT_EQ(4, model->count());
+  EXPECT_EQ(2, model->active_index());
+  EXPECT_EQ(original, model->GetWebContentsAt(1));
+
+  content::WebContents* duplicate = model->GetWebContentsAt(2);
+  ASSERT_NE(nullptr, duplicate);
+  EXPECT_NE(original, duplicate);
+  EXPECT_EQ(original->GetVisibleURL(), duplicate->GetVisibleURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateTabsGetDistinctSidebarTabIds) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  model->ActivateTabAt(1);
+
+  content::WebContents* original = model->GetWebContentsAt(1);
+  ASSERT_NE(nullptr, original);
+  const std::string original_id = GetSidebarTabId(original);
+
+  ASSERT_TRUE(DuplicateActiveTab(browser()));
+  content::WebContents* duplicate = model->GetWebContentsAt(2);
+  ASSERT_NE(nullptr, duplicate);
+
+  const std::string duplicate_id = GetSidebarTabId(duplicate);
+  EXPECT_NE(original_id, duplicate_id);
+
+  model->MoveWebContentsAt(2, 1, false);
+  EXPECT_EQ(original_id, GetSidebarTabId(original));
+  EXPECT_EQ(duplicate_id, GetSidebarTabId(duplicate));
 }
 
 // =============================================================================

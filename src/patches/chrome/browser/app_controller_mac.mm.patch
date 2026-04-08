@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
-index ee7c61e824..43815b4d47 100644
+index ee7c61e824..29cb81ab90 100644
 --- a/chrome/browser/app_controller_mac.mm
 +++ b/chrome/browser/app_controller_mac.mm
 @@ -63,6 +63,7 @@
@@ -10,7 +10,7 @@ index ee7c61e824..43815b4d47 100644
  #include "chrome/browser/ui/browser_command_controller.h"
  #include "chrome/browser/ui/browser_commands.h"
  #include "chrome/browser/ui/browser_dialogs.h"
-@@ -1446,6 +1447,17 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
+@@ -1446,6 +1447,22 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
        }
      }
  
@@ -25,10 +25,15 @@ index ee7c61e824..43815b4d47 100644
 +      enable = NO;
 +    }
 +
++    // Dao: IDC_DAO_DUPLICATE_TAB needs an active tab — disable when no window.
++    if (tag == IDC_DAO_DUPLICATE_TAB) {
++      enable = NO;
++    }
++
      // "Show as tab" should only appear when the current window is a popup.
      // Since |validateUserInterfaceItem:| is called only when there are no
      // key windows, we should just hide this.
-@@ -1558,6 +1570,9 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
+@@ -1558,6 +1575,9 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
      case IDC_RESTORE_TAB:
        app_controller_mac::TabRestorer::RestoreMostRecent(profile);
        break;
@@ -38,7 +43,7 @@ index ee7c61e824..43815b4d47 100644
      case IDC_OPEN_FILE:
        chrome::ExecuteCommand(CreateBrowser(profile), IDC_OPEN_FILE);
        break;
-@@ -2336,44 +2351,12 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
+@@ -2336,44 +2356,12 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
                                    Profile* profile) {
    if (!profile)
      return;  // No suitable profile to open the URLs, do nothing.

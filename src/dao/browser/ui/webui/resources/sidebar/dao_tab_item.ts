@@ -134,6 +134,7 @@ export class DaoTabItem extends CrLitElement {
   }
 
   tabData: TabData = {
+    tabId: '',
     index: -1,
     title: '',
     url: '',

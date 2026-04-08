@@ -150,6 +150,11 @@ export class DaoSidebarApp extends CrLitElement {
       if (!this.initialStateReceived_) {
         this.initialStateReceived_ = true;
         this.initFolders_();
+      } else if (this.foldersLoaded_) {
+        // Keep runtime tab identities in sync after duplicate/move/close so
+        // folder operations target the exact rendered tab, not a URL match.
+        this.folderModel_.reconcile(this.unpinnedTabs_);
+        this.folderModelVersion_++;
       }
     });
 
@@ -158,10 +163,10 @@ export class DaoSidebarApp extends CrLitElement {
       // Update in pinned or unpinned list
       if (updated.isPinned) {
         this.pinnedTabs_ = this.pinnedTabs_.map(
-            t => t.index === updated.index ? updated : t);
+            t => t.tabId === updated.tabId ? updated : t);
       } else {
         this.unpinnedTabs_ = this.unpinnedTabs_.map(
-            t => t.index === updated.index ? updated : t);
+            t => t.tabId === updated.tabId ? updated : t);
       }
     });
 
@@ -237,8 +242,10 @@ export class DaoSidebarApp extends CrLitElement {
 
       case 'removeFromFolder': {
         const idx = detail.toModelIndex;
+        const tab = this.findUnpinnedTabById_(detail.tabId);
+        if (!tab) break;
         this.folderModel_.removeTabFromFolder(
-            detail.tabUrl, detail.tabTitle, detail.folderId,
+            tab, detail.folderId,
             idx !== undefined && idx >= 0 ? idx : undefined);
         this.saveFolders_();
         break;
@@ -250,8 +257,7 @@ export class DaoSidebarApp extends CrLitElement {
         break;
 
       case 'reorderModel':
-        this.handleModelReorder_(
-            detail.tabUrl, detail.tabTitle, detail.toModelIndex);
+        this.handleModelReorder_(detail.tabId, detail.toModelIndex);
         break;
 
       case 'reorderFolder':
@@ -268,9 +274,8 @@ export class DaoSidebarApp extends CrLitElement {
     const tab = this.resolveTabFromDrag_(dragData);
     if (!tab) return;
 
-    const sourceFolderId = this.folderModel_.findTabFolder(tab.url, tab.title);
-    this.folderModel_.moveTabToFolder(
-        tab.url, tab.title, folderId, sourceFolderId || undefined);
+    const sourceFolderId = this.folderModel_.findTabFolder(tab);
+    this.folderModel_.moveTabToFolder(tab, folderId, sourceFolderId || undefined);
     this.saveFolders_();
   }
 
@@ -291,12 +296,14 @@ export class DaoSidebarApp extends CrLitElement {
   /**
    * Handle reordering a loose tab in the model's top-level items.
    */
-  private handleModelReorder_(
-      tabUrl: string, tabTitle: string, toModelIndex: number) {
+  private handleModelReorder_(tabId: string, toModelIndex: number) {
+    const tab = this.findUnpinnedTabById_(tabId);
+    if (!tab) return;
     const items = this.folderModel_.getOrderedItems();
     const fromIndex = items.findIndex(
         item => item.type === 'tab' &&
-            item.url === tabUrl && item.title === tabTitle);
+            ((item.tabId && item.tabId === tab.tabId) ||
+             (!item.tabId && item.url === tab.url && item.title === tab.title)));
     if (fromIndex === -1) return;
     if (fromIndex === toModelIndex) return;
 
@@ -316,19 +323,19 @@ export class DaoSidebarApp extends CrLitElement {
         f => f.id === folderId);
     if (!folder) return;
 
-    const sourceFolderId = this.folderModel_.findTabFolder(tab.url, tab.title);
+    const sourceFolderId = this.folderModel_.findTabFolder(tab);
 
     if (sourceFolderId === folderId) {
       const fromChildIndex = folder.children.findIndex(
-          c => c.url === tab.url && c.title === tab.title);
+          c => (c.tabId && c.tabId === tab.tabId) ||
+              (!c.tabId && c.url === tab.url && c.title === tab.title));
       if (fromChildIndex !== -1 && fromChildIndex !== dropIndex) {
         this.folderModel_.reorderWithinFolder(
             folderId, fromChildIndex, dropIndex);
         this.saveFolders_();
       }
     } else {
-      this.folderModel_.moveTabToFolder(
-          tab.url, tab.title, folderId, sourceFolderId || undefined);
+      this.folderModel_.moveTabToFolder(tab, folderId, sourceFolderId || undefined);
       const currentIdx = folder.children.length - 1;
       if (currentIdx !== dropIndex && dropIndex >= 0) {
         this.folderModel_.reorderWithinFolder(
@@ -345,6 +352,10 @@ export class DaoSidebarApp extends CrLitElement {
     const parsed = parseTabDragData(dragData);
     if (!parsed) return null;
     return this.unpinnedTabs_.find(t => t.index === parsed.tabIndex) || null;
+  }
+
+  private findUnpinnedTabById_(tabId: string): TabData | null {
+    return this.unpinnedTabs_.find(t => t.tabId === tabId) || null;
   }
 
   override render() {
