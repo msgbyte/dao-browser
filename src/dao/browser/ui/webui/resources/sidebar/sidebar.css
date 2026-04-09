@@ -3,7 +3,7 @@
 :root {
   --sidebar-bg: rgb(201, 197, 208);
   --surface: rgba(0, 0, 0, 0.05);
-  --surface-active: rgba(0, 0, 0, 0.08);
+  --surface-active: rgba(255, 255, 255, 0.65);
   --separator: rgba(0, 0, 0, 0.08);
   --text-primary: rgba(30, 20, 40, 1.0);
   --text-secondary: rgba(30, 20, 40, 0.60);

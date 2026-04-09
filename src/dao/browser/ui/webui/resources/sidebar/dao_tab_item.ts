@@ -21,7 +21,7 @@ export class DaoTabItem extends CrLitElement {
       .tab-row {
         display: flex;
         align-items: center;
-        height: 40px;
+        height: 36px;
         padding: 0 10px;
         border-radius: var(--radius-tab, 12px);
         cursor: default;
@@ -36,6 +36,8 @@ export class DaoTabItem extends CrLitElement {
 
       :host([active]) .tab-row {
         background: var(--surface-active);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08),
+                    0 1px 2px rgba(0, 0, 0, 0.06);
       }
 
       .favicon {
@@ -50,6 +52,15 @@ export class DaoTabItem extends CrLitElement {
         width: 16px;
         height: 16px;
         border-radius: 2px;
+      }
+
+      .favicon.light-icon {
+        background: rgba(0, 0, 0, 0.12);
+        border-radius: 4px;
+        padding: 2px;
+        width: 20px;
+        height: 20px;
+        margin: -2px;
       }
 
       .favicon .placeholder {
@@ -159,7 +170,8 @@ export class DaoTabItem extends CrLitElement {
            @contextmenu=${this.onContextMenu_}>
         <div class="favicon">
           ${tab.faviconUrl
-              ? html`<img src=${tab.faviconUrl} alt="">`
+              ? html`<img src=${tab.faviconUrl} alt=""
+                          class=${tab.isFaviconLight ? 'light-icon' : ''}>`
               : html`<div class="placeholder"></div>`}
           ${tab.isAgentLocked
               ? html`<div class="agent-lock-dot"></div>`
