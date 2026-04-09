@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
-index 46f6be18ac..bff2ff9899 100644
+index 46f6be18ac..7214d35fe9 100644
 --- a/chrome/browser/ui/views/frame/browser_view_layout.cc
 +++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
-@@ -31,6 +31,23 @@
+@@ -31,6 +31,24 @@
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -20,13 +20,14 @@ index 46f6be18ac..bff2ff9899 100644
 +#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 +#include "dao/browser/ui/views/dao_control_center_popup.h"
 +#include "dao/browser/ui/views/split/dao_split_view.h"
++#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 +#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "ui/compositor/layer.h"
 +#include "ui/views/background.h"
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
-@@ -337,6 +354,93 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
+@@ -337,6 +355,93 @@ int BrowserViewLayout::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -120,7 +121,7 @@ index 46f6be18ac..bff2ff9899 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip.
    if (delegate_->ShouldDrawTabStrip()) {
-@@ -638,6 +742,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
+@@ -638,6 +743,21 @@ int BrowserViewLayout::LayoutToolbar(int top) {
    int browser_view_width = vertical_layout_rect_.width();
    bool toolbar_visible = delegate_->IsToolbarVisible();
    int height = toolbar_visible ? toolbar_->GetPreferredSize().height() : 0;
@@ -142,7 +143,7 @@ index 46f6be18ac..bff2ff9899 100644
    SetViewVisibility(toolbar_, toolbar_visible);
    toolbar_->SetBounds(vertical_layout_rect_.x(), top, browser_view_width,
                        height);
-@@ -648,32 +767,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
+@@ -648,32 +768,14 @@ int BrowserViewLayout::LayoutBookmarkAndInfoBars(int top, int browser_view_y) {
    TRACE_EVENT0("ui", "BrowserViewLayout::LayoutBookmarkAndInfoBars");
    dialog_top_y_ = top + browser_view_y - kConstrainedWindowOverlap;
  
@@ -182,7 +183,7 @@ index 46f6be18ac..bff2ff9899 100644
    }
  
    return LayoutInfoBar(top);
-@@ -728,6 +829,200 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
+@@ -728,6 +830,209 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
    gfx::Rect contents_container_bounds(vertical_layout_rect_.x(), top,
                                        vertical_layout_rect_.width(),
                                        std::max(0, bottom - top));
@@ -296,6 +297,15 @@ index 46f6be18ac..bff2ff9899 100644
 +    agent_cursor->SetBoundsRect(dao_content_area);
 +  }
 +
++  // Dao: Position tab tooltip at its anchor point
++  auto* tab_tooltip = browser_view_->dao_tab_tooltip();
++  if (tab_tooltip && tab_tooltip->GetVisible()) {
++    gfx::Size tt_size = tab_tooltip->GetPreferredSize();
++    gfx::Point anchor = tab_tooltip->anchor_point();
++    tab_tooltip->SetBounds(anchor.x(), anchor.y(),
++                           tt_size.width(), tt_size.height());
++  }
++
 +  // Dao: Position toast in top-right of content area
 +  auto* dao_toast = browser_view_->dao_toast();
 +  if (dao_toast && dao_toast->GetVisible()) {
@@ -383,7 +393,7 @@ index 46f6be18ac..bff2ff9899 100644
    if (webui_tab_strip_ && webui_tab_strip_->GetVisible()) {
      // The WebUI tab strip container should "push" the tab contents down without
      // resizing it.
-@@ -881,6 +1176,17 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
+@@ -881,6 +1186,17 @@ void BrowserViewLayout::UpdateTopContainerBounds() {
    // layout and we assume that this is the case.
    height = std::max(height, delegate_->GetTopInsetInBrowserView());
  

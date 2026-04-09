@@ -78,6 +78,7 @@ export interface TabData {
   isMuted: boolean;
   isAgentLocked?: boolean;
   isInSplit?: boolean;
+  isFaviconLight?: boolean;
 }
 
 export interface SidebarState {

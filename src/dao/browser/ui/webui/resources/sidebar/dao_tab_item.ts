@@ -133,6 +133,7 @@ export class DaoTabItem extends CrLitElement {
       .close-btn:hover {
         color: var(--text-primary);
       }
+
     `;
   }
 
@@ -158,16 +159,24 @@ export class DaoTabItem extends CrLitElement {
   active: boolean = false;
   sessionId: number = 0;
 
+  private tooltipTimer_: number = 0;
+  private lastMouseX_: number = 0;
+  private lastMouseY_: number = 0;
+
   override render() {
     const tab = this.tabData;
     const showAudio = tab.isAudible || tab.isMuted;
+    const displayTitle = tab.title || tab.url || 'New Tab';
 
     return html`
       <div class="tab-row"
            draggable="true"
            @click=${this.onActivate_}
            @dragstart=${this.onDragStart_}
-           @contextmenu=${this.onContextMenu_}>
+           @contextmenu=${this.onContextMenu_}
+           @mouseenter=${this.onShowTooltip_}
+           @mousemove=${this.onTrackMouse_}
+           @mouseleave=${this.onHideTooltip_}>
         <div class="favicon">
           ${tab.faviconUrl
               ? html`<img src=${tab.faviconUrl} alt=""
@@ -203,9 +212,8 @@ export class DaoTabItem extends CrLitElement {
             </svg>
           </button>
         ` : ''}
-        <span class="title">${tab.title || tab.url || 'New Tab'}</span>
+        <span class="title">${displayTitle}</span>
         <button class="close-btn"
-                title="Close tab"
                 @click=${this.onClose_}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2"
@@ -237,6 +245,38 @@ export class DaoTabItem extends CrLitElement {
     e.dataTransfer.setData('text/plain',
         `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}`);
     e.dataTransfer.effectAllowed = 'move';
+  }
+
+  private onTrackMouse_(e: MouseEvent) {
+    this.lastMouseX_ = e.screenX;
+    this.lastMouseY_ = e.screenY;
+    // Reset timer on every move — only show after 2s of no movement.
+    window.clearTimeout(this.tooltipTimer_);
+    this.tooltipTimer_ = window.setTimeout(() => {
+      const title = this.tabData.title || this.tabData.url || 'New Tab';
+      sendNative('showTabTooltip',
+          this.lastMouseX_ + 4,
+          this.lastMouseY_ + 4,
+          title);
+    }, 1500);
+  }
+
+  private onShowTooltip_(e: MouseEvent) {
+    this.lastMouseX_ = e.screenX;
+    this.lastMouseY_ = e.screenY;
+    window.clearTimeout(this.tooltipTimer_);
+    this.tooltipTimer_ = window.setTimeout(() => {
+      const title = this.tabData.title || this.tabData.url || 'New Tab';
+      sendNative('showTabTooltip',
+          this.lastMouseX_ + 4,
+          this.lastMouseY_ + 4,
+          title);
+    }, 1500);
+  }
+
+  private onHideTooltip_() {
+    window.clearTimeout(this.tooltipTimer_);
+    sendNative('hideTabTooltip');
   }
 
   private onContextMenu_(e: MouseEvent) {

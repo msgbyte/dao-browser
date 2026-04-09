@@ -131,6 +131,8 @@ class DaoSidebarUIHandler
   void HandleLoadFolders(const base::Value::List& args);
   void HandleSaveFolders(const base::Value::List& args);
   void HandleShowTabContextMenu(const base::Value::List& args);
+  void HandleShowTabTooltip(const base::Value::List& args);
+  void HandleHideTabTooltip(const base::Value::List& args);
 
   // Context menu helpers.
   int FindVisualPosition(int tab_index) const;

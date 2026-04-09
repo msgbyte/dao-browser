@@ -36,6 +36,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
+#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "chrome/grit/dao_sidebar_resources.h"
 #include "chrome/grit/dao_sidebar_resources_map.h"
@@ -355,6 +356,14 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "showTabContextMenu",
       base::BindRepeating(&DaoSidebarUIHandler::HandleShowTabContextMenu,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "showTabTooltip",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleShowTabTooltip,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "hideTabTooltip",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleHideTabTooltip,
                           base::Unretained(this)));
 }
 
@@ -1036,6 +1045,34 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
       widget, nullptr, anchor_rect,
       views::MenuAnchorPosition::kTopLeft,
       ui::mojom::MenuSourceType::kMouse);
+}
+
+void DaoSidebarUIHandler::HandleShowTabTooltip(
+    const base::Value::List& args) {
+  if (!browser_ || args.size() < 3) return;
+  int screen_x = args[0].GetIfInt().value_or(0);
+  int screen_y = args[1].GetIfInt().value_or(0);
+  const std::string* title_str = args[2].GetIfString();
+  if (!title_str) return;
+
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!bv || !bv->dao_tab_tooltip()) return;
+
+  // Convert screen coordinates to BrowserView coordinates.
+  gfx::Point anchor(screen_x, screen_y);
+  views::View::ConvertPointFromScreen(bv, &anchor);
+
+  bv->dao_tab_tooltip()->ShowTooltip(
+      base::UTF8ToUTF16(*title_str), anchor);
+  bv->InvalidateLayout();
+}
+
+void DaoSidebarUIHandler::HandleHideTabTooltip(
+    const base::Value::List& args) {
+  if (!browser_) return;
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!bv || !bv->dao_tab_tooltip()) return;
+  bv->dao_tab_tooltip()->HideTooltip();
 }
 
 int DaoSidebarUIHandler::FindVisualPosition(int tab_index) const {

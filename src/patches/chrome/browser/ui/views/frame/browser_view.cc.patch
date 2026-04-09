@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..b59c2322b9 100644
+index 76c889780c..b5b5531a27 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -119,6 +119,21 @@
+@@ -119,6 +119,22 @@
  #include "chrome/browser/ui/views/frame/browser_view_layout.h"
  #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
  #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
@@ -20,11 +20,12 @@ index 76c889780c..b59c2322b9 100644
 +#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 +#include "dao/browser/ui/views/dao_control_center_popup.h"
 +#include "dao/browser/ui/views/split/dao_split_view.h"
++#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 +#include "dao/browser/ui/views/dao_toast_view.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/native_browser_frame.h"
-@@ -1084,6 +1099,76 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
+@@ -1084,6 +1100,80 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -76,6 +77,10 @@ index 76c889780c..b59c2322b9 100644
 +    dao_control_center_popup_ = AddChildView(
 +        std::make_unique<dao::DaoControlCenterPopup>(browser_.get()));
 +
++    // Dao: Tab tooltip (appears to the right of sidebar on hover)
++    dao_tab_tooltip_ = AddChildView(
++        std::make_unique<dao::DaoTabTooltipView>());
++
 +    // Dao: Toast notification (top-right of content area)
 +    dao_toast_ = AddChildView(
 +        std::make_unique<dao::DaoToastView>());
@@ -101,7 +106,7 @@ index 76c889780c..b59c2322b9 100644
    right_aligned_side_panel_separator_ =
        AddChildView(std::make_unique<ContentsSeparator>());
  
-@@ -1301,6 +1386,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
+@@ -1301,6 +1391,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -113,7 +118,7 @@ index 76c889780c..b59c2322b9 100644
    const bool is_pwa =
        base::FeatureList::IsEnabled(features::kImmersiveFullscreenPWAs) &&
        GetIsWebAppType();
-@@ -1310,6 +1400,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
+@@ -1310,6 +1405,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
  }
  
  bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
@@ -124,7 +129,7 @@ index 76c889780c..b59c2322b9 100644
    return (GetSupportsTabStrip() &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreen) &&
            base::FeatureList::IsEnabled(features::kImmersiveFullscreenTabs)) &&
-@@ -1338,6 +1432,11 @@ bool BrowserView::GetTabStripVisible() const {
+@@ -1338,6 +1437,11 @@ bool BrowserView::GetTabStripVisible() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -136,7 +141,7 @@ index 76c889780c..b59c2322b9 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-@@ -1876,6 +1975,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1876,6 +1980,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
    // Visibility API under Windows, as ChangeWebContents will briefly hide
    // the WebContents window.
    bool change_tab_contents = contents_web_view_->web_contents() != new_contents;
@@ -145,7 +150,7 @@ index 76c889780c..b59c2322b9 100644
  
  #if BUILDFLAG(IS_MAC)
    // Widget::IsActive is inconsistent between Mac and Aura, so don't check for
-@@ -1951,13 +2052,32 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1951,13 +2057,32 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
      }
  
      web_contents_close_handler_->ActiveTabChanged();
@@ -183,7 +188,7 @@ index 76c889780c..b59c2322b9 100644
      }
  
      // The second layout update should be no-op. It will just set the
-@@ -2362,6 +2482,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2362,6 +2487,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -202,7 +207,7 @@ index 76c889780c..b59c2322b9 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3710,6 +3842,20 @@ LocationBarView* BrowserView::GetLocationBarView() const {
+@@ -3710,6 +3847,20 @@ LocationBarView* BrowserView::GetLocationBarView() const {
  void BrowserView::TabChangedAt(content::WebContents* contents,
                                 int index,
                                 TabChangeType change_type) {

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..8da043a323 100644
+index a66522f120..b219c963bd 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -48,6 +48,93 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -48,6 +48,95 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
@@ -93,10 +93,12 @@ index a66522f120..8da043a323 100644
 +    "//dao/browser/ui/views/sidebar/dao_file_icon_util_mac.mm",
 +    "//dao/browser/ui/views/sidebar/dao_sidebar_view.cc",
 +    "//dao/browser/ui/views/sidebar/dao_sidebar_view.h",
++    "//dao/browser/ui/views/sidebar/dao_tab_tooltip_view.cc",
++    "//dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h",
      "accelerator_utils.h",
      "bluetooth/bluetooth_dialogs.h",
      "browser_dialogs.cc",
-@@ -318,6 +405,10 @@ static_library("ui") {
+@@ -318,6 +407,10 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
@@ -107,7 +109,7 @@ index a66522f120..8da043a323 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -564,6 +655,7 @@ static_library("ui") {
+@@ -564,6 +657,7 @@ static_library("ui") {
      "//components/privacy_sandbox:tracking_protection_settings",
      "//components/profile_metrics",
      "//components/proxy_config",
@@ -115,7 +117,7 @@ index a66522f120..8da043a323 100644
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
-@@ -5673,7 +5765,7 @@ static_library("ui") {
+@@ -5673,7 +5767,7 @@ static_library("ui") {
  # //chrome/browser. These are semantically a part of
  # //chrome/browser:browser_public_dependencies since //chrome/browser and
  # //chrome/browser/ui allow circular dependencies.
@@ -124,7 +126,7 @@ index a66522f120..8da043a323 100644
    visibility = [ "//chrome/browser:browser_public_dependencies" ]
    public_deps = [
      "//components/cross_device/logging",
-@@ -5707,7 +5799,6 @@ static_library("ui_public_dependencies") {
+@@ -5707,7 +5801,6 @@ static_library("ui_public_dependencies") {
      public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
    }
    if (is_win) {
@@ -132,7 +134,7 @@ index a66522f120..8da043a323 100644
      public_deps += [
        "//build:branding_buildflags",
        "//ui/views",
-@@ -5952,3 +6043,19 @@ if (is_android) {
+@@ -5952,3 +6045,19 @@ if (is_android) {
      sources = [ "android/toolbar/adaptive_toolbar_enums.h" ]
    }
  }
