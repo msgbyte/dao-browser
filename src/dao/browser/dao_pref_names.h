@@ -22,6 +22,10 @@ inline constexpr char kDaoAgentMemoryEnabled[] = "dao.agent_memory_enabled";
 // Keyed by window session ID, each entry holds a serialized tree.
 inline constexpr char kDaoSplitLayout[] = "dao.split_layout";
 
+// Boolean pref that tracks whether the welcome page has been shown.
+// When false (the default), dao://welcome is opened on first launch.
+inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";
+
 }  // namespace dao::prefs
 
 #endif  // DAO_BROWSER_DAO_PREF_NAMES_H_

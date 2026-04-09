@@ -11,6 +11,7 @@ namespace dao::prefs {
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoAgentMemoryEnabled, false);
   registry->RegisterDictionaryPref(kDaoSplitLayout);
+  registry->RegisterBooleanPref(kDaoWelcomeShown, false);
 }
 
 }  // namespace dao::prefs

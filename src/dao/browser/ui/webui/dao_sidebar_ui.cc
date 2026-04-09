@@ -12,6 +12,7 @@
 
 #include "base/base64.h"
 #include "base/functional/bind.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
@@ -22,6 +23,8 @@
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/prefs/pref_service.h"
+#include "dao/browser/dao_pref_names.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -254,6 +257,22 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
         download_notifier_ =
             std::make_unique<download::AllDownloadItemNotifier>(
                 download_manager, this);
+      }
+      // Open dao://welcome on first launch.
+      if (!profile->GetPrefs()->GetBoolean(prefs::kDaoWelcomeShown)) {
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](base::WeakPtr<DaoSidebarUIHandler> self) {
+                  if (!self || !self->browser_) return;
+                  NavigateParams params(
+                      self->browser_, GURL("dao://welcome"),
+                      ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+                  params.disposition =
+                      WindowOpenDisposition::NEW_FOREGROUND_TAB;
+                  Navigate(&params);
+                },
+                weak_factory_.GetWeakPtr()));
       }
     }
   }
