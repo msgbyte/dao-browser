@@ -5,9 +5,29 @@ A Chromium-based browser with a left sidebar for vertical tabs, inspired by Arc.
 ## Prerequisites
 
 - macOS (initial target platform)
+- Xcode and Command Line Tools
 - [depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up) installed and in `PATH`
 - Node.js >= 18
 - ~100 GB free disk space for Chromium source + build
+
+### Setting up depot_tools
+
+[depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up) is a collection of tools built by the Chromium team for managing the Chromium source code. It provides `gclient` (dependency management), `gn` (build file generation), `autoninja` (parallel build), and other utilities required to fetch and build Chromium-based projects.
+
+```bash
+git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+
+# Add to your shell profile (~/.zshrc or ~/.bash_profile)
+export PATH="$PATH:/path/to/depot_tools"
+```
+
+After adding to PATH, restart your terminal and verify:
+
+```bash
+gclient --version
+```
+
+> **Note:** On first run, depot_tools will automatically bootstrap the required Python environment. Ensure you have a working internet connection.
 
 ## Quick Start
 
