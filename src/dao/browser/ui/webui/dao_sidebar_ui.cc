@@ -58,6 +58,7 @@
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_rep.h"
 
 namespace dao {
 
@@ -78,12 +79,17 @@ std::string ImageSkiaToDataUrl(const gfx::ImageSkia& image) {
   if (image.isNull()) {
     return std::string();
   }
-  const SkBitmap* bitmap = image.bitmap();
-  if (!bitmap) {
+  // Request the 2x representation for Retina displays.  If only a 1x
+  // bitmap exists, ImageSkia will scale it up automatically, so the
+  // result is never worse than before and is sharp when a 2x rep is
+  // available.
+  const gfx::ImageSkiaRep& rep = image.GetRepresentation(2.0f);
+  const SkBitmap& bitmap = rep.GetBitmap();
+  if (bitmap.drawsNothing()) {
     return std::string();
   }
   auto png_data = gfx::PNGCodec::EncodeBGRASkBitmap(
-      *bitmap, /*discard_transparency=*/false);
+      bitmap, /*discard_transparency=*/false);
   if (!png_data.has_value()) {
     return std::string();
   }
