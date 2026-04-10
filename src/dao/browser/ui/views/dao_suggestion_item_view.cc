@@ -56,9 +56,11 @@ DaoSuggestionItemView::DaoSuggestionItemView(int index,
   auto title = std::make_unique<views::Label>();
   title->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 13,
                                     gfx::Font::Weight::NORMAL));
-  title->SetEnabledColor(kTextPrimary);
+  title->SetEnabledColor(kSuggestionTitleColor);
   title->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   title->SetElideBehavior(gfx::ELIDE_TAIL);
+  title->SetSubpixelRenderingEnabled(false);
+  title->SetBackgroundColor(SK_ColorTRANSPARENT);
   title_label_ = text_container->AddChildView(std::move(title));
   text_layout->SetFlexForView(title_label_, 1);
 
@@ -67,8 +69,10 @@ DaoSuggestionItemView::DaoSuggestionItemView(int index,
   desc->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 11,
                                    gfx::Font::Weight::NORMAL));
   desc->SetEnabledColor(kTextMuted);
-  desc->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  desc->SetHorizontalAlignment(gfx::ALIGN_RIGHT);
   desc->SetElideBehavior(gfx::ELIDE_TAIL);
+  desc->SetSubpixelRenderingEnabled(false);
+  desc->SetBackgroundColor(SK_ColorTRANSPARENT);
   description_label_ = text_container->AddChildView(std::move(desc));
   text_layout->SetFlexForView(description_label_, 1);
 }

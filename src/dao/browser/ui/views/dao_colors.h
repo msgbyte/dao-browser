@@ -34,6 +34,7 @@ constexpr float kCommandBarBlurSigma = 16.0f;
 
 constexpr SkColor kSuggestionHover = SkColorSetARGB(15, 0, 0, 0);
 constexpr SkColor kSuggestionSelected = SkColorSetARGB(25, 0, 0, 0);
+constexpr SkColor kSuggestionTitleColor = SkColorSetRGB(10, 8, 16);
 constexpr SkColor kSuggestionIconColor = SkColorSetARGB(153, 30, 20, 40);
 constexpr SkColor kGhostTextColor = SkColorSetARGB(77, 30, 20, 40);
 

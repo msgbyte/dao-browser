@@ -4,6 +4,7 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/profiles/profile.h"
@@ -12,6 +13,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
@@ -21,6 +23,7 @@
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 
 namespace dao {
 namespace {
@@ -80,6 +83,23 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest, AddressBarExists) {
   ASSERT_NE(nullptr, address_bar);
   EXPECT_EQ(DaoAddressBarView::kBarHeight,
             address_bar->GetPreferredSize().height());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
+                       AddressBarPathHasNoLeadingSpace) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL url = embedded_test_server()->GetURL("/hello/world?foo=bar");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  DaoAddressBarView* address_bar =
+      GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+
+  EXPECT_EQ(base::UTF8ToUTF16(url.host()),
+            address_bar->GetHostTextForTesting());
+  EXPECT_EQ(base::UTF8ToUTF16(url.path() + "?" + url.query()),
+            address_bar->GetPathTextForTesting());
 }
 
 // =============================================================================

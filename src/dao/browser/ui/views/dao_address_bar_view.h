@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_ADDRESS_BAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_ADDRESS_BAR_VIEW_H_
 
+#include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -79,6 +80,10 @@ class DaoAddressBarView : public views::View,
   // Returns the URL pill bounds in address bar coordinates.
   gfx::Rect url_container_bounds() const;
 
+  std::u16string GetHostTextForTesting() const;
+
+  std::u16string GetPathTextForTesting() const;
+
   // Returns rects of all interactive elements (buttons, URL pill, control
   // center) in address bar coordinates, for hit-testing in the layout.
   std::vector<gfx::Rect> interactive_rects() const;
@@ -92,6 +97,7 @@ class DaoAddressBarView : public views::View,
  private:
   void UpdateURL();
   void UpdateBackgroundColor();
+  void UpdateUrlTextColors(SkColor background_color);
   void UpdateToggleButtonColor();
   void UpdateNavButtonColors();
   void UpdateNavButtonEnabled();

@@ -37,8 +37,10 @@
 namespace dao {
 
 namespace {
-constexpr SkColor kHostColor = SkColorSetRGB(60, 60, 60);
-constexpr SkColor kPathColor = SkColorSetRGB(124, 124, 124);
+constexpr SkColor kHostColorLightBg = SkColorSetARGB(230, 24, 18, 32);
+constexpr SkColor kPathColorLightBg = SkColorSetARGB(140, 24, 18, 32);
+constexpr SkColor kHostColorDarkBg = SkColorSetARGB(235, 255, 255, 255);
+constexpr SkColor kPathColorDarkBg = SkColorSetARGB(150, 255, 255, 255);
 constexpr int kUrlPillRadius = 8;
 constexpr SkColor kUrlHoverBg = SkColorSetARGB(30, 0, 0, 0);
 constexpr int kFontSize = 12;
@@ -285,14 +287,12 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
 
   host_label_ = url_container_->AddChildView(std::make_unique<views::Label>());
   host_label_->SetFontList(font);
-  host_label_->SetEnabledColor(kHostColor);
   host_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   host_label_->SetSubpixelRenderingEnabled(false);
   host_label_->SetCanProcessEventsWithinSubtree(false);
 
   path_label_ = url_container_->AddChildView(std::make_unique<views::Label>());
   path_label_->SetFontList(font);
-  path_label_->SetEnabledColor(kPathColor);
   path_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   path_label_->SetSubpixelRenderingEnabled(false);
   path_label_->SetCanProcessEventsWithinSubtree(false);
@@ -399,7 +399,7 @@ void DaoAddressBarView::UpdateURL() {
     path_and_query.clear();
   }
   if (!path_and_query.empty()) {
-    path_label_->SetText(base::UTF8ToUTF16(" " + path_and_query));
+    path_label_->SetText(base::UTF8ToUTF16(path_and_query));
   } else {
     path_label_->SetText(u"");
   }
@@ -508,6 +508,7 @@ void DaoAddressBarView::UpdateBackgroundColor() {
     }
   }
   SetBackground(views::CreateSolidBackground(bg_color));
+  UpdateUrlTextColors(bg_color);
 
   // Adaptive bottom separator: 0.1 opacity white on dark, 0.1 opacity black on light
   int r = SkColorGetR(bg_color);
@@ -523,6 +524,23 @@ void DaoAddressBarView::UpdateBackgroundColor() {
   UpdateToggleButtonColor();
   UpdateNavButtonColors();
   SchedulePaint();
+}
+
+void DaoAddressBarView::UpdateUrlTextColors(SkColor background_color) {
+  if (!host_label_ || !path_label_) {
+    return;
+  }
+
+  const int r = SkColorGetR(background_color);
+  const int g = SkColorGetG(background_color);
+  const int b = SkColorGetB(background_color);
+  const double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  const bool dark_background = luminance < 128;
+
+  host_label_->SetEnabledColor(
+      dark_background ? kHostColorDarkBg : kHostColorLightBg);
+  path_label_->SetEnabledColor(
+      dark_background ? kPathColorDarkBg : kPathColorLightBg);
 }
 
 void DaoAddressBarView::ObserveActiveWebContents() {
@@ -736,6 +754,14 @@ gfx::Rect DaoAddressBarView::url_container_bounds() const {
     return gfx::Rect();
   }
   return url_container_->GetMirroredBounds();
+}
+
+std::u16string DaoAddressBarView::GetHostTextForTesting() const {
+  return host_label_ ? host_label_->GetText() : std::u16string();
+}
+
+std::u16string DaoAddressBarView::GetPathTextForTesting() const {
+  return path_label_ ? path_label_->GetText() : std::u16string();
 }
 
 std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
