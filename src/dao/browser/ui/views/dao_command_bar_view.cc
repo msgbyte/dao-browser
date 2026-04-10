@@ -184,7 +184,7 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   textfield->SetBackgroundColor(SK_ColorTRANSPARENT);
   textfield->SetTextColor(SkColorSetRGB(30, 20, 40));
   textfield->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 16,
-                                        gfx::Font::Weight::NORMAL));
+                                        gfx::Font::Weight::SEMIBOLD));
   textfield_ = card_container_->AddChildView(std::move(textfield));
 
   // Make the textfield fill the card width
