@@ -78,7 +78,13 @@ See: https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools
     "url": "https://chromium.googlesource.com/chromium/src.git@refs/tags/${version}",
     "managed": False,
     "custom_deps": {},
-    "custom_vars": {},
+    "custom_vars": {
+      "checkout_nacl": False,
+      "checkout_android": False,
+      "checkout_android_native_support": False,
+      "checkout_ios_webkit": False,
+      "checkout_openxr": False,
+    },
   },
 ]
 `
