@@ -54,13 +54,8 @@ export class DaoTabItem extends CrLitElement {
         border-radius: 2px;
       }
 
-      .favicon.light-icon {
-        background: rgba(0, 0, 0, 0.12);
-        border-radius: 4px;
-        padding: 2px;
-        width: 20px;
-        height: 20px;
-        margin: -2px;
+      .favicon img.light-icon {
+        filter: invert(1);
       }
 
       .favicon .placeholder {

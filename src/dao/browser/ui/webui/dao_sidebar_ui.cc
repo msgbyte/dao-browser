@@ -107,6 +107,46 @@ std::string FaviconToDataUrl(content::WebContents* contents) {
   return ImageSkiaToDataUrl(favicon.AsImageSkia());
 }
 
+// Returns true if the favicon is predominantly light-colored and would be
+// invisible on a dark sidebar background.
+bool IsFaviconLight(content::WebContents* contents) {
+  if (!contents) {
+    return false;
+  }
+  gfx::Image favicon = favicon::TabFaviconFromWebContents(contents);
+  if (favicon.IsEmpty()) {
+    return false;
+  }
+  const SkBitmap* bitmap = favicon.ToSkBitmap();
+  if (!bitmap || bitmap->drawsNothing()) {
+    return false;
+  }
+
+  double luminance_sum = 0.0;
+  int opaque_pixels = 0;
+
+  for (int y = 0; y < bitmap->height(); ++y) {
+    for (int x = 0; x < bitmap->width(); ++x) {
+      SkColor color = bitmap->getColor(x, y);
+      int alpha = SkColorGetA(color);
+      // Skip fully transparent pixels.
+      if (alpha < 10) {
+        continue;
+      }
+      double r = SkColorGetR(color) / 255.0;
+      double g = SkColorGetG(color) / 255.0;
+      double b = SkColorGetB(color) / 255.0;
+      luminance_sum += 0.299 * r + 0.587 * g + 0.114 * b;
+      ++opaque_pixels;
+    }
+  }
+
+  if (opaque_pixels == 0) {
+    return false;
+  }
+  return (luminance_sum / opaque_pixels) > 0.85;
+}
+
 constexpr int kMaxRecentFiles = 4;
 constexpr int kThumbnailSize = 40;
 
@@ -478,6 +518,7 @@ void DaoSidebarUIHandler::PushFullState() {
     tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
     tab.Set("url", contents->GetVisibleURL().spec());
     tab.Set("faviconUrl", FaviconToDataUrl(contents));
+    tab.Set("isFaviconLight", IsFaviconLight(contents));
     tab.Set("isActive", i == model->active_index());
     tab.Set("isPinned", model->IsTabPinned(i));
     tab.Set("isAudible", IsTabAudible(contents));
@@ -521,6 +562,7 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
   tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   tab.Set("url", contents->GetVisibleURL().spec());
   tab.Set("faviconUrl", FaviconToDataUrl(contents));
+  tab.Set("isFaviconLight", IsFaviconLight(contents));
   tab.Set("isActive", index == model->active_index());
   tab.Set("isPinned", model->IsTabPinned(index));
   tab.Set("isAudible", IsTabAudible(contents));
