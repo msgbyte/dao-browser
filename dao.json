@@ -1,6 +1,6 @@
 {
   "name": "dao",
-  "display_name": "Dao Browser",
+  "display_name": "Dao",
   "version": {
     "product": "chromium",
     "version": "134.0.6998.35",

@@ -1,5 +1,5 @@
 diff --git a/chrome/common/chrome_paths_mac.mm b/chrome/common/chrome_paths_mac.mm
-index 05d23fc6a6..9911141262 100644
+index 05d23fc6a6..04d473698c 100644
 --- a/chrome/common/chrome_paths_mac.mm
 +++ b/chrome/common/chrome_paths_mac.mm
 @@ -60,7 +60,7 @@
@@ -7,7 +7,7 @@ index 05d23fc6a6..9911141262 100644
        product_dir_name = "Google/Chrome";
  #else
 -      product_dir_name = "Chromium";
-+      product_dir_name = "Dao Browser";
++      product_dir_name = "Dao";
  #endif
      }
  

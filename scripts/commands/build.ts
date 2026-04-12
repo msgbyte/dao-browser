@@ -115,7 +115,7 @@ export const buildCommand = new Command("build")
 function fixDuplicateDylib(outDir: string) {
   const fwBinary = path.join(
     outDir,
-    "Dao Browser.app/Contents/Frameworks/Dao Browser Framework.framework/Dao Browser Framework"
+    "Dao.app/Contents/Frameworks/Dao Framework.framework/Dao Framework"
   );
   if (!existsSync(fwBinary)) return;
 
@@ -185,7 +185,7 @@ else:
   try {
     const result = run(`python3 "${scriptPath}" "${fwBinary}"`, { silent: true });
     if (result.includes("fixed")) {
-      run(`codesign --force --sign - --deep "${path.join(outDir, "Dao Browser.app")}"`, {
+      run(`codesign --force --sign - --deep "${path.join(outDir, "Dao.app")}"`, {
         silent: true,
       });
       success("Fixed lld duplicate dylib and re-signed");
