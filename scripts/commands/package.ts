@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { existsSync, mkdirSync, rmSync, cpSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, cpSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   ENGINE_DIR,
@@ -35,21 +35,11 @@ export const packageCommand = new Command("package")
 
     mkdirSync(DIST_DIR, { recursive: true });
 
-    const stagingDir = path.join(DIST_DIR, ".staging");
-    if (existsSync(stagingDir)) {
-      rmSync(stagingDir, { recursive: true });
-    }
-    mkdirSync(stagingDir, { recursive: true });
-
-    log(`Copying ${appName}.app to staging area...`);
-    const stagedApp = path.join(stagingDir, `${appName}.app`);
-    cpSync(appBundle, stagedApp, { recursive: true });
-
     if (opts.sign) {
       log("Applying ad-hoc code signature...");
       try {
         run(
-          `codesign --force --sign - --deep "${stagedApp}"`,
+          `codesign --force --sign - --deep "${appBundle}"`,
           { silent: true }
         );
         success("Ad-hoc signed");
@@ -62,16 +52,14 @@ export const packageCommand = new Command("package")
     const baseName = `dao-browser-${version}-mac-${arch}`;
 
     if (opts.zip) {
-      await createZip(stagingDir, appName, baseName);
+      await createZip(appBundle, appName, baseName);
     } else {
-      await createDmg(stagingDir, appName, baseName);
+      await createDmg(appBundle, appName, baseName);
     }
-
-    rmSync(stagingDir, { recursive: true });
   });
 
 async function createZip(
-  stagingDir: string,
+  appBundle: string,
   appName: string,
   baseName: string
 ) {
@@ -79,14 +67,12 @@ async function createZip(
   if (existsSync(zipPath)) rmSync(zipPath);
 
   log(`Creating ${baseName}.zip ...`);
-  run(`ditto -c -k --sequesterRsrc --keepParent "${appName}.app" "${zipPath}"`, {
-    cwd: stagingDir,
-  });
+  run(`ditto -c -k --sequesterRsrc --keepParent "${appBundle}" "${zipPath}"`);
   success(`Created: dist/${baseName}.zip`);
 }
 
 async function createDmg(
-  stagingDir: string,
+  appBundle: string,
   appName: string,
   baseName: string
 ) {
@@ -95,24 +81,27 @@ async function createDmg(
 
   log(`Creating ${baseName}.dmg ...`);
 
-  const volumeName = appName;
-  const dmgSize = estimateAppSize(stagingDir);
+  const iconPath = path.join(ROOT_DIR, "branding", "mac", "app.icns");
+  const dmgSpec = {
+    title: appName,
+    icon: iconPath,
+    "icon-size": 80,
+    window: { size: { width: 540, height: 380 } },
+    format: "UDZO",
+    contents: [
+      { x: 140, y: 190, type: "file", path: appBundle },
+      { x: 400, y: 190, type: "link", path: "/Applications" },
+    ],
+  };
 
-  run(
-    `hdiutil create -volname "${volumeName}" -srcfolder "${stagingDir}" ` +
-      `-ov -format UDZO -imagekey zlib-level=9 "${dmgPath}"`,
-    { silent: true }
-  );
+  const specPath = path.join(DIST_DIR, ".appdmg-spec.json");
+  writeFileSync(specPath, JSON.stringify(dmgSpec, null, 2));
 
-  success(`Created: dist/${baseName}.dmg`);
-}
-
-function estimateAppSize(dir: string): string {
   try {
-    const output = run(`du -sm "${dir}"`, { silent: true });
-    const mb = parseInt(output.split("\t")[0], 10);
-    return `${Math.ceil(mb * 1.2)}m`;
-  } catch {
-    return "2048m";
+    const appdmgBin = path.join(ROOT_DIR, "node_modules", ".bin", "appdmg");
+    run(`"${appdmgBin}" "${specPath}" "${dmgPath}"`);
+    success(`Created: dist/${baseName}.dmg`);
+  } finally {
+    if (existsSync(specPath)) rmSync(specPath);
   }
 }
