@@ -87,6 +87,7 @@ export class DaoDownloadButton extends CrLitElement {
       .active-downloads {
         display: flex;
         flex-direction: column;
+        overflow: hidden;
       }
 
       .active-item {
@@ -95,6 +96,8 @@ export class DaoDownloadButton extends CrLitElement {
         height: 40px;
         padding: 0 10px 0 6px;
         gap: 6px;
+        overflow: hidden;
+        min-width: 0;
       }
 
       .active-icon {
