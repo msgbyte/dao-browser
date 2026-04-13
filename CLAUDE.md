@@ -45,6 +45,7 @@ Workflow: edit in `src/dao/` or `src/patches/`, run `npm run import` to apply, i
 - Patches are applied via `git apply` inside `engine/src/`
 - The import command auto-detects already-applied patches (reverse-check)
 - Export generates per-file diffs from `git diff` in the Chromium tree
+- **Reverting a patch**: When reverting a patch file via `git checkout -- src/patches/foo.patch`, you must also revert the corresponding engine file (`cd engine/src && git checkout -- <path>`) then re-apply the patch (`git apply <patch>`). Otherwise engine/ and patches/ will be out of sync.
 
 ### Dao UI Layer (C++ / Chromium Views)
 All Dao UI code lives under `src/dao/browser/ui/views/` in the `dao::` namespace. Key components:
