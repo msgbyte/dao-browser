@@ -102,8 +102,7 @@ class CommandBarShadowView : public views::View {
   METADATA_HEADER(CommandBarShadowView, views::View)
 
  public:
-  // Enough padding for blur radius 80 (blur 160 / 2) + offset 20.
-  static constexpr int kShadowPadding = 100;
+  static constexpr int kShadowPadding = 60;
 
   CommandBarShadowView() {
     SetPaintToLayer();
@@ -113,10 +112,10 @@ class CommandBarShadowView : public views::View {
 
   void OnPaint(gfx::Canvas* canvas) override {
     std::vector<gfx::ShadowValue> shadows;
-    shadows.emplace_back(gfx::Vector2d(0, 20), 160,
-                         SkColorSetARGB(130, 0, 0, 0));
-    shadows.emplace_back(gfx::Vector2d(0, 6), 40,
-                         SkColorSetARGB(80, 0, 0, 0));
+    shadows.emplace_back(gfx::Vector2d(0, 8), 60,
+                         SkColorSetARGB(50, 0, 0, 0));
+    shadows.emplace_back(gfx::Vector2d(0, 2), 16,
+                         SkColorSetARGB(30, 0, 0, 0));
 
     cc::PaintFlags flags;
     flags.setAntiAlias(true);
