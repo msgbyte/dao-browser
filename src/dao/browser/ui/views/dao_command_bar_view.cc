@@ -893,7 +893,7 @@ void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
     SetVisible(false);
     SetWebContentEventProcessing(true);
 
-    chrome::AddTabAt(browser_, url, -1, true);
+    chrome::AddTabAt(browser_, url, 0, true);
 
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser_);
@@ -977,7 +977,7 @@ void DaoCommandBarView::Navigate(const std::u16string& text) {
     // Re-enable web content event processing
     SetWebContentEventProcessing(true);
 
-    chrome::AddTabAt(browser_, url, -1, true);
+    chrome::AddTabAt(browser_, url, 0, true);
 
     // Return focus to web contents
     BrowserView* browser_view =
@@ -1017,7 +1017,11 @@ void DaoCommandBarView::CancelNewTab() {
 }
 
 void DaoCommandBarView::SetNewTabButtonHighlight(bool highlighted) {
-  // No-op: new tab button highlight is handled by WebUI sidebar.
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser_);
+  if (browser_view && browser_view->dao_sidebar()) {
+    browser_view->dao_sidebar()->SetNewTabButtonHighlight(highlighted);
+  }
 }
 
 void DaoCommandBarView::SetWebContentEventProcessing(bool enabled) {

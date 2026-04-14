@@ -241,6 +241,15 @@ bool DaoSidebarView::HandleKeyboardEvent(
       event, GetFocusManager());
 }
 
+bool DaoSidebarView::PreHandleGestureEvent(
+    content::WebContents* source,
+    const blink::WebGestureEvent& event) {
+  if (blink::WebInputEvent::IsPinchGestureEventType(event.GetType())) {
+    return true;
+  }
+  return false;
+}
+
 bool DaoSidebarView::CanDragEnter(
     content::WebContents* source,
     const content::DropData& data,
@@ -656,6 +665,19 @@ void DaoSidebarView::HideOmniboxPopup() {
   if (browser_view && browser_view->dao_command_bar()) {
     browser_view->dao_command_bar()->Hide();
   }
+}
+
+void DaoSidebarView::SetNewTabButtonHighlight(bool highlighted) {
+  if (!sidebar_web_view_ || !sidebar_web_view_->GetWebContents()) {
+    return;
+  }
+  content::WebUI* web_ui = sidebar_web_view_->GetWebContents()->GetWebUI();
+  if (!web_ui) {
+    return;
+  }
+  web_ui->CallJavascriptFunctionUnsafe("cr.webUIListenerCallback",
+                                 base::Value("newTabButtonHighlight"),
+                                 base::Value(highlighted));
 }
 
 // --- File / URL drop target -----------------------------------------------

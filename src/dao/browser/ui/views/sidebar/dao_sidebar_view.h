@@ -13,6 +13,7 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/drop_data.h"
+#include "third_party/blink/public/common/input/web_gesture_event.h"
 #include "third_party/blink/public/common/page/drag_operation.h"
 #include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/compositor/layer_animation_observer.h"
@@ -62,6 +63,9 @@ class DaoSidebarView : public views::View,
   void ShowOmniboxPopup();
   void HideOmniboxPopup();
 
+  // Push new-tab button highlight state to the sidebar WebUI.
+  void SetNewTabButtonHighlight(bool highlighted);
+
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   void Layout(PassKey) override;
@@ -95,6 +99,9 @@ class DaoSidebarView : public views::View,
       const content::OpenURLParams& params,
       base::OnceCallback<void(content::NavigationHandle&)>
           navigation_handle_callback) override;
+  bool PreHandleGestureEvent(
+      content::WebContents* source,
+      const blink::WebGestureEvent& event) override;
 
   // WebUI sidebar management
   bool use_webui() const { return true; }

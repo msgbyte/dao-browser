@@ -122,6 +122,7 @@ export class DaoSidebarApp extends CrLitElement {
       sessionId_: {type: Number},
       folderModelVersion_: {type: Number},
       showPlusMenu_: {type: Boolean},
+      newTabHighlighted_: {type: Boolean},
     };
   }
 
@@ -130,6 +131,7 @@ export class DaoSidebarApp extends CrLitElement {
   protected sessionId_: number = 0;
   protected folderModelVersion_: number = 0;
   protected showPlusMenu_: boolean = false;
+  protected newTabHighlighted_: boolean = false;
 
   private folderModel_ = new FolderModel();
   private foldersLoaded_: boolean = false;
@@ -176,6 +178,10 @@ export class DaoSidebarApp extends CrLitElement {
           t => ({...t, isActive: t.index === data.activeIndex}));
       this.unpinnedTabs_ = this.unpinnedTabs_.map(
           t => ({...t, isActive: t.index === data.activeIndex}));
+    });
+
+    addListener('newTabButtonHighlight', (...args: unknown[]) => {
+      this.newTabHighlighted_ = args[0] as boolean;
     });
 
     // Listen for folder actions from child components.
@@ -361,6 +367,8 @@ export class DaoSidebarApp extends CrLitElement {
   override render() {
     return html`
       <div class="sidebar-content">
+        <dao-new-tab-button ?highlighted=${this.newTabHighlighted_}></dao-new-tab-button>
+
         ${this.pinnedTabs_.length > 0 ? html`
           <dao-favorites-view
             .tabs=${this.pinnedTabs_}>
@@ -370,7 +378,7 @@ export class DaoSidebarApp extends CrLitElement {
         <div class="tab-section">
           <dao-sidebar-section sectionTitle="Today">
             <dao-tab-list
-              .tabs=${this.unpinnedTabs_}
+              .tabs=${this.newTabHighlighted_ ? this.unpinnedTabs_.map(t => ({...t, isActive: false})) : this.unpinnedTabs_}
               .sessionId=${this.sessionId_}
               .folderModel=${this.foldersLoaded_ ? this.folderModel_ : null}
               .folderModelVersion=${this.folderModelVersion_}>

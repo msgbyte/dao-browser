@@ -11,6 +11,14 @@ export class DaoNewTabButton extends CrLitElement {
     return 'dao-new-tab-button';
   }
 
+  static override get properties() {
+    return {
+      highlighted: {type: Boolean, reflect: true},
+    };
+  }
+
+  highlighted: boolean = false;
+
   static override get styles() {
     return css`
       :host {
@@ -31,7 +39,7 @@ export class DaoNewTabButton extends CrLitElement {
         font-family: var(--font-family, system-ui);
         font-size: 13px;
         cursor: default;
-        transition: background 0.15s ease;
+        transition: background 0.15s ease, color 0.15s ease;
       }
 
       .new-tab-btn:hover {
@@ -40,6 +48,13 @@ export class DaoNewTabButton extends CrLitElement {
 
       .new-tab-btn:active {
         background: var(--surface);
+      }
+
+      :host([highlighted]) .new-tab-btn {
+        background: var(--surface-active);
+        color: var(--text-primary);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08),
+                    0 1px 2px rgba(0, 0, 0, 0.06);
       }
 
       .icon {

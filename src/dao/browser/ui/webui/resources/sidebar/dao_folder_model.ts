@@ -319,7 +319,10 @@ export class FolderModel {
       const actualIdx = actualTabs.indexOf(tab);
       let inserted = false;
 
-      if (actualIdx > 0) {
+      if (actualIdx === 0) {
+        newItems.unshift(this.toTabRef_(tab));
+        inserted = true;
+      } else if (actualIdx > 0) {
         const pred = actualTabs[actualIdx - 1]!;
         for (let i = 0; i < newItems.length; i++) {
           const item = newItems[i]!;

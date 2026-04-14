@@ -134,9 +134,7 @@ export class DaoTabList extends CrLitElement {
   private renderFromModel_() {
     const items = this.folderModel!.getOrderedItems();
 
-    // Tabs are displayed newest-first (reversed), so consume from the
-    // reversed runtime list to preserve visual order.
-    const remaining = [...this.tabs].reverse();
+    const remaining = [...this.tabs];
 
     const consume = (
         ref: {tabId?: string; url: string; title: string}): TabData | null => {
@@ -210,8 +208,7 @@ export class DaoTabList extends CrLitElement {
    * Original flat rendering — used when no folder model data exists.
    */
   private renderFlat_() {
-    // Show tabs in reverse order (newest at top) to match C++ behavior
-    const reversed = [...this.tabs].reverse();
+    const tabs = [...this.tabs];
 
     // Group consecutive split tabs into wrapped containers.
     const fragments: unknown[] = [];
@@ -231,7 +228,7 @@ export class DaoTabList extends CrLitElement {
       }
     };
 
-    for (const tab of reversed) {
+    for (const tab of tabs) {
       if (tab.isInSplit) {
         splitRun.push(tab);
       } else {
@@ -336,7 +333,6 @@ export class DaoTabList extends CrLitElement {
     }
 
     // Also compute a Chromium tab index for sendNative('moveTab').
-    // Find the nearest dao-tab-item to get its tabData.index.
     let insertIndex = -1;
     const tabItems = this.shadowRoot!.querySelectorAll('dao-tab-item');
     if (tabItems.length > 0) {
@@ -345,14 +341,14 @@ export class DaoTabList extends CrLitElement {
         const rect = el.getBoundingClientRect();
         if (clientY < rect.top + rect.height / 2) {
           const tabData = (item as unknown as {tabData: TabData}).tabData;
-          insertIndex = tabData.index + 1;
+          insertIndex = tabData.index;
           break;
         }
       }
       if (insertIndex === -1) {
         const lastTab = (tabItems[tabItems.length - 1] as unknown as
             {tabData: TabData}).tabData;
-        insertIndex = lastTab.index;
+        insertIndex = lastTab.index + 1;
       }
     }
 
@@ -387,7 +383,7 @@ export class DaoTabList extends CrLitElement {
         if (clientY < rect.top + rect.height / 2) {
           indicatorY = el.offsetTop;
           const tabData = (item as unknown as {tabData: TabData}).tabData;
-          insertIndex = tabData.index + 1;
+          insertIndex = tabData.index;
           found = true;
           break;
         }
@@ -397,7 +393,7 @@ export class DaoTabList extends CrLitElement {
         indicatorY = lastEl.offsetTop + lastEl.offsetHeight;
         const lastTab =
             (items[items.length - 1] as unknown as {tabData: TabData}).tabData;
-        insertIndex = lastTab.index;
+        insertIndex = lastTab.index + 1;
       }
 
       // Prevent inserting between split-group tabs.
@@ -414,14 +410,14 @@ export class DaoTabList extends CrLitElement {
             indicatorY = group.offsetTop;
             const firstTab =
                 (splitItems[0] as unknown as {tabData: TabData}).tabData;
-            insertIndex = firstTab.index + 1;
+            insertIndex = firstTab.index;
           } else {
             indicatorY = group.offsetTop + group.offsetHeight;
             const lastTab =
                 (splitItems[splitItems.length - 1] as unknown as
                      {tabData: TabData})
                     .tabData;
-            insertIndex = lastTab.index;
+            insertIndex = lastTab.index + 1;
           }
           break;
         }
@@ -627,7 +623,7 @@ export class DaoTabList extends CrLitElement {
       {visualOrder: number[]; folderTabIndices: number[]} {
     if (!this.folderModel || !this.folderModel.hasData()) {
       return {
-        visualOrder: [...this.tabs].reverse().map(t => t.index),
+        visualOrder: this.tabs.map(t => t.index),
         folderTabIndices: [],
       };
     }
@@ -636,7 +632,7 @@ export class DaoTabList extends CrLitElement {
     const byTabId = new Map<string, TabData>();
     const byUrlTitle = new Map<string, TabData>();
     const byUrl = new Map<string, TabData>();
-    for (const tab of [...this.tabs].reverse()) {
+    for (const tab of this.tabs) {
       if (tab.tabId) byTabId.set(tab.tabId, tab);
       byUrlTitle.set(`${tab.url}\0${tab.title}`, tab);
       if (!byUrl.has(tab.url)) byUrl.set(tab.url, tab);
@@ -675,7 +671,7 @@ export class DaoTabList extends CrLitElement {
     }
 
     // Remaining unmatched tabs.
-    for (const tab of [...this.tabs].reverse()) {
+    for (const tab of this.tabs) {
       if (!consumed.has(tab.tabId)) {
         visualOrder.push(tab.index);
       }
