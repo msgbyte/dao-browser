@@ -2,5 +2,6 @@
   "git.ignoredRepositories": ["engine"],
   "files.watcherExclude": {
     "engine/**": true
-  }
+  },
+  "C_Cpp.intelliSenseEngine": "disabled"
 }
