@@ -13,7 +13,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
+#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -578,6 +580,10 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "clearConsoleMessages",
       base::BindRepeating(&DaoAgentUIHandler::HandleClearConsoleMessages,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "closeSidebar",
+      base::BindRepeating(&DaoAgentUIHandler::HandleCloseSidebar,
                           base::Unretained(this)));
 }
 
@@ -2152,6 +2158,26 @@ void DaoAgentUIHandler::HandleClearConsoleMessages(
   base::Value::Dict response;
   response.Set("success", true);
   ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleCloseSidebar(
+    const base::Value::List& args) {
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  if (!browser) {
+    return;
+  }
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+  if (!browser_view || !browser_view->dao_agent_sidebar()) {
+    return;
+  }
+  if (browser_view->dao_agent_sidebar()->is_expanded()) {
+    browser_view->dao_agent_sidebar()->Toggle();
+    browser_view->InvalidateLayout();
+    // Sync the address bar chat button highlight.
+    if (browser_view->dao_address_bar()) {
+      browser_view->dao_address_bar()->SetChatButtonHighlighted(false);
+    }
+  }
 }
 
 // ---- DaoAgentMemoryHandler ----

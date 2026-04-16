@@ -125,6 +125,9 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   void HandleGetConsoleMessages(const base::Value::List& args);
   void HandleClearConsoleMessages(const base::Value::List& args);
 
+  // Sidebar control.
+  void HandleCloseSidebar(const base::Value::List& args);
+
   void PerformCDPClick(const std::string& callback_id,
                        const std::string& escaped_selector,
                        double viewport_x,

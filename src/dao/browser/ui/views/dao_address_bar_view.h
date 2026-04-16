@@ -74,6 +74,9 @@ class DaoAddressBarView : public views::View,
   }
 
 
+  // Update the chat button highlight to reflect agent sidebar state.
+  void SetChatButtonHighlighted(bool highlighted);
+
   // Returns the control center button for popup anchoring.
   views::View* control_center_button() const;
 

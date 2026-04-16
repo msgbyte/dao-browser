@@ -130,11 +130,11 @@ export class DaoAgentApp extends CrLitElement {
         <span class="header-title">Dao Agent</span>
         <div class="tab-bar">
           <button class="tab ${this.activeTab_ === 'chat' ? 'active' : ''}"
-              @click=${() => this.activeTab_ = 'chat'} title="Chat">
+              @click=${() => this.onTabClick_('chat')} title="Chat">
             ${chatIcon}
           </button>
           <button class="tab ${this.activeTab_ === 'settings' ? 'active' : ''}"
-              @click=${() => this.activeTab_ = 'settings'} title="Settings">
+              @click=${() => this.onTabClick_('settings')} title="Settings">
             ${settingsIcon}
           </button>
         </div>
@@ -145,6 +145,15 @@ export class DaoAgentApp extends CrLitElement {
       ${this.toastVisible_ ?
           html`<div class="toast">${this.toastText_}</div>` : ''}
     `;
+  }
+
+  private onTabClick_(tab: string) {
+    if (this.activeTab_ === tab) {
+      // Already on this tab — close the sidebar.
+      chrome.send('closeSidebar');
+    } else {
+      this.activeTab_ = tab;
+    }
   }
 
   private getChatView_(): DaoChatView|null {

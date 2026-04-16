@@ -668,6 +668,12 @@ void DaoAddressBarView::OnChatButtonPressed() {
   }
 }
 
+void DaoAddressBarView::SetChatButtonHighlighted(bool highlighted) {
+  if (chat_button_) {
+    static_cast<NavIconButton*>(chat_button_.get())->SetHighlighted(highlighted);
+  }
+}
+
 void DaoAddressBarView::UpdateNavButtonEnabled() {
   if (!tab_strip_model_) {
     return;
