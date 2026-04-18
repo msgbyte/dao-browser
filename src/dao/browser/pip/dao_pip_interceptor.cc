@@ -76,6 +76,20 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
     var originalNextSibling = target.nextSibling;
     pipWindow.document.body.appendChild(target);
 
+    var eventsToForward = [
+      'mousemove', 'mouseup', 'mousedown',
+      'pointermove', 'pointerup', 'pointerdown',
+      'click'
+    ];
+    eventsToForward.forEach(function(type) {
+      pipWindow.document.addEventListener(type, function(e) {
+        if (e.__daoForwarded) return;
+        var cloned = new e.constructor(e.type, e);
+        cloned.__daoForwarded = true;
+        document.dispatchEvent(cloned);
+      }, true);
+    });
+
     pipWindow.addEventListener('pagehide', function() {
       if (originalNextSibling) {
         originalParent.insertBefore(target, originalNextSibling);
