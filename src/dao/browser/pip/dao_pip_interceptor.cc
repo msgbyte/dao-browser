@@ -13,6 +13,7 @@
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/pip/dao_pip_site_rules.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom.h"
+#include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
 namespace dao {
@@ -242,6 +243,9 @@ void DaoPipInterceptor::OnTriggerResult(
     base::OnceCallback<void(bool)> callback,
     base::Value result) {
   document_pip_active_ = true;
+  capturer_guard_ = web_contents()->IncrementCapturerCount(
+      gfx::Size(), /*stay_hidden=*/false, /*stay_awake=*/true,
+      /*is_activity=*/false);
   std::move(callback).Run(true);
 }
 
@@ -250,6 +254,7 @@ void DaoPipInterceptor::CloseDocumentPip() {
     return;
   }
   document_pip_active_ = false;
+  capturer_guard_.RunAndReset();
 
   content::RenderFrameHost* frame =
       web_contents()->GetPrimaryMainFrame();

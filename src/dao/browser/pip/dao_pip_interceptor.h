@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_PIP_DAO_PIP_INTERCEPTOR_H_
 #define DAO_BROWSER_PIP_DAO_PIP_INTERCEPTOR_H_
 
+#include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -43,6 +44,9 @@ class DaoPipInterceptor
                        base::Value result);
 
   bool document_pip_active_ = false;
+
+  // Prevents the opener tab from being throttled while Document PiP is active.
+  base::ScopedClosureRunner capturer_guard_;
 
   base::WeakPtrFactory<DaoPipInterceptor> weak_factory_{this};
 
