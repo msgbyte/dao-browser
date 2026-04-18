@@ -1,0 +1,6 @@
+[
+  {
+    "domain": "bilibili.com",
+    "target_selector": "#bilibili-player .bpx-player-video-area"
+  }
+]

@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
+index 52aebdd66d..a908638ffc 100644
+--- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
++++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
+@@ -367,7 +367,8 @@ class PictureInPictureBrowserFrameView
+ 
+   // When the window is created and shown for the first time, we show the active
+   // window state even if the mouse is not inside it.
+-  bool render_active_ = true;
++  // Dao: Start as false so the first activation triggers show animation.
++  bool render_active_ = false;
+ 
+   bool mouse_inside_window_ = false;
+ 
+@@ -411,6 +412,10 @@ class PictureInPictureBrowserFrameView
+   // `resizeBy()` calls).
+   std::unique_ptr<BrowserFrameBoundsChangeAnimation> bounds_change_animation_;
+ 
++  // Dao: Top bar auto-hide — tracks whether the window is expanded to show it.
++  bool dao_pip_top_bar_expanded_ = false;
++  bool dao_pip_first_activation_suppressed_ = false;  // skip first show
++
+   base::WeakPtrFactory<PictureInPictureBrowserFrameView> weak_factory_{this};
+ };
+ 

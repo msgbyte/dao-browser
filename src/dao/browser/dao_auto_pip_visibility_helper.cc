@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/media_session.h"
+#include "dao/browser/pip/dao_pip_interceptor.h"
 
 namespace dao {
 
@@ -56,6 +57,20 @@ void DaoAutoPipVisibilityHelper::OnVisibilityChanged(
       return;
     }
 
+    // Intercept bilibili for Document PiP with player area element.
+    if (DaoPipInterceptor::ShouldIntercept(web_contents())) {
+      auto* pip_interceptor =
+          DaoPipInterceptor::FromWebContents(web_contents());
+      if (pip_interceptor) {
+        pip_interceptor->TriggerDocumentPip(
+            base::BindOnce(
+                &DaoAutoPipVisibilityHelper::OnDocumentPipResult,
+                weak_factory_.GetWeakPtr()));
+        triggered_pip_ = true;
+        return;
+      }
+    }
+
     session->EnterPictureInPicture();
     triggered_pip_ = true;
   } else if (visibility == content::Visibility::VISIBLE) {
@@ -63,7 +78,27 @@ void DaoAutoPipVisibilityHelper::OnVisibilityChanged(
       return;
     }
     triggered_pip_ = false;
+
+    // Close Document PiP if active on bilibili.
+    if (DaoPipInterceptor::ShouldIntercept(web_contents())) {
+      auto* pip_interceptor =
+          DaoPipInterceptor::FromWebContents(web_contents());
+      if (pip_interceptor) {
+        pip_interceptor->CloseDocumentPip();
+      }
+    }
+
     PictureInPictureWindowManager::GetInstance()->ExitPictureInPicture();
+  }
+}
+
+void DaoAutoPipVisibilityHelper::OnDocumentPipResult(bool success) {
+  if (!success) {
+    content::MediaSession* session =
+        content::MediaSession::GetIfExists(web_contents());
+    if (session) {
+      session->EnterPictureInPicture();
+    }
   }
 }
 

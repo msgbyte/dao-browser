@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_DAO_AUTO_PIP_VISIBILITY_HELPER_H_
 #define DAO_BROWSER_DAO_AUTO_PIP_VISIBILITY_HELPER_H_
 
+#include "base/memory/weak_ptr.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 
@@ -27,7 +28,11 @@ class DaoAutoPipVisibilityHelper
   friend class content::WebContentsUserData<DaoAutoPipVisibilityHelper>;
   explicit DaoAutoPipVisibilityHelper(content::WebContents* web_contents);
 
+  void OnDocumentPipResult(bool success);
+
   bool triggered_pip_ = false;
+
+  base::WeakPtrFactory<DaoAutoPipVisibilityHelper> weak_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

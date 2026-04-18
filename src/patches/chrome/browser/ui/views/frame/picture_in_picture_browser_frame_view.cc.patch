@@ -1,0 +1,78 @@
+diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
+index d69e8e49bf..d4e20eb5e6 100644
+--- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
++++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
+@@ -619,9 +619,10 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+ 
+   // Creates the top bar title color and camera icon color animation. Set the
+   // initial state to 1.0 because the window is active when first shown.
++  // Dao: Start at 0.0 so the top bar is hidden initially.
+   top_bar_color_animation_.SetSlideDuration(kAnimationDuration);
+   top_bar_color_animation_.SetTweenType(gfx::Tween::LINEAR);
+-  top_bar_color_animation_.Reset(1.0);
++  top_bar_color_animation_.Reset(0.0);
+ 
+   // Creates the camera icon movement animations with the default EASE_OUT type.
+   move_camera_button_to_left_animation_.SetSlideDuration(kAnimationDuration);
+@@ -1153,6 +1154,11 @@ PictureInPictureBrowserFrameView::GetContentSettingBubbleModelDelegate() {
+ void PictureInPictureBrowserFrameView::OnWidgetActivationChanged(
+     views::Widget* widget,
+     bool active) {
++  // Dao: Suppress first activation so window starts compact (no top bar).
++  if (!dao_pip_first_activation_suppressed_) {
++    dao_pip_first_activation_suppressed_ = true;
++    return;
++  }
+   // The window may become inactive when a popup modal shows, so we need to
+   // check if the mouse is still inside the window.
+   UpdateTopBarView(active || mouse_inside_window_ || IsOverlayViewVisible());
+@@ -1179,6 +1185,14 @@ void PictureInPictureBrowserFrameView::AnimationEnded(
+   if (animation == &top_bar_color_animation_) {
+     current_foreground_color_ = std::nullopt;
+     location_icon_view_->Update(/*suppress_animations=*/false);
++    // Dao: When hide completes, atomically flip layout + shrink window.
++    if (animation->GetCurrentValue() == 0.0 && GetWidget()) {
++      dao_pip_top_bar_expanded_ = false;
++      gfx::Rect bounds = GetWidget()->GetWindowBoundsInScreen();
++      GetWidget()->SetBounds(gfx::Rect(
++          bounds.x(), bounds.y() + kTopControlsHeight,
++          bounds.width(), bounds.height() - kTopControlsHeight));
++    }
+   }
+ }
+ 
+@@ -1195,6 +1209,7 @@ void PictureInPictureBrowserFrameView::AnimationProgressed(
+     }
+     current_foreground_color_ = color;
+     location_icon_view_->Update(/*suppress_animations=*/false);
++
+     return;
+   }
+ 
+@@ -1368,6 +1383,15 @@ void PictureInPictureBrowserFrameView::UpdateTopBarView(bool render_active) {
+       hide_all_buttons_animation_.Stop();
+     }
+ 
++    // Dao: Atomically flip layout + expand window upward.
++    if (GetWidget()) {
++      dao_pip_top_bar_expanded_ = true;
++      gfx::Rect bounds = GetWidget()->GetWindowBoundsInScreen();
++      GetWidget()->SetBounds(gfx::Rect(
++          bounds.x(), bounds.y() - kTopControlsHeight,
++          bounds.width(), bounds.height() + kTopControlsHeight));
++    }
++
+     top_bar_color_animation_.Show();
+ 
+     // SlideAnimation needs to be reset if only Show() is called.
+@@ -1436,6 +1460,10 @@ gfx::Insets PictureInPictureBrowserFrameView::ResizeBorderInsets() const {
+ }
+ 
+ int PictureInPictureBrowserFrameView::GetTopAreaHeight() const {
++  // Dao: Only reserve top bar space when expanded.
++  if (!dao_pip_top_bar_expanded_) {
++    return FrameBorderInsets().top();
++  }
+   return FrameBorderInsets().top() + kTopControlsHeight;
+ }
+ 
