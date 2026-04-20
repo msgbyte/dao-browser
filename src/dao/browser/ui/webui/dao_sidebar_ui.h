@@ -171,6 +171,7 @@ class DaoSidebarUIHandler
   // Media widget state.
   int media_widget_tab_index_ = -1;
   bool media_widget_dismissed_ = false;
+  bool media_widget_user_paused_ = false;
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
   std::vector<base::FilePath> recent_file_paths_;
   std::string folder_json_;  // Per-window folder data (in-memory)

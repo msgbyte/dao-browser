@@ -1164,10 +1164,18 @@ void DaoSidebarUIHandler::PushMediaPlaybackState() {
 
   int audible_index = FindAudibleTabIndex();
 
-  if (audible_index == -1 ||
-      (media_widget_dismissed_ && audible_index == media_widget_tab_index_)) {
+  // If user paused via the widget, keep showing the card for that tab.
+  bool keep_paused = media_widget_user_paused_ &&
+                     media_widget_tab_index_ >= 0 &&
+                     audible_index == -1;
+
+  if (!keep_paused &&
+      (audible_index == -1 ||
+       (media_widget_dismissed_ &&
+        audible_index == media_widget_tab_index_))) {
     if (media_widget_tab_index_ != -1) {
       media_widget_tab_index_ = -1;
+      media_widget_user_paused_ = false;
       base::Value::Dict state;
       state.Set("isPlaying", false);
       FireWebUIListener("mediaPlaybackChanged", state);
@@ -1175,13 +1183,17 @@ void DaoSidebarUIHandler::PushMediaPlaybackState() {
     return;
   }
 
-  if (audible_index != media_widget_tab_index_) {
+  int show_index = keep_paused ? media_widget_tab_index_ : audible_index;
+
+  if (show_index != media_widget_tab_index_) {
     media_widget_dismissed_ = false;
-    media_widget_tab_index_ = audible_index;
+    media_widget_user_paused_ = false;
+    media_widget_tab_index_ = show_index;
   }
 
   TabStripModel* model = browser_->tab_strip_model();
-  content::WebContents* contents = model->GetWebContentsAt(audible_index);
+  if (show_index >= model->count()) return;
+  content::WebContents* contents = model->GetWebContentsAt(show_index);
   if (!contents) return;
 
   std::string title = base::UTF16ToUTF8(contents->GetTitle());
@@ -1221,8 +1233,10 @@ void DaoSidebarUIHandler::HandleMediaPlayPause(
   if (!session) return;
 
   if (contents->IsCurrentlyAudible()) {
+    media_widget_user_paused_ = true;
     session->Suspend(content::MediaSession::SuspendType::kUI);
   } else {
+    media_widget_user_paused_ = false;
     session->Resume(content::MediaSession::SuspendType::kUI);
   }
 }
@@ -1256,6 +1270,7 @@ void DaoSidebarUIHandler::HandleMediaNext(
 void DaoSidebarUIHandler::HandleMediaDismiss(
     const base::Value::List& args) {
   media_widget_dismissed_ = true;
+  media_widget_user_paused_ = false;
   base::Value::Dict state;
   state.Set("isPlaying", false);
   FireWebUIListener("mediaPlaybackChanged", state);
