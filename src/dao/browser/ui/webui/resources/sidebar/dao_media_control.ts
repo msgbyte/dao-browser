@@ -151,12 +151,6 @@ export class DaoMediaControl extends CrLitElement {
         width: 24px;
         height: 24px;
         color: var(--text-primary);
-        background: rgba(0, 0, 0, 0.06);
-        border-radius: 50%;
-      }
-
-      .ctrl-btn.play-pause:hover {
-        background: rgba(0, 0, 0, 0.10);
       }
     `;
   }
