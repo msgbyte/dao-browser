@@ -13,6 +13,7 @@ import './dao_new_tab_button.js';
 import './dao_sidebar_section.js';
 import './dao_tab_list.js';
 import './dao_download_button.js';
+import './dao_media_control.js';
 
 export class DaoSidebarApp extends CrLitElement {
   static get is() {
@@ -385,6 +386,8 @@ export class DaoSidebarApp extends CrLitElement {
             </dao-tab-list>
           </dao-sidebar-section>
         </div>
+
+        <dao-media-control></dao-media-control>
 
         <div class="bottom-section">
           <dao-download-button></dao-download-button>

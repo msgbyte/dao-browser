@@ -411,6 +411,26 @@ void DaoSidebarUIHandler::RegisterMessages() {
       "hideTabTooltip",
       base::BindRepeating(&DaoSidebarUIHandler::HandleHideTabTooltip,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "mediaPlayPause",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleMediaPlayPause,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "mediaPrevious",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleMediaPrevious,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "mediaNext",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleMediaNext,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "mediaDismiss",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleMediaDismiss,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "mediaActivateTab",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleMediaActivateTab,
+                          base::Unretained(this)));
 }
 
 void DaoSidebarUIHandler::OnJavascriptAllowed() {
@@ -541,6 +561,7 @@ void DaoSidebarUIHandler::PushFullState() {
             static_cast<int>(browser_->session_id().id()));
 
   FireWebUIListener("sidebarStateChanged", state);
+  PushMediaPlaybackState();
 }
 
 void DaoSidebarUIHandler::PushTabUpdate(int index) {
@@ -572,6 +593,7 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
   tab.Set("isInSplit", IsInAnySplitGroup(contents));
 
   FireWebUIListener("tabUpdated", tab);
+  PushMediaPlaybackState();
 }
 
 void DaoSidebarUIHandler::HandleGetInitialState(
@@ -1121,6 +1143,130 @@ void DaoSidebarUIHandler::HandleHideTabTooltip(
   BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
   if (!bv || !bv->dao_tab_tooltip()) return;
   bv->dao_tab_tooltip()->HideTooltip();
+}
+
+int DaoSidebarUIHandler::FindAudibleTabIndex() const {
+  if (!browser_) return -1;
+  TabStripModel* model = browser_->tab_strip_model();
+  int active_index = model->active_index();
+
+  for (int i = 0; i < model->count(); ++i) {
+    if (i == active_index) continue;
+    content::WebContents* contents = model->GetWebContentsAt(i);
+    if (!contents) continue;
+    if (IsTabAudible(contents)) return i;
+  }
+  return -1;
+}
+
+void DaoSidebarUIHandler::PushMediaPlaybackState() {
+  if (!browser_ || !IsJavascriptAllowed()) return;
+
+  int audible_index = FindAudibleTabIndex();
+
+  if (audible_index == -1 ||
+      (media_widget_dismissed_ && audible_index == media_widget_tab_index_)) {
+    if (media_widget_tab_index_ != -1) {
+      media_widget_tab_index_ = -1;
+      base::Value::Dict state;
+      state.Set("isPlaying", false);
+      FireWebUIListener("mediaPlaybackChanged", state);
+    }
+    return;
+  }
+
+  if (audible_index != media_widget_tab_index_) {
+    media_widget_dismissed_ = false;
+    media_widget_tab_index_ = audible_index;
+  }
+
+  TabStripModel* model = browser_->tab_strip_model();
+  content::WebContents* contents = model->GetWebContentsAt(audible_index);
+  if (!contents) return;
+
+  std::string title = base::UTF16ToUTF8(contents->GetTitle());
+  std::string source_title = contents->GetVisibleURL().host();
+  if (source_title.length() > 4 && source_title.substr(0, 4) == "www.") {
+    source_title = source_title.substr(4);
+  }
+
+  bool is_playing = contents->IsCurrentlyAudible() && !contents->IsAudioMuted();
+
+  bool has_media_session =
+      content::MediaSession::GetIfExists(contents) != nullptr;
+
+  base::Value::Dict state;
+  state.Set("isPlaying", is_playing);
+  state.Set("tabIndex", audible_index);
+  state.Set("title", title);
+  state.Set("sourceTitle", source_title);
+  state.Set("faviconUrl", FaviconToDataUrl(contents));
+  state.Set("isMuted", contents->IsAudioMuted());
+  state.Set("hasMediaSession", has_media_session);
+
+  FireWebUIListener("mediaPlaybackChanged", state);
+}
+
+void DaoSidebarUIHandler::HandleMediaPlayPause(
+    const base::Value::List& args) {
+  if (!browser_ || media_widget_tab_index_ < 0) return;
+  TabStripModel* model = browser_->tab_strip_model();
+  if (media_widget_tab_index_ >= model->count()) return;
+  content::WebContents* contents =
+      model->GetWebContentsAt(media_widget_tab_index_);
+  if (!contents) return;
+
+  content::MediaSession* session =
+      content::MediaSession::GetIfExists(contents);
+  if (!session) return;
+
+  if (contents->IsCurrentlyAudible()) {
+    session->Suspend(content::MediaSession::SuspendType::kUI);
+  } else {
+    session->Resume(content::MediaSession::SuspendType::kUI);
+  }
+}
+
+void DaoSidebarUIHandler::HandleMediaPrevious(
+    const base::Value::List& args) {
+  if (!browser_ || media_widget_tab_index_ < 0) return;
+  TabStripModel* model = browser_->tab_strip_model();
+  if (media_widget_tab_index_ >= model->count()) return;
+  content::WebContents* contents =
+      model->GetWebContentsAt(media_widget_tab_index_);
+  if (!contents) return;
+  content::MediaSession* session =
+      content::MediaSession::GetIfExists(contents);
+  if (session) session->PreviousTrack();
+}
+
+void DaoSidebarUIHandler::HandleMediaNext(
+    const base::Value::List& args) {
+  if (!browser_ || media_widget_tab_index_ < 0) return;
+  TabStripModel* model = browser_->tab_strip_model();
+  if (media_widget_tab_index_ >= model->count()) return;
+  content::WebContents* contents =
+      model->GetWebContentsAt(media_widget_tab_index_);
+  if (!contents) return;
+  content::MediaSession* session =
+      content::MediaSession::GetIfExists(contents);
+  if (session) session->NextTrack();
+}
+
+void DaoSidebarUIHandler::HandleMediaDismiss(
+    const base::Value::List& args) {
+  media_widget_dismissed_ = true;
+  base::Value::Dict state;
+  state.Set("isPlaying", false);
+  FireWebUIListener("mediaPlaybackChanged", state);
+}
+
+void DaoSidebarUIHandler::HandleMediaActivateTab(
+    const base::Value::List& args) {
+  if (!browser_ || media_widget_tab_index_ < 0) return;
+  TabStripModel* model = browser_->tab_strip_model();
+  if (media_widget_tab_index_ >= model->count()) return;
+  model->ActivateTabAt(media_widget_tab_index_);
 }
 
 int DaoSidebarUIHandler::FindVisualPosition(int tab_index) const {

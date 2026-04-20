@@ -109,6 +109,18 @@ export interface DownloadState {
   activeDownloads: ActiveDownloadData[];
 }
 
+// ---- Media Playback Data Types ----
+
+export interface MediaPlaybackState {
+  isPlaying: boolean;
+  tabIndex: number;
+  title: string;
+  sourceTitle: string;
+  faviconUrl: string;
+  isMuted: boolean;
+  hasMediaSession: boolean;
+}
+
 // ---- Folder Data Types ----
 
 export interface FolderData {

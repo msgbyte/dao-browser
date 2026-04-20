@@ -15,6 +15,7 @@
 #include "base/values.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/download/content/public/all_download_item_notifier.h"
+#include "content/public/browser/media_session.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
@@ -109,6 +110,10 @@ class DaoSidebarUIHandler
   void ConsolidateSplitGroupTabs();
   void PushDownloadState();
   void PushActiveDownloads();
+
+  // Media playback widget.
+  int FindAudibleTabIndex() const;
+  void PushMediaPlaybackState();
   base::Value::List BuildActiveDownloadList();
 
   // JS message handlers
@@ -134,6 +139,13 @@ class DaoSidebarUIHandler
   void HandleShowTabTooltip(const base::Value::List& args);
   void HandleHideTabTooltip(const base::Value::List& args);
 
+  // Media playback control handlers.
+  void HandleMediaPlayPause(const base::Value::List& args);
+  void HandleMediaPrevious(const base::Value::List& args);
+  void HandleMediaNext(const base::Value::List& args);
+  void HandleMediaDismiss(const base::Value::List& args);
+  void HandleMediaActivateTab(const base::Value::List& args);
+
   // Context menu helpers.
   int FindVisualPosition(int tab_index) const;
   void CloseTabsInVisualRange(int from, int to);
@@ -155,6 +167,10 @@ class DaoSidebarUIHandler
   };
 
   raw_ptr<Browser> browser_ = nullptr;
+
+  // Media widget state.
+  int media_widget_tab_index_ = -1;
+  bool media_widget_dismissed_ = false;
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
   std::vector<base::FilePath> recent_file_paths_;
   std::string folder_json_;  // Per-window folder data (in-memory)
