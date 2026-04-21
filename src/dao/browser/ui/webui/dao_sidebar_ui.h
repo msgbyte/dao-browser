@@ -19,6 +19,8 @@
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "services/media_session/public/mojom/media_session.mojom.h"
 #include "ui/menus/simple_menu_model.h"
 
 class Browser;
@@ -56,7 +58,8 @@ class DaoSidebarUIHandler
     : public content::WebUIMessageHandler,
       public TabStripModelObserver,
       public download::AllDownloadItemNotifier::Observer,
-      public ui::SimpleMenuModel::Delegate {
+      public ui::SimpleMenuModel::Delegate,
+      public media_session::mojom::MediaSessionObserver {
  public:
   DaoSidebarUIHandler();
   ~DaoSidebarUIHandler() override;
@@ -91,6 +94,21 @@ class DaoSidebarUIHandler
   void ExecuteCommand(int command_id, int event_flags) override;
   void MenuClosed(ui::SimpleMenuModel* source) override;
 
+  // media_session::mojom::MediaSessionObserver:
+  void MediaSessionInfoChanged(
+      media_session::mojom::MediaSessionInfoPtr session_info) override {}
+  void MediaSessionMetadataChanged(
+      const std::optional<media_session::MediaMetadata>& metadata) override {}
+  void MediaSessionActionsChanged(
+      const std::vector<media_session::mojom::MediaSessionAction>& actions)
+      override;
+  void MediaSessionImagesChanged(
+      const base::flat_map<media_session::mojom::MediaSessionImageType,
+                           std::vector<media_session::MediaImage>>& images)
+      override {}
+  void MediaSessionPositionChanged(
+      const std::optional<media_session::MediaPosition>& position) override {}
+
  private:
   // Returns the split view for this browser, or nullptr.
   DaoSplitView* GetSplitView() const;
@@ -114,6 +132,9 @@ class DaoSidebarUIHandler
   // Media playback widget.
   int FindAudibleTabIndex() const;
   void PushMediaPlaybackState();
+  // Bind/reset the Mojo observer on the given tab's MediaSession.
+  void BindMediaSessionObserver(int tab_index);
+  void ResetMediaSessionObserver();
   base::Value::List BuildActiveDownloadList();
 
   // JS message handlers
@@ -146,6 +167,9 @@ class DaoSidebarUIHandler
   void HandleMediaDismiss(const base::Value::List& args);
   void HandleMediaActivateTab(const base::Value::List& args);
 
+  // Sidebar context menu handler.
+  void HandleShowSidebarContextMenu(const base::Value::List& args);
+
   // Context menu helpers.
   int FindVisualPosition(int tab_index) const;
   void CloseTabsInVisualRange(int from, int to);
@@ -164,6 +188,7 @@ class DaoSidebarUIHandler
     kCloseOtherTabs,
     kCloseTabsAbove,
     kCloseTabsBelow,
+    kInspectSidebar,
   };
 
   raw_ptr<Browser> browser_ = nullptr;
@@ -172,6 +197,13 @@ class DaoSidebarUIHandler
   int media_widget_tab_index_ = -1;
   bool media_widget_dismissed_ = false;
   bool media_widget_user_paused_ = false;
+  // Tab whose MediaSession is currently being observed via Mojo.
+  int observed_media_tab_index_ = -1;
+  // Actions registered by the currently observed MediaSession.
+  bool has_prev_action_ = false;
+  bool has_next_action_ = false;
+  mojo::Receiver<media_session::mojom::MediaSessionObserver>
+      media_session_observer_receiver_{this};
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
   std::vector<base::FilePath> recent_file_paths_;
   std::string folder_json_;  // Per-window folder data (in-memory)

@@ -118,7 +118,8 @@ export interface MediaPlaybackState {
   sourceTitle: string;
   faviconUrl: string;
   isMuted: boolean;
-  hasMediaSession: boolean;
+  hasPrev: boolean;
+  hasNext: boolean;
 }
 
 // ---- Folder Data Types ----

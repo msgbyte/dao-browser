@@ -190,6 +190,11 @@ export class DaoSidebarApp extends CrLitElement {
       this.handleFolderAction_(e.detail);
     }) as EventListener);
 
+    this.addEventListener('contextmenu', (e: MouseEvent) => {
+      e.preventDefault();
+      sendNative('showSidebarContextMenu', e.screenX, e.screenY);
+    });
+
     sendNative('getInitialState');
   }
 

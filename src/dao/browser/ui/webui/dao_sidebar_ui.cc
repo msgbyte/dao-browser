@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/platform_util.h"
@@ -430,6 +431,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "mediaActivateTab",
       base::BindRepeating(&DaoSidebarUIHandler::HandleMediaActivateTab,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "showSidebarContextMenu",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleShowSidebarContextMenu,
                           base::Unretained(this)));
 }
 
@@ -1176,6 +1181,7 @@ void DaoSidebarUIHandler::PushMediaPlaybackState() {
     if (media_widget_tab_index_ != -1) {
       media_widget_tab_index_ = -1;
       media_widget_user_paused_ = false;
+      ResetMediaSessionObserver();
       base::Value::Dict state;
       state.Set("isPlaying", false);
       FireWebUIListener("mediaPlaybackChanged", state);
@@ -1191,6 +1197,10 @@ void DaoSidebarUIHandler::PushMediaPlaybackState() {
     media_widget_tab_index_ = show_index;
   }
 
+  if (show_index != observed_media_tab_index_) {
+    BindMediaSessionObserver(show_index);
+  }
+
   TabStripModel* model = browser_->tab_strip_model();
   if (show_index >= model->count()) return;
   content::WebContents* contents = model->GetWebContentsAt(show_index);
@@ -1204,19 +1214,57 @@ void DaoSidebarUIHandler::PushMediaPlaybackState() {
 
   bool is_playing = contents->IsCurrentlyAudible() && !contents->IsAudioMuted();
 
-  bool has_media_session =
-      content::MediaSession::GetIfExists(contents) != nullptr;
-
   base::Value::Dict state;
   state.Set("isPlaying", is_playing);
-  state.Set("tabIndex", audible_index);
+  state.Set("tabIndex", show_index);
   state.Set("title", title);
   state.Set("sourceTitle", source_title);
   state.Set("faviconUrl", FaviconToDataUrl(contents));
   state.Set("isMuted", contents->IsAudioMuted());
-  state.Set("hasMediaSession", has_media_session);
+  state.Set("hasPrev", has_prev_action_);
+  state.Set("hasNext", has_next_action_);
 
   FireWebUIListener("mediaPlaybackChanged", state);
+}
+
+void DaoSidebarUIHandler::BindMediaSessionObserver(int tab_index) {
+  ResetMediaSessionObserver();
+  if (!browser_ || tab_index < 0) return;
+  TabStripModel* model = browser_->tab_strip_model();
+  if (tab_index >= model->count()) return;
+  content::WebContents* contents = model->GetWebContentsAt(tab_index);
+  if (!contents) return;
+  // Get() auto-creates the MediaSession if needed so the observer can
+  // receive action updates as soon as the site registers handlers.
+  content::MediaSession* session = content::MediaSession::Get(contents);
+  if (!session) return;
+  observed_media_tab_index_ = tab_index;
+  session->AddObserver(
+      media_session_observer_receiver_.BindNewPipeAndPassRemote());
+}
+
+void DaoSidebarUIHandler::ResetMediaSessionObserver() {
+  media_session_observer_receiver_.reset();
+  observed_media_tab_index_ = -1;
+  has_prev_action_ = false;
+  has_next_action_ = false;
+}
+
+void DaoSidebarUIHandler::MediaSessionActionsChanged(
+    const std::vector<media_session::mojom::MediaSessionAction>& actions) {
+  bool prev = false;
+  bool next = false;
+  for (const auto& action : actions) {
+    if (action == media_session::mojom::MediaSessionAction::kPreviousTrack) {
+      prev = true;
+    } else if (action == media_session::mojom::MediaSessionAction::kNextTrack) {
+      next = true;
+    }
+  }
+  if (prev == has_prev_action_ && next == has_next_action_) return;
+  has_prev_action_ = prev;
+  has_next_action_ = next;
+  PushMediaPlaybackState();
 }
 
 void DaoSidebarUIHandler::HandleMediaPlayPause(
@@ -1243,7 +1291,7 @@ void DaoSidebarUIHandler::HandleMediaPlayPause(
 
 void DaoSidebarUIHandler::HandleMediaPrevious(
     const base::Value::List& args) {
-  if (!browser_ || media_widget_tab_index_ < 0) return;
+  if (!browser_ || media_widget_tab_index_ < 0 || !has_prev_action_) return;
   TabStripModel* model = browser_->tab_strip_model();
   if (media_widget_tab_index_ >= model->count()) return;
   content::WebContents* contents =
@@ -1256,7 +1304,7 @@ void DaoSidebarUIHandler::HandleMediaPrevious(
 
 void DaoSidebarUIHandler::HandleMediaNext(
     const base::Value::List& args) {
-  if (!browser_ || media_widget_tab_index_ < 0) return;
+  if (!browser_ || media_widget_tab_index_ < 0 || !has_next_action_) return;
   TabStripModel* model = browser_->tab_strip_model();
   if (media_widget_tab_index_ >= model->count()) return;
   content::WebContents* contents =
@@ -1271,6 +1319,7 @@ void DaoSidebarUIHandler::HandleMediaDismiss(
     const base::Value::List& args) {
   media_widget_dismissed_ = true;
   media_widget_user_paused_ = false;
+  ResetMediaSessionObserver();
   base::Value::Dict state;
   state.Set("isPlaying", false);
   FireWebUIListener("mediaPlaybackChanged", state);
@@ -1282,6 +1331,39 @@ void DaoSidebarUIHandler::HandleMediaActivateTab(
   TabStripModel* model = browser_->tab_strip_model();
   if (media_widget_tab_index_ >= model->count()) return;
   model->ActivateTabAt(media_widget_tab_index_);
+}
+
+void DaoSidebarUIHandler::HandleShowSidebarContextMenu(
+    const base::Value::List& args) {
+  if (!browser_ || args.size() < 2) return;
+  int screen_x = args[0].GetIfInt().value_or(0);
+  int screen_y = args[1].GetIfInt().value_or(0);
+
+  context_menu_tab_index_ = -1;
+
+  tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
+#if DCHECK_IS_ON()
+  tab_context_menu_model_->AddItem(kInspectSidebar, u"Inspect");
+#endif
+
+  if (tab_context_menu_model_->GetItemCount() == 0) return;
+
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view || !browser_view->dao_sidebar()) return;
+
+  views::Widget* widget = browser_view->dao_sidebar()->GetWidget();
+  if (!widget) return;
+
+  tab_context_menu_runner_ = std::make_unique<views::MenuRunner>(
+      tab_context_menu_model_.get(),
+      views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU);
+
+  gfx::Rect anchor_rect(gfx::Point(screen_x, screen_y), gfx::Size());
+  tab_context_menu_runner_->RunMenuAt(
+      widget, nullptr, anchor_rect,
+      views::MenuAnchorPosition::kTopLeft,
+      ui::mojom::MenuSourceType::kMouse);
 }
 
 int DaoSidebarUIHandler::FindVisualPosition(int tab_index) const {
@@ -1317,6 +1399,7 @@ void DaoSidebarUIHandler::ClearContextMenuState() {
 
 bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   if (!browser_) return false;
+  if (command_id == kInspectSidebar) return true;
   TabStripModel* model = browser_->tab_strip_model();
   if (context_menu_tab_index_ < 0 ||
       context_menu_tab_index_ >= model->count()) {
@@ -1360,6 +1443,19 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
 
 void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
   if (!browser_) return;
+
+  if (command_id == kInspectSidebar) {
+#if DCHECK_IS_ON()
+    content::WebContents* sidebar_contents = web_ui()->GetWebContents();
+    if (sidebar_contents) {
+      DevToolsWindow::OpenDevToolsWindow(
+          sidebar_contents, DevToolsOpenedByAction::kContextMenuInspect);
+    }
+#endif
+    ClearContextMenuState();
+    return;
+  }
+
   TabStripModel* model = browser_->tab_strip_model();
   if (context_menu_tab_index_ < 0 ||
       context_menu_tab_index_ >= model->count()) {
