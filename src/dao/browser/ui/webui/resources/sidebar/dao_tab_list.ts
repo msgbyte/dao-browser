@@ -466,8 +466,18 @@ export class DaoTabList extends CrLitElement {
     this.dropModelIndex_ = -1;
 
     // If no target accepted the drop, detach to a new window at cursor.
+    // Two guards prevent a fast drag+release inside the sidebar from
+    // being mistaken for a drag-out:
+    //   1. tabDragActivated_ must be true — the drag actually left the
+    //      sidebar WebContents at some point (onDragLeave_ fired).
+    //   2. The release point must be outside the sidebar's viewport —
+    //      if the pointer is still inside, the user was reordering
+    //      within the sidebar and released before any dragover target
+    //      had a chance to preventDefault.
     if (e.dataTransfer && e.dataTransfer.dropEffect === 'none' &&
-        this.draggedTabIndex_ >= 0) {
+        this.draggedTabIndex_ >= 0 &&
+        this.tabDragActivated_ &&
+        this.isPointOutsideSidebar_(e.clientX, e.clientY)) {
       // Remove from folder model before detaching so the folder
       // membership doesn't persist after the tab leaves this window.
       this.maybeRemoveFromFolder_(this.draggedTabIndex_);
@@ -480,6 +490,21 @@ export class DaoTabList extends CrLitElement {
       this.tabDragActivated_ = false;
       sendNative('tabDragActive', false);
     }
+  }
+
+  /**
+   * Returns true if (clientX, clientY) is outside the sidebar
+   * WebContents viewport. A release inside the viewport means the
+   * user did not drag out of the sidebar, so the tab should not be
+   * detached. Negative coordinates indicate the release was outside
+   * the WebContents entirely.
+   */
+  private isPointOutsideSidebar_(clientX: number, clientY: number): boolean {
+    if (clientX < 0 || clientY < 0) return true;
+    if (clientX > window.innerWidth || clientY > window.innerHeight) {
+      return true;
+    }
+    return false;
   }
 
   private onDrop_(e: DragEvent) {
