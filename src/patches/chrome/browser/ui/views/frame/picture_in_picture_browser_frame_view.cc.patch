@@ -1,8 +1,185 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-index d69e8e49bf..d4e20eb5e6 100644
+index d69e8e49bf..17c3c42dca 100644
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-@@ -619,9 +619,10 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+@@ -37,10 +37,12 @@
+ #include "ui/base/ui_base_features.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/display/screen.h"
++#include "ui/events/event_handler.h"
+ #include "ui/events/event_observer.h"
+ #include "ui/gfx/animation/animation.h"
+ #include "ui/gfx/animation/animation_container.h"
+ #include "ui/gfx/geometry/insets.h"
++#include "ui/gfx/geometry/rounded_corners_f.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/animation/compositor_animation_runner.h"
+ #include "ui/views/event_monitor.h"
+@@ -48,6 +50,7 @@
+ #include "ui/views/layout/flex_layout_view.h"
+ #include "ui/views/style/typography.h"
+ #include "ui/views/style/typography_provider.h"
++#include "ui/views/widget/widget.h"
+ #include "ui/views/widget/widget_delegate.h"
+ #include "ui/views/window/frame_background.h"
+ #include "ui/views/window/window_shape.h"
+@@ -148,6 +151,16 @@ class WindowEventObserver : public ui::EventObserver {
+         this, pip_browser_frame_view_->GetWidget()->GetNativeWindow(),
+         {ui::EventType::kMouseMoved, ui::EventType::kMouseExited,
+          ui::EventType::kKeyPressed, ui::EventType::kKeyReleased});
++
++    // Dao: Also observe the overlay widget's native window so that moving the
++    // mouse onto the top bar counts as "inside" the PiP window for hover
++    // detection.
++    if (auto* overlay = pip_browser_frame_view_->dao_top_bar_overlay_widget()) {
++      overlay_event_monitor_ = views::EventMonitor::CreateWindowMonitor(
++          this, overlay->GetNativeWindow(),
++          {ui::EventType::kMouseMoved, ui::EventType::kMouseExited,
++           ui::EventType::kKeyPressed, ui::EventType::kKeyReleased});
++    }
+   }
+ 
+   WindowEventObserver(const WindowEventObserver&) = delete;
+@@ -174,6 +187,13 @@ class WindowEventObserver : public ui::EventObserver {
+  private:
+   bool IsMouseInBounds() {
+     gfx::Point point = event_monitor_->GetLastMouseLocation();
++    // Dao: Also count the overlay widget's screen area as "inside" so that
++    // hovering the floating top bar keeps the PiP window in its active state.
++    if (auto* overlay = pip_browser_frame_view_->dao_top_bar_overlay_widget()) {
++      if (overlay->GetWindowBoundsInScreen().Contains(point)) {
++        return true;
++      }
++    }
+     views::View::ConvertPointFromScreen(pip_browser_frame_view_, &point);
+ 
+     gfx::Rect input_bounds = pip_browser_frame_view_->GetLocalBounds();
+@@ -196,6 +216,9 @@ class WindowEventObserver : public ui::EventObserver {
+ 
+   raw_ptr<PictureInPictureBrowserFrameView> pip_browser_frame_view_;
+   std::unique_ptr<views::EventMonitor> event_monitor_;
++  // Dao: Secondary monitor attached to the top-bar overlay widget's native
++  // window, so mouse movement on the floating top bar is also observed.
++  std::unique_ptr<views::EventMonitor> overlay_event_monitor_;
+ };
+ 
+ void DefinitelyExitPictureInPicture(
+@@ -222,6 +245,67 @@ void DefinitelyExitPictureInPicture(
+   }
+ }
+ 
++// Dao: PostTargetHandler installed on the top-bar overlay widget's root view
++// so that dragging in non-button areas of the floating top bar moves the main
++// PiP window. Runs after the target view (e.g. a button) has had a chance to
++// handle the event; if the event is already handled we leave it alone. This
++// keeps the overlay as an independent NSWindow (so button hit-tests are not
++// shadowed by WebContents) while still giving users a draggable caption.
++class OverlayDragHandler : public ui::EventHandler {
++ public:
++  explicit OverlayDragHandler(views::Widget* main_widget)
++      : main_widget_(main_widget) {}
++  OverlayDragHandler(const OverlayDragHandler&) = delete;
++  OverlayDragHandler& operator=(const OverlayDragHandler&) = delete;
++  ~OverlayDragHandler() override = default;
++
++  void OnMouseEvent(ui::MouseEvent* event) override {
++    if (event->handled() || !main_widget_) {
++      return;
++    }
++    if (!event->IsLeftMouseButton() &&
++        event->type() != ui::EventType::kMouseReleased) {
++      return;
++    }
++
++    switch (event->type()) {
++      case ui::EventType::kMousePressed: {
++        drag_start_mouse_screen_ =
++            display::Screen::GetScreen()->GetCursorScreenPoint();
++        drag_start_widget_bounds_ = main_widget_->GetWindowBoundsInScreen();
++        dragging_ = true;
++        event->SetHandled();
++        break;
++      }
++      case ui::EventType::kMouseDragged: {
++        if (!dragging_) {
++          break;
++        }
++        gfx::Point current =
++            display::Screen::GetScreen()->GetCursorScreenPoint();
++        gfx::Vector2d delta = current - drag_start_mouse_screen_;
++        gfx::Rect new_bounds = drag_start_widget_bounds_;
++        new_bounds.Offset(delta);
++        main_widget_->SetBounds(new_bounds);
++        event->SetHandled();
++        break;
++      }
++      case ui::EventType::kMouseReleased: {
++        dragging_ = false;
++        break;
++      }
++      default:
++        break;
++    }
++  }
++
++ private:
++  raw_ptr<views::Widget> main_widget_;
++  gfx::Point drag_start_mouse_screen_;
++  gfx::Rect drag_start_widget_bounds_;
++  bool dragging_ = false;
++};
++
+ }  // namespace
+ 
+ PictureInPictureBrowserFrameView::ChildDialogObserverHelper::
+@@ -508,12 +592,40 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+   location_bar_model_ = std::make_unique<LocationBarModelImpl>(
+       this, content::kMaxURLDisplayChars);
+ 
+-  // Creates a view for the top bar area.
+-  AddChildView(views::Builder<views::FlexLayoutView>()
+-                   .CopyAddressTo(&top_bar_container_view_)
+-                   .SetOrientation(views::LayoutOrientation::kHorizontal)
+-                   .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
+-                   .Build());
++  // Dao: Build the top bar container view without parenting it to this frame
++  // view. Ownership is stored temporarily in `dao_top_bar_container_owned_`
++  // and transferred to the overlay widget in AddedToWidget(). This avoids
++  // having the top bar occupy layout space in the main PiP window; the web
++  // contents therefore fill the entire inner area and the overlay widget
++  // (its own NSWindow on macOS) paints over the top at show/hide time.
++  dao_top_bar_container_owned_ =
++      views::Builder<views::FlexLayoutView>()
++          .CopyAddressTo(&top_bar_container_view_)
++          .SetOrientation(views::LayoutOrientation::kHorizontal)
++          .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
++          .Build();
++
++  // Dao: Paint the top bar to its own compositor layer so the whole container
++  // (including its solid background) can be faded in/out via layer opacity in
++  // AnimationProgressed(). Without this, only the text/icon foreground colors
++  // animate and the background stays fully visible when unhovered.
++  top_bar_container_view_->SetPaintToLayer();
++  top_bar_container_view_->layer()->SetFillsBoundsOpaquely(false);
++  // Dao: Start fully transparent so the top bar is invisible until the user
++  // hovers the window.
++  top_bar_container_view_->layer()->SetOpacity(0.0f);
++  // Dao: Because the top bar lives in its own overlay NSWindow (not clipped by
++  // the main PiP window's mask), round its top corners explicitly to match the
++  // main window. Bottom corners stay at 0 so the bar meets the web contents
++  // with a straight edge.
++  {
++    const float dao_top_corner_radius =
++        ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
++            views::Emphasis::kHigh);
++    top_bar_container_view_->layer()->SetRoundedCornerRadius(
++        gfx::RoundedCornersF(dao_top_corner_radius, dao_top_corner_radius,
++                             0, 0));
++  }
+ 
+   // Creates the window icon.
+   const gfx::FontList& font_list = views::TypographyProvider::Get().GetFont(
+@@ -619,9 +731,10 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
  
    // Creates the top bar title color and camera icon color animation. Set the
    // initial state to 1.0 because the window is active when first shown.
@@ -14,7 +191,48 @@ index d69e8e49bf..d4e20eb5e6 100644
  
    // Creates the camera icon movement animations with the default EASE_OUT type.
    move_camera_button_to_left_animation_.SetSlideDuration(kAnimationDuration);
-@@ -1153,6 +1154,11 @@ PictureInPictureBrowserFrameView::GetContentSettingBubbleModelDelegate() {
+@@ -887,7 +1000,10 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
+   content_area.Inset(FrameBorderInsets());
+   gfx::Rect top_bar = content_area;
+   top_bar.set_height(kTopControlsHeight);
+-  top_bar_container_view_->SetBoundsRect(top_bar);
++  // Dao: The top bar container now lives in a separate overlay widget, so we
++  // reposition that widget in screen coordinates instead of setting local
++  // bounds on the container view.
++  DaoUpdateTopBarOverlayBounds();
+ #if !BUILDFLAG(IS_ANDROID)
+   if (auto_pip_setting_overlay_) {
+     auto_pip_setting_overlay_->SetBoundsRect(
+@@ -900,6 +1016,9 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
+ 
+ void PictureInPictureBrowserFrameView::AddedToWidget() {
+   widget_observation_.Observe(GetWidget());
++  // Dao: Initialize the overlay widget before the event observer so the
++  // observer can also monitor the overlay's native window for hover events.
++  DaoInitializeTopBarOverlay();
+   window_event_observer_ = std::make_unique<WindowEventObserver>(this);
+   child_dialog_observer_helper_ =
+       std::make_unique<ChildDialogObserverHelper>(this, browser_view());
+@@ -954,6 +1073,18 @@ void PictureInPictureBrowserFrameView::RemovedFromWidget() {
+   window_event_observer_.reset();
+   child_dialog_observer_helper_.reset();
+ 
++  // Dao: Tear down the overlay widget. `top_bar_container_view_` is owned by
++  // this widget's content view, so closing the widget releases it.
++  if (dao_top_bar_overlay_widget_) {
++    if (dao_overlay_drag_handler_) {
++      dao_top_bar_overlay_widget_->GetRootView()->RemovePostTargetHandler(
++          dao_overlay_drag_handler_.get());
++    }
++    top_bar_container_view_ = nullptr;
++    dao_top_bar_overlay_widget_.reset();
++  }
++  dao_overlay_drag_handler_.reset();
++
+   // Clear the AutoPiP setting overlay view.
+   if (auto_pip_setting_overlay_) {
+     auto_pip_setting_overlay_ = nullptr;
+@@ -1153,6 +1284,11 @@ PictureInPictureBrowserFrameView::GetContentSettingBubbleModelDelegate() {
  void PictureInPictureBrowserFrameView::OnWidgetActivationChanged(
      views::Widget* widget,
      bool active) {
@@ -26,53 +244,140 @@ index d69e8e49bf..d4e20eb5e6 100644
    // The window may become inactive when a popup modal shows, so we need to
    // check if the mouse is still inside the window.
    UpdateTopBarView(active || mouse_inside_window_ || IsOverlayViewVisible());
-@@ -1179,6 +1185,14 @@ void PictureInPictureBrowserFrameView::AnimationEnded(
-   if (animation == &top_bar_color_animation_) {
-     current_foreground_color_ = std::nullopt;
-     location_icon_view_->Update(/*suppress_animations=*/false);
-+    // Dao: When hide completes, atomically flip layout + shrink window.
-+    if (animation->GetCurrentValue() == 0.0 && GetWidget()) {
-+      dao_pip_top_bar_expanded_ = false;
-+      gfx::Rect bounds = GetWidget()->GetWindowBoundsInScreen();
-+      GetWidget()->SetBounds(gfx::Rect(
-+          bounds.x(), bounds.y() + kTopControlsHeight,
-+          bounds.width(), bounds.height() - kTopControlsHeight));
-+    }
-   }
+@@ -1169,6 +1305,9 @@ void PictureInPictureBrowserFrameView::OnWidgetBoundsChanged(
+     views::Widget* widget,
+     const gfx::Rect& new_bounds) {
+   PictureInPictureWindowManager::GetInstance()->UpdateCachedBounds(new_bounds);
++  // Dao: Keep the floating top-bar overlay aligned with the main PiP window
++  // whenever the user moves or resizes it.
++  DaoUpdateTopBarOverlayBounds();
  }
  
-@@ -1195,6 +1209,7 @@ void PictureInPictureBrowserFrameView::AnimationProgressed(
+ ///////////////////////////////////////////////////////////////////////////////
+@@ -1195,6 +1334,17 @@ void PictureInPictureBrowserFrameView::AnimationProgressed(
      }
      current_foreground_color_ = color;
      location_icon_view_->Update(/*suppress_animations=*/false);
 +
++    // Dao: Animate the entire top-bar container's opacity so the background
++    // (not just the text/icon foreground colors) fades in/out. At 0.0 the
++    // top bar is completely invisible; the web contents remain anchored at
++    // their original position because the top bar still consumes layout
++    // space via GetTopAreaHeight().
++    if (top_bar_container_view_->layer()) {
++      top_bar_container_view_->layer()->SetOpacity(
++          static_cast<float>(animation->GetCurrentValue()));
++    }
++
      return;
    }
  
-@@ -1368,6 +1383,15 @@ void PictureInPictureBrowserFrameView::UpdateTopBarView(bool render_active) {
-       hide_all_buttons_animation_.Stop();
-     }
- 
-+    // Dao: Atomically flip layout + expand window upward.
-+    if (GetWidget()) {
-+      dao_pip_top_bar_expanded_ = true;
-+      gfx::Rect bounds = GetWidget()->GetWindowBoundsInScreen();
-+      GetWidget()->SetBounds(gfx::Rect(
-+          bounds.x(), bounds.y() - kTopControlsHeight,
-+          bounds.width(), bounds.height() + kTopControlsHeight));
-+    }
-+
-     top_bar_color_animation_.Show();
- 
-     // SlideAnimation needs to be reset if only Show() is called.
-@@ -1436,6 +1460,10 @@ gfx::Insets PictureInPictureBrowserFrameView::ResizeBorderInsets() const {
+@@ -1288,6 +1438,21 @@ void PictureInPictureBrowserFrameView::OnPaint(gfx::Canvas* canvas) {
+ gfx::Rect PictureInPictureBrowserFrameView::ConvertTopBarControlViewBounds(
+     views::View* control_view,
+     views::View* source_view) const {
++  // Dao: `top_bar_container_view_` now lives in a separate overlay widget, so
++  // the control views are no longer descendants of `this`. Convert via screen
++  // coordinates, then back into `this`'s local space.
++  if (source_view && source_view->GetWidget() && GetWidget() &&
++      source_view->GetWidget() != GetWidget()) {
++    gfx::Rect bounds_in_source = control_view->GetMirroredBounds();
++    gfx::Point origin = bounds_in_source.origin();
++    views::View::ConvertPointToScreen(source_view, &origin);
++    gfx::Rect bounds_in_screen(origin, bounds_in_source.size());
++    gfx::Rect result = bounds_in_screen;
++    gfx::Point result_origin = result.origin();
++    views::View::ConvertPointFromScreen(this, &result_origin);
++    result.set_origin(result_origin);
++    return result;
++  }
+   gfx::RectF bounds(control_view->GetMirroredBounds());
+   views::View::ConvertRectToTarget(source_view, this, &bounds);
+   return gfx::ToEnclosingRect(bounds);
+@@ -1436,7 +1601,10 @@ gfx::Insets PictureInPictureBrowserFrameView::ResizeBorderInsets() const {
  }
  
  int PictureInPictureBrowserFrameView::GetTopAreaHeight() const {
-+  // Dao: Only reserve top bar space when expanded.
-+  if (!dao_pip_top_bar_expanded_) {
-+    return FrameBorderInsets().top();
-+  }
-   return FrameBorderInsets().top() + kTopControlsHeight;
+-  return FrameBorderInsets().top() + kTopControlsHeight;
++  // Dao: The top bar lives in a separate overlay widget and does not consume
++  // layout space inside the main PiP window. Only reserve the frame border at
++  // the top so that the web contents fill the entire inner area.
++  return FrameBorderInsets().top();
  }
  
+ gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
+@@ -1540,6 +1708,74 @@ bool PictureInPictureBrowserFrameView::IsOverlayViewVisible() const {
+   return auto_pip_setting_overlay_ && auto_pip_setting_overlay_->GetVisible();
+ }
+ 
++void PictureInPictureBrowserFrameView::DaoInitializeTopBarOverlay() {
++  // Dao: Guard against double-init and against the (expected but defensive)
++  // case where the container view was never built.
++  if (dao_top_bar_overlay_widget_ || !dao_top_bar_container_owned_) {
++    return;
++  }
++
++  auto overlay = std::make_unique<views::Widget>();
++  views::Widget::InitParams params(
++      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
++      views::Widget::InitParams::TYPE_POPUP);
++  params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
++  // Dao: Do not steal focus; the top bar buttons handle clicks directly on the
++  // overlay widget without needing to activate the window.
++  params.activatable = views::Widget::InitParams::Activatable::kNo;
++  params.accept_events = true;
++  params.remove_standard_frame = true;
++  params.shadow_type = views::Widget::InitParams::ShadowType::kNone;
++  params.name = "DaoPipTopBarOverlay";
++  params.parent = GetWidget()->GetNativeView();
++  params.bounds = gfx::Rect();
++  overlay->Init(std::move(params));
++  overlay->SetContentsView(std::move(dao_top_bar_container_owned_));
++  dao_top_bar_overlay_widget_ = std::move(overlay);
++
++  // Dao: Install a post-target mouse handler on the overlay's root view so
++  // drags in non-button areas of the top bar move the main PiP window.
++  dao_overlay_drag_handler_ = std::make_unique<OverlayDragHandler>(GetWidget());
++  dao_top_bar_overlay_widget_->GetRootView()->AddPostTargetHandler(
++      dao_overlay_drag_handler_.get());
++
++  // Dao: Do not set bounds or show here. At AddedToWidget() time, this frame
++  // view has not been laid out yet so GetLocalBounds() is empty, and SetBounds
++  // with an empty rect crashes on macOS (NativeWidgetMacNSWindowHost refuses
++  // zero-sized windows). Layout() will call DaoUpdateTopBarOverlayBounds(),
++  // which then sets bounds and shows the widget.
++}
++
++void PictureInPictureBrowserFrameView::DaoUpdateTopBarOverlayBounds() {
++  if (!dao_top_bar_overlay_widget_ || !GetWidget()) {
++    return;
++  }
++  // Dao: Compute the overlay rect in screen coordinates, matching the original
++  // top-bar position (content area top, minus frame border). The content
++  // container inside the overlay lays itself out to fill the widget.
++  gfx::Rect content_area = GetLocalBounds();
++  content_area.Inset(FrameBorderInsets());
++  gfx::Rect top_bar_local = content_area;
++  top_bar_local.set_height(kTopControlsHeight);
++  // Dao: Skip while the frame view has not been laid out yet. macOS refuses
++  // zero-sized NSWindows and SetBounds() with an empty rect would CHECK-fail.
++  if (top_bar_local.IsEmpty()) {
++    return;
++  }
++  gfx::Point origin = top_bar_local.origin();
++  views::View::ConvertPointToScreen(this, &origin);
++  gfx::Rect overlay_bounds_in_screen(origin, top_bar_local.size());
++  if (dao_top_bar_overlay_widget_->GetWindowBoundsInScreen() !=
++      overlay_bounds_in_screen) {
++    dao_top_bar_overlay_widget_->SetBounds(overlay_bounds_in_screen);
++  }
++  // Dao: Show on first valid bounds. ShowInactive keeps focus on the main
++  // PiP window.
++  if (!dao_top_bar_overlay_widget_->IsVisible()) {
++    dao_top_bar_overlay_widget_->ShowInactive();
++  }
++}
++
+ gfx::Size PictureInPictureBrowserFrameView::ComputeDialogPadding() const {
+   auto* host = browser_view()->GetWebContentsModalDialogHost();
+   if (!host) {

@@ -1,8 +1,35 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
-index 52aebdd66d..a908638ffc 100644
+index 52aebdd66d..6fdf4f25e1 100644
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
-@@ -367,7 +367,8 @@ class PictureInPictureBrowserFrameView
+@@ -36,6 +36,10 @@
+ 
+ class BrowserFrameBoundsChangeAnimation;
+ 
++namespace ui {
++class EventHandler;
++}  // namespace ui
++
+ namespace views {
+ class FrameBackground;
+ class Label;
+@@ -239,6 +243,15 @@ class PictureInPictureBrowserFrameView
+     return child_dialog_observer_helper_->IsChildResizePendingForTesting();
+   }
+ 
++  // Dao: The overlay widget hosting the top bar as a separate NSWindow so
++  // the bar can visually float above WebContents while still receiving mouse
++  // clicks on buttons. Returns null before AddedToWidget() or after
++  // RemovedFromWidget(). Only non-null on platforms where the overlay is
++  // used (currently macOS).
++  views::Widget* dao_top_bar_overlay_widget() {
++    return dao_top_bar_overlay_widget_.get();
++  }
++
+  protected:
+   views::View* top_bar_container_view() { return top_bar_container_view_; }
+ 
+@@ -367,7 +380,8 @@ class PictureInPictureBrowserFrameView
  
    // When the window is created and shown for the first time, we show the active
    // window state even if the mouse is not inside it.
@@ -12,13 +39,41 @@ index 52aebdd66d..a908638ffc 100644
  
    bool mouse_inside_window_ = false;
  
-@@ -411,6 +412,10 @@ class PictureInPictureBrowserFrameView
+@@ -411,6 +425,38 @@ class PictureInPictureBrowserFrameView
    // `resizeBy()` calls).
    std::unique_ptr<BrowserFrameBoundsChangeAnimation> bounds_change_animation_;
  
-+  // Dao: Top bar auto-hide — tracks whether the window is expanded to show it.
-+  bool dao_pip_top_bar_expanded_ = false;
-+  bool dao_pip_first_activation_suppressed_ = false;  // skip first show
++  // Dao: Skip the first activation so the top bar does not auto-fade-in when
++  // the PiP window initially opens (top bar remains invisible until the user
++  // hovers the window).
++  bool dao_pip_first_activation_suppressed_ = false;
++
++  // Dao: Temporarily owns the top-bar container view during construction.
++  // Ownership is transferred to `dao_top_bar_overlay_widget_` in
++  // AddedToWidget().
++  std::unique_ptr<views::View> dao_top_bar_container_owned_;
++
++  // Dao: A separate borderless/transparent child Widget (backed by its own
++  // NSWindow on macOS) that hosts the top bar. Keeping the top bar in its
++  // own native window lets button clicks bypass the WebContents NSView
++  // hit-test, so the top bar can visually overlay web content while
++  // `GetTopAreaHeight()` reserves no layout space.
++  std::unique_ptr<views::Widget> dao_top_bar_overlay_widget_;
++
++  // Dao: Post-target mouse handler installed on the overlay widget's root
++  // view. Forwards drag operations on non-button areas of the top bar to the
++  // main PiP widget (moves the main window). Typed as base class so the
++  // header does not have to include the private handler definition.
++  std::unique_ptr<ui::EventHandler> dao_overlay_drag_handler_;
++
++  // Dao: Set up the overlay widget and transfer ownership of the top bar
++  // container into it. Called from AddedToWidget().
++  void DaoInitializeTopBarOverlay();
++
++  // Dao: Synchronize the overlay widget's screen bounds to sit over the
++  // top of the main PiP window. Called on layout and on widget bounds
++  // changes.
++  void DaoUpdateTopBarOverlayBounds();
 +
    base::WeakPtrFactory<PictureInPictureBrowserFrameView> weak_factory_{this};
  };
