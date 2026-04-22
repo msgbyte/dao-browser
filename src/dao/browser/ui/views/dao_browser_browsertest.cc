@@ -4,16 +4,23 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "content/public/browser/document_picture_in_picture_window_controller.h"
+#include "content/public/browser/picture_in_picture_window_controller.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
@@ -23,7 +30,12 @@
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "third_party/blink/public/common/features.h"
+#include "ui/compositor/layer.h"
+#include "ui/views/view.h"
+#include "ui/views/widget/widget.h"
 
 namespace dao {
 namespace {
@@ -505,6 +517,141 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   base::FilePath folder_path =
       profile->GetPath().AppendASCII("dao_folders.json");
   EXPECT_FALSE(base::PathExists(folder_path));
+}
+
+// =============================================================================
+// DaoPipTopBarOverlayBrowserTest
+//
+// Exercises the Dao-specific customizations applied to the Chromium Document
+// Picture-in-Picture frame view: the top bar is hosted in a separate overlay
+// `views::Widget` so web contents can fill the entire inner area, the top bar
+// container has its own compositor layer with rounded top corners, and the
+// frame view no longer reserves layout space for the top bar.
+// =============================================================================
+
+class DaoPipTopBarOverlayBrowserTest : public InProcessBrowserTest {
+ public:
+  DaoPipTopBarOverlayBrowserTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {blink::features::kDocumentPictureInPictureAPI}, {});
+  }
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+  // Opens a document PiP window from the test's active tab and returns the
+  // frame view of the child PiP browser. Returns null on failure.
+  PictureInPictureBrowserFrameView* OpenDocumentPipAndGetFrameView() {
+    const base::FilePath::CharType kDocumentPipPage[] =
+        FILE_PATH_LITERAL("media/picture-in-picture/document-pip.html");
+    GURL test_page_url = ui_test_utils::GetTestUrl(
+        base::FilePath(base::FilePath::kCurrentDirectory),
+        base::FilePath(kDocumentPipPage));
+    if (!ui_test_utils::NavigateToURL(browser(), test_page_url)) {
+      return nullptr;
+    }
+
+    content::WebContents* active_web_contents =
+        browser()->tab_strip_model()->GetActiveWebContents();
+    if (!active_web_contents) {
+      return nullptr;
+    }
+
+    auto* controller = content::PictureInPictureWindowController::
+        GetOrCreateDocumentPictureInPictureController(active_web_contents);
+    if (!controller) {
+      return nullptr;
+    }
+
+    // Open a modestly sized PiP window. createDocumentPipWindow is defined in
+    // chrome/test/data/media/picture-in-picture/document-pip.html.
+    if (content::EvalJs(
+            active_web_contents,
+            "createDocumentPipWindow({width: 400, height: 300})") !=
+        true) {
+      return nullptr;
+    }
+
+    auto* child_web_contents = controller->GetChildWebContents();
+    if (!child_web_contents) {
+      return nullptr;
+    }
+
+    auto* pip_browser_view = static_cast<BrowserView*>(
+        BrowserWindow::FindBrowserWindowWithWebContents(child_web_contents));
+    if (!pip_browser_view || !pip_browser_view->browser() ||
+        !pip_browser_view->browser()->is_type_picture_in_picture()) {
+      return nullptr;
+    }
+    return static_cast<PictureInPictureBrowserFrameView*>(
+        pip_browser_view->frame()->GetFrameView());
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// The Dao PiP frame view should create a separate overlay Widget that hosts
+// the top bar in its own native window. Before our change, the top bar was a
+// direct child view of the frame view and no overlay widget existed.
+IN_PROC_BROWSER_TEST_F(DaoPipTopBarOverlayBrowserTest,
+                       OverlayWidgetExistsAfterPipOpens) {
+  auto* pip_frame_view = OpenDocumentPipAndGetFrameView();
+  ASSERT_NE(nullptr, pip_frame_view);
+  EXPECT_NE(nullptr, pip_frame_view->dao_top_bar_overlay_widget());
+}
+
+// GetTopAreaHeight() should only include the frame border top inset; it must
+// NOT add kTopControlsHeight, because the top bar is hosted in the floating
+// overlay widget and consumes no layout space in the main PiP window. This is
+// the behavior that allows web contents to fill the full inner area.
+IN_PROC_BROWSER_TEST_F(DaoPipTopBarOverlayBrowserTest,
+                       TopAreaHeightDoesNotReserveTopBar) {
+  auto* pip_frame_view = OpenDocumentPipAndGetFrameView();
+  ASSERT_NE(nullptr, pip_frame_view);
+  EXPECT_EQ(pip_frame_view->FrameBorderInsets().top(),
+            pip_frame_view->GetTopAreaHeight());
+}
+
+// The overlay widget's contents view (our top_bar_container_view_) must paint
+// to a compositor layer so its opacity can be animated. Without the layer, the
+// fade-in/out on hover would not work.
+IN_PROC_BROWSER_TEST_F(DaoPipTopBarOverlayBrowserTest,
+                       TopBarContainerHasLayer) {
+  auto* pip_frame_view = OpenDocumentPipAndGetFrameView();
+  ASSERT_NE(nullptr, pip_frame_view);
+  views::Widget* overlay = pip_frame_view->dao_top_bar_overlay_widget();
+  ASSERT_NE(nullptr, overlay);
+  views::View* container = overlay->GetContentsView();
+  ASSERT_NE(nullptr, container);
+  EXPECT_NE(nullptr, container->layer());
+}
+
+// The top bar container's layer should have rounded top corners (to match the
+// PiP window's rounded top) but square bottom corners (so the bar meets the
+// webcontents with a straight edge when fully opaque). Because the overlay is
+// an independent NSWindow on macOS, the main window's corner clip does not
+// apply to it — the radius must be set on the layer directly.
+IN_PROC_BROWSER_TEST_F(DaoPipTopBarOverlayBrowserTest,
+                       TopBarContainerHasRoundedTopCorners) {
+  auto* pip_frame_view = OpenDocumentPipAndGetFrameView();
+  ASSERT_NE(nullptr, pip_frame_view);
+  views::Widget* overlay = pip_frame_view->dao_top_bar_overlay_widget();
+  ASSERT_NE(nullptr, overlay);
+  views::View* container = overlay->GetContentsView();
+  ASSERT_NE(nullptr, container);
+  ASSERT_NE(nullptr, container->layer());
+  const gfx::RoundedCornersF& corners =
+      container->layer()->rounded_corner_radii();
+  EXPECT_GT(corners.upper_left(), 0.f);
+  EXPECT_GT(corners.upper_right(), 0.f);
+  EXPECT_EQ(0.f, corners.lower_left());
+  EXPECT_EQ(0.f, corners.lower_right());
+  EXPECT_FLOAT_EQ(corners.upper_left(), corners.upper_right());
 }
 
 }  // namespace
