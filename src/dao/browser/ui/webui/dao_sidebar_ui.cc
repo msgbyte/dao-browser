@@ -48,6 +48,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
+#include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
@@ -1474,6 +1475,11 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
         ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
         writer.WriteText(
             base::UTF8ToUTF16(contents->GetVisibleURL().spec()));
+        BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+        if (bv && bv->dao_toast()) {
+          bv->dao_toast()->ShowToast(u"Copied Current Url");
+          bv->InvalidateLayout();
+        }
       }
       break;
     }
