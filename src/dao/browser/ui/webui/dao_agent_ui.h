@@ -134,6 +134,17 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
                        double viewport_y,
                        content::WebContents* locked_contents);
 
+  // Second half of PerformCDPClick: dispatches mousePressed then
+  // mouseReleased with matching `buttons` bitmask. Split out so the
+  // prefix mouseMoved event can be awaited in a separate CDP round trip
+  // without ballooning the nested lambda chain.
+  void DispatchPressAndRelease(const std::string& callback_id,
+                               const std::string& escaped_selector,
+                               double viewport_x,
+                               double viewport_y,
+                               content::WebContents* locked_contents,
+                               base::Value::Dict press_params);
+
   // CDP event handler for network/console tracking.
   void OnCDPEvent(const std::string& method,
                   const base::Value::Dict& params);

@@ -1133,13 +1133,59 @@ void DaoAgentUIHandler::PerformCDPClick(
     double viewport_x,
     double viewport_y,
     content::WebContents* locked_contents) {
+  // CDP Input.dispatchMouseEvent needs BOTH `button` (the button that fired
+  // this event) and `buttons` (bitmask of currently-pressed buttons). Many
+  // page event paths — React's synthetic event system, any handler that
+  // reads MouseEvent.buttons, and Blink's own click synthesis in strict
+  // modes — silently drop events where `buttons` is 0 on a mousePressed.
+  // We also dispatch a `mouseMoved` at the same coords first so hover-
+  // gated UI (dropdown menus, :hover reveal buttons) has a chance to
+  // settle before the press lands.
+  base::Value::Dict move_params;
+  move_params.Set("type", "mouseMoved");
+  move_params.Set("x", static_cast<int>(viewport_x));
+  move_params.Set("y", static_cast<int>(viewport_y));
+  move_params.Set("button", "none");
+  move_params.Set("buttons", 0);
+
   base::Value::Dict press_params;
   press_params.Set("type", "mousePressed");
   press_params.Set("x", static_cast<int>(viewport_x));
   press_params.Set("y", static_cast<int>(viewport_y));
   press_params.Set("button", "left");
+  press_params.Set("buttons", 1);
   press_params.Set("clickCount", 1);
 
+  devtools_client_->SendCommand(
+      "Input.dispatchMouseEvent", std::move(move_params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string callback_id,
+             std::string escaped_selector,
+             double vx, double vy,
+             content::WebContents* locked,
+             base::Value::Dict press_params,
+             base::Value) {
+            if (!handler) {
+              UnlockLockedTab(locked);
+              return;
+            }
+            handler->DispatchPressAndRelease(
+                callback_id, escaped_selector, vx, vy, locked,
+                std::move(press_params));
+          },
+          weak_factory_.GetWeakPtr(), callback_id, escaped_selector,
+          viewport_x, viewport_y, locked_contents,
+          std::move(press_params)));
+}
+
+void DaoAgentUIHandler::DispatchPressAndRelease(
+    const std::string& callback_id,
+    const std::string& escaped_selector,
+    double viewport_x,
+    double viewport_y,
+    content::WebContents* locked_contents,
+    base::Value::Dict press_params) {
   devtools_client_->SendCommand(
       "Input.dispatchMouseEvent", std::move(press_params),
       base::BindOnce(
@@ -1157,6 +1203,7 @@ void DaoAgentUIHandler::PerformCDPClick(
             release_params.Set("x", static_cast<int>(vx));
             release_params.Set("y", static_cast<int>(vy));
             release_params.Set("button", "left");
+            release_params.Set("buttons", 0);
             release_params.Set("clickCount", 1);
 
             handler->devtools_client_->SendCommand(
@@ -3329,7 +3376,7 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui)
   // Allow innerHTML usage (streaming markdown rendering).
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes,
-      "trusted-types default lit-html-desktop;");
+      "trusted-types default lit-html-desktop lit-html;");
 
   // Register message handlers.
   web_ui->AddMessageHandler(std::make_unique<DaoAgentUIHandler>());
@@ -3365,7 +3412,7 @@ DaoSkillsUI::DaoSkillsUI(content::WebUI* web_ui)
   // Allow Lit HTML rendering.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes,
-      "trusted-types default lit-html-desktop;");
+      "trusted-types default lit-html-desktop lit-html;");
 
   // Register skill message handler only.
   web_ui->AddMessageHandler(std::make_unique<DaoAgentSkillHandler>());

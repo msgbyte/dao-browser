@@ -1,0 +1,39 @@
+{
+  "entries": [
+    {
+      "name": "readability",
+      "format": "iife-string",
+      "outFile": "src/dao/browser/ui/webui/resources/agent/readability_bundle.ts",
+      "pkgVersions": {
+        "@mozilla/readability": "0.6.0"
+      },
+      "sha256": "0aa4b4e227b5a0b029042c7da6ac2adda524c728d94d5f2d6a74174d142d30d0",
+      "generatedAt": "2026-04-24T03:02:30.438Z"
+    },
+    {
+      "name": "pi-runtime",
+      "format": "esm",
+      "outFile": "src/dao/browser/ui/webui/resources/agent/vendor/pi_runtime_bundle.ts",
+      "pkgVersions": {
+        "@mariozechner/pi-ai": "^0.69.0",
+        "@mariozechner/pi-agent-core": "^0.69.0",
+        "@mariozechner/pi-web-ui": "^0.69.0",
+        "@mariozechner/mini-lit": "^0.2.1",
+        "@sinclair/typebox": "^0.34.49",
+        "lit": "^3.3.2"
+      },
+      "sha256": "44f9fb95576448a48f0bde7087efe3392a806de8f79191f0ec8785b4ba8884ba",
+      "generatedAt": "2026-04-24T03:46:38.964Z"
+    },
+    {
+      "name": "pi-web-ui-css",
+      "format": "customBuild",
+      "outFile": "src/dao/browser/ui/webui/resources/agent/vendor/pi_web_ui.css",
+      "pkgVersions": {
+        "@mariozechner/pi-web-ui": "^0.69.0"
+      },
+      "sha256": "436c5ed25cd0ba0541bab720b04b8c23b637e778231dd1402fed117b25ec4f77",
+      "generatedAt": "2026-04-24T03:02:30.906Z"
+    }
+  ]
+}

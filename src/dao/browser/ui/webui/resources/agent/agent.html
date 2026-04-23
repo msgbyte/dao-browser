@@ -1,8 +1,17 @@
 <!DOCTYPE html>
+<!-- Dao's sidebar is a LIGHT purple-gray surface (dao_colors.h:
+     kSidebarBackground = RGB(201,197,208)). pi-web-ui's `:root` theme
+     is already light — we override the subset of tokens we want
+     (translucent white cards, Dao purple `--primary`, dark text) in
+     agent.css under a `dao-chat-view, pi-chat-panel` scope. Do NOT
+     add `class="dark"` here: it activates pi-web-ui's dark syntax
+     highlighting and every `dark:*` Tailwind variant, fighting the
+     light base. -->
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="vendor/pi_web_ui.css">
 <link rel="stylesheet" href="agent.css">
 </head>
 <body>

@@ -5,6 +5,7 @@
 // Shared non-UI utilities: chrome.send bridge, interfaces, LLM streaming,
 // markdown rendering, constants.
 
+import {getActiveLLMConfig} from './llm_config.js';
 import {READABILITY_INJECT_SCRIPT} from './readability_bundle.js';
 import {saveUserSkill} from './skill_registry.js';
 
@@ -153,7 +154,7 @@ You have the following browser tools at your disposal — use them proactively w
 - **highlight_element** — Highlight an element on the page with a purple border overlay.
 - **get_accessibility_tree** — Get a semantic accessibility tree of the current page with element roles, names, and ref_ids for interactive elements. **Use this before interacting with page elements** — it gives you a precise map of what's on the page. Use the ref_ids with \`click_by_ref\` for reliable clicking.
 - **click_by_ref** — Click an interactive element by its ref_id from the accessibility tree. More reliable than CSS selectors because ref_ids are assigned deterministically.
-- **capture_screenshot** — Capture a screenshot of the current page viewport. Use when you need to visually understand the page layout, verify an action was performed correctly, or when the user asks what the page looks like. The screenshot will be included in the conversation for visual analysis.
+- **capture_screenshot** — Capture a screenshot of the current page viewport. **Expensive — avoid unless necessary.** Each screenshot is a full base64-encoded image that balloons the conversation context. Only call when: (a) the user explicitly asks what the page looks like / to see something, (b) you need visual layout info that text tools cannot provide (e.g. colors, relative positions, image contents), or (c) a prior text tool returned ambiguous / empty output and a visual check is the only way forward. **Do NOT** screenshot to "verify" a click, scroll, or form fill — the tool already returns structured success info. **Do NOT** screenshot at the start of a task "to get oriented" — use \`get_accessibility_tree\` or \`get_readable_content\` instead. **Do NOT** screenshot after every navigation; one per task at most unless the user asks for more.
 - **scroll_down** / **scroll_up** — Scroll the page down or up by one viewport height. Returns scroll position info.
 - **scroll_to_element** — Scroll a specific element into view. Accepts either a CSS selector or a ref_id from the accessibility tree.
 - **press_key_chord** — Simulate a keyboard shortcut on the current page (e.g. "ctrl+a", "cmd+c", "Enter", "Tab", "Escape"). Use for form submission, copy/paste, navigation shortcuts, etc.
@@ -183,8 +184,8 @@ You have the following browser tools at your disposal — use them proactively w
 
 - **Recommended workflow for page interaction:**
   1. \`get_accessibility_tree\` — understand what's on the page
-  2. \`click_by_ref\` / \`scroll_*\` — interact using ref_ids
-  3. \`capture_screenshot\` — verify the result visually
+  2. \`click_by_ref\` / \`scroll_*\` / \`type_text\` — interact using ref_ids
+  3. Trust the tool's return value as proof the action happened. Only re-query the page (\`get_accessibility_tree\`, \`get_readable_content\`) if you need to see a *new* state; never screenshot just to "verify". The user can see their own screen.
 - When the user asks about page content, call \`get_readable_content\` first for articles/news/docs (smaller, cleaner output), or \`get_page_content\` for other pages — don't guess.
 - Prefer \`click_by_ref\` with ref_ids from the accessibility tree over CSS selectors. Fall back to \`click_element\` with CSS selectors only if the accessibility tree is not available.
 - For \`execute_script\`, return serializable values (strings, numbers, plain objects). Avoid returning DOM nodes directly.
@@ -779,10 +780,6 @@ export const tools: ToolDefinition[] = [
   },
 ];
 
-// ---- Markdown Rendering (re-exported from markdown_renderer.ts) ----
-
-export {renderMarkdown} from './markdown_renderer.js';
-
 // ---- Tool Execution ----
 
 function getStringArg(args: Record<string, unknown>, key: string): string {
@@ -792,6 +789,17 @@ function getStringArg(args: Record<string, unknown>, key: string): string {
 function getBooleanArg(args: Record<string, unknown>, key: string): boolean {
   return args[key] === true;
 }
+
+// Runtime guardrail against capture_screenshot spam. Prompts alone don't
+// fully suppress the "screenshot after every action" pattern on weaker
+// models; a time-based dedup per (url, viewport) window nudges without
+// blocking legitimate re-captures across navigations. 2.5s is short
+// enough that an actual navigation settles before the next call, long
+// enough that back-to-back "click → screenshot → think → screenshot"
+// loops get intercepted.
+let lastScreenshotAt_ = 0;
+let lastScreenshotUrl_ = '';
+const SCREENSHOT_MIN_INTERVAL_MS = 2500;
 
 export async function executeTool(
     name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -897,9 +905,26 @@ export async function executeTool(
         description: getStringArg(args, 'description'),
       });
     case 'capture_screenshot': {
+      const pageInfo = await callNative('getPageInfo') as {url?: string};
+      const currentUrl = pageInfo?.url || '';
+      const now = Date.now();
+      const delta = now - lastScreenshotAt_;
+      if (lastScreenshotAt_ > 0 && delta < SCREENSHOT_MIN_INTERVAL_MS &&
+          currentUrl === lastScreenshotUrl_) {
+        return {
+          error:
+              `You just captured this page ${delta}ms ago and the URL has ` +
+              `not changed. Reuse the previous screenshot — do not call ` +
+              `capture_screenshot to "verify" each action. If you need the ` +
+              `post-action page state, use get_accessibility_tree or ` +
+              `get_readable_content instead.`,
+        };
+      }
       const result = await callNative('captureScreenshot') as
           {data?: string; error?: string};
       if (result.error) return {error: result.error};
+      lastScreenshotAt_ = now;
+      lastScreenshotUrl_ = currentUrl;
       return {
         screenshot_taken: true,
         _base64: result.data,
@@ -976,152 +1001,16 @@ export interface StreamCallbacks {
 
 export async function callLLMStreaming(
     msgs: ChatMessage[], callbacks: StreamCallbacks,
-    apiKey: string, baseUrl: string, model: string,
     signal?: AbortSignal): Promise<void> {
-  let base = baseUrl.replace(/\/+$/, '');
-  if (!base.endsWith('/v1')) {
-    base += '/v1';
-  }
-  const url = base + '/chat/completions';
-
-  const body = {
-    model,
-    stream: true,
-    stream_options: {include_usage: true},
-    messages: msgs.map(m => {
-      const obj: Record<string, unknown> = {role: m.role};
-      // Support both string and multimodal content (ContentPart[]).
-      if (Array.isArray(m.content)) {
-        obj['content'] = m.content;
-      } else {
-        obj['content'] = m.content;
-      }
-      if (m.tool_calls) obj['tool_calls'] = m.tool_calls;
-      if (m.tool_call_id) obj['tool_call_id'] = m.tool_call_id;
-      if (m.name) obj['name'] = m.name;
-      return obj;
-    }),
-    tools,
-    tool_choice: 'auto',
-  };
-
-  let resp: Response;
-  try {
-    resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey,
-      },
-      body: JSON.stringify(body),
-      signal,
-    });
-  } catch (e) {
-    const err = e as Error;
-    if (err.name === 'AbortError') throw err;
-    callbacks.onError('Connection Failed', err.message || 'Cannot reach API');
-    return;
-  }
-
-  if (!resp.ok) {
-    let text = '';
-    try { text = await resp.text(); } catch (_) { /* ignore */ }
-    callbacks.onError(
-        'API Error: ' + resp.status,
-        resp.status + ' ' + text.substring(0, 500));
-    return;
-  }
-
-  if (!resp.body) {
-    callbacks.onError('No Response Body', 'The API returned no streaming body');
-    return;
-  }
-
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let partialLine = '';
-  let fullContent = '';
-  let usage: UsageInfo|undefined;
-  const toolCallMap: Record<
-      number,
-      {id: string; type: 'function'; function: {name: string; arguments: string}}
-      > = {};
-  const toolCallsEmitted = new Set<number>();
-
-  try {
-    while (true) {
-      if (signal?.aborted) break;
-      const {done, value} = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, {stream: true});
-      const lines = (partialLine + chunk).split('\n');
-      partialLine = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data: ')) continue;
-        const data = trimmed.slice(6);
-        if (data === '[DONE]') continue;
-
-        try {
-          const parsed = JSON.parse(data);
-
-          // Capture usage from the final chunk (OpenAI stream_options)
-          if (parsed.usage) {
-            usage = {
-              prompt_tokens: parsed.usage.prompt_tokens || 0,
-              completion_tokens: parsed.usage.completion_tokens || 0,
-              total_tokens: parsed.usage.total_tokens || 0,
-            };
-          }
-
-          const delta = parsed.choices?.[0]?.delta;
-          if (!delta) continue;
-
-          if (delta.content) {
-            fullContent += delta.content;
-            callbacks.onToken(delta.content);
-          }
-
-          if (delta.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index ?? 0;
-              if (!toolCallMap[idx]) {
-                toolCallMap[idx] = {
-                  id: tc.id || '',
-                  type: 'function',
-                  function: {name: '', arguments: ''},
-                };
-              }
-              if (tc.id) toolCallMap[idx].id = tc.id;
-              if (tc.function?.name) {
-                toolCallMap[idx].function.name += tc.function.name;
-              }
-              if (tc.function?.arguments) {
-                toolCallMap[idx].function.arguments += tc.function.arguments;
-              }
-              if (toolCallMap[idx].function.name &&
-                  !toolCallsEmitted.has(idx)) {
-                toolCallsEmitted.add(idx);
-                callbacks.onToolCall(toolCallMap[idx]);
-              }
-            }
-          }
-        } catch (_) {
-          // Skip malformed JSON lines
-        }
-      }
-    }
-  } catch (e) {
-    const err = e as Error;
-    if (err.name === 'AbortError') throw err;
-    callbacks.onError(
-        'Stream Error', err.message || 'Error reading response stream');
-    return;
-  }
-
-  callbacks.onDone(fullContent, Object.values(toolCallMap), usage);
+  const cfg = getActiveLLMConfig();
+  const {callLLMStreamingWithPi} = await import('./pi_llm_stream.js');
+  return callLLMStreamingWithPi(msgs, tools, callbacks, {
+    provider: cfg.provider,
+    apiKey: cfg.apiKey,
+    baseUrl: cfg.baseUrl,
+    model: cfg.model,
+    signal,
+  });
 }
 
 // ---- Agent Stats ----

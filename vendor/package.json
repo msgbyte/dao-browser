@@ -1,0 +1,19 @@
+{
+  "name": "dao-browser-vendor",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Isolated workspace for vendored npm dependencies that end up in the Chromium WebUI resource tree. Do not import this package.json from anywhere other than scripts/commands/vendor.ts.",
+  "type": "module",
+  "dependencies": {
+    "@mariozechner/mini-lit": "^0.2.1",
+    "@mariozechner/pi-agent-core": "^0.69.0",
+    "@mariozechner/pi-ai": "^0.69.0",
+    "@mariozechner/pi-web-ui": "^0.69.0",
+    "@mozilla/readability": "0.6.0",
+    "@sinclair/typebox": "^0.34.49",
+    "lit": "^3.3.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2"
+  }
+}

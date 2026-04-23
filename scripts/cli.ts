@@ -4,6 +4,7 @@ import { importCommand } from "./commands/import.js";
 import { exportCommand } from "./commands/export.js";
 import { buildCommand } from "./commands/build.js";
 import { packageCommand } from "./commands/package.js";
+import { vendorCommand } from "./commands/vendor.js";
 
 const program = new Command();
 
@@ -17,5 +18,6 @@ program.addCommand(importCommand);
 program.addCommand(exportCommand);
 program.addCommand(buildCommand);
 program.addCommand(packageCommand);
+program.addCommand(vendorCommand);
 
 program.parse();

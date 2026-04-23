@@ -6,6 +6,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -45,6 +46,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 #include "ui/compositor/layer.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/view.h"
@@ -1093,6 +1095,52 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        RegularBrowserIsNotLittleDaoWindow) {
   EXPECT_FALSE(dao::DaoLittleDaoController::IsLittleDaoWindow(browser()));
   EXPECT_FALSE(dao::DaoLittleDaoController::IsCreatingLittleDao());
+}
+
+// =============================================================================
+// DaoAgentWebUILoadTest
+//
+// Navigates to chrome://agent/ and asserts the vendored pi-mono runtime
+// loads far enough for the top-level <dao-agent-app> custom element to
+// register. Captures every console message emitted during load; any
+// message at severity kError fails the test with the full JS error string
+// attached so regressions in the vendored bundle (CSP refusals,
+// unresolved specifiers, stubbed-dep misuse, etc.) surface directly in
+// CI output.
+// =============================================================================
+
+using DaoAgentWebUILoadTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, LoadsWithoutConsoleErrors) {
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  content::WebContentsConsoleObserver observer(web_contents);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome://agent/")));
+
+  // Wait for the top-level custom element registration. If the module
+  // graph fails to evaluate (CSP, unresolved specifier, TypeError during
+  // top-level import), whenDefined never resolves and EvalJs times out —
+  // the captured console errors below explain why.
+  constexpr char kWaitScript[] = R"(
+    (async () => {
+      await customElements.whenDefined('dao-agent-app');
+      return !!document.querySelector('dao-agent-app');
+    })()
+  )";
+  EXPECT_EQ(true, content::EvalJs(web_contents, kWaitScript));
+
+  std::vector<std::string> errors;
+  for (const auto& msg : observer.messages()) {
+    if (msg.log_level == blink::mojom::ConsoleMessageLevel::kError) {
+      errors.push_back(base::UTF16ToUTF8(msg.message));
+    }
+  }
+  EXPECT_TRUE(errors.empty())
+      << "chrome://agent/ emitted console errors during load:\n - "
+      << base::JoinString(errors, "\n - ");
 }
 
 }  // namespace

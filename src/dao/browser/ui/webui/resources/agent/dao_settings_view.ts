@@ -17,11 +17,20 @@ import {
   soulChannel,
 } from './agent_bridge.js';
 import type {AgentStats} from './agent_bridge.js';
+import {
+  getActiveProvider,
+  getProviderConfig,
+  LLM_PROVIDERS,
+  setActiveProvider,
+  setProviderConfig,
+} from './llm_config.js';
+import type {ProviderSpec} from './llm_config.js';
 
 export class DaoSettingsView extends CrLitElement {
   static override get properties() {
     return {
       activeSubTab_: {type: String, state: true},
+      provider_: {type: String, state: true},
       apiKey_: {type: String, state: true},
       baseUrl_: {type: String, state: true},
       model_: {type: String, state: true},
@@ -40,10 +49,12 @@ export class DaoSettingsView extends CrLitElement {
       showConfirmDialog_: {type: Boolean, state: true},
       agentStats_: {type: Object, state: true},
       showResetStatsDialog_: {type: Boolean, state: true},
+      toolCallShowDetails_: {type: Boolean, state: true},
     };
   }
 
   private activeSubTab_ = 'connection';
+  private provider_ = 'openai-compatible';
   private apiKey_ = '';
   private baseUrl_ = 'https://api.openai.com/v1';
   private model_ = 'gpt-5';
@@ -63,6 +74,7 @@ export class DaoSettingsView extends CrLitElement {
   private saveStatusTimer_ = 0;
   private agentStats_: AgentStats|null = null;
   private showResetStatsDialog_ = false;
+  private toolCallShowDetails_ = false;
 
   static override get styles() {
     return css`
@@ -128,6 +140,27 @@ export class DaoSettingsView extends CrLitElement {
       input:focus {
         border-color: rgba(140, 100, 220, 0.4);
         box-shadow: 0 0 0 3px rgba(140, 100, 220, 0.08);
+      }
+      select {
+        width: 100%; padding: 7px 10px;
+        box-sizing: border-box;
+        background: var(--glass); border: 1px solid var(--glass-border);
+        border-radius: 10px; color: var(--text);
+        font-size: 12px; font-family: inherit; outline: none;
+        box-shadow: var(--shadow-sm);
+        appearance: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 28px;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      select:focus {
+        border-color: rgba(140, 100, 220, 0.4);
+        box-shadow: 0 0 0 3px rgba(140, 100, 220, 0.08);
+      }
+      select option {
+        background: var(--glass-strong, #2a2434); color: var(--text);
       }
 
       /* Soul editor */
@@ -388,33 +421,78 @@ export class DaoSettingsView extends CrLitElement {
   }
 
   private renderConnection_() {
+    const spec = this.getProviderSpec_(this.provider_);
     return html`
       <div class="panel">
         <div class="section-title">API Connection</div>
         <div class="section-desc">
-          Configure the LLM API endpoint for the agent.</div>
+          Configure the LLM provider for the agent. Each provider keeps
+          its own credentials.</div>
+        <label>Provider</label>
+        <select .value=${this.provider_}
+            @change=${(e: Event) =>
+                this.onProviderChange_(
+                    (e.target as HTMLSelectElement).value)}>
+          ${LLM_PROVIDERS.map(p => html`
+            <option value=${p.id}
+                ?selected=${p.id === this.provider_}>${p.label}</option>`)}
+        </select>
         <label>API Key</label>
         <input type="password" .value=${this.apiKey_}
-            placeholder="sk-..."
-            @change=${(e: Event) => this.saveSetting_(
-                'dao_agent_api_key',
-                (e.target as HTMLInputElement).value,
-                v => this.apiKey_ = v)}>
-        <label>Base URL</label>
-        <input type="text" .value=${this.baseUrl_}
-            placeholder="https://api.openai.com/v1"
-            @change=${(e: Event) => this.saveSetting_(
-                'dao_agent_base_url',
-                (e.target as HTMLInputElement).value,
-                v => this.baseUrl_ = v)}>
+            placeholder=${spec.apiKeyPlaceholder}
+            @change=${(e: Event) => this.onApiKeyChange_(
+                (e.target as HTMLInputElement).value)}>
+        ${spec.needsBaseUrl ? html`
+          <label>Base URL</label>
+          <input type="text" .value=${this.baseUrl_}
+              placeholder=${spec.defaultBaseUrl ?? ''}
+              @change=${(e: Event) => this.onBaseUrlChange_(
+                  (e.target as HTMLInputElement).value)}>` : nothing}
         <label>Model</label>
         <input type="text" .value=${this.model_}
-            placeholder="gpt-5"
-            @change=${(e: Event) => this.saveSetting_(
-                'dao_agent_model',
-                (e.target as HTMLInputElement).value,
-                v => this.model_ = v)}>
+            placeholder=${spec.defaultModel}
+            @change=${(e: Event) => this.onModelChange_(
+                (e.target as HTMLInputElement).value)}>
+
+        <div class="section-title" style="margin-top:18px">Display</div>
+        ${this.renderToggle_(
+            'Show Tool Call Details',
+            'Expand every tool call input / output by default',
+            this.toolCallShowDetails_, (v) => {
+              this.toolCallShowDetails_ = v;
+              localStorage.setItem(
+                  'dao_tool_call_show_details', String(v));
+            })}
       </div>`;
+  }
+
+  private getProviderSpec_(id: string): ProviderSpec {
+    return LLM_PROVIDERS.find(p => p.id === id) ?? LLM_PROVIDERS[0]!;
+  }
+
+  private onProviderChange_(id: string) {
+    if (!LLM_PROVIDERS.some(p => p.id === id)) return;
+    setActiveProvider(id);
+    this.provider_ = id;
+    const cfg = getProviderConfig(id);
+    this.apiKey_ = cfg.apiKey;
+    this.baseUrl_ = cfg.baseUrl;
+    this.model_ = cfg.model;
+  }
+
+  private onApiKeyChange_(value: string) {
+    this.apiKey_ = value;
+    setProviderConfig(this.provider_, {apiKey: value});
+  }
+
+  private onBaseUrlChange_(value: string) {
+    this.baseUrl_ = value;
+    setProviderConfig(this.provider_, {baseUrl: value});
+  }
+
+  private onModelChange_(value: string) {
+    this.model_ = value;
+    setProviderConfig(this.provider_, {model: value});
   }
 
   private renderSoul_() {
@@ -697,11 +775,14 @@ export class DaoSettingsView extends CrLitElement {
   // ---- Settings Persistence ----
 
   private loadSettings_() {
-    this.apiKey_ = localStorage.getItem('dao_agent_api_key') || '';
-    this.baseUrl_ = localStorage.getItem('dao_agent_base_url') ||
-        'https://api.openai.com/v1';
-    this.model_ = localStorage.getItem('dao_agent_model') || 'gpt-5';
+    this.provider_ = getActiveProvider();
+    const cfg = getProviderConfig(this.provider_);
+    this.apiKey_ = cfg.apiKey;
+    this.baseUrl_ = cfg.baseUrl;
+    this.model_ = cfg.model;
     this.soulText_ = currentSoulContent;
+    this.toolCallShowDetails_ =
+        localStorage.getItem('dao_tool_call_show_details') === 'true';
   }
 
   private loadMemorySettings_() {
@@ -724,12 +805,6 @@ export class DaoSettingsView extends CrLitElement {
     callNativeArgs(
         'setConfidenceThreshold',
         CONFIDENCE_THRESHOLD_MAP[this.threshold_] ?? 0.7).catch(() => {});
-  }
-
-  private saveSetting_(
-      key: string, value: string, setter: (v: string) => void) {
-    setter(value);
-    localStorage.setItem(key, value);
   }
 
   // ---- Soul ----

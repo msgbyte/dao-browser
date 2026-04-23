@@ -20,7 +20,9 @@
     "rebuild": "npm run import && npm run build:debug",
     "test:build": "tsx scripts/cli.ts build --debug --target browser_tests",
     "test": "npm run test:build && engine/src/out/dao-debug/browser_tests --gtest_filter=\"Dao*\"",
-    "gen:readability": "tsx scripts/gen_readability_bundle.ts"
+    "gen:readability": "tsx scripts/gen_readability_bundle.ts",
+    "vendor": "tsx scripts/cli.ts vendor",
+    "vendor:check": "tsx scripts/cli.ts vendor --check"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",

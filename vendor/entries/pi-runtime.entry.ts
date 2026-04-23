@@ -1,0 +1,116 @@
+// Copyright 2026 Dao Browser Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Unified pi-mono runtime bundle. Merges what were previously separate
+// `pi-agent` (LLM streaming + Agent loop) and `pi-web-ui` (Lit-based
+// ChatPanel / ArtifactsPanel) bundles. Having one entry eliminates the
+// ~1.8 MB duplication that arose when pi-web-ui's dep closure pulled in
+// its own copy of @mariozechner/pi-ai, pi-agent-core, and typebox.
+//
+// The Dao agent WebUI imports this bundle once; downstream modules see
+// all pi-mono APIs through the same JavaScript module instance.
+//
+// Browser-only. Node-only providers inside pi-ai are guarded at runtime
+// by `typeof process !== "undefined"` checks, so we do not need to ship
+// node builtins. Heavy optional pi-web-ui preview deps (pdfjs-dist,
+// xlsx, docx-preview, jszip, @lmstudio/sdk, ollama) are marked external
+// in vendor.config.ts so they are never pulled into the output.
+
+// ---------- pi-ai: models, streaming, provider registry ----------
+// @ts-expect-error — resolved from vendor/node_modules at bundle time.
+export {
+  getModel,
+  getModels,
+  getProviders,
+  calculateCost,
+  supportsXhigh,
+  modelsAreEqual,
+  stream,
+  streamSimple,
+  complete,
+  completeSimple,
+  getEnvApiKey,
+  Type,
+} from "@mariozechner/pi-ai";
+
+// @ts-expect-error — resolved from vendor/node_modules at bundle time.
+export type {
+  Model,
+  Api,
+  Context,
+  Message,
+  AssistantMessage,
+  AssistantMessageEvent,
+  AssistantMessageEventStream,
+  ContentBlock,
+  ToolCall,
+  ToolResult,
+  StreamOptions,
+  SimpleStreamOptions,
+  ProviderStreamOptions,
+  KnownProvider,
+  Transport,
+  Usage,
+  ThinkingBudgets,
+} from "@mariozechner/pi-ai";
+
+// ---------- pi-agent-core: Agent loop ----------
+// @ts-expect-error — resolved from vendor/node_modules at bundle time.
+export { Agent } from "@mariozechner/pi-agent-core";
+
+// @ts-expect-error — resolved from vendor/node_modules at bundle time.
+export type {
+  AgentOptions,
+  AgentState,
+  AgentEvent,
+  AgentMessage,
+  AgentTool,
+  ToolExecutionMode,
+  BeforeToolCallContext,
+  BeforeToolCallResult,
+  AfterToolCallContext,
+  AfterToolCallResult,
+  StreamFn,
+} from "@mariozechner/pi-agent-core";
+
+// ---------- pi-web-ui: ChatPanel + ArtifactsPanel + dialogs ----------
+// Importing these modules triggers the `customElement(...)` side-effect
+// registration (e.g. `pi-chat-panel`, `artifacts-panel`). Consumers can
+// then render via the tag directly or via the class export.
+// @ts-expect-error — resolved from vendor/node_modules at bundle time.
+export {
+  ChatPanel,
+  ArtifactsPanel,
+  ApiKeyPromptDialog,
+  AppStorage,
+  getAppStorage,
+  setAppStorage,
+  // Storage stores + backend — needed by pi_app_storage.ts to bootstrap
+  // the AppStorage singleton before the ChatPanel first renders.
+  SettingsStore,
+  ProviderKeysStore,
+  SessionsStore,
+  CustomProvidersStore,
+  IndexedDBStorageBackend,
+} from "@mariozechner/pi-web-ui";
+
+// @ts-expect-error — resolved from vendor/node_modules at bundle time.
+export type {
+  Artifact,
+  ArtifactsParams,
+} from "@mariozechner/pi-web-ui";
+
+// ---------- pi-web-ui: tool renderer registry ----------
+// Dao wraps every agent tool with a collapsed-by-default renderer that can
+// be toggled via the settings UI. Needs the registry hook + lit's `html`
+// (from the same lit instance pi-web-ui renders with) so our custom
+// TemplateResult is compatible with pi-web-ui's <message-list>.
+// @ts-expect-error — resolved from vendor/node_modules at bundle time.
+export { registerToolRenderer } from "@mariozechner/pi-web-ui";
+
+// @ts-expect-error — resolved from the bundled lit (same instance used by
+// pi-web-ui's ChatPanel). Consumers outside the bundle MUST import `html`
+// from here, not from Chromium's //resources/lit, or their TemplateResult
+// type tags will not match.
+export { html } from "lit";
