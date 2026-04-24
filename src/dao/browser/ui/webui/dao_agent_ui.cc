@@ -478,10 +478,6 @@ DaoAgentUIHandler::~DaoAgentUIHandler() = default;
 
 void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
-      "getPageContent",
-      base::BindRepeating(&DaoAgentUIHandler::HandleGetPageContent,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
       "getPageInfo",
       base::BindRepeating(&DaoAgentUIHandler::HandleGetPageInfo,
                           base::Unretained(this)));
@@ -609,47 +605,6 @@ content::WebContents* DaoAgentUIHandler::EnsureAttached() {
   }
 
   return contents;
-}
-
-void DaoAgentUIHandler::HandleGetPageContent(const base::Value::List& args) {
-  AllowJavascript();
-
-  if (args.size() < 1 || !args[0].is_string()) {
-    return;
-  }
-  const std::string callback_id = args[0].GetString();
-
-  content::WebContents* contents = EnsureAttached();
-  if (!contents) {
-    ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value(base::Value::Dict()));
-    return;
-  }
-
-  base::Value::Dict params;
-  params.Set("expression",
-             "document.body ? document.body.innerText : ''");
-  params.Set("returnByValue", true);
-
-  devtools_client_->SendCommand(
-      "Runtime.evaluate", std::move(params),
-      base::BindOnce(
-          [](base::WeakPtr<DaoAgentUIHandler> handler,
-             std::string callback_id, base::Value result) {
-            if (!handler) {
-              return;
-            }
-            base::Value::Dict response;
-            if (result.is_dict()) {
-              auto* value = result.GetDict().FindByDottedPath("result.value");
-              if (value && value->is_string()) {
-                response.Set("text", value->GetString());
-              }
-            }
-            handler->ResolveJavascriptCallback(base::Value(callback_id),
-                                               response);
-          },
-          weak_factory_.GetWeakPtr(), callback_id));
 }
 
 void DaoAgentUIHandler::HandleGetPageInfo(const base::Value::List& args) {

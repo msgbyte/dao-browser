@@ -8,16 +8,16 @@ index 80494b5bb3..b615915483 100644
  
 +  # Dao Browser
 +  "<(SHARED_INTERMEDIATE_DIR)/dao/browser/ui/webui/resources/agent/resources.grd": {
-+    "META": {"sizes": {"includes": [20]}},
++    "META": {"sizes": {"includes": [40]}},
 +    "includes": [8400],
 +  },
 +  "<(SHARED_INTERMEDIATE_DIR)/dao/browser/ui/webui/resources/sidebar/resources.grd": {
 +    "META": {"sizes": {"includes": [20]}},
-+    "includes": [8425],
++    "includes": [8445],
 +  },
 +  "<(SHARED_INTERMEDIATE_DIR)/dao/browser/ui/webui/resources/welcome/resources.grd": {
 +    "META": {"sizes": {"includes": [15]}},
-+    "includes": [8445],
++    "includes": [8465],
 +  },
 +
    # START "everything else" section.

@@ -68,7 +68,7 @@ index 76c889780c..b5b5531a27 100644
 +    dao_download_flyout_ = AddChildView(
 +        std::make_unique<dao::DaoDownloadFlyoutView>());
 +
-+    // Dao: Right agent sidebar (hidden by default, toggled via Cmd+I)
++    // Dao: Right agent sidebar (hidden by default, toggled via Cmd+E)
 +    dao_agent_sidebar_ = AddChildView(
 +        std::make_unique<dao::DaoAgentSidebarView>(browser_.get()));
 +    dao_agent_sidebar_->SetVisible(false);

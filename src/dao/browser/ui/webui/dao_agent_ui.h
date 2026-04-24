@@ -92,7 +92,6 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   content::WebContents* EnsureAttached();
 
   // Message handlers called from JS via chrome.send().
-  void HandleGetPageContent(const base::Value::List& args);
   void HandleGetPageInfo(const base::Value::List& args);
   void HandleClickElement(const base::Value::List& args);
   void HandleExecuteScript(const base::Value::List& args);

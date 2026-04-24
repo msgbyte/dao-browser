@@ -7,8 +7,8 @@
       "pkgVersions": {
         "@mozilla/readability": "0.6.0"
       },
-      "sha256": "0aa4b4e227b5a0b029042c7da6ac2adda524c728d94d5f2d6a74174d142d30d0",
-      "generatedAt": "2026-04-24T03:02:30.438Z"
+      "sha256": "8fce0a16f7f867c42da8617e82b6c841888a428f0f50cfe8517071922e2ccc52",
+      "generatedAt": "2026-04-24T10:38:01.962Z"
     },
     {
       "name": "pi-runtime",
@@ -34,6 +34,16 @@
       },
       "sha256": "436c5ed25cd0ba0541bab720b04b8c23b637e778231dd1402fed117b25ec4f77",
       "generatedAt": "2026-04-24T03:02:30.906Z"
+    },
+    {
+      "name": "turndown",
+      "format": "iife-string",
+      "outFile": "src/dao/browser/ui/webui/resources/agent/turndown_bundle.ts",
+      "pkgVersions": {
+        "turndown": "^7.2.0"
+      },
+      "sha256": "66a8bca3e4d09c9dca11981d30efe047f9af4dea4e9d5678b5565219807abc3a",
+      "generatedAt": "2026-04-24T10:37:59.133Z"
     }
   ]
 }

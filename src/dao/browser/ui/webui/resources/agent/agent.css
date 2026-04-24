@@ -81,6 +81,133 @@ dao-chat-view {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  /* Allow .dao-page-chip-row to absolute-position itself relative to
+   * the chat view so the chip can float above the composer without
+   * shrinking pi-chat-panel's message area. */
+  position: relative;
+}
+
+/* Page-attachment chip: compact horizontal pill that floats above the
+ * composer bubble without covering the textarea. Sits just above the
+ * message-editor (which has min-height ~56px + button row) — positioning
+ * at `bottom: 128px` clears the composer in all common states.
+ * `pointer-events: none` on the row lets clicks pass through to the
+ * editor background; the chip itself re-enables them. */
+.dao-page-chip-row {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 128px;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+  z-index: 2;
+}
+.dao-page-chip {
+  pointer-events: auto;
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  height: 26px;
+  padding: 0 24px 0 6px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(70, 120, 190, 0.22);
+  border-radius: 13px;
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: 0 1px 4px rgba(30, 20, 40, 0.08);
+  color: rgba(30, 20, 40, 0.85);
+  font-size: 11px;
+  line-height: 1;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+.dao-page-chip:hover {
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(70, 120, 190, 0.40);
+}
+.dao-page-chip-favicon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(70, 120, 190, 0.10);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: rgba(70, 120, 190, 0.85);
+}
+.dao-page-chip-favicon img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  background: inherit;
+}
+.dao-page-chip-favicon svg {
+  width: 11px;
+  height: 11px;
+}
+.dao-page-chip-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  overflow: hidden;
+}
+.dao-page-chip-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(30, 20, 40, 0.92);
+}
+.dao-page-chip-domain {
+  flex: 0 0 auto;
+  max-width: 100px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(30, 20, 40, 0.48);
+}
+.dao-page-chip-close {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(30, 20, 40, 0.50);
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
+}
+.dao-page-chip-close:hover {
+  background: rgba(70, 120, 190, 0.18);
+  color: rgba(30, 20, 40, 0.90);
+}
+.dao-page-chip-close svg {
+  width: 10px;
+  height: 10px;
 }
 
 dao-chat-view > pi-chat-panel {
@@ -93,19 +220,57 @@ pi-chat-panel {
   padding: 4px 6px 6px;
 }
 
-/* pi-web-ui ships its user bubble as an orange/red gradient
- * (`.user-message-container { background: linear-gradient(...#d94f00...) }`
- * in pi_web_ui.css). Repaint it in Dao purple so sent messages match
- * the rest of the sidebar. The backdrop-filter from upstream still
- * applies; we only replace the gradient + border.
- * Upstream default padding is `py-2 px-4` (8/16px) which feels tight on
- * narrow sidebar widths — bump to 10/14px so the Dao purple fill has
- * more breathing room around wrapped text. */
+/* pi-web-ui ships its user bubble as an orange/red gradient on
+ * `.user-message-container`, which wraps BOTH the markdown text AND
+ * (for user-with-attachments) the `<attachment-tile>` row. The upstream
+ * layout glues the attachment tile inside the same rounded pill as the
+ * text, which looks wrong in a narrow sidebar — the attachment card
+ * should float ABOVE the text bubble as its own element.
+ *
+ * Strip the container's background/border/padding, turn it into a
+ * column-reverse flex (so the attachment row, which is DOM-after the
+ * markdown, renders VISUALLY above), right-align both rows (parent is
+ * `justify-start` by default but we want user content flush to the
+ * right edge), and repaint the blue pill directly on `markdown-block`.
+ * The attachment-tile keeps its own card styling from upstream. */
 dao-agent-app .user-message-container {
-  background: rgba(70, 120, 190, 0.18);
-  border: 1px solid rgba(70, 120, 190, 0.35);
-  padding: 2px 4px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
 }
+dao-agent-app .user-message-container > markdown-block {
+  display: block;
+  background: rgba(70, 120, 190, 0.85);
+  color: #fff;
+  border-radius: 16px;
+  padding: 8px 14px;
+  max-width: 100%;
+  word-break: break-word;
+}
+dao-agent-app .user-message-container > markdown-block :where(p, ul, ol) {
+  color: inherit;
+  margin: 0;
+}
+/* Upstream adds `mt-3 flex flex-wrap gap-2` on the attachment row. We
+ * already get top spacing from the container's `gap: 6px`, so cancel
+ * the extra margin and right-align the tile(s). */
+dao-agent-app .user-message-container > .mt-3 {
+  margin-top: 0 !important;
+  justify-content: flex-end;
+}
+/* The parent flex-container from pi-web-ui is `flex justify-start mx-4`.
+ * We want user content right-aligned like standard chat UIs. Override
+ * the justification at the direct wrapper so the pill hugs the right
+ * edge and the attachment floats above it, also right-aligned. */
+dao-agent-app user-message > .flex.justify-start {
+  justify-content: flex-end !important;
+}
+
 
 /* Dao-owned inputs (settings view etc.) — scoped by NOT(:where(...))
  * so Dao's translucent-white field style doesn't clobber pi-web-ui's
@@ -236,6 +401,129 @@ dao-agent-app message-editor [role="combobox"]:hover {
  * `field-sizing: content` still lets it grow up to `max-height: 200px`. */
 dao-agent-app message-editor textarea {
   min-height: 56px !important;
+}
+
+/* Dao-owned override for pi-web-ui's <attachment-tile> when it's
+ * rendering a captured webpage (PiAttachment.id starts with
+ * `dao-page-`). pi ships a 64x64 document square by default; we swap
+ * it for a horizontal link-card with favicon + title + domain so
+ * "current webpage" reads as a page preview rather than a file.
+ * dao_chat_view's observer replaces the tile's innerHTML with a
+ * `.dao-page-tile` wrapper, and this block styles it. */
+attachment-tile[data-dao-decorated="1"] {
+  display: inline-block;
+  width: auto !important;
+  height: auto !important;
+}
+.dao-page-tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 260px;
+  height: 44px;
+  padding: 6px 10px 6px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: rgba(30, 20, 40, 0.88);
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: default;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+.dao-page-tile:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(70, 120, 190, 0.32);
+}
+.dao-page-tile-favicon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(70, 120, 190, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: rgba(70, 120, 190, 0.9);
+}
+.dao-page-tile-favicon img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  background: inherit;
+}
+.dao-page-tile-favicon svg {
+  width: 14px;
+  height: 14px;
+}
+.dao-page-tile-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  overflow: hidden;
+}
+.dao-page-tile-title {
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(30, 20, 40, 0.94);
+}
+.dao-page-tile-domain {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(30, 20, 40, 0.52);
+}
+
+/* Dao-owned action row appended after the last assistant-message by
+ * dao_chat_view's retry observer. Sits flush with the left gutter of
+ * the message body (pi-web-ui uses `px-4` inside assistant-message, so
+ * match 16px) and gets a small top gap so it doesn't crowd the reply. */
+.dao-assistant-actions {
+  display: flex;
+  gap: 6px;
+  padding: 4px 16px 0;
+  margin-top: 2px;
+}
+.dao-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(30, 20, 40, 0.65);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+.dao-retry-btn:hover {
+  background: rgba(70, 120, 190, 0.16);
+  border-color: rgba(70, 120, 190, 0.32);
+  color: rgba(30, 20, 40, 0.92);
+}
+.dao-retry-btn:active {
+  background: rgba(70, 120, 190, 0.24);
+}
+.dao-retry-btn svg {
+  width: 12px;
+  height: 12px;
 }
 
 /* Dao collapsible tool-call rendering (dao_tool_renderer.ts). pi-web-ui's

@@ -11,7 +11,8 @@
     "@mariozechner/pi-web-ui": "^0.69.0",
     "@mozilla/readability": "0.6.0",
     "@sinclair/typebox": "^0.34.49",
-    "lit": "^3.3.2"
+    "lit": "^3.3.2",
+    "turndown": "^7.2.0"
   },
   "devDependencies": {
     "esbuild": "0.24.2"

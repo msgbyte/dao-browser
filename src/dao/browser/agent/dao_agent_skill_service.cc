@@ -30,7 +30,7 @@ requiresPageContent: true
 # Summary
 
 ## Instructions
-1. Use the `get_readable_content` tool to extract the page content. If it fails or returns empty, fall back to `get_page_content`.
+1. The user's message already contains a `<current-webpage>` block with the page content in markdown — use it directly.
 2. Analyze the content and produce a concise summary with:
    - A one-sentence overview
    - 3-7 key points as bullet items

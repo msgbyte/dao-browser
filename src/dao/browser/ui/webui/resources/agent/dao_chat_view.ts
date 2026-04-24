@@ -24,8 +24,9 @@ import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
 import {BASE_SYSTEM_PROMPT} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {getActiveLLMConfig} from './llm_config.js';
+import {buildPageAttachment, captureCurrentPageMarkdown, fetchCurrentPageInfo, isCapturablePageUrl, type PageInfo} from './dao_page_capture.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
-import {ensurePiAppStorage} from './pi_app_storage.js';
+import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as pi from './vendor/pi_runtime_bundle.js';
 
@@ -51,6 +52,10 @@ interface PiAgent {
   abort(): void;
   reset(): void;
   waitForIdle(): Promise<void>;
+  // Re-runs the LLM given the current message list (last message must
+  // not be `assistant`). Used by Dao's retry button after it pops the
+  // trailing assistant/toolResult messages.
+  continue(): Promise<void>;
 }
 
 interface PiChatPanel extends HTMLElement {
@@ -76,7 +81,7 @@ function buildOpenAICompatModel(modelId: string, baseUrl: string) {
     input: ['text', 'image'],
     cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
     contextWindow: 128000,
-    maxTokens: 4096,
+    maxTokens: 16384,
   };
 }
 
@@ -107,6 +112,7 @@ export class DaoChatView extends CrLitElement {
       tokenEstimate_: {type: Number, state: true},
       compacting_: {type: Boolean, state: true},
       isStreaming_: {type: Boolean, state: true},
+      pendingPageAttachment_: {state: true},
     };
   }
 
@@ -122,15 +128,49 @@ export class DaoChatView extends CrLitElement {
   private mounted_ = false;
   private unsubscribeAgent_: (() => void) | null = null;
   private compactAbort_: AbortController | null = null;
+  private boundOnConfigChanged_: (() => void) | null = null;
   protected messageCount_ = 0;
   protected tokenEstimate_ = 0;
   protected compacting_ = false;
   protected isStreaming_ = false;
+  // Current-page chip: renders as a small pill above the composer with the
+  // active tab's title. Cleared when the URL is already in one of the
+  // session sets (sent / dismissed) or the tab is a non-capturable surface
+  // (chrome://, about:blank, ...).
+  protected pendingPageAttachment_: PageInfo | null = null;
+
+  // URLs we've already injected as a <current-webpage> block in this
+  // session — the chip hides for them so the same page isn't re-attached
+  // on every subsequent message.
+  private sentPageUrls_ = new Set<string>();
+  // URLs the user dismissed via the chip close button. Suppressed for the
+  // rest of the session.
+  private dismissedUrls_ = new Set<string>();
+  // 2s poll of the active tab's URL+title. The sidebar has no event feed
+  // for tab changes, so the chip follows the user via polling instead.
+  private tabWatchTimer_: number | null = null;
+  // Monkey-patched `agent-interface.sendMessage` original, kept so our
+  // wrapper can call through after splicing the page block into the user
+  // text. See mount_() for the patch site.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private origSendMessage_: ((text: string, attachments: any[]) =>
+                             Promise<void>) | null = null;
+  private pendingDecorateTimer_ = 0;
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.unsubscribeAgent_?.();
     this.unsubscribeAgent_ = null;
+    if (this.boundOnConfigChanged_) {
+      window.removeEventListener(
+          'llm-config-changed', this.boundOnConfigChanged_);
+      this.boundOnConfigChanged_ = null;
+    }
+    if (this.tabWatchTimer_ !== null) {
+      clearInterval(this.tabWatchTimer_);
+      this.tabWatchTimer_ = null;
+    }
+    clearTimeout(this.pendingDecorateTimer_);
     try {
       this.agent_?.abort();
     } catch (_) { /* ignore */ }
@@ -266,7 +306,34 @@ export class DaoChatView extends CrLitElement {
             </button>
           </div>
         </div>` : ''}
-      <pi-chat-panel></pi-chat-panel>`;
+      <pi-chat-panel></pi-chat-panel>
+      ${this.pendingPageAttachment_ ? html`
+        <div class="dao-page-chip-row">
+          <div class="dao-page-chip" title=${this.pendingPageAttachment_.url}>
+            <span class="dao-page-chip-favicon">
+              ${this.renderChipFavicon_(this.pendingPageAttachment_.url)}
+            </span>
+            <span class="dao-page-chip-text">
+              <span class="dao-page-chip-title">
+                ${this.pendingPageAttachment_.title ||
+                  this.chipHostname_(this.pendingPageAttachment_.url)}
+              </span>
+              <span class="dao-page-chip-domain">
+                ${this.chipHostname_(this.pendingPageAttachment_.url)}
+              </span>
+            </span>
+            <button class="dao-page-chip-close"
+                @click=${this.onPageChipDismiss_}
+                title="Don't attach this page">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>` : ''}`;
   }
 
   override firstUpdated() {
@@ -301,6 +368,55 @@ export class DaoChatView extends CrLitElement {
         thinkingLevel,
         messages: [],
       },
+      // pi-agent-core's default convertToLlm filters messages to only
+      // the exact roles {user, assistant, toolResult}, silently dropping
+      // user-with-attachments — which is the role pi's own
+      // AgentInterface.sendMessage uses whenever there's at least one
+      // attachment. Two jobs here:
+      //   1. Map user-with-attachments to a plain `user` role so the
+      //      LLM sees the turn at all.
+      //   2. Splice each attachment's `extractedText` into the user
+      //      content. pi only surfaces extractedText inside the artifact
+      //      sandbox runtime (window.readTextAttachment), not in the
+      //      chat completion path — without this the model gets only
+      //      the user's typed text, never the captured <current-webpage>
+      //      block. We do this at convert time (not at send time) so
+      //      state.messages keeps the user's bubble clean: the UI only
+      //      renders their typed text + a pretty attachment tile, while
+      //      the LLM gets the full payload.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      convertToLlm: (msgs: any[]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const out: any[] = [];
+        for (const m of msgs) {
+          if (!m) continue;
+          if (m.role === 'user' || m.role === 'assistant' ||
+              m.role === 'toolResult') {
+            out.push(m);
+          } else if (m.role === 'user-with-attachments') {
+            const pieces: string[] = [];
+            const atts = Array.isArray(m.attachments) ? m.attachments : [];
+            for (const a of atts) {
+              if (a && typeof a.extractedText === 'string' &&
+                  a.extractedText.length > 0) {
+                pieces.push(a.extractedText);
+              }
+            }
+            const orig = typeof m.content === 'string' ? m.content : '';
+            const trimmed = orig.trim();
+            const merged = pieces.length > 0 ?
+                (trimmed ? `${pieces.join('\n\n')}\n\n${orig}` :
+                           pieces.join('\n\n')) :
+                orig;
+            out.push({
+              role: 'user',
+              content: merged,
+              timestamp: m.timestamp,
+            });
+          }
+        }
+        return out;
+      },
       getApiKey: (provider: string) => {
         // Always read the latest active config so rotating the key in the
         // settings view takes effect on the next prompt without a reload.
@@ -328,9 +444,26 @@ export class DaoChatView extends CrLitElement {
     const iface = panel.querySelector('agent-interface') as any;
     if (iface) {
       iface.enableModelSelector = false;
-      iface.enableAttachments = false;
+      iface.enableAttachments = true;
       iface.enableThinkingSelector = false;
       iface.requestUpdate?.();
+
+      // Intercept sendMessage so we can splice the current-page capture
+      // into the outgoing `attachments` array. The actual merging of
+      // attachment contents into the LLM request is done in the custom
+      // convertToLlm above — this layer only runs the readability +
+      // turndown capture and appends the pi-web-ui attachment object so
+      // pi renders a native tile in the user bubble. We keep the user's
+      // typed text untouched so their message bubble stays clean.
+      if (typeof iface.sendMessage === 'function' && !this.origSendMessage_) {
+        this.origSendMessage_ = iface.sendMessage.bind(iface);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        iface.sendMessage = async (text: string, attachments: any[]) => {
+          this.refreshModel_();
+          const merged = await this.maybeAttachPage_(attachments || []);
+          return this.origSendMessage_!(text, merged);
+        };
+      }
     }
 
     // Disable spellcheck / autocorrect on the composer textarea. Debug Blink
@@ -380,6 +513,9 @@ export class DaoChatView extends CrLitElement {
       if (ev?.type === 'agent_start' || ev?.type === 'agent_end') {
         this.isStreaming_ = !!this.agent_?.state.isStreaming;
       }
+      if (ev?.type === 'message_end') {
+        this.scheduleDecorate_();
+      }
       if (ev?.type === 'agent_end') {
         const agent = this.agent_;
         const panel = this.panel_;
@@ -389,10 +525,293 @@ export class DaoChatView extends CrLitElement {
           const iface = panel.querySelector('agent-interface') as any;
           iface?.requestUpdate?.();
           this.isStreaming_ = !!this.agent_?.state.isStreaming;
+          this.refreshRetryButton_();
+          this.decoratePageAttachments_();
         });
       }
     });
     this.syncMeta_();
+
+    // Seed the page chip with the current tab and start the 2s poller.
+    // Poll unconditionally (not only when a chip is visible) because the
+    // user may switch to a new URL we haven't seen yet, which requires
+    // showing a chip that currently isn't rendered.
+    void this.refreshPageChip_();
+    this.tabWatchTimer_ = window.setInterval(() => {
+      void this.refreshPageChip_();
+    }, 2000);
+
+    // Listen for provider/model changes from the settings view so the
+    // agent picks up the new model on the next turn without a full reload.
+    this.boundOnConfigChanged_ = () => this.refreshModel_();
+    window.addEventListener('llm-config-changed', this.boundOnConfigChanged_);
+  }
+
+  // Debounced decoration pass — coalesces rapid-fire message_end events
+  // (e.g. tool-result bursts) into a single DOM sweep after rendering
+  // settles. Only decorates attachments; the retry button is injected in
+  // the agent_end handler where we know the turn is truly finished.
+  private scheduleDecorate_(): void {
+    clearTimeout(this.pendingDecorateTimer_);
+    this.pendingDecorateTimer_ = window.setTimeout(() => {
+      this.decoratePageAttachments_();
+    }, 80);
+  }
+
+  // pi-web-ui's <attachment-tile> renders our markdown page captures as
+  // a generic 64x64 document square. For dao-page-* attachments we swap
+  // that out for a horizontal card (favicon + title + domain) so the
+  // "current webpage" reads as a link preview rather than a file.
+  // Idempotent: we stamp a `data-dao-decorated` marker on the tile so
+  // subsequent MutationObserver ticks don't re-run unless the tile
+  // re-rendered (Lit would wipe our marker in that case).
+  private decoratePageAttachments_(): void {
+    const panel = this.panel_;
+    if (!panel) return;
+    const tiles = panel.querySelectorAll('attachment-tile');
+    tiles.forEach(el => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tile = el as HTMLElement & {attachment?: any};
+      const att = tile.attachment;
+      if (!att || typeof att.id !== 'string' ||
+          !att.id.startsWith('dao-page-')) return;
+      if (tile.getAttribute('data-dao-decorated') === '1') return;
+      const url = (att.daoPageUrl as string) || '';
+      const rawTitle = (att.daoPageTitle as string) ||
+          (att.fileName || '').replace(/\.md$/, '');
+      const domain = this.chipHostname_(url);
+      tile.setAttribute('data-dao-decorated', '1');
+      tile.innerHTML = this.buildPageTileHtml_(url, rawTitle, domain);
+      // CSP (chrome WebUI) forbids inline event handlers, so wire up
+      // the favicon img's load/error fallbacks in JS instead of via
+      // `onload=` / `onerror=` attributes.
+      const favImg = tile.querySelector(
+          '.dao-page-tile-favicon img') as HTMLImageElement | null;
+      if (favImg) {
+        const svg = favImg.parentElement?.querySelector('svg') as
+            SVGElement | null;
+        favImg.addEventListener('load', () => {
+          if (svg) svg.style.display = 'none';
+        });
+        favImg.addEventListener('error', () => {
+          favImg.style.display = 'none';
+        });
+        // Already cached / data-complete before the listener attached?
+        if (favImg.complete && favImg.naturalWidth > 0 && svg) {
+          svg.style.display = 'none';
+        } else if (favImg.complete && favImg.naturalWidth === 0) {
+          favImg.style.display = 'none';
+        }
+      }
+    });
+  }
+
+  private buildPageTileHtml_(
+      url: string, title: string, domain: string): string {
+    const safeUrl = this.escapeAttr_(url);
+    const safeTitle = this.escapeHtml_(title);
+    const safeDomain = this.escapeHtml_(domain);
+    let origin = '';
+    try {
+      origin = new URL(url).origin;
+    } catch (_) { /* keep empty */ }
+    const globeSvg =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="10"></circle>' +
+        '<path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>' +
+        '<path d="M2 12h20"></path>' +
+        '</svg>';
+    const favImg = origin ?
+        `<img src="${this.escapeAttr_(origin + '/favicon.ico')}" alt=""` +
+            ' referrerpolicy="no-referrer">' :
+        '';
+    return '<div class="dao-page-tile" title="' + safeUrl + '">' +
+        '<span class="dao-page-tile-favicon">' + globeSvg + favImg +
+        '</span>' +
+        '<span class="dao-page-tile-text">' +
+        '<span class="dao-page-tile-title">' + safeTitle + '</span>' +
+        '<span class="dao-page-tile-domain">' + safeDomain + '</span>' +
+        '</span>' +
+        '</div>';
+  }
+
+  private escapeHtml_(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+  }
+
+  private escapeAttr_(s: string): string {
+    return this.escapeHtml_(s).replace(/"/g, '&quot;');
+  }
+
+  private refreshRetryButton_(): void {
+    const panel = this.panel_;
+    if (!panel) return;
+    // Drop any previously-injected action rows so only one remains.
+    panel.querySelectorAll('.dao-assistant-actions')
+        .forEach(el => el.remove());
+    if (this.agent_?.state.isStreaming) return;
+    const list = panel.querySelectorAll('assistant-message');
+    const last = list[list.length - 1] as HTMLElement | undefined;
+    if (!last) return;
+    const row = document.createElement('div');
+    row.className = 'dao-assistant-actions';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dao-retry-btn';
+    btn.title = 'Regenerate response';
+    btn.setAttribute('aria-label', 'Regenerate response');
+    btn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<path d="M3 12a9 9 0 1 0 3-6.7"></path>' +
+        '<path d="M3 4v5h5"></path>' +
+        '</svg><span>Retry</span>';
+    btn.addEventListener('click', () => void this.retryLastAssistant_());
+    row.appendChild(btn);
+    last.insertAdjacentElement('afterend', row);
+  }
+
+  private async retryLastAssistant_(): Promise<void> {
+    const agent = this.agent_;
+    if (!agent || agent.state.isStreaming) return;
+    const messages = agent.state.messages;
+    let lastUserIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const role = messages[i].role;
+      if (role === 'user' || role === 'user-with-attachments') {
+        lastUserIdx = i;
+        break;
+      }
+    }
+    if (lastUserIdx < 0) return;
+    // Keep the user message, drop all assistant / toolResult messages
+    // that came after it. Replace the array (not mutate in place) so
+    // pi-web-ui's reference-equality change detector picks it up.
+    agent.state.messages = messages.slice(0, lastUserIdx + 1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iface = this.panel_?.querySelector('agent-interface') as any;
+    iface?.requestUpdate?.();
+    this.syncMeta_();
+    try {
+      await agent.continue();
+    } catch (e) {
+      console.warn('[dao] retry failed', e);
+    }
+  }
+
+  // Probe the active tab's URL+title and update the chip state. Cheap —
+  // just a native getPageInfo, no script injection. Skips non-capturable
+  // schemes (chrome://, about:blank, data:) and URLs that are already in
+  // the sent / dismissed sets.
+  private async refreshPageChip_() {
+    const info = await fetchCurrentPageInfo();
+    if (!info || !isCapturablePageUrl(info.url) ||
+        this.sentPageUrls_.has(info.url) ||
+        this.dismissedUrls_.has(info.url)) {
+      if (this.pendingPageAttachment_ !== null) {
+        this.pendingPageAttachment_ = null;
+      }
+      return;
+    }
+    const current = this.pendingPageAttachment_;
+    if (!current || current.url !== info.url || current.title !== info.title) {
+      this.pendingPageAttachment_ = info;
+    }
+  }
+
+  private onPageChipDismiss_() {
+    const pending = this.pendingPageAttachment_;
+    if (!pending) return;
+    this.dismissedUrls_.add(pending.url);
+    this.pendingPageAttachment_ = null;
+  }
+
+  private chipHostname_(url: string): string {
+    try {
+      return new URL(url).hostname;
+    } catch (_) {
+      return url;
+    }
+  }
+
+  private renderChipFavicon_(url: string) {
+    let origin = '';
+    try {
+      origin = new URL(url).origin;
+    } catch (_) {
+      origin = '';
+    }
+    const fallbackSvg = html`<svg viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+      <path d="M2 12h20"></path>
+    </svg>`;
+    if (!origin) return fallbackSvg;
+    const onErr = (e: Event) => {
+      const img = e.target as HTMLImageElement | null;
+      if (img) img.style.display = 'none';
+    };
+    const onLoad = (e: Event) => {
+      const img = e.target as HTMLImageElement | null;
+      const svg =
+          img && img.parentElement
+              ? img.parentElement.querySelector('svg')
+              : null;
+      if (svg) (svg as SVGElement).style.display = 'none';
+    };
+    return html`${fallbackSvg}<img src=${origin + '/favicon.ico'} alt=""
+        @error=${onErr} @load=${onLoad} referrerpolicy="no-referrer">`;
+  }
+
+  // Called by the monkey-patched sendMessage. Runs the full page-capture
+  // pipeline (readability -> turndown) against the ACTIVE TAB AT SEND
+  // TIME (not at chip-render time) — the chip URL is used only as a
+  // presence signal, the capture's own url/title is authoritative. The
+  // returned attachment carries the full <current-webpage> block in its
+  // `extractedText` field; convertToLlm splices that into the user
+  // content when building the LLM request, leaving the visible bubble
+  // untouched.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async maybeAttachPage_(attachments: any[]): Promise<any[]> {
+    if (!this.pendingPageAttachment_) return attachments;
+    const chipUrl = this.pendingPageAttachment_.url;
+    let capture;
+    try {
+      capture = await captureCurrentPageMarkdown();
+    } catch (_) {
+      capture = null;
+    }
+    if (!capture || !capture.markdown) {
+      // Still mark the chip URL as "handled" so we don't re-flash the
+      // chip on the next poll tick while the user waits for a response.
+      this.sentPageUrls_.add(chipUrl);
+      this.pendingPageAttachment_ = null;
+      void this.refreshPageChip_();
+      return attachments;
+    }
+    const pageAtt = buildPageAttachment(capture);
+    this.sentPageUrls_.add(capture.url);
+    // Clear any prior dismiss for this URL — once the page has been sent
+    // the dismiss state for that URL is moot.
+    this.dismissedUrls_.delete(capture.url);
+    this.pendingPageAttachment_ = null;
+    void this.refreshPageChip_();
+    return [...attachments, pageAtt];
+  }
+
+  private refreshModel_() {
+    if (!this.agent_) return;
+    const config = getActiveLLMConfig();
+    const model = resolveModel(config);
+    this.agent_.state.model = model;
+    this.agent_.state.thinkingLevel = model.reasoning ? 'medium' : 'off';
+    void syncActiveKeyToPiStorage();
   }
 
   private syncMeta_() {
@@ -506,7 +925,13 @@ export class DaoChatView extends CrLitElement {
     this.compactAbort_ = null;
     this.agent_.state.messages = [];
     this.isStreaming_ = false;
+    // Fresh conversation — clear the page-attachment bookkeeping so the
+    // current active tab gets a new chip offered to the user.
+    this.sentPageUrls_.clear();
+    this.dismissedUrls_.clear();
+    this.pendingPageAttachment_ = null;
     this.syncMeta_();
+    void this.refreshPageChip_();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const iface = this.panel_?.querySelector('agent-interface') as any;
     iface?.requestUpdate?.();

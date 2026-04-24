@@ -53,7 +53,7 @@ export class DaoSettingsView extends CrLitElement {
     };
   }
 
-  private activeSubTab_ = 'connection';
+  private activeSubTab_ = 'general';
   private provider_ = 'openai-compatible';
   private apiKey_ = '';
   private baseUrl_ = 'https://api.openai.com/v1';
@@ -404,13 +404,13 @@ export class DaoSettingsView extends CrLitElement {
   override render() {
     return html`
       <div class="settings-sub-tabs">
-        ${['connection', 'soul', 'memory', 'skills', 'stats'].map(tab => html`
+        ${['general', 'soul', 'memory', 'skills', 'stats'].map(tab => html`
           <button class="sub-tab ${this.activeSubTab_ === tab ? 'active' : ''}"
               @click=${() => this.switchSubTab(tab)}>
             ${tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>`)}
       </div>
-      ${this.activeSubTab_ === 'connection' ? this.renderConnection_() :
+      ${this.activeSubTab_ === 'general' ? this.renderConnection_() :
         this.activeSubTab_ === 'soul' ? this.renderSoul_() :
         this.activeSubTab_ === 'skills' ? this.renderSkills_() :
         this.activeSubTab_ === 'stats' ? this.renderStats_() :
@@ -478,21 +478,29 @@ export class DaoSettingsView extends CrLitElement {
     this.apiKey_ = cfg.apiKey;
     this.baseUrl_ = cfg.baseUrl;
     this.model_ = cfg.model;
+    this.notifyConfigChanged_();
   }
 
   private onApiKeyChange_(value: string) {
     this.apiKey_ = value;
     setProviderConfig(this.provider_, {apiKey: value});
+    this.notifyConfigChanged_();
   }
 
   private onBaseUrlChange_(value: string) {
     this.baseUrl_ = value;
     setProviderConfig(this.provider_, {baseUrl: value});
+    this.notifyConfigChanged_();
   }
 
   private onModelChange_(value: string) {
     this.model_ = value;
     setProviderConfig(this.provider_, {model: value});
+    this.notifyConfigChanged_();
+  }
+
+  private notifyConfigChanged_() {
+    window.dispatchEvent(new Event('llm-config-changed'));
   }
 
   private renderSoul_() {

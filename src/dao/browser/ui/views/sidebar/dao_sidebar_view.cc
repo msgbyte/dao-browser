@@ -581,7 +581,7 @@ void DaoSidebarView::AddedToWidget() {
         ui::Accelerator(ui::VKEY_D, ui::EF_COMMAND_DOWN),
         ui::AcceleratorManager::kHighPriority, this);
     GetFocusManager()->RegisterAccelerator(
-        ui::Accelerator(ui::VKEY_I, ui::EF_COMMAND_DOWN),
+        ui::Accelerator(ui::VKEY_E, ui::EF_COMMAND_DOWN),
         ui::AcceleratorManager::kHighPriority, this);
   }
 }
@@ -595,7 +595,7 @@ void DaoSidebarView::RemovedFromWidget() {
     GetFocusManager()->UnregisterAccelerator(
         ui::Accelerator(ui::VKEY_D, ui::EF_COMMAND_DOWN), this);
     GetFocusManager()->UnregisterAccelerator(
-        ui::Accelerator(ui::VKEY_I, ui::EF_COMMAND_DOWN), this);
+        ui::Accelerator(ui::VKEY_E, ui::EF_COMMAND_DOWN), this);
   }
   View::RemovedFromWidget();
 }
@@ -606,8 +606,8 @@ bool DaoSidebarView::AcceleratorPressed(
     DuplicateActiveTab(browser_);
     return true;
   }
-  if (accelerator.key_code() == ui::VKEY_I) {
-    // Cmd+I: toggle right agent sidebar
+  if (accelerator.key_code() == ui::VKEY_E) {
+    // Cmd+E: toggle right agent sidebar
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser_);
     if (browser_view && browser_view->dao_agent_sidebar()) {

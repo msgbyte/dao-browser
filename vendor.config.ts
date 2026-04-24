@@ -62,6 +62,22 @@ const config: VendorConfig = {
       minify: true,
     },
     {
+      // HTML -> Markdown converter. Paired with readability: Readability
+      // extracts the article HTML, Turndown converts it to markdown, and
+      // the combined script is injected via DevTools Runtime.evaluate to
+      // capture the active tab's page as a markdown block attached to the
+      // user's next agent message.
+      name: "turndown",
+      npm: ["turndown"],
+      format: "iife-string",
+      entry: "vendor/entries/turndown.entry.ts",
+      wrapperTemplate: "vendor/entries/turndown.tpl.ts",
+      outDir: "src/dao/browser/ui/webui/resources/agent",
+      outName: "turndown_bundle.ts",
+      target: "es2022",
+      minify: true,
+    },
+    {
       // Unified pi-mono runtime: pi-ai + pi-agent-core + pi-web-ui all in
       // one ESM bundle so downstream consumers share a single JavaScript
       // module instance (and we avoid the ~1.8 MB duplication that
