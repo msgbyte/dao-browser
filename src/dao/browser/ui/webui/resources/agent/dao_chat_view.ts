@@ -186,7 +186,7 @@ export class DaoChatView extends CrLitElement {
         .dao-compact-bar .gauge > span {
           display: block;
           height: 100%;
-          background: rgba(140,100,220,0.55);
+          background: rgba(70,120,190,0.55);
           transition: width 0.25s ease;
         }
         .dao-compact-bar.warm .gauge > span { background: rgba(220,160,80,0.7); }
@@ -216,8 +216,8 @@ export class DaoChatView extends CrLitElement {
           transition: background 0.12s, border-color 0.12s, color 0.12s;
         }
         .dao-compact-bar button:hover:not(:disabled) {
-          background: rgba(140,100,220,0.18);
-          border-color: rgba(140,100,220,0.35);
+          background: rgba(70,120,190,0.18);
+          border-color: rgba(70,120,190,0.35);
           color: rgba(30,20,40,0.92);
         }
         .dao-compact-bar button:disabled {
@@ -225,14 +225,14 @@ export class DaoChatView extends CrLitElement {
           cursor: not-allowed;
         }
         .dao-compact-bar button.compacting {
-          color: rgb(140,100,220);
-          border-color: rgba(140,100,220,0.35);
+          color: rgb(70,120,190);
+          border-color: rgba(70,120,190,0.35);
         }
         .dao-compact-bar .spinner {
           width: 10px;
           height: 10px;
-          border: 1.5px solid rgba(140,100,220,0.25);
-          border-top-color: rgb(140,100,220);
+          border: 1.5px solid rgba(70,120,190,0.25);
+          border-top-color: rgb(70,120,190);
           border-radius: 50%;
           animation: dao-compact-spin 0.7s linear infinite;
         }
@@ -320,13 +320,16 @@ export class DaoChatView extends CrLitElement {
       toolsFactory: () => tools,
     });
 
-    // ChatPanel.setAgent() force-enables the model selector on its internal
-    // <agent-interface>. Dao configures the provider/model from the settings
-    // view, so we don't want the in-composer model picker — hide it.
+    // ChatPanel.setAgent() force-enables the model selector, attachments,
+    // and thinking-level picker on its internal <agent-interface>. Dao
+    // configures the provider/model from the settings view and doesn't
+    // surface per-message thinking or attachments, so hide all three.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const iface = panel.querySelector('agent-interface') as any;
     if (iface) {
       iface.enableModelSelector = false;
+      iface.enableAttachments = false;
+      iface.enableThinkingSelector = false;
       iface.requestUpdate?.();
     }
 
@@ -485,6 +488,29 @@ export class DaoChatView extends CrLitElement {
     try {
       this.agent_?.abort();
     } catch (_) { /* ignore */ }
+  }
+
+  // Reset the agent conversation to an empty history. Aborts any in-flight
+  // stream first, then reassigns through the state setter so pi-agent-core's
+  // slice-copy + Lit reference-equality binding both fire (same pattern used
+  // on `message_end` and in `compactAgentMessages`).
+  startNewSession() {
+    if (!this.agent_) return;
+    try {
+      this.agent_.abort();
+    } catch (_) { /* ignore */ }
+    try {
+      this.compactAbort_?.abort();
+    } catch (_) { /* ignore */ }
+    this.compacting_ = false;
+    this.compactAbort_ = null;
+    this.agent_.state.messages = [];
+    this.isStreaming_ = false;
+    this.syncMeta_();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iface = this.panel_?.querySelector('agent-interface') as any;
+    iface?.requestUpdate?.();
+    setTimeout(() => this.focusInput(), 50);
   }
 }
 

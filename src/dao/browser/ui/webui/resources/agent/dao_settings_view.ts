@@ -138,8 +138,8 @@ export class DaoSettingsView extends CrLitElement {
         transition: border-color 0.15s, box-shadow 0.15s;
       }
       input:focus {
-        border-color: rgba(140, 100, 220, 0.4);
-        box-shadow: 0 0 0 3px rgba(140, 100, 220, 0.08);
+        border-color: rgba(70, 120, 190, 0.4);
+        box-shadow: 0 0 0 3px rgba(70, 120, 190, 0.08);
       }
       select {
         width: 100%; padding: 7px 10px;
@@ -156,8 +156,8 @@ export class DaoSettingsView extends CrLitElement {
         transition: border-color 0.15s, box-shadow 0.15s;
       }
       select:focus {
-        border-color: rgba(140, 100, 220, 0.4);
-        box-shadow: 0 0 0 3px rgba(140, 100, 220, 0.08);
+        border-color: rgba(70, 120, 190, 0.4);
+        box-shadow: 0 0 0 3px rgba(70, 120, 190, 0.08);
       }
       select option {
         background: var(--glass-strong, #2a2434); color: var(--text);
@@ -176,8 +176,8 @@ export class DaoSettingsView extends CrLitElement {
         transition: border-color 0.15s, box-shadow 0.15s;
       }
       .soul-editor:focus {
-        border-color: rgba(140, 100, 220, 0.4);
-        box-shadow: 0 0 0 3px rgba(140, 100, 220, 0.08);
+        border-color: rgba(70, 120, 190, 0.4);
+        box-shadow: 0 0 0 3px rgba(70, 120, 190, 0.08);
       }
       .soul-editor::placeholder { color: var(--text-tertiary); }
       .soul-actions {
@@ -187,12 +187,12 @@ export class DaoSettingsView extends CrLitElement {
         padding: 7px 18px; background: var(--accent); border: none;
         border-radius: 10px; color: white;
         font-size: 12px; font-family: inherit; cursor: pointer;
-        box-shadow: 0 2px 6px rgba(140, 100, 220, 0.25);
+        box-shadow: 0 2px 6px rgba(70, 120, 190, 0.25);
         transition: filter 0.15s, box-shadow 0.15s;
       }
       .btn-primary:hover {
         filter: brightness(1.12);
-        box-shadow: 0 3px 10px rgba(140, 100, 220, 0.35);
+        box-shadow: 0 3px 10px rgba(70, 120, 190, 0.35);
       }
       .btn-secondary {
         padding: 7px 18px; background: var(--glass);
@@ -263,7 +263,7 @@ export class DaoSettingsView extends CrLitElement {
       .segment:hover { background: rgba(255,255,255,0.2); }
       .segment.active {
         background: var(--accent); color: white;
-        box-shadow: 0 1px 4px rgba(140, 100, 220, 0.3);
+        box-shadow: 0 1px 4px rgba(70, 120, 190, 0.3);
       }
 
       /* Memory stats */
@@ -318,7 +318,7 @@ export class DaoSettingsView extends CrLitElement {
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
       }
-      .stats-icon.purple { background: rgba(140, 100, 220, 0.15); color: var(--accent); }
+      .stats-icon.purple { background: rgba(70, 120, 190, 0.15); color: var(--accent); }
       .stats-icon.blue { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
       .stats-icon.green { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
       .stats-icon.orange { background: rgba(251, 146, 60, 0.15); color: #fb923c; }

@@ -60,6 +60,14 @@ export class DaoAgentApp extends CrLitElement {
   }
 
   override render() {
+    const newChatIcon = html`<svg width="16" height="16" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0
+        2-2v-7"/>
+      <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0
+        1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0
+        1 .506-.852z"/></svg>`;
     const chatIcon = html`<svg width="16" height="16" viewBox="0 0 24 24"
         fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
@@ -95,6 +103,12 @@ export class DaoAgentApp extends CrLitElement {
           flex-shrink: 0;
           border-bottom: 1px solid rgba(255,255,255,0.12);
         }
+        .dao-app-header-left {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          min-width: 0;
+        }
         .dao-app-header-title {
           font-size: 13px;
           font-weight: 600;
@@ -102,21 +116,21 @@ export class DaoAgentApp extends CrLitElement {
           letter-spacing: 0.2px;
         }
         .dao-app-tab-bar { display: flex; gap: 3px; }
-        dao-agent-app .dao-app-tab-bar .dao-app-tab {
+        dao-agent-app .dao-app-tab {
           width: 28px; height: 28px;
           display: flex; align-items: center; justify-content: center;
           background: none; border: none; border-radius: 8px;
           color: var(--text-tertiary); cursor: pointer;
           transition: color 0.15s, background 0.15s;
         }
-        dao-agent-app .dao-app-tab-bar .dao-app-tab:hover {
+        dao-agent-app .dao-app-tab:hover {
           color: var(--text-secondary);
           background: rgba(255,255,255,0.18);
         }
-        dao-agent-app .dao-app-tab-bar .dao-app-tab.active {
-          color: rgb(140, 100, 220);
-          background: rgba(140, 100, 220, 0.15);
-          box-shadow: 0 1px 4px rgba(140, 100, 220, 0.12);
+        dao-agent-app .dao-app-tab.active {
+          color: rgb(70, 120, 190);
+          background: rgba(70, 120, 190, 0.15);
+          box-shadow: 0 1px 4px rgba(70, 120, 190, 0.12);
         }
         .dao-app-toast {
           position: fixed; top: 16px; left: 50%;
@@ -124,7 +138,7 @@ export class DaoAgentApp extends CrLitElement {
           background: var(--accent); color: white;
           padding: 8px 18px; border-radius: 10px;
           font-size: 12px; z-index: 200;
-          box-shadow: 0 4px 16px rgba(140, 100, 220, 0.3);
+          box-shadow: 0 4px 16px rgba(70, 120, 190, 0.3);
           animation: daoAppToastIn 200ms ease-out;
         }
         @keyframes daoAppToastIn {
@@ -133,7 +147,13 @@ export class DaoAgentApp extends CrLitElement {
         }
       </style>
       <div class="dao-app-header">
-        <span class="dao-app-header-title">Dao Agent</span>
+        <div class="dao-app-header-left">
+          <span class="dao-app-header-title">Dao Agent</span>
+          <button class="dao-app-tab"
+              @click=${this.onNewChatClick_} title="New chat">
+            ${newChatIcon}
+          </button>
+        </div>
         <div class="dao-app-tab-bar">
           <button class="dao-app-tab ${this.activeTab_ === 'chat' ? 'active' : ''}"
               @click=${() => this.onTabClick_('chat')} title="Chat">
@@ -159,6 +179,18 @@ export class DaoAgentApp extends CrLitElement {
     } else {
       this.activeTab_ = tab;
     }
+  }
+
+  private onNewChatClick_() {
+    if (this.activeTab_ !== 'chat') {
+      this.activeTab_ = 'chat';
+      this.updateComplete.then(() => {
+        this.getChatView_()?.startNewSession();
+      });
+    } else {
+      this.getChatView_()?.startNewSession();
+    }
+    this.showToast_('Started a new chat', 1500);
   }
 
   private getChatView_(): DaoChatView|null {
