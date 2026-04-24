@@ -17,7 +17,7 @@ const STEPS: ShortcutStep[] = [
   {keys: ['\u2318', 'W'], text: 'Close the current tab', action: 'closeTab'},
   {keys: ['\u2318', 'L'], text: 'Open the command bar for quick navigation', action: 'commandBar'},
   {keys: ['\u2318', 'S'], text: 'Toggle the sidebar', action: 'toggleSidebar'},
-  {keys: ['\u2318', 'I'], text: 'Open the AI Agent panel', action: 'agentPanel'},
+  {keys: ['\u2318', 'E'], text: 'Open the AI Agent panel', action: 'agentPanel'},
   {keys: ['\u2318', 'D'], text: 'Duplicate the current tab', action: 'dupTab'},
   {keys: ['\u2318', '\u21E7', 'C'], text: 'Copy the current page URL', action: 'copyUrl'},
 ];

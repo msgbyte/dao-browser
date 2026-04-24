@@ -8,23 +8,24 @@
 // (from pi-web-ui) is driven by a pi-agent-core `Agent` that runs the
 // turn loop, executes tools, and emits streaming events. We construct the
 // Agent here with:
-//   - systemPrompt: Dao's BASE_SYSTEM_PROMPT (+ soul, when we hook it back
-//     in a later phase)
+//   - systemPrompt: Dao's BASE_SYSTEM_PROMPT concatenated with the current
+//     SOUL.md (personality layer). Refreshed before every send and on
+//     cross-tab soulChannel broadcasts so `update_soul` takes effect on
+//     the next turn without a reload.
 //   - model: resolved from Dao's llm_config via pi-ai's getModel() (or
 //     built by hand for the `openai-compatible` path)
 //   - tools: every existing Dao tool, wrapped by pi_tool_adapter
 //
-// Phase 1 deliberately drops: slash command menu, scenario / memory chips,
-// soul channel live sync, API/tool call stats UI, and IndexedDB chat
-// history persistence. These are overlays / external hooks that will be
-// re-attached on top of ChatPanel in Phase 2.
+// Phase 1 deliberately drops: scenario / memory chips, API/tool call stats
+// UI, and IndexedDB chat history persistence. These are overlays / external
+// hooks that will be re-attached on top of ChatPanel in Phase 2.
 
 import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {BASE_SYSTEM_PROMPT} from './agent_bridge.js';
+import {BASE_SYSTEM_PROMPT, currentSoulContent, refreshSoulContent, soulChannel} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {getActiveLLMConfig} from './llm_config.js';
-import {buildPageAttachment, captureCurrentPageMarkdown, fetchCurrentPageInfo, isCapturablePageUrl, type PageInfo} from './dao_page_capture.js';
+import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
 import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
 import {getAllSkills, initSkillRegistry, loadSkillInstructions, type SkillRegistryEntry} from './skill_registry.js';
@@ -114,6 +115,7 @@ export class DaoChatView extends CrLitElement {
       compacting_: {type: Boolean, state: true},
       isStreaming_: {type: Boolean, state: true},
       pendingPageAttachment_: {state: true},
+      pendingSelection_: {state: true},
       skillPickerVisible_: {state: true},
       skillPickerSkills_: {state: true},
       skillPickerIndex_: {state: true},
@@ -134,6 +136,7 @@ export class DaoChatView extends CrLitElement {
   private unsubscribeAgent_: (() => void) | null = null;
   private compactAbort_: AbortController | null = null;
   private boundOnConfigChanged_: (() => void) | null = null;
+  private boundOnSoulChanged_: (() => void) | null = null;
   protected messageCount_ = 0;
   protected tokenEstimate_ = 0;
   protected compacting_ = false;
@@ -143,6 +146,14 @@ export class DaoChatView extends CrLitElement {
   // session sets (sent / dismissed) or the tab is a non-capturable surface
   // (chrome://, about:blank, ...).
   protected pendingPageAttachment_: PageInfo | null = null;
+
+  // Latest text selection from the active tab. Refreshed by the same 2s
+  // poll that drives the page chip; displayed as its own chip below the
+  // composer. Independent of pendingPageAttachment_ — both chips can be
+  // active at once and the LLM will receive both blocks. Not de-duped:
+  // every send picks up whatever the selection currently is, and the
+  // selection is cleared in the tab after a successful send.
+  protected pendingSelection_: SelectionCapture | null = null;
 
   // URLs we've already injected as a <current-webpage> block in this
   // session — the chip hides for them so the same page isn't re-attached
@@ -193,6 +204,10 @@ export class DaoChatView extends CrLitElement {
       window.removeEventListener(
           'llm-config-changed', this.boundOnConfigChanged_);
       this.boundOnConfigChanged_ = null;
+    }
+    if (this.boundOnSoulChanged_) {
+      soulChannel.removeEventListener('message', this.boundOnSoulChanged_);
+      this.boundOnSoulChanged_ = null;
     }
     if (this.tabWatchTimer_ !== null) {
       clearInterval(this.tabWatchTimer_);
@@ -425,32 +440,63 @@ export class DaoChatView extends CrLitElement {
         </div>` : ''}
       <pi-chat-panel></pi-chat-panel>
       ${this.renderSkillPicker_()}
-      ${this.pendingPageAttachment_ ? html`
+      ${(this.pendingPageAttachment_ || this.pendingSelection_) ? html`
         <div class="dao-page-chip-row">
-          <div class="dao-page-chip" title=${this.pendingPageAttachment_.url}>
-            <span class="dao-page-chip-favicon">
-              ${this.renderChipFavicon_(this.pendingPageAttachment_.url)}
-            </span>
-            <span class="dao-page-chip-text">
-              <span class="dao-page-chip-title">
-                ${this.pendingPageAttachment_.title ||
-                  this.chipHostname_(this.pendingPageAttachment_.url)}
+          ${this.pendingPageAttachment_ ? html`
+            <div class="dao-page-chip"
+                title=${this.pendingPageAttachment_.url}>
+              <span class="dao-page-chip-favicon">
+                ${this.renderChipFavicon_(this.pendingPageAttachment_.url)}
               </span>
-              <span class="dao-page-chip-domain">
-                ${this.chipHostname_(this.pendingPageAttachment_.url)}
+              <span class="dao-page-chip-text">
+                <span class="dao-page-chip-title">
+                  ${this.pendingPageAttachment_.title ||
+                    this.chipHostname_(this.pendingPageAttachment_.url)}
+                </span>
+                <span class="dao-page-chip-domain">
+                  ${this.chipHostname_(this.pendingPageAttachment_.url)}
+                </span>
               </span>
-            </span>
-            <button class="dao-page-chip-close"
-                @click=${this.onPageChipDismiss_}
-                title="Don't attach this page">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 6 6 18"></path>
-                <path d="m6 6 12 12"></path>
-              </svg>
-            </button>
-          </div>
+              <button class="dao-page-chip-close"
+                  @click=${this.onPageChipDismiss_}
+                  title="Don't attach this page">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18"></path>
+                  <path d="m6 6 12 12"></path>
+                </svg>
+              </button>
+            </div>` : ''}
+          ${this.pendingSelection_ ? html`
+            <div class="dao-page-chip dao-selection-chip"
+                title=${this.pendingSelection_.text}>
+              <span class="dao-page-chip-favicon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 7V4h16v3"></path>
+                  <path d="M9 20h6"></path>
+                  <path d="M12 4v16"></path>
+                </svg>
+              </span>
+              <span class="dao-page-chip-text">
+                <span class="dao-page-chip-title">
+                  ${this.selectionPreview_(this.pendingSelection_.text)}
+                </span>
+                <span class="dao-page-chip-domain">selection</span>
+              </span>
+              <button class="dao-page-chip-close"
+                  @click=${this.onSelectionChipDismiss_}
+                  title="Don't attach this selection">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18"></path>
+                  <path d="m6 6 12 12"></path>
+                </svg>
+              </button>
+            </div>` : ''}
         </div>` : ''}`;
   }
 
@@ -480,7 +526,7 @@ export class DaoChatView extends CrLitElement {
 
     this.agent_ = new Agent({
       initialState: {
-        systemPrompt: BASE_SYSTEM_PROMPT,
+        systemPrompt: this.buildSystemPrompt_(),
         model,
         tools,
         thinkingLevel,
@@ -590,11 +636,16 @@ export class DaoChatView extends CrLitElement {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         iface.sendMessage = async (text: string, attachments: any[]) => {
           this.refreshModel_();
+          // Pull latest soul into the live systemPrompt before the turn is
+          // packed into the LLM request. Handles the same-tab update_soul
+          // path (BroadcastChannel doesn't echo to its own document).
+          this.refreshSystemPrompt_();
           // Keep the user's typed `/skill rest` visible in the bubble;
           // load the SKILL.md body into the session cache so convertToLlm
           // can splice it synchronously at LLM-conversion time.
           await this.ensureSkillLoadedFromText_(text);
-          const merged = await this.maybeAttachPage_(attachments || []);
+          const withPage = await this.maybeAttachPage_(attachments || []);
+          const merged = await this.maybeAttachSelection_(withPage);
           return this.origSendMessage_!(text, merged);
         };
       }
@@ -650,6 +701,11 @@ export class DaoChatView extends CrLitElement {
         if (!agent) return;
         agent.state.messages = agent.state.messages.slice();
         this.syncMeta_();
+        // If the just-ended message contained an `update_soul` tool call,
+        // the on-disk soul is now stale relative to state.systemPrompt.
+        // Refresh so the next round of this turn (or the next turn) sees
+        // the updated personality without waiting for a user send.
+        this.refreshSystemPrompt_();
       }
       if (ev?.type === 'agent_start' || ev?.type === 'agent_end') {
         this.isStreaming_ = !!this.agent_?.state.isStreaming;
@@ -676,16 +732,25 @@ export class DaoChatView extends CrLitElement {
     // Seed the page chip with the current tab and start the 2s poller.
     // Poll unconditionally (not only when a chip is visible) because the
     // user may switch to a new URL we haven't seen yet, which requires
-    // showing a chip that currently isn't rendered.
+    // showing a chip that currently isn't rendered. The same interval
+    // also refreshes the selection chip so both follow the user.
     void this.refreshPageChip_();
+    void this.refreshSelectionChip_();
     this.tabWatchTimer_ = window.setInterval(() => {
       void this.refreshPageChip_();
+      void this.refreshSelectionChip_();
     }, 2000);
 
     // Listen for provider/model changes from the settings view so the
     // agent picks up the new model on the next turn without a full reload.
     this.boundOnConfigChanged_ = () => this.refreshModel_();
     window.addEventListener('llm-config-changed', this.boundOnConfigChanged_);
+
+    // Cross-tab soul sync: another window's settings panel (or update_soul
+    // tool) saves the soul → BroadcastChannel fires here → refresh the
+    // live systemPrompt so the next turn uses the latest personality.
+    this.boundOnSoulChanged_ = () => this.refreshSystemPrompt_();
+    soulChannel.addEventListener('message', this.boundOnSoulChanged_);
   }
 
   // Debounced decoration pass — coalesces rapid-fire message_end events
@@ -871,6 +936,63 @@ export class DaoChatView extends CrLitElement {
     this.pendingPageAttachment_ = null;
   }
 
+  // Probe `window.getSelection().toString()` in the active tab. Cheap but
+  // requires a script injection; piggy-backs on the same 2s interval as
+  // the page chip so it costs one extra executeScript every tick. Skips
+  // non-capturable URLs the same way the page chip does.
+  private async refreshSelectionChip_() {
+    const info = await fetchCurrentPageInfo();
+    if (!info || !isCapturablePageUrl(info.url)) {
+      if (this.pendingSelection_ !== null) {
+        this.pendingSelection_ = null;
+      }
+      return;
+    }
+    const sel = await fetchCurrentSelection();
+    const current = this.pendingSelection_;
+    if (!sel) {
+      if (current !== null) this.pendingSelection_ = null;
+      return;
+    }
+    if (!current || current.text !== sel.text || current.url !== sel.url) {
+      this.pendingSelection_ = sel;
+    }
+  }
+
+  private onSelectionChipDismiss_() {
+    // Dismiss clears the chip immediately; next poll tick may re-show it
+    // if the user still has a selection. This matches the "no memory" rule
+    // — we don't track dismissed selections across ticks.
+    this.pendingSelection_ = null;
+    void clearCurrentSelection();
+  }
+
+  // Splice the current selection into the attachments list as a
+  // <selected-text> block. Runs alongside maybeAttachPage_ — both can
+  // attach on the same turn. After a successful attach we clear the tab's
+  // selection so the same highlight isn't silently re-sent next turn.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async maybeAttachSelection_(attachments: any[]): Promise<any[]> {
+    // Re-probe at send time so a selection made between the last 2s tick
+    // and the send button still gets picked up.
+    const fresh = await fetchCurrentSelection();
+    const sel = fresh || this.pendingSelection_;
+    if (!sel || !sel.text) return attachments;
+    const att = buildSelectionAttachment(sel);
+    this.pendingSelection_ = null;
+    // Fire-and-forget: clearing in the tab is UX, not correctness. If it
+    // fails the next poll will pick up whatever selection still exists.
+    void clearCurrentSelection();
+    return [...attachments, att];
+  }
+
+  private selectionPreview_(text: string): string {
+    const collapsed = text.replace(/\s+/g, ' ').trim();
+    const cap = 60;
+    if (collapsed.length <= cap) return collapsed;
+    return collapsed.slice(0, cap) + '…';
+  }
+
   private chipHostname_(url: string): string {
     try {
       return new URL(url).hostname;
@@ -953,6 +1075,25 @@ export class DaoChatView extends CrLitElement {
     this.agent_.state.model = model;
     this.agent_.state.thinkingLevel = model.reasoning ? 'medium' : 'off';
     void syncActiveKeyToPiStorage();
+  }
+
+  // BASE_SYSTEM_PROMPT + current SOUL.md, with the soul wrapped in <soul>
+  // tags so the LLM can clearly delineate personality from base instructions
+  // (and so downstream tooling can find/replace the soul block). Rebuilt
+  // fresh on each call so callers get the latest saved soul.
+  private buildSystemPrompt_(): string {
+    return BASE_SYSTEM_PROMPT + '\n\n<soul>\n' + currentSoulContent +
+        '\n</soul>';
+  }
+
+  // Rebuild the concatenated prompt from the latest soul and push it into
+  // the live agent state. Called before each send (to cover same-tab edits
+  // from the settings panel or the `update_soul` tool, which BroadcastChannel
+  // does not echo to its own poster) and on cross-tab soulChannel messages.
+  private refreshSystemPrompt_() {
+    if (!this.agent_) return;
+    refreshSoulContent();
+    this.agent_.state.systemPrompt = this.buildSystemPrompt_();
   }
 
   private syncMeta_() {
@@ -1317,8 +1458,10 @@ export class DaoChatView extends CrLitElement {
     this.sentPageUrls_.clear();
     this.dismissedUrls_.clear();
     this.pendingPageAttachment_ = null;
+    this.pendingSelection_ = null;
     this.syncMeta_();
     void this.refreshPageChip_();
+    void this.refreshSelectionChip_();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const iface = this.panel_?.querySelector('agent-interface') as any;
     iface?.requestUpdate?.();

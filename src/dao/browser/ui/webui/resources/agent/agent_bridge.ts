@@ -200,7 +200,7 @@ Your personality is defined by a SOUL.md file loaded into every conversation. Yo
 - If the section already exists, \`replace_section\` will update it in place. If it doesn't exist, it will be added automatically.
 - **Always tell the user** what you changed and why before or after updating.
 - Do **not** modify your soul for one-off requests — only for things the user wants to persist.
-- Your current soul is already in this system prompt above — no need to read it separately.
+- Your current soul is in the <soul>...</soul> block in this system prompt — no need to read it separately.
 `;
 
 export const DEFAULT_SOUL = `# SOUL.md - Who You Are

@@ -99,9 +99,22 @@ dao-chat-view {
   right: 16px;
   bottom: 128px;
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   justify-content: flex-start;
   pointer-events: none;
   z-index: 2;
+}
+/* Selection chip: inherits the page chip's shape, but its left icon is a
+ * text/cursor glyph instead of a favicon so the user can tell the two
+ * apart at a glance. */
+.dao-selection-chip .dao-page-chip-favicon {
+  background: rgba(70, 120, 190, 0.16);
+  color: rgba(70, 120, 190, 0.95);
+}
+.dao-selection-chip .dao-page-chip-favicon svg {
+  width: 12px;
+  height: 12px;
 }
 .dao-page-chip {
   pointer-events: auto;

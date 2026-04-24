@@ -199,6 +199,106 @@ const CAPTURE_SCRIPT = `(function() {
   }
 })()`;
 
+// Current text selection in the active tab. `text` is the plain string
+// the user has highlighted (can be multi-line); `url` / `title` pin the
+// selection to the page it was made on. Empty selections resolve to null.
+export interface SelectionCapture {
+  url: string;
+  title: string;
+  text: string;
+}
+
+// Tiny probe used by the selection chip poller. Runs `window.getSelection()
+// .toString()` in the active tab. Cheap enough for the same 2s loop the
+// page-chip watcher already uses. Returns null when there is no selection
+// (or the page is non-capturable).
+export async function fetchCurrentSelection():
+    Promise<SelectionCapture | null> {
+  const probe = `(function() {
+    try {
+      var s = (window.getSelection && window.getSelection().toString()) || '';
+      return JSON.stringify({
+        url: location.href,
+        title: document.title || '',
+        text: s,
+      });
+    } catch (e) {
+      return JSON.stringify({error: (e && e.message) || String(e)});
+    }
+  })()`;
+  let raw: {result?: string; error?: string};
+  try {
+    raw = await callNative(
+        'executeScript', {code: probe, lockTab: false}) as
+        {result?: string; error?: string};
+  } catch (_) {
+    return null;
+  }
+  if (!raw || raw.error || !raw.result) return null;
+  let payload: {url?: string; title?: string; text?: string; error?: string};
+  try {
+    payload = JSON.parse(raw.result);
+  } catch (_) {
+    return null;
+  }
+  if (payload.error || !payload.url) return null;
+  const text = (payload.text || '').trim();
+  if (!text) return null;
+  return {
+    url: payload.url,
+    title: payload.title || '',
+    text,
+  };
+}
+
+// Clear the active tab's selection. Called after a successful send so the
+// same highlight isn't silently re-attached to the next message. Best-
+// effort: failures are swallowed.
+export async function clearCurrentSelection(): Promise<void> {
+  const script = `(function() {
+    try {
+      var s = window.getSelection && window.getSelection();
+      if (s && s.removeAllRanges) s.removeAllRanges();
+    } catch (_e) {}
+    return '';
+  })()`;
+  try {
+    await callNative('executeScript', {code: script, lockTab: false});
+  } catch (_) { /* best-effort */ }
+}
+
+// Wraps a selection capture in a `<selected-text>` block and packages it
+// as a pi-web-ui Attachment. Mirrors buildPageAttachment so convertToLlm's
+// `extractedText` splice works uniformly — the model sees a clearly
+// delimited block with the source page's url/title for citation.
+export function buildSelectionAttachment(capture: SelectionCapture):
+    PiAttachment {
+  const safeTitle = capture.title.replace(/"/g, '&quot;');
+  const safeUrl = capture.url.replace(/"/g, '&quot;');
+  const extractedText = `<selected-text url="${safeUrl}" title="${
+      safeTitle}">\n${capture.text}\n</selected-text>`;
+  const firstLine = capture.text.split(/\r?\n/)[0] || capture.text;
+  const safeFileName =
+      (firstLine.replace(/[\\/\n\r\t\x00-\x1f]+/g, ' ')
+           .replace(/\s+/g, ' ')
+           .slice(0, 60) ||
+       'selection') +
+      '.txt';
+  const id =
+      `dao-selection-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return {
+    id,
+    type: 'document',
+    fileName: safeFileName,
+    mimeType: 'text/plain',
+    size: new TextEncoder().encode(capture.text).length,
+    content: utf8ToBase64(capture.text),
+    extractedText,
+    daoPageUrl: capture.url,
+    daoPageTitle: capture.title,
+  };
+}
+
 export async function captureCurrentPageMarkdown():
     Promise<PageCapture | null> {
   let raw: {result?: string; error?: string};
