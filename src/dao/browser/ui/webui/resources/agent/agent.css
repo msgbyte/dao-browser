@@ -88,16 +88,19 @@ dao-chat-view {
 }
 
 /* Page-attachment chip: compact horizontal pill that floats above the
- * composer bubble without covering the textarea. Sits just above the
- * message-editor (which has min-height ~56px + button row) — positioning
- * at `bottom: 128px` clears the composer in all common states.
+ * composer bubble without covering the textarea. `--dao-composer-h` is
+ * written by a ResizeObserver in dao_chat_view.ts that tracks the live
+ * height of <message-editor>, so the row rides above the composer no
+ * matter how tall it grows (multi-line input, stacked attachments). The
+ * fallback matches the historical single-row composer height so first
+ * paint (before the observer fires) lands in the right place.
  * `pointer-events: none` on the row lets clicks pass through to the
  * editor background; the chip itself re-enables them. */
 .dao-page-chip-row {
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: 128px;
+  bottom: calc(var(--dao-composer-h, 120px) + 28px + 8px);
   display: flex;
   flex-wrap: wrap;
   gap: 6px;

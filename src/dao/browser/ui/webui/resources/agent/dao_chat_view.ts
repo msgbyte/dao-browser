@@ -137,6 +137,8 @@ export class DaoChatView extends CrLitElement {
   private compactAbort_: AbortController | null = null;
   private boundOnConfigChanged_: (() => void) | null = null;
   private boundOnSoulChanged_: (() => void) | null = null;
+  private boundOnChipHint_: (() => void) | null = null;
+  private boundOnVisibilityHint_: (() => void) | null = null;
   protected messageCount_ = 0;
   protected tokenEstimate_ = 0;
   protected compacting_ = false;
@@ -194,6 +196,11 @@ export class DaoChatView extends CrLitElement {
   private onComposerInput_: ((e: Event) => void) | null = null;
   private onComposerKeyDown_: ((e: KeyboardEvent) => void) | null = null;
   private composerResizeObserver_: ResizeObserver | null = null;
+  // Measures the whole <message-editor> (textarea + buttons + attachment
+  // row), not just the textarea. Drives the `--dao-composer-h` custom
+  // property so the floating chip row can sit a fixed gap above the
+  // composer regardless of how the composer has grown.
+  private composerHeightObserver_: ResizeObserver | null = null;
   private onWindowResizeForPicker_: (() => void) | null = null;
 
   override disconnectedCallback() {
@@ -208,6 +215,16 @@ export class DaoChatView extends CrLitElement {
     if (this.boundOnSoulChanged_) {
       soulChannel.removeEventListener('message', this.boundOnSoulChanged_);
       this.boundOnSoulChanged_ = null;
+    }
+    if (this.boundOnChipHint_) {
+      this.removeEventListener('pointerenter', this.boundOnChipHint_);
+      this.removeEventListener('focusin', this.boundOnChipHint_);
+      this.boundOnChipHint_ = null;
+    }
+    if (this.boundOnVisibilityHint_) {
+      document.removeEventListener(
+          'visibilitychange', this.boundOnVisibilityHint_);
+      this.boundOnVisibilityHint_ = null;
     }
     if (this.tabWatchTimer_ !== null) {
       clearInterval(this.tabWatchTimer_);
@@ -235,6 +252,8 @@ export class DaoChatView extends CrLitElement {
     }
     this.composerResizeObserver_?.disconnect();
     this.composerResizeObserver_ = null;
+    this.composerHeightObserver_?.disconnect();
+    this.composerHeightObserver_ = null;
     if (this.onWindowResizeForPicker_) {
       window.removeEventListener('resize', this.onWindowResizeForPicker_);
       window.removeEventListener(
@@ -660,11 +679,13 @@ export class DaoChatView extends CrLitElement {
     // the checker off is the right move for a chat composer anyway.
     this.hardenComposerTextarea_(panel);
     this.attachSkillPicker_(panel);
+    this.attachComposerHeightObserver_(panel);
     const editor = panel.querySelector('message-editor');
     if (editor) {
       const mo = new MutationObserver(() => {
         this.hardenComposerTextarea_(panel);
         this.attachSkillPicker_(panel);
+        this.attachComposerHeightObserver_(panel);
       });
       mo.observe(editor, {subtree: true, childList: true});
     }
@@ -729,17 +750,38 @@ export class DaoChatView extends CrLitElement {
     });
     this.syncMeta_();
 
-    // Seed the page chip with the current tab and start the 2s poller.
-    // Poll unconditionally (not only when a chip is visible) because the
-    // user may switch to a new URL we haven't seen yet, which requires
-    // showing a chip that currently isn't rendered. The same interval
-    // also refreshes the selection chip so both follow the user.
-    void this.refreshPageChip_();
-    void this.refreshSelectionChip_();
+    // Seed the chips with the current tab and start the poller. A 2s tick
+    // was noticeably sluggish — typical flow is "select text on page →
+    // mouse into sidebar → ask" and the chip could lag behind the pointer
+    // by most of that second. We compensate on two axes:
+    //   1. Shorter poll (800ms) as an always-on safety net for keyboard-
+    //      only tab switches / selection edits where no pointer event ever
+    //      reaches the sidebar.
+    //   2. Event-driven instant refresh (see boundOnChipHint_ below) when
+    //      the pointer or focus enters the sidebar — this is what makes
+    //      the chip feel "already there" by the time the user looks at it.
+    void this.refreshChips_();
     this.tabWatchTimer_ = window.setInterval(() => {
-      void this.refreshPageChip_();
-      void this.refreshSelectionChip_();
-    }, 2000);
+      void this.refreshChips_();
+    }, 800);
+
+    // Instant-refresh hints. pointerenter / focusin fire at the moment the
+    // user moves their attention to the sidebar — exactly when we need the
+    // chips to be up to date. Trailing-edge throttled by refreshChipsRunning_
+    // so burst events don't stack concurrent executeScripts.
+    this.boundOnChipHint_ = () => { void this.refreshChips_(); };
+    this.addEventListener('pointerenter', this.boundOnChipHint_);
+    this.addEventListener('focusin', this.boundOnChipHint_);
+    // document.visibilitychange already flips when the sidebar toggles
+    // open (see dao_agent_app.ts). Refresh there too so the first chip
+    // paint lines up with the first frame after the animation.
+    this.boundOnVisibilityHint_ = () => {
+      if (document.visibilityState === 'visible') {
+        void this.refreshChips_();
+      }
+    };
+    document.addEventListener(
+        'visibilitychange', this.boundOnVisibilityHint_);
 
     // Listen for provider/model changes from the settings view so the
     // agent picks up the new model on the next turn without a full reload.
@@ -909,54 +951,69 @@ export class DaoChatView extends CrLitElement {
     }
   }
 
-  // Probe the active tab's URL+title and update the chip state. Cheap —
-  // just a native getPageInfo, no script injection. Skips non-capturable
-  // schemes (chrome://, about:blank, data:) and URLs that are already in
-  // the sent / dismissed sets.
-  private async refreshPageChip_() {
-    const info = await fetchCurrentPageInfo();
-    if (!info || !isCapturablePageUrl(info.url) ||
-        this.sentPageUrls_.has(info.url) ||
-        this.dismissedUrls_.has(info.url)) {
-      if (this.pendingPageAttachment_ !== null) {
-        this.pendingPageAttachment_ = null;
+  // Unified page + selection probe. One native getPageInfo and (only when
+  // the URL is capturable) one executeScript for the selection — both chips
+  // update from the same tick, halving the round trips the previous split
+  // refresh incurred.
+  //
+  // `refreshChipsRunning_` collapses bursts: pointerenter + focusin often
+  // arrive back-to-back, and we don't want two concurrent executeScripts
+  // racing to clobber each other's state. A leading-edge guard is enough —
+  // if a second request arrives mid-flight we just drop it; the poll tick
+  // or the next event will pick up any change.
+  private refreshChipsRunning_ = false;
+  private async refreshChips_() {
+    if (this.refreshChipsRunning_) return;
+    this.refreshChipsRunning_ = true;
+    try {
+      const info = await fetchCurrentPageInfo();
+      if (!info || !isCapturablePageUrl(info.url)) {
+        if (this.pendingPageAttachment_ !== null) {
+          this.pendingPageAttachment_ = null;
+        }
+        if (this.pendingSelection_ !== null) {
+          this.pendingSelection_ = null;
+        }
+        return;
       }
-      return;
-    }
-    const current = this.pendingPageAttachment_;
-    if (!current || current.url !== info.url || current.title !== info.title) {
-      this.pendingPageAttachment_ = info;
+      // Page chip: suppress when URL is already in sent / dismissed sets.
+      if (this.sentPageUrls_.has(info.url) ||
+          this.dismissedUrls_.has(info.url)) {
+        if (this.pendingPageAttachment_ !== null) {
+          this.pendingPageAttachment_ = null;
+        }
+      } else {
+        const current = this.pendingPageAttachment_;
+        if (!current || current.url !== info.url ||
+            current.title !== info.title) {
+          this.pendingPageAttachment_ = info;
+        }
+      }
+      // Selection chip: script injection, only when the page itself is
+      // capturable (guarded above).
+      const sel = await fetchCurrentSelection();
+      const currentSel = this.pendingSelection_;
+      if (!sel) {
+        if (currentSel !== null) this.pendingSelection_ = null;
+      } else if (!currentSel || currentSel.text !== sel.text ||
+                 currentSel.url !== sel.url) {
+        this.pendingSelection_ = sel;
+      }
+    } finally {
+      this.refreshChipsRunning_ = false;
     }
   }
+
+  // Back-compat wrappers used by startNewSession / the page-chip send flow.
+  // Both chips share one probe now, so these just delegate.
+  private refreshPageChip_() { return this.refreshChips_(); }
+  private refreshSelectionChip_() { return this.refreshChips_(); }
 
   private onPageChipDismiss_() {
     const pending = this.pendingPageAttachment_;
     if (!pending) return;
     this.dismissedUrls_.add(pending.url);
     this.pendingPageAttachment_ = null;
-  }
-
-  // Probe `window.getSelection().toString()` in the active tab. Cheap but
-  // requires a script injection; piggy-backs on the same 2s interval as
-  // the page chip so it costs one extra executeScript every tick. Skips
-  // non-capturable URLs the same way the page chip does.
-  private async refreshSelectionChip_() {
-    const info = await fetchCurrentPageInfo();
-    if (!info || !isCapturablePageUrl(info.url)) {
-      if (this.pendingSelection_ !== null) {
-        this.pendingSelection_ = null;
-      }
-      return;
-    }
-    const sel = await fetchCurrentSelection();
-    const current = this.pendingSelection_;
-    if (!sel) {
-      if (current !== null) this.pendingSelection_ = null;
-      return;
-    }
-    if (!current || current.text !== sel.text || current.url !== sel.url) {
-      this.pendingSelection_ = sel;
-    }
   }
 
   private onSelectionChipDismiss_() {
@@ -1167,6 +1224,26 @@ export class DaoChatView extends CrLitElement {
   }
 
   // ---- Slash-command skill picker ----
+
+  // Tracks the `<message-editor>`'s outer height so the floating chip row
+  // can hover a fixed gap above the composer. Without this the chip row
+  // uses a magic-number `bottom` value and slides under the composer when
+  // the user types multi-line input or attaches files.
+  private attachComposerHeightObserver_(panel: PiChatPanel) {
+    const editor = panel.querySelector('message-editor') as HTMLElement | null;
+    if (!editor) return;
+    this.composerHeightObserver_?.disconnect();
+    const apply = (h: number) => {
+      this.style.setProperty('--dao-composer-h', `${Math.round(h)}px`);
+    };
+    apply(editor.getBoundingClientRect().height);
+    this.composerHeightObserver_ = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        apply(entry.contentRect.height);
+      }
+    });
+    this.composerHeightObserver_.observe(editor);
+  }
 
   private attachSkillPicker_(panel: PiChatPanel) {
     const ta = panel.querySelector('message-editor textarea') as
