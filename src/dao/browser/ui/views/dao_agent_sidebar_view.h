@@ -6,6 +6,7 @@
 #define DAO_BROWSER_UI_VIEWS_DAO_AGENT_SIDEBAR_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/resize_area.h"
@@ -69,6 +70,8 @@ class DaoAgentSidebarView : public views::View,
   int resize_start_width_ = kDefaultWidth;
 
   views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
+
+  base::WeakPtrFactory<DaoAgentSidebarView> weak_factory_{this};
 };
 
 }  // namespace dao

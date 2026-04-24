@@ -19,7 +19,7 @@
 // history persistence. These are overlays / external hooks that will be
 // re-attached on top of ChatPanel in Phase 2.
 
-import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {BASE_SYSTEM_PROMPT} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
@@ -27,6 +27,7 @@ import {getActiveLLMConfig} from './llm_config.js';
 import {buildPageAttachment, captureCurrentPageMarkdown, fetchCurrentPageInfo, isCapturablePageUrl, type PageInfo} from './dao_page_capture.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
 import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
+import {getAllSkills, initSkillRegistry, loadSkillInstructions, type SkillRegistryEntry} from './skill_registry.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as pi from './vendor/pi_runtime_bundle.js';
 
@@ -113,6 +114,10 @@ export class DaoChatView extends CrLitElement {
       compacting_: {type: Boolean, state: true},
       isStreaming_: {type: Boolean, state: true},
       pendingPageAttachment_: {state: true},
+      skillPickerVisible_: {state: true},
+      skillPickerSkills_: {state: true},
+      skillPickerIndex_: {state: true},
+      skillPickerAnchor_: {state: true},
     };
   }
 
@@ -157,6 +162,29 @@ export class DaoChatView extends CrLitElement {
                              Promise<void>) | null = null;
   private pendingDecorateTimer_ = 0;
 
+  // Slash-command skill picker state. When the composer textarea starts with
+  // `/query` (no space), a floating list of matching skills is shown.
+  // Selection rewrites the input to `/skillId ` and dispatches an input
+  // event so pi-web-ui picks up the new value. At send time, a leading
+  // `/skillId ...` is expanded to the skill's SKILL.md instructions plus the
+  // user's remaining text.
+  protected skillPickerVisible_ = false;
+  protected skillPickerSkills_: SkillRegistryEntry[] = [];
+  protected skillPickerIndex_ = 0;
+  // viewport coords of the composer textarea, recomputed whenever the
+  // picker is visible; drives the picker's `position: fixed` anchor so it
+  // sits exactly above the editor regardless of composer height changes
+  // (multi-line autogrow, attachment chips, etc.).
+  protected skillPickerAnchor_:
+      {left: number, top: number, width: number} | null = null;
+  private skillPickerQuery_ = '';
+  private skillInstructionsCache_ = new Map<string, string>();
+  private composerTextarea_: HTMLTextAreaElement | null = null;
+  private onComposerInput_: ((e: Event) => void) | null = null;
+  private onComposerKeyDown_: ((e: KeyboardEvent) => void) | null = null;
+  private composerResizeObserver_: ResizeObserver | null = null;
+  private onWindowResizeForPicker_: (() => void) | null = null;
+
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.unsubscribeAgent_?.();
@@ -177,6 +205,27 @@ export class DaoChatView extends CrLitElement {
     try {
       this.compactAbort_?.abort();
     } catch (_) { /* ignore */ }
+    if (this.composerTextarea_) {
+      if (this.onComposerInput_) {
+        this.composerTextarea_.removeEventListener(
+            'input', this.onComposerInput_);
+      }
+      if (this.onComposerKeyDown_) {
+        this.composerTextarea_.removeEventListener(
+            'keydown', this.onComposerKeyDown_, true);
+      }
+      this.composerTextarea_ = null;
+      this.onComposerInput_ = null;
+      this.onComposerKeyDown_ = null;
+    }
+    this.composerResizeObserver_?.disconnect();
+    this.composerResizeObserver_ = null;
+    if (this.onWindowResizeForPicker_) {
+      window.removeEventListener('resize', this.onWindowResizeForPicker_);
+      window.removeEventListener(
+          'scroll', this.onWindowResizeForPicker_, true);
+      this.onWindowResizeForPicker_ = null;
+    }
   }
 
   // Show the compact action bar only once context utilization crosses this
@@ -279,6 +328,74 @@ export class DaoChatView extends CrLitElement {
         @keyframes dao-compact-spin {
           to { transform: rotate(360deg); }
         }
+
+        /* Slash-command skill picker — positioned via inline style in
+         * renderSkillPicker_ (position: fixed, anchored to the composer
+         * textarea's viewport rect). Colors mirror dao_skill_manager_view
+         * (var(--surface) background, var(--accent-dim) selected,
+         * var(--text*) typography). */
+        .dao-skill-picker {
+          display: flex;
+          flex-direction: column;
+          background: var(--surface);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+          overflow: hidden;
+          z-index: 20;
+          font-size: 12px;
+          color: var(--text);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+        }
+        .dao-skill-picker-head {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 10px;
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+          flex-shrink: 0;
+        }
+        .dao-skill-picker-hint {
+          margin-left: auto;
+          font-weight: 400;
+          font-size: 10px;
+          color: var(--text-tertiary);
+        }
+        .dao-skill-picker-list {
+          overflow-y: auto;
+          padding: 4px;
+        }
+        .dao-skill-picker-item {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          padding: 6px 8px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .dao-skill-picker-item:hover {
+          background: var(--surface-hover);
+        }
+        .dao-skill-picker-item.selected {
+          background: var(--accent-dim);
+        }
+        .dao-skill-picker-name {
+          font-weight: 600;
+          color: var(--text);
+          font-family: ui-monospace, Menlo, monospace;
+          font-size: 12px;
+        }
+        .dao-skill-picker-desc {
+          color: var(--text-secondary);
+          font-size: 11px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       </style>
       ${showBar ? html`
         <div class="dao-compact-bar ${stateClass}">
@@ -307,6 +424,7 @@ export class DaoChatView extends CrLitElement {
           </div>
         </div>` : ''}
       <pi-chat-panel></pi-chat-panel>
+      ${this.renderSkillPicker_()}
       ${this.pendingPageAttachment_ ? html`
         <div class="dao-page-chip-row">
           <div class="dao-page-chip" title=${this.pendingPageAttachment_.url}>
@@ -390,9 +508,20 @@ export class DaoChatView extends CrLitElement {
         const out: any[] = [];
         for (const m of msgs) {
           if (!m) continue;
-          if (m.role === 'user' || m.role === 'assistant' ||
-              m.role === 'toolResult') {
+          if (m.role === 'assistant' || m.role === 'toolResult') {
             out.push(m);
+          } else if (m.role === 'user') {
+            const orig = typeof m.content === 'string' ? m.content : '';
+            const expanded = this.expandSkillPrefix_(orig);
+            if (expanded === orig) {
+              out.push(m);
+            } else {
+              out.push({
+                role: 'user',
+                content: expanded,
+                timestamp: m.timestamp,
+              });
+            }
           } else if (m.role === 'user-with-attachments') {
             const pieces: string[] = [];
             const atts = Array.isArray(m.attachments) ? m.attachments : [];
@@ -403,11 +532,12 @@ export class DaoChatView extends CrLitElement {
               }
             }
             const orig = typeof m.content === 'string' ? m.content : '';
-            const trimmed = orig.trim();
+            const expandedOrig = this.expandSkillPrefix_(orig);
+            const trimmed = expandedOrig.trim();
             const merged = pieces.length > 0 ?
-                (trimmed ? `${pieces.join('\n\n')}\n\n${orig}` :
+                (trimmed ? `${pieces.join('\n\n')}\n\n${expandedOrig}` :
                            pieces.join('\n\n')) :
-                orig;
+                expandedOrig;
             out.push({
               role: 'user',
               content: merged,
@@ -460,6 +590,10 @@ export class DaoChatView extends CrLitElement {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         iface.sendMessage = async (text: string, attachments: any[]) => {
           this.refreshModel_();
+          // Keep the user's typed `/skill rest` visible in the bubble;
+          // load the SKILL.md body into the session cache so convertToLlm
+          // can splice it synchronously at LLM-conversion time.
+          await this.ensureSkillLoadedFromText_(text);
           const merged = await this.maybeAttachPage_(attachments || []);
           return this.origSendMessage_!(text, merged);
         };
@@ -474,11 +608,18 @@ export class DaoChatView extends CrLitElement {
     // carry spellcheck markers. Release builds don't DCHECK, but turning
     // the checker off is the right move for a chat composer anyway.
     this.hardenComposerTextarea_(panel);
+    this.attachSkillPicker_(panel);
     const editor = panel.querySelector('message-editor');
     if (editor) {
-      const mo = new MutationObserver(() => this.hardenComposerTextarea_(panel));
+      const mo = new MutationObserver(() => {
+        this.hardenComposerTextarea_(panel);
+        this.attachSkillPicker_(panel);
+      });
       mo.observe(editor, {subtree: true, childList: true});
     }
+
+    // Warm the skill registry so the picker lists entries on first `/`.
+    void initSkillRegistry();
 
     // pi-agent-core's Agent mutates `state.messages` in place via `push()`
     // on `message_end` / failure (Agent.js:366, 338). pi-web-ui's
@@ -882,6 +1023,252 @@ export class DaoChatView extends CrLitElement {
     ta.setAttribute('autocorrect', 'off');
     ta.setAttribute('autocapitalize', 'off');
     ta.setAttribute('autocomplete', 'off');
+  }
+
+  // ---- Slash-command skill picker ----
+
+  private attachSkillPicker_(panel: PiChatPanel) {
+    const ta = panel.querySelector('message-editor textarea') as
+        HTMLTextAreaElement | null;
+    if (!ta || ta === this.composerTextarea_) {
+      return;
+    }
+    // pi-web-ui re-renders the editor: detach from any prior node first.
+    if (this.composerTextarea_ && this.onComposerInput_) {
+      this.composerTextarea_.removeEventListener('input', this.onComposerInput_);
+    }
+    if (this.composerTextarea_ && this.onComposerKeyDown_) {
+      this.composerTextarea_.removeEventListener(
+          'keydown', this.onComposerKeyDown_);
+    }
+    this.composerResizeObserver_?.disconnect();
+    this.composerTextarea_ = ta;
+    this.onComposerInput_ = () => this.updateSkillPicker_();
+    this.onComposerKeyDown_ = (e) => this.onSkillPickerKeyDown_(e);
+    ta.addEventListener('input', this.onComposerInput_);
+    // Capture phase so we beat pi-web-ui's own keydown handling (Enter=send).
+    ta.addEventListener('keydown', this.onComposerKeyDown_, true);
+    // Re-anchor the picker when the composer autogrows or the sidebar is
+    // resized. Observing the textarea catches multi-line growth; the
+    // ancestor chain (message-editor, pi-chat-panel) is covered by window
+    // resize + capture-phase scroll listeners set up when the picker opens.
+    this.composerResizeObserver_ = new ResizeObserver(() => {
+      if (this.skillPickerVisible_) this.recomputeSkillPickerAnchor_();
+    });
+    this.composerResizeObserver_.observe(ta);
+  }
+
+  private updateSkillPicker_() {
+    const ta = this.composerTextarea_;
+    if (!ta) {
+      this.hideSkillPicker_();
+      return;
+    }
+    const value = ta.value;
+    // Show only when the buffer is a single `/token` (no whitespace yet).
+    const m = /^\/([A-Za-z0-9_-]*)$/.exec(value);
+    if (!m) {
+      this.hideSkillPicker_();
+      return;
+    }
+    this.skillPickerQuery_ = (m[1] || '').toLowerCase();
+    const all = getAllSkills();
+    const q = this.skillPickerQuery_;
+    const filtered = q === '' ? all : all.filter((s) => {
+      return s.id.toLowerCase().includes(q) ||
+             s.name.toLowerCase().includes(q);
+    });
+    if (filtered.length === 0) {
+      this.hideSkillPicker_();
+      return;
+    }
+    this.skillPickerSkills_ = filtered;
+    this.skillPickerIndex_ =
+        Math.min(this.skillPickerIndex_, filtered.length - 1);
+    if (this.skillPickerIndex_ < 0) this.skillPickerIndex_ = 0;
+    const wasVisible = this.skillPickerVisible_;
+    this.skillPickerVisible_ = true;
+    this.recomputeSkillPickerAnchor_();
+    if (!wasVisible && !this.onWindowResizeForPicker_) {
+      this.onWindowResizeForPicker_ = () => {
+        if (this.skillPickerVisible_) this.recomputeSkillPickerAnchor_();
+      };
+      window.addEventListener('resize', this.onWindowResizeForPicker_);
+      // Capture-phase scroll catches any ancestor scroll container so the
+      // picker doesn't detach from the editor when the chat log scrolls.
+      window.addEventListener(
+          'scroll', this.onWindowResizeForPicker_, true);
+    }
+  }
+
+  private recomputeSkillPickerAnchor_() {
+    const ta = this.composerTextarea_;
+    if (!ta) {
+      this.skillPickerAnchor_ = null;
+      return;
+    }
+    const r = ta.getBoundingClientRect();
+    this.skillPickerAnchor_ = {
+      left: r.left,
+      top: r.top,
+      width: r.width,
+    };
+  }
+
+  private hideSkillPicker_() {
+    if (!this.skillPickerVisible_ && this.skillPickerSkills_.length === 0) {
+      return;
+    }
+    this.skillPickerVisible_ = false;
+    this.skillPickerSkills_ = [];
+    this.skillPickerIndex_ = 0;
+    this.skillPickerQuery_ = '';
+    this.skillPickerAnchor_ = null;
+    if (this.onWindowResizeForPicker_) {
+      window.removeEventListener('resize', this.onWindowResizeForPicker_);
+      window.removeEventListener(
+          'scroll', this.onWindowResizeForPicker_, true);
+      this.onWindowResizeForPicker_ = null;
+    }
+  }
+
+  private onSkillPickerKeyDown_(e: KeyboardEvent) {
+    if (!this.skillPickerVisible_ || this.skillPickerSkills_.length === 0) {
+      return;
+    }
+    const n = this.skillPickerSkills_.length;
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        e.stopPropagation();
+        this.skillPickerIndex_ = (this.skillPickerIndex_ + 1) % n;
+        return;
+      case 'ArrowUp':
+        e.preventDefault();
+        e.stopPropagation();
+        this.skillPickerIndex_ =
+            (this.skillPickerIndex_ - 1 + n) % n;
+        return;
+      case 'Enter':
+      case 'Tab': {
+        e.preventDefault();
+        e.stopPropagation();
+        const pick = this.skillPickerSkills_[this.skillPickerIndex_];
+        if (pick) this.commitSkillPicker_(pick);
+        return;
+      }
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideSkillPicker_();
+        return;
+    }
+  }
+
+  private commitSkillPicker_(skill: SkillRegistryEntry | undefined) {
+    if (!skill) return;
+    const ta = this.composerTextarea_;
+    if (!ta) return;
+    const next = '/' + skill.id + ' ';
+    ta.value = next;
+    // Dispatching a synthetic input event lets pi-web-ui's own binding
+    // (<message-editor>) pick up the new value instead of dropping it on
+    // the next re-render.
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+    ta.setSelectionRange(next.length, next.length);
+    ta.focus();
+    this.hideSkillPicker_();
+    // Prefetch the SKILL.md body so send-time has zero extra latency.
+    if (!this.skillInstructionsCache_.has(skill.id)) {
+      void loadSkillInstructions(skill.id).then((c) => {
+        if (c && c.instructions) {
+          this.skillInstructionsCache_.set(skill.id, c.instructions);
+        }
+      });
+    }
+  }
+
+  // Parse a leading `/skillId` from `text`. Returns null if the text does
+  // not start with a known skill marker.
+  private parseSkillPrefix_(text: string):
+      {skillId: string, skill: SkillRegistryEntry, rest: string} | null {
+    const m = /^\/([A-Za-z0-9_-]+)(?:\s+([\s\S]*))?$/.exec(text.trim());
+    if (!m || !m[1]) return null;
+    const skillId = m[1];
+    const skill = getAllSkills().find((s) => s.id === skillId);
+    if (!skill) return null;
+    return {skillId, skill, rest: (m[2] || '').trim()};
+  }
+
+  // Warm the instructions cache before the message hits state.messages so
+  // convertToLlm can splice the body in synchronously on the next turn.
+  private async ensureSkillLoadedFromText_(text: string): Promise<void> {
+    const parsed = this.parseSkillPrefix_(text);
+    if (!parsed) return;
+    if (this.skillInstructionsCache_.has(parsed.skillId)) return;
+    const content = await loadSkillInstructions(parsed.skillId);
+    if (content && content.instructions) {
+      this.skillInstructionsCache_.set(parsed.skillId, content.instructions);
+    }
+  }
+
+  // Synchronous splice used inside convertToLlm. Keeps the visible bubble
+  // content (`/skillId rest`) untouched; expands into the LLM payload only.
+  private expandSkillPrefix_(text: string): string {
+    const parsed = this.parseSkillPrefix_(text);
+    if (!parsed) return text;
+    const instructions = this.skillInstructionsCache_.get(parsed.skillId);
+    if (!instructions) return text;
+    const head = '<skill name="' + parsed.skill.name + '">\n' + instructions +
+        '\n</skill>';
+    return parsed.rest ? head + '\n\n' + parsed.rest : head;
+  }
+
+  private renderSkillPicker_() {
+    if (!this.skillPickerVisible_ || this.skillPickerSkills_.length === 0 ||
+        !this.skillPickerAnchor_) {
+      return nothing;
+    }
+    // Anchor above the composer textarea using viewport coords, capped at
+    // ~45% of the viewport so the picker never overflows the top edge on
+    // short windows. `bottom` positions the picker so its bottom edge sits
+    // 8px above the textarea's top.
+    const a = this.skillPickerAnchor_;
+    const maxH = Math.max(160, Math.floor(window.innerHeight * 0.45));
+    const bottom = Math.max(8, window.innerHeight - a.top + 8);
+    const pickerStyle = `
+      position: fixed;
+      left: ${a.left}px;
+      width: ${a.width}px;
+      bottom: ${bottom}px;
+      max-height: ${maxH}px;
+    `;
+    return html`
+      <div class="dao-skill-picker" role="listbox"
+          aria-label="Skill picker"
+          style=${pickerStyle}>
+        <div class="dao-skill-picker-head">
+          Skills<span class="dao-skill-picker-hint">
+            ↑↓ to navigate · Enter to select · Esc to dismiss
+          </span>
+        </div>
+        <div class="dao-skill-picker-list">
+          ${this.skillPickerSkills_.map((s, i) => html`
+            <div class="dao-skill-picker-item ${
+                i === this.skillPickerIndex_ ? 'selected' : ''}"
+                role="option"
+                aria-selected=${i === this.skillPickerIndex_}
+                @mouseenter=${() => { this.skillPickerIndex_ = i; }}
+                @mousedown=${(ev: Event) => {
+                  // mousedown rather than click so the textarea keeps focus.
+                  ev.preventDefault();
+                  this.commitSkillPicker_(s);
+                }}>
+              <span class="dao-skill-picker-name">/${s.name}</span>
+              <span class="dao-skill-picker-desc">${s.description}</span>
+            </div>`)}
+        </div>
+      </div>`;
   }
 
   private async onApiKeyRequired_(_provider: string): Promise<boolean> {

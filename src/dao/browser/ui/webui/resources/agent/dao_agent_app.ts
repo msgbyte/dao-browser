@@ -13,7 +13,6 @@ import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import './dao_chat_view.js';
 import './dao_settings_view.js';
-import {cr} from './agent_bridge.js';
 import type {DaoChatView} from './dao_chat_view.js';
 import type {DaoSettingsView} from './dao_settings_view.js';
 
@@ -37,14 +36,17 @@ export class DaoAgentApp extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    if (cr.addWebUIListener) {
-      cr.addWebUIListener('sidebarStateChanged', (expanded: boolean) => {
-        if (expanded) {
-          setTimeout(() => this.getChatView_()?.focusInput(), 100);
-        } else {
-          this.getChatView_()?.endCurrentSession();
-        }
-      });
+    // WebContents visibility flips when DaoAgentSidebarView toggles SetVisible.
+    // Use it as the single source of truth for "sidebar shown / hidden".
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(() => this.getChatView_()?.focusInput(), 100);
+      } else {
+        this.getChatView_()?.endCurrentSession();
+      }
+    });
+    if (document.visibilityState === 'visible') {
+      setTimeout(() => this.getChatView_()?.focusInput(), 100);
     }
     this.addEventListener('show-toast', ((e: CustomEvent) => {
       this.showToast_(e.detail.text);

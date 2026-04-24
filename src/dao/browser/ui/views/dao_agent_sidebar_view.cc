@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -76,6 +77,22 @@ bool DaoAgentSidebarView::Toggle() {
 
   // Single layout pass — web content repaints exactly once.
   PreferredSizeChanged();
+
+  if (expanded_) {
+    // Route keyboard focus into the WebView so the agent input can auto-focus
+    // after its visibilitychange handler runs. Deferred so the focus lands
+    // after layout + visibility propagation.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](base::WeakPtr<DaoAgentSidebarView> self) {
+              if (!self || !self->expanded_ || !self->web_view_) {
+                return;
+              }
+              self->web_view_->RequestFocus();
+            },
+            weak_factory_.GetWeakPtr()));
+  }
 
   return expanded_;
 }
