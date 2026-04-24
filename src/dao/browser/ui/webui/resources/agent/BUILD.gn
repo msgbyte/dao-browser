@@ -21,6 +21,7 @@ build_webui("build") {
     "agent_bridge.ts",
     "dao_agent_app.ts",
     "dao_chat_view.ts",
+    "dao_compact.ts",
     "dao_settings_view.ts",
     "dao_skill_manager_view.ts",
     "dao_tool_renderer.ts",

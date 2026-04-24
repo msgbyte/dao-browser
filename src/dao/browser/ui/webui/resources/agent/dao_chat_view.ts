@@ -22,6 +22,7 @@
 import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {BASE_SYSTEM_PROMPT} from './agent_bridge.js';
+import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
 import {ensurePiAppStorage} from './pi_app_storage.js';
@@ -100,6 +101,15 @@ function resolveModel(config: ReturnType<typeof getActiveLLMConfig>): any {
 }
 
 export class DaoChatView extends CrLitElement {
+  static override get properties() {
+    return {
+      messageCount_: {type: Number, state: true},
+      tokenEstimate_: {type: Number, state: true},
+      compacting_: {type: Boolean, state: true},
+      isStreaming_: {type: Boolean, state: true},
+    };
+  }
+
   // Light DOM so <pi-chat-panel> and its descendants pick up the global
   // Tailwind stylesheet linked from agent.html. Without this, pi-web-ui's
   // Tailwind utility classes render unstyled inside a shadow root.
@@ -111,6 +121,11 @@ export class DaoChatView extends CrLitElement {
   private panel_: PiChatPanel | null = null;
   private mounted_ = false;
   private unsubscribeAgent_: (() => void) | null = null;
+  private compactAbort_: AbortController | null = null;
+  protected messageCount_ = 0;
+  protected tokenEstimate_ = 0;
+  protected compacting_ = false;
+  protected isStreaming_ = false;
 
   override disconnectedCallback() {
     super.disconnectedCallback();
@@ -119,10 +134,139 @@ export class DaoChatView extends CrLitElement {
     try {
       this.agent_?.abort();
     } catch (_) { /* ignore */ }
+    try {
+      this.compactAbort_?.abort();
+    } catch (_) { /* ignore */ }
   }
 
+  // Show the compact action bar only once context utilization crosses this
+  // ratio. Below that the user has plenty of headroom and the bar is just
+  // visual noise. While a compaction is in-flight we keep the bar mounted so
+  // the spinner / cancel affordance stays visible regardless of ratio.
+  private static readonly COMPACT_BAR_VISIBLE_RATIO = 0.4;
+
   override render() {
-    return html`<pi-chat-panel></pi-chat-panel>`;
+    const ctx = this.agent_?.state.model?.contextWindow ?? 0;
+    const ratio = ctx > 0 ? this.tokenEstimate_ / ctx : 0;
+    const showBar = this.compacting_ ||
+        (this.messageCount_ > 0 && ctx > 0 &&
+         ratio >= DaoChatView.COMPACT_BAR_VISIBLE_RATIO);
+    const canCompact =
+        this.messageCount_ >= 2 && !this.compacting_ && !this.isStreaming_;
+    const ratioPct = Math.min(100, Math.round(ratio * 100));
+    let stateClass = 'idle';
+    if (ratio >= 0.75) stateClass = 'hot';
+    else if (ratio >= 0.5) stateClass = 'warm';
+
+    return html`
+      <style>
+        .dao-compact-bar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 4px 10px 0;
+          font-size: 11px;
+          color: var(--text-tertiary);
+          flex-shrink: 0;
+        }
+        .dao-compact-bar .meta {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        .dao-compact-bar .gauge {
+          flex: 0 0 60px;
+          height: 4px;
+          border-radius: 2px;
+          background: rgba(255,255,255,0.16);
+          overflow: hidden;
+        }
+        .dao-compact-bar .gauge > span {
+          display: block;
+          height: 100%;
+          background: rgba(140,100,220,0.55);
+          transition: width 0.25s ease;
+        }
+        .dao-compact-bar.warm .gauge > span { background: rgba(220,160,80,0.7); }
+        .dao-compact-bar.hot .gauge > span { background: rgba(220,80,80,0.8); }
+        .dao-compact-bar .meta-text {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .dao-compact-bar .actions {
+          display: flex;
+          gap: 4px;
+          flex-shrink: 0;
+        }
+        .dao-compact-bar button {
+          font: inherit;
+          font-size: 11px;
+          color: var(--text-secondary);
+          background: rgba(255,255,255,0.14);
+          border: 1px solid rgba(255,255,255,0.18);
+          border-radius: 8px;
+          padding: 2px 8px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          transition: background 0.12s, border-color 0.12s, color 0.12s;
+        }
+        .dao-compact-bar button:hover:not(:disabled) {
+          background: rgba(140,100,220,0.18);
+          border-color: rgba(140,100,220,0.35);
+          color: rgba(30,20,40,0.92);
+        }
+        .dao-compact-bar button:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+        .dao-compact-bar button.compacting {
+          color: rgb(140,100,220);
+          border-color: rgba(140,100,220,0.35);
+        }
+        .dao-compact-bar .spinner {
+          width: 10px;
+          height: 10px;
+          border: 1.5px solid rgba(140,100,220,0.25);
+          border-top-color: rgb(140,100,220);
+          border-radius: 50%;
+          animation: dao-compact-spin 0.7s linear infinite;
+        }
+        @keyframes dao-compact-spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+      ${showBar ? html`
+        <div class="dao-compact-bar ${stateClass}">
+          <div class="meta">
+            <span class="gauge"
+                title="Estimated context: ${this.tokenEstimate_} tokens${
+                ctx > 0 ? ` / ${ctx} (${ratioPct}%)` : ''}">
+              <span style="width: ${ratioPct}%"></span>
+            </span>
+            <span class="meta-text">
+              ${this.messageCount_} msgs · ~${this.tokenEstimate_} tok${
+                ctx > 0 ? ` (${ratioPct}%)` : ''}
+            </span>
+          </div>
+          <div class="actions">
+            <button class=${this.compacting_ ? 'compacting' : ''}
+                ?disabled=${!canCompact && !this.compacting_}
+                @click=${this.onCompactClick_}
+                title=${this.compacting_
+                    ? 'Cancel summarization'
+                    : 'Summarize history into a single context message'}>
+              ${this.compacting_
+                  ? html`<span class="spinner"></span>Compacting…`
+                  : html`Compact`}
+            </button>
+          </div>
+        </div>` : ''}
+      <pi-chat-panel></pi-chat-panel>`;
   }
 
   override firstUpdated() {
@@ -228,6 +372,10 @@ export class DaoChatView extends CrLitElement {
         const agent = this.agent_;
         if (!agent) return;
         agent.state.messages = agent.state.messages.slice();
+        this.syncMeta_();
+      }
+      if (ev?.type === 'agent_start' || ev?.type === 'agent_end') {
+        this.isStreaming_ = !!this.agent_?.state.isStreaming;
       }
       if (ev?.type === 'agent_end') {
         const agent = this.agent_;
@@ -237,9 +385,70 @@ export class DaoChatView extends CrLitElement {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const iface = panel.querySelector('agent-interface') as any;
           iface?.requestUpdate?.();
+          this.isStreaming_ = !!this.agent_?.state.isStreaming;
         });
       }
     });
+    this.syncMeta_();
+  }
+
+  private syncMeta_() {
+    const msgs = this.agent_?.state.messages ?? [];
+    this.messageCount_ = msgs.length;
+    this.tokenEstimate_ = estimateMessagesTokens(msgs);
+  }
+
+  private async onCompactClick_() {
+    if (this.compacting_) {
+      this.compactAbort_?.abort();
+      return;
+    }
+    if (!this.agent_) return;
+    if (this.agent_.state.isStreaming) {
+      this.dispatchEvent(new CustomEvent('show-toast', {
+        bubbles: true,
+        composed: true,
+        detail: {text: 'Wait for the current turn to finish'},
+      }));
+      return;
+    }
+    this.compacting_ = true;
+    this.compactAbort_ = new AbortController();
+    try {
+      const result = await compactAgentMessages(this.agent_, {
+        signal: this.compactAbort_.signal,
+        keepTailUserTurns: 1,
+      });
+      this.syncMeta_();
+      // pi-web-ui's <message-list> binds to agent.state.messages with
+      // reference-equality; the setter inside compactAgentMessages already
+      // assigns a fresh array, but we still need to nudge the panel's
+      // internal AgentInterface to re-render now that its message list
+      // shrank.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const iface = this.panel_?.querySelector('agent-interface') as any;
+      iface?.requestUpdate?.();
+      this.dispatchEvent(new CustomEvent('show-toast', {
+        bubbles: true,
+        composed: true,
+        detail: {
+          text: `Compacted ${result.collapsedCount} messages → 1 summary`,
+        },
+      }));
+    } catch (e) {
+      const err = e as Error;
+      const text = err.name === 'AbortError'
+          ? 'Compaction cancelled'
+          : `Compact failed: ${err.message ?? err}`;
+      this.dispatchEvent(new CustomEvent('show-toast', {
+        bubbles: true,
+        composed: true,
+        detail: {text},
+      }));
+    } finally {
+      this.compacting_ = false;
+      this.compactAbort_ = null;
+    }
   }
 
   private hardenComposerTextarea_(panel: PiChatPanel) {
