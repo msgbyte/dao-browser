@@ -43,7 +43,7 @@ END_METADATA
 
 DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
     : browser_(browser), tab_strip_model_(browser->tab_strip_model()) {
-  SetBackground(views::CreateSolidBackground(SkColorSetRGB(202, 197, 208)));
+  SetBackground(views::CreateSolidBackground(SkColorSetRGB(231, 238, 245)));
 
   auto* layout = SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal);
@@ -228,7 +228,7 @@ void DaoLittleDaoView::UpdateURLDisplay() {
 
 void DaoLittleDaoView::UpdateBackgroundColor() {
   SetBackground(views::CreateSolidBackground(
-      SkColorSetRGB(202, 197, 208)));
+      SkColorSetRGB(231, 238, 245)));
 
   SetBorder(views::CreateSolidSidedBorder(
       gfx::Insets::TLBR(0, 0, 1, 0), SkColorSetARGB(25, 0, 0, 0)));

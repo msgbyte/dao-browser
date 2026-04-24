@@ -1,7 +1,7 @@
 /* Dao Sidebar WebUI — global styles and design tokens */
 
 :root {
-  --sidebar-bg: rgb(201, 197, 208);
+  --sidebar-bg: rgb(231, 238, 245);
   --surface: rgba(0, 0, 0, 0.05);
   --surface-active: rgba(255, 255, 255, 0.65);
   --separator: rgba(0, 0, 0, 0.08);

@@ -9,7 +9,7 @@
 
 namespace dao {
 
-constexpr SkColor kSidebarBackground = SkColorSetRGB(201, 197, 208);
+constexpr SkColor kSidebarBackground = SkColorSetRGB(231, 238, 245);
 
 constexpr SkColor kTextPrimary = SkColorSetRGB(30, 20, 40);
 constexpr SkColor kTextSecondary = SkColorSetARGB(153, 30, 20, 40);
@@ -19,7 +19,7 @@ constexpr SkColor kActiveTabBackground = SkColorSetARGB(20, 0, 0, 0);
 constexpr SkColor kSeparatorColor = SkColorSetARGB(20, 0, 0, 0);
 constexpr SkColor kAddressBarBackground = SkColorSetARGB(15, 0, 0, 0);
 
-constexpr SkColor kFrameColor = SkColorSetRGB(201, 197, 208);
+constexpr SkColor kFrameColor = SkColorSetRGB(231, 238, 245);
 
 constexpr SkColor kSpaceActive = SkColorSetRGB(140, 100, 220);
 constexpr SkColor kSpaceInactive = SkColorSetARGB(60, 30, 20, 40);
@@ -58,7 +58,7 @@ constexpr int kMinPaneSize = 200;
 
 // Pane header (frosted glass pill)
 constexpr SkColor kPaneHeaderBackground =
-    SkColorSetARGB(230, 201, 197, 208);               // rgba(201,197,208,0.90)
+    SkColorSetARGB(230, 231, 238, 245);               // rgba(231,238,245,0.90)
 constexpr SkColor kPaneHeaderShadow =
     SkColorSetARGB(40, 0, 0, 0);                      // rgba(0,0,0,0.16)
 constexpr SkColor kPaneHeaderButtonHover =
