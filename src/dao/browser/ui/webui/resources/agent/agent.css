@@ -316,6 +316,18 @@ dao-agent-app [contenteditable="true"]:not(:where(pi-chat-panel *)):focus {
  * pi-chat-panel scope above. A separate hardcoded override would just
  * drift out of sync with the scoped vars. */
 
+/* AgentInterface's messages area is wrapped in a `max-w-3xl mx-auto p-4 pb-0`
+ * div (see pi-web-ui AgentInterface.render — same `max-w-3xl` is also used on
+ * the composer below). In Dao's narrow sidebar the 48rem cap leaves a lot of
+ * empty horizontal space, so widen the messages wrapper to fill the column.
+ * Scoped to the scrollable `.flex-1.overflow-y-auto` parent so the composer's
+ * own `max-w-3xl` is left untouched. Specificity (0,3,0) beats Tailwind's
+ * single-class `.max-w-3xl`, no !important needed. */
+dao-chat-view agent-interface .flex-1.overflow-y-auto > .max-w-3xl {
+  max-width: none;
+  padding: 16px 4px 0;
+}
+
 /* pi-web-ui's <message-editor> is a light-DOM wrapper. The real "bubble"
  * is its first child div, which already carries `bg-card rounded-xl
  * border shadow-sm` Tailwind utilities (see MessageEditor.render:
@@ -528,32 +540,46 @@ attachment-tile[data-dao-decorated="1"] {
   padding: 4px 16px 0;
   margin-top: 2px;
 }
-.dao-retry-btn {
+.dao-retry-btn,
+.dao-copy-btn,
+.dao-share-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  justify-content: center;
+  padding: 0;
+  width: 24px;
   height: 24px;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(30, 20, 40, 0.65);
-  font-size: 11px;
   line-height: 1;
   cursor: pointer;
   transition: background-color 0.12s, border-color 0.12s, color 0.12s;
 }
-.dao-retry-btn:hover {
+.dao-retry-btn:hover,
+.dao-copy-btn:hover,
+.dao-share-btn:hover {
   background: rgba(70, 120, 190, 0.16);
   border-color: rgba(70, 120, 190, 0.32);
   color: rgba(30, 20, 40, 0.92);
 }
-.dao-retry-btn:active {
+.dao-retry-btn:active,
+.dao-copy-btn:active,
+.dao-share-btn:active {
   background: rgba(70, 120, 190, 0.24);
 }
-.dao-retry-btn svg {
+.dao-retry-btn svg,
+.dao-copy-btn svg,
+.dao-share-btn svg {
   width: 12px;
   height: 12px;
+}
+.dao-copy-btn.is-flashing,
+.dao-share-btn.is-flashing {
+  pointer-events: none;
+  background: rgba(70, 120, 190, 0.24);
+  color: rgba(30, 20, 40, 0.92);
 }
 
 /* Dao collapsible tool-call rendering (dao_tool_renderer.ts). pi-web-ui's
@@ -800,19 +826,30 @@ body {
     color: rgba(255, 255, 255, 0.55);
   }
 
-  /* Assistant action row (retry button). */
-  .dao-retry-btn {
+  /* Assistant action row (retry / copy / share). */
+  .dao-retry-btn,
+  .dao-copy-btn,
+  .dao-share-btn {
     border-color: rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.04);
     color: rgba(255, 255, 255, 0.65);
   }
-  .dao-retry-btn:hover {
+  .dao-retry-btn:hover,
+  .dao-copy-btn:hover,
+  .dao-share-btn:hover {
     background: rgba(70, 120, 190, 0.24);
     border-color: rgba(70, 120, 190, 0.45);
     color: rgba(245, 245, 245, 0.92);
   }
-  .dao-retry-btn:active {
+  .dao-retry-btn:active,
+  .dao-copy-btn:active,
+  .dao-share-btn:active {
     background: rgba(70, 120, 190, 0.36);
+  }
+  .dao-copy-btn.is-flashing,
+  .dao-share-btn.is-flashing {
+    background: rgba(70, 120, 190, 0.36);
+    color: rgba(245, 245, 245, 0.95);
   }
 
   /* Collapsible tool-call block. */

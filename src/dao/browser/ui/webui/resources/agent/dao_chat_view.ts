@@ -26,6 +26,7 @@ import {BASE_SYSTEM_PROMPT, currentSoulContent, refreshSoulContent, soulChannel}
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
+import {renderShareImage} from './dao_share_image.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
 import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
 import {getAllSkills, initSkillRegistry, loadSkillInstructions, type SkillRegistryEntry} from './skill_registry.js';
@@ -743,7 +744,7 @@ export class DaoChatView extends CrLitElement {
           const iface = panel.querySelector('agent-interface') as any;
           iface?.requestUpdate?.();
           this.isStreaming_ = !!this.agent_?.state.isStreaming;
-          this.refreshRetryButton_();
+          this.refreshAssistantActions_();
           this.decoratePageAttachments_();
         });
       }
@@ -894,33 +895,205 @@ export class DaoChatView extends CrLitElement {
     return this.escapeHtml_(s).replace(/"/g, '&quot;');
   }
 
-  private refreshRetryButton_(): void {
+  // Pulls the visible text out of an assistant message. pi-agent-core
+  // stores content either as a plain string (most LLM streams) or as an
+  // array of Claude-style blocks (text / toolCall / toolResult). Only
+  // 'text' parts are user-visible, so tool plumbing never leaks into
+  // the share image or the clipboard.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private extractAssistantText_(msg: any): string {
+    if (!msg) return '';
+    const c = msg.content;
+    if (typeof c === 'string') return c;
+    if (!Array.isArray(c)) return '';
+    const pieces: string[] = [];
+    for (const part of c) {
+      if (part && part.type === 'text' && typeof part.text === 'string') {
+        pieces.push(part.text);
+      }
+    }
+    return pieces.join('\n\n');
+  }
+
+  // Walks the message list backward and returns the last assistant reply
+  // paired with the user message that prompted it. `source` is populated
+  // from the first Dao-authored page/selection attachment on that user
+  // message. Returns null if there is no assistant reply yet.
+  private getLastQaPair_():
+      {question: string; source?: {title: string; domain: string};
+       answer: string}|null {
+    const agent = this.agent_;
+    if (!agent) return null;
+    const msgs = agent.state.messages;
+    let assistantIdx = -1;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i]?.role === 'assistant') {
+        assistantIdx = i;
+        break;
+      }
+    }
+    if (assistantIdx < 0) return null;
+    const answer = this.extractAssistantText_(msgs[assistantIdx]);
+
+    let question = '—';
+    let source: {title: string; domain: string}|undefined;
+    for (let i = assistantIdx - 1; i >= 0; i--) {
+      const m = msgs[i];
+      const role = m?.role;
+      if (role !== 'user' && role !== 'user-with-attachments') continue;
+      if (typeof m.content === 'string' && m.content.length > 0) {
+        question = m.content;
+      }
+      if (role === 'user-with-attachments' && Array.isArray(m.attachments)) {
+        for (const att of m.attachments) {
+          if (att && typeof att.daoPageUrl === 'string' && att.daoPageUrl) {
+            try {
+              const host = new URL(att.daoPageUrl).hostname.replace(
+                  /^www\./, '');
+              source = {
+                title: att.daoPageTitle || att.fileName || host,
+                domain: host,
+              };
+            } catch (_) {
+              // Bad URL — skip this attachment, keep looking.
+            }
+            if (source) break;
+          }
+        }
+      }
+      break;
+    }
+    return {question, source, answer};
+  }
+
+  private refreshAssistantActions_(): void {
     const panel = this.panel_;
     if (!panel) return;
-    // Drop any previously-injected action rows so only one remains.
     panel.querySelectorAll('.dao-assistant-actions')
         .forEach(el => el.remove());
     if (this.agent_?.state.isStreaming) return;
     const list = panel.querySelectorAll('assistant-message');
     const last = list[list.length - 1] as HTMLElement | undefined;
     if (!last) return;
+
     const row = document.createElement('div');
     row.className = 'dao-assistant-actions';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'dao-retry-btn';
-    btn.title = 'Regenerate response';
-    btn.setAttribute('aria-label', 'Regenerate response');
-    btn.innerHTML =
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'dao-copy-btn';
+    copyBtn.title = 'Copy answer text';
+    copyBtn.setAttribute('aria-label', 'Copy answer text');
+    copyBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>' +
+        '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1">' +
+        '</path></svg>';
+    copyBtn.addEventListener(
+        'click', () => void this.copyAssistantText_(copyBtn));
+    row.appendChild(copyBtn);
+
+    const shareBtn = document.createElement('button');
+    shareBtn.type = 'button';
+    shareBtn.className = 'dao-share-btn';
+    shareBtn.title = 'Copy as image';
+    shareBtn.setAttribute('aria-label', 'Copy as image');
+    shareBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>' +
+        '<circle cx="9" cy="9" r="2"></circle>' +
+        '<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>' +
+        '</svg>';
+    shareBtn.addEventListener(
+        'click', () => void this.shareAssistantAsImage_(shareBtn));
+    row.appendChild(shareBtn);
+
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'dao-retry-btn';
+    retryBtn.title = 'Regenerate response';
+    retryBtn.setAttribute('aria-label', 'Regenerate response');
+    retryBtn.innerHTML =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
         ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
         ' aria-hidden="true">' +
         '<path d="M3 12a9 9 0 1 0 3-6.7"></path>' +
         '<path d="M3 4v5h5"></path>' +
-        '</svg><span>Retry</span>';
-    btn.addEventListener('click', () => void this.retryLastAssistant_());
-    row.appendChild(btn);
+        '</svg>';
+    retryBtn.addEventListener('click', () => void this.retryLastAssistant_());
+    row.appendChild(retryBtn);
+
     last.insertAdjacentElement('afterend', row);
+  }
+
+  private flashButtonLabel_(
+      btn: HTMLButtonElement, label: string, durationMs = 2000): void {
+    const ok = label === 'Copied' || label === 'Shared';
+    const checkSvg =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>';
+    const xSvg =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true"><path d="M18 6 6 18"></path>' +
+        '<path d="m6 6 12 12"></path></svg>';
+    const origHtml = btn.innerHTML;
+    const origAria = btn.getAttribute('aria-label') || '';
+    btn.innerHTML = ok ? checkSvg : xSvg;
+    btn.setAttribute('aria-label', label);
+    btn.classList.add('is-flashing');
+    window.setTimeout(() => {
+      btn.innerHTML = origHtml;
+      btn.setAttribute('aria-label', origAria);
+      btn.classList.remove('is-flashing');
+    }, durationMs);
+  }
+
+  private async copyAssistantText_(btn: HTMLButtonElement): Promise<void> {
+    const pair = this.getLastQaPair_();
+    if (!pair || !pair.answer) {
+      this.flashButtonLabel_(btn, 'Empty');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(pair.answer);
+      this.flashButtonLabel_(btn, 'Copied');
+    } catch (e) {
+      console.warn('[dao] copy text failed', e);
+      this.flashButtonLabel_(btn, 'Failed');
+    }
+  }
+
+  private async shareAssistantAsImage_(btn: HTMLButtonElement):
+      Promise<void> {
+    const pair = this.getLastQaPair_();
+    if (!pair) {
+      this.flashButtonLabel_(btn, 'Empty');
+      return;
+    }
+    try {
+      const blob = await renderShareImage({
+        question: pair.question,
+        source: pair.source,
+        answer: pair.answer,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ClipboardItemCtor = (window as any).ClipboardItem;
+      if (!ClipboardItemCtor || !navigator.clipboard?.write) {
+        throw new Error('ClipboardItem API unavailable');
+      }
+      await navigator.clipboard.write(
+          [new ClipboardItemCtor({'image/png': blob})]);
+      this.flashButtonLabel_(btn, 'Shared');
+    } catch (e) {
+      console.warn('[dao] share image failed', e);
+      this.flashButtonLabel_(btn, 'Failed');
+    }
   }
 
   private async retryLastAssistant_(): Promise<void> {
