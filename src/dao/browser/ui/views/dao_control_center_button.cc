@@ -20,7 +20,6 @@ namespace {
 constexpr int kButtonSize = 28;
 constexpr int kIconSize = 14;
 constexpr int kCornerRadius = 8;
-constexpr SkColor kDefaultIconColor = SkColorSetARGB(160, 0, 0, 0);
 
 }  // namespace
 
@@ -31,7 +30,7 @@ DaoControlCenterButton::DaoControlCenterButton(Browser* browser)
     : Button(base::BindRepeating(&DaoControlCenterButton::OnClicked,
                                  base::Unretained(this))),
       browser_(browser),
-      icon_color_(kDefaultIconColor) {
+      icon_color_(ControlCenterIconDefault()) {
   SetInstallFocusRingOnFocus(false);
   SetAccessibleName(u"Control Center");
 
@@ -72,7 +71,7 @@ void DaoControlCenterButton::OnMouseExited(const ui::MouseEvent& event) {
 void DaoControlCenterButton::UpdateBackground() {
   if (hovered_) {
     SetBackground(views::CreateRoundedRectBackground(
-        SkColorSetARGB(20, 0, 0, 0), kCornerRadius));
+        ControlCenterHoverBg(), kCornerRadius));
   } else {
     SetBackground(nullptr);
   }

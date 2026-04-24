@@ -5,6 +5,7 @@
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 
 #include "cc/paint/paint_flags.h"
+#include "dao/browser/ui/views/dao_colors.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
@@ -21,9 +22,6 @@ constexpr int kTooltipPaddingV = 6;
 constexpr int kTitleFontSize = 12;
 constexpr int kMaxWidth = 320;
 constexpr float kCornerRadius = 8.0f;
-
-constexpr SkColor kTooltipBackground = SkColorSetARGB(242, 255, 255, 255);
-constexpr SkColor kTitleColor = SkColorSetARGB(217, 30, 20, 40);
 }  // namespace
 
 BEGIN_METADATA(DaoTabTooltipView)
@@ -40,7 +38,7 @@ DaoTabTooltipView::DaoTabTooltipView() {
       gfx::FontList()
           .DeriveWithSizeDelta(kTitleFontSize - gfx::FontList().GetFontSize())
           .DeriveWithWeight(gfx::Font::Weight::MEDIUM));
-  title_label_->SetEnabledColor(kTitleColor);
+  title_label_->SetEnabledColor(SkColorSetA(TextPrimary(), 217));
   title_label_->SetBackgroundColor(SK_ColorTRANSPARENT);
   title_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   title_label_->SetMaximumWidthSingleLine(kMaxWidth - 2 * kTooltipPaddingH);
@@ -102,14 +100,14 @@ void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
     shadow_flags.setAntiAlias(true);
     shadow_flags.setStyle(cc::PaintFlags::kFill_Style);
     shadow_flags.setColor(
-        SkColorSetARGB(static_cast<int>(alpha), 0, 0, 0));
+        SkColorSetARGB(static_cast<int>(alpha), 0, 0, 0));  // theme-independent
     canvas->DrawPath(make_path(shadow_rect, kCornerRadius + expand),
                      shadow_flags);
   }
 
   // Draw background.
   cc::PaintFlags bg_flags;
-  bg_flags.setColor(kTooltipBackground);
+  bg_flags.setColor(SkColorSetA(ToastBackground(), 242));
   bg_flags.setAntiAlias(true);
   bg_flags.setStyle(cc::PaintFlags::kFill_Style);
   canvas->DrawPath(make_path(bounds, kCornerRadius), bg_flags);

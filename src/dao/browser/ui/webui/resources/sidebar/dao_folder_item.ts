@@ -168,6 +168,21 @@ export class DaoFolderItem extends CrLitElement {
         background: rgba(220, 60, 60, 0.10);
         color: rgb(200, 50, 50);
       }
+
+      @media (prefers-color-scheme: dark) {
+        .context-menu {
+          background: rgba(70, 76, 82, 0.92);
+          border-color: rgba(255, 255, 255, 0.14);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.40);
+        }
+        .context-menu-item:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .context-menu-item.danger:hover {
+          background: rgba(239, 68, 68, 0.22);
+          color: rgb(248, 140, 140);
+        }
+      }
     `;
   }
 

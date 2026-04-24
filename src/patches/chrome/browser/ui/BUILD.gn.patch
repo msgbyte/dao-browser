@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..8e3ea16b2a 100644
+index a66522f120..326ad25bfe 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -48,6 +48,99 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -48,6 +48,100 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
@@ -54,6 +54,7 @@ index a66522f120..8e3ea16b2a 100644
 +    "//dao/browser/ui/webui/dao_welcome_ui.h",
 +    "//dao/browser/ui/views/dao_address_bar_view.cc",
 +    "//dao/browser/ui/views/dao_address_bar_view.h",
++    "//dao/browser/ui/views/dao_colors.cc",
 +    "//dao/browser/ui/views/dao_colors.h",
 +    "//dao/browser/ui/views/dao_command_bar_view.cc",
 +    "//dao/browser/ui/views/dao_command_bar_view.h",
@@ -102,7 +103,7 @@ index a66522f120..8e3ea16b2a 100644
      "accelerator_utils.h",
      "bluetooth/bluetooth_dialogs.h",
      "browser_dialogs.cc",
-@@ -318,6 +411,10 @@ static_library("ui") {
+@@ -318,6 +412,10 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
@@ -113,7 +114,7 @@ index a66522f120..8e3ea16b2a 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -564,6 +661,7 @@ static_library("ui") {
+@@ -564,6 +662,7 @@ static_library("ui") {
      "//components/privacy_sandbox:tracking_protection_settings",
      "//components/profile_metrics",
      "//components/proxy_config",
@@ -121,7 +122,7 @@ index a66522f120..8e3ea16b2a 100644
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
-@@ -5673,7 +5771,7 @@ static_library("ui") {
+@@ -5673,7 +5772,7 @@ static_library("ui") {
  # //chrome/browser. These are semantically a part of
  # //chrome/browser:browser_public_dependencies since //chrome/browser and
  # //chrome/browser/ui allow circular dependencies.
@@ -130,7 +131,7 @@ index a66522f120..8e3ea16b2a 100644
    visibility = [ "//chrome/browser:browser_public_dependencies" ]
    public_deps = [
      "//components/cross_device/logging",
-@@ -5707,7 +5805,6 @@ static_library("ui_public_dependencies") {
+@@ -5707,7 +5806,6 @@ static_library("ui_public_dependencies") {
      public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
    }
    if (is_win) {
@@ -138,7 +139,7 @@ index a66522f120..8e3ea16b2a 100644
      public_deps += [
        "//build:branding_buildflags",
        "//ui/views",
-@@ -5952,3 +6049,24 @@ if (is_android) {
+@@ -5952,3 +6050,24 @@ if (is_android) {
      sources = [ "android/toolbar/adaptive_toolbar_enums.h" ]
    }
  }

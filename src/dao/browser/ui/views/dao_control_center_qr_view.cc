@@ -81,7 +81,7 @@ DaoControlCenterQrView::DaoControlCenterQrView(
       u"\u2190 Back");
   back_btn->SetInstallFocusRingOnFocus(false);
   back_btn->SetAccessibleName(u"Back");
-  back_btn->SetEnabledTextColors(SkColorSetRGB(100, 100, 100));
+  back_btn->SetEnabledTextColors(ControlCenterLabelColor());
   auto* back_btn_ptr = AddChildView(std::move(back_btn));
   // Left-align the back button
   back_btn_ptr->SetHorizontalAlignment(gfx::ALIGN_LEFT);
@@ -96,7 +96,7 @@ DaoControlCenterQrView::DaoControlCenterQrView(
   url_label_ = AddChildView(std::make_unique<views::Label>());
   url_label_->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 11,
                                          gfx::Font::Weight::NORMAL));
-  url_label_->SetEnabledColor(SkColorSetRGB(160, 160, 160));
+  url_label_->SetEnabledColor(ControlCenterSecondaryTextColor());
   url_label_->SetMultiLine(true);
   url_label_->SetMaximumWidth(kQrSize);
   url_label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);

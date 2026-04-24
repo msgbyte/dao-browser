@@ -72,7 +72,7 @@ class NavIconButton : public views::Button {
     float icon_size = static_cast<float>(kNavIconSize);
     float ox = (width() - icon_size) / 2.0f;
     float oy = (height() - icon_size) / 2.0f;
-    SkColor color = highlighted_ ? dao::kSpaceActive
+    SkColor color = highlighted_ ? dao::SpaceActive()
                    : nav_enabled_ ? icon_color_
                    : disabled_color_;
 

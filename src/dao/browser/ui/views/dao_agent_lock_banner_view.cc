@@ -31,12 +31,10 @@ constexpr int kDotSpacing = 24;
 constexpr int kDotInset = 20;
 constexpr int kDotTravel = 8;
 constexpr int kAnimationIntervalMs = 33;
+// Brand accent colors — theme-independent (shared across light/dark).
 constexpr SkColor kOverlayBase = SkColorSetARGB(126, 126, 99, 162);
-constexpr SkColor kHeaderFill = SkColorSetARGB(212, 255, 255, 255);
-constexpr SkColor kHeaderShadow = SkColorSetARGB(28, 24, 16, 36);
 constexpr SkColor kHeaderStroke = SkColorSetARGB(30, 70, 120, 190);
 constexpr SkColor kAccentGlow = SkColorSetARGB(140, 70, 120, 190);
-constexpr SkColor kDotColor = SkColorSetARGB(44, 255, 255, 255);
 constexpr SkColor kDotAccent = SkColorSetARGB(60, 70, 120, 190);
 }  // namespace
 
@@ -49,9 +47,15 @@ DaoAgentLockBannerView::DaoAgentLockBannerView() {
   layer()->SetFillsBoundsOpaquely(false);
   SetVisible(false);
   animation_start_time_ = base::TimeTicks::Now();
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
 }
 
 DaoAgentLockBannerView::~DaoAgentLockBannerView() = default;
+
+void DaoAgentLockBannerView::OnNativeThemeUpdated(
+    ui::NativeTheme* observed_theme) {
+  SchedulePaint();
+}
 
 void DaoAgentLockBannerView::SetLocked(bool locked) {
   if (locked_ == locked) {
@@ -106,7 +110,7 @@ void DaoAgentLockBannerView::OnPaint(gfx::Canvas* canvas) {
       cc::PaintFlags mist_flags;
       mist_flags.setAntiAlias(true);
       mist_flags.setStyle(cc::PaintFlags::kFill_Style);
-      mist_flags.setColor(SkColorSetARGB(10 + i * 10, 255, 255, 255));
+      mist_flags.setColor(AgentLockMistColor(i));
       canvas->DrawCircle(center, std::max(width(), height()) * (0.08f * i),
                          mist_flags);
     }
@@ -125,7 +129,7 @@ void DaoAgentLockBannerView::OnPaint(gfx::Canvas* canvas) {
       dot_flags.setAntiAlias(true);
       dot_flags.setStyle(cc::PaintFlags::kFill_Style);
       dot_flags.setColor(
-          SkColorSetA(kDotColor, 10 + static_cast<int>(wave * 24)));
+          SkColorSetA(AgentLockDotColor(), 10 + static_cast<int>(wave * 24)));
       canvas->DrawCircle(gfx::Point(draw_x, y), radius, dot_flags);
 
       if (wave > 0.72f) {
@@ -152,7 +156,7 @@ void DaoAgentLockBannerView::OnPaint(gfx::Canvas* canvas) {
     cc::PaintFlags shadow_flags;
     shadow_flags.setAntiAlias(true);
     shadow_flags.setStyle(cc::PaintFlags::kFill_Style);
-    shadow_flags.setColor(kHeaderShadow);
+    shadow_flags.setColor(AgentLockHeaderShadow());
     canvas->DrawRoundRect(shadow_rect, 20.0f, shadow_flags);
   }
 
@@ -160,7 +164,7 @@ void DaoAgentLockBannerView::OnPaint(gfx::Canvas* canvas) {
     cc::PaintFlags header_flags;
     header_flags.setAntiAlias(true);
     header_flags.setStyle(cc::PaintFlags::kFill_Style);
-    header_flags.setColor(kHeaderFill);
+    header_flags.setColor(AgentLockHeaderFill());
     canvas->DrawRoundRect(gfx::RectF(header_rect), kHeaderCornerRadius,
                           header_flags);
 
@@ -180,6 +184,7 @@ void DaoAgentLockBannerView::OnPaint(gfx::Canvas* canvas) {
     cc::PaintFlags icon_bg_flags;
     icon_bg_flags.setAntiAlias(true);
     icon_bg_flags.setStyle(cc::PaintFlags::kFill_Style);
+    // theme-independent brand accent (shared across light/dark).
     icon_bg_flags.setColor(SkColorSetARGB(
         26 + static_cast<int>((0.5f + 0.5f * std::sin(phase * 2.2f)) * 36),
         70, 120, 190));
@@ -196,7 +201,7 @@ void DaoAgentLockBannerView::OnPaint(gfx::Canvas* canvas) {
                  icon_container_y +
                      (kHeaderIconContainerSize - kHeaderIconSize) / 2,
                  kHeaderIconSize, kHeaderIconSize),
-      dao::kTextPrimary);
+      dao::TextPrimary());
 
   const int text_x =
       icon_container_x + kHeaderIconContainerSize + kHeaderIconGap;
@@ -206,12 +211,12 @@ void DaoAgentLockBannerView::OnPaint(gfx::Canvas* canvas) {
   gfx::FontList subtitle_font({"sans-serif"}, gfx::Font::FontStyle::NORMAL, 12,
                               gfx::Font::Weight::NORMAL);
   canvas->DrawStringRectWithFlags(
-      u"AI is operating on this page", title_font, dao::kTextPrimary,
+      u"AI is operating on this page", title_font, dao::TextPrimary(),
       gfx::Rect(text_x, header_rect.y() + 15, text_width, 18),
       gfx::Canvas::TEXT_ALIGN_LEFT | gfx::Canvas::NO_SUBPIXEL_RENDERING);
   canvas->DrawStringRectWithFlags(
       u"User input is temporarily disabled", subtitle_font,
-      dao::kTextSecondary,
+      dao::TextSecondary(),
       gfx::Rect(text_x, header_rect.y() + 36, text_width, 16),
       gfx::Canvas::TEXT_ALIGN_LEFT | gfx::Canvas::NO_SUBPIXEL_RENDERING);
 }

@@ -33,9 +33,9 @@ void PaintCardShadow(gfx::Canvas* canvas,
   // Two-layer shadow using Chromium's DrawLooper: ambient + key light.
   gfx::ShadowValues shadows;
   // Ambient shadow — large, soft
-  shadows.emplace_back(gfx::Vector2d(0, 0), 40, SkColorSetARGB(30, 0, 0, 0));
+  shadows.emplace_back(gfx::Vector2d(0, 0), 40, PopupShadowOuter());
   // Key shadow — tighter, darker, slight downward offset
-  shadows.emplace_back(gfx::Vector2d(0, 4), 16, SkColorSetARGB(45, 0, 0, 0));
+  shadows.emplace_back(gfx::Vector2d(0, 4), 16, PopupShadowInner());
 
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
@@ -44,9 +44,6 @@ void PaintCardShadow(gfx::Canvas* canvas,
   flags.setLooper(gfx::CreateShadowDrawLooper(shadows));
   canvas->DrawRoundRect(gfx::RectF(card_bounds), corner_radius, flags);
 }
-
-// Card background color: semi-transparent white for frosted glass effect.
-constexpr SkColor kCardBgColor = SkColorSetARGB(230, 255, 255, 255);
 
 }  // namespace
 
@@ -86,8 +83,6 @@ DaoControlCenterPopup::DaoControlCenterPopup(Browser* browser)
       gfx::RoundedCornersF(kCardCornerRadius));
   card_->layer()->SetIsFastRoundedCorner(true);
   card_->layer()->SetBackgroundBlur(30);
-  card_->SetBackground(std::make_unique<ControlCenterCardBackground>(
-      kCardBgColor, kCardCornerRadius));
 
   auto* card_layout =
       card_->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -103,9 +98,7 @@ DaoControlCenterPopup::DaoControlCenterPopup(Browser* browser)
   // Separator
   auto separator = std::make_unique<views::View>();
   separator->SetPreferredSize(gfx::Size(0, 1));
-  separator->SetBackground(
-      views::CreateSolidBackground(SkColorSetARGB(25, 0, 0, 0)));
-  card_->AddChildView(std::move(separator));
+  separator_ = card_->AddChildView(std::move(separator));
 
   // Utility buttons row
   utility_section_ = card_->AddChildView(
@@ -123,6 +116,26 @@ DaoControlCenterPopup::DaoControlCenterPopup(Browser* browser)
 
   // Close popup when tab changes
   browser_->tab_strip_model()->AddObserver(this);
+
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
+  ApplyTheme();
+}
+
+void DaoControlCenterPopup::ApplyTheme() {
+  if (card_) {
+    card_->SetBackground(std::make_unique<ControlCenterCardBackground>(
+        PopupBackground(), kCardCornerRadius));
+  }
+  if (separator_) {
+    separator_->SetBackground(
+        views::CreateSolidBackground(SeparatorColor()));
+  }
+}
+
+void DaoControlCenterPopup::OnNativeThemeUpdated(
+    ui::NativeTheme* observed_theme) {
+  ApplyTheme();
+  SchedulePaint();
 }
 
 DaoControlCenterPopup::~DaoControlCenterPopup() {

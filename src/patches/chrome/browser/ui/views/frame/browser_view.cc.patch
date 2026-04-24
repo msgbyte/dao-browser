@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..b5b5531a27 100644
+index 76c889780c..9e0b7780c6 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -119,6 +119,22 @@
@@ -32,7 +32,7 @@ index 76c889780c..b5b5531a27 100644
 +  // Dao: Only create sidebar UI for normal browser windows (not popups/devtools)
 +  if (browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
 +    // Dao: Set frame background color (visible behind sidebar + content insets)
-+    SetBackground(views::CreateSolidBackground(dao::kSidebarBackground));
++    SetBackground(views::CreateSolidBackground(dao::SidebarBackground()));
 +    contents_web_view_->SetBackgroundOverrideColor(SK_ColorWHITE);
 +    contents_container_->SetPaintToLayer();
 +    contents_container_->layer()->SetFillsBoundsOpaquely(false);

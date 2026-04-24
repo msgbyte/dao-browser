@@ -68,13 +68,13 @@ class PaneHeaderButton : public views::Button {
       cc::PaintFlags flags;
       flags.setAntiAlias(true);
       flags.setStyle(cc::PaintFlags::kFill_Style);
-      flags.setColor(kPaneHeaderButtonHover);
+      flags.setColor(PaneHeaderButtonHover());
       canvas->DrawRoundRect(
           gfx::RectF(0, 0, width(), height()), kPaneHeaderButtonRadius, flags);
     }
 
     gfx::RectF icon_rect(2, 2, width() - 4, height() - 4);
-    DrawLucideIcon(canvas, icon_, icon_rect, kPaneHeaderButtonIcon);
+    DrawLucideIcon(canvas, icon_, icon_rect, PaneHeaderButtonIcon());
   }
 
  private:
@@ -182,7 +182,7 @@ DaoSplitPaneView::DaoSplitPaneView(Browser* browser,
   header_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kCenter);
   header_container->SetBackground(views::CreateRoundedRectBackground(
-      kPaneHeaderBackground, kPaneHeaderCornerRadius));
+      PaneHeaderBackground(), kPaneHeaderCornerRadius));
   header_container->SetPaintToLayer();
   header_container->layer()->SetFillsBoundsOpaquely(false);
   header_container->layer()->SetOpacity(0.0f);
@@ -386,9 +386,10 @@ void DaoSplitPaneView::OnPaint(gfx::Canvas* canvas) {
     flags.setAntiAlias(true);
     flags.setStyle(cc::PaintFlags::kStroke_Style);
     flags.setStrokeWidth(static_cast<float>(kActivePaneGlowRadius));
+    const SkColor glow = ActivePaneGlow();
     flags.setColor(SkColorSetA(
-        kActivePaneGlow,
-        static_cast<int>(SkColorGetA(kActivePaneGlow) * glow_opacity_)));
+        glow,
+        static_cast<int>(SkColorGetA(glow) * glow_opacity_)));
     float inset = static_cast<float>(kActivePaneGlowRadius) / 2.0f;
     gfx::RectF glow_rect(bounds);
     glow_rect.Inset(inset);
@@ -401,9 +402,10 @@ void DaoSplitPaneView::OnPaint(gfx::Canvas* canvas) {
     flags.setAntiAlias(true);
     flags.setStyle(cc::PaintFlags::kStroke_Style);
     flags.setStrokeWidth(static_cast<float>(kActivePaneBorderWidth));
+    const SkColor border = ActivePaneBorder();
     flags.setColor(SkColorSetA(
-        kActivePaneBorder,
-        static_cast<int>(SkColorGetA(kActivePaneBorder) * glow_opacity_)));
+        border,
+        static_cast<int>(SkColorGetA(border) * glow_opacity_)));
     float inset = static_cast<float>(kActivePaneBorderWidth) / 2.0f;
     gfx::RectF border_rect(bounds);
     border_rect.Inset(inset);

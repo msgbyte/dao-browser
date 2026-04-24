@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/ui/views/dao_colors.h"
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_registry.h"
@@ -42,7 +43,6 @@ namespace dao {
 
 namespace {
 
-constexpr SkColor kHoverBg = SkColorSetARGB(20, 0, 0, 0);
 constexpr int kBtnRadius = 6;
 
 // An ImageButton that shows a rounded-rect hover highlight for pinned
@@ -55,7 +55,7 @@ class PinnedExtIconButton : public views::ImageButton {
   void OnMouseEntered(const ui::MouseEvent& event) override {
     ImageButton::OnMouseEntered(event);
     SetBackground(views::CreateRoundedRectBackground(
-        kHoverBg, kBtnRadius));
+        ControlCenterHoverBg(), kBtnRadius));
     SchedulePaint();
   }
 

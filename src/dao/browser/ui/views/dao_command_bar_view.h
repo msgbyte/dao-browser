@@ -11,10 +11,13 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "components/favicon_base/favicon_types.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
+#include "ui/native_theme/native_theme.h"
+#include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/focus/focus_manager.h"
@@ -34,7 +37,8 @@ class DaoSuggestionItemView;
 class DaoCommandBarView : public views::View,
                           public views::TextfieldController,
                           public AutocompleteController::Observer,
-                          public views::FocusChangeListener {
+                          public views::FocusChangeListener,
+                          public ui::NativeThemeObserver {
   METADATA_HEADER(DaoCommandBarView, views::View)
 
  public:
@@ -74,6 +78,9 @@ class DaoCommandBarView : public views::View,
   void OnResultChanged(AutocompleteController* controller,
                        bool default_match_changed) override;
 
+  // ui::NativeThemeObserver:
+  void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+
   // URL detection heuristic (public for testing).
   static bool LooksLikeURL(const std::u16string& text);
 
@@ -84,6 +91,7 @@ class DaoCommandBarView : public views::View,
   void NavigateToMatch(const AutocompleteMatch& match);
   void DeferredRequestFocus();
   void Dismiss();
+  void ApplyTheme();
 
   void CancelNewTab();
   void SetNewTabButtonHighlight(bool highlighted);
@@ -128,6 +136,9 @@ class DaoCommandBarView : public views::View,
   // Tracks the URL for the current input icon favicon request.
   GURL pending_icon_favicon_url_;
   base::CancelableTaskTracker icon_favicon_tracker_;
+
+  base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
+      native_theme_observation_{this};
 
   base::WeakPtrFactory<DaoCommandBarView> weak_factory_{this};
 };

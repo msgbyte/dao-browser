@@ -34,7 +34,7 @@ class MenuItemButton : public views::LabelButton {
     SetAccessibleName(text);
     label()->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 13,
                                         gfx::Font::Weight::NORMAL));
-    SetEnabledTextColors(SkColorSetRGB(50, 50, 50));
+    SetEnabledTextColors(TextPrimary());
     SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(8, 12)));
     SetHorizontalAlignment(gfx::ALIGN_LEFT);
   }
@@ -42,7 +42,7 @@ class MenuItemButton : public views::LabelButton {
   void OnMouseEntered(const ui::MouseEvent& event) override {
     LabelButton::OnMouseEntered(event);
     SetBackground(views::CreateRoundedRectBackground(
-        SkColorSetARGB(20, 0, 0, 0), kMenuCornerRadius));
+        ControlCenterHoverBg(), kMenuCornerRadius));
     SchedulePaint();
   }
 
@@ -73,7 +73,7 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
       u"\u2190 Back");
   back_btn->SetInstallFocusRingOnFocus(false);
   back_btn->SetAccessibleName(u"Back");
-  back_btn->SetEnabledTextColors(SkColorSetRGB(100, 100, 100));
+  back_btn->SetEnabledTextColors(ControlCenterLabelColor());
   back_btn->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 12)));
   AddChildView(std::move(back_btn));
 

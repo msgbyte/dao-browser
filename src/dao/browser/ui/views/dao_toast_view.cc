@@ -27,10 +27,6 @@ constexpr base::TimeDelta kShowDuration = base::Milliseconds(2000);
 constexpr base::TimeDelta kFadeInDuration = base::Milliseconds(200);
 constexpr base::TimeDelta kFadeOutDuration = base::Milliseconds(300);
 constexpr int kSlideOffset = 16;  // pixels to slide down from above
-
-// Clean white pill with crisp dark text
-constexpr SkColor kToastBackground = SkColorSetRGB(255, 255, 255);
-constexpr SkColor kToastTextColor = SkColorSetRGB(35, 35, 40);
 }  // namespace
 
 BEGIN_METADATA(DaoToastView)
@@ -54,12 +50,25 @@ DaoToastView::DaoToastView() {
       gfx::FontList()
           .DeriveWithSizeDelta(kToastFontSize - gfx::FontList().GetFontSize())
           .DeriveWithWeight(gfx::Font::Weight::SEMIBOLD));
-  label_->SetEnabledColor(kToastTextColor);
   label_->SetBackgroundColor(SK_ColorTRANSPARENT);
   label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
+
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
+  ApplyTheme();
 }
 
 DaoToastView::~DaoToastView() = default;
+
+void DaoToastView::ApplyTheme() {
+  if (label_) {
+    label_->SetEnabledColor(ToastTextColor());
+  }
+}
+
+void DaoToastView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
+  ApplyTheme();
+  SchedulePaint();
+}
 
 void DaoToastView::ShowToast(const std::u16string& message) {
   dismiss_timer_.Stop();
@@ -106,13 +115,14 @@ void DaoToastView::OnPaint(gfx::Canvas* canvas) {
     cc::PaintFlags shadow_flags;
     shadow_flags.setAntiAlias(true);
     shadow_flags.setStyle(cc::PaintFlags::kFill_Style);
-    shadow_flags.setColor(SkColorSetARGB(static_cast<int>(alpha), 0, 0, 0));
+    shadow_flags.setColor(SkColorSetARGB(static_cast<int>(alpha), 0, 0,
+                                         0));  // theme-independent
     canvas->DrawRoundRect(shadow_rect, corner_radius + expand, shadow_flags);
   }
 
   // Draw solid pill background
   cc::PaintFlags bg_flags;
-  bg_flags.setColor(kToastBackground);
+  bg_flags.setColor(ToastBackground());
   bg_flags.setAntiAlias(true);
   bg_flags.setStyle(cc::PaintFlags::kFill_Style);
   canvas->DrawRoundRect(bounds, corner_radius, bg_flags);

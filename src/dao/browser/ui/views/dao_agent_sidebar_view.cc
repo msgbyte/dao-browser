@@ -27,14 +27,44 @@ END_METADATA
 
 DaoAgentSidebarView::DaoAgentSidebarView(Browser* browser)
     : browser_(browser) {
-  SetBackground(views::CreateSolidBackground(dao::kSidebarBackground));
-
   // Resize handle on the left edge (drag to resize).
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
 
   // WebView is created but NOT loaded until the first Toggle() expansion.
   web_view_ = AddChildView(
       std::make_unique<views::WebView>(browser->profile()));
+
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
+  ApplyTheme();
+}
+
+void DaoAgentSidebarView::ApplyTheme() {
+  const SkColor bg = dao::SidebarBackground();
+  SetBackground(views::CreateSolidBackground(bg));
+
+  if (web_view_) {
+    if (content::WebContents* web_contents = web_view_->GetWebContents()) {
+      web_contents->SetPageBaseBackgroundColor(bg);
+      if (content::RenderWidgetHostView* host_view =
+              web_contents->GetRenderWidgetHostView()) {
+        host_view->SetBackgroundColor(bg);
+      }
+      // Refresh the UserData cache installed in EnsureLoaded() so future
+      // RenderFrameCreated events re-apply the current theme's color instead
+      // of the stale startup color. Only after first load — do not install
+      // the UserData here before EnsureLoaded() has run.
+      if (loaded_) {
+        views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+            web_contents, bg);
+      }
+    }
+  }
+}
+
+void DaoAgentSidebarView::OnNativeThemeUpdated(
+    ui::NativeTheme* observed_theme) {
+  ApplyTheme();
+  SchedulePaint();
 }
 
 DaoAgentSidebarView::~DaoAgentSidebarView() {
@@ -51,12 +81,12 @@ void DaoAgentSidebarView::EnsureLoaded() {
   loaded_ = true;
 
   if (content::WebContents* web_contents = web_view_->GetWebContents()) {
-    web_contents->SetPageBaseBackgroundColor(dao::kSidebarBackground);
+    web_contents->SetPageBaseBackgroundColor(dao::SidebarBackground());
     views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
-        web_contents, dao::kSidebarBackground);
+        web_contents, dao::SidebarBackground());
     if (content::RenderWidgetHostView* host_view =
             web_contents->GetRenderWidgetHostView()) {
-      host_view->SetBackgroundColor(dao::kSidebarBackground);
+      host_view->SetBackgroundColor(dao::SidebarBackground());
     }
     web_contents->SetDelegate(this);
   }

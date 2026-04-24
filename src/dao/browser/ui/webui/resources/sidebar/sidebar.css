@@ -11,9 +11,27 @@
   --accent: rgb(70, 120, 190);
   --accent-subtle: rgba(70, 120, 190, 0.10);
   --ink-drop: rgba(0, 0, 0, 0.04);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
   --radius-tab: 12px;
   --radius-favorite: 8px;
   --font-family: system-ui, -apple-system, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sidebar-bg: rgb(54, 59, 64);
+    --surface: rgba(255, 255, 255, 0.06);
+    --surface-active: rgba(255, 255, 255, 0.12);
+    --separator: rgba(255, 255, 255, 0.08);
+    --text-primary: rgba(245, 245, 245, 1.0);
+    --text-secondary: rgba(255, 255, 255, 0.60);
+    --text-muted: rgba(255, 255, 255, 0.40);
+    --accent-subtle: rgba(70, 120, 190, 0.18);
+    --ink-drop: rgba(255, 255, 255, 0.06);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.30);
+  }
 }
 
 * {
@@ -43,10 +61,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--scrollbar-thumb);
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--scrollbar-thumb-hover);
 }

@@ -112,6 +112,12 @@ export class DaoSkillManagerView extends CrLitElement {
         border-radius: 2px;
       }
 
+      @media (prefers-color-scheme: dark) {
+        .list-panel::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.18);
+        }
+      }
+
       .skill-item {
         display: flex;
         flex-direction: column;

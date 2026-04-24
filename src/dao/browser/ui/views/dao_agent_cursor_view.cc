@@ -175,21 +175,23 @@ void DaoAgentCursorView::PaintCursor(gfx::Canvas* canvas) {
       gfx::Vector2d(static_cast<int>(cursor_pos_.x()),
                      static_cast<int>(cursor_pos_.y())));
 
-  // Glow (purple shadow behind the pointer).
+  const SkColor accent = SpaceActive();
+
+  // Glow (accent shadow behind the pointer).
   cc::PaintFlags glow_flags;
   glow_flags.setAntiAlias(true);
   glow_flags.setStyle(cc::PaintFlags::kFill_Style);
-  glow_flags.setColor(SkColorSetA(kSpaceActive, 51));  // 20%
+  glow_flags.setColor(SkColorSetA(accent, 51));  // 20%
   glow_flags.setImageFilter(
       sk_make_sp<cc::BlurPaintFilter>(2.0f, 2.0f, SkTileMode::kDecal,
                                       nullptr));
   canvas->DrawPath(arrow, glow_flags);
 
-  // Fill (purple).
+  // Fill.
   cc::PaintFlags fill_flags;
   fill_flags.setAntiAlias(true);
   fill_flags.setStyle(cc::PaintFlags::kFill_Style);
-  fill_flags.setColor(kSpaceActive);
+  fill_flags.setColor(accent);
   canvas->DrawPath(arrow, fill_flags);
 
   // Stroke (white outline).
@@ -218,7 +220,7 @@ void DaoAgentCursorView::PaintRipple(gfx::Canvas* canvas) {
   ripple_flags.setAntiAlias(true);
   ripple_flags.setStyle(cc::PaintFlags::kStroke_Style);
   ripple_flags.setStrokeWidth(stroke_width);
-  ripple_flags.setColor(SkColorSetA(kSpaceActive, static_cast<int>(alpha)));
+  ripple_flags.setColor(SkColorSetA(SpaceActive(), static_cast<int>(alpha)));
 
   canvas->DrawCircle(
       gfx::Point(static_cast<int>(ripple_center_.x()),

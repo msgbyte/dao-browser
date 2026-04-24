@@ -7,8 +7,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/native_theme/native_theme.h"
+#include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/controls/resize_area.h"
 #include "ui/views/controls/resize_area_delegate.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
@@ -24,7 +27,8 @@ namespace dao {
 
 class DaoAgentSidebarView : public views::View,
                             public content::WebContentsDelegate,
-                            public views::ResizeAreaDelegate {
+                            public views::ResizeAreaDelegate,
+                            public ui::NativeThemeObserver {
   METADATA_HEADER(DaoAgentSidebarView, views::View)
 
  public:
@@ -54,8 +58,12 @@ class DaoAgentSidebarView : public views::View,
   // views::ResizeAreaDelegate:
   void OnResize(int resize_amount, bool done_resizing) override;
 
+  // ui::NativeThemeObserver:
+  void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+
  private:
   void EnsureLoaded();
+  void ApplyTheme();
 
   raw_ptr<Browser> browser_;
   raw_ptr<views::WebView> web_view_ = nullptr;
@@ -70,6 +78,9 @@ class DaoAgentSidebarView : public views::View,
   int resize_start_width_ = kDefaultWidth;
 
   views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
+
+  base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
+      native_theme_observation_{this};
 
   base::WeakPtrFactory<DaoAgentSidebarView> weak_factory_{this};
 };

@@ -661,3 +661,218 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* ============================================================================
+ * Dark mode — follows the OS `prefers-color-scheme: dark` preference.
+ * Chromium WebUI inherits the OS color scheme, so this block activates
+ * automatically when the user's system theme is dark.
+ *
+ * Strategy: re-bind every CSS custom property at both scopes (`:root` and
+ * `dao-chat-view, pi-chat-panel`) so all downstream usages swap. A follow-up
+ * block overrides the remaining hardcoded `rgba(30, 20, 40, ...)` text
+ * colors and translucent-white surfaces that were inlined into individual
+ * rules during the light-only design era.
+ * ============================================================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: transparent;
+    --surface: rgba(255, 255, 255, 0.06);
+    --surface-hover: rgba(255, 255, 255, 0.12);
+    --border: rgba(255, 255, 255, 0.14);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --glass: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --glass-strong: rgba(255, 255, 255, 0.16);
+    --text: rgba(245, 245, 245, 0.92);
+    --text-secondary: rgba(255, 255, 255, 0.60);
+    --text-tertiary: rgba(255, 255, 255, 0.40);
+    --accent-dim: rgba(70, 120, 190, 0.28);
+    --user-bubble: rgba(70, 120, 190, 0.28);
+    --assistant-bubble: rgba(255, 255, 255, 0.06);
+    --assistant-border: rgba(255, 255, 255, 0.12);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+
+  dao-chat-view,
+  pi-chat-panel {
+    --background: transparent;
+    --foreground: rgba(245, 245, 245, 0.92);
+    --card: rgba(255, 255, 255, 0.06);
+    --card-foreground: rgba(245, 245, 245, 0.92);
+    --popover: rgba(70, 76, 82, 0.96);
+    --popover-foreground: rgba(245, 245, 245, 0.92);
+    --primary: rgb(70, 120, 190);
+    --primary-foreground: #ffffff;
+    --secondary: rgba(255, 255, 255, 0.08);
+    --secondary-foreground: rgba(245, 245, 245, 0.92);
+    --muted: rgba(255, 255, 255, 0.04);
+    --muted-foreground: rgba(255, 255, 255, 0.60);
+    --accent: rgba(255, 255, 255, 0.06);
+    --accent-foreground: rgba(245, 245, 245, 0.92);
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: rgba(255, 255, 255, 0.12);
+    --input: rgba(255, 255, 255, 0.08);
+    --ring: rgba(70, 120, 190, 0.55);
+    --sidebar: transparent;
+    --sidebar-foreground: rgba(245, 245, 245, 0.92);
+    --sidebar-primary: rgb(70, 120, 190);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: rgba(255, 255, 255, 0.06);
+    --sidebar-accent-foreground: rgba(245, 245, 245, 0.92);
+    --sidebar-border: rgba(255, 255, 255, 0.12);
+    --sidebar-ring: rgba(70, 120, 190, 0.55);
+  }
+
+  /* User bubble: light mode paints it blue-on-white. In dark we keep the
+   * blue paint but soften it slightly and keep the white foreground. */
+  dao-agent-app .user-message-container > markdown-block {
+    background: rgba(70, 120, 190, 0.70);
+  }
+
+  /* Dao-owned inputs — translucent-white fills get dialed down so they
+   * don't flash on dark surface. */
+  dao-agent-app input:not(:where(message-editor *, pi-chat-panel *)),
+  dao-agent-app textarea:not(:where(message-editor *, pi-chat-panel *)),
+  dao-agent-app [contenteditable="true"]:not(:where(pi-chat-panel *)) {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  /* Page / selection chip (floats above composer): flip the translucent
+   * white fill + dark text to translucent black with light text. */
+  .dao-page-chip {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(70, 120, 190, 0.35);
+    color: rgba(245, 245, 245, 0.88);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  }
+  .dao-page-chip:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(70, 120, 190, 0.55);
+  }
+  .dao-page-chip-favicon {
+    background: rgba(70, 120, 190, 0.22);
+    color: rgba(170, 200, 240, 0.95);
+  }
+  .dao-page-chip-title {
+    color: rgba(245, 245, 245, 0.92);
+  }
+  .dao-page-chip-domain {
+    color: rgba(255, 255, 255, 0.55);
+  }
+  .dao-page-chip-close {
+    color: rgba(255, 255, 255, 0.55);
+  }
+  .dao-page-chip-close:hover {
+    background: rgba(70, 120, 190, 0.28);
+    color: rgba(245, 245, 245, 0.95);
+  }
+  .dao-selection-chip .dao-page-chip-favicon {
+    background: rgba(70, 120, 190, 0.28);
+    color: rgba(170, 200, 240, 0.95);
+  }
+
+  /* Attachment tile & page preview card inside the message list. */
+  dao-agent-app attachment-tile:not([data-dao-decorated="1"]) {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(245, 245, 245, 0.88);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+  .dao-page-tile {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.10);
+    color: rgba(245, 245, 245, 0.88);
+  }
+  .dao-page-tile:hover {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(70, 120, 190, 0.45);
+  }
+  .dao-page-tile-favicon {
+    background: rgba(70, 120, 190, 0.22);
+    color: rgba(170, 200, 240, 0.95);
+  }
+  .dao-page-tile-title {
+    color: rgba(245, 245, 245, 0.94);
+  }
+  .dao-page-tile-domain {
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  /* Assistant action row (retry button). */
+  .dao-retry-btn {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.65);
+  }
+  .dao-retry-btn:hover {
+    background: rgba(70, 120, 190, 0.24);
+    border-color: rgba(70, 120, 190, 0.45);
+    color: rgba(245, 245, 245, 0.92);
+  }
+  .dao-retry-btn:active {
+    background: rgba(70, 120, 190, 0.36);
+  }
+
+  /* Collapsible tool-call block. */
+  details.dao-tool-call {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.10);
+    color: rgba(245, 245, 245, 0.82);
+  }
+  details.dao-tool-call[open] {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(70, 120, 190, 0.45);
+  }
+  details.dao-tool-call .dao-tool-call-name {
+    color: rgba(245, 245, 245, 0.85);
+  }
+  details.dao-tool-call .dao-tool-call-chevron {
+    color: rgba(255, 255, 255, 0.55);
+  }
+  details.dao-tool-call .dao-tool-call-label {
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  /* mini-lit Select portal — portaled into document.body, outside the
+   * scoped vars above. Repaint the glass card and option rows. */
+  .select-portal-container {
+    color: rgba(245, 245, 245, 0.92);
+  }
+  .select-portal-container > div {
+    background: rgba(70, 76, 82, 0.92) !important;
+    color: rgba(245, 245, 245, 0.94) !important;
+    border-color: rgba(70, 120, 190, 0.35) !important;
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.50),
+        0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  }
+  .select-portal-container [role="option"],
+  .select-portal-container > div > div > div > div,
+  .select-portal-container > div > div > div > button {
+    color: rgba(245, 245, 245, 0.88);
+  }
+  .select-portal-container [role="option"]:hover,
+  .select-portal-container > div > div [class*="hover"]:hover {
+    background-color: rgba(70, 120, 190, 0.28) !important;
+    color: rgba(245, 245, 245, 0.98) !important;
+  }
+  .select-portal-container .text-muted-foreground {
+    color: rgba(255, 255, 255, 0.55) !important;
+  }
+
+  /* message-editor picker buttons (attachment / model / send dropdown). */
+  dao-agent-app message-editor button[aria-haspopup="listbox"],
+  dao-agent-app message-editor [role="combobox"] {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(245, 245, 245, 0.78);
+  }
+  dao-agent-app message-editor button[aria-haspopup="listbox"]:hover,
+  dao-agent-app message-editor [role="combobox"]:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(70, 120, 190, 0.55);
+    color: rgba(245, 245, 245, 0.92);
+  }
+}

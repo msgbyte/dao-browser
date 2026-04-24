@@ -34,8 +34,6 @@ constexpr int kVerticalPadding = 8;   // Top/bottom padding inside 48px header
 constexpr int kButtonCornerRadius = 8;
 constexpr int kDisplayCornerRadius = 8;   // Rounded rectangle
 constexpr int kElementSpacing = 8;
-constexpr SkColor kButtonBackground = SkColorSetARGB(15, 0, 0, 0);
-constexpr SkColor kDisplayBackground = SkColorSetARGB(15, 0, 0, 0);
 }  // namespace
 
 BEGIN_METADATA(DaoLittleDaoView)
@@ -43,7 +41,7 @@ END_METADATA
 
 DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
     : browser_(browser), tab_strip_model_(browser->tab_strip_model()) {
-  SetBackground(views::CreateSolidBackground(SkColorSetRGB(231, 238, 245)));
+  SetBackground(views::CreateSolidBackground(SidebarBackground()));
 
   auto* layout = SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal);
@@ -59,9 +57,9 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
       base::BindRepeating(&DaoLittleDaoView::ShowCommandBar,
                           base::Unretained(this)),
       u""));
-  url_display_->SetEnabledTextColors(SkColorSetRGB(60, 60, 60));
+  url_display_->SetEnabledTextColors(TextSecondary());
   url_display_->SetBackground(views::CreateRoundedRectBackground(
-      kDisplayBackground, kDisplayCornerRadius));
+      SuggestionHover(), kDisplayCornerRadius));
   url_display_->SetBorder(
       views::CreateEmptyBorder(gfx::Insets::TLBR(0, 12, 0, 12)));
   url_display_->SetPreferredSize(gfx::Size(0, 0));
@@ -85,9 +83,9 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
       base::BindRepeating(&DaoLittleDaoView::OpenInDao,
                           base::Unretained(this)),
       u"Open in Dao"));
-  open_button_->SetEnabledTextColors(kTextPrimary);
+  open_button_->SetEnabledTextColors(TextPrimary());
   open_button_->SetBackground(views::CreateRoundedRectBackground(
-      kButtonBackground, kButtonCornerRadius));
+      SuggestionHover(), kButtonCornerRadius));
   open_button_->SetBorder(
       views::CreateEmptyBorder(gfx::Insets::TLBR(0, 14, 0, 10)));
   open_button_->SetAccessibleName(u"Open in Dao");
@@ -103,7 +101,7 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   // in Layout() since LabelButton's internal layout ignores extra children.
   shortcut_label_ =
       open_button_->AddChildView(std::make_unique<views::Label>(u"\u2318+O"));
-  shortcut_label_->SetEnabledColor(SkColorSetARGB(80, 0, 0, 0));
+  shortcut_label_->SetEnabledColor(TextMuted());
 
   // Expand button preferred size to include room for the shortcut label,
   // and force the same height as the URL display for visual alignment.
@@ -227,11 +225,10 @@ void DaoLittleDaoView::UpdateURLDisplay() {
 }
 
 void DaoLittleDaoView::UpdateBackgroundColor() {
-  SetBackground(views::CreateSolidBackground(
-      SkColorSetRGB(231, 238, 245)));
+  SetBackground(views::CreateSolidBackground(SidebarBackground()));
 
   SetBorder(views::CreateSolidSidedBorder(
-      gfx::Insets::TLBR(0, 0, 1, 0), SkColorSetARGB(25, 0, 0, 0)));
+      gfx::Insets::TLBR(0, 0, 1, 0), SeparatorColor()));
 
   SchedulePaint();
 }

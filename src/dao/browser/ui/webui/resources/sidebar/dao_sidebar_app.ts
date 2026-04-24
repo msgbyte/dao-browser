@@ -113,6 +113,20 @@ export class DaoSidebarApp extends CrLitElement {
       .plus-menu-item svg {
         flex-shrink: 0;
       }
+
+      @media (prefers-color-scheme: dark) {
+        .plus-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .plus-menu {
+          background: rgba(70, 76, 82, 0.92);
+          border-color: rgba(255, 255, 255, 0.14);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.40);
+        }
+        .plus-menu-item:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+      }
     `;
   }
 

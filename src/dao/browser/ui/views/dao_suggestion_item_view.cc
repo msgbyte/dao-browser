@@ -56,7 +56,7 @@ DaoSuggestionItemView::DaoSuggestionItemView(int index,
   auto title = std::make_unique<views::Label>();
   title->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 13,
                                     gfx::Font::Weight::NORMAL));
-  title->SetEnabledColor(kSuggestionTitleColor);
+  title->SetEnabledColor(SuggestionTitleColor());
   title->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   title->SetElideBehavior(gfx::ELIDE_TAIL);
   title->SetSubpixelRenderingEnabled(false);
@@ -68,7 +68,7 @@ DaoSuggestionItemView::DaoSuggestionItemView(int index,
   auto desc = std::make_unique<views::Label>();
   desc->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 11,
                                    gfx::Font::Weight::NORMAL));
-  desc->SetEnabledColor(kTextMuted);
+  desc->SetEnabledColor(TextMuted());
   desc->SetHorizontalAlignment(gfx::ALIGN_RIGHT);
   desc->SetElideBehavior(gfx::ELIDE_TAIL);
   desc->SetSubpixelRenderingEnabled(false);
@@ -84,7 +84,7 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
   // Always set the vector icon first as immediate fallback
   const gfx::VectorIcon& vector_icon = match.GetVectorIcon(is_bookmark);
   icon_view_->SetImage(
-      gfx::CreateVectorIcon(vector_icon, 18, kSuggestionIconColor));
+      gfx::CreateVectorIcon(vector_icon, 18, SuggestionIconColor()));
 
   // Cancel any pending favicon request
   favicon_tracker_.TryCancelAll();
@@ -166,9 +166,9 @@ bool DaoSuggestionItemView::OnMousePressed(const ui::MouseEvent& event) {
 
 void DaoSuggestionItemView::UpdateBackground() {
   if (is_selected_) {
-    SetBackground(views::CreateSolidBackground(kSuggestionSelected));
+    SetBackground(views::CreateSolidBackground(SuggestionSelected()));
   } else if (is_hovered_) {
-    SetBackground(views::CreateSolidBackground(kSuggestionHover));
+    SetBackground(views::CreateSolidBackground(SuggestionHover()));
   } else {
     SetBackground(nullptr);
   }

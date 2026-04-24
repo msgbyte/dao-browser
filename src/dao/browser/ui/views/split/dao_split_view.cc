@@ -88,7 +88,7 @@ class DropZoneOverlayView : public views::View {
   }
 
   void OnPaint(gfx::Canvas* canvas) override {
-    canvas->FillRect(GetLocalBounds(), kDropZoneOverlay);
+    canvas->FillRect(GetLocalBounds(), DropZoneOverlay());
   }
 };
 

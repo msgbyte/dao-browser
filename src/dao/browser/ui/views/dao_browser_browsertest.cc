@@ -33,6 +33,7 @@
 #include "dao/browser/pip/dao_pip_interceptor.h"
 #include "dao/browser/pip/dao_pip_site_rules.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
+#include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
@@ -48,6 +49,8 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 #include "ui/compositor/layer.h"
+#include "ui/native_theme/native_theme.h"
+#include "ui/native_theme/test_native_theme.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
@@ -1141,6 +1144,76 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, LoadsWithoutConsoleErrors) {
   EXPECT_TRUE(errors.empty())
       << "chrome://agent/ emitted console errors during load:\n - "
       << base::JoinString(errors, "\n - ");
+}
+
+class DaoDarkModeBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, DarkMode_SidebarBackground_Light) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_use_dark_colors(false);
+  theme->NotifyOnNativeThemeUpdated();
+
+  EXPECT_EQ(dao::SidebarBackground(), SkColorSetRGB(231, 238, 245));
+  EXPECT_FALSE(dao::IsDarkMode());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, DarkMode_SidebarBackground_Dark) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_use_dark_colors(true);
+  theme->NotifyOnNativeThemeUpdated();
+
+  EXPECT_EQ(dao::SidebarBackground(), SkColorSetRGB(54, 59, 64));
+  EXPECT_TRUE(dao::IsDarkMode());
+
+  // Restore default for subsequent tests.
+  theme->set_use_dark_colors(false);
+  theme->NotifyOnNativeThemeUpdated();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
+                       DarkMode_SidebarRepaintsOnThemeChange) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* sidebar = view->dao_sidebar();
+  ASSERT_TRUE(sidebar);
+
+  // DaoSidebarView paints its background on its inner container (the first
+  // child view), not on itself. The inner container is populated in the
+  // constructor, so it is guaranteed to exist here.
+  ASSERT_FALSE(sidebar->children().empty());
+  views::View* inner = sidebar->children()[0];
+
+  theme->set_use_dark_colors(true);
+  theme->NotifyOnNativeThemeUpdated();
+
+  // After the observer fires, the sidebar's background should match the
+  // dark palette.
+  auto* bg = inner->background();
+  ASSERT_TRUE(bg);
+  EXPECT_EQ(bg->get_color(), SkColorSetRGB(54, 59, 64));
+
+  theme->set_use_dark_colors(false);
+  theme->NotifyOnNativeThemeUpdated();
+  EXPECT_EQ(inner->background()->get_color(),
+            SkColorSetRGB(231, 238, 245));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, DarkMode_AccentUnchanged) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+
+  theme->set_use_dark_colors(false);
+  theme->NotifyOnNativeThemeUpdated();
+  const SkColor light_accent = dao::SpaceActive();
+
+  theme->set_use_dark_colors(true);
+  theme->NotifyOnNativeThemeUpdated();
+  const SkColor dark_accent = dao::SpaceActive();
+
+  EXPECT_EQ(light_accent, dark_accent);
+  EXPECT_EQ(light_accent, SkColorSetRGB(70, 120, 190));
+
+  theme->set_use_dark_colors(false);
+  theme->NotifyOnNativeThemeUpdated();
 }
 
 }  // namespace

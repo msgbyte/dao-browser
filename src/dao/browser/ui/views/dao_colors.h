@@ -9,34 +9,36 @@
 
 namespace dao {
 
-constexpr SkColor kSidebarBackground = SkColorSetRGB(231, 238, 245);
+// Returns true when the current system appearance is dark.
+bool IsDarkMode();
 
-constexpr SkColor kTextPrimary = SkColorSetRGB(30, 20, 40);
-constexpr SkColor kTextSecondary = SkColorSetARGB(153, 30, 20, 40);
-constexpr SkColor kTextMuted = SkColorSetARGB(102, 30, 20, 40);
+SkColor SidebarBackground();
+SkColor FrameColor();
 
-constexpr SkColor kActiveTabBackground = SkColorSetARGB(20, 0, 0, 0);
-constexpr SkColor kSeparatorColor = SkColorSetARGB(20, 0, 0, 0);
-constexpr SkColor kAddressBarBackground = SkColorSetARGB(15, 0, 0, 0);
+SkColor TextPrimary();
+SkColor TextSecondary();
+SkColor TextMuted();
 
-constexpr SkColor kFrameColor = SkColorSetRGB(231, 238, 245);
+SkColor ActiveTabBackground();
+SkColor SeparatorColor();
+SkColor AddressBarBackground();
 
-constexpr SkColor kSpaceActive = SkColorSetRGB(70, 120, 190);
-constexpr SkColor kSpaceInactive = SkColorSetARGB(60, 30, 20, 40);
+SkColor SpaceActive();
+SkColor SpaceInactive();
 
-constexpr SkColor kInkDropBase = SK_ColorBLACK;
-constexpr float kInkDropOpacity = 0.04f;
+SkColor InkDropBase();
+float InkDropOpacity();
 
-constexpr SkColor kCommandBarScrim = SkColorSetARGB(80, 0, 0, 0);
-constexpr SkColor kCommandBarBackground = SkColorSetARGB(186, 255, 255, 255);
-constexpr SkColor kCommandBarBorder = SkColorSetARGB(40, 0, 0, 0);
-constexpr float kCommandBarBlurSigma = 16.0f;
+SkColor CommandBarScrim();
+SkColor CommandBarBackground();
+SkColor CommandBarBorder();
+constexpr float kCommandBarBlurSigma = 16.0f;  // unchanged across themes
 
-constexpr SkColor kSuggestionHover = SkColorSetARGB(15, 0, 0, 0);
-constexpr SkColor kSuggestionSelected = SkColorSetARGB(25, 0, 0, 0);
-constexpr SkColor kSuggestionTitleColor = SkColorSetRGB(10, 8, 16);
-constexpr SkColor kSuggestionIconColor = SkColorSetARGB(153, 30, 20, 40);
-constexpr SkColor kGhostTextColor = SkColorSetARGB(77, 30, 20, 40);
+SkColor SuggestionHover();
+SkColor SuggestionSelected();
+SkColor SuggestionTitleColor();
+SkColor SuggestionIconColor();
+SkColor GhostTextColor();
 
 // Content area styling
 constexpr int kContentCornerRadius = 10;
@@ -46,36 +48,55 @@ constexpr int kContentInsetRight = 6;
 constexpr int kContentInsetBottom = 6;
 
 // Split view styling
-constexpr SkColor kDividerColor =
-    SkColorSetARGB(20, 0, 0, 0);                      // black 8%
-constexpr SkColor kDividerHoverColor =
-    SkColorSetARGB(128, 70, 120, 190);
-constexpr SkColor kDropZoneOverlay =
-    SkColorSetARGB(38, 70, 120, 190);
+SkColor DividerColor();
+SkColor DividerHoverColor();
+SkColor DropZoneOverlay();
 constexpr int kDividerWidth = 4;
 constexpr int kDropZoneEdgeSize = 40;
 constexpr int kMinPaneSize = 200;
 
 // Pane header (frosted glass pill)
-constexpr SkColor kPaneHeaderBackground =
-    SkColorSetARGB(230, 231, 238, 245);               // rgba(231,238,245,0.90)
-constexpr SkColor kPaneHeaderShadow =
-    SkColorSetARGB(40, 0, 0, 0);                      // rgba(0,0,0,0.16)
-constexpr SkColor kPaneHeaderButtonHover =
-    SkColorSetARGB(20, 0, 0, 0);                      // black 8%
-constexpr SkColor kPaneHeaderButtonIcon =
-    SkColorSetARGB(153, 30, 20, 40);                  // dark 60%
+SkColor PaneHeaderBackground();
+SkColor PaneHeaderShadow();
+SkColor PaneHeaderButtonHover();
+SkColor PaneHeaderButtonIcon();
 constexpr int kPaneHeaderCornerRadius = 8;
 constexpr int kPaneHeaderButtonSize = 22;
 constexpr int kPaneHeaderButtonRadius = 6;
 
 // Active pane indicator (glow border)
-constexpr SkColor kActivePaneBorder =
-    SkColorSetARGB(153, 70, 120, 190);
-constexpr SkColor kActivePaneGlow =
-    SkColorSetARGB(38, 70, 120, 190);
+SkColor ActivePaneBorder();
+SkColor ActivePaneGlow();
 constexpr int kActivePaneBorderWidth = 2;
 constexpr int kActivePaneGlowRadius = 12;
+
+// Per-step alpha base for DaoCornerOverlayView drop-shadow. Dark mode
+// scales up so the shadow remains visible on the 54,59,64 surface.
+float CornerShadowAlphaBase();
+
+// Surface / popup palette — flat surfaces used by popups, toasts, control
+// center cards. Slightly brighter than sidebar in dark mode for depth.
+SkColor PopupBackground();
+SkColor ToastBackground();
+SkColor ToastTextColor();
+
+// Neutral icon / hover tints for control center buttons and menus.
+SkColor ControlCenterIconDefault();
+SkColor ControlCenterIconMuted();
+SkColor ControlCenterHoverBg();
+SkColor ControlCenterActiveBg();
+SkColor ControlCenterLabelColor();
+SkColor ControlCenterSecondaryTextColor();
+
+// Generic drop-shadow colors used across popups.
+SkColor PopupShadowOuter();  // 40px blur step
+SkColor PopupShadowInner();  // 16px blur step, y=4
+
+// Agent lock banner — themed surfaces over the brand overlay.
+SkColor AgentLockHeaderFill();
+SkColor AgentLockHeaderShadow();
+SkColor AgentLockDotColor();
+SkColor AgentLockMistColor(int step);  // step is 0..N
 
 }  // namespace dao
 

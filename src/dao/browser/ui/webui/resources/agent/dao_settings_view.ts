@@ -112,6 +112,15 @@ export class DaoSettingsView extends CrLitElement {
         background: rgba(0,0,0,0.2);
       }
 
+      @media (prefers-color-scheme: dark) {
+        .panel::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.18);
+        }
+        .panel::-webkit-scrollbar-thumb:hover {
+          background: rgba(255,255,255,0.30);
+        }
+      }
+
       .section-title {
         font-size: 14px; font-weight: 600;
         color: var(--text); margin-bottom: 4px;

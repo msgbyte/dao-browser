@@ -31,8 +31,8 @@ DaoSplitDividerView::DaoSplitDividerView(DaoSplitBranchNode* branch_node,
 DaoSplitDividerView::~DaoSplitDividerView() = default;
 
 void DaoSplitDividerView::OnPaint(gfx::Canvas* canvas) {
-  SkColor color = is_hovered_ || is_dragging_ ? kDividerHoverColor
-                                               : kDividerColor;
+  SkColor color = is_hovered_ || is_dragging_ ? DividerHoverColor()
+                                               : DividerColor();
   canvas->FillRect(GetLocalBounds(), color);
 }
 

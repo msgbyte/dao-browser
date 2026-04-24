@@ -21,9 +21,15 @@ DaoCornerOverlayView::DaoCornerOverlayView() {
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
   SetCanProcessEventsWithinSubtree(false);
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
 }
 
 DaoCornerOverlayView::~DaoCornerOverlayView() = default;
+
+void DaoCornerOverlayView::OnNativeThemeUpdated(
+    ui::NativeTheme* observed_theme) {
+  SchedulePaint();
+}
 
 void DaoCornerOverlayView::OnPaint(gfx::Canvas* canvas) {
   const int m = kContentShadowMargin;
@@ -34,12 +40,14 @@ void DaoCornerOverlayView::OnPaint(gfx::Canvas* canvas) {
   constexpr int kShadowSteps = 6;
   for (int i = kShadowSteps; i >= 1; --i) {
     float expand = static_cast<float>(i) * 1.2f;
-    float alpha = 12.0f * (kShadowSteps - i + 1) / kShadowSteps;
+    float alpha =
+        CornerShadowAlphaBase() * (kShadowSteps - i + 1) / kShadowSteps;
     gfx::RectF shadow_rect(m - expand, m - expand + 1.0f,
                            width() - 2 * m + 2 * expand,
                            height() - 2 * m + 2 * expand);
     cc::PaintFlags flags;
-    flags.setColor(SkColorSetARGB(static_cast<int>(alpha), 0, 0, 0));
+    flags.setColor(SkColorSetARGB(static_cast<int>(alpha), 0, 0,
+                                  0));  // theme-independent
     flags.setAntiAlias(true);
     flags.setStyle(cc::PaintFlags::kFill_Style);
     canvas->DrawRoundRect(shadow_rect, r + expand, flags);

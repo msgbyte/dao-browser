@@ -7,8 +7,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "ui/native_theme/native_theme.h"
+#include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/view.h"
 
 class Browser;
@@ -25,7 +28,8 @@ class DaoControlCenterMoreMenu;
 // Has a transparent overlay that closes the popup when clicked.
 class DaoControlCenterPopup : public views::View,
                                public TabStripModelObserver,
-                               public content::WebContentsObserver {
+                               public content::WebContentsObserver,
+                               public ui::NativeThemeObserver {
   METADATA_HEADER(DaoControlCenterPopup, views::View)
 
  public:
@@ -55,6 +59,9 @@ class DaoControlCenterPopup : public views::View,
   // content::WebContentsObserver:
   void DidGetUserInteraction(const blink::WebInputEvent& event) override;
 
+  // ui::NativeThemeObserver:
+  void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+
   // views::View:
   void Layout(PassKey) override;
   void OnPaintBackground(gfx::Canvas* canvas) override;
@@ -74,6 +81,13 @@ class DaoControlCenterPopup : public views::View,
 
   // Anchor point: bottom-right of the button, in parent (BrowserView) coords.
   gfx::Point anchor_;
+
+  void ApplyTheme();
+
+  raw_ptr<views::View> separator_ = nullptr;
+
+  base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
+      native_theme_observation_{this};
 
   base::WeakPtrFactory<DaoControlCenterPopup> weak_factory_{this};
 };

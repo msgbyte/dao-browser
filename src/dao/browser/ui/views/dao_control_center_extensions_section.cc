@@ -60,8 +60,6 @@ constexpr int kExtIconSize = 20;
 constexpr int kExtIconPadding = 8;
 constexpr int kExtGridItemSize = kExtIconSize + kExtIconPadding * 2;
 constexpr int kExtBtnRadius = 8;
-constexpr SkColor kHoverBg = SkColorSetARGB(15, 0, 0, 0);  // black ~6%
-constexpr SkColor kActionIconColor = SkColorSetRGB(130, 130, 130);
 
 // An ImageButton that shows a rounded-rect hover highlight.
 class ExtIconButton : public views::ImageButton {
@@ -72,7 +70,7 @@ class ExtIconButton : public views::ImageButton {
   void OnMouseEntered(const ui::MouseEvent& event) override {
     ImageButton::OnMouseEntered(event);
     SetBackground(
-        views::CreateRoundedRectBackground(kHoverBg, kExtBtnRadius));
+        views::CreateRoundedRectBackground(SuggestionHover(), kExtBtnRadius));
     SchedulePaint();
   }
 
@@ -95,7 +93,7 @@ class GridActionButton : public views::Button {
   void OnMouseEntered(const ui::MouseEvent& event) override {
     Button::OnMouseEntered(event);
     SetBackground(
-        views::CreateRoundedRectBackground(kHoverBg, kExtBtnRadius));
+        views::CreateRoundedRectBackground(SuggestionHover(), kExtBtnRadius));
     SchedulePaint();
   }
 
@@ -111,7 +109,7 @@ class GridActionButton : public views::Button {
     float oy = (height() - icon_size) / 2.0f;
     DrawLucideIcon(canvas, icon_,
                    gfx::RectF(ox, oy, icon_size, icon_size),
-                   kActionIconColor);
+                   ControlCenterIconMuted());
   }
 
  private:

@@ -81,7 +81,7 @@ class DaoDropOverlayView : public views::View {
     constexpr int kLineInset = 12;
     constexpr int kLineHeight = 2;
     constexpr int kDotRadius = 3;
-    SkColor line_color = SkColorSetA(dao::kSpaceActive, 200);
+    SkColor line_color = SkColorSetA(dao::SpaceActive(), 200);
 
     cc::PaintFlags flags;
     flags.setColor(line_color);
@@ -145,7 +145,7 @@ class DaoToggleButton : public views::Button {
     float y = (height() - icon_size) / 2.0f;
     DrawLucideIcon(canvas, LucideIcon::kPanelLeftClose,
                    gfx::RectF(x, y, icon_size, icon_size),
-                   dao::kTextSecondary);
+                   dao::TextSecondary());
   }
 };
 
@@ -167,8 +167,6 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
       std::make_unique<views::BoxLayout>(
           views::BoxLayout::Orientation::kVertical,
           gfx::Insets::TLBR(0, 4, 0, 4), 16));
-  inner_container_->SetBackground(
-      views::CreateSolidBackground(dao::kSidebarBackground));
 
   // Header row: traffic-light spacer + toggle sidebar button
   auto header_row = std::make_unique<views::View>();
@@ -203,6 +201,29 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
 
   // Drop overlay — has its own layer so it paints above all sidebar content.
   drop_overlay_ = AddChildView(std::make_unique<DaoDropOverlayView>());
+
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
+  ApplyTheme();
+}
+
+void DaoSidebarView::ApplyTheme() {
+  if (inner_container_) {
+    inner_container_->SetBackground(
+        views::CreateSolidBackground(dao::SidebarBackground()));
+  }
+}
+
+void DaoSidebarView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
+  ApplyTheme();
+  SchedulePaintRecursive(this);
+}
+
+// static
+void DaoSidebarView::SchedulePaintRecursive(views::View* view) {
+  view->SchedulePaint();
+  for (views::View* child : view->children()) {
+    SchedulePaintRecursive(child);
+  }
 }
 
 DaoSidebarView::~DaoSidebarView() {

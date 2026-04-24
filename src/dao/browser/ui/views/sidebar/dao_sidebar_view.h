@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/drop_data.h"
@@ -19,6 +20,8 @@
 #include "ui/compositor/layer_animation_observer.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
+#include "ui/native_theme/native_theme.h"
+#include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/controls/resize_area.h"
 #include "ui/views/controls/resize_area_delegate.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
@@ -37,6 +40,7 @@ class DaoSidebarView : public views::View,
                        public gfx::AnimationDelegate,
                        public views::ResizeAreaDelegate,
                        public ui::ImplicitAnimationObserver,
+                       public ui::NativeThemeObserver,
                        public content::WebContentsDelegate {
   METADATA_HEADER(DaoSidebarView, views::View)
 
@@ -79,6 +83,9 @@ class DaoSidebarView : public views::View,
 
   // ui::ImplicitAnimationObserver:
   void OnImplicitAnimationsCompleted() override;
+
+  // ui::NativeThemeObserver:
+  void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
 
   // views::View:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
@@ -130,6 +137,8 @@ class DaoSidebarView : public views::View,
   void AnimateLayerSlide(int old_width, int new_width);
   void EnsureWebUILoaded();
   void DoStartFileDrag(const base::FilePath& path);
+  void ApplyTheme();
+  static void SchedulePaintRecursive(views::View* view);
 
   bool webui_loaded_ = false;
   bool collapsed_ = false;
@@ -148,6 +157,9 @@ class DaoSidebarView : public views::View,
   int webui_drop_insert_index_ = -1;  // Drop index set by WebUI JS
 
   views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
+
+  base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
+      native_theme_observation_{this};
 
   base::WeakPtrFactory<DaoSidebarView> weak_factory_{this};
 };

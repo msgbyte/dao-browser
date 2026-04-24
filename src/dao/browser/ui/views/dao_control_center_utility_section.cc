@@ -33,7 +33,6 @@ constexpr int kUtilButtonSize = 56;
 constexpr int kUtilIconSize = 18;
 constexpr int kUtilCornerRadius = 10;
 constexpr int kUtilFontSize = 10;
-constexpr SkColor kIconColor = SkColorSetRGB(55, 55, 60);
 
 // A utility button with a Lucide icon and a text label.
 class UtilityButton : public views::Button {
@@ -60,7 +59,7 @@ class UtilityButton : public views::Button {
     label->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL,
                                       kUtilFontSize,
                                       gfx::Font::Weight::NORMAL));
-    label->SetEnabledColor(SkColorSetRGB(100, 100, 100));
+    label->SetEnabledColor(ControlCenterLabelColor());
     label->SetCanProcessEventsWithinSubtree(false);
 
     SetPreferredSize(gfx::Size(kUtilButtonSize, kUtilButtonSize));
@@ -71,7 +70,7 @@ class UtilityButton : public views::Button {
   void OnMouseEntered(const ui::MouseEvent& event) override {
     Button::OnMouseEntered(event);
     SetBackground(views::CreateRoundedRectBackground(
-        SkColorSetARGB(15, 0, 0, 0), kUtilCornerRadius));
+        SuggestionHover(), kUtilCornerRadius));
     SchedulePaint();
   }
 
@@ -88,7 +87,7 @@ class UtilityButton : public views::Button {
       DrawLucideIcon(canvas, icon_,
                      gfx::RectF(icon_bounds.x(), icon_bounds.y(),
                                 kUtilIconSize, kUtilIconSize),
-                     kIconColor);
+                     ControlCenterIconMuted());
     }
   }
 

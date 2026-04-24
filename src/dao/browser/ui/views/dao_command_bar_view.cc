@@ -113,9 +113,9 @@ class CommandBarShadowView : public views::View {
   void OnPaint(gfx::Canvas* canvas) override {
     std::vector<gfx::ShadowValue> shadows;
     shadows.emplace_back(gfx::Vector2d(0, 8), 60,
-                         SkColorSetARGB(50, 0, 0, 0));
+                         SkColorSetARGB(50, 0, 0, 0));  // theme-independent
     shadows.emplace_back(gfx::Vector2d(0, 2), 16,
-                         SkColorSetARGB(30, 0, 0, 0));
+                         SkColorSetARGB(30, 0, 0, 0));  // theme-independent
 
     cc::PaintFlags flags;
     flags.setAntiAlias(true);
@@ -155,10 +155,6 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   glass_container_->layer()->SetRoundedCornerRadius(gfx::RoundedCornersF(16));
   glass_container_->layer()->SetIsFastRoundedCorner(true);
   glass_container_->layer()->SetBackgroundBlur(kCommandBarBlurSigma);
-  glass_container_->SetBackground(
-      std::make_unique<FrostedGlassBackground>(kCommandBarBackground));
-  glass_container_->SetBorder(
-      views::CreateRoundedRectBorder(1, 16, kCommandBarBorder));
 
   // Card container: input area inside the glass container (no own layer)
   card_container_ = glass_container_->AddChildView(
@@ -181,7 +177,6 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   textfield->set_controller(this);
   textfield->SetBorder(nullptr);
   textfield->SetBackgroundColor(SK_ColorTRANSPARENT);
-  textfield->SetTextColor(SkColorSetRGB(30, 20, 40));
   textfield->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 16,
                                         gfx::Font::Weight::SEMIBOLD));
   textfield_ = card_container_->AddChildView(std::move(textfield));
@@ -195,7 +190,6 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   auto ghost_label = std::make_unique<views::Label>();
   ghost_label->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 16,
                                           gfx::Font::Weight::NORMAL));
-  ghost_label->SetEnabledColor(kGhostTextColor);
   ghost_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   ghost_label->SetSubpixelRenderingEnabled(false);
   ghost_label->SetVisible(false);
@@ -220,6 +214,29 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
     item->SetVisible(false);
     suggestion_views_.push_back(item);
   }
+
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
+  ApplyTheme();
+}
+
+void DaoCommandBarView::ApplyTheme() {
+  if (glass_container_) {
+    glass_container_->SetBackground(
+        std::make_unique<FrostedGlassBackground>(CommandBarBackground()));
+    glass_container_->SetBorder(
+        views::CreateRoundedRectBorder(1, 16, CommandBarBorder()));
+  }
+  if (textfield_) {
+    textfield_->SetTextColor(TextPrimary());
+  }
+  if (ghost_text_label_) {
+    ghost_text_label_->SetEnabledColor(GhostTextColor());
+  }
+}
+
+void DaoCommandBarView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
+  ApplyTheme();
+  SchedulePaint();
 }
 
 DaoCommandBarView::~DaoCommandBarView() {
@@ -749,6 +766,8 @@ void DaoCommandBarView::UpdateInputIcon() {
   icon_favicon_tracker_.TryCancelAll();
   pending_icon_favicon_url_ = GURL();
 
+  const SkColor icon_color = SuggestionIconColor();
+
   // If there's a selected autocomplete match, use its type
   if (autocomplete_controller_ && selected_index_ >= 0) {
     const AutocompleteResult& result = autocomplete_controller_->result();
@@ -757,11 +776,11 @@ void DaoCommandBarView::UpdateInputIcon() {
       bool is_search = AutocompleteMatch::IsSearchType(match.type);
       if (is_search) {
         favicon_icon_->SetImage(gfx::CreateVectorIcon(
-            vector_icons::kSearchChromeRefreshIcon, 18, kSuggestionIconColor));
+            vector_icons::kSearchChromeRefreshIcon, 18, icon_color));
       } else {
         // Set page icon as immediate fallback, then try loading favicon
         favicon_icon_->SetImage(gfx::CreateVectorIcon(
-            omnibox::kPageChromeRefreshIcon, 18, kSuggestionIconColor));
+            omnibox::kPageChromeRefreshIcon, 18, icon_color));
 
         if (match.destination_url.is_valid() &&
             match.destination_url.SchemeIsHTTPOrHTTPS()) {
@@ -787,13 +806,13 @@ void DaoCommandBarView::UpdateInputIcon() {
   // Fallback: determine icon from input text
   if (user_input_text_.empty()) {
     favicon_icon_->SetImage(gfx::CreateVectorIcon(
-        vector_icons::kSearchChromeRefreshIcon, 18, kSuggestionIconColor));
+        vector_icons::kSearchChromeRefreshIcon, 18, icon_color));
   } else if (LooksLikeURL(user_input_text_)) {
     favicon_icon_->SetImage(gfx::CreateVectorIcon(
-        omnibox::kPageChromeRefreshIcon, 18, kSuggestionIconColor));
+        omnibox::kPageChromeRefreshIcon, 18, icon_color));
   } else {
     favicon_icon_->SetImage(gfx::CreateVectorIcon(
-        vector_icons::kSearchChromeRefreshIcon, 18, kSuggestionIconColor));
+        vector_icons::kSearchChromeRefreshIcon, 18, icon_color));
   }
   favicon_icon_->SetVisible(true);
 }
