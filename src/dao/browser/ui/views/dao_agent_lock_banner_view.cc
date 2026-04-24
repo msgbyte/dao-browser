@@ -34,10 +34,10 @@ constexpr int kAnimationIntervalMs = 33;
 constexpr SkColor kOverlayBase = SkColorSetARGB(126, 126, 99, 162);
 constexpr SkColor kHeaderFill = SkColorSetARGB(212, 255, 255, 255);
 constexpr SkColor kHeaderShadow = SkColorSetARGB(28, 24, 16, 36);
-constexpr SkColor kHeaderStroke = SkColorSetARGB(30, 140, 100, 220);
-constexpr SkColor kAccentGlow = SkColorSetARGB(140, 140, 100, 220);
+constexpr SkColor kHeaderStroke = SkColorSetARGB(30, 70, 120, 190);
+constexpr SkColor kAccentGlow = SkColorSetARGB(140, 70, 120, 190);
 constexpr SkColor kDotColor = SkColorSetARGB(44, 255, 255, 255);
-constexpr SkColor kDotAccent = SkColorSetARGB(60, 140, 100, 220);
+constexpr SkColor kDotAccent = SkColorSetARGB(60, 70, 120, 190);
 }  // namespace
 
 BEGIN_METADATA(DaoAgentLockBannerView)
@@ -182,7 +182,7 @@ void DaoAgentLockBannerView::OnPaint(gfx::Canvas* canvas) {
     icon_bg_flags.setStyle(cc::PaintFlags::kFill_Style);
     icon_bg_flags.setColor(SkColorSetARGB(
         26 + static_cast<int>((0.5f + 0.5f * std::sin(phase * 2.2f)) * 36),
-        140, 100, 220));
+        70, 120, 190));
     canvas->DrawRoundRect(
         gfx::RectF(icon_container_x, icon_container_y, kHeaderIconContainerSize,
                    kHeaderIconContainerSize),

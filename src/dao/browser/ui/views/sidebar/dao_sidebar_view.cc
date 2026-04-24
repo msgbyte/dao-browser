@@ -611,8 +611,11 @@ bool DaoSidebarView::AcceleratorPressed(
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser_);
     if (browser_view && browser_view->dao_agent_sidebar()) {
-      browser_view->dao_agent_sidebar()->Toggle();
+      bool expanded = browser_view->dao_agent_sidebar()->Toggle();
       browser_view->InvalidateLayout();
+      if (browser_view->dao_address_bar()) {
+        browser_view->dao_address_bar()->SetChatButtonHighlighted(expanded);
+      }
     }
     return true;
   }

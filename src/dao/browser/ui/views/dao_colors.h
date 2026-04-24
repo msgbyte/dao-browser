@@ -21,7 +21,7 @@ constexpr SkColor kAddressBarBackground = SkColorSetARGB(15, 0, 0, 0);
 
 constexpr SkColor kFrameColor = SkColorSetRGB(231, 238, 245);
 
-constexpr SkColor kSpaceActive = SkColorSetRGB(140, 100, 220);
+constexpr SkColor kSpaceActive = SkColorSetRGB(70, 120, 190);
 constexpr SkColor kSpaceInactive = SkColorSetARGB(60, 30, 20, 40);
 
 constexpr SkColor kInkDropBase = SK_ColorBLACK;
@@ -49,9 +49,9 @@ constexpr int kContentInsetBottom = 6;
 constexpr SkColor kDividerColor =
     SkColorSetARGB(20, 0, 0, 0);                      // black 8%
 constexpr SkColor kDividerHoverColor =
-    SkColorSetARGB(128, 140, 100, 220);               // purple 50%
+    SkColorSetARGB(128, 70, 120, 190);
 constexpr SkColor kDropZoneOverlay =
-    SkColorSetARGB(38, 140, 100, 220);                // purple 15%
+    SkColorSetARGB(38, 70, 120, 190);
 constexpr int kDividerWidth = 4;
 constexpr int kDropZoneEdgeSize = 40;
 constexpr int kMinPaneSize = 200;
@@ -71,9 +71,9 @@ constexpr int kPaneHeaderButtonRadius = 6;
 
 // Active pane indicator (glow border)
 constexpr SkColor kActivePaneBorder =
-    SkColorSetARGB(153, 140, 100, 220);               // purple 60%
+    SkColorSetARGB(153, 70, 120, 190);
 constexpr SkColor kActivePaneGlow =
-    SkColorSetARGB(38, 140, 100, 220);                // purple 15%
+    SkColorSetARGB(38, 70, 120, 190);
 constexpr int kActivePaneBorderWidth = 2;
 constexpr int kActivePaneGlowRadius = 12;
 

@@ -36,7 +36,7 @@ export class DaoFolderItem extends CrLitElement {
       }
 
       .folder-row.drag-over {
-        background: rgba(140, 100, 220, 0.15);
+        background: rgba(70, 120, 190, 0.15);
       }
 
       .chevron {
@@ -55,7 +55,7 @@ export class DaoFolderItem extends CrLitElement {
         width: 14px;
         height: 14px;
         flex-shrink: 0;
-        color: rgba(140, 100, 220, 0.8);
+        color: rgba(70, 120, 190, 0.8);
       }
 
       .folder-name {
@@ -114,7 +114,7 @@ export class DaoFolderItem extends CrLitElement {
         top: 4px;
         bottom: 4px;
         width: 2px;
-        background: rgba(140, 100, 220, 0.4);
+        background: rgba(70, 120, 190, 0.4);
         border-radius: 1px;
       }
 

@@ -268,8 +268,10 @@ dao-agent-app .user-message-container > markdown-block {
   max-width: 100%;
   word-break: break-word;
 }
+dao-agent-app .user-message-container > markdown-block * {
+  color: #fff;
+}
 dao-agent-app .user-message-container > markdown-block :where(p, ul, ol) {
-  color: inherit;
   margin: 0;
 }
 /* Upstream adds `mt-3 flex flex-wrap gap-2` on the attachment row. We
@@ -417,6 +419,18 @@ dao-agent-app message-editor [role="combobox"]:hover {
  * `field-sizing: content` still lets it grow up to `max-height: 200px`. */
 dao-agent-app message-editor textarea {
   min-height: 56px !important;
+}
+
+/* Default surface for pi-web-ui's <attachment-tile>. Upstream renders
+ * the tile with transparent backgrounds, which disappears against the
+ * translucent sidebar. Paint a subtle glass card so tiles remain
+ * legible; the decorated variant below supplies its own inner card. */
+dao-agent-app attachment-tile:not([data-dao-decorated="1"]) {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  color: rgba(30, 20, 40, 0.88);
+  box-shadow: 0 1px 3px rgba(30, 20, 40, 0.08);
 }
 
 /* Dao-owned override for pi-web-ui's <attachment-tile> when it's

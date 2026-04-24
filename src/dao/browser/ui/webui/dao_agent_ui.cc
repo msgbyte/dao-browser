@@ -87,7 +87,7 @@ constexpr char kHighlightInjectScript[] = R"js(
   document.documentElement.appendChild(host);
   const shadow = host.attachShadow({mode:'closed'});
   const highlight = document.createElement('div');
-  highlight.style.cssText = 'position:fixed;border:2px solid rgba(140,100,220,0.6);background:rgba(140,100,220,0.08);border-radius:0;pointer-events:none;opacity:0;transition:opacity 150ms ease;display:none;';
+  highlight.style.cssText = 'position:fixed;border:2px solid rgba(70,120,190,0.6);background:rgba(70,120,190,0.08);border-radius:0;pointer-events:none;opacity:0;transition:opacity 150ms ease;display:none;';
   shadow.appendChild(highlight);
   let rafId = 0;
   let currentEl = null;
