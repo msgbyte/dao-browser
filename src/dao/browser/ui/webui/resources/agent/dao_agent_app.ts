@@ -36,13 +36,16 @@ export class DaoAgentApp extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    // WebContents visibility flips when DaoAgentSidebarView toggles SetVisible.
-    // Use it as the single source of truth for "sidebar shown / hidden".
+    // WebContents visibility flips when DaoAgentSidebarView toggles SetVisible
+    // AND when the browser window itself goes to background / gets minimized.
+    // We can't tell those apart from this event alone, so do NOT abort the
+    // in-flight stream on hidden — users expect replies to keep accumulating
+    // while they switch apps. The stream is still torn down in
+    // disconnectedCallback if the component unmounts, and the user can abort
+    // explicitly via the composer's stop button or "new session".
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         setTimeout(() => this.getChatView_()?.focusInput(), 100);
-      } else {
-        this.getChatView_()?.endCurrentSession();
       }
     });
     if (document.visibilityState === 'visible') {

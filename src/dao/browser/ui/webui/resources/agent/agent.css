@@ -344,12 +344,21 @@ dao-agent-app message-editor {
 }
 dao-agent-app message-editor > div {
   border-radius: 14px;
-  transition: border-color 0.15s, box-shadow 0.15s;
   padding: 2px 4px;
+  /* Glass composer: gradient white + blurred backdrop so the bubble
+   * separates from the pale blue-gray sidebar without any drop shadow. */
+  background: linear-gradient(180deg,
+                  rgba(255, 255, 255, 0.72) 0%,
+                  rgba(255, 255, 255, 0.52) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: none;
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  transition: border-color 0.15s, background 0.15s;
 }
 dao-agent-app message-editor:focus-within > div {
-  border-color: rgba(70, 120, 190, 0.45);
-  box-shadow: 0 0 0 2px rgba(70, 120, 190, 0.18);
+  border-color: rgba(70, 120, 190, 0.55);
+  box-shadow: none;
 }
 
 /* mini-lit's <Select> portals its dropdown into a `.select-portal-container`
@@ -852,24 +861,41 @@ body {
     color: rgba(245, 245, 245, 0.95);
   }
 
-  /* Collapsible tool-call block. */
+  /* Collapsible tool-call block. Dark surfaces need higher contrast than
+   * light ones — bump container fill/border, and repaint state dots with
+   * brighter, more saturated hues so they read on a dark backdrop. */
   details.dao-tool-call {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.10);
-    color: rgba(245, 245, 245, 0.82);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(245, 245, 245, 0.88);
   }
   details.dao-tool-call[open] {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(70, 120, 190, 0.45);
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(120, 170, 240, 0.55);
   }
   details.dao-tool-call .dao-tool-call-name {
-    color: rgba(245, 245, 245, 0.85);
+    color: rgba(245, 245, 245, 0.92);
   }
   details.dao-tool-call .dao-tool-call-chevron {
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.70);
   }
   details.dao-tool-call .dao-tool-call-label {
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.68);
+  }
+  details.dao-tool-call .dao-tool-call-dot {
+    background: rgba(120, 170, 240, 0.65);
+  }
+  details.dao-tool-call-inprogress .dao-tool-call-dot {
+    background: rgb(120, 170, 240);
+    box-shadow: 0 0 6px rgba(120, 170, 240, 0.55);
+  }
+  details.dao-tool-call-complete .dao-tool-call-dot {
+    background: rgb(110, 220, 150);
+    box-shadow: none;
+  }
+  details.dao-tool-call-error .dao-tool-call-dot {
+    background: rgb(240, 120, 120);
+    box-shadow: none;
   }
 
   /* mini-lit Select portal — portaled into document.body, outside the
@@ -911,5 +937,20 @@ body {
     background: rgba(255, 255, 255, 0.14);
     border-color: rgba(70, 120, 190, 0.55);
     color: rgba(245, 245, 245, 0.92);
+  }
+
+  /* Composer bubble — dark glass. Light mode rule paints a bright white
+   * card; on dark surfaces we invert to a low-lightness translucent fill
+   * so the bubble reads without a heavy drop shadow. */
+  dao-agent-app message-editor > div {
+    background: linear-gradient(180deg,
+                    rgba(255, 255, 255, 0.08) 0%,
+                    rgba(255, 255, 255, 0.04) 100%);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: none;
+  }
+  dao-agent-app message-editor:focus-within > div {
+    border-color: rgba(120, 170, 240, 0.55);
+    box-shadow: none;
   }
 }

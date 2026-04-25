@@ -640,7 +640,7 @@ export class DaoChatView extends CrLitElement {
     const iface = panel.querySelector('agent-interface') as any;
     if (iface) {
       iface.enableModelSelector = false;
-      iface.enableAttachments = true;
+      iface.enableAttachments = false;
       iface.enableThinkingSelector = false;
       iface.requestUpdate?.();
 
