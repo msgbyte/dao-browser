@@ -91,6 +91,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
 ];
 
 const STORAGE_KEY = 'dao_disabled_tools';
+const COLLAPSED_STORAGE_KEY = 'dao_tool_groups_expanded';
 const CHANNEL_NAME = 'dao-tool-config';
 
 // Cross-view notification channel. Settings view posts after a change,
@@ -173,4 +174,37 @@ export function countEnabled(groupId: string): {enabled: number; total: number} 
     if (!disabled.has(name)) enabledCount++;
   }
   return {enabled: enabledCount, total: group.toolNames.length};
+}
+
+// Collapse state: we persist the set of EXPANDED group ids (opposite of
+// the disabled-tools scheme) so groups default to collapsed when the user
+// has never touched the settings — the Tools panel stays compact on first
+// open, and unknown future group ids also default to collapsed.
+function readExpanded(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.filter((v): v is string => typeof v === 'string'));
+    }
+  } catch (_) { /* fall through */ }
+  return new Set();
+}
+
+function writeExpanded(set: Set<string>) {
+  try {
+    localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify([...set]));
+  } catch (_) { /* ignore */ }
+}
+
+export function isGroupExpanded(groupId: string): boolean {
+  return readExpanded().has(groupId);
+}
+
+export function setGroupExpanded(groupId: string, expanded: boolean): void {
+  const set = readExpanded();
+  if (expanded) set.add(groupId);
+  else set.delete(groupId);
+  writeExpanded(set);
 }

@@ -29,8 +29,10 @@ import {tools as allTools} from './agent_bridge.js';
 import {
   countEnabled,
   getGroupState,
+  isGroupExpanded,
   isToolEnabled,
   setGroupEnabled,
+  setGroupExpanded,
   setToolEnabled,
   TOOL_GROUPS,
   toolConfigChannel,
@@ -404,9 +406,20 @@ export class DaoSettingsView extends CrLitElement {
       .tool-group-header {
         display: flex; align-items: center; gap: 10px;
         padding: 10px 12px; background: var(--glass-strong, var(--glass));
-        border-bottom: 1px solid var(--glass-border);
         cursor: pointer;
         user-select: none;
+      }
+      .tool-group.expanded .tool-group-header {
+        border-bottom: 1px solid var(--glass-border);
+      }
+      .tool-group-chevron {
+        width: 14px; height: 14px; flex-shrink: 0;
+        color: var(--text-tertiary);
+        transform: rotate(0deg);
+        transition: transform 0.15s ease;
+      }
+      .tool-group.expanded .tool-group-chevron {
+        transform: rotate(90deg);
       }
       .tool-group-label {
         font-size: 13px; font-weight: 600; color: var(--text);
@@ -996,15 +1009,21 @@ export class DaoSettingsView extends CrLitElement {
     const counts = countEnabled(groupId);
     const allChecked = state === 'all';
     const indeterminate = state === 'some';
+    const expanded = isGroupExpanded(groupId);
 
     const onHeaderToggle = () => {
-      // If fully on → turn off; otherwise → turn on.
-      setGroupEnabled(groupId, state !== 'all');
+      setGroupExpanded(groupId, !expanded);
+      this.requestUpdate();
     };
 
     return html`
-      <div class="tool-group">
+      <div class="tool-group ${expanded ? 'expanded' : ''}">
         <div class="tool-group-header" @click=${onHeaderToggle}>
+          <svg class="tool-group-chevron" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
           <input type="checkbox" class="tool-group-checkbox"
               .checked=${allChecked}
               .indeterminate=${indeterminate}
@@ -1017,9 +1036,10 @@ export class DaoSettingsView extends CrLitElement {
             ${counts.enabled}/${counts.total}
           </span>
         </div>
-        <div class="tool-list">
-          ${group.toolNames.map(name => this.renderToolRow_(name))}
-        </div>
+        ${expanded ? html`
+          <div class="tool-list">
+            ${group.toolNames.map(name => this.renderToolRow_(name))}
+          </div>` : nothing}
       </div>`;
   }
 
