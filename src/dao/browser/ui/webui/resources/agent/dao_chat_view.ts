@@ -22,7 +22,7 @@
 
 import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {BASE_SYSTEM_PROMPT, currentSoulContent, refreshSoulContent, soulChannel} from './agent_bridge.js';
+import {BASE_SYSTEM_PROMPT, currentSoulContent, recordApiCall, refreshSoulContent, soulChannel} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
@@ -73,6 +73,37 @@ interface PiChatPanel extends HTMLElement {
   agentInterface?: any;
 }
 
+// When the user routes a well-known model through an OpenAI-compatible
+// gateway (e.g. OpenRouter, LiteLLM, a corporate proxy), pi-ai's built-in
+// catalog still has the real pricing for that model id. Do a name-based
+// lookup across every provider in the catalog so Estimated Cost reflects
+// real rates instead of $0. Only the `cost` field is lifted — api / baseUrl
+// / provider stay pointed at the user's configured endpoint so requests
+// still go through their gateway.
+function lookupCostByModelId(modelId: string):
+    {input: number; output: number; cacheRead: number; cacheWrite: number} {
+  const zero = {input: 0, output: 0, cacheRead: 0, cacheWrite: 0};
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mod = pi as any;
+    const providers: string[] = mod.getProviders?.() ?? [];
+    for (const p of providers) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const models: any[] = mod.getModels?.(p) ?? [];
+      const hit = models.find((m) => m?.id === modelId);
+      if (hit?.cost) {
+        return {
+          input: Number(hit.cost.input) || 0,
+          output: Number(hit.cost.output) || 0,
+          cacheRead: Number(hit.cost.cacheRead) || 0,
+          cacheWrite: Number(hit.cost.cacheWrite) || 0,
+        };
+      }
+    }
+  } catch (_) { /* catalog access failed — fall through to zeros */ }
+  return zero;
+}
+
 function buildOpenAICompatModel(modelId: string, baseUrl: string) {
   let base = baseUrl.replace(/\/+$/, '');
   if (!base.endsWith('/v1')) base += '/v1';
@@ -84,7 +115,7 @@ function buildOpenAICompatModel(modelId: string, baseUrl: string) {
     baseUrl: base,
     reasoning: false,
     input: ['text', 'image'],
-    cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
+    cost: lookupCostByModelId(modelId),
     contextWindow: 128000,
     maxTokens: 16384,
   };
@@ -757,6 +788,24 @@ export class DaoChatView extends CrLitElement {
         // the updated personality without waiting for a user send.
         this.refreshSystemPrompt_();
         this.scheduleSaveSession_();
+      }
+      if (ev?.type === 'message_end') {
+        // Each message_end corresponds to one assistant completion returned
+        // from the provider. Pi-agent attaches the provider-reported usage
+        // on ev.message.usage as {input, output, cacheRead, cacheWrite};
+        // pi-ai's model.cost is in USD per 1M tokens.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const msg = (ev as any).message;
+        const usage = msg?.usage;
+        if (usage && (usage.input || usage.output)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cost = (this.agent_?.state.model as any)?.cost;
+          recordApiCall(
+              Number(usage.input) || 0,
+              Number(usage.output) || 0,
+              Number(cost?.input) || 0,
+              Number(cost?.output) || 0);
+        }
       }
       if (ev?.type === 'agent_start' || ev?.type === 'agent_end') {
         this.isStreaming_ = !!this.agent_?.state.isStreaming;

@@ -1165,16 +1165,35 @@ export interface AgentStats {
 
 const STATS_KEY = 'dao_agent_stats';
 
-function loadStats(): AgentStats {
-  try {
-    const raw = localStorage.getItem(STATS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (_) { /* ignore */ }
+function defaultStats(): AgentStats {
   return {
     apiCalls: 0, toolCalls: {}, promptTokens: 0,
     completionTokens: 0, totalTokens: 0,
     estimatedCost: 0, lastReset: Date.now(),
   };
+}
+
+function loadStats(): AgentStats {
+  const base = defaultStats();
+  try {
+    const raw = localStorage.getItem(STATS_KEY);
+    if (!raw) return base;
+    const parsed = JSON.parse(raw) as Partial<AgentStats>;
+    // Merge with defaults so missing fields from older schemas don't
+    // produce NaN on accumulation.
+    return {
+      apiCalls: Number(parsed.apiCalls) || 0,
+      toolCalls: parsed.toolCalls && typeof parsed.toolCalls === 'object' ?
+          {...parsed.toolCalls} : {},
+      promptTokens: Number(parsed.promptTokens) || 0,
+      completionTokens: Number(parsed.completionTokens) || 0,
+      totalTokens: Number(parsed.totalTokens) || 0,
+      estimatedCost: Number(parsed.estimatedCost) || 0,
+      lastReset: Number(parsed.lastReset) || base.lastReset,
+    };
+  } catch (_) {
+    return base;
+  }
 }
 
 let cachedStats: AgentStats = loadStats();
@@ -1183,16 +1202,20 @@ function saveStats() {
   localStorage.setItem(STATS_KEY, JSON.stringify(cachedStats));
 }
 
+// Cost rates follow pi-ai's convention: USD per 1,000,000 tokens.
+// A token count of 1000 with costPerMTokPrompt=0.5 contributes
+// 1000 * 0.5 / 1_000_000 = $0.0005.
 export function recordApiCall(
     promptTokens: number, completionTokens: number,
-    costPerPromptToken = 0, costPerCompletionToken = 0) {
+    costPerMTokPrompt = 0, costPerMTokCompletion = 0) {
+  const p = Number(promptTokens) || 0;
+  const c = Number(completionTokens) || 0;
   cachedStats.apiCalls++;
-  cachedStats.promptTokens += promptTokens;
-  cachedStats.completionTokens += completionTokens;
-  cachedStats.totalTokens += promptTokens + completionTokens;
+  cachedStats.promptTokens += p;
+  cachedStats.completionTokens += c;
+  cachedStats.totalTokens += p + c;
   cachedStats.estimatedCost +=
-      promptTokens * costPerPromptToken +
-      completionTokens * costPerCompletionToken;
+      (p * costPerMTokPrompt + c * costPerMTokCompletion) / 1_000_000;
   saveStats();
 }
 
@@ -1207,11 +1230,7 @@ export function getAgentStats(): AgentStats {
 }
 
 export function resetAgentStats() {
-  cachedStats = {
-    apiCalls: 0, toolCalls: {}, promptTokens: 0,
-    completionTokens: 0, totalTokens: 0,
-    estimatedCost: 0, lastReset: Date.now(),
-  };
+  cachedStats = defaultStats();
   saveStats();
 }
 
