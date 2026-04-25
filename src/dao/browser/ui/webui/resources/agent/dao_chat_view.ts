@@ -857,6 +857,7 @@ export class DaoChatView extends CrLitElement {
     this.boundOnVisibilityHint_ = () => {
       if (document.visibilityState === 'visible') {
         void this.refreshChips_();
+        void this.maybeResumeLastSession_();
       }
     };
     document.addEventListener(
@@ -882,6 +883,41 @@ export class DaoChatView extends CrLitElement {
         'message', this.boundOnToolConfigChanged_);
     window.addEventListener(
         'dao-tool-config-changed', this.boundOnToolConfigChanged_);
+
+    // Auto-resume the most recent non-empty session on open. Gated by the
+    // `Resume Last Session` setting (default on). We look at session
+    // metadata rather than loading every session's messages, skip rows with
+    // messageCount === 0 so a freshly-minted empty shell from a previous
+    // open doesn't win, and fall back to the empty-session state on any
+    // error. Runs after the agent + listeners are wired so loadSession_'s
+    // state mutations are observed normally.
+    void this.maybeResumeLastSession_();
+  }
+
+  private async maybeResumeLastSession_() {
+    if (localStorage.getItem('dao_resume_last_session') === 'false') return;
+    if (!this.agent_) return;
+    // Don't clobber an ongoing conversation: only resume when the live
+    // panel is still the blank post-mount state. A user who has sent any
+    // message (or has a session id from a prior resume) keeps their
+    // current context when they toggle the sidebar off and back on.
+    if (this.currentSessionId_) return;
+    if ((this.agent_.state.messages?.length ?? 0) > 0) return;
+    if (this.isStreaming_) return;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const storage = await ensurePiAppStorage() as any;
+      const items: Array<{id: string; lastModified: string;
+                          messageCount: number}> =
+          await storage.sessions.getAllMetadata();
+      if (!Array.isArray(items) || items.length === 0) return;
+      const candidates = items
+          .filter(m => m && (m.messageCount ?? 0) > 0)
+          .sort((a, b) => b.lastModified.localeCompare(a.lastModified));
+      const latest = candidates[0];
+      if (!latest) return;
+      await this.loadSession_(latest.id);
+    } catch (_) { /* ignore — stay on the empty session */ }
   }
 
   // Debounced decoration pass — coalesces rapid-fire message_end events

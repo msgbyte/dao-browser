@@ -62,6 +62,7 @@ export class DaoSettingsView extends CrLitElement {
       agentStats_: {type: Object, state: true},
       showResetStatsDialog_: {type: Boolean, state: true},
       toolCallShowDetails_: {type: Boolean, state: true},
+      resumeLastSession_: {type: Boolean, state: true},
     };
   }
 
@@ -87,6 +88,7 @@ export class DaoSettingsView extends CrLitElement {
   private agentStats_: AgentStats|null = null;
   private showResetStatsDialog_ = false;
   private toolCallShowDetails_ = false;
+  private resumeLastSession_ = true;
 
   static override get styles() {
     return css`
@@ -568,6 +570,16 @@ export class DaoSettingsView extends CrLitElement {
               localStorage.setItem(
                   'dao_tool_call_show_details', String(v));
             })}
+
+        <div class="section-title" style="margin-top:18px">Session</div>
+        ${this.renderToggle_(
+            'Resume Last Session',
+            'Reopen the most recent conversation when the agent panel opens',
+            this.resumeLastSession_, (v) => {
+              this.resumeLastSession_ = v;
+              localStorage.setItem(
+                  'dao_resume_last_session', String(v));
+            })}
       </div>`;
   }
 
@@ -896,6 +908,8 @@ export class DaoSettingsView extends CrLitElement {
     this.soulText_ = currentSoulContent;
     this.toolCallShowDetails_ =
         localStorage.getItem('dao_tool_call_show_details') === 'true';
+    this.resumeLastSession_ =
+        localStorage.getItem('dao_resume_last_session') !== 'false';
   }
 
   private loadMemorySettings_() {
