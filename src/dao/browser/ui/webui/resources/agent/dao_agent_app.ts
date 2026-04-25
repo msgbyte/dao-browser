@@ -73,6 +73,12 @@ export class DaoAgentApp extends CrLitElement {
       <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0
         1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0
         1 .506-.852z"/></svg>`;
+    const historyIcon = html`<svg width="16" height="16" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/>
+      <path d="M3 3v5h5"/>
+      <path d="M12 7v5l4 2"/></svg>`;
     const chatIcon = html`<svg width="16" height="16" viewBox="0 0 24 24"
         fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
@@ -158,6 +164,10 @@ export class DaoAgentApp extends CrLitElement {
               @click=${this.onNewChatClick_} title="New chat">
             ${newChatIcon}
           </button>
+          <button class="dao-app-tab"
+              @click=${this.onHistoryClick_} title="Chat history">
+            ${historyIcon}
+          </button>
         </div>
         <div class="dao-app-tab-bar">
           <button class="dao-app-tab ${this.activeTab_ === 'chat' ? 'active' : ''}"
@@ -196,6 +206,17 @@ export class DaoAgentApp extends CrLitElement {
       this.getChatView_()?.startNewSession();
     }
     this.showToast_('Started a new chat', 1500);
+  }
+
+  private onHistoryClick_() {
+    if (this.activeTab_ !== 'chat') {
+      this.activeTab_ = 'chat';
+      this.updateComplete.then(() => {
+        this.getChatView_()?.openHistory();
+      });
+    } else {
+      this.getChatView_()?.openHistory();
+    }
   }
 
   private getChatView_(): DaoChatView|null {

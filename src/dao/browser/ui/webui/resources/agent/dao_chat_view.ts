@@ -28,6 +28,8 @@ import {getActiveLLMConfig} from './llm_config.js';
 import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
 import {renderShareImage} from './dao_share_image.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
+import {toolConfigChannel} from './tool_catalog.js';
+import './dao_chat_history_panel.js';
 import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
 import {getAllSkills, initSkillRegistry, loadSkillInstructions, type SkillRegistryEntry} from './skill_registry.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -121,6 +123,8 @@ export class DaoChatView extends CrLitElement {
       skillPickerSkills_: {state: true},
       skillPickerIndex_: {state: true},
       skillPickerAnchor_: {state: true},
+      historyOpen_: {state: true},
+      currentSessionId_: {state: true},
     };
   }
 
@@ -138,6 +142,7 @@ export class DaoChatView extends CrLitElement {
   private compactAbort_: AbortController | null = null;
   private boundOnConfigChanged_: (() => void) | null = null;
   private boundOnSoulChanged_: (() => void) | null = null;
+  private boundOnToolConfigChanged_: (() => void) | null = null;
   private boundOnChipHint_: (() => void) | null = null;
   private boundOnVisibilityHint_: (() => void) | null = null;
   protected messageCount_ = 0;
@@ -204,6 +209,15 @@ export class DaoChatView extends CrLitElement {
   private composerHeightObserver_: ResizeObserver | null = null;
   private onWindowResizeForPicker_: (() => void) | null = null;
 
+  // History / persistence state. `currentSessionId_` is blank for a fresh
+  // session that has not produced any message yet — the first save after
+  // `message_end` lazily mints a UUID and records a row in pi-web-ui's
+  // SessionsStore. Kept non-empty across `message_end` events so subsequent
+  // saves update the same row.
+  protected historyOpen_ = false;
+  protected currentSessionId_ = '';
+  private saveSessionScheduled_ = false;
+
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.unsubscribeAgent_?.();
@@ -216,6 +230,13 @@ export class DaoChatView extends CrLitElement {
     if (this.boundOnSoulChanged_) {
       soulChannel.removeEventListener('message', this.boundOnSoulChanged_);
       this.boundOnSoulChanged_ = null;
+    }
+    if (this.boundOnToolConfigChanged_) {
+      toolConfigChannel.removeEventListener(
+          'message', this.boundOnToolConfigChanged_);
+      window.removeEventListener(
+          'dao-tool-config-changed', this.boundOnToolConfigChanged_);
+      this.boundOnToolConfigChanged_ = null;
     }
     if (this.boundOnChipHint_) {
       this.removeEventListener('pointerenter', this.boundOnChipHint_);
@@ -459,6 +480,13 @@ export class DaoChatView extends CrLitElement {
           </div>
         </div>` : ''}
       <pi-chat-panel></pi-chat-panel>
+      <dao-chat-history-panel
+          ?open=${this.historyOpen_}
+          .currentSessionId=${this.currentSessionId_}
+          @history-close=${this.onHistoryClose_}
+          @history-select=${this.onHistorySelect_}
+          @history-deleted=${this.onHistoryDeleted_}>
+      </dao-chat-history-panel>
       ${this.renderSkillPicker_()}
       ${(this.pendingPageAttachment_ || this.pendingSelection_) ? html`
         <div class="dao-page-chip-row">
@@ -728,6 +756,7 @@ export class DaoChatView extends CrLitElement {
         // Refresh so the next round of this turn (or the next turn) sees
         // the updated personality without waiting for a user send.
         this.refreshSystemPrompt_();
+        this.scheduleSaveSession_();
       }
       if (ev?.type === 'agent_start' || ev?.type === 'agent_end') {
         this.isStreaming_ = !!this.agent_?.state.isStreaming;
@@ -794,6 +823,16 @@ export class DaoChatView extends CrLitElement {
     // live systemPrompt so the next turn uses the latest personality.
     this.boundOnSoulChanged_ = () => this.refreshSystemPrompt_();
     soulChannel.addEventListener('message', this.boundOnSoulChanged_);
+
+    // Same-window (dispatchEvent) + cross-tab (BroadcastChannel) notifications
+    // when the user toggles a tool or group in Settings → Tools. Rebuild
+    // the adapted tool array and push it to the live agent so the change
+    // takes effect on the next turn without restarting the chat.
+    this.boundOnToolConfigChanged_ = () => this.refreshTools_();
+    toolConfigChannel.addEventListener(
+        'message', this.boundOnToolConfigChanged_);
+    window.addEventListener(
+        'dao-tool-config-changed', this.boundOnToolConfigChanged_);
   }
 
   // Debounced decoration pass — coalesces rapid-fire message_end events
@@ -1326,6 +1365,14 @@ export class DaoChatView extends CrLitElement {
     this.agent_.state.systemPrompt = this.buildSystemPrompt_();
   }
 
+  // Rebuild the adapted tool array from the current enable/disable set and
+  // push it into the live agent state. The agent consumes tools on each
+  // turn so the new list applies to the next user message.
+  private refreshTools_() {
+    if (!this.agent_) return;
+    this.agent_.state.tools = buildAgentTools();
+  }
+
   private syncMeta_() {
     const msgs = this.agent_?.state.messages ?? [];
     this.messageCount_ = msgs.length;
@@ -1673,6 +1720,126 @@ export class DaoChatView extends CrLitElement {
     return false;
   }
 
+  // ---- History persistence ----
+
+  // Coalesce multiple `message_end` events within the same turn into a
+  // single IndexedDB write (a tool-heavy assistant turn can fire several).
+  // The microtask flush preserves "save after current event loop" ordering
+  // so agent.state.messages has already been slice-copied.
+  private scheduleSaveSession_() {
+    if (this.saveSessionScheduled_) return;
+    this.saveSessionScheduled_ = true;
+    queueMicrotask(() => {
+      this.saveSessionScheduled_ = false;
+      void this.saveCurrentSession_();
+    });
+  }
+
+  private deriveTitleFromMessages_(): string {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const msgs = (this.agent_?.state.messages ?? []) as any[];
+    for (const m of msgs) {
+      if (m?.role !== 'user' && m?.role !== 'user-with-attachments') continue;
+      const raw = typeof m.content === 'string' ?
+          m.content :
+          Array.isArray(m.content) ?
+              m.content.filter((p: {type: string}) => p?.type === 'text')
+                  .map((p: {text?: string}) => p.text || '')
+                  .join(' ') :
+              '';
+      const cleaned = String(raw).replace(/\s+/g, ' ').trim();
+      if (cleaned) return cleaned.length > 40 ? cleaned.slice(0, 40) : cleaned;
+    }
+    return '';
+  }
+
+  private async saveCurrentSession_(): Promise<void> {
+    const agent = this.agent_;
+    if (!agent) return;
+    if (!agent.state.messages || agent.state.messages.length === 0) return;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const storage = await ensurePiAppStorage() as any;
+      if (!this.currentSessionId_) {
+        this.currentSessionId_ =
+            (globalThis.crypto?.randomUUID?.() ?? `sess-${Date.now()}`);
+      }
+      const title = this.deriveTitleFromMessages_();
+      // Only pass a non-empty title on the first write; subsequent writes
+      // preserve whatever title is already in metadata (including user
+      // renames via the history panel).
+      const existingMeta =
+          await storage.sessions.getMetadata?.(this.currentSessionId_) ?? null;
+      await storage.sessions.saveSession(
+          this.currentSessionId_,
+          agent.state,
+          existingMeta || undefined,
+          existingMeta ? undefined : title);
+    } catch (_) { /* non-fatal — storage may be full / unavailable */ }
+  }
+
+  // Public entry used by the app shell's history button.
+  openHistory() {
+    this.historyOpen_ = true;
+  }
+
+  private onHistoryClose_() {
+    this.historyOpen_ = false;
+  }
+
+  private async onHistorySelect_(e: CustomEvent<{id: string}>) {
+    const id = e.detail?.id;
+    this.historyOpen_ = false;
+    if (!id) return;
+    await this.loadSession_(id);
+  }
+
+  private onHistoryDeleted_(e: CustomEvent<{id: string}>) {
+    // The currently active session was removed — behave like
+    // startNewSession so the UI doesn't keep a dangling sessionId that
+    // would resurrect on the next save.
+    if (e.detail?.id === this.currentSessionId_) {
+      this.startNewSession();
+    }
+  }
+
+  private async loadSession_(id: string) {
+    if (!this.agent_) return;
+    try {
+      this.agent_.abort();
+    } catch (_) { /* ignore */ }
+    try {
+      this.compactAbort_?.abort();
+    } catch (_) { /* ignore */ }
+    this.compacting_ = false;
+    this.compactAbort_ = null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const storage = await ensurePiAppStorage() as any;
+      const sess = await storage.sessions.loadSession(id);
+      if (!sess) return;
+      this.currentSessionId_ = id;
+      // Reassign through the state setter so pi-agent-core's
+      // slice-copy + Lit reference-equality binding fire (same pattern
+      // used in startNewSession and the `message_end` handler).
+      this.agent_.state.messages = Array.isArray(sess.messages) ?
+          sess.messages.slice() :
+          [];
+      this.isStreaming_ = false;
+      this.sentPageUrls_.clear();
+      this.dismissedUrls_.clear();
+      this.pendingPageAttachment_ = null;
+      this.pendingSelection_ = null;
+      this.syncMeta_();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const iface = this.panel_?.querySelector('agent-interface') as any;
+      iface?.requestUpdate?.();
+      void this.refreshPageChip_();
+      void this.refreshSelectionChip_();
+      setTimeout(() => this.focusInput(), 50);
+    } catch (_) { /* ignore */ }
+  }
+
   // ---- Public API kept for dao-agent-app compatibility ----
 
   focusInput() {
@@ -1703,6 +1870,9 @@ export class DaoChatView extends CrLitElement {
     this.compactAbort_ = null;
     this.agent_.state.messages = [];
     this.isStreaming_ = false;
+    // Fresh conversation — mint a new session id on first save rather than
+    // pre-creating an empty row (keeps the history list free of stubs).
+    this.currentSessionId_ = '';
     // Fresh conversation — clear the page-attachment bookkeeping so the
     // current active tab gets a new chip offered to the user.
     this.sentPageUrls_.clear();

@@ -11,6 +11,7 @@
 import {executeTool, recordToolCall, tools} from './agent_bridge.js';
 import type {ToolDefinition} from './agent_bridge.js';
 import {registerDaoToolRenderers} from './dao_tool_renderer.js';
+import {isToolEnabled} from './tool_catalog.js';
 
 // pi-agent-core's AgentTool is carried in the vendored runtime bundle. We
 // intentionally import it type-only through `any` to avoid coupling to the
@@ -77,10 +78,12 @@ function adaptOne(def: ToolDefinition): AgentTool {
 }
 
 export function buildAgentTools(): AgentTool[] {
-  const adapted = tools.map(adaptOne);
-  // Swap pi-web-ui's default (always-expanded) renderer for a Dao-styled
-  // collapsible one. Idempotent — registerDaoToolRenderers guards its
-  // internal flag so repeated Agent rebuilds do not re-register.
-  registerDaoToolRenderers(adapted.map(t => t.name));
+  // Filter out tools the user has disabled via Settings → Tools. Renderers
+  // are still registered for every known tool name (cheap, idempotent) so a
+  // re-enabled tool renders correctly on the next turn without re-init.
+  const adapted = tools
+      .filter(t => isToolEnabled(t.function.name))
+      .map(adaptOne);
+  registerDaoToolRenderers(tools.map(t => t.function.name));
   return adapted;
 }

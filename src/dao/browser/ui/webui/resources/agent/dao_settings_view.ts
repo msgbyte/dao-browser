@@ -25,6 +25,16 @@ import {
   setProviderConfig,
 } from './llm_config.js';
 import type {ProviderSpec} from './llm_config.js';
+import {tools as allTools} from './agent_bridge.js';
+import {
+  countEnabled,
+  getGroupState,
+  isToolEnabled,
+  setGroupEnabled,
+  setToolEnabled,
+  TOOL_GROUPS,
+  toolConfigChannel,
+} from './tool_catalog.js';
 
 export class DaoSettingsView extends CrLitElement {
   static override get properties() {
@@ -384,8 +394,61 @@ export class DaoSettingsView extends CrLitElement {
       .confirm-actions {
         display: flex; gap: 8px; justify-content: flex-end;
       }
+
+      /* Tool catalog */
+      .tool-group {
+        margin-bottom: 14px; border: 1px solid var(--glass-border);
+        border-radius: 12px; overflow: hidden;
+        background: var(--glass);
+      }
+      .tool-group-header {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 12px; background: var(--glass-strong, var(--glass));
+        border-bottom: 1px solid var(--glass-border);
+        cursor: pointer;
+        user-select: none;
+      }
+      .tool-group-label {
+        font-size: 13px; font-weight: 600; color: var(--text);
+        flex: 1; min-width: 0;
+      }
+      .tool-group-count {
+        font-size: 11px; color: var(--text-tertiary);
+        font-variant-numeric: tabular-nums;
+      }
+      .tool-group-checkbox {
+        width: 16px; height: 16px; flex-shrink: 0;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+      .tool-list {
+        display: flex; flex-direction: column;
+      }
+      .tool-row {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 8px 12px; border-top: 1px solid var(--border);
+      }
+      .tool-row:first-child { border-top: none; }
+      .tool-checkbox {
+        width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0;
+        accent-color: var(--accent); cursor: pointer;
+      }
+      .tool-meta {
+        display: flex; flex-direction: column; gap: 2px;
+        flex: 1; min-width: 0;
+      }
+      .tool-name {
+        font-size: 12px; color: var(--text);
+        font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+      }
+      .tool-desc {
+        font-size: 11px; color: var(--text-tertiary);
+        line-height: 1.4; word-break: break-word;
+      }
     `;
   }
+
+  private boundOnToolConfigChanged_: (() => void) | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -396,6 +459,25 @@ export class DaoSettingsView extends CrLitElement {
       refreshSoulContent();
       this.soulText_ = currentSoulContent;
     });
+
+    // Another agent tab (or our own toggles) changed the tool config —
+    // re-render so the checkboxes reflect the new state.
+    this.boundOnToolConfigChanged_ = () => this.requestUpdate();
+    toolConfigChannel.addEventListener(
+        'message', this.boundOnToolConfigChanged_);
+    window.addEventListener(
+        'dao-tool-config-changed', this.boundOnToolConfigChanged_);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.boundOnToolConfigChanged_) {
+      toolConfigChannel.removeEventListener(
+          'message', this.boundOnToolConfigChanged_);
+      window.removeEventListener(
+          'dao-tool-config-changed', this.boundOnToolConfigChanged_);
+      this.boundOnToolConfigChanged_ = null;
+    }
   }
 
   switchSubTab(tab: string) {
@@ -413,7 +495,7 @@ export class DaoSettingsView extends CrLitElement {
   override render() {
     return html`
       <div class="settings-sub-tabs">
-        ${['general', 'soul', 'memory', 'skills', 'stats'].map(tab => html`
+        ${['general', 'soul', 'tools', 'memory', 'skills', 'stats'].map(tab => html`
           <button class="sub-tab ${this.activeSubTab_ === tab ? 'active' : ''}"
               @click=${() => this.switchSubTab(tab)}>
             ${tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -421,6 +503,7 @@ export class DaoSettingsView extends CrLitElement {
       </div>
       ${this.activeSubTab_ === 'general' ? this.renderConnection_() :
         this.activeSubTab_ === 'soul' ? this.renderSoul_() :
+        this.activeSubTab_ === 'tools' ? this.renderTools_() :
         this.activeSubTab_ === 'skills' ? this.renderSkills_() :
         this.activeSubTab_ === 'stats' ? this.renderStats_() :
         this.renderMemory_()}
@@ -890,6 +973,72 @@ export class DaoSettingsView extends CrLitElement {
     } catch (_) {
       this.fireToast_('Failed to clear memory');
     }
+  }
+
+  // ---- Tools ----
+
+  private renderTools_() {
+    return html`
+      <div class="panel">
+        <div class="section-title">Tools</div>
+        <div class="section-desc">
+          Choose which tools the agent can call. Disabled tools are hidden
+          from the model, so it will not attempt to use them. Changes take
+          effect on the next turn of any open chat.</div>
+        ${TOOL_GROUPS.map(group => this.renderToolGroup_(group.id))}
+      </div>`;
+  }
+
+  private renderToolGroup_(groupId: string) {
+    const group = TOOL_GROUPS.find(g => g.id === groupId);
+    if (!group) return nothing;
+    const state = getGroupState(groupId);
+    const counts = countEnabled(groupId);
+    const allChecked = state === 'all';
+    const indeterminate = state === 'some';
+
+    const onHeaderToggle = () => {
+      // If fully on → turn off; otherwise → turn on.
+      setGroupEnabled(groupId, state !== 'all');
+    };
+
+    return html`
+      <div class="tool-group">
+        <div class="tool-group-header" @click=${onHeaderToggle}>
+          <input type="checkbox" class="tool-group-checkbox"
+              .checked=${allChecked}
+              .indeterminate=${indeterminate}
+              aria-label="Toggle all ${group.label} tools"
+              @click=${(e: Event) => e.stopPropagation()}
+              @change=${(e: Event) => setGroupEnabled(
+                  groupId, (e.target as HTMLInputElement).checked)}>
+          <span class="tool-group-label">${group.label}</span>
+          <span class="tool-group-count">
+            ${counts.enabled}/${counts.total}
+          </span>
+        </div>
+        <div class="tool-list">
+          ${group.toolNames.map(name => this.renderToolRow_(name))}
+        </div>
+      </div>`;
+  }
+
+  private renderToolRow_(name: string) {
+    const def = allTools.find(t => t.function.name === name);
+    const desc = def?.function.description ?? '';
+    const enabled = isToolEnabled(name);
+    return html`
+      <label class="tool-row">
+        <input type="checkbox" class="tool-checkbox"
+            .checked=${enabled}
+            aria-label="Toggle ${name}"
+            @change=${(e: Event) => setToolEnabled(
+                name, (e.target as HTMLInputElement).checked)}>
+        <div class="tool-meta">
+          <span class="tool-name">${name}</span>
+          ${desc ? html`<span class="tool-desc">${desc}</span>` : nothing}
+        </div>
+      </label>`;
   }
 
   // ---- Skills ----

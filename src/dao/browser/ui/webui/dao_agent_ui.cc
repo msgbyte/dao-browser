@@ -700,7 +700,9 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
                    "'); if (el) { el.click(); return 'clicked'; } "
                    "return 'element not found'; })()";
 
-  DaoAgentLockTabHelper::LockContents(contents);
+  // Do NOT Lock the tab for click-class tools: WebContents::IgnoreInputEvents
+  // filters BOTH real user input AND CDP-synthesized Input.dispatchMouseEvent,
+  // which would silently drop the click we are about to dispatch.
   base::Value::Dict params;
   params.Set("expression", js);
   params.Set("returnByValue", true);
@@ -985,7 +987,9 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
     else escaped += c;
   }
 
-  DaoAgentLockTabHelper::LockContents(contents);
+  // Do NOT Lock the tab for click-class tools: WebContents::IgnoreInputEvents
+  // filters BOTH real user input AND CDP-synthesized Input.dispatchMouseEvent,
+  // which would silently drop the click we are about to dispatch.
 
   // Inject highlight + get element center coordinates.
   std::string script =
@@ -1316,7 +1320,9 @@ void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
     else escaped_ref += c;
   }
 
-  DaoAgentLockTabHelper::LockContents(contents);
+  // Do NOT Lock the tab for click-class tools: WebContents::IgnoreInputEvents
+  // filters BOTH real user input AND CDP-synthesized Input.dispatchMouseEvent,
+  // which would silently drop the click we are about to dispatch.
 
   // Inject highlight + get element bounds via ref_id.
   std::string script =
