@@ -30,12 +30,25 @@ DaoAgentSidebarView::DaoAgentSidebarView(Browser* browser)
   // Resize handle on the left edge (drag to resize).
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
 
-  // WebView is created but NOT loaded until the first Toggle() expansion.
+  // WebView is created here. The chrome://agent WebUI is preloaded on an
+  // idle delay below so the first Toggle() is instantaneous — if the user
+  // opens the panel before the timer fires, Toggle() will call EnsureLoaded()
+  // directly (it is idempotent).
   web_view_ = AddChildView(
       std::make_unique<views::WebView>(browser->profile()));
 
   native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
   ApplyTheme();
+
+  // Warm up the WebUI after the browser window has settled. The panel stays
+  // SetVisible(false) / width 0, so the user sees nothing — but when they
+  // click the toggle, the WebContents has already parsed/executed its JS and
+  // built its DOM, and only a single paint frame remains.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentSidebarView::EnsureLoaded,
+                     weak_factory_.GetWeakPtr()),
+      base::Seconds(3));
 }
 
 void DaoAgentSidebarView::ApplyTheme() {
