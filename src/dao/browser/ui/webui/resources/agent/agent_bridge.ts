@@ -167,6 +167,11 @@ You have the following browser tools at your disposal — use them proactively w
 - **get_console_messages** — Retrieve captured console messages. Optionally filter by type ("error", "warning", "log"). Must call \`enable_console_tracking\` first.
 - **clear_console_messages** — Clear all captured console messages.
 - **execute_script** — Run JavaScript on the current page and return the result. Use this for advanced page interactions, data extraction, or DOM manipulation that the other tools don't cover. Set \`lock_tab\` to true when the script will manipulate the page so the browser can briefly block user input and show an AI control state.
+- **get_page_html** — Read the current page's full \`document.documentElement.outerHTML\`. Use this when you need to see inline \`<script>\` / \`<style>\` tags, embedded JSON (e.g. \`__NEXT_DATA__\`), or the initial server-rendered DOM. Truncated to 512 KiB; the response flags \`truncated: true\` when it hit the cap.
+- **list_page_resources** — Enumerate every resource the page loaded at navigation time (HTML documents, scripts, stylesheets, images, fonts, XHRs, fetches). Returns \`[{url, type, mimeType, frameId}]\`. Pass \`type_filter\` ("Script", "Stylesheet", "Document", "Image", "Font", "XHR", "Fetch", or "all") to narrow. Use this as the entry point for reverse-engineering a site.
+- **get_resource_content** — Fetch the full body of a single resource by URL (usually from \`list_page_resources\`). Text payloads are truncated to 512 KiB; binary payloads are returned as base64 (\`base64_encoded: true\`).
+- **get_network_body** — Fetch the response body of a network request by \`request_id\` (from \`get_network_requests\`). Use this to inspect XHR / fetch payloads that \`list_page_resources\` doesn't cover. Requires \`enable_network_tracking\` to have run first.
+- **search_in_resources** — Regex-search across all loaded text resources (scripts / stylesheets / documents). Returns the first N matches with URL, line number, and a short excerpt. Useful for locating a function, API endpoint, or string in a minified bundle without downloading each file.
 - **update_soul** — Modify your SOUL.md (the personality prompt you see above). Two actions: \`replace_section\` (replace or add a specific ## section), \`replace_all\` (rewrite entirely).
 - **save_memory** — Save a record of what you did on this page to long-term memory (intent + outcome). Use after completing a meaningful task so you have context next time the user visits this page.
 - **save_skill** — Save a reusable skill as a Markdown document. Skills are user-defined automation recipes the agent can discover and execute in future sessions. Use when the user asks you to remember a workflow or create an automation for a specific site or task.
@@ -758,6 +763,105 @@ export const tools: ToolDefinition[] = [
       parameters: {type: 'object', properties: {}, required: []},
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'get_page_html',
+      description:
+          'Get the full outerHTML of the current page (truncated at 512 KiB). Use this to inspect inline scripts, server-rendered JSON, or the initial DOM.',
+      parameters: {type: 'object', properties: {}, required: []},
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_page_resources',
+      description:
+          'List every resource the current page loaded (scripts, stylesheets, images, fonts, XHRs, etc.). Returns [{url, type, mimeType, frameId}]. Use this as the entry point for analyzing a site\'s source.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type_filter: {
+            type: 'string',
+            description:
+                'Optional filter: "Document" | "Stylesheet" | "Script" | "Image" | "Font" | "XHR" | "Fetch" | "all" (default).',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_resource_content',
+      description:
+          'Fetch the body of a single resource by URL (usually from list_page_resources). Text truncated at 512 KiB; binary returned as base64.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: 'The resource URL (exact match, from list_page_resources).',
+          },
+          frame_id: {
+            type: 'string',
+            description: 'Optional frame id. Defaults to the main frame.',
+          },
+        },
+        required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_network_body',
+      description:
+          'Fetch the response body of a captured network request by request_id (from get_network_requests). Requires enable_network_tracking to have run before the request was made.',
+      parameters: {
+        type: 'object',
+        properties: {
+          request_id: {
+            type: 'string',
+            description: 'The CDP request id from get_network_requests.',
+          },
+        },
+        required: ['request_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_in_resources',
+      description:
+          'Regex-search across all loaded text resources. Returns up to max_matches hits with {url, line, excerpt}. Cheaper than downloading every bundle when hunting for a function, endpoint, or string.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: {
+            type: 'string',
+            description: 'Regex pattern (JavaScript syntax).',
+          },
+          flags: {
+            type: 'string',
+            description: 'Regex flags (e.g. "i" for case-insensitive). Defaults to "i".',
+          },
+          types: {
+            type: 'string',
+            description:
+                'Comma-separated resource types to search (default: "Script,Stylesheet,Document"). Binary types (Image, Font) are always skipped.',
+          },
+          max_matches: {
+            type: 'number',
+            description: 'Max matches to return (default 20).',
+          },
+        },
+        required: ['pattern'],
+      },
+    },
+  },
 ];
 
 // ---- Tool Execution ----
@@ -940,6 +1044,77 @@ export async function executeTool(
         text: getStringArg(args, 'text'),
         clear: args['clear'] as boolean,
       });
+    case 'get_page_html':
+      return await callNative('getPageHtml');
+    case 'list_page_resources':
+      return await callNative('listPageResources', {
+        type_filter: getStringArg(args, 'type_filter') || 'all',
+      });
+    case 'get_resource_content':
+      return await callNative('getResourceContent', {
+        url: getStringArg(args, 'url'),
+        frame_id: getStringArg(args, 'frame_id'),
+      });
+    case 'get_network_body':
+      return await callNative('getNetworkBody', {
+        request_id: getStringArg(args, 'request_id'),
+      });
+    case 'search_in_resources': {
+      const pattern = getStringArg(args, 'pattern');
+      if (!pattern) return {error: 'Missing pattern'};
+      const flags = getStringArg(args, 'flags') || 'i';
+      const typesRaw =
+          getStringArg(args, 'types') || 'Script,Stylesheet,Document';
+      const typesAllowed = new Set(
+          typesRaw.split(',').map(s => s.trim()).filter(Boolean));
+      const maxMatches =
+          typeof args['max_matches'] === 'number' ? args['max_matches'] : 20;
+      let re: RegExp;
+      try {
+        re = new RegExp(pattern, flags);
+      } catch (e) {
+        return {error: 'Invalid regex: ' + (e as Error).message};
+      }
+      // Always exclude binary types regardless of what the caller passed.
+      for (const t of ['Image', 'Font', 'Media', 'Manifest']) {
+        typesAllowed.delete(t);
+      }
+      const listRes = await callNative('listPageResources', {
+        type_filter: 'all',
+      }) as {resources?: Array<{url: string; type: string; mimeType?: string}>};
+      const resources = listRes.resources || [];
+      const targets = resources.filter(r => typesAllowed.has(r.type));
+      const matches: Array<{url: string; line: number; excerpt: string}> = [];
+      // Serial fetch to keep backend pressure low and to bail early once
+      // we've hit the match cap.
+      for (const r of targets) {
+        if (matches.length >= maxMatches) break;
+        const contentRes = await callNative('getResourceContent', {
+          url: r.url,
+          frame_id: '',
+        }) as {content?: string; base64_encoded?: boolean; error?: string};
+        if (contentRes.error || contentRes.base64_encoded || !contentRes.content) {
+          continue;
+        }
+        const lines = contentRes.content.split('\n');
+        for (let i = 0; i < lines.length && matches.length < maxMatches; i++) {
+          const line = lines[i];
+          if (line === undefined) continue;
+          if (re.test(line)) {
+            const excerpt =
+                line.length > 240 ? line.slice(0, 240) + '…' : line;
+            matches.push({url: r.url, line: i + 1, excerpt});
+          }
+        }
+      }
+      return {
+        pattern,
+        flags,
+        searched: targets.length,
+        matches,
+        truncated: matches.length >= maxMatches,
+      };
+    }
     default:
       return {error: 'Unknown tool: ' + name};
   }

@@ -581,6 +581,22 @@ void DaoAgentUIHandler::RegisterMessages() {
       "closeSidebar",
       base::BindRepeating(&DaoAgentUIHandler::HandleCloseSidebar,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getPageHtml",
+      base::BindRepeating(&DaoAgentUIHandler::HandleGetPageHtml,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "listPageResources",
+      base::BindRepeating(&DaoAgentUIHandler::HandleListPageResources,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getResourceContent",
+      base::BindRepeating(&DaoAgentUIHandler::HandleGetResourceContent,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getNetworkBody",
+      base::BindRepeating(&DaoAgentUIHandler::HandleGetNetworkBody,
+                          base::Unretained(this)));
 }
 
 content::WebContents* DaoAgentUIHandler::EnsureAttached() {
@@ -2160,6 +2176,394 @@ void DaoAgentUIHandler::HandleClearConsoleMessages(
   base::Value::Dict response;
   response.Set("success", true);
   ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+namespace {
+
+// Max bytes of source content we ship back to the WebUI per call. LLM
+// context is expensive and DevTools itself also paginates large files;
+// 512 KiB is enough to see most real-world bundles while keeping a
+// single tool result under roughly 150 K tokens.
+constexpr size_t kMaxSourceBytes = 512 * 1024;
+
+// Truncate |s| in place to kMaxSourceBytes and return whether a cut
+// happened. For base64 payloads we keep the whole buffer (callers care
+// about decoding the result), so the helper is only used for text.
+bool TruncateText(std::string* s) {
+  if (s->size() <= kMaxSourceBytes) {
+    return false;
+  }
+  s->resize(kMaxSourceBytes);
+  s->append("\n...[truncated]");
+  return true;
+}
+
+// Walk a Page.getResourceTree frameTree dict, flattening all resources
+// into |out| with their owning frame id. Recurses into childFrames.
+void FlattenResourceTree(const base::Value::Dict& frame_tree,
+                         const std::string& type_filter,
+                         base::Value::List* out) {
+  const auto* frame = frame_tree.FindDict("frame");
+  std::string frame_id;
+  if (frame) {
+    const auto* id = frame->FindString("id");
+    if (id) {
+      frame_id = *id;
+    }
+  }
+  const auto* resources = frame_tree.FindList("resources");
+  if (resources) {
+    for (const auto& r : *resources) {
+      if (!r.is_dict()) continue;
+      const auto& rd = r.GetDict();
+      const auto* url = rd.FindString("url");
+      const auto* type = rd.FindString("type");
+      if (!url || !type) continue;
+      if (!type_filter.empty() && type_filter != "all" && *type != type_filter) {
+        continue;
+      }
+      base::Value::Dict entry;
+      entry.Set("url", *url);
+      entry.Set("type", *type);
+      if (const auto* mime = rd.FindString("mimeType")) {
+        entry.Set("mimeType", *mime);
+      }
+      entry.Set("frameId", frame_id);
+      out->Append(std::move(entry));
+    }
+  }
+  const auto* children = frame_tree.FindList("childFrames");
+  if (children) {
+    for (const auto& child : *children) {
+      if (child.is_dict()) {
+        FlattenResourceTree(child.GetDict(), type_filter, out);
+      }
+    }
+  }
+}
+
+// Find the frame id for the frame that owns |url| in a Page.getResourceTree
+// payload. Falls back to the root frame id when the url isn't listed (the
+// caller typically wants the main document in that case).
+std::string FindFrameIdForUrl(const base::Value::Dict& frame_tree,
+                              const std::string& url) {
+  std::string root_id;
+  if (const auto* frame = frame_tree.FindDict("frame")) {
+    if (const auto* id = frame->FindString("id")) {
+      root_id = *id;
+    }
+    if (const auto* frame_url = frame->FindString("url")) {
+      if (*frame_url == url) {
+        return root_id;
+      }
+    }
+  }
+  if (const auto* resources = frame_tree.FindList("resources")) {
+    for (const auto& r : *resources) {
+      if (!r.is_dict()) continue;
+      const auto* u = r.GetDict().FindString("url");
+      if (u && *u == url) {
+        return root_id;
+      }
+    }
+  }
+  if (const auto* children = frame_tree.FindList("childFrames")) {
+    for (const auto& child : *children) {
+      if (!child.is_dict()) continue;
+      std::string found = FindFrameIdForUrl(child.GetDict(), url);
+      if (!found.empty()) {
+        return found;
+      }
+    }
+  }
+  return root_id;
+}
+
+}  // namespace
+
+void DaoAgentUIHandler::HandleGetPageHtml(const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  const std::string url = contents->GetURL().spec();
+  const std::string title = base::UTF16ToUTF8(contents->GetTitle());
+
+  base::Value::Dict params;
+  params.Set("expression", "document.documentElement.outerHTML");
+  params.Set("returnByValue", true);
+  devtools_client_->SendCommand(
+      "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string cb_id, std::string url, std::string title,
+             base::Value result) {
+            if (!handler) return;
+            base::Value::Dict response;
+            response.Set("url", url);
+            response.Set("title", title);
+            if (result.is_dict()) {
+              auto* value =
+                  result.GetDict().FindByDottedPath("result.value");
+              if (value && value->is_string()) {
+                std::string html = value->GetString();
+                bool truncated = TruncateText(&html);
+                response.Set("html", std::move(html));
+                if (truncated) response.Set("truncated", true);
+              } else {
+                response.Set("error", "Failed to read outerHTML");
+              }
+            } else {
+              response.Set("error", "CDP call failed");
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id, url, title));
+}
+
+void DaoAgentUIHandler::HandleListPageResources(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string type_filter;
+  if (args.size() >= 2 && args[1].is_dict()) {
+    if (const auto* t = args[1].GetDict().FindString("type_filter")) {
+      type_filter = *t;
+    }
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  // Page.enable is idempotent — just call it then fetch the tree.
+  // Flattened into named methods because nested lambdas + BindOnce capture
+  // chains tripped confusing clang diagnostics.
+  base::Value::Dict enable_params;
+  devtools_client_->SendCommand(
+      "Page.enable", std::move(enable_params),
+      base::BindOnce(&DaoAgentUIHandler::OnPageEnableForResourceList,
+                     weak_factory_.GetWeakPtr(), callback_id, type_filter));
+}
+
+void DaoAgentUIHandler::OnPageEnableForResourceList(
+    std::string callback_id,
+    std::string type_filter,
+    base::Value /*unused Page.enable result*/) {
+  base::Value::Dict p;
+  devtools_client_->SendCommand(
+      "Page.getResourceTree", std::move(p),
+      base::BindOnce(&DaoAgentUIHandler::OnResourceTreeForResourceList,
+                     weak_factory_.GetWeakPtr(), callback_id, type_filter));
+}
+
+void DaoAgentUIHandler::OnResourceTreeForResourceList(
+    std::string callback_id,
+    std::string type_filter,
+    base::Value result) {
+  base::Value::Dict response;
+  base::Value::List resources;
+  std::string main_frame_id;
+  if (result.is_dict()) {
+    const base::Value::Dict* tree = result.GetDict().FindDict("frameTree");
+    if (tree) {
+      FlattenResourceTree(*tree, type_filter, &resources);
+      const base::Value::Dict* frame = tree->FindDict("frame");
+      if (frame) {
+        const std::string* fid = frame->FindString("id");
+        if (fid) {
+          main_frame_id = *fid;
+        }
+      }
+    }
+  }
+  int count = static_cast<int>(resources.size());
+  response.Set("resources", std::move(resources));
+  response.Set("count", count);
+  response.Set("mainFrameId", main_frame_id);
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleGetResourceContent(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string url;
+  std::string frame_id;
+  if (args[1].is_dict()) {
+    if (const auto* u = args[1].GetDict().FindString("url")) url = *u;
+    if (const auto* f = args[1].GetDict().FindString("frame_id")) {
+      frame_id = *f;
+    }
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents || url.empty()) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab or missing url");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  if (!frame_id.empty()) {
+    FetchResourceContentAndReply(callback_id, url, frame_id);
+    return;
+  }
+
+  // No frame_id given — look it up via Page.getResourceTree, then chain.
+  base::Value::Dict enable_params;
+  devtools_client_->SendCommand(
+      "Page.enable", std::move(enable_params),
+      base::BindOnce(&DaoAgentUIHandler::OnPageEnableForResourceFetch,
+                     weak_factory_.GetWeakPtr(), callback_id, url));
+}
+
+void DaoAgentUIHandler::OnPageEnableForResourceFetch(
+    std::string callback_id,
+    std::string url,
+    base::Value /*unused Page.enable result*/) {
+  base::Value::Dict p;
+  devtools_client_->SendCommand(
+      "Page.getResourceTree", std::move(p),
+      base::BindOnce(&DaoAgentUIHandler::OnResourceTreeForResourceFetch,
+                     weak_factory_.GetWeakPtr(), callback_id, url));
+}
+
+void DaoAgentUIHandler::OnResourceTreeForResourceFetch(
+    std::string callback_id,
+    std::string url,
+    base::Value result) {
+  std::string frame_id;
+  if (result.is_dict()) {
+    const base::Value::Dict* tree = result.GetDict().FindDict("frameTree");
+    if (tree) {
+      frame_id = FindFrameIdForUrl(*tree, url);
+    }
+  }
+  if (frame_id.empty()) {
+    base::Value::Dict err;
+    err.Set("url", url);
+    err.Set("error", "Could not resolve frame id for url");
+    ResolveJavascriptCallback(base::Value(callback_id), err);
+    return;
+  }
+  FetchResourceContentAndReply(callback_id, url, frame_id);
+}
+
+void DaoAgentUIHandler::FetchResourceContentAndReply(
+    const std::string& callback_id,
+    const std::string& url,
+    const std::string& frame_id) {
+  base::Value::Dict p;
+  p.Set("frameId", frame_id);
+  p.Set("url", url);
+  devtools_client_->SendCommand(
+      "Page.getResourceContent", std::move(p),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> h, std::string id,
+             std::string url, base::Value result) {
+            if (!h) return;
+            base::Value::Dict response;
+            response.Set("url", url);
+            if (result.is_dict()) {
+              const auto& rd = result.GetDict();
+              const auto* content = rd.FindString("content");
+              bool b64 = rd.FindBool("base64Encoded").value_or(false);
+              if (content) {
+                if (b64) {
+                  // Don't truncate base64 payloads — the caller needs
+                  // the full buffer to decode.
+                  response.Set("content", *content);
+                  response.Set("base64_encoded", true);
+                } else {
+                  std::string c = *content;
+                  bool truncated = TruncateText(&c);
+                  response.Set("content", std::move(c));
+                  response.Set("base64_encoded", false);
+                  if (truncated) response.Set("truncated", true);
+                }
+              } else {
+                response.Set("error", "No content for url");
+              }
+            } else {
+              response.Set("error", "CDP call failed");
+            }
+            h->ResolveJavascriptCallback(base::Value(id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id, url));
+}
+
+void DaoAgentUIHandler::HandleGetNetworkBody(
+    const base::Value::List& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) return;
+  const std::string callback_id = args[0].GetString();
+
+  std::string request_id;
+  if (args[1].is_dict()) {
+    if (const auto* r = args[1].GetDict().FindString("request_id")) {
+      request_id = *r;
+    }
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents || request_id.empty()) {
+    base::Value::Dict r;
+    r.Set("error", "No active tab or missing request_id");
+    ResolveJavascriptCallback(base::Value(callback_id), r);
+    return;
+  }
+
+  base::Value::Dict params;
+  params.Set("requestId", request_id);
+  devtools_client_->SendCommand(
+      "Network.getResponseBody", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler, std::string cb_id,
+             std::string req_id, base::Value result) {
+            if (!handler) return;
+            base::Value::Dict response;
+            response.Set("request_id", req_id);
+            if (result.is_dict()) {
+              const auto& rd = result.GetDict();
+              const auto* body = rd.FindString("body");
+              bool b64 = rd.FindBool("base64Encoded").value_or(false);
+              if (body) {
+                if (b64) {
+                  response.Set("body", *body);
+                  response.Set("base64_encoded", true);
+                } else {
+                  std::string b = *body;
+                  bool truncated = TruncateText(&b);
+                  response.Set("body", std::move(b));
+                  response.Set("base64_encoded", false);
+                  if (truncated) response.Set("truncated", true);
+                }
+              } else {
+                response.Set("error", "No body returned (request may not have completed)");
+              }
+            } else {
+              response.Set("error", "CDP call failed");
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id), response);
+          },
+          weak_factory_.GetWeakPtr(), callback_id, request_id));
 }
 
 void DaoAgentUIHandler::HandleCloseSidebar(

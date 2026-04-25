@@ -1,0 +1,45 @@
+diff --git a/chrome/browser/accessibility/soda_installer_impl.cc b/chrome/browser/accessibility/soda_installer_impl.cc
+index 86092c832f..80eda4e8f7 100644
+--- a/chrome/browser/accessibility/soda_installer_impl.cc
++++ b/chrome/browser/accessibility/soda_installer_impl.cc
+@@ -242,18 +242,32 @@ void SodaInstallerImpl::DeleteSodaFiles() {
+ 
+ void SodaInstallerImpl::UpdateAndNotifyOnSodaProgress(
+     speech::LanguageCode language_code) {
+-  int total_bytes = 0;
+-  int downloaded_bytes = 0;
++  // Dao: Upstream had two bugs here that together tripped DCHECK_LE on
++  // startup (e.g. 9830 vs. -2):
++  //   1. CrxUpdateItem defaults total_bytes / downloaded_bytes to -1
++  //      ("unknown" sentinel, documented in crx_update_item.h), and this
++  //      code naively summed them into the aggregate.
++  //   2. `downloading_components_[key]` on a missing key silently
++  //      default-constructs an entry — so even when only one component is
++  //      being fetched, the other branch polluted the sum with -1/-1.
++  // Fix: look up via find() (no implicit insertion) and skip components
++  // whose byte counts are still sentinels.
++  int64_t total_bytes = 0;
++  int64_t downloaded_bytes = 0;
+   speech::LanguageCode soda_code = speech::LanguageCode::kNone;
+ 
+-  if (base::Contains(downloading_components_, soda_code)) {
+-    total_bytes += downloading_components_[soda_code].total_bytes;
+-    downloaded_bytes += downloading_components_[soda_code].downloaded_bytes;
+-  }
++  auto accumulate = [&](speech::LanguageCode code) {
++    auto it = downloading_components_.find(code);
++    if (it == downloading_components_.end()) return;
++    const auto& item = it->second;
++    if (item.total_bytes < 0 || item.downloaded_bytes < 0) return;
++    total_bytes += item.total_bytes;
++    downloaded_bytes += item.downloaded_bytes;
++  };
+ 
++  accumulate(soda_code);
+   if (language_code != soda_code) {
+-    total_bytes += downloading_components_[language_code].total_bytes;
+-    downloaded_bytes += downloading_components_[language_code].downloaded_bytes;
++    accumulate(language_code);
+   }
+ 
+   if (total_bytes == 0)

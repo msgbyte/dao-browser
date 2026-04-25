@@ -124,6 +124,37 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   void HandleGetConsoleMessages(const base::Value::List& args);
   void HandleClearConsoleMessages(const base::Value::List& args);
 
+  // Reverse-engineering / source inspection handlers.
+  // All four rely on the CDP Page/Network domains and are read-only.
+  void HandleGetPageHtml(const base::Value::List& args);
+  void HandleListPageResources(const base::Value::List& args);
+  void HandleGetResourceContent(const base::Value::List& args);
+  void HandleGetNetworkBody(const base::Value::List& args);
+
+  // Shared tail of HandleGetResourceContent: run Page.getResourceContent
+  // once both frame id and url are known, then reply to |callback_id|.
+  void FetchResourceContentAndReply(const std::string& callback_id,
+                                    const std::string& url,
+                                    const std::string& frame_id);
+
+  // HandleListPageResources continuations — split out because the
+  // two-step CDP chain (Page.enable → Page.getResourceTree) runs into
+  // confusing lambda-capture diagnostics when inlined.
+  void OnPageEnableForResourceList(std::string callback_id,
+                                   std::string type_filter,
+                                   base::Value result);
+  void OnResourceTreeForResourceList(std::string callback_id,
+                                     std::string type_filter,
+                                     base::Value result);
+
+  // HandleGetResourceContent continuation for the frame-id-lookup path.
+  void OnResourceTreeForResourceFetch(std::string callback_id,
+                                      std::string url,
+                                      base::Value result);
+  void OnPageEnableForResourceFetch(std::string callback_id,
+                                    std::string url,
+                                    base::Value result);
+
   // Sidebar control.
   void HandleCloseSidebar(const base::Value::List& args);
 
