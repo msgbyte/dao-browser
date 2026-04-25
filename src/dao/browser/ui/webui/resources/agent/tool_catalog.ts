@@ -20,19 +20,13 @@ export interface ToolGroup {
 
 export const TOOL_GROUPS: ToolGroup[] = [
   {
-    id: 'page-info',
-    label: 'Page Info',
+    id: 'page',
+    label: 'Page',
     toolNames: [
       'get_page_info',
       'get_page_html',
       'get_accessibility_tree',
       'capture_screenshot',
-    ],
-  },
-  {
-    id: 'page-interact',
-    label: 'Page Interaction',
-    toolNames: [
       'click_element',
       'agent_click',
       'click_by_ref',
@@ -43,41 +37,25 @@ export const TOOL_GROUPS: ToolGroup[] = [
       'scroll_to_element',
       'press_key_chord',
       'type_text',
+      'execute_script',
     ],
   },
   {
-    id: 'scripting',
-    label: 'Scripting',
-    toolNames: ['execute_script'],
-  },
-  {
     id: 'tabs',
-    label: 'Tab Management',
+    label: 'Tabs',
     toolNames: ['list_tabs', 'switch_tab', 'open_tab', 'close_tab'],
   },
   {
-    id: 'network',
-    label: 'Network',
+    id: 'devtools',
+    label: 'DevTools',
     toolNames: [
       'enable_network_tracking',
       'get_network_requests',
       'clear_network_requests',
       'get_network_body',
-    ],
-  },
-  {
-    id: 'console',
-    label: 'Console',
-    toolNames: [
       'enable_console_tracking',
       'get_console_messages',
       'clear_console_messages',
-    ],
-  },
-  {
-    id: 'resources',
-    label: 'Resource Inspection',
-    toolNames: [
       'list_page_resources',
       'get_resource_content',
       'search_in_resources',
