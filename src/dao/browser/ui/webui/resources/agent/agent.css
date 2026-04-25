@@ -685,6 +685,7 @@ details.dao-tool-call code-block {
 
 html, body {
   height: 100%;
+  margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
   background: var(--bg);

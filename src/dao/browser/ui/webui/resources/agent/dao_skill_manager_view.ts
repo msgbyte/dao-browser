@@ -46,6 +46,7 @@ export class DaoSkillManagerView extends CrLitElement {
         height: 100%;
         overflow: hidden;
         --list-width: 280px;
+        color: var(--text);
       }
 
       /* ---- Toolbar ---- */

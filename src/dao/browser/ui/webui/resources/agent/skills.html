@@ -4,6 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="agent.css">
+<style>
+  /* Standalone page — agent.css keeps body transparent so the chat
+     renders over the sidebar's own paint. Here we're a full tab
+     (chrome://skills) and need a real surface color so (a) the page
+     is readable, (b) the Dao address bar's luminance probe reads the
+     actual scheme instead of Chromium's default white. */
+  html, body {
+    background: rgb(231, 238, 245);
+  }
+  @media (prefers-color-scheme: dark) {
+    html, body {
+      background: rgb(54, 59, 64);
+    }
+  }
+</style>
 </head>
 <body>
 <dao-skill-manager-view></dao-skill-manager-view>
