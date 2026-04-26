@@ -1,8 +1,14 @@
 diff --git a/chrome/browser/ui/views/frame/browser_frame_mac.mm b/chrome/browser/ui/views/frame/browser_frame_mac.mm
-index 29ba0f48f5..de9538c9c9 100644
+index 29ba0f48f5..c7b433ec42 100644
 --- a/chrome/browser/ui/views/frame/browser_frame_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_frame_mac.mm
-@@ -18,9 +18,19 @@
+@@ -13,14 +13,25 @@
+ #include "chrome/browser/media/router/media_router_feature.h"
+ #include "chrome/browser/ui/browser_command_controller.h"
+ #include "chrome/browser/ui/browser_commands.h"
++#include "chrome/browser/ui/singleton_tabs.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #import "chrome/browser/ui/cocoa/browser_window_command_handler.h"
  #import "chrome/browser/ui/cocoa/chrome_command_dispatcher_delegate.h"
  #import "chrome/browser/ui/cocoa/touchbar/browser_window_touch_bar_controller.h"
  #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
@@ -22,7 +28,7 @@ index 29ba0f48f5..de9538c9c9 100644
  #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/common/pref_names.h"
-@@ -160,9 +170,17 @@ - (NSTouchBar*)makeTouchBar {
+@@ -160,9 +171,17 @@ - (NSTouchBar*)makeTouchBar {
          browser_view_->GetTabStripHeight() +
          browser_view_->frame()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
@@ -43,7 +49,7 @@ index 29ba0f48f5..de9538c9c9 100644
      }
    } else {
      *override_titlebar_height = false;
-@@ -185,6 +203,29 @@ - (NSTouchBar*)makeTouchBar {
+@@ -185,6 +204,36 @@ - (NSTouchBar*)makeTouchBar {
  void BrowserFrameMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -70,10 +76,17 @@ index 29ba0f48f5..de9538c9c9 100644
 +    return;
 +  }
 +
++  // Dao: IDC_DAO_WELCOME opens dao://welcome. Always enable when a window
++  // exists — ShowSingletonTab handles both empty and populated tab strips.
++  if (tag == IDC_DAO_WELCOME) {
++    result->enable = true;
++    return;
++  }
++
    Browser* browser = browser_view_->browser();
    if (!chrome::SupportsCommand(browser, tag)) {
      result->enable = false;
-@@ -341,6 +382,37 @@ - (NSTouchBar*)makeTouchBar {
+@@ -341,6 +390,43 @@ - (NSTouchBar*)makeTouchBar {
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
@@ -90,6 +103,12 @@ index 29ba0f48f5..de9538c9c9 100644
 +  // the original tab in place and inserts the duplicate after it.
 +  if (command == IDC_DAO_DUPLICATE_TAB) {
 +    dao::DuplicateActiveTab(browser_view_->browser());
++    return true;
++  }
++
++  // Dao: Open dao://welcome as a singleton tab in the active browser.
++  if (command == IDC_DAO_WELCOME) {
++    ShowSingletonTab(browser_view_->browser(), GURL("dao://welcome"));
 +    return true;
 +  }
 +
@@ -111,7 +130,7 @@ index 29ba0f48f5..de9538c9c9 100644
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -379,6 +451,16 @@ - (NSTouchBar*)makeTouchBar {
+@@ -379,6 +465,16 @@ - (NSTouchBar*)makeTouchBar {
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -128,7 +147,7 @@ index 29ba0f48f5..de9538c9c9 100644
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
-@@ -450,6 +532,12 @@ - (NSTouchBar*)makeTouchBar {
+@@ -450,6 +546,12 @@ - (NSTouchBar*)makeTouchBar {
    views::Widget::InitParams params(
        views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
    params.native_widget = this;

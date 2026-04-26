@@ -1,16 +1,18 @@
 diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
-index ee7c61e824..29cb81ab90 100644
+index ee7c61e824..1b88e94612 100644
 --- a/chrome/browser/app_controller_mac.mm
 +++ b/chrome/browser/app_controller_mac.mm
-@@ -63,6 +63,7 @@
+@@ -63,7 +63,9 @@
  #include "chrome/browser/shortcuts/chrome_webloc_file.h"
  #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
  #include "chrome/browser/ui/browser.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
  #include "chrome/browser/ui/browser_command_controller.h"
++#include "chrome/browser/ui/singleton_tabs.h"
  #include "chrome/browser/ui/browser_commands.h"
  #include "chrome/browser/ui/browser_dialogs.h"
-@@ -1446,6 +1447,22 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
+ #include "chrome/browser/ui/browser_finder.h"
+@@ -1446,6 +1448,28 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
        }
      }
  
@@ -30,20 +32,29 @@ index ee7c61e824..29cb81ab90 100644
 +      enable = NO;
 +    }
 +
++    // Dao: IDC_DAO_WELCOME opens dao://welcome. Enable whenever a profile is
++    // available, just like IDC_NEW_LITTLE_DAO.
++    if (tag == IDC_DAO_WELCOME) {
++      enable = canOpenNewBrowser;
++    }
++
      // "Show as tab" should only appear when the current window is a popup.
      // Since |validateUserInterfaceItem:| is called only when there are no
      // key windows, we should just hide this.
-@@ -1558,6 +1575,9 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
+@@ -1558,6 +1582,12 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
      case IDC_RESTORE_TAB:
        app_controller_mac::TabRestorer::RestoreMostRecent(profile);
        break;
 +    case IDC_NEW_LITTLE_DAO:
 +      dao::DaoLittleDaoController::OpenInLittleDao(profile, GURL("about:blank"));
 +      break;
++    case IDC_DAO_WELCOME:
++      ShowSingletonTab(profile, GURL("dao://welcome"));
++      break;
      case IDC_OPEN_FILE:
        chrome::ExecuteCommand(CreateBrowser(profile), IDC_OPEN_FILE);
        break;
-@@ -2336,44 +2356,12 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
+@@ -2336,44 +2366,12 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
                                    Profile* profile) {
    if (!profile)
      return;  // No suitable profile to open the URLs, do nothing.

@@ -7,15 +7,35 @@
 <style>
   /* Standalone page — agent.css keeps body transparent so the chat
      renders over the sidebar's own paint. Here we're a full tab
-     (chrome://skills) and need a real surface color so (a) the page
+     (dao://skills) and need a real surface color so (a) the page
      is readable, (b) the Dao address bar's luminance probe reads the
-     actual scheme instead of Chromium's default white. */
+     actual scheme instead of Chromium's default white.
+     Use document-level surfaces (near-white in light, deeper gray in
+     dark) so the page reads as its own tab rather than an extension
+     of the blue-gray sidebar behind it. Rebind agent.css's glass
+     vars to opaque values suited to a solid document surface — the
+     defaults (translucent white) are tuned for the sidebar's tinted
+     glass and disappear on a flat white page. */
   html, body {
-    background: rgb(231, 238, 245);
+    background: rgb(250, 251, 253);
+  }
+  :root {
+    --bg: rgb(250, 251, 253);
+    --surface: rgb(238, 241, 245);
+    --surface-hover: rgb(228, 232, 238);
+    --border: rgba(30, 20, 40, 0.09);
+    --border-subtle: rgba(30, 20, 40, 0.06);
   }
   @media (prefers-color-scheme: dark) {
     html, body {
-      background: rgb(54, 59, 64);
+      background: rgb(34, 38, 42);
+    }
+    :root {
+      --bg: rgb(34, 38, 42);
+      --surface: rgb(44, 49, 54);
+      --surface-hover: rgb(54, 60, 66);
+      --border: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.06);
     }
   }
 </style>

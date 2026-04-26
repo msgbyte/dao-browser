@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
-index 463639cbdb..00ec72866c 100644
+index 463639cbdb..cbb8ff0e23 100644
 --- a/chrome/browser/ui/cocoa/main_menu_builder.mm
 +++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
 @@ -152,6 +152,18 @@
@@ -42,3 +42,21 @@ index 463639cbdb..00ec72866c 100644
    return item;
  }
  
+@@ -546,6 +572,17 @@
+           .Build();
+   // clang-format on
+ 
++  // Dao: Prepend "Welcome to Dao" at the top of the Help menu, followed by a
++  // separator so it reads as its own section.
++  NSMenu* help_menu = item.submenu;
++  NSMenuItem* welcome_item = [[NSMenuItem alloc]
++      initWithTitle:@"Welcome to Dao"
++             action:@selector(commandDispatch:)
++      keyEquivalent:@""];
++  welcome_item.tag = IDC_DAO_WELCOME;
++  [help_menu insertItem:welcome_item atIndex:0];
++  [help_menu insertItem:[NSMenuItem separatorItem] atIndex:1];
++
+   nsapp.helpMenu = item.submenu;
+   return item;
+ }
