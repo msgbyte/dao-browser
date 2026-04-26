@@ -89,6 +89,7 @@ class DaoCommandBarView : public views::View,
 
   void Navigate(const std::u16string& text);
   void NavigateToMatch(const AutocompleteMatch& match);
+  void SubmitAskAi(const std::u16string& prompt);
   void DeferredRequestFocus();
   void Dismiss();
   void ApplyTheme();
@@ -129,6 +130,13 @@ class DaoCommandBarView : public views::View,
   std::u16string inline_autocompletion_;
   bool updating_textfield_ = false;
   int visible_suggestion_count_ = 0;
+
+  // Index inside suggestion_views_ of the synthetic "Ask AI" row, or -1
+  // when the current input does not qualify (empty / looks like a URL) or
+  // there is no room for it below the autocomplete matches.  The row
+  // occupies one of the kMaxSuggestions slots; Enter / click on it routes
+  // to SubmitAskAi instead of NavigateToMatch.
+  int ask_ai_row_index_ = -1;
 
   // When true, we are in "pre-new-tab" mode: no tab has been created yet.
   bool is_new_tab_mode_ = false;

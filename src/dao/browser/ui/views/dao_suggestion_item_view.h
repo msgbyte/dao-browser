@@ -40,6 +40,12 @@ class DaoSuggestionItemView : public views::View {
   ~DaoSuggestionItemView() override;
 
   void SetMatch(const AutocompleteMatch& match, bool is_bookmark);
+
+  // Render this row as an "Ask AI" entry for |prompt| instead of a normal
+  // autocomplete match. Cancels any pending favicon load and paints a
+  // sparkle icon on the left.
+  void SetAskAiPrompt(const std::u16string& prompt);
+
   void SetSelected(bool selected);
 
   // views::View:

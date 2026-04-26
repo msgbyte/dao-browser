@@ -6,9 +6,15 @@
 
 #include <algorithm>
 
+#include "base/json/string_escape.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
@@ -106,6 +112,87 @@ void DaoAgentSidebarView::EnsureLoaded() {
 
   web_view_->LoadInitialURL(
       GURL(std::string(content::kChromeUIScheme) + "://agent"));
+}
+
+void DaoAgentSidebarView::ExpandAndSubmitPrompt(
+    const std::u16string& prompt) {
+  if (prompt.empty()) {
+    return;
+  }
+  pending_prompt_ = prompt;
+
+  if (!expanded_) {
+    Toggle();
+  } else {
+    // Already open: just kick the flush loop.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
+                       weak_factory_.GetWeakPtr(), /*attempts_left=*/60));
+  }
+}
+
+void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {
+  if (pending_prompt_.empty() || !web_view_) {
+    return;
+  }
+  content::WebContents* web_contents = web_view_->GetWebContents();
+  content::RenderFrameHost* rfh =
+      web_contents ? web_contents->GetPrimaryMainFrame() : nullptr;
+  if (!rfh || !rfh->IsRenderFrameLive()) {
+    if (attempts_left > 0) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
+                         weak_factory_.GetWeakPtr(), attempts_left - 1),
+          base::Milliseconds(100));
+    } else {
+      pending_prompt_.clear();
+    }
+    return;
+  }
+
+  // JSON-encode the prompt so it survives the string -> JS literal crossing
+  // (newlines, quotes, unicode escapes).  base::EscapeJSONString wraps it
+  // in double quotes and escapes control characters.
+  std::string prompt_json;
+  base::EscapeJSONString(base::UTF16ToUTF8(pending_prompt_),
+                         /*put_in_quotes=*/true, &prompt_json);
+
+  std::u16string script = base::UTF8ToUTF16(base::StrCat({
+      "(function(){",
+      "  if (typeof window.__daoExternalSubmit === 'function') {",
+      "    window.__daoExternalSubmit(", prompt_json, ");",
+      "    return true;",
+      "  }",
+      "  return false;",
+      "})()"}));
+
+  auto weak_self = weak_factory_.GetWeakPtr();
+  rfh->ExecuteJavaScript(
+      script,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentSidebarView> self, int attempts_left,
+             base::Value value) {
+            if (!self) {
+              return;
+            }
+            const bool dispatched = value.is_bool() && value.GetBool();
+            if (dispatched) {
+              self->pending_prompt_.clear();
+              return;
+            }
+            if (attempts_left <= 0) {
+              self->pending_prompt_.clear();
+              return;
+            }
+            base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                FROM_HERE,
+                base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
+                               self, attempts_left - 1),
+                base::Milliseconds(100));
+          },
+          weak_self, attempts_left));
 }
 
 bool DaoAgentSidebarView::Toggle() {

@@ -5,6 +5,8 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_AGENT_SIDEBAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_AGENT_SIDEBAR_VIEW_H_
 
+#include <string>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -45,6 +47,14 @@ class DaoAgentSidebarView : public views::View,
 
   bool is_expanded() const { return expanded_; }
 
+  // Expands the sidebar (if not already) and submits `prompt` as the first
+  // turn of a fresh chat session.  Called from the command bar when the
+  // user picks the "Ask AI" row.  The actual submission is deferred until
+  // the agent WebUI's __daoExternalSubmit hook is installed — a polling
+  // task keeps retrying the JS injection until it succeeds or a deadline
+  // elapses.
+  void ExpandAndSubmitPrompt(const std::u16string& prompt);
+
   // views::View:
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
@@ -65,6 +75,11 @@ class DaoAgentSidebarView : public views::View,
   void EnsureLoaded();
   void ApplyTheme();
 
+  // Polls the agent WebUI trying to invoke window.__daoExternalSubmit; kept
+  // alive across retries until the hook is installed or kSubmitTimeoutMs
+  // elapses.
+  void TryFlushPendingPrompt(int attempts_left);
+
   raw_ptr<Browser> browser_;
   raw_ptr<views::WebView> web_view_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
@@ -72,6 +87,11 @@ class DaoAgentSidebarView : public views::View,
   bool loaded_ = false;
   bool expanded_ = false;
   bool is_resizing_ = false;
+
+  // Pending prompt queued by ExpandAndSubmitPrompt while the WebUI hook
+  // (window.__daoExternalSubmit) is still loading.  Cleared when the
+  // submission is dispatched or the retry deadline is reached.
+  std::u16string pending_prompt_;
 
   int current_width_ = kDefaultWidth;
   int user_width_ = kDefaultWidth;

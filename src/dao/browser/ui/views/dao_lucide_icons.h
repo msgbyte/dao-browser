@@ -6,10 +6,12 @@
 #define DAO_BROWSER_UI_VIEWS_DAO_LUCIDE_ICONS_H_
 
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/gfx/image/image_skia.h"
 
 namespace gfx {
 class Canvas;
 class RectF;
+class Size;
 }  // namespace gfx
 
 namespace dao {
@@ -40,6 +42,7 @@ enum class LucideIcon {
   kExternalLink,
   kSquareArrowDownLeft,
   kBot,
+  kSparkles,
 };
 
 // Draw a Lucide icon into |rect| on |canvas| using |color|.
@@ -49,6 +52,12 @@ void DrawLucideIcon(gfx::Canvas* canvas,
                     LucideIcon icon,
                     const gfx::RectF& rect,
                     SkColor color);
+
+// Render a Lucide icon into an ImageSkia of the given size.
+// Useful for feeding views::ImageView::SetImage().
+gfx::ImageSkia CreateLucideImageSkia(LucideIcon icon,
+                                     int size,
+                                     SkColor color);
 
 }  // namespace dao
 

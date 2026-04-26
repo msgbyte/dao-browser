@@ -11,6 +11,8 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/geometry/size.h"
+#include "ui/gfx/image/canvas_image_source.h"
 
 namespace dao {
 
@@ -322,6 +324,28 @@ void DrawBot(gfx::Canvas* canvas,
   canvas->DrawCircle(gfx::PointF(ox + 12 * s, oy + 4 * s), 1.0f * s, flags);
 }
 
+// Lucide "sparkles" — a large 4-pointed sparkle with a small plus-cross
+// and a filled dot decoration.
+void DrawSparkles(gfx::Canvas* canvas,
+                  float s,
+                  float ox,
+                  float oy,
+                  const cc::PaintFlags& flags) {
+  DrawSvgPath(canvas,
+              "M11.017 2.814a1 1 0 0 1 1.966 0"
+              "l1.051 5.558a2 2 0 0 0 1.594 1.594"
+              "l5.558 1.051a1 1 0 0 1 0 1.966"
+              "l-5.558 1.051a2 2 0 0 0-1.594 1.594"
+              "l-1.051 5.558a1 1 0 0 1-1.966 0"
+              "l-1.051-5.558a2 2 0 0 0-1.594-1.594"
+              "l-5.558-1.051a1 1 0 0 1 0-1.966"
+              "l5.558-1.051a2 2 0 0 0 1.594-1.594z",
+              s, ox, oy, flags);
+  DrawSvgPath(canvas, "M20 2v4", s, ox, oy, flags);
+  DrawSvgPath(canvas, "M22 4h-4", s, ox, oy, flags);
+  canvas->DrawCircle(gfx::PointF(ox + 4 * s, oy + 20 * s), 2.0f * s, flags);
+}
+
 }  // namespace
 
 void DrawLucideIcon(gfx::Canvas* canvas,
@@ -416,7 +440,40 @@ void DrawLucideIcon(gfx::Canvas* canvas,
     case LucideIcon::kBot:
       DrawBot(canvas, s, ox, oy, flags);
       break;
+    case LucideIcon::kSparkles:
+      DrawSparkles(canvas, s, ox, oy, flags);
+      break;
   }
+}
+
+namespace {
+
+class LucideCanvasImageSource : public gfx::CanvasImageSource {
+ public:
+  LucideCanvasImageSource(LucideIcon icon, int size, SkColor color)
+      : gfx::CanvasImageSource(gfx::Size(size, size)),
+        icon_(icon),
+        color_(color) {}
+
+  LucideCanvasImageSource(const LucideCanvasImageSource&) = delete;
+  LucideCanvasImageSource& operator=(const LucideCanvasImageSource&) = delete;
+
+  void Draw(gfx::Canvas* canvas) override {
+    DrawLucideIcon(canvas, icon_,
+                   gfx::RectF(0, 0, size().width(), size().height()),
+                   color_);
+  }
+
+ private:
+  LucideIcon icon_;
+  SkColor color_;
+};
+
+}  // namespace
+
+gfx::ImageSkia CreateLucideImageSkia(LucideIcon icon, int size, SkColor color) {
+  return gfx::CanvasImageSource::MakeImageSkia<LucideCanvasImageSource>(
+      icon, size, color);
 }
 
 }  // namespace dao

@@ -10,6 +10,7 @@
 #include "components/favicon_base/favicon_callback.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"
@@ -116,6 +117,17 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
     description_label_->SetVisible(true);
     description_label_->SetText(match.description);
   }
+}
+
+void DaoSuggestionItemView::SetAskAiPrompt(const std::u16string& prompt) {
+  favicon_tracker_.TryCancelAll();
+  pending_favicon_url_ = GURL();
+
+  icon_view_->SetImage(
+      CreateLucideImageSkia(LucideIcon::kSparkles, 18, SuggestionIconColor()));
+
+  title_label_->SetText(u"Ask AI: " + prompt);
+  description_label_->SetVisible(false);
 }
 
 void DaoSuggestionItemView::OnFaviconFetched(

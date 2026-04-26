@@ -1972,6 +1972,26 @@ export class DaoChatView extends CrLitElement {
     iface?.requestUpdate?.();
     setTimeout(() => this.focusInput(), 50);
   }
+
+  // Start a fresh session and immediately submit `text`. Invoked from the
+  // C++ command bar via window.__daoExternalSubmit — when the WebUI has not
+  // finished mounting yet, the caller retries until `origSendMessage_` is
+  // installed, so this path can assume the monkey-patched sendMessage is
+  // live by the time it runs.
+  async submitExternalPrompt(text: string) {
+    if (!text) return;
+    this.startNewSession();
+    // Allow the new-session reset (messages=[], sessionId cleared) to
+    // propagate through Lit's update cycle before pushing the first message.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iface = this.panel_?.querySelector('agent-interface') as any;
+    if (iface && typeof iface.sendMessage === 'function') {
+      try {
+        await iface.sendMessage(text, []);
+      } catch (_) { /* surfaced via agent error events */ }
+    }
+  }
 }
 
 customElements.define('dao-chat-view', DaoChatView);

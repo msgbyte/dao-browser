@@ -62,6 +62,33 @@ export class DaoAgentApp extends CrLitElement {
         });
       }
     }) as EventListener);
+
+    // Hook for the C++ command bar: opens a fresh chat session and submits
+    // `text` as the first user turn. Retries briefly while the chat view
+    // finishes mounting — firstUpdated installs the sendMessage monkey-patch
+    // asynchronously, so the first call from C++ can land before it is ready.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__daoExternalSubmit = (text: string) => {
+      if (typeof text !== 'string' || !text) return;
+      const deadline = Date.now() + 5000;
+      const tryOnce = () => {
+        if (this.activeTab_ !== 'chat') {
+          this.activeTab_ = 'chat';
+        }
+        const view = this.getChatView_();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const iface: any = view?.querySelector('pi-chat-panel agent-interface');
+        if (view && iface && typeof iface.sendMessage === 'function') {
+          void view.submitExternalPrompt(text);
+          return;
+        }
+        if (Date.now() < deadline) {
+          setTimeout(tryOnce, 80);
+        }
+      };
+      // Let the active-tab flip render before the first attempt.
+      this.updateComplete.then(tryOnce);
+    };
   }
 
   override render() {

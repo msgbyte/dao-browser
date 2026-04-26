@@ -27,7 +27,10 @@
 #include "content/public/browser/web_contents.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/vector_icons/vector_icons.h"
+#include "dao/browser/ui/views/dao_address_bar_view.h"
+#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/dao_suggestion_item_view.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
@@ -675,15 +678,44 @@ void DaoCommandBarView::UpdateSuggestions() {
   }
 
   const AutocompleteResult& result = autocomplete_controller_->result();
-  int count = std::min(static_cast<int>(result.size()), kMaxSuggestions);
+  int match_count = std::min(static_cast<int>(result.size()), kMaxSuggestions);
+
+  // Reserve the SECOND slot (index 1) for the synthetic Ask-AI row when the
+  // input looks like a natural-language question rather than a URL.  If the
+  // input has no real matches, Ask-AI falls to slot 0 as the only row.
+  // When real matches already fill all kMaxSuggestions slots, the last one
+  // is evicted to make room — it tends to be the lowest-relevance entry.
+  const bool show_ask_ai =
+      !user_input_text_.empty() && !LooksLikeURL(user_input_text_);
+  ask_ai_row_index_ = -1;
+  int match_slots = match_count;
+  if (show_ask_ai) {
+    ask_ai_row_index_ = std::min(1, match_count);
+    if (match_slots + 1 > kMaxSuggestions) {
+      match_slots = kMaxSuggestions - 1;
+    }
+  }
 
   // Check if we have a bookmark model for icon determination
   bookmarks::BookmarkModel* bookmark_model =
       BookmarkModelFactory::GetForBrowserContext(browser_->profile());
 
   for (int i = 0; i < kMaxSuggestions; ++i) {
-    if (i < count) {
-      const AutocompleteMatch& match = result.match_at(i);
+    // Map a display slot to the corresponding autocomplete match index.
+    // Slots before the Ask-AI row are 1:1; slots after it shift down by
+    // one because the Ask-AI row displaces one real match downward.
+    const bool is_ask_ai_slot = (i == ask_ai_row_index_);
+    int match_index = i;
+    if (ask_ai_row_index_ >= 0 && i > ask_ai_row_index_) {
+      match_index = i - 1;
+    }
+
+    if (is_ask_ai_slot) {
+      suggestion_views_[i]->SetAskAiPrompt(user_input_text_);
+      suggestion_views_[i]->SetVisible(true);
+      suggestion_views_[i]->SetSelected(i == selected_index_);
+    } else if (match_index < match_slots) {
+      const AutocompleteMatch& match = result.match_at(match_index);
       bool is_bookmark =
           bookmark_model &&
           bookmark_model->IsBookmarked(match.destination_url);
@@ -696,13 +728,18 @@ void DaoCommandBarView::UpdateSuggestions() {
     }
   }
 
-  visible_suggestion_count_ = count;
+  visible_suggestion_count_ =
+      match_slots + (ask_ai_row_index_ >= 0 ? 1 : 0);
 
-  if (count > 0) {
+  if (visible_suggestion_count_ > 0) {
     dropdown_container_->SetVisible(true);
     // Auto-select first item if nothing is selected
     if (selected_index_ < 0) {
       SetSelectedIndex(0);
+    } else if (selected_index_ >= visible_suggestion_count_) {
+      // Previously-selected index is no longer visible (e.g. results
+      // shrank while the user was typing); clamp back onto the list.
+      SetSelectedIndex(visible_suggestion_count_ - 1);
     }
   } else {
     dropdown_container_->SetVisible(false);
@@ -768,11 +805,26 @@ void DaoCommandBarView::UpdateInputIcon() {
 
   const SkColor icon_color = SuggestionIconColor();
 
-  // If there's a selected autocomplete match, use its type
+  // Ask-AI row is selected: mirror the sparkle icon shown on that row into
+  // the input-field icon so the glyph the user is about to commit is
+  // visible before they press Enter.
+  if (selected_index_ >= 0 && selected_index_ == ask_ai_row_index_) {
+    favicon_icon_->SetImage(
+        CreateLucideImageSkia(LucideIcon::kSparkles, 18, icon_color));
+    favicon_icon_->SetVisible(true);
+    return;
+  }
+
+  // If there's a selected autocomplete match, use its type.
+  // Shift past the Ask-AI slot when one is inserted before the selection.
   if (autocomplete_controller_ && selected_index_ >= 0) {
     const AutocompleteResult& result = autocomplete_controller_->result();
-    if (selected_index_ < static_cast<int>(result.size())) {
-      const AutocompleteMatch& match = result.match_at(selected_index_);
+    int match_index = selected_index_;
+    if (ask_ai_row_index_ >= 0 && selected_index_ > ask_ai_row_index_) {
+      match_index = selected_index_ - 1;
+    }
+    if (match_index < static_cast<int>(result.size())) {
+      const AutocompleteMatch& match = result.match_at(match_index);
       bool is_search = AutocompleteMatch::IsSearchType(match.type);
       if (is_search) {
         favicon_icon_->SetImage(gfx::CreateVectorIcon(
@@ -857,6 +909,14 @@ void DaoCommandBarView::SetSelectedIndex(int index) {
 }
 
 void DaoCommandBarView::ApplySelectedSuggestion() {
+  // Ask-AI row wins over autocomplete match lookup — its slot sits between
+  // real matches, so check it first.
+  if (selected_index_ >= 0 && selected_index_ == ask_ai_row_index_ &&
+      !user_input_text_.empty()) {
+    SubmitAskAi(user_input_text_);
+    return;
+  }
+
   if (!autocomplete_controller_) {
     Navigate(textfield_->GetText());
     return;
@@ -864,12 +924,44 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
 
   const AutocompleteResult& result = autocomplete_controller_->result();
 
-  if (selected_index_ >= 0 &&
-      selected_index_ < static_cast<int>(result.size())) {
-    NavigateToMatch(result.match_at(selected_index_));
+  // Shift past the Ask-AI slot when one is inserted before the selection.
+  int match_index = selected_index_;
+  if (ask_ai_row_index_ >= 0 && selected_index_ > ask_ai_row_index_) {
+    match_index = selected_index_ - 1;
+  }
+
+  if (match_index >= 0 &&
+      match_index < static_cast<int>(result.size())) {
+    NavigateToMatch(result.match_at(match_index));
   } else {
     // No selected match — use plain text navigation
     Navigate(textfield_->GetText());
+  }
+}
+
+void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
+  StopAutocomplete();
+  dropdown_container_->SetVisible(false);
+  visible_suggestion_count_ = 0;
+  ask_ai_row_index_ = -1;
+
+  if (is_new_tab_mode_) {
+    SetNewTabButtonHighlight(false);
+    is_new_tab_mode_ = false;
+  }
+
+  SetVisible(false);
+  SetWebContentEventProcessing(true);
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (browser_view && browser_view->dao_agent_sidebar()) {
+    browser_view->dao_agent_sidebar()->ExpandAndSubmitPrompt(prompt);
+    // Keep the right-side sidebar layout + address-bar chat-button state
+    // in sync with the freshly-expanded agent panel.
+    browser_view->InvalidateLayout();
+    if (browser_view->dao_address_bar()) {
+      browser_view->dao_address_bar()->SetChatButtonHighlighted(true);
+    }
   }
 }
 
