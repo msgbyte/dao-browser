@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Dao Browser is a Chromium-based browser with a vertical tab sidebar (inspired by Arc), currently targeting macOS arm64. It builds on top of Chromium source using a patch-based architecture — only patch files and Dao's own C++ code are version-controlled; the full Chromium tree lives in `engine/` (gitignored).
 
+For a full inventory of features Dao Browser adds on top of Chromium (sidebar, AI Agent, Picture-in-Picture, Split View, Control Center, Little Dao, branding patches, etc.), see [`docs/features.md`](docs/features.md). Read this first when asked what the project does, when locating the component that owns a given behavior, or before adding a feature that might overlap with an existing one.
+
 ## Build Commands
 
 ```bash
