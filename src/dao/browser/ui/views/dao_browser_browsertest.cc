@@ -60,6 +60,7 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
+#include "url/url_constants.h"
 
 namespace dao {
 namespace {
@@ -419,7 +420,7 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, UnsplitDoesNotCrash) {
   DaoSplitView* split_view = GetBrowserView(browser())->dao_split_view();
   ASSERT_NE(nullptr, split_view);
 
-  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
   TabStripModel* model = browser()->tab_strip_model();
   content::WebContents* first = model->GetWebContentsAt(0);
   content::WebContents* second = model->GetWebContentsAt(1);
@@ -432,7 +433,7 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, UnsplitDoesNotCrash) {
   // Switch the active tab to a third, non-split tab. This is the path that
   // historically corrupted the primary ContentsWebView's internal wc pointer
   // because OnActiveTabChanged is intercepted while split is active.
-  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
   model->ActivateTabAt(2);
 
   // Bring the kept pane back to active and dissolve the split. Before the
@@ -444,17 +445,18 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, UnsplitDoesNotCrash) {
   EXPECT_EQ(0, split_view->PaneCount());
 }
 
-// Regression: split-group consolidation should land on the same model index
-// regardless of whether the moved tab started before or after the anchor.
+// Regression: SplitPane with non-adjacent members must keep the anchor in
+// place and preserve the moved member in the model. Sidebar visual adjacency
+// is enforced separately at the JS layer (dao_folder_model.ts), so this test
+// only locks down the model-side invariants of SplitPane itself.
 IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
-                       SplitGroupConsolidatesAdjacent) {
+                       SplitMembersSurviveCreation) {
   DaoSplitView* split_view = GetBrowserView(browser())->dao_split_view();
   ASSERT_NE(nullptr, split_view);
 
-  // Open four tabs so the split members start far apart.
-  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
-  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
-  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
   TabStripModel* model = browser()->tab_strip_model();
   ASSERT_GE(model->count(), 4);
   content::WebContents* anchor = model->GetWebContentsAt(0);
@@ -465,10 +467,6 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
       anchor, SplitDirection::kHorizontal, false, far_member));
   ASSERT_TRUE(split_view->IsSplitActive());
 
-  // Sidebar consolidation runs via DaoSidebarUIHandler; the model-side
-  // contract here is simply that both members exist and the anchor stays
-  // at its original index. The exact placement of the moved member is
-  // exercised separately at the JS layer (dao_folder_model.ts).
   EXPECT_EQ(0, model->GetIndexOfWebContents(anchor));
   EXPECT_NE(TabStripModel::kNoTab,
             model->GetIndexOfWebContents(far_member));

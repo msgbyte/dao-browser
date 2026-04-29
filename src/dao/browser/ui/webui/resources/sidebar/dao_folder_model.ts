@@ -366,14 +366,21 @@ export class FolderModel {
    * are left in place — only loose, top-level tabs get reordered.
    */
   private consolidateSplitGroups_(actualTabs: TabData[]): void {
+    // Fast path: reconcile runs on every sidebarStateChanged push (titles,
+    // favicons). Skip the full scan when no split tabs exist — the common case.
+    if (!actualTabs.some(t => t.isInSplit)) return;
+
+    const indexOfRunMember = (member: TabData): number =>
+        this.items_.findIndex(
+            it => it.type === 'tab' &&
+                  this.matchesTabRef_(it as SidebarTabRef, member));
+
     let i = 0;
     while (i < actualTabs.length) {
-      const tab = actualTabs[i]!;
-      if (!tab.isInSplit) {
+      if (!actualTabs[i]!.isInSplit) {
         i++;
         continue;
       }
-      // Collect the consecutive split run starting at i.
       let j = i;
       const run: TabData[] = [];
       while (j < actualTabs.length && actualTabs[j]!.isInSplit) {
@@ -383,19 +390,9 @@ export class FolderModel {
       i = j;
       if (run.length < 2) continue;
 
-      // Find anchor: the first run member that lives at the top level.
-      const indexOfRunMember = (member: TabData): number => {
-        return this.items_.findIndex(
-            it => it.type === 'tab' &&
-                  this.matchesTabRef_(it as SidebarTabRef, member));
-      };
-
       const anchorIdx = indexOfRunMember(run[0]!);
       if (anchorIdx === -1) continue;  // anchor lives in a folder, skip
 
-      // Walk the rest of the run; move each top-level member right after the
-      // previous one. Folder-bound members are skipped (they keep their
-      // folder placement).
       let insertAfter = anchorIdx;
       for (let k = 1; k < run.length; k++) {
         const memberIdx = indexOfRunMember(run[k]!);
@@ -405,13 +402,8 @@ export class FolderModel {
           insertAfter = targetIdx;
           continue;
         }
-        const [item] = this.items_.splice(memberIdx, 1);
-        if (!item) continue;
-        // After splice, indices shift if memberIdx < targetIdx.
-        const adjustedTarget =
-            memberIdx < targetIdx ? targetIdx - 1 : targetIdx;
-        this.items_.splice(adjustedTarget, 0, item);
-        insertAfter = adjustedTarget;
+        reorderArray(this.items_, memberIdx, targetIdx);
+        insertAfter = memberIdx < targetIdx ? targetIdx - 1 : targetIdx;
       }
     }
   }

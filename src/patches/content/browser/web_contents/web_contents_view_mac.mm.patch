@@ -1,18 +1,19 @@
 diff --git a/content/browser/web_contents/web_contents_view_mac.mm b/content/browser/web_contents/web_contents_view_mac.mm
-index 7927a3920f..3ad9ba0e02 100644
+index 7927a3920f..af58648aef 100644
 --- a/content/browser/web_contents/web_contents_view_mac.mm
 +++ b/content/browser/web_contents/web_contents_view_mac.mm
-@@ -777,7 +777,15 @@ ClipboardEndpoint source_endpoint(
+@@ -777,7 +777,16 @@ ClipboardEndpoint source_endpoint(
  }
  
  void WebContentsViewMac::ViewsHostableDetach() {
 -  DCHECK(views_host_);
-+  // Dao: Make detach idempotent. When DaoSplitView reparents WebContents
-+  // between its panes and the primary ContentsWebView, the views_host_ may
-+  // already be cleared by the time WebView::DetachWebContentsNativeView()
-+  // walks back to us during a stale Set/Detach. The original DCHECK turns a
-+  // benign double-detach into a fatal crash; treating null as a no-op
-+  // preserves the contract (detached state) without aborting.
++  // Dao: DaoSplitView's pane-reparenting flow violates the strict
++  // Attach/Detach pairing this DCHECK assumes — a WebContents can be
++  // reattached to a new ContentsWebView while the prior view's stale
++  // SetWebContents(...) is still on the stack, leading to a second Detach
++  // after views_host_ is already null. Treat that as a no-op: the
++  // postcondition (detached) is already satisfied and the alternative is a
++  // fatal crash on a benign double-detach.
 +  if (!views_host_) {
 +    return;
 +  }
