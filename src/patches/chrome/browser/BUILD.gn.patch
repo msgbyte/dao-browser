@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index ab4deb1a22..5c79515638 100644
+index 969c2af443..850d7386f1 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -8236,7 +8236,7 @@ static_library("browser") {
+@@ -8307,7 +8307,7 @@ static_library("browser") {
  # all public deps of "browser" into a new target, and all circular dependencies
  # must include this target in a public_dep. This ensures stability and
  # correctness of the build-graph outside of //chrome/browser.
@@ -11,7 +11,7 @@ index ab4deb1a22..5c79515638 100644
    public_deps = [
      # To avoid every target that is circularly dependent on
      # //chrome/browser:browser needing to include 2 separate targets, we include
-@@ -8380,7 +8380,7 @@ static_library("browser_public_dependencies") {
+@@ -8458,7 +8458,7 @@ static_library("browser_public_dependencies") {
  # //chrome/browser:browser should be listed here. This ensures that the build
  # graph is correct and that all headers are generated before any translation
  # units are compiled.
@@ -19,4 +19,4 @@ index ab4deb1a22..5c79515638 100644
 +group("browser_generated_files") {
    public_deps = [
      ":buildflags",
-     "//chrome/browser:lcp_critical_path_predictor_proto",
+     "//chrome/browser/media:media_engagement_preload_proto",

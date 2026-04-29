@@ -90,8 +90,8 @@ void DaoSplitBranchNode::Layout(const gfx::Rect& bounds) {
   }
 }
 
-base::Value::Dict DaoSplitBranchNode::Serialize() const {
-  base::Value::Dict dict;
+base::DictValue DaoSplitBranchNode::Serialize() const {
+  base::DictValue dict;
   dict.Set("type", "branch");
   dict.Set("direction",
            direction_ == SplitDirection::kHorizontal ? "horizontal"
@@ -150,8 +150,8 @@ void DaoSplitLeafNode::Layout(const gfx::Rect& bounds) {
   bounds_ = bounds;
 }
 
-base::Value::Dict DaoSplitLeafNode::Serialize() const {
-  base::Value::Dict dict;
+base::DictValue DaoSplitLeafNode::Serialize() const {
+  base::DictValue dict;
   dict.Set("type", "leaf");
   if (web_contents_) {
     dict.Set("url", web_contents_->GetVisibleURL().spec());
@@ -404,7 +404,7 @@ DaoSplitNode* CloseLeaf(std::unique_ptr<DaoSplitNode>& root,
   return sibling_ptr;
 }
 
-std::unique_ptr<DaoSplitNode> DeserializeTree(const base::Value::Dict& dict) {
+std::unique_ptr<DaoSplitNode> DeserializeTree(const base::DictValue& dict) {
   const std::string* type = dict.FindString("type");
   if (!type)
     return nullptr;
@@ -427,8 +427,8 @@ std::unique_ptr<DaoSplitNode> DeserializeTree(const base::Value::Dict& dict) {
     std::optional<double> ratio = dict.FindDouble("ratio");
     float r = ratio.has_value() ? static_cast<float>(ratio.value()) : 0.5f;
 
-    const base::Value::Dict* first_dict = dict.FindDict("first");
-    const base::Value::Dict* second_dict = dict.FindDict("second");
+    const base::DictValue* first_dict = dict.FindDict("first");
+    const base::DictValue* second_dict = dict.FindDict("second");
     if (!first_dict || !second_dict)
       return nullptr;
 

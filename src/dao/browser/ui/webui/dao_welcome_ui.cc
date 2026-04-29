@@ -44,7 +44,7 @@ void DaoWelcomeUIHandler::RegisterMessages() {
 }
 
 void DaoWelcomeUIHandler::HandleMarkWelcomeShown(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   Profile* profile = Profile::FromWebUI(web_ui());
   profile->GetPrefs()->SetBoolean(prefs::kDaoWelcomeShown, true);

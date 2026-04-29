@@ -1,0 +1,24 @@
+diff --git a/ui/display/mac/screen_utils_mac.mm b/ui/display/mac/screen_utils_mac.mm
+index eace771c4b..dbe208cd0d 100644
+--- a/ui/display/mac/screen_utils_mac.mm
++++ b/ui/display/mac/screen_utils_mac.mm
+@@ -8,13 +8,12 @@
+ 
+ NSScreen* GetNSScreenFromDisplayID(CGDirectDisplayID display_id) {
+   for (NSScreen* screen in NSScreen.screens) {
+-    CGDirectDisplayID screen_display_id = kCGNullDirectDisplay;
+-    if (@available(macOS 26, *)) {
+-      screen_display_id = screen.CGDirectDisplayID;
+-    } else {
+-      screen_display_id =
+-          [screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue];
+-    }
++    // The macOS 26 SDK adds a direct `CGDirectDisplayID` property. Our build
++    // SDK (Xcode 16.3 / macOS 15.4) doesn't declare it, so always fall back to
++    // the legacy NSScreenNumber deviceDescription lookup, which works on all
++    // macOS versions.
++    CGDirectDisplayID screen_display_id =
++        [screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue];
+     if (screen_display_id == display_id) {
+       return screen;
+     }

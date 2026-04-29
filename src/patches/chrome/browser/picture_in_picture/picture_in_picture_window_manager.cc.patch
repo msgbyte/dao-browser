@@ -1,20 +1,13 @@
 diff --git a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
-index ea4646388c..d21d649e33 100644
+index cccf164d97..344f2056a4 100644
 --- a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
 +++ b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
-@@ -481,56 +481,8 @@ std::unique_ptr<AutoPipSettingOverlayView>
+@@ -676,49 +676,8 @@ std::unique_ptr<AutoPipSettingOverlayView>
  PictureInPictureWindowManager::GetOverlayView(
      views::View* anchor_view,
      views::BubbleBorder::Arrow arrow) {
 -  // This should probably CHECK, but tests often can't set the controller.
 -  if (!pip_window_controller_) {
--    return nullptr;
--  }
--
--  // This is redundant with the check for `auto_pip_tab_helper`, below.
--  // However, for safety, early-out here when the flag is off.
--  if (!base::FeatureList::IsEnabled(
--          blink::features::kMediaSessionEnterPictureInPicture)) {
 -    return nullptr;
 -  }
 -

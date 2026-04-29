@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index a66522f120..326ad25bfe 100644
+index 00b9254990..5b90c488cd 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -48,6 +48,100 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -47,6 +47,102 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
@@ -60,6 +60,8 @@ index a66522f120..326ad25bfe 100644
 +    "//dao/browser/ui/views/dao_command_bar_view.h",
 +    "//dao/browser/ui/views/dao_control_center_button.cc",
 +    "//dao/browser/ui/views/dao_control_center_button.h",
++    "//dao/browser/ui/views/dao_cross_window_drag.cc",
++    "//dao/browser/ui/views/dao_cross_window_drag.h",
 +    "//dao/browser/ui/views/dao_lucide_icons.cc",
 +    "//dao/browser/ui/views/dao_lucide_icons.h",
 +    "//dao/browser/ui/views/dao_control_center_extensions_section.cc",
@@ -101,9 +103,9 @@ index a66522f120..326ad25bfe 100644
 +    "//dao/browser/ui/views/sidebar/dao_tab_tooltip_view.cc",
 +    "//dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h",
      "accelerator_utils.h",
-     "bluetooth/bluetooth_dialogs.h",
-     "browser_dialogs.cc",
-@@ -318,6 +412,10 @@ static_library("ui") {
+     "browser_navigator.h",
+     "browser_navigator_params.cc",
+@@ -256,6 +352,10 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
@@ -114,15 +116,15 @@ index a66522f120..326ad25bfe 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -564,6 +662,7 @@ static_library("ui") {
-     "//components/privacy_sandbox:tracking_protection_settings",
+@@ -568,6 +668,7 @@ static_library("ui") {
+     "//components/privacy_sandbox:privacy_sandbox_prefs",
      "//components/profile_metrics",
      "//components/proxy_config",
 +    "//components/qr_code_generator",
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
-@@ -5673,7 +5772,7 @@ static_library("ui") {
+@@ -5547,7 +5648,7 @@ static_library("ui") {
  # //chrome/browser. These are semantically a part of
  # //chrome/browser:browser_public_dependencies since //chrome/browser and
  # //chrome/browser/ui allow circular dependencies.
@@ -131,7 +133,7 @@ index a66522f120..326ad25bfe 100644
    visibility = [ "//chrome/browser:browser_public_dependencies" ]
    public_deps = [
      "//components/cross_device/logging",
-@@ -5707,7 +5806,6 @@ static_library("ui_public_dependencies") {
+@@ -5586,7 +5687,6 @@ static_library("ui_public_dependencies") {
      public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
    }
    if (is_win) {
@@ -139,28 +141,25 @@ index a66522f120..326ad25bfe 100644
      public_deps += [
        "//build:branding_buildflags",
        "//ui/views",
-@@ -5952,3 +6050,24 @@ if (is_android) {
-     sources = [ "android/toolbar/adaptive_toolbar_enums.h" ]
+@@ -5913,3 +6013,21 @@ if (use_aura) {
+     ]
    }
  }
 +
-+# Dao Browser browser tests
 +source_set("dao_browser_tests") {
 +  testonly = true
++  sources = [ "//dao/browser/ui/views/dao_browser_browsertest.cc" ]
 +  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-+  sources = [
-+    "//dao/browser/ui/views/dao_browser_browsertest.cc",
-+  ]
 +  deps = [
 +    ":ui",
++    "//base",
++    "//chrome/browser",
++    "//chrome/browser/profiles",
++    "//chrome/browser/ui/browser_window",
 +    "//chrome/test:test_support",
 +    "//chrome/test:test_support_ui",
-+    "//content/public/browser",
 +    "//content/test:test_support",
-+    "//net:test_support",
 +    "//testing/gtest",
-+    "//third_party/blink/public/common:headers",
-+    "//ui/compositor",
 +    "//ui/views",
 +  ]
 +}

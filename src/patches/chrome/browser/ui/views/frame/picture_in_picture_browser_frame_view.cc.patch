@@ -1,29 +1,31 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-index d69e8e49bf..17c3c42dca 100644
+index 64e203c67d..7898abcd73 100644
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-@@ -37,10 +37,12 @@
+@@ -45,10 +45,14 @@
  #include "ui/base/ui_base_features.h"
  #include "ui/compositor/layer.h"
  #include "ui/display/screen.h"
++#include "ui/events/event_handler.h"
 +#include "ui/events/event_handler.h"
  #include "ui/events/event_observer.h"
  #include "ui/gfx/animation/animation.h"
  #include "ui/gfx/animation/animation_container.h"
  #include "ui/gfx/geometry/insets.h"
 +#include "ui/gfx/geometry/rounded_corners_f.h"
++#include "ui/gfx/geometry/rounded_corners_f.h"
+ #include "ui/gfx/text_constants.h"
  #include "ui/views/accessibility/view_accessibility.h"
- #include "ui/views/animation/compositor_animation_runner.h"
- #include "ui/views/event_monitor.h"
-@@ -48,6 +50,7 @@
- #include "ui/views/layout/flex_layout_view.h"
+ #include "ui/views/animation/animation_builder.h"
+@@ -59,6 +63,7 @@
+ #include "ui/views/metadata/view_factory.h"
  #include "ui/views/style/typography.h"
  #include "ui/views/style/typography_provider.h"
 +#include "ui/views/widget/widget.h"
  #include "ui/views/widget/widget_delegate.h"
  #include "ui/views/window/frame_background.h"
  #include "ui/views/window/window_shape.h"
-@@ -148,6 +151,16 @@ class WindowEventObserver : public ui::EventObserver {
+@@ -149,6 +154,16 @@ class WindowEventObserver : public ui::EventObserver {
          this, pip_browser_frame_view_->GetWidget()->GetNativeWindow(),
          {ui::EventType::kMouseMoved, ui::EventType::kMouseExited,
           ui::EventType::kKeyPressed, ui::EventType::kKeyReleased});
@@ -40,7 +42,7 @@ index d69e8e49bf..17c3c42dca 100644
    }
  
    WindowEventObserver(const WindowEventObserver&) = delete;
-@@ -174,6 +187,13 @@ class WindowEventObserver : public ui::EventObserver {
+@@ -175,6 +190,13 @@ class WindowEventObserver : public ui::EventObserver {
   private:
    bool IsMouseInBounds() {
      gfx::Point point = event_monitor_->GetLastMouseLocation();
@@ -53,8 +55,8 @@ index d69e8e49bf..17c3c42dca 100644
 +    }
      views::View::ConvertPointFromScreen(pip_browser_frame_view_, &point);
  
-     gfx::Rect input_bounds = pip_browser_frame_view_->GetLocalBounds();
-@@ -196,6 +216,9 @@ class WindowEventObserver : public ui::EventObserver {
+     gfx::Rect hit_region = pip_browser_frame_view_->GetHitRegion();
+@@ -183,6 +205,9 @@ class WindowEventObserver : public ui::EventObserver {
  
    raw_ptr<PictureInPictureBrowserFrameView> pip_browser_frame_view_;
    std::unique_ptr<views::EventMonitor> event_monitor_;
@@ -64,7 +66,7 @@ index d69e8e49bf..17c3c42dca 100644
  };
  
  void DefinitelyExitPictureInPicture(
-@@ -222,6 +245,67 @@ void DefinitelyExitPictureInPicture(
+@@ -209,6 +234,67 @@ void DefinitelyExitPictureInPicture(
    }
  }
  
@@ -94,7 +96,7 @@ index d69e8e49bf..17c3c42dca 100644
 +    switch (event->type()) {
 +      case ui::EventType::kMousePressed: {
 +        drag_start_mouse_screen_ =
-+            display::Screen::GetScreen()->GetCursorScreenPoint();
++            display::Screen::Get()->GetCursorScreenPoint();
 +        drag_start_widget_bounds_ = main_widget_->GetWindowBoundsInScreen();
 +        dragging_ = true;
 +        event->SetHandled();
@@ -105,7 +107,7 @@ index d69e8e49bf..17c3c42dca 100644
 +          break;
 +        }
 +        gfx::Point current =
-+            display::Screen::GetScreen()->GetCursorScreenPoint();
++            display::Screen::Get()->GetCursorScreenPoint();
 +        gfx::Vector2d delta = current - drag_start_mouse_screen_;
 +        gfx::Rect new_bounds = drag_start_widget_bounds_;
 +        new_bounds.Offset(delta);
@@ -132,7 +134,7 @@ index d69e8e49bf..17c3c42dca 100644
  }  // namespace
  
  PictureInPictureBrowserFrameView::ChildDialogObserverHelper::
-@@ -508,12 +592,40 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+@@ -553,12 +639,40 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
    location_bar_model_ = std::make_unique<LocationBarModelImpl>(
        this, content::kMaxURLDisplayChars);
  
@@ -177,9 +179,9 @@ index d69e8e49bf..17c3c42dca 100644
 +                             0, 0));
 +  }
  
-   // Creates the window icon.
-   const gfx::FontList& font_list = views::TypographyProvider::Get().GetFont(
-@@ -619,9 +731,10 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+   top_bar_container_view_->SetBackground(
+       views::CreateSolidBackground(kColorPipWindowTopBarBackground));
+@@ -686,9 +800,10 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
  
    // Creates the top bar title color and camera icon color animation. Set the
    // initial state to 1.0 because the window is active when first shown.
@@ -191,7 +193,7 @@ index d69e8e49bf..17c3c42dca 100644
  
    // Creates the camera icon movement animations with the default EASE_OUT type.
    move_camera_button_to_left_animation_.SetSlideDuration(kAnimationDuration);
-@@ -887,7 +1000,10 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
+@@ -905,7 +1020,10 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
    content_area.Inset(FrameBorderInsets());
    gfx::Rect top_bar = content_area;
    top_bar.set_height(kTopControlsHeight);
@@ -203,7 +205,7 @@ index d69e8e49bf..17c3c42dca 100644
  #if !BUILDFLAG(IS_ANDROID)
    if (auto_pip_setting_overlay_) {
      auto_pip_setting_overlay_->SetBoundsRect(
-@@ -900,6 +1016,9 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
+@@ -918,6 +1036,9 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
  
  void PictureInPictureBrowserFrameView::AddedToWidget() {
    widget_observation_.Observe(GetWidget());
@@ -212,8 +214,8 @@ index d69e8e49bf..17c3c42dca 100644
 +  DaoInitializeTopBarOverlay();
    window_event_observer_ = std::make_unique<WindowEventObserver>(this);
    child_dialog_observer_helper_ =
-       std::make_unique<ChildDialogObserverHelper>(this, browser_view());
-@@ -954,6 +1073,18 @@ void PictureInPictureBrowserFrameView::RemovedFromWidget() {
+       std::make_unique<ChildDialogObserverHelper>(this, GetBrowserView());
+@@ -989,6 +1110,30 @@ void PictureInPictureBrowserFrameView::RemovedFromWidget() {
    window_event_observer_.reset();
    child_dialog_observer_helper_.reset();
  
@@ -229,10 +231,22 @@ index d69e8e49bf..17c3c42dca 100644
 +  }
 +  dao_overlay_drag_handler_.reset();
 +
++  // Dao: Tear down the overlay widget. `top_bar_container_view_` is owned by
++  // this widget's content view, so closing the widget releases it.
++  if (dao_top_bar_overlay_widget_) {
++    if (dao_overlay_drag_handler_) {
++      dao_top_bar_overlay_widget_->GetRootView()->RemovePostTargetHandler(
++          dao_overlay_drag_handler_.get());
++    }
++    top_bar_container_view_ = nullptr;
++    dao_top_bar_overlay_widget_.reset();
++  }
++  dao_overlay_drag_handler_.reset();
++
    // Clear the AutoPiP setting overlay view.
    if (auto_pip_setting_overlay_) {
      auto_pip_setting_overlay_ = nullptr;
-@@ -1153,6 +1284,11 @@ PictureInPictureBrowserFrameView::GetContentSettingBubbleModelDelegate() {
+@@ -1204,6 +1349,11 @@ PictureInPictureBrowserFrameView::GetContentSettingBubbleModelDelegate() {
  void PictureInPictureBrowserFrameView::OnWidgetActivationChanged(
      views::Widget* widget,
      bool active) {
@@ -244,17 +258,7 @@ index d69e8e49bf..17c3c42dca 100644
    // The window may become inactive when a popup modal shows, so we need to
    // check if the mouse is still inside the window.
    UpdateTopBarView(active || mouse_inside_window_ || IsOverlayViewVisible());
-@@ -1169,6 +1305,9 @@ void PictureInPictureBrowserFrameView::OnWidgetBoundsChanged(
-     views::Widget* widget,
-     const gfx::Rect& new_bounds) {
-   PictureInPictureWindowManager::GetInstance()->UpdateCachedBounds(new_bounds);
-+  // Dao: Keep the floating top-bar overlay aligned with the main PiP window
-+  // whenever the user moves or resizes it.
-+  DaoUpdateTopBarOverlayBounds();
- }
- 
- ///////////////////////////////////////////////////////////////////////////////
-@@ -1195,6 +1334,17 @@ void PictureInPictureBrowserFrameView::AnimationProgressed(
+@@ -1298,6 +1448,17 @@ void PictureInPictureBrowserFrameView::AnimationProgressed(
      }
      current_foreground_color_ = color;
      location_icon_view_->Update(/*suppress_animations=*/false);
@@ -272,7 +276,7 @@ index d69e8e49bf..17c3c42dca 100644
      return;
    }
  
-@@ -1288,6 +1438,21 @@ void PictureInPictureBrowserFrameView::OnPaint(gfx::Canvas* canvas) {
+@@ -1362,6 +1523,21 @@ gfx::Rect PictureInPictureBrowserFrameView::GetHitRegion() const {
  gfx::Rect PictureInPictureBrowserFrameView::ConvertTopBarControlViewBounds(
      views::View* control_view,
      views::View* source_view) const {
@@ -294,7 +298,7 @@ index d69e8e49bf..17c3c42dca 100644
    gfx::RectF bounds(control_view->GetMirroredBounds());
    views::View::ConvertRectToTarget(source_view, this, &bounds);
    return gfx::ToEnclosingRect(bounds);
-@@ -1436,7 +1601,10 @@ gfx::Insets PictureInPictureBrowserFrameView::ResizeBorderInsets() const {
+@@ -1490,7 +1666,10 @@ gfx::Insets PictureInPictureBrowserFrameView::FrameBorderInsets() const {
  }
  
  int PictureInPictureBrowserFrameView::GetTopAreaHeight() const {
@@ -306,7 +310,7 @@ index d69e8e49bf..17c3c42dca 100644
  }
  
  gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
-@@ -1540,6 +1708,74 @@ bool PictureInPictureBrowserFrameView::IsOverlayViewVisible() const {
+@@ -1591,6 +1770,74 @@ bool PictureInPictureBrowserFrameView::IsOverlayViewVisible() const {
    return auto_pip_setting_overlay_ && auto_pip_setting_overlay_->GetVisible();
  }
  
@@ -379,5 +383,5 @@ index d69e8e49bf..17c3c42dca 100644
 +}
 +
  gfx::Size PictureInPictureBrowserFrameView::ComputeDialogPadding() const {
-   auto* host = browser_view()->GetWebContentsModalDialogHost();
+   auto* host = GetBrowserView()->GetWebContentsModalDialogHost();
    if (!host) {

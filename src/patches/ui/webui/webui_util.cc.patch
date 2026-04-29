@@ -1,8 +1,8 @@
 diff --git a/ui/webui/webui_util.cc b/ui/webui/webui_util.cc
-index 02b622db74..acbbb65f1d 100644
+index 1cc3ea3110..0ff1e3d650 100644
 --- a/ui/webui/webui_util.cc
 +++ b/ui/webui/webui_util.cc
-@@ -34,7 +34,7 @@ void SetJSModuleDefaults(content::WebUIDataSource* source) {
+@@ -33,46 +33,68 @@ void SetJSModuleDefaults(content::WebUIDataSource* source) {
    // below. Additional overrides should generally be added for individual
    // data sources only.
    source->OverrideContentSecurityPolicy(
@@ -11,45 +11,72 @@ index 02b622db74..acbbb65f1d 100644
    // Allow connecting to chrome://resources for trusted UIs and images from
    // chrome://image, chrome://theme, chrome://favicon2, chrome://resources and
    // data URLs.
-@@ -43,12 +43,13 @@ void SetJSModuleDefaults(content::WebUIDataSource* source) {
+   // TODO: Both of these are needed by only a smaller subset of UIs. Should
+   // the overrides be moved to those UIs only?
    if (scheme == content::kChromeUIScheme) {
++    // Dao Browser: kChromeUIScheme is renamed to "dao", so this block fires
++    // for Dao WebUIs. Allow both chrome:// and dao:// hosts in connect-src
++    // and img-src so pages hard-coded with chrome:// URLs still work AND
++    // resources served via dao:// (our custom scheme) aren't blocked.
      source->OverrideContentSecurityPolicy(
          network::mojom::CSPDirectiveName::ConnectSrc,
--        "connect-src chrome://resources chrome://theme 'self';");
-+        "connect-src chrome: dao://resources dao://theme 'self';");
+-        "connect-src chrome://webui-test chrome://resources chrome://theme "
++        "connect-src "
++        "chrome://webui-test chrome://resources chrome://theme "
++        "dao://webui-test dao://resources dao://theme "
+         "'self';");
      source->OverrideContentSecurityPolicy(
          network::mojom::CSPDirectiveName::ImgSrc,
 -        "img-src chrome://resources chrome://theme chrome://image "
--        "chrome://favicon2 chrome://app-icon chrome://extension-icon "
--        "chrome://fileicon "
-+        "img-src chrome: "
++        "img-src "
++        "chrome://resources chrome://theme chrome://image "
+         "chrome://favicon2 chrome://app-icon chrome://extension-icon "
+         "chrome://fileicon "
 +        "dao://resources dao://theme dao://image "
 +        "dao://favicon2 dao://app-icon dao://extension-icon "
 +        "dao://fileicon "
  #if BUILDFLAG(IS_CHROMEOS)
          "chrome://chromeos-asset chrome://userimage "
++        "dao://chromeos-asset dao://userimage "
  #endif
-@@ -59,18 +60,20 @@ void SetJSModuleDefaults(content::WebUIDataSource* source) {
+         "blob: data: 'self';");
+   }
+ 
+   // webui-test is required for tests. Scripts from //resources are allowed
    // for all UIs.
++  // Dao Browser: kChromeUIScheme was renamed from "chrome" to "dao", so the
++  // scheme-interpolated strings below resolve to "dao://..." — but many
++  // Chromium pages still hard-code "chrome://<host>/..." URLs in their HTML
++  // (strings.m.js, resources, per-page assets). Allow the entire "chrome:"
++  // scheme in addition to the new Dao scheme so those legacy URLs aren't
++  // blocked by CSP. Resource loading itself works either way because
++  // URLDataSource is patched to service both "chrome" and "dao" schemes.
    source->OverrideContentSecurityPolicy(
        network::mojom::CSPDirectiveName::ScriptSrc,
 -      base::StringPrintf("script-src %s://resources %s://webui-test 'self';",
-+      base::StringPrintf("script-src chrome: %s://resources %s://webui-test "
-+                         "'self';",
-                          scheme.c_str(), scheme.c_str()));
-   // Allow loading fonts from //resources.
+-                         scheme.c_str(), scheme.c_str()));
+-  // Allow loading fonts from //resources.
++      base::StringPrintf(
++          "script-src %s://resources %s://webui-test chrome: 'self';",
++          scheme.c_str(), scheme.c_str()));
++  // Allow loading fonts from //resources (and from chrome: for legacy URLs).
    source->OverrideContentSecurityPolicy(
        network::mojom::CSPDirectiveName::FontSrc,
 -      base::StringPrintf("font-src %s://resources 'self';", scheme.c_str()));
-+      base::StringPrintf("font-src chrome: %s://resources 'self';",
-+                         scheme.c_str()));
-   // unsafe-inline is required for Polymer. Allow styles to be imported from
-   // //resources and //theme.
++      base::StringPrintf(
++          "font-src %s://resources chrome: 'self';", scheme.c_str()));
+   // unsafe-inline is required for Polymer and for CSS shims, which
+   // require <style> tags directly in the main .html file. Also
+   // required by some Lit elements that set style= in HTML.
+-  // Allow styles to be imported from  //resources and //theme.
++  // Allow styles to be imported from  //resources and //theme (and from
++  // chrome: for legacy URLs).
    source->OverrideContentSecurityPolicy(
        network::mojom::CSPDirectiveName::StyleSrc,
        base::StringPrintf(
 -          "style-src %s://resources %s://theme 'self' 'unsafe-inline';",
-+          "style-src chrome: %s://resources %s://theme 'self' 'unsafe-inline';",
++          "style-src %s://resources %s://theme chrome: "
++          "'self' 'unsafe-inline';",
            scheme.c_str(), scheme.c_str()));
  
    source->UseStringsJs();

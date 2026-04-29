@@ -1,0 +1,46 @@
+diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+index 1cefe11155..89e244b960 100644
+--- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+@@ -713,8 +713,21 @@ Browser* StartupBrowserCreatorImpl::RestoreOrCreateBrowser(
+       restore_options |= SessionRestore::RESTORE_APPS;
+     }
+ 
++    // Dao Browser: DetermineStartupTabs always appends the NTP as a default
++    // "startup tab" when no command-line URL or pref is set. Passing that
++    // NTP into SessionRestore causes it to be opened IN ADDITION to the
++    // restored tabs — i.e., a stray empty New Tab appears next to the
++    // restored content. Filter out the default-NTP case so restore is clean.
++    // Real command-line URLs still go through because they wouldn't be just
++    // a single NTP entry.
++    StartupTabs restore_tabs = tabs;
++    if (restore_tabs.size() == 1 &&
++        restore_tabs[0].url == GURL(chrome::kChromeUINewTabURL)) {
++      restore_tabs.clear();
++    }
++
+     browser = SessionRestore::RestoreSession(profile_, nullptr, restore_options,
+-                                             tabs);
++                                             restore_tabs);
+     if (browser) {
+       return browser;
+     }
+@@ -772,11 +785,13 @@ StartupBrowserCreatorImpl::DetermineBrowserOpenBehavior(
+   }
+ 
+   if (pref.ShouldRestoreLastSession()) {
+-    // Don't perform a session restore on a post-crash launch, as this could
+-    // cause a crash loop.
+-    if (!(options & IS_POST_CRASH_LAUNCH)) {
+-      return BrowserOpenBehavior::SYNCHRONOUS_RESTORE;
+-    }
++    // Dao Browser: Always restore the last session, even on a post-crash
++    // launch. Upstream skips restore after crashes to avoid loops, but Dao
++    // prefers a seamless recover-tabs experience over the safety net. If a
++    // crash loop happens, the user can still manually close tabs; we trust
++    // the session service to sequence writes so that partial/corrupt states
++    // are rare in practice.
++    return BrowserOpenBehavior::SYNCHRONOUS_RESTORE;
+   }
+ 
+   return BrowserOpenBehavior::NEW;

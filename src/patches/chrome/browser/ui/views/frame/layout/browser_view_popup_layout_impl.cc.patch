@@ -1,0 +1,89 @@
+diff --git a/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.cc
+index 206b3e83c1..0c8b612396 100644
+--- a/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.cc
+@@ -4,8 +4,11 @@
+ 
+ #include "chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.h"
+ 
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
++#include "dao/browser/ui/views/dao_command_bar_view.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
+ #include "ui/views/controls/separator.h"
+ 
+ BrowserViewPopupLayoutImpl::BrowserViewPopupLayoutImpl(
+@@ -62,21 +65,36 @@ BrowserViewPopupLayoutImpl::CalculateProposedLayout(
+ 
+   BrowserLayoutParams params = browser_params;
+ 
++  // Dao: Detect Little Dao window. When active, replace the stock popup
++  // top-container (toolbar/location bar) with DaoLittleDaoView — a 48px
++  // header with URL pill + "Open in Dao" button.
++  BrowserView* const dao_bv =
++      static_cast<BrowserView*>(views().browser_view.get());
++  dao::DaoLittleDaoView* const dao_little_dao =
++      dao_bv ? dao_bv->dao_little_dao_view() : nullptr;
++  const bool is_little_dao = dao_little_dao && dao_little_dao->GetVisible();
++
+   // Lay out the top container if it's in the browser (even if it's empty).
+   // This is required for certain things like hit-testing.
+   if (IsParentedTo(views().top_container, views().browser_view)) {
+-    auto& top_container_layout =
+-        layout.AddChild(views().top_container, gfx::Rect());
+-    const gfx::Rect top_container_local_bounds = CalculateTopContainerLayout(
+-        top_container_layout,
+-        params.InLocalCoordinates(params.visual_client_area),
+-        /*needs_exclusion=*/false);
+-    top_container_layout.bounds =
+-        GetTopContainerBoundsInParent(top_container_local_bounds, params);
+-    // In cases where the top container is nonzero size, need to move everything
+-    // else down.
+-    params.SetTop(std::max(params.visual_client_area.y(),
+-                           top_container_layout.bounds.bottom()));
++    if (is_little_dao) {
++      // Dao: Hide the stock top container entirely for Little Dao. The
++      // DaoLittleDaoView below takes its place at the top of the window.
++      layout.AddChild(views().top_container, gfx::Rect(), false);
++    } else {
++      auto& top_container_layout =
++          layout.AddChild(views().top_container, gfx::Rect());
++      const gfx::Rect top_container_local_bounds = CalculateTopContainerLayout(
++          top_container_layout,
++          params.InLocalCoordinates(params.visual_client_area),
++          /*needs_exclusion=*/false);
++      top_container_layout.bounds =
++          GetTopContainerBoundsInParent(top_container_local_bounds, params);
++      // In cases where the top container is nonzero size, need to move
++      // everything else down.
++      params.SetTop(std::max(params.visual_client_area.y(),
++                             top_container_layout.bounds.bottom()));
++    }
+   }
+ 
+   // Lay out infobar container if present.
+@@ -97,6 +115,23 @@ BrowserViewPopupLayoutImpl::CalculateProposedLayout(
+     layout.AddChild(views().infobar_container, infobar_bounds, infobar_visible);
+   }
+ 
++  // Dao: Little Dao header bar — 48px across the top, above web contents.
++  if (is_little_dao) {
++    const int bar_height = dao::DaoLittleDaoView::kBarHeight;
++    layout.AddChild(
++        dao_little_dao,
++        gfx::Rect(params.visual_client_area.x(), params.visual_client_area.y(),
++                  params.visual_client_area.width(), bar_height),
++        true);
++    params.SetTop(params.visual_client_area.y() + bar_height);
++
++    // Command bar overlay covers the entire browser view. Needed for Cmd+L
++    // / URL pill click to open the Spotlight-style input.
++    if (auto* const cmd_bar = dao_bv->dao_command_bar()) {
++      layout.AddChild(cmd_bar, browser_params.visual_client_area);
++    }
++  }
++
+   // Lay out contents container.
+   CHECK(
+       IsParentedToAndVisible(views().contents_container, views().browser_view));

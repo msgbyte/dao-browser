@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ui/views/frame/immersive_mode_controller_mac.mm b/chrome/browser/ui/views/frame/immersive_mode_controller_mac.mm
-index 3907dafa13..3a7c73a09a 100644
+index 61577354fc..f2960e43d1 100644
 --- a/chrome/browser/ui/views/frame/immersive_mode_controller_mac.mm
 +++ b/chrome/browser/ui/views/frame/immersive_mode_controller_mac.mm
-@@ -102,8 +102,13 @@
-                                 browser_view_->frame()->GetFrameView())
+@@ -109,8 +109,13 @@
+                                 browser_view_->browser_widget()->GetFrameView())
                                  ->GetTopInset(false);
  
 -      browser_view_->tab_overlay_widget()->SetSize(gfx::Size(
@@ -18,13 +18,13 @@ index 3907dafa13..3a7c73a09a 100644
        browser_view_->tab_overlay_widget()->Show();
  
        // Move the tab strip to the `tab_overlay_widget`, the host of the
-@@ -347,7 +352,8 @@
-   }
-   overlay_height_ = bounds.height();
-   if (separate_tab_strip_) {
+@@ -357,7 +362,8 @@
+   // tab_overlay_widget size should only be set if we aren't drawing the
+   // vertical tabstrip.
+   if (separate_tab_strip_ && !browser_view_->ShouldDrawVerticalTabStrip()) {
 -    gfx::Size new_size(bounds.width(), tab_widget_height_);
 +    // Dao: Ensure non-zero height for tab overlay widget.
 +    gfx::Size new_size(bounds.width(), std::max(1, tab_widget_height_));
      browser_view_->tab_overlay_widget()->SetSize(new_size);
      browser_view_->tab_overlay_view()->SetSize(new_size);
-     browser_view_->tab_strip_region_view()->SetSize(gfx::Size(
+     browser_view_->tab_strip_view()->SetSize(

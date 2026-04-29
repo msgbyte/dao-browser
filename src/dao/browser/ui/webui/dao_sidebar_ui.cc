@@ -27,6 +27,7 @@
 #include "components/prefs/pref_service.h"
 #include "dao/browser/dao_pref_names.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -154,7 +155,7 @@ constexpr int kThumbnailSize = 40;
 
 struct ScanResult {
   std::vector<base::FilePath> paths;
-  std::vector<base::Value::Dict> entries;
+  std::vector<base::DictValue> entries;
 };
 
 ScanResult ScanRecentFiles(base::FilePath download_dir) {
@@ -185,7 +186,7 @@ ScanResult ScanRecentFiles(base::FilePath download_dir) {
   for (int i = 0; i < count; ++i) {
     result.paths.push_back(entries[i].path);
 
-    base::Value::Dict d;
+    base::DictValue d;
     d.Set("index", i);
     d.Set("name", entries[i].path.BaseName().value());
 
@@ -263,8 +264,9 @@ void DaoSidebarUIHandler::PlaceGroupAroundAnchor(
     int cur = model->GetIndexOfWebContents(group_ordered[i]);
     if (cur == TabStripModel::kNoTab) continue;
     int target = (cur < a) ? a - 1 : a;
-    if (cur != target)
+    if (cur != target) {
       model->MoveWebContentsAt(cur, target, false);
+    }
   }
 
   // Insert members after anchor in order.
@@ -274,8 +276,9 @@ void DaoSidebarUIHandler::PlaceGroupAroundAnchor(
     int cur = model->GetIndexOfWebContents(group_ordered[i]);
     if (cur == TabStripModel::kNoTab) continue;
     int target = (cur < a) ? a + offset - 1 : a + offset;
-    if (cur != target)
+    if (cur != target) {
       model->MoveWebContentsAt(cur, target, false);
+    }
   }
 }
 
@@ -469,9 +472,9 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
   }
 }
 
-void DaoSidebarUIHandler::TabChangedAt(content::WebContents* contents,
-                                        int index,
-                                        TabChangeType change_type) {
+void DaoSidebarUIHandler::OnTabChangedAt(tabs::TabInterface* tab,
+                                          int index,
+                                          TabChangeType change_type) {
   if (!IsJavascriptAllowed()) {
     return;
   }
@@ -485,10 +488,13 @@ void DaoSidebarUIHandler::OnSplitStateChanged() {
 
 void DaoSidebarUIHandler::ConsolidateSplitGroupTabs() {
   DaoSplitView* split = GetSplitView();
-  if (!split) return;
+  if (!split) {
+    return;
+  }
 
   TabStripModel* model = browser_->tab_strip_model();
-  for (const auto& summary : split->GetSplitGroupSummaries()) {
+  const auto summaries = split->GetSplitGroupSummaries();
+  for (const auto& summary : summaries) {
     // Sort group members by current model index to get canonical order.
     std::vector<std::pair<int, content::WebContents*>> indexed;
     for (auto* wc : summary.contents) {
@@ -507,7 +513,9 @@ void DaoSidebarUIHandler::ConsolidateSplitGroupTabs() {
         break;
       }
     }
-    if (contiguous) continue;
+    if (contiguous) {
+      continue;
+    }
 
     // Use lowest-index member as anchor and consolidate around it.
     std::vector<content::WebContents*> ordered;
@@ -523,8 +531,8 @@ void DaoSidebarUIHandler::PushFullState() {
     return;
   }
   TabStripModel* model = browser_->tab_strip_model();
-  base::Value::List pinned_tabs;
-  base::Value::List unpinned_tabs;
+  base::ListValue pinned_tabs;
+  base::ListValue unpinned_tabs;
 
   std::set<content::WebContents*> split_contents;
   DaoSplitView* split = GetSplitView();
@@ -538,7 +546,7 @@ void DaoSidebarUIHandler::PushFullState() {
     content::WebContents* contents = model->GetWebContentsAt(i);
     if (!contents) continue;
 
-    base::Value::Dict tab;
+    base::DictValue tab;
     tab.Set("tabId", GetSidebarTabId(contents));
     tab.Set("index", i);
     tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
@@ -559,7 +567,7 @@ void DaoSidebarUIHandler::PushFullState() {
     }
   }
 
-  base::Value::Dict state;
+  base::DictValue state;
   state.Set("pinnedTabs", std::move(pinned_tabs));
   state.Set("unpinnedTabs", std::move(unpinned_tabs));
   state.Set("activeIndex", model->active_index());
@@ -583,7 +591,7 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
     return;
   }
 
-  base::Value::Dict tab;
+  base::DictValue tab;
   tab.Set("tabId", GetSidebarTabId(contents));
   tab.Set("index", index);
   tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
@@ -603,26 +611,14 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
 }
 
 void DaoSidebarUIHandler::HandleGetInitialState(
-    const base::Value::List& args) {
-  // Auto-discover Browser* if SetBrowser hasn't been called yet.
-  // This handles the race where LoadInitialURL is async and GetWebUI()
-  // returns null right after the call in EnsureWebUILoaded().
+    const base::ListValue& args) {
+  // LoadInitialURL is async: when EnsureWebUILoaded called SetBrowser right
+  // after it, the WebUI controller wasn't bound yet and the call was
+  // silently dropped. Resolve the owning Browser from WebContents here.
   if (!browser_) {
-    content::WebContents* wc = web_ui()->GetWebContents();
-    if (wc) {
-      // The sidebar WebView's WebContents is not in any tab strip, so we
-      // can't use FindBrowserWithTab. Instead, find the browser whose
-      // BrowserView owns a sidebar WebView showing this WebContents.
-      for (Browser* b : *BrowserList::GetInstance()) {
-        BrowserView* bv = BrowserView::GetBrowserViewForBrowser(b);
-        if (bv && bv->dao_sidebar() && bv->dao_sidebar()->use_webui()) {
-          // Match by profile — in single-window use this is sufficient.
-          if (b->profile() == Profile::FromWebUI(web_ui())) {
-            SetBrowser(b);
-            break;
-          }
-        }
-      }
+    if (Browser* b = GetBrowserForSidebarWebContents(
+            web_ui()->GetWebContents())) {
+      SetBrowser(b);
     }
   }
   AllowJavascript();
@@ -638,7 +634,7 @@ void DaoSidebarUIHandler::HandleGetInitialState(
 }
 
 void DaoSidebarUIHandler::HandleActivateTab(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.empty()) return;
   int index = args[0].GetIfInt().value_or(-1);
   if (index < 0) return;
@@ -646,7 +642,7 @@ void DaoSidebarUIHandler::HandleActivateTab(
 }
 
 void DaoSidebarUIHandler::HandleCloseTab(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.empty()) return;
   int index = args[0].GetIfInt().value_or(-1);
   if (index < 0) return;
@@ -655,7 +651,7 @@ void DaoSidebarUIHandler::HandleCloseTab(
 }
 
 void DaoSidebarUIHandler::HandleToggleMute(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.empty()) return;
   int index = args[0].GetIfInt().value_or(-1);
   if (index < 0) return;
@@ -667,7 +663,7 @@ void DaoSidebarUIHandler::HandleToggleMute(
 }
 
 void DaoSidebarUIHandler::HandleMoveTab(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.size() < 2) return;
   int from_index = args[0].GetIfInt().value_or(-1);
   int to_index = args[1].GetIfInt().value_or(-1);
@@ -711,7 +707,7 @@ void DaoSidebarUIHandler::HandleMoveTab(
 }
 
 void DaoSidebarUIHandler::HandleShowCommandBarForNewTab(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_) return;
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(browser_);
@@ -721,9 +717,9 @@ void DaoSidebarUIHandler::HandleShowCommandBarForNewTab(
 }
 
 void DaoSidebarUIHandler::HandleFileDrop(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.empty()) return;
-  const base::Value::List* url_list = args[0].GetIfList();
+  const base::ListValue* url_list = args[0].GetIfList();
   if (!url_list) return;
   for (const auto& item : *url_list) {
     const std::string* url_str = item.GetIfString();
@@ -737,7 +733,7 @@ void DaoSidebarUIHandler::HandleFileDrop(
 }
 
 void DaoSidebarUIHandler::HandleSetDropInsertIndex(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_) return;
   int index = args.empty() ? -1 : args[0].GetIfInt().value_or(-1);
   BrowserView* browser_view =
@@ -770,8 +766,8 @@ void DaoSidebarUIHandler::OnDownloadRemoved(
   PushActiveDownloads();
 }
 
-base::Value::List DaoSidebarUIHandler::BuildActiveDownloadList() {
-  base::Value::List active;
+base::ListValue DaoSidebarUIHandler::BuildActiveDownloadList() {
+  base::ListValue active;
   if (!browser_) return active;
   auto* profile = browser_->profile();
   if (!profile) return active;
@@ -783,7 +779,7 @@ base::Value::List DaoSidebarUIHandler::BuildActiveDownloadList() {
 
   for (const auto& item : items) {
     if (item->GetState() != download::DownloadItem::IN_PROGRESS) continue;
-    base::Value::Dict d;
+    base::DictValue d;
     d.Set("id", static_cast<int>(item->GetId()));
     d.Set("name", item->GetFileNameToReportUser().BaseName().value());
     d.Set("percent", item->PercentComplete());
@@ -794,7 +790,7 @@ base::Value::List DaoSidebarUIHandler::BuildActiveDownloadList() {
 }
 
 void DaoSidebarUIHandler::PushActiveDownloads() {
-  base::Value::List active = BuildActiveDownloadList();
+  base::ListValue active = BuildActiveDownloadList();
   FireWebUIListener("activeDownloadsChanged", active);
 }
 
@@ -811,7 +807,7 @@ void DaoSidebarUIHandler::PushDownloadState() {
       base::BindOnce(
           [](base::WeakPtr<DaoSidebarUIHandler> self, ScanResult result) {
             if (!self || !self->IsJavascriptAllowed()) return;
-            base::Value::List file_list;
+            base::ListValue file_list;
             for (auto& entry : result.entries) {
               file_list.Append(std::move(entry));
             }
@@ -822,11 +818,11 @@ void DaoSidebarUIHandler::PushDownloadState() {
 }
 
 void DaoSidebarUIHandler::OnScanResultReady(
-    base::Value::List file_entries,
+    base::ListValue file_entries,
     std::vector<base::FilePath> paths) {
   recent_file_paths_ = std::move(paths);
 
-  base::Value::Dict state;
+  base::DictValue state;
   state.Set("recentFiles", std::move(file_entries));
   state.Set("activeDownloads", BuildActiveDownloadList());
 
@@ -848,14 +844,14 @@ std::string DaoSidebarUIHandler::FormatSpeed(int64_t bytes_per_sec) {
 }
 
 void DaoSidebarUIHandler::HandleRequestDownloadState(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_) return;
   PushDownloadState();
   PushActiveDownloads();
 }
 
 void DaoSidebarUIHandler::HandleOpenDownloadsFolder(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_) return;
   DownloadPrefs* prefs =
       DownloadPrefs::FromBrowserContext(browser_->profile());
@@ -865,7 +861,7 @@ void DaoSidebarUIHandler::HandleOpenDownloadsFolder(
 }
 
 void DaoSidebarUIHandler::HandleOpenRecentFile(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.empty()) return;
   int index = args[0].GetIfInt().value_or(-1);
   if (index < 0 || index >= static_cast<int>(recent_file_paths_.size())) return;
@@ -875,7 +871,7 @@ void DaoSidebarUIHandler::HandleOpenRecentFile(
 }
 
 void DaoSidebarUIHandler::HandleCancelDownload(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.empty()) return;
   int id = args[0].GetIfInt().value_or(-1);
   if (id < 0) return;
@@ -892,7 +888,7 @@ void DaoSidebarUIHandler::HandleCancelDownload(
 }
 
 void DaoSidebarUIHandler::HandleStartFileDrag(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.empty()) return;
   int index = args[0].GetIfInt().value_or(-1);
   if (index < 0 || index >= static_cast<int>(recent_file_paths_.size())) return;
@@ -905,12 +901,13 @@ void DaoSidebarUIHandler::HandleStartFileDrag(
 }
 
 void DaoSidebarUIHandler::HandleTabDragActive(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.empty()) return;
   bool active = args[0].GetIfBool().value_or(false);
   // Activate/deactivate tab drag on ALL windows' split views so any
   // window can receive the cross-window drop.
-  for (Browser* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser :
+       chrome::FindAllBrowsersWithProfile(browser_->profile())) {
     BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser);
     if (bv && bv->dao_split_view()) {
       bv->dao_split_view()->SetTabDragActive(active);
@@ -921,31 +918,57 @@ void DaoSidebarUIHandler::HandleTabDragActive(
 }
 
 void DaoSidebarUIHandler::HandleMoveTabCrossWindow(
-    const base::Value::List& args) {
-  if (!browser_ || args.size() < 3) return;
+    const base::ListValue& args) {
+  LOG(ERROR) << "[Dao-Xwin] HandleMoveTabCrossWindow ENTRY: browser_="
+             << (browser_ ? "ok" : "null") << " args.size()=" << args.size();
+  if (!browser_ || args.size() < 3) {
+    LOG(ERROR) << "[Dao-Xwin] early-return: bad browser_/args";
+    return;
+  }
   int source_session_id = args[0].GetIfInt().value_or(-1);
   int source_tab_index = args[1].GetIfInt().value_or(-1);
   int target_insert_index = args[2].GetIfInt().value_or(-1);
+  LOG(ERROR) << "[Dao-Xwin] args: sourceSessionId=" << source_session_id
+             << " sourceTabIndex=" << source_tab_index
+             << " targetInsertIndex=" << target_insert_index
+             << " this.sessionId=" << browser_->session_id().id();
   if (source_session_id < 0 || source_tab_index < 0 ||
       target_insert_index < 0) {
+    LOG(ERROR) << "[Dao-Xwin] early-return: negative arg";
     return;
   }
 
   // Find source browser by session ID.
   Browser* source_browser = nullptr;
-  for (Browser* b : *BrowserList::GetInstance()) {
+  int n_browsers = 0;
+  for (Browser* b :
+       chrome::FindAllBrowsersWithProfile(browser_->profile())) {
+    n_browsers++;
+    LOG(ERROR) << "[Dao-Xwin]   candidate browser sessionId="
+               << b->session_id().id();
     if (static_cast<int>(b->session_id().id()) == source_session_id) {
       source_browser = b;
       break;
     }
   }
+  LOG(ERROR) << "[Dao-Xwin] scanned " << n_browsers
+             << " browsers, source_browser="
+             << (source_browser ? "FOUND" : "NOT FOUND")
+             << " same-as-this="
+             << (source_browser == browser_ ? "yes" : "no");
   if (!source_browser || source_browser == browser_) return;
 
   TabStripModel* source_model = source_browser->tab_strip_model();
-  if (source_tab_index >= source_model->count()) return;
+  if (source_tab_index >= source_model->count()) {
+    LOG(ERROR) << "[Dao-Xwin] tab_index out of range in source ("
+               << source_tab_index << " >= " << source_model->count() << ")";
+    return;
+  }
 
   std::unique_ptr<content::WebContents> detached =
       source_model->DetachWebContentsAtForInsertion(source_tab_index);
+  LOG(ERROR) << "[Dao-Xwin] detach result: "
+             << (detached ? "ok" : "FAILED");
   if (!detached) return;
 
   TabStripModel* target_model = browser_->tab_strip_model();
@@ -953,6 +976,8 @@ void DaoSidebarUIHandler::HandleMoveTabCrossWindow(
       std::min(target_insert_index, target_model->count());
   target_model->InsertWebContentsAt(
       clamped_index, std::move(detached), AddTabTypes::ADD_ACTIVE);
+  LOG(ERROR) << "[Dao-Xwin] inserted at index " << clamped_index
+             << " target now has " << target_model->count() << " tabs";
 
   // Auto-close source window if empty.
   if (source_model->count() == 0) {
@@ -961,7 +986,7 @@ void DaoSidebarUIHandler::HandleMoveTabCrossWindow(
 }
 
 void DaoSidebarUIHandler::HandleDetachTabToNewWindow(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.size() < 3) return;
   int tab_index = args[0].GetIfInt().value_or(-1);
   int screen_x = args[1].GetIfInt().value_or(0);
@@ -996,7 +1021,7 @@ void DaoSidebarUIHandler::HandleDetachTabToNewWindow(
 }
 
 void DaoSidebarUIHandler::HandleLoadFolders(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
 
   if (args.size() < 1 || !args[0].is_string()) {
@@ -1031,7 +1056,7 @@ void DaoSidebarUIHandler::HandleLoadFolders(
 }
 
 void DaoSidebarUIHandler::HandleSaveFolders(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (args.empty()) return;
   const std::string* json = args[0].GetIfString();
   if (!json) return;
@@ -1051,7 +1076,7 @@ void DaoSidebarUIHandler::HandleSaveFolders(
 }
 
 void DaoSidebarUIHandler::HandleShowTabContextMenu(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.size() < 3) return;
   int tab_index = args[0].GetIfInt().value_or(-1);
   int screen_x = args[1].GetIfInt().value_or(0);
@@ -1124,7 +1149,7 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
 }
 
 void DaoSidebarUIHandler::HandleShowTabTooltip(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.size() < 3) return;
   int screen_x = args[0].GetIfInt().value_or(0);
   int screen_y = args[1].GetIfInt().value_or(0);
@@ -1144,7 +1169,7 @@ void DaoSidebarUIHandler::HandleShowTabTooltip(
 }
 
 void DaoSidebarUIHandler::HandleHideTabTooltip(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_) return;
   BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
   if (!bv || !bv->dao_tab_tooltip()) return;
@@ -1183,7 +1208,7 @@ void DaoSidebarUIHandler::PushMediaPlaybackState() {
       media_widget_tab_index_ = -1;
       media_widget_user_paused_ = false;
       ResetMediaSessionObserver();
-      base::Value::Dict state;
+      base::DictValue state;
       state.Set("isPlaying", false);
       FireWebUIListener("mediaPlaybackChanged", state);
     }
@@ -1208,14 +1233,14 @@ void DaoSidebarUIHandler::PushMediaPlaybackState() {
   if (!contents) return;
 
   std::string title = base::UTF16ToUTF8(contents->GetTitle());
-  std::string source_title = contents->GetVisibleURL().host();
+  std::string source_title = std::string(contents->GetVisibleURL().host());
   if (source_title.length() > 4 && source_title.substr(0, 4) == "www.") {
     source_title = source_title.substr(4);
   }
 
   bool is_playing = contents->IsCurrentlyAudible() && !contents->IsAudioMuted();
 
-  base::Value::Dict state;
+  base::DictValue state;
   state.Set("isPlaying", is_playing);
   state.Set("tabIndex", show_index);
   state.Set("title", title);
@@ -1269,7 +1294,7 @@ void DaoSidebarUIHandler::MediaSessionActionsChanged(
 }
 
 void DaoSidebarUIHandler::HandleMediaPlayPause(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || media_widget_tab_index_ < 0) return;
   TabStripModel* model = browser_->tab_strip_model();
   if (media_widget_tab_index_ >= model->count()) return;
@@ -1291,7 +1316,7 @@ void DaoSidebarUIHandler::HandleMediaPlayPause(
 }
 
 void DaoSidebarUIHandler::HandleMediaPrevious(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || media_widget_tab_index_ < 0 || !has_prev_action_) return;
   TabStripModel* model = browser_->tab_strip_model();
   if (media_widget_tab_index_ >= model->count()) return;
@@ -1304,7 +1329,7 @@ void DaoSidebarUIHandler::HandleMediaPrevious(
 }
 
 void DaoSidebarUIHandler::HandleMediaNext(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || media_widget_tab_index_ < 0 || !has_next_action_) return;
   TabStripModel* model = browser_->tab_strip_model();
   if (media_widget_tab_index_ >= model->count()) return;
@@ -1317,17 +1342,17 @@ void DaoSidebarUIHandler::HandleMediaNext(
 }
 
 void DaoSidebarUIHandler::HandleMediaDismiss(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   media_widget_dismissed_ = true;
   media_widget_user_paused_ = false;
   ResetMediaSessionObserver();
-  base::Value::Dict state;
+  base::DictValue state;
   state.Set("isPlaying", false);
   FireWebUIListener("mediaPlaybackChanged", state);
 }
 
 void DaoSidebarUIHandler::HandleMediaActivateTab(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || media_widget_tab_index_ < 0) return;
   TabStripModel* model = browser_->tab_strip_model();
   if (media_widget_tab_index_ >= model->count()) return;
@@ -1335,7 +1360,7 @@ void DaoSidebarUIHandler::HandleMediaActivateTab(
 }
 
 void DaoSidebarUIHandler::HandleShowSidebarContextMenu(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!browser_ || args.size() < 2) return;
   int screen_x = args[0].GetIfInt().value_or(0);
   int screen_y = args[1].GetIfInt().value_or(0);

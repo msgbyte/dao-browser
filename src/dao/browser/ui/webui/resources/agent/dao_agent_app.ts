@@ -25,10 +25,18 @@ export class DaoAgentApp extends CrLitElement {
     };
   }
 
-  private activeTab_ = 'chat';
-  private toastText_ = '';
-  private toastVisible_ = false;
+  declare private activeTab_: string;
+  declare private toastText_: string;
+  declare private toastVisible_: boolean;
   private toastTimer_ = 0;
+
+  constructor() {
+    super();
+    this.activeTab_ = 'chat';
+    this.toastText_ = '';
+    this.toastVisible_ = false;
+  }
+
 
   override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;

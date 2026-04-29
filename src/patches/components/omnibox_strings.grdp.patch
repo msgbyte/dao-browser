@@ -1,8 +1,8 @@
 diff --git a/components/omnibox_strings.grdp b/components/omnibox_strings.grdp
-index d3bb3c8bc5..70f60242bf 100644
+index 2c0e3f2c38..ccbe7b7ce3 100644
 --- a/components/omnibox_strings.grdp
 +++ b/components/omnibox_strings.grdp
-@@ -304,25 +304,25 @@
+@@ -556,25 +556,25 @@
    </message>
  
    <!-- Site Search/Keyword mode Starter Pack strings. Note: kCurrentDataVersion in template_url_starter_pack_data.cc must also be updated when changing these values. -->
@@ -32,8 +32,8 @@ index d3bb3c8bc5..70f60242bf 100644
      Gemini
    </message>
    <message name="IDS_SEARCH_ENGINES_STARTER_PACK_GEMINI_KEYWORD" desc = "The keyword required to trigger Ask Gemini in keyword mode. This will be prepended with an '@'.">
-@@ -351,10 +351,10 @@
-     Type @ to search <ph name="FEATURED_SEARCH_LIST">$1<ex>jira.atlassian.com, office.com, salesforce.com</ex></ph>
+@@ -625,10 +625,10 @@
+     Type <ph name="SEARCH_AGGREGATOR_KEYWORD">$1<ex>@work</ex></ph> to search or ask <ph name="SEARCH_AGGREGATOR_SHORT_NAME">$2<ex>Work</ex></ph>
    </message>
  
 -  <message name="IDS_OMNIBOX_HISTORY_EMBEDDINGS_SETTINGS_PROMO_IPH" desc="The string displayed as the last row in the Omnibox as IPH directing users to the chrome://settings/ai page to enable the history embeddings setting.">

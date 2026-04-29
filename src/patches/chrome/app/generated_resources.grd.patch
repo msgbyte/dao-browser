@@ -1,8 +1,8 @@
 diff --git a/chrome/app/generated_resources.grd b/chrome/app/generated_resources.grd
-index 4f78acb34f..52c5b65563 100644
+index c25aadab11..3df8006458 100644
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -872,7 +872,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -921,7 +921,7 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD" desc="This is a context menu entry in the passwords submenu. It triggers the password selection bubble.">
              Select password
            </message>
@@ -11,7 +11,7 @@ index 4f78acb34f..52c5b65563 100644
              Import passwords
            </message>
            <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD" desc="This is a context menu entry in the passwords submenu. It triggers password generation.">
-@@ -1194,7 +1194,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -1259,7 +1259,7 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD" desc="In Title Case: This is a context menu entry in the passwords submenu. It triggers the password selection bubble.">
              Select Password
            </message>
@@ -20,7 +20,7 @@ index 4f78acb34f..52c5b65563 100644
              Import Passwords
            </message>
            <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD" desc="In Title Case: This is a context menu entry in the passwords submenu. It triggers password generation.">
-@@ -1746,7 +1746,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -1811,7 +1811,7 @@ are declared in tools/grit/grit_args.gni.
          <message name="IDS_EXTENSIONS_SUBMENU" desc="The extensions menu in the app menu (title case).">
            &amp;Extensions
          </message>
@@ -29,7 +29,7 @@ index 4f78acb34f..52c5b65563 100644
            Manage Extensions
          </message>
          <message name="IDS_EXTENSIONS_SUBMENU_CHROME_WEBSTORE_ITEM" desc="The text for the link in the extensions menu, in the app menu, to visit the Chrome Web Store to get more extensions (title case).">
-@@ -1802,7 +1802,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -1870,7 +1870,7 @@ are declared in tools/grit/grit_args.gni.
          <message name="IDS_EXTENSIONS_SUBMENU" desc="In Title Case: The extensions menu in the app menu.">
            &amp;Extensions
          </message>
@@ -38,79 +38,7 @@ index 4f78acb34f..52c5b65563 100644
            Manage Extensions
          </message>
          <message name="IDS_EXTENSIONS_SUBMENU_CHROME_WEBSTORE_ITEM" desc="In Title Case: The text for the link in the extensions menu, in the app menu, to visit the Chrome Web Store to get more extensions.">
-@@ -2290,57 +2290,57 @@ are declared in tools/grit/grit_args.gni.
-         <ph name="FILE_NAME">$1<ex>bla.exe</ex></ph> may be dangerous. Send to Google for scanning?
-       </message>
-       <message name="IDS_BLOCK_REASON_UNCOMMON_DOWNLOAD_IN_ADVANCED_PROTECTION"
--         desc="Message shown to the user on chrome://downloads page to explain that this download is blocked because it is uncommon. This variant is shown when the user is enrolled in the Advanced Protection program.">
-+         desc="Message shown to the user on dao://downloads page to explain that this download is blocked because it is uncommon. This variant is shown when the user is enrolled in the Advanced Protection program.">
-         This file was blocked by Advanced Protection.
-       </message>
-       <message name="IDS_BLOCK_REASON_DEEP_SCANNING_UPDATED"
--          desc="Message shown on chrome://downloads when a download is being scanned">
-+          desc="Message shown on dao://downloads when a download is being scanned">
-         This file might be a virus or malware. You can send it to Google to check if it's unsafe.
-       </message>
-       <message name="IDS_BLOCK_REASON_DEEP_SCANNING_SECOND_UPDATED"
--          desc="Second line of the message shown on chrome://downloads when a download is being scanned. Follows IDS_BLOCK_REASON_DEEP_SCANNING_UPDATED">
-+          desc="Second line of the message shown on dao://downloads when a download is being scanned. Follows IDS_BLOCK_REASON_DEEP_SCANNING_UPDATED">
-         Scanning for malware...
-       </message>
-       <message name="IDS_BLOCK_REASON_PROMPT_FOR_SCANNING_UPDATED"
--          desc="Message shown to the user on chrome://downloads page to explain that this download is recommended to be scanned.">
-+          desc="Message shown to the user on dao://downloads page to explain that this download is recommended to be scanned.">
-         This file might be a virus or malware. You can send it to Google to check if it's unsafe.
-       </message>
-       <message name="IDS_BLOCK_REASON_PROMPT_FOR_LOCAL_PASSWORD_SCANNING"
--          desc="Message shown to the user on chrome://downloads page to explain that this download is recommended to be scanned.">
-+          desc="Message shown to the user on dao://downloads page to explain that this download is recommended to be scanned.">
-         This file may be dangerous
-       </message>
-       <message name="IDS_DEEP_SCANNED_OPENED_DANGEROUS_DESCRIPTION"
--        desc="Message shown to the user on chrome://downloads page to explain this this download was deep scanned, and found to be malicious.">
-+        desc="Message shown to the user on dao://downloads page to explain this this download was deep scanned, and found to be malicious.">
-         This file is dangerous
-       </message>
--      <message name="IDS_BLOCK_REASON_SENSITIVE_CONTENT_WARNING" desc="Message shown to the user on chrome://downloads page to explain this download is showing a warning because it contains sensitive content">
-+      <message name="IDS_BLOCK_REASON_SENSITIVE_CONTENT_WARNING" desc="Message shown to the user on dao://downloads page to explain this download is showing a warning because it contains sensitive content">
-         Your organization's policies aren't met
-       </message>
--      <message name="IDS_SENSITIVE_CONTENT_BLOCKED_DESCRIPTION" desc="Message shown to the user on chrome://downloads page to explain this download is blocked because it contains sensitive content">
-+      <message name="IDS_SENSITIVE_CONTENT_BLOCKED_DESCRIPTION" desc="Message shown to the user on dao://downloads page to explain this download is blocked because it contains sensitive content">
-         Your organization's policies aren't met
-       </message>
--      <message name="IDS_BLOCKED_TOO_LARGE_DESCRIPTION" desc="Message shown to the user on chrome://downloads page to explain this download is blocked because it is too large for deep scanning">
-+      <message name="IDS_BLOCKED_TOO_LARGE_DESCRIPTION" desc="Message shown to the user on dao://downloads page to explain this download is blocked because it is too large for deep scanning">
-         This file is too big for a security check. You can open files up to 50 MB.
-       </message>
--      <message name="IDS_BLOCKED_PASSWORD_PROTECTED_DESCRIPTION" desc="Message shown to the user on chrome://downloads page to explain this download is blocked because it is password protected">
-+      <message name="IDS_BLOCKED_PASSWORD_PROTECTED_DESCRIPTION" desc="Message shown to the user on dao://downloads page to explain this download is blocked because it is password protected">
-         This file is encrypted. Ask its owner to decrypt.
-       </message>
-       <message name="IDS_DEEP_SCANNED_FAILED_DESCRIPTION"
--        desc="Message shown to the user on chrome://downloads page to explain this this download was deep scanned, but the scan failed.">
-+        desc="Message shown to the user on dao://downloads page to explain this this download was deep scanned, but the scan failed.">
-         Scan failed. This file might be a virus or malware.
-       </message>
- 
-       <message name="IDS_DOWNLOADS_TOAST_DELETED_FROM_HISTORY_STILL_ON_DEVICE"
--               desc="On the chrome://downloads page, the text for the toast shown when the user removes a download from the download history. This is for normal files, which remain on the user's device.">
-+               desc="On the dao://downloads page, the text for the toast shown when the user removes a download from the download history. This is for normal files, which remain on the user's device.">
-         Deleted <ph name="FILE_NAME">$1<ex>file.txt</ex></ph> from download history, but it's still on your device
-       </message>
-       <message name="IDS_DOWNLOADS_TOAST_DELETED_FROM_HISTORY"
--               desc="On the chrome://downloads page, the text for the toast shown when the user removes a download from the download history. This is for blocked or deleted files, which do not remain on the user's device.">
-+               desc="On the dao://downloads page, the text for the toast shown when the user removes a download from the download history. This is for blocked or deleted files, which do not remain on the user's device.">
-         Deleted <ph name="FILE_NAME">$1<ex>file.txt</ex></ph> from download history
-       </message>
- 
-       <message name="IDS_DOWNLOADS_TOAST_COPIED_DOWNLOAD_LINK"
--               desc="On the chrome://downloads page, the text for the toast shown when the user copies a download's url.">
-+               desc="On the dao://downloads page, the text for the toast shown when the user copies a download's url.">
-         <ph name="DOWNLOAD_URL">$1<ex>https://example.com</ex></ph> copied to clipboard
-       </message>
- 
-@@ -2414,7 +2414,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -2482,7 +2482,7 @@ are declared in tools/grit/grit_args.gni.
                 desc="Placeholder text/label for the search input in the download history page">
          Search download history
        </message>
@@ -118,43 +46,17 @@ index 4f78acb34f..52c5b65563 100644
 +      <message name="IDS_DOWNLOAD_NO_DOWNLOADS" desc="A message shown when the user has no downloads to show on dao://downloads.">
          Files you download appear here
        </message>
-       <message name="IDS_DOWNLOAD_ITEM_DROPDOWN_BUTTON_ACCESSIBLE_TEXT" desc="Text for the dropdown button that opens the download item options menu">
-@@ -5806,21 +5806,21 @@ are declared in tools/grit/grit_args.gni.
-         </message>
- 
-         <if expr="not is_chromeos and not is_macosx">
--          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the chrome://extensions/ management page">
-+          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the dao://extensions/ management page">
-             Manage your extensions by clicking Extensions in the Tools menu.
-           </message>
-         </if>
-         <if expr="is_chromeos">
--          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the chrome://extensions/ management page on ChromeOS">
-+          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the dao://extensions/ management page on ChromeOS">
-             Manage your extensions by clicking Extensions in the "More tools" menu.
-           </message>
-         </if>
-         <if expr="is_macosx">
--          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the chrome://extensions/ management page on MAC OS X">
-+          <message name="IDS_EXTENSION_INSTALLED_MANAGE_INFO" desc="Text displayed in the InfoBubble with instructions on how to find the dao://extensions/ management page on MAC OS X">
-             Manage your extensions by clicking Extensions in the Window menu.
-           </message>
-         </if>
--        <message name="IDS_EXTENSION_INSTALLED_MANAGE_SHORTCUTS" desc="Text for the link in the InfoBubble that opens the chrome://extensions page with the Configure Commands UI visible.">
-+        <message name="IDS_EXTENSION_INSTALLED_MANAGE_SHORTCUTS" desc="Text for the link in the InfoBubble that opens the dao://extensions page with the Configure Commands UI visible.">
-           Manage shortcuts
-         </message>
-         <message name="IDS_EXTENSION_LAUNCH_WEB_AUTH_FLOW_TAB_INFO_BAR_TEXT" desc="Text displayed in an info bar of an auth page generated by chrome.identity.launchWebAuthFlow() API. The extension asks the user to approve an auth request and give the extension permission to access the user account. The goal of this text is to make that the user is aware that the page was opened by an extension and an auth token will be shared with the extension after approving.">
-@@ -5858,7 +5858,7 @@ are declared in tools/grit/grit_args.gni.
+       <message name="IDS_DOWNLOAD_LINK_RESUME"
+@@ -5991,7 +5991,7 @@ are declared in tools/grit/grit_args.gni.
          </message>
        </if>
  
 -      <!-- Extensions strings, which are not used by chrome://extensions. -->
 +      <!-- Extensions strings, which are not used by dao://extensions. -->
-       <if expr="enable_extensions">
+       <if expr="enable_extensions_core">
          <message name="IDS_EXTENSIONS_WANTS_ACCESS_TO_SITE" desc="The message shown on mouseover when an extension wants to run on a specific site.">
            Wants access to this site
-@@ -5931,7 +5931,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -6025,7 +6025,7 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES_V2" desc="The label in an extension's context menu to always allow the extension access on all sites (sentence case).">
              Always on all sites
            </message>
@@ -163,24 +65,7 @@ index 4f78acb34f..52c5b65563 100644
              Manage site permissions
            </message>
            <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK" desc="The label in an extension's context menu to allow the extension access to the page only when the user clicks on the extension action (sentence case).">
-@@ -5985,13 +5985,13 @@ are declared in tools/grit/grit_args.gni.
-           <message name="IDS_EXTENSIONS_SUBMENU_CLOSE_SIDE_PANEL_ITEM" desc="The text for the link in the extensions menu to close the side panel corresponding to the extension (sentence case).">
-             Close side panel
-           </message>
--          <message name="IDS_MANAGE_EXTENSION" desc="The text for the button in the extension's context menu used to open the chrome://extensions/?id=xxx page and manage a specific extension (sentence case).">
-+          <message name="IDS_MANAGE_EXTENSION" desc="The text for the button in the extension's context menu used to open the dao://extensions/?id=xxx page and manage a specific extension (sentence case).">
-             Manage extension
-           </message>
--          <message name="IDS_MANAGE_EXTENSIONS" desc="The text of the button in the extensions toolbar menu used to open the chrome://extensions page and manage all extensions (sentence case).">
-+          <message name="IDS_MANAGE_EXTENSIONS" desc="The text of the button in the extensions toolbar menu used to open the dao://extensions page and manage all extensions (sentence case).">
-             Manage extensions
-           </message>
--          <message name="IDS_VIEW_WEB_PERMISSIONS" desc="The text for the button in the extension context menu used to open the chrome://settings/content/siteDetails?site=xxx page and view the site details for a specific extension (sentence case).">
-+          <message name="IDS_VIEW_WEB_PERMISSIONS" desc="The text for the button in the extension context menu used to open the dao://settings/content/siteDetails?site=xxx page and view the site details for a specific extension (sentence case).">
-             View web permissions
-           </message>
-           <message name="IDS_EXTENSION_ACTION_INSPECT_POPUP" desc="The text for the right-click menu of page and browser actions which shows the popup and opens the developer tools (sentence case).">
-@@ -6023,7 +6023,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -6099,7 +6099,7 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES_V2" desc="The label in an extension's context menu to always allow the extension access on all sites (title case).">
              Always on All Sites
            </message>
@@ -189,9 +74,9 @@ index 4f78acb34f..52c5b65563 100644
              Manage Site Permissions
            </message>
            <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK" desc="The label in an extension's context menu to allow the extension access to the page only when the user clicks on the extension action (title case).">
-@@ -6086,13 +6086,13 @@ are declared in tools/grit/grit_args.gni.
-           <message name="IDS_EXTENSIONS_SUBMENU_CLOSE_SIDE_PANEL_ITEM" desc="The text for the link in the extensions menu to close the side panel corresponding to the extension (title case).">
-             Close Side Panel
+@@ -6135,13 +6135,13 @@ are declared in tools/grit/grit_args.gni.
+           <message name="IDS_EXTENSIONS_PINNED_BY_ADMIN" desc="The text indicating that an extension has been 'pinned' to the toolbar by the controlling administrator (title case).">
+             Pinned by your Administrator
            </message>
 -          <message name="IDS_MANAGE_EXTENSION" desc="The text for the button in the extension's context menu used to open the chrome://extensions/?id=xxx page and manage a specific extension (title case).">
 +          <message name="IDS_MANAGE_EXTENSION" desc="The text for the button in the extension's context menu used to open the dao://extensions/?id=xxx page and manage a specific extension (title case).">
@@ -206,7 +91,7 @@ index 4f78acb34f..52c5b65563 100644
              View Web Permissions
            </message>
            <message name="IDS_EXTENSION_ACTION_INSPECT_POPUP" desc="The text for the right-click menu of page and browser actions which shows the popup and opens the developer tools (title case).">
-@@ -6453,7 +6453,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -6602,7 +6602,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
        <message name="IDS_DEPRECATED_APPS_LEARN_MORE_AX_LABEL" desc="Accessibility label text for IDS_DEPRECATED_APPS_LEARN_MORE link">
          Learn more about unsupported Chrome apps
        </message>
@@ -215,7 +100,7 @@ index 4f78acb34f..52c5b65563 100644
          {NUM_APPS, plural,
          =1 {Remove 1 unsupported app}
          other {Remove # unsupported apps}}
-@@ -6844,7 +6844,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -7016,7 +7016,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
            </message>
          </then>
          <else>
@@ -224,7 +109,7 @@ index 4f78acb34f..52c5b65563 100644
              Settings
            </message>
            <message name="IDS_WEB_APP_SETTINGS_LINK_TOOLTIP" desc="The text of the tooltip on IDS_WEB_APP_SETTINGS_LINK.">
-@@ -6854,7 +6854,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -7026,7 +7026,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
        </if>
  
        <!-- Components -->
@@ -233,7 +118,7 @@ index 4f78acb34f..52c5b65563 100644
          Components
        </message>
        <message name="IDS_COMPONENTS_VERSION" desc="The label in front of a component version number.">
-@@ -7120,52 +7120,52 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -7273,52 +7273,52 @@ Keep your key file in a safe place. You will need it to create new versions of y
        <!-- End of Sync Promo strings for Desktop Identity Consistency. -->
  
        <!-- WebRTC logs -->
@@ -301,7 +186,7 @@ index 4f78acb34f..52c5b65563 100644
          You have no recently captured WebRTC event logs.
        </message>
  
-@@ -7297,7 +7297,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -7445,7 +7445,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
          </message>
        </if>
  
@@ -310,7 +195,7 @@ index 4f78acb34f..52c5b65563 100644
        <if expr="toolkit_views and not is_chromeos">
          <message name="IDS_ABOUT_BROWSER_SWITCH_TITLE" desc="about:browser-switch page title">
            Legacy Browser Support
-@@ -7330,14 +7330,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -7478,14 +7478,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
            Only http, https and file protocols are supported for browser redirects.
          </message>
  
@@ -327,7 +212,7 @@ index 4f78acb34f..52c5b65563 100644
            Nothing to show
          </message>
          <message name="IDS_ABOUT_BROWSER_SWITCH_INTERNALS_LBS_DISABLED" desc="about:browser-switch/internals text shown when the policy BrowserSwitcherEnabled is disabled">
-@@ -8719,13 +8719,13 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -9279,13 +9279,13 @@ Keep your key file in a safe place. You will need it to create new versions of y
  
        <!-- Extensions NTP Middle Slot Promo -->
        <message name="IDS_EXTENSIONS_PROMO_PERFORMANCE">
@@ -343,35 +228,26 @@ index 4f78acb34f..52c5b65563 100644
 +        Got extensions? <ph name="BEGIN_LINK">&lt;a href="dao://extensions"&gt;</ph>Manage your extensions<ph name="END_LINK">&lt;/a&gt;</ph> in one easy place.
        </message>
  
-       <!-- Star View menu -->
-@@ -12610,7 +12610,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
-         </message>
-       </if>
+       <!-- New Tab Footer -->
+@@ -13812,7 +13812,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+         Set later
+       </message>
  
 -      <!-- chrome://help -->
 +      <!-- dao://help -->
        <if expr="not is_android">
          <if expr="not is_chromeos and use_titlecase">
            <message name="IDS_RELAUNCH_BUTTON" desc="Titlecase: The label for the relaunch button that relaunches the browser once update is complete">
-@@ -12633,7 +12633,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
-           </message>
-         </if>
-         <if expr="not is_chromeos">
--          <message name="IDS_HELP_MANAGED_BY_YOUR_PARENT" desc="The text label shown in chrome://settings/help for users subject to parental controls.">
-+          <message name="IDS_HELP_MANAGED_BY_YOUR_PARENT" desc="The text label shown in dao://settings/help for users subject to parental controls.">
-             Your browser is managed by your parent
-           </message>
-         </if>
-@@ -12648,7 +12648,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+@@ -13850,7 +13850,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
          </message>
        </if> <!-- is_chromeos -->
  
 -      <!-- Settings related strings not specific to chrome://settings.
 +      <!-- Settings related strings not specific to dao://settings.
             (Settings specific strings are in settings_strings.grdp).
-            Android uses native UI for settings -->
-       <if expr="not is_android">
-@@ -12711,7 +12711,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+            Not necessary on Android that uses native UI in settings unless extensions are enabled. -->
+       <if expr="not is_android or enable_extensions_core">
+@@ -13913,7 +13913,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
          </message>
  
          <!-- Enhanced Safe Browsing CRX allowlist warning -->
@@ -380,7 +256,7 @@ index 4f78acb34f..52c5b65563 100644
             This extension is not trusted by Enhanced Safe Browsing.
          </message>
          <message name="IDS_EXTENSIONS_SAFE_BROWSING_CRX_ALLOWLIST_WARNING_LEARN_MORE" desc="Text read by screen readers for a link labeled 'Learn more' that links to a Help article about Enhanced Safe Browsing.">
-@@ -13395,7 +13395,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+@@ -14580,7 +14580,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
          Your account <ph name="EMAIL">$1<ex>john.doe@example.com</ex></ph> is no longer allowed as the primary account. Because this account is managed by <ph name="DOMAIN">$2<ex>example.com</ex></ph>, your bookmarks, history, passwords, and other settings will be cleared from this device.
        </message>
  
@@ -389,7 +265,7 @@ index 4f78acb34f..52c5b65563 100644
        <if expr="not is_android">
          <if expr="is_chromeos">
            <message name="IDS_DEVICE_MANAGED_WITH_HYPERLINK" desc="Message to end users in Enterprise/EDU, with a link for more info (ChromeOS)">
-@@ -16106,14 +16106,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
+@@ -17305,14 +17305,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
        </message>
  
        <!-- About device logs UI display strings -->
@@ -407,7 +283,7 @@ index 4f78acb34f..52c5b65563 100644
        </message>
        <message name="IDS_DEVICE_LOG_REFRESH" desc="Button to refresh device log entries">
          Refresh
-@@ -16190,7 +16190,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
+@@ -17392,7 +17392,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
        <message name="IDS_DEVICE_LOG_TIME_DETAIL" desc="Detailed timestamps checkbox in device event log">
          Detailed Timestamps
        </message>
@@ -416,7 +292,7 @@ index 4f78acb34f..52c5b65563 100644
          [<ph name="TIMESTAMP">$1<ex>Timestamp</ex></ph>]
          <ph name="FILE_INFO">$2<ex>file:123</ex></ph>
          <ph name="EVENT_NAME">$3<ex>Event Description</ex></ph>
-@@ -18238,7 +18238,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
+@@ -19299,7 +19299,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
        <message name="IDS_MEMORY_SAVER_DIALOG_TITLE" desc="Title text for a dialog with information about Memory Saver mode.">
          Memory Saver
        </message>

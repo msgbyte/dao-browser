@@ -1,0 +1,13 @@
+diff --git a/third_party/blink/renderer/platform/mac/graphics_context_canvas.mm b/third_party/blink/renderer/platform/mac/graphics_context_canvas.mm
+index 9234de2adf..46e143f458 100644
+--- a/third_party/blink/renderer/platform/mac/graphics_context_canvas.mm
++++ b/third_party/blink/renderer/platform/mac/graphics_context_canvas.mm
+@@ -64,7 +64,7 @@
+   cg_context_.reset(CGBitmapContextCreate(
+       offscreen_.getPixels(), offscreen_.width(), offscreen_.height(), 8,
+       offscreen_.rowBytes(), color_space.get(),
+-      kCGImageByteOrder32Host |
++      kCGBitmapByteOrder32Host |
+           static_cast<CGBitmapInfo>(kCGImageAlphaPremultipliedFirst)));
+   DCHECK(cg_context_);
+ 

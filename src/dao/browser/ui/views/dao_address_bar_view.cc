@@ -347,9 +347,9 @@ void DaoAddressBarView::OnTabStripModelChanged(
   UpdateBackgroundColor();
 }
 
-void DaoAddressBarView::TabChangedAt(content::WebContents* contents,
-                                     int index,
-                                     TabChangeType change_type) {
+void DaoAddressBarView::OnTabChangedAt(tabs::TabInterface* tab,
+                                       int index,
+                                       TabChangeType change_type) {
   // Only update if the changed tab is the active one
   if (tab_strip_model_ && index == tab_strip_model_->active_index()) {
     UpdateURL();
@@ -387,13 +387,14 @@ void DaoAddressBarView::UpdateURL() {
   }
 
   // Host part
-  std::string host = url.host();
+  std::string host(url.host());
   host_label_->SetText(base::UTF8ToUTF16(host));
 
   // Path + query part
-  std::string path_and_query = url.path();
+  std::string path_and_query(url.path());
   if (url.has_query()) {
-    path_and_query += "?" + url.query();
+    path_and_query += "?";
+    path_and_query += url.query();
   }
   if (path_and_query == "/") {
     path_and_query.clear();
@@ -763,11 +764,13 @@ gfx::Rect DaoAddressBarView::url_container_bounds() const {
 }
 
 std::u16string DaoAddressBarView::GetHostTextForTesting() const {
-  return host_label_ ? host_label_->GetText() : std::u16string();
+  return host_label_ ? std::u16string(host_label_->GetText())
+                     : std::u16string();
 }
 
 std::u16string DaoAddressBarView::GetPathTextForTesting() const {
-  return path_label_ ? path_label_->GetText() : std::u16string();
+  return path_label_ ? std::u16string(path_label_->GetText())
+                     : std::u16string();
 }
 
 std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {

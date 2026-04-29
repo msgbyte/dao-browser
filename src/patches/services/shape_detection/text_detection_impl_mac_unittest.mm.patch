@@ -1,0 +1,13 @@
+diff --git a/services/shape_detection/text_detection_impl_mac_unittest.mm b/services/shape_detection/text_detection_impl_mac_unittest.mm
+index f5797e9d31..8c9028c8b2 100644
+--- a/services/shape_detection/text_detection_impl_mac_unittest.mm
++++ b/services/shape_detection/text_detection_impl_mac_unittest.mm
+@@ -59,7 +59,7 @@ void DetectCallback(std::vector<mojom::TextDetectionResultPtr> results) {
+       nullptr, width, height, /*bitsPerComponent=*/8,
+       /*bytesPerRow=*/width * 4, rgb_colorspace.get(),
+       static_cast<CGBitmapInfo>(kCGImageAlphaPremultipliedFirst) |
+-          kCGImageByteOrder32Host));
++          kCGBitmapByteOrder32Host));
+ 
+   // Draw a white background.
+   CGContextSetRGBFillColor(context.get(), 1.0, 1.0, 1.0, 1.0);

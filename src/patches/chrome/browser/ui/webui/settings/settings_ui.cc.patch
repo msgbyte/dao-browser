@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/ui/webui/settings/settings_ui.cc b/chrome/browser/ui/webui/settings/settings_ui.cc
-index 62a3181e66..3d86bbc312 100644
+index b950ec193d..8dcafdfcf8 100644
 --- a/chrome/browser/ui/webui/settings/settings_ui.cc
 +++ b/chrome/browser/ui/webui/settings/settings_ui.cc
-@@ -308,9 +308,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
-   }
- #endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+@@ -294,9 +294,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+   AddSettingsPageUIHandler(std::make_unique<MacSystemSettingsHandler>());
+ #endif
  
 -  html_source->AddBoolean("signinAllowed", !profile->IsGuestSession() &&
 -                                               profile->GetPrefs()->GetBoolean(

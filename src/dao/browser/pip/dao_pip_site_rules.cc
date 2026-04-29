@@ -22,7 +22,8 @@ constexpr char kPipSiteRulesJson[] = R"json([
 
 std::vector<PipSiteRule> ParseRules() {
   std::vector<PipSiteRule> rules;
-  auto parsed = base::JSONReader::Read(kPipSiteRulesJson);
+  auto parsed =
+      base::JSONReader::Read(kPipSiteRulesJson, base::JSON_PARSE_RFC);
   if (!parsed || !parsed->is_list()) {
     return rules;
   }
@@ -50,7 +51,7 @@ std::optional<PipSiteRule> GetPipSiteRule(const GURL& url) {
   if (!url.is_valid()) {
     return std::nullopt;
   }
-  const std::string& host = url.host();
+  std::string_view host = url.host();
   for (const auto& rule : GetAllPipSiteRules()) {
     if (host == rule.domain || host == "www." + rule.domain ||
         base::EndsWith(host, "." + rule.domain)) {

@@ -1,0 +1,37 @@
+diff --git a/ui/webui/resources/tools/build_webui.gni b/ui/webui/resources/tools/build_webui.gni
+index 5f9cb83709..bf1b1f8f19 100644
+--- a/ui/webui/resources/tools/build_webui.gni
++++ b/ui/webui/resources/tools/build_webui.gni
+@@ -366,13 +366,19 @@ template("build_webui") {
+ 
+   # Detect whether there are any CSS files to be checked via stylelint. Define
+   # the ":lint_css" target only if such files exist.
++  # Dao: invoker.disable_css_lint=true short-circuits lint for targets that
++  # ship precompiled third-party CSS (e.g. vendored Tailwind) which can't be
++  # hand-edited to satisfy @stylistic rules.
+   stylelint_in_files = []
+   stylelint_deps = []
+-  if (defined(invoker.css_files)) {
++  _disable_css_lint =
++      defined(invoker.disable_css_lint) && invoker.disable_css_lint
++  not_needed([ "_disable_css_lint" ])
++  if (defined(invoker.css_files) && !_disable_css_lint) {
+     stylelint_in_files += invoker.css_files
+     stylelint_deps += [ ":preprocess_html_css_files" ]
+   }
+-  if (defined(invoker.static_files)) {
++  if (defined(invoker.static_files) && !_disable_css_lint) {
+     static_css_files = filter_include(invoker.static_files, [ "*.css" ])
+     if (static_css_files != []) {
+       stylelint_in_files += static_css_files
+@@ -525,6 +531,10 @@ template("build_webui") {
+       !defined(invoker.enable_type_aware_eslint_checks) ||
+       invoker.enable_type_aware_eslint_checks
+ 
++  if (!enable_type_aware_eslint_checks) {
++    # Dao: when lint_ts is disabled, is_ash_webui is never read and GN errors.
++    not_needed([ "is_ash_webui" ])
++  }
+   if (enable_type_aware_eslint_checks) {
+     eslint_ts("lint_ts") {
+       in_folder = preprocess_dir

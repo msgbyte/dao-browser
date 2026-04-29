@@ -4,6 +4,7 @@
 
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 
+#include "base/files/file_path.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/prefs/pref_service.h"

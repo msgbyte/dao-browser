@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/contents_web_view.cc b/chrome/browser/ui/views/frame/contents_web_view.cc
-index 6bdd187588..8d1ddcefe9 100644
+index f5e8ba18cb..c138206ff7 100644
 --- a/chrome/browser/ui/views/frame/contents_web_view.cc
 +++ b/chrome/browser/ui/views/frame/contents_web_view.cc
-@@ -53,6 +53,16 @@ void ContentsWebView::SetBackgroundVisible(bool background_visible) {
+@@ -58,6 +58,16 @@ void ContentsWebView::SetBackgroundVisible(bool background_visible) {
    }
  }
  
@@ -19,7 +19,7 @@ index 6bdd187588..8d1ddcefe9 100644
  const gfx::RoundedCornersF& ContentsWebView::GetBackgroundRadii() const {
    const ui::Layer* background_layer = layer();
  
-@@ -90,9 +100,10 @@ void ContentsWebView::OnLetterboxingChanged() {
+@@ -119,9 +129,10 @@ void ContentsWebView::SetWebContents(content::WebContents* web_contents) {
  }
  
  void ContentsWebView::UpdateBackgroundColor() {
@@ -30,6 +30,6 @@ index 6bdd187588..8d1ddcefe9 100644
 +      GetColorProvider()->GetColor(
 +          is_letterboxing() ? kColorWebContentsBackgroundLetterboxing
 +                            : kColorWebContentsBackground));
- 
-   ui::Layer* background_layer = layer();
-   background_layer->SetColor(background_visible_ ? color : SK_ColorTRANSPARENT);
+   // `color` must be opaque, see RenderWidgetHostView::SetBackgroundColor() for
+   // details.
+   // TODO(crbug.com/456309057): Update this to be a CHECK.

@@ -7,6 +7,7 @@
 #include "components/vector_icons/vector_icons.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -26,8 +27,9 @@ DaoDownloadFlyoutView::DaoDownloadFlyoutView()
 
   auto icon = std::make_unique<views::ImageView>();
   icon->SetPreferredSize(gfx::Size(kIconSize, kIconSize));
-  icon->SetImage(gfx::CreateVectorIcon(vector_icons::kFileDownloadIcon,
-                                        kIconSize, TextPrimary()));
+  icon->SetImage(ui::ImageModel::FromImageSkia(
+      gfx::CreateVectorIcon(vector_icons::kFileDownloadIcon, kIconSize,
+                            TextPrimary())));
   icon->SetPaintToLayer();
   icon->layer()->SetFillsBoundsOpaquely(false);
   icon_view_ = AddChildView(std::move(icon));

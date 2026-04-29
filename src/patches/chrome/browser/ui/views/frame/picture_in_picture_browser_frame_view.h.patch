@@ -1,19 +1,19 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
-index 52aebdd66d..6fdf4f25e1 100644
+index 785bd22434..658b09eae3 100644
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
-@@ -36,6 +36,10 @@
- 
- class BrowserFrameBoundsChangeAnimation;
+@@ -38,6 +38,10 @@
+ class PictureInPictureBoundsChangeAnimation;
+ class PictureInPictureTucker;
  
 +namespace ui {
 +class EventHandler;
 +}  // namespace ui
 +
  namespace views {
- class FrameBackground;
  class Label;
-@@ -239,6 +243,15 @@ class PictureInPictureBrowserFrameView
+ class View;
+@@ -223,6 +227,15 @@ class PictureInPictureBrowserFrameView : public BrowserFrameView,
      return child_dialog_observer_helper_->IsChildResizePendingForTesting();
    }
  
@@ -29,7 +29,7 @@ index 52aebdd66d..6fdf4f25e1 100644
   protected:
    views::View* top_bar_container_view() { return top_bar_container_view_; }
  
-@@ -367,7 +380,8 @@ class PictureInPictureBrowserFrameView
+@@ -379,7 +392,8 @@ class PictureInPictureBrowserFrameView : public BrowserFrameView,
  
    // When the window is created and shown for the first time, we show the active
    // window state even if the mouse is not inside it.
@@ -39,9 +39,9 @@ index 52aebdd66d..6fdf4f25e1 100644
  
    bool mouse_inside_window_ = false;
  
-@@ -411,6 +425,38 @@ class PictureInPictureBrowserFrameView
-   // `resizeBy()` calls).
-   std::unique_ptr<BrowserFrameBoundsChangeAnimation> bounds_change_animation_;
+@@ -421,6 +435,38 @@ class PictureInPictureBrowserFrameView : public BrowserFrameView,
+   std::unique_ptr<PictureInPictureTucker> tucker_;
+   bool is_tucking_forced_ = false;
  
 +  // Dao: Skip the first activation so the top bar does not auto-fade-in when
 +  // the PiP window initially opens (top bar remains invisible until the user

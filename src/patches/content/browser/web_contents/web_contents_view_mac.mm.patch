@@ -1,0 +1,21 @@
+diff --git a/content/browser/web_contents/web_contents_view_mac.mm b/content/browser/web_contents/web_contents_view_mac.mm
+index 7927a3920f..3ad9ba0e02 100644
+--- a/content/browser/web_contents/web_contents_view_mac.mm
++++ b/content/browser/web_contents/web_contents_view_mac.mm
+@@ -777,7 +777,15 @@ ClipboardEndpoint source_endpoint(
+ }
+ 
+ void WebContentsViewMac::ViewsHostableDetach() {
+-  DCHECK(views_host_);
++  // Dao: Make detach idempotent. When DaoSplitView reparents WebContents
++  // between its panes and the primary ContentsWebView, the views_host_ may
++  // already be cleared by the time WebView::DetachWebContentsNativeView()
++  // walks back to us during a stale Set/Detach. The original DCHECK turns a
++  // benign double-detach into a fatal crash; treating null as a no-op
++  // preserves the contract (detached state) without aborting.
++  if (!views_host_) {
++    return;
++  }
+   // Disconnect from the remote bridge, if it exists. This will have the effect
+   // of destroying the associated bridge instance with its NSView.
+   if (remote_ns_view_) {

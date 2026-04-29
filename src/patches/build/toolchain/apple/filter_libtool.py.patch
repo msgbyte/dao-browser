@@ -1,0 +1,43 @@
+diff --git a/build/toolchain/apple/filter_libtool.py b/build/toolchain/apple/filter_libtool.py
+index 269093bbbf..01cbd2c3ae 100644
+--- a/build/toolchain/apple/filter_libtool.py
++++ b/build/toolchain/apple/filter_libtool.py
+@@ -37,8 +37,38 @@ def ShouldSuppressLine(line):
+   return False
+ 
+ 
++def RspFileIsEmpty(cmd_list):
++  """Detect whether an @rspfile arg points to an empty input list.
++
++  Apple's cctools >=1024 libtool refuses to create an archive with no inputs,
++  unlike earlier versions. When gn emits a static_library target that has no
++  compiled sources on the current platform (e.g. base_static on macOS), the
++  rsp file is empty and libtool fails. Returns (True, output_path) when the
++  rsp is empty so the caller can synthesize an empty archive via `ar`.
++  """
++  output = None
++  for i, arg in enumerate(cmd_list):
++    if arg == '-o' and i + 1 < len(cmd_list):
++      output = cmd_list[i + 1]
++    if arg.startswith('@'):
++      rsp = arg[1:]
++      try:
++        with open(rsp, 'rb') as f:
++          data = f.read().strip()
++        if not data:
++          return True, output
++      except OSError:
++        pass
++  return False, output
++
++
+ def Main(cmd_list):
+   env = os.environ.copy()
++  empty, output = RspFileIsEmpty(cmd_list)
++  if empty and output:
++    with open(output, 'wb') as f:
++      f.write(b'!<arch>\n')
++    return 0
+   libtoolout = subprocess.Popen(cmd_list, stderr=subprocess.PIPE, env=env)
+   _, err = libtoolout.communicate()
+   for line in err.decode('UTF-8').splitlines():

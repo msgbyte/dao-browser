@@ -19,6 +19,10 @@ class Label;
 class LabelButton;
 }  // namespace views
 
+namespace tabs {
+class TabInterface;
+}  // namespace tabs
+
 namespace dao {
 
 // Top bar for Little Dao windows. Shows a hostname display (clickable to open
@@ -49,9 +53,9 @@ class DaoLittleDaoView : public views::View,
       TabStripModel* tab_strip_model,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
-  void TabChangedAt(content::WebContents* contents,
-                    int index,
-                    TabChangeType change_type) override;
+  void OnTabChangedAt(tabs::TabInterface* tab,
+                      int index,
+                      TabChangeType change_type) override;
 
   // content::WebContentsObserver:
   void OnBackgroundColorChanged() override;

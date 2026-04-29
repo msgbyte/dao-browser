@@ -66,29 +66,29 @@ export class DaoSettingsView extends CrLitElement {
     };
   }
 
-  private activeSubTab_ = 'general';
-  private provider_ = 'openai-compatible';
-  private apiKey_ = '';
-  private baseUrl_ = 'https://api.openai.com/v1';
-  private model_ = 'gpt-5';
-  private soulText_ = '';
-  private saveStatusText_ = '';
-  private saveStatusVisible_ = false;
-  private memoryEnabled_ = false;
-  private proactiveEnabled_ = true;
-  private pageContextEnabled_ = true;
-  private conversationEnabled_ = true;
-  private threshold_ = 'balanced';
-  private statConversations_ = 0;
-  private statPreferences_ = 0;
-  private statEpisodes_ = 0;
-  private statTotal_ = 'Total: 0 KB';
-  private showConfirmDialog_ = false;
+  declare private activeSubTab_: string;
+  declare private provider_: string;
+  declare private apiKey_: string;
+  declare private baseUrl_: string;
+  declare private model_: string;
+  declare private soulText_: string;
+  declare private saveStatusText_: string;
+  declare private saveStatusVisible_: boolean;
+  declare private memoryEnabled_: boolean;
+  declare private proactiveEnabled_: boolean;
+  declare private pageContextEnabled_: boolean;
+  declare private conversationEnabled_: boolean;
+  declare private threshold_: string;
+  declare private statConversations_: number;
+  declare private statPreferences_: number;
+  declare private statEpisodes_: number;
+  declare private statTotal_: string;
+  declare private showConfirmDialog_: boolean;
   private saveStatusTimer_ = 0;
-  private agentStats_: AgentStats|null = null;
-  private showResetStatsDialog_ = false;
-  private toolCallShowDetails_ = false;
-  private resumeLastSession_ = true;
+  declare private agentStats_: AgentStats|null;
+  declare private showResetStatsDialog_: boolean;
+  declare private toolCallShowDetails_: boolean;
+  declare private resumeLastSession_: boolean;
 
   static override get styles() {
     return css`
@@ -464,6 +464,33 @@ export class DaoSettingsView extends CrLitElement {
   }
 
   private boundOnToolConfigChanged_: (() => void) | null = null;
+
+  constructor() {
+    super();
+    this.activeSubTab_ = 'general';
+    this.provider_ = 'openai-compatible';
+    this.apiKey_ = '';
+    this.baseUrl_ = 'https://api.openai.com/v1';
+    this.model_ = 'gpt-5';
+    this.soulText_ = '';
+    this.saveStatusText_ = '';
+    this.saveStatusVisible_ = false;
+    this.memoryEnabled_ = false;
+    this.proactiveEnabled_ = true;
+    this.pageContextEnabled_ = true;
+    this.conversationEnabled_ = true;
+    this.threshold_ = 'balanced';
+    this.statConversations_ = 0;
+    this.statPreferences_ = 0;
+    this.statEpisodes_ = 0;
+    this.statTotal_ = 'Total: 0 KB';
+    this.showConfirmDialog_ = false;
+    this.agentStats_ = null;
+    this.showResetStatsDialog_ = false;
+    this.toolCallShowDetails_ = false;
+    this.resumeLastSession_ = true;
+  }
+
 
   override connectedCallback() {
     super.connectedCallback();

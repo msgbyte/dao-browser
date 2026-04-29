@@ -1,33 +1,33 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index b9986c6e90..abb6976857 100644
+index 79feee7f43..2e7c286cfa 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -124,6 +124,22 @@ namespace glic {
- class BorderView;
- }  // namespace glic
+@@ -124,6 +124,22 @@ enum class InstallableWebAppCheckResult;
+ struct WebAppBannerData;
+ }  // namespace webapps
  
 +namespace dao {
 +class DaoAddressBarView;
-+class DaoAgentCursorView;
-+class DaoAgentLockBannerView;
-+class DaoCommandBarView;
 +class DaoSidebarView;
 +class DaoCornerOverlayView;
++class DaoCommandBarView;
 +class DaoDownloadFlyoutView;
 +class DaoLittleDaoView;
 +class DaoAgentSidebarView;
 +class DaoControlCenterPopup;
 +class DaoSplitView;
++class DaoAgentLockBannerView;
++class DaoAgentCursorView;
 +class DaoTabTooltipView;
 +class DaoToastView;
 +}  // namespace dao
 +
- namespace segmentation_platform {
- struct ClassificationResult;
- }
-@@ -247,6 +263,20 @@ class BrowserView : public BrowserWindow,
+ class CustomFloatingCorner;
  
-   SidePanel* unified_side_panel() { return unified_side_panel_; }
+ ///////////////////////////////////////////////////////////////////////////////
+@@ -274,6 +290,20 @@ class BrowserView : public BrowserWindow,
+ 
+   MultiContentsView* multi_contents_view() { return multi_contents_view_; }
  
 +  dao::DaoAddressBarView* dao_address_bar() { return dao_address_bar_; }
 +  dao::DaoSidebarView* dao_sidebar() { return dao_sidebar_; }
@@ -43,12 +43,12 @@ index b9986c6e90..abb6976857 100644
 +  dao::DaoTabTooltipView* dao_tab_tooltip() { return dao_tab_tooltip_; }
 +  dao::DaoToastView* dao_toast() { return dao_toast_; }
 +
-   void set_contents_border_widget(views::Widget* contents_border_widget) {
-     GetBrowserViewLayout()->set_contents_border_widget(contents_border_widget);
-   }
-@@ -1280,6 +1310,21 @@ class BrowserView : public BrowserWindow,
-   raw_ptr<views::View> left_aligned_side_panel_separator_ = nullptr;
-   raw_ptr<views::View> side_panel_rounded_corner_ = nullptr;
+   // Returns either the Horizontal or Vertical TabStrip.
+   TabStripRegionView* tab_strip_view() const;
+ 
+@@ -1317,6 +1347,21 @@ class BrowserView : public BrowserWindow,
+   // side_panel_coordinator is created.
+   raw_ptr<SidePanel> contents_height_side_panel_ = nullptr;
  
 +  // Dao left sidebar, corner overlay, address bar, command bar, and download flyout
 +  raw_ptr<dao::DaoAddressBarView> dao_address_bar_ = nullptr;

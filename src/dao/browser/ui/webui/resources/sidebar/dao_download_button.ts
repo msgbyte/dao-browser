@@ -189,13 +189,19 @@ export class DaoDownloadButton extends CrLitElement {
     };
   }
 
-  protected recentFiles_: RecentFileData[] = [];
-  protected activeDownloads_: ActiveDownloadData[] = [];
+  declare protected recentFiles_: RecentFileData[];
+  declare protected activeDownloads_: ActiveDownloadData[];
 
   private dragFileIndex_: number = -1;
   private dragStartX_: number = 0;
   private dragStartY_: number = 0;
   private readonly DRAG_THRESHOLD_ = 5;
+
+  constructor() {
+    super();
+    this.recentFiles_ = [];
+    this.activeDownloads_ = [];
+  }
 
   override connectedCallback() {
     super.connectedCallback();

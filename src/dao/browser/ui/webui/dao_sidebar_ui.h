@@ -27,6 +27,7 @@ class Browser;
 
 namespace content {
 class DownloadManager;
+class WebContents;
 }  // namespace content
 
 namespace download {
@@ -36,6 +37,10 @@ class DownloadItem;
 namespace views {
 class MenuRunner;
 }  // namespace views
+
+namespace tabs {
+class TabInterface;
+}  // namespace tabs
 
 namespace dao {
 
@@ -77,9 +82,9 @@ class DaoSidebarUIHandler
       TabStripModel* tab_strip_model,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
-  void TabChangedAt(content::WebContents* contents,
-                    int index,
-                    TabChangeType change_type) override;
+  void OnTabChangedAt(tabs::TabInterface* tab,
+                      int index,
+                      TabChangeType change_type) override;
 
   // download::AllDownloadItemNotifier::Observer:
   void OnDownloadCreated(content::DownloadManager* manager,
@@ -135,47 +140,47 @@ class DaoSidebarUIHandler
   // Bind/reset the Mojo observer on the given tab's MediaSession.
   void BindMediaSessionObserver(int tab_index);
   void ResetMediaSessionObserver();
-  base::Value::List BuildActiveDownloadList();
+  base::ListValue BuildActiveDownloadList();
 
   // JS message handlers
-  void HandleGetInitialState(const base::Value::List& args);
-  void HandleActivateTab(const base::Value::List& args);
-  void HandleCloseTab(const base::Value::List& args);
-  void HandleToggleMute(const base::Value::List& args);
-  void HandleMoveTab(const base::Value::List& args);
-  void HandleShowCommandBarForNewTab(const base::Value::List& args);
-  void HandleFileDrop(const base::Value::List& args);
-  void HandleSetDropInsertIndex(const base::Value::List& args);
-  void HandleRequestDownloadState(const base::Value::List& args);
-  void HandleOpenDownloadsFolder(const base::Value::List& args);
-  void HandleOpenRecentFile(const base::Value::List& args);
-  void HandleCancelDownload(const base::Value::List& args);
-  void HandleStartFileDrag(const base::Value::List& args);
-  void HandleTabDragActive(const base::Value::List& args);
-  void HandleMoveTabCrossWindow(const base::Value::List& args);
-  void HandleDetachTabToNewWindow(const base::Value::List& args);
-  void HandleLoadFolders(const base::Value::List& args);
-  void HandleSaveFolders(const base::Value::List& args);
-  void HandleShowTabContextMenu(const base::Value::List& args);
-  void HandleShowTabTooltip(const base::Value::List& args);
-  void HandleHideTabTooltip(const base::Value::List& args);
+  void HandleGetInitialState(const base::ListValue& args);
+  void HandleActivateTab(const base::ListValue& args);
+  void HandleCloseTab(const base::ListValue& args);
+  void HandleToggleMute(const base::ListValue& args);
+  void HandleMoveTab(const base::ListValue& args);
+  void HandleShowCommandBarForNewTab(const base::ListValue& args);
+  void HandleFileDrop(const base::ListValue& args);
+  void HandleSetDropInsertIndex(const base::ListValue& args);
+  void HandleRequestDownloadState(const base::ListValue& args);
+  void HandleOpenDownloadsFolder(const base::ListValue& args);
+  void HandleOpenRecentFile(const base::ListValue& args);
+  void HandleCancelDownload(const base::ListValue& args);
+  void HandleStartFileDrag(const base::ListValue& args);
+  void HandleTabDragActive(const base::ListValue& args);
+  void HandleMoveTabCrossWindow(const base::ListValue& args);
+  void HandleDetachTabToNewWindow(const base::ListValue& args);
+  void HandleLoadFolders(const base::ListValue& args);
+  void HandleSaveFolders(const base::ListValue& args);
+  void HandleShowTabContextMenu(const base::ListValue& args);
+  void HandleShowTabTooltip(const base::ListValue& args);
+  void HandleHideTabTooltip(const base::ListValue& args);
 
   // Media playback control handlers.
-  void HandleMediaPlayPause(const base::Value::List& args);
-  void HandleMediaPrevious(const base::Value::List& args);
-  void HandleMediaNext(const base::Value::List& args);
-  void HandleMediaDismiss(const base::Value::List& args);
-  void HandleMediaActivateTab(const base::Value::List& args);
+  void HandleMediaPlayPause(const base::ListValue& args);
+  void HandleMediaPrevious(const base::ListValue& args);
+  void HandleMediaNext(const base::ListValue& args);
+  void HandleMediaDismiss(const base::ListValue& args);
+  void HandleMediaActivateTab(const base::ListValue& args);
 
   // Sidebar context menu handler.
-  void HandleShowSidebarContextMenu(const base::Value::List& args);
+  void HandleShowSidebarContextMenu(const base::ListValue& args);
 
   // Context menu helpers.
   int FindVisualPosition(int tab_index) const;
   void CloseTabsInVisualRange(int from, int to);
   void ClearContextMenuState();
 
-  void OnScanResultReady(base::Value::List file_entries,
+  void OnScanResultReady(base::ListValue file_entries,
                          std::vector<base::FilePath> paths);
   static std::string FormatSpeed(int64_t bytes_per_sec);
 

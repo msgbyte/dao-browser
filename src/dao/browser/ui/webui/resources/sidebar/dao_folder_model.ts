@@ -350,6 +350,70 @@ export class FolderModel {
     }
 
     this.items_ = newItems;
+
+    // Bring split-group siblings together using actualTabs as the source of
+    // truth. C++ side already moved split tabs to adjacent indices via
+    // PlaceGroupAroundAnchor; reconcile would otherwise re-emit them in
+    // stored (stale) order and the visual grouping would not appear.
+    this.consolidateSplitGroups_(actualTabs);
+  }
+
+  /**
+   * After reconcile, walk actualTabs to find each split-group run (consecutive
+   * tabs with isInSplit=true). For each run, locate its members at the top
+   * level of items_ and move the trailing members to sit immediately after
+   * the first member, preserving the actualTabs order. Folder-bound members
+   * are left in place — only loose, top-level tabs get reordered.
+   */
+  private consolidateSplitGroups_(actualTabs: TabData[]): void {
+    let i = 0;
+    while (i < actualTabs.length) {
+      const tab = actualTabs[i]!;
+      if (!tab.isInSplit) {
+        i++;
+        continue;
+      }
+      // Collect the consecutive split run starting at i.
+      let j = i;
+      const run: TabData[] = [];
+      while (j < actualTabs.length && actualTabs[j]!.isInSplit) {
+        run.push(actualTabs[j]!);
+        j++;
+      }
+      i = j;
+      if (run.length < 2) continue;
+
+      // Find anchor: the first run member that lives at the top level.
+      const indexOfRunMember = (member: TabData): number => {
+        return this.items_.findIndex(
+            it => it.type === 'tab' &&
+                  this.matchesTabRef_(it as SidebarTabRef, member));
+      };
+
+      const anchorIdx = indexOfRunMember(run[0]!);
+      if (anchorIdx === -1) continue;  // anchor lives in a folder, skip
+
+      // Walk the rest of the run; move each top-level member right after the
+      // previous one. Folder-bound members are skipped (they keep their
+      // folder placement).
+      let insertAfter = anchorIdx;
+      for (let k = 1; k < run.length; k++) {
+        const memberIdx = indexOfRunMember(run[k]!);
+        if (memberIdx === -1) continue;  // in a folder
+        const targetIdx = insertAfter + 1;
+        if (memberIdx === targetIdx) {
+          insertAfter = targetIdx;
+          continue;
+        }
+        const [item] = this.items_.splice(memberIdx, 1);
+        if (!item) continue;
+        // After splice, indices shift if memberIdx < targetIdx.
+        const adjustedTarget =
+            memberIdx < targetIdx ? targetIdx - 1 : targetIdx;
+        this.items_.splice(adjustedTarget, 0, item);
+        insertAfter = adjustedTarget;
+      }
+    }
   }
 
   /**

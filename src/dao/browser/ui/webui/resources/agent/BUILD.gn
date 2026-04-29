@@ -7,6 +7,12 @@ import("//ui/webui/resources/tools/build_webui.gni")
 build_webui("build") {
   grd_prefix = "dao_agent"
 
+  # vendor/pi_web_ui.css is a precompiled Tailwind bundle; skip stylelint.
+  disable_css_lint = true
+
+  # Dao TS is not authored to upstream Lit element-structure rules.
+  enable_type_aware_eslint_checks = false
+
   static_files = [
     "agent.css",
     "agent.html",
@@ -16,7 +22,7 @@ build_webui("build") {
     "vendor/pi_web_ui.css",
   ]
 
-  non_web_component_files = [
+  ts_files = [
     "agent.ts",
     "agent_bridge.ts",
     "dao_agent_app.ts",

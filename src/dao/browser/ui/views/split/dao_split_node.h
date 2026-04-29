@@ -36,7 +36,7 @@ class DaoSplitNode {
   virtual void Layout(const gfx::Rect& bounds) = 0;
 
   // Serialize to a dict for persistence.
-  virtual base::Value::Dict Serialize() const = 0;
+  virtual base::DictValue Serialize() const = 0;
 
   // Number of leaf nodes in this subtree.
   virtual int CountLeaves() const = 0;
@@ -77,7 +77,7 @@ class DaoSplitBranchNode : public DaoSplitNode {
 
   // DaoSplitNode:
   void Layout(const gfx::Rect& bounds) override;
-  base::Value::Dict Serialize() const override;
+  base::DictValue Serialize() const override;
   int CountLeaves() const override;
   int MaxDepth() const override;
   DaoSplitLeafNode* FindLeaf(content::WebContents* web_contents) override;
@@ -109,7 +109,7 @@ class DaoSplitLeafNode : public DaoSplitNode {
 
   // DaoSplitNode:
   void Layout(const gfx::Rect& bounds) override;
-  base::Value::Dict Serialize() const override;
+  base::DictValue Serialize() const override;
   int CountLeaves() const override;
   int MaxDepth() const override;
   DaoSplitLeafNode* FindLeaf(content::WebContents* web_contents) override;
@@ -145,7 +145,7 @@ DaoSplitNode* CloseLeaf(std::unique_ptr<DaoSplitNode>& root,
 
 // Deserialize a tree from a dict previously produced by Serialize().
 // Returns nullptr on invalid data.
-std::unique_ptr<DaoSplitNode> DeserializeTree(const base::Value::Dict& dict);
+std::unique_ptr<DaoSplitNode> DeserializeTree(const base::DictValue& dict);
 
 }  // namespace dao
 

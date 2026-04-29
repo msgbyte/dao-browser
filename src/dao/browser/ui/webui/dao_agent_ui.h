@@ -44,7 +44,7 @@ class DaoAgentDevToolsClient : public content::DevToolsAgentHostClient {
   using ResponseCallback = base::OnceCallback<void(base::Value)>;
   using EventCallback =
       base::RepeatingCallback<void(const std::string& method,
-                                   const base::Value::Dict& params)>;
+                                   const base::DictValue& params)>;
 
   DaoAgentDevToolsClient();
   ~DaoAgentDevToolsClient() override;
@@ -57,7 +57,7 @@ class DaoAgentDevToolsClient : public content::DevToolsAgentHostClient {
 
   // Send a CDP command. |callback| receives the JSON result.
   void SendCommand(const std::string& method,
-                   base::Value::Dict params,
+                   base::DictValue params,
                    ResponseCallback callback);
 
   // Set a callback for CDP events (messages without an "id" field).
@@ -92,44 +92,44 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   content::WebContents* EnsureAttached();
 
   // Message handlers called from JS via chrome.send().
-  void HandleGetPageInfo(const base::Value::List& args);
-  void HandleClickElement(const base::Value::List& args);
-  void HandleExecuteScript(const base::Value::List& args);
-  void HandleMoveCursor(const base::Value::List& args);
-  void HandleAgentClick(const base::Value::List& args);
-  void HandleHighlightElement(const base::Value::List& args);
-  void HandleClearHighlight(const base::Value::List& args);
-  void HandleGetAccessibilityTree(const base::Value::List& args);
-  void HandleClickByRef(const base::Value::List& args);
-  void HandleCaptureScreenshot(const base::Value::List& args);
-  void HandleScrollPage(const base::Value::List& args);
-  void HandleScrollToElement(const base::Value::List& args);
-  void HandleSetExpectedDomain(const base::Value::List& args);
+  void HandleGetPageInfo(const base::ListValue& args);
+  void HandleClickElement(const base::ListValue& args);
+  void HandleExecuteScript(const base::ListValue& args);
+  void HandleMoveCursor(const base::ListValue& args);
+  void HandleAgentClick(const base::ListValue& args);
+  void HandleHighlightElement(const base::ListValue& args);
+  void HandleClearHighlight(const base::ListValue& args);
+  void HandleGetAccessibilityTree(const base::ListValue& args);
+  void HandleClickByRef(const base::ListValue& args);
+  void HandleCaptureScreenshot(const base::ListValue& args);
+  void HandleScrollPage(const base::ListValue& args);
+  void HandleScrollToElement(const base::ListValue& args);
+  void HandleSetExpectedDomain(const base::ListValue& args);
 
   // Tab management handlers.
-  void HandleListTabs(const base::Value::List& args);
-  void HandleSwitchTab(const base::Value::List& args);
-  void HandleOpenTab(const base::Value::List& args);
-  void HandleCloseTab(const base::Value::List& args);
+  void HandleListTabs(const base::ListValue& args);
+  void HandleSwitchTab(const base::ListValue& args);
+  void HandleOpenTab(const base::ListValue& args);
+  void HandleCloseTab(const base::ListValue& args);
 
   // Keyboard/text input handlers.
-  void HandlePressKeyChord(const base::Value::List& args);
-  void HandleTypeText(const base::Value::List& args);
+  void HandlePressKeyChord(const base::ListValue& args);
+  void HandleTypeText(const base::ListValue& args);
 
   // Network/console debugging handlers.
-  void HandleEnableNetworkTracking(const base::Value::List& args);
-  void HandleGetNetworkRequests(const base::Value::List& args);
-  void HandleClearNetworkRequests(const base::Value::List& args);
-  void HandleEnableConsoleTracking(const base::Value::List& args);
-  void HandleGetConsoleMessages(const base::Value::List& args);
-  void HandleClearConsoleMessages(const base::Value::List& args);
+  void HandleEnableNetworkTracking(const base::ListValue& args);
+  void HandleGetNetworkRequests(const base::ListValue& args);
+  void HandleClearNetworkRequests(const base::ListValue& args);
+  void HandleEnableConsoleTracking(const base::ListValue& args);
+  void HandleGetConsoleMessages(const base::ListValue& args);
+  void HandleClearConsoleMessages(const base::ListValue& args);
 
   // Reverse-engineering / source inspection handlers.
   // All four rely on the CDP Page/Network domains and are read-only.
-  void HandleGetPageHtml(const base::Value::List& args);
-  void HandleListPageResources(const base::Value::List& args);
-  void HandleGetResourceContent(const base::Value::List& args);
-  void HandleGetNetworkBody(const base::Value::List& args);
+  void HandleGetPageHtml(const base::ListValue& args);
+  void HandleListPageResources(const base::ListValue& args);
+  void HandleGetResourceContent(const base::ListValue& args);
+  void HandleGetNetworkBody(const base::ListValue& args);
 
   // Shared tail of HandleGetResourceContent: run Page.getResourceContent
   // once both frame id and url are known, then reply to |callback_id|.
@@ -156,7 +156,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
                                     base::Value result);
 
   // Sidebar control.
-  void HandleCloseSidebar(const base::Value::List& args);
+  void HandleCloseSidebar(const base::ListValue& args);
 
   void PerformCDPClick(const std::string& callback_id,
                        const std::string& escaped_selector,
@@ -173,22 +173,22 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
                                double viewport_x,
                                double viewport_y,
                                content::WebContents* locked_contents,
-                               base::Value::Dict press_params);
+                               base::DictValue press_params);
 
   // CDP event handler for network/console tracking.
   void OnCDPEvent(const std::string& method,
-                  const base::Value::Dict& params);
+                  const base::DictValue& params);
 
   // Domain security: expected domain set at session start.
   std::string expected_domain_;
 
   // Network tracking state.
   bool network_tracking_enabled_ = false;
-  std::vector<base::Value::Dict> network_requests_;
+  std::vector<base::DictValue> network_requests_;
 
   // Console tracking state.
   bool console_tracking_enabled_ = false;
-  std::vector<base::Value::Dict> console_messages_;
+  std::vector<base::DictValue> console_messages_;
 
   std::unique_ptr<DaoAgentDevToolsClient> devtools_client_;
   base::WeakPtrFactory<DaoAgentUIHandler> weak_factory_{this};
@@ -212,27 +212,27 @@ class DaoAgentMemoryHandler : public content::WebUIMessageHandler,
  private:
   DaoAgentMemoryService* GetMemoryService();
 
-  void HandleGetMemoryContext(const base::Value::List& args);
-  void HandleEndSession(const base::Value::List& args);
-  void HandleLoadConversations(const base::Value::List& args);
-  void HandleGetPreferences(const base::Value::List& args);
-  void HandleUpdatePreference(const base::Value::List& args);
-  void HandleDeleteMemory(const base::Value::List& args);
-  void HandleGetEpisodes(const base::Value::List& args);
-  void HandleClearAllMemory(const base::Value::List& args);
-  void HandleGetStorageStats(const base::Value::List& args);
-  void HandleDismissSuggestion(const base::Value::List& args);
-  void HandleAcceptSuggestion(const base::Value::List& args);
-  void HandleGetMemoryEnabled(const base::Value::List& args);
-  void HandleSetMemoryEnabled(const base::Value::List& args);
+  void HandleGetMemoryContext(const base::ListValue& args);
+  void HandleEndSession(const base::ListValue& args);
+  void HandleLoadConversations(const base::ListValue& args);
+  void HandleGetPreferences(const base::ListValue& args);
+  void HandleUpdatePreference(const base::ListValue& args);
+  void HandleDeleteMemory(const base::ListValue& args);
+  void HandleGetEpisodes(const base::ListValue& args);
+  void HandleClearAllMemory(const base::ListValue& args);
+  void HandleGetStorageStats(const base::ListValue& args);
+  void HandleDismissSuggestion(const base::ListValue& args);
+  void HandleAcceptSuggestion(const base::ListValue& args);
+  void HandleGetMemoryEnabled(const base::ListValue& args);
+  void HandleSetMemoryEnabled(const base::ListValue& args);
 
   // Scenario & proactive settings handlers.
-  void HandleSetProactiveEnabled(const base::Value::List& args);
-  void HandleSetConfidenceThreshold(const base::Value::List& args);
-  void HandleRecordActionFeedback(const base::Value::List& args);
-  void HandleSaveEpisode(const base::Value::List& args);
-  void HandleSaveSummary(const base::Value::List& args);
-  void HandleGetPageContentForScenario(const base::Value::List& args);
+  void HandleSetProactiveEnabled(const base::ListValue& args);
+  void HandleSetConfidenceThreshold(const base::ListValue& args);
+  void HandleRecordActionFeedback(const base::ListValue& args);
+  void HandleSaveEpisode(const base::ListValue& args);
+  void HandleSaveSummary(const base::ListValue& args);
+  void HandleGetPageContentForScenario(const base::ListValue& args);
 
   std::unique_ptr<DaoAgentProactiveEngine> proactive_engine_;
   base::WeakPtrFactory<DaoAgentMemoryHandler> weak_factory_{this};
@@ -250,12 +250,12 @@ class DaoAgentSkillHandler : public content::WebUIMessageHandler {
  private:
   DaoAgentSkillService* GetSkillService();
 
-  void HandleGetSkillRegistry(const base::Value::List& args);
-  void HandleGetSkillContent(const base::Value::List& args);
-  void HandleSaveUserSkill(const base::Value::List& args);
-  void HandleDeleteUserSkill(const base::Value::List& args);
-  void HandleOpenSkillsDirectory(const base::Value::List& args);
-  void HandleOpenSkillManager(const base::Value::List& args);
+  void HandleGetSkillRegistry(const base::ListValue& args);
+  void HandleGetSkillContent(const base::ListValue& args);
+  void HandleSaveUserSkill(const base::ListValue& args);
+  void HandleDeleteUserSkill(const base::ListValue& args);
+  void HandleOpenSkillsDirectory(const base::ListValue& args);
+  void HandleOpenSkillManager(const base::ListValue& args);
 
   base::WeakPtrFactory<DaoAgentSkillHandler> weak_factory_{this};
 };

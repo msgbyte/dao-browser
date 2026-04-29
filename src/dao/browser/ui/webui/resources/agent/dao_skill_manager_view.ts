@@ -28,14 +28,14 @@ export class DaoSkillManagerView extends CrLitElement {
     };
   }
 
-  private skillList_: SkillRegistryEntry[] = [];
-  private selectedSkillId_ = '';
-  private editorContent_ = '';
-  private editorReadonly_ = false;
-  private isNewSkill_ = false;
-  private showDeleteConfirm_ = false;
-  private saveStatusText_ = '';
-  private saveStatusVisible_ = false;
+  declare private skillList_: SkillRegistryEntry[];
+  declare private selectedSkillId_: string;
+  declare private editorContent_: string;
+  declare private editorReadonly_: boolean;
+  declare private isNewSkill_: boolean;
+  declare private showDeleteConfirm_: boolean;
+  declare private saveStatusText_: string;
+  declare private saveStatusVisible_: boolean;
   private saveStatusTimer_ = 0;
 
   static override get styles() {
@@ -297,6 +297,18 @@ export class DaoSkillManagerView extends CrLitElement {
         background: rgba(239, 68, 68, 0.25);
       }
     `;
+  }
+
+  constructor() {
+    super();
+    this.selectedSkillId_ = '';
+    this.editorContent_ = '';
+    this.editorReadonly_ = false;
+    this.isNewSkill_ = false;
+    this.showDeleteConfirm_ = false;
+    this.saveStatusText_ = '';
+    this.saveStatusVisible_ = false;
+    this.skillList_ = [];
   }
 
   override connectedCallback() {

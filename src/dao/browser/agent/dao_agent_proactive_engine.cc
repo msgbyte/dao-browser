@@ -10,6 +10,7 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
@@ -126,10 +127,8 @@ void DaoAgentProactiveEngine::Start() {
   BrowserList::AddObserver(this);
 
   // Observe existing browsers for this profile.
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->profile() == profile_) {
-      browser->tab_strip_model()->AddObserver(this);
-    }
+  for (Browser* browser : chrome::FindAllBrowsersWithProfile(profile_)) {
+    browser->tab_strip_model()->AddObserver(this);
   }
 }
 
@@ -141,10 +140,8 @@ void DaoAgentProactiveEngine::Stop() {
   dwell_timer_.Stop();
   BrowserList::RemoveObserver(this);
 
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->profile() == profile_) {
-      browser->tab_strip_model()->RemoveObserver(this);
-    }
+  for (Browser* browser : chrome::FindAllBrowsersWithProfile(profile_)) {
+    browser->tab_strip_model()->RemoveObserver(this);
   }
 
   active_tab_observer_.reset();

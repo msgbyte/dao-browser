@@ -1,68 +1,56 @@
 diff --git a/chrome/browser/ui/startup/infobar_utils.cc b/chrome/browser/ui/startup/infobar_utils.cc
-index dac3d705a4..25595c3d1d 100644
+index 57d73946aa..34af33e6f5 100644
 --- a/chrome/browser/ui/startup/infobar_utils.cc
 +++ b/chrome/browser/ui/startup/infobar_utils.cc
-@@ -11,7 +11,8 @@
- #include "chrome/browser/obsolete_system/obsolete_system.h"
- #include "chrome/browser/profiles/profile.h"
- #include "chrome/browser/ui/browser.h"
--#include "chrome/browser/ui/session_crashed_bubble.h"
-+#include "chrome/browser/sessions/exit_type_service.h"
-+#include "chrome/browser/sessions/session_restore.h"
- #include "chrome/browser/ui/startup/automation_infobar_delegate.h"
- #include "chrome/browser/ui/startup/bad_flags_prompt.h"
- #include "chrome/browser/ui/startup/bidding_and_auction_consented_debugging_infobar_delegate.h"
-@@ -125,8 +126,15 @@ void AddInfoBarsIfNecessary(Browser* browser,
- 
-   // Web apps should not display the session restore bubble (crbug.com/1264121)
-   if (!is_web_app && HasPendingUncleanExit(browser->profile())) {
--    SessionCrashedBubble::ShowIfNotOffTheRecordProfile(
--        browser, /*skip_tab_checking=*/false);
-+    // Dao: Skip crash bubble and auto-restore previous session.
-+    // Acquire and immediately release a CrashedLock so that ExitTypeService
-+    // acknowledges the crash.  Without this, SessionService saving stays
-+    // disabled and the current session is never persisted.
-+    if (auto* ets = ExitTypeService::GetInstanceForProfile(
-+            browser->profile())) {
-+      auto lock = ets->CreateCrashedLock();  // released at scope end → ack
-+    }
-+    SessionRestore::RestoreSessionAfterCrash(browser);
+@@ -146,15 +146,10 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+     return;
    }
+ 
+-  // Web apps should not display the session restore bubble (crbug.com/1264121)
+-  const bool should_display_bubble =
+-      !is_web_app && HasPendingUncleanExit(browser->GetProfile());
+-  base::UmaHistogramBoolean("Startup.CrashBubbleShown", should_display_bubble);
+-  if (should_display_bubble) {
+-    SessionCrashedBubble::ShowIfNotOffTheRecordProfile(
+-        browser,
+-        /*skip_tab_checking=*/false);
+-  }
++  // Dao Browser: Never show the "restore previous session?" crash bubble.
++  // DetermineBrowserOpenBehavior is patched to always restore the last
++  // session, so the bubble would be redundant — tabs are already back.
++  base::UmaHistogramBoolean("Startup.CrashBubbleShown", false);
  
    // These info bars are not shown when the browser is being controlled by
-@@ -156,9 +164,10 @@ void AddInfoBarsIfNecessary(Browser* browser,
-     infobars::ContentInfoBarManager* infobar_manager =
-         infobars::ContentInfoBarManager::FromWebContents(web_contents);
+   // automated tests, so that they don't interfere with tests that assume no
+@@ -186,9 +181,11 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+   infobars::ContentInfoBarManager* infobar_manager =
+       infobars::ContentInfoBarManager::FromWebContents(web_contents);
  
--    if (!google_apis::HasAPIKeyConfigured()) {
--      GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
--    }
-+    // Dao: Suppress Google API keys missing infobar — no Google services used.
-+    // if (!google_apis::HasAPIKeyConfigured()) {
-+    //   GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
-+    // }
+-  if (!google_apis::HasAPIKeyConfigured()) {
+-    GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
+-  }
++  // Dao: Suppress the "missing Google API key" infobar — Dao doesn't ship
++  // Google API keys and the warning is not actionable for end users.
++  // if (!google_apis::HasAPIKeyConfigured()) {
++  //   GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
++  // }
  
-     if (ObsoleteSystem::IsObsoleteNowOrSoon()) {
-       PrefService* local_state = g_browser_process->local_state();
-@@ -169,13 +178,14 @@ void AddInfoBarsIfNecessary(Browser* browser,
-     }
+   if (ObsoleteSystem::IsObsoleteNowOrSoon()) {
+     PrefService* local_state = g_browser_process->local_state();
+@@ -215,6 +212,9 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+ #endif
  
  #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
--    if (!is_web_app &&
--        !startup_command_line.HasSwitch(switches::kNoDefaultBrowserCheck)) {
--      // The default browser prompt should only be shown after the first run.
--      if (is_first_run == chrome::startup::IsFirstRun::kNo) {
--        ShowDefaultBrowserPrompt(profile);
--      }
--    }
-+    // Dao: Suppress default browser prompt — not needed for Dao Browser.
-+    // if (!is_web_app &&
-+    //     !startup_command_line.HasSwitch(switches::kNoDefaultBrowserCheck)) {
-+    //   // The default browser prompt should only be shown after the first run.
-+    //   if (is_first_run == chrome::startup::IsFirstRun::kNo) {
-+    //     ShowDefaultBrowserPrompt(profile);
-+    //   }
-+    // }
- #endif
++  // Dao: Suppress the "set as default browser" and "set as default PDF viewer"
++  // prompts. Dao does not ask for these at startup.
++#if 0
+   if (is_web_app ||
+       startup_command_line.HasSwitch(switches::kNoDefaultBrowserCheck) ||
+       startup_command_line.HasSwitch(switches::kNoFirstRun)) {
+@@ -278,5 +278,6 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+     ShowDefaultBrowserPrompt(profile, base::DoNothing());
+ #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
    }
++#endif  // #if 0 (Dao: default-browser / PDF infobar suppression)
+ #endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
  }

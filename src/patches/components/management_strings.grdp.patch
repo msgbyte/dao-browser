@@ -1,11 +1,11 @@
 diff --git a/components/management_strings.grdp b/components/management_strings.grdp
-index ad3a213d66..c9af98e482 100644
+index 606b2c91df..a8584afb49 100644
 --- a/components/management_strings.grdp
 +++ b/components/management_strings.grdp
 @@ -23,10 +23,10 @@
  
    <!-- Subtitles of the ChromeOS version of the management page -->
-   <if expr="chromeos_ash">
+   <if expr="is_chromeos">
 -    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED" desc="Title of chrome://management page, shows when device is managed by an unknown manager">
 +    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED" desc="Title of dao://management page, shows when device is managed by an unknown manager">
        Your <ph name="DEVICE_NAME">$1<ex>Chromebook</ex></ph> is managed
@@ -18,7 +18,7 @@ index ad3a213d66..c9af98e482 100644
 @@ -36,13 +36,13 @@
  
    <!-- Subtitles of the browser version of the management page -->
-   <if expr="not chromeos_ash">
+   <if expr="not is_chromeos">
 -    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED_BY" desc="Title of chrome://management page, which shows the administrator's capabilities in a managed environment. MANAGER can be a domain or an email address.">
 +    <message name="IDS_MANAGEMENT_SUBTITLE_MANAGED_BY" desc="Title of dao://management page, which shows the administrator's capabilities in a managed environment. MANAGER can be a domain or an email address.">
        Your browser is managed by <ph name="MANAGER">$1<ex>example.com</ex></ph>
@@ -41,7 +41,7 @@ index ad3a213d66..c9af98e482 100644
    go/chrome-policy-privacy-note-mappings
    -->
    <if expr="is_chromeos">
-@@ -225,8 +225,8 @@
+@@ -237,8 +237,8 @@
      <message name="IDS_MANAGEMENT_REPORT_PLUGIN_VM" desc="Message telling users that Plugin VM can collect data.">
        Your administrator has allowed <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> to collect diagnostics data to improve the product experience. See <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://www.parallels.com/pcep"&gt;</ph>https://www.parallels.com/pcep<ph name="END_LINK">&lt;/a&gt;</ph> for more information.
      </message>
@@ -52,9 +52,9 @@ index ad3a213d66..c9af98e482 100644
      </message>
      <message name="IDS_MANAGEMENT_REPORT_FILE_EVENTS" desc="Message stating that administrators may see file information">
        Recent file access and modifications, including file names, digital fingerprints of the file content, download source, and metadata
-@@ -424,16 +424,16 @@
+@@ -460,16 +460,16 @@
+     </message>
    </if>
- 
    <if expr="is_ios">
 -    <message name="IDS_IOS_MANAGEMENT_UI_DESC" desc="The descriptive text on chrome://management page when the browser is managed.">
 +    <message name="IDS_IOS_MANAGEMENT_UI_DESC" desc="The descriptive text on dao://management page when the browser is managed.">

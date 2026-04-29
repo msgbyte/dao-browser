@@ -1,5 +1,5 @@
 diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
-index b645fbd12d..4a5c44f8f2 100644
+index 0ebef594ad..9be63f8c66 100644
 --- a/chrome/app/chromium_strings.grd
 +++ b/chrome/app/chromium_strings.grd
 @@ -293,11 +293,11 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
@@ -18,69 +18,7 @@ index b645fbd12d..4a5c44f8f2 100644
            </message>
          </else>
        </if>
-@@ -719,49 +719,49 @@ Chromium is unable to recover your settings.
-         <ph name="FILE_NAME">$1<ex>malware.exe</ex></ph> is dangerous, so Chromium has blocked it.
-       </message>
-       <message name="IDS_BLOCK_REASON_PROMPT_FOR_SCANNING"
--         desc="Message shown to the user on chrome://downloads page to explain that this download is recommended to be scanned.">
-+         desc="Message shown to the user on dao://downloads page to explain that this download is recommended to be scanned.">
-         Chromium recommends scanning this file because it may be dangerous.
-       </message>
- 
--      <!-- chrome://downloads page dangerous file description strings -->
-+      <!-- dao://downloads page dangerous file description strings -->
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_FILETYPE"
--               desc="On the chrome://downloads page, the description shown for a blocked file with a dangerous filetype.">
-+               desc="On the dao://downloads page, the description shown for a blocked file with a dangerous filetype.">
-         Chromium blocked this download because the file type isn't commonly downloaded and it may be dangerous
-       </message>
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS"
--               desc="On the chrome://downloads page, the description shown for a blocked file that is dangerous.">
-+               desc="On the dao://downloads page, the description shown for a blocked file that is dangerous.">
-         Chromium blocked this download because the file is dangerous
-       </message>
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_COOKIE_THEFT"
--               desc="On the chrome://downloads page, the description shown for a blocked file that is dangerous because of cookie theft.">
-+               desc="On the dao://downloads page, the description shown for a blocked file that is dangerous because of cookie theft.">
-         Chromium blocked this download because the file can harm your personal and social network accounts
-       </message>
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_DANGEROUS_COOKIE_THEFT_AND_ACCOUNT"
--               desc="On the chrome://downloads page, the description with account info shown for a blocked file that is dangerous because of cookie theft.">
-+               desc="On the dao://downloads page, the description with account info shown for a blocked file that is dangerous because of cookie theft.">
-         Chromium blocked this download because the file can harm your personal and social network accounts, including <ph name="USER_EMAIL">$1<ex>john@google.com</ex></ph>
-       </message>
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNCOMMON"
--               desc="On the chrome://downloads page, the description shown for a blocked file that is uncommon.">
-+               desc="On the dao://downloads page, the description shown for a blocked file that is uncommon.">
-         Chromium blocked this download because the file isn't commonly downloaded and it may be dangerous
-       </message>
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNCOMMON_SUSPICIOUS_ARCHIVE"
--               desc="On the chrome://downloads page, the description shown for a blocked file that is suspicious archive.">
-+               desc="On the dao://downloads page, the description shown for a blocked file that is suspicious archive.">
-         Chromium blocked this download because the archive file includes other files that may hide malware
-       </message>
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_POTENTIALLY_UNWANTED"
--               desc="On the chrome://downloads page, the description shown for a blocked file that is potentially unwanted.">
-+               desc="On the dao://downloads page, the description shown for a blocked file that is potentially unwanted.">
-         Chromium blocked this download because the file is deceptive and may make unexpected changes to your device
-       </message>
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_INSECURE"
--               desc="On the chrome://downloads page, the description shown for a blocked file that is insecure.">
-+               desc="On the dao://downloads page, the description shown for a blocked file that is insecure.">
-         Chromium blocked this download because the site isn't using a secure connection and the file may have been tampered with
-       </message>
-       <message name="IDS_BLOCK_DOWNLOAD_REASON_UNVERIFIED_NO_SAFE_BROWSING"
--               desc="On the chrome://downloads page, the description shown for a blocked file that could not be verified because Safe Browsing is off.">
-+               desc="On the dao://downloads page, the description shown for a blocked file that could not be verified because Safe Browsing is off.">
-         Chromium blocked this download because you turned Safe Browsing off and the file can't be verified
-       </message>
- 
--      <!-- chrome://downloads page bypass dangerous download warning prompt-->
-+      <!-- dao://downloads page bypass dangerous download warning prompt-->
-       <message name="IDS_DOWNLOAD_WARNING_BYPASS_PROMPT_LEARN_MORE_LINK"
-                desc="On the downloads page, the label for the link to the help center in the prompt to bypass a dangerous download warning.">
-         Learn why Chromium blocks some files
-@@ -863,7 +863,7 @@ Chromium is unable to recover your settings.
+@@ -979,7 +979,7 @@ Chromium is unable to recover your settings.
          This extension hasn't published privacy practices, such as how it collects and uses data. Chromium recommends that you remove it.
        </message>
  
@@ -89,7 +27,7 @@ index b645fbd12d..4a5c44f8f2 100644
    <message name="IDS_EXTENSIONS_SC_DESCRIPTION" desc="Detailed message displayed in the Safety Check description section.">
      {NUM_EXTENSIONS, plural,
       =1 {Chromium recommends that you remove it}
-@@ -916,35 +916,35 @@ Chromium is unable to recover your settings.
+@@ -1035,35 +1035,35 @@ Chromium is unable to recover your settings.
              </message>
            </then>
            <else>
@@ -136,7 +74,7 @@ index b645fbd12d..4a5c44f8f2 100644
          </message>
          <message name="IDS_RELAUNCH_TO_UPDATE" desc="The text label of the relaunch to update ChromeOS menu item">
            Relaunch to update &amp;ChromiumOS
-@@ -952,14 +952,14 @@ Chromium is unable to recover your settings.
+@@ -1071,14 +1071,14 @@ Chromium is unable to recover your settings.
        </if>
  
        <if expr="is_macosx">
@@ -157,12 +95,3 @@ index b645fbd12d..4a5c44f8f2 100644
          </message>
        </if>
  
-@@ -1914,7 +1914,7 @@ Chromium is unable to recover your settings.
-         </message>
-       </if>
- 
--      <!-- Welcome page (chrome://welcome) strings -->
-+      <!-- Welcome page (dao://welcome) strings -->
-       <if expr="not is_chromeos and not is_android">
-         <message name="IDS_WELCOME_HEADER" desc="A message which will appear as the header on the Welcome UI if the user has never run Chromium before.">
-           Welcome to Chromium

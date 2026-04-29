@@ -1,0 +1,316 @@
+diff --git a/extensions/common/api/_api_features.json b/extensions/common/api/_api_features.json
+index f62290c7bc..a24e520208 100644
+--- a/extensions/common/api/_api_features.json
++++ b/extensions/common/api/_api_features.json
+@@ -111,8 +111,8 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://bluetooth-pairing/*",
+-      "chrome://os-settings/*"
++      "chrome://bluetooth-pairing/*", "dao://bluetooth-pairing/*",
++      "chrome://os-settings/*", "dao://os-settings/*"
+     ],
+     // "desktop_android" is not supported.
+     "platforms": ["chromeos", "linux", "mac", "win"]
+@@ -129,8 +129,8 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://bluetooth-pairing/*",
+-      "chrome://os-settings/*"
++      "chrome://bluetooth-pairing/*", "dao://bluetooth-pairing/*",
++      "chrome://os-settings/*", "dao://os-settings/*"
+     ]
+   }],
+   "bluetoothSocket": {
+@@ -213,9 +213,9 @@
+       "channel": "stable",
+       "contexts": ["webui"],
+       "matches": [
+-        "chrome://feedback/*",
+-        "chrome://cast-feedback/*",
+-        "chrome://os-feedback/*"
++        "chrome://feedback/*", "dao://feedback/*",
++        "chrome://cast-feedback/*", "dao://cast-feedback/*",
++        "chrome://os-feedback/*", "dao://os-feedback/*"
+       ],
+       // "desktop_android" is not supported.
+       "platforms": ["chromeos", "linux", "mac", "win"]
+@@ -241,7 +241,7 @@
+       "channel": "stable",
+       "contexts": ["webui"],
+       "matches": [
+-        "chrome://feedback/*"
++        "chrome://feedback/*", "dao://feedback/*"
+       ]
+     }
+   ],
+@@ -262,20 +262,20 @@
+       "channel": "stable",
+       "contexts": ["webui"],
+       "matches": [
+-        "chrome://add-supervision/*",
+-        "chrome://contextual-tasks/*",
+-        "chrome://extensions/*",
+-        "chrome://glic/*",
+-        "chrome://glic-fre/*",
+-        "chrome://graduation/*",
+-        "chrome://home/*",
+-        "chrome://chrome-signin/*",
+-        "chrome://mobilesetup/*",
+-        "chrome://oobe/*",
+-        "chrome://os-settings/*",
+-        "chrome://parent-access/*",
+-        "chrome://password-change/*",
+-        "chrome://lock-reauth/*"
++        "chrome://add-supervision/*", "dao://add-supervision/*",
++        "chrome://contextual-tasks/*", "dao://contextual-tasks/*",
++        "chrome://extensions/*", "dao://extensions/*",
++        "chrome://glic/*", "dao://glic/*",
++        "chrome://glic-fre/*", "dao://glic-fre/*",
++        "chrome://graduation/*", "dao://graduation/*",
++        "chrome://home/*", "dao://home/*",
++        "chrome://chrome-signin/*", "dao://chrome-signin/*",
++        "chrome://mobilesetup/*", "dao://mobilesetup/*",
++        "chrome://oobe/*", "dao://oobe/*",
++        "chrome://os-settings/*", "dao://os-settings/*",
++        "chrome://parent-access/*", "dao://parent-access/*",
++        "chrome://password-change/*", "dao://password-change/*",
++        "chrome://lock-reauth/*", "dao://lock-reauth/*"
+       ]
+     }, {
+       "internal": true,
+@@ -334,8 +334,8 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://extensions/*",
+-      "chrome://settings/*"
++      "chrome://extensions/*", "dao://extensions/*",
++      "chrome://settings/*", "dao://settings/*"
+     ]
+   }, {
+     "channel": "stable",
+@@ -383,38 +383,38 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://apps/*",
+-      "chrome://bookmarks/*",
+-      "chrome://bookmarks-side-panel.top-chrome/*",
+-      "chrome://certificate-manager/*",
+-      "chrome://compare/*",
+-      "chrome://contextual-tasks/*",
+-      "chrome://customize-chrome-side-panel.top-chrome/*",
+-      "chrome://shopping-insights-side-panel.top-chrome/*",
+-      "chrome://eche-app/*",
+-      "chrome://extensions/*",
+-      "chrome://extensions-zero-state/*",
+-      "chrome://file-manager/*",
+-      "chrome://glic/*",
+-      "chrome://glic-fre/*",
+-      "chrome://help-app/*",
+-      "chrome://history/*",
+-      "chrome://new-tab-page/*",
+-      "chrome://newtab-footer/*",
+-      "chrome://omnibox-popup.top-chrome/*",
+-      "chrome://oobe/*",
+-      "chrome://os-settings/*",
+-      "chrome://password-manager/*",
+-      "chrome://personalization/*",
+-      "chrome://profile-picker/*",
+-      "chrome://read-later.top-chrome/*",
+-      "chrome://settings/*",
+-      "chrome://sync-confirmation/*",
+-      "chrome://tab-search.top-chrome/*",
+-      "chrome://tab-strip.top-chrome/*",
+-      "chrome://vc-background/*",
+-      "chrome://app-settings/*",
+-      "chrome://search-engine-choice/*"
++      "chrome://apps/*", "dao://apps/*",
++      "chrome://bookmarks/*", "dao://bookmarks/*",
++      "chrome://bookmarks-side-panel.top-chrome/*", "dao://bookmarks-side-panel.top-chrome/*",
++      "chrome://certificate-manager/*", "dao://certificate-manager/*",
++      "chrome://compare/*", "dao://compare/*",
++      "chrome://contextual-tasks/*", "dao://contextual-tasks/*",
++      "chrome://customize-chrome-side-panel.top-chrome/*", "dao://customize-chrome-side-panel.top-chrome/*",
++      "chrome://shopping-insights-side-panel.top-chrome/*", "dao://shopping-insights-side-panel.top-chrome/*",
++      "chrome://eche-app/*", "dao://eche-app/*",
++      "chrome://extensions/*", "dao://extensions/*",
++      "chrome://extensions-zero-state/*", "dao://extensions-zero-state/*",
++      "chrome://file-manager/*", "dao://file-manager/*",
++      "chrome://glic/*", "dao://glic/*",
++      "chrome://glic-fre/*", "dao://glic-fre/*",
++      "chrome://help-app/*", "dao://help-app/*",
++      "chrome://history/*", "dao://history/*",
++      "chrome://new-tab-page/*", "dao://new-tab-page/*",
++      "chrome://newtab-footer/*", "dao://newtab-footer/*",
++      "chrome://omnibox-popup.top-chrome/*", "dao://omnibox-popup.top-chrome/*",
++      "chrome://oobe/*", "dao://oobe/*",
++      "chrome://os-settings/*", "dao://os-settings/*",
++      "chrome://password-manager/*", "dao://password-manager/*",
++      "chrome://personalization/*", "dao://personalization/*",
++      "chrome://profile-picker/*", "dao://profile-picker/*",
++      "chrome://read-later.top-chrome/*", "dao://read-later.top-chrome/*",
++      "chrome://settings/*", "dao://settings/*",
++      "chrome://sync-confirmation/*", "dao://sync-confirmation/*",
++      "chrome://tab-search.top-chrome/*", "dao://tab-search.top-chrome/*",
++      "chrome://tab-strip.top-chrome/*", "dao://tab-strip.top-chrome/*",
++      "chrome://vc-background/*", "dao://vc-background/*",
++      "chrome://app-settings/*", "dao://app-settings/*",
++      "chrome://search-engine-choice/*", "dao://search-engine-choice/*"
+     ]
+   }, {
+     "channel": "stable",
+@@ -474,7 +474,7 @@
+     "channel": "stable",
+     "contexts": ["webui_untrusted"],
+     "matches": [
+-      "chrome://apps/*",
++      "chrome://apps/*", "dao://apps/*",
+       "chrome-untrusted://demo-mode-app/*"
+     ]
+   },
+@@ -525,11 +525,11 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://network/*",
+-      "chrome://oobe/*",
+-      "chrome://internet-config-dialog/*",
+-      "chrome://internet-detail-dialog/*",
+-      "chrome://os-settings/*"
++      "chrome://network/*", "dao://network/*",
++      "chrome://oobe/*", "dao://oobe/*",
++      "chrome://internet-config-dialog/*", "dao://internet-config-dialog/*",
++      "chrome://internet-detail-dialog/*", "dao://internet-detail-dialog/*",
++      "chrome://os-settings/*", "dao://os-settings/*"
+     ]
+   }],
+   "odfsConfigPrivate": {
+@@ -700,7 +700,7 @@
+   },{
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://file-manager/*"
++      "chrome://file-manager/*", "dao://file-manager/*"
+     ]
+   },{
+     "channel": "stable",
+@@ -785,7 +785,7 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://os-settings/*"
++      "chrome://os-settings/*", "dao://os-settings/*"
+     ]
+   }],
+   "system.memory": {
+@@ -826,10 +826,10 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://extensions/*",
++      "chrome://extensions/*", "dao://extensions/*",
+       // System Web App version of File Manager.
+-      "chrome://file-manager/*",
+-      "chrome://webui-test/*"
++      "chrome://file-manager/*", "dao://file-manager/*",
++      "chrome://webui-test/*", "dao://webui-test/*"
+     ]
+   }, {
+     "channel": "stable",
+@@ -902,19 +902,19 @@
+     "internal": true,
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://add-supervision/*",
+-      "chrome://chrome-signin/*",
+-      "chrome://contextual-tasks/*",
+-      "chrome://glic/*",
+-      "chrome://glic-fre/*",
+-      "chrome://graduation/*",
+-      "chrome://home/*",
+-      "chrome://mobilesetup/*",
+-      "chrome://oobe/*",
+-      "chrome://os-settings/*",
+-      "chrome://parent-access/*",
+-      "chrome://password-change/*",
+-      "chrome://lock-reauth/*"
++      "chrome://add-supervision/*", "dao://add-supervision/*",
++      "chrome://chrome-signin/*", "dao://chrome-signin/*",
++      "chrome://contextual-tasks/*", "dao://contextual-tasks/*",
++      "chrome://glic/*", "dao://glic/*",
++      "chrome://glic-fre/*", "dao://glic-fre/*",
++      "chrome://graduation/*", "dao://graduation/*",
++      "chrome://home/*", "dao://home/*",
++      "chrome://mobilesetup/*", "dao://mobilesetup/*",
++      "chrome://oobe/*", "dao://oobe/*",
++      "chrome://os-settings/*", "dao://os-settings/*",
++      "chrome://parent-access/*", "dao://parent-access/*",
++      "chrome://password-change/*", "dao://password-change/*",
++      "chrome://lock-reauth/*", "dao://lock-reauth/*"
+     ]
+   }, {
+     "internal": true,
+@@ -948,19 +948,19 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://add-supervision/*",
+-      "chrome://chrome-signin/*",
+-      "chrome://contextual-tasks/*",
+-      "chrome://glic/*",
+-      "chrome://glic-fre/*",
+-      "chrome://graduation/*",
+-      "chrome://home/*",
+-      "chrome://mobilesetup/*",
+-      "chrome://oobe/*",
+-      "chrome://os-settings/*",
+-      "chrome://parent-access/*",
+-      "chrome://password-change/*",
+-      "chrome://lock-reauth/*"
++      "chrome://add-supervision/*", "dao://add-supervision/*",
++      "chrome://chrome-signin/*", "dao://chrome-signin/*",
++      "chrome://contextual-tasks/*", "dao://contextual-tasks/*",
++      "chrome://glic/*", "dao://glic/*",
++      "chrome://glic-fre/*", "dao://glic-fre/*",
++      "chrome://graduation/*", "dao://graduation/*",
++      "chrome://home/*", "dao://home/*",
++      "chrome://mobilesetup/*", "dao://mobilesetup/*",
++      "chrome://oobe/*", "dao://oobe/*",
++      "chrome://os-settings/*", "dao://os-settings/*",
++      "chrome://parent-access/*", "dao://parent-access/*",
++      "chrome://password-change/*", "dao://password-change/*",
++      "chrome://lock-reauth/*", "dao://lock-reauth/*"
+     ]
+   }, {
+     "internal": true,
+@@ -992,16 +992,16 @@
+     "channel": "stable",
+     "contexts": ["webui"],
+     "matches": [
+-      "chrome://add-supervision/*",
+-      "chrome://chrome-signin/*",
+-      "chrome://contextual-tasks/*",
+-      "chrome://glic/*",
+-      "chrome://graduation/*",
+-      "chrome://home/*",
+-      "chrome://mobilesetup/*",
+-      "chrome://oobe/*",
+-      "chrome://os-settings/*",
+-      "chrome://parent-access/*"
++      "chrome://add-supervision/*", "dao://add-supervision/*",
++      "chrome://chrome-signin/*", "dao://chrome-signin/*",
++      "chrome://contextual-tasks/*", "dao://contextual-tasks/*",
++      "chrome://glic/*", "dao://glic/*",
++      "chrome://graduation/*", "dao://graduation/*",
++      "chrome://home/*", "dao://home/*",
++      "chrome://mobilesetup/*", "dao://mobilesetup/*",
++      "chrome://oobe/*", "dao://oobe/*",
++      "chrome://os-settings/*", "dao://os-settings/*",
++      "chrome://parent-access/*", "dao://parent-access/*"
+     ]
+   }, {
+     "channel": "stable",

@@ -36,6 +36,12 @@ class WebView;
 
 namespace dao {
 
+// Reverse-lookup helper: given the sidebar WebUI's WebContents, return the
+// Browser that owns the DaoSidebarView hosting it, or nullptr. Used by the
+// sidebar message handler when the async WebUI-controller binding in
+// DaoSidebarView::EnsureWebUILoaded hasn't completed yet.
+Browser* GetBrowserForSidebarWebContents(content::WebContents* web_contents);
+
 class DaoSidebarView : public views::View,
                        public gfx::AnimationDelegate,
                        public views::ResizeAreaDelegate,
@@ -114,6 +120,10 @@ class DaoSidebarView : public views::View,
   bool use_webui() const { return true; }
   void SetWebUIDropInsertIndex(int index) { webui_drop_insert_index_ = index; }
   void StartFileDrag(const base::FilePath& path);
+
+  // Accessor for the WebContents hosting the sidebar WebUI, used by the
+  // handler to reliably reverse-lookup the owning Browser.
+  content::WebContents* sidebar_web_contents() const;
 
   // views::View (drop target):
   bool GetDropFormats(

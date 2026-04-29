@@ -1,40 +1,50 @@
 diff --git a/chrome/browser/ui/views/frame/contents_layout_manager.cc b/chrome/browser/ui/views/frame/contents_layout_manager.cc
-index d383eaa02a..7bfe5449e6 100644
+index c689d3e0c5..2e2a20376f 100644
 --- a/chrome/browser/ui/views/frame/contents_layout_manager.cc
 +++ b/chrome/browser/ui/views/frame/contents_layout_manager.cc
-@@ -4,6 +4,7 @@
- 
+@@ -5,7 +5,10 @@
  #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
  
+ #include "base/check.h"
 +#include "dao/browser/ui/views/split/dao_split_view.h"
  #include "ui/views/view.h"
++#include "ui/views/view_class_properties.h"
++#include "ui/views/view_utils.h"
  
- ContentsLayoutManager::ContentsLayoutManager(views::View* devtools_view,
-@@ -47,6 +48,27 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
-   ApplyDevToolsContentsResizingStrategy(
-       strategy_, container_size, &new_devtools_bounds, &new_contents_bounds);
+ ContentsLayoutManager::ContentsLayoutManager(
+     views::View* contents_view,
+@@ -32,6 +34,34 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
+   gfx::Rect contents_bounds(0, 0, container_size.width(),
+                             container_size.height());
  
 +  // Dao: When split view is active, shrink the original ContentsWebView to a
 +  // tiny non-zero rect so Chromium status bubble anchoring still has a valid
 +  // base view, while DaoSplitView takes over the visible content area.
++  dao::DaoSplitView* dao_split_view = nullptr;
 +  for (views::View* child : host_view()->children()) {
-+    if (auto* split_view =
-+            views::AsViewClass<dao::DaoSplitView>(child)) {
++    if (auto* split_view = views::AsViewClass<dao::DaoSplitView>(child)) {
++      dao_split_view = split_view;
 +      if (split_view->IsSplitActive()) {
-+        // Keep a guaranteed non-zero anchor rect for StatusBubbleViews even
-+        // during transient resize frames where the host container reports 0.
 +        const int placeholder_width = std::max(1, std::min(width, 3));
 +        const int placeholder_height = std::max(1, std::min(height, 1));
-+        new_contents_bounds = gfx::Rect(
++        contents_bounds = gfx::Rect(
 +            std::max(0, width - placeholder_width),
 +            std::max(0, height - placeholder_height),
 +            placeholder_width, placeholder_height);
-+        new_devtools_bounds = gfx::Rect();
 +        break;
 +      }
 +    }
 +  }
 +
-   // DevTools cares about the specific position, so we have to compensate RTL
-   // layout here.
-   layouts.child_layouts.emplace_back(
+   const auto& contents_rect = host_view()->GetMirroredRect(contents_bounds);
+   views::SizeBounds optional_size_bound = views::SizeBounds(container_size);
++  // Dao: Lay out DaoSplitView filling the container so it can intercept tab
++  // drags onto the content area (for split-drop) and host split panes when
++  // active. HitTest returns false in single-pane mode except during drags,
++  // so regular mouse events pass through to ContentsWebView below.
++  if (dao_split_view) {
++    layouts.child_layouts.emplace_back(
++        dao_split_view, dao_split_view->GetVisible(),
++        gfx::Rect(0, 0, width, height), optional_size_bound);
++  }
+   layouts.child_layouts.emplace_back(contents_view_.get(),

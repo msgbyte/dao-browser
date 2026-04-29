@@ -7,6 +7,8 @@
 #include "cc/paint/paint_flags.h"
 #include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkPathBuilder.h"
+#include "third_party/skia/include/core/SkRRect.h"
 #include "third_party/skia/include/utils/SkParsePath.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/point_f.h"
@@ -44,7 +46,7 @@ void DrawSvgPath(gfx::Canvas* canvas,
   SkMatrix matrix;
   matrix.setScale(scale, scale);
   matrix.postTranslate(ox, oy);
-  path.transform(matrix);
+  path = path.makeTransform(matrix);
   canvas->DrawPath(path, flags);
 }
 
@@ -218,11 +220,11 @@ void DrawPanelLeftClose(gfx::Canvas* canvas,
                         float oy,
                         const cc::PaintFlags& flags) {
   SkPath rect_path;
-  rect_path.addRoundRect(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2);
+  rect_path = SkPathBuilder().addRRect(SkRRect::MakeRectXY(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2)).detach();
   SkMatrix matrix;
   matrix.setScale(s, s);
   matrix.postTranslate(ox, oy);
-  rect_path.transform(matrix);
+  rect_path = rect_path.makeTransform(matrix);
   canvas->DrawPath(rect_path, flags);
   canvas->DrawLine(gfx::PointF(ox + 9 * s, oy + 3 * s),
                    gfx::PointF(ox + 9 * s, oy + 21 * s), flags);
@@ -236,11 +238,11 @@ void DrawPanelLeftOpen(gfx::Canvas* canvas,
                        float oy,
                        const cc::PaintFlags& flags) {
   SkPath rect_path;
-  rect_path.addRoundRect(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2);
+  rect_path = SkPathBuilder().addRRect(SkRRect::MakeRectXY(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2)).detach();
   SkMatrix matrix;
   matrix.setScale(s, s);
   matrix.postTranslate(ox, oy);
-  rect_path.transform(matrix);
+  rect_path = rect_path.makeTransform(matrix);
   canvas->DrawPath(rect_path, flags);
   canvas->DrawLine(gfx::PointF(ox + 9 * s, oy + 3 * s),
                    gfx::PointF(ox + 9 * s, oy + 21 * s), flags);
@@ -283,11 +285,11 @@ void DrawSquareArrowDownLeft(gfx::Canvas* canvas,
                              const cc::PaintFlags& flags) {
   // Rounded rect: x=3 y=3 w=18 h=18 rx=2
   SkPath rect;
-  rect.addRoundRect(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2);
+  rect = SkPathBuilder().addRRect(SkRRect::MakeRectXY(SkRect::MakeXYWH(3, 3, 18, 18), 2, 2)).detach();
   SkMatrix matrix;
   matrix.setScale(s, s);
   matrix.postTranslate(ox, oy);
-  rect.transform(matrix);
+  rect = rect.makeTransform(matrix);
   canvas->DrawPath(rect, flags);
   // Diagonal arrow: M16 8 L8 16
   DrawSvgPath(canvas, "M16 8 8 16", s, ox, oy, flags);
@@ -303,11 +305,11 @@ void DrawBot(gfx::Canvas* canvas,
              const cc::PaintFlags& flags) {
   // Head: rounded rect x=4 y=8 w=16 h=12 rx=2
   SkPath head;
-  head.addRoundRect(SkRect::MakeXYWH(4, 8, 16, 12), 2, 2);
+  head = SkPathBuilder().addRRect(SkRRect::MakeRectXY(SkRect::MakeXYWH(4, 8, 16, 12), 2, 2)).detach();
   SkMatrix matrix;
   matrix.setScale(s, s);
   matrix.postTranslate(ox, oy);
-  head.transform(matrix);
+  head = head.makeTransform(matrix);
   canvas->DrawPath(head, flags);
   // Left ear
   DrawSvgPath(canvas, "M2 14h2", s, ox, oy, flags);

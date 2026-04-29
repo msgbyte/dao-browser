@@ -1,0 +1,16 @@
+diff --git a/extensions/browser/api/web_request/extension_web_request_event_router.cc b/extensions/browser/api/web_request/extension_web_request_event_router.cc
+index e0298d214e..46575bf92b 100644
+--- a/extensions/browser/api/web_request/extension_web_request_event_router.cc
++++ b/extensions/browser/api/web_request/extension_web_request_event_router.cc
+@@ -1965,7 +1965,10 @@ bool WebRequestEventRouter::AddEventListener(
+         });
+     // Only a single listener should ever match. It's possible no listener will
+     // match if this is a new listener in a worker context.
+-    DCHECK_LE(erased, 1u);
++    // Dao Browser: the upstream invariant is violated in the wild (observed
++    // with Bitwarden + session restore on v147), so the DCHECK was removed.
++    // std::erase_if correctly handles multiple duplicates and is_reactivated
++    // below only cares whether any entry was erased.
+     is_reactivated = erased > 0u;
+   }
+ 

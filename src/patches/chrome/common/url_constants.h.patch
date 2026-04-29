@@ -1,41 +1,8 @@
 diff --git a/chrome/common/url_constants.h b/chrome/common/url_constants.h
-index 3cd012c3c5..30420b8621 100644
+index a2915a3868..5deb6f8dc9 100644
 --- a/chrome/common/url_constants.h
 +++ b/chrome/common/url_constants.h
-@@ -51,11 +51,11 @@ inline constexpr char kAdvancedProtectionDownloadLearnMoreURL[] =
- 
- // "Chrome Settings" URL for website notifications linked out from OSSettings.
- inline constexpr char kAppNotificationsBrowserSettingsURL[] =
--    "chrome://settings/content/notifications";
-+    "dao://settings/content/notifications";
- 
- // "Chrome Settings" URL for the appearance page.
- inline constexpr char kBrowserSettingsSearchEngineURL[] =
--    "chrome://settings/search";
-+    "dao://settings/search";
- 
- // "Learn more" URL for App Parental Controls.
- // char16_t is used here because this constant may be used to set the src
-@@ -73,15 +73,15 @@ inline constexpr char kBluetoothAdapterOffHelpURL[] =
- 
- // "Chrome Settings" URL for website camera access permissions.
- inline constexpr char kBrowserCameraPermissionsSettingsURL[] =
--    "chrome://settings/content/camera";
-+    "dao://settings/content/camera";
- 
- // "Chrome Settings" URL for website location access permissions.
- inline constexpr char kBrowserLocationPermissionsSettingsURL[] =
--    "chrome://settings/content/location";
-+    "dao://settings/content/location";
- 
- // "Chrome Settings" URL for website microphone access permissions.
- inline constexpr char kBrowserMicrophonePermissionsSettingsURL[] =
--    "chrome://settings/content/microphone";
-+    "dao://settings/content/microphone";
- 
- // "Learn more" URL shown in the dialog to enable cloud services for Cast.
- inline constexpr char kCastCloudServicesHelpURL[] =
-@@ -448,11 +448,11 @@ inline constexpr char kPrivacyLearnMoreURL[] =
+@@ -470,11 +470,11 @@ inline constexpr char kPrivacyLearnMoreURL[] =
  
  // "Chrome Settings" URL for Ad Topics page
  inline constexpr char kPrivacySandboxAdTopicsURL[] =
@@ -49,36 +16,12 @@ index 3cd012c3c5..30420b8621 100644
  
  #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
  // The Privacy Sandbox homepage.
-@@ -558,12 +558,12 @@ inline constexpr char kHistorySearchLearnMorePageManagedURL[] =
- 
- // The URL for the Settings page to enable history search.
- inline constexpr char16_t kHistorySearchSettingURL[] =
--    u"chrome://settings/historySearch";
-+    u"dao://settings/historySearch";
- 
- // The URL for the Settings page to enable history search when
- // AiSettingsPageRefresh flag is enabled.
- inline constexpr char16_t kHistorySearchV2SettingURL[] =
--    u"chrome://settings/ai/historySearch";
-+    u"dao://settings/ai/historySearch";
- 
- // The URL for the "Learn more" page for Wallpaper Search.
- inline constexpr char kWallpaperSearchLearnMorePageURL[] =
-@@ -718,7 +718,7 @@ inline constexpr char kChromeOSCreditsCompressedPath[] =
- // The magic numbers in this url are the topic and article ids currently
- // required to navigate directly to a help article in the Help App.
- inline constexpr char kChromeOSGestureEducationHelpURL[] =
--    "chrome://help-app/help/sub/3399710/id/9739838";
-+    "dao://help-app/help/sub/3399710/id/9739838";
- 
- // Palette help link for Chrome.
- inline constexpr char kChromePaletteHelpURL[] =
-@@ -736,7 +736,7 @@ inline constexpr char kEasyUnlockLearnMoreUrl[] =
+@@ -721,7 +721,7 @@ inline constexpr char kChromeOSCreditsCompressedPath[] =
  
  // The URL for the help center article about redeeming Chromebook offers.
  inline constexpr char kEchoLearnMoreURL[] =
 -    "chrome://help-app/help/sub/3399709/id/2703646";
 +    "dao://help-app/help/sub/3399709/id/2703646";
  
- // The URL for EOL notification
- inline constexpr char16_t kEolNotificationURL[] =
+ // The URL for the Learn More page about enterprise enrolled devices.
+ inline constexpr char kLearnMoreEnterpriseURL[] =

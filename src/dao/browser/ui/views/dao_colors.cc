@@ -10,7 +10,8 @@ namespace dao {
 
 bool IsDarkMode() {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
-  return theme && theme->ShouldUseDarkColors();
+  return theme && theme->preferred_color_scheme() ==
+                      ui::NativeTheme::PreferredColorScheme::kDark;
 }
 
 SkColor SidebarBackground() {

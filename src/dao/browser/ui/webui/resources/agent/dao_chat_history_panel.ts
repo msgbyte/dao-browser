@@ -55,13 +55,24 @@ export class DaoChatHistoryPanel extends CrLitElement {
     };
   }
 
-  open = false;
-  currentSessionId = '';
-  private sessions_: SessionMetadata[] = [];
-  private loading_ = false;
-  private query_ = '';
-  private renameId_ = '';
-  private renameDraft_ = '';
+  declare open: boolean;
+  declare currentSessionId: string;
+  declare private sessions_: SessionMetadata[];
+  declare private loading_: boolean;
+  declare private query_: string;
+  declare private renameId_: string;
+  declare private renameDraft_: string;
+
+  constructor() {
+    super();
+    this.currentSessionId = '';
+    this.sessions_ = [];
+    this.loading_ = false;
+    this.query_ = '';
+    this.renameId_ = '';
+    this.renameDraft_ = '';
+    this.open = false;
+  }
 
   override createRenderRoot(): HTMLElement|DocumentFragment {
     return this;

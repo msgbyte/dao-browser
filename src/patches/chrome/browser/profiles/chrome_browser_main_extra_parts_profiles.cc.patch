@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-index 1c1210ee88..f97cc16d4f 100644
+index b183333a16..cba0af4a39 100644
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-@@ -570,6 +570,9 @@
- #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) ||
-         // BUILDFLAG(IS_WIN)
+@@ -602,6 +602,9 @@
+ #include "chrome/browser/net/nss_service_factory.h"
+ #endif
  
 +#include "dao/browser/agent/dao_agent_memory_service_factory.h"
 +#include "dao/browser/agent/dao_agent_skill_service_factory.h"
@@ -12,12 +12,12 @@ index 1c1210ee88..f97cc16d4f 100644
  void AddProfilesExtraParts(ChromeBrowserMainParts* main_parts) {
    main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsProfiles>());
  }
-@@ -803,6 +806,8 @@ void ChromeBrowserMainExtraPartsProfiles::
-   }
- #endif
+@@ -871,6 +874,8 @@ void ChromeBrowserMainExtraPartsProfiles::
+   CookieSettingsFactory::GetInstance();
+   CrossDevicePrefTrackerFactory::GetInstance();
    DataTypeStoreServiceFactory::GetInstance();
 +  dao::DaoAgentMemoryServiceFactory::GetInstance();
 +  dao::DaoAgentSkillServiceFactory::GetInstance();
- 
- // TODO(b/352728209): Add back this service when reporting is supported on
- // Android.
+ #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
+   data_controls::ChromeRulesServiceFactory::GetInstance();
+ #endif

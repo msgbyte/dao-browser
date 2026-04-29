@@ -1,18 +1,19 @@
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-index acc4db4ef2..63fcda42fb 100644
+index c1d2e75f82..7afef4af13 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 +++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-@@ -5,6 +5,9 @@
+@@ -4,6 +4,10 @@
+ 
  #include "chrome/browser/ui/webui/chrome_web_ui_configs.h"
  
- #include "build/build_config.h"
 +#include "dao/browser/ui/webui/dao_agent_ui.h"
 +#include "dao/browser/ui/webui/dao_sidebar_ui.h"
 +#include "dao/browser/ui/webui/dao_welcome_ui.h"
- #include "chrome/browser/optimization_guide/optimization_guide_internals_ui.h"
- #include "chrome/browser/ui/webui/about/about_ui.h"
- #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
-@@ -202,6 +205,12 @@ void RegisterChromeWebUIConfigs() {
++
+ #include "build/android_buildflags.h"
+ #include "build/branding_buildflags.h"
+ #include "build/build_config.h"
+@@ -239,6 +243,12 @@ void RegisterChromeWebUIConfigs() {
    auto& map = content::WebUIConfigMap::GetInstance();
    map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
@@ -24,4 +25,14 @@ index acc4db4ef2..63fcda42fb 100644
 +  map.AddWebUIConfig(std::make_unique<dao::DaoWelcomeUIConfig>());
    map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
    map.AddWebUIConfig(std::make_unique<BrowsingTopicsInternalsUIConfig>());
-   map.AddWebUIConfig(std::make_unique<chromeos::DeviceLogUIConfig>());
+   map.AddWebUIConfig(
+@@ -466,7 +476,8 @@ void RegisterChromeWebUIConfigs() {
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+     BUILDFLAG(IS_CHROMEOS)
+-  map.AddWebUIConfig(std::make_unique<skills::SkillsUIConfig>());
++  // Dao: Replaced by DaoSkillsUIConfig above (both registered "dao://skills/").
++  // map.AddWebUIConfig(std::make_unique<skills::SkillsUIConfig>());
+ #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+         // BUILDFLAG(IS_CHROMEOS)
+ }

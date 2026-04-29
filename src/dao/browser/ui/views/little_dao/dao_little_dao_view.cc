@@ -155,9 +155,9 @@ void DaoLittleDaoView::OnTabStripModelChanged(
   UpdateBackgroundColor();
 }
 
-void DaoLittleDaoView::TabChangedAt(content::WebContents* contents,
-                                     int index,
-                                     TabChangeType change_type) {
+void DaoLittleDaoView::OnTabChangedAt(tabs::TabInterface* tab,
+                                       int index,
+                                       TabChangeType change_type) {
   if (tab_strip_model_ && index == tab_strip_model_->active_index()) {
     UpdateURLDisplay();
     UpdateBackgroundColor();
@@ -216,7 +216,7 @@ void DaoLittleDaoView::UpdateURLDisplay() {
   }
 
   // Show just the hostname for a cleaner look
-  std::string host = url.host();
+  std::string host(url.host());
   if (host.empty()) {
     url_display_->SetText(base::UTF8ToUTF16(url.spec()));
   } else {

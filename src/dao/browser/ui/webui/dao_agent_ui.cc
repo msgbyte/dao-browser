@@ -18,6 +18,7 @@
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
@@ -47,7 +48,7 @@ namespace dao {
 namespace {
 
 // Populate an ActionFeedback from a JS dict. Caller sets outcome separately.
-ActionFeedback ParseActionFeedbackFromDict(const base::Value::Dict& d) {
+ActionFeedback ParseActionFeedbackFromDict(const base::DictValue& d) {
   ActionFeedback feedback;
   if (auto* sid = d.FindString("scenarioId")) {
     feedback.scenario_id = *sid;
@@ -379,7 +380,7 @@ void DaoAgentDevToolsClient::Detach() {
 }
 
 void DaoAgentDevToolsClient::SendCommand(const std::string& method,
-                                          base::Value::Dict params,
+                                          base::DictValue params,
                                           ResponseCallback callback) {
   if (!agent_host_) {
     std::move(callback).Run(base::Value("Not attached"));
@@ -389,7 +390,7 @@ void DaoAgentDevToolsClient::SendCommand(const std::string& method,
   int id = next_command_id_++;
   pending_callbacks_[id] = std::move(callback);
 
-  base::Value::Dict command;
+  base::DictValue command;
   command.Set("id", id);
   command.Set("method", method);
   command.Set("params", std::move(params));
@@ -411,7 +412,7 @@ void DaoAgentDevToolsClient::DispatchProtocolMessage(
   std::string json_str(reinterpret_cast<const char*>(message.data()),
                        message.size());
 
-  auto parsed = base::JSONReader::Read(json_str);
+  auto parsed = base::JSONReader::Read(json_str, base::JSON_PARSE_RFC);
   if (!parsed || !parsed->is_dict()) {
     return;
   }
@@ -424,7 +425,7 @@ void DaoAgentDevToolsClient::DispatchProtocolMessage(
       auto* method = dict.FindString("method");
       auto* params = dict.FindDict("params");
       if (method) {
-        base::Value::Dict empty;
+        base::DictValue empty;
         event_callback_.Run(*method, params ? *params : empty);
       }
     }
@@ -600,7 +601,7 @@ void DaoAgentUIHandler::RegisterMessages() {
 }
 
 content::WebContents* DaoAgentUIHandler::EnsureAttached() {
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  Browser* browser = chrome::FindLastActive();
   if (!browser) {
     return nullptr;
   }
@@ -623,7 +624,7 @@ content::WebContents* DaoAgentUIHandler::EnsureAttached() {
   return contents;
 }
 
-void DaoAgentUIHandler::HandleGetPageInfo(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleGetPageInfo(const base::ListValue& args) {
   AllowJavascript();
 
   if (args.size() < 1 || !args[0].is_string()) {
@@ -631,13 +632,13 @@ void DaoAgentUIHandler::HandleGetPageInfo(const base::Value::List& args) {
   }
   const std::string callback_id = args[0].GetString();
 
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  Browser* browser = chrome::FindLastActive();
   content::WebContents* contents = nullptr;
   if (browser) {
     contents = browser->tab_strip_model()->GetActiveWebContents();
   }
 
-  base::Value::Dict response;
+  base::DictValue response;
   if (contents) {
     response.Set("url", contents->GetURL().spec());
     response.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
@@ -646,7 +647,7 @@ void DaoAgentUIHandler::HandleGetPageInfo(const base::Value::List& args) {
   ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
-void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleClickElement(const base::ListValue& args) {
   AllowJavascript();
 
   if (args.size() < 2 || !args[0].is_string()) {
@@ -664,7 +665,7 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || selector.empty()) {
-    base::Value::Dict response;
+    base::DictValue response;
     response.Set("error", "No active tab or invalid selector");
     ResolveJavascriptCallback(base::Value(callback_id), response);
     return;
@@ -672,9 +673,9 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
 
   // Domain security check.
   if (!expected_domain_.empty()) {
-    std::string current_domain = contents->GetURL().host();
+    std::string current_domain = std::string(contents->GetURL().host());
     if (current_domain != expected_domain_) {
-      base::Value::Dict response;
+      base::DictValue response;
       response.Set("error",
                    "Security: domain changed from " + expected_domain_ +
                    " to " + current_domain);
@@ -703,7 +704,7 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
   // Do NOT Lock the tab for click-class tools: WebContents::IgnoreInputEvents
   // filters BOTH real user input AND CDP-synthesized Input.dispatchMouseEvent,
   // which would silently drop the click we are about to dispatch.
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", js);
   params.Set("returnByValue", true);
 
@@ -718,7 +719,7 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
             if (!handler) {
               return;
             }
-            base::Value::Dict response;
+            base::DictValue response;
             if (result.is_dict()) {
               auto* value = result.GetDict().FindByDottedPath("result.value");
               if (value && value->is_string()) {
@@ -731,7 +732,7 @@ void DaoAgentUIHandler::HandleClickElement(const base::Value::List& args) {
           weak_factory_.GetWeakPtr(), callback_id, contents));
 }
 
-void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleExecuteScript(const base::ListValue& args) {
   AllowJavascript();
 
   if (args.size() < 2 || !args[0].is_string()) {
@@ -751,7 +752,7 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || code.empty()) {
-    base::Value::Dict response;
+    base::DictValue response;
     response.Set("error", "No active tab or empty code");
     ResolveJavascriptCallback(base::Value(callback_id), response);
     return;
@@ -759,9 +760,9 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
 
   // Domain security check for locked (page-manipulating) scripts.
   if (lock_tab && !expected_domain_.empty()) {
-    std::string current_domain = contents->GetURL().host();
+    std::string current_domain = std::string(contents->GetURL().host());
     if (current_domain != expected_domain_) {
-      base::Value::Dict response;
+      base::DictValue response;
       response.Set("error",
                    "Security: domain changed from " + expected_domain_ +
                    " to " + current_domain);
@@ -773,7 +774,7 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
   if (lock_tab) {
     DaoAgentLockTabHelper::LockContents(contents);
   }
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", code);
   params.Set("returnByValue", true);
 
@@ -788,7 +789,7 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
             if (!handler) {
               return;
             }
-            base::Value::Dict response;
+            base::DictValue response;
             if (result.is_dict()) {
               auto* value = result.GetDict().FindByDottedPath("result.value");
               if (value) {
@@ -816,7 +817,7 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::Value::List& args) {
 }
 
 void DaoAgentUIHandler::HandleHighlightElement(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -829,7 +830,7 @@ void DaoAgentUIHandler::HandleHighlightElement(
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || selector.empty()) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab or invalid selector");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -846,7 +847,7 @@ void DaoAgentUIHandler::HandleHighlightElement(
       std::string(kHighlightInjectScript) +
       "; window.__dao_agent__.showHighlight('" + escaped + "')";
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", inject_then_show);
   params.Set("returnByValue", true);
 
@@ -856,7 +857,7 @@ void DaoAgentUIHandler::HandleHighlightElement(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
              std::string callback_id, base::Value result) {
             if (!handler) return;
-            base::Value::Dict response;
+            base::DictValue response;
             response.Set("success", true);
             handler->ResolveJavascriptCallback(
                 base::Value(callback_id), response);
@@ -865,7 +866,7 @@ void DaoAgentUIHandler::HandleHighlightElement(
 }
 
 void DaoAgentUIHandler::HandleClearHighlight(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -876,7 +877,7 @@ void DaoAgentUIHandler::HandleClearHighlight(
     return;
   }
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression",
       "window.__dao_agent__ && window.__dao_agent__.clearHighlight()");
   params.Set("returnByValue", true);
@@ -893,7 +894,7 @@ void DaoAgentUIHandler::HandleClearHighlight(
           weak_factory_.GetWeakPtr(), callback_id));
 }
 
-void DaoAgentUIHandler::HandleMoveCursor(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleMoveCursor(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -904,7 +905,7 @@ void DaoAgentUIHandler::HandleMoveCursor(const base::Value::List& args) {
     vy = args[1].GetDict().FindDouble("y").value_or(0);
   }
 
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  Browser* browser = chrome::FindLastActive();
   if (!browser) {
     ResolveJavascriptCallback(base::Value(callback_id),
                               base::Value("No browser"));
@@ -945,7 +946,7 @@ void DaoAgentUIHandler::HandleMoveCursor(const base::Value::List& args) {
           weak_factory_.GetWeakPtr(), callback_id));
 }
 
-void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleAgentClick(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -961,7 +962,7 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || selector.empty()) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab or invalid selector");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -969,9 +970,9 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
 
   // Domain security check.
   if (!expected_domain_.empty()) {
-    std::string current_domain = contents->GetURL().host();
+    std::string current_domain = std::string(contents->GetURL().host());
     if (current_domain != expected_domain_) {
-      base::Value::Dict r;
+      base::DictValue r;
       r.Set("error",
             "Security: domain changed from " + expected_domain_ +
             " to " + current_domain);
@@ -1002,7 +1003,7 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
       "  return JSON.stringify({x: r.left + r.width/2, y: r.top + r.height/2});"
       "})()";
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", script);
   params.Set("returnByValue", true);
 
@@ -1027,11 +1028,11 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
                 json_str = value->GetString();
             }
 
-            auto parsed = base::JSONReader::Read(json_str);
+            auto parsed = base::JSONReader::Read(json_str, base::JSON_PARSE_RFC);
             if (!parsed || !parsed->is_dict() ||
                 parsed->GetDict().FindString("error")) {
               UnlockLockedTab(locked_contents);
-              base::Value::Dict r;
+              base::DictValue r;
               r.Set("error", json_str.empty() ? "element not found" : json_str);
               handler->ResolveJavascriptCallback(
                   base::Value(callback_id), r);
@@ -1041,7 +1042,7 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
             double vx = parsed->GetDict().FindDouble("x").value_or(0);
             double vy = parsed->GetDict().FindDouble("y").value_or(0);
 
-            Browser* browser = BrowserList::GetInstance()->GetLastActive();
+            Browser* browser = chrome::FindLastActive();
             BrowserView* bv = browser ?
                 BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
             auto* cursor = bv ? bv->dao_agent_cursor() : nullptr;
@@ -1085,7 +1086,7 @@ void DaoAgentUIHandler::HandleAgentClick(const base::Value::List& args) {
                         return;
                       }
                       Browser* br =
-                          BrowserList::GetInstance()->GetLastActive();
+                          chrome::FindLastActive();
                       BrowserView* view = br ?
                           BrowserView::GetBrowserViewForBrowser(br) : nullptr;
                       auto* cur = view ?
@@ -1116,14 +1117,14 @@ void DaoAgentUIHandler::PerformCDPClick(
   // We also dispatch a `mouseMoved` at the same coords first so hover-
   // gated UI (dropdown menus, :hover reveal buttons) has a chance to
   // settle before the press lands.
-  base::Value::Dict move_params;
+  base::DictValue move_params;
   move_params.Set("type", "mouseMoved");
   move_params.Set("x", static_cast<int>(viewport_x));
   move_params.Set("y", static_cast<int>(viewport_y));
   move_params.Set("button", "none");
   move_params.Set("buttons", 0);
 
-  base::Value::Dict press_params;
+  base::DictValue press_params;
   press_params.Set("type", "mousePressed");
   press_params.Set("x", static_cast<int>(viewport_x));
   press_params.Set("y", static_cast<int>(viewport_y));
@@ -1139,7 +1140,7 @@ void DaoAgentUIHandler::PerformCDPClick(
              std::string escaped_selector,
              double vx, double vy,
              content::WebContents* locked,
-             base::Value::Dict press_params,
+             base::DictValue press_params,
              base::Value) {
             if (!handler) {
               UnlockLockedTab(locked);
@@ -1160,7 +1161,7 @@ void DaoAgentUIHandler::DispatchPressAndRelease(
     double viewport_x,
     double viewport_y,
     content::WebContents* locked_contents,
-    base::Value::Dict press_params) {
+    base::DictValue press_params) {
   devtools_client_->SendCommand(
       "Input.dispatchMouseEvent", std::move(press_params),
       base::BindOnce(
@@ -1173,7 +1174,7 @@ void DaoAgentUIHandler::DispatchPressAndRelease(
               UnlockLockedTab(locked);
               return;
             }
-            base::Value::Dict release_params;
+            base::DictValue release_params;
             release_params.Set("type", "mouseReleased");
             release_params.Set("x", static_cast<int>(vx));
             release_params.Set("y", static_cast<int>(vy));
@@ -1189,7 +1190,7 @@ void DaoAgentUIHandler::DispatchPressAndRelease(
                        content::WebContents* lk,
                        base::Value) {
                       if (h) {
-                        base::Value::Dict clear_params;
+                        base::DictValue clear_params;
                         clear_params.Set("expression",
                             "window.__dao_agent__ && "
                             "window.__dao_agent__.clearHighlight()");
@@ -1204,7 +1205,7 @@ void DaoAgentUIHandler::DispatchPressAndRelease(
                                    base::Value) {
                                   UnlockLockedTab(lk2);
                                   if (!h2) return;
-                                  base::Value::Dict r;
+                                  base::DictValue r;
                                   r.Set("success", true);
                                   h2->ResolveJavascriptCallback(
                                       base::Value(cb), std::move(r));
@@ -1221,7 +1222,7 @@ void DaoAgentUIHandler::DispatchPressAndRelease(
 }
 
 void DaoAgentUIHandler::HandleGetAccessibilityTree(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1234,7 +1235,7 @@ void DaoAgentUIHandler::HandleGetAccessibilityTree(
 
   content::WebContents* contents = EnsureAttached();
   if (!contents) {
-    base::Value::Dict response;
+    base::DictValue response;
     response.Set("error", "No active tab");
     ResolveJavascriptCallback(base::Value(callback_id), response);
     return;
@@ -1244,7 +1245,7 @@ void DaoAgentUIHandler::HandleGetAccessibilityTree(
   std::string js = std::string(kAccessibilityTreeScript) +
                    "('" + filter + "')";
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", js);
   params.Set("returnByValue", true);
 
@@ -1254,12 +1255,12 @@ void DaoAgentUIHandler::HandleGetAccessibilityTree(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
              std::string callback_id, base::Value result) {
             if (!handler) return;
-            base::Value::Dict response;
+            base::DictValue response;
             if (result.is_dict()) {
               auto* value =
                   result.GetDict().FindByDottedPath("result.value");
               if (value && value->is_string()) {
-                auto parsed = base::JSONReader::Read(value->GetString());
+                auto parsed = base::JSONReader::Read(value->GetString(), base::JSON_PARSE_RFC);
                 if (parsed && parsed->is_dict()) {
                   response = std::move(parsed->GetDict());
                 } else {
@@ -1280,7 +1281,7 @@ void DaoAgentUIHandler::HandleGetAccessibilityTree(
           weak_factory_.GetWeakPtr(), callback_id));
 }
 
-void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleClickByRef(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1293,7 +1294,7 @@ void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || ref_id.empty()) {
-    base::Value::Dict response;
+    base::DictValue response;
     response.Set("error", "No active tab or invalid ref_id");
     ResolveJavascriptCallback(base::Value(callback_id), response);
     return;
@@ -1301,9 +1302,9 @@ void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
 
   // Domain security check.
   if (!expected_domain_.empty()) {
-    std::string current_domain = contents->GetURL().host();
+    std::string current_domain = std::string(contents->GetURL().host());
     if (current_domain != expected_domain_) {
-      base::Value::Dict response;
+      base::DictValue response;
       response.Set("error",
                    "Security: domain changed from " + expected_domain_ +
                    " to " + current_domain);
@@ -1337,7 +1338,7 @@ void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
       "  return JSON.stringify({x: r.left + r.width/2, y: r.top + r.height/2});"
       "})()";
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", script);
   params.Set("returnByValue", true);
 
@@ -1362,11 +1363,11 @@ void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
                 json_str = value->GetString();
             }
 
-            auto parsed = base::JSONReader::Read(json_str);
+            auto parsed = base::JSONReader::Read(json_str, base::JSON_PARSE_RFC);
             if (!parsed || !parsed->is_dict() ||
                 parsed->GetDict().FindString("error")) {
               UnlockLockedTab(locked_contents);
-              base::Value::Dict r;
+              base::DictValue r;
               r.Set("error",
                     json_str.empty() ? "element not found" : json_str);
               handler->ResolveJavascriptCallback(
@@ -1379,7 +1380,7 @@ void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
 
             // Move cursor then click, same as HandleAgentClick.
             Browser* browser =
-                BrowserList::GetInstance()->GetLastActive();
+                chrome::FindLastActive();
             BrowserView* bv = browser
                 ? BrowserView::GetBrowserViewForBrowser(browser)
                 : nullptr;
@@ -1426,7 +1427,7 @@ void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
                         return;
                       }
                       Browser* br =
-                          BrowserList::GetInstance()->GetLastActive();
+                          chrome::FindLastActive();
                       BrowserView* view = br
                           ? BrowserView::GetBrowserViewForBrowser(br)
                           : nullptr;
@@ -1445,20 +1446,20 @@ void DaoAgentUIHandler::HandleClickByRef(const base::Value::List& args) {
 }
 
 void DaoAgentUIHandler::HandleCaptureScreenshot(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
   content::WebContents* contents = EnsureAttached();
   if (!contents) {
-    base::Value::Dict response;
+    base::DictValue response;
     response.Set("error", "No active tab");
     ResolveJavascriptCallback(base::Value(callback_id), response);
     return;
   }
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("format", "jpeg");
   params.Set("quality", 60);
 
@@ -1468,7 +1469,7 @@ void DaoAgentUIHandler::HandleCaptureScreenshot(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
              std::string callback_id, base::Value result) {
             if (!handler) return;
-            base::Value::Dict response;
+            base::DictValue response;
             if (result.is_dict()) {
               auto* data = result.GetDict().FindString("data");
               if (data) {
@@ -1486,7 +1487,7 @@ void DaoAgentUIHandler::HandleCaptureScreenshot(
           weak_factory_.GetWeakPtr(), callback_id));
 }
 
-void DaoAgentUIHandler::HandleScrollPage(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleScrollPage(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1502,7 +1503,7 @@ void DaoAgentUIHandler::HandleScrollPage(const base::Value::List& args) {
 
   content::WebContents* contents = EnsureAttached();
   if (!contents) {
-    base::Value::Dict response;
+    base::DictValue response;
     response.Set("error", "No active tab");
     ResolveJavascriptCallback(base::Value(callback_id), response);
     return;
@@ -1529,7 +1530,7 @@ void DaoAgentUIHandler::HandleScrollPage(const base::Value::List& args) {
       "  });"
       "})()";
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", js);
   params.Set("returnByValue", true);
 
@@ -1539,12 +1540,12 @@ void DaoAgentUIHandler::HandleScrollPage(const base::Value::List& args) {
           [](base::WeakPtr<DaoAgentUIHandler> handler,
              std::string callback_id, base::Value result) {
             if (!handler) return;
-            base::Value::Dict response;
+            base::DictValue response;
             if (result.is_dict()) {
               auto* value =
                   result.GetDict().FindByDottedPath("result.value");
               if (value && value->is_string()) {
-                auto parsed = base::JSONReader::Read(value->GetString());
+                auto parsed = base::JSONReader::Read(value->GetString(), base::JSON_PARSE_RFC);
                 if (parsed && parsed->is_dict()) {
                   response = std::move(parsed->GetDict());
                 }
@@ -1557,7 +1558,7 @@ void DaoAgentUIHandler::HandleScrollPage(const base::Value::List& args) {
 }
 
 void DaoAgentUIHandler::HandleScrollToElement(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1573,7 +1574,7 @@ void DaoAgentUIHandler::HandleScrollToElement(
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || (selector.empty() && ref_id.empty())) {
-    base::Value::Dict response;
+    base::DictValue response;
     response.Set("error", "No active tab or no selector/ref_id");
     ResolveJavascriptCallback(base::Value(callback_id), response);
     return;
@@ -1607,7 +1608,7 @@ void DaoAgentUIHandler::HandleScrollToElement(
       "  return JSON.stringify({scrolled: true});"
       "})()";
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", js);
   params.Set("returnByValue", true);
 
@@ -1617,12 +1618,12 @@ void DaoAgentUIHandler::HandleScrollToElement(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
              std::string callback_id, base::Value result) {
             if (!handler) return;
-            base::Value::Dict response;
+            base::DictValue response;
             if (result.is_dict()) {
               auto* value =
                   result.GetDict().FindByDottedPath("result.value");
               if (value && value->is_string()) {
-                auto parsed = base::JSONReader::Read(value->GetString());
+                auto parsed = base::JSONReader::Read(value->GetString(), base::JSON_PARSE_RFC);
                 if (parsed && parsed->is_dict()) {
                   response = std::move(parsed->GetDict());
                 }
@@ -1635,7 +1636,7 @@ void DaoAgentUIHandler::HandleScrollToElement(
 }
 
 void DaoAgentUIHandler::HandleSetExpectedDomain(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1647,7 +1648,7 @@ void DaoAgentUIHandler::HandleSetExpectedDomain(
     }
   }
 
-  base::Value::Dict response;
+  base::DictValue response;
   response.Set("success", true);
   response.Set("domain", expected_domain_);
   ResolveJavascriptCallback(base::Value(callback_id), response);
@@ -1655,13 +1656,13 @@ void DaoAgentUIHandler::HandleSetExpectedDomain(
 
 // ---- Tab Management ----
 
-void DaoAgentUIHandler::HandleListTabs(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleListTabs(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
-  base::Value::List tabs_list;
+  Browser* browser = chrome::FindLastActive();
+  base::ListValue tabs_list;
 
   if (browser) {
     TabStripModel* model = browser->tab_strip_model();
@@ -1669,7 +1670,7 @@ void DaoAgentUIHandler::HandleListTabs(const base::Value::List& args) {
     for (int i = 0; i < model->count(); ++i) {
       content::WebContents* wc = model->GetWebContentsAt(i);
       if (!wc) continue;
-      base::Value::Dict tab;
+      base::DictValue tab;
       tab.Set("index", i);
       tab.Set("url", wc->GetURL().spec());
       tab.Set("title", base::UTF16ToUTF8(wc->GetTitle()));
@@ -1678,13 +1679,13 @@ void DaoAgentUIHandler::HandleListTabs(const base::Value::List& args) {
     }
   }
 
-  base::Value::Dict response;
+  base::DictValue response;
   response.Set("tabs", std::move(tabs_list));
   response.Set("count", static_cast<int>(tabs_list.size()));
   ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
-void DaoAgentUIHandler::HandleSwitchTab(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleSwitchTab(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1694,8 +1695,8 @@ void DaoAgentUIHandler::HandleSwitchTab(const base::Value::List& args) {
     index = args[1].GetDict().FindInt("index").value_or(-1);
   }
 
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
-  base::Value::Dict response;
+  Browser* browser = chrome::FindLastActive();
+  base::DictValue response;
 
   if (!browser || index < 0 ||
       index >= browser->tab_strip_model()->count()) {
@@ -1714,7 +1715,7 @@ void DaoAgentUIHandler::HandleSwitchTab(const base::Value::List& args) {
   ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
-void DaoAgentUIHandler::HandleOpenTab(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleOpenTab(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1725,8 +1726,8 @@ void DaoAgentUIHandler::HandleOpenTab(const base::Value::List& args) {
     if (u) url_str = *u;
   }
 
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
-  base::Value::Dict response;
+  Browser* browser = chrome::FindLastActive();
+  base::DictValue response;
 
   if (!browser) {
     response.Set("error", "No active browser");
@@ -1745,7 +1746,7 @@ void DaoAgentUIHandler::HandleOpenTab(const base::Value::List& args) {
   ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
-void DaoAgentUIHandler::HandleCloseTab(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleCloseTab(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1755,8 +1756,8 @@ void DaoAgentUIHandler::HandleCloseTab(const base::Value::List& args) {
     index = args[1].GetDict().FindInt("index").value_or(-1);
   }
 
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
-  base::Value::Dict response;
+  Browser* browser = chrome::FindLastActive();
+  base::DictValue response;
 
   if (!browser) {
     response.Set("error", "No active browser");
@@ -1783,7 +1784,7 @@ void DaoAgentUIHandler::HandleCloseTab(const base::Value::List& args) {
 // ---- Keyboard Input ----
 
 void DaoAgentUIHandler::HandlePressKeyChord(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1796,7 +1797,7 @@ void DaoAgentUIHandler::HandlePressKeyChord(
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || key_combo.empty()) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab or empty key combo");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -1832,7 +1833,7 @@ void DaoAgentUIHandler::HandlePressKeyChord(
       "  return 'pressed: ' + combo;"
       "})()";
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", js);
   params.Set("returnByValue", true);
 
@@ -1842,7 +1843,7 @@ void DaoAgentUIHandler::HandlePressKeyChord(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
              std::string callback_id, base::Value result) {
             if (!handler) return;
-            base::Value::Dict response;
+            base::DictValue response;
             if (result.is_dict()) {
               auto* value =
                   result.GetDict().FindByDottedPath("result.value");
@@ -1857,7 +1858,7 @@ void DaoAgentUIHandler::HandlePressKeyChord(
           weak_factory_.GetWeakPtr(), callback_id));
 }
 
-void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleTypeText(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -1872,7 +1873,7 @@ void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || text.empty()) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab or empty text");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -1904,7 +1905,7 @@ void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
         "  }"
         "  return 'selected';"
         "})()";
-    base::Value::Dict clear_params;
+    base::DictValue clear_params;
     clear_params.Set("expression", clear_js);
     clear_params.Set("returnByValue", true);
 
@@ -1917,7 +1918,7 @@ void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
                base::Value) {
               if (!handler) return;
               // Now insert the text via CDP.
-              base::Value::Dict insert_params;
+              base::DictValue insert_params;
               insert_params.Set("text", escaped_text);
               handler->devtools_client_->SendCommand(
                   "Input.insertText", std::move(insert_params),
@@ -1927,7 +1928,7 @@ void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
                          std::string text,
                          base::Value) {
                         if (!h) return;
-                        base::Value::Dict r;
+                        base::DictValue r;
                         r.Set("success", true);
                         r.Set("typed", text);
                         h->ResolveJavascriptCallback(
@@ -1938,7 +1939,7 @@ void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
             weak_factory_.GetWeakPtr(), callback_id, text));
   } else {
     // Direct insert without clearing.
-    base::Value::Dict insert_params;
+    base::DictValue insert_params;
     insert_params.Set("text", text);
     devtools_client_->SendCommand(
         "Input.insertText", std::move(insert_params),
@@ -1948,7 +1949,7 @@ void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
                std::string text,
                base::Value) {
               if (!handler) return;
-              base::Value::Dict r;
+              base::DictValue r;
               r.Set("success", true);
               r.Set("typed", text);
               handler->ResolveJavascriptCallback(
@@ -1961,10 +1962,10 @@ void DaoAgentUIHandler::HandleTypeText(const base::Value::List& args) {
 // ---- Network/Console Debugging ----
 
 void DaoAgentUIHandler::OnCDPEvent(const std::string& method,
-                                    const base::Value::Dict& params) {
+                                    const base::DictValue& params) {
   if (network_tracking_enabled_) {
     if (method == "Network.requestWillBeSent") {
-      base::Value::Dict entry;
+      base::DictValue entry;
       auto* request = params.FindDict("request");
       if (request) {
         auto* url = request->FindString("url");
@@ -1981,7 +1982,7 @@ void DaoAgentUIHandler::OnCDPEvent(const std::string& method,
         network_requests_.push_back(std::move(entry));
       }
     } else if (method == "Network.responseReceived") {
-      base::Value::Dict entry;
+      base::DictValue entry;
       auto* response = params.FindDict("response");
       if (response) {
         auto* url = response->FindString("url");
@@ -2002,7 +2003,7 @@ void DaoAgentUIHandler::OnCDPEvent(const std::string& method,
 
   if (console_tracking_enabled_) {
     if (method == "Runtime.consoleAPICalled") {
-      base::Value::Dict entry;
+      base::DictValue entry;
       auto* type = params.FindString("type");
       if (type) entry.Set("type", *type);
       auto* msg_args = params.FindList("args");
@@ -2028,7 +2029,7 @@ void DaoAgentUIHandler::OnCDPEvent(const std::string& method,
         console_messages_.push_back(std::move(entry));
       }
     } else if (method == "Runtime.exceptionThrown") {
-      base::Value::Dict entry;
+      base::DictValue entry;
       entry.Set("type", "error");
       auto* exception_details = params.FindDict("exceptionDetails");
       if (exception_details) {
@@ -2048,14 +2049,14 @@ void DaoAgentUIHandler::OnCDPEvent(const std::string& method,
 }
 
 void DaoAgentUIHandler::HandleEnableNetworkTracking(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
   content::WebContents* contents = EnsureAttached();
   if (!contents) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -2064,14 +2065,14 @@ void DaoAgentUIHandler::HandleEnableNetworkTracking(
   network_tracking_enabled_ = true;
   network_requests_.clear();
 
-  base::Value::Dict params;
+  base::DictValue params;
   devtools_client_->SendCommand(
       "Network.enable", std::move(params),
       base::BindOnce(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
              std::string callback_id, base::Value) {
             if (!handler) return;
-            base::Value::Dict r;
+            base::DictValue r;
             r.Set("success", true);
             r.Set("message", "Network tracking enabled");
             handler->ResolveJavascriptCallback(
@@ -2081,44 +2082,44 @@ void DaoAgentUIHandler::HandleEnableNetworkTracking(
 }
 
 void DaoAgentUIHandler::HandleGetNetworkRequests(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
-  base::Value::List list;
+  base::ListValue list;
   for (const auto& entry : network_requests_) {
     list.Append(entry.Clone());
   }
 
-  base::Value::Dict response;
+  base::DictValue response;
   response.Set("requests", std::move(list));
   response.Set("count", static_cast<int>(network_requests_.size()));
   ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
 void DaoAgentUIHandler::HandleClearNetworkRequests(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
   network_requests_.clear();
 
-  base::Value::Dict response;
+  base::DictValue response;
   response.Set("success", true);
   ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
 void DaoAgentUIHandler::HandleEnableConsoleTracking(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
   content::WebContents* contents = EnsureAttached();
   if (!contents) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -2127,14 +2128,14 @@ void DaoAgentUIHandler::HandleEnableConsoleTracking(
   console_tracking_enabled_ = true;
   console_messages_.clear();
 
-  base::Value::Dict params;
+  base::DictValue params;
   devtools_client_->SendCommand(
       "Runtime.enable", std::move(params),
       base::BindOnce(
           [](base::WeakPtr<DaoAgentUIHandler> handler,
              std::string callback_id, base::Value) {
             if (!handler) return;
-            base::Value::Dict r;
+            base::DictValue r;
             r.Set("success", true);
             r.Set("message", "Console tracking enabled");
             handler->ResolveJavascriptCallback(
@@ -2144,7 +2145,7 @@ void DaoAgentUIHandler::HandleEnableConsoleTracking(
 }
 
 void DaoAgentUIHandler::HandleGetConsoleMessages(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -2155,7 +2156,7 @@ void DaoAgentUIHandler::HandleGetConsoleMessages(
     if (f) filter = *f;
   }
 
-  base::Value::List list;
+  base::ListValue list;
   for (const auto& entry : console_messages_) {
     if (!filter.empty()) {
       auto* type = entry.FindString("type");
@@ -2164,7 +2165,7 @@ void DaoAgentUIHandler::HandleGetConsoleMessages(
     list.Append(entry.Clone());
   }
 
-  base::Value::Dict response;
+  base::DictValue response;
   int count = static_cast<int>(list.size());
   response.Set("messages", std::move(list));
   response.Set("count", count);
@@ -2172,14 +2173,14 @@ void DaoAgentUIHandler::HandleGetConsoleMessages(
 }
 
 void DaoAgentUIHandler::HandleClearConsoleMessages(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
   console_messages_.clear();
 
-  base::Value::Dict response;
+  base::DictValue response;
   response.Set("success", true);
   ResolveJavascriptCallback(base::Value(callback_id), response);
 }
@@ -2206,9 +2207,9 @@ bool TruncateText(std::string* s) {
 
 // Walk a Page.getResourceTree frameTree dict, flattening all resources
 // into |out| with their owning frame id. Recurses into childFrames.
-void FlattenResourceTree(const base::Value::Dict& frame_tree,
+void FlattenResourceTree(const base::DictValue& frame_tree,
                          const std::string& type_filter,
-                         base::Value::List* out) {
+                         base::ListValue* out) {
   const auto* frame = frame_tree.FindDict("frame");
   std::string frame_id;
   if (frame) {
@@ -2228,7 +2229,7 @@ void FlattenResourceTree(const base::Value::Dict& frame_tree,
       if (!type_filter.empty() && type_filter != "all" && *type != type_filter) {
         continue;
       }
-      base::Value::Dict entry;
+      base::DictValue entry;
       entry.Set("url", *url);
       entry.Set("type", *type);
       if (const auto* mime = rd.FindString("mimeType")) {
@@ -2251,7 +2252,7 @@ void FlattenResourceTree(const base::Value::Dict& frame_tree,
 // Find the frame id for the frame that owns |url| in a Page.getResourceTree
 // payload. Falls back to the root frame id when the url isn't listed (the
 // caller typically wants the main document in that case).
-std::string FindFrameIdForUrl(const base::Value::Dict& frame_tree,
+std::string FindFrameIdForUrl(const base::DictValue& frame_tree,
                               const std::string& url) {
   std::string root_id;
   if (const auto* frame = frame_tree.FindDict("frame")) {
@@ -2287,14 +2288,14 @@ std::string FindFrameIdForUrl(const base::Value::Dict& frame_tree,
 
 }  // namespace
 
-void DaoAgentUIHandler::HandleGetPageHtml(const base::Value::List& args) {
+void DaoAgentUIHandler::HandleGetPageHtml(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
   content::WebContents* contents = EnsureAttached();
   if (!contents) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -2303,7 +2304,7 @@ void DaoAgentUIHandler::HandleGetPageHtml(const base::Value::List& args) {
   const std::string url = contents->GetURL().spec();
   const std::string title = base::UTF16ToUTF8(contents->GetTitle());
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("expression", "document.documentElement.outerHTML");
   params.Set("returnByValue", true);
   devtools_client_->SendCommand(
@@ -2313,7 +2314,7 @@ void DaoAgentUIHandler::HandleGetPageHtml(const base::Value::List& args) {
              std::string cb_id, std::string url, std::string title,
              base::Value result) {
             if (!handler) return;
-            base::Value::Dict response;
+            base::DictValue response;
             response.Set("url", url);
             response.Set("title", title);
             if (result.is_dict()) {
@@ -2336,7 +2337,7 @@ void DaoAgentUIHandler::HandleGetPageHtml(const base::Value::List& args) {
 }
 
 void DaoAgentUIHandler::HandleListPageResources(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -2350,7 +2351,7 @@ void DaoAgentUIHandler::HandleListPageResources(
 
   content::WebContents* contents = EnsureAttached();
   if (!contents) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -2359,7 +2360,7 @@ void DaoAgentUIHandler::HandleListPageResources(
   // Page.enable is idempotent — just call it then fetch the tree.
   // Flattened into named methods because nested lambdas + BindOnce capture
   // chains tripped confusing clang diagnostics.
-  base::Value::Dict enable_params;
+  base::DictValue enable_params;
   devtools_client_->SendCommand(
       "Page.enable", std::move(enable_params),
       base::BindOnce(&DaoAgentUIHandler::OnPageEnableForResourceList,
@@ -2370,7 +2371,7 @@ void DaoAgentUIHandler::OnPageEnableForResourceList(
     std::string callback_id,
     std::string type_filter,
     base::Value /*unused Page.enable result*/) {
-  base::Value::Dict p;
+  base::DictValue p;
   devtools_client_->SendCommand(
       "Page.getResourceTree", std::move(p),
       base::BindOnce(&DaoAgentUIHandler::OnResourceTreeForResourceList,
@@ -2381,14 +2382,14 @@ void DaoAgentUIHandler::OnResourceTreeForResourceList(
     std::string callback_id,
     std::string type_filter,
     base::Value result) {
-  base::Value::Dict response;
-  base::Value::List resources;
+  base::DictValue response;
+  base::ListValue resources;
   std::string main_frame_id;
   if (result.is_dict()) {
-    const base::Value::Dict* tree = result.GetDict().FindDict("frameTree");
+    const base::DictValue* tree = result.GetDict().FindDict("frameTree");
     if (tree) {
       FlattenResourceTree(*tree, type_filter, &resources);
-      const base::Value::Dict* frame = tree->FindDict("frame");
+      const base::DictValue* frame = tree->FindDict("frame");
       if (frame) {
         const std::string* fid = frame->FindString("id");
         if (fid) {
@@ -2405,7 +2406,7 @@ void DaoAgentUIHandler::OnResourceTreeForResourceList(
 }
 
 void DaoAgentUIHandler::HandleGetResourceContent(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -2421,7 +2422,7 @@ void DaoAgentUIHandler::HandleGetResourceContent(
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || url.empty()) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab or missing url");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
@@ -2433,7 +2434,7 @@ void DaoAgentUIHandler::HandleGetResourceContent(
   }
 
   // No frame_id given — look it up via Page.getResourceTree, then chain.
-  base::Value::Dict enable_params;
+  base::DictValue enable_params;
   devtools_client_->SendCommand(
       "Page.enable", std::move(enable_params),
       base::BindOnce(&DaoAgentUIHandler::OnPageEnableForResourceFetch,
@@ -2444,7 +2445,7 @@ void DaoAgentUIHandler::OnPageEnableForResourceFetch(
     std::string callback_id,
     std::string url,
     base::Value /*unused Page.enable result*/) {
-  base::Value::Dict p;
+  base::DictValue p;
   devtools_client_->SendCommand(
       "Page.getResourceTree", std::move(p),
       base::BindOnce(&DaoAgentUIHandler::OnResourceTreeForResourceFetch,
@@ -2457,13 +2458,13 @@ void DaoAgentUIHandler::OnResourceTreeForResourceFetch(
     base::Value result) {
   std::string frame_id;
   if (result.is_dict()) {
-    const base::Value::Dict* tree = result.GetDict().FindDict("frameTree");
+    const base::DictValue* tree = result.GetDict().FindDict("frameTree");
     if (tree) {
       frame_id = FindFrameIdForUrl(*tree, url);
     }
   }
   if (frame_id.empty()) {
-    base::Value::Dict err;
+    base::DictValue err;
     err.Set("url", url);
     err.Set("error", "Could not resolve frame id for url");
     ResolveJavascriptCallback(base::Value(callback_id), err);
@@ -2476,7 +2477,7 @@ void DaoAgentUIHandler::FetchResourceContentAndReply(
     const std::string& callback_id,
     const std::string& url,
     const std::string& frame_id) {
-  base::Value::Dict p;
+  base::DictValue p;
   p.Set("frameId", frame_id);
   p.Set("url", url);
   devtools_client_->SendCommand(
@@ -2485,7 +2486,7 @@ void DaoAgentUIHandler::FetchResourceContentAndReply(
           [](base::WeakPtr<DaoAgentUIHandler> h, std::string id,
              std::string url, base::Value result) {
             if (!h) return;
-            base::Value::Dict response;
+            base::DictValue response;
             response.Set("url", url);
             if (result.is_dict()) {
               const auto& rd = result.GetDict();
@@ -2516,7 +2517,7 @@ void DaoAgentUIHandler::FetchResourceContentAndReply(
 }
 
 void DaoAgentUIHandler::HandleGetNetworkBody(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
@@ -2530,13 +2531,13 @@ void DaoAgentUIHandler::HandleGetNetworkBody(
 
   content::WebContents* contents = EnsureAttached();
   if (!contents || request_id.empty()) {
-    base::Value::Dict r;
+    base::DictValue r;
     r.Set("error", "No active tab or missing request_id");
     ResolveJavascriptCallback(base::Value(callback_id), r);
     return;
   }
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("requestId", request_id);
   devtools_client_->SendCommand(
       "Network.getResponseBody", std::move(params),
@@ -2544,7 +2545,7 @@ void DaoAgentUIHandler::HandleGetNetworkBody(
           [](base::WeakPtr<DaoAgentUIHandler> handler, std::string cb_id,
              std::string req_id, base::Value result) {
             if (!handler) return;
-            base::Value::Dict response;
+            base::DictValue response;
             response.Set("request_id", req_id);
             if (result.is_dict()) {
               const auto& rd = result.GetDict();
@@ -2573,8 +2574,8 @@ void DaoAgentUIHandler::HandleGetNetworkBody(
 }
 
 void DaoAgentUIHandler::HandleCloseSidebar(
-    const base::Value::List& args) {
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+    const base::ListValue& args) {
+  Browser* browser = chrome::FindLastActive();
   if (!browser) {
     return;
   }
@@ -2709,7 +2710,7 @@ void DaoAgentMemoryHandler::OnJavascriptDisallowed() {
 
 void DaoAgentMemoryHandler::OnProactiveSuggestion(
     const ProactiveSuggestion& suggestion) {
-  base::Value::Dict dict;
+  base::DictValue dict;
   dict.Set("episodeId", static_cast<int>(suggestion.episode_id));
   dict.Set("text", suggestion.text);
   dict.Set("confidence", suggestion.confidence);
@@ -2728,7 +2729,7 @@ void DaoAgentMemoryHandler::OnProactiveSuggestion(
 }
 
 void DaoAgentMemoryHandler::HandleGetMemoryContext(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 4 || !args[0].is_string()) {
     return;
@@ -2741,7 +2742,7 @@ void DaoAgentMemoryHandler::HandleGetMemoryContext(
   auto* service = GetMemoryService();
   if (!service) {
     ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value(base::Value::Dict()));
+                              base::Value(base::DictValue()));
     return;
   }
 
@@ -2753,12 +2754,12 @@ void DaoAgentMemoryHandler::HandleGetMemoryContext(
             if (!handler) {
               return;
             }
-            base::Value::Dict result;
+            base::DictValue result;
 
             // Preferences
-            base::Value::List prefs;
+            base::ListValue prefs;
             for (const auto& p : ctx.preferences) {
-              base::Value::Dict pref;
+              base::DictValue pref;
               pref.Set("key", p.key);
               pref.Set("value", p.value);
               pref.Set("confidence", p.confidence);
@@ -2767,9 +2768,9 @@ void DaoAgentMemoryHandler::HandleGetMemoryContext(
             result.Set("preferences", std::move(prefs));
 
             // Episodes
-            base::Value::List eps;
+            base::ListValue eps;
             for (const auto& e : ctx.episodes) {
-              base::Value::Dict ep;
+              base::DictValue ep;
               ep.Set("intent", e.intent);
               ep.Set("outcome", e.outcome);
               ep.Set("timestamp",
@@ -2781,9 +2782,9 @@ void DaoAgentMemoryHandler::HandleGetMemoryContext(
             result.Set("episodes", std::move(eps));
 
             // Recent messages
-            base::Value::List msgs;
+            base::ListValue msgs;
             for (const auto& m : ctx.recent_messages) {
-              base::Value::Dict msg;
+              base::DictValue msg;
               msg.Set("role", m.role);
               msg.Set("content", m.content);
               msgs.Append(std::move(msg));
@@ -2796,7 +2797,7 @@ void DaoAgentMemoryHandler::HandleGetMemoryContext(
 }
 
 void DaoAgentMemoryHandler::HandleEndSession(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 3 || !args[0].is_string()) {
     return;
@@ -2853,7 +2854,7 @@ void DaoAgentMemoryHandler::HandleEndSession(
 }
 
 void DaoAgentMemoryHandler::HandleLoadConversations(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) {
     return;
@@ -2864,7 +2865,7 @@ void DaoAgentMemoryHandler::HandleLoadConversations(
   auto* service = GetMemoryService();
   if (!service) {
     ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value(base::Value::List()));
+                              base::Value(base::ListValue()));
     return;
   }
 
@@ -2877,9 +2878,9 @@ void DaoAgentMemoryHandler::HandleLoadConversations(
             if (!handler) {
               return;
             }
-            base::Value::List list;
+            base::ListValue list;
             for (const auto& m : messages) {
-              base::Value::Dict msg;
+              base::DictValue msg;
               msg.Set("sessionId", m.session_id);
               msg.Set("role", m.role);
               msg.Set("content", m.content);
@@ -2895,7 +2896,7 @@ void DaoAgentMemoryHandler::HandleLoadConversations(
 }
 
 void DaoAgentMemoryHandler::HandleGetPreferences(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) {
     return;
@@ -2905,7 +2906,7 @@ void DaoAgentMemoryHandler::HandleGetPreferences(
   auto* service = GetMemoryService();
   if (!service) {
     ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value(base::Value::List()));
+                              base::Value(base::ListValue()));
     return;
   }
 
@@ -2917,9 +2918,9 @@ void DaoAgentMemoryHandler::HandleGetPreferences(
             if (!handler) {
               return;
             }
-            base::Value::List list;
+            base::ListValue list;
             for (const auto& p : prefs) {
-              base::Value::Dict pref;
+              base::DictValue pref;
               pref.Set("id", static_cast<int>(p.id));
               pref.Set("key", p.key);
               pref.Set("value", p.value);
@@ -2933,7 +2934,7 @@ void DaoAgentMemoryHandler::HandleGetPreferences(
 }
 
 void DaoAgentMemoryHandler::HandleUpdatePreference(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 4 || !args[0].is_string()) {
     return;
@@ -2964,7 +2965,7 @@ void DaoAgentMemoryHandler::HandleUpdatePreference(
 }
 
 void DaoAgentMemoryHandler::HandleDeleteMemory(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 3 || !args[0].is_string()) {
     return;
@@ -3024,7 +3025,7 @@ void DaoAgentMemoryHandler::HandleDeleteMemory(
 }
 
 void DaoAgentMemoryHandler::HandleGetEpisodes(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 3 || !args[0].is_string()) {
     return;
@@ -3036,7 +3037,7 @@ void DaoAgentMemoryHandler::HandleGetEpisodes(
   auto* service = GetMemoryService();
   if (!service) {
     ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value(base::Value::List()));
+                              base::Value(base::ListValue()));
     return;
   }
 
@@ -3048,9 +3049,9 @@ void DaoAgentMemoryHandler::HandleGetEpisodes(
             if (!handler) {
               return;
             }
-            base::Value::List list;
+            base::ListValue list;
             for (const auto& e : episodes) {
-              base::Value::Dict ep;
+              base::DictValue ep;
               ep.Set("id", static_cast<int>(e.id));
               ep.Set("domain", e.domain);
               ep.Set("url", e.url);
@@ -3071,7 +3072,7 @@ void DaoAgentMemoryHandler::HandleGetEpisodes(
 }
 
 void DaoAgentMemoryHandler::HandleClearAllMemory(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) {
     return;
@@ -3097,7 +3098,7 @@ void DaoAgentMemoryHandler::HandleClearAllMemory(
 }
 
 void DaoAgentMemoryHandler::HandleGetStorageStats(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) {
     return;
@@ -3107,7 +3108,7 @@ void DaoAgentMemoryHandler::HandleGetStorageStats(
   auto* service = GetMemoryService();
   if (!service) {
     ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value(base::Value::Dict()));
+                              base::Value(base::DictValue()));
     return;
   }
 
@@ -3117,7 +3118,7 @@ void DaoAgentMemoryHandler::HandleGetStorageStats(
         if (!handler) {
           return;
         }
-        base::Value::Dict result;
+        base::DictValue result;
         result.Set("totalSize", static_cast<int>(stats.total_size_bytes));
         result.Set("conversationCount", stats.conversation_count);
         result.Set("episodeCount", stats.episode_count);
@@ -3128,7 +3129,7 @@ void DaoAgentMemoryHandler::HandleGetStorageStats(
 }
 
 void DaoAgentMemoryHandler::HandleDismissSuggestion(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) {
     return;
@@ -3189,7 +3190,7 @@ void DaoAgentMemoryHandler::HandleDismissSuggestion(
 }
 
 void DaoAgentMemoryHandler::HandleAcceptSuggestion(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) {
     return;
@@ -3250,7 +3251,7 @@ void DaoAgentMemoryHandler::HandleAcceptSuggestion(
 }
 
 void DaoAgentMemoryHandler::HandleGetMemoryEnabled(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) {
     return;
@@ -3262,7 +3263,7 @@ void DaoAgentMemoryHandler::HandleGetMemoryEnabled(
 }
 
 void DaoAgentMemoryHandler::HandleSetMemoryEnabled(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_bool()) {
     return;
@@ -3275,7 +3276,7 @@ void DaoAgentMemoryHandler::HandleSetMemoryEnabled(
 }
 
 void DaoAgentMemoryHandler::HandleSetProactiveEnabled(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_bool()) {
     return;
@@ -3295,7 +3296,7 @@ void DaoAgentMemoryHandler::HandleSetProactiveEnabled(
 }
 
 void DaoAgentMemoryHandler::HandleSetConfidenceThreshold(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) {
     return;
@@ -3314,7 +3315,7 @@ void DaoAgentMemoryHandler::HandleSetConfidenceThreshold(
 }
 
 void DaoAgentMemoryHandler::HandleRecordActionFeedback(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
     return;
@@ -3345,7 +3346,7 @@ void DaoAgentMemoryHandler::HandleRecordActionFeedback(
 }
 
 void DaoAgentMemoryHandler::HandleSaveEpisode(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
     return;
@@ -3388,7 +3389,7 @@ void DaoAgentMemoryHandler::HandleSaveEpisode(
 }
 
 void DaoAgentMemoryHandler::HandleSaveSummary(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
     return;
@@ -3425,7 +3426,7 @@ void DaoAgentMemoryHandler::HandleSaveSummary(
 }
 
 void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) {
     return;
@@ -3435,7 +3436,8 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
 
   // Find the tab by unique ID across all browsers.
   content::WebContents* target = nullptr;
-  for (Browser* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : chrome::FindAllBrowsersWithProfile(
+           Profile::FromWebUI(web_ui()))) {
     TabStripModel* model = browser->tab_strip_model();
     for (int i = 0; i < model->count(); ++i) {
       content::WebContents* wc = model->GetWebContentsAt(i);
@@ -3450,7 +3452,7 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
   }
 
   if (!target) {
-    base::Value::Dict error;
+    base::DictValue error;
     error.Set("error", "Tab not found");
     ResolveJavascriptCallback(base::Value(callback_id), error);
     return;
@@ -3465,7 +3467,7 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
 
   content::RenderFrameHost* rfh = target->GetPrimaryMainFrame();
   if (!rfh || !rfh->IsRenderFrameLive()) {
-    base::Value::Dict error;
+    base::DictValue error;
     error.Set("error", "Frame not available");
     ResolveJavascriptCallback(base::Value(callback_id), error);
     return;
@@ -3479,7 +3481,7 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
             if (!handler) {
               return;
             }
-            base::Value::Dict response;
+            base::DictValue response;
             if (result.is_string()) {
               response.Set("text", result.GetString());
             } else {
@@ -3530,7 +3532,7 @@ void DaoAgentSkillHandler::RegisterMessages() {
 }
 
 void DaoAgentSkillHandler::HandleGetSkillRegistry(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) {
     return;
@@ -3540,7 +3542,7 @@ void DaoAgentSkillHandler::HandleGetSkillRegistry(
   auto* service = GetSkillService();
   if (!service) {
     ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value(base::Value::List()));
+                              base::Value(base::ListValue()));
     return;
   }
 
@@ -3550,16 +3552,16 @@ void DaoAgentSkillHandler::HandleGetSkillRegistry(
         if (!handler) {
           return;
         }
-        base::Value::List list;
+        base::ListValue list;
         for (const auto& entry : entries) {
-          base::Value::Dict dict;
+          base::DictValue dict;
           dict.Set("id", entry.id);
           dict.Set("name", entry.name);
           dict.Set("description", entry.description);
           dict.Set("source", entry.source);
           dict.Set("requiresPageContent", entry.requires_page_content);
 
-          base::Value::List hosts_list;
+          base::ListValue hosts_list;
           for (const auto& host : entry.hosts) {
             hosts_list.Append(host);
           }
@@ -3573,7 +3575,7 @@ void DaoAgentSkillHandler::HandleGetSkillRegistry(
 }
 
 void DaoAgentSkillHandler::HandleGetSkillContent(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) {
     return;
@@ -3585,7 +3587,7 @@ void DaoAgentSkillHandler::HandleGetSkillContent(
   auto* service = GetSkillService();
   if (!service || skill_id.empty()) {
     ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value(base::Value::Dict()));
+                              base::Value(base::DictValue()));
     return;
   }
 
@@ -3599,13 +3601,13 @@ void DaoAgentSkillHandler::HandleGetSkillContent(
             }
             if (!content.has_value()) {
               handler->ResolveJavascriptCallback(
-                  base::Value(cb_id), base::Value(base::Value::Dict()));
+                  base::Value(cb_id), base::Value(base::DictValue()));
               return;
             }
-            base::Value::Dict result;
+            base::DictValue result;
             result.Set("instructions", content->instructions);
 
-            base::Value::Dict metadata;
+            base::DictValue metadata;
             metadata.Set("id", content->metadata.id);
             metadata.Set("name", content->metadata.name);
             metadata.Set("description", content->metadata.description);
@@ -3613,7 +3615,7 @@ void DaoAgentSkillHandler::HandleGetSkillContent(
             metadata.Set("requiresPageContent",
                          content->metadata.requires_page_content);
 
-            base::Value::List hosts_list;
+            base::ListValue hosts_list;
             for (const auto& host : content->metadata.hosts) {
               hosts_list.Append(host);
             }
@@ -3626,7 +3628,7 @@ void DaoAgentSkillHandler::HandleGetSkillContent(
 }
 
 void DaoAgentSkillHandler::HandleSaveUserSkill(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 4 || !args[0].is_string()) {
     return;
@@ -3660,7 +3662,7 @@ void DaoAgentSkillHandler::HandleSaveUserSkill(
 }
 
 void DaoAgentSkillHandler::HandleDeleteUserSkill(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) {
     return;
@@ -3690,7 +3692,7 @@ void DaoAgentSkillHandler::HandleDeleteUserSkill(
 }
 
 void DaoAgentSkillHandler::HandleOpenSkillsDirectory(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   Profile* profile = Profile::FromWebUI(web_ui());
   base::FilePath skills_path =
       profile->GetPath().AppendASCII("DaoAgentSkills");
@@ -3699,8 +3701,8 @@ void DaoAgentSkillHandler::HandleOpenSkillsDirectory(
 }
 
 void DaoAgentSkillHandler::HandleOpenSkillManager(
-    const base::Value::List& args) {
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+    const base::ListValue& args) {
+  Browser* browser = chrome::FindLastActive();
   if (!browser) {
     return;
   }

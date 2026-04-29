@@ -1,0 +1,13 @@
+diff --git a/ui/gfx/image/image_unittest_util_apple.mm b/ui/gfx/image/image_unittest_util_apple.mm
+index 4a6e3016b0..74e4544015 100644
+--- a/ui/gfx/image/image_unittest_util_apple.mm
++++ b/ui/gfx/image/image_unittest_util_apple.mm
+@@ -48,7 +48,7 @@ SkColor GetPlatformImageColor(PlatformImage image, int x, int y) {
+           /*bitsPerComponent=*/8,
+           /*bytesPerRow=*/4, color_space.get(),
+           static_cast<CGBitmapInfo>(kCGImageAlphaPremultipliedFirst) |
+-              kCGImageByteOrder32Host));
++              kCGBitmapByteOrder32Host));
+   CGContextDrawImage(bitmap_context.get(), CGRectMake(0, 0, 1, 1),
+                      pixel_image.get());
+ 

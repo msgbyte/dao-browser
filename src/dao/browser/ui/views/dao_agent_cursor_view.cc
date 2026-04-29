@@ -12,6 +12,7 @@
 #include "dao/browser/ui/views/dao_colors.h"
 #include "cc/paint/paint_filter.h"
 #include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkPathBuilder.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
@@ -160,15 +161,16 @@ void DaoAgentCursorView::OnPaint(gfx::Canvas* canvas) {
 
 void DaoAgentCursorView::PaintCursor(gfx::Canvas* canvas) {
   // Build arrow pointer path. Hotspot at top-left (0,0).
-  SkPath arrow;
-  arrow.moveTo(0, 0);
-  arrow.lineTo(0, kPointerHeight);
-  arrow.lineTo(kPointerWidth * 0.35f, kPointerHeight * 0.75f);
-  arrow.lineTo(kPointerWidth * 0.55f, kPointerHeight);
-  arrow.lineTo(kPointerWidth * 0.7f, kPointerHeight * 0.9f);
-  arrow.lineTo(kPointerWidth * 0.45f, kPointerHeight * 0.65f);
-  arrow.lineTo(kPointerWidth, kPointerHeight * 0.45f);
-  arrow.close();
+  SkPath arrow = SkPathBuilder()
+                     .moveTo(0, 0)
+                     .lineTo(0, kPointerHeight)
+                     .lineTo(kPointerWidth * 0.35f, kPointerHeight * 0.75f)
+                     .lineTo(kPointerWidth * 0.55f, kPointerHeight)
+                     .lineTo(kPointerWidth * 0.7f, kPointerHeight * 0.9f)
+                     .lineTo(kPointerWidth * 0.45f, kPointerHeight * 0.65f)
+                     .lineTo(kPointerWidth, kPointerHeight * 0.45f)
+                     .close()
+                     .detach();
 
   canvas->Save();
   canvas->Translate(

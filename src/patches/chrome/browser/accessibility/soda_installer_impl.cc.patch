@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/accessibility/soda_installer_impl.cc b/chrome/browser/accessibility/soda_installer_impl.cc
-index 86092c832f..80eda4e8f7 100644
+index b552e39378..96c9f66a59 100644
 --- a/chrome/browser/accessibility/soda_installer_impl.cc
 +++ b/chrome/browser/accessibility/soda_installer_impl.cc
-@@ -242,18 +242,32 @@ void SodaInstallerImpl::DeleteSodaFiles() {
+@@ -240,18 +240,32 @@ void SodaInstallerImpl::DeleteSodaFiles() {
  
  void SodaInstallerImpl::UpdateAndNotifyOnSodaProgress(
      speech::LanguageCode language_code) {
@@ -22,7 +22,7 @@ index 86092c832f..80eda4e8f7 100644
 +  int64_t downloaded_bytes = 0;
    speech::LanguageCode soda_code = speech::LanguageCode::kNone;
  
--  if (base::Contains(downloading_components_, soda_code)) {
+-  if (downloading_components_.contains(soda_code)) {
 -    total_bytes += downloading_components_[soda_code].total_bytes;
 -    downloaded_bytes += downloading_components_[soda_code].downloaded_bytes;
 -  }

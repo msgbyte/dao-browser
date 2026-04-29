@@ -17,7 +17,12 @@ export class DaoNewTabButton extends CrLitElement {
     };
   }
 
-  highlighted: boolean = false;
+  declare highlighted: boolean;
+
+  constructor() {
+    super();
+    this.highlighted = false;
+  }
 
   static override get styles() {
     return css`

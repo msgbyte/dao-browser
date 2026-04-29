@@ -5,7 +5,7 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_NATIVE_UTIL_MAC_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_NATIVE_UTIL_MAC_H_
 
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 namespace content {
 class WebContents;

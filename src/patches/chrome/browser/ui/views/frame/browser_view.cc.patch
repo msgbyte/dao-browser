@@ -1,39 +1,39 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 76c889780c..9e0b7780c6 100644
+index e4d4e62095..055a20963c 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -119,6 +119,22 @@
- #include "chrome/browser/ui/views/frame/browser_view_layout.h"
- #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
- #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
+@@ -4,6 +4,23 @@
+ 
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ 
 +#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 +#include "dao/browser/ui/views/dao_address_bar_view.h"
 +#include "dao/browser/ui/views/dao_agent_cursor_view.h"
 +#include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
++#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 +#include "dao/browser/ui/views/dao_colors.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
++#include "dao/browser/ui/views/dao_control_center_popup.h"
 +#include "dao/browser/ui/views/dao_corner_overlay_view.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
-+#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
-+#include "dao/browser/ui/views/dao_control_center_popup.h"
-+#include "dao/browser/ui/views/split/dao_split_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
-+#include "dao/browser/ui/views/dao_toast_view.h"
- #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
- #include "chrome/browser/ui/views/frame/multi_contents_view.h"
- #include "chrome/browser/ui/views/frame/native_browser_frame.h"
-@@ -1084,6 +1100,80 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
++#include "dao/browser/ui/views/split/dao_split_view.h"
++
+ #include <stdint.h>
+ 
+ #include <algorithm>
+@@ -963,6 +980,79 @@ BrowserView::BrowserView(Browser* browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
 +  // Dao: Only create sidebar UI for normal browser windows (not popups/devtools)
-+  if (browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
++  if (browser_->SupportsWindowFeature(Browser::WindowFeature::kFeatureTabStrip)) {
 +    // Dao: Set frame background color (visible behind sidebar + content insets)
 +    SetBackground(views::CreateSolidBackground(dao::SidebarBackground()));
-+    contents_web_view_->SetBackgroundOverrideColor(SK_ColorWHITE);
 +    contents_container_->SetPaintToLayer();
 +    contents_container_->layer()->SetFillsBoundsOpaquely(false);
 +    contents_container_->SetBackground(
@@ -48,13 +48,13 @@ index 76c889780c..9e0b7780c6 100644
 +    dao_split_view_ = contents_container_->AddChildView(
 +        std::make_unique<dao::DaoSplitView>(browser_.get()));
 +
-+    // Dao: Address bar at top of content area
-+    dao_address_bar_ = AddChildView(
-+        std::make_unique<dao::DaoAddressBarView>(browser_.get()));
-+
 +    // Dao: Thin banner shown while the active tab is AI-locked.
 +    dao_agent_lock_banner_ = AddChildView(
 +        std::make_unique<dao::DaoAgentLockBannerView>());
++
++    // Dao: Address bar at the top of the content area (URL pill + nav buttons).
++    dao_address_bar_ = AddChildView(
++        std::make_unique<dao::DaoAddressBarView>(browser_.get()));
 +
 +    // Dao: Corner overlay painted on top of web contents
 +    dao_corner_overlay_ = AddChildView(
@@ -103,10 +103,10 @@ index 76c889780c..9e0b7780c6 100644
 +        std::make_unique<dao::DaoCommandBarView>(browser_.get()));
 +  }
 +
-   right_aligned_side_panel_separator_ =
-       AddChildView(std::make_unique<ContentsSeparator>());
+   contents_height_side_panel_ = AddChildView(std::make_unique<SidePanel>(
+       this, SidePanelEntry::PanelType::kContent, /*has_border=*/true));
  
-@@ -1301,6 +1391,11 @@ gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
+@@ -1278,12 +1368,21 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -115,10 +115,9 @@ index 76c889780c..9e0b7780c6 100644
 +  if (dao_sidebar_) {
 +    return false;
 +  }
-   const bool is_pwa =
-       base::FeatureList::IsEnabled(features::kImmersiveFullscreenPWAs) &&
-       GetIsWebAppType();
-@@ -1310,6 +1405,10 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
+   const bool is_pwa = GetIsWebAppType();
+   const bool is_tabbed_window = GetSupportsTabStrip();
+   return is_pwa || is_tabbed_window;
  }
  
  bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
@@ -126,10 +125,10 @@ index 76c889780c..9e0b7780c6 100644
 +  if (dao_sidebar_) {
 +    return false;
 +  }
-   return (GetSupportsTabStrip() &&
-           base::FeatureList::IsEnabled(features::kImmersiveFullscreen) &&
-           base::FeatureList::IsEnabled(features::kImmersiveFullscreenTabs)) &&
-@@ -1338,6 +1437,11 @@ bool BrowserView::GetTabStripVisible() const {
+   const bool is_pwa = GetIsWebAppType();
+   const bool is_tabbed_window = GetSupportsTabStrip();
+   return is_tabbed_window && !is_pwa;
+@@ -1387,6 +1486,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -140,55 +139,61 @@ index 76c889780c..9e0b7780c6 100644
 +
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
-   if (!browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-@@ -1876,6 +1980,8 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
-   // Visibility API under Windows, as ChangeWebContents will briefly hide
-   // the WebContents window.
-   bool change_tab_contents = contents_web_view_->web_contents() != new_contents;
-+  const bool dao_split_tab_active =
-+      dao_split_view_ && dao_split_view_->ContainsWebContents(new_contents);
- 
- #if BUILDFLAG(IS_MAC)
-   // Widget::IsActive is inconsistent between Mac and Aura, so don't check for
-@@ -1951,13 +2057,32 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+   if (!browser_->SupportsWindowFeature(
+@@ -1977,9 +2081,14 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+     if (loading_bar_) {
+       loading_bar_->SetWebContents(nullptr);
      }
- 
-     web_contents_close_handler_->ActiveTabChanged();
--    if (loading_bar_) {
-+    if (loading_bar_ && !dao_split_tab_active) {
-       loading_bar_->SetWebContents(new_contents);
-+    } else if (loading_bar_) {
-+      loading_bar_->SetWebContents(nullptr);
+
+-    multi_contents_view_->GetInactiveContentsView()->SetWebContents(nullptr);
+-    active_contents_view->SetWebContents(nullptr);
++    // Dao: When our split view owns the contents, skip the multi_contents_view
++    // rewire — the active WC is already attached to a DaoSplitPaneView. Letting
++    // Chromium re-attach here stomps views_host_ and DCHECKs on next detach.
++    if (!dao_split_view_ || !dao_split_view_->IsSplitActive()) {
++      multi_contents_view_->GetInactiveContentsView()->SetWebContents(nullptr);
++      active_contents_view->SetWebContents(nullptr);
 +    }
-+    if (dao_split_tab_active) {
-+      contents_web_view_->SetWebContents(nullptr);
+   }
+
+   // Do this before updating InfoBarContainer as the InfoBarContainer may
+@@ -2041,8 +2150,11 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+         if (multi_contents_view_->IsInSplitView()) {
+           HideSplitView();
+         }
+-        multi_contents_view_->GetActiveContentsView()->SetWebContents(
+-            new_contents);
++        // Dao: Same rationale — pane owns the WC when our split is active.
++        if (!dao_split_view_ || !dao_split_view_->IsSplitActive()) {
++          multi_contents_view_->GetActiveContentsView()->SetWebContents(
++              new_contents);
++        }
+       }
+
+     SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
+@@ -2084,6 +2196,21 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+   if (AppUsesUnframedMode() && !old_contents) {
+     SetWindowManagementPermissionSubscriptionForUnframedMode(new_contents);
+   }
++
++  // Dao: Update lock banner + cursor overlays for the newly-active tab.
++  if (dao_agent_lock_banner_) {
++    dao_agent_lock_banner_->SetLocked(
++        dao::DaoAgentLockTabHelper::IsLocked(new_contents));
++    InvalidateLayout();
++    GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
++  }
++  if (dao_agent_cursor_) {
++    if (dao::DaoAgentLockTabHelper::IsLocked(new_contents)) {
++      dao_agent_cursor_->ShowAtCenter();
 +    } else {
-+      contents_web_view_->SetWebContents(new_contents);
-+      SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
-+      if (sad_tab_helper) {
-+        sad_tab_helper->ReinstallInWebView();
-+      }
-     }
--    contents_web_view_->SetWebContents(new_contents);
--    SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
--    if (sad_tab_helper) {
--      sad_tab_helper->ReinstallInWebView();
-+    if (dao_agent_lock_banner_) {
-+      dao_agent_lock_banner_->SetLocked(
-+          dao::DaoAgentLockTabHelper::IsLocked(new_contents));
-+      InvalidateLayout();
-+      GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
++      dao_agent_cursor_->Hide();
 +    }
-+    if (dao_agent_cursor_) {
-+      if (dao::DaoAgentLockTabHelper::IsLocked(new_contents)) {
-+        dao_agent_cursor_->ShowAtCenter();
-+      } else {
-+        dao_agent_cursor_->Hide();
-+      }
-     }
++  }
+ }
  
-     // The second layout update should be no-op. It will just set the
-@@ -2362,6 +2487,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+ void BrowserView::OnTabDetached(content::WebContents* contents,
+@@ -2334,6 +2461,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -207,10 +212,11 @@ index 76c889780c..9e0b7780c6 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3710,6 +3847,20 @@ LocationBarView* BrowserView::GetLocationBarView() const {
- void BrowserView::TabChangedAt(content::WebContents* contents,
-                                int index,
-                                TabChangeType change_type) {
+@@ -3663,6 +3802,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
+                                  TabChangeType change_type) {
+   content::WebContents* contents = tab->GetContents();
+ 
++  // Dao: Keep lock banner + cursor in sync with tab lock state on any change.
 +  if (contents == GetActiveWebContents() && dao_agent_lock_banner_) {
 +    dao_agent_lock_banner_->SetLocked(
 +        dao::DaoAgentLockTabHelper::IsLocked(contents));
@@ -228,3 +234,74 @@ index 76c889780c..9e0b7780c6 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
+@@ -4870,6 +5024,70 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+     }
+   }
+ 
++  // Dao: Control center popup is clickable anywhere it's visible.
++  if (dao_control_center_popup_ && dao_control_center_popup_->GetVisible() &&
++      dao_control_center_popup_->bounds().Contains(
++          point_in_browser_view_coords)) {
++    return HTCLIENT;
++  }
++
++  // Dao: Command bar scrim + card receive mouse events when visible.
++  if (dao_command_bar_ && dao_command_bar_->GetVisible() &&
++      dao_command_bar_->bounds().Contains(point_in_browser_view_coords)) {
++    return HTCLIENT;
++  }
++
++  // Dao: When sidebar is active, turn the area above content into a drag
++  // region. Agent sidebar is client (clickable); sidebar header is draggable
++  // except for the toggle button which remains clickable.
++  if (dao_sidebar_ && dao_sidebar_->GetVisible()) {
++    if (dao_agent_sidebar_ && dao_agent_sidebar_->GetVisible() &&
++        dao_agent_sidebar_->bounds().Contains(point_in_browser_view_coords)) {
++      return HTCLIENT;
++    }
++
++    gfx::Rect header_bounds = dao_sidebar_->header_bounds_in_sidebar();
++    header_bounds.Offset(dao_sidebar_->bounds().origin().OffsetFromOrigin());
++    if (header_bounds.Contains(point_in_browser_view_coords)) {
++      gfx::Rect btn_bounds = dao_sidebar_->toggle_button_bounds_in_sidebar();
++      btn_bounds.Offset(dao_sidebar_->bounds().origin().OffsetFromOrigin());
++      if (btn_bounds.Contains(point_in_browser_view_coords)) {
++        return HTCLIENT;
++      }
++      return HTNOWHERE;
++    }
++
++    const int sidebar_right = dao_sidebar_->bounds().right();
++    const int content_top = contents_container_->y();
++    if (point_in_browser_view_coords.x() >= sidebar_right &&
++        point_in_browser_view_coords.y() < content_top) {
++      // Dao: Address bar sits in this strip above contents_container and
++      // must remain clickable instead of becoming a window-drag region.
++      if (dao_address_bar_ && dao_address_bar_->GetVisible() &&
++          dao_address_bar_->bounds().Contains(point_in_browser_view_coords)) {
++        return HTCLIENT;
++      }
++      return HTNOWHERE;
++    }
++  }
++
++  // Dao: Little Dao window — only the open-in-dao button and URL display are
++  // clickable within the top bar; everything else up there is draggable.
++  if (dao_little_dao_view_ && dao_little_dao_view_->GetVisible()) {
++    if (dao_little_dao_view_->open_in_dao_button_bounds().Contains(
++            point_in_browser_view_coords)) {
++      return HTCLIENT;
++    }
++    if (dao_little_dao_view_->url_display_bounds().Contains(
++            point_in_browser_view_coords)) {
++      return HTCLIENT;
++    }
++    const int content_top = contents_container_->y();
++    if (point_in_browser_view_coords.y() < content_top) {
++      return HTNOWHERE;
++    }
++  }
++
+   // Determine if the TabStrip exists and is capable of being clicked on. We
+   // might be a popup window without a TabStrip. Use `GetTabStripVisible` as the
+   // tabstrip might have been hidden in immersive mode.

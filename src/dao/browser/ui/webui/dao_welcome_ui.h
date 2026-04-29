@@ -36,7 +36,7 @@ class DaoWelcomeUIHandler : public content::WebUIMessageHandler {
   void RegisterMessages() override;
 
  private:
-  void HandleMarkWelcomeShown(const base::Value::List& args);
+  void HandleMarkWelcomeShown(const base::ListValue& args);
 
   base::WeakPtrFactory<DaoWelcomeUIHandler> weak_factory_{this};
 };

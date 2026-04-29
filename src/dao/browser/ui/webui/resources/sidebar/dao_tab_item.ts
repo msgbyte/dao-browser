@@ -140,19 +140,26 @@ export class DaoTabItem extends CrLitElement {
     };
   }
 
-  tabData: TabData = {
-    tabId: '',
-    index: -1,
-    title: '',
-    url: '',
-    faviconUrl: '',
-    isActive: false,
-    isPinned: false,
-    isAudible: false,
-    isMuted: false,
-  };
-  active: boolean = false;
-  sessionId: number = 0;
+  declare tabData: TabData;
+  declare active: boolean;
+  declare sessionId: number;
+
+  constructor() {
+    super();
+    this.tabData = {
+      tabId: '',
+      index: -1,
+      title: '',
+      url: '',
+      faviconUrl: '',
+      isActive: false,
+      isPinned: false,
+      isAudible: false,
+      isMuted: false,
+    };
+    this.active = false;
+    this.sessionId = 0;
+  }
 
   private tooltipTimer_: number = 0;
   private lastMouseX_: number = 0;
@@ -237,8 +244,11 @@ export class DaoTabItem extends CrLitElement {
 
   private onDragStart_(e: DragEvent) {
     if (!e.dataTransfer) return;
-    e.dataTransfer.setData('text/plain',
-        `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}`);
+    const payload =
+        `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}`;
+    console.error('[Dao-Xwin-JS] dragstart: payload=' +
+        JSON.stringify(payload) + ' sessionId=' + this.sessionId);
+    e.dataTransfer.setData('text/plain', payload);
     e.dataTransfer.effectAllowed = 'move';
   }
 

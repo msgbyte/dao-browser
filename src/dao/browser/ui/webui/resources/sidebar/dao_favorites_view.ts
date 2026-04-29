@@ -65,7 +65,12 @@ export class DaoFavoritesView extends CrLitElement {
     };
   }
 
-  tabs: TabData[] = [];
+  declare tabs: TabData[];
+
+  constructor() {
+    super();
+    this.tabs = [];
+  }
 
   override render() {
     return html`

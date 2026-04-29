@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-index 551842d642..6521e1e970 100644
+index fa96596943..da60bbe4f0 100644
 --- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
 +++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
 @@ -4,6 +4,8 @@
@@ -9,20 +9,12 @@ index 551842d642..6521e1e970 100644
 +#include <optional>
 +#include "dao/browser/pip/dao_pip_interceptor.h"
  #include "base/feature_list.h"
+ #include "base/metrics/histogram_functions.h"
  #include "base/metrics/histogram_macros.h"
- #include "base/time/default_tick_clock.h"
-@@ -204,6 +206,7 @@ void AutoPictureInPictureTabHelper::MediaSessionInfoChanged(
-   is_playing_ =
-       session_info && session_info->playback_state ==
-                           media_session::mojom::MediaPlaybackState::kPlaying;
-+  MaybeStartOrStopObservingTabStrip();
- }
- 
- void AutoPictureInPictureTabHelper::MediaSessionActionsChanged(
-@@ -226,7 +229,21 @@ void AutoPictureInPictureTabHelper::MaybeEnterAutoPictureInPicture() {
-   }
+@@ -488,7 +490,21 @@ void AutoPictureInPictureTabHelper::MaybeEnterAutoPictureInPicture() {
    auto_picture_in_picture_activation_time_ =
        base::TimeTicks::Now() + blink::kActivationLifespan;
+   auto_pip_trigger_reason_ = GetAutoPipReason();
 -  content::MediaSession::Get(web_contents())->EnterAutoPictureInPicture();
 +  // Dao: Intercept configured sites for Document PiP with DOM element.
 +  if (dao::DaoPipInterceptor::ShouldIntercept(web_contents())) {
@@ -39,20 +31,20 @@ index 551842d642..6521e1e970 100644
 +  // EnterPictureInPicture() has a fallback that directly calls
 +  // RequestEnterPictureInPicture via Mojo on the media player.
 +  content::MediaSession::Get(web_contents())->EnterPictureInPicture();
-   MaybeRecordPictureInPictureChanged(true);
  }
  
-@@ -278,7 +295,8 @@ void AutoPictureInPictureTabHelper::MaybeExitAutoPictureInPicture() {
+ void AutoPictureInPictureTabHelper::MaybeScheduleAsyncTasks() {
+@@ -558,7 +574,8 @@ void AutoPictureInPictureTabHelper::MaybeExitAutoPictureInPicture() {
  
  void AutoPictureInPictureTabHelper::MaybeStartOrStopObservingTabStrip() {
    if (is_enter_auto_picture_in_picture_available_ ||
 -      is_in_auto_picture_in_picture_) {
 +      is_in_auto_picture_in_picture_ ||
 +      is_playing_) {
-     tab_strip_observer_helper_->StartObserving();
+     tab_observer_helper_->StartObserving();
    } else {
-     tab_strip_observer_helper_->StopObserving();
-@@ -304,10 +322,8 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
+     tab_observer_helper_->StopObserving();
+@@ -584,10 +601,8 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
      return false;
    }
  
@@ -65,7 +57,7 @@ index 551842d642..6521e1e970 100644
  
    // Do not replace any PiP with autopip.  In the special case where the
    // incoming active tab owns a pip window that will close as a result of the
-@@ -354,8 +370,8 @@ bool AutoPictureInPictureTabHelper::MeetsVideoPlaybackConditions() const {
+@@ -637,8 +652,8 @@ bool AutoPictureInPictureTabHelper::MeetsVideoPlaybackConditions() const {
      return false;
    }
  

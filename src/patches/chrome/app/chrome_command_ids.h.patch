@@ -1,10 +1,10 @@
 diff --git a/chrome/app/chrome_command_ids.h b/chrome/app/chrome_command_ids.h
-index 9e2fae9f59..c9f1cf8697 100644
+index 1384557ac6..8b70fcfa76 100644
 --- a/chrome/app/chrome_command_ids.h
 +++ b/chrome/app/chrome_command_ids.h
-@@ -83,6 +83,12 @@
- #define IDC_OPEN_IN_PWA_WINDOW          34053
- #define IDC_MOVE_TAB_TO_NEW_WINDOW          34054
+@@ -86,6 +86,12 @@
+ #define IDC_TOGGLE_VERTICAL_TABS        34056
+ #define IDC_VERTICAL_TABS_SEND_FEEDBACK 34057
  
 +// Dao commands
 +#define IDC_NEW_LITTLE_DAO              34070

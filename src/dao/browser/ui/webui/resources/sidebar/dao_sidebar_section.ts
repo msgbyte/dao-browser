@@ -38,7 +38,12 @@ export class DaoSidebarSection extends CrLitElement {
     };
   }
 
-  sectionTitle: string = '';
+  declare sectionTitle: string;
+
+  constructor() {
+    super();
+    this.sectionTitle = '';
+  }
 
   override render() {
     return html`

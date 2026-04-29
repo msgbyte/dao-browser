@@ -8,6 +8,7 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -300,6 +301,26 @@ content::WebContents* DaoSidebarView::OpenURLFromTab(
   }
   // Allow chrome:// navigations (unlikely but safe).
   return source;
+}
+
+content::WebContents* DaoSidebarView::sidebar_web_contents() const {
+  return sidebar_web_view_ ? sidebar_web_view_->GetWebContents() : nullptr;
+}
+
+Browser* GetBrowserForSidebarWebContents(content::WebContents* web_contents) {
+  if (!web_contents) {
+    return nullptr;
+  }
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
+  for (Browser* b : chrome::FindAllBrowsersWithProfile(profile)) {
+    BrowserView* bv = BrowserView::GetBrowserViewForBrowser(b);
+    if (bv && bv->dao_sidebar() &&
+        bv->dao_sidebar()->sidebar_web_contents() == web_contents) {
+      return b;
+    }
+  }
+  return nullptr;
 }
 
 void DaoSidebarView::StartFileDrag(const base::FilePath& path) {
@@ -787,13 +808,10 @@ views::View::DropCallback DaoSidebarView::GetDropCallback(
         std::vector<GURL> urls;
 
         // Try GetURLs which handles both URLs and file conversions.
-        auto maybe_urls =
-            data.GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
-        if (maybe_urls.has_value()) {
-          for (const auto& u : *maybe_urls) {
-            if (u.is_valid()) {
-              urls.push_back(u);
-            }
+        for (const auto& info :
+             data.GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES)) {
+          if (info.url.is_valid()) {
+            urls.push_back(info.url);
           }
         }
 

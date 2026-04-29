@@ -1,9 +1,9 @@
 diff --git a/components/policy_strings.grdp b/components/policy_strings.grdp
-index e279e3832e..48b53f8604 100644
+index 293e50152b..e155364327 100644
 --- a/components/policy_strings.grdp
 +++ b/components/policy_strings.grdp
-@@ -434,7 +434,7 @@ Additional details:
-     "<ph name="DATA_CONTROLS_RESTRICTION">$1<ex>SCREENSHOT</ex></ph>" cannot be set to "<ph name="DATA_CONTROLS_LEVEL">$2<ex>WARN</ex></ph>"
+@@ -467,7 +467,7 @@ Additional details:
+     The URL of the shortcut exceeds the maximum allowed length of <ph name="MAX_LENGTH">$1<ex>1000</ex></ph> characters.
    </message>
  
 -  <!-- chrome://policy -->
@@ -11,7 +11,7 @@ index e279e3832e..48b53f8604 100644
    <message name="IDS_POLICY_TITLE" desc="Page title and the title of the section that lists policies.">
      Policies
    </message>
-@@ -539,10 +539,10 @@ Additional details:
+@@ -572,10 +572,10 @@ Additional details:
    <message name="IDS_POLICY_LABEL_PUSH_POLICIES" desc="Label to indicates the policies can be pushed or not to chrome.">
      Policies push:
    </message>
@@ -24,7 +24,7 @@ index e279e3832e..48b53f8604 100644
      Off
    </message>
    <message name="IDS_POLICY_NEVER_FETCHED" desc="Indicates that a policy fetch was never performed before.">
-@@ -803,10 +803,10 @@ Additional details:
+@@ -839,10 +839,10 @@ Additional details:
    <message name="IDS_COPY_POLICIES_DONE" desc="Toast notification message indicating policies are copied to clipboard.">
      Copied to clipboard
    </message>
@@ -37,8 +37,8 @@ index e279e3832e..48b53f8604 100644
      More actions
    </message>
    <message name="IDS_POLICY_TABLE_COLUMN_SORT" desc="Part of the label for policy table sorting arrows.">
-@@ -828,7 +828,7 @@ Additional details:
-     Try Chrome Enterprise Core
+@@ -870,7 +870,7 @@ Additional details:
+     DevTools not allowed on this page
    </message>
  
 -  <!-- Strings for chrome://policy/logs -->
@@ -46,7 +46,7 @@ index e279e3832e..48b53f8604 100644
    <message name="IDS_POLICY_LOGS_TITLE" desc="Title for the page.">
      Policy Logs
    </message>
-@@ -842,7 +842,7 @@ Additional details:
+@@ -884,7 +884,7 @@ Additional details:
      Refresh Logs
    </message>
  
@@ -55,7 +55,7 @@ index e279e3832e..48b53f8604 100644
    <message name="IDS_POLICY_TEST_TITLE" desc="Title for the page.">
      Policy Tests
    </message>
-@@ -874,7 +874,7 @@ Additional details:
+@@ -916,7 +916,7 @@ Additional details:
      Preset
    </message>
    <message name="IDS_LOCAL_TEST_POLICIES_ENABLED" desc="Text for banner warning user of test policies being applied">
@@ -64,7 +64,7 @@ index e279e3832e..48b53f8604 100644
    </message>
    <message name="IDS_POLICY_TEST_PRESET_CUSTOM" desc="Text for the custom option of the preset dropdown in the policy test table.">
      Custom
-@@ -889,7 +889,7 @@ Additional details:
+@@ -931,7 +931,7 @@ Additional details:
    User affiliated
    </message>
  

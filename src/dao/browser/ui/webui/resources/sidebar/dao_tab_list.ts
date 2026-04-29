@@ -57,7 +57,10 @@ export class DaoTabList extends CrLitElement {
       .split-group {
         position: relative;
         margin-left: 10px;
-        padding: 2px 0;
+        padding: 2px 0 2px 6px;  /* 6px = 2px stroke + 4px gap */
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
       }
 
       .split-group::before {
@@ -83,16 +86,28 @@ export class DaoTabList extends CrLitElement {
     };
   }
 
-  tabs: TabData[] = [];
-  sessionId: number = 0;
-  folderModel: FolderModel | null = null;
-  folderModelVersion: number = 0;
+  // `declare` + constructor assignment so TS class-field emit does not
+  // override Lit's reactive accessors. See dao_sidebar_app.ts for the full
+  // explanation. Without this, parent `.tabs=${...}` bindings update the
+  // child's plain property but do not trigger a re-render.
+  declare tabs: TabData[];
+  declare sessionId: number;
+  declare folderModel: FolderModel | null;
+  declare folderModelVersion: number;
 
   private dropIndicatorY_: number = 0;
   private dropInsertIndex_: number = -1;
   private dropModelIndex_: number = -1;
   private tabDragActivated_: boolean = false;
   private draggedTabIndex_: number = -1;
+
+  constructor() {
+    super();
+    this.tabs = [];
+    this.sessionId = 0;
+    this.folderModel = null;
+    this.folderModelVersion = 0;
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -152,20 +167,46 @@ export class DaoTabList extends CrLitElement {
     };
 
     const fragments: unknown[] = [];
+    let splitRun: TabData[] = [];
+
+    const flushSplitRun = () => {
+      if (splitRun.length > 0) {
+        const items = splitRun.map(tab => html`
+          <dao-tab-item
+            .tabData=${tab}
+            .sessionId=${this.sessionId}
+            ?active=${tab.isActive}>
+          </dao-tab-item>
+        `);
+        fragments.push(html`<div class="split-group">${items}</div>`);
+        splitRun = [];
+      }
+    };
+
+    const pushTab = (tab: TabData) => {
+      if (tab.isInSplit) {
+        splitRun.push(tab);
+      } else {
+        flushSplitRun();
+        fragments.push(html`
+          <dao-tab-item
+            .tabData=${tab}
+            .sessionId=${this.sessionId}
+            ?active=${tab.isActive}>
+          </dao-tab-item>
+        `);
+      }
+    };
 
     for (const item of items) {
       if (item.type === 'tab') {
         const matched = consume(item);
         if (matched) {
-          fragments.push(html`
-            <dao-tab-item
-              .tabData=${matched}
-              .sessionId=${this.sessionId}
-              ?active=${matched.isActive}>
-            </dao-tab-item>
-          `);
+          pushTab(matched);
         }
       } else if (item.type === 'folder') {
+        // Folder breaks any active split run — flush first.
+        flushSplitRun();
         const folder = item as FolderData;
         // Match folder children to actual tabs.
         const matchedChildren: TabData[] = [];
@@ -185,17 +226,14 @@ export class DaoTabList extends CrLitElement {
         `);
       }
     }
+    flushSplitRun();
 
-    // Any remaining unmatched tabs from the pool — render as loose tabs.
+    // Any remaining unmatched tabs from the pool — render as loose tabs,
+    // still honoring split grouping.
     for (const tab of remaining) {
-      fragments.push(html`
-        <dao-tab-item
-          .tabData=${tab}
-          .sessionId=${this.sessionId}
-          ?active=${tab.isActive}>
-        </dao-tab-item>
-      `);
+      pushTab(tab);
     }
+    flushSplitRun();
 
     return html`
       <div class="drop-indicator"
@@ -453,12 +491,18 @@ export class DaoTabList extends CrLitElement {
     // the drag leaves, not at dragstart, because the interceptor covers
     // the entire window and would kill HTML5 drag inside the WebView.
     if (!this.tabDragActivated_) {
+      console.error('[Dao-Xwin-JS] onDragLeave_: activating tabDragActive');
       this.tabDragActivated_ = true;
       sendNative('tabDragActive', true);
     }
   }
 
   private onDragEnd_(e: DragEvent) {
+    console.error('[Dao-Xwin-JS] onDragEnd_: dropEffect=' +
+        (e.dataTransfer?.dropEffect ?? 'null') +
+        ' tabDragActivated=' + this.tabDragActivated_ +
+        ' draggedTabIndex=' + this.draggedTabIndex_ +
+        ' outside=' + this.isPointOutsideSidebar_(e.clientX, e.clientY));
     // Defensive cleanup: ensure drag-over state is always cleared
     // when any drag ends, preventing the sidebar from getting stuck.
     this.classList.remove('drag-over');
@@ -513,6 +557,9 @@ export class DaoTabList extends CrLitElement {
     // Handle internal tab reorder or cross-window tab move
     if (e.dataTransfer) {
       const data = e.dataTransfer.getData('text/plain');
+      console.error('[Dao-Xwin-JS] onDrop_: data=' + JSON.stringify(data) +
+          ' thisSessionId=' + this.sessionId +
+          ' dropInsertIndex=' + this.dropInsertIndex_);
       if (data.startsWith(TAB_DRAG_PREFIX)) {
         e.preventDefault();
         e.stopPropagation();
@@ -520,9 +567,13 @@ export class DaoTabList extends CrLitElement {
         const useModel = this.folderModel && this.folderModel.hasData();
 
         const parts = data.substring(TAB_DRAG_PREFIX.length).split(':');
+        console.error('[Dao-Xwin-JS] parts=' + JSON.stringify(parts));
         if (parts.length === 2) {
           const sourceSessionId = parseInt(parts[0]!, 10);
           const fromIndex = parseInt(parts[1]!, 10);
+          console.error('[Dao-Xwin-JS] parsed sourceSessionId=' +
+              sourceSessionId + ' fromIndex=' + fromIndex +
+              ' sameWindow=' + (sourceSessionId === this.sessionId));
           if (!isNaN(sourceSessionId) && !isNaN(fromIndex) &&
               this.dropInsertIndex_ >= 0) {
             // Check if the dragged tab is inside a folder — if so,
@@ -545,6 +596,9 @@ export class DaoTabList extends CrLitElement {
               }
             } else {
               // Cross-window: move tab from source window to this window
+              console.error('[Dao-Xwin-JS] firing moveTabCrossWindow ' +
+                  sourceSessionId + ' ' + fromIndex + ' ' +
+                  this.dropInsertIndex_);
               sendNative('moveTabCrossWindow', sourceSessionId, fromIndex,
                   this.dropInsertIndex_);
             }

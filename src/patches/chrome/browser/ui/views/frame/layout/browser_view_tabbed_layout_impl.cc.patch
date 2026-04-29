@@ -1,0 +1,263 @@
+diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+index eb2876bca5..2de7945de1 100644
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -17,7 +17,25 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/custom_corners_background.h"
++#include "dao/browser/ui/views/dao_address_bar_view.h"
++#include "dao/browser/ui/views/dao_agent_cursor_view.h"
++#include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
++#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
++#include "dao/browser/ui/views/dao_colors.h"
++#include "dao/browser/ui/views/dao_command_bar_view.h"
++#include "dao/browser/ui/views/dao_control_center_popup.h"
++#include "dao/browser/ui/views/dao_corner_overlay_view.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
++#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
++#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
++#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
++#include "dao/browser/ui/views/split/dao_split_view.h"
++#include "ui/compositor/layer.h"
++#include "ui/views/background.h"
+ #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
+ #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+@@ -967,11 +985,172 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+     content_right =
+         std::min(content_right, browser_params.visual_client_area.right());
+   }
++  // Dao: Carve sidebar + agent sidebar out of the contents container area,
++  // then apply content insets + rounded corners. Also lay out all Dao overlay
++  // views on top of the BrowserView.
++  gfx::Rect dao_contents_bounds(content_left, params.visual_client_area.y(),
++                                 content_right - content_left,
++                                 params.visual_client_area.height());
++  BrowserView* const dao_bv =
++      static_cast<BrowserView*>(views().browser_view.get());
++  if (dao_bv) {
++    dao::DaoSidebarView* const dao_sidebar = dao_bv->dao_sidebar();
++    const bool dao_sidebar_active = dao_sidebar && dao_sidebar->GetVisible();
++
++    // Left sidebar.
++    if (dao_sidebar_active) {
++      const int sidebar_width = dao_sidebar->GetPreferredSize().width();
++      layout.AddChild(
++          dao_sidebar,
++          gfx::Rect(dao_contents_bounds.x(), dao_contents_bounds.y(),
++                    sidebar_width, dao_contents_bounds.height()));
++      dao_contents_bounds.Inset(gfx::Insets::TLBR(0, sidebar_width, 0, 0));
++    }
++
++    // Right agent sidebar.
++    dao::DaoAgentSidebarView* const dao_agent_sidebar =
++        dao_bv->dao_agent_sidebar();
++    const bool dao_agent_sidebar_active =
++        dao_agent_sidebar && dao_agent_sidebar->GetVisible();
++    if (dao_agent_sidebar_active) {
++      const int agent_width = dao_agent_sidebar->GetPreferredSize().width();
++      layout.AddChild(dao_agent_sidebar,
++                      gfx::Rect(dao_contents_bounds.right() - agent_width,
++                                dao_contents_bounds.y(), agent_width,
++                                dao_contents_bounds.height()));
++      dao_contents_bounds.Inset(gfx::Insets::TLBR(0, 0, 0, agent_width));
++    }
++
++    // Detect fullscreen + collapsed sidebar → true full-screen content.
++    const bool dao_is_fullscreen =
++        dao_bv->GetWidget() && dao_bv->GetWidget()->IsFullscreen();
++    const bool dao_sidebar_collapsed =
++        dao_sidebar && dao_sidebar->collapsed();
++    const bool dao_true_fullscreen =
++        dao_is_fullscreen && dao_sidebar_collapsed;
++
++    // Apply content insets so the frame color shows through around the main
++    // web content area. Right gap is 0 when agent sidebar is visible.
++    gfx::Rect dao_content_area = dao_contents_bounds;
++    if (dao_sidebar_active && !dao_true_fullscreen) {
++      dao_content_area.Inset(gfx::Insets::TLBR(
++          dao::kContentInsetTop, 0, dao::kContentInsetBottom,
++          dao_agent_sidebar_active ? 0 : dao::kContentInsetRight));
++    }
++
++    // Agent lock banner pinned at top of content area.
++    if (auto* const banner = dao_bv->dao_agent_lock_banner();
++        banner && banner->GetVisible()) {
++      const int banner_height = banner->GetPreferredSize().height();
++      layout.AddChild(banner,
++                      gfx::Rect(dao_content_area.x(), dao_content_area.y(),
++                                dao_content_area.width(), banner_height));
++    }
++
++    // Corner overlay slightly larger than content for drop shadow (around the
++    // combined address bar + content area).
++    if (auto* const corner_overlay = dao_bv->dao_corner_overlay()) {
++      if (dao_true_fullscreen) {
++        layout.AddChild(corner_overlay, gfx::Rect(), false);
++      } else {
++        gfx::Rect overlay_bounds = dao_content_area;
++        overlay_bounds.Inset(gfx::Insets(-dao::kContentShadowMargin));
++        layout.AddChild(corner_overlay, overlay_bounds, true);
++      }
++    }
++
++    // Address bar at the top of the content area. Carves kBarHeight off
++    // dao_content_area so subsequent web-content views start below it.
++    // Overlaps by 1px so the contents_container layer's top edge is hidden
++    // under the address bar — otherwise the flat-top rounded-corner AA on
++    // the contents_container layer bleeds the BrowserView's sidebar
++    // background color through as a visible hairline at the seam.
++    //
++    // Dao: When split mode is active, each pane has its own address bar,
++    // so the global one is hidden to avoid stacking duplicate bars.
++    const bool dao_split_active = dao_bv->dao_split_view() &&
++                                  dao_bv->dao_split_view()->IsSplitActive();
++    if (auto* const address_bar = dao_bv->dao_address_bar()) {
++      if (dao_sidebar_active && !dao_true_fullscreen && !dao_split_active) {
++        const int bar_height = dao::DaoAddressBarView::kBarHeight;
++        layout.AddChild(
++            address_bar,
++            gfx::Rect(dao_content_area.x(), dao_content_area.y(),
++                      dao_content_area.width(), bar_height),
++            true);
++        dao_content_area.Inset(gfx::Insets::TLBR(bar_height - 1, 0, 0, 0));
++      } else {
++        layout.AddChild(address_bar, gfx::Rect(), false);
++      }
++    }
++
++    // Agent cursor overlay covers content area (below the address bar).
++    if (auto* const cursor = dao_bv->dao_agent_cursor()) {
++      layout.AddChild(cursor, dao_content_area);
++    }
++
++    // Tab tooltip — sized to preferred, positioned at its stored anchor.
++    if (auto* const tooltip = dao_bv->dao_tab_tooltip();
++        tooltip && tooltip->GetVisible()) {
++      const gfx::Size tt_size = tooltip->GetPreferredSize();
++      const gfx::Point anchor = tooltip->anchor_point();
++      layout.AddChild(tooltip, gfx::Rect(anchor, tt_size));
++    }
++
++    // Toast in top-right of content area.
++    if (auto* const toast = dao_bv->dao_toast();
++        toast && toast->GetVisible()) {
++      const gfx::Size toast_size = toast->GetPreferredSize();
++      layout.AddChild(
++          toast,
++          gfx::Rect(dao_content_area.right() - toast_size.width() - 12,
++                    dao_content_area.y() + 4, toast_size.width(),
++                    toast_size.height()));
++    }
++
++    const gfx::Rect full_browser_bounds(dao_bv->width(), dao_bv->height());
++
++    // Command bar covers entire BrowserView.
++    if (auto* const cmd_bar = dao_bv->dao_command_bar()) {
++      layout.AddChild(cmd_bar, full_browser_bounds);
++    }
++
++    // Control center popup covers entire BrowserView.
++    if (auto* const cc_popup = dao_bv->dao_control_center_popup()) {
++      layout.AddChild(cc_popup, full_browser_bounds);
++    }
++
++    // Download flyout covers entire BrowserView (click-through arc animation).
++    if (auto* const flyout = dao_bv->dao_download_flyout()) {
++      layout.AddChild(flyout, full_browser_bounds);
++    }
++
++    // Apply rounded corners on the contents_container layer (lower corners
++    // only; top ones are hidden under the address bar row).
++    if (dao_sidebar_active) {
++      views::View* const cc = views().contents_container;
++      if (!cc->layer()) {
++        cc->SetPaintToLayer();
++        cc->layer()->SetFillsBoundsOpaquely(false);
++        cc->SetBackground(views::CreateSolidBackground(SK_ColorWHITE));
++      }
++      cc->layer()->SetRoundedCornerRadius(
++          dao_true_fullscreen
++              ? gfx::RoundedCornersF(0, 0, 0, 0)
++              : gfx::RoundedCornersF(0, 0, dao::kContentCornerRadius,
++                                       dao::kContentCornerRadius));
++      cc->layer()->SetIsFastRoundedCorner(true);
++
++      dao_contents_bounds = dao_content_area;
++    }
++
++    // Note: Little Dao windows are TYPE_POPUP and use
++    // BrowserViewPopupLayoutImpl, not this tabbed layout. Their layout is
++    // handled there.
++  }
++
+   auto& contents_layout =
+-      layout.AddChild(views().contents_container,
+-                      gfx::Rect(content_left, params.visual_client_area.y(),
+-                                content_right - content_left,
+-                                params.visual_client_area.height()));
++      layout.AddChild(views().contents_container, dao_contents_bounds);
+ 
+   // Maybe expand and clip the web contents to avoid issues during animation.
+   if (features::UseSidePanelFlyoverAnimation()) {
+@@ -1101,24 +1280,45 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayout(
+   // Lay out toolbar. If tabstrip is completely absent (or vertical), this can
+   // go in the top exclusion area.
+   const bool toolbar_visible = delegate().IsToolbarVisible();
++  // Dao: When sidebar or Little Dao is active, toolbar is moved off-screen
++  // (y=-height) so it stays alive for autocomplete/omnibox plumbing but does
++  // not take vertical space above the content area.
++  BrowserView* const dao_browser_view =
++      static_cast<BrowserView*>(views().browser_view.get());
++  const bool dao_sidebar_hides_toolbar =
++      dao_browser_view && dao_browser_view->dao_sidebar() &&
++      dao_browser_view->dao_sidebar()->GetVisible();
++  const bool dao_is_little_dao =
++      dao_browser_view && dao::DaoLittleDaoController::IsLittleDaoWindow(
++                              dao_browser_view->browser());
+   if (IsParentedTo(views().toolbar, views().top_container)) {
+     gfx::Rect toolbar_bounds;
+     if (toolbar_visible) {
+-      toolbar_bounds =
+-          needs_exclusion
+-              ? GetBoundsWithExclusion(params, views().toolbar)
+-              : gfx::Rect(params.visual_client_area.x(),
+-                          params.visual_client_area.y(),
+-                          params.visual_client_area.width(),
+-                          views().toolbar->GetPreferredSize().height());
+-      params.SetTop(toolbar_bounds.bottom());
+-      needs_exclusion = false;
++      if (dao_sidebar_hides_toolbar || dao_is_little_dao) {
++        // Dao: Place toolbar off-screen, keep it visible so it lays out.
++        const int height = views().toolbar->GetPreferredSize().height();
++        toolbar_bounds = gfx::Rect(params.visual_client_area.x(), -height,
++                                    params.visual_client_area.width(), height);
++      } else {
++        toolbar_bounds =
++            needs_exclusion
++                ? GetBoundsWithExclusion(params, views().toolbar)
++                : gfx::Rect(params.visual_client_area.x(),
++                            params.visual_client_area.y(),
++                            params.visual_client_area.width(),
++                            views().toolbar->GetPreferredSize().height());
++        params.SetTop(toolbar_bounds.bottom());
++        needs_exclusion = false;
++      }
+     }
+     layout.AddChild(views().toolbar, toolbar_bounds, toolbar_visible);
+   }
+ 
+   // Lay out the bookmarks bar if one is present.
+-  const bool bookmarks_visible = delegate().IsBookmarkBarVisible();
++  // Dao: Force-hide bookmark bar when sidebar is active.
++  const bool bookmarks_visible =
++      delegate().IsBookmarkBarVisible() && !dao_sidebar_hides_toolbar &&
++      !dao_is_little_dao;
+   if (IsParentedTo(views().bookmark_bar, views().top_container)) {
+     const gfx::Rect bookmarks_bounds(
+         params.visual_client_area.x(), params.visual_client_area.y(),

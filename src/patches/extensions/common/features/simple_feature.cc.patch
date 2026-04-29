@@ -1,8 +1,8 @@
 diff --git a/extensions/common/features/simple_feature.cc b/extensions/common/features/simple_feature.cc
-index 2917178048..921ad1481c 100644
+index fec1ab8738..3a1d20f3bd 100644
 --- a/extensions/common/features/simple_feature.cc
 +++ b/extensions/common/features/simple_feature.cc
-@@ -29,6 +29,7 @@
+@@ -31,6 +31,7 @@
  #include "extensions/common/manifest_handlers/background_info.h"
  #include "extensions/common/mojom/context_type.mojom.h"
  #include "extensions/common/switches.h"
@@ -10,24 +10,3 @@ index 2917178048..921ad1481c 100644
  
  using crx_file::id_util::HashedIdInHex;
  using extensions::mojom::ManifestLocation;
-@@ -712,7 +713,19 @@ Feature::Availability SimpleFeature::GetContextAvailability(
-       context == mojom::ContextType::kWebUi ||
-       context == mojom::ContextType::kUntrustedWebUi;
-   if (supports_url_matching && !matches_.MatchesURL(url)) {
--    return CreateAvailability(INVALID_URL, url);
-+    // If the URL uses the primary WebUI scheme (e.g. "dao://"), also try
-+    // matching with the legacy "chrome://" scheme, since feature definitions
-+    // in _api_features.json use chrome:// URL patterns.
-+    bool legacy_match = false;
-+    if (url.SchemeIs(content::kChromeUIScheme)) {
-+      GURL::Replacements replacements;
-+      replacements.SetSchemeStr("chrome");
-+      GURL chrome_url = url.ReplaceComponents(replacements);
-+      legacy_match = matches_.MatchesURL(chrome_url);
-+    }
-+    if (!legacy_match) {
-+      return CreateAvailability(INVALID_URL, url);
-+    }
-   }
- 
-   if (is_for_service_worker && disallow_for_service_workers_)

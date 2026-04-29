@@ -12,6 +12,7 @@
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -84,8 +85,8 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
                                       bool is_bookmark) {
   // Always set the vector icon first as immediate fallback
   const gfx::VectorIcon& vector_icon = match.GetVectorIcon(is_bookmark);
-  icon_view_->SetImage(
-      gfx::CreateVectorIcon(vector_icon, 18, SuggestionIconColor()));
+  icon_view_->SetImage(ui::ImageModel::FromImageSkia(
+      gfx::CreateVectorIcon(vector_icon, 18, SuggestionIconColor())));
 
   // Cancel any pending favicon request
   favicon_tracker_.TryCancelAll();
@@ -123,8 +124,8 @@ void DaoSuggestionItemView::SetAskAiPrompt(const std::u16string& prompt) {
   favicon_tracker_.TryCancelAll();
   pending_favicon_url_ = GURL();
 
-  icon_view_->SetImage(
-      CreateLucideImageSkia(LucideIcon::kSparkles, 18, SuggestionIconColor()));
+  icon_view_->SetImage(ui::ImageModel::FromImageSkia(
+      CreateLucideImageSkia(LucideIcon::kSparkles, 18, SuggestionIconColor())));
 
   title_label_->SetText(u"Ask AI: " + prompt);
   description_label_->SetVisible(false);
@@ -148,7 +149,7 @@ void DaoSuggestionItemView::OnFaviconFetched(
   gfx::ImageSkia resized =
       gfx::ImageSkiaOperations::CreateResizedImage(
           favicon, skia::ImageOperations::RESIZE_BEST, gfx::Size(18, 18));
-  icon_view_->SetImage(resized);
+  icon_view_->SetImage(ui::ImageModel::FromImageSkia(resized));
 }
 
 void DaoSuggestionItemView::SetSelected(bool selected) {

@@ -20,6 +20,8 @@
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/keyed_service/core/service_access_type.h"
+#include "components/omnibox/browser/autocomplete_controller_config.h"
+#include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
@@ -39,6 +41,7 @@
 #include "ui/gfx/shadow_value.h"
 #include "ui/gfx/skia_paint_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -84,7 +87,7 @@ class FrostedGlassBackground : public views::Background {
   explicit FrostedGlassBackground(SkColor paint_color)
       : paint_color_(paint_color) {
     // Report opaque white so the DCHECK in Label::PaintText passes.
-    SetNativeControlColor(SK_ColorWHITE);
+    SetColor(SK_ColorWHITE);
   }
 
   void Paint(gfx::Canvas* canvas, views::View* view) const override {
@@ -257,15 +260,15 @@ void DaoCommandBarView::InitAutocompleteController() {
   scheme_classifier_ =
       std::make_unique<ChromeAutocompleteSchemeClassifier>(profile);
 
-  int provider_types = AutocompleteProvider::TYPE_HISTORY_QUICK |
-                       AutocompleteProvider::TYPE_HISTORY_URL |
-                       AutocompleteProvider::TYPE_BOOKMARK |
-                       AutocompleteProvider::TYPE_SEARCH |
-                       AutocompleteProvider::TYPE_OPEN_TAB;
+  AutocompleteControllerConfig config;
+  config.provider_types = AutocompleteProvider::TYPE_HISTORY_QUICK |
+                          AutocompleteProvider::TYPE_HISTORY_URL |
+                          AutocompleteProvider::TYPE_BOOKMARK |
+                          AutocompleteProvider::TYPE_SEARCH |
+                          AutocompleteProvider::TYPE_OPEN_TAB;
 
   autocomplete_controller_ = std::make_unique<AutocompleteController>(
-      std::make_unique<ChromeAutocompleteProviderClient>(profile),
-      provider_types);
+      std::make_unique<ChromeAutocompleteProviderClient>(profile), config);
   autocomplete_controller_->AddObserver(this);
 }
 
@@ -325,11 +328,11 @@ void DaoCommandBarView::Show() {
       // Show favicon for the current page
       gfx::Image favicon = favicon::TabFaviconFromWebContents(contents);
       if (!favicon.IsEmpty()) {
-        favicon_icon_->SetImage(
+        favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(
             gfx::ImageSkiaOperations::CreateResizedImage(
                 *favicon.ToImageSkia(),
                 skia::ImageOperations::RESIZE_BEST,
-                gfx::Size(18, 18)));
+                gfx::Size(18, 18))));
         favicon_icon_->SetVisible(true);
       } else {
         // No favicon — show URL intent icon
@@ -435,8 +438,8 @@ void DaoCommandBarView::Hide() {
   // Return focus to web contents
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(browser_);
-  if (browser_view && browser_view->GetContentsWebView()) {
-    browser_view->GetContentsWebView()->RequestFocus();
+  if (browser_view && browser_view->contents_web_view()) {
+    browser_view->contents_web_view()->RequestFocus();
   }
 }
 
@@ -665,7 +668,7 @@ void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
 
 void DaoCommandBarView::StopAutocomplete() {
   if (autocomplete_controller_) {
-    autocomplete_controller_->Stop(true);
+    autocomplete_controller_->Stop(AutocompleteStopReason::kClobbered);
   }
   inline_autocompletion_.clear();
   ghost_text_label_->SetVisible(false);
@@ -809,8 +812,8 @@ void DaoCommandBarView::UpdateInputIcon() {
   // the input-field icon so the glyph the user is about to commit is
   // visible before they press Enter.
   if (selected_index_ >= 0 && selected_index_ == ask_ai_row_index_) {
-    favicon_icon_->SetImage(
-        CreateLucideImageSkia(LucideIcon::kSparkles, 18, icon_color));
+    favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(
+        CreateLucideImageSkia(LucideIcon::kSparkles, 18, icon_color)));
     favicon_icon_->SetVisible(true);
     return;
   }
@@ -827,12 +830,12 @@ void DaoCommandBarView::UpdateInputIcon() {
       const AutocompleteMatch& match = result.match_at(match_index);
       bool is_search = AutocompleteMatch::IsSearchType(match.type);
       if (is_search) {
-        favicon_icon_->SetImage(gfx::CreateVectorIcon(
-            vector_icons::kSearchChromeRefreshIcon, 18, icon_color));
+        favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
+            vector_icons::kSearchChromeRefreshIcon, 18, icon_color)));
       } else {
         // Set page icon as immediate fallback, then try loading favicon
-        favicon_icon_->SetImage(gfx::CreateVectorIcon(
-            omnibox::kPageChromeRefreshIcon, 18, icon_color));
+        favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
+            omnibox::kPageChromeRefreshIcon, 18, icon_color)));
 
         if (match.destination_url.is_valid() &&
             match.destination_url.SchemeIsHTTPOrHTTPS()) {
@@ -857,14 +860,14 @@ void DaoCommandBarView::UpdateInputIcon() {
 
   // Fallback: determine icon from input text
   if (user_input_text_.empty()) {
-    favicon_icon_->SetImage(gfx::CreateVectorIcon(
-        vector_icons::kSearchChromeRefreshIcon, 18, icon_color));
+    favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
+        vector_icons::kSearchChromeRefreshIcon, 18, icon_color)));
   } else if (LooksLikeURL(user_input_text_)) {
-    favicon_icon_->SetImage(gfx::CreateVectorIcon(
-        omnibox::kPageChromeRefreshIcon, 18, icon_color));
+    favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
+        omnibox::kPageChromeRefreshIcon, 18, icon_color)));
   } else {
-    favicon_icon_->SetImage(gfx::CreateVectorIcon(
-        vector_icons::kSearchChromeRefreshIcon, 18, icon_color));
+    favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
+        vector_icons::kSearchChromeRefreshIcon, 18, icon_color)));
   }
   favicon_icon_->SetVisible(true);
 }
@@ -883,8 +886,9 @@ void DaoCommandBarView::OnInputFaviconFetched(
   }
 
   gfx::ImageSkia favicon = result.image.AsImageSkia();
-  favicon_icon_->SetImage(gfx::ImageSkiaOperations::CreateResizedImage(
-      favicon, skia::ImageOperations::RESIZE_BEST, gfx::Size(18, 18)));
+  favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(
+      gfx::ImageSkiaOperations::CreateResizedImage(
+          favicon, skia::ImageOperations::RESIZE_BEST, gfx::Size(18, 18))));
 }
 
 void DaoCommandBarView::SetSelectedIndex(int index) {
@@ -918,7 +922,7 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
   }
 
   if (!autocomplete_controller_) {
-    Navigate(textfield_->GetText());
+    Navigate(std::u16string(textfield_->GetText()));
     return;
   }
 
@@ -935,7 +939,7 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
     NavigateToMatch(result.match_at(match_index));
   } else {
     // No selected match — use plain text navigation
-    Navigate(textfield_->GetText());
+    Navigate(std::u16string(textfield_->GetText()));
   }
 }
 
@@ -990,7 +994,7 @@ void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
 
   GURL url = match.destination_url;
   if (!url.is_valid()) {
-    Navigate(textfield_->GetText());
+    Navigate(std::u16string(textfield_->GetText()));
     return;
   }
 
@@ -1008,8 +1012,8 @@ void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
 
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser_);
-    if (browser_view && browser_view->GetContentsWebView()) {
-      browser_view->GetContentsWebView()->RequestFocus();
+    if (browser_view && browser_view->contents_web_view()) {
+      browser_view->contents_web_view()->RequestFocus();
     }
   } else {
     NavigateParams params(browser_, url, ui::PAGE_TRANSITION_TYPED);
@@ -1020,8 +1024,8 @@ void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
 
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser_);
-    if (browser_view && browser_view->GetContentsWebView()) {
-      browser_view->GetContentsWebView()->RequestFocus();
+    if (browser_view && browser_view->contents_web_view()) {
+      browser_view->contents_web_view()->RequestFocus();
     }
   }
 }
@@ -1093,8 +1097,8 @@ void DaoCommandBarView::Navigate(const std::u16string& text) {
     // Return focus to web contents
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser_);
-    if (browser_view && browser_view->GetContentsWebView()) {
-      browser_view->GetContentsWebView()->RequestFocus();
+    if (browser_view && browser_view->contents_web_view()) {
+      browser_view->contents_web_view()->RequestFocus();
     }
   } else {
     // Navigate in current tab
@@ -1122,8 +1126,8 @@ void DaoCommandBarView::CancelNewTab() {
   // Return focus to web contents
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(browser_);
-  if (browser_view && browser_view->GetContentsWebView()) {
-    browser_view->GetContentsWebView()->RequestFocus();
+  if (browser_view && browser_view->contents_web_view()) {
+    browser_view->contents_web_view()->RequestFocus();
   }
 }
 

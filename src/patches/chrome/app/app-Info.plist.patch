@@ -1,0 +1,18 @@
+diff --git a/chrome/app/app-Info.plist b/chrome/app/app-Info.plist
+index e813de1e4e..a79a373216 100644
+--- a/chrome/app/app-Info.plist
++++ b/chrome/app/app-Info.plist
+@@ -149,8 +149,11 @@
+ 	<string>${EXECUTABLE_NAME}</string>
+ 	<key>CFBundleIconFile</key>
+ 	<string>app.icns</string>
+-	<key>CFBundleIconName</key>
+-	<string>AppIcon</string>
++	<!-- Dao Browser: CFBundleIconName was intentionally removed. When both
++	     keys are present, macOS prefers IconName (read from Assets.car's
++	     compiled "AppIcon" bundle), which makes our custom app.icns
++	     invisible. Dropping IconName forces macOS to fall back to
++	     IconFile=app.icns, which is the file we ship in branding/mac/. -->
+ 	<key>CFBundleIdentifier</key>
+ 	<string>${CHROMIUM_BUNDLE_ID}</string>
+ 	<key>CFBundleInfoDictionaryVersion</key>

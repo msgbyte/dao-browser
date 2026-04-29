@@ -138,6 +138,20 @@ class DaoSplitView : public views::View,
   // this view becomes hit-testable so it can receive drop events.
   void SetTabDragActive(bool active);
 
+  // Native bypass entry points for the macOS DaoEventInterceptor. In v147
+  // Chromium's BridgedContentView rejects renderer-initiated drags before
+  // they reach Views-level CanDrop/OnDrop, so the interceptor has to drive
+  // our drag pipeline itself. |location_in_view| is in this view's coords.
+  // UpdateNativeDropIndicator also auto-enables tab_drag_active_ so the
+  // view is hit-testable even if SetTabDragActive hasn't run yet.
+  void UpdateNativeDropIndicator(const gfx::Point& location_in_view);
+  void HideNativeDropIndicator();
+  // Accepts a "dao-tab-drag:<sid>:<idx>" payload at |location_in_view|.
+  // Handles split creation, cross-window move, and center swap/activate.
+  // Returns true if the drop was applied.
+  bool ProcessNativeTabDrop(const gfx::Point& location_in_view,
+                            const std::string& payload);
+
   // Callback invoked when split state changes (split created/destroyed).
   void set_split_state_changed_callback(base::RepeatingClosure callback) {
     split_state_changed_callback_ = std::move(callback);

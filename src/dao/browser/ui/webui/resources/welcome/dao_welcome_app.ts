@@ -415,17 +415,29 @@ export class DaoWelcomeApp extends CrLitElement {
     `;
   }
 
-  currentStep_: number = 0;
-  sidebarCollapsed_: boolean = false;
-  cmdOverlayVisible_: boolean = false;
-  agentPanelVisible_: boolean = false;
-  toastVisible_: boolean = false;
-  tab3Visible_: boolean = false;
-  tab3Active_: boolean = false;
-  tab3Anim_: string = '';
+  declare currentStep_: number;
+  declare sidebarCollapsed_: boolean;
+  declare cmdOverlayVisible_: boolean;
+  declare agentPanelVisible_: boolean;
+  declare toastVisible_: boolean;
+  declare tab3Visible_: boolean;
+  declare tab3Active_: boolean;
+  declare tab3Anim_: string;
 
   private intervalId_: number = 0;
   private actionTimeouts_: number[] = [];
+
+  constructor() {
+    super();
+    this.sidebarCollapsed_ = false;
+    this.cmdOverlayVisible_ = false;
+    this.agentPanelVisible_ = false;
+    this.toastVisible_ = false;
+    this.tab3Visible_ = false;
+    this.tab3Active_ = false;
+    this.tab3Anim_ = '';
+    this.currentStep_ = 0;
+  }
 
   override connectedCallback() {
     super.connectedCallback();

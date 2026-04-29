@@ -15,6 +15,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -141,6 +142,9 @@ DaoSplitView::~DaoSplitView() {
 }
 
 void DaoSplitView::SetTabDragActive(bool active) {
+  LOG(ERROR) << "[Dao-Xwin] SetTabDragActive(" << active
+             << ") browser_sessionId="
+             << (browser_ ? browser_->session_id().id() : -1);
   if (active) {
     SyncSinglePaneRootWithActiveTab();
   }
@@ -788,11 +792,17 @@ bool DaoSplitView::GetDropFormats(
 
 bool DaoSplitView::CanDrop(const ui::OSExchangeData& data) {
   auto text = data.GetString();
-  return text.has_value() &&
-         text->starts_with(u"dao-tab-drag:");
+  bool ok = text.has_value() && text->starts_with(u"dao-tab-drag:");
+  LOG(ERROR) << "[Dao-Xwin] DaoSplitView::CanDrop returning " << ok
+             << " text_has_value=" << text.has_value()
+             << " tab_drag_active=" << tab_drag_active_;
+  return ok;
 }
 
 void DaoSplitView::OnDragEntered(const ui::DropTargetEvent& event) {
+  LOG(ERROR) << "[Dao-Xwin] DaoSplitView::OnDragEntered at ("
+             << event.location().x() << "," << event.location().y()
+             << ") tab_drag_active=" << tab_drag_active_;
   // Prime the target state immediately so the overlay appears as soon as the
   // cursor enters the content area instead of waiting for a follow-up update.
   OnDragUpdated(event);
@@ -851,6 +861,198 @@ void DaoSplitView::OnDragExited() {
   SetTabDragActive(false);
 }
 
+// ---- Native bypass entry points -------------------------------------------
+// See header: these are called from DaoEventInterceptor (macOS) when
+// BridgedContentView rejects our renderer-initiated drag at the Views
+// DropHelper layer.
+
+void DaoSplitView::UpdateNativeDropIndicator(
+    const gfx::Point& location_in_view) {
+  // The Views drag pipeline normally flips tab_drag_active_ via
+  // SetTabDragActive; when we're driving from the native interceptor we
+  // can land here before that flip. Force it on so hit-testing + the
+  // overlay work.
+  if (!tab_drag_active_) {
+    SetTabDragActive(true);
+  }
+
+  DaoSplitLeafNode* leaf = FindLeafAtPoint(location_in_view);
+  if (!leaf) {
+    drop_target_leaf_ = nullptr;
+    drop_zone_direction_.reset();
+    drop_overlay_->SetVisible(false);
+    return;
+  }
+
+  drop_target_leaf_ = leaf;
+  drop_zone_direction_ = DetectDropZone(leaf, location_in_view);
+
+  if (drop_zone_direction_.has_value()) {
+    gfx::Rect overlay_bounds = leaf->bounds();
+    switch (drop_zone_direction_.value()) {
+      case SplitDirection::kHorizontal:
+        if (location_in_view.x() > leaf->bounds().CenterPoint().x()) {
+          overlay_bounds.set_x(overlay_bounds.CenterPoint().x());
+          overlay_bounds.set_width(overlay_bounds.width() / 2);
+        } else {
+          overlay_bounds.set_width(overlay_bounds.width() / 2);
+        }
+        break;
+      case SplitDirection::kVertical:
+        if (location_in_view.y() > leaf->bounds().CenterPoint().y()) {
+          overlay_bounds.set_y(overlay_bounds.CenterPoint().y());
+          overlay_bounds.set_height(overlay_bounds.height() / 2);
+        } else {
+          overlay_bounds.set_height(overlay_bounds.height() / 2);
+        }
+        break;
+    }
+    drop_overlay_->SetBoundsRect(overlay_bounds);
+    drop_overlay_->SetVisible(true);
+  } else {
+    drop_overlay_->SetVisible(false);
+  }
+}
+
+void DaoSplitView::HideNativeDropIndicator() {
+  drop_target_leaf_ = nullptr;
+  drop_zone_direction_.reset();
+  drop_overlay_->SetVisible(false);
+}
+
+bool DaoSplitView::ProcessNativeTabDrop(const gfx::Point& location_in_view,
+                                        const std::string& payload) {
+  drop_overlay_->SetVisible(false);
+
+  if (!tab_strip_model_) {
+    return false;
+  }
+
+  DaoSplitLeafNode* target_leaf = FindLeafAtPoint(location_in_view);
+  if (!target_leaf) {
+    return false;
+  }
+  std::optional<SplitDirection> target_zone =
+      DetectDropZone(target_leaf, location_in_view);
+
+  // Parse "dao-tab-drag:<sid>:<idx>".
+  const std::string kPrefix = "dao-tab-drag:";
+  if (payload.size() <= kPrefix.size() ||
+      payload.compare(0, kPrefix.size(), kPrefix) != 0) {
+    return false;
+  }
+  std::string body = payload.substr(kPrefix.size());
+  size_t colon = body.find(':');
+  if (colon == std::string::npos) {
+    return false;
+  }
+  int source_sid = 0;
+  int tab_index = 0;
+  if (!base::StringToInt(body.substr(0, colon), &source_sid) ||
+      !base::StringToInt(body.substr(colon + 1), &tab_index)) {
+    return false;
+  }
+
+  // Resolve source browser. Same-window when it matches ours.
+  Browser* source_browser = browser_;
+  bool is_cross_window = false;
+  if (static_cast<int>(browser_->session_id().id()) != source_sid) {
+    is_cross_window = true;
+    source_browser = nullptr;
+    for (Browser* b :
+         chrome::FindAllBrowsersWithProfile(browser_->profile())) {
+      if (static_cast<int>(b->session_id().id()) == source_sid) {
+        source_browser = b;
+        break;
+      }
+    }
+    if (!source_browser) {
+      return false;
+    }
+  }
+
+  TabStripModel* source_model = source_browser->tab_strip_model();
+  if (tab_index < 0 || tab_index >= source_model->count()) {
+    return false;
+  }
+  content::WebContents* dragged_contents =
+      source_model->GetWebContentsAt(tab_index);
+  if (!dragged_contents) {
+    return false;
+  }
+
+  // Capture the split target's existing WC BEFORE the cross-window insert.
+  // The cross-window insert uses ADD_ACTIVE which fires
+  // SyncSinglePaneRootWithActiveTab on our TabStripModelObserver path,
+  // rewriting target_leaf->web_contents() to the dragged tab. If we read
+  // it after the insert, `existing == dragged_contents` and the split is
+  // silently skipped.
+  content::WebContents* existing_at_target = target_leaf->web_contents();
+  if (!existing_at_target && !IsSplitActive()) {
+    existing_at_target = tab_strip_model_->GetActiveWebContents();
+  }
+
+  // Cross-window: detach and insert into our model first.
+  if (is_cross_window) {
+    std::unique_ptr<content::WebContents> detached =
+        source_model->DetachWebContentsAtForInsertion(tab_index);
+    if (!detached) {
+      return false;
+    }
+    dragged_contents = detached.get();
+    tab_strip_model_->InsertWebContentsAt(tab_strip_model_->count(),
+                                          std::move(detached),
+                                          AddTabTypes::ADD_ACTIVE);
+    tab_index = tab_strip_model_->GetIndexOfWebContents(dragged_contents);
+    if (source_model->count() == 0 && source_browser->window()) {
+      source_browser->window()->Close();
+    }
+  }
+
+  if (target_zone.has_value()) {
+    // Split drop.
+    content::WebContents* existing = existing_at_target;
+    if (existing && !IsSplitActive()) {
+      target_leaf->set_web_contents(existing);
+    }
+    if (existing && existing != dragged_contents) {
+      const bool new_first =
+          target_zone.value() == SplitDirection::kHorizontal
+              ? location_in_view.x() <=
+                    target_leaf->bounds().CenterPoint().x()
+              : location_in_view.y() <=
+                    target_leaf->bounds().CenterPoint().y();
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&DaoSplitView::PerformDeferredSplit,
+                         weak_factory_.GetWeakPtr(), existing,
+                         target_zone.value(), new_first, dragged_contents),
+          kDeferredDropActionDelay);
+    }
+  } else {
+    // Center drop — swap or activate.
+    if (IsSplitActive()) {
+      if (content::WebContents* target_contents = target_leaf->web_contents();
+          target_contents && target_contents != dragged_contents) {
+        base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(&DaoSplitView::PerformDeferredSwap,
+                           weak_factory_.GetWeakPtr(), target_contents,
+                           dragged_contents),
+            kDeferredDropActionDelay);
+      }
+    } else {
+      target_leaf->set_web_contents(dragged_contents);
+      tab_strip_model_->ActivateTabAt(tab_index);
+    }
+  }
+
+  drop_target_leaf_ = nullptr;
+  drop_zone_direction_.reset();
+  SetTabDragActive(false);
+  return true;
+}
+
 views::View::DropCallback DaoSplitView::GetDropCallback(
     const ui::DropTargetEvent& event) {
   return base::BindOnce(&DaoSplitView::OnDrop, base::Unretained(this));
@@ -860,6 +1062,9 @@ void DaoSplitView::OnDrop(
     const ui::DropTargetEvent& event,
     ui::mojom::DragOperation& output_drag_op,
     std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner) {
+  LOG(ERROR) << "[Dao-Xwin] DaoSplitView::OnDrop ENTRY at ("
+             << event.location().x() << "," << event.location().y()
+             << ") tab_drag_active=" << tab_drag_active_;
   drop_overlay_->SetVisible(false);
   BlockAllNativeEvents(false);
 
@@ -899,7 +1104,8 @@ void DaoSplitView::OnDrop(
         source_session_id) {
       is_cross_window = true;
       source_browser = nullptr;
-      for (Browser* b : *BrowserList::GetInstance()) {
+      for (Browser* b :
+           chrome::FindAllBrowsersWithProfile(browser_->profile())) {
         if (static_cast<int>(b->session_id().id()) == source_session_id) {
           source_browser = b;
           break;
@@ -1106,7 +1312,7 @@ void DaoSplitView::CheckCursorOverPanes() {
   }
 
   gfx::Point cursor_screen =
-      display::Screen::GetScreen()->GetCursorScreenPoint();
+      display::Screen::Get()->GetCursorScreenPoint();
 
   for (DaoSplitPaneView* pane : pane_views_) {
     if (!pane || !pane->GetVisible())
@@ -1496,13 +1702,37 @@ std::optional<SplitDirection> DaoSplitView::DetectDropZone(
 }
 
 void DaoSplitView::BlockAllNativeEvents(bool block) {
+  // Collect every WebContents we care about. Each one only serves to locate
+  // the NSWindow whose contentView should host the DaoEventInterceptor; the
+  // interceptor covers the whole window so one WebContents per window is
+  // enough.
+  std::vector<content::WebContents*> targets;
   for (DaoSplitPaneView* pane : pane_views_) {
     if (pane && pane->web_contents()) {
-      if (block) {
-        BlockWebContentNativeEvents(pane->web_contents());
-      } else {
-        UnblockWebContentNativeEvents(pane->web_contents());
-      }
+      targets.push_back(pane->web_contents());
+    }
+  }
+  // When the window has NO split panes (single-tab view), pane_views_ is
+  // empty. Without a fallback, the interceptor never gets installed, so the
+  // sidebar WebView's HTML5 drag never escapes to the native Views tree and
+  // DaoSplitView's OnDragEntered/OnDrop are never called on other windows.
+  // Fall back to the currently active tab so the interceptor gets mounted
+  // in single-tab mode too — this is what makes cross-window tab drag
+  // actually work for most users.
+  if (targets.empty() && browser_) {
+    if (auto* active = browser_->tab_strip_model()->GetActiveWebContents()) {
+      targets.push_back(active);
+    }
+  }
+
+  LOG(ERROR) << "[Dao-Xwin] BlockAllNativeEvents(" << block
+             << ") target_count=" << targets.size();
+
+  for (auto* wc : targets) {
+    if (block) {
+      BlockWebContentNativeEvents(wc);
+    } else {
+      UnblockWebContentNativeEvents(wc);
     }
   }
 }

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/color/chrome_color_mixer.cc b/chrome/browser/ui/color/chrome_color_mixer.cc
-index 1132054a17..8ae662383d 100644
+index fd75b56b17..2fcc13ab3b 100644
 --- a/chrome/browser/ui/color/chrome_color_mixer.cc
 +++ b/chrome/browser/ui/color/chrome_color_mixer.cc
-@@ -345,26 +345,30 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
+@@ -401,23 +401,27 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
                            color_utils::kMinimumVisibleContrastRatio);
    mixer[kColorPerformanceInterventionButtonIconInactive] = {
        kColorToolbarButtonIcon};
@@ -10,20 +10,16 @@ index 1132054a17..8ae662383d 100644
    mixer[kColorPipWindowBackToTabButtonBackground] = {
 -      SkColorSetA(SK_ColorBLACK, 0x60)};
 -  mixer[kColorPipWindowBackground] = {SK_ColorBLACK};
+-  mixer[kColorPipWindowTopBarBackground] = {gfx::kGoogleGrey900};
 +      SkColorSetA(SkColorSetRGB(40, 32, 48), 0x60)};
 +  mixer[kColorPipWindowBackground] = {SkColorSetRGB(40, 32, 48)};
-   mixer[kColorPipWindowControlsBackground] = {
--      SkColorSetA(gfx::kGoogleGrey900, 0xC1)};
--  mixer[kColorPipWindowTopBarBackground] = {gfx::kGoogleGrey900};
-+      SkColorSetA(SkColorSetRGB(50, 42, 58), 0xC1)};
 +  mixer[kColorPipWindowTopBarBackground] = {SkColorSetRGB(50, 42, 58)};
    mixer[kColorPipWindowForeground] =
        ui::GetColorWithMaxContrast(kColorPipWindowBackground);
 -  mixer[kColorPipWindowForegroundInactive] = {gfx::kGoogleGrey500};
+-  mixer[kColorPipWindowScrimFull] = {SkColorSetA(SK_ColorBLACK, 0x66)};
 +  mixer[kColorPipWindowForegroundInactive] = {
 +      SkColorSetARGB(150, 255, 255, 255)};
-   mixer[kColorPipWindowHangUpButtonForeground] = {gfx::kGoogleRed300};
--  mixer[kColorPipWindowScrimFull] = {SkColorSetA(SK_ColorBLACK, 0x66)};
 +  mixer[kColorPipWindowScrimFull] = {
 +      SkColorSetA(SkColorSetRGB(40, 32, 48), 0x66)};
    mixer[kColorPipWindowScrimTopGradientStart] = {
@@ -43,4 +39,4 @@ index 1132054a17..8ae662383d 100644
 +      SkColorSetRGB(60, 52, 68)};
    mixer[kColorPipWindowSkipAdButtonBorder] = {kColorPipWindowForeground};
    mixer[kColorProfileMenuBackground] = {ui::kColorDialogBackground};
-   mixer[kColorProfileMenuSyncInfoBackground] = {ui::kColorSyncInfoBackground};
+   // TODO(crbug.com/40833357): stop forcing the light theme once the

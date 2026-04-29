@@ -1,8 +1,8 @@
 diff --git a/chrome/app/os_settings_strings.grdp b/chrome/app/os_settings_strings.grdp
-index 23a45a9b1e..358949c080 100644
+index 6d1f53f50e..38e679d937 100644
 --- a/chrome/app/os_settings_strings.grdp
 +++ b/chrome/app/os_settings_strings.grdp
-@@ -4437,7 +4437,7 @@ Press an assigned switch or key to remove assignment.
+@@ -4380,7 +4380,7 @@ Press an assigned switch or key to remove assignment.
      End User License Agreement
    </message>
    <message name="IDS_SETTINGS_PRINTING_CUPS_EULA_NOTICE_HEADER" desc="The message shown to users if a printer has a EULA agreement attached to it.">
@@ -11,7 +11,7 @@ index 23a45a9b1e..358949c080 100644
    </message>
    <message name="IDS_SETTINGS_PRINTING_CUPS_IPP_URI_UNREACHABLE" desc="The message shown on the uri field of the add/edit printer dialogs when attempting to connect to an IPP printer that is not found on the network.">
      Couldn't detect a printer. Please enter printer address again.
-@@ -7319,10 +7319,10 @@ Press &amp; hold keyboard keys to see accent marks and special characters. This
+@@ -7387,10 +7387,10 @@ Press &amp; hold keyboard keys to see accent marks and special characters. This
    </message>
  
    <!-- Safety Hub -->
@@ -23,4 +23,4 @@ index 23a45a9b1e..358949c080 100644
 +  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_CARD_HEADER_UPDATED" desc="Safety Hub settings page (dao://settings/safetyHub) gives users an overview over their safety status. The version card, which this text is a part of, informs the user whether their Chrome is up to date. This title of the card is shown when Chrome is up to date and the user does not need to take any action. Shown above the subtitle that is the Chrome version.">
      ChromeOS is up to date
    </message>
- </if>
+ 

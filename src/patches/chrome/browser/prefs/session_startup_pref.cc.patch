@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/prefs/session_startup_pref.cc b/chrome/browser/prefs/session_startup_pref.cc
-index 266dc5f675..3fe94ab156 100644
+index dd071315ef..ff84801b2b 100644
 --- a/chrome/browser/prefs/session_startup_pref.cc
 +++ b/chrome/browser/prefs/session_startup_pref.cc
-@@ -66,11 +66,8 @@ void SessionStartupPref::RegisterProfilePrefs(
+@@ -67,16 +67,8 @@ void SessionStartupPref::RegisterProfilePrefs(
  
  // static
  SessionStartupPref::Type SessionStartupPref::GetDefaultStartupType() {
@@ -10,6 +10,11 @@ index 266dc5f675..3fe94ab156 100644
 +  // Dao Browser: Always restore last session by default.
    return SessionStartupPref::LAST;
 -#else
+-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+-  if (features::kSetDefaultToContinueSession.Get()) {
+-    return SessionStartupPref::LAST;
+-  }
+-#endif
 -  return SessionStartupPref::DEFAULT;
 -#endif
  }

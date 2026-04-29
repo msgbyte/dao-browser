@@ -7,6 +7,8 @@
 #include "cc/paint/paint_flags.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkPathBuilder.h"
+#include "third_party/skia/include/core/SkRRect.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
@@ -76,16 +78,16 @@ void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
   // Top-left is 0 (sharp corner pointing at cursor), others are rounded.
   auto make_path = [](const gfx::RectF& r, float radius) {
     // radii: top-left, top-right, bottom-right, bottom-left
-    const SkScalar radii[8] = {
-        0, 0,                 // top-left: sharp
-        radius, radius,       // top-right
-        radius, radius,       // bottom-right
-        radius, radius,       // bottom-left
+    const SkVector radii[4] = {
+        {0, 0},               // top-left: sharp
+        {radius, radius},     // top-right
+        {radius, radius},     // bottom-right
+        {radius, radius},     // bottom-left
     };
-    SkPath path;
-    path.addRoundRect(
-        SkRect::MakeXYWH(r.x(), r.y(), r.width(), r.height()), radii);
-    return path;
+    return SkPathBuilder()
+        .addRRect(SkRRect::MakeRectRadii(
+            SkRect::MakeXYWH(r.x(), r.y(), r.width(), r.height()), radii))
+        .detach();
   };
 
   // Draw shadow rings.

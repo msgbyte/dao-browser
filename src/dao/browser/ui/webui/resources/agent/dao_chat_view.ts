@@ -162,6 +162,21 @@ export class DaoChatView extends CrLitElement {
   // Light DOM so <pi-chat-panel> and its descendants pick up the global
   // Tailwind stylesheet linked from agent.html. Without this, pi-web-ui's
   // Tailwind utility classes render unstyled inside a shadow root.
+
+  constructor() {
+    super();
+    this.tokenEstimate_ = 0;
+    this.compacting_ = false;
+    this.isStreaming_ = false;
+    this.pendingPageAttachment_ = null;
+    this.pendingSelection_ = null;
+    this.skillPickerVisible_ = false;
+    this.skillPickerSkills_ = [];
+    this.skillPickerIndex_ = 0;
+    this.historyOpen_ = false;
+    this.currentSessionId_ = '';
+    this.messageCount_ = 0;
+  }
   override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
@@ -176,15 +191,15 @@ export class DaoChatView extends CrLitElement {
   private boundOnToolConfigChanged_: (() => void) | null = null;
   private boundOnChipHint_: (() => void) | null = null;
   private boundOnVisibilityHint_: (() => void) | null = null;
-  protected messageCount_ = 0;
-  protected tokenEstimate_ = 0;
-  protected compacting_ = false;
-  protected isStreaming_ = false;
+  declare protected messageCount_: number;
+  declare protected tokenEstimate_: number;
+  declare protected compacting_: boolean;
+  declare protected isStreaming_: boolean;
   // Current-page chip: renders as a small pill above the composer with the
   // active tab's title. Cleared when the URL is already in one of the
   // session sets (sent / dismissed) or the tab is a non-capturable surface
   // (chrome://, about:blank, ...).
-  protected pendingPageAttachment_: PageInfo | null = null;
+  declare protected pendingPageAttachment_: PageInfo | null;
 
   // Latest text selection from the active tab. Refreshed by the same 2s
   // poll that drives the page chip; displayed as its own chip below the
@@ -192,7 +207,7 @@ export class DaoChatView extends CrLitElement {
   // active at once and the LLM will receive both blocks. Not de-duped:
   // every send picks up whatever the selection currently is, and the
   // selection is cleared in the tab after a successful send.
-  protected pendingSelection_: SelectionCapture | null = null;
+  declare protected pendingSelection_: SelectionCapture | null;
 
   // URLs we've already injected as a <current-webpage> block in this
   // session — the chip hides for them so the same page isn't re-attached
@@ -218,9 +233,9 @@ export class DaoChatView extends CrLitElement {
   // event so pi-web-ui picks up the new value. At send time, a leading
   // `/skillId ...` is expanded to the skill's SKILL.md instructions plus the
   // user's remaining text.
-  protected skillPickerVisible_ = false;
-  protected skillPickerSkills_: SkillRegistryEntry[] = [];
-  protected skillPickerIndex_ = 0;
+  declare protected skillPickerVisible_: boolean;
+  declare protected skillPickerSkills_: SkillRegistryEntry[];
+  declare protected skillPickerIndex_: number;
   // viewport coords of the composer textarea, recomputed whenever the
   // picker is visible; drives the picker's `position: fixed` anchor so it
   // sits exactly above the editor regardless of composer height changes
@@ -245,8 +260,8 @@ export class DaoChatView extends CrLitElement {
   // `message_end` lazily mints a UUID and records a row in pi-web-ui's
   // SessionsStore. Kept non-empty across `message_end` events so subsequent
   // saves update the same row.
-  protected historyOpen_ = false;
-  protected currentSessionId_ = '';
+  declare protected historyOpen_: boolean;
+  declare protected currentSessionId_: string;
   private saveSessionScheduled_ = false;
 
   override disconnectedCallback() {
@@ -1356,12 +1371,6 @@ export class DaoChatView extends CrLitElement {
   }
 
   private renderChipFavicon_(url: string) {
-    let origin = '';
-    try {
-      origin = new URL(url).origin;
-    } catch (_) {
-      origin = '';
-    }
     const fallbackSvg = html`<svg viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2" stroke-linecap="round"
         stroke-linejoin="round" aria-hidden="true">
@@ -1369,7 +1378,15 @@ export class DaoChatView extends CrLitElement {
       <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
       <path d="M2 12h20"></path>
     </svg>`;
-    if (!origin) return fallbackSvg;
+    if (!url) return fallbackSvg;
+    // Use Chromium's favicon service instead of loading directly from the
+    // site origin. Direct cross-origin `https://site/favicon.ico` loads are
+    // blocked by the WebUI's img-src CSP, so we'd only ever see the fallback
+    // globe. chrome://favicon2 is allowlisted in webui_util.cc, cached by
+    // the browser, and handles redirects and size variants for us.
+    const faviconUrl =
+        `chrome://favicon2/?size=16&scaleFactor=2x&pageUrl=${
+            encodeURIComponent(url)}`;
     const onErr = (e: Event) => {
       const img = e.target as HTMLImageElement | null;
       if (img) img.style.display = 'none';
@@ -1382,8 +1399,8 @@ export class DaoChatView extends CrLitElement {
               : null;
       if (svg) (svg as SVGElement).style.display = 'none';
     };
-    return html`${fallbackSvg}<img src=${origin + '/favicon.ico'} alt=""
-        @error=${onErr} @load=${onLoad} referrerpolicy="no-referrer">`;
+    return html`${fallbackSvg}<img src=${faviconUrl} alt=""
+        @error=${onErr} @load=${onLoad}>`;
   }
 
   // Called by the monkey-patched sendMessage. Runs the full page-capture

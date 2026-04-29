@@ -157,7 +157,12 @@ export class DaoMediaControl extends CrLitElement {
     };
   }
 
-  protected mediaState_: MediaPlaybackState|null = null;
+  declare protected mediaState_: MediaPlaybackState|null;
+
+  constructor() {
+    super();
+    this.mediaState_ = null;
+  }
 
   override connectedCallback() {
     super.connectedCallback();

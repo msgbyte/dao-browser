@@ -12,7 +12,6 @@
 #include "chrome/browser/extensions/extension_view_host_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/extensions/extension_action_view_controller.h"
 #include "chrome/browser/ui/extensions/extension_popup_types.h"
 #include "chrome/browser/ui/extensions/extension_side_panel_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -248,7 +247,7 @@ void DaoPinnedExtensionsContainer::OnExtensionClicked(
     }
 
     auto host = extensions::ExtensionViewHostFactory::CreatePopupHost(
-        popup_url, browser_);
+        *extension, popup_url, browser_);
     if (!host) {
       return;
     }
@@ -260,7 +259,7 @@ void DaoPinnedExtensionsContainer::OnExtensionClicked(
       anchor = this;
     }
 
-    ExtensionPopup::ShowPopup(std::move(host), anchor,
+    ExtensionPopup::ShowPopup(browser_, std::move(host), anchor,
                               views::BubbleBorder::BOTTOM_RIGHT,
                               PopupShowAction::kShow, base::DoNothing());
   } else if (result ==

@@ -141,17 +141,36 @@ export class DaoSidebarApp extends CrLitElement {
     };
   }
 
-  protected pinnedTabs_: TabData[] = [];
-  protected unpinnedTabs_: TabData[] = [];
-  protected sessionId_: number = 0;
-  protected folderModelVersion_: number = 0;
-  protected showPlusMenu_: boolean = false;
-  protected newTabHighlighted_: boolean = false;
+  // Use `declare` + constructor assignment so TypeScript's emitted class
+  // fields do not shadow Lit's reactive accessors. With `target: ESNext` and
+  // `useDefineForClassFields: true` (Chromium's default), a plain
+  // `protected foo: T = ...` initializer would emit Object.defineProperty()
+  // on `this`, overriding the reactive accessor Lit installs from
+  // `static get properties()`. That makes property assignments silently
+  // skip update scheduling.
+  declare protected pinnedTabs_: TabData[];
+  declare protected unpinnedTabs_: TabData[];
+  declare protected sessionId_: number;
+  declare protected folderModelVersion_: number;
+  declare protected showPlusMenu_: boolean;
+  declare protected newTabHighlighted_: boolean;
 
+  // Non-reactive internals — plain fields are fine here because Lit doesn't
+  // install accessors for these.
   private folderModel_ = new FolderModel();
   private foldersLoaded_: boolean = false;
   private initialStateReceived_: boolean = false;
   private boundClosePlusMenu_: ((e: MouseEvent) => void) | null = null;
+
+  constructor() {
+    super();
+    this.pinnedTabs_ = [];
+    this.unpinnedTabs_ = [];
+    this.sessionId_ = 0;
+    this.folderModelVersion_ = 0;
+    this.showPlusMenu_ = false;
+    this.newTabHighlighted_ = false;
+  }
 
   override connectedCallback() {
     super.connectedCallback();

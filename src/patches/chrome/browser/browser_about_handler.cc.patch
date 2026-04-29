@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
-index 7603c2662b..b6071f9c3c 100644
+index 08949a6941..2852db9b7d 100644
 --- a/chrome/browser/browser_about_handler.cc
 +++ b/chrome/browser/browser_about_handler.cc
-@@ -31,7 +31,16 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+@@ -50,7 +50,16 @@ bool HandleChromeAboutAndChromeSyncRewrite(
    DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
           !url->SchemeIs(url::kAboutScheme));
  
@@ -17,6 +17,6 @@ index 7603c2662b..b6071f9c3c 100644
 +  // Only handle dao: URLs (kChromeUIScheme is now "dao").
 +  // Also accept legacy "chrome" scheme URLs that were not rewritten above
 +  // (should not happen, but defensive).
-   if (!url->SchemeIs(content::kChromeUIScheme))
+   if (!url->SchemeIs(content::kChromeUIScheme)) {
      return false;
- 
+   }

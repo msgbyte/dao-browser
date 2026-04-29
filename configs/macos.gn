@@ -1,2 +1,7 @@
 target_os = "mac"
 use_lld = true
+
+# Xcode 16.3 ships libc++ modules with legacy Darwin modulemap names; disable
+# libc++ modules to avoid missing DarwinFoundation1.modulemap.
+use_libcxx_modules = false
+use_clang_modules = false

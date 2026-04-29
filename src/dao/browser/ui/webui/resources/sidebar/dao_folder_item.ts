@@ -199,23 +199,35 @@ export class DaoFolderItem extends CrLitElement {
     };
   }
 
-  folder: FolderData = {
-    type: 'folder',
-    id: '',
-    name: '',
-    collapsed: false,
-    children: [],
-  };
-  matchedTabs: TabData[] = [];
-  sessionId: number = 0;
+  declare folder: FolderData;
+  declare matchedTabs: TabData[];
+  declare sessionId: number;
 
-  protected isRenaming_: boolean = false;
-  protected showContextMenu_: boolean = false;
-  protected contextMenuX_: number = 0;
-  protected contextMenuY_: number = 0;
-  protected childDropIndex_: number = -1;
+  declare protected isRenaming_: boolean;
+  declare protected showContextMenu_: boolean;
+  declare protected contextMenuX_: number;
+  declare protected contextMenuY_: number;
+  declare protected childDropIndex_: number;
 
   private boundOnDocumentClick_: ((e: MouseEvent) => void) | null = null;
+
+  constructor() {
+    super();
+    this.folder = {
+      type: 'folder',
+      id: '',
+      name: '',
+      collapsed: false,
+      children: [],
+    };
+    this.matchedTabs = [];
+    this.sessionId = 0;
+    this.isRenaming_ = false;
+    this.showContextMenu_ = false;
+    this.contextMenuX_ = 0;
+    this.contextMenuY_ = 0;
+    this.childDropIndex_ = -1;
+  }
 
   override disconnectedCallback() {
     super.disconnectedCallback();

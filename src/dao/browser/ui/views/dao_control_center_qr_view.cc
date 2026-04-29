@@ -10,6 +10,7 @@
 #include "components/qr_code_generator/qr_code_generator.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "ui/base/models/image_model.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
@@ -121,7 +122,7 @@ void DaoControlCenterQrView::GenerateQrCode() {
       base::as_byte_span(url));
   if (result.has_value()) {
     gfx::ImageSkia qr_image = RenderQrCode(result.value(), kQrSize);
-    qr_image_->SetImage(qr_image);
+    qr_image_->SetImage(ui::ImageModel::FromImageSkia(qr_image));
   }
 }
 
