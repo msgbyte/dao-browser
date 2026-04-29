@@ -323,9 +323,14 @@ dao-agent-app [contenteditable="true"]:not(:where(pi-chat-panel *)):focus {
  * Scoped to the scrollable `.flex-1.overflow-y-auto` parent so the composer's
  * own `max-w-3xl` is left untouched. Specificity (0,3,0) beats Tailwind's
  * single-class `.max-w-3xl`, no !important needed. */
+/* Bottom padding reserves space for the floating page/selection chip row
+ * (which sits absolute-positioned above the composer). Without it, the
+ * last message can be covered by the chip when the list is scrolled to
+ * the bottom. The chip is ~26px tall and floats ~8px above the composer,
+ * so 44px gives a comfortable safety margin. */
 dao-chat-view agent-interface .flex-1.overflow-y-auto > .max-w-3xl {
   max-width: none;
-  padding: 16px 4px 0;
+  padding: 20px 10px 44px;
 }
 
 /* pi-web-ui's <message-editor> is a light-DOM wrapper. The real "bubble"
