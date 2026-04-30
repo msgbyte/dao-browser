@@ -12,6 +12,7 @@
 // the bits we actually use as local structural types to keep the adapter
 // type-safe on the consuming side.
 
+import {lookupModelCapabilities} from './model_capabilities.js';
 import {decideProviderInjection} from './web_search/tier_provider.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as piAgent from './vendor/pi_runtime_bundle.js';
@@ -117,6 +118,7 @@ function buildOpenAICompatModel(modelId: string, baseUrl: string): PiModel {
   // `openai-completions`; strip trailing slashes and ensure `/v1`.
   let base = baseUrl.replace(/\/+$/, '');
   if (!base.endsWith('/v1')) base += '/v1';
+  const caps = lookupModelCapabilities(modelId);
   return {
     id: modelId,
     name: modelId,
@@ -126,8 +128,8 @@ function buildOpenAICompatModel(modelId: string, baseUrl: string): PiModel {
     reasoning: false,
     input: ['text', 'image'],
     cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
-    contextWindow: 128000,
-    maxTokens: 16384,
+    contextWindow: caps.contextWindow,
+    maxTokens: caps.maxTokens,
   };
 }
 
@@ -260,6 +262,19 @@ export async function callLLMStreamingWithPi(
   if (decision.injectSpec) {
     convertedTools.push(decision.injectSpec as Record<string, unknown>);
   }
+
+  // Debug breadcrumb: surface what we're about to send to pi-ai. The
+  // dao-agent WebUI is a privileged context; this only ever logs in
+  // the agent's own DevTools console. Helps diagnose situations where
+  // a provider built-in search injection is silently dropped.
+  // eslint-disable-next-line no-console
+  console.log('[dao-agent] LLM request', {
+    provider: config.provider,
+    model: config.model,
+    decision,
+    toolCount: convertedTools.length,
+    tools: convertedTools,
+  });
 
   const context: PiContext = {
     systemPrompt,

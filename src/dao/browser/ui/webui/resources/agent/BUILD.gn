@@ -33,6 +33,7 @@ build_webui("build") {
     "dao_skill_manager_view.ts",
     "dao_tool_renderer.ts",
     "llm_config.ts",
+    "model_capabilities.ts",
     "pi_app_storage.ts",
     "pi_llm_stream.ts",
     "pi_tool_adapter.ts",

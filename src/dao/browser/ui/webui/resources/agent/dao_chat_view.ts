@@ -25,6 +25,7 @@ import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 import {BASE_SYSTEM_PROMPT, currentSoulContent, recordApiCall, refreshSoulContent, soulChannel} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {getActiveLLMConfig} from './llm_config.js';
+import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
 import {renderShareImage} from './dao_share_image.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
@@ -107,6 +108,7 @@ function lookupCostByModelId(modelId: string):
 function buildOpenAICompatModel(modelId: string, baseUrl: string) {
   let base = baseUrl.replace(/\/+$/, '');
   if (!base.endsWith('/v1')) base += '/v1';
+  const caps = lookupModelCapabilities(modelId);
   return {
     id: modelId,
     name: modelId,
@@ -116,8 +118,8 @@ function buildOpenAICompatModel(modelId: string, baseUrl: string) {
     reasoning: false,
     input: ['text', 'image'],
     cost: lookupCostByModelId(modelId),
-    contextWindow: 128000,
-    maxTokens: 16384,
+    contextWindow: caps.contextWindow,
+    maxTokens: caps.maxTokens,
   };
 }
 

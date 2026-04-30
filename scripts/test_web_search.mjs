@@ -230,11 +230,12 @@ async function testBrowserFetchOnArticle() {
 
 const ALLOWLIST = [
   {provider: 'anthropic',
-   modelPrefixes: ['claude-sonnet-4', 'claude-opus-4', 'claude-haiku-4']},
+   modelPrefixes: ['claude-sonnet-4', 'claude-opus-4', 'claude-haiku-4',
+                   'claude-mythos']},
   {provider: 'openai',
-   modelPrefixes: ['gpt-4o', 'gpt-4.1', 'o3', 'o4']},
+   modelPrefixes: ['gpt-5', 'gpt-4o', 'gpt-4.1', 'o3', 'o4']},
   {provider: 'google',
-   modelPrefixes: ['gemini-2.0', 'gemini-2.5']},
+   modelPrefixes: ['gemini-2.0', 'gemini-2.5', 'gemini-3']},
 ];
 
 function isProviderSearchAvailable(provider, model) {
@@ -245,29 +246,101 @@ function isProviderSearchAvailable(provider, model) {
   return false;
 }
 
+// Mirror of the production allowlist so we can test the layered
+// matching logic. KEEP IN SYNC with provider_capabilities.ts.
+const KEYWORD_INFERENCE = [
+  {keywords: ['claude-sonnet-4', 'claude-opus-4', 'claude-haiku-4',
+              'claude-mythos']},
+  {keywords: ['gpt-5', 'gpt-4o', 'gpt-4.1', 'o3-', 'o4-']},
+  {keywords: ['gemini-2.0', 'gemini-2.5', 'gemini-3']},
+];
+
+function inferFromModelName(model) {
+  const lc = model.toLowerCase();
+  for (const rule of KEYWORD_INFERENCE) {
+    for (const kw of rule.keywords) if (lc.includes(kw)) return true;
+  }
+  return false;
+}
+
+function isProviderSearchAvailableV2(provider, model) {
+  if (isProviderSearchAvailable(provider, model)) return true;
+  if (provider === 'openai-compatible') return inferFromModelName(model);
+  return false;
+}
+
 function testProviderCapabilities() {
-  const cases = [
+  // Layer 1: native providers, exact prefix
+  const layer1 = [
+    // Anthropic — current and likely-future Claude 4 family
     ['anthropic', 'claude-sonnet-4-5-20250929', true],
-    ['anthropic', 'claude-3-opus', false],
+    ['anthropic', 'claude-sonnet-4-6', true],
+    ['anthropic', 'claude-opus-4-7', true],
     ['anthropic', 'claude-haiku-4-1', true],
+    ['anthropic', 'claude-mythos-preview', true],
+    ['anthropic', 'claude-3-opus', false],            // 3.x excluded
+    ['anthropic', 'claude-3-5-sonnet', false],        // 3.5 excluded
+
+    // OpenAI — current GPT-5 family + 4o/4.1/o3/o4
+    ['openai', 'gpt-5', true],
+    ['openai', 'gpt-5-2026-02-01', true],
     ['openai', 'gpt-4o-mini', true],
+    ['openai', 'gpt-4.1', true],
+    ['openai', 'o3-mini', true],
+    ['openai', 'o4-mini', true],
     ['openai', 'gpt-3.5-turbo', false],
-    ['openai-compatible', 'gpt-4o', false],
+    ['openai', 'davinci', false],
+
+    // Google — Gemini 2.x and 3.x grounding
     ['google', 'gemini-2.5-flash', true],
+    ['google', 'gemini-2.5-pro', true],
+    ['google', 'gemini-3-pro-preview', true],
+    ['google', 'gemini-3.1-flash-preview', true],
     ['google', 'gemini-1.5-pro', false],
+
+    // Other providers — not on Layer 1
     ['groq', 'llama-3.3-70b', false],
     ['xai', 'grok-4', false],
   ];
+  // Layer 2: openai-compatible keyword inference (LiteLLM-style)
+  const layer2 = [
+    // Anthropic family via proxy
+    ['openai-compatible', 'claude-sonnet-4-5', true],
+    ['openai-compatible', 'claude-sonnet-4-6', true],
+    ['openai-compatible', 'claude-opus-4-7', true],
+    ['openai-compatible', 'anthropic/claude-sonnet-4-5', true],
+    ['openai-compatible', 'bedrock/claude-haiku-4', true],
+    ['openai-compatible', 'claude-mythos-preview', true],
+    // OpenAI family via proxy
+    ['openai-compatible', 'gpt-5', true],
+    ['openai-compatible', 'gpt-4o-mini', true],
+    ['openai-compatible', 'azure/gpt-4o', true],
+    ['openai-compatible', 'azure/gpt-5', true],
+    // Gemini family via proxy
+    ['openai-compatible', 'gemini-2.5-pro', true],
+    ['openai-compatible', 'vertex/gemini-3-pro', true],
+    // Negatives
+    ['openai-compatible', 'mistral-7b', false],
+    ['openai-compatible', 'llama-3.3-70b', false],
+    ['openai-compatible', 'claude-3-opus', false],     // 3.x excluded
+    ['openai-compatible', 'claude-3-5-sonnet', false], // 3.5 excluded
+    // groq/xai/openrouter must NEVER infer even with claude-* names
+    ['groq', 'claude-sonnet-4-5', false],
+    ['xai', 'gpt-4o', false],
+    ['openrouter', 'anthropic/claude-sonnet-4-5', false],
+  ];
+  const cases = [...layer1, ...layer2];
   let allOk = true;
   const failures = [];
   for (const [provider, model, expected] of cases) {
-    const got = isProviderSearchAvailable(provider, model);
+    const got = isProviderSearchAvailableV2(provider, model);
     if (got !== expected) {
       allOk = false;
       failures.push(`${provider}+${model}: expected ${expected} got ${got}`);
     }
   }
-  record(`provider_capabilities allowlist (${cases.length} cases)`, allOk,
+  record(`provider_capabilities allowlist+inference (${cases.length} cases)`,
+         allOk,
          allOk ? 'all match' : failures.join('; '));
 }
 
