@@ -11,6 +11,7 @@
 
 import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {callNative} from './agent_bridge.js';
 import './dao_chat_view.js';
 import './dao_settings_view.js';
 import type {DaoChatView} from './dao_chat_view.js';
@@ -62,6 +63,19 @@ export class DaoAgentApp extends CrLitElement {
     this.addEventListener('show-toast', ((e: CustomEvent) => {
       this.showToast_(e.detail.text);
     }) as EventListener);
+
+    // Delegated link interception: any anchor click anywhere inside the
+    // agent UI (markdown-rendered chat messages, tool result panels like
+    // search results, etc.) should open in the main browser webcontent
+    // as a new foreground tab, NOT inside this `dao://agent` WebUI frame.
+    // The WebUI itself can't navigate to arbitrary http(s) URLs in its
+    // own context, and `target="_blank"` on a chrome:// page either
+    // no-ops or pops a stray window — both are bad UX. We listen on the
+    // capture phase so we win against any descendant handlers.
+    this.addEventListener(
+        'click', this.onDelegatedLinkClick_ as EventListener, true);
+    this.addEventListener(
+        'auxclick', this.onDelegatedLinkClick_ as EventListener, true);
     this.addEventListener('switch-tab', ((e: CustomEvent) => {
       this.activeTab_ = e.detail.tab;
       if (e.detail.subTab) {
@@ -253,6 +267,64 @@ export class DaoAgentApp extends CrLitElement {
       this.getChatView_()?.openHistory();
     }
   }
+
+  // Walks up the composed event path (handles Shadow DOM and slotted
+  // content) to find the nearest <a> ancestor of the click target.
+  private findAnchor_(e: MouseEvent): HTMLAnchorElement|null {
+    const path = e.composedPath();
+    for (const node of path) {
+      if (node instanceof HTMLAnchorElement) {
+        return node;
+      }
+    }
+    return null;
+  }
+
+  private onDelegatedLinkClick_ = (e: MouseEvent) => {
+    // Only handle plain left-click and middle-click. Right-click opens
+    // the context menu; we leave that alone.
+    if (e.type === 'click' && e.button !== 0) return;
+    if (e.type === 'auxclick' && e.button !== 1) return;
+
+    const anchor = this.findAnchor_(e);
+    if (!anchor) return;
+
+    // `download` anchors aren't navigations.
+    if (anchor.hasAttribute('download')) return;
+
+    // Resolve the href against the document. anchor.href is already
+    // absolute; we just need to filter on protocol.
+    const raw = anchor.getAttribute('href');
+    if (!raw) return;
+    // Skip in-page anchors and javascript: pseudo-URLs outright.
+    if (raw.startsWith('#') ||
+        raw.toLowerCase().startsWith('javascript:')) {
+      return;
+    }
+
+    let url: URL;
+    try {
+      url = new URL(anchor.href);
+    } catch {
+      return;
+    }
+
+    // Only route real web URLs to the main webcontent. Internal
+    // chrome:// / dao:// links (if any future feature uses them) keep
+    // their default behavior.
+    const protocol = url.protocol;
+    if (protocol !== 'http:' && protocol !== 'https:' &&
+        protocol !== 'mailto:' && protocol !== 'ftp:') {
+      return;
+    }
+
+    // We're going to handle this — block the WebUI's default handling
+    // (which would either no-op or pop an unwanted window).
+    e.preventDefault();
+    e.stopPropagation();
+
+    void callNative('openTab', {url: url.href});
+  };
 
   private getChatView_(): DaoChatView|null {
     return this.querySelector('dao-chat-view');
