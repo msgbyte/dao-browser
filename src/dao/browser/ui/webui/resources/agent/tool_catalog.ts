@@ -66,6 +66,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
     label: 'Memory & Skills',
     toolNames: ['update_soul', 'save_memory', 'save_skill'],
   },
+  {
+    id: 'web',
+    label: 'Web',
+    toolNames: ['web_search', 'fetch_url'],
+  },
 ];
 
 const STORAGE_KEY = 'dao_disabled_tools';

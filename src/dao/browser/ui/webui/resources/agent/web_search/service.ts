@@ -1,0 +1,135 @@
+// Copyright 2026 Dao Browser Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Orchestrator for the search/fetch fallback chain.
+//
+// Search:    Tier 1 (provider built-in) -> Tier 3 (DuckDuckGo HTML)
+//            Jina's search endpoint requires an API key, so it is not
+//            on the search chain. Provider built-in is the preferred
+//            path; DuckDuckGo is the universal zero-config fallback.
+//
+// fetch_url: Tier 2 (Jina Reader, no key required) -> browser fetch.
+//            Jina Reader stays free, so it remains the primary path
+//            for converting articles to markdown.
+//
+// User override (Settings → "Search source") can pin a search tier.
+
+import type {SearchResponse, FetchResponse, SearchSourceOverride}
+    from './types.js';
+import {isJinaAvailable} from './circuit_breaker.js';
+import {isProviderSearchAvailable} from './provider_capabilities.js';
+import {fetchUrlViaJina} from './tier_jina.js';
+import {
+  searchViaDuckDuckGo, fetchUrlViaBrowser,
+} from './tier_duckduckgo.js';
+
+const OVERRIDE_KEY = 'dao_search_source';
+
+export function getSearchSourceOverride(): SearchSourceOverride {
+  let raw: string|null = null;
+  try {
+    raw = localStorage.getItem(OVERRIDE_KEY);
+  } catch (_) { /* ignore */ }
+  switch (raw) {
+    case 'provider':
+    case 'duckduckgo':
+      return raw;
+    default:
+      return 'auto';
+  }
+}
+
+export function setSearchSourceOverride(v: SearchSourceOverride): void {
+  try { localStorage.setItem(OVERRIDE_KEY, v); } catch (_) { /* ignore */ }
+}
+
+const DEFAULT_MAX_RESULTS = 5;
+const HARD_MAX_RESULTS = 10;
+
+function clampMax(n: number|undefined): number {
+  if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) {
+    return DEFAULT_MAX_RESULTS;
+  }
+  return Math.min(Math.floor(n), HARD_MAX_RESULTS);
+}
+
+export interface ProviderHint {
+  provider: string;
+  model: string;
+}
+
+// The local web_search tool body. Note: when provider built-in search
+// is active, this function may not be called at all — pi_llm_stream
+// strips the local web_search tool and the LLM uses the server-side
+// tool instead. This path runs when:
+//   - provider is not on the allowlist, OR
+//   - the user override forces a non-provider tier, OR
+//   - the LLM somehow chose the local tool despite the server-side
+//     one being available (degrade gracefully).
+export async function webSearch(
+    query: string, maxResults: number|undefined,
+    hint: ProviderHint): Promise<SearchResponse> {
+  const max = clampMax(maxResults);
+  const override = getSearchSourceOverride();
+
+  if (override === 'provider') {
+    if (isProviderSearchAvailable(hint.provider, hint.model)) {
+      // Provider tier handled at the LLM-stream layer. If we got here
+      // it means the LLM asked for `web_search` despite having the
+      // server tool — degrade to DDG.
+      return searchViaDuckDuckGo(query, max);
+    }
+    return {
+      source: 'failed', query, results: [],
+      error:
+          'Search source is locked to "provider" but the active model ' +
+          'does not support built-in web search.',
+    };
+  }
+  if (override === 'duckduckgo') {
+    return searchViaDuckDuckGo(query, max);
+  }
+
+  // Auto: provider tier is handled at the LLM-stream layer; if we ran
+  // at all it means provider tier is not available or already declined.
+  // Go straight to DuckDuckGo.
+  return searchViaDuckDuckGo(query, max);
+}
+
+export async function fetchUrl(targetUrl: string): Promise<FetchResponse> {
+  // Validate early so the LLM gets a clear error, not an opaque DOM
+  // exception from URL parsing inside the tier.
+  try { new URL(targetUrl); } catch {
+    return {
+      source: 'failed', url: targetUrl, title: '', content: '',
+      error: 'invalid URL',
+    };
+  }
+
+  const override = getSearchSourceOverride();
+
+  // Override semantics for fetch_url:
+  //  - 'provider'   : provider tier doesn't expose a reader, so we
+  //                   honour the user's intent ("don't use third-party
+  //                   infra") by returning failed.
+  //  - 'duckduckgo' : browser fetch only (skip Jina Reader).
+  //  - 'auto'       : Jina Reader then browser fetch.
+  if (override === 'provider') {
+    return {
+      source: 'failed', url: targetUrl, title: '', content: '',
+      error:
+          'Search source is locked to "provider"; fetch_url has no ' +
+          'provider equivalent.',
+    };
+  }
+  if (override === 'duckduckgo') {
+    return fetchUrlViaBrowser(targetUrl);
+  }
+
+  if (isJinaAvailable()) {
+    const j = await fetchUrlViaJina(targetUrl);
+    if (j) return j;
+  }
+  return fetchUrlViaBrowser(targetUrl);
+}

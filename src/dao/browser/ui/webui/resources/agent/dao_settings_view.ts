@@ -37,6 +37,9 @@ import {
   TOOL_GROUPS,
   toolConfigChannel,
 } from './tool_catalog.js';
+import {getSearchSourceOverride, setSearchSourceOverride}
+    from './web_search/index.js';
+import type {SearchSourceOverride} from './web_search/index.js';
 
 export class DaoSettingsView extends CrLitElement {
   static override get properties() {
@@ -1043,6 +1046,12 @@ export class DaoSettingsView extends CrLitElement {
       </div>`;
   }
 
+  private onSearchSourceChange_(e: Event) {
+    const value = (e.target as HTMLSelectElement).value as SearchSourceOverride;
+    setSearchSourceOverride(value);
+    this.requestUpdate();
+  }
+
   private renderToolGroup_(groupId: string) {
     const group = TOOL_GROUPS.find(g => g.id === groupId);
     if (!group) return nothing;
@@ -1079,6 +1088,31 @@ export class DaoSettingsView extends CrLitElement {
         </div>
         ${expanded ? html`
           <div class="tool-list">
+            ${groupId === 'web' ? (() => {
+              // Use ?selected on each option (rather than .value on the
+              // <select>) because Lit's property binding on <select>
+              // races option rendering and silently leaves the first
+              // option selected. ?selected is reliable.
+              const cur = getSearchSourceOverride();
+              return html`
+                <div class="dao-search-source">
+                  <span>Search source</span>
+                  <select
+                      class="dao-search-source-select"
+                      @change=${(e: Event) => this.onSearchSourceChange_(e)}>
+                    <option value="auto" ?selected=${cur === 'auto'}>
+                      Auto
+                    </option>
+                    <option value="provider" ?selected=${cur === 'provider'}>
+                      Provider only
+                    </option>
+                    <option value="duckduckgo"
+                        ?selected=${cur === 'duckduckgo'}>
+                      DuckDuckGo only
+                    </option>
+                  </select>
+                </div>`;
+            })() : nothing}
             ${group.toolNames.map(name => this.renderToolRow_(name))}
           </div>` : nothing}
       </div>`;

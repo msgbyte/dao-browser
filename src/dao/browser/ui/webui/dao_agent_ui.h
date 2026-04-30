@@ -6,6 +6,8 @@
 #define DAO_BROWSER_UI_WEBUI_DAO_AGENT_UI_H_
 
 #include <map>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,6 +22,10 @@
 #include "content/public/browser/webui_config.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
 #include "dao/browser/agent/dao_agent_proactive_engine.h"
+
+namespace network {
+class SimpleURLLoader;
+}  // namespace network
 
 namespace dao {
 
@@ -157,6 +163,33 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
 
   // Sidebar control.
   void HandleCloseSidebar(const base::ListValue& args);
+
+  // CORS-bypass fetch for the agent's web_search tool. The handler
+  // runs SimpleURLLoader in the browser process so requests to e.g.
+  // html.duckduckgo.com / r.jina.ai are not subject to the cross-
+  // origin checks that block fetch() from `dao://agent`.
+  void HandleNativeFetch(const base::ListValue& args);
+
+  // Per-request state for in-flight nativeFetch calls. The
+  // SimpleURLLoader must be kept alive until the response arrives;
+  // we key by raw pointer so OnNativeFetchComplete can erase the
+  // matching entry.
+  // Defined out-of-line in dao_agent_ui.cc to satisfy chromium-style
+  // checks for complex structs.
+  struct NativeFetchRequest {
+    NativeFetchRequest();
+    NativeFetchRequest(NativeFetchRequest&&) noexcept;
+    NativeFetchRequest& operator=(NativeFetchRequest&&) noexcept;
+    ~NativeFetchRequest();
+
+    std::unique_ptr<network::SimpleURLLoader> loader;
+    std::string callback_id;
+  };
+  std::map<network::SimpleURLLoader*, NativeFetchRequest>
+      native_fetch_inflight_;
+
+  void OnNativeFetchComplete(network::SimpleURLLoader* loader_ptr,
+                             std::optional<std::string> body);
 
   void PerformCDPClick(const std::string& callback_id,
                        const std::string& escaped_selector,

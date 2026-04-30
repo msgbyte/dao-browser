@@ -39,7 +39,14 @@
 #include "dao/browser/agent/dao_agent_skill_service.h"
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
 #include "dao/browser/dao_pref_names.h"
+#include "content/public/browser/storage_partition.h"
+#include "net/base/load_flags.h"
+#include "net/http/http_response_headers.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 
@@ -597,6 +604,10 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "getNetworkBody",
       base::BindRepeating(&DaoAgentUIHandler::HandleGetNetworkBody,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "nativeFetch",
+      base::BindRepeating(&DaoAgentUIHandler::HandleNativeFetch,
                           base::Unretained(this)));
 }
 
@@ -3786,5 +3797,181 @@ DaoSkillsUI::DaoSkillsUI(content::WebUI* web_ui)
 }
 
 DaoSkillsUI::~DaoSkillsUI() = default;
+
+// ---- DaoAgentUIHandler::NativeFetchRequest ----
+//
+// Out-of-line ctor/dtor satisfy the chromium-style "complex class needs
+// explicit out-of-line constructor/destructor" check. The body is
+// trivial — the unique_ptr handles the SimpleURLLoader lifetime — but
+// the compiler plugin still requires the explicit definitions.
+
+DaoAgentUIHandler::NativeFetchRequest::NativeFetchRequest() = default;
+DaoAgentUIHandler::NativeFetchRequest::NativeFetchRequest(
+    NativeFetchRequest&&) noexcept = default;
+DaoAgentUIHandler::NativeFetchRequest&
+DaoAgentUIHandler::NativeFetchRequest::operator=(
+    NativeFetchRequest&&) noexcept = default;
+DaoAgentUIHandler::NativeFetchRequest::~NativeFetchRequest() = default;
+
+// ---- DaoAgentUIHandler::HandleNativeFetch ----
+
+void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
+  AllowJavascript();
+
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const auto& params = args[1].GetDict();
+
+  auto reply_error = [&](const std::string& error) {
+    base::DictValue response;
+    response.Set("ok", false);
+    response.Set("status", 0);
+    response.Set("finalUrl", "");
+    response.Set("body", "");
+    response.Set("error", error);
+    ResolveJavascriptCallback(base::Value(callback_id), response);
+  };
+
+  const std::string* url_p = params.FindString("url");
+  if (!url_p || url_p->empty()) {
+    reply_error("Missing url");
+    return;
+  }
+
+  GURL gurl(*url_p);
+  if (!gurl.is_valid() ||
+      (gurl.scheme() != "https" && gurl.scheme() != "http")) {
+    reply_error("Invalid URL scheme");
+    return;
+  }
+
+  const std::string* method_p = params.FindString("method");
+  std::string method = method_p ? *method_p : "GET";
+
+  auto request = std::make_unique<network::ResourceRequest>();
+  request->url = gurl;
+  request->method = method;
+  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+  request->load_flags = net::LOAD_BYPASS_CACHE;
+
+  // Capture Content-Type early so we can pass it to AttachStringForUpload.
+  std::string content_type = "application/octet-stream";
+  if (const auto* headers_dict = params.FindDict("headers")) {
+    for (const auto kv : *headers_dict) {
+      if (!kv.second.is_string()) {
+        continue;
+      }
+      const std::string& name = kv.first;
+      const std::string& value = kv.second.GetString();
+      // Content-Type goes through SimpleURLLoader::AttachStringForUpload
+      // for POST bodies; setting it via headers can confuse the loader.
+      if (base::EqualsCaseInsensitiveASCII(name, "Content-Type")) {
+        content_type = value;
+        continue;
+      }
+      request->headers.SetHeader(name, value);
+    }
+  }
+
+  static const net::NetworkTrafficAnnotationTag annotation =
+      net::DefineNetworkTrafficAnnotation("dao_agent_web_search", R"(
+        semantics {
+          sender: "Dao Agent Web Search"
+          description:
+            "Fetches search results from DuckDuckGo HTML and article "
+            "content from Jina Reader on behalf of the agent's "
+            "web_search and fetch_url tools."
+          trigger:
+            "User asks the agent to search the web or read a URL."
+          data:
+            "The user's search query (sent to DuckDuckGo) or the URL "
+            "the agent wants to read (sent to Jina Reader). No user "
+            "credentials, no PII unless the user typed it into the "
+            "query."
+          destination: WEBSITE
+        }
+        policy {
+          cookies_allowed: NO
+          setting: "Disable the Web tools group in agent settings."
+          policy_exception_justification:
+            "User-initiated agent action, like a user typing into a "
+            "search engine themselves."
+        })");
+
+  std::unique_ptr<network::SimpleURLLoader> loader =
+      network::SimpleURLLoader::Create(std::move(request), annotation);
+  loader->SetTimeoutDuration(base::Seconds(30));
+
+  if (method != "GET" && method != "HEAD") {
+    const std::string* body_p = params.FindString("body");
+    if (body_p && !body_p->empty()) {
+      loader->AttachStringForUpload(*body_p, content_type);
+    }
+  }
+
+  network::SimpleURLLoader* loader_ptr = loader.get();
+
+  network::mojom::URLLoaderFactory* factory =
+      Profile::FromWebUI(web_ui())
+          ->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess()
+          .get();
+
+  NativeFetchRequest entry;
+  entry.loader = std::move(loader);
+  entry.callback_id = callback_id;
+  native_fetch_inflight_[loader_ptr] = std::move(entry);
+
+  loader_ptr->DownloadToString(
+      factory,
+      base::BindOnce(&DaoAgentUIHandler::OnNativeFetchComplete,
+                     weak_factory_.GetWeakPtr(), loader_ptr),
+      /*max_body_size=*/5 * 1024 * 1024);
+}
+
+void DaoAgentUIHandler::OnNativeFetchComplete(
+    network::SimpleURLLoader* loader_ptr,
+    std::optional<std::string> body) {
+  auto it = native_fetch_inflight_.find(loader_ptr);
+  if (it == native_fetch_inflight_.end()) {
+    return;
+  }
+  const std::string callback_id = it->second.callback_id;
+  network::SimpleURLLoader* loader = it->second.loader.get();
+
+  base::DictValue response;
+  int status_code = 0;
+  std::string final_url;
+  if (loader->ResponseInfo() && loader->ResponseInfo()->headers) {
+    status_code = loader->ResponseInfo()->headers->response_code();
+  }
+  if (loader->GetFinalURL().is_valid()) {
+    final_url = loader->GetFinalURL().spec();
+  }
+
+  response.Set("status", status_code);
+  response.Set("finalUrl", final_url);
+  if (body.has_value()) {
+    response.Set("body", *body);
+    response.Set("ok", status_code >= 200 && status_code < 300);
+    if (status_code < 200 || status_code >= 300) {
+      response.Set("error",
+                   "http " + base::NumberToString(status_code));
+    }
+  } else {
+    response.Set("body", "");
+    response.Set("ok", false);
+    int net_error = loader->NetError();
+    response.Set("error",
+                 "net error " + base::NumberToString(net_error));
+  }
+
+  // Erase BEFORE resolve so the loader is freed promptly.
+  native_fetch_inflight_.erase(it);
+
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
 
 }  // namespace dao

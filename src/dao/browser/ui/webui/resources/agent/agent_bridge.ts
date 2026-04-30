@@ -7,6 +7,7 @@
 
 import {getActiveLLMConfig} from './llm_config.js';
 import {saveUserSkill} from './skill_registry.js';
+import {webSearch as wsRun, fetchUrl as wsFetch} from './web_search/index.js';
 
 // ---- Interfaces ----
 
@@ -127,6 +128,72 @@ export function callNativeArgs(
         reject(new Error('Timeout calling ' + method));
       }
     }, 15000);
+  });
+}
+
+// ---- Native Fetch Bridge ----
+//
+// CORS-bypass fetch routed through DaoAgentUIHandler::HandleNativeFetch.
+// The dao://agent origin can't make cross-origin fetch() calls to e.g.
+// html.duckduckgo.com (no Access-Control-Allow-Origin), so the WebUI
+// asks the browser process to do the request via SimpleURLLoader, which
+// has no CORS concept. This is used by web_search/* tiers.
+
+export interface NativeFetchInit {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+export interface NativeFetchResponse {
+  ok: boolean;
+  status: number;
+  finalUrl: string;
+  body: string;
+  error?: string;
+}
+
+export function callNativeFetch(
+    url: string, init?: NativeFetchInit): Promise<NativeFetchResponse> {
+  return new Promise((resolve) => {
+    const id = 'nativeFetch_' + (++callbackCounter);
+    const settle = (response: unknown, source: 'native'|'reject'|'timeout',
+                     extraError?: string) => {
+      const r = (response as Partial<NativeFetchResponse>) ?? {};
+      resolve({
+        ok: r.ok === true,
+        status: typeof r.status === 'number' ? r.status : 0,
+        finalUrl: typeof r.finalUrl === 'string' ? r.finalUrl : url,
+        body: typeof r.body === 'string' ? r.body : '',
+        error: typeof r.error === 'string'
+            ? r.error
+            : (source !== 'native' ? (extraError ?? source) : undefined),
+      });
+    };
+    pendingCallbacks[id] = {
+      resolve: (response: unknown) => settle(response, 'native'),
+      // The native side never invokes reject for nativeFetch (failures
+      // come back as ok:false). Wire reject defensively so a misbehaving
+      // native side still resolves the Promise.
+      reject: (e: unknown) => {
+        const msg = e instanceof Error ? e.message : String(e ?? 'unknown');
+        settle({}, 'reject', 'reject: ' + msg);
+      },
+    };
+    chrome.send('nativeFetch', [id, {
+      url,
+      method: init?.method ?? 'GET',
+      headers: init?.headers ?? {},
+      body: init?.body ?? '',
+    }]);
+    // Native loader has its own 30s timeout. Use a 35s outer guard so
+    // a stuck round-trip surfaces a clear error instead of hanging.
+    setTimeout(() => {
+      if (pendingCallbacks[id]) {
+        delete pendingCallbacks[id];
+        settle({}, 'timeout', 'native fetch timeout (35s)');
+      }
+    }, 35000);
   });
 }
 
@@ -862,6 +929,49 @@ export const tools: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'web_search',
+      description:
+          'Search the web for up-to-date information. Returns a list of ' +
+          'results with title, url, and snippet. Use fetch_url afterwards ' +
+          'to read full articles.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The search query',
+          },
+          max_results: {
+            type: 'integer',
+            description: 'Max results, default 5, max 10',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'fetch_url',
+      description:
+          'Fetch the readable content of a web page as markdown. Use ' +
+          'after web_search to read full articles.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: 'The URL to fetch',
+          },
+        },
+        required: ['url'],
+      },
+    },
+  },
 ];
 
 // ---- Tool Execution ----
@@ -1114,6 +1224,20 @@ export async function executeTool(
         matches,
         truncated: matches.length >= maxMatches,
       };
+    }
+    case 'web_search': {
+      const query = getStringArg(args, 'query');
+      const maxRaw = args['max_results'];
+      const max = typeof maxRaw === 'number' ? maxRaw : undefined;
+      const cfg = getActiveLLMConfig();
+      const resp = await wsRun(
+          query, max, {provider: cfg.provider, model: cfg.model});
+      return resp;
+    }
+    case 'fetch_url': {
+      const url = getStringArg(args, 'url');
+      const resp = await wsFetch(url);
+      return resp;
     }
     default:
       return {error: 'Unknown tool: ' + name};

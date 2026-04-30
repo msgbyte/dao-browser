@@ -12,6 +12,7 @@
 // the bits we actually use as local structural types to keep the adapter
 // type-safe on the consuming side.
 
+import {decideProviderInjection} from './web_search/tier_provider.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as piAgent from './vendor/pi_runtime_bundle.js';
 
@@ -244,11 +245,30 @@ export async function callLLMStreamingWithPi(
           config.baseUrl ?? 'https://api.openai.com')
       : piGetModel(config.provider, config.model);
 
+  const decision = decideProviderInjection(config.provider, config.model);
+  let effectiveTools = tools;
+  if (decision.stripLocalWebSearch) {
+    effectiveTools = tools.filter(
+        (t) => t.function.name !== 'web_search');
+  }
+
   const {systemPrompt, messages} = convertMessages(msgs);
+  const convertedTools: Array<
+      {name: string; description: string; parameters: object} |
+      Record<string, unknown>> = convertTools(effectiveTools);
+
+  if (decision.injectSpec) {
+    convertedTools.push(decision.injectSpec as Record<string, unknown>);
+  }
+
   const context: PiContext = {
     systemPrompt,
     messages,
-    tools: convertTools(tools),
+    // Provider built-in tool specs do not match pi-ai's local
+    // ToolDefinition shape — pi-ai forwards unknown tool entries
+    // verbatim to the upstream API, which is exactly what we need.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tools: convertedTools as any,
   };
 
   let events: AsyncIterable<PiEvent>;
