@@ -1,0 +1,113 @@
+diff --git a/chrome/browser/ui/views/user_education/browser_user_education_service.cc b/chrome/browser/ui/views/user_education/browser_user_education_service.cc
+index b7ec475c86..50cc2d6f42 100644
+--- a/chrome/browser/ui/views/user_education/browser_user_education_service.cc
++++ b/chrome/browser/ui/views/user_education/browser_user_education_service.cc
+@@ -155,12 +155,15 @@
+ namespace {
+ 
+ using Platforms = user_education::Metadata::Platforms;
+-constexpr std::initializer_list<Platforms> kComposePlatforms{
++// Dao: marked maybe_unused — only referenced by the disabled upstream IPHs.
++[[maybe_unused]] constexpr std::initializer_list<Platforms> kComposePlatforms{
+     Platforms::kWindows, Platforms::kMac, Platforms::kLinux};
+ 
+-constexpr char kTabGroupHeaderElementName[] = "TabGroupHeader";
+-constexpr char kChromeThemeBackElementName[] = "ChromeThemeBackElement";
+-constexpr char kLastInactiveTabElementName[] = "LastInactiveTab";
++// Dao: marked maybe_unused — only referenced by the disabled upstream IPHs/tutorials.
++[[maybe_unused]] constexpr char kTabGroupHeaderElementName[] = "TabGroupHeader";
++[[maybe_unused]] constexpr char kChromeThemeBackElementName[] =
++    "ChromeThemeBackElement";
++[[maybe_unused]] constexpr char kLastInactiveTabElementName[] = "LastInactiveTab";
+ 
+ class IfView : public user_education::TutorialDescription::If {
+  public:
+@@ -232,7 +235,8 @@ class ConditionalStep : public IfView {
+   }
+ };
+ 
+-bool HasTabGroups(const BrowserView* browser_view) {
++// Dao: marked maybe_unused — only referenced by the disabled upstream tutorials.
++[[maybe_unused]] bool HasTabGroups(const BrowserView* browser_view) {
+   return !browser_view->browser()
+               ->tab_strip_model()
+               ->group_model()
+@@ -240,7 +244,8 @@ bool HasTabGroups(const BrowserView* browser_view) {
+               .empty();
+ }
+ 
+-bool IsInVerticalTabsMode(const BrowserView* browser_view) {
++// Dao: marked maybe_unused — only referenced by the disabled upstream tutorials.
++[[maybe_unused]] bool IsInVerticalTabsMode(const BrowserView* browser_view) {
+   return browser_view->ShouldDrawVerticalTabStrip();
+ }
+ 
+@@ -259,7 +264,8 @@ Browser* GetBrowser(ContextPtr context) {
+ }
+ 
+ // Returns a `CustomActionCallback` that navigates to `target` in a new tab.
+-user_education::FeaturePromoSpecification::CustomActionCallback
++// Dao: marked maybe_unused — only referenced by the disabled upstream IPHs.
++[[maybe_unused]] user_education::FeaturePromoSpecification::CustomActionCallback
+ CreateNavigationAction(GURL target) {
+   return base::BindRepeating(
+       [](GURL url, ContextPtr ctx,
+@@ -307,6 +313,12 @@ void RegisterChromeHelpBubbleFactories(
+ void MaybeRegisterChromeFeaturePromos(
+     user_education::FeaturePromoRegistry& registry,
+     Profile* profile) {
++  // Dao: disable all upstream In-Product-Help (IPH) feature promos.
++  // Dao ships its own onboarding/affordances and the upstream IPHs anchor
++  // to Chrome UI elements (toolbar buttons, tab strip, etc.) that Dao hides
++  // or replaces, so they would either misrender or never display.
++  return;
++#if 0  // Dao: upstream IPH registrations disabled below.
+   using user_education::FeaturePromoSpecification;
+   using user_education::HelpBubbleArrow;
+   using user_education::Metadata;
+@@ -1809,6 +1821,7 @@ void MaybeRegisterChromeFeaturePromos(
+               "Triggered when there are enough tabs in the tabstrip and"
+               "the size of the tabs are shrunk significantly compared to their "
+               "ideal width.")));
++#endif  // Dao: upstream IPH registrations disabled.
+ }
+ 
+ void MaybeRegisterChromeFeaturePromos(
+@@ -1818,6 +1831,10 @@ void MaybeRegisterChromeFeaturePromos(
+ 
+ void MaybeRegisterChromeTutorials(
+     user_education::TutorialRegistry& tutorial_registry) {
++  // Dao: disable all upstream tutorials (Tab Group, Side Panel, Lens,
++  // Split View, Vertical Tabs, etc.) — Dao provides its own guidance.
++  return;
++#if 0  // Dao: upstream tutorial registrations disabled below.
+   using user_education::HelpBubbleArrow;
+   using user_education::TutorialDescription;
+   using BubbleStep = user_education::TutorialDescription::BubbleStep;
+@@ -2159,6 +2176,7 @@ void MaybeRegisterChromeTutorials(
+     tutorial_registry.AddTutorial(kVerticalTabsTutorialId,
+                                   std::move(vertical_tabs_tutorial));
+   }
++#endif  // Dao: upstream tutorial registrations disabled.
+ }
+ 
+ // NOTES FOR FEATURE TEAMS:
+@@ -2173,6 +2191,10 @@ void MaybeRegisterChromeTutorials(
+ //    longer that necessary just to keep a "New" Badge around.
+ //
+ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
++  // Dao: disable all upstream "New" badges. They highlight Chrome features
++  // that Dao does not surface in its UI.
++  return;
++#if 0  // Dao: upstream new-badge registrations disabled below.
+   if (registry.IsFeatureRegistered(
+           user_education::features::kNewBadgeTestFeature)) {
+     return;
+@@ -2272,6 +2294,7 @@ registry.RegisterFeature(user_education::NewBadgeSpecification(
+                                "Show the new badge in the system context menu "
+                                "to toggle the horizontal tab strip "
+                                "to be a vertical tab strip")));
++#endif  // Dao: upstream new-badge registrations disabled.
+ }
+ 
+ std::unique_ptr<user_education::FeaturePromoControllerImpl>
