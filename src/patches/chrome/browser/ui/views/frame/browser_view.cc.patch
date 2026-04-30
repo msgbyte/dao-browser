@@ -305,3 +305,21 @@ index e4d4e62095..055a20963c 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip. Use `GetTabStripVisible` as the
    // tabstrip might have been hidden in immersive mode.
+@@ -5491,6 +5709,17 @@ void BrowserView::OnThemeChanged() {
+   }
+ 
+   FrameColorsChanged();
++
++  // Dao: Re-apply backgrounds that depend on dao::SidebarBackground(). The
++  // construction-time SetBackground() call in BrowserView's ctor caches the
++  // SkColor for the frame strip shown around the rounded content area, so
++  // without this hook a system light/dark switch leaves that strip stuck in
++  // the original theme's color (mismatching DaoSidebarView, which already
++  // re-applies via OnNativeThemeUpdated).
++  if (dao_sidebar_) {
++    SetBackground(views::CreateSolidBackground(dao::SidebarBackground()));
++    SchedulePaint();
++  }
+ }
+ 
+ bool BrowserView::GetDropFormats(
