@@ -123,13 +123,16 @@ void DaoAgentSidebarView::ExpandAndSubmitPrompt(
 
   if (!expanded_) {
     Toggle();
-  } else {
-    // Already open: just kick the flush loop.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
-                       weak_factory_.GetWeakPtr(), /*attempts_left=*/60));
   }
+
+  // Kick the flush loop on both paths.  When we just expanded, the WebUI may
+  // still be loading — TryFlushPendingPrompt's RFH-live check + 100ms retry
+  // (60 attempts = 6s) covers the load window.  When we were already open,
+  // this dispatches the prompt on the next task.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
+                     weak_factory_.GetWeakPtr(), /*attempts_left=*/60));
 }
 
 void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {
