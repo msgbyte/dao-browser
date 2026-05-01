@@ -949,6 +949,13 @@ void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
   visible_suggestion_count_ = 0;
   ask_ai_row_index_ = -1;
 
+  // Cmd+T (new-tab mode) opens a fresh standalone agent question, so the
+  // current page context is intentionally NOT attached. Cmd+L opens the
+  // command bar over the current tab, so the page context IS attached
+  // (the user is asking about the page they're on). Capture the mode now,
+  // before the reset below clears it.
+  const bool include_page_context = !is_new_tab_mode_;
+
   if (is_new_tab_mode_) {
     SetNewTabButtonHighlight(false);
     is_new_tab_mode_ = false;
@@ -959,7 +966,8 @@ void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
 
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (browser_view && browser_view->dao_agent_sidebar()) {
-    browser_view->dao_agent_sidebar()->ExpandAndSubmitPrompt(prompt);
+    browser_view->dao_agent_sidebar()->ExpandAndSubmitPrompt(
+        prompt, include_page_context);
     // Keep the right-side sidebar layout + address-bar chat-button state
     // in sync with the freshly-expanded agent panel.
     browser_view->InvalidateLayout();

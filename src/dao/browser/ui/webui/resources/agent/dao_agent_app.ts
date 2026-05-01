@@ -89,9 +89,22 @@ export class DaoAgentApp extends CrLitElement {
     // `text` as the first user turn. Retries briefly while the chat view
     // finishes mounting — firstUpdated installs the sendMessage monkey-patch
     // asynchronously, so the first call from C++ can land before it is ready.
+    //
+    // The optional second argument carries flags from the C++ caller. The
+    // only flag today is `includePageContext`:
+    //   - Cmd+L  → true  (the user is asking about the page they're on; the
+    //                     active tab's content + selection get spliced into
+    //                     the first turn)
+    //   - Cmd+T  → false (the user is opening a fresh tab to ask a
+    //                     standalone question; no page context attached)
+    // Defaults to true so any older C++ caller that hasn't been updated to
+    // pass options still gets the previous "include page" behavior.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).__daoExternalSubmit = (text: string) => {
+    (window as any).__daoExternalSubmit =
+        (text: string,
+         options?: {includePageContext?: boolean}) => {
       if (typeof text !== 'string' || !text) return;
+      const includePageContext = options?.includePageContext !== false;
       const deadline = Date.now() + 5000;
       const tryOnce = () => {
         if (this.activeTab_ !== 'chat') {
@@ -101,7 +114,7 @@ export class DaoAgentApp extends CrLitElement {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const iface: any = view?.querySelector('pi-chat-panel agent-interface');
         if (view && iface && typeof iface.sendMessage === 'function') {
-          void view.submitExternalPrompt(text);
+          void view.submitExternalPrompt(text, {includePageContext});
           return;
         }
         if (Date.now() < deadline) {

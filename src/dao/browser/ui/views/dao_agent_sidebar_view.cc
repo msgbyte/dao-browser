@@ -115,11 +115,13 @@ void DaoAgentSidebarView::EnsureLoaded() {
 }
 
 void DaoAgentSidebarView::ExpandAndSubmitPrompt(
-    const std::u16string& prompt) {
+    const std::u16string& prompt,
+    bool include_page_context) {
   if (prompt.empty()) {
     return;
   }
   pending_prompt_ = prompt;
+  pending_include_page_context_ = include_page_context;
 
   if (!expanded_) {
     Toggle();
@@ -162,10 +164,14 @@ void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {
   base::EscapeJSONString(base::UTF16ToUTF8(pending_prompt_),
                          /*put_in_quotes=*/true, &prompt_json);
 
+  const std::string include_page_literal =
+      pending_include_page_context_ ? "true" : "false";
+
   std::u16string script = base::UTF8ToUTF16(base::StrCat({
       "(function(){",
       "  if (typeof window.__daoExternalSubmit === 'function') {",
-      "    window.__daoExternalSubmit(", prompt_json, ");",
+      "    window.__daoExternalSubmit(", prompt_json,
+      ", { includePageContext: ", include_page_literal, " });",
       "    return true;",
       "  }",
       "  return false;",

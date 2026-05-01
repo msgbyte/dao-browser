@@ -53,7 +53,13 @@ class DaoAgentSidebarView : public views::View,
   // the agent WebUI's __daoExternalSubmit hook is installed — a polling
   // task keeps retrying the JS injection until it succeeds or a deadline
   // elapses.
-  void ExpandAndSubmitPrompt(const std::u16string& prompt);
+  //
+  // `include_page_context` controls whether the active tab's content +
+  // selection are spliced into the first turn.  Cmd+L keeps the page
+  // context (the user is asking about the page they're on); Cmd+T does not
+  // (the user is opening a fresh tab to ask a standalone question).
+  void ExpandAndSubmitPrompt(const std::u16string& prompt,
+                             bool include_page_context);
 
   // views::View:
   gfx::Size CalculatePreferredSize(
@@ -92,6 +98,11 @@ class DaoAgentSidebarView : public views::View,
   // (window.__daoExternalSubmit) is still loading.  Cleared when the
   // submission is dispatched or the retry deadline is reached.
   std::u16string pending_prompt_;
+  // Whether the pending prompt should include current-page / selection
+  // context when it lands.  Captured at queue time alongside the prompt
+  // because the dispatch is deferred and the caller's intent (Cmd+L vs
+  // Cmd+T) needs to survive the wait.
+  bool pending_include_page_context_ = true;
 
   int current_width_ = kDefaultWidth;
   int user_width_ = kDefaultWidth;
