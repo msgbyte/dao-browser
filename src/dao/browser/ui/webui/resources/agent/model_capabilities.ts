@@ -33,53 +33,38 @@ interface CapabilityRule {
   caps: ModelCapability;
 }
 
-// Order matters: more specific keywords first.
+// Order matters: more specific keywords first (e.g. gpt-4o before gpt-4).
 const CAPABILITY_RULES: CapabilityRule[] = [
   // ---- OpenAI ----
-  // gpt-5 family: 400k context, 128k output (per 2026-04 announcement).
   {keywords: ['gpt-5'], caps: {contextWindow: 400_000, maxTokens: 128_000}},
-  // gpt-4.1: 1M context, 32k output.
   {keywords: ['gpt-4.1'], caps: {contextWindow: 1_000_000, maxTokens: 32_768}},
-  // o3 / o4 reasoning models: 200k context, 100k reasoning output.
   {keywords: ['o3-', 'o4-'],
    caps: {contextWindow: 200_000, maxTokens: 100_000}},
-  // gpt-4o family: 128k / 16k.
   {keywords: ['gpt-4o'], caps: {contextWindow: 128_000, maxTokens: 16_384}},
-  // legacy gpt-4 (non-turbo): 8k context.
   {keywords: ['gpt-4-32k'],
    caps: {contextWindow: 32_768, maxTokens: 4_096}},
   {keywords: ['gpt-4'], caps: {contextWindow: 8_192, maxTokens: 4_096}},
-  // gpt-3.5-turbo-16k.
   {keywords: ['gpt-3.5-turbo-16k'],
    caps: {contextWindow: 16_384, maxTokens: 4_096}},
   {keywords: ['gpt-3.5'], caps: {contextWindow: 16_384, maxTokens: 4_096}},
 
   // ---- Anthropic Claude ----
-  // Claude 4 family + Mythos Preview: 200k context, 64k output.
-  // (Sonnet 4 supports a 1M-context tier in beta but the default
-  //  general-availability tier is 200k; we keep the conservative
-  //  number.)
+  // Sonnet 4 has a 1M-context beta tier; we use the GA 200k.
   {keywords: ['claude-sonnet-4', 'claude-opus-4', 'claude-haiku-4',
               'claude-mythos'],
    caps: {contextWindow: 200_000, maxTokens: 64_000}},
-  // Claude 3.7 / 3.5: 200k / 8k.
   {keywords: ['claude-3-7', 'claude-3.7', 'claude-3-5', 'claude-3.5'],
    caps: {contextWindow: 200_000, maxTokens: 8_192}},
-  // Claude 3: 200k / 4k.
   {keywords: ['claude-3'],
    caps: {contextWindow: 200_000, maxTokens: 4_096}},
 
   // ---- Google Gemini ----
-  // Gemini 3 family: 1M context, 64k output.
   {keywords: ['gemini-3'],
    caps: {contextWindow: 1_000_000, maxTokens: 64_000}},
-  // Gemini 2.5: 1M / 65k.
   {keywords: ['gemini-2.5'],
    caps: {contextWindow: 1_000_000, maxTokens: 65_536}},
-  // Gemini 2.0: 1M / 8k.
   {keywords: ['gemini-2.0'],
    caps: {contextWindow: 1_000_000, maxTokens: 8_192}},
-  // Gemini 1.5 Pro / Flash: 2M / 1M context, 8k output.
   {keywords: ['gemini-1.5-pro'],
    caps: {contextWindow: 2_000_000, maxTokens: 8_192}},
   {keywords: ['gemini-1.5'],
@@ -92,7 +77,6 @@ const CAPABILITY_RULES: CapabilityRule[] = [
    caps: {contextWindow: 131_072, maxTokens: 4_096}},
 
   // ---- Meta Llama ----
-  // Llama 3.3 / 3.1 70B+ commonly served at 128k.
   {keywords: ['llama-3.3', 'llama-3.1', 'llama3.3', 'llama3.1'],
    caps: {contextWindow: 128_000, maxTokens: 8_192}},
   {keywords: ['llama-3', 'llama3'],

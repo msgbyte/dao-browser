@@ -2,35 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Allowlist of (provider, model) pairs that ship a server-side
-// web-search tool, plus a heuristic for self-hosted OpenAI-compatible
-// proxies (e.g. LiteLLM in front of Anthropic).
-//
-// Matching layers:
-//
-//   1. EXACT-PROVIDER ALLOWLIST: native provider ids (anthropic /
-//      openai / google) routed through their canonical SDKs. Model
-//      prefix decides which server-tool spec we inject. This is the
-//      stable, reviewed list — audit it on every Chromium upgrade.
-//
-//   2. KEYWORD INFERENCE for openai-compatible: when the user picks
-//      provider=`openai-compatible` (typical for LiteLLM, self-hosted
-//      proxies, OpenRouter-API-shaped backends), we look at the model
-//      name and infer the spec. The bet is that the proxy on the
-//      other end forwards server-tool entries to the underlying
-//      native API (LiteLLM does this; raw OpenRouter does not — but
-//      OpenRouter has its own provider id and is NOT in this layer).
-//
-//      We DO NOT extend keyword inference to `groq`, `xai`, or
-//      `openrouter`:
-//        - groq only serves its own models; "claude" never appears.
-//        - xai has its own Live Search via a separate API, not a
-//          server tool.
-//        - openrouter uses an OpenAI-shaped chat API but does NOT
-//          accept anthropic/gemini server tools and does NOT forward
-//          OpenAI Responses-style web_search_preview. Sending a
-//          server tool there would be ignored at best, error at
-//          worst, so we keep openrouter on the local DDG path.
+// Two layers decide whether a (provider, model) combo can use a
+// server-side web-search tool:
+//   1. ALLOWLIST: exact native provider id + model prefix (audit on
+//      every Chromium / SDK upgrade).
+//   2. KEYWORD_INFERENCE: openai-compatible only, for LiteLLM-style
+//      proxies that forward server tools to native APIs. Other
+//      OpenAI-shaped providers (groq, xai, openrouter) intentionally
+//      skip inference: groq only serves its own models, xai uses a
+//      separate Live Search API, and openrouter does not forward
+//      server tools through its API shape.
 
 export type ToolSpecKind =
     'anthropic'|'openai-responses'|'gemini-grounding';

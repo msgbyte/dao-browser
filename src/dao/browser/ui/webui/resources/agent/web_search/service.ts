@@ -73,13 +73,14 @@ export async function webSearch(
   const max = clampMax(maxResults);
   const override = getSearchSourceOverride();
 
-  if (override === 'provider') {
-    if (isProviderSearchAvailable(hint.provider, hint.model)) {
-      // Provider tier handled at the LLM-stream layer. If we got here
-      // it means the LLM asked for `web_search` despite having the
-      // server tool — degrade to DDG.
-      return searchViaDuckDuckGo(query, max);
-    }
+  // Provider tier is handled at the LLM-stream layer. If webSearch()
+  // runs at all, either the provider didn't support a server tool or
+  // the LLM chose the local fallback — both degrade to DDG. The one
+  // exception is the "provider only" override on a model that doesn't
+  // support it: we surface a clear failure instead of silently going
+  // to DDG.
+  if (override === 'provider' &&
+      !isProviderSearchAvailable(hint.provider, hint.model)) {
     return {
       source: 'failed', query, results: [],
       error:
@@ -87,13 +88,6 @@ export async function webSearch(
           'does not support built-in web search.',
     };
   }
-  if (override === 'duckduckgo') {
-    return searchViaDuckDuckGo(query, max);
-  }
-
-  // Auto: provider tier is handled at the LLM-stream layer; if we ran
-  // at all it means provider tier is not available or already declined.
-  // Go straight to DuckDuckGo.
   return searchViaDuckDuckGo(query, max);
 }
 

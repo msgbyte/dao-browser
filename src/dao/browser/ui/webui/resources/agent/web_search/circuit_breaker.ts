@@ -2,15 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Time-limited breaker that flags Jina (s.jina.ai / r.jina.ai) as
-// temporarily unavailable after a 429. We rely on localStorage so the
-// breaker state is shared across all chrome://dao-agent tabs in this
-// profile — if the user has two agent tabs open, neither hammers Jina
-// while the breaker is tripped.
-//
-// The breaker is intentionally short (10 min). Jina restores per-IP
-// quota on a rolling window; we want to start trying again well before
-// the user gives up and reaches for a different tool.
+// Jina availability flag, shared across agent tabs via localStorage.
+// Tripped on 429; auto-clears after 10 min so we resume probing well
+// before Jina's per-IP quota fully resets.
 
 const KEY = 'dao_jina_unavailable_until';
 const TTL_MS = 10 * 60 * 1000;

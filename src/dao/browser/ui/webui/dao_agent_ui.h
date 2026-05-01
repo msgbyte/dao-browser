@@ -174,8 +174,6 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   // SimpleURLLoader must be kept alive until the response arrives;
   // we key by raw pointer so OnNativeFetchComplete can erase the
   // matching entry.
-  // Defined out-of-line in dao_agent_ui.cc to satisfy chromium-style
-  // checks for complex structs.
   struct NativeFetchRequest {
     NativeFetchRequest();
     NativeFetchRequest(NativeFetchRequest&&) noexcept;

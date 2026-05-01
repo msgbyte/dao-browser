@@ -24,17 +24,19 @@ import type {FetchResponse, SearchResponse, SearchResult} from './types.js';
 
 const SEARCH_ENDPOINT = 'https://html.duckduckgo.com/html/';
 
-export function parseDuckDuckGoHtml(html: string): SearchResult[] {
+export function parseDuckDuckGoHtml(
+    html: string, maxResults = Infinity): SearchResult[] {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const nodes = doc.querySelectorAll('.result');
   if (nodes.length === 0) {
-    // DDG sometimes returns an "anomaly" page with no .result nodes.
-    // Treat as parse failure so the caller can return source: 'failed'.
+    // DDG anomaly page returns no .result nodes — surface as parse
+    // failure so the caller can mark source:'failed'.
     throw new Error('parse');
   }
 
   const out: SearchResult[] = [];
   for (const node of Array.from(nodes)) {
+    if (out.length >= maxResults) break;
     const a = node.querySelector('.result__a') as HTMLAnchorElement|null;
     const snip = node.querySelector('.result__snippet');
     if (!a) continue;
@@ -81,7 +83,7 @@ export async function searchViaDuckDuckGo(
 
   let parsed: SearchResult[];
   try {
-    parsed = parseDuckDuckGoHtml(r.body);
+    parsed = parseDuckDuckGoHtml(r.body, maxResults);
   } catch {
     console.warn('[web_search] DuckDuckGo HTML parse failed');
     return {
@@ -90,11 +92,7 @@ export async function searchViaDuckDuckGo(
     };
   }
 
-  return {
-    source: 'duckduckgo',
-    query,
-    results: parsed.slice(0, maxResults),
-  };
+  return {source: 'duckduckgo', query, results: parsed};
 }
 
 // Tags whose content carries no value for an LLM reading an article.

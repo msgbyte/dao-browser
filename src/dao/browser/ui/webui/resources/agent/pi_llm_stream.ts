@@ -263,19 +263,6 @@ export async function callLLMStreamingWithPi(
     convertedTools.push(decision.injectSpec as Record<string, unknown>);
   }
 
-  // Debug breadcrumb: surface what we're about to send to pi-ai. The
-  // dao-agent WebUI is a privileged context; this only ever logs in
-  // the agent's own DevTools console. Helps diagnose situations where
-  // a provider built-in search injection is silently dropped.
-  // eslint-disable-next-line no-console
-  console.log('[dao-agent] LLM request', {
-    provider: config.provider,
-    model: config.model,
-    decision,
-    toolCount: convertedTools.length,
-    tools: convertedTools,
-  });
-
   const context: PiContext = {
     systemPrompt,
     messages,

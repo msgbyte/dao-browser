@@ -3798,13 +3798,6 @@ DaoSkillsUI::DaoSkillsUI(content::WebUI* web_ui)
 
 DaoSkillsUI::~DaoSkillsUI() = default;
 
-// ---- DaoAgentUIHandler::NativeFetchRequest ----
-//
-// Out-of-line ctor/dtor satisfy the chromium-style "complex class needs
-// explicit out-of-line constructor/destructor" check. The body is
-// trivial — the unique_ptr handles the SimpleURLLoader lifetime — but
-// the compiler plugin still requires the explicit definitions.
-
 DaoAgentUIHandler::NativeFetchRequest::NativeFetchRequest() = default;
 DaoAgentUIHandler::NativeFetchRequest::NativeFetchRequest(
     NativeFetchRequest&&) noexcept = default;
@@ -3812,8 +3805,6 @@ DaoAgentUIHandler::NativeFetchRequest&
 DaoAgentUIHandler::NativeFetchRequest::operator=(
     NativeFetchRequest&&) noexcept = default;
 DaoAgentUIHandler::NativeFetchRequest::~NativeFetchRequest() = default;
-
-// ---- DaoAgentUIHandler::HandleNativeFetch ----
 
 void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
   AllowJavascript();
@@ -3944,8 +3935,9 @@ void DaoAgentUIHandler::OnNativeFetchComplete(
   base::DictValue response;
   int status_code = 0;
   std::string final_url;
-  if (loader->ResponseInfo() && loader->ResponseInfo()->headers) {
-    status_code = loader->ResponseInfo()->headers->response_code();
+  const network::mojom::URLResponseHead* response_info = loader->ResponseInfo();
+  if (response_info && response_info->headers) {
+    status_code = response_info->headers->response_code();
   }
   if (loader->GetFinalURL().is_valid()) {
     final_url = loader->GetFinalURL().spec();

@@ -10,5 +10,5 @@ export {webSearch, fetchUrl, getSearchSourceOverride,
         setSearchSourceOverride} from './service.js';
 export {isProviderSearchAvailable, getProviderToolSpecKind}
     from './provider_capabilities.js';
-export type {SearchResponse, FetchResponse, SearchResult, SearchSource,
-             SearchSourceOverride} from './types.js';
+export type {SearchResponse, FetchResponse, FetchSource, SearchResult,
+             SearchSource, SearchSourceOverride} from './types.js';

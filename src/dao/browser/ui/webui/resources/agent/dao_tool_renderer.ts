@@ -15,6 +15,7 @@
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as pi from './vendor/pi_runtime_bundle.js';
+import type {FetchSource, SearchSource} from './web_search/index.js';
 
 const SHOW_DETAILS_KEY = 'dao_tool_call_show_details';
 
@@ -60,7 +61,12 @@ function extractOutput(result: any): {text: string; language: string} {
   }
 }
 
-const SOURCE_BADGE: Record<string, string> = {
+// SearchSource ⊂ FetchSource by design — both unions include 'failed';
+// FetchSource adds 'browser' / lacks 'duckduckgo'/'provider'/'jina'.
+// Keying by their union catches missing badges at compile time.
+type AnySource = SearchSource | FetchSource;
+
+const SOURCE_BADGE: Record<AnySource, string> = {
   provider: '🌐 Provider',
   jina: '⚡ Jina',
   duckduckgo: '🦆 DuckDuckGo',
@@ -77,18 +83,61 @@ function domainOf(url: string): string {
 }
 
 interface RenderedSearch {
-  source: string;
+  source: AnySource;
   query: string;
   results: Array<{title: string; url: string; snippet: string}>;
   error?: string;
 }
 
 interface RenderedFetch {
-  source: string;
+  source: AnySource;
   url: string;
   title: string;
   content: string;
   error?: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractText(result: any): string {
+  return (result?.content || [])
+      .filter((c: {type: string}) => c.type === 'text')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((c: any) => c.text)
+      .join('\n');
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function streamState(result: any, isStreaming: boolean): string {
+  if (result) return result.isError ? 'error' : 'complete';
+  return isStreaming ? 'inprogress' : 'complete';
+}
+
+// Shared <details>/<summary> chrome used by every Dao tool renderer.
+// Body is a child template the caller provides.
+function renderToolShell(state: string, summaryLabel: string,
+                          body: unknown, extraClass = ''): unknown {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const html = (pi as any).html;
+  const open = shouldDefaultExpand();
+  const cls = ['dao-tool-call', `dao-tool-call-${state}`, extraClass]
+                  .filter(Boolean)
+                  .join(' ');
+  return html`
+    <details class=${cls} ?open=${open}>
+      <summary class="dao-tool-call-summary">
+        <span class="dao-tool-call-dot" aria-hidden="true"></span>
+        <span class="dao-tool-call-name">${summaryLabel}</span>
+        <svg class="dao-tool-call-chevron" aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+          <path d="m6 9 6 6 6-6"></path>
+        </svg>
+      </summary>
+      ${body}
+    </details>
+  `;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,64 +146,42 @@ function renderWebSearch(this: unknown, _params: string, result: any,
     {content: unknown; isCustom: boolean} {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const html = (pi as any).html;
-  const open = shouldDefaultExpand();
-  const state = result ? (result.isError ? 'error' : 'complete') :
-                         (isStreaming ? 'inprogress' : 'complete');
-
-  // Result payload arrives as content[].text JSON.
-  const text = (result?.content || [])
-                   .filter((c: {type: string}) => c.type === 'text')
-                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                   .map((c: any) => c.text).join('\n');
+  const text = extractText(result);
   const parsed = text ? safeJson<RenderedSearch>(text) : null;
-
   if (!parsed) {
-    // Streaming or failed-to-parse — fall back to the generic renderer.
     return renderDao('web_search', _params, result, isStreaming);
   }
 
   const badge = SOURCE_BADGE[parsed.source] ?? parsed.source;
-  const summaryLabel =
-      `${badge}  Searched: "${parsed.query}"`;
+  const summary = `${badge}  Searched: "${parsed.query}"`;
+
+  const body = html`
+    <div class="dao-tool-call-body dao-search-card-body">
+      ${parsed.error ? html`
+        <div class="dao-search-error">${parsed.error}</div>
+      ` : ''}
+      ${parsed.results.length === 0 && !parsed.error ? html`
+        <div class="dao-search-empty">No results.</div>
+      ` : ''}
+      <ul class="dao-search-results">
+        ${parsed.results.map((r) => html`
+          <li>
+            <a href=${r.url} target="_blank"
+               rel="noopener noreferrer"
+               class="dao-search-result-title">${r.title}</a>
+            <span class="dao-search-result-domain">
+              ${domainOf(r.url)}
+            </span>
+            <div class="dao-search-result-snippet">${r.snippet}</div>
+          </li>
+        `)}
+      </ul>
+    </div>
+  `;
 
   return {
-    content: html`
-      <details class="dao-tool-call dao-tool-call-${state} dao-search-card"
-               ?open=${open}>
-        <summary class="dao-tool-call-summary">
-          <span class="dao-tool-call-dot" aria-hidden="true"></span>
-          <span class="dao-tool-call-name">${summaryLabel}</span>
-          <svg class="dao-tool-call-chevron" aria-hidden="true"
-              xmlns="http://www.w3.org/2000/svg"
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-            <path d="m6 9 6 6 6-6"></path>
-          </svg>
-        </summary>
-        <div class="dao-tool-call-body dao-search-card-body">
-          ${parsed.error ? html`
-            <div class="dao-search-error">${parsed.error}</div>
-          ` : ''}
-          ${parsed.results.length === 0 && !parsed.error ? html`
-            <div class="dao-search-empty">No results.</div>
-          ` : ''}
-          <ul class="dao-search-results">
-            ${parsed.results.map((r) => html`
-              <li>
-                <a href=${r.url} target="_blank"
-                   rel="noopener noreferrer"
-                   class="dao-search-result-title">${r.title}</a>
-                <span class="dao-search-result-domain">
-                  ${domainOf(r.url)}
-                </span>
-                <div class="dao-search-result-snippet">${r.snippet}</div>
-              </li>
-            `)}
-          </ul>
-        </div>
-      </details>
-    `,
+    content: renderToolShell(
+        streamState(result, isStreaming), summary, body, 'dao-search-card'),
     isCustom: true,
   };
 }
@@ -165,50 +192,29 @@ function renderFetchUrl(this: unknown, _params: string, result: any,
     {content: unknown; isCustom: boolean} {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const html = (pi as any).html;
-  const open = shouldDefaultExpand();
-  const state = result ? (result.isError ? 'error' : 'complete') :
-                         (isStreaming ? 'inprogress' : 'complete');
-
-  const text = (result?.content || [])
-                   .filter((c: {type: string}) => c.type === 'text')
-                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                   .map((c: any) => c.text).join('\n');
+  const text = extractText(result);
   const parsed = text ? safeJson<RenderedFetch>(text) : null;
-
   if (!parsed) {
     return renderDao('fetch_url', _params, result, isStreaming);
   }
 
   const badge = SOURCE_BADGE[parsed.source] ?? parsed.source;
-  const summaryLabel = parsed.title ?
-      `${badge}  Read: ${parsed.title}` :
-      `${badge}  Read: ${parsed.url}`;
+  const summary = `${badge}  Read: ${parsed.title || parsed.url}`;
+
+  const body = html`
+    <div class="dao-tool-call-body">
+      ${parsed.error ? html`
+        <div class="dao-search-error">${parsed.error}</div>
+      ` : html`
+        <code-block .code=${parsed.content} language="markdown">
+        </code-block>
+      `}
+    </div>
+  `;
 
   return {
-    content: html`
-      <details class="dao-tool-call dao-tool-call-${state} dao-fetch-card"
-               ?open=${open}>
-        <summary class="dao-tool-call-summary">
-          <span class="dao-tool-call-dot" aria-hidden="true"></span>
-          <span class="dao-tool-call-name">${summaryLabel}</span>
-          <svg class="dao-tool-call-chevron" aria-hidden="true"
-              xmlns="http://www.w3.org/2000/svg"
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-            <path d="m6 9 6 6 6-6"></path>
-          </svg>
-        </summary>
-        <div class="dao-tool-call-body">
-          ${parsed.error ? html`
-            <div class="dao-search-error">${parsed.error}</div>
-          ` : html`
-            <code-block .code=${parsed.content} language="markdown">
-            </code-block>
-          `}
-        </div>
-      </details>
-    `,
+    content: renderToolShell(
+        streamState(result, isStreaming), summary, body, 'dao-fetch-card'),
     isCustom: true,
   };
 }

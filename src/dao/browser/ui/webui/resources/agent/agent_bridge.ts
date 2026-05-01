@@ -157,8 +157,13 @@ export function callNativeFetch(
     url: string, init?: NativeFetchInit): Promise<NativeFetchResponse> {
   return new Promise((resolve) => {
     const id = 'nativeFetch_' + (++callbackCounter);
+    let timer: ReturnType<typeof setTimeout>|null = null;
     const settle = (response: unknown, source: 'native'|'reject'|'timeout',
                      extraError?: string) => {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
       const r = (response as Partial<NativeFetchResponse>) ?? {};
       resolve({
         ok: r.ok === true,
@@ -172,9 +177,8 @@ export function callNativeFetch(
     };
     pendingCallbacks[id] = {
       resolve: (response: unknown) => settle(response, 'native'),
-      // The native side never invokes reject for nativeFetch (failures
-      // come back as ok:false). Wire reject defensively so a misbehaving
-      // native side still resolves the Promise.
+      // Native side resolves via ok:false rather than reject; this is a
+      // defensive path for a misbehaving native handler.
       reject: (e: unknown) => {
         const msg = e instanceof Error ? e.message : String(e ?? 'unknown');
         settle({}, 'reject', 'reject: ' + msg);
@@ -186,9 +190,8 @@ export function callNativeFetch(
       headers: init?.headers ?? {},
       body: init?.body ?? '',
     }]);
-    // Native loader has its own 30s timeout. Use a 35s outer guard so
-    // a stuck round-trip surfaces a clear error instead of hanging.
-    setTimeout(() => {
+    // Outer 35s guard — native loader's own timeout is 30s.
+    timer = setTimeout(() => {
       if (pendingCallbacks[id]) {
         delete pendingCallbacks[id];
         settle({}, 'timeout', 'native fetch timeout (35s)');
