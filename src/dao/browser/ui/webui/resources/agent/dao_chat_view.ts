@@ -190,25 +190,19 @@ export class DaoChatView extends CrLitElement {
   private panel_: PiChatPanel | null = null;
   private mounted_ = false;
   // Resolves once mount_() has finished (including maybeResumeLastSession_).
-  // submitExternalPrompt awaits this before resetting state, so the C++
-  // command-bar path can't race with the auto-resume that mount_() kicks off.
+  // Awaited by submitExternalPrompt so the resume probe can't land after a
+  // Cmd+L/Cmd+T-driven startNewSession() and re-hydrate the old conversation.
   private mountReady_: Promise<void>;
-  private mountReadyResolve_: () => void = () => {};
-  // Set to true while a command-bar-driven external submit is being processed.
-  // maybeResumeLastSession_ checks this and bails out — otherwise a slow
-  // getAllMetadata() can resolve after startNewSession() has already cleared
-  // state.messages and re-populate it with the previous session, leaving the
-  // user looking at the old conversation with their new message appended.
+  // Definite-assignment: assigned in the constructor's Promise executor.
+  // A no-op default would silently swallow any pre-construction resolve.
+  private mountReadyResolve_!: () => void;
+  // Guards maybeResumeLastSession_ from racing an in-flight external submit
+  // across its `await getAllMetadata()`.
   private externalSubmitInFlight_ = false;
-  // Set to true while a command-bar-driven external submit is being processed.
-  // The monkey-patched sendMessage checks this and skips maybeAttachPage_ /
-  // maybeAttachSelection_, so the user's first turn from the command bar is
-  // a clean question without any current-page or selection context. The
-  // 2-second chip poll may have already populated pendingPageAttachment_
-  // before we get here, so a flag-only gate (without also clearing the chip
-  // state) would still leak the page if the LLM call runs through the
-  // standard chip-attach path on a later turn. We additionally clear the
-  // chip state at the start of the external submit.
+  // One-shot flag consumed by the monkey-patched sendMessage to skip
+  // maybeAttachPage_/maybeAttachSelection_ on the first turn of a Cmd+T
+  // session — the user asked a standalone question, not one about the page
+  // they happen to be on.
   private suppressChipAttachOnce_ = false;
   private unsubscribeAgent_: (() => void) | null = null;
   private compactAbort_: AbortController | null = null;
@@ -292,6 +286,8 @@ export class DaoChatView extends CrLitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    // Unblock anything awaiting mount; safe to call when already resolved.
+    this.mountReadyResolve_();
     this.unsubscribeAgent_?.();
     this.unsubscribeAgent_ = null;
     if (this.boundOnConfigChanged_) {
@@ -764,12 +760,9 @@ export class DaoChatView extends CrLitElement {
           // load the SKILL.md body into the session cache so convertToLlm
           // can splice it synchronously at LLM-conversion time.
           await this.ensureSkillLoadedFromText_(text);
-          // Command-bar (Cmd+T) external submits open a fresh agent session
-          // and explicitly should NOT carry the current page or selection
-          // into the first turn — the user is asking a standalone question,
-          // not a question about the page they happen to be on. Consume the
-          // one-shot suppression flag here so subsequent turns in the same
-          // session pick up chip context normally.
+          // Cmd+T external submits suppress page/selection on their first
+          // turn (set by submitExternalPrompt); subsequent turns fall through
+          // to the normal chip-attach path.
           let merged = attachments || [];
           if (this.suppressChipAttachOnce_) {
             this.suppressChipAttachOnce_ = false;
@@ -944,10 +937,8 @@ export class DaoChatView extends CrLitElement {
     // error. Runs after the agent + listeners are wired so loadSession_'s
     // state mutations are observed normally.
     //
-    // Awaited so that mountReady_ only resolves after resume has settled —
-    // submitExternalPrompt() awaits mountReady_ before calling
-    // startNewSession(), which guarantees its messages = [] reset can't be
-    // overwritten by a slow resume that lands a moment later.
+    // Awaited (not fired-and-forgotten) so mountReady_ resolves only after
+    // resume has settled, fencing it against submitExternalPrompt's reset.
     try {
       await this.maybeResumeLastSession_();
     } finally {
@@ -988,8 +979,6 @@ export class DaoChatView extends CrLitElement {
           .sort((a, b) => b.lastModified.localeCompare(a.lastModified));
       const latest = candidates[0];
       if (!latest) return;
-      // Final check before we actually mutate state.
-      if (this.externalSubmitInFlight_) return;
       await this.loadSession_(latest.id);
     } catch (_) { /* ignore — stay on the empty session */ }
   }
@@ -2054,52 +2043,28 @@ export class DaoChatView extends CrLitElement {
   // finished mounting yet, the caller retries until `origSendMessage_` is
   // installed, so this path can assume the monkey-patched sendMessage is
   // live by the time it runs.
-  //
-  // The sidebar may have just been expanded by the same C++ call, in which
-  // case mount_() is still running and maybeResumeLastSession_() may be
-  // awaiting storage. We set externalSubmitInFlight_ first (so the resume
-  // path bails out at its next checkpoint) and then await mountReady_ so
-  // that startNewSession() runs on a settled, non-resuming state — the user
-  // gets a true empty conversation, not "old messages + their new prompt".
   async submitExternalPrompt(
       text: string,
       options?: {includePageContext?: boolean}) {
     if (!text) return;
-    // Default to true to preserve the historical behavior for any caller
-    // that doesn't pass options. C++ callers explicitly pass `false` for
-    // the Cmd+T (new-tab) path and `true` for Cmd+L.
     const includePageContext = options?.includePageContext !== false;
     this.externalSubmitInFlight_ = true;
     try {
+      // Wait for mount_'s resume probe to finish so its loadSession_ can't
+      // land after our reset and re-hydrate the previous conversation.
       await this.mountReady_;
       this.startNewSession();
       if (!includePageContext) {
-        // Strip any current-page / selection chip the 2s poll may have
-        // already populated. The user invoked the command bar in new-tab
-        // mode to ask a standalone question — they did not opt into
-        // attaching whatever happens to be on screen. Pair this with
-        // suppressChipAttachOnce_ on the monkey-patched sendMessage so the
-        // very next send_ call also skips re-probing the active tab.
-        // (startNewSession() above already cleared these for the new
-        // conversation, but a chip-poll tick can fire between
-        // startNewSession and the iface.sendMessage call below; the
-        // explicit reset + one-shot flag closes that race.)
-        this.pendingPageAttachment_ = null;
-        this.pendingSelection_ = null;
+        // suppressChipAttachOnce_ gates the monkey-patched sendMessage so a
+        // chip-poll tick that fires between startNewSession and send can't
+        // smuggle the active page into a Cmd+T standalone question.
         this.suppressChipAttachOnce_ = true;
-      } else {
-        // Cmd+L path: keep chip state intact and let the monkey-patched
-        // sendMessage's maybeAttachPage_ / maybeAttachSelection_ run as
-        // usual so the user's question lands with the active tab's
-        // content + selection attached. Force a synchronous chip refresh
-        // so a tab change between sidebar-expand and send still picks up
-        // the right page.
-        void this.refreshPageChip_();
       }
-      // Allow the new-session reset (messages=[], sessionId cleared) to
-      // propagate through Lit's update cycle before pushing the first
-      // message.
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // Let the new-session reset (messages=[], sessionId cleared) render
+      // before pushing the first message — sendMessage reads post-render
+      // state. updateComplete fires on the next Lit render rather than a
+      // macrotask boundary, so we don't yield to unrelated event-loop work.
+      await this.updateComplete;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const iface = this.panel_?.querySelector('agent-interface') as any;
       if (iface && typeof iface.sendMessage === 'function') {
