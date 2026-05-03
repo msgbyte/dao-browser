@@ -1,0 +1,41 @@
+diff --git a/chrome/browser/ui/cocoa/browser_window_command_handler.mm b/chrome/browser/ui/cocoa/browser_window_command_handler.mm
+index 0fee99a34a..6dd27de78a 100644
+--- a/chrome/browser/ui/cocoa/browser_window_command_handler.mm
++++ b/chrome/browser/ui/cocoa/browser_window_command_handler.mm
+@@ -13,6 +13,7 @@
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_finder.h"
++#include "dao/browser/updater/dao_updater_service.h"
+ #include "chrome/browser/ui/browser_window.h"
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+@@ -75,6 +76,13 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item
+     NOTREACHED();
+   }
+ 
++  // Dao: IDC_DAO_CHECK_FOR_UPDATES does not flow through the Browser
++  // command_updater (Sparkle is process-global, not per-tab/per-Browser).
++  // Handle it here so the menu item stays enabled when a window is key.
++  if ([item tag] == IDC_DAO_CHECK_FOR_UPDATES) {
++    return YES;
++  }
++
+   auto* bridge =
+       remote_cocoa::NativeWidgetNSWindowBridge::GetFromNSWindow(window);
+   DCHECK(bridge);
+@@ -108,6 +116,14 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item
+ - (void)commandDispatch:(id)sender window:(NSWindow*)window {
+   DCHECK(sender);
+   int command = [sender tag];
++
++  // Dao: route process-global commands directly without the Mojo bridge —
++  // they don't depend on the keyed Browser instance.
++  if (command == IDC_DAO_CHECK_FOR_UPDATES) {
++    dao::DaoUpdaterService::GetInstance()->CheckForUpdatesUserInitiated();
++    return;
++  }
++
+   bool was_executed = false;
+   FindBridgeForSender(sender, window)
+       ->host()

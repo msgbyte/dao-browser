@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- V8 needs JIT-compiled code pages. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Some native modules / V8 fallbacks need writable+executable memory. -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- Required so Chromium can load helper bundles and so Sparkle can load
+         its framework from inside Dao.app/Contents/Frameworks/. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- Sparkle's auto-update relauncher reads DYLD_* env vars. -->
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+
+    <!-- Debugger attach for development; harmless in release. -->
+    <key>com.apple.security.cs.debugger</key>
+    <true/>
+
+    <!-- Network access (browser obviously needs it). -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <!-- Files & devices typically expected by a browser. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    <key>com.apple.security.device.camera</key>
+    <true/>
+    <key>com.apple.security.personal-information.location</key>
+    <true/>
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    <key>com.apple.security.files.downloads.read-write</key>
+    <true/>
+    <key>com.apple.security.print</key>
+    <true/>
+</dict>
+</plist>

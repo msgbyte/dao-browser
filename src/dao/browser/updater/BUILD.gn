@@ -1,0 +1,82 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# -----------------------------------------------------------------------------
+# Public source_set: dao_updater
+#
+# Built only on macOS for now. The cross-platform facade
+# (dao_updater_service.{h,cc}) is here too so non-mac targets can link
+# against it as a no-op once a Windows/Linux backend is added.
+# -----------------------------------------------------------------------------
+
+if (is_mac) {
+  # Path of the directory that *contains* Sparkle.framework, in a form
+  # suitable for clang's -F and ld's -F flags (relative to root_build_dir).
+  _sparkle_framework_path =
+      rebase_path("//third_party/dao_sparkle", root_build_dir)
+
+  # cflags applied while compiling dao_sparkle_updater_mac.mm so that
+  # `#import <Sparkle/Sparkle.h>` resolves.
+  config("dao_updater_compile") {
+    cflags_objcc = [
+      "-F",
+      _sparkle_framework_path,
+    ]
+  }
+
+  # ldflags propagated to *every* link step (libchrome_dll, helper apps,
+  # etc.) that transitively pulls in dao_updater. Without
+  # all_dependent_configs the Sparkle symbols would be unresolved at link
+  # time three deps deep:
+  #   chrome_dll -> chrome/browser:browser -> dao_updater
+  config("dao_updater_link") {
+    ldflags = [
+      "-F" + _sparkle_framework_path,
+      "-weak_framework",
+      "Sparkle",
+    ]
+  }
+}
+
+source_set("dao_updater") {
+  sources = [
+    "dao_updater_service.cc",
+    "dao_updater_service.h",
+  ]
+
+  deps = [ "//base" ]
+
+  if (is_mac) {
+    sources += [
+      "dao_sparkle_updater_mac.h",
+      "dao_sparkle_updater_mac.mm",
+    ]
+
+    frameworks = [
+      "Foundation.framework",
+      "AppKit.framework",
+    ]
+
+    configs += [ ":dao_updater_compile" ]
+    all_dependent_configs = [ ":dao_updater_link" ]
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Bundle data: dao_sparkle_framework_bundle_data
+#
+# Copies third_party/dao_sparkle/Sparkle.framework into
+#   Dao.app/Contents/Frameworks/Sparkle.framework
+# during the mac_app_bundle("chrome_app") build step.
+#
+# Wired up by src/patches/chrome/BUILD.gn.patch (chrome_app deps).
+# -----------------------------------------------------------------------------
+
+if (is_mac) {
+  bundle_data("dao_sparkle_framework_bundle_data") {
+    sources = [ "//third_party/dao_sparkle/Sparkle.framework" ]
+    outputs =
+        [ "{{bundle_contents_dir}}/Frameworks/{{source_file_part}}" ]
+  }
+}

@@ -1,8 +1,33 @@
 diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
-index 463639cbdb..cbb8ff0e23 100644
+index b0dcd2691b..d105f8847b 100644
 --- a/chrome/browser/ui/cocoa/main_menu_builder.mm
 +++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
-@@ -152,6 +152,18 @@
+@@ -112,6 +112,24 @@ + (instancetype)imageWithPrivateSystemSymbolName:(NSString*)name
+ 
+   nsapp.servicesMenu = services_item.submenu;
+ 
++  // Dao: Insert "Check for Updates..." right after "About Dao", followed by a
++  // separator. This is the standard Apple HIG location for the auto-update
++  // entry point. The action is dispatched via commandDispatch: → handled by
++  // either AppController (no key window) or BrowserWindowCommandHandler
++  // (key window present). Both routes call DaoUpdaterService.
++  NSMenu* app_submenu = item.submenu;
++  NSInteger about_index = [app_submenu indexOfItemWithTag:IDC_ABOUT];
++  if (about_index != -1) {
++    NSMenuItem* check_updates_item = [[NSMenuItem alloc]
++        initWithTitle:@"Check for Updates..."
++               action:@selector(commandDispatch:)
++        keyEquivalent:@""];
++    check_updates_item.tag = IDC_DAO_CHECK_FOR_UPDATES;
++    [app_submenu insertItem:check_updates_item atIndex:about_index + 1];
++    [app_submenu insertItem:[NSMenuItem separatorItem]
++                    atIndex:about_index + 2];
++  }
++
+   return item;
+ }
+ 
+@@ -171,6 +189,18 @@ + (instancetype)imageWithPrivateSystemSymbolName:(NSString*)name
            .Build();
    // clang-format on
  
@@ -21,7 +46,7 @@ index 463639cbdb..cbb8ff0e23 100644
    return item;
  }
  
-@@ -262,6 +274,20 @@
+@@ -282,6 +312,20 @@ + (instancetype)imageWithPrivateSystemSymbolName:(NSString*)name
            })
            .Build();
    // clang-format on
@@ -42,7 +67,7 @@ index 463639cbdb..cbb8ff0e23 100644
    return item;
  }
  
-@@ -546,6 +572,17 @@
+@@ -618,6 +662,17 @@ + (instancetype)imageWithPrivateSystemSymbolName:(NSString*)name
            .Build();
    // clang-format on
  

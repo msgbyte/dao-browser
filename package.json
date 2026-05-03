@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dao": "tsx scripts/cli.ts",
+    "website": "cd website && npm run dev",
     "download": "tsx scripts/cli.ts download",
     "import": "tsx scripts/cli.ts import",
     "export": "tsx scripts/cli.ts export",
@@ -16,6 +17,9 @@
     "start:little": "open -a \"$(pwd)/engine/src/out/dao-debug/Dao.app\" 'https://bing.com' --args --use-mock-keychain",
     "package": "tsx scripts/cli.ts package",
     "package:zip": "tsx scripts/cli.ts package --zip",
+    "package:adhoc": "tsx scripts/cli.ts package --sign",
+    "package:signed": "tsx scripts/cli.ts package --sign-id",
+    "package:release": "tsx scripts/cli.ts package --sign-id --notarize --staple",
     "setup": "npm run download && npm run import",
     "rebuild": "npm run import && npm run build:debug",
     "test:build": "tsx scripts/cli.ts build --debug --target browser_tests",
@@ -23,7 +27,10 @@
     "lint:lit": "python3 scripts/lint-lit-reactive-fields.py",
     "gen:readability": "tsx scripts/gen_readability_bundle.ts",
     "vendor": "tsx scripts/cli.ts vendor",
-    "vendor:check": "tsx scripts/cli.ts vendor --check"
+    "vendor:check": "tsx scripts/cli.ts vendor --check",
+    "sparkle:fetch": "tsx scripts/cli.ts sparkle fetch",
+    "sparkle:keygen": "tsx scripts/cli.ts sparkle keygen",
+    "sparkle:sign": "tsx scripts/cli.ts sparkle sign"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",

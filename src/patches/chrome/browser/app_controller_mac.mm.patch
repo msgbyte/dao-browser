@@ -1,18 +1,19 @@
 diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
-index 50ceb7af41..f5de15847e 100644
+index 50ceb7af41..e011866f4a 100644
 --- a/chrome/browser/app_controller_mac.mm
 +++ b/chrome/browser/app_controller_mac.mm
-@@ -67,7 +67,9 @@
+@@ -67,7 +67,10 @@
  #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
  #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
  #include "chrome/browser/ui/browser.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
++#include "dao/browser/updater/dao_updater_service.h"
  #include "chrome/browser/ui/browser_command_controller.h"
 +#include "chrome/browser/ui/singleton_tabs.h"
  #include "chrome/browser/ui/browser_commands.h"
  #include "chrome/browser/ui/browser_finder.h"
  #include "chrome/browser/ui/browser_list.h"
-@@ -1520,6 +1522,28 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
+@@ -1520,6 +1523,35 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
        }
      }
  
@@ -38,10 +39,17 @@ index 50ceb7af41..f5de15847e 100644
 +      enable = canOpenNewBrowser;
 +    }
 +
++    // Dao: IDC_DAO_CHECK_FOR_UPDATES is always enabled. The Sparkle controller
++    // handles its own state (showing "you're up to date" when there's nothing
++    // to do). We don't need a profile or an open window for it.
++    if (tag == IDC_DAO_CHECK_FOR_UPDATES) {
++      enable = YES;
++    }
++
      // "Show as tab" should only appear when the current window is a popup.
      // Since |validateUserInterfaceItem:| is called only when there are no
      // key windows, we should just hide this.
-@@ -1634,6 +1658,12 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
+@@ -1634,6 +1666,15 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
      case IDC_RESTORE_TAB:
        app_controller_mac::TabRestorer::RestoreMostRecent(profile);
        break;
@@ -50,6 +58,9 @@ index 50ceb7af41..f5de15847e 100644
 +      break;
 +    case IDC_DAO_WELCOME:
 +      ShowSingletonTab(profile, GURL("dao://welcome"));
++      break;
++    case IDC_DAO_CHECK_FOR_UPDATES:
++      dao::DaoUpdaterService::GetInstance()->CheckForUpdatesUserInitiated();
 +      break;
      case IDC_OPEN_FILE:
        chrome::ExecuteCommand(CreateBrowser(profile), IDC_OPEN_FILE);

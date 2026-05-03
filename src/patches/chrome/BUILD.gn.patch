@@ -1,0 +1,12 @@
+diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
+index c8c10cdab0..bae51ce090 100644
+--- a/chrome/BUILD.gn
++++ b/chrome/BUILD.gn
+@@ -528,6 +528,7 @@ if (is_win) {
+       "//build:branding_buildflags",
+       "//chrome/common:buildflags",
+       "//chrome/common:version_header",
++      "//dao/browser/updater:dao_sparkle_framework_bundle_data",
+     ]
+ 
+     if (enable_updater) {

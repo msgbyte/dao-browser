@@ -1,5 +1,5 @@
 diff --git a/chrome/app/app-Info.plist b/chrome/app/app-Info.plist
-index e813de1e4e..a79a373216 100644
+index e813de1e4e..51be2e1056 100644
 --- a/chrome/app/app-Info.plist
 +++ b/chrome/app/app-Info.plist
 @@ -149,8 +149,11 @@
@@ -16,3 +16,35 @@ index e813de1e4e..a79a373216 100644
  	<key>CFBundleIdentifier</key>
  	<string>${CHROMIUM_BUNDLE_ID}</string>
  	<key>CFBundleInfoDictionaryVersion</key>
+@@ -723,5 +726,31 @@
+ 	<array>
+ 		<string>_googlecast._tcp</string>
+ 	</array>
++	<!-- Dao Browser: Sparkle auto-update configuration.
++	     Behaviour is configured declaratively here so changing the update
++	     policy (interval, automatic install, feed URL) doesn't require a
++	     code change. See src/dao/browser/updater/dao_sparkle_updater_mac.mm
++	     for the C++ side. -->
++	<key>SUFeedURL</key>
++	<string>https://github.com/msgbyte/dao-browser/releases/latest/download/appcast.xml</string>
++	<!-- EdDSA public key for verifying appcast signatures. The matching
++	     private key lives in the developer's login keychain (created via
++	     `npm run sparkle:keygen`). Sparkle refuses any update whose
++	     signature does not validate against this key, so rotating the
++	     public key here without rotating the private key in the keychain
++	     will brick the auto-updater.
++	     Backup procedure: see docs/release-signing.md → "Sparkle keys". -->
++	<key>SUPublicEDKey</key>
++	<string>EkaTwlFNDk02vDIpFIe5ovPEdadDDd6bPm3x6q9ROXY=</string>
++	<key>SUEnableAutomaticChecks</key>
++	<true/>
++	<key>SUAutomaticallyUpdate</key>
++	<true/>
++	<!-- 3600 seconds = 1 hour. Sparkle's documented minimum is 3600. -->
++	<key>SUScheduledCheckInterval</key>
++	<integer>3600</integer>
++	<!-- We sign all artifacts; do NOT allow insecure HTTP feed URLs. -->
++	<key>SUEnableInstallerLauncherService</key>
++	<true/>
+ </dict>
+ </plist>

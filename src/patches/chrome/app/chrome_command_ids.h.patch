@@ -1,8 +1,8 @@
 diff --git a/chrome/app/chrome_command_ids.h b/chrome/app/chrome_command_ids.h
-index 1384557ac6..8b70fcfa76 100644
+index 1384557ac6..9798710458 100644
 --- a/chrome/app/chrome_command_ids.h
 +++ b/chrome/app/chrome_command_ids.h
-@@ -86,6 +86,12 @@
+@@ -86,6 +86,13 @@
  #define IDC_TOGGLE_VERTICAL_TABS        34056
  #define IDC_VERTICAL_TABS_SEND_FEEDBACK 34057
  
@@ -11,6 +11,7 @@ index 1384557ac6..8b70fcfa76 100644
 +#define IDC_DAO_COPY_URL                34071
 +#define IDC_DAO_DUPLICATE_TAB           34072
 +#define IDC_DAO_WELCOME                 34073
++#define IDC_DAO_CHECK_FOR_UPDATES       34074
 +
  // Web app window commands
  #define IDC_COPY_URL                    34060

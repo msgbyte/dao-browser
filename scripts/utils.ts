@@ -22,7 +22,15 @@ export interface DaoConfig {
     target_os: string;
     target_cpu: string;
   };
+  sparkle?: {
+    version: string;
+    url: string;
+    sha256: string;
+    feed_url: string;
+  };
 }
+
+export const THIRD_PARTY_DIR = path.join(ROOT_DIR, "third_party");
 
 export function loadConfig(): DaoConfig {
   const configPath = path.join(ROOT_DIR, "dao.json");

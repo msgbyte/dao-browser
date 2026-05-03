@@ -6,3 +6,11 @@ dist/
 .DS_Store
 .gstack/
 .superpowers/
+
+docs/superpowers
+
+# Sparkle framework is fetched on demand and not version-controlled.
+third_party/sparkle/
+
+website/.next/
+website/out/

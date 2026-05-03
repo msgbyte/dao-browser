@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/chrome_browser_main_mac.mm b/chrome/browser/chrome_browser_main_mac.mm
+index 7244516188..06660cb7e4 100644
+--- a/chrome/browser/chrome_browser_main_mac.mm
++++ b/chrome/browser/chrome_browser_main_mac.mm
+@@ -39,6 +39,7 @@
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/grit/branded_strings.h"
++#include "dao/browser/updater/dao_updater_service.h"
+ #include "components/metrics/metrics_service.h"
+ #include "components/os_crypt/sync/os_crypt.h"
+ #include "components/version_info/channel.h"
+@@ -178,6 +179,13 @@
+ void ChromeBrowserMainPartsMac::PostProfileInit(Profile* profile,
+                                                 bool is_initial_profile) {
+   ChromeBrowserMainPartsPosix::PostProfileInit(profile, is_initial_profile);
++
++  // Dao Browser: kick off Sparkle auto-update once the initial profile is
++  // ready. Subsequent profiles (multi-profile Chromium scenario) reuse the
++  // already-running updater instance — Init() is idempotent.
++  if (is_initial_profile) {
++    dao::DaoUpdaterService::GetInstance()->Init();
++  }
+ }
+ 
+ void ChromeBrowserMainPartsMac::PostMainMessageLoopRun() {

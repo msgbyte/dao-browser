@@ -19,6 +19,7 @@ import {
   PATCHES_DIR,
   DAO_SRC_DIR,
   BRANDING_DIR,
+  THIRD_PARTY_DIR,
   log,
   success,
   warn,
@@ -144,6 +145,43 @@ export const importCommand = new Command("import")
         );
       } else {
         warn("No Dao source directory found at src/dao/");
+      }
+
+      // Step 2.5: Mirror third_party/sparkle/ into engine/src/third_party/dao_sparkle/
+      // so GN can reference Sparkle.framework via "//third_party/dao_sparkle/...".
+      //
+      // Sparkle.framework is a versioned bundle whose interior contains real
+      // symlinks (Versions/Current -> A, Sparkle -> Versions/Current/Sparkle,
+      // ...). Preserving those symlinks is critical: codesign refuses to seal
+      // a framework whose Versions/Current is a directory rather than a link,
+      // and at runtime dyld won't resolve `@rpath/Sparkle.framework/Sparkle`.
+      //
+      // smartCopySync (above) uses copyFileSync, which dereferences symlinks
+      // and would flatten the framework. Use `ditto` instead — Apple's
+      // recommended tool for copying app/framework bundles. It preserves
+      // symlinks, extended attributes, and resource forks.
+      const sparkleSrc = path.join(THIRD_PARTY_DIR, "sparkle");
+      const sparkleDest = path.join(srcDir, "third_party", "dao_sparkle");
+      const sparkleFwSrc = path.join(sparkleSrc, "Sparkle.framework");
+      if (existsSync(sparkleFwSrc)) {
+        log("Mirroring Sparkle framework into engine/src/third_party/dao_sparkle/ ...");
+        mkdirSync(sparkleDest, { recursive: true });
+        // ditto src dest copies the *contents* of src into dest. We want a
+        // fresh mirror; clear the destination framework first if present.
+        const sparkleFwDest = path.join(sparkleDest, "Sparkle.framework");
+        if (existsSync(sparkleFwDest)) {
+          run(`rm -rf "${sparkleFwDest}"`, { silent: true });
+        }
+        run(`ditto "${sparkleFwSrc}" "${sparkleFwDest}"`, { silent: true });
+        success(
+          "Synced third_party/sparkle/Sparkle.framework -> engine/src/third_party/dao_sparkle/Sparkle.framework"
+        );
+      } else {
+        warn(
+          "Sparkle framework not found at third_party/sparkle/Sparkle.framework. " +
+            "Run 'npm run sparkle:fetch' before building, or auto-update will not " +
+            "be linked into the app."
+        );
       }
     }
 

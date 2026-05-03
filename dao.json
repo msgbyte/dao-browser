@@ -9,5 +9,11 @@
   "build": {
     "target_os": "mac",
     "target_cpu": "arm64"
+  },
+  "sparkle": {
+    "version": "2.6.4",
+    "url": "https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz",
+    "sha256": "50612a06038abc931f16011d7903b8326a362c1074dabccb718404ce8e585f0b",
+    "feed_url": "https://github.com/msgbyte/dao-browser/releases/latest/download/appcast.xml"
   }
 }
