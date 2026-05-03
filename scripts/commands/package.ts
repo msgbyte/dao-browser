@@ -1,5 +1,6 @@
 import { Command } from "commander";
-import { existsSync, mkdirSync, rmSync, cpSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, cpSync, mkdtempSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   ENGINE_DIR,
@@ -10,6 +11,8 @@ import {
   warn,
   error,
   run,
+  runStreaming,
+  which,
 } from "../utils.js";
 
 const DIST_DIR = path.join(ROOT_DIR, "dist");
@@ -79,29 +82,87 @@ async function createDmg(
   const dmgPath = path.join(DIST_DIR, `${baseName}.dmg`);
   if (existsSync(dmgPath)) rmSync(dmgPath);
 
+  const createDmgBin = await ensureCreateDmg();
+
   log(`Creating ${baseName}.dmg ...`);
 
   const iconPath = path.join(ROOT_DIR, "branding", "mac", "app.icns");
-  const dmgSpec = {
-    title: appName,
-    icon: iconPath,
-    "icon-size": 80,
-    window: { size: { width: 540, height: 380 } },
-    format: "UDZO",
-    contents: [
-      { x: 140, y: 190, type: "file", path: appBundle },
-      { x: 400, y: 190, type: "link", path: "/Applications" },
-    ],
-  };
-
-  const specPath = path.join(DIST_DIR, ".appdmg-spec.json");
-  writeFileSync(specPath, JSON.stringify(dmgSpec, null, 2));
-
+  const stageDir = mkdtempSync(path.join(os.tmpdir(), "dao-dmg-stage-"));
   try {
-    const appdmgBin = path.join(ROOT_DIR, "node_modules", ".bin", "appdmg");
-    run(`"${appdmgBin}" "${specPath}" "${dmgPath}"`);
+    // create-dmg packages an entire source folder; stage only the .app so
+    // nothing extraneous leaks into the disk image.
+    cpSync(appBundle, path.join(stageDir, `${appName}.app`), {
+      recursive: true,
+      verbatimSymlinks: true,
+    });
+
+    const args = [
+      "--volname",
+      quote(appName),
+      ...(existsSync(iconPath) ? ["--volicon", quote(iconPath)] : []),
+      "--window-size",
+      "540",
+      "380",
+      "--icon-size",
+      "80",
+      "--icon",
+      quote(`${appName}.app`),
+      "140",
+      "190",
+      "--app-drop-link",
+      "400",
+      "190",
+      "--format",
+      "UDZO",
+      "--hdiutil-quiet",
+      "--no-internet-enable",
+      quote(dmgPath),
+      quote(stageDir),
+    ];
+
+    run(`"${createDmgBin}" ${args.join(" ")}`);
     success(`Created: dist/${baseName}.dmg`);
   } finally {
-    if (existsSync(specPath)) rmSync(specPath);
+    rmSync(stageDir, { recursive: true, force: true });
   }
+}
+
+function quote(s: string): string {
+  return `"${s.replace(/"/g, '\\"')}"`;
+}
+
+async function ensureCreateDmg(): Promise<string> {
+  const existing = which("create-dmg");
+  if (existing) return existing;
+
+  const brew = which("brew");
+  if (!brew) {
+    error(
+      "create-dmg not found in PATH and Homebrew is not installed.\n" +
+        "Install Homebrew from https://brew.sh, then run:\n" +
+        "  brew install create-dmg\n" +
+        "Or pass --zip to build a .zip archive instead."
+    );
+    process.exit(1);
+  }
+
+  warn("create-dmg not found, installing via Homebrew...");
+  const code = await runStreaming("brew", ["install", "create-dmg"]);
+  if (code !== 0) {
+    error(
+      `'brew install create-dmg' failed with exit code ${code}.\n` +
+        "Install it manually, or pass --zip to build a .zip archive instead."
+    );
+    process.exit(1);
+  }
+
+  const installed = which("create-dmg");
+  if (!installed) {
+    error(
+      "create-dmg still not found after install. Check your Homebrew PATH."
+    );
+    process.exit(1);
+  }
+  success("create-dmg installed");
+  return installed;
 }
