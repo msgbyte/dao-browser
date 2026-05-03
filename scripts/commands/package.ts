@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { spawn } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -11,6 +12,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import chalk from "chalk";
 import {
   ENGINE_DIR,
   ROOT_DIR,
@@ -186,31 +188,43 @@ async function createDmg(
       verbatimSymlinks: true,
     });
 
-    const args = [
-      "--volname",
-      quote(appName),
-      ...(existsSync(iconPath) ? ["--volicon", quote(iconPath)] : []),
-      "--window-size",
-      "540",
-      "380",
-      "--icon-size",
-      "80",
-      "--icon",
-      quote(`${appName}.app`),
-      "140",
-      "190",
-      "--app-drop-link",
-      "400",
-      "190",
-      "--format",
-      "UDZO",
-      "--hdiutil-quiet",
-      "--no-internet-enable",
-      quote(dmgPath),
-      quote(stageDir),
-    ];
+    const buildArgs = (skipFinderStyling: boolean): string[] => {
+      const a = [
+        "--volname", appName,
+        ...(existsSync(iconPath) ? ["--volicon", iconPath] : []),
+        "--window-size", "540", "380",
+        "--icon-size", "80",
+        "--icon", `${appName}.app`, "140", "190",
+        "--app-drop-link", "400", "190",
+        "--format", "UDZO",
+        "--hdiutil-quiet",
+        "--no-internet-enable",
+      ];
+      if (skipFinderStyling) a.push("--skip-jenkins");
+      a.push(dmgPath, stageDir);
+      return a;
+    };
 
-    run(`"${createDmgBin}" ${args.join(" ")}`);
+    // First attempt: full visual styling (requires Finder Apple-event access).
+    let result = await spawnCapture(createDmgBin, buildArgs(false));
+
+    if (!result.ok && isFinderAccessDenied(result.stderr)) {
+      warn(
+        "macOS denied AppleScript access to Finder (TCC -1743).\n" +
+          "  Finder window styling (icon positions, window size) will be skipped.\n" +
+          "  To enable styling: System Settings > Privacy & Security > Automation,\n" +
+          "  grant your terminal app permission to control Finder."
+      );
+      // Clean up any partial DMG from the failed first pass before retrying.
+      if (existsSync(dmgPath)) rmSync(dmgPath);
+      result = await spawnCapture(createDmgBin, buildArgs(true));
+    }
+
+    if (!result.ok) {
+      error(`create-dmg exited with code ${result.code}.`);
+      process.exit(1);
+    }
+
     success(`Created: dist/${baseName}.dmg`);
     return dmgPath;
   } finally {
@@ -218,8 +232,44 @@ async function createDmg(
   }
 }
 
-function quote(s: string): string {
-  return `"${s.replace(/"/g, '\\"')}"`;
+interface SpawnResult {
+  ok: boolean;
+  code: number | null;
+  stderr: string;
+}
+
+// Run a command, streaming stdout/stderr live while also capturing stderr so
+// callers can inspect it for known failure patterns.
+function spawnCapture(cmd: string, args: string[]): Promise<SpawnResult> {
+  console.log(chalk.dim(`$ ${cmd} ${args.map(shellEscape).join(" ")}`));
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, { stdio: ["ignore", "inherit", "pipe"] });
+    let stderr = "";
+    child.stderr?.on("data", (chunk: Buffer) => {
+      const s = chunk.toString();
+      stderr += s;
+      process.stderr.write(s);
+    });
+    child.on("error", (err: Error) =>
+      resolve({ ok: false, code: null, stderr: stderr + String(err) })
+    );
+    child.on("close", (code: number | null) =>
+      resolve({ ok: code === 0, code, stderr })
+    );
+  });
+}
+
+function shellEscape(s: string): string {
+  return /^[\w.,/=:+-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
+}
+
+function isFinderAccessDenied(stderr: string): boolean {
+  return (
+    /-1743/.test(stderr) ||
+    /Failed running AppleScript/i.test(stderr) ||
+    /not authori[sz]ed to send Apple events/i.test(stderr) ||
+    /未获得授权将Apple事件/.test(stderr)
+  );
 }
 
 async function ensureCreateDmg(): Promise<string> {
