@@ -1,0 +1,137 @@
+/* ===== Reset ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light dark;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI Variable",
+    "Segoe UI",
+    system-ui,
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    "PingFang SC",
+    "Microsoft YaHei UI",
+    "Microsoft YaHei",
+    sans-serif,
+    "Apple Color Emoji",
+    "Segoe UI Emoji";
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ===== Tokens — Light mode (default) ===== */
+:root {
+  /* Backgrounds */
+  --bg:              rgb(231, 238, 245);
+  --bg-elevated:     #ffffff;
+  --surface:         rgba(0, 0, 0, 0.06);
+  --surface-hover:   rgba(0, 0, 0, 0.10);
+  --border:          rgba(0, 0, 0, 0.08);
+
+  /* Text — base ink rgb(30, 20, 40) */
+  --text:            rgba(30, 20, 40, 0.87);
+  --text-secondary:  rgba(30, 20, 40, 0.60);
+  --text-tertiary:   rgba(30, 20, 40, 0.40);
+
+  /* Accent — shared across themes */
+  --accent:          rgb(70, 120, 190);
+  --accent-hover:    rgb(60, 105, 175);
+  --accent-dim:      rgba(70, 120, 190, 0.15);
+  --accent-subtle:   rgba(70, 120, 190, 0.10);
+
+  /* Status */
+  --error:           #ef4444;
+
+  /* Shape */
+  --radius:          12px;
+
+  /* 5-step soft shadow (DESIGN.md §8.1) */
+  --shadow-frame:
+    0  2px  4px  rgba(0, 0, 0, 0.08),
+    0  4px  8px  rgba(0, 0, 0, 0.08),
+    0  8px 16px  rgba(0, 0, 0, 0.06),
+    0 16px 32px  rgba(0, 0, 0, 0.04),
+    0 32px 64px  rgba(0, 0, 0, 0.02);
+}
+
+/* ===== Tokens — Dark mode ===== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:              rgb(54, 59, 64);
+    --bg-elevated:     rgba(255, 255, 255, 0.04);
+    --surface:         rgba(255, 255, 255, 0.06);
+    --surface-hover:   rgba(255, 255, 255, 0.12);
+    --border:          rgba(255, 255, 255, 0.12);
+
+    --text:            rgba(245, 245, 245, 0.92);
+    --text-secondary:  rgba(255, 255, 255, 0.60);
+    --text-tertiary:   rgba(255, 255, 255, 0.40);
+
+    /* --accent stays rgb(70, 120, 190) — DESIGN.md §1: accent is shared across themes. */
+    --accent-hover:    rgb(85, 140, 210);
+    --accent-dim:      rgba(70, 120, 190, 0.28);
+    --accent-subtle:   rgba(70, 120, 190, 0.18);
+
+    --shadow-frame:
+      0  2px  4px  rgba(0, 0, 0, 0.12),
+      0  4px  8px  rgba(0, 0, 0, 0.12),
+      0  8px 16px  rgba(0, 0, 0, 0.09),
+      0 16px 32px  rgba(0, 0, 0, 0.06),
+      0 32px 64px  rgba(0, 0, 0, 0.03);
+  }
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== Type utilities (used inline by components) ===== */
+.eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}

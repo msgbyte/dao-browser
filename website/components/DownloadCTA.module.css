@@ -1,0 +1,41 @@
+.section {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 96px 24px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .section {
+    padding: 64px 20px;
+  }
+}
+
+.heading {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0;
+}
+
+.sub {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 12px 0 32px;
+}
+
+.hint {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.hintLink {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  transition: color 150ms ease;
+}
+.hintLink:hover {
+  color: var(--text);
+}

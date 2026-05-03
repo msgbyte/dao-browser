@@ -1,0 +1,167 @@
+.root {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+/* === Sidebar === */
+.sidebar {
+  width: 28%;
+  min-width: 160px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.urlPill {
+  height: 28px;
+  border-radius: 14px;
+  background: var(--surface);
+  margin-bottom: 6px;
+}
+
+.tab {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+.tabWide {
+  width: 90%;
+}
+.tabMid {
+  width: 75%;
+}
+.tabNarrow {
+  width: 60%;
+}
+
+.tabActive {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--surface-hover);
+  border-left: 3px solid var(--accent);
+  padding-left: 6px;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+
+.content {
+  flex: 1;
+  background: var(--bg-elevated);
+  border-top-left-radius: 10px;
+  margin: 6px 6px 6px 0;
+  box-shadow: var(--shadow-frame);
+  position: relative;
+  overflow: hidden;
+}
+
+.contentArt {
+  position: absolute;
+  inset: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.contentBar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+.contentBarLong {
+  width: 80%;
+}
+.contentBarMid {
+  width: 60%;
+}
+.contentBarShort {
+  width: 40%;
+}
+
+/* === Command Bar overlay === */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.31);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (prefers-color-scheme: dark) {
+  .scrim {
+    background: rgba(0, 0, 0, 0.47);
+  }
+}
+
+.commandPanel {
+  width: 60%;
+  max-width: 380px;
+  background: rgba(255, 255, 255, 0.73);
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-frame);
+}
+@media (prefers-color-scheme: dark) {
+  .commandPanel {
+    background: rgba(72, 78, 84, 0.82);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+}
+
+.commandInput {
+  height: 18px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.suggestion {
+  height: 14px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+.suggestionSelected {
+  background: var(--surface-hover);
+}
+
+/* === Agent variant === */
+.agentPanel {
+  width: 36%;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bubbleUser {
+  align-self: flex-end;
+  width: 70%;
+  height: 26px;
+  border-radius: 12px;
+  background: var(--accent-dim);
+}
+
+.bubbleAssistant {
+  align-self: flex-start;
+  width: 80%;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--surface);
+}
