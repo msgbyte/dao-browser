@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
+  padding: 12px 24px;
   background: color-mix(in srgb, var(--bg) 80%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -13,10 +13,25 @@
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+.brandLogo {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.brandWord {
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--text);
 }
 
 .links {
@@ -42,5 +57,8 @@
   }
   .links {
     gap: 12px;
+  }
+  .brandWord {
+    display: none;
   }
 }

@@ -114,7 +114,17 @@ export function Footer() {
 
       <div className={styles.bottom}>
         <span>© 2026 Dao Browser</span>
-        <span>Built with Next.js · Hosted on Cloudflare Pages</span>
+        <span>
+          Built with <span aria-label="love">♥</span> by{' '}
+          <a
+            href="https://github.com/msgbyte"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.link}
+          >
+            msgbyte
+          </a>
+        </span>
       </div>
     </footer>
   );

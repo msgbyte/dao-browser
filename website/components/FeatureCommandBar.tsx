@@ -5,7 +5,7 @@ export function FeatureCommandBar() {
     <FeatureSection
       eyebrow="02 / COMMAND BAR"
       heading="Cmd+T, Cmd+L, ask anything."
-      body="Spotlight-style command bar with URL detection, search routing, and ghost-text completion. Press Esc on a fresh tab to cancel — Dao remembers where you came from."
+      body="Going from a webpage to a question feels effortless — as natural as if it were always meant to be. A Spotlight-style command bar with URL detection, search routing, and ghost-text completion. Press Esc on a fresh tab to cancel — Dao remembers where you came from."
       bullets={[
         { icon: 'command', label: 'New tab' },
         { icon: 'search', label: 'Smart routing' },

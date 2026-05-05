@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { LucideIcon, type IconName } from './ui/LucideIcon';
 import { BrowserFrame } from './ui/BrowserFrame';
 import { BrowserFrameMockup, type MockupVariant } from './ui/BrowserFrameMockup';
@@ -14,7 +15,12 @@ export interface FeatureSectionProps {
   heading: string;
   body: string;
   bullets: Bullet[];
-  mockupVariant: MockupVariant;
+  /**
+   * Either a built-in BrowserFrame mockup variant, or a custom React node
+   * (e.g. a keyboard visualization) rendered in place of the BrowserFrame.
+   */
+  mockupVariant?: MockupVariant;
+  customVisual?: ReactNode;
   mockupSide?: 'left' | 'right'; // default 'right'
 }
 
@@ -25,6 +31,7 @@ export function FeatureSection({
   body,
   bullets,
   mockupVariant,
+  customVisual,
   mockupSide = 'right',
 }: FeatureSectionProps) {
   return (
@@ -46,9 +53,11 @@ export function FeatureSection({
         </ul>
       </div>
       <div>
-        <BrowserFrame>
-          <BrowserFrameMockup variant={mockupVariant} />
-        </BrowserFrame>
+        {customVisual ?? (mockupVariant && (
+          <BrowserFrame>
+            <BrowserFrameMockup variant={mockupVariant} />
+          </BrowserFrame>
+        ))}
       </div>
     </section>
   );

@@ -1,0 +1,171 @@
+.root {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: var(--shadow-frame);
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  width: 100%;
+  height: 100%;
+}
+
+.window {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  min-height: 0;
+}
+
+.caption {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.captionAccent {
+  composes: caption;
+  color: var(--accent);
+}
+
+.frame {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.titlebarThick {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.titlebarThin {
+  composes: titlebarThick;
+  padding: 4px 8px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+}
+@media (prefers-color-scheme: dark) {
+  .dot {
+    background: rgba(255, 255, 255, 0.22);
+  }
+}
+
+.tabsThick {
+  display: flex;
+  gap: 3px;
+  padding: 4px 6px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabPill {
+  height: 12px;
+  flex: 1;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  .tabPill {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.tabPillActive {
+  composes: tabPill;
+  background: var(--bg-elevated);
+}
+
+.toolbarThick {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.urlPill {
+  height: 14px;
+  width: 100%;
+  border-radius: 7px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.bookmarkBar {
+  display: flex;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.bookmark {
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-hover);
+}
+
+.content {
+  flex: 1;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.contentBig {
+  composes: content;
+  background: var(--accent-subtle);
+  border-top: 1px solid var(--accent-dim);
+}
+
+.contentLabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.contentBig .contentLabel {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .root {
+    padding: 20px;
+    aspect-ratio: auto;
+    min-height: 280px;
+  }
+  .compare {
+    gap: 12px;
+  }
+}

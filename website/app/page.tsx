@@ -3,6 +3,8 @@ import { Hero } from '@/components/Hero';
 import { FeatureSidebar } from '@/components/FeatureSidebar';
 import { FeatureCommandBar } from '@/components/FeatureCommandBar';
 import { FeatureAgent } from '@/components/FeatureAgent';
+import { FeatureContentFirst } from '@/components/FeatureContentFirst';
+import { FeatureKeyboardFirst } from '@/components/FeatureKeyboardFirst';
 import { FeatureGrid } from '@/components/FeatureGrid';
 import { DownloadCTA } from '@/components/DownloadCTA';
 import { Footer } from '@/components/Footer';
@@ -16,6 +18,8 @@ export default function HomePage() {
         <FeatureSidebar />
         <FeatureCommandBar />
         <FeatureAgent />
+        <FeatureContentFirst />
+        <FeatureKeyboardFirst />
         <FeatureGrid />
         <DownloadCTA />
       </main>
