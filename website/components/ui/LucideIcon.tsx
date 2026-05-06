@@ -31,7 +31,8 @@ export type IconName =
   | 'code'
   | 'download'
   | 'star'
-  | 'arrow-right';
+  | 'arrow-right'
+  | 'clock';
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   'panel-left': (
@@ -173,6 +174,12 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M5 12h14" />
       <path d="m12 5 7 7-7 7" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
     </>
   ),
 };

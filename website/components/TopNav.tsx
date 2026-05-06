@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { GITHUB_URL, DOWNLOAD_URL } from '@/lib/version';
+import { GITHUB_URL } from '@/lib/version';
 import { Button } from './ui/Button';
 import { LucideIcon } from './ui/LucideIcon';
 import { GitHubIcon } from './ui/BrandIcons';
@@ -43,9 +43,9 @@ export function TopNav() {
         >
           <GitHubIcon size={18} aria-hidden />
         </a>
-        <Button href={DOWNLOAD_URL} variant="primary">
-          <LucideIcon name="download" size={16} aria-hidden />
-          Download
+        <Button variant="primary" disabled>
+          <LucideIcon name="clock" size={16} aria-hidden />
+          Coming Soon
         </Button>
       </div>
     </nav>

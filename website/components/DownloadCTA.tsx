@@ -1,7 +1,6 @@
 import {
   PRODUCT_VERSION,
   CHROMIUM_VERSION,
-  DOWNLOAD_URL,
   GITHUB_URL,
 } from '@/lib/version';
 import { Button } from './ui/Button';
@@ -15,12 +14,12 @@ export function DownloadCTA() {
       <p className={styles.sub}>
         v{PRODUCT_VERSION} · Built on Chromium {CHROMIUM_VERSION}
       </p>
-      <Button href={DOWNLOAD_URL} variant="primary">
-        <LucideIcon name="download" size={16} aria-hidden />
-        Download for Mac (Apple Silicon)
+      <Button variant="primary" disabled>
+        <LucideIcon name="clock" size={16} aria-hidden />
+        Coming Soon
       </Button>
       <p className={styles.hint}>
-        Linux and Windows · Coming soon ·{' '}
+        Mac, Linux and Windows · Coming soon ·{' '}
         <a
           href={GITHUB_URL}
           target="_blank"

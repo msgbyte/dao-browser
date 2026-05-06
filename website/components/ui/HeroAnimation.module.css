@@ -8,17 +8,17 @@
 .scene {
   position: absolute;
   inset: 0;
-  opacity: 0;
   /*
-   * Overlapping crossfade. Total cycle is 18s, divided into three 6s slots.
-   * Each scene's keyframes hold visible (opacity 1) for ~4s and crossfade
-   * for ~2s on each side. Because each slot's fade-out (~2s) overlaps the
-   * next slot's fade-in (~2s), the previous scene is still visible while
-   * the next is appearing — there's no gap or flicker, just a smooth
-   * "the new image grows over the old".
+   * Total cycle 18s, three 6s slots. Each scene holds fully visible for
+   * 4.5s, then crossfades for 1.5s. The crossfade window of one scene
+   * (25%–33.33%) is the exact same time slice as the fade-in window of
+   * the next scene (91.67%–100% via the -12s / -6s delay), so two scenes
+   * are always being interpolated together — there is never a frame where
+   * the stage is empty.
    */
   animation: hero-scene-cycle 18s ease-in-out infinite;
   pointer-events: none;
+  will-change: opacity, transform;
 }
 
 .scene1 {
@@ -32,28 +32,31 @@
 }
 
 @keyframes hero-scene-cycle {
-  /* Scene fully visible for the middle of its 6-second slot, fading in
-     during 0–11% and fading out during 22–33%. The other 67% of the cycle
-     it stays at opacity 0 while the other two scenes have their turns. */
+  /* Slot anchored at 0%: scene is fully on stage, slightly settled. */
   0% {
-    opacity: 0;
-    transform: scale(1.005);
-  }
-  11% {
     opacity: 1;
     transform: scale(1);
   }
-  22% {
+  /* Hold until 4.5s of the 6s slot, then begin handing off. */
+  25% {
     opacity: 1;
     transform: scale(1);
   }
-  33% {
+  /* Crossfade-out finishes at the slot boundary (6s), receding subtly. */
+  33.33% {
     opacity: 0;
-    transform: scale(0.997);
+    transform: scale(0.992);
   }
+  /* Stay hidden during the other two slots. Scale resets so the next
+     fade-in starts from a slightly larger, "approaching" state. */
+  91.67% {
+    opacity: 0;
+    transform: scale(1.008);
+  }
+  /* Crossfade-in completes exactly as the previous scene's fade-out does. */
   100% {
-    opacity: 0;
-    transform: scale(1.005);
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

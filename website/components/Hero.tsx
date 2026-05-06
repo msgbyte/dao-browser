@@ -1,7 +1,6 @@
 import {
   PRODUCT_VERSION,
   CHROMIUM_VERSION,
-  DOWNLOAD_URL,
   GITHUB_URL,
 } from '@/lib/version';
 import { Button } from './ui/Button';
@@ -16,9 +15,9 @@ export function Hero() {
       <h1 className={styles.h1}>An opinionated browser, built on Chromium.</h1>
       <p className={styles.subtitle}>Vertical tabs, soft corners, content first.</p>
       <div className={styles.ctas}>
-        <Button href={DOWNLOAD_URL} variant="primary">
-          <LucideIcon name="download" size={16} aria-hidden />
-          Download for Mac (Apple Silicon)
+        <Button variant="primary" disabled>
+          <LucideIcon name="clock" size={16} aria-hidden />
+          Coming Soon
         </Button>
         <Button href={GITHUB_URL} variant="ghost" external>
           <LucideIcon name="star" size={16} aria-hidden />
