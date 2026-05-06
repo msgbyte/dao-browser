@@ -33,12 +33,30 @@ const execFileAsync = promisify(execFile);
 export const importCommand = new Command("import")
   .description("Apply patches and copy Dao code into the Chromium tree")
   .option("--patches-only", "Only apply patches, skip copying Dao source")
-  .action(async (opts: { patchesOnly?: boolean }) => {
+  .option(
+    "--force",
+    "Hard-reset engine/src to HEAD before importing (discards local edits to tracked files)"
+  )
+  .action(async (opts: { patchesOnly?: boolean; force?: boolean }) => {
     const srcDir = path.join(ENGINE_DIR, "src");
 
     if (!existsSync(srcDir)) {
       error("engine/src not found. Run 'npm run download' first.");
       process.exit(1);
+    }
+
+    // Step 0 (--force): reset any local modifications in engine/src so patches
+    // apply cleanly. Only touches tracked files — untracked artifacts like
+    // out/ and engine/src/dao/ are preserved.
+    if (opts.force) {
+      warn("Force mode: resetting engine/src tracked files to HEAD");
+      try {
+        run("git checkout -- .", { cwd: srcDir, silent: true });
+        success("engine/src reset to HEAD");
+      } catch (e) {
+        error(`Failed to reset engine/src: ${(e as Error).message}`);
+        process.exit(1);
+      }
     }
 
     // Ensure engine/ has a CommonJS package.json so Chromium's Node.js

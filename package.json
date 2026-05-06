@@ -8,6 +8,7 @@
     "website": "cd website && npm run dev",
     "download": "tsx scripts/cli.ts download",
     "import": "tsx scripts/cli.ts import",
+    "import:force": "tsx scripts/cli.ts import --force",
     "export": "tsx scripts/cli.ts export",
     "build": "tsx scripts/cli.ts build",
     "build:debug": "tsx scripts/cli.ts build --debug",
