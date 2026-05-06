@@ -1,32 +1,10 @@
 .frame {
   border-radius: 10px;
-  background: var(--bg-elevated);
+  background: var(--bg);
   box-shadow: var(--shadow-frame);
   overflow: hidden;
   border: 1px solid var(--border);
   isolation: isolate;
-}
-
-.titlebar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-@media (prefers-color-scheme: dark) {
-  .dot {
-    background: rgba(255, 255, 255, 0.22);
-  }
 }
 
 .body {

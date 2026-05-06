@@ -1,0 +1,73 @@
+.stack {
+  position: relative;
+  /* Match the BrowserFrame's intrinsic aspect ratio so the parent reserves
+     the right amount of vertical space (no layout shift between scenes). */
+  aspect-ratio: 16 / 10;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  /*
+   * Overlapping crossfade. Total cycle is 18s, divided into three 6s slots.
+   * Each scene's keyframes hold visible (opacity 1) for ~4s and crossfade
+   * for ~2s on each side. Because each slot's fade-out (~2s) overlaps the
+   * next slot's fade-in (~2s), the previous scene is still visible while
+   * the next is appearing — there's no gap or flicker, just a smooth
+   * "the new image grows over the old".
+   */
+  animation: hero-scene-cycle 18s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.scene1 {
+  animation-delay: 0s;
+}
+.scene2 {
+  animation-delay: -12s;
+}
+.scene3 {
+  animation-delay: -6s;
+}
+
+@keyframes hero-scene-cycle {
+  /* Scene fully visible for the middle of its 6-second slot, fading in
+     during 0–11% and fading out during 22–33%. The other 67% of the cycle
+     it stays at opacity 0 while the other two scenes have their turns. */
+  0% {
+    opacity: 0;
+    transform: scale(1.005);
+  }
+  11% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  33% {
+    opacity: 0;
+    transform: scale(0.997);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.005);
+  }
+}
+
+/* Honour reduced-motion: pin scene 1, hide the others. */
+@media (prefers-reduced-motion: reduce) {
+  .scene {
+    animation: none;
+  }
+  .scene1 {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .scene2,
+  .scene3 {
+    display: none;
+  }
+}

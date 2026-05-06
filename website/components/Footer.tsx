@@ -1,4 +1,4 @@
-import { GITHUB_URL, DOWNLOAD_URL_MAC_ARM64 } from '@/lib/version';
+import { GITHUB_URL, DOWNLOAD_URL } from '@/lib/version';
 import styles from './Footer.module.css';
 
 export function Footer() {
@@ -22,7 +22,7 @@ export function Footer() {
               </a>
             </li>
             <li>
-              <a className={styles.link} href={DOWNLOAD_URL_MAC_ARM64} download>
+              <a className={styles.link} href={DOWNLOAD_URL}>
                 Download
               </a>
             </li>

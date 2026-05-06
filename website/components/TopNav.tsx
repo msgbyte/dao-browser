@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { GITHUB_URL, DOWNLOAD_URL_MAC_ARM64 } from '@/lib/version';
+import { GITHUB_URL, DOWNLOAD_URL } from '@/lib/version';
 import { Button } from './ui/Button';
 import { LucideIcon } from './ui/LucideIcon';
 import { GitHubIcon } from './ui/BrandIcons';
@@ -9,12 +9,24 @@ export function TopNav() {
   return (
     <nav className={styles.nav} aria-label="Primary">
       <a href="#top" className={styles.brand} aria-label="Dao Browser, back to top">
+        {/*
+          Two logos, one shown per color scheme. Uses CSS @media in TopNav.module.css.
+          - Light logo (`dao_logo.svg`) ships as a 256×256 PNG (`dao-logo-light.png`).
+          - Dark logo (`dao-logo.svg`) is the dark-mode product mark.
+        */}
+        <img
+          src="/dao-logo-light.png"
+          alt=""
+          width={28}
+          height={28}
+          className={`${styles.brandLogo} ${styles.brandLogoLight}`}
+        />
         <img
           src="/dao-logo.svg"
           alt=""
           width={28}
           height={28}
-          className={styles.brandLogo}
+          className={`${styles.brandLogo} ${styles.brandLogoDark}`}
         />
         <span className={styles.brandWord}>Dao</span>
       </a>
@@ -31,7 +43,7 @@ export function TopNav() {
         >
           <GitHubIcon size={18} aria-hidden />
         </a>
-        <Button href={DOWNLOAD_URL_MAC_ARM64} variant="primary" download>
+        <Button href={DOWNLOAD_URL} variant="primary">
           <LucideIcon name="download" size={16} aria-hidden />
           Download
         </Button>

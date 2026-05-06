@@ -1,7 +1,7 @@
 import {
   PRODUCT_VERSION,
   CHROMIUM_VERSION,
-  DOWNLOAD_URL_MAC_ARM64,
+  DOWNLOAD_URL,
   GITHUB_URL,
 } from '@/lib/version';
 import { Button } from './ui/Button';
@@ -15,7 +15,7 @@ export function DownloadCTA() {
       <p className={styles.sub}>
         v{PRODUCT_VERSION} · Built on Chromium {CHROMIUM_VERSION}
       </p>
-      <Button href={DOWNLOAD_URL_MAC_ARM64} variant="primary" download>
+      <Button href={DOWNLOAD_URL} variant="primary">
         <LucideIcon name="download" size={16} aria-hidden />
         Download for Mac (Apple Silicon)
       </Button>

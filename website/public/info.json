@@ -1,0 +1,13 @@
+{
+  "$schema": "Update this file to publish a new release. The /download route reads this at runtime and redirects to the platform-specific URL. Static-export-friendly (no server needed).",
+  "version": "0.5.0",
+  "chromiumVersion": "147.0.7727.135",
+  "releasedAt": "2026-05-06",
+  "platforms": {
+    "macArm64": {
+      "label": "macOS (Apple Silicon)",
+      "url": "https://github.com/moonrailgun/dao-browser/releases/download/v0.5.0/dao-browser-0.5.0-mac-arm64.dmg"
+    }
+  },
+  "default": "macArm64"
+}

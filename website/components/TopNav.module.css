@@ -28,6 +28,19 @@
   flex-shrink: 0;
 }
 
+/* Two-theme logo swap: light mode shows .brandLogoLight, dark shows .brandLogoDark. */
+.brandLogoDark {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  .brandLogoLight {
+    display: none;
+  }
+  .brandLogoDark {
+    display: block;
+  }
+}
+
 .brandWord {
   font-size: 18px;
   font-weight: 600;
