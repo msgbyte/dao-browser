@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/download",
+      "destination": "https://github.com/msgbyte/dao-browser/releases/latest/download/dao-browser-mac-arm64.dmg",
+      "permanent": false
+    }
+  ]
+}

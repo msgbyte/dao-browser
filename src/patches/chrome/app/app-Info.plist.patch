@@ -26,7 +26,7 @@ index e813de1e4e..51be2e1056 100644
 +	     code change. See src/dao/browser/updater/dao_sparkle_updater_mac.mm
 +	     for the C++ side. -->
 +	<key>SUFeedURL</key>
-+	<string>https://github.com/msgbyte/dao-browser/releases/latest/download/appcast.xml</string>
++	<string>https://dao.msgbyte.com/appcast.xml</string>
 +	<!-- EdDSA public key for verifying appcast signatures. The matching
 +	     private key lives in the developer's login keychain (created via
 +	     `npm run sparkle:keygen`). Sparkle refuses any update whose
@@ -35,7 +35,7 @@ index e813de1e4e..51be2e1056 100644
 +	     will brick the auto-updater.
 +	     Backup procedure: see docs/release-signing.md → "Sparkle keys". -->
 +	<key>SUPublicEDKey</key>
-+	<string>EkaTwlFNDk02vDIpFIe5ovPEdadDDd6bPm3x6q9ROXY=</string>
++	<string>dz3KV6hBHuxJGYXru/dOYip1oSBH5o02nrdGZdWF8x4=</string>
 +	<key>SUEnableAutomaticChecks</key>
 +	<true/>
 +	<key>SUAutomaticallyUpdate</key>
