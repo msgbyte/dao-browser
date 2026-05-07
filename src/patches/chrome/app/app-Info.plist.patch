@@ -16,7 +16,18 @@ index e813de1e4e..51be2e1056 100644
  	<key>CFBundleIdentifier</key>
  	<string>${CHROMIUM_BUNDLE_ID}</string>
  	<key>CFBundleInfoDictionaryVersion</key>
-@@ -723,5 +726,31 @@
+@@ -161,5 +164,10 @@
+ 	<key>CFBundleName</key>
+ 	<string>${CHROMIUM_SHORT_NAME}</string>
++	<!-- Dao Browser: Scope the user data directory by the product short
++	     name so debug and release builds keep isolated profiles
++	     (~/Library/Application Support/Dao vs .../Dao Debug). -->
++	<key>CrProductDirName</key>
++	<string>${CHROMIUM_SHORT_NAME}</string>
+ 	<key>CFBundlePackageType</key>
+ 	<string>APPL</string>
+ 	<key>CFBundleSignature</key>
+@@ -723,5 +731,31 @@
  	<array>
  		<string>_googlecast._tcp</string>
  	</array>
