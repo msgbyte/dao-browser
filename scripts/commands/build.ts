@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   ENGINE_DIR,
   CONFIGS_DIR,
+  BRANDING_DIR,
   loadConfig,
   log,
   success,
@@ -13,6 +14,18 @@ import {
   run,
   runStreaming,
 } from "../utils.js";
+
+const DEBUG_BUNDLE_ID_SUFFIX = ".debug";
+const DEBUG_PRODUCT_NAME_SUFFIX = " Debug";
+
+/**
+ * App bundle name for the current build flavor. Release uses the project's
+ * `display_name`; debug appends " Debug" so it can be installed alongside the
+ * release build with its own user data directory and LaunchServices entry.
+ */
+export function getAppName(displayName: string, isDebug: boolean): string {
+  return isDebug ? `${displayName}${DEBUG_PRODUCT_NAME_SUFFIX}` : displayName;
+}
 
 export const buildCommand = new Command("build")
   .description("Build Dao Browser (gn gen + autoninja)")
@@ -57,6 +70,16 @@ export const buildCommand = new Command("build")
       args += "is_component_build = true\n";
       args += "is_official_build = false\n";
       args += "use_lld = false\n";
+    }
+
+    // Sync Chromium's BRANDING so debug/release builds produce fully isolated
+    // app bundles: distinct CFBundleIdentifier *and* distinct PRODUCT_FULLNAME
+    // (the latter drives app bundle name, helper / framework names, and the
+    // ~/Library/Application Support/<name>/ user data dir). Done idempotently
+    // so alternating debug/release builds without re-import keep the correct
+    // values.
+    if (config.build.target_os === "mac") {
+      syncMacBranding(srcDir, !!opts.debug, config.display_name);
     }
 
     mkdirSync(outDir, { recursive: true });
@@ -106,16 +129,129 @@ export const buildCommand = new Command("build")
 
     // Post-build: fix lld duplicate dylib issue on macOS component builds
     if (opts.debug && config.build.target_os === "mac") {
-      fixDuplicateDylib(outDir);
+      const appName = getAppName(config.display_name, true);
+      fixDuplicateDylib(outDir, appName);
     }
 
     success(`Build complete! Output: engine/src/out/${outName}/`);
   });
 
-function fixDuplicateDylib(outDir: string) {
+/**
+ * Rewrite identity fields (PRODUCT_FULLNAME, PRODUCT_SHORTNAME,
+ * PRODUCT_INSTALLER_*, MAC_BUNDLE_ID) in Chromium's BRANDING file so debug
+ * builds get a fully separate app bundle. Release builds restore the original
+ * values from the project's source-of-truth `branding/BRANDING`.
+ *
+ * Why the BRANDING file directly? `chrome_product_full_name` and
+ * `chrome_mac_bundle_id` in `build/util/branding.gni` are derived from this
+ * file via `version.py`, and neither is a `declare_args`, so they can't be
+ * overridden via args.gn. The change lives entirely in engine/ (gitignored)
+ * and is overwritten on every `npm run import`.
+ */
+function syncMacBranding(
+  srcDir: string,
+  isDebug: boolean,
+  displayName: string
+): void {
+  const engineBranding = path.join(
+    srcDir,
+    "chrome/app/theme/chromium/BRANDING"
+  );
+  const projectBranding = path.join(BRANDING_DIR, "BRANDING");
+
+  if (!existsSync(engineBranding) || !existsSync(projectBranding)) {
+    warn("BRANDING file missing; skipping branding sync");
+    return;
+  }
+
+  const projectContent = readFileSync(projectBranding, "utf-8");
+  const projectFields = parseBrandingFields(projectContent);
+  const baseBundleId = (projectFields.MAC_BUNDLE_ID ?? "")
+    .replace(new RegExp(`${escapeRegExp(DEBUG_BUNDLE_ID_SUFFIX)}$`), "")
+    .trim();
+  if (!baseBundleId) {
+    warn("MAC_BUNDLE_ID not found in branding/BRANDING; skipping");
+    return;
+  }
+  const baseFullName = (
+    projectFields.PRODUCT_FULLNAME ?? displayName
+  )
+    .replace(new RegExp(`${escapeRegExp(DEBUG_PRODUCT_NAME_SUFFIX)}$`), "")
+    .trim();
+  const baseShortName = (
+    projectFields.PRODUCT_SHORTNAME ?? baseFullName
+  )
+    .replace(new RegExp(`${escapeRegExp(DEBUG_PRODUCT_NAME_SUFFIX)}$`), "")
+    .trim();
+  const baseInstallerFull = (
+    projectFields.PRODUCT_INSTALLER_FULLNAME ?? `${baseFullName} Installer`
+  )
+    .replace(
+      new RegExp(`${escapeRegExp(DEBUG_PRODUCT_NAME_SUFFIX)} Installer$`),
+      " Installer"
+    )
+    .trim();
+  const baseInstallerShort = (
+    projectFields.PRODUCT_INSTALLER_SHORTNAME ?? `${baseShortName} Installer`
+  )
+    .replace(
+      new RegExp(`${escapeRegExp(DEBUG_PRODUCT_NAME_SUFFIX)} Installer$`),
+      " Installer"
+    )
+    .trim();
+
+  const target: Record<string, string> = isDebug
+    ? {
+        MAC_BUNDLE_ID: `${baseBundleId}${DEBUG_BUNDLE_ID_SUFFIX}`,
+        PRODUCT_FULLNAME: `${baseFullName}${DEBUG_PRODUCT_NAME_SUFFIX}`,
+        PRODUCT_SHORTNAME: `${baseShortName}${DEBUG_PRODUCT_NAME_SUFFIX}`,
+        PRODUCT_INSTALLER_FULLNAME: `${baseFullName}${DEBUG_PRODUCT_NAME_SUFFIX} Installer`,
+        PRODUCT_INSTALLER_SHORTNAME: `${baseShortName}${DEBUG_PRODUCT_NAME_SUFFIX} Installer`,
+      }
+    : {
+        MAC_BUNDLE_ID: baseBundleId,
+        PRODUCT_FULLNAME: baseFullName,
+        PRODUCT_SHORTNAME: baseShortName,
+        PRODUCT_INSTALLER_FULLNAME: baseInstallerFull,
+        PRODUCT_INSTALLER_SHORTNAME: baseInstallerShort,
+      };
+
+  const engineContent = readFileSync(engineBranding, "utf-8");
+  let updated = engineContent;
+  const changed: string[] = [];
+  for (const [key, value] of Object.entries(target)) {
+    const re = new RegExp(`^${escapeRegExp(key)}=.*$`, "m");
+    if (!re.test(updated)) continue;
+    const next = updated.replace(re, `${key}=${value}`);
+    if (next !== updated) {
+      changed.push(`${key}=${value}`);
+      updated = next;
+    }
+  }
+
+  if (updated !== engineContent) {
+    writeFileSync(engineBranding, updated);
+    log(`Branding (${isDebug ? "debug" : "release"}): ${changed.join(", ")}`);
+  }
+}
+
+function parseBrandingFields(content: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of content.split(/\r?\n/)) {
+    const m = line.match(/^([A-Z_]+)=(.*)$/);
+    if (m) out[m[1]] = m[2];
+  }
+  return out;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function fixDuplicateDylib(outDir: string, appName: string) {
   const fwBinary = path.join(
     outDir,
-    "Dao.app/Contents/Frameworks/Dao Framework.framework/Dao Framework"
+    `${appName}.app/Contents/Frameworks/${appName} Framework.framework/${appName} Framework`
   );
   if (!existsSync(fwBinary)) return;
 
@@ -185,9 +321,10 @@ else:
   try {
     const result = run(`python3 "${scriptPath}" "${fwBinary}"`, { silent: true });
     if (result.includes("fixed")) {
-      run(`codesign --force --sign - --deep "${path.join(outDir, "Dao.app")}"`, {
-        silent: true,
-      });
+      run(
+        `codesign --force --sign - --deep "${path.join(outDir, `${appName}.app`)}"`,
+        { silent: true }
+      );
       success("Fixed lld duplicate dylib and re-signed");
     }
   } catch {

@@ -6,4 +6,5 @@ PRODUCT_INSTALLER_FULLNAME=Dao Installer
 PRODUCT_INSTALLER_SHORTNAME=Dao Installer
 COPYRIGHT=Copyright (c) 2026 Dao Project Authors. All rights reserved.
 MAC_BUNDLE_ID=com.msgbyte.dao
+MAC_CREATOR_CODE=DaoB
 MAC_TEAM_ID=ZV5X3A7263

@@ -40,7 +40,7 @@ DaoTabTooltipView::DaoTabTooltipView() {
       gfx::FontList()
           .DeriveWithSizeDelta(kTitleFontSize - gfx::FontList().GetFontSize())
           .DeriveWithWeight(gfx::Font::Weight::MEDIUM));
-  title_label_->SetEnabledColor(SkColorSetA(TextPrimary(), 217));
+  title_label_->SetEnabledColor(ToastTextColor());
   title_label_->SetBackgroundColor(SK_ColorTRANSPARENT);
   title_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   title_label_->SetMaximumWidthSingleLine(kMaxWidth - 2 * kTooltipPaddingH);

@@ -16,7 +16,9 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/text_constants.h"
 #include "ui/views/background.h"
+#include "ui/views/border.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -26,8 +28,48 @@ namespace dao {
 
 namespace {
 constexpr int kQrSize = 200;
-constexpr int kQrPadding = 16;
-constexpr int kQrCornerRadius = 8;
+constexpr int kQrPadding = 12;
+constexpr int kQrCornerRadius = 10;
+constexpr int kBackButtonCornerRadius = 8;
+constexpr int kBackButtonInsetH = 8;
+constexpr int kBackButtonInsetV = 6;
+constexpr int kQrCardInsetH = 14;
+constexpr int kQrCardInsetV = 14;
+
+// Back button styled like the More-menu items: full-width, left-aligned,
+// hover-highlight. Avoids the previous "centered, no feedback" look.
+class QrBackButton : public views::LabelButton {
+  METADATA_HEADER(QrBackButton, views::LabelButton)
+
+ public:
+  QrBackButton(views::Button::PressedCallback callback)
+      : LabelButton(std::move(callback), u"← Back") {
+    SetInstallFocusRingOnFocus(false);
+    SetAccessibleName(u"Back");
+    SetEnabledTextColors(ControlCenterLabelColor());
+    label()->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 13,
+                                        gfx::Font::Weight::NORMAL));
+    SetBorder(views::CreateEmptyBorder(
+        gfx::Insets::VH(kBackButtonInsetV, kBackButtonInsetH)));
+    SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  }
+
+  void OnMouseEntered(const ui::MouseEvent& event) override {
+    LabelButton::OnMouseEntered(event);
+    SetBackground(views::CreateRoundedRectBackground(
+        ControlCenterHoverBg(), kBackButtonCornerRadius));
+    SchedulePaint();
+  }
+
+  void OnMouseExited(const ui::MouseEvent& event) override {
+    LabelButton::OnMouseExited(event);
+    SetBackground(nullptr);
+    SchedulePaint();
+  }
+};
+
+BEGIN_METADATA(QrBackButton)
+END_METADATA
 
 // Render QR code data to an ImageSkia.
 gfx::ImageSkia RenderQrCode(const qr_code_generator::GeneratedCode& code,
@@ -70,37 +112,74 @@ END_METADATA
 DaoControlCenterQrView::DaoControlCenterQrView(
     DaoControlCenterPopup* popup)
     : popup_(popup) {
+  // Outer layout: vertical stack that stretches children to full width so the
+  // back button can left-align inside the popup card. The QR image and URL
+  // are then re-centered inside their own horizontal sub-rows.
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical, gfx::Insets(kQrPadding), 8));
+      views::BoxLayout::Orientation::kVertical,
+      gfx::Insets::VH(kQrPadding, 0), 10));
   layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kStretch);
+
+  // Back button \u2014 wrapped in a left-aligned row so the button only occupies
+  // its own preferred width. Without this wrapper, the outer kStretch layout
+  // would stretch the button across the full popup width and the hover
+  // highlight would span the entire row.
+  auto back_row = std::make_unique<views::View>();
+  auto* back_row_layout =
+      back_row->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kHorizontal,
+          gfx::Insets::VH(0, kQrCardInsetH), 0));
+  back_row_layout->set_main_axis_alignment(
+      views::BoxLayout::MainAxisAlignment::kStart);
+  back_row->AddChildView(std::make_unique<QrBackButton>(base::BindRepeating(
+      &DaoControlCenterQrView::OnBackClicked, base::Unretained(this))));
+  AddChildView(std::move(back_row));
+
+  // QR code, wrapped in a centered row so it doesn't get stretched by the
+  // outer kStretch alignment.
+  auto qr_row = std::make_unique<views::View>();
+  auto* qr_row_layout =
+      qr_row->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kHorizontal,
+          gfx::Insets::VH(0, kQrCardInsetH), 0));
+  qr_row_layout->set_main_axis_alignment(
+      views::BoxLayout::MainAxisAlignment::kCenter);
+
+  // QR image card \u2014 white background, rounded, with a small inner padding so
+  // the QR isn't flush against the rounded corners.
+  auto qr_card = std::make_unique<views::View>();
+  qr_card->SetBackground(
+      views::CreateRoundedRectBackground(SK_ColorWHITE, kQrCornerRadius));
+  qr_card->SetBorder(views::CreateEmptyBorder(
+      gfx::Insets::VH(kQrCardInsetV, kQrCardInsetV)));
+  auto* qr_card_layout =
+      qr_card->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kVertical, gfx::Insets(), 0));
+  qr_card_layout->set_main_axis_alignment(
+      views::BoxLayout::MainAxisAlignment::kCenter);
+  qr_card_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kCenter);
 
-  // Back button
-  auto back_btn = std::make_unique<views::LabelButton>(
-      base::BindRepeating(&DaoControlCenterQrView::OnBackClicked,
-                          base::Unretained(this)),
-      u"\u2190 Back");
-  back_btn->SetInstallFocusRingOnFocus(false);
-  back_btn->SetAccessibleName(u"Back");
-  back_btn->SetEnabledTextColors(ControlCenterLabelColor());
-  auto* back_btn_ptr = AddChildView(std::move(back_btn));
-  // Left-align the back button
-  back_btn_ptr->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-
-  // QR code image
-  qr_image_ = AddChildView(std::make_unique<views::ImageView>());
+  qr_image_ = qr_card->AddChildView(std::make_unique<views::ImageView>());
   qr_image_->SetPreferredSize(gfx::Size(kQrSize, kQrSize));
-  qr_image_->SetBackground(
-      views::CreateRoundedRectBackground(SK_ColorWHITE, kQrCornerRadius));
 
-  // URL label below QR code
+  qr_row->AddChildView(std::move(qr_card));
+  AddChildView(std::move(qr_row));
+
+  // URL label below QR. Centered, capped to two lines so a long URL doesn't
+  // blow up the popup height; the elided tail gets "\u2026".
   url_label_ = AddChildView(std::make_unique<views::Label>());
   url_label_->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 11,
                                          gfx::Font::Weight::NORMAL));
   url_label_->SetEnabledColor(ControlCenterSecondaryTextColor());
   url_label_->SetMultiLine(true);
-  url_label_->SetMaximumWidth(kQrSize);
+  url_label_->SetMaxLines(2);
+  url_label_->SetMaximumWidth(kQrSize + 2 * kQrCardInsetH);
   url_label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
+  url_label_->SetElideBehavior(gfx::ELIDE_TAIL);
+  url_label_->SetBorder(views::CreateEmptyBorder(
+      gfx::Insets::VH(0, kQrCardInsetH)));
 }
 
 DaoControlCenterQrView::~DaoControlCenterQrView() = default;

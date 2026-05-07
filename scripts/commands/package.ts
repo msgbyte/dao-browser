@@ -25,6 +25,7 @@ import {
   runStreaming,
   which,
 } from "../utils.js";
+import { getAppName } from "./build.js";
 
 const DIST_DIR = path.join(ROOT_DIR, "dist");
 const ENTITLEMENTS = path.join(
@@ -71,7 +72,9 @@ export const packageCommand = new Command("package")
   )
   .action(async (opts: PackageOptions) => {
     const config = loadConfig();
-    const appName = config.display_name;
+    // Debug builds carry a " Debug" suffix in their product/app bundle name
+    // (set by syncMacBranding in build.ts) so they can coexist with release.
+    const appName = getAppName(config.display_name, !!opts.debug);
     const version = config.version.display;
     const srcDir = path.join(ENGINE_DIR, "src");
     const outDirName = opts.debug ? "dao-debug" : "dao";

@@ -36,6 +36,8 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/common/webui_url_constants.h"
+#include "url/url_constants.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
@@ -310,18 +312,34 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
             std::make_unique<download::AllDownloadItemNotifier>(
                 download_manager, this);
       }
-      // Open dao://welcome on first launch.
+      // Open dao://welcome on first launch. If the browser was just
+      // started with a single fresh NTP tab, replace that tab so the
+      // user does not end up with both chrome://newtab and dao://welcome.
       if (!profile->GetPrefs()->GetBoolean(prefs::kDaoWelcomeShown)) {
         base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
             FROM_HERE,
             base::BindOnce(
                 [](base::WeakPtr<DaoSidebarUIHandler> self) {
                   if (!self || !self->browser_) return;
+                  TabStripModel* tab_strip = self->browser_->tab_strip_model();
+                  WindowOpenDisposition disposition =
+                      WindowOpenDisposition::NEW_FOREGROUND_TAB;
+                  if (tab_strip && tab_strip->count() == 1) {
+                    content::WebContents* active =
+                        tab_strip->GetActiveWebContents();
+                    if (active) {
+                      const GURL& url = active->GetVisibleURL();
+                      if (url.is_empty() || url == GURL(url::kAboutBlankURL) ||
+                          url == GURL(chrome::kChromeUINewTabURL) ||
+                          url == GURL(chrome::kChromeUINewTabPageURL)) {
+                        disposition = WindowOpenDisposition::CURRENT_TAB;
+                      }
+                    }
+                  }
                   NavigateParams params(
                       self->browser_, GURL("dao://welcome"),
                       ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-                  params.disposition =
-                      WindowOpenDisposition::NEW_FOREGROUND_TAB;
+                  params.disposition = disposition;
                   Navigate(&params);
                 },
                 weak_factory_.GetWeakPtr()));

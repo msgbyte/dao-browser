@@ -8,32 +8,32 @@
         "@mozilla/readability": "0.6.0"
       },
       "sha256": "8fce0a16f7f867c42da8617e82b6c841888a428f0f50cfe8517071922e2ccc52",
-      "generatedAt": "2026-04-24T10:38:01.962Z"
+      "generatedAt": "2026-05-07T14:42:30.427Z"
     },
     {
       "name": "pi-runtime",
       "format": "esm",
       "outFile": "src/dao/browser/ui/webui/resources/agent/vendor/pi_runtime_bundle.ts",
       "pkgVersions": {
-        "@mariozechner/pi-ai": "^0.69.0",
-        "@mariozechner/pi-agent-core": "^0.69.0",
-        "@mariozechner/pi-web-ui": "^0.69.0",
+        "@mariozechner/pi-ai": "^0.73.0",
+        "@mariozechner/pi-agent-core": "^0.73.0",
+        "@mariozechner/pi-web-ui": "^0.73.0",
         "@mariozechner/mini-lit": "^0.2.1",
         "@sinclair/typebox": "^0.34.49",
         "lit": "^3.3.2"
       },
-      "sha256": "44f9fb95576448a48f0bde7087efe3392a806de8f79191f0ec8785b4ba8884ba",
-      "generatedAt": "2026-04-24T03:46:38.964Z"
+      "sha256": "0eeece4993d451b6d8ef2ec88d7219d59e0fd160a029b2a4075643f660c3db73",
+      "generatedAt": "2026-05-07T14:42:30.821Z"
     },
     {
       "name": "pi-web-ui-css",
       "format": "customBuild",
       "outFile": "src/dao/browser/ui/webui/resources/agent/vendor/pi_web_ui.css",
       "pkgVersions": {
-        "@mariozechner/pi-web-ui": "^0.69.0"
+        "@mariozechner/pi-web-ui": "^0.73.0"
       },
       "sha256": "436c5ed25cd0ba0541bab720b04b8c23b637e778231dd1402fed117b25ec4f77",
-      "generatedAt": "2026-04-24T03:02:30.906Z"
+      "generatedAt": "2026-05-07T14:42:30.850Z"
     },
     {
       "name": "turndown",
@@ -43,7 +43,7 @@
         "turndown": "^7.2.0"
       },
       "sha256": "66a8bca3e4d09c9dca11981d30efe047f9af4dea4e9d5678b5565219807abc3a",
-      "generatedAt": "2026-04-24T10:37:59.133Z"
+      "generatedAt": "2026-05-07T14:42:30.432Z"
     }
   ]
 }

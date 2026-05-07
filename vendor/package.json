@@ -6,9 +6,9 @@
   "type": "module",
   "dependencies": {
     "@mariozechner/mini-lit": "^0.2.1",
-    "@mariozechner/pi-agent-core": "^0.69.0",
-    "@mariozechner/pi-ai": "^0.69.0",
-    "@mariozechner/pi-web-ui": "^0.69.0",
+    "@mariozechner/pi-agent-core": "^0.73.0",
+    "@mariozechner/pi-ai": "^0.73.0",
+    "@mariozechner/pi-web-ui": "^0.73.0",
     "@mozilla/readability": "0.6.0",
     "@sinclair/typebox": "^0.34.49",
     "lit": "^3.3.2",

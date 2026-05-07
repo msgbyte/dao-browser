@@ -688,6 +688,84 @@ details.dao-tool-call code-block {
   overflow: hidden;
 }
 
+/* ============================================================================
+ * Code blocks — light-mode contrast fix.
+ *
+ * pi-web-ui's `<code-block>` is a lit element that renders into a shadow
+ * root, so selectors like `code-block pre` from this (global) stylesheet
+ * cannot reach the inner <pre>. What DOES cross the shadow boundary is
+ * CSS custom property inheritance: rebinding `--muted` / `--border` on
+ * the `code-block` host propagates to the shadow content that uses
+ * `background-color: var(--muted)` and `border: 1px solid var(--border)`.
+ *
+ * Dao's default light-mode binds these to translucent WHITE (designed
+ * for the frosted blue-gray sidebar), which disappears on the white
+ * message area. We rebind to tinted black here so the shadow's own
+ * bg-muted / border draws a single, visible frame — we intentionally
+ * do NOT also paint a background/border on the host, because that would
+ * stack on top of the shadow's frame and produce a visible double
+ * border.
+ *
+ * Inline `<code>` in markdown lives in light DOM and uses the same
+ * `--muted` / `--border`, so the same variable rebind handles it.
+ * ============================================================================ */
+@media (prefers-color-scheme: light) {
+  pi-chat-panel code-block,
+  dao-chat-view code-block,
+  .markdown-content code-block,
+  pi-chat-panel pre:has(code.hljs),
+  dao-chat-view pre:has(code.hljs),
+  pi-chat-panel .markdown-content code:not(.hljs),
+  dao-chat-view .markdown-content code:not(.hljs),
+  details.dao-tool-call code-block {
+    --muted: rgba(30, 20, 40, 0.08);
+    --border: rgba(30, 20, 40, 0.18);
+    --background: rgba(30, 20, 40, 0.05);
+    --card: rgba(30, 20, 40, 0.05);
+  }
+}
+
+/* ============================================================================
+ * Scrollbars — light-mode contrast fix.
+ *
+ * pi-web-ui's global scrollbar rule sets `scrollbar-color: var(--color-border)`
+ * and `::-webkit-scrollbar-thumb { background-color: var(--color-border) }`.
+ * In Dao's light theme --color-border resolves to `rgba(255,255,255,0.18)`,
+ * which renders as an almost-invisible white thumb on the white message area.
+ * Upstream also ships `::-webkit-scrollbar-thumb:hover { background: #0000 }`,
+ * which makes the thumb fully transparent on hover — effectively hiding it
+ * exactly when the user points at it. We override both.
+ *
+ * Dark mode is unaffected: Dao's dark --border is already translucent white
+ * against a dark bg, which reads fine.
+ * ============================================================================ */
+@media (prefers-color-scheme: light) {
+  dao-agent-app,
+  dao-chat-view,
+  pi-chat-panel,
+  dao-agent-app *,
+  dao-chat-view *,
+  pi-chat-panel * {
+    scrollbar-color: rgba(30, 20, 40, 0.28) transparent;
+  }
+  dao-agent-app ::-webkit-scrollbar-thumb,
+  dao-chat-view ::-webkit-scrollbar-thumb,
+  pi-chat-panel ::-webkit-scrollbar-thumb {
+    background-color: rgba(30, 20, 40, 0.28);
+    border-radius: 4px;
+  }
+  dao-agent-app ::-webkit-scrollbar-thumb:hover,
+  dao-chat-view ::-webkit-scrollbar-thumb:hover,
+  pi-chat-panel ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(30, 20, 40, 0.45);
+  }
+  dao-agent-app ::-webkit-scrollbar-track,
+  dao-chat-view ::-webkit-scrollbar-track,
+  pi-chat-panel ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
 html, body {
   height: 100%;
   margin: 0;
@@ -1024,6 +1102,7 @@ body {
   line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1073,4 +1152,68 @@ body {
     border-color: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.85);
   }
+}
+
+/* ============================================================================
+ * Code block syntax highlighting — dark mode contrast fix.
+ *
+ * pi_web_ui.css ships a `.dark` palette where several syntax tokens land in
+ * the 50–78% lightness range with low chroma (e.g. --syntax-string at
+ * oklch(78.6% .08 ...) and --syntax-heading at oklch(52.3% ...)). On the
+ * deep blue-gray sidebar background that translates to muddy, low-contrast
+ * strings/numbers/headings that are hard to read at small font sizes.
+ *
+ * We rebind --syntax-* in dark mode with brighter L (≥ 80%) and noticeably
+ * higher chroma so each token type pops against the dark code surface while
+ * staying within the same hue families as the upstream palette (no jarring
+ * color shifts). Both `.dark` (pi-web-ui's manual class) and
+ * `prefers-color-scheme: dark` (system theme) are targeted so the override
+ * applies whichever path activates dark mode.
+ * ============================================================================ */
+@media (prefers-color-scheme: dark) {
+  :root,
+  .dark,
+  pi-chat-panel,
+  dao-chat-view {
+    /* Keywords (e.g. `import`, `const`, `if`) — warm red/coral, unchanged hue. */
+    --syntax-keyword: oklch(78% 0.18 21.174);
+    /* Entities — class/function names. Soft violet, brighter. */
+    --syntax-entity: oklch(85% 0.16 307.715);
+    /* Constants/numbers/operators — sky cyan. */
+    --syntax-constant: oklch(83% 0.16 237.016);
+    /* Strings — was the worst offender (chroma .08); bump to a clear cyan. */
+    --syntax-string: oklch(86% 0.14 200);
+    /* Variables — warm amber. */
+    --syntax-variable: oklch(83% 0.16 54.291);
+    /* Comments — keep dimmer for hierarchy, but lift L from 62% → 70%. */
+    --syntax-comment: oklch(70% 0.03 247.858);
+    /* Tags / selector pseudo — lime green. */
+    --syntax-tag: oklch(86% 0.18 145.348);
+    /* Markdown headings — was 52% L (very dark on dark bg); push to 80%+. */
+    --syntax-heading: oklch(82% 0.16 237.016);
+    /* List markers — pale yellow. */
+    --syntax-list: oklch(90% 0.16 88.766);
+    /* Diff backgrounds — keep subtle; only lift FG for readability. */
+    --syntax-addition-fg: oklch(90% 0.18 145.348);
+    --syntax-deletion-fg: oklch(92% 0.10 17.672);
+  }
+}
+
+/* Same overrides under the explicit `.dark` class, in case pi-web-ui is
+ * forced into dark mode without the OS-level media query (e.g. inside an
+ * iframe with overridden color-scheme). */
+.dark,
+.dark pi-chat-panel,
+.dark dao-chat-view {
+  --syntax-keyword: oklch(78% 0.18 21.174);
+  --syntax-entity: oklch(85% 0.16 307.715);
+  --syntax-constant: oklch(83% 0.16 237.016);
+  --syntax-string: oklch(86% 0.14 200);
+  --syntax-variable: oklch(83% 0.16 54.291);
+  --syntax-comment: oklch(70% 0.03 247.858);
+  --syntax-tag: oklch(86% 0.18 145.348);
+  --syntax-heading: oklch(82% 0.16 237.016);
+  --syntax-list: oklch(90% 0.16 88.766);
+  --syntax-addition-fg: oklch(90% 0.18 145.348);
+  --syntax-deletion-fg: oklch(92% 0.10 17.672);
 }

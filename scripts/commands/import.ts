@@ -214,6 +214,13 @@ export const importCommand = new Command("import")
     );
 
     const brandingMap: Record<string, string> = {
+      // The BRANDING manifest (product/company name, bundle id, copyright).
+      // Dynamic copy replaces the old BRANDING.patch — previously the patch
+      // locked MAC_BUNDLE_ID and friends, but any local tweak to engine's
+      // BRANDING (e.g. swapping to a .debug bundle id for signing) would
+      // make the patch stop applying. Driving the file from branding/ lets
+      // us edit one source without fighting the patch system.
+      "BRANDING": "BRANDING",
       "mac/app.icns": "mac/app.icns",
       "mac/document.icns": "mac/document.icns",
       "product_logo.svg": "product_logo.svg",
