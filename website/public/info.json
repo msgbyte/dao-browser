@@ -1,6 +1,6 @@
 {
   "$schema": "Update this file to publish a new release. The /download route reads this at runtime and redirects to the platform-specific URL. Static-export-friendly (no server needed).",
-  "version": "0.6.0",
+  "version": "1.0.6",
   "chromiumVersion": "147.0.7727.135",
   "releasedAt": "2026-05-06",
   "platforms": {

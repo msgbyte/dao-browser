@@ -174,7 +174,7 @@ export const importCommand = new Command("import")
       ) {
         error(
           `dao.json.version.display is "${daoVersion}". Expected 2-4 numeric ` +
-            `segments separated by dots (e.g. "0.6.0" or "0.6.0.1").`
+            `segments separated by dots (e.g. "1.0.6" or "1.0.6.1").`
         );
         process.exit(1);
       }
