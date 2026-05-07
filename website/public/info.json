@@ -6,7 +6,7 @@
   "platforms": {
     "macArm64": {
       "label": "macOS (Apple Silicon)",
-      "url": "https://github.com/moonrailgun/dao-browser/releases/download/v0.5.0/dao-browser-0.5.0-mac-arm64.dmg"
+      "url": "https://dao-release.msgbyte.com/dao-browser-1.0.6-mac-arm64.dmg"
     }
   },
   "default": "macArm64"
