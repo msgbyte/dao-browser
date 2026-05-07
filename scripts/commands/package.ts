@@ -156,6 +156,13 @@ export const packageCommand = new Command("package")
       await staple(artifactPath);
       assessArtifact(artifactPath);
     }
+
+    // After a complete release pipeline (signed + notarized + stapled), the
+    // remaining step is Sparkle EdDSA-signing the artifact and regenerating
+    // appcast.xml. Surface that command so the operator doesn't forget.
+    if (opts.signId && opts.notarize && opts.staple) {
+      printAppcastNextStep(artifactPath);
+    }
   });
 
 async function createZip(
@@ -583,6 +590,61 @@ async function staple(artifactPath: string): Promise<void> {
     process.exit(1);
   }
   success("Stapled");
+}
+
+// ---------------------------------------------------------------------------
+// Post-release guidance
+// ---------------------------------------------------------------------------
+
+/**
+ * Print a clear next-step prompt after package:release finishes.
+ * The release pipeline ends with a stapled .dmg/.zip in dist/, but Sparkle
+ * still needs to EdDSA-sign the artifact and (re)generate appcast.xml. That
+ * step is intentionally manual (it touches the keychain private key), so we
+ * just remind the operator to run it.
+ */
+function printAppcastNextStep(artifactPath: string): void {
+  const generateAppcast = path.join(
+    "third_party",
+    "sparkle",
+    "bin",
+    "generate_appcast"
+  );
+  const generateAppcastAbs = path.join(ROOT_DIR, generateAppcast);
+  const appcastTemplate = path.join(ROOT_DIR, "branding", "appcast.template.xml");
+  const appcastDest = path.join(DIST_DIR, "appcast.xml");
+  const artifactRel = path.relative(ROOT_DIR, artifactPath) || artifactPath;
+
+  console.log("");
+  log("Release artifact ready: " + chalk.bold(artifactRel));
+  console.log("");
+  log(chalk.bold("Next step — Sparkle-sign and (re)generate appcast.xml:"));
+
+  if (!existsSync(generateAppcastAbs)) {
+    warn(
+      "generate_appcast not found at " +
+        generateAppcast +
+        ".\n  Run `npm run sparkle:fetch` first to install Sparkle's tools."
+    );
+  }
+
+  // First-release bootstrap: appcast.xml has to exist before generate_appcast
+  // can append to it. Mention the seed only when dist/appcast.xml is missing.
+  if (!existsSync(appcastDest) && existsSync(appcastTemplate)) {
+    console.log(
+      chalk.dim("  # First release? Seed appcast.xml from the template:")
+    );
+    console.log(
+      "  cp branding/appcast.template.xml dist/appcast.xml"
+    );
+  }
+  console.log("  " + chalk.cyan(`${generateAppcast} dist/`));
+  console.log("");
+  console.log(
+    chalk.dim(
+      "  Then publish dist/appcast.xml together with the artifact in your GitHub Release."
+    )
+  );
 }
 
 function assessArtifact(artifactPath: string): void {
