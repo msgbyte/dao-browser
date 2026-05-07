@@ -9,6 +9,9 @@ import {
   readdirSync,
   statSync,
   lstatSync,
+  openSync,
+  readSync,
+  closeSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -241,6 +244,42 @@ interface SpawnResult {
   stderr: string;
 }
 
+interface RunStreamingCaptureResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+// Like runStreaming, but also captures stdout (still streamed live) so the
+// caller can scan it (e.g. for notarytool's final "status: Accepted" line).
+function runStreamingCapture(
+  cmd: string,
+  args: string[]
+): Promise<RunStreamingCaptureResult> {
+  console.log(chalk.dim(`$ ${cmd} ${args.map(shellEscape).join(" ")}`));
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (chunk: Buffer) => {
+      const s = chunk.toString();
+      stdout += s;
+      process.stdout.write(s);
+    });
+    child.stderr?.on("data", (chunk: Buffer) => {
+      const s = chunk.toString();
+      stderr += s;
+      process.stderr.write(s);
+    });
+    child.on("error", (err: Error) =>
+      resolve({ code: null, stdout, stderr: stderr + String(err) })
+    );
+    child.on("close", (code: number | null) =>
+      resolve({ code, stdout, stderr })
+    );
+  });
+}
+
 // Run a command, streaming stdout/stderr live while also capturing stderr so
 // callers can inspect it for known failure patterns.
 function spawnCapture(cmd: string, args: string[]): Promise<SpawnResult> {
@@ -376,10 +415,50 @@ function collectSignables(root: string): string[] {
       // outer bundle re-signs their internals as a unit if needed. (We still
       // collect deeper bundles via the walk below — the descent decision
       // happens before we add the entry.)
+      return st.isDirectory();
     }
+
+    // Bare executable Mach-O files inside framework Helpers/ subdirectories
+    // (e.g. Chromium's app_mode_loader, chrome_crashpad_handler,
+    // web_app_shortcut_copier, Sparkle's Autoupdate). codesign on the
+    // outer framework does NOT recurse into these — Apple's notary will
+    // reject the bundle because they're unsigned and lack hardened runtime.
+    // Identify them by: regular file + has user-execute bit + Mach-O magic.
+    if (st.isFile() && (st.mode & 0o100) !== 0 && isMachO(p)) {
+      out.push(p);
+      return false;
+    }
+
     return st.isDirectory();
   });
   return out;
+}
+
+// Read the first 4 bytes and compare against Mach-O magic numbers.
+function isMachO(p: string): boolean {
+  try {
+    const fd = openSync(p, "r");
+    try {
+      const buf = Buffer.alloc(4);
+      const n = readSync(fd, buf, 0, 4, 0);
+      if (n < 4) return false;
+      const magic = buf.readUInt32BE(0);
+      // 0xfeedface / 0xfeedfacf (32/64 BE), 0xcefaedfe / 0xcffaedfe (LE),
+      // 0xcafebabe / 0xbebafeca (fat). Cover both endianness representations.
+      return (
+        magic === 0xfeedface ||
+        magic === 0xfeedfacf ||
+        magic === 0xcefaedfe ||
+        magic === 0xcffaedfe ||
+        magic === 0xcafebabe ||
+        magic === 0xbebafeca
+      );
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
 }
 
 function walk(
@@ -434,18 +513,33 @@ function verifyCodesign(appBundle: string): void {
 async function notarize(artifactPath: string): Promise<void> {
   log(`Submitting ${path.basename(artifactPath)} to Apple notary service ...`);
   const args = buildNotarytoolAuthArgs();
-  const code = await runStreaming("xcrun", [
+  const result = await runStreamingCapture("xcrun", [
     "notarytool",
     "submit",
     artifactPath,
     ...args,
     "--wait",
   ]);
-  if (code !== 0) {
+  if (result.code !== 0) {
     error(
-      `notarytool submit exited with code ${code}.\n` +
+      `notarytool submit exited with code ${result.code}.\n` +
         "Run with --notarize again, or inspect the log via:\n" +
         "  xcrun notarytool log <submission-id> ..."
+    );
+    process.exit(1);
+  }
+  // notarytool returns exit 0 even when the submission ends in
+  // status: Invalid / Rejected. Detect those explicitly so we never
+  // proceed to staple a rejected artifact.
+  const idMatch = result.stdout.match(/id:\s*([0-9a-f-]{8,})/i);
+  const submissionId = idMatch ? idMatch[1] : "<unknown>";
+  const finalStatus = (result.stdout.match(/status:\s*(\w+)\s*$/im) ||
+    [])[1];
+  if (finalStatus && finalStatus.toLowerCase() !== "accepted") {
+    error(
+      `Notarization finished with status: ${finalStatus}.\n` +
+        `Inspect the failure log via:\n` +
+        `  xcrun notarytool log ${submissionId} --keychain-profile $DAO_NOTARIZE_KEYCHAIN_PROFILE`
     );
     process.exit(1);
   }

@@ -151,6 +151,46 @@ export const importCommand = new Command("import")
       }
     }
 
+    // Step 1.6: Overwrite chrome/VERSION with Dao's version.
+    // Chromium's build system reads MAJOR/MINOR/BUILD/PATCH from this file
+    // and uses them for CFBundleShortVersionString / CFBundleVersion in the
+    // app's Info.plist. Sparkle's `generate_appcast` also reads those plist
+    // values to write <sparkle:shortVersionString> / <sparkle:version> into
+    // appcast.xml. If we leave the stock Chromium values, appcast entries
+    // get titled "147.0.7727.135" and Sparkle's "is this newer than what's
+    // installed?" comparison becomes tied to the Chromium version number,
+    // which can move in unexpected directions on rebase.
+    //
+    // We idempotently rewrite the file from dao.json.version.display. Three
+    // segments are padded to four with a trailing 0; four segments pass
+    // through unchanged, allowing hotfix releases like "0.5.0.1".
+    const versionFile = path.join(srcDir, "chrome", "VERSION");
+    if (existsSync(versionFile)) {
+      const parts = daoVersion.split(".").map((p) => p.trim());
+      if (
+        parts.length < 2 ||
+        parts.length > 4 ||
+        parts.some((p) => !/^\d+$/.test(p))
+      ) {
+        error(
+          `dao.json.version.display is "${daoVersion}". Expected 2-4 numeric ` +
+            `segments separated by dots (e.g. "0.6.0" or "0.6.0.1").`
+        );
+        process.exit(1);
+      }
+      while (parts.length < 4) parts.push("0");
+      const [major, minor, build, patch] = parts;
+      const versionContent =
+        `MAJOR=${major}\nMINOR=${minor}\nBUILD=${build}\nPATCH=${patch}\n`;
+      const existing = readFileSync(versionFile, "utf-8");
+      if (existing !== versionContent) {
+        writeFileSync(versionFile, versionContent);
+        success(
+          `Overwrote chrome/VERSION with Dao version ${major}.${minor}.${build}.${patch}`
+        );
+      }
+    }
+
     // Step 2: Copy Dao source code into Chromium tree (only changed files)
     if (!opts.patchesOnly) {
       log("Copying Dao source code...");

@@ -1,5 +1,5 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index c8c10cdab0..bae51ce090 100644
+index c8c10cdab0..ce66586caf 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
 @@ -528,6 +528,7 @@ if (is_win) {
@@ -10,3 +10,12 @@ index c8c10cdab0..bae51ce090 100644
      ]
  
      if (enable_updater) {
+@@ -574,6 +575,8 @@ if (is_win) {
+         rebase_path(inputs[0], root_out_dir),
+         "--allow",
+         "/usr/lib/libSystem.B.dylib",
++        "--allow",
++        "@rpath/Sparkle.framework/Versions/B/Sparkle",
+       ]
+       deps = [ ":chrome_app" ]
+     }
