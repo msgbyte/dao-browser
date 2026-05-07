@@ -1,8 +1,38 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index c8c10cdab0..ce66586caf 100644
+index c8c10cdab0..de4c0ef37f 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
-@@ -528,6 +528,7 @@ if (is_win) {
+@@ -51,6 +51,17 @@ if (is_android) {
+   import("//chrome/browser/buildflags.gni")
+   import("//chrome/updater/branding.gni")
+   import("//chrome/version.gni")
++
++  declare_args() {
++    # Dao Browser: display version stamped into Info.plist's
++    # CFBundleShortVersionString / CFBundleVersion (and therefore into
++    # Sparkle appcast entries and the About page). Kept separate from
++    # chrome/VERSION so Chromium's build-time generators (policy, flag
++    # expiry, metrics, field trials) keep seeing the real Chromium
++    # version. Set by scripts/commands/build.ts from dao.json.
++    dao_display_version = ""
++  }
++
+   import("//content/public/app/mac_helpers.gni")
+   import("//media/cdm/library_cdm/cdm_paths.gni")
+   import("//services/on_device_model/on_device_model.gni")
+@@ -491,6 +502,11 @@ if (is_win) {
+       "--scm=1",
+       "--bundle_id=$chrome_mac_bundle_id",
+     ]
++    if (dao_display_version != "") {
++      # Dao Browser: override CFBundleShortVersionString / CFBundleVersion
++      # with the Dao product version instead of the Chromium version.
++      args += [ "--version=$dao_display_version" ]
++    }
+     if (enable_updater) {
+       args += [ "--privileged_helper_id=$privileged_helper_name" ]
+       if (is_chrome_branded) {
+@@ -528,6 +544,7 @@ if (is_win) {
        "//build:branding_buildflags",
        "//chrome/common:buildflags",
        "//chrome/common:version_header",
@@ -10,7 +40,7 @@ index c8c10cdab0..ce66586caf 100644
      ]
  
      if (enable_updater) {
-@@ -574,6 +575,8 @@ if (is_win) {
+@@ -574,6 +591,8 @@ if (is_win) {
          rebase_path(inputs[0], root_out_dir),
          "--allow",
          "/usr/lib/libSystem.B.dylib",

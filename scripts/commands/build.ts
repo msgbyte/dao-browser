@@ -72,6 +72,17 @@ export const buildCommand = new Command("build")
       args += "use_lld = false\n";
     }
 
+    // Dao Browser: stamp the display version into Info.plist without touching
+    // chrome/VERSION. tweak_info_plist.py requires exactly 4 numeric segments
+    // (MAJOR.MINOR.BUILD.PATCH); pad 2- or 3-segment display strings with
+    // trailing zeros.
+    {
+      const parts = config.version.display.split(".").map((p) => p.trim());
+      while (parts.length < 4) parts.push("0");
+      const fourPart = parts.slice(0, 4).join(".");
+      args += `dao_display_version = "${fourPart}"\n`;
+    }
+
     // Sync Chromium's BRANDING so debug/release builds produce fully isolated
     // app bundles: distinct CFBundleIdentifier *and* distinct PRODUCT_FULLNAME
     // (the latter drives app bundle name, helper / framework names, and the
