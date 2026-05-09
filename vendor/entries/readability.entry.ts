@@ -9,8 +9,7 @@
 // The produced IIFE bundle is then substituted into readability.tpl.ts at
 // the __BUNDLE__ placeholder. After substitution, the outer wrapper script
 // clones the document, invokes Readability, and returns a JSON-encoded
-// article payload — matching the behavior of the legacy
-// scripts/gen_readability_bundle.ts.
+// article payload.
 
 // @ts-expect-error — resolved from vendor/node_modules at bundle time.
 import { Readability } from "@mozilla/readability";
