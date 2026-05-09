@@ -1,0 +1,42 @@
+diff --git a/chrome/browser/ui/webui/settings/about_handler.cc b/chrome/browser/ui/webui/settings/about_handler.cc
+index 17a72c6c10..38cc2782c5 100644
+--- a/chrome/browser/ui/webui/settings/about_handler.cc
++++ b/chrome/browser/ui/webui/settings/about_handler.cc
+@@ -51,6 +51,10 @@
+ #include "ui/base/l10n/l10n_util.h"
+ #include "v8/include/v8-version-string.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "dao/browser/updater/dao_updater_service.h"
++#endif
++
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include <optional>
+ 
+@@ -415,6 +419,12 @@ void AboutHandler::RegisterMessages() {
+   web_ui()->RegisterMessageCallback(
+       "promoteUpdater", base::BindRepeating(&AboutHandler::PromoteUpdater,
+                                             base::Unretained(this)));
++  // Dao: route the settings "Check for updates" button to the Sparkle-backed
++  // updater service so the UI matches the menu item behaviour.
++  web_ui()->RegisterMessageCallback(
++      "daoCheckForUpdates",
++      base::BindRepeating(&AboutHandler::HandleDaoCheckForUpdates,
++                          base::Unretained(this)));
+ #endif
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -509,6 +519,13 @@ void AboutHandler::RefreshUpdateStatus() {
+ void AboutHandler::PromoteUpdater(const base::ListValue& args) {
+   version_updater_->PromoteUpdater();
+ }
++
++void AboutHandler::HandleDaoCheckForUpdates(const base::ListValue& args) {
++  AllowJavascript();
++  // Sparkle owns its own progress / "up to date" sheet, so we just kick off
++  // the check and let Sparkle drive any user-visible UI.
++  dao::DaoUpdaterService::GetInstance()->CheckForUpdatesUserInitiated();
++}
+ #endif
+ 
+ void AboutHandler::HandleOpenFeedbackDialog(const base::ListValue& args) {

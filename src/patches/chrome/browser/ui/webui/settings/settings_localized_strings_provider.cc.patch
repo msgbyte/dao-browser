@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+index 6f70406bc5..096833715b 100644
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -321,6 +321,12 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
+   };
+   html_source->AddLocalizedStrings(kLocalizedStrings);
+ 
++#if BUILDFLAG(IS_MAC)
++  // Dao: the settings "Check for updates" button is wired to Sparkle and is
++  // independent of the Chromium updater path (which is disabled in our build).
++  html_source->AddString("aboutDaoCheckForUpdates", u"Check for updates");
++#endif
++
+   html_source->AddString("managementPage",
+                          GetDeviceManagedUiHelpLabel(profile));
+   html_source->AddString(

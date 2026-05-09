@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/resources/settings/about_page/about_page.ts b/chrome/browser/resources/settings/about_page/about_page.ts
+index aa3f435d83..e0510341a7 100644
+--- a/chrome/browser/resources/settings/about_page/about_page.ts
++++ b/chrome/browser/resources/settings/about_page/about_page.ts
+@@ -222,6 +222,15 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+     this.performRestart(RestartType.RELAUNCH);
+   }
+ 
++  // <if expr="is_macosx">
++  // Dao: route the settings "Check for updates" button to Sparkle. Sparkle
++  // owns its own progress sheet and "up to date" UI, so we don't need to
++  // wire any status listener — clicking just fires and forgets.
++  private onDaoCheckForUpdatesClick_() {
++    this.aboutBrowserProxy_.daoCheckForUpdates();
++  }
++  // </if>
++
+   // <if expr="not is_chromeos">
+   private updateShowUpdateStatus_() {
+     if (this.obsoleteSystemInfo_.endOfLine) {

@@ -1,0 +1,15 @@
+diff --git a/chrome/browser/ui/webui/settings/about_handler.h b/chrome/browser/ui/webui/settings/about_handler.h
+index f3bcddd212..08ebd19839 100644
+--- a/chrome/browser/ui/webui/settings/about_handler.h
++++ b/chrome/browser/ui/webui/settings/about_handler.h
+@@ -72,6 +72,10 @@ class AboutHandler : public settings::SettingsPageUIHandler,
+ #if BUILDFLAG(IS_MAC)
+   // Promotes the updater for all users.
+   void PromoteUpdater(const base::ListValue& args);
++
++  // Dao: triggers a user-initiated Sparkle update check. Replaces the Chromium
++  // updater path on macOS, which is disabled in non-Google-branded builds.
++  void HandleDaoCheckForUpdates(const base::ListValue& args);
+ #endif
+ 
+   // Opens the feedback dialog.

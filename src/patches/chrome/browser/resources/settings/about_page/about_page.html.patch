@@ -1,0 +1,18 @@
+diff --git a/chrome/browser/resources/settings/about_page/about_page.html b/chrome/browser/resources/settings/about_page/about_page.html
+index 5069802bf7..04121421ab 100644
+--- a/chrome/browser/resources/settings/about_page/about_page.html
++++ b/chrome/browser/resources/settings/about_page/about_page.html
+@@ -104,6 +104,13 @@
+             $i18n{aboutRelaunch}
+           </cr-button>
+         </span>
++</if>
++<if expr="is_macosx">
++        <div class="separator"></div>
++        <cr-button id="daoCheckForUpdates"
++            on-click="onDaoCheckForUpdatesClick_">
++          $i18n{aboutDaoCheckForUpdates}
++        </cr-button>
+ </if>
+       </div>
+ <if expr="_google_chrome and is_macosx">

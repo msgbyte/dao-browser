@@ -1,0 +1,32 @@
+diff --git a/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts b/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
+index 10bea4664a..7d4e797014 100644
+--- a/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
++++ b/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
+@@ -73,6 +73,14 @@ export interface AboutPageBrowserProxy {
+    */
+   promoteUpdater(): void;
+   // </if>
++
++  // <if expr="is_macosx">
++  /**
++   * Dao: triggers a user-initiated Sparkle update check on macOS. Replaces
++   * the Chromium updater path which is disabled in non-Google-branded builds.
++   */
++  daoCheckForUpdates(): void;
++  // </if>
+ }
+ 
+ export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
+@@ -90,6 +98,12 @@ export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
+   }
+   // </if>
+ 
++  // <if expr="is_macosx">
++  daoCheckForUpdates() {
++    chrome.send('daoCheckForUpdates');
++  }
++  // </if>
++
+   openHelpPage() {
+     chrome.send('openHelpPage');
+   }
