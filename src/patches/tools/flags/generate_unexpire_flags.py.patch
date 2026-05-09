@@ -1,0 +1,20 @@
+diff --git a/tools/flags/generate_unexpire_flags.py b/tools/flags/generate_unexpire_flags.py
+index 98e2f03781..90860bd3da 100755
+--- a/tools/flags/generate_unexpire_flags.py
++++ b/tools/flags/generate_unexpire_flags.py
+@@ -35,6 +35,15 @@ def recent_mstones(mstone):
+   """Returns the list of milestones considered 'recent' for the given mstone.
+ 
+   Flag unexpiry is available only for flags that expired at recent mstones."""
++  # Dao Browser: //chrome/VERSION is rewritten with Dao's product version
++  # (e.g. MAJOR=1) during import, so the value passed here is not a real
++  # Chromium milestone. Returning [mstone-1, mstone] would then produce
++  # identifiers like kUnexpireFlagsM-1, which are not valid C++. Treat any
++  # unrealistically small milestone as having no recent milestones and emit
++  # empty feature/flag tables. Unexpire flags are a developer-only temporary
++  # escape hatch for already-expired Chromium flags; Dao ships without them.
++  if mstone < 50:
++    return []
+   return [mstone - 1, mstone]
+ 
+ 
