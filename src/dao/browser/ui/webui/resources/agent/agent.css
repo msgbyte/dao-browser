@@ -232,6 +232,44 @@ dao-chat-view > pi-chat-panel {
   min-height: 0;
 }
 
+/* Empty-session welcome overlay. Rendered as a sibling of
+ * <pi-chat-panel> inside dao-chat-view when the active session has no
+ * messages. pointer-events:none lets clicks fall through to the
+ * composer underneath so the user can start typing without dismissing
+ * anything explicitly. Hides itself via a template condition the
+ * moment messageCount_ becomes non-zero. */
+.dao-empty-guide {
+  position: absolute;
+  inset: 0;
+  bottom: var(--dao-composer-h, 120px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  pointer-events: none;
+}
+.dao-empty-guide-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--text-tertiary);
+}
+.dao-empty-guide-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+.dao-empty-guide-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  text-align: center;
+  max-width: 260px;
+  line-height: 1.5;
+}
+
 pi-chat-panel {
   padding: 4px 6px 6px;
 }

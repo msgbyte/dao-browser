@@ -370,6 +370,8 @@ export class DaoChatView extends CrLitElement {
     let stateClass = 'idle';
     if (ratio >= 0.75) stateClass = 'hot';
     else if (ratio >= 0.5) stateClass = 'warm';
+    const showEmptyGuide =
+        this.messageCount_ === 0 && !this.isStreaming_ && !this.compacting_;
 
     return html`
       <style>
@@ -545,6 +547,21 @@ export class DaoChatView extends CrLitElement {
                   ? html`<span class="spinner"></span>Compacting…`
                   : html`Compact`}
             </button>
+          </div>
+        </div>` : ''}
+      ${showEmptyGuide ? html`
+        <div class="dao-empty-guide" aria-hidden="true">
+          <svg class="dao-empty-guide-icon" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path>
+            <path d="M20 2v4"></path>
+            <path d="M22 4h-4"></path>
+            <circle cx="4" cy="20" r="2"></circle>
+          </svg>
+          <div class="dao-empty-guide-title">How can I help?</div>
+          <div class="dao-empty-guide-hint">
+            Ask about the current page, summarize selections, or run a skill.
           </div>
         </div>` : ''}
       <pi-chat-panel></pi-chat-panel>
