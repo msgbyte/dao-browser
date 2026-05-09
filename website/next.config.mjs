@@ -5,7 +5,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
   images: { unoptimized: true },
   reactStrictMode: true,
   // The repo root has its own lockfile (for the Chromium build toolchain). Pin
