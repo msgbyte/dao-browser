@@ -141,11 +141,21 @@ export const importCommand = new Command("import")
     );
     if (existsSync(versionUiPath)) {
       const content = readFileSync(versionUiPath, "utf-8");
-      const original = "base::UTF8ToUTF16(version_info::GetVersionNumber()),";
       const replacement =
         `u"(${daoVersion}) (chromium: " +\n` +
         `          base::UTF8ToUTF16(version_info::GetVersionNumber()) + u")",`;
-      if (content.includes(original)) {
+      // Match either the pristine line or any previously-injected version so
+      // re-importing after dao.json.version.display changes works idempotently.
+      const injectedPattern =
+        /u"\([^"]*\) \(chromium: " \+\s*base::UTF8ToUTF16\(version_info::GetVersionNumber\(\)\) \+ u"\)",/;
+      const original = "base::UTF8ToUTF16(version_info::GetVersionNumber()),";
+      if (injectedPattern.test(content)) {
+        writeFileSync(
+          versionUiPath,
+          content.replace(injectedPattern, replacement)
+        );
+        success(`Re-injected Dao version ${daoVersion} into version_ui.cc`);
+      } else if (content.includes(original)) {
         writeFileSync(versionUiPath, content.replace(original, replacement));
         success(`Injected Dao version ${daoVersion} into version_ui.cc`);
       }
