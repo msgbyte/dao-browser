@@ -12,6 +12,8 @@
 #include "base/scoped_observation.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/gfx/animation/animation_delegate.h"
+#include "ui/gfx/animation/linear_animation.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/controls/resize_area.h"
@@ -30,7 +32,8 @@ namespace dao {
 class DaoAgentSidebarView : public views::View,
                             public content::WebContentsDelegate,
                             public views::ResizeAreaDelegate,
-                            public ui::NativeThemeObserver {
+                            public ui::NativeThemeObserver,
+                            public gfx::AnimationDelegate {
   METADATA_HEADER(DaoAgentSidebarView, views::View)
 
  public:
@@ -77,6 +80,11 @@ class DaoAgentSidebarView : public views::View,
   // ui::NativeThemeObserver:
   void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
 
+  // gfx::AnimationDelegate:
+  void AnimationProgressed(const gfx::Animation* animation) override;
+  void AnimationEnded(const gfx::Animation* animation) override;
+  void AnimationCanceled(const gfx::Animation* animation) override;
+
  private:
   void EnsureLoaded();
   void ApplyTheme();
@@ -85,6 +93,15 @@ class DaoAgentSidebarView : public views::View,
   // alive across retries until the hook is installed or kSubmitTimeoutMs
   // elapses.
   void TryFlushPendingPrompt(int attempts_left);
+
+  // Starts an animation interpolating the panel's preferred width between
+  // `from` and `to` over the standard duration. Each frame, the parent
+  // layout re-runs because PreferredSizeChanged() is called — this drives
+  // both the panel's slot and the main content area's width to update
+  // smoothly, and also re-lays out the embedded NativeViewHost (WebView)
+  // which would otherwise stay frozen during a layer-only transform
+  // animation on macOS.
+  void StartWidthAnimation(int from, int to);
 
   raw_ptr<Browser> browser_;
   raw_ptr<views::WebView> web_view_ = nullptr;
@@ -103,6 +120,19 @@ class DaoAgentSidebarView : public views::View,
   // because the dispatch is deferred and the caller's intent (Cmd+L vs
   // Cmd+T) needs to survive the wait.
   bool pending_include_page_context_ = true;
+
+  // Width-interpolation animation state. While `slide_animation_.is_animating()`
+  // is true, CalculatePreferredSize returns the interpolated width and the
+  // parent layout reflows on every tick. `slide_from_` and `slide_to_` are
+  // the endpoints in pixels (0 ↔ user_width_).
+  gfx::LinearAnimation slide_animation_;
+  int slide_from_ = 0;
+  int slide_to_ = 0;
+  // Final visibility the animation is driving toward. When the animation
+  // ends, if this is false we call SetVisible(false). Tracked separately
+  // from `expanded_` so a mid-animation re-toggle that flips `expanded_`
+  // still terminates with the correct visibility.
+  bool animation_target_visible_ = false;
 
   int current_width_ = kDefaultWidth;
   int user_width_ = kDefaultWidth;

@@ -20,6 +20,7 @@
 #include "content/public/common/url_constants.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/gfx/animation/tween.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/controls/webview/webview.h"
@@ -32,7 +33,8 @@ BEGIN_METADATA(DaoAgentSidebarView)
 END_METADATA
 
 DaoAgentSidebarView::DaoAgentSidebarView(Browser* browser)
-    : browser_(browser) {
+    : browser_(browser),
+      slide_animation_(base::Milliseconds(180), 60, this) {
   // Resize handle on the left edge (drag to resize).
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
 
@@ -205,19 +207,27 @@ void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {
 }
 
 bool DaoAgentSidebarView::Toggle() {
+  // Stop any in-flight animation so the new direction starts cleanly from
+  // the panel's currently-visible width. Without this, a fast double-toggle
+  // would re-enter Start* with stale endpoints.
+  if (slide_animation_.is_animating()) {
+    slide_animation_.Stop();
+  }
+
   expanded_ = !expanded_;
+  animation_target_visible_ = expanded_;
 
   if (expanded_) {
     EnsureLoaded();
+    // The view must be visible *before* the animation starts: the parent
+    // layout key (browser_view_tabbed_layout_impl) only allocates a slot
+    // when GetVisible() is true. We grow the slot from its current width
+    // (0 for steady-state hidden, partial for mid-animation re-toggle) up
+    // to user_width_.
+    const int from = GetVisible() ? current_width_ : 0;
     SetVisible(true);
-  } else {
-    SetVisible(false);
-  }
+    StartWidthAnimation(from, /*to=*/user_width_);
 
-  // Single layout pass — web content repaints exactly once.
-  PreferredSizeChanged();
-
-  if (expanded_) {
     // Route keyboard focus into the WebView so the agent input can auto-focus
     // after its visibilitychange handler runs. Deferred so the focus lands
     // after layout + visibility propagation.
@@ -231,13 +241,82 @@ bool DaoAgentSidebarView::Toggle() {
               self->web_view_->RequestFocus();
             },
             weak_factory_.GetWeakPtr()));
+  } else {
+    // Hide path: stay visible during the slide-out so the parent layout
+    // keeps allocating the (shrinking) slot. AnimationEnded will call
+    // SetVisible(false) once the width reaches 0.
+    StartWidthAnimation(/*from=*/current_width_, /*to=*/0);
   }
 
   return expanded_;
 }
 
+void DaoAgentSidebarView::StartWidthAnimation(int from, int to) {
+  slide_from_ = from;
+  slide_to_ = to;
+
+  if (!GetWidget()) {
+    // No compositor / message loop yet — snap to the target. Construction-
+    // time and pre-Show callers hit this path.
+    current_width_ = to;
+    if (!animation_target_visible_) {
+      SetVisible(false);
+    }
+    PreferredSizeChanged();
+    return;
+  }
+
+  current_width_ = from;
+  PreferredSizeChanged();
+  slide_animation_.Start();
+}
+
+void DaoAgentSidebarView::AnimationProgressed(const gfx::Animation* animation) {
+  if (animation != &slide_animation_) {
+    return;
+  }
+  // EASE_OUT decelerates smoothly toward the target — matches the design
+  // language used by the left sidebar.
+  const double t = gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
+                                              slide_animation_.GetCurrentValue());
+  current_width_ =
+      slide_from_ + static_cast<int>((slide_to_ - slide_from_) * t);
+  PreferredSizeChanged();
+}
+
+void DaoAgentSidebarView::AnimationEnded(const gfx::Animation* animation) {
+  if (animation != &slide_animation_) {
+    return;
+  }
+  current_width_ = slide_to_;
+  if (!animation_target_visible_) {
+    // Width hit 0 — actually hide so the parent layout stops allocating
+    // any inset for us, and so future hit-testing doesn't include our
+    // (now zero-sized) bounds.
+    SetVisible(false);
+    // Restore current_width_ to user_width_ so the next show animation
+    // grows back to the user's preferred width (not 0).
+    current_width_ = user_width_;
+  }
+  PreferredSizeChanged();
+}
+
+void DaoAgentSidebarView::AnimationCanceled(const gfx::Animation* animation) {
+  // Cancellation only happens via slide_animation_.Stop() inside Toggle(),
+  // which is immediately followed by StartWidthAnimation() with new
+  // endpoints. Keep current_width_ at its mid-interpolation value so the
+  // new animation starts smoothly from the visible position; do NOT
+  // finalize visibility here — the new animation will own that.
+}
+
 gfx::Size DaoAgentSidebarView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
+  // While animating, return the interpolated current_width_ so the parent
+  // layout reflows smoothly each tick. When idle, fall back to the
+  // expanded/collapsed steady state.
+  if (slide_animation_.is_animating()) {
+    return gfx::Size(current_width_, 0);
+  }
   return gfx::Size(expanded_ ? current_width_ : 0, 0);
 }
 
@@ -265,6 +344,13 @@ bool DaoAgentSidebarView::HandleKeyboardEvent(
 
 void DaoAgentSidebarView::OnResize(int resize_amount, bool done_resizing) {
   if (!expanded_) {
+    return;
+  }
+
+  // Ignore drag input while a slide animation is playing — applying the
+  // delta would fight the animator and the resize handle is moving with
+  // the panel.
+  if (slide_animation_.is_animating()) {
     return;
   }
 
