@@ -1,0 +1,25 @@
+diff --git a/content/browser/renderer_host/navigation_controller_impl.cc b/content/browser/renderer_host/navigation_controller_impl.cc
+index 19cd40b402..a773ac582c 100644
+--- a/content/browser/renderer_host/navigation_controller_impl.cc
++++ b/content/browser/renderer_host/navigation_controller_impl.cc
+@@ -455,6 +455,20 @@ void RewriteUrlForNavigation(const GURL& original_url,
+   *url_to_load = *virtual_url = original_url;
+   BrowserURLHandlerImpl::GetInstance()->RewriteURLIfNecessary(
+       url_to_load, browser_context, reverse_on_redirect);
++
++  // Dao: Chromium initialises virtual_url to the original URL and never
++  // rewrites it during initial navigation (reverse rewriters only run on
++  // redirects). Many internal Chromium callers still use hardcoded
++  // "chrome://..." strings, so without this hop the omnibox would show
++  // chrome:// even though the actual loaded URL is dao://. Mirror the
++  // canonical scheme here so the displayed virtual URL matches the loaded
++  // URL whenever the loader rewrote the scheme.
++  if (virtual_url->SchemeIs("chrome") &&
++      url_to_load->SchemeIs(kChromeUIScheme)) {
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr(kChromeUIScheme);
++    *virtual_url = virtual_url->ReplaceComponents(replacements);
++  }
+ }
+ 
+ #if DCHECK_IS_ON()
