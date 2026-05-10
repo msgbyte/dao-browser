@@ -814,9 +814,37 @@ html, body {
   overflow: hidden;
 }
 
+/* Anchor the body to a fixed minimum width so the native view's width
+ * animation (0 → user_width_) does NOT reflow the WebUI. We use:
+ *   html  → relative position so absolutely-positioned body anchors here
+ *   body  → position: absolute; right: 0; width: max(viewport, min-width)
+ *
+ * Effect: when WebContents is wider than --dao-agent-min-width the body
+ * stretches to fill it (steady state, including user-resized panels up
+ * to kMaxWidth). When narrower (mid-animation), the body stays at
+ * --dao-agent-min-width pinned to the right edge, and html's
+ * overflow:hidden clips whatever overflows the LEFT side. The visible
+ * portion stays right-aligned, producing a "reveal from the right"
+ * effect that matches the panel sliding in from the right edge.
+ *
+ * Keep --dao-agent-min-width >= DaoAgentSidebarView::kDefaultWidth so
+ * the default 200px panel never reflows during animation. */
+:root {
+  --dao-agent-min-width: 200px;
+}
+
+html {
+  position: relative;
+}
+
 body {
   display: flex;
   flex-direction: column;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: max(100%, var(--dao-agent-min-width));
+  height: 100%;
 }
 
 /* ============================================================================

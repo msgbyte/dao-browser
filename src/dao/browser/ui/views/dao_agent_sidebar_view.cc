@@ -289,6 +289,7 @@ void DaoAgentSidebarView::AnimationEnded(const gfx::Animation* animation) {
     return;
   }
   current_width_ = slide_to_;
+
   if (!animation_target_visible_) {
     // Width hit 0 — actually hide so the parent layout stops allocating
     // any inset for us, and so future hit-testing doesn't include our
