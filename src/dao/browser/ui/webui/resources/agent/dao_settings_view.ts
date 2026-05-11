@@ -540,24 +540,24 @@ export class DaoSettingsView extends CrLitElement {
   override render() {
     return html`
       <div class="settings-sub-tabs">
-        ${['general', 'soul', 'tools', 'memory', 'skills', 'stats'].map(tab => html`
+        ${['general', 'soul', 'tools', 'skills', 'stats'].map(tab => html`
           <button class="sub-tab ${this.activeSubTab_ === tab ? 'active' : ''}"
               @click=${() => this.switchSubTab(tab)}>
             ${tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>`)}
       </div>
-      ${this.activeSubTab_ === 'general' ? this.renderConnection_() :
-        this.activeSubTab_ === 'soul' ? this.renderSoul_() :
+      ${this.activeSubTab_ === 'soul' ? this.renderSoul_() :
         this.activeSubTab_ === 'tools' ? this.renderTools_() :
         this.activeSubTab_ === 'skills' ? this.renderSkills_() :
         this.activeSubTab_ === 'stats' ? this.renderStats_() :
-        this.renderMemory_()}
+        this.activeSubTab_ === 'memory' ? this.renderMemory_() :
+        this.renderGeneral_()}
       ${this.showConfirmDialog_ ? this.renderConfirmDialog_() : nothing}
       ${this.showResetStatsDialog_ ? this.renderResetStatsDialog_() : nothing}
     `;
   }
 
-  private renderConnection_() {
+  private renderGeneral_() {
     const spec = this.getProviderSpec_(this.provider_);
     return html`
       <div class="panel">
