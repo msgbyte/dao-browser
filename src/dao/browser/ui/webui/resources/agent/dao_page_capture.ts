@@ -187,6 +187,28 @@ const CAPTURE_SCRIPT = `(function() {
       md = article.textContent || '';
     }
 
+    // CommonMark right-flanking rule: a closing star/underscore run
+    // wedged between a Unicode-punctuation char and a non-space,
+    // non-punct char does NOT close the emphasis. turndown happily
+    // emits "**图片说明：**Claude" (from <strong>图片说明：</strong>Claude)
+    // and marked then leaves the asterisks as literal text. Same
+    // problem when the trailing char is a CJK letter
+    // ("**图片说明：**说明"). Insert an ASCII space so the closer has
+    // a whitespace neighbor and flanking succeeds. U+200B does not
+    // qualify under marked's whitespace predicate, so a real space
+    // is required; this matches typical CJK + Latin typography too.
+    //
+    // \p{L}\p{N} matches any Unicode letter/digit (ASCII and CJK).
+    // The CJK-punct character class covers fullwidth forms,
+    // CJK symbols/punct, plus the curly quotes / dashes / ellipsis
+    // turndown typically passes through.
+    md = md.replace(
+        /([　-〿＀-￯‘-‟…—–])(\*\*|__|\*|_)(?=[\p{L}\p{N}])/gu,
+        '$1$2 ');
+    md = md.replace(
+        /(?<=[\p{L}\p{N}])(\*\*|__|\*|_)([　-〿＀-￯‘-‟…—–])/gu,
+        ' $1$2');
+
     return JSON.stringify({
       url: url,
       title: article.title || docTitle,

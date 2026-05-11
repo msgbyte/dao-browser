@@ -114,3 +114,10 @@ export { registerToolRenderer } from "@mariozechner/pi-web-ui";
 // from here, not from Chromium's //resources/lit, or their TemplateResult
 // type tags will not match.
 export { html } from "lit";
+
+// Same singleton instance @mariozechner/mini-lit's <markdown-block> uses
+// to render all chat content. Exposing it lets Dao install a preprocess
+// hook that fixes CJK + emphasis flanking before marked tokenizes (see
+// dao_agent_app.ts), without forking pi-web-ui or mini-lit.
+// @ts-expect-error — resolved from vendor/node_modules at bundle time.
+export { marked } from "marked";

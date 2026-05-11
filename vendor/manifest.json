@@ -22,8 +22,8 @@
         "@sinclair/typebox": "^0.34.49",
         "lit": "^3.3.2"
       },
-      "sha256": "0eeece4993d451b6d8ef2ec88d7219d59e0fd160a029b2a4075643f660c3db73",
-      "generatedAt": "2026-05-07T14:42:30.821Z"
+      "sha256": "8c248e53a23d952d67918fac6312d402f50eb25380630fcd8d90d230c987823f",
+      "generatedAt": "2026-05-11T13:03:52.862Z"
     },
     {
       "name": "pi-web-ui-css",
