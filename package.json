@@ -30,7 +30,10 @@
     "sparkle:fetch": "tsx scripts/cli.ts sparkle fetch",
     "sparkle:keygen": "tsx scripts/cli.ts sparkle keygen",
     "sparkle:sign": "tsx scripts/cli.ts sparkle sign",
-    "upload:release": "tsx scripts/cli.ts upload"
+    "upload:release": "tsx scripts/cli.ts upload",
+    "release": "tsx scripts/cli.ts release",
+    "release:minor": "tsx scripts/cli.ts release --bump minor",
+    "release:major": "tsx scripts/cli.ts release --bump major"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
