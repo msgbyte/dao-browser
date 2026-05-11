@@ -6,6 +6,7 @@ import { buildCommand } from "./commands/build.js";
 import { packageCommand } from "./commands/package.js";
 import { vendorCommand } from "./commands/vendor.js";
 import { sparkleCommand } from "./commands/sparkle.js";
+import { uploadCommand } from "./commands/upload.js";
 
 const program = new Command();
 
@@ -21,5 +22,6 @@ program.addCommand(buildCommand);
 program.addCommand(packageCommand);
 program.addCommand(vendorCommand);
 program.addCommand(sparkleCommand);
+program.addCommand(uploadCommand);
 
 program.parse();

@@ -29,7 +29,8 @@
     "vendor:check": "tsx scripts/cli.ts vendor --check",
     "sparkle:fetch": "tsx scripts/cli.ts sparkle fetch",
     "sparkle:keygen": "tsx scripts/cli.ts sparkle keygen",
-    "sparkle:sign": "tsx scripts/cli.ts sparkle sign"
+    "sparkle:sign": "tsx scripts/cli.ts sparkle sign",
+    "upload:release": "tsx scripts/cli.ts upload"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
