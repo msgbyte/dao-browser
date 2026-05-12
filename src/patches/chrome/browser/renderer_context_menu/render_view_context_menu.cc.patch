@@ -1,0 +1,120 @@
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index 69da6a650e..1862c7a73d 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -141,8 +141,13 @@
+ #include "chrome/common/pref_names.h"
+ #include "chrome/common/url_constants.h"
+ #include "chrome/common/webui_url_constants.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/grit/generated_resources.h"
++#include "dao/browser/qrcode/dao_qr_code_decoder.h"
++#include "dao/browser/qrcode/dao_qr_code_types.h"
++#include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
+ #include "components/autofill/content/browser/content_autofill_client.h"
+ #include "components/autofill/content/browser/content_autofill_driver.h"
+ #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
+@@ -575,13 +580,17 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
+        {IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS, 160},
+        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY, 161},
+        {IDC_CONTENT_CONTEXT_GLIC, 162},
++       // Dao addition: registered here so ExecuteCommand's NOTREACHED guard
++       // does not fire. UMA bucket 163 is local-only — Dao does not report
++       // RenderViewContextMenu UMA upstream.
++       {IDC_DAO_DECODE_QR_CODE, 163},
+        // To add new items:
+        //   - Add one more line above this comment block, using the UMA value
+        //     from the line below this comment block.
+        //   - Increment the UMA value in that latter line.
+        //   - Add the new item to the RenderViewContextMenuItem enum in
+        //     tools/metrics/histograms/metadata/ui/enums.xml.
+-       {0, 163}});
++       {0, 164}});
+   // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:RenderViewContextMenuItem)
+ 
+   // LINT.IfChange(ContextMenuOptionDesktop)
+@@ -2085,6 +2094,9 @@ void RenderViewContextMenu::AppendImageItems() {
+   menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_COPYIMAGELOCATION,
+                                   IDS_CONTENT_CONTEXT_COPYIMAGELOCATION);
+ 
++  // Dao: decode QR codes embedded in the image.
++  menu_model_.AddItem(IDC_DAO_DECODE_QR_CODE, u"Decode QR Code");
++
+   // Don't double-add for linked images, which also add the item.
+   if (params_.link_url.is_empty()) {
+     AppendQRCodeGeneratorItem(/*for_image=*/true, /*draw_icon=*/false,
+@@ -3020,6 +3032,9 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
+     case IDC_CONTENT_CONTEXT_COPYIMAGE:
+       return params_.has_image_contents;
+ 
++    case IDC_DAO_DECODE_QR_CODE:
++      return params_.has_image_contents;
++
+     // Loop command should be disabled if the player is in an error state.
+     case IDC_CONTENT_CONTEXT_LOOP:
+       return (params_.media_flags & ContextMenuData::kMediaCanLoop) != 0 &&
+@@ -3380,6 +3395,10 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+       ExecCopyImageAt();
+       break;
+ 
++    case IDC_DAO_DECODE_QR_CODE:
++      ExecuteDecodeQrCode();
++      break;
++
+     case IDC_CONTENT_CONTEXT_SAVEVIDEOFRAMEAS:
+       ExecSaveVideoFrameAs();
+       break;
+@@ -5165,3 +5184,51 @@ bool RenderViewContextMenu::IsLinkToIsolatedWebApp() const {
+ }
+ #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+         // BUILDFLAG(IS_CHROMEOS)
++
++void RenderViewContextMenu::ExecuteDecodeQrCode() {
++  content::RenderFrameHost* rfh = GetRenderFrameHost();
++  if (!rfh) {
++    ShowQrToast(u"No QR code found");
++    return;
++  }
++  mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame> chrome_render_frame;
++  rfh->GetRemoteAssociatedInterfaces()->GetInterface(&chrome_render_frame);
++  auto* frame_raw = chrome_render_frame.get();
++  frame_raw->RequestBitmapForContextNode(base::BindOnce(
++      &RenderViewContextMenu::OnQrBitmapReceived,
++      weak_pointer_factory_.GetWeakPtr(), std::move(chrome_render_frame)));
++}
++
++void RenderViewContextMenu::OnQrBitmapReceived(
++    mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>
++        /*kept_alive*/,
++    const SkBitmap& bitmap) {
++  if (bitmap.drawsNothing()) {
++    ShowQrToast(u"No QR code found");
++    return;
++  }
++  dao::DaoQrCodeDecoder::DecodeBitmapAsync(
++      bitmap, base::BindOnce(&RenderViewContextMenu::OnQrDecoded,
++                             weak_pointer_factory_.GetWeakPtr()));
++}
++
++void RenderViewContextMenu::OnQrDecoded(dao::DecodedQrCodes results) {
++  if (results.empty()) {
++    ShowQrToast(u"No QR code found");
++    return;
++  }
++  dao::DaoQrCodeResultDialogView::Show(source_web_contents_,
++                                       std::move(results));
++}
++
++void RenderViewContextMenu::ShowQrToast(const std::u16string& message) {
++  if (!source_web_contents_) {
++    return;
++  }
++  BrowserView* browser_view = BrowserView::GetBrowserViewForNativeWindow(
++      source_web_contents_->GetTopLevelNativeWindow());
++  if (!browser_view || !browser_view->dao_toast()) {
++    return;
++  }
++  browser_view->dao_toast()->ShowToast(message);
++}

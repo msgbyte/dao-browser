@@ -1,0 +1,23 @@
+diff --git a/ui/views/widget/widget_delegate.h b/ui/views/widget/widget_delegate.h
+index 07ba390764..55e54767f6 100644
+--- a/ui/views/widget/widget_delegate.h
++++ b/ui/views/widget/widget_delegate.h
+@@ -52,6 +52,9 @@ class SigninViewControllerDelegateViews;
+ class SimpleWebViewDialog;
+ class TabModalConfirmDialogViews;
+ class TestBaseWidgetDelegate;
++namespace dao {
++class DaoQrCodeResultDialogView;
++}  // namespace dao
+ class UpdateRecommendedMessageBox;
+ class WebDialogBrowserTest;
+ FORWARD_DECLARE_TEST(AcceleratorCommandsFullscreenBrowserTest,
+@@ -391,6 +394,8 @@ class VIEWS_EXPORT WidgetDelegate {
+     friend class ::SearchEngineChoiceDialog;
+     friend class ::TabModalConfirmDialogViews;
+     friend class ::TestBaseWidgetDelegate;
++    // Dao Browser additions.
++    friend class ::dao::DaoQrCodeResultDialogView;
+     friend class ::UpdateRecommendedMessageBox;
+     friend class ::WebDialogBrowserTest;
+     FRIEND_TEST_ALL_PREFIXES(::TabStripScrollContainerTest,

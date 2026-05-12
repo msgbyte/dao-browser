@@ -1,0 +1,21 @@
+Name: ZXing-cpp
+Short Name: zxing-cpp
+URL: https://github.com/zxing-cpp/zxing-cpp
+Version: 2.2.1
+Date: 2024-02-22
+Revision: v2.2.1
+SHA-256: 02078ae15f19f9d423a441f205b1d1bee32349ddda7467e2c84e8f08876f8635
+License: Apache-2.0
+License File: LICENSE
+Security Critical: yes
+Shipped: yes
+
+Description:
+ZXing-cpp is a C++ port of the ZXing barcode scanning library. Used by Dao
+Browser to decode QR codes (and incidentally other supported symbologies)
+from images selected via the right-click context menu. Only the core/
+directory is vendored; tooling, examples, and language bindings are
+omitted.
+
+Local Modifications:
+None.

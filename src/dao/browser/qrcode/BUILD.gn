@@ -1,0 +1,45 @@
+# Copyright 2026 Dao Browser. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The decoder bridges Chromium (compiled with -fno-exceptions) to ZXing-cpp
+# (which throws). We isolate the bridge in its own source_set so we can flip
+# exceptions on for just this translation unit and catch the std::exception
+# that crosses the boundary, while every other Dao file remains
+# exception-free.
+
+config("decoder_internal_config") {
+  cflags_cc = [ "-fexceptions" ]
+}
+
+source_set("qr_decoder") {
+  sources = [
+    "dao_qr_code_decoder.cc",
+    "dao_qr_code_decoder.h",
+    "dao_qr_code_types.h",
+  ]
+  configs -= [ "//build/config/compiler:no_exceptions" ]
+  configs += [ ":decoder_internal_config" ]
+  public_deps = [
+    "//base",
+    "//skia",
+    "//url",
+  ]
+  deps = [
+    "//dao/third_party/zxing-cpp:zxing",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "dao_qr_code_decoder_unittest.cc" ]
+  deps = [
+    ":qr_decoder",
+    "//base",
+    "//base/test:test_support",
+    "//components/qr_code_generator:bitmap_generator",
+    "//skia",
+    "//testing/gtest",
+    "//url",
+  ]
+}

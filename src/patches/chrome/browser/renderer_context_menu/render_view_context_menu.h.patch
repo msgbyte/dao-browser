@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.h b/chrome/browser/renderer_context_menu/render_view_context_menu.h
+index 783739ac45..f580546a71 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.h
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.h
+@@ -20,6 +20,7 @@
+ #include "chrome/common/chrome_render_frame.mojom.h"
+ #include "chromeos/ui/clipboard_history/clipboard_history_types.h"
+ #include "components/compose/buildflags.h"
++#include "dao/browser/qrcode/dao_qr_code_types.h"
+ #include "components/custom_handlers/protocol_handler_registry.h"
+ #include "components/lens/buildflags.h"
+ #include "components/lens/lens_overlay_invocation_source.h"
+@@ -624,6 +625,15 @@ class RenderViewContextMenu
+   bool glic_item_shown_ = false;
+   bool glic_item_executed_ = false;
+ 
++  // Dao: QR code decode pipeline for the image context menu.
++  void ExecuteDecodeQrCode();
++  void OnQrBitmapReceived(
++      mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>
++          chrome_render_frame,
++      const SkBitmap& bitmap);
++  void OnQrDecoded(dao::DecodedQrCodes results);
++  void ShowQrToast(const std::u16string& message);
++
+   base::WeakPtrFactory<RenderViewContextMenu> weak_pointer_factory_{this};
+ };
+ 

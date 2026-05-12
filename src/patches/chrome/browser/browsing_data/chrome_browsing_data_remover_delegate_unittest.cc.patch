@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/browsing_data/chrome_browsing_data_remover_delegate_unittest.cc b/chrome/browser/browsing_data/chrome_browsing_data_remover_delegate_unittest.cc
+index aaaaaaaaaa..bbbbbbbbbb 100644
+--- a/chrome/browser/browsing_data/chrome_browsing_data_remover_delegate_unittest.cc
++++ b/chrome/browser/browsing_data/chrome_browsing_data_remover_delegate_unittest.cc
+@@ -883,7 +883,7 @@ class RemoveDownloadsTester {
+   raw_ptr<ChromeDownloadManagerDelegate> chrome_download_manager_delegate_;
+ };
+
+-base::RepeatingCallback<bool(const GURL&)> CreateUrlFilterFromOriginFilter(
++[[maybe_unused]] base::RepeatingCallback<bool(const GURL&)> CreateUrlFilterFromOriginFilter(
+     const base::RepeatingCallback<bool(const url::Origin&)>& origin_filter) {
+   if (origin_filter.is_null()) {
+     return base::RepeatingCallback<bool(const GURL&)>();

@@ -1,0 +1,171 @@
+# Copyright 2026 Dao Browser. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# GN build file for vendored zxing-cpp 2.2.1.
+#
+# Upstream is CMake-based; this file mirrors core/CMakeLists.txt with both
+# BUILD_READERS and BUILD_WRITERS enabled (the writer files are pulled in
+# transitively by ECI/Content code, so excluding them is more effort than
+# it's worth here).
+#
+# Headers under core/src/ are picked up automatically through the public
+# include_dirs; only translation units (.cpp / .c) are listed in `sources`.
+
+config("zxing_external_config") {
+  include_dirs = [ "core/src" ]
+}
+
+config("zxing_internal_config") {
+  cflags_cc = [
+    "-fexceptions",
+    "-Wno-unused-but-set-variable",
+    "-Wno-unused-variable",
+    "-Wno-shadow",
+    "-Wno-implicit-int-conversion",
+    "-Wno-shorten-64-to-32",
+    "-Wno-conversion",
+    "-Wno-deprecated-declarations",
+    "-Wno-exit-time-destructors",
+    "-Wno-global-constructors",
+    "-Wno-c++98-compat-extra-semi",
+    "-Wno-extra-semi",
+    "-Wno-missing-braces",
+  ]
+  cflags = [
+    "-Wno-unused-but-set-variable",
+    "-Wno-unused-variable",
+    "-Wno-shadow",
+    "-Wno-implicit-int-conversion",
+    "-Wno-shorten-64-to-32",
+    "-Wno-conversion",
+    "-Wno-deprecated-declarations",
+  ]
+}
+
+static_library("zxing") {
+  sources = [
+    "core/src/BarcodeFormat.cpp",
+    "core/src/BinaryBitmap.cpp",
+    "core/src/BitArray.cpp",
+    "core/src/BitMatrix.cpp",
+    "core/src/BitMatrixIO.cpp",
+    "core/src/BitSource.cpp",
+    "core/src/CharacterSet.cpp",
+    "core/src/ConcentricFinder.cpp",
+    "core/src/Content.cpp",
+    "core/src/DecodeHints.cpp",
+    "core/src/ECI.cpp",
+    "core/src/GTIN.cpp",
+    "core/src/GenericGF.cpp",
+    "core/src/GenericGFPoly.cpp",
+    "core/src/GlobalHistogramBinarizer.cpp",
+    "core/src/GridSampler.cpp",
+    "core/src/HRI.cpp",
+    "core/src/HybridBinarizer.cpp",
+    "core/src/MultiFormatReader.cpp",
+    "core/src/MultiFormatWriter.cpp",
+    "core/src/PerspectiveTransform.cpp",
+    "core/src/ReadBarcode.cpp",
+    "core/src/ReedSolomonDecoder.cpp",
+    "core/src/ReedSolomonEncoder.cpp",
+    "core/src/Result.cpp",
+    "core/src/ResultPoint.cpp",
+    "core/src/TextDecoder.cpp",
+    "core/src/TextEncoder.cpp",
+    "core/src/TextUtfEncoding.cpp",
+    "core/src/Utf.cpp",
+    "core/src/WhiteRectDetector.cpp",
+    "core/src/ZXBigInteger.cpp",
+    "core/src/aztec/AZDecoder.cpp",
+    "core/src/aztec/AZDetector.cpp",
+    "core/src/aztec/AZEncoder.cpp",
+    "core/src/aztec/AZHighLevelEncoder.cpp",
+    "core/src/aztec/AZReader.cpp",
+    "core/src/aztec/AZToken.cpp",
+    "core/src/aztec/AZWriter.cpp",
+    "core/src/datamatrix/DMBitLayout.cpp",
+    "core/src/datamatrix/DMDataBlock.cpp",
+    "core/src/datamatrix/DMDecoder.cpp",
+    "core/src/datamatrix/DMDetector.cpp",
+    "core/src/datamatrix/DMECEncoder.cpp",
+    "core/src/datamatrix/DMHighLevelEncoder.cpp",
+    "core/src/datamatrix/DMReader.cpp",
+    "core/src/datamatrix/DMSymbolInfo.cpp",
+    "core/src/datamatrix/DMVersion.cpp",
+    "core/src/datamatrix/DMWriter.cpp",
+    "core/src/libzueci/zueci.c",
+    "core/src/maxicode/MCBitMatrixParser.cpp",
+    "core/src/maxicode/MCDecoder.cpp",
+    "core/src/maxicode/MCReader.cpp",
+    "core/src/oned/ODCodabarReader.cpp",
+    "core/src/oned/ODCodabarWriter.cpp",
+    "core/src/oned/ODCode128Patterns.cpp",
+    "core/src/oned/ODCode128Reader.cpp",
+    "core/src/oned/ODCode128Writer.cpp",
+    "core/src/oned/ODCode39Reader.cpp",
+    "core/src/oned/ODCode39Writer.cpp",
+    "core/src/oned/ODCode93Reader.cpp",
+    "core/src/oned/ODCode93Writer.cpp",
+    "core/src/oned/ODDataBarCommon.cpp",
+    "core/src/oned/ODDataBarExpandedBitDecoder.cpp",
+    "core/src/oned/ODDataBarExpandedReader.cpp",
+    "core/src/oned/ODDataBarReader.cpp",
+    "core/src/oned/ODEAN13Writer.cpp",
+    "core/src/oned/ODEAN8Writer.cpp",
+    "core/src/oned/ODITFReader.cpp",
+    "core/src/oned/ODITFWriter.cpp",
+    "core/src/oned/ODMultiUPCEANReader.cpp",
+    "core/src/oned/ODReader.cpp",
+    "core/src/oned/ODRowReader.cpp",
+    "core/src/oned/ODUPCAWriter.cpp",
+    "core/src/oned/ODUPCEANCommon.cpp",
+    "core/src/oned/ODUPCEWriter.cpp",
+    "core/src/oned/ODWriterHelper.cpp",
+    "core/src/pdf417/PDFBarcodeValue.cpp",
+    "core/src/pdf417/PDFBoundingBox.cpp",
+    "core/src/pdf417/PDFCodewordDecoder.cpp",
+    "core/src/pdf417/PDFDecoder.cpp",
+    "core/src/pdf417/PDFDetectionResult.cpp",
+    "core/src/pdf417/PDFDetectionResultColumn.cpp",
+    "core/src/pdf417/PDFDetector.cpp",
+    "core/src/pdf417/PDFEncoder.cpp",
+    "core/src/pdf417/PDFHighLevelEncoder.cpp",
+    "core/src/pdf417/PDFModulusGF.cpp",
+    "core/src/pdf417/PDFModulusPoly.cpp",
+    "core/src/pdf417/PDFReader.cpp",
+    "core/src/pdf417/PDFScanningDecoder.cpp",
+    "core/src/pdf417/PDFWriter.cpp",
+    "core/src/qrcode/QRBitMatrixParser.cpp",
+    "core/src/qrcode/QRCodecMode.cpp",
+    "core/src/qrcode/QRDataBlock.cpp",
+    "core/src/qrcode/QRDecoder.cpp",
+    "core/src/qrcode/QRDetector.cpp",
+    "core/src/qrcode/QREncoder.cpp",
+    "core/src/qrcode/QRErrorCorrectionLevel.cpp",
+    "core/src/qrcode/QRFormatInformation.cpp",
+    "core/src/qrcode/QRMaskUtil.cpp",
+    "core/src/qrcode/QRMatrixUtil.cpp",
+    "core/src/qrcode/QRReader.cpp",
+    "core/src/qrcode/QRVersion.cpp",
+    "core/src/qrcode/QRWriter.cpp",
+  ]
+
+  # Chromium globally enforces -fno-exceptions, but zxing-cpp throws on
+  # invalid input (see ReadBarcode.cpp). Drop the global config and re-enable
+  # exceptions on this target only; the rest of the binary stays unchanged.
+  configs -= [ "//build/config/compiler:no_exceptions" ]
+  # Third-party code: swap the strict chromium_code warning set for the
+  # relaxed no_chromium_code set so zxing-cpp doesn't trip on style warnings
+  # like missing-braces, exit-time-destructors, extra-semi, etc.
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [ ":zxing_internal_config" ]
+  public_configs = [ ":zxing_external_config" ]
+
+  visibility = [
+    "//chrome/browser/renderer_context_menu:*",
+    "//chrome/browser/ui:*",
+    "//dao/browser/qrcode:*",
+  ]
+}

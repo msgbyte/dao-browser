@@ -48,10 +48,10 @@ void DaoDownloadFlyoutView::StartAnimation(const gfx::Point& start,
   // natural parabolic arc — the icon rises slightly then falls toward
   // the download button in the bottom-left sidebar.
   //
-  //            * 控制点 (上方)
+  //            * control point (above)
   //           / \
   //          /   \
-  //   起点 /     \ 终点 (下载按钮)
+  //   start /     \ end (download button)
   //
   float mid_x = (start_.x() + end_.x()) * 0.5f;
   float top_y = std::min(start_.y(), end_.y());

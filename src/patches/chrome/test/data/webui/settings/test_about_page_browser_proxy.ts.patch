@@ -1,0 +1,26 @@
+diff --git a/chrome/test/data/webui/settings/test_about_page_browser_proxy.ts b/chrome/test/data/webui/settings/test_about_page_browser_proxy.ts
+index aaaaaaaaaa..bbbbbbbbbb 100644
+--- a/chrome/test/data/webui/settings/test_about_page_browser_proxy.ts
++++ b/chrome/test/data/webui/settings/test_about_page_browser_proxy.ts
+@@ -17,6 +17,10 @@ export class TestAboutPageBrowserProxy extends TestBrowserProxy implements
+       // <if expr="is_macosx">
+       'promoteUpdater',
+       // </if>
++
++      // <if expr="is_macosx">
++      'daoCheckForUpdates',
++      // </if>
+     ]);
+   }
+
+@@ -49,4 +53,10 @@ export class TestAboutPageBrowserProxy extends TestBrowserProxy implements
+     this.methodCalled('promoteUpdater');
+   }
+   // </if>
++
++  // <if expr="is_macosx">
++  daoCheckForUpdates() {
++    this.methodCalled('daoCheckForUpdates');
++  }
++  // </if>
+ }
