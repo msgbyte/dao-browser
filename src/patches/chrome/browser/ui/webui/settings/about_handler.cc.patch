@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/webui/settings/about_handler.cc b/chrome/browser/ui/webui/settings/about_handler.cc
-index 17a72c6c10..38cc2782c5 100644
+index 17a72c6c10..6d9a8e9cf6 100644
 --- a/chrome/browser/ui/webui/settings/about_handler.cc
 +++ b/chrome/browser/ui/webui/settings/about_handler.cc
 @@ -51,6 +51,10 @@
@@ -13,20 +13,79 @@ index 17a72c6c10..38cc2782c5 100644
  #if BUILDFLAG(IS_CHROMEOS)
  #include <optional>
  
-@@ -415,6 +419,12 @@ void AboutHandler::RegisterMessages() {
+@@ -304,10 +308,15 @@ void AboutHandler::RegisterMessages() {
+   web_ui()->RegisterMessageCallback(
+       "aboutPageReady", base::BindRepeating(&AboutHandler::HandlePageReady,
+                                             base::Unretained(this)));
++#if !BUILDFLAG(IS_MAC)
++  // Dao: macOS uses Sparkle. Skip Chromium's auto-fired update check so the
++  // settings About page does not trigger the Omaha backend, which is absent
++  // on non-Google-branded official builds and surfaces a misleading error.
+   web_ui()->RegisterMessageCallback(
+       "refreshUpdateStatus",
+       base::BindRepeating(&AboutHandler::HandleRefreshUpdateStatus,
+                           base::Unretained(this)));
++#endif
+   web_ui()->RegisterMessageCallback(
+       "openFeedbackDialog",
+       base::BindRepeating(&AboutHandler::HandleOpenFeedbackDialog,
+@@ -412,10 +421,21 @@ void AboutHandler::RegisterMessages() {
+                           base::Unretained(this)));
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ #if BUILDFLAG(IS_MAC)
++  // Dao: Chromium's promoteUpdater (Keystone "make autoupdate available to
++  // all users") is replaced by Sparkle's update flow. Disable the message
++  // handler so the front-end can drop its call site.
++#if 0
    web_ui()->RegisterMessageCallback(
        "promoteUpdater", base::BindRepeating(&AboutHandler::PromoteUpdater,
                                              base::Unretained(this)));
+ #endif
 +  // Dao: route the settings "Check for updates" button to the Sparkle-backed
 +  // updater service so the UI matches the menu item behaviour.
 +  web_ui()->RegisterMessageCallback(
 +      "daoCheckForUpdates",
 +      base::BindRepeating(&AboutHandler::HandleDaoCheckForUpdates,
 +                          base::Unretained(this)));
- #endif
++#endif
  
  #if BUILDFLAG(IS_CHROMEOS)
-@@ -509,6 +519,13 @@ void AboutHandler::RefreshUpdateStatus() {
+   // Handler for the product label image, which will be shown if available.
+@@ -426,6 +446,14 @@ void AboutHandler::RegisterMessages() {
+ }
+ 
+ void AboutHandler::OnJavascriptAllowed() {
++#if BUILDFLAG(IS_MAC)
++  // Dao: macOS uses Sparkle for updates. Skip allocation of VersionUpdater
++  // and the policy observer so opening the About page does not auto-fire
++  // the Chromium update check. The UpgradeDetector observer registered in
++  // the ctor is a no-op on mac because apply_changes_from_upgrade_observer_
++  // remains at its default value of false.
++  return;
++#else
+   apply_changes_from_upgrade_observer_ = true;
+   version_updater_ = VersionUpdater::Create(web_ui()->GetWebContents());
+   policy_registrar_ = std::make_unique<policy::PolicyChangeRegistrar>(
+@@ -445,15 +473,18 @@ void AboutHandler::OnJavascriptAllowed() {
+                                 weak_factory_.GetWeakPtr()));
+   }
+ #endif  // BUILDFLAG(IS_CHROMEOS)
++#endif  // !IS_MAC
+ }
+ 
+ void AboutHandler::OnJavascriptDisallowed() {
+   // Invalidate all existing WeakPtrs so that no stale callbacks occur.
+   weak_factory_.InvalidateWeakPtrs();
+ 
++#if !BUILDFLAG(IS_MAC)
+   apply_changes_from_upgrade_observer_ = false;
+   version_updater_.reset();
+   policy_registrar_.reset();
++#endif
+ }
+ 
+ void AboutHandler::OnUpgradeRecommended() {
+@@ -509,6 +540,13 @@ void AboutHandler::RefreshUpdateStatus() {
  void AboutHandler::PromoteUpdater(const base::ListValue& args) {
    version_updater_->PromoteUpdater();
  }

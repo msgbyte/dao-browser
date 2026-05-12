@@ -1,7 +1,34 @@
 diff --git a/chrome/browser/resources/settings/about_page/about_page.html b/chrome/browser/resources/settings/about_page/about_page.html
-index 5069802bf7..04121421ab 100644
+index 5069802bf7..3c1900190d 100644
 --- a/chrome/browser/resources/settings/about_page/about_page.html
 +++ b/chrome/browser/resources/settings/about_page/about_page.html
+@@ -57,7 +57,7 @@
+       <div class="cr-row two-line">
+         <!-- Set the icon from the iconset (when it's obsolete/EOL and
+           when update is done) or set the src (when it's updating). -->
+-<if expr="not is_chromeos">
++<if expr="not is_chromeos and not is_macosx">
+         <div class="icon-container"
+             hidden="[[!shouldShowIcons_(showUpdateStatus_)]]">
+           <cr-icon
+@@ -72,7 +72,7 @@
+         </div>
+ </if>
+         <div class="flex cr-padded-text">
+-<if expr="not is_chromeos">
++<if expr="not is_chromeos and not is_macosx">
+           <div id="updateStatusMessage" hidden="[[!showUpdateStatus_]]">
+             <div role="alert" aria-live="polite"
+                 inner-h-t-m-l="[[getUpdateStatusMessage_(
+@@ -96,7 +96,7 @@
+ </if>
+           <div class="secondary">$i18n{aboutBrowserVersion}</div>
+         </div>
+-<if expr="not is_chromeos">
++<if expr="not is_chromeos and not is_macosx">
+         <div class="separator" hidden="[[!showButtonContainer_]]"></div>
+         <span id="buttonContainer" hidden="[[!showButtonContainer_]]">
+           <cr-button id="relaunch" hidden="[[!showRelaunch_]]"
 @@ -104,6 +104,13 @@
              $i18n{aboutRelaunch}
            </cr-button>
@@ -16,3 +43,12 @@ index 5069802bf7..04121421ab 100644
  </if>
        </div>
  <if expr="_google_chrome and is_macosx">
+@@ -160,7 +167,7 @@
+           <a id="tos" href="$i18n{aboutTermsURL}">$i18n{aboutProductTos}</a>
+         </div>
+ </if>
+-<if expr="not is_chromeos">
++<if expr="not is_chromeos and not is_macosx">
+   <template is="dom-if" if="[[shouldShowRelaunchDialog]]" restamp>
+     <relaunch-confirmation-dialog restart-type="[[restartTypeEnum.RELAUNCH]]"
+         on-close="onRelaunchDialogClose"></relaunch-confirmation-dialog>

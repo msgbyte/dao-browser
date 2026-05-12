@@ -1,8 +1,22 @@
 diff --git a/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts b/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
-index 10bea4664a..7d4e797014 100644
+index 10bea4664a..093d69d965 100644
 --- a/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
-@@ -73,6 +73,14 @@ export interface AboutPageBrowserProxy {
+@@ -50,11 +50,13 @@ export interface AboutPageBrowserProxy {
+    */
+   pageReady(): void;
+ 
++  // <if expr="not is_macosx">
+   /**
+    * Request update status from the browser. It results in one or more
+    * 'update-status-changed' WebUI events.
+    */
+   refreshUpdateStatus(): void;
++  // </if>
+ 
+   /** Opens the help page. */
+   openHelpPage(): void;
+@@ -73,6 +75,14 @@ export interface AboutPageBrowserProxy {
     */
    promoteUpdater(): void;
    // </if>
@@ -17,7 +31,19 @@ index 10bea4664a..7d4e797014 100644
  }
  
  export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
-@@ -90,6 +98,12 @@ export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
+@@ -80,9 +90,11 @@ export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
+     chrome.send('aboutPageReady');
+   }
+ 
++  // <if expr="not is_macosx">
+   refreshUpdateStatus() {
+     chrome.send('refreshUpdateStatus');
+   }
++  // </if>
+ 
+   // <if expr="_google_chrome and is_macosx">
+   promoteUpdater() {
+@@ -90,6 +102,12 @@ export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
    }
    // </if>
  
