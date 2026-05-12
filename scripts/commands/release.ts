@@ -1,6 +1,8 @@
 import { Command } from "commander";
+import { spawn } from "node:child_process";
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import chalk from "chalk";
 import {
   ROOT_DIR,
   loadConfig,
@@ -17,6 +19,11 @@ interface ReleaseOptions {
   prefix?: string;
   skipUpload?: boolean;
   skipBuild?: boolean;
+  skipBump?: boolean;
+  // Resume from staple: dmg has already been notarized externally
+  // (e.g. you ran `xcrun stapler staple dist/...dmg` yourself), and
+  // we just need to finish appcast + copy + upload.
+  resumeFromStaple?: boolean;
   dryRun?: boolean;
 }
 
@@ -56,6 +63,17 @@ export const releaseCommand = new Command("release")
   .option("-p, --prefix <prefix>", "R2 key prefix for the .dmg", "")
   .option("--skip-upload", "Skip the R2 upload step (still produces artifacts)")
   .option("--skip-build", "Skip import + build (use existing dist/ artifact)")
+  .option(
+    "--skip-bump",
+    "Use the version already in dao.json instead of bumping " +
+      "(use when resuming a release that failed mid-way)"
+  )
+  .option(
+    "--resume-from-staple",
+    "Skip build + sign + notarize. Use this when you've already " +
+      "notarized + stapled the dmg manually after a notarytool keychain " +
+      "failure. Continues from generate_appcast onward."
+  )
   .option("--dry-run", "Print steps without executing them")
   .action(async (opts: ReleaseOptions) => {
     // ------------------------------------------------------------------
@@ -150,14 +168,22 @@ export const releaseCommand = new Command("release")
     success("Pre-flight check passed");
 
     // ------------------------------------------------------------------
-    // Step 1 — bump version in dao.json
+    // Step 1 — bump version in dao.json (or reuse the current one when
+    // resuming a release that failed mid-way, so dao.json doesn't get
+    // double-bumped on retry).
     // ------------------------------------------------------------------
     const config = loadConfig();
     const oldVersion = config.version.display;
-    const newVersion = bumpVersion(oldVersion, opts.bump || "patch");
-    log(`Bumping version: ${oldVersion} → ${newVersion}`);
-    if (!opts.dryRun) {
-      writeDaoVersion(newVersion);
+    let newVersion: string;
+    if (opts.skipBump) {
+      newVersion = oldVersion;
+      log(`Reusing version from dao.json: ${newVersion} (--skip-bump)`);
+    } else {
+      newVersion = bumpVersion(oldVersion, opts.bump || "patch");
+      log(`Bumping version: ${oldVersion} → ${newVersion}`);
+      if (!opts.dryRun) {
+        writeDaoVersion(newVersion);
+      }
     }
 
     const arch = config.build.target_cpu;
@@ -178,36 +204,67 @@ export const releaseCommand = new Command("release")
     }
 
     // ------------------------------------------------------------------
-    // Step 2 — import:force (re-applies patches and copies src/dao/ over)
+    // Steps 2-4 — import + build + package (sign + notarize + staple)
+    //
+    // We intentionally DON'T pass --notarize/--staple to the package
+    // subcommand. notarize is run by release itself below so that on
+    // failure we can stop cleanly and print recovery instructions for
+    // the operator, rather than getting trapped inside the package
+    // subcommand's exit path. (Background: macOS occasionally rejects
+    // `xcrun notarytool submit` from a long-running process with the
+    // misleading error "No Keychain password item found". The recovery
+    // is to run that one command from your interactive shell — see
+    // printNotarizeRecoveryGuide() for the exact steps.)
     // ------------------------------------------------------------------
-    if (!opts.skipBuild) {
+    const skipBuildPhase = opts.skipBuild || opts.resumeFromStaple;
+    if (!skipBuildPhase) {
       await runStep(
         opts.dryRun,
         "Importing patches (force)",
-        "npm",
-        ["run", "import:force"]
+        "npx",
+        ["tsx", "scripts/cli.ts", "import", "--force"]
       );
 
-      // ----------------------------------------------------------------
-      // Step 3 — build (release, since this artifact ships to users)
-      // Note: package:release internally rebuilds via gn+ninja only if
-      // the inputs changed, but the project's convention is to do a
-      // dedicated build step first to surface compile errors early.
-      // ----------------------------------------------------------------
-      await runStep(opts.dryRun, "Building (release)", "npm", [
-        "run",
+      await runStep(opts.dryRun, "Building (release)", "npx", [
+        "tsx",
+        "scripts/cli.ts",
         "build",
       ]);
 
-      // ----------------------------------------------------------------
-      // Step 4 — package:release (sign + notarize + staple)
-      // ----------------------------------------------------------------
+      // Package WITHOUT notarize/staple — release handles those itself
+      // so we can intercept notarize failures and print a recovery guide.
       await runStep(
         opts.dryRun,
-        "Packaging (sign + notarize + staple)",
-        "npm",
-        ["run", "package:release"]
+        "Packaging (sign only — notarize handled separately)",
+        "npx",
+        ["tsx", "scripts/cli.ts", "package", "--sign-id"]
       );
+
+      // ----------------------------------------------------------------
+      // Step 4b — notarize the .dmg (release-controlled so we can give
+      // a useful recovery path if it fails)
+      // ----------------------------------------------------------------
+      if (!opts.dryRun) {
+        await notarizeOrGuide(dmgPath, dmgName);
+        await stapleOrGuide(dmgPath, dmgName);
+      } else {
+        log("Submitting to Apple notary service");
+        console.log(
+          `  [dry-run] xcrun notarytool submit ${dmgPath} ` +
+            `--keychain-profile $DAO_NOTARIZE_KEYCHAIN_PROFILE --wait`
+        );
+        log("Stapling notarization ticket");
+        console.log(`  [dry-run] xcrun stapler staple ${dmgPath}`);
+      }
+    } else if (opts.resumeFromStaple) {
+      // Operator already notarized + stapled the dmg manually after a
+      // failed run. Verify they actually did the staple before we keep
+      // going — otherwise generate_appcast emits a feed that points at
+      // an unnotarized dmg and Gatekeeper will block users.
+      log("Resuming from staple (verifying dmg has notarization ticket)");
+      if (!opts.dryRun) {
+        await assertStapled(dmgPath);
+      }
     } else {
       warn("Skipping build/package (--skip-build)");
     }
@@ -282,13 +339,13 @@ export const releaseCommand = new Command("release")
     // Step 6 — upload .dmg to R2
     // ------------------------------------------------------------------
     if (willUpload) {
-      const uploadArgs = ["run", "upload:release", "--", dmgPath];
+      const uploadArgs = ["tsx", "scripts/cli.ts", "upload", dmgPath];
       if (opts.bucket) uploadArgs.push("--bucket", opts.bucket);
       if (opts.prefix) uploadArgs.push("--prefix", opts.prefix);
       await runStep(
         opts.dryRun,
         `Uploading ${dmgName} to R2`,
-        "npm",
+        "npx",
         uploadArgs
       );
     } else {
@@ -448,3 +505,213 @@ function today(): string {
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
+
+// ---------------------------------------------------------------------------
+// Notarize + staple, with a useful recovery path on keychain failures
+// ---------------------------------------------------------------------------
+
+interface SpawnInheritResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+// Run a command, streaming stdout+stderr live to the user AND capturing them
+// so we can scan for known failure patterns (e.g. notarytool's keychain bug).
+function spawnInheritCapture(
+  cmd: string,
+  args: string[]
+): Promise<SpawnInheritResult> {
+  console.log(chalk.dim(`$ ${cmd} ${args.join(" ")}`));
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (chunk: Buffer) => {
+      const s = chunk.toString();
+      stdout += s;
+      process.stdout.write(s);
+    });
+    child.stderr?.on("data", (chunk: Buffer) => {
+      const s = chunk.toString();
+      stderr += s;
+      process.stderr.write(s);
+    });
+    child.on("error", (err) =>
+      resolve({ code: null, stdout, stderr: stderr + String(err) })
+    );
+    child.on("close", (code) => resolve({ code, stdout, stderr }));
+  });
+}
+
+async function notarizeOrGuide(
+  dmgPath: string,
+  dmgName: string
+): Promise<void> {
+  log(`Submitting ${dmgName} to Apple notary service ...`);
+  const profile = process.env.DAO_NOTARIZE_KEYCHAIN_PROFILE;
+  const authArgs = profile
+    ? ["--keychain-profile", profile]
+    : [
+        "--apple-id",
+        process.env.DAO_NOTARIZE_APPLE_ID || "",
+        "--team-id",
+        process.env.DAO_NOTARIZE_TEAM_ID || "",
+        "--password",
+        process.env.DAO_NOTARIZE_PASSWORD || "",
+      ];
+
+  const result = await spawnInheritCapture("xcrun", [
+    "notarytool",
+    "submit",
+    dmgPath,
+    ...authArgs,
+    "--wait",
+  ]);
+
+  // notarytool exits 0 on success AND on Rejected/Invalid; only the
+  // final "status:" line tells the truth.
+  if (result.code === 0) {
+    const finalStatus = (
+      result.stdout.match(/status:\s*(\w+)\s*$/im) || []
+    )[1];
+    if (finalStatus && finalStatus.toLowerCase() === "accepted") {
+      success("Notarization accepted");
+      return;
+    }
+    const submissionId = (
+      result.stdout.match(/id:\s*([0-9a-f-]{8,})/i) || []
+    )[1];
+    error(
+      `Notarization finished with status: ${finalStatus || "<unknown>"}.\n` +
+        (submissionId
+          ? `Inspect the failure log via:\n  xcrun notarytool log ${submissionId} --keychain-profile ${profile || "<your-profile>"}`
+          : "")
+    );
+    process.exit(1);
+  }
+
+  // Non-zero exit. The failure most operators hit here is the macOS
+  // keychain bug: "No Keychain password item found for profile: ..."
+  // even though that profile works fine when you call notarytool from
+  // your interactive shell. Print the full recovery guide.
+  printNotarizeRecoveryGuide(dmgPath, dmgName, result.stderr);
+  process.exit(1);
+}
+
+async function stapleOrGuide(
+  dmgPath: string,
+  dmgName: string
+): Promise<void> {
+  log(`Stapling notarization ticket onto ${dmgName} ...`);
+  const result = await spawnInheritCapture("xcrun", [
+    "stapler",
+    "staple",
+    dmgPath,
+  ]);
+  if (result.code === 0) {
+    success("Stapled");
+    return;
+  }
+  error(
+    `stapler exited with code ${result.code}.\n` +
+      "If notarization succeeded but staple failed, run manually then resume:\n" +
+      `  xcrun stapler staple ${path.relative(ROOT_DIR, dmgPath)}\n` +
+      "  npm run release -- --skip-bump --resume-from-staple"
+  );
+  process.exit(1);
+}
+
+// Verify the dmg has a stapled notarization ticket. Used by --resume-from-staple
+// to fail fast if the operator forgot to actually run `xcrun stapler staple`
+// before resuming.
+async function assertStapled(dmgPath: string): Promise<void> {
+  const result = await spawnInheritCapture("xcrun", [
+    "stapler",
+    "validate",
+    dmgPath,
+  ]);
+  if (result.code === 0) {
+    success("dmg has a valid notarization ticket");
+    return;
+  }
+  error(
+    "--resume-from-staple was passed but the dmg is NOT stapled.\n" +
+      "Before resuming, you need to:\n" +
+      "  1. Notarize the dmg (see recovery guide below)\n" +
+      "  2. Staple it: xcrun stapler staple " +
+      path.relative(ROOT_DIR, dmgPath) +
+      "\n" +
+      "  3. Then rerun: npm run release -- --skip-bump --resume-from-staple\n\n" +
+      "Recovery guide:"
+  );
+  printNotarizeRecoveryGuide(
+    dmgPath,
+    path.basename(dmgPath),
+    /*stderrFromFailedRun*/ ""
+  );
+  process.exit(1);
+}
+
+// Print exactly what to do when notarytool fails with the keychain error.
+// This is THE escape hatch — every step here can be copy-pasted into the
+// operator's interactive shell, where notarytool consistently works.
+function printNotarizeRecoveryGuide(
+  dmgPath: string,
+  dmgName: string,
+  stderr: string
+): void {
+  const profile = process.env.DAO_NOTARIZE_KEYCHAIN_PROFILE || "<your-profile>";
+  const dmgRel = path.relative(ROOT_DIR, dmgPath);
+  const isKnownKeychainBug = /No Keychain password item found/i.test(stderr);
+
+  console.log("");
+  console.log(chalk.yellow("━".repeat(72)));
+  console.log(chalk.yellow.bold("  Notarization step failed."));
+  if (isKnownKeychainBug) {
+    console.log(
+      chalk.yellow(
+        "  This is the known macOS keychain bug — notarytool can't see\n" +
+          "  the keychain profile from a long-running script process,\n" +
+          "  even though it works fine from your interactive shell."
+      )
+    );
+  }
+  console.log(chalk.yellow("━".repeat(72)));
+  console.log("");
+  console.log(chalk.bold("Recovery — run these in your terminal:"));
+  console.log("");
+  console.log(chalk.cyan("  # 1. Submit (will print a submission id)"));
+  console.log(
+    `  xcrun notarytool submit ${dmgRel} \\\n` +
+      `    --keychain-profile ${profile} --wait`
+  );
+  console.log("");
+  console.log(
+    chalk.dim(
+      "  # If submit ALSO fails in your shell, the keychain profile is\n" +
+        "  # genuinely broken — recreate it with:\n" +
+        `  #   xcrun notarytool store-credentials ${profile} \\\n` +
+        "  #     --apple-id <you@example.com> --team-id <TEAMID> --password <app-specific-pw>"
+    )
+  );
+  console.log("");
+  console.log(chalk.cyan("  # 2. Once status: Accepted, staple the ticket"));
+  console.log(`  xcrun stapler staple ${dmgRel}`);
+  console.log("");
+  console.log(
+    chalk.cyan(
+      "  # 3. Resume the release from generate_appcast onward"
+    )
+  );
+  console.log("  npm run release -- --skip-bump --resume-from-staple");
+  console.log("");
+  console.log(chalk.yellow("━".repeat(72)));
+  console.log("");
+  log("dao.json is already at " + dmgName.match(/\d+\.\d+\.\d+/)?.[0] + ".");
+  log(
+    "After step 3 finishes, you'll have appcast.xml regenerated, " +
+      "info.json updated, and the dmg uploaded to R2."
+  );
+}
+

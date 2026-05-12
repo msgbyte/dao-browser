@@ -520,29 +520,46 @@ function verifyCodesign(appBundle: string): void {
 async function notarize(artifactPath: string): Promise<void> {
   log(`Submitting ${path.basename(artifactPath)} to Apple notary service ...`);
   const args = buildNotarytoolAuthArgs();
-  const result = await runStreamingCapture("xcrun", [
+
+  // Two-step notarization: short submit (no --wait), then poll info
+  // ourselves with discrete short-lived xcrun calls. The bundled --wait
+  // mode keeps a long-lived connection over which notarytool repeatedly
+  // re-authenticates against the keychain, and somewhere mid-poll the
+  // background process loses its keychain session — exiting 69 with a
+  // misleading "No Keychain password item found" error even though the
+  // submission was already accepted by Apple. Each poll below is a
+  // brand-new short xcrun invocation, so the keychain session can't be
+  // garbage-collected mid-call.
+  const submitResult = await runStreamingCapture("xcrun", [
     "notarytool",
     "submit",
     artifactPath,
     ...args,
-    "--wait",
   ]);
-  if (result.code !== 0) {
+  if (submitResult.code !== 0) {
     error(
-      `notarytool submit exited with code ${result.code}.\n` +
-        "Run with --notarize again, or inspect the log via:\n" +
-        "  xcrun notarytool log <submission-id> ..."
+      `notarytool submit exited with code ${submitResult.code}.\n` +
+        "Inspect the most recent submission via:\n" +
+        "  xcrun notarytool history --keychain-profile $DAO_NOTARIZE_KEYCHAIN_PROFILE"
     );
     process.exit(1);
   }
-  // notarytool returns exit 0 even when the submission ends in
-  // status: Invalid / Rejected. Detect those explicitly so we never
-  // proceed to staple a rejected artifact.
-  const idMatch = result.stdout.match(/id:\s*([0-9a-f-]{8,})/i);
-  const submissionId = idMatch ? idMatch[1] : "<unknown>";
-  const finalStatus = (result.stdout.match(/status:\s*(\w+)\s*$/im) ||
-    [])[1];
-  if (finalStatus && finalStatus.toLowerCase() !== "accepted") {
+  const idMatch = submitResult.stdout.match(/id:\s*([0-9a-f-]{8,})/i);
+  if (!idMatch) {
+    error(
+      "Could not extract submission id from notarytool output.\n" +
+        "Inspect submissions manually via:\n" +
+        "  xcrun notarytool history --keychain-profile $DAO_NOTARIZE_KEYCHAIN_PROFILE"
+    );
+    process.exit(1);
+  }
+  const submissionId = idMatch[1];
+  log(`Submission accepted by Apple. id=${submissionId}`);
+  log("Polling notarization status (Apple typically takes 2-10 minutes) ...");
+
+  const finalStatus = await pollNotarizationStatus(submissionId, args);
+
+  if (finalStatus.toLowerCase() !== "accepted") {
     error(
       `Notarization finished with status: ${finalStatus}.\n` +
         `Inspect the failure log via:\n` +
@@ -551,6 +568,123 @@ async function notarize(artifactPath: string): Promise<void> {
     process.exit(1);
   }
   success("Notarization accepted");
+}
+
+/**
+ * Poll Apple notary service until the submission settles into a terminal
+ * state. Each call is a discrete `xcrun notarytool info` invocation so
+ * keychain access is short-lived and immune to session reaping.
+ *
+ * Strategy:
+ *   - poll every 30s
+ *   - timeout after 30 minutes (Apple usually finishes in 2-10 min;
+ *     anything longer almost always means a stuck submission)
+ *   - tolerate transient query failures (network blip, rate limit) by
+ *     retrying up to 3 consecutive times before giving up
+ */
+async function pollNotarizationStatus(
+  submissionId: string,
+  authArgs: string[]
+): Promise<string> {
+  const POLL_INTERVAL_MS = 30_000;
+  const TIMEOUT_MS = 30 * 60 * 1000;
+  const MAX_TRANSIENT_FAILURES = 3;
+
+  const startedAt = Date.now();
+  let consecutiveFailures = 0;
+  let pollCount = 0;
+
+  while (Date.now() - startedAt < TIMEOUT_MS) {
+    pollCount += 1;
+    const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
+    const result = await runQuiet("xcrun", [
+      "notarytool",
+      "info",
+      submissionId,
+      ...authArgs,
+    ]);
+
+    if (result.code !== 0) {
+      consecutiveFailures += 1;
+      warn(
+        `Status poll #${pollCount} failed (exit ${result.code}, ` +
+          `${consecutiveFailures}/${MAX_TRANSIENT_FAILURES} transient): ` +
+          (result.stderr.trim().split("\n").pop() || "<no stderr>")
+      );
+      if (consecutiveFailures >= MAX_TRANSIENT_FAILURES) {
+        error(
+          `Giving up after ${consecutiveFailures} consecutive query failures.\n` +
+            `Submission id: ${submissionId}\n` +
+            "Check status manually:\n" +
+            `  xcrun notarytool info ${submissionId} ` +
+            "--keychain-profile $DAO_NOTARIZE_KEYCHAIN_PROFILE"
+        );
+        process.exit(1);
+      }
+      await sleep(POLL_INTERVAL_MS);
+      continue;
+    }
+    consecutiveFailures = 0;
+
+    const statusMatch = result.stdout.match(/status:\s*([\w ]+)\s*$/im);
+    const status = (statusMatch ? statusMatch[1] : "").trim();
+    console.log(
+      chalk.dim(
+        `  [${formatElapsed(elapsedSec)}] poll #${pollCount}: status=${status || "<unknown>"}`
+      )
+    );
+
+    // Terminal states per Apple docs: Accepted, Invalid, Rejected.
+    // "In Progress" and unknown values mean keep polling.
+    const lower = status.toLowerCase();
+    if (lower === "accepted" || lower === "invalid" || lower === "rejected") {
+      return status;
+    }
+    await sleep(POLL_INTERVAL_MS);
+  }
+
+  error(
+    `Notarization timed out after ${Math.floor(TIMEOUT_MS / 60_000)} minutes.\n` +
+      `Submission id: ${submissionId}\n` +
+      "It may still finish later. Check status manually:\n" +
+      `  xcrun notarytool info ${submissionId} ` +
+      "--keychain-profile $DAO_NOTARIZE_KEYCHAIN_PROFILE"
+  );
+  process.exit(1);
+}
+
+interface QuietResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+// Like runStreamingCapture but suppresses live output — for status polls
+// where we only care about the final stdout, not tailing it on screen.
+function runQuiet(cmd: string, args: string[]): Promise<QuietResult> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
+    child.stderr?.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    child.on("error", (err: Error) =>
+      resolve({ code: null, stdout, stderr: stderr + String(err) })
+    );
+    child.on("close", (code: number | null) =>
+      resolve({ code, stdout, stderr })
+    );
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatElapsed(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function buildNotarytoolAuthArgs(): string[] {
