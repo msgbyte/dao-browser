@@ -191,14 +191,49 @@ export const releaseCommand = new Command("release")
     const dmgName = `${baseName}.dmg`;
     const dmgPath = path.join(ROOT_DIR, "dist", dmgName);
 
-    // Pre-flight: appcast seed must already exist in dist/.
+    // Seed dist/appcast.xml from the authoritative source before
+    // generate_appcast appends to it. dist/ is treated as ephemeral
+    // (may be wiped between runs), so we always re-seed from
+    // website/public/appcast.xml — that's the canonical history of
+    // shipped releases. Falls back to branding/appcast.template.xml
+    // only on the very first release when neither exists yet.
     const appcastDest = path.join(ROOT_DIR, "dist", "appcast.xml");
-    if (!opts.skipBuild && !existsSync(appcastDest)) {
+    const appcastPublic = path.join(
+      ROOT_DIR,
+      "website",
+      "public",
+      "appcast.xml"
+    );
+    const appcastTemplate = path.join(
+      ROOT_DIR,
+      "branding",
+      "appcast.template.xml"
+    );
+    if (existsSync(appcastPublic)) {
+      log(
+        `Seeding dist/appcast.xml from ${path.relative(
+          ROOT_DIR,
+          appcastPublic
+        )}`
+      );
+      if (!opts.dryRun) {
+        copyFileSync(appcastPublic, appcastDest);
+      }
+    } else if (existsSync(appcastTemplate)) {
+      warn(
+        `${path.relative(ROOT_DIR, appcastPublic)} not found — ` +
+          "seeding from template (first release?)."
+      );
+      if (!opts.dryRun) {
+        copyFileSync(appcastTemplate, appcastDest);
+      }
+    } else {
       error(
-        "dist/appcast.xml does not exist.\n" +
-          "Seed it once (first release) via:\n" +
-          "  cp branding/appcast.template.xml dist/appcast.xml\n" +
-          "Then rerun the release."
+        "Cannot seed dist/appcast.xml — neither\n" +
+          `  ${path.relative(ROOT_DIR, appcastPublic)}\n` +
+          "nor\n" +
+          `  ${path.relative(ROOT_DIR, appcastTemplate)}\n` +
+          "exists. Restore one of them and rerun."
       );
       process.exit(1);
     }
@@ -679,32 +714,22 @@ function printNotarizeRecoveryGuide(
   }
   console.log(chalk.yellow("━".repeat(72)));
   console.log("");
-  console.log(chalk.bold("Recovery — run these in your terminal:"));
+  console.log(chalk.bold("Recovery — run this single command in your terminal:"));
   console.log("");
-  console.log(chalk.cyan("  # 1. Submit (will print a submission id)"));
   console.log(
-    `  xcrun notarytool submit ${dmgRel} \\\n` +
-      `    --keychain-profile ${profile} --wait`
+    `  xcrun notarytool submit ${dmgRel} --keychain-profile ${profile} --wait \\\n` +
+      `    && xcrun stapler staple ${dmgRel} \\\n` +
+      `    && npm run release -- --skip-bump --resume-from-staple`
   );
   console.log("");
   console.log(
     chalk.dim(
-      "  # If submit ALSO fails in your shell, the keychain profile is\n" +
+      "  # If notarytool submit ALSO fails in your shell, the keychain profile is\n" +
         "  # genuinely broken — recreate it with:\n" +
         `  #   xcrun notarytool store-credentials ${profile} \\\n` +
         "  #     --apple-id <you@example.com> --team-id <TEAMID> --password <app-specific-pw>"
     )
   );
-  console.log("");
-  console.log(chalk.cyan("  # 2. Once status: Accepted, staple the ticket"));
-  console.log(`  xcrun stapler staple ${dmgRel}`);
-  console.log("");
-  console.log(
-    chalk.cyan(
-      "  # 3. Resume the release from generate_appcast onward"
-    )
-  );
-  console.log("  npm run release -- --skip-bump --resume-from-staple");
   console.log("");
   console.log(chalk.yellow("━".repeat(72)));
   console.log("");
