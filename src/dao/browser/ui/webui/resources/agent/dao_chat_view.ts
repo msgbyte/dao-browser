@@ -1025,6 +1025,18 @@ export class DaoChatView extends CrLitElement {
           .sort((a, b) => b.lastModified.localeCompare(a.lastModified));
       const latest = candidates[0];
       if (!latest) return;
+      // Skip resume when the latest session has gone stale, so the user
+      // lands on a fresh conversation instead of one they had likely
+      // mentally moved on from. Threshold is configurable; 0 disables.
+      const staleRaw = localStorage.getItem('dao_resume_stale_hours');
+      const staleHours = staleRaw === null ? 3 : Number(staleRaw);
+      if (Number.isFinite(staleHours) && staleHours > 0) {
+        const lastTs = Date.parse(latest.lastModified);
+        if (Number.isFinite(lastTs) &&
+            Date.now() - lastTs > staleHours * 3600_000) {
+          return;
+        }
+      }
       await this.loadSession_(latest.id);
     } catch (_) { /* ignore — stay on the empty session */ }
   }

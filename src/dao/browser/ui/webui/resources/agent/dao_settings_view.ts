@@ -66,6 +66,7 @@ export class DaoSettingsView extends CrLitElement {
       showResetStatsDialog_: {type: Boolean, state: true},
       toolCallShowDetails_: {type: Boolean, state: true},
       resumeLastSession_: {type: Boolean, state: true},
+      resumeStaleHours_: {type: Number, state: true},
     };
   }
 
@@ -92,6 +93,7 @@ export class DaoSettingsView extends CrLitElement {
   declare private showResetStatsDialog_: boolean;
   declare private toolCallShowDetails_: boolean;
   declare private resumeLastSession_: boolean;
+  declare private resumeStaleHours_: number;
 
   static override get styles() {
     return css`
@@ -492,6 +494,7 @@ export class DaoSettingsView extends CrLitElement {
     this.showResetStatsDialog_ = false;
     this.toolCallShowDetails_ = false;
     this.resumeLastSession_ = true;
+    this.resumeStaleHours_ = 3;
   }
 
 
@@ -610,7 +613,38 @@ export class DaoSettingsView extends CrLitElement {
               localStorage.setItem(
                   'dao_resume_last_session', String(v));
             })}
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <span class="toggle-name">Stale Session Threshold</span>
+            <span class="toggle-desc">Start a new conversation if the last
+              message is older than this many hours (0 = always resume)</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;
+              flex-shrink:0;">
+            <input type="number" min="0" step="1"
+                aria-label="Stale session threshold in hours"
+                .value=${String(this.resumeStaleHours_)}
+                ?disabled=${!this.resumeLastSession_}
+                style="width:64px; height:28px; padding:0 8px;
+                    box-sizing:border-box;
+                    border:1px solid var(--glass-border); border-radius:8px;
+                    background:var(--glass); color:var(--text);
+                    font-family:inherit; font-size:13px; text-align:right;"
+                @change=${(e: Event) => this.onResumeStaleHoursChange_(
+                    (e.target as HTMLInputElement).value)}>
+            <span style="font-size:12px; color:var(--text-tertiary);">
+              hours</span>
+          </div>
+        </div>
       </div>`;
+  }
+
+  private onResumeStaleHoursChange_(value: string) {
+    const parsed = Number(value);
+    const next =
+        Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 3;
+    this.resumeStaleHours_ = next;
+    localStorage.setItem('dao_resume_stale_hours', String(next));
   }
 
   private getProviderSpec_(id: string): ProviderSpec {
@@ -940,6 +974,11 @@ export class DaoSettingsView extends CrLitElement {
         localStorage.getItem('dao_tool_call_show_details') === 'true';
     this.resumeLastSession_ =
         localStorage.getItem('dao_resume_last_session') !== 'false';
+    const staleRaw =
+        localStorage.getItem('dao_resume_stale_hours');
+    const staleParsed = staleRaw === null ? NaN : Number(staleRaw);
+    this.resumeStaleHours_ =
+        Number.isFinite(staleParsed) && staleParsed >= 0 ? staleParsed : 3;
   }
 
   private loadMemorySettings_() {
