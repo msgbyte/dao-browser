@@ -11,6 +11,8 @@
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
+#include "dao/browser/strings/grit/dao_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/web_contents.h"
@@ -85,7 +87,7 @@ DaoQrCodeResultDialogView::DaoQrCodeResultDialogView(
     : host_web_contents_(web_contents ? web_contents->GetWeakPtr()
                                       : base::WeakPtr<content::WebContents>()),
       results_(std::move(results)) {
-  SetTitle(u"QR Code Result");
+  SetTitle(l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_DIALOG_TITLE));
   SetShowCloseButton(true);
   SetModalType(ui::mojom::ModalType::kWindow);
   SetOwnedByWidget(OwnedByWidgetPassKey());
@@ -157,14 +159,14 @@ std::unique_ptr<views::View> DaoQrCodeResultDialogView::BuildContents() {
     button_row->AddChildView(std::make_unique<views::MdTextButton>(
         base::BindRepeating(&DaoQrCodeResultDialogView::OnCopy,
                             base::Unretained(this), entry.text),
-        u"Copy"));
+        l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_COPY)));
 
     if (entry.is_url && entry.url.is_valid()) {
       auto* open_button =
           button_row->AddChildView(std::make_unique<views::MdTextButton>(
               base::BindRepeating(&DaoQrCodeResultDialogView::OnOpen,
                                   base::Unretained(this), entry.url),
-              u"Open"));
+              l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_OPEN)));
       open_button->SetStyle(ui::ButtonStyle::kProminent);
     }
   }

@@ -1,23 +1,29 @@
 diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
-index 80494b5bb3..b615915483 100644
+index 7a9ffcdf31..23a067de87 100644
 --- a/tools/gritsettings/resource_ids.spec
 +++ b/tools/gritsettings/resource_ids.spec
-@@ -1258,6 +1258,20 @@
+@@ -1437,6 +1437,26 @@
    },
    # END content/ section.
  
 +  # Dao Browser
++  # Note: agent budget bumped to 200 to make room for the i18n locale
++  # dictionaries (~81 ts files) plus future growth. Sidebar/welcome budgets
++  # are unchanged but their start IDs shifted accordingly.
 +  "<(SHARED_INTERMEDIATE_DIR)/dao/browser/ui/webui/resources/agent/resources.grd": {
-+    "META": {"sizes": {"includes": [40]}},
++    "META": {"sizes": {"includes": [200]}},
 +    "includes": [8400],
 +  },
 +  "<(SHARED_INTERMEDIATE_DIR)/dao/browser/ui/webui/resources/sidebar/resources.grd": {
 +    "META": {"sizes": {"includes": [20]}},
-+    "includes": [8445],
++    "includes": [8605],
 +  },
 +  "<(SHARED_INTERMEDIATE_DIR)/dao/browser/ui/webui/resources/welcome/resources.grd": {
 +    "META": {"sizes": {"includes": [15]}},
-+    "includes": [8465],
++    "includes": [8625],
++  },
++  "dao/browser/strings/dao_strings.grd": {
++    "messages": [8645],
 +  },
 +
    # START "everything else" section.

@@ -1,0 +1,18 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//tools/grit/grit_rule.gni")
+
+# Dao-owned localized strings. Output:
+#   - grit/dao_strings.h with IDS_DAO_* identifiers (consumed by C++).
+#   - dao_strings_<locale>.pak per locale, repacked into chrome's locale paks
+#     by chrome_repack_locales (see src/patches/chrome/chrome_repack_locales.gni).
+#
+# When you add a new <message> in dao_strings.grd, no extra GN changes are
+# needed — grit picks it up automatically. When Chromium adds/removes locales,
+# rerun `tsx scripts/i18n-bootstrap.ts` to refresh the surrounding scaffolding.
+grit_strings("dao_strings") {
+  source = "dao_strings.grd"
+  outputs = [ "grit/dao_strings.h" ]
+}

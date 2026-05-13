@@ -9,7 +9,9 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/qr_code_generator/qr_code_generator.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -43,9 +45,12 @@ class QrBackButton : public views::LabelButton {
 
  public:
   QrBackButton(views::Button::PressedCallback callback)
-      : LabelButton(std::move(callback), u"← Back") {
+      : LabelButton(std::move(callback),
+                    l10n_util::GetStringUTF16(
+                        IDS_DAO_CONTROL_CENTER_BACK_BUTTON_LABEL)) {
     SetInstallFocusRingOnFocus(false);
-    SetAccessibleName(u"Back");
+    SetAccessibleName(l10n_util::GetStringUTF16(
+        IDS_DAO_CONTROL_CENTER_BACK_BUTTON_ACCESSIBLE_NAME));
     SetEnabledTextColors(ControlCenterLabelColor());
     label()->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 13,
                                         gfx::Font::Weight::NORMAL));

@@ -49,8 +49,10 @@
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/blink/public/common/features.h"
@@ -1814,6 +1816,46 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
       /*source_tab_index=*/last_source_index,
       /*target_insert_index=*/9999));
   EXPECT_EQ(target_tabs_before + 1, target->tab_strip_model()->count());
+}
+
+// =============================================================================
+// DaoI18nBrowserTest
+// =============================================================================
+//
+// Smoke-checks that Dao's localized string resource bundle is wired up:
+//   * IDS_DAO_* identifiers resolve to the source English copy by default.
+//   * Substitution placeholders ($1, …) survive the lookup path.
+// We deliberately avoid asserting on the zh-CN translation here because the
+// browser test harness does not honor --lang the way the production binary
+// does — that would have to be a chrome-launcher integration test. The
+// English fallback assertion is the one that catches the most likely
+// regression: the .pak failing to merge into the chrome locale bundle.
+
+class DaoI18nBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, EnglishStringsResolve) {
+  // A handful of well-known IDS_DAO_* values must match the canonical source
+  // text from dao_strings.grd. A failure here usually means dao_strings.pak
+  // didn't end up in the locale repack, or the include guard was elided.
+  //
+  // Note: grit performs typographic substitution at compile time — three
+  // ASCII dots become the Unicode ellipsis U+2026. Match that here.
+  EXPECT_EQ(u"Type a URL or search…",
+            l10n_util::GetStringUTF16(IDS_DAO_COMMAND_BAR_PLACEHOLDER));
+  EXPECT_EQ(u"Control Center",
+            l10n_util::GetStringUTF16(
+                IDS_DAO_CONTROL_CENTER_BUTTON_ACCESSIBLE_NAME));
+  EXPECT_EQ(u"QR Code Result",
+            l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_DIALOG_TITLE));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, PlaceholderSubstitutionWorks) {
+  // IDS_DAO_SUGGESTION_ASK_AI is "Ask AI: $1". $1 should be replaced by the
+  // argument passed to GetStringFUTF16 — if the placeholder pipeline is
+  // broken (e.g. the message body lost its $1), we'd see the literal "$1".
+  std::u16string result = l10n_util::GetStringFUTF16(
+      IDS_DAO_SUGGESTION_ASK_AI, u"hello world");
+  EXPECT_EQ(u"Ask AI: hello world", result);
 }
 
 }  // namespace

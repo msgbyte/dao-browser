@@ -12,8 +12,10 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_button.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
@@ -230,8 +232,10 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   auto toggle_btn = std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnToggleButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kPanelLeftOpen, u"Toggle Sidebar");
-  toggle_btn->SetTooltipText(u"Toggle Sidebar (\u2318S)");
+      LucideIcon::kPanelLeftOpen,
+      l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME));
+  toggle_btn->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP));
   toggle_btn->SetVisible(false);
   sidebar_toggle_button_ = AddChildView(std::move(toggle_btn));
 
@@ -701,10 +705,12 @@ void DaoAddressBarView::UpdateStopRefreshButton() {
   auto* btn = static_cast<NavIconButton*>(stop_refresh_button_.get());
   if (is_loading_) {
     btn->SetIcon(LucideIcon::kX);
-    btn->SetAccessibleName(u"Stop Loading");
+    btn->SetAccessibleName(l10n_util::GetStringUTF16(
+        IDS_DAO_ADDRESS_BAR_STOP_LOADING_ACCESSIBLE_NAME));
   } else {
     btn->SetIcon(LucideIcon::kRotateCw);
-    btn->SetAccessibleName(u"Reload");
+    btn->SetAccessibleName(
+        l10n_util::GetStringUTF16(IDS_DAO_ADDRESS_BAR_RELOAD_ACCESSIBLE_NAME));
   }
 }
 

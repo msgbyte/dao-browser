@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//ui/webui/resources/tools/build_webui.gni")
+import("i18n/i18n_locale_files.gni")
 
 build_webui("build") {
   grd_prefix = "dao_agent"
@@ -57,6 +58,10 @@ build_webui("build") {
     # ts_library (static_files rejects raw `.js`). See vendor/README.md.
     "vendor/pi_runtime_bundle.ts",
   ]
+
+  # Append every Dao locale dictionary. The list lives in the generated
+  # i18n_locale_files.gni so adding/removing locales is a one-script change.
+  ts_files += dao_i18n_locale_ts_files
 
   ts_definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]
   ts_deps = [

@@ -1,0 +1,20 @@
+diff --git a/chrome/chrome_repack_locales.gni b/chrome/chrome_repack_locales.gni
+index 03fad836d3..d61a6ec099 100644
+--- a/chrome/chrome_repack_locales.gni
++++ b/chrome/chrome_repack_locales.gni
+@@ -24,6 +24,7 @@ template("chrome_repack_locales") {
+     source_patterns = [
+       "${root_gen_dir}/chrome/branded_strings_",
+       "${root_gen_dir}/chrome/generated_resources_",
++      "${root_gen_dir}/dao/browser/strings/dao_strings_",
+       "${root_gen_dir}/chrome/locale_settings_",
+       "${root_gen_dir}/chrome/platform_locale_settings_",
+       "${root_gen_dir}/components/omnibox/resources/omnibox_pedal_synonyms_",
+@@ -49,6 +50,7 @@ template("chrome_repack_locales") {
+     deps += [
+       "//chrome/app:branded_strings",
+       "//chrome/app:generated_resources",
++      "//dao/browser/strings:dao_strings",
+       "//chrome/app/resources:locale_settings",
+       "//chrome/app/resources:platform_locale_settings",
+       "//components/omnibox/resources:omnibox_pedal_synonyms",

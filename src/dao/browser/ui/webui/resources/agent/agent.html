@@ -16,6 +16,13 @@
 </head>
 <body>
 <dao-agent-app></dao-agent-app>
+<!-- Generated virtual resource exposed by WebUIDataSource::UseStringsJs().
+     Provides the loadTimeData object containing keys registered in C++
+     (see dao_agent_ui.cc), e.g. `dao_app_locale`. The strings.m.js bundle
+     is itself an ES module (it imports loadTimeData) — must use
+     type="module". Must precede agent.js so the i18n module sees the
+     populated loadTimeData on first import. -->
+<script type="module" src="strings.m.js"></script>
 <script type="module" src="agent.js"></script>
 </body>
 </html>

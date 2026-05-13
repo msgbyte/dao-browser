@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
@@ -3746,6 +3747,15 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui)
   source->AddResourcePaths(kDaoAgentResources);
   source->SetDefaultResource(IDR_DAO_AGENT_AGENT_HTML);
 
+  // Expose the active application locale to the WebUI via strings.m.js so the
+  // Dao i18n module (resources/agent/i18n/i18n.ts) can pick the matching
+  // locale dictionary. Keeping the WebUI in step with the C++ pak that grit
+  // selected for the browser process — without it, `navigator.language` and
+  // the chrome locale can drift apart.
+  source->AddString("dao_app_locale",
+                    g_browser_process->GetApplicationLocale());
+  source->UseStringsJs();
+
   // Allow the page to fetch external APIs (OpenAI etc.)
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ConnectSrc,
@@ -3786,6 +3796,11 @@ DaoSkillsUI::DaoSkillsUI(content::WebUI* web_ui)
   // Reuse the agent resource bundle (skills.html is compiled there).
   source->AddResourcePaths(kDaoAgentResources);
   source->SetDefaultResource(IDR_DAO_AGENT_SKILLS_HTML);
+
+  // Expose the application locale; see DaoAgentUI for the rationale.
+  source->AddString("dao_app_locale",
+                    g_browser_process->GetApplicationLocale());
+  source->UseStringsJs();
 
   // Allow Lit HTML rendering.
   source->OverrideContentSecurityPolicy(

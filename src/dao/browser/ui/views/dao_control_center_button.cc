@@ -6,9 +6,11 @@
 
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -32,8 +34,8 @@ DaoControlCenterButton::DaoControlCenterButton(Browser* browser)
       browser_(browser),
       icon_color_(ControlCenterIconDefault()) {
   SetInstallFocusRingOnFocus(false);
-  SetAccessibleName(u"Control Center");
-
+  SetAccessibleName(l10n_util::GetStringUTF16(
+      IDS_DAO_CONTROL_CENTER_BUTTON_ACCESSIBLE_NAME));
 }
 
 DaoControlCenterButton::~DaoControlCenterButton() = default;

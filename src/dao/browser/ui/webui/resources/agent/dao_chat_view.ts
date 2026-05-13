@@ -33,6 +33,7 @@ import {toolConfigChannel} from './tool_catalog.js';
 import './dao_chat_history_panel.js';
 import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
 import {getAllSkills, initSkillRegistry, loadSkillInstructions, type SkillRegistryEntry} from './skill_registry.js';
+import {t} from './i18n/i18n.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as pi from './vendor/pi_runtime_bundle.js';
 
@@ -556,8 +557,15 @@ export class DaoChatView extends CrLitElement {
         <div class="dao-compact-bar ${stateClass}">
           <div class="meta">
             <span class="gauge"
-                title="Estimated context: ${this.tokenEstimate_} tokens${
-                ctx > 0 ? ` / ${ctx} (${ratioPct}%)` : ''}">
+                title=${ctx > 0
+                    ? t('chat.gauge.tooltip_with_capacity', {
+                        tokens: this.tokenEstimate_,
+                        capacity: ctx,
+                        percent: ratioPct,
+                      })
+                    : t('chat.gauge.tooltip_no_capacity', {
+                        tokens: this.tokenEstimate_,
+                      })}>
               <span style="width: ${ratioPct}%"></span>
             </span>
             <span class="meta-text">
@@ -570,11 +578,11 @@ export class DaoChatView extends CrLitElement {
                 ?disabled=${!canCompact && !this.compacting_}
                 @click=${this.onCompactClick_}
                 title=${this.compacting_
-                    ? 'Cancel summarization'
-                    : 'Summarize history into a single context message'}>
+                    ? t('chat.compact.cancel_tooltip')
+                    : t('chat.compact.start_tooltip')}>
               ${this.compacting_
-                  ? html`<span class="spinner"></span>Compacting…`
-                  : html`Compact`}
+                  ? html`<span class="spinner"></span>${t('chat.compact.compacting')}`
+                  : html`${t('chat.compact.label')}`}
             </button>
           </div>
         </div>` : ''}
@@ -588,9 +596,9 @@ export class DaoChatView extends CrLitElement {
             <path d="M22 4h-4"></path>
             <circle cx="4" cy="20" r="2"></circle>
           </svg>
-          <div class="dao-empty-guide-title">How can I help?</div>
+          <div class="dao-empty-guide-title">${t('chat.empty_guide.title')}</div>
           <div class="dao-empty-guide-hint">
-            Ask about the current page, summarize selections, or run a skill.
+            ${t('chat.empty_guide.hint')}
           </div>
         </div>` : ''}
       <pi-chat-panel></pi-chat-panel>
@@ -621,7 +629,7 @@ export class DaoChatView extends CrLitElement {
               </span>
               <button class="dao-page-chip-close"
                   @click=${this.onPageChipDismiss_}
-                  title="Don't attach this page">
+                  title=${t('chat.attach.page.dismiss_title')}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" aria-hidden="true">
@@ -646,11 +654,11 @@ export class DaoChatView extends CrLitElement {
                 <span class="dao-page-chip-title">
                   ${this.selectionPreview_(this.pendingSelection_.text)}
                 </span>
-                <span class="dao-page-chip-domain">selection</span>
+                <span class="dao-page-chip-domain">${t('chat.attach.selection.label')}</span>
               </span>
               <button class="dao-page-chip-close"
                   @click=${this.onSelectionChipDismiss_}
-                  title="Don't attach this selection">
+                  title=${t('chat.attach.selection.dismiss_title')}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" aria-hidden="true">
@@ -1234,8 +1242,9 @@ export class DaoChatView extends CrLitElement {
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
     copyBtn.className = 'dao-copy-btn';
-    copyBtn.title = 'Copy answer text';
-    copyBtn.setAttribute('aria-label', 'Copy answer text');
+    copyBtn.title = t('chat.message_actions.copy_tooltip');
+    copyBtn.setAttribute(
+        'aria-label', t('chat.message_actions.copy_tooltip'));
     copyBtn.innerHTML =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
         ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
@@ -1250,8 +1259,9 @@ export class DaoChatView extends CrLitElement {
     const shareBtn = document.createElement('button');
     shareBtn.type = 'button';
     shareBtn.className = 'dao-share-btn';
-    shareBtn.title = 'Copy as image';
-    shareBtn.setAttribute('aria-label', 'Copy as image');
+    shareBtn.title = t('chat.message_actions.share_tooltip');
+    shareBtn.setAttribute(
+        'aria-label', t('chat.message_actions.share_tooltip'));
     shareBtn.innerHTML =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
         ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
@@ -1267,8 +1277,9 @@ export class DaoChatView extends CrLitElement {
     const retryBtn = document.createElement('button');
     retryBtn.type = 'button';
     retryBtn.className = 'dao-retry-btn';
-    retryBtn.title = 'Regenerate response';
-    retryBtn.setAttribute('aria-label', 'Regenerate response');
+    retryBtn.title = t('chat.message_actions.regenerate_tooltip');
+    retryBtn.setAttribute(
+        'aria-label', t('chat.message_actions.regenerate_tooltip'));
     retryBtn.innerHTML =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
         ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
@@ -1283,8 +1294,8 @@ export class DaoChatView extends CrLitElement {
   }
 
   private flashButtonLabel_(
-      btn: HTMLButtonElement, label: string, durationMs = 2000): void {
-    const ok = label === 'Copied' || label === 'Shared';
+      btn: HTMLButtonElement, label: string, ok: boolean,
+      durationMs = 2000): void {
     const checkSvg =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
         ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
@@ -1309,7 +1320,7 @@ export class DaoChatView extends CrLitElement {
   private async copyAssistantText_(btn: HTMLButtonElement): Promise<void> {
     const pair = this.getLastQaPair_();
     if (!pair || !pair.answer) {
-      this.flashButtonLabel_(btn, 'Empty');
+      this.flashButtonLabel_(btn, t('chat.message_actions.empty'), false);
       return;
     }
     try {
@@ -1334,15 +1345,15 @@ export class DaoChatView extends CrLitElement {
       } else {
         await navigator.clipboard.writeText(pair.answer);
       }
-      this.flashButtonLabel_(btn, 'Copied');
+      this.flashButtonLabel_(btn, t('chat.message_actions.copied'), true);
     } catch (e) {
       console.warn('[dao] copy text failed', e);
       try {
         await navigator.clipboard.writeText(pair.answer);
-        this.flashButtonLabel_(btn, 'Copied');
+        this.flashButtonLabel_(btn, t('chat.message_actions.copied'), true);
       } catch (e2) {
         console.warn('[dao] copy text fallback failed', e2);
-        this.flashButtonLabel_(btn, 'Failed');
+        this.flashButtonLabel_(btn, t('chat.message_actions.failed'), false);
       }
     }
   }
@@ -1351,7 +1362,7 @@ export class DaoChatView extends CrLitElement {
       Promise<void> {
     const pair = this.getLastQaPair_();
     if (!pair || !pair.answer) {
-      this.flashButtonLabel_(btn, 'Empty');
+      this.flashButtonLabel_(btn, t('chat.message_actions.empty'), false);
       return;
     }
     try {
@@ -1367,10 +1378,10 @@ export class DaoChatView extends CrLitElement {
       }
       await navigator.clipboard.write(
           [new ClipboardItemCtor({'image/png': blob})]);
-      this.flashButtonLabel_(btn, 'Shared');
+      this.flashButtonLabel_(btn, t('chat.message_actions.shared'), true);
     } catch (e) {
       console.warn('[dao] share image failed', e);
-      this.flashButtonLabel_(btn, 'Failed');
+      this.flashButtonLabel_(btn, t('chat.message_actions.failed'), false);
     }
   }
 
@@ -1631,7 +1642,7 @@ export class DaoChatView extends CrLitElement {
       this.dispatchEvent(new CustomEvent('show-toast', {
         bubbles: true,
         composed: true,
-        detail: {text: 'Wait for the current turn to finish'},
+        detail: {text: t('chat.toast.wait_for_turn')},
       }));
       return;
     }
@@ -1655,14 +1666,14 @@ export class DaoChatView extends CrLitElement {
         bubbles: true,
         composed: true,
         detail: {
-          text: `Compacted ${result.collapsedCount} messages → 1 summary`,
+          text: t('chat.compact.success', {count: result.collapsedCount}),
         },
       }));
     } catch (e) {
       const err = e as Error;
       const text = err.name === 'AbortError'
-          ? 'Compaction cancelled'
-          : `Compact failed: ${err.message ?? err}`;
+          ? t('chat.compact.cancelled')
+          : t('chat.compact.failed', {error: err.message ?? String(err)});
       this.dispatchEvent(new CustomEvent('show-toast', {
         bubbles: true,
         composed: true,
@@ -1925,11 +1936,11 @@ export class DaoChatView extends CrLitElement {
     `;
     return html`
       <div class="dao-skill-picker" role="listbox"
-          aria-label="Skill picker"
+          aria-label=${t('chat.skill_picker.aria_label')}
           style=${pickerStyle}>
         <div class="dao-skill-picker-head">
-          Skills<span class="dao-skill-picker-hint">
-            ↑↓ to navigate · Enter to select · Esc to dismiss
+          ${t('chat.skill_picker.title')}<span class="dao-skill-picker-hint">
+            ${t('chat.skill_picker.hint')}
           </span>
         </div>
         <div class="dao-skill-picker-list">

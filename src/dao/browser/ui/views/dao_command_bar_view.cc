@@ -6,6 +6,8 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "dao/browser/strings/grit/dao_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/favicon/favicon_utils.h"
@@ -179,7 +181,8 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
 
   // Textfield inside the card
   auto textfield = std::make_unique<CommandBarTextfield>();
-  textfield->SetPlaceholderText(u"Type a URL or search...");
+  textfield->SetPlaceholderText(
+      l10n_util::GetStringUTF16(IDS_DAO_COMMAND_BAR_PLACEHOLDER));
   textfield->set_controller(this);
   textfield->SetBorder(nullptr);
   textfield->SetBackgroundColor(SK_ColorTRANSPARENT);

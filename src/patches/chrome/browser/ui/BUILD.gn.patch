@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 00b9254990..b60992b317 100644
+index 00b9254990..e698ee122a 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -47,6 +47,104 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
@@ -107,11 +107,12 @@ index 00b9254990..b60992b317 100644
      "accelerator_utils.h",
      "browser_navigator.h",
      "browser_navigator_params.cc",
-@@ -256,6 +354,11 @@ static_library("ui") {
+@@ -256,6 +354,12 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
 +    "//dao/browser/qrcode:qr_decoder",
++    "//dao/browser/strings:dao_strings",
 +    "//dao/browser/ui/webui/resources/agent:resources",
 +    "//dao/browser/ui/webui/resources/sidebar:resources",
 +    "//dao/browser/ui/webui/resources/welcome:resources",
@@ -119,7 +120,7 @@ index 00b9254990..b60992b317 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -568,6 +671,7 @@ static_library("ui") {
+@@ -568,6 +672,7 @@ static_library("ui") {
      "//components/privacy_sandbox:privacy_sandbox_prefs",
      "//components/profile_metrics",
      "//components/proxy_config",
@@ -127,7 +128,7 @@ index 00b9254990..b60992b317 100644
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
-@@ -5547,7 +5651,7 @@ static_library("ui") {
+@@ -5547,7 +5652,7 @@ static_library("ui") {
  # //chrome/browser. These are semantically a part of
  # //chrome/browser:browser_public_dependencies since //chrome/browser and
  # //chrome/browser/ui allow circular dependencies.
@@ -136,7 +137,7 @@ index 00b9254990..b60992b317 100644
    visibility = [ "//chrome/browser:browser_public_dependencies" ]
    public_deps = [
      "//components/cross_device/logging",
-@@ -5586,7 +5690,6 @@ static_library("ui_public_dependencies") {
+@@ -5586,7 +5691,6 @@ static_library("ui_public_dependencies") {
      public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
    }
    if (is_win) {
@@ -144,7 +145,7 @@ index 00b9254990..b60992b317 100644
      public_deps += [
        "//build:branding_buildflags",
        "//ui/views",
-@@ -5913,3 +6016,25 @@ if (use_aura) {
+@@ -5913,3 +6017,25 @@ if (use_aura) {
      ]
    }
  }

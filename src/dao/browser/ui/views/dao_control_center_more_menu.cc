@@ -9,8 +9,10 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/point_f.h"
@@ -70,9 +72,10 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
   auto back_btn = std::make_unique<views::LabelButton>(
       base::BindRepeating(&DaoControlCenterMoreMenu::OnBackClicked,
                           base::Unretained(this)),
-      u"\u2190 Back");
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_BACK_BUTTON_LABEL));
   back_btn->SetInstallFocusRingOnFocus(false);
-  back_btn->SetAccessibleName(u"Back");
+  back_btn->SetAccessibleName(l10n_util::GetStringUTF16(
+      IDS_DAO_CONTROL_CENTER_BACK_BUTTON_ACCESSIBLE_NAME));
   back_btn->SetEnabledTextColors(ControlCenterLabelColor());
   back_btn->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 12)));
   AddChildView(std::move(back_btn));
@@ -80,7 +83,7 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
   // Clear Cache button
   {
     auto btn = std::make_unique<MenuItemButton>(
-        u"Clear Cache",
+        l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEAR_CACHE),
         base::BindRepeating(&DaoControlCenterMoreMenu::OnClearCacheClicked,
                             base::Unretained(this)));
     clear_cache_button_ = btn.get();
@@ -90,7 +93,7 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
   // Clear Cookies button
   {
     auto btn = std::make_unique<MenuItemButton>(
-        u"Clear Cookies",
+        l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES),
         base::BindRepeating(&DaoControlCenterMoreMenu::OnClearCookiesClicked,
                             base::Unretained(this)));
     clear_cookies_button_ = btn.get();
@@ -119,7 +122,8 @@ void DaoControlCenterMoreMenu::OnClearCacheClicked() {
 
   // Disable button during operation
   clear_cache_button_->SetEnabled(false);
-  clear_cache_button_->SetText(u"Clearing...");
+  clear_cache_button_->SetText(
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEARING));
 
   remover->RemoveAndReply(
       base::Time(), base::Time::Max(),
@@ -135,7 +139,8 @@ void DaoControlCenterMoreMenu::OnClearCacheClicked() {
           [](base::WeakPtr<DaoControlCenterMoreMenu> self) {
             if (self && self->clear_cache_button_) {
               self->clear_cache_button_->SetEnabled(true);
-              self->clear_cache_button_->SetText(u"Clear Cache");
+              self->clear_cache_button_->SetText(l10n_util::GetStringUTF16(
+                  IDS_DAO_CONTROL_CENTER_CLEAR_CACHE));
             }
           },
           weak_factory_.GetWeakPtr()),
@@ -155,7 +160,8 @@ void DaoControlCenterMoreMenu::OnClearCookiesClicked() {
 
   // Disable button during operation
   clear_cookies_button_->SetEnabled(false);
-  clear_cookies_button_->SetText(u"Clearing...");
+  clear_cookies_button_->SetText(
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEARING));
 
   remover->RemoveAndReply(
       base::Time(), base::Time::Max(),
@@ -170,7 +176,8 @@ void DaoControlCenterMoreMenu::OnClearCookiesClicked() {
             if (self && self->clear_cookies_button_) {
               self->clear_cookies_button_->SetEnabled(true);
               self->clear_cookies_button_->SetText(
-                  u"Clear Cookies");
+                  l10n_util::GetStringUTF16(
+                      IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES));
             }
           },
           weak_factory_.GetWeakPtr()),

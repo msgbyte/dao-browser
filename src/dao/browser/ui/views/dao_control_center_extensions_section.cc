@@ -6,6 +6,8 @@
 
 
 #include "base/strings/utf_string_conversions.h"
+#include "dao/browser/strings/grit/dao_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
 #include "chrome/browser/extensions/extension_view_host.h"
@@ -258,8 +260,10 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
       base::BindRepeating(
           &DaoControlCenterExtensionsSection::OnAddClicked,
           base::Unretained(this)));
-  add_btn->SetAccessibleName(u"Add extension");
-  add_btn->SetTooltipText(u"Add extension");
+  std::u16string add_label =
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_ADD_EXTENSION);
+  add_btn->SetAccessibleName(add_label);
+  add_btn->SetTooltipText(add_label);
   grid_->AddChildView(static_cast<views::View*>(add_btn.release()));
 
   // "Manage" action button.
@@ -268,8 +272,10 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
       base::BindRepeating(
           &DaoControlCenterExtensionsSection::OnManageClicked,
           base::Unretained(this)));
-  manage_btn->SetAccessibleName(u"Manage extensions");
-  manage_btn->SetTooltipText(u"Manage extensions");
+  std::u16string manage_label =
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MANAGE_EXTENSIONS);
+  manage_btn->SetAccessibleName(manage_label);
+  manage_btn->SetTooltipText(manage_label);
   grid_->AddChildView(static_cast<views::View*>(manage_btn.release()));
 
   InvalidateLayout();

@@ -16,9 +16,11 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/common/url_constants.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "ui/compositor/layer_animator.h"
@@ -136,8 +138,9 @@ class DaoToggleButton : public views::Button {
       : Button(std::move(callback)) {
     SetPreferredSize(gfx::Size(32, 32));
     SetInstallFocusRingOnFocus(false);
-    SetTooltipText(u"Toggle Sidebar (\u2318S)");
-    SetAccessibleName(u"Toggle Sidebar");
+    SetTooltipText(l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP));
+    SetAccessibleName(
+        l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME));
   }
 
   void PaintButtonContents(gfx::Canvas* canvas) override {

@@ -16,6 +16,13 @@ import './dao_chat_view.js';
 import './dao_settings_view.js';
 import type {DaoChatView} from './dao_chat_view.js';
 import type {DaoSettingsView} from './dao_settings_view.js';
+import {initI18n} from './i18n/i18n.js';
+
+// Kick off locale loading at module import time so the dictionary is in
+// place before any t() call from a child view's render. Fire-and-forget:
+// initI18n() is idempotent and child views await it themselves if they
+// need to render synchronously before mount.
+void initI18n();
 
 export class DaoAgentApp extends CrLitElement {
   static override get properties() {

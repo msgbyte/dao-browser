@@ -99,6 +99,17 @@ Patches inject Dao components into the Chromium frame:
 - **Agent WebUI: never use Tailwind utility classes in Dao-owned code** — The Tailwind CSS under `src/dao/browser/ui/webui/resources/agent/vendor/pi_web_ui.css` is **precompiled** by the vendor pipeline from pi-web-ui's source. Any utility class we write in Dao-owned files (`agent.html`, `dao_agent_app.ts`, `dao_chat_view.ts`, `dao_settings_view.ts`, etc.) is NOT in that compiled output and will silently render as unstyled. Always use inline `style=""` attributes or scoped rules in `agent.css` / lit `<style>` blocks for Dao-owned UI. Utility classes like `bg-card`, `rounded-xl`, `p-4` are fine ONLY when they appear inside pi-web-ui components that we render through — because those classes were scanned at pi-web-ui build time.
 - **Agent WebUI vendor directory is generated — NEVER hand-edit** — Everything under `src/dao/browser/ui/webui/resources/agent/vendor/` (currently `pi_runtime_bundle.ts` and `pi_web_ui.css`) is produced by `npm run vendor` from `vendor.config.ts` + `vendor/entries/*`. Treat these files as read-only build artifacts. To change anything that ends up there: edit the entry source (e.g., `vendor/entries/pi-runtime.entry.ts` to re-export more pi-mono APIs; `vendor/entries/pi-web-ui-css.build.mjs` to tweak the CSS copy step) and re-run `npm run vendor` (or `npm run vendor -- --entry=<name>` to rebuild one entry). Never patch the generated files directly — the next `npm run vendor` will overwrite your edits and the `manifest.json` sha256 check will flag the drift.
 
+## Internationalization (i18n)
+
+**Never hardcode user-facing English in Dao-owned code.** Two pipelines:
+
+- **C++ Views**: add `<message name="IDS_DAO_<MODULE>_<DESC>" desc="...">` to `src/dao/browser/strings/dao_strings.grd`, then call `l10n_util::GetStringUTF16(IDS_DAO_...)` (or `GetStringFUTF16` for `$1`-style placeholders). Empty `u""` and runtime data (`base::UTF8ToUTF16(url)`) stay as-is — they are data, not copy.
+- **Agent WebUI**: add a `<view>.<area>.<purpose>` key to `src/dao/browser/ui/webui/resources/agent/i18n/locales/en.ts`, then `import {t} from './i18n/i18n.js'; t('key', { var: 'x' })` (placeholder syntax: `{name}`). Don't compare against literal English as a state sentinel (`if (label === 'Copied')`) — translations break the comparison.
+
+`zh-CN` is hand-authored and treated as the tone reference. Other locales are filled by **manually** running `OPENAI_API_KEY=sk-... sh ./i18n.sh` (gpt-4o; flags: `--langs`, `--force`, `--only grd|webui`, `--dry-run`). Do not invoke the script automatically — translation costs tokens and overwrites files; the user runs it when ready.
+
+Two browser tests (`DaoI18nBrowserTest.*`) smoke-test the pipeline; keep them green. When Chromium's locale set changes, rerun `tsx scripts/i18n-bootstrap.ts` to refresh xtb / `<lang>.ts` skeletons + the `i18n_locale_files.gni` GN fragment.
+
 ## Testing
 
 Uses Chromium's `browser_tests` framework. Test file: `src/dao/browser/ui/views/dao_browser_browsertest.cc`.

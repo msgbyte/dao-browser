@@ -9,10 +9,12 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
@@ -64,7 +66,8 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
       views::CreateEmptyBorder(gfx::Insets::TLBR(0, 12, 0, 12)));
   url_display_->SetPreferredSize(gfx::Size(0, 0));
   url_display_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  url_display_->SetAccessibleName(u"Address");
+  url_display_->SetAccessibleName(l10n_util::GetStringUTF16(
+      IDS_DAO_LITTLE_DAO_ADDRESS_ACCESSIBLE_NAME));
   url_display_->SetFocusBehavior(views::View::FocusBehavior::NEVER);
   url_display_->SetProperty(
       views::kFlexBehaviorKey,
@@ -79,16 +82,18 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   views::InkDrop::Get(url_display_)->SetVisibleOpacity(0.04f);
 
   // "Open in Dao ⌘O" button
+  std::u16string open_in_dao_label = l10n_util::GetStringUTF16(
+      IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME);
   open_button_ = AddChildView(std::make_unique<views::LabelButton>(
       base::BindRepeating(&DaoLittleDaoView::OpenInDao,
                           base::Unretained(this)),
-      u"Open in Dao"));
+      open_in_dao_label));
   open_button_->SetEnabledTextColors(TextPrimary());
   open_button_->SetBackground(views::CreateRoundedRectBackground(
       SuggestionHover(), kButtonCornerRadius));
   open_button_->SetBorder(
       views::CreateEmptyBorder(gfx::Insets::TLBR(0, 14, 0, 10)));
-  open_button_->SetAccessibleName(u"Open in Dao");
+  open_button_->SetAccessibleName(open_in_dao_label);
   // Hover effect for open button
   views::InstallRoundRectHighlightPathGenerator(
       open_button_, gfx::Insets(), kButtonCornerRadius);

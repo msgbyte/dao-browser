@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Dao Browser strings. Mirrors Chromium's locale set (see ax_strings.grd).
+
+     IDS_DAO_* identifiers are owned by Dao. Add new strings to the <messages>
+     block at the bottom of this file, then run `tsx scripts/i18n-bootstrap.ts`
+     to make sure every locale has an empty .xtb skeleton on disk.
+
+     This file is regenerated in part: the <outputs> and <translations> blocks
+     are produced by scripts/i18n-bootstrap.ts. The <messages> block is hand-
+     authored — only the surrounding scaffolding is generated. -->
+
+<grit base_dir="." latest_public_release="0" current_release="1"
+      source_lang_id="en">
+  <outputs>
+    <output filename="grit/dao_strings.h" type="rc_header">
+      <emit emit_type="prepend"></emit>
+    </output>
+    <output filename="dao_strings_af.pak" type="data_package" lang="af" />
+    <output filename="dao_strings_am.pak" type="data_package" lang="am" />
+    <output filename="dao_strings_ar.pak" type="data_package" lang="ar" />
+    <output filename="dao_strings_as.pak" type="data_package" lang="as" />
+    <output filename="dao_strings_az.pak" type="data_package" lang="az" />
+    <output filename="dao_strings_be.pak" type="data_package" lang="be" />
+    <output filename="dao_strings_bg.pak" type="data_package" lang="bg" />
+    <output filename="dao_strings_bn.pak" type="data_package" lang="bn" />
+    <output filename="dao_strings_bs.pak" type="data_package" lang="bs" />
+    <output filename="dao_strings_ca.pak" type="data_package" lang="ca" />
+    <output filename="dao_strings_cs.pak" type="data_package" lang="cs" />
+    <output filename="dao_strings_cy.pak" type="data_package" lang="cy" />
+    <output filename="dao_strings_da.pak" type="data_package" lang="da" />
+    <output filename="dao_strings_de.pak" type="data_package" lang="de" />
+    <output filename="dao_strings_el.pak" type="data_package" lang="el" />
+    <output filename="dao_strings_en-GB.pak" type="data_package" lang="en-GB" />
+    <output filename="dao_strings_en-US.pak" type="data_package" lang="en" />
+    <output filename="dao_strings_es.pak" type="data_package" lang="es" />
+    <if expr="is_ios">
+      <output filename="dao_strings_es-MX.pak" type="data_package" lang="es-419" />
+    </if>
+    <if expr="not is_ios">
+      <output filename="dao_strings_es-419.pak" type="data_package" lang="es-419" />
+    </if>
+    <output filename="dao_strings_et.pak" type="data_package" lang="et" />
+    <output filename="dao_strings_eu.pak" type="data_package" lang="eu" />
+    <output filename="dao_strings_fa.pak" type="data_package" lang="fa" />
+    <output filename="dao_strings_fi.pak" type="data_package" lang="fi" />
+    <output filename="dao_strings_fil.pak" type="data_package" lang="fil" />
+    <output filename="dao_strings_fr-CA.pak" type="data_package" lang="fr-CA" />
+    <output filename="dao_strings_fr.pak" type="data_package" lang="fr" />
+    <output filename="dao_strings_gl.pak" type="data_package" lang="gl" />
+    <output filename="dao_strings_gu.pak" type="data_package" lang="gu" />
+    <output filename="dao_strings_he.pak" type="data_package" lang="he" />
+    <output filename="dao_strings_hi.pak" type="data_package" lang="hi" />
+    <output filename="dao_strings_hr.pak" type="data_package" lang="hr" />
+    <output filename="dao_strings_hu.pak" type="data_package" lang="hu" />
+    <output filename="dao_strings_hy.pak" type="data_package" lang="hy" />
+    <output filename="dao_strings_id.pak" type="data_package" lang="id" />
+    <output filename="dao_strings_is.pak" type="data_package" lang="is" />
+    <output filename="dao_strings_it.pak" type="data_package" lang="it" />
+    <output filename="dao_strings_ja.pak" type="data_package" lang="ja" />
+    <output filename="dao_strings_ka.pak" type="data_package" lang="ka" />
+    <output filename="dao_strings_kk.pak" type="data_package" lang="kk" />
+    <output filename="dao_strings_km.pak" type="data_package" lang="km" />
+    <output filename="dao_strings_kn.pak" type="data_package" lang="kn" />
+    <output filename="dao_strings_ko.pak" type="data_package" lang="ko" />
+    <output filename="dao_strings_ky.pak" type="data_package" lang="ky" />
+    <output filename="dao_strings_lo.pak" type="data_package" lang="lo" />
+    <output filename="dao_strings_lt.pak" type="data_package" lang="lt" />
+    <output filename="dao_strings_lv.pak" type="data_package" lang="lv" />
+    <output filename="dao_strings_mk.pak" type="data_package" lang="mk" />
+    <output filename="dao_strings_ml.pak" type="data_package" lang="ml" />
+    <output filename="dao_strings_mn.pak" type="data_package" lang="mn" />
+    <output filename="dao_strings_mr.pak" type="data_package" lang="mr" />
+    <output filename="dao_strings_ms.pak" type="data_package" lang="ms" />
+    <output filename="dao_strings_my.pak" type="data_package" lang="my" />
+    <output filename="dao_strings_ne.pak" type="data_package" lang="ne" />
+    <output filename="dao_strings_nl.pak" type="data_package" lang="nl" />
+    <!-- The translation console uses 'no' for Norwegian Bokmål. It should
+         be 'nb'. -->
+    <output filename="dao_strings_nb.pak" type="data_package" lang="no" />
+    <output filename="dao_strings_pa.pak" type="data_package" lang="pa" />
+    <output filename="dao_strings_pl.pak" type="data_package" lang="pl" />
+    <if expr="is_ios">
+      <output filename="dao_strings_pt.pak" type="data_package" lang="pt-BR" />
+    </if>
+    <if expr="not is_ios">
+      <output filename="dao_strings_pt-BR.pak" type="data_package" lang="pt-BR" />
+    </if>
+    <output filename="dao_strings_pt-PT.pak" type="data_package" lang="pt-PT" />
+    <output filename="dao_strings_or.pak" type="data_package" lang="or" />
+    <output filename="dao_strings_ro.pak" type="data_package" lang="ro" />
+    <output filename="dao_strings_ru.pak" type="data_package" lang="ru" />
+    <output filename="dao_strings_si.pak" type="data_package" lang="si" />
+    <output filename="dao_strings_sk.pak" type="data_package" lang="sk" />
+    <output filename="dao_strings_sl.pak" type="data_package" lang="sl" />
+    <output filename="dao_strings_sq.pak" type="data_package" lang="sq" />
+    <output filename="dao_strings_sr-Latn.pak" type="data_package" lang="sr-Latn" />
+    <output filename="dao_strings_sr.pak" type="data_package" lang="sr" />
+    <output filename="dao_strings_sv.pak" type="data_package" lang="sv" />
+    <output filename="dao_strings_sw.pak" type="data_package" lang="sw" />
+    <output filename="dao_strings_ta.pak" type="data_package" lang="ta" />
+    <output filename="dao_strings_te.pak" type="data_package" lang="te" />
+    <output filename="dao_strings_th.pak" type="data_package" lang="th" />
+    <output filename="dao_strings_tr.pak" type="data_package" lang="tr" />
+    <output filename="dao_strings_uk.pak" type="data_package" lang="uk" />
+    <output filename="dao_strings_ur.pak" type="data_package" lang="ur" />
+    <output filename="dao_strings_uz.pak" type="data_package" lang="uz" />
+    <output filename="dao_strings_vi.pak" type="data_package" lang="vi" />
+    <output filename="dao_strings_zh-CN.pak" type="data_package" lang="zh-CN" />
+    <output filename="dao_strings_zh-HK.pak" type="data_package" lang="zh-HK" />
+    <output filename="dao_strings_zh-TW.pak" type="data_package" lang="zh-TW" />
+    <output filename="dao_strings_zu.pak" type="data_package" lang="zu" />
+    <!-- Pseudolocales -->
+    <output filename="dao_strings_ar-XB.pak" type="data_package" lang="ar-XB" />
+    <output filename="dao_strings_en-XA.pak" type="data_package" lang="en-XA" />
+  </outputs>
+  <translations>
+    <file path="translations/dao_strings_af.xtb" lang="af" />
+    <file path="translations/dao_strings_am.xtb" lang="am" />
+    <file path="translations/dao_strings_ar.xtb" lang="ar" />
+    <file path="translations/dao_strings_as.xtb" lang="as" />
+    <file path="translations/dao_strings_az.xtb" lang="az" />
+    <file path="translations/dao_strings_be.xtb" lang="be" />
+    <file path="translations/dao_strings_bg.xtb" lang="bg" />
+    <file path="translations/dao_strings_bn.xtb" lang="bn" />
+    <file path="translations/dao_strings_bs.xtb" lang="bs" />
+    <file path="translations/dao_strings_ca.xtb" lang="ca" />
+    <file path="translations/dao_strings_cs.xtb" lang="cs" />
+    <file path="translations/dao_strings_cy.xtb" lang="cy" />
+    <file path="translations/dao_strings_da.xtb" lang="da" />
+    <file path="translations/dao_strings_de.xtb" lang="de" />
+    <file path="translations/dao_strings_el.xtb" lang="el" />
+    <file path="translations/dao_strings_en-GB.xtb" lang="en-GB" />
+    <file path="translations/dao_strings_es.xtb" lang="es" />
+    <file path="translations/dao_strings_es-419.xtb" lang="es-419" />
+    <file path="translations/dao_strings_et.xtb" lang="et" />
+    <file path="translations/dao_strings_eu.xtb" lang="eu" />
+    <file path="translations/dao_strings_fa.xtb" lang="fa" />
+    <file path="translations/dao_strings_fi.xtb" lang="fi" />
+    <file path="translations/dao_strings_fil.xtb" lang="fil" />
+    <file path="translations/dao_strings_fr.xtb" lang="fr" />
+    <file path="translations/dao_strings_fr-CA.xtb" lang="fr-CA" />
+    <file path="translations/dao_strings_gl.xtb" lang="gl" />
+    <file path="translations/dao_strings_gu.xtb" lang="gu" />
+    <file path="translations/dao_strings_hi.xtb" lang="hi" />
+    <file path="translations/dao_strings_hr.xtb" lang="hr" />
+    <file path="translations/dao_strings_hu.xtb" lang="hu" />
+    <file path="translations/dao_strings_hy.xtb" lang="hy" />
+    <file path="translations/dao_strings_id.xtb" lang="id" />
+    <file path="translations/dao_strings_is.xtb" lang="is" />
+    <file path="translations/dao_strings_it.xtb" lang="it" />
+    <!-- The translation console uses 'iw' for Hebrew, but we use 'he'. -->
+    <file path="translations/dao_strings_iw.xtb" lang="he" />
+    <file path="translations/dao_strings_ja.xtb" lang="ja" />
+    <file path="translations/dao_strings_ka.xtb" lang="ka" />
+    <file path="translations/dao_strings_kk.xtb" lang="kk" />
+    <file path="translations/dao_strings_km.xtb" lang="km" />
+    <file path="translations/dao_strings_kn.xtb" lang="kn" />
+    <file path="translations/dao_strings_ko.xtb" lang="ko" />
+    <file path="translations/dao_strings_ky.xtb" lang="ky" />
+    <file path="translations/dao_strings_lo.xtb" lang="lo" />
+    <file path="translations/dao_strings_lt.xtb" lang="lt" />
+    <file path="translations/dao_strings_lv.xtb" lang="lv" />
+    <file path="translations/dao_strings_mk.xtb" lang="mk" />
+    <file path="translations/dao_strings_ml.xtb" lang="ml" />
+    <file path="translations/dao_strings_mn.xtb" lang="mn" />
+    <file path="translations/dao_strings_mr.xtb" lang="mr" />
+    <file path="translations/dao_strings_ms.xtb" lang="ms" />
+    <file path="translations/dao_strings_my.xtb" lang="my" />
+    <file path="translations/dao_strings_ne.xtb" lang="ne" />
+    <file path="translations/dao_strings_nl.xtb" lang="nl" />
+    <file path="translations/dao_strings_no.xtb" lang="no" />
+    <file path="translations/dao_strings_or.xtb" lang="or" />
+    <file path="translations/dao_strings_pa.xtb" lang="pa" />
+    <file path="translations/dao_strings_pl.xtb" lang="pl" />
+    <file path="translations/dao_strings_pt-BR.xtb" lang="pt-BR" />
+    <file path="translations/dao_strings_pt-PT.xtb" lang="pt-PT" />
+    <file path="translations/dao_strings_ro.xtb" lang="ro" />
+    <file path="translations/dao_strings_ru.xtb" lang="ru" />
+    <file path="translations/dao_strings_si.xtb" lang="si" />
+    <file path="translations/dao_strings_sk.xtb" lang="sk" />
+    <file path="translations/dao_strings_sl.xtb" lang="sl" />
+    <file path="translations/dao_strings_sq.xtb" lang="sq" />
+    <file path="translations/dao_strings_sr.xtb" lang="sr" />
+    <file path="translations/dao_strings_sr-Latn.xtb" lang="sr-Latn" />
+    <file path="translations/dao_strings_sv.xtb" lang="sv" />
+    <file path="translations/dao_strings_sw.xtb" lang="sw" />
+    <file path="translations/dao_strings_ta.xtb" lang="ta" />
+    <file path="translations/dao_strings_te.xtb" lang="te" />
+    <file path="translations/dao_strings_th.xtb" lang="th" />
+    <file path="translations/dao_strings_tr.xtb" lang="tr" />
+    <file path="translations/dao_strings_uk.xtb" lang="uk" />
+    <file path="translations/dao_strings_ur.xtb" lang="ur" />
+    <file path="translations/dao_strings_uz.xtb" lang="uz" />
+    <file path="translations/dao_strings_vi.xtb" lang="vi" />
+    <file path="translations/dao_strings_zh-CN.xtb" lang="zh-CN" />
+    <file path="translations/dao_strings_zh-HK.xtb" lang="zh-HK" />
+    <file path="translations/dao_strings_zh-TW.xtb" lang="zh-TW" />
+    <file path="translations/dao_strings_zu.xtb" lang="zu" />
+  </translations>
+  <release seq="1">
+    <messages fallback_to_english="true">
+      <!-- Sentinel string used to verify the i18n pipeline end-to-end. Safe to
+           keep around indefinitely; it is not surfaced in real UI. -->
+      <message name="IDS_DAO_TEST_PIPELINE" desc="Sentinel string used by the build to verify the Dao i18n pipeline is wired up correctly. Not user-facing.">
+        Dao i18n pipeline OK
+      </message>
+
+      <!-- Sidebar / address bar -->
+      <message name="IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP" desc="Tooltip on the toggle button that hides or shows the Dao sidebar. The keyboard shortcut symbol after the label is the macOS Command key (⌘) followed by 'S'.">
+        Toggle Sidebar (<ph name="SHORTCUT">⌘S</ph>)
+      </message>
+      <message name="IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME" desc="Accessible name (read aloud by screen readers) for the sidebar toggle button.">
+        Toggle Sidebar
+      </message>
+      <message name="IDS_DAO_ADDRESS_BAR_STOP_LOADING_ACCESSIBLE_NAME" desc="Accessible name for the button in the address bar that stops the current page from loading.">
+        Stop Loading
+      </message>
+      <message name="IDS_DAO_ADDRESS_BAR_RELOAD_ACCESSIBLE_NAME" desc="Accessible name for the button in the address bar that reloads the current page.">
+        Reload
+      </message>
+
+      <!-- Command bar -->
+      <message name="IDS_DAO_COMMAND_BAR_PLACEHOLDER" desc="Placeholder text shown in the Spotlight-style command bar (Cmd+L) prompting the user to type either a URL or a search query.">
+        Type a URL or search...
+      </message>
+
+      <!-- Suggestion item -->
+      <message name="IDS_DAO_SUGGESTION_ASK_AI" desc="Title of a suggestion row that, when clicked, sends the user's typed text to the AI assistant. The PROMPT placeholder is the user's typed query, e.g. 'Ask AI: how do I bake bread?'.">
+        Ask AI: <ph name="PROMPT">$1<ex>how do I bake bread?</ex></ph>
+      </message>
+
+      <!-- Control Center -->
+      <message name="IDS_DAO_CONTROL_CENTER_BUTTON_ACCESSIBLE_NAME" desc="Accessible name for the Control Center button (the gear/sliders icon in the sidebar that opens the settings popup).">
+        Control Center
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_ADD_EXTENSION" desc="Tooltip and accessible name for the button that adds a new browser extension from the Control Center extensions section.">
+        Add extension
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_MANAGE_EXTENSIONS" desc="Tooltip and accessible name for the button that opens the extensions management page from the Control Center.">
+        Manage extensions
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_BACK_BUTTON_LABEL" desc="Label on the back button in the Control Center 'More' submenu. Includes a left-pointing arrow before the word 'Back'.">
+        <ph name="ARROW">←</ph> Back
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_BACK_BUTTON_ACCESSIBLE_NAME" desc="Accessible name for the back button in the Control Center 'More' submenu (no arrow, screen reader friendly).">
+        Back
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_CLEAR_CACHE" desc="Label on the button in the Control Center 'More' submenu that clears the browser cache. Idle state.">
+        Clear Cache
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES" desc="Label on the button in the Control Center 'More' submenu that clears the browser cookies. Idle state.">
+        Clear Cookies
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_CLEARING" desc="Transient label shown on a Clear Cache or Clear Cookies button while the operation is in progress.">
+        Clearing...
+      </message>
+
+      <!-- QR code dialog (after scanning a QR via right-click on an image) -->
+      <message name="IDS_DAO_QR_RESULT_DIALOG_TITLE" desc="Title of the dialog shown when a QR code in the page has been decoded.">
+        QR Code Result
+      </message>
+      <message name="IDS_DAO_QR_RESULT_COPY" desc="Label on a button that copies the decoded QR text to the clipboard.">
+        Copy
+      </message>
+      <message name="IDS_DAO_QR_RESULT_OPEN" desc="Label on a button that opens the decoded QR text as a URL in a new tab.">
+        Open
+      </message>
+
+      <!-- Little Dao mini-browser window -->
+      <message name="IDS_DAO_LITTLE_DAO_ADDRESS_ACCESSIBLE_NAME" desc="Accessible name for the URL display field in the Little Dao mini-browser window.">
+        Address
+      </message>
+      <message name="IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME" desc="Accessible name for the button that promotes the current Little Dao mini-browser tab into a full Dao Browser tab.">
+        Open in Dao
+      </message>
+    </messages>
+  </release>
+</grit>
