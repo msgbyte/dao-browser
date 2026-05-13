@@ -143,6 +143,35 @@ function resolveModel(config: ReturnType<typeof getActiveLLMConfig>): any {
   }
 }
 
+// Renders the assistant's Markdown answer to a self-contained HTML
+// fragment suitable for the system clipboard's text/html slot. Uses the
+// same `marked` singleton mini-lit's <markdown-block> renders with so
+// the pasted output mirrors the chat bubble's structure (paragraphs,
+// lists, code, emphasis, links). Unlike <markdown-block>, we go through
+// the default renderer so the output is plain HTML — no <code-block>
+// custom elements that other apps cannot interpret.
+function renderAssistantMarkdown(markdown: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const m = (pi as any).marked;
+  try {
+    const out = m?.parse?.(markdown, {async: false}) ?? m?.(markdown);
+    if (typeof out === 'string') return out;
+  } catch (e) {
+    console.warn('[dao] markdown render failed; falling back to <pre>', e);
+  }
+  // Fallback: wrap the raw text in <pre> so the clipboard still has
+  // something rich-text targets can paste, with the line breaks intact.
+  return '<pre>' + escapeHtml(markdown) + '</pre>';
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+}
+
 export class DaoChatView extends CrLitElement {
   static override get properties() {
     return {
@@ -1129,17 +1158,24 @@ export class DaoChatView extends CrLitElement {
     const agent = this.agent_;
     if (!agent) return null;
     const msgs = agent.state.messages;
+    // Walk backward and skip tool-only assistant messages (those whose
+    // content is just tool_use parts with no visible text). Copy / share
+    // should reflect the user-visible bubble, not the tool plumbing that
+    // produced it.
     let assistantIdx = -1;
+    let answer = '';
     for (let i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i]?.role === 'assistant') {
+      if (msgs[i]?.role !== 'assistant') continue;
+      const text = this.extractAssistantText_(msgs[i]);
+      if (text) {
         assistantIdx = i;
+        answer = text;
         break;
       }
     }
     if (assistantIdx < 0) return null;
-    const answer = this.extractAssistantText_(msgs[assistantIdx]);
 
-    let question = '—';
+    let question = '';
     let source: {title: string; domain: string}|undefined;
     for (let i = assistantIdx - 1; i >= 0; i--) {
       const m = msgs[i];
@@ -1265,18 +1301,44 @@ export class DaoChatView extends CrLitElement {
       return;
     }
     try {
-      await navigator.clipboard.writeText(pair.answer);
+      // Render the assistant's Markdown answer to HTML so rich-text
+      // targets (Notion, Word, Slack, mail composers) preserve headings,
+      // lists, code, and emphasis. text/plain still carries the raw
+      // Markdown for terminals and code editors. We use the same `marked`
+      // singleton mini-lit's <markdown-block> renders with so the
+      // clipboard payload visually matches the chat bubble.
+      const html = renderAssistantMarkdown(pair.answer);
+      const ClipboardItemCtor =
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (window as any).ClipboardItem as (new(items: Record<string, Blob>) =>
+                                                ClipboardItem) |
+          undefined;
+      if (ClipboardItemCtor && navigator.clipboard?.write) {
+        const item = new ClipboardItemCtor({
+          'text/html': new Blob([html], {type: 'text/html'}),
+          'text/plain': new Blob([pair.answer], {type: 'text/plain'}),
+        });
+        await navigator.clipboard.write([item]);
+      } else {
+        await navigator.clipboard.writeText(pair.answer);
+      }
       this.flashButtonLabel_(btn, 'Copied');
     } catch (e) {
       console.warn('[dao] copy text failed', e);
-      this.flashButtonLabel_(btn, 'Failed');
+      try {
+        await navigator.clipboard.writeText(pair.answer);
+        this.flashButtonLabel_(btn, 'Copied');
+      } catch (e2) {
+        console.warn('[dao] copy text fallback failed', e2);
+        this.flashButtonLabel_(btn, 'Failed');
+      }
     }
   }
 
   private async shareAssistantAsImage_(btn: HTMLButtonElement):
       Promise<void> {
     const pair = this.getLastQaPair_();
-    if (!pair) {
+    if (!pair || !pair.answer) {
       this.flashButtonLabel_(btn, 'Empty');
       return;
     }
@@ -1487,6 +1549,7 @@ export class DaoChatView extends CrLitElement {
       capture = null;
     }
     if (!capture || !capture.markdown) {
+      console.warn('[dao] page chip dropped: capture failed for', chipUrl);
       // Still mark the chip URL as "handled" so we don't re-flash the
       // chip on the next poll tick while the user waits for a response.
       this.sentPageUrls_.add(chipUrl);
@@ -2003,11 +2066,54 @@ export class DaoChatView extends CrLitElement {
       iface?.requestUpdate?.();
       void this.refreshPageChip_();
       void this.refreshSelectionChip_();
+      // After Lit re-renders the restored messages, re-inject the
+      // copy/share/retry action row on the last assistant bubble and
+      // re-decorate page attachments. Without this the buttons only
+      // appear for replies generated in the current session — restored
+      // history would have no actions until the user sent another
+      // message.
+      //
+      // The exact tick when <assistant-message> elements appear in the
+      // DOM depends on pi-web-ui's render schedule (Lit microtasks +
+      // virtualization), so we retry on a few backoff steps until the
+      // last assistant bubble exists. 80/200/500ms covers cold starts
+      // where IndexedDB hydration competes with the first paint; once
+      // the row is injected refreshAssistantActions_ is idempotent so
+      // any later tick is harmless.
+      const tryInject = (delay: number, remaining: number) => {
+        setTimeout(() => {
+          this.refreshAssistantActions_();
+          this.decoratePageAttachments_();
+          const injected = !!this.panel_?.querySelector(
+              '.dao-assistant-actions');
+          if (!injected && remaining > 0) {
+            tryInject(delay * 2, remaining - 1);
+          }
+        }, delay);
+      };
+      tryInject(80, 3);
       setTimeout(() => this.focusInput(), 50);
     } catch (_) { /* ignore */ }
   }
 
   // ---- Public API kept for dao-agent-app compatibility ----
+
+  // Testing hook: lets browser_tests drive the action-row injector
+  // directly without round-tripping through a real LLM stream. Mirrors
+  // the path taken after agent_end / loadSession_. Not a public product
+  // API; the underscore-prefixed name keeps it out of accidental use.
+  _daoTestRefreshAssistantActions(): void {
+    this.refreshAssistantActions_();
+  }
+
+  // Testing hook: exposes the same Markdown→HTML renderer that
+  // copyAssistantText_ feeds into the text/html clipboard slot. Lets
+  // browser_tests assert the output without re-importing the vendor
+  // bundle (which would double-register lit-html's TrustedTypePolicy
+  // and crash the test page).
+  _daoTestRenderMarkdownToHtml(markdown: string): string {
+    return renderAssistantMarkdown(markdown);
+  }
 
   focusInput() {
     const editor = this.panel_?.querySelector(

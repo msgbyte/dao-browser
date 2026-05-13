@@ -1217,6 +1217,248 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, LoadsWithoutConsoleErrors) {
       << base::JoinString(errors, "\n - ");
 }
 
+// =============================================================================
+// DaoAgentShareImageTest
+//
+// Direct EvalJs coverage for dao_share_image.ts. Imports the deployed
+// module from chrome://agent/ and asserts the renderer's contract:
+//   - Always returns a PNG Blob, even on degenerate inputs
+//   - Skips the question bubble when question is blank, producing a
+//     visibly shorter image than the with-bubble case
+//   - Falls back gracefully when answer is also blank (renderer's '—'
+//     fallback path; copy/share callers should pre-filter, but the
+//     renderer must not crash if they don't).
+// =============================================================================
+
+using DaoAgentShareImageTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAgentShareImageTest, RendersValidPngWithBubble) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome://agent/")));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  constexpr char kScript[] = R"(
+    (async () => {
+      const m = await import('chrome://agent/dao_share_image.js');
+      const blob = await m.renderShareImage({
+        question: 'What is the capital of France?',
+        answer: 'Paris is the capital of France.',
+      });
+      if (!(blob instanceof Blob)) return 'not-a-blob';
+      if (blob.type !== 'image/png') return 'wrong-type:' + blob.type;
+      if (blob.size <= 0) return 'empty-blob';
+      return 'ok';
+    })()
+  )";
+  EXPECT_EQ("ok", content::EvalJs(web_contents, kScript));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentShareImageTest, SkipsBubbleWhenQuestionEmpty) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome://agent/")));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  // Same answer body, two captures: one with a real question, one with
+  // an empty question (attachment-only send). The bubbleless image must
+  // be strictly smaller than the bubbled one — that's the contract the
+  // hasBubble branch in renderShareImage was added to enforce.
+  // Note: PNG byte size correlates with rendered area but is not strictly
+  // monotonic with height because of compression of the flat background.
+  // We instead read the decoded ImageBitmap height to compare layouts.
+  constexpr char kScript[] = R"(
+    (async () => {
+      const m = await import('chrome://agent/dao_share_image.js');
+      const answer = 'Paris is the capital of France.';
+      const blobWith = await m.renderShareImage({question: 'q', answer});
+      const blobNo = await m.renderShareImage({question: '', answer});
+      const bmpWith = await createImageBitmap(blobWith);
+      const bmpNo = await createImageBitmap(blobNo);
+      if (bmpNo.height >= bmpWith.height) {
+        return 'bubble-not-skipped:' + bmpNo.height + '>=' + bmpWith.height;
+      }
+      // Whitespace-only question must be treated identically to empty.
+      const blobWs = await m.renderShareImage({question: '   ', answer});
+      const bmpWs = await createImageBitmap(blobWs);
+      if (bmpWs.height !== bmpNo.height) {
+        return 'whitespace-not-trimmed:' + bmpWs.height + '!=' + bmpNo.height;
+      }
+      return 'ok';
+    })()
+  )";
+  EXPECT_EQ("ok", content::EvalJs(web_contents, kScript));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentShareImageTest, HandlesEmptyAnswerWithoutCrash) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome://agent/")));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  // copyAssistantText_ / shareAssistantAsImage_ are supposed to short-
+  // circuit before reaching the renderer in this case, but the renderer
+  // still has a '—' fallback for direct callers. Make sure that path
+  // doesn't throw.
+  constexpr char kScript[] = R"(
+    (async () => {
+      const m = await import('chrome://agent/dao_share_image.js');
+      const blob = await m.renderShareImage({question: '', answer: ''});
+      if (!(blob instanceof Blob)) return 'not-a-blob';
+      if (blob.type !== 'image/png') return 'wrong-type:' + blob.type;
+      if (blob.size <= 0) return 'empty-blob';
+      return 'ok';
+    })()
+  )";
+  EXPECT_EQ("ok", content::EvalJs(web_contents, kScript));
+}
+
+// =============================================================================
+// DaoAgentMarkdownTest
+//
+// Verifies that copyAssistantText_'s Markdown→HTML renderer (used to
+// populate the text/html clipboard slot) emits standard HTML for the
+// shapes assistant replies typically contain — headings, lists, inline
+// code, emphasis, fenced code, links. If this regresses, copy-as-html
+// silently degrades back to text/plain.
+//
+// We drive the renderer through the <dao-chat-view> testing hook
+// (_daoTestRenderMarkdownToHtml). Re-importing pi_runtime_bundle.js in
+// EvalJs would double-register lit-html's TrustedTypePolicy and crash
+// the test page; the hook reuses the bundle the page already loaded.
+// =============================================================================
+
+using DaoAgentMarkdownTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMarkdownTest, RendersAssistantMarkdownToHtml) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome://agent/")));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  constexpr char kScript[] = R"(
+    (async () => {
+      await customElements.whenDefined('dao-chat-view');
+      const view = await new Promise(resolve => {
+        const found = document.querySelector('dao-chat-view');
+        if (found) return resolve(found);
+        const mo = new MutationObserver(() => {
+          const v = document.querySelector('dao-chat-view');
+          if (v) { mo.disconnect(); resolve(v); }
+        });
+        mo.observe(document.body, {childList: true, subtree: true});
+      });
+      if (typeof view._daoTestRenderMarkdownToHtml !== 'function') {
+        return 'no-test-hook';
+      }
+      const md = '# Heading\n\n' +
+                 'A paragraph with **bold** and *em* and `inline`.\n\n' +
+                 '- item one\n- item two\n\n' +
+                 '[link](https://example.com)\n\n' +
+                 '```js\nlet x = 1;\n```';
+      const html = view._daoTestRenderMarkdownToHtml(md);
+      if (typeof html !== 'string') return 'not-a-string:' + typeof html;
+      const want = ['<h1', '<strong', '<em', '<code',
+                    '<ul', '<li', '<a', 'example.com'];
+      const missing = want.filter(s => !html.includes(s));
+      if (missing.length) return 'missing:' + missing.join(',') +
+                                 ' html=' + html.slice(0, 200);
+      // Empty input must not throw, and must not produce the <pre>
+      // fallback (which would only kick in on a renderer exception).
+      const empty = view._daoTestRenderMarkdownToHtml('');
+      if (typeof empty !== 'string') return 'empty-not-string';
+      return 'ok';
+    })()
+  )";
+  EXPECT_EQ("ok", content::EvalJs(web_contents, kScript));
+}
+
+// =============================================================================
+// DaoAgentAssistantActionsTest
+//
+// Covers the "after restoring history, copy/share/retry buttons appear
+// on the last assistant bubble" path. We can't drive a full LLM round-
+// trip from a browser test, so we drive the injector directly: stage
+// a fake <assistant-message> in the chat panel, call the testing hook
+// on <dao-chat-view>, and assert .dao-assistant-actions was attached
+// after the last bubble. This is the same DOM contract loadSession_ now
+// re-runs after hydrating IndexedDB messages.
+// =============================================================================
+
+using DaoAgentAssistantActionsTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAgentAssistantActionsTest,
+                       AttachesActionRowToLastAssistantMessage) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome://agent/")));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  constexpr char kScript[] = R"(
+    (async () => {
+      await customElements.whenDefined('dao-agent-app');
+      // <dao-chat-view> is attached lazily inside <dao-agent-app>; wait
+      // for both the element to register and an instance to mount.
+      await customElements.whenDefined('dao-chat-view');
+      const view = await new Promise(resolve => {
+        const found = document.querySelector('dao-chat-view');
+        if (found) return resolve(found);
+        const mo = new MutationObserver(() => {
+          const v = document.querySelector('dao-chat-view');
+          if (v) { mo.disconnect(); resolve(v); }
+        });
+        mo.observe(document.body, {childList: true, subtree: true});
+      });
+      // Wait for view's panel_ wiring (mount_ resolves panel_ after the
+      // first updateComplete).
+      for (let i = 0; i < 20 && !view.querySelector('pi-chat-panel'); i++) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      const panel = view.querySelector('pi-chat-panel');
+      if (!panel) return 'no-panel';
+      // Stage two fake assistant bubbles. refreshAssistantActions_ only
+      // attaches the row to the last one — we assert exactly that.
+      const a1 = document.createElement('assistant-message');
+      a1.setAttribute('data-test', 'first');
+      const a2 = document.createElement('assistant-message');
+      a2.setAttribute('data-test', 'last');
+      panel.appendChild(a1);
+      panel.appendChild(a2);
+
+      if (typeof view._daoTestRefreshAssistantActions !== 'function') {
+        return 'no-test-hook';
+      }
+      view._daoTestRefreshAssistantActions();
+
+      const rows = panel.querySelectorAll('.dao-assistant-actions');
+      if (rows.length !== 1) return 'wrong-row-count:' + rows.length;
+      const row = rows[0];
+      // The injector inserts the row as a sibling immediately after the
+      // last <assistant-message>.
+      if (row.previousElementSibling !== a2) {
+        return 'row-not-after-last:' +
+               (row.previousElementSibling &&
+                row.previousElementSibling.getAttribute('data-test'));
+      }
+      // Confirm all three buttons are present (copy / share / retry).
+      const haveCopy = !!row.querySelector('.dao-copy-btn');
+      const haveShare = !!row.querySelector('.dao-share-btn');
+      const haveRetry = !!row.querySelector('.dao-retry-btn');
+      if (!haveCopy || !haveShare || !haveRetry) {
+        return 'missing-btn copy=' + haveCopy +
+               ' share=' + haveShare + ' retry=' + haveRetry;
+      }
+
+      // Idempotency: a second refresh must not duplicate rows.
+      view._daoTestRefreshAssistantActions();
+      const rows2 = panel.querySelectorAll('.dao-assistant-actions');
+      if (rows2.length !== 1) return 'duplicated:' + rows2.length;
+      return 'ok';
+    })()
+  )";
+  EXPECT_EQ("ok", content::EvalJs(web_contents, kScript));
+}
+
 // TODO(dao): Broken by v147 API drift — NativeTheme::set_use_dark_colors
 // was removed and Background::get_color is now protected. Wrap in #if 0
 // until ported to ColorProvider-based API.

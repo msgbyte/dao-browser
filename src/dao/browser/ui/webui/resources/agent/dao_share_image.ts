@@ -249,27 +249,40 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
   const bubbleSize = 18;
   const bubbleLineHeight = Math.round(bubbleSize * 1.5);
   const bubbleInnerMax = BUBBLE_MAX_WIDTH - BUBBLE_PADDING_X * 2;
-  const bubbleBlock = measureTextBlock(
-      measure, ctx.question || '—', bubbleInnerMax, bubbleSize,
-      bubbleLineHeight);
-  const bubbleInnerWidth = Math.min(
-      bubbleInnerMax,
-      bubbleBlock.lines.reduce((m, l) => Math.max(m, l.width), 0));
-  const bubbleOuterWidth = bubbleInnerWidth + BUBBLE_PADDING_X * 2;
-  const bubbleOuterHeight = bubbleBlock.height + BUBBLE_PADDING_Y * 2;
+  const questionText = (ctx.question || '').trim();
+  const hasBubble = questionText.length > 0;
+  const bubbleBlock = hasBubble ?
+      measureTextBlock(
+          measure, questionText, bubbleInnerMax, bubbleSize, bubbleLineHeight) :
+      {lines: [], height: 0};
+  const bubbleInnerWidth = hasBubble ?
+      Math.min(
+          bubbleInnerMax,
+          bubbleBlock.lines.reduce((m, l) => Math.max(m, l.width), 0)) :
+      0;
+  const bubbleOuterWidth =
+      hasBubble ? bubbleInnerWidth + BUBBLE_PADDING_X * 2 : 0;
+  const bubbleOuterHeight =
+      hasBubble ? bubbleBlock.height + BUBBLE_PADDING_Y * 2 : 0;
 
   let y = OUTER_PADDING;
   const bubbleX =
       SHARE_CANVAS_WIDTH - OUTER_PADDING - bubbleOuterWidth;
   const bubbleY = y;
-  y += bubbleOuterHeight;
-
-  if (ctx.source) {
-    y += GAP_BUBBLE_TO_SOURCE;
+  if (hasBubble) {
+    y += bubbleOuterHeight;
+    if (ctx.source) {
+      y += GAP_BUBBLE_TO_SOURCE;
+      y += SOURCE_LINE_HEIGHT;
+      y += GAP_SOURCE_TO_ANSWER;
+    } else {
+      y += GAP_BUBBLE_TO_ANSWER;
+    }
+  } else if (ctx.source) {
+    // No bubble but still a source pill — keep the source visible above
+    // the answer with the same gap it would normally have.
     y += SOURCE_LINE_HEIGHT;
     y += GAP_SOURCE_TO_ANSWER;
-  } else {
-    y += GAP_BUBBLE_TO_ANSWER;
   }
 
   const answerY = y;
@@ -291,14 +304,17 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
   g.fillStyle = BG_COLOR;
   g.fillRect(0, 0, SHARE_CANVAS_WIDTH, totalHeight);
 
-  g.fillStyle = ACCENT_COLOR;
-  paintRoundedRect(
-      g, bubbleX, bubbleY, bubbleOuterWidth, bubbleOuterHeight, BUBBLE_RADIUS);
-  paintLines(
-      g, bubbleBlock.lines,
-      bubbleX + BUBBLE_PADDING_X,
-      bubbleY + BUBBLE_PADDING_Y + bubbleSize,
-      bubbleSize, bubbleLineHeight, '#ffffff', 'left', bubbleInnerWidth);
+  if (hasBubble) {
+    g.fillStyle = ACCENT_COLOR;
+    paintRoundedRect(
+        g, bubbleX, bubbleY, bubbleOuterWidth, bubbleOuterHeight,
+        BUBBLE_RADIUS);
+    paintLines(
+        g, bubbleBlock.lines,
+        bubbleX + BUBBLE_PADDING_X,
+        bubbleY + BUBBLE_PADDING_Y + bubbleSize,
+        bubbleSize, bubbleLineHeight, '#ffffff', 'left', bubbleInnerWidth);
+  }
 
   if (ctx.source) {
     g.font = `${SOURCE_FONT_SIZE}px ${FONT_FAMILY}`;
@@ -306,8 +322,9 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
     g.textBaseline = 'alphabetic';
     const sourceText = `From ${ctx.source.domain}`;
     const w = g.measureText(sourceText).width;
-    const sourceY =
-        bubbleY + bubbleOuterHeight + GAP_BUBBLE_TO_SOURCE + SOURCE_FONT_SIZE;
+    const sourceY = hasBubble ?
+        bubbleY + bubbleOuterHeight + GAP_BUBBLE_TO_SOURCE + SOURCE_FONT_SIZE :
+        OUTER_PADDING + SOURCE_FONT_SIZE;
     g.fillText(
         sourceText, SHARE_CANVAS_WIDTH - OUTER_PADDING - w, sourceY);
   }

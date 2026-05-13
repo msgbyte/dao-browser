@@ -202,11 +202,18 @@ const CAPTURE_SCRIPT = `(function() {
     // The CJK-punct character class covers fullwidth forms,
     // CJK symbols/punct, plus the curly quotes / dashes / ellipsis
     // turndown typically passes through.
+    // The regex literals below intentionally double every backslash. This
+    // string is a TS template literal that gets sent verbatim through CDP
+    // Runtime.evaluate; single \\* would be eaten by template-string escape
+    // resolution and the injected page would see /(**|*|_)/ — a SyntaxError
+    // ("Nothing to repeat") that aborts the whole capture before it can
+    // reach the outer try/catch. Keep \\\\* / \\\\p{...} so the page actually
+    // sees \\*\\* / \\p{L}\\p{N}.
     md = md.replace(
-        /([　-〿＀-￯‘-‟…—–])(\*\*|__|\*|_)(?=[\p{L}\p{N}])/gu,
+        /([　-〿＀-￯‘-‟…—–])(\\*\\*|__|\\*|_)(?=[\\p{L}\\p{N}])/gu,
         '$1$2 ');
     md = md.replace(
-        /(?<=[\p{L}\p{N}])(\*\*|__|\*|_)([　-〿＀-￯‘-‟…—–])/gu,
+        /(?<=[\\p{L}\\p{N}])(\\*\\*|__|\\*|_)([　-〿＀-￯‘-‟…—–])/gu,
         ' $1$2');
 
     return JSON.stringify({
@@ -328,19 +335,29 @@ export async function captureCurrentPageMarkdown():
     raw = await callNative(
         'executeScript', {code: CAPTURE_SCRIPT, lockTab: false}) as
         {result?: string; error?: string};
-  } catch (_) {
+  } catch (e) {
+    console.warn('[dao-capture] executeScript threw', e);
     return null;
   }
-  if (!raw || raw.error || !raw.result) return null;
+  if (!raw || raw.error || !raw.result) {
+    console.warn('[dao-capture] native executeScript returned no usable result',
+                 raw);
+    return null;
+  }
   let payload:
       {url?: string; title?: string; markdown?: string; fallback?: boolean;
        error?: string};
   try {
     payload = JSON.parse(raw.result);
-  } catch (_) {
+  } catch (e) {
+    console.warn('[dao-capture] failed to parse capture payload', e);
     return null;
   }
-  if (payload.error || !payload.url) return null;
+  if (payload.error || !payload.url) {
+    console.warn('[dao-capture] capture script returned error or empty url',
+                 payload);
+    return null;
+  }
   return {
     url: payload.url,
     title: payload.title || '',
