@@ -280,6 +280,178 @@ export async function fetchCurrentSelection():
   };
 }
 
+// Unified probe result. `selection` carries the same shape
+// fetchCurrentSelection returns (null when no non-empty selection or page is
+// non-capturable). `hasFocusedInput` is true when the active tab's
+// document.activeElement (descended through open shadow roots — closed
+// shadow roots and cross-origin iframes are blind spots, both make
+// activeElement report the host element) is a text-like <input>,
+// <textarea>, or contenteditable — and is not disabled or readonly.
+// Used by dao_chat_view to gate the code-block insert button.
+export interface PageProbeState {
+  selection: SelectionCapture | null;
+  hasFocusedInput: boolean;
+}
+
+// Single executeScript that combines the selection probe with focused-input
+// detection. Returning both in one round trip keeps the 800ms watch loop
+// cheap (one IPC instead of two).
+//
+// `hasFocusedInput` matches the input-type filter the insert path uses, so
+// the visibility class and the insert action stay in sync: if the probe
+// says we have a focused input, the insert script will accept it (modulo
+// races where focus changes during the 0–800ms window — handled by the
+// caller via flashButtonLabel on failure).
+export async function fetchPageProbeState(): Promise<PageProbeState> {
+  const probe = `(function() {
+    try {
+      var selText =
+          (window.getSelection && window.getSelection().toString()) || '';
+
+      var el = document.activeElement;
+      while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+        el = el.shadowRoot.activeElement;
+      }
+
+      var TEXT_INPUT_TYPES = [
+        'text','search','url','tel','email','password','number'
+      ];
+      var hasFocusedInput = false;
+      if (el) {
+        var tag = el.tagName;
+        if (tag === 'TEXTAREA') {
+          hasFocusedInput = !el.disabled && !el.readOnly;
+        } else if (tag === 'INPUT') {
+          var t = (el.type || 'text').toLowerCase();
+          hasFocusedInput = TEXT_INPUT_TYPES.indexOf(t) >= 0
+              && !el.disabled && !el.readOnly;
+        } else if (el.isContentEditable) {
+          hasFocusedInput = true;
+        }
+      }
+
+      return JSON.stringify({
+        url: location.href,
+        title: document.title || '',
+        text: selText,
+        hasFocusedInput: hasFocusedInput,
+      });
+    } catch (e) {
+      return JSON.stringify({error: (e && e.message) || String(e)});
+    }
+  })()`;
+
+  let raw: {result?: string; error?: string};
+  try {
+    raw = await callNative(
+        'executeScript', {code: probe, lockTab: false}) as
+        {result?: string; error?: string};
+  } catch (_) {
+    return {selection: null, hasFocusedInput: false};
+  }
+  if (!raw || raw.error || !raw.result) {
+    return {selection: null, hasFocusedInput: false};
+  }
+
+  let payload: {
+    url?: string;
+    title?: string;
+    text?: string;
+    hasFocusedInput?: boolean;
+    error?: string;
+  };
+  try {
+    payload = JSON.parse(raw.result);
+  } catch (_) {
+    return {selection: null, hasFocusedInput: false};
+  }
+  if (payload.error || !payload.url) {
+    return {selection: null, hasFocusedInput: false};
+  }
+
+  const text = (payload.text || '').trim();
+  const selection: SelectionCapture | null = text ? {
+    url: payload.url,
+    title: payload.title || '',
+    text,
+  } : null;
+
+  return {
+    selection,
+    hasFocusedInput: !!payload.hasFocusedInput,
+  };
+}
+
+// Inserts `text` into the active tab's currently focused text input /
+// textarea / contenteditable element at the cursor (replacing any current
+// selection). Dispatches a bubbling `input` event so frameworks like
+// React / Vue pick up the change. Returns false when there is no eligible
+// focused element, the element is disabled/readonly, or the IPC failed —
+// the caller flashes "No input focused" in that case.
+//
+// The text is JSON.stringify'd before string-concatenation into the script
+// body so quotes / newlines / unicode round-trip safely through CDP
+// Runtime.evaluate.
+export async function insertTextIntoFocusedInput(
+    text: string): Promise<boolean> {
+  const payload = JSON.stringify(text);
+  const script = `(function() {
+    try {
+      var text = ${payload};
+      var el = document.activeElement;
+      while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+        el = el.shadowRoot.activeElement;
+      }
+      if (!el) return JSON.stringify({ok: false});
+
+      var tag = el.tagName;
+      var TEXT_INPUT_TYPES = [
+        'text','search','url','tel','email','password','number'
+      ];
+      if (tag === 'TEXTAREA' ||
+          (tag === 'INPUT' &&
+           TEXT_INPUT_TYPES.indexOf(
+               (el.type || 'text').toLowerCase()) >= 0)) {
+        if (el.disabled || el.readOnly) {
+          return JSON.stringify({ok: false});
+        }
+        var start = el.selectionStart;
+        var end = el.selectionEnd;
+        if (typeof start === 'number' && typeof end === 'number') {
+          el.setRangeText(text, start, end, 'end');
+        } else {
+          el.value = (el.value || '') + text;
+        }
+        el.dispatchEvent(new Event('input', {bubbles: true}));
+        return JSON.stringify({ok: true});
+      }
+      if (el.isContentEditable) {
+        var inserted = document.execCommand('insertText', false, text);
+        return JSON.stringify({ok: !!inserted});
+      }
+      return JSON.stringify({ok: false});
+    } catch (e) {
+      return JSON.stringify({ok: false, error: (e && e.message) || String(e)});
+    }
+  })()`;
+
+  let raw: {result?: string; error?: string};
+  try {
+    raw = await callNative(
+        'executeScript', {code: script, lockTab: false}) as
+        {result?: string; error?: string};
+  } catch (_) {
+    return false;
+  }
+  if (!raw || raw.error || !raw.result) return false;
+  try {
+    const parsed = JSON.parse(raw.result) as {ok?: boolean};
+    return !!parsed.ok;
+  } catch (_) {
+    return false;
+  }
+}
+
 // Clear the active tab's selection. Called after a successful send so the
 // same highlight isn't silently re-attached to the next message. Best-
 // effort: failures are swallowed.

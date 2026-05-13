@@ -45,6 +45,14 @@ const dict: Dictionary = {
   'chat.message_actions.shared': 'Shared',
   'chat.message_actions.failed': 'Failed',
 
+  // Per-code-block "Insert into focused input" button (next to vendor
+  // copy-button inside <code-block>). Visible only when the active tab
+  // has a focused text input.
+  'chat.code_block.insert_tooltip': 'Insert into focused input on this page',
+  'chat.code_block.inserted': 'Inserted',
+  'chat.code_block.no_input': 'No input focused',
+  'chat.code_block.empty': 'Empty',
+
   // Toast shown when the user submits while a turn is still streaming.
   'chat.toast.wait_for_turn': 'Wait for the current turn to finish',
 

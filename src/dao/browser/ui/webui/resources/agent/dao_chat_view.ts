@@ -26,7 +26,7 @@ import {BASE_SYSTEM_PROMPT, currentSoulContent, recordApiCall, refreshSoulConten
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
-import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
+import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
 import {renderShareImage} from './dao_share_image.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
 import {toolConfigChannel} from './tool_catalog.js';
@@ -1051,12 +1051,15 @@ export class DaoChatView extends CrLitElement {
 
   // Debounced decoration pass — coalesces rapid-fire message_end events
   // (e.g. tool-result bursts) into a single DOM sweep after rendering
-  // settles. Only decorates attachments; the retry button is injected in
-  // the agent_end handler where we know the turn is truly finished.
+  // settles. Decorates both page attachments and code-block insert
+  // buttons so finalized code blocks get our "Insert" affordance mid-
+  // stream (the retry button is injected in the agent_end handler where
+  // we know the turn is truly finished).
   private scheduleDecorate_(): void {
     clearTimeout(this.pendingDecorateTimer_);
     this.pendingDecorateTimer_ = window.setTimeout(() => {
       this.decoratePageAttachments_();
+      this.decorateCodeBlocks_();
     }, 80);
   }
 
@@ -1291,6 +1294,85 @@ export class DaoChatView extends CrLitElement {
     row.appendChild(retryBtn);
 
     last.insertAdjacentElement('afterend', row);
+    // Re-decorate code blocks: streaming may have added new <code-block>
+    // elements (or finalized their internal <copy-button>) since the
+    // last decoration pass. Idempotent.
+    this.decorateCodeBlocks_();
+  }
+
+  // Decorates every <code-block> in the message list with a Dao-owned
+  // "Insert into focused input" button placed immediately before the
+  // vendor <copy-button>. Idempotent via the `data-dao-insert-decorated`
+  // attribute. Skips blocks whose internal <copy-button> hasn't rendered
+  // yet (streaming) — the next call (driven by refreshAssistantActions_
+  // or the loadSession_ retry chain) picks them up.
+  //
+  // Decorates BOTH assistant-message code blocks AND tool-result code
+  // blocks; the .dao-has-focused-input gate (CSS-only) handles when the
+  // button is actually visible, so over-decoration is harmless.
+  private decorateCodeBlocks_(): void {
+    const panel = this.panel_;
+    if (!panel) return;
+    const blocks = panel.querySelectorAll('code-block');
+    for (const block of blocks) {
+      // NOTE: if vendor ever rebuilds <code-block> children in place
+      // (keeping the host element), this skip will leave the host
+      // stamped but unbuttoned. Today vendor swaps the whole host on
+      // re-render, so this is safe.
+      if (block.hasAttribute('data-dao-insert-decorated')) continue;
+      const copyBtn = block.querySelector('copy-button');
+      if (!copyBtn) continue;  // Vendor lit element hasn't rendered yet.
+      const btn = this.buildCodeInsertButton_(block);
+      copyBtn.insertAdjacentElement('beforebegin', btn);
+      block.setAttribute('data-dao-insert-decorated', '');
+    }
+  }
+
+  // Builds the insert-button DOM (lucide pencil-line icon, i18n'd
+  // tooltip + aria-label). Click handler captures the owning code-block
+  // by closure so each button knows which snippet to insert.
+  private buildCodeInsertButton_(block: Element): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dao-code-insert-btn';
+    btn.title = t('chat.code_block.insert_tooltip');
+    btn.setAttribute('aria-label', t('chat.code_block.insert_tooltip'));
+    btn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<path d="M13 21h8"></path>' +
+        '<path d="m15 5 4 4"></path>' +
+        '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0' +
+        ' 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0' +
+        ' 0 .83-.497z"></path>' +
+        '</svg>';
+    btn.addEventListener(
+        'click', () => void this.insertCodeBlock_(btn, block));
+    return btn;
+  }
+
+  // Handles a click on a code-block insert button. Reads the rendered
+  // code via textContent (vendor stores the raw source on the <code-block>
+  // .code property in base64-encoded form when fed from markdown-block,
+  // so we read the post-highlight DOM text instead — always the decoded
+  // source). Round-trips through executeScript; flashes a transient
+  // label on success/failure using the same visual treatment the
+  // copy/share buttons use.
+  private async insertCodeBlock_(
+      btn: HTMLButtonElement, block: Element): Promise<void> {
+    const codeEl = block.querySelector('code');
+    const text = codeEl?.textContent ?? '';
+    if (!text) {
+      this.flashButtonLabel_(btn, t('chat.code_block.empty'), false);
+      return;
+    }
+    const ok = await insertTextIntoFocusedInput(text);
+    if (ok) {
+      this.flashButtonLabel_(btn, t('chat.code_block.inserted'), true);
+    } else {
+      this.flashButtonLabel_(btn, t('chat.code_block.no_input'), false);
+    }
   }
 
   private flashButtonLabel_(
@@ -1436,6 +1518,8 @@ export class DaoChatView extends CrLitElement {
         if (this.pendingSelection_ !== null) {
           this.pendingSelection_ = null;
         }
+        // Non-capturable page → no focused-input gate either.
+        this.panel_?.classList.remove('dao-has-focused-input');
         return;
       }
       // Page chip: suppress when URL is already in sent / dismissed sets.
@@ -1451,9 +1535,12 @@ export class DaoChatView extends CrLitElement {
           this.pendingPageAttachment_ = info;
         }
       }
-      // Selection chip: script injection, only when the page itself is
-      // capturable (guarded above).
-      const sel = await fetchCurrentSelection();
+      // Selection chip + focused-input gate: one unified probe returns
+      // both the active tab's text selection and whether its active
+      // element is a writable text input. Halves the executeScript count
+      // versus two separate probes.
+      const probe = await fetchPageProbeState();
+      const sel = probe.selection;
       const currentSel = this.pendingSelection_;
       if (!sel) {
         if (currentSel !== null) this.pendingSelection_ = null;
@@ -1461,6 +1548,12 @@ export class DaoChatView extends CrLitElement {
                  currentSel.url !== sel.url) {
         this.pendingSelection_ = sel;
       }
+      // Code-block insert button visibility. Class lives on the chat
+      // panel root because it is the closest ancestor of every
+      // <code-block> rendered in the message list; scoping the CSS rule
+      // there keeps the blast radius minimal.
+      this.panel_?.classList.toggle(
+          'dao-has-focused-input', probe.hasFocusedInput);
     } finally {
       this.refreshChipsRunning_ = false;
     }
@@ -2107,6 +2200,7 @@ export class DaoChatView extends CrLitElement {
         setTimeout(() => {
           this.refreshAssistantActions_();
           this.decoratePageAttachments_();
+          this.decorateCodeBlocks_();
           const injected = !!this.panel_?.querySelector(
               '.dao-assistant-actions');
           if (!injected && remaining > 0) {

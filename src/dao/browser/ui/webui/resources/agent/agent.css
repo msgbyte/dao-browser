@@ -634,6 +634,60 @@ attachment-tile[data-dao-decorated="1"] {
   color: rgba(30, 20, 40, 0.92);
 }
 
+/* Dao-owned "Insert into focused input" button injected into every
+ * <code-block> by dao_chat_view's decorateCodeBlocks_. Sits as a sibling
+ * immediately before the vendor <copy-button>. Hidden by default —
+ * revealed only when the chat-panel root carries `.dao-has-focused-input`
+ * (toggled by refreshChips_ on every page-probe tick).
+ *
+ * Visual parity: mirrors the vendor <copy-button>'s "ghost" variant exactly
+ * (h-8 rounded-md px-2.5 text-foreground hover:bg-accent
+ *  hover:text-accent-foreground, 16×16 SVG). We use the same pi-web-ui CSS
+ * variables (--foreground, --accent, --accent-foreground) so the button
+ * tracks pi-web-ui's theming automatically and stays visually identical
+ * to its neighbor across light/dark and any future vendor bundle changes. */
+.dao-code-insert-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  /* `margin-left: auto` collapses the gap between the leading <span>
+   * (language label) and this button so the insert + copy buttons group
+   * together on the right edge instead of being spread evenly across
+   * the vendor `justify-between` header. */
+  margin-left: auto;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
+}
+.dao-code-insert-btn:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.dao-code-insert-btn:active {
+  background: var(--accent);
+  filter: brightness(0.95);
+}
+.dao-code-insert-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.dao-code-insert-btn.is-flashing {
+  pointer-events: none;
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.dao-has-focused-input .dao-code-insert-btn {
+  display: inline-flex;
+}
+
 /* Dao collapsible tool-call rendering (dao_tool_renderer.ts). pi-web-ui's
  * default DefaultRenderer always expands Input/Output; we replace it with
  * a <details>/<summary> wrapper so by default the chat stream shows only

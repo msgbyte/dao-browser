@@ -22,8 +22,10 @@
 namespace dao {
 
 namespace {
-// Pointer dimensions.
-constexpr float kPointerWidth = 20.0f;
+// Pointer dimensions. Ratio matches macOS / Windows system arrows
+// (roughly 2:3 width:height); a wider pointer looks like a sail, a
+// narrower one looks like an I-beam.
+constexpr float kPointerWidth = 16.0f;
 constexpr float kPointerHeight = 24.0f;
 
 // Ripple animation parameters.
@@ -127,7 +129,11 @@ void DaoAgentCursorView::OnRippleTick() {
   base::TimeDelta elapsed = base::TimeTicks::Now() - ripple_start_time_;
   if (elapsed >= kRippleDuration) {
     ripple_timer_.Stop();
-    state_ = State::kIdle;
+    // Click is the terminal action: hide the cursor entirely once the
+    // ripple finishes so it doesn't linger on the page. Subsequent
+    // clicks/moves will re-show it at center via the UI handler.
+    Hide();
+    return;
   }
   SchedulePaint();
 }
@@ -160,15 +166,21 @@ void DaoAgentCursorView::OnPaint(gfx::Canvas* canvas) {
 }
 
 void DaoAgentCursorView::PaintCursor(gfx::Canvas* canvas) {
-  // Build arrow pointer path. Hotspot at top-left (0,0).
+  // Canonical 7-vertex arrow cursor (classic Mac/Windows silhouette).
+  // Hotspot is the tip (0,0). Walk is CCW from the tip:
+  //   tip → straight down the left edge → inner notch (body base)
+  //       → tail bottom-left → tail bottom-right
+  //       → inner notch (tail top) → body right edge → close.
+  const float w = kPointerWidth;
+  const float h = kPointerHeight;
   SkPath arrow = SkPathBuilder()
                      .moveTo(0, 0)
-                     .lineTo(0, kPointerHeight)
-                     .lineTo(kPointerWidth * 0.35f, kPointerHeight * 0.75f)
-                     .lineTo(kPointerWidth * 0.55f, kPointerHeight)
-                     .lineTo(kPointerWidth * 0.7f, kPointerHeight * 0.9f)
-                     .lineTo(kPointerWidth * 0.45f, kPointerHeight * 0.65f)
-                     .lineTo(kPointerWidth, kPointerHeight * 0.45f)
+                     .lineTo(0, h * 0.79f)
+                     .lineTo(w * 0.375f, h * 0.58f)
+                     .lineTo(w * 0.5625f, h * 0.92f)
+                     .lineTo(w * 0.72f, h * 0.875f)
+                     .lineTo(w * 0.50f, h * 0.54f)
+                     .lineTo(w * 0.875f, h * 0.54f)
                      .close()
                      .detach();
 
