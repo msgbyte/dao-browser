@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 00b9254990..5b90c488cd 100644
+index 00b9254990..b60992b317 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -47,6 +47,104 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
@@ -144,7 +144,7 @@ index 00b9254990..5b90c488cd 100644
      public_deps += [
        "//build:branding_buildflags",
        "//ui/views",
-@@ -5913,3 +6016,21 @@ if (use_aura) {
+@@ -5913,3 +6016,25 @@ if (use_aura) {
      ]
    }
  }
@@ -165,4 +165,8 @@ index 00b9254990..5b90c488cd 100644
 +    "//testing/gtest",
 +    "//ui/views",
 +  ]
++  if (is_mac) {
++    sources += [ "//dao/browser/ui/views/dao_test_init_mac.mm" ]
++    frameworks = [ "AppKit.framework" ]
++  }
 +}
