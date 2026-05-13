@@ -1,0 +1,11 @@
+diff --git a/build/config/unsafe_buffers_paths.txt b/build/config/unsafe_buffers_paths.txt
+index ec12fe9208..e71693e0cb 100644
+--- a/build/config/unsafe_buffers_paths.txt
++++ b/build/config/unsafe_buffers_paths.txt
+@@ -31,3 +31,6 @@ $../../
+ +third_party/liburlpattern/
+ -tools/
+ -v8/
++
++# Dao-vendored third-party libraries.
++-dao/third_party/

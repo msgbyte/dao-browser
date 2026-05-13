@@ -55,6 +55,17 @@
     </item>
     -->
         <item>
+            <title>1.0.9.0</title>
+            <pubDate>Thu, 14 May 2026 02:31:27 +0800</pubDate>
+            <sparkle:version>9.0</sparkle:version>
+            <sparkle:shortVersionString>1.0.9.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://dao.msgbyte.com/dao-browser-1.0.9-mac-arm64.dmg" length="153715716" type="application/octet-stream" sparkle:edSignature="ByLrMp0qupzulN7XaRuQo73OE+1NCInKQ2uaEt1g9oCXg3rmT9xRMCHkwVFhruG7mNMsQlFsxwv8L928ve5IAA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://dao.msgbyte.com/Dao9.0-8.0.delta" sparkle:deltaFrom="8.0" length="6890098" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="mgUY24S4SJBtw+ljXmHd2IEsaAgpuZthL6KaQSEkaFM9rdHwPQEc92JzLx7HH0ILHbfDDuJYJMA3nN9FdiHRCw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.0.8.0</title>
             <pubDate>Wed, 13 May 2026 01:59:46 +0800</pubDate>
             <sparkle:version>8.0</sparkle:version>
@@ -69,14 +80,6 @@
             <sparkle:shortVersionString>1.0.7.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
             <enclosure url="https://dao.msgbyte.com/dao-browser-1.0.7-mac-arm64.dmg" length="153331858" type="application/octet-stream" sparkle:edSignature="mVNVHGo80Uhxz8lTg+7p7iX2G+lcVvED4gnpjR1xRNkFwmOBcrJ5YNPz3KA4+D19RyDasTvu/wrWWiLxhZzDAw=="/>
-        </item>
-        <item>
-            <title>1.0.6.0</title>
-            <pubDate>Fri, 08 May 2026 09:10:30 +0800</pubDate>
-            <sparkle:version>6.0</sparkle:version>
-            <sparkle:shortVersionString>1.0.6.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://dao.msgbyte.com/dao-browser-1.0.6-mac-arm64.dmg" length="153318254" type="application/octet-stream" sparkle:edSignature="BEbMB3IjvXe0DG8V1rCCjmWFPVC4cuZ7FsjDMEomzUcefZAhYmuYGn0BhFCyEHJVSWi4hJJGSG2YYdx0P3sXAQ=="/>
         </item>
     </channel>
 </rss>
