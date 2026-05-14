@@ -2,7 +2,21 @@ diff --git a/content/browser/webui/url_data_manager_backend.cc b/content/browser
 index 155c29dc58..f1b2fbf169 100644
 --- a/content/browser/webui/url_data_manager_backend.cc
 +++ b/content/browser/webui/url_data_manager_backend.cc
-@@ -253,6 +253,7 @@ scoped_refptr<net::HttpResponseHeaders> URLDataManagerBackend::GetHeaders(
+@@ -61,7 +61,12 @@ const char kURLDataManagerBackendKeyName[] = "url_data_manager_backend";
+ bool g_disallow_webui_scheme_caching_for_testing = false;
+
+ std::vector<std::string> GetWebUISchemesSlow() {
+-  std::vector<std::string> schemes = {kChromeUIScheme,
++  // Dao: include the legacy "chrome" scheme alongside the canonical WebUI
++  // scheme (now "dao") so downstream consumers — SiteInfo, process locks,
++  // navigation URLLoaderFactory dispatch, ChildProcessSecurityPolicy — all
++  // treat chrome:// as a WebUI scheme. This is required for component
++  // extensions that load chrome://resources/ subresources to work.
++  std::vector<std::string> schemes = {kChromeUIScheme, "chrome",
+                                       kChromeUIUntrustedScheme};
+   GetContentClient()->browser()->GetAdditionalWebUISchemes(&schemes);
+   return schemes;
+@@ -253,6 +258,7 @@ scoped_refptr<net::HttpResponseHeaders> URLDataManagerBackend::GetHeaders(
  bool URLDataManagerBackend::CheckURLIsValid(const GURL& url) {
    std::vector<std::string> additional_schemes;
    DCHECK(url.SchemeIs(kChromeUIScheme) ||

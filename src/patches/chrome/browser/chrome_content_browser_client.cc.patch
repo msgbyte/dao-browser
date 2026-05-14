@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 0000000000..0000000000 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -6360,10 +6360,21 @@ void AddChromeSchemeFactories(
+     allowed_webui_hosts.emplace_back(chrome::kChromeUIAppIconHost);
+   }
+   if (!allowed_webui_hosts.empty()) {
++    // Dao: register WebUI factories under BOTH the canonical scheme (now
++    // "dao") and the legacy "chrome" scheme. Component extensions such as
++    // the built-in PDF viewer (chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai)
++    // load subresources like chrome://resources/ and chrome://theme/ via
++    // hardcoded URLs in their compiled HTML/JS. Without the legacy "chrome"
++    // factory those requests fail with ERR_UNKNOWN_URL_SCHEME and the PDF
++    // viewer renders as a blank/black page.
++    std::vector<std::string> chrome_hosts = allowed_webui_hosts;
+     factories->emplace(content::kChromeUIScheme,
+                        content::CreateWebUIURLLoaderFactory(
+                            frame_host, content::kChromeUIScheme,
+                            std::move(allowed_webui_hosts)));
++    factories->emplace("chrome",
++                       content::CreateWebUIURLLoaderFactory(
++                           frame_host, "chrome", std::move(chrome_hosts)));
+   }
+ }
+ #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
