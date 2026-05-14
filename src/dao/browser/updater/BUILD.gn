@@ -35,6 +35,19 @@ if (is_mac) {
       "-F" + _sparkle_framework_path,
       "-weak_framework",
       "Sparkle",
+
+      # Make @rpath/Sparkle.framework/... resolve at runtime. Chromium's
+      # mac_dynamic_flags only injects rpaths when is_component_build=true
+      # (build/config/mac/BUILD.gn), so without these flags the
+      # is_official_build=true binary ships with zero LC_RPATH entries.
+      # The weak Sparkle ref then silently fails to load — every Sparkle
+      # class becomes NULL and "Check for Updates" does nothing.
+      #   @executable_path/../Frameworks  — used by Dao.app/Contents/MacOS/Dao
+      #   @loader_path/../../..           — used by Dao Framework binary
+      #     (lives at Frameworks/Dao Framework.framework/Versions/A/, three
+      #      levels up lands in Frameworks/ alongside Sparkle.framework)
+      "-Wl,-rpath,@executable_path/../Frameworks",
+      "-Wl,-rpath,@loader_path/../../..",
     ]
   }
 }
