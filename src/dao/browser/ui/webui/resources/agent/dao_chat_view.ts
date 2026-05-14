@@ -1151,11 +1151,16 @@ export class DaoChatView extends CrLitElement {
     return this.escapeHtml_(s).replace(/"/g, '&quot;');
   }
 
-  // Pulls the visible text out of an assistant message. pi-agent-core
+  // Pulls the visible text out of an assistant or user message. pi-agent-core
   // stores content either as a plain string (most LLM streams) or as an
   // array of Claude-style blocks (text / toolCall / toolResult). Only
   // 'text' parts are user-visible, so tool plumbing never leaks into
   // the share image or the clipboard.
+  //
+  // Also handles user messages: when sendMessage is called without
+  // attachments, pi-mono's normalizePromptInput wraps the typed string into
+  // [{type:'text', text:'...'}] before pushing into state.messages. Without
+  // this array path, the share image would render an empty user bubble.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private extractAssistantText_(msg: any): string {
     if (!msg) return '';
@@ -1204,8 +1209,13 @@ export class DaoChatView extends CrLitElement {
       const m = msgs[i];
       const role = m?.role;
       if (role !== 'user' && role !== 'user-with-attachments') continue;
-      if (typeof m.content === 'string' && m.content.length > 0) {
-        question = m.content;
+      // user.content can be a string (user-with-attachments path) or an
+      // array of {type:'text', text:'...'} blocks (plain prompt path —
+      // pi-mono's normalizePromptInput wraps the typed string before push).
+      // Reuse the same extractor as assistant so both shapes work.
+      const text = this.extractAssistantText_(m);
+      if (text.length > 0) {
+        question = text;
       }
       if (role === 'user-with-attachments' && Array.isArray(m.attachments)) {
         for (const att of m.attachments) {
