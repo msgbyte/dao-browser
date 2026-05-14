@@ -502,6 +502,41 @@ export function buildSelectionAttachment(capture: SelectionCapture):
 
 export async function captureCurrentPageMarkdown():
     Promise<PageCapture | null> {
+  // PDF fast path. PDF tabs render PDFium inside the built-in PDF
+  // Extension; Readability on the extension's top frame returns
+  // ~nothing useful. Ask native to extract text via
+  // pdf::PDFDocumentHelper instead. On any failure (non-PDF tab, load
+  // timeout, encrypted PDF) we fall through to the original
+  // Readability + Turndown path so HTML pages behave unchanged.
+  try {
+    const pdf = await callNative('getPdfText') as {
+      isPdf?: boolean;
+      url?: string;
+      title?: string;
+      pageCount?: number;
+      text?: string;
+      truncated?: boolean;
+      truncatedAtPage?: number;
+      error?: string;
+    } | null;
+    if (pdf && pdf.isPdf && !pdf.error && pdf.text && pdf.url) {
+      const title = pdf.title || 'PDF';
+      const pageCount = typeof pdf.pageCount === 'number' ? pdf.pageCount : 0;
+      const header =
+          `# ${title} (PDF, ${pageCount || '?'} pages)\n\n`;
+      return {
+        url: pdf.url,
+        title,
+        markdown: header + pdf.text,
+        fallback: false,
+      };
+    }
+    // isPdf === false (HTML tab), or isPdf === true with error — fall
+    // through to Readability path below.
+  } catch (_e) {
+    // Native handler missing or threw — fall through.
+  }
+
   let raw: {result?: string; error?: string};
   try {
     raw = await callNative(

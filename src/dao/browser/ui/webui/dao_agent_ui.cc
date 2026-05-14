@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -33,6 +34,7 @@
 #include "content/public/common/url_constants.h"
 #include "chrome/grit/dao_agent_resources.h"
 #include "chrome/grit/dao_agent_resources_map.h"
+#include "components/pdf/browser/pdf_document_helper.h"
 #include "components/prefs/pref_service.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
@@ -44,6 +46,7 @@
 #include "net/base/load_flags.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "pdf/mojom/pdf.mojom.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
@@ -499,6 +502,10 @@ void DaoAgentUIHandler::RegisterMessages() {
       base::BindRepeating(&DaoAgentUIHandler::HandleExecuteScript,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "getPdfText",
+      base::BindRepeating(&DaoAgentUIHandler::HandleGetPdfText,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "moveCursor",
       base::BindRepeating(&DaoAgentUIHandler::HandleMoveCursor,
                           base::Unretained(this)));
@@ -826,6 +833,198 @@ void DaoAgentUIHandler::HandleExecuteScript(const base::ListValue& args) {
           },
           weak_factory_.GetWeakPtr(), callback_id,
           lock_tab ? contents : nullptr));
+}
+
+DaoAgentUIHandler::PdfCaptureState::PdfCaptureState() = default;
+DaoAgentUIHandler::PdfCaptureState::~PdfCaptureState() = default;
+
+void DaoAgentUIHandler::HandleGetPdfText(const base::ListValue& args) {
+  AllowJavascript();
+
+  if (args.empty() || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    ResolvePdfCaptureNotPdf(callback_id);
+    return;
+  }
+
+  pdf::PDFDocumentHelper* helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(contents);
+  if (!helper) {
+    ResolvePdfCaptureNotPdf(callback_id);
+    return;
+  }
+
+  auto state = std::make_unique<PdfCaptureState>();
+  state->callback_id = callback_id;
+  state->initial_url = contents->GetVisibleURL();
+  state->title = contents->GetTitle();
+
+  if (helper->IsDocumentLoadComplete()) {
+    StartPdfCapture(std::move(state), helper);
+    return;
+  }
+
+  // Wait for load. RegisterForDocumentLoadComplete has no built-in
+  // timeout; we layer a 5-second safety timer on top. Whichever fires
+  // first resolves the callback; the other becomes a no-op since
+  // ResolveJavascriptCallback on an already-resolved id is silently
+  // dropped by Chromium's WebUI.
+  GURL initial_url_copy = state->initial_url;
+  helper->RegisterForDocumentLoadComplete(base::BindOnce(
+      [](base::WeakPtr<DaoAgentUIHandler> handler,
+         std::unique_ptr<PdfCaptureState> s) {
+        if (!handler) {
+          return;
+        }
+        content::WebContents* c = handler->EnsureAttached();
+        if (!c) {
+          handler->ResolvePdfCaptureError(*s, "WebContents went away");
+          return;
+        }
+        pdf::PDFDocumentHelper* h =
+            pdf::PDFDocumentHelper::MaybeGetForWebContents(c);
+        if (!h) {
+          handler->ResolvePdfCaptureError(*s, "PDF helper went away");
+          return;
+        }
+        handler->StartPdfCapture(std::move(s), h);
+      },
+      weak_factory_.GetWeakPtr(), std::move(state)));
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> handler,
+             std::string cb_id, GURL initial_url) {
+            if (!handler) {
+              return;
+            }
+            PdfCaptureState tmp;
+            tmp.callback_id = cb_id;
+            tmp.initial_url = initial_url;
+            handler->ResolvePdfCaptureError(tmp, "PDF still loading");
+          },
+          weak_factory_.GetWeakPtr(), callback_id, initial_url_copy),
+      base::Seconds(5));
+}
+
+void DaoAgentUIHandler::StartPdfCapture(
+    std::unique_ptr<PdfCaptureState> state,
+    pdf::PDFDocumentHelper* helper) {
+  helper->GetPdfBytes(
+      /*size_limit=*/0,
+      base::BindOnce(&DaoAgentUIHandler::OnPdfBytesReceived,
+                     weak_factory_.GetWeakPtr(), std::move(state)));
+}
+
+void DaoAgentUIHandler::OnPdfBytesReceived(
+    std::unique_ptr<PdfCaptureState> state,
+    pdf::mojom::PdfListener_GetPdfBytesStatus status,
+    const std::vector<uint8_t>& /*bytes*/,
+    uint32_t page_count) {
+  // We pass size_limit=0 to avoid copying PDF bytes; we only need
+  // page_count. A status of kSizeLimitExceeded is therefore expected
+  // and benign — page_count is still populated. Only kFailed is a real
+  // error here.
+  if (status == pdf::mojom::PdfListener::GetPdfBytesStatus::kFailed ||
+      page_count == 0) {
+    ResolvePdfCaptureError(*state, "Failed to read PDF");
+    return;
+  }
+  state->page_count = static_cast<int32_t>(page_count);
+  state->next_page = 0;
+  FetchNextPdfPage(std::move(state));
+}
+
+void DaoAgentUIHandler::FetchNextPdfPage(
+    std::unique_ptr<PdfCaptureState> state) {
+  if (state->next_page >= state->page_count) {
+    ResolvePdfCapture(*state, /*truncated=*/false, std::nullopt);
+    return;
+  }
+
+  content::WebContents* contents = EnsureAttached();
+  if (!contents) {
+    ResolvePdfCaptureError(*state, "WebContents went away");
+    return;
+  }
+  if (contents->GetVisibleURL() != state->initial_url) {
+    ResolvePdfCaptureError(*state, "Navigation occurred during capture");
+    return;
+  }
+  pdf::PDFDocumentHelper* helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(contents);
+  if (!helper) {
+    ResolvePdfCaptureError(*state, "PDF helper went away");
+    return;
+  }
+
+  int32_t page_index = state->next_page;
+  helper->GetPageText(
+      page_index,
+      base::BindOnce(&DaoAgentUIHandler::OnPdfPageText,
+                     weak_factory_.GetWeakPtr(), std::move(state)));
+}
+
+void DaoAgentUIHandler::OnPdfPageText(
+    std::unique_ptr<PdfCaptureState> state,
+    const std::u16string& page_text) {
+  int32_t one_based = state->next_page + 1;
+  state->text += "\n\n--- Page ";
+  state->text += base::NumberToString(one_based);
+  state->text += " ---\n\n";
+  state->text += base::UTF16ToUTF8(page_text);
+
+  if (state->text.size() >= PdfCaptureState::kBudgetBytes) {
+    state->text += "\n\n[... truncated. Total ";
+    state->text += base::NumberToString(state->page_count);
+    state->text += " pages, captured first ";
+    state->text += base::NumberToString(one_based);
+    state->text += " pages.]";
+    ResolvePdfCapture(*state, /*truncated=*/true, one_based);
+    return;
+  }
+
+  state->next_page++;
+  FetchNextPdfPage(std::move(state));
+}
+
+void DaoAgentUIHandler::ResolvePdfCapture(
+    const PdfCaptureState& state,
+    bool truncated,
+    std::optional<int32_t> truncated_at_page) {
+  base::DictValue response;
+  response.Set("isPdf", true);
+  response.Set("url", state.initial_url.spec());
+  response.Set("title", base::UTF16ToUTF8(state.title));
+  response.Set("pageCount", state.page_count);
+  response.Set("text", state.text);
+  response.Set("truncated", truncated);
+  if (truncated_at_page.has_value()) {
+    response.Set("truncatedAtPage", *truncated_at_page);
+  }
+  ResolveJavascriptCallback(base::Value(state.callback_id), response);
+}
+
+void DaoAgentUIHandler::ResolvePdfCaptureError(
+    const PdfCaptureState& state,
+    const std::string& error_message) {
+  base::DictValue response;
+  response.Set("isPdf", true);
+  response.Set("error", error_message);
+  ResolveJavascriptCallback(base::Value(state.callback_id), response);
+}
+
+void DaoAgentUIHandler::ResolvePdfCaptureNotPdf(
+    const std::string& callback_id) {
+  base::DictValue response;
+  response.Set("isPdf", false);
+  ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
 void DaoAgentUIHandler::HandleHighlightElement(

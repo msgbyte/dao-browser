@@ -22,10 +22,16 @@
 #include "content/public/browser/webui_config.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
 #include "dao/browser/agent/dao_agent_proactive_engine.h"
+#include "pdf/mojom/pdf.mojom-forward.h"
+#include "url/gurl.h"
 
 namespace network {
 class SimpleURLLoader;
 }  // namespace network
+
+namespace pdf {
+class PDFDocumentHelper;
+}  // namespace pdf
 
 namespace dao {
 
@@ -101,6 +107,17 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   void HandleGetPageInfo(const base::ListValue& args);
   void HandleClickElement(const base::ListValue& args);
   void HandleExecuteScript(const base::ListValue& args);
+
+  // Captures full text of the active tab if it's a PDF, using
+  // pdf::PDFDocumentHelper. Sequentially calls GetPageText() for each
+  // page and accumulates text up to ~512 KiB. Resolves with one of:
+  //   { isPdf: false }                  -- non-PDF tab
+  //   { isPdf: true, error: "..." }     -- PDF detected but capture failed
+  //   { isPdf: true, url, title,
+  //     pageCount, text,
+  //     truncated, truncatedAtPage? }   -- success
+  void HandleGetPdfText(const base::ListValue& args);
+
   void HandleMoveCursor(const base::ListValue& args);
   void HandleAgentClick(const base::ListValue& args);
   void HandleHighlightElement(const base::ListValue& args);
@@ -209,6 +226,51 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   // CDP event handler for network/console tracking.
   void OnCDPEvent(const std::string& method,
                   const base::DictValue& params);
+
+  // State for an in-flight getPdfText capture. Only one capture runs at
+  // a time per handler instance.
+  struct PdfCaptureState {
+    PdfCaptureState();
+    ~PdfCaptureState();
+    PdfCaptureState(const PdfCaptureState&) = delete;
+    PdfCaptureState& operator=(const PdfCaptureState&) = delete;
+
+    std::string callback_id;
+    GURL initial_url;          // captured before async chain begins
+    std::u16string title;
+    int32_t page_count = 0;
+    int32_t next_page = 0;
+    std::string text;          // UTF-8 accumulator
+    static constexpr size_t kBudgetBytes = 512 * 1024;
+  };
+
+  // Called from HandleGetPdfText once we have a PDFDocumentHelper and
+  // the document is loaded. Issues GetPdfBytes(0) and routes the result
+  // to OnPdfBytesReceived.
+  void StartPdfCapture(std::unique_ptr<PdfCaptureState> state,
+                       pdf::PDFDocumentHelper* helper);
+
+  // Receives page_count from GetPdfBytes, then kicks off the page loop.
+  void OnPdfBytesReceived(std::unique_ptr<PdfCaptureState> state,
+                          pdf::mojom::PdfListener_GetPdfBytesStatus status,
+                          const std::vector<uint8_t>& bytes,
+                          uint32_t page_count);
+
+  // Issues GetPageText for state->next_page.
+  void FetchNextPdfPage(std::unique_ptr<PdfCaptureState> state);
+
+  // Page-text callback: appends, checks budget, then either loops or
+  // resolves.
+  void OnPdfPageText(std::unique_ptr<PdfCaptureState> state,
+                     const std::u16string& page_text);
+
+  // Resolve helpers — each issues exactly one ResolveJavascriptCallback.
+  void ResolvePdfCapture(const PdfCaptureState& state,
+                         bool truncated,
+                         std::optional<int32_t> truncated_at_page);
+  void ResolvePdfCaptureError(const PdfCaptureState& state,
+                              const std::string& error_message);
+  void ResolvePdfCaptureNotPdf(const std::string& callback_id);
 
   // Domain security: expected domain set at session start.
   std::string expected_domain_;

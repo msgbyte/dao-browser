@@ -120,7 +120,15 @@ index 00b9254990..e698ee122a 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -568,6 +672,7 @@ static_library("ui") {
+@@ -559,6 +663,7 @@ static_library("ui") {
+     "//components/payments/content/icon",
+     "//components/payments/core:error_strings",
++    "//components/pdf/browser",
+     "//components/pdf/common:util",
+     "//components/performance_manager",
+     "//components/permissions",
+     "//components/policy/content",
+@@ -568,6 +673,7 @@ static_library("ui") {
      "//components/privacy_sandbox:privacy_sandbox_prefs",
      "//components/profile_metrics",
      "//components/proxy_config",
