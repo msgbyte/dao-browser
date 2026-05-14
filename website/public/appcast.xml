@@ -55,6 +55,18 @@
     </item>
     -->
         <item>
+            <title>1.0.10.0</title>
+            <pubDate>Thu, 14 May 2026 19:15:55 +0800</pubDate>
+            <sparkle:version>10.0</sparkle:version>
+            <sparkle:shortVersionString>1.0.10.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://dao.msgbyte.com/dao-browser-1.0.10-mac-arm64.dmg" length="153762456" type="application/octet-stream" sparkle:edSignature="BLUtt1rdLxDQnP697l6NRQBzpGIbmg+xAa2XghxwFLQTf/59JvYYAV9bMfBDKXw+KCaQrXmDEfQbdDjG6NmpBg=="/>
+            <sparkle:deltas>
+                <enclosure url="https://dao.msgbyte.com/Dao10.0-9.0.delta" sparkle:deltaFrom="9.0" length="2988246" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="Qd86v+5JmQN01qIVlHaE4TUTvqnpb0cIfkYyrApebMdsmW7So9tiLOA0F+Euig700WQqgQN2KrNF+MpaKWcHDA=="/>
+                <enclosure url="https://dao.msgbyte.com/Dao10.0-8.0.delta" sparkle:deltaFrom="8.0" length="7226226" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="vMzlo0Abx9RQ4MEp7zmsv2CQRdchpFR0XVZKvtuzFS5K0whTR+rD/oTaxSVHaVq3PgxFoB1oC2NcFGgNyo11Bw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.0.9.0</title>
             <pubDate>Thu, 14 May 2026 02:31:27 +0800</pubDate>
             <sparkle:version>9.0</sparkle:version>
@@ -72,14 +84,6 @@
             <sparkle:shortVersionString>1.0.8.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
             <enclosure url="https://dao.msgbyte.com/dao-browser-1.0.8-mac-arm64.dmg" length="153321822" type="application/octet-stream" sparkle:edSignature="ZlBlTrPfCoc4/80Q4E0DWJgR8hc2NsgbCNONDWs6E3+I96+OZw/KG/vAy+DdvJLNi9E7xKzKuurCannEqfo2DA=="/>
-        </item>
-        <item>
-            <title>1.0.7.0</title>
-            <pubDate>Tue, 12 May 2026 23:04:57 +0800</pubDate>
-            <sparkle:version>7.0</sparkle:version>
-            <sparkle:shortVersionString>1.0.7.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://dao.msgbyte.com/dao-browser-1.0.7-mac-arm64.dmg" length="153331858" type="application/octet-stream" sparkle:edSignature="mVNVHGo80Uhxz8lTg+7p7iX2G+lcVvED4gnpjR1xRNkFwmOBcrJ5YNPz3KA4+D19RyDasTvu/wrWWiLxhZzDAw=="/>
         </item>
     </channel>
 </rss>
