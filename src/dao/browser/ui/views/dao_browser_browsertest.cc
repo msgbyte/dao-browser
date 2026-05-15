@@ -25,16 +25,23 @@
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "ui/base/hit_test.h"
+#include "dao/browser/agent/dao_agent_memory_service.h"
+#include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_memory_store.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
 #include "dao/browser/agent/dao_agent_scenario_registry.h"
+#include "dao/browser/agent/dao_agent_skill_service.h"
+#include "dao/browser/agent/dao_agent_skill_service_factory.h"
+#include "dao/browser/agent/dao_agent_skill_types.h"
 #include "dao/browser/dao_auto_pip_visibility_helper.h"
+#include "dao/browser/dao_pref_names.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/dao_webstore_branding_tab_helper.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
@@ -42,6 +49,10 @@
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
+#include "dao/browser/ui/views/dao_agent_cursor_view.h"
+#include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
+#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
+#include "dao/browser/ui/views/dao_control_center_button.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
@@ -49,6 +60,8 @@
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
+#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
+#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
@@ -916,54 +929,52 @@ IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest, SeedBeatsPersonalOnConflict
 // =============================================================================
 // DaoAgentMemoryStoreTest
 //
-// Creates a store backed by a temp-directory SQLite file and verifies
-// initialization plus round-trip of the primary data types.
+// Exercises the memory service surface. The factory wiring + service
+// liveness is covered by ServiceAvailableForProfile and StatsAvailable
+// (both work against a poisoned store, since GetStorageStats falls back to
+// zeros).
 //
-// NOTE: These tests are DISABLED_ because in the browser_tests environment
-// the DaoAgentMemoryStore's schema-creation step ("CREATE VIRTUAL TABLE
-// ... USING fts5 ...") triggers SQLITE_ERROR via the database error callback,
-// which in turn calls RazeAndPoison() and causes Init() to fail. In production
-// the store is owned by a KeyedService and runs on a worker sequence where
-// this path is exercised indirectly; direct instantiation from a browser test
-// trips the poisoning logic. Re-enable with a ScopedErrorExpecter or by
-// running via DaoAgentMemoryService once those plumbing changes are in.
+// The actual read/write round-trips are gated behind DISABLED_ because
+// under InProcessBrowserTest the SQLite FTS5 schema bring-up trips an
+// unexpected error code (1 / SQLITE_ERROR) → DatabaseErrorCallback →
+// db_->RazeAndPoison(), after which every Save*/Get* call returns false.
+// The production code path (real Chrome browser instance, dedicated DB
+// directory) is not affected. This is also captured in the project's
+// `feedback_sqlite_fts5_poison` memory entry.
 // =============================================================================
 
 class DaoAgentMemoryStoreTest : public InProcessBrowserTest {
- public:
+ protected:
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    base::ScopedAllowBlockingForTesting allow_blocking;
-    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    // The memory service factory short-circuits to nullptr when the user
+    // hasn't opted in. Flip the pref before any test code calls service().
+    browser()->profile()->GetPrefs()->SetBoolean(
+        dao::prefs::kDaoAgentMemoryEnabled, true);
   }
 
-  base::FilePath db_path() const {
-    return temp_dir_.GetPath().AppendASCII("dao_agent_memory.db");
+  dao::DaoAgentMemoryService* service() {
+    return dao::DaoAgentMemoryServiceFactory::GetForProfile(
+        browser()->profile());
   }
-
- protected:
-  base::ScopedTempDir temp_dir_;
 };
 
-IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_InitCreatesDatabase) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  dao::DaoAgentMemoryStore store(db_path());
-  EXPECT_TRUE(store.Init());
-  EXPECT_TRUE(base::PathExists(db_path()));
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, ServiceAvailableForProfile) {
+  EXPECT_NE(nullptr, service());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_PreferenceRoundTrip) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  dao::DaoAgentMemoryStore store(db_path());
-  ASSERT_TRUE(store.Init());
+  base::test::TestFuture<bool> merged;
+  service()->MergePreference("prefers_language", "English", 0.9,
+                             merged.GetCallback());
+  EXPECT_TRUE(merged.Get());
 
-  EXPECT_TRUE(
-      store.MergePreference("prefers_language", "English", 0.9));
-
-  auto prefs = store.GetPreferences(/*limit=*/10, /*min_confidence=*/0.0);
-  ASSERT_FALSE(prefs.empty());
+  base::test::TestFuture<std::vector<dao::Preference>> prefs;
+  service()->GetPreferences(/*limit=*/10, /*min_confidence=*/0.0,
+                            prefs.GetCallback());
+  const auto& list = prefs.Get();
   bool found = false;
-  for (const auto& p : prefs) {
+  for (const auto& p : list) {
     if (p.key == "prefers_language") {
       EXPECT_EQ("English", p.value);
       EXPECT_NEAR(0.9, p.confidence, 1e-6);
@@ -974,10 +985,6 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_PreferenceRoundTrip) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_EpisodeSaveAndRetrieve) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  dao::DaoAgentMemoryStore store(db_path());
-  ASSERT_TRUE(store.Init());
-
   dao::Episode ep;
   ep.domain = "example.com";
   ep.url = "https://example.com/path";
@@ -986,18 +993,19 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_EpisodeSaveAndRetrieve)
   ep.outcome = "ok";
   ep.timestamp = base::Time::Now();
   ep.confidence = 0.75;
-  ASSERT_TRUE(store.SaveEpisode(ep));
 
-  auto episodes = store.GetEpisodesByDomain("example.com", /*limit=*/10);
-  EXPECT_FALSE(episodes.empty());
+  base::test::TestFuture<bool> saved;
+  service()->SaveEpisode(std::move(ep), saved.GetCallback());
+  ASSERT_TRUE(saved.Get());
+
+  base::test::TestFuture<std::vector<dao::Episode>> episodes;
+  service()->GetEpisodesByDomain("example.com", /*limit=*/10,
+                                 episodes.GetCallback());
+  EXPECT_FALSE(episodes.Get().empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
                        DISABLED_PersonalScenarioRoundTrip) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  dao::DaoAgentMemoryStore store(db_path());
-  ASSERT_TRUE(store.Init());
-
   dao::ScenarioDefinition s;
   s.id = "p_test";
   s.type = "personal";
@@ -1005,30 +1013,56 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
   s.url_pattern = R"(example\.com)";
   s.action_label = "custom_action";
   s.created_at = base::Time::Now();
-  ASSERT_TRUE(store.SavePersonalScenario(s));
 
-  auto scenarios = store.GetPersonalScenarios();
-  ASSERT_EQ(1u, scenarios.size());
-  EXPECT_EQ("p_test", scenarios[0].id);
+  base::test::TestFuture<bool> saved;
+  service()->SavePersonalScenario(std::move(s), saved.GetCallback());
+  ASSERT_TRUE(saved.Get());
 
-  EXPECT_TRUE(store.DeleteScenario("p_test"));
-  EXPECT_TRUE(store.GetPersonalScenarios().empty());
+  base::test::TestFuture<std::vector<dao::ScenarioDefinition>> list;
+  service()->GetPersonalScenarios(list.GetCallback());
+  ASSERT_FALSE(list.Get().empty());
+  bool found_p_test = false;
+  for (const auto& def : list.Get()) {
+    if (def.id == "p_test") {
+      found_p_test = true;
+    }
+  }
+  EXPECT_TRUE(found_p_test);
+
+  base::test::TestFuture<bool> deleted;
+  service()->DeleteScenario("p_test", deleted.GetCallback());
+  EXPECT_TRUE(deleted.Get());
+
+  base::test::TestFuture<std::vector<dao::ScenarioDefinition>> after;
+  service()->GetPersonalScenarios(after.GetCallback());
+  for (const auto& def : after.Get()) {
+    EXPECT_NE("p_test", def.id);
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_ClearAllEmptiesStore) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  dao::DaoAgentMemoryStore store(db_path());
-  ASSERT_TRUE(store.Init());
+  base::test::TestFuture<bool> merged;
+  service()->MergePreference("k", "v", 0.5, merged.GetCallback());
+  ASSERT_TRUE(merged.Get());
 
-  store.MergePreference("k", "v", 0.5);
   dao::Episode ep;
   ep.domain = "a.com";
   ep.timestamp = base::Time::Now();
-  store.SaveEpisode(ep);
+  base::test::TestFuture<bool> ep_saved;
+  service()->SaveEpisode(std::move(ep), ep_saved.GetCallback());
+  ASSERT_TRUE(ep_saved.Get());
 
-  ASSERT_TRUE(store.ClearAll());
-  EXPECT_TRUE(store.GetPreferences(10, 0.0).empty());
-  EXPECT_TRUE(store.GetEpisodesByDomain("a.com", 10).empty());
+  base::test::TestFuture<bool> cleared;
+  service()->ClearAll(cleared.GetCallback());
+  ASSERT_TRUE(cleared.Get());
+
+  base::test::TestFuture<std::vector<dao::Preference>> prefs;
+  service()->GetPreferences(10, 0.0, prefs.GetCallback());
+  EXPECT_TRUE(prefs.Get().empty());
+
+  base::test::TestFuture<std::vector<dao::Episode>> episodes;
+  service()->GetEpisodesByDomain("a.com", 10, episodes.GetCallback());
+  EXPECT_TRUE(episodes.Get().empty());
 }
 
 // =============================================================================
@@ -1461,79 +1495,79 @@ IN_PROC_BROWSER_TEST_F(DaoAgentAssistantActionsTest,
   EXPECT_EQ("ok", content::EvalJs(web_contents, kScript));
 }
 
-// TODO(dao): Broken by v147 API drift — NativeTheme::set_use_dark_colors
-// was removed and Background::get_color is now protected. Wrap in #if 0
-// until ported to ColorProvider-based API.
-#if 0
-class DaoDarkModeBrowserTest : public InProcessBrowserTest {};
+// Drives NativeTheme via preferred_color_scheme(), the v147-supported entry
+// point. Each test restores light mode in teardown so cases don't leak state.
+class DaoDarkModeBrowserTest : public InProcessBrowserTest {
+ public:
+  void TearDownOnMainThread() override {
+    auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+    theme->set_preferred_color_scheme(
+        ui::NativeTheme::PreferredColorScheme::kLight);
+    theme->NotifyOnNativeThemeUpdated();
+    InProcessBrowserTest::TearDownOnMainThread();
+  }
+};
 
-IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, DISABLED_DarkMode_SidebarBackground_Light) {
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, SidebarBackgroundLight) {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
-  theme->set_use_dark_colors(false);
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
   theme->NotifyOnNativeThemeUpdated();
 
   EXPECT_EQ(dao::SidebarBackground(), SkColorSetRGB(231, 238, 245));
   EXPECT_FALSE(dao::IsDarkMode());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, DISABLED_DarkMode_SidebarBackground_Dark) {
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, SidebarBackgroundDark) {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
-  theme->set_use_dark_colors(true);
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
   theme->NotifyOnNativeThemeUpdated();
 
   EXPECT_EQ(dao::SidebarBackground(), SkColorSetRGB(54, 59, 64));
   EXPECT_TRUE(dao::IsDarkMode());
-
-  // Restore default for subsequent tests.
-  theme->set_use_dark_colors(false);
-  theme->NotifyOnNativeThemeUpdated();
 }
 
-IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, DISABLED_DarkMode_SidebarRepaintsOnThemeChange) {
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, SidebarRepaintsOnThemeChange) {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
   auto* view = BrowserView::GetBrowserViewForBrowser(browser());
   auto* sidebar = view->dao_sidebar();
   ASSERT_TRUE(sidebar);
 
-  // DaoSidebarView paints its background on its inner container (the first
-  // child view), not on itself. The inner container is populated in the
-  // constructor, so it is guaranteed to exist here.
+  // DaoSidebarView paints its background on its inner container (first child).
   ASSERT_FALSE(sidebar->children().empty());
   views::View* inner = sidebar->children()[0];
 
-  theme->set_use_dark_colors(true);
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
   theme->NotifyOnNativeThemeUpdated();
 
-  // After the observer fires, the sidebar's background should match the
-  // dark palette.
   auto* bg = inner->background();
   ASSERT_TRUE(bg);
-  EXPECT_EQ(bg->get_color(), SkColorSetRGB(54, 59, 64));
+  EXPECT_EQ(bg->color(), SkColorSetRGB(54, 59, 64));
 
-  theme->set_use_dark_colors(false);
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
   theme->NotifyOnNativeThemeUpdated();
-  EXPECT_EQ(inner->background()->get_color(),
-            SkColorSetRGB(231, 238, 245));
+  EXPECT_EQ(inner->background()->color(), SkColorSetRGB(231, 238, 245));
 }
 
-IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, DISABLED_DarkMode_AccentUnchanged) {
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, AccentUnchanged) {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
 
-  theme->set_use_dark_colors(false);
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
   theme->NotifyOnNativeThemeUpdated();
   const SkColor light_accent = dao::SpaceActive();
 
-  theme->set_use_dark_colors(true);
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
   theme->NotifyOnNativeThemeUpdated();
   const SkColor dark_accent = dao::SpaceActive();
 
   EXPECT_EQ(light_accent, dark_accent);
   EXPECT_EQ(light_accent, SkColorSetRGB(70, 120, 190));
-
-  theme->set_use_dark_colors(false);
-  theme->NotifyOnNativeThemeUpdated();
 }
-#endif  // DaoDarkModeBrowserTest wrapped out until v147 ColorProvider port.
 
 // =============================================================================
 // DaoSessionStartupBrowserTest
@@ -1856,6 +1890,363 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, PlaceholderSubstitutionWorks) {
   std::u16string result = l10n_util::GetStringFUTF16(
       IDS_DAO_SUGGESTION_ASK_AI, u"hello world");
   EXPECT_EQ(u"Ask AI: hello world", result);
+}
+
+// =============================================================================
+// DaoCornerOverlayPaintBrowserTest
+//
+// Smoke-tests for the rounded-corner shadow that floats the content area: the
+// overlay should attach to the BrowserView, have non-empty bounds, and survive
+// a NativeTheme update without hitting any DCHECKs.
+// =============================================================================
+
+using DaoCornerOverlayPaintBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoCornerOverlayPaintBrowserTest, OverlayAttached) {
+  auto* view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, view->dao_corner_overlay());
+  EXPECT_EQ(view, view->dao_corner_overlay()->parent());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCornerOverlayPaintBrowserTest, OverlayHasBounds) {
+  auto* overlay = GetBrowserView(browser())->dao_corner_overlay();
+  ASSERT_NE(nullptr, overlay);
+  EXPECT_FALSE(overlay->bounds().IsEmpty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCornerOverlayPaintBrowserTest, SurvivesThemeUpdate) {
+  auto* overlay = GetBrowserView(browser())->dao_corner_overlay();
+  ASSERT_NE(nullptr, overlay);
+
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+  theme->NotifyOnNativeThemeUpdated();
+  // Force a paint pass through SchedulePaint(); the layer should still be
+  // attached and not crash.
+  overlay->SchedulePaint();
+
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+}
+
+// =============================================================================
+// DaoTabTooltipViewBrowserTest
+//
+// The tooltip view is a transient BrowserView child; verifies show/hide round
+// trip and anchor-point capture.
+// =============================================================================
+
+using DaoTabTooltipViewBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, ShowSetsAnchor) {
+  DaoTabTooltipView tooltip;
+  EXPECT_FALSE(tooltip.GetVisible());
+  tooltip.ShowTooltip(u"Some Tab Title", gfx::Point(120, 30));
+  EXPECT_TRUE(tooltip.GetVisible());
+  EXPECT_EQ(gfx::Point(120, 30), tooltip.anchor_point());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, HideMakesInvisible) {
+  DaoTabTooltipView tooltip;
+  tooltip.ShowTooltip(u"x", gfx::Point(0, 0));
+  ASSERT_TRUE(tooltip.GetVisible());
+  tooltip.HideTooltip();
+  EXPECT_FALSE(tooltip.GetVisible());
+}
+
+// =============================================================================
+// DaoAgentCursorViewBrowserTest
+//
+// Verifies the click-through agent cursor toggles its visibility flag and that
+// idempotent Hide() does not crash.
+// =============================================================================
+
+using DaoAgentCursorViewBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest, StartsHidden) {
+  DaoAgentCursorView cursor;
+  EXPECT_FALSE(cursor.is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest, ShowAtCenterMakesVisible) {
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(800, 600));
+  cursor.ShowAtCenter();
+  EXPECT_TRUE(cursor.is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest, HideClearsVisibility) {
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(800, 600));
+  cursor.ShowAtCenter();
+  ASSERT_TRUE(cursor.is_visible());
+  cursor.Hide();
+  EXPECT_FALSE(cursor.is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       HideIdempotentBeforeShow) {
+  DaoAgentCursorView cursor;
+  cursor.Hide();
+  EXPECT_FALSE(cursor.is_visible());
+}
+
+// =============================================================================
+// DaoAgentLockBannerViewBrowserTest
+//
+// Locking the active tab toggles the overlay on/off; the banner must not
+// crash when the lock state flips while no widget is hosting it.
+// =============================================================================
+
+using DaoAgentLockBannerViewBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAgentLockBannerViewBrowserTest, LockShowsView) {
+  DaoAgentLockBannerView banner;
+  EXPECT_FALSE(banner.GetVisible());
+  banner.SetLocked(true);
+  EXPECT_TRUE(banner.GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentLockBannerViewBrowserTest, UnlockHidesView) {
+  DaoAgentLockBannerView banner;
+  banner.SetLocked(true);
+  ASSERT_TRUE(banner.GetVisible());
+  banner.SetLocked(false);
+  EXPECT_FALSE(banner.GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentLockBannerViewBrowserTest,
+                       SetLockedSameStateIsNoop) {
+  DaoAgentLockBannerView banner;
+  banner.SetLocked(false);
+  banner.SetLocked(false);
+  EXPECT_FALSE(banner.GetVisible());
+  banner.SetLocked(true);
+  banner.SetLocked(true);
+  EXPECT_TRUE(banner.GetVisible());
+}
+
+// =============================================================================
+// DaoDownloadFlyoutViewBrowserTest
+//
+// The flyout is created lazily by BrowserView when a download starts; verify
+// it animates from start to end and reports is_animating() correctly.
+// =============================================================================
+
+using DaoDownloadFlyoutViewBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoDownloadFlyoutViewBrowserTest, StartsIdle) {
+  DaoDownloadFlyoutView flyout;
+  EXPECT_FALSE(flyout.is_animating());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDownloadFlyoutViewBrowserTest, StartAnimationFlips) {
+  DaoDownloadFlyoutView flyout;
+  flyout.SetSize(gfx::Size(1024, 768));
+  flyout.StartAnimation(gfx::Point(100, 50),
+                        gfx::Point(20, 600),
+                        base::DoNothing());
+  EXPECT_TRUE(flyout.is_animating());
+}
+
+// =============================================================================
+// DaoControlCenterButtonBrowserTest
+//
+// The button lives in the sidebar; after a real BrowserView setup it should
+// be reachable via dao_control_center_popup() owner and respond to icon-color
+// updates without crashing.
+// =============================================================================
+
+using DaoControlCenterButtonBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterButtonBrowserTest,
+                       ButtonAcceptsIconColor) {
+  DaoControlCenterButton button(browser());
+  button.SetIconColor(SkColorSetRGB(70, 120, 190));
+  // No accessor for the cached color; the smoke test is that this does not
+  // DCHECK and the button still has the expected accessible name.
+  EXPECT_FALSE(button.GetAccessibleName().empty());
+}
+
+// =============================================================================
+// DaoSplitViewSubcomponentBrowserTest
+//
+// Validates the structural API of DaoSplitView beyond the existing
+// "split creates two panes" smoke test: pane count round-trip on
+// split/unsplit, ContainsWebContents lookup, and IsActiveSplitTab default.
+// =============================================================================
+
+class DaoSplitViewSubcomponentBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoSplitViewSubcomponentBrowserTest,
+                       PaneCountStartsAtZero) {
+  auto* split = GetBrowserView(browser())->dao_split_view();
+  ASSERT_NE(nullptr, split);
+  EXPECT_FALSE(split->IsSplitActive());
+  EXPECT_EQ(0, split->PaneCount());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSplitViewSubcomponentBrowserTest,
+                       UnknownContentsNotContained) {
+  auto* split = GetBrowserView(browser())->dao_split_view();
+  ASSERT_NE(nullptr, split);
+  // A web contents that has never been split should not be reported as a
+  // member or as the active split tab.
+  auto* active =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  EXPECT_FALSE(split->ContainsWebContents(active));
+  EXPECT_FALSE(split->IsActiveSplitTab(active));
+}
+
+// =============================================================================
+// DaoAgentSidebarViewBrowserTest
+//
+// The agent sidebar is owned by BrowserView and toggled via Toggle(); verify
+// the geometry/state invariants without driving the WebUI.
+// =============================================================================
+
+using DaoAgentSidebarViewBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, ExistsOnBrowserView) {
+  auto* view = GetBrowserView(browser());
+  EXPECT_NE(nullptr, view->dao_agent_sidebar());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, ToggleFlipsExpanded) {
+  auto* sidebar = GetBrowserView(browser())->dao_agent_sidebar();
+  ASSERT_NE(nullptr, sidebar);
+  const bool was = sidebar->is_expanded();
+  const bool now = sidebar->Toggle();
+  EXPECT_NE(was, now);
+  // Restore to original state for downstream tests.
+  sidebar->Toggle();
+  EXPECT_EQ(was, sidebar->is_expanded());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, WidthClampedToBounds) {
+  using V = dao::DaoAgentSidebarView;
+  EXPECT_LE(V::kMinWidth, V::kDefaultWidth);
+  EXPECT_LE(V::kDefaultWidth, V::kMaxWidth);
+  EXPECT_GE(V::kResizeAreaWidth, 1);
+}
+
+// =============================================================================
+// DaoAgentSkillServiceTest
+//
+// Round-trips a user skill through the KeyedService — exercises the disk path
+// (profile_path/DaoAgentSkills/user/global/<id>/SKILL.md) and the registry
+// scan that surfaces builtin + user skills together.
+// =============================================================================
+
+using DaoAgentSkillServiceTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, ServiceAvailableForProfile) {
+  EXPECT_NE(nullptr, dao::DaoAgentSkillServiceFactory::GetForProfile(
+                        browser()->profile()));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, RegistryReturnsList) {
+  auto* svc = dao::DaoAgentSkillServiceFactory::GetForProfile(
+      browser()->profile());
+  ASSERT_NE(nullptr, svc);
+  base::test::TestFuture<std::vector<dao::SkillRegistryEntry>> future;
+  svc->GetSkillRegistry(future.GetCallback());
+  // Just await — the list may be empty on a brand-new profile, but the call
+  // must succeed without crashing.
+  (void)future.Get();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, SaveAndLoadUserSkill) {
+  auto* svc = dao::DaoAgentSkillServiceFactory::GetForProfile(
+      browser()->profile());
+  ASSERT_NE(nullptr, svc);
+
+  static constexpr char kSkillId[] = "browsertest_user_skill";
+  static constexpr char kBody[] =
+      "---\n"
+      "name: Browser Test Skill\n"
+      "description: A skill written by a browser test.\n"
+      "---\n"
+      "Step 1. Do a thing.\n";
+
+  base::test::TestFuture<bool> saved;
+  svc->SaveUserSkill(kSkillId, kBody, /*host=*/std::string(),
+                     saved.GetCallback());
+  ASSERT_TRUE(saved.Get());
+
+  base::test::TestFuture<std::optional<dao::SkillContent>> loaded;
+  svc->GetSkillContent(kSkillId, loaded.GetCallback());
+  ASSERT_TRUE(loaded.Get().has_value());
+  EXPECT_EQ(kSkillId, loaded.Get()->metadata.id);
+  EXPECT_EQ("Browser Test Skill", loaded.Get()->metadata.name);
+  EXPECT_FALSE(loaded.Get()->instructions.empty());
+
+  base::test::TestFuture<bool> deleted;
+  svc->DeleteUserSkill(kSkillId, deleted.GetCallback());
+  EXPECT_TRUE(deleted.Get());
+
+  base::test::TestFuture<std::optional<dao::SkillContent>> after;
+  svc->GetSkillContent(kSkillId, after.GetCallback());
+  EXPECT_FALSE(after.Get().has_value());
+}
+
+// =============================================================================
+// DaoAgentMemoryServiceConversationTest
+//
+// Conversation/summary path of the memory service. StatsAvailable covers
+// the read-only stats query; the round-trip write is DISABLED_ for the same
+// FTS5-init reason captured on DaoAgentMemoryStoreTest.
+// =============================================================================
+
+class DaoAgentMemoryServiceConversationTest : public InProcessBrowserTest {
+ protected:
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    browser()->profile()->GetPrefs()->SetBoolean(
+        dao::prefs::kDaoAgentMemoryEnabled, true);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
+                       DISABLED_ConversationRoundTrip) {
+  auto* svc = dao::DaoAgentMemoryServiceFactory::GetForProfile(
+      browser()->profile());
+  ASSERT_NE(nullptr, svc);
+
+  std::vector<dao::ConversationMessage> messages;
+  dao::ConversationMessage m;
+  m.role = "user";
+  m.content = "hello";
+  m.timestamp = base::Time::Now();
+  messages.push_back(m);
+
+  base::test::TestFuture<bool> saved;
+  svc->SaveConversationMessages("session_browser_test", std::move(messages),
+                                saved.GetCallback());
+  ASSERT_TRUE(saved.Get());
+
+  base::test::TestFuture<std::vector<dao::ConversationMessage>> loaded;
+  svc->LoadConversationMessages("session_browser_test", /*limit=*/10,
+                                loaded.GetCallback());
+  ASSERT_FALSE(loaded.Get().empty());
+  EXPECT_EQ("user", loaded.Get()[0].role);
+
+  base::test::TestFuture<bool> deleted;
+  svc->DeleteConversation("session_browser_test", deleted.GetCallback());
+  EXPECT_TRUE(deleted.Get());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest, StatsAvailable) {
+  auto* svc = dao::DaoAgentMemoryServiceFactory::GetForProfile(
+      browser()->profile());
+  ASSERT_NE(nullptr, svc);
+  base::test::TestFuture<dao::StorageStats> stats;
+  svc->GetStorageStats(stats.GetCallback());
+  // Just verify the call returns; numeric values are non-deterministic across
+  // runs but should be >= 0.
+  EXPECT_GE(stats.Get().episode_count, 0);
 }
 
 }  // namespace

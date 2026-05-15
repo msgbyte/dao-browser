@@ -24,6 +24,8 @@
     "setup": "tsx scripts/cli.ts download && npm run import",
     "rebuild": "npm run import && npm run build:debug",
     "test": "npm run lint:lit && tsx scripts/cli.ts build --debug --target browser_tests && engine/src/out/dao-debug/browser_tests --gtest_filter=\"Dao*\"",
+    "test:webui": "vitest run",
+    "test:webui:watch": "vitest",
     "lint:lit": "python3 scripts/lint-lit-reactive-fields.py",
     "vendor": "tsx scripts/cli.ts vendor",
     "vendor:check": "tsx scripts/cli.ts vendor --check",
@@ -38,7 +40,10 @@
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.13.0",
-    "typescript": "^5.7.0"
+    "@vitest/ui": "^4.1.6",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.6"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
