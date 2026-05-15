@@ -55,6 +55,20 @@
     </item>
     -->
         <item>
+            <title>1.0.12.0</title>
+            <pubDate>Fri, 15 May 2026 16:23:23 +0800</pubDate>
+            <sparkle:version>12.0</sparkle:version>
+            <sparkle:shortVersionString>1.0.12.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://dao.msgbyte.com/dao-browser-1.0.12-mac-arm64.dmg" length="153766222" type="application/octet-stream" sparkle:edSignature="m+7eBkOFqJCd9I7YXe/HgJA4EHyQy4GsHkVtU/f5+rzBSSN+bcQDfmArJ6GG+9TiIG8t1vbIHsrMRb1QGdkBCg=="/>
+            <sparkle:deltas>
+                <enclosure url="https://dao.msgbyte.com/Dao12.0-11.0.delta" sparkle:deltaFrom="11.0" length="60122" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="QPNg8CWqK92bl7JKd14lLcXnWlhq6oFygpE2cV26Ki/sIOvllEuf/PKTBwAaDpn4iHHnBwEMKvX27Iuxe8kWBA=="/>
+                <enclosure url="https://dao.msgbyte.com/Dao12.0-10.0.delta" sparkle:deltaFrom="10.0" length="4569686" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="VWkquvvq/D2VkMw45DKeTRNpf/Pb3jtttXp+JIcOhgcdUojOfvde8U7aZaSDvZiG/hSmrd2EpWPe3OIJX0zQAQ=="/>
+                <enclosure url="https://dao.msgbyte.com/Dao12.0-9.0.delta" sparkle:deltaFrom="9.0" length="5078558" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="WoOftmdfXk8ehPHnk1YAeDbMk6QuPAIlDacKb+Bi6UQ5j6r8d4q+EtoEXmy8KaB2eBXLcvUn8etCthRpwrSEBQ=="/>
+                <enclosure url="https://dao.msgbyte.com/Dao12.0-8.0.delta" sparkle:deltaFrom="8.0" length="7532278" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="WzKBAXSrOr9mC0JrrjV/rSWOBErdrNoq7w4rBskuMB9xuBzBMmB/5x1oOLJ5oEI1sLAA31ppMaUVJv26BTpsCA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.0.11.0</title>
             <pubDate>Fri, 15 May 2026 06:26:12 +0800</pubDate>
             <sparkle:version>11.0</sparkle:version>
@@ -77,17 +91,6 @@
             <sparkle:deltas>
                 <enclosure url="https://dao.msgbyte.com/Dao10.0-9.0.delta" sparkle:deltaFrom="9.0" length="2988246" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="Qd86v+5JmQN01qIVlHaE4TUTvqnpb0cIfkYyrApebMdsmW7So9tiLOA0F+Euig700WQqgQN2KrNF+MpaKWcHDA=="/>
                 <enclosure url="https://dao.msgbyte.com/Dao10.0-8.0.delta" sparkle:deltaFrom="8.0" length="7226226" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="vMzlo0Abx9RQ4MEp7zmsv2CQRdchpFR0XVZKvtuzFS5K0whTR+rD/oTaxSVHaVq3PgxFoB1oC2NcFGgNyo11Bw=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.0.9.0</title>
-            <pubDate>Thu, 14 May 2026 02:31:27 +0800</pubDate>
-            <sparkle:version>9.0</sparkle:version>
-            <sparkle:shortVersionString>1.0.9.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://dao.msgbyte.com/dao-browser-1.0.9-mac-arm64.dmg" length="153715716" type="application/octet-stream" sparkle:edSignature="ByLrMp0qupzulN7XaRuQo73OE+1NCInKQ2uaEt1g9oCXg3rmT9xRMCHkwVFhruG7mNMsQlFsxwv8L928ve5IAA=="/>
-            <sparkle:deltas>
-                <enclosure url="https://dao.msgbyte.com/Dao9.0-8.0.delta" sparkle:deltaFrom="8.0" length="6890098" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="mgUY24S4SJBtw+ljXmHd2IEsaAgpuZthL6KaQSEkaFM9rdHwPQEc92JzLx7HH0ILHbfDDuJYJMA3nN9FdiHRCw=="/>
             </sparkle:deltas>
         </item>
     </channel>
