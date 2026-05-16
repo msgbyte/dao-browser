@@ -5,6 +5,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -70,6 +71,8 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "net/test/embedded_test_server/http_request.h"
+#include "net/test/embedded_test_server/http_response.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 #include "ui/compositor/layer.h"
@@ -2268,6 +2271,12 @@ class DaoBackToOpenerBrowserTest : public InProcessBrowserTest {
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
+    // Serve the opener page inline so the test does not depend on any file
+    // under engine/src/chrome/test/data/ (which is gitignored). The link
+    // target /title1.html is a stock Chromium test fixture and is provided
+    // by ServeFilesFromSourceDirectory below.
+    embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+        &DaoBackToOpenerBrowserTest::HandleOpenerRequest));
     embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
     ASSERT_TRUE(embedded_test_server()->Start());
   }
@@ -2290,6 +2299,27 @@ class DaoBackToOpenerBrowserTest : public InProcessBrowserTest {
     EXPECT_NE(dest_contents, opener_contents);
     EXPECT_TRUE(content::WaitForLoadStop(dest_contents));
     return dest_contents;
+  }
+
+ private:
+  // Returns an inline opener page with a target=_blank link to a stock
+  // Chromium fixture. Returns nullptr for unrelated paths so the static file
+  // handler installed via ServeFilesFromSourceDirectory can handle them.
+  static std::unique_ptr<net::test_server::HttpResponse> HandleOpenerRequest(
+      const net::test_server::HttpRequest& request) {
+    if (request.relative_url != "/back_to_opener_opener.html") {
+      return nullptr;
+    }
+    auto response =
+        std::make_unique<net::test_server::BasicHttpResponse>();
+    response->set_code(net::HTTP_OK);
+    response->set_content_type("text/html");
+    response->set_content(
+        "<!DOCTYPE html><html><head>"
+        "<title>Back to Opener Test - Opener Page</title></head><body>"
+        "<a id=\"link\" href=\"/title1.html\" target=\"_blank\">child</a>"
+        "</body></html>");
+    return response;
   }
 };
 
