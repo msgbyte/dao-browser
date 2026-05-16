@@ -336,7 +336,6 @@
 .commandInputRow {
   display: flex;
   align-items: center;
-  gap: 8px;
   padding: 10px 12px;
   font-size: 14px;
   color: var(--text);
@@ -344,19 +343,18 @@
 .commandInputIcon {
   color: var(--text-tertiary);
   flex-shrink: 0;
+  margin-right: 8px;
 }
 .commandInputText { white-space: nowrap; }
 .commandGhost {
   color: var(--text-tertiary);
   opacity: 0.55;
-  margin-left: 1px;
 }
 .commandCaret {
   display: inline-block;
   width: 1.5px;
   height: 14px;
   background: var(--accent);
-  margin-left: 1px;
   vertical-align: middle;
   animation: caret-blink 1.1s steps(2, end) infinite;
 }
