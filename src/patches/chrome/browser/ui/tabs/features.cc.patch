@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/ui/tabs/features.cc b/chrome/browser/ui/tabs/features.cc
+index 1e2755e28c..898ed6d57e 100644
+--- a/chrome/browser/ui/tabs/features.cc
++++ b/chrome/browser/ui/tabs/features.cc
+@@ -34,7 +34,10 @@ BASE_FEATURE(kHorizontalTabStripComboButton, base::FEATURE_DISABLED_BY_DEFAULT);
+ 
+ // Enables Back-to-Opener behavior, allowing users to press the back button in a
+ // newly opened tab to close that tab and return focus to the opener tab.
+-BASE_FEATURE(kBackToOpener, base::FEATURE_DISABLED_BY_DEFAULT);
++// Dao: enabled by default so newly opened tabs from initiator-frame
++// navigations (right-click "Open in New Tab", middle-click, target="_blank")
++// can be closed via the Back button to return to the opener.
++BASE_FEATURE(kBackToOpener, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+ bool IsVerticalTabsFeatureEnabled() {
+   return base::FeatureList::IsEnabled(kVerticalTabs) ||
