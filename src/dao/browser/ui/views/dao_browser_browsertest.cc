@@ -2358,6 +2358,14 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
 
   EXPECT_FALSE(dest_contents->GetController().CanGoBack());
   EXPECT_FALSE(chrome::CanGoBack(browser()));
+
+  // Defense in depth: even if GoBack is invoked anyway, the child must not
+  // be closed and must remain the active tab.
+  const int tab_count_before = tab_strip->count();
+  chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(tab_count_before, tab_strip->count());
+  EXPECT_EQ(dest_contents, tab_strip->GetActiveWebContents());
 }
 
 // 3. Closing the opener tab should also disable back-to-opener for the
@@ -2385,6 +2393,14 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
   // With the opener gone and no in-tab history, back must be disabled.
   EXPECT_FALSE(dest_contents->GetController().CanGoBack());
   EXPECT_FALSE(chrome::CanGoBack(browser()));
+
+  // Defense in depth: even if GoBack is invoked anyway, the orphaned child
+  // must not be closed and must remain the active tab.
+  const int tab_count_before = tab_strip->count();
+  chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(tab_count_before, tab_strip->count());
+  EXPECT_EQ(dest_contents, tab_strip->GetActiveWebContents());
 }
 
 // 4. When a child tab has its own in-tab navigation history, the regular
@@ -2422,6 +2438,8 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
   EXPECT_EQ(2, tab_strip->count());
   EXPECT_EQ(dest_index, tab_strip->GetIndexOfWebContents(dest_contents));
   EXPECT_EQ(dest_contents, tab_strip->GetActiveWebContents());
+  EXPECT_EQ(embedded_test_server()->GetURL("/title1.html"),
+            dest_contents->GetLastCommittedURL());
 }
 
 // 5. Pinned tabs should not participate in back-to-opener: a pinned child
