@@ -5,6 +5,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -31,6 +32,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_navigation_observer.h"
 #include "ui/base/hit_test.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
@@ -2247,6 +2249,214 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest, StatsAvailable) {
   // Just verify the call returns; numeric values are non-deterministic across
   // runs but should be >= 0.
   EXPECT_GE(stats.Get().episode_count, 0);
+}
+
+// =============================================================================
+// DaoBackToOpenerBrowserTest
+// =============================================================================
+//
+// These tests pin down the back-to-opener semantics that Dao's address-bar
+// Back button is expected to honor once it routes through chrome::GoBack /
+// chrome::CanGoBack. The feature flag (tabs::kBackToOpener) is enabled by
+// default in our patched build, so we exercise the public command surface
+// without re-enabling it here.
+
+class DaoBackToOpenerBrowserTest : public InProcessBrowserTest {
+ public:
+  DaoBackToOpenerBrowserTest() = default;
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+  // Navigate the active tab to the opener fixture and click the link to spawn
+  // a child tab in the same browser. Returns the destination WebContents.
+  content::WebContents* OpenChildFromOpener(GURL* opener_url_out = nullptr) {
+    GURL opener_url =
+        embedded_test_server()->GetURL("/back_to_opener_opener.html");
+    if (opener_url_out) {
+      *opener_url_out = opener_url;
+    }
+    EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), opener_url));
+
+    content::WebContents* opener_contents =
+        browser()->tab_strip_model()->GetActiveWebContents();
+    EXPECT_TRUE(content::WaitForLoadStop(opener_contents));
+
+    ui_test_utils::TabAddedWaiter tab_waiter(browser());
+    EXPECT_TRUE(content::ExecJs(opener_contents,
+                                "document.getElementById('link').click();"));
+    content::WebContents* dest_contents = tab_waiter.Wait();
+    EXPECT_NE(nullptr, dest_contents);
+    EXPECT_NE(dest_contents, opener_contents);
+    EXPECT_TRUE(content::WaitForLoadStop(dest_contents));
+    return dest_contents;
+  }
+};
+
+// 1. Clicking back in a child tab whose in-tab history is empty should close
+// the child tab and re-activate the opener tab.
+IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
+                       BackClosesChildAndActivatesParent) {
+  TabStripModel* tab_strip = browser()->tab_strip_model();
+  content::WebContents* opener_contents = tab_strip->GetActiveWebContents();
+  const int opener_index = tab_strip->GetIndexOfWebContents(opener_contents);
+
+  content::WebContents* dest_contents = OpenChildFromOpener();
+  ASSERT_NE(nullptr, dest_contents);
+  ASSERT_EQ(2, tab_strip->count());
+  ASSERT_EQ(dest_contents, tab_strip->GetActiveWebContents());
+
+  // Back-to-opener should be available even though the child tab itself has
+  // no in-tab back history.
+  EXPECT_FALSE(dest_contents->GetController().CanGoBack());
+  EXPECT_TRUE(chrome::CanGoBack(browser()));
+
+  content::WebContentsDestroyedWatcher close_watcher(dest_contents);
+  chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
+  close_watcher.Wait();
+
+  // Child closed, opener focused.
+  EXPECT_EQ(1, tab_strip->count());
+  EXPECT_EQ(opener_index,
+            tab_strip->GetIndexOfWebContents(opener_contents));
+  EXPECT_EQ(opener_contents, tab_strip->GetActiveWebContents());
+}
+
+// 2. If the opener tab navigates away after spawning the child, back-to-opener
+// should no longer be available from the child (chrome::CanGoBack returns
+// false when the child has no in-tab history).
+IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
+                       ParentNavigatedAwayDisablesBack) {
+  TabStripModel* tab_strip = browser()->tab_strip_model();
+  content::WebContents* opener_contents = tab_strip->GetActiveWebContents();
+  const int opener_index = tab_strip->GetIndexOfWebContents(opener_contents);
+
+  content::WebContents* dest_contents = OpenChildFromOpener();
+  ASSERT_NE(nullptr, dest_contents);
+  ASSERT_EQ(2, tab_strip->count());
+
+  // Switch back to the opener and navigate it elsewhere.
+  tab_strip->ActivateTabAt(opener_index);
+  ASSERT_EQ(opener_contents, tab_strip->GetActiveWebContents());
+  GURL other_url = embedded_test_server()->GetURL("/title2.html");
+  {
+    content::TestNavigationObserver nav_observer(opener_contents);
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), other_url));
+    nav_observer.Wait();
+  }
+
+  // Re-focus the child tab. Its own history is empty, and the opener has
+  // moved on, so chrome::CanGoBack should now report false.
+  const int dest_index = tab_strip->GetIndexOfWebContents(dest_contents);
+  ASSERT_NE(TabStripModel::kNoTab, dest_index);
+  tab_strip->ActivateTabAt(dest_index);
+  ASSERT_EQ(dest_contents, tab_strip->GetActiveWebContents());
+
+  EXPECT_FALSE(dest_contents->GetController().CanGoBack());
+  EXPECT_FALSE(chrome::CanGoBack(browser()));
+}
+
+// 3. Closing the opener tab should also disable back-to-opener for the
+// orphaned child tab.
+IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
+                       ParentClosedDisablesBack) {
+  TabStripModel* tab_strip = browser()->tab_strip_model();
+  content::WebContents* opener_contents = tab_strip->GetActiveWebContents();
+  const int opener_index = tab_strip->GetIndexOfWebContents(opener_contents);
+
+  content::WebContents* dest_contents = OpenChildFromOpener();
+  ASSERT_NE(nullptr, dest_contents);
+  ASSERT_EQ(2, tab_strip->count());
+
+  // Close the opener.
+  {
+    content::WebContentsDestroyedWatcher destroyed_watcher(opener_contents);
+    tab_strip->CloseWebContentsAt(opener_index,
+                                  TabCloseTypes::CLOSE_USER_GESTURE);
+    destroyed_watcher.Wait();
+  }
+  ASSERT_EQ(1, tab_strip->count());
+  ASSERT_EQ(dest_contents, tab_strip->GetActiveWebContents());
+
+  // With the opener gone and no in-tab history, back must be disabled.
+  EXPECT_FALSE(dest_contents->GetController().CanGoBack());
+  EXPECT_FALSE(chrome::CanGoBack(browser()));
+}
+
+// 4. When a child tab has its own in-tab navigation history, the regular
+// in-tab Back semantics should take precedence: clicking back navigates the
+// child instead of closing it.
+IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
+                       InTabHistoryTakesPrecedence) {
+  TabStripModel* tab_strip = browser()->tab_strip_model();
+
+  content::WebContents* dest_contents = OpenChildFromOpener();
+  ASSERT_NE(nullptr, dest_contents);
+  ASSERT_EQ(2, tab_strip->count());
+  const int dest_index = tab_strip->GetIndexOfWebContents(dest_contents);
+
+  // Drive an in-tab navigation in the child to grow its history.
+  GURL second_url = embedded_test_server()->GetURL("/title2.html");
+  {
+    content::TestNavigationObserver nav_observer(dest_contents);
+    ASSERT_TRUE(content::ExecJs(
+        dest_contents,
+        content::JsReplace("window.location.href = $1;", second_url)));
+    nav_observer.Wait();
+  }
+  EXPECT_TRUE(dest_contents->GetController().CanGoBack());
+  EXPECT_TRUE(chrome::CanGoBack(browser()));
+
+  // chrome::GoBack should navigate the child, not close it.
+  {
+    content::TestNavigationObserver nav_observer(dest_contents);
+    chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
+    nav_observer.Wait();
+  }
+
+  // Tab is still open and is still the active tab.
+  EXPECT_EQ(2, tab_strip->count());
+  EXPECT_EQ(dest_index, tab_strip->GetIndexOfWebContents(dest_contents));
+  EXPECT_EQ(dest_contents, tab_strip->GetActiveWebContents());
+}
+
+// 5. Pinned tabs should not participate in back-to-opener: a pinned child
+// tab with no in-tab history should report CanGoBack == false.
+IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
+                       PinnedChildDoesNotGoBack) {
+  TabStripModel* tab_strip = browser()->tab_strip_model();
+
+  content::WebContents* dest_contents = OpenChildFromOpener();
+  ASSERT_NE(nullptr, dest_contents);
+  ASSERT_EQ(2, tab_strip->count());
+
+  int dest_index = tab_strip->GetIndexOfWebContents(dest_contents);
+  ASSERT_NE(TabStripModel::kNoTab, dest_index);
+
+  // Pin the destination tab. Pinning may reorder; refresh the index and
+  // re-activate it.
+  dest_index = tab_strip->SetTabPinned(dest_index, true);
+  ASSERT_NE(TabStripModel::kNoTab, dest_index);
+  tab_strip->ActivateTabAt(dest_index);
+  ASSERT_EQ(dest_contents, tab_strip->GetActiveWebContents());
+  ASSERT_TRUE(tab_strip->IsTabPinned(dest_index));
+
+  // No in-tab history and pinned: chrome::CanGoBack must be false. Clicking
+  // back must NOT close the pinned tab.
+  EXPECT_FALSE(dest_contents->GetController().CanGoBack());
+  EXPECT_FALSE(chrome::CanGoBack(browser()));
+
+  // Even if invoked anyway, the tab count must stay at 2 (defense in depth).
+  const int tab_count_before = tab_strip->count();
+  if (chrome::CanGoBack(browser())) {
+    chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
+    base::RunLoop().RunUntilIdle();
+  }
+  EXPECT_EQ(tab_count_before, tab_strip->count());
 }
 
 }  // namespace
