@@ -2274,17 +2274,13 @@ class DaoBackToOpenerBrowserTest : public InProcessBrowserTest {
 
   // Navigate the active tab to the opener fixture and click the link to spawn
   // a child tab in the same browser. Returns the destination WebContents.
-  content::WebContents* OpenChildFromOpener(GURL* opener_url_out = nullptr) {
+  content::WebContents* OpenChildFromOpener() {
     GURL opener_url =
         embedded_test_server()->GetURL("/back_to_opener_opener.html");
-    if (opener_url_out) {
-      *opener_url_out = opener_url;
-    }
     EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), opener_url));
 
     content::WebContents* opener_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
-    EXPECT_TRUE(content::WaitForLoadStop(opener_contents));
 
     ui_test_utils::TabAddedWaiter tab_waiter(browser());
     EXPECT_TRUE(content::ExecJs(opener_contents,
@@ -2343,11 +2339,7 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
   tab_strip->ActivateTabAt(opener_index);
   ASSERT_EQ(opener_contents, tab_strip->GetActiveWebContents());
   GURL other_url = embedded_test_server()->GetURL("/title2.html");
-  {
-    content::TestNavigationObserver nav_observer(opener_contents);
-    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), other_url));
-    nav_observer.Wait();
-  }
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), other_url));
 
   // Re-focus the child tab. Its own history is empty, and the opener has
   // moved on, so chrome::CanGoBack should now report false.
@@ -2470,11 +2462,10 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
 
   // Even if invoked anyway, the tab count must stay at 2 (defense in depth).
   const int tab_count_before = tab_strip->count();
-  if (chrome::CanGoBack(browser())) {
-    chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
-    base::RunLoop().RunUntilIdle();
-  }
+  chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
+  base::RunLoop().RunUntilIdle();
   EXPECT_EQ(tab_count_before, tab_strip->count());
+  EXPECT_EQ(dest_contents, tab_strip->GetActiveWebContents());
 }
 
 }  // namespace
