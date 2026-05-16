@@ -92,22 +92,3 @@ index b7ec475c86..50cc2d6f42 100644
  }
  
  // NOTES FOR FEATURE TEAMS:
-@@ -2173,6 +2191,10 @@ void MaybeRegisterChromeTutorials(
- //    longer that necessary just to keep a "New" Badge around.
- //
- void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
-+  // Dao: disable all upstream "New" badges. They highlight Chrome features
-+  // that Dao does not surface in its UI.
-+  return;
-+#if 0  // Dao: upstream new-badge registrations disabled below.
-   if (registry.IsFeatureRegistered(
-           user_education::features::kNewBadgeTestFeature)) {
-     return;
-@@ -2272,6 +2294,7 @@ registry.RegisterFeature(user_education::NewBadgeSpecification(
-                                "Show the new badge in the system context menu "
-                                "to toggle the horizontal tab strip "
-                                "to be a vertical tab strip")));
-+#endif  // Dao: upstream new-badge registrations disabled.
- }
- 
- std::unique_ptr<user_education::FeaturePromoControllerImpl>
