@@ -41,6 +41,15 @@ Workflow: edit in `src/dao/` or `src/patches/`, run `npm run import` to apply, i
 
 **`src/patches/` and `src/dao/` are the source of truth.** The code in `engine/` is unstable and may be in any state (partially applied patches, manual test edits, etc.). When reading Chromium integration code, always refer to `src/patches/*.patch` files for the canonical version. Only read `engine/` files when you need to see the original unpatched Chromium code for context, or when debugging a build failure.
 
+## Git Worktrees
+
+`engine/` is gitignored and holds 100GB+ of Chromium source + build output (`out/dao-debug/`). A git worktree only checks out version-controlled files, so a fresh worktree has **no `engine/`** — any Chromium build inside it starts from scratch. This is hours-to-days of lost incremental compile state.
+
+Rules:
+- **Web / docs / scripts only** (`website/`, `docs/`, `scripts/`, `src/patches/` text edits with no rebuild) — worktree is fine. For `website/`, symlink `node_modules` from the main checkout to skip `npm install`.
+- **Anything that triggers a Chromium build** (`src/dao/**`, `src/patches/**` changes that need verification, `npm run rebuild`, `npm run test`) — **do NOT use a worktree**. Work on a branch in the main checkout so `engine/` and `out/dao-debug/` stay warm.
+- Do NOT symlink `engine/` into a worktree to share the build dir — two checkouts racing the same `out/` corrupts Siso/Ninja state (see the build rules below).
+
 ## Architecture
 
 ### Patch System
