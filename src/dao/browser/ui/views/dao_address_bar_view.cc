@@ -6,6 +6,7 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/navigation_controller.h"
@@ -626,13 +627,11 @@ void DaoAddressBarView::OnToggleButtonPressed() {
 }
 
 void DaoAddressBarView::OnBackButtonPressed() {
-  if (!tab_strip_model_) {
+  if (!browser_) {
     return;
   }
-  content::WebContents* contents =
-      tab_strip_model_->GetActiveWebContents();
-  if (contents && contents->GetController().CanGoBack()) {
-    contents->GetController().GoBack();
+  if (chrome::CanGoBack(browser_)) {
+    chrome::GoBack(browser_, WindowOpenDisposition::CURRENT_TAB);
   }
 }
 
@@ -684,7 +683,7 @@ void DaoAddressBarView::UpdateNavButtonEnabled() {
     return;
   }
   content::WebContents* contents = tab_strip_model_->GetActiveWebContents();
-  bool can_back = contents && contents->GetController().CanGoBack();
+  bool can_back = browser_ && chrome::CanGoBack(browser_);
   bool can_forward = contents && contents->GetController().CanGoForward();
 
   if (back_button_) {
