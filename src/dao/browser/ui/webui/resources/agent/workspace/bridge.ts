@@ -125,6 +125,18 @@ export async function executeWorkspaceTool(
         const raw = await callNative('workspaceApplyPatch', {patch});
         return normalizeReply('', raw);
       }
+      case 'list_files': {
+        // Optional path; empty means workspace root.
+        const path = getStr(args, 'path') ?? '';
+        const recursive = args['recursive'] === true;
+        const raw = await callNative(
+            'workspaceList', {path, recursive});
+        const reply = normalizeReply(path, raw);
+        if (reply.ok === true && 'entries' in reply) {
+          (reply as {recursive: boolean}).recursive = recursive;
+        }
+        return reply;
+      }
       case 'download': {
         const path = getStr(args, 'path');
         if (!path) return pathInvalid('download requires "path"');
@@ -176,6 +188,21 @@ export function formatWorkspaceReply(reply: WorkspaceReply): string {
           `moved: ${reply.moved.map(m => `${m.from}->${m.to}`).join(', ')}`);
     }
     return `applied patch: ${parts.join('; ') || '(no-op)'}`;
+  }
+  if ('entries' in reply) {
+    const root = reply.path === '' ? '<root>' : reply.path;
+    const mode = reply.recursive ? 'recursive' : 'shallow';
+    const head =
+        `${reply.entries.length} of ${reply.total} entries under ${root}` +
+        ` (${mode})${reply.truncated ? ' [truncated]' : ''}`;
+    if (reply.entries.length === 0) {
+      return `[${head}]\n(empty)`;
+    }
+    const lines = reply.entries.map(e => {
+      if (e.is_dir) return `  ${e.path}`;
+      return `  ${e.path}\t${e.size_bytes}B`;
+    });
+    return `[${head}]\n${lines.join('\n')}`;
   }
   if ('source_url' in reply) {
     const verb = reply.created ? 'downloaded' : 'overwrote';

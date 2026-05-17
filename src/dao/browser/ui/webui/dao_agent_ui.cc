@@ -3967,6 +3967,10 @@ void DaoAgentWorkspaceHandler::RegisterMessages() {
           &DaoAgentWorkspaceHandler::HandleWorkspaceApplyPatch,
           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "workspaceList",
+      base::BindRepeating(&DaoAgentWorkspaceHandler::HandleWorkspaceList,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "workspaceOpenFolder",
       base::BindRepeating(
           &DaoAgentWorkspaceHandler::HandleWorkspaceOpenFolder,
@@ -4183,6 +4187,53 @@ void DaoAgentWorkspaceHandler::HandleWorkspaceApplyPatch(
             body.Set("updated", std::move(updated));
             body.Set("deleted", std::move(deleted));
             body.Set("moved", std::move(moved));
+            self->ReplyOk(cb_id, std::move(body));
+          },
+          weak_factory_.GetWeakPtr(), cb_id));
+}
+
+void DaoAgentWorkspaceHandler::HandleWorkspaceList(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  std::string cb_id = args[0].GetString();
+  const base::DictValue& dict = args[1].GetDict();
+  // `path` is optional; absent / empty means the workspace root.
+  std::string path;
+  if (const std::string* p = dict.FindString("path")) {
+    path = *p;
+  }
+  bool recursive = dict.FindBool("recursive").value_or(false);
+
+  GetWorkspaceService()->List(
+      path, recursive,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentWorkspaceHandler> self, std::string cb_id,
+             base::expected<ListResult, WorkspaceError> result) {
+            if (!self) {
+              return;
+            }
+            if (!result.has_value()) {
+              self->ReplyError(cb_id, result.error());
+              return;
+            }
+            base::DictValue body;
+            base::ListValue entries;
+            for (const auto& e : result->entries) {
+              base::DictValue item;
+              item.Set("path", e.path);
+              item.Set("is_dir", e.is_dir);
+              // size_bytes can exceed int range; serialize as double so the
+              // WebUI receives it as a JS number.
+              item.Set("size_bytes", static_cast<double>(e.size_bytes));
+              item.Set("mtime", e.mtime);
+              entries.Append(std::move(item));
+            }
+            body.Set("entries", std::move(entries));
+            body.Set("total", static_cast<int>(result->total));
+            body.Set("truncated", result->truncated);
             self->ReplyOk(cb_id, std::move(body));
           },
           weak_factory_.GetWeakPtr(), cb_id));

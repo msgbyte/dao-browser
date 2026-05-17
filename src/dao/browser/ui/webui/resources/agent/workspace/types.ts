@@ -61,12 +61,32 @@ export interface WorkspaceDownloadReply {
   truncated: boolean;
 }
 
+export interface WorkspaceListEntry {
+  // Forward-slash relative path from the workspace root. Directories
+  // carry a trailing slash.
+  path: string;
+  is_dir: boolean;
+  size_bytes: number;
+  // ISO 8601 UTC, e.g. "2026-05-18T07:31:02Z". Empty if stat failed.
+  mtime: string;
+}
+
+export interface WorkspaceListReply {
+  ok: true;
+  path: string;
+  recursive: boolean;
+  entries: WorkspaceListEntry[];
+  total: number;
+  truncated: boolean;
+}
+
 export type WorkspaceReply =
   | WorkspaceReadReply
   | WorkspaceWriteReply
   | WorkspaceEditReply
   | WorkspaceApplyPatchReply
   | WorkspaceDownloadReply
+  | WorkspaceListReply
   | WorkspaceErrorReply;
 
 export function isWorkspaceError(r: WorkspaceReply): r is WorkspaceErrorReply {

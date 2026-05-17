@@ -28,6 +28,13 @@ PatchResult& PatchResult::operator=(const PatchResult&) = default;
 PatchResult::PatchResult(PatchResult&&) noexcept = default;
 PatchResult& PatchResult::operator=(PatchResult&&) noexcept = default;
 
+ListResult::ListResult() = default;
+ListResult::~ListResult() = default;
+ListResult::ListResult(const ListResult&) = default;
+ListResult& ListResult::operator=(const ListResult&) = default;
+ListResult::ListResult(ListResult&&) noexcept = default;
+ListResult& ListResult::operator=(ListResult&&) noexcept = default;
+
 AuditEntry::AuditEntry() = default;
 AuditEntry::~AuditEntry() = default;
 AuditEntry::AuditEntry(const AuditEntry&) = default;

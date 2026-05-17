@@ -34,6 +34,13 @@ class DaoAgentWorkspaceService : public KeyedService {
       base::OnceCallback<void(base::expected<WriteResult, WorkspaceError>)>;
   using PatchCallback =
       base::OnceCallback<void(base::expected<PatchResult, WorkspaceError>)>;
+  using ListCallback =
+      base::OnceCallback<void(base::expected<ListResult, WorkspaceError>)>;
+
+  // Hard cap on entries returned by a single List() call. Matches the
+  // workspace's own entry quota — listing more would never reflect a
+  // legal state of the workspace.
+  static constexpr size_t kListMaxEntries = 1000;
 
   explicit DaoAgentWorkspaceService(const base::FilePath& profile_path);
   ~DaoAgentWorkspaceService() override;
@@ -75,6 +82,15 @@ class DaoAgentWorkspaceService : public KeyedService {
                         const base::FilePath& staged_abs_path,
                         const std::string& audit_detail,
                         WriteCallback callback);
+
+  // Lists entries under `rel_path` (relative to workspace root; "" is
+  // the root itself). `recursive=true` walks every subdirectory; false
+  // returns just the immediate children. The staging directory and any
+  // path starting with '.' are excluded — they are internal book-
+  // keeping, not workspace state the agent should see.
+  void List(const std::string& rel_path,
+            bool recursive,
+            ListCallback callback);
 
   // For the settings activity list. Snapshot is taken on the UI thread.
   std::vector<AuditEntry> GetRecentAudit() const;
@@ -122,6 +138,9 @@ class DaoAgentWorkspaceService : public KeyedService {
       const std::string& rel_path,
       const base::FilePath& staged_abs_path,
       const std::string& audit_detail);
+  base::expected<ListResult, WorkspaceError> ListOnIO(
+      const std::string& rel_path,
+      bool recursive);
 
   void EnsureRootExistsOnIO();
   void ClearStagingOnIO();

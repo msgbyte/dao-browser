@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/i18n/time_formatting.h"
@@ -19,6 +20,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
+#include "build/build_config.h"
 #include "chrome/browser/platform_util.h"
 #include "dao/browser/agent/workspace/path_normalizer.h"
 #include "dao/browser/agent/workspace/text_only_filter.h"
@@ -449,6 +451,103 @@ DaoAgentWorkspaceService::IngestStagedFileOnIO(
   r.bytes_written = static_cast<size_t>(*staged_size);
   r.created = created;
   return r;
+}
+
+void DaoAgentWorkspaceService::List(const std::string& rel_path,
+                                    bool recursive,
+                                    ListCallback callback) {
+  io_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentWorkspaceService::ListOnIO,
+                     base::Unretained(this), rel_path, recursive),
+      std::move(callback));
+}
+
+base::expected<ListResult, WorkspaceError>
+DaoAgentWorkspaceService::ListOnIO(const std::string& rel_path,
+                                   bool recursive) {
+  // Resolve target: "" means the workspace root itself; otherwise the
+  // path must validate via the workspace's normal safety filter.
+  base::FilePath target;
+  if (rel_path.empty()) {
+    target = workspace_root_;
+  } else {
+    auto abs = NormalizePath(workspace_root_, rel_path);
+    if (!abs.has_value()) {
+      return base::unexpected(abs.error());
+    }
+    target = *abs;
+  }
+  if (!base::PathExists(target)) {
+    return base::unexpected(WorkspaceError::kNotFound);
+  }
+  if (!base::DirectoryExists(target)) {
+    return base::unexpected(WorkspaceError::kInvalidPath);
+  }
+
+  ListResult out;
+  const int file_types =
+      base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES;
+  base::FileEnumerator enumerator(target, recursive, file_types);
+  for (base::FilePath path = enumerator.Next(); !path.empty();
+       path = enumerator.Next()) {
+    base::FilePath relative;
+    if (!workspace_root_.AppendRelativePath(path, &relative)) {
+      continue;
+    }
+    auto comps = relative.GetComponents();
+    if (comps.empty()) {
+      continue;
+    }
+    // Skip workspace bookkeeping and any dotfile/dotdir at any depth.
+    bool skip = false;
+    for (const auto& c : comps) {
+      if (c == FILE_PATH_LITERAL(".workspace_tmp") ||
+          c == FILE_PATH_LITERAL(".audit.log") ||
+          c == FILE_PATH_LITERAL("WORKSPACE.md") ||
+          (!c.empty() && c.front() == FILE_PATH_LITERAL('.'))) {
+        skip = true;
+        break;
+      }
+    }
+    if (skip) {
+      continue;
+    }
+
+    ++out.total;
+    if (out.entries.size() >= kListMaxEntries) {
+      out.truncated = true;
+      continue;
+    }
+
+    base::FileEnumerator::FileInfo info = enumerator.GetInfo();
+    ListEntry entry;
+    // Use forward slashes regardless of platform so the LLM gets a
+    // consistent shape.
+    std::string rel_utf8 = relative.AsUTF8Unsafe();
+#if BUILDFLAG(IS_WIN)
+    std::replace(rel_utf8.begin(), rel_utf8.end(), '\\', '/');
+#endif
+    entry.is_dir = info.IsDirectory();
+    if (entry.is_dir) {
+      rel_utf8.push_back('/');
+      entry.size_bytes = 0;
+    } else {
+      entry.size_bytes = static_cast<uint64_t>(info.GetSize());
+    }
+    entry.path = std::move(rel_utf8);
+    base::Time mtime = info.GetLastModifiedTime();
+    if (!mtime.is_null()) {
+      entry.mtime = base::TimeFormatAsIso8601(mtime);
+    }
+    out.entries.push_back(std::move(entry));
+  }
+
+  std::sort(out.entries.begin(), out.entries.end(),
+            [](const ListEntry& a, const ListEntry& b) {
+              return a.path < b.path;
+            });
+  return out;
 }
 
 void DaoAgentWorkspaceService::ApplyPatch(const std::string& patch_text,

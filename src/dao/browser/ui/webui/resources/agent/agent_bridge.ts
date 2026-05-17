@@ -1052,6 +1052,36 @@ export const tools: ToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'list_files',
+      description:
+          'List entries in the agent workspace. Returns directories ' +
+          '(trailing "/") and text files with their sizes and ' +
+          'modification times. Workspace bookkeeping (dotfiles, ' +
+          '.workspace_tmp, WORKSPACE.md) is hidden. Results are capped ' +
+          'at 1000 entries; check `truncated` and pass a narrower ' +
+          '`path` if more exist.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            description:
+                'Optional relative directory in the workspace; empty ' +
+                'or omitted means the workspace root.',
+          },
+          recursive: {
+            type: 'boolean',
+            description:
+                'If true, descend into subdirectories (default false).',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'apply_patch',
       description:
           'Apply a V4A-format multi-file patch to the workspace ' +
@@ -1136,6 +1166,7 @@ export async function executeTool(
     case 'workspace_write':
     case 'workspace_edit':
     case 'apply_patch':
+    case 'list_files':
     case 'download':
       return await executeWorkspaceTool(name, args);
     case 'get_page_info':

@@ -63,6 +63,32 @@ struct PatchResult {
   std::vector<std::pair<std::string, std::string>> moved;
 };
 
+struct ListEntry {
+  // Forward-slash-normalized relative path from the workspace root.
+  // Directories carry a trailing slash so the LLM does not need to
+  // inspect `is_dir` to tell them apart at a glance.
+  std::string path;
+  bool is_dir = false;
+  uint64_t size_bytes = 0;
+  // ISO 8601 UTC, e.g. "2026-05-18T07:31:02Z". Empty if stat failed.
+  std::string mtime;
+};
+
+struct ListResult {
+  ListResult();
+  ~ListResult();
+  ListResult(const ListResult&);
+  ListResult& operator=(const ListResult&);
+  ListResult(ListResult&&) noexcept;
+  ListResult& operator=(ListResult&&) noexcept;
+
+  std::vector<ListEntry> entries;
+  // Total entries that matched the query before any cap was applied.
+  uint32_t total = 0;
+  // True if `entries` was truncated against the hard cap below.
+  bool truncated = false;
+};
+
 struct AuditEntry {
   AuditEntry();
   ~AuditEntry();

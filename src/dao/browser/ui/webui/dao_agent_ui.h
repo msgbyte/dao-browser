@@ -420,6 +420,7 @@ class DaoAgentWorkspaceHandler : public content::WebUIMessageHandler {
   void HandleWorkspaceWrite(const base::ListValue& args);
   void HandleWorkspaceEdit(const base::ListValue& args);
   void HandleWorkspaceApplyPatch(const base::ListValue& args);
+  void HandleWorkspaceList(const base::ListValue& args);
   void HandleWorkspaceOpenFolder(const base::ListValue& args);
   void HandleWorkspaceGetRecentActivity(const base::ListValue& args);
   void HandleWorkspaceGetInfo(const base::ListValue& args);

@@ -79,6 +79,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       'workspace_write',
       'workspace_edit',
       'apply_patch',
+      'list_files',
       'download',
     ],
   },
