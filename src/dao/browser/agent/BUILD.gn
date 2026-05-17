@@ -1,0 +1,21 @@
+# Copyright 2026 Dao Browser. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Unit tests for Dao agent code. The production sources live in
+# //chrome/browser/ui:ui (see chrome/browser/ui/BUILD.gn additions for
+# //dao/browser/agent/*); this source_set is wired into
+# //chrome/test:unit_tests by chrome/test/BUILD.gn.
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "workspace/path_normalizer_unittest.cc",
+  ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/ui:ui",
+    "//testing/gtest",
+  ]
+}
