@@ -1949,6 +1949,10 @@ void DaoAgentUIHandler::HandleOpenTab(const base::ListValue& args) {
     }
     NavigateParams params(browser, url, ui::PAGE_TRANSITION_TYPED);
     params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    const int active_index = browser->tab_strip_model()->active_index();
+    if (active_index >= 0) {
+      params.tabstrip_index = active_index + 1;
+    }
     Navigate(&params);
     response.Set("success", true);
     response.Set("url", url.spec());
