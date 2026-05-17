@@ -41,14 +41,19 @@ Workflow: edit in `src/dao/` or `src/patches/`, run `npm run import` to apply, i
 
 **`src/patches/` and `src/dao/` are the source of truth.** The code in `engine/` is unstable and may be in any state (partially applied patches, manual test edits, etc.). When reading Chromium integration code, always refer to `src/patches/*.patch` files for the canonical version. Only read `engine/` files when you need to see the original unpatched Chromium code for context, or when debugging a build failure.
 
-## Git Worktrees
+## Git Branch Policy
 
-`engine/` is gitignored and holds 100GB+ of Chromium source + build output (`out/dao-debug/`). A git worktree only checks out version-controlled files, so a fresh worktree has **no `engine/`** — any Chromium build inside it starts from scratch. This is hours-to-days of lost incremental compile state.
+**All changes must be made on the `main` branch.** Do NOT use git worktrees for staged or parallel processing — work directly on `main` in the primary checkout.
+
+Rationale:
+- `engine/` is gitignored and holds 100GB+ of Chromium source + build output (`out/dao-debug/`). A git worktree only checks out version-controlled files, so a fresh worktree has **no `engine/`** — any Chromium build inside it starts from scratch. This is hours-to-days of lost incremental compile state.
+- Symlinking `engine/` into a worktree to share the build dir would cause two checkouts to race the same `out/` and corrupt Siso/Ninja state.
+- Staying on `main` keeps `engine/` and `out/dao-debug/` warm and avoids context-switch overhead.
 
 Rules:
-- **Web / docs / scripts only** (`website/`, `docs/`, `scripts/`, `src/patches/` text edits with no rebuild) — worktree is fine. For `website/`, symlink `node_modules` from the main checkout to skip `npm install`.
-- **Anything that triggers a Chromium build** (`src/dao/**`, `src/patches/**` changes that need verification, `npm run rebuild`, `npm run test`) — **do NOT use a worktree**. Work on a branch in the main checkout so `engine/` and `out/dao-debug/` stay warm.
-- Do NOT symlink `engine/` into a worktree to share the build dir — two checkouts racing the same `out/` corrupts Siso/Ninja state (see the build rules below).
+- Do NOT call `EnterWorktree` or run `git worktree add` for any task in this repository, regardless of whether the task touches Chromium build artifacts or only web/docs/scripts.
+- Do NOT create feature branches for staged processing — make changes directly on `main`.
+- If a worktree already exists (e.g. under `.claude/worktrees/`), ignore it and operate in the main checkout.
 
 ## Architecture
 
