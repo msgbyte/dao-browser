@@ -74,14 +74,22 @@ base::expected<base::FilePath, WorkspaceError> NormalizePath(
     }
   }
 
-  base::FilePath joined = workspace_root.Append(candidate);
+  // Resolve symlinks on both sides so prefix checks work consistently on
+  // platforms where the temp dir / profile dir contains symlinks (e.g. on
+  // macOS where /var/folders is a symlink to /private/var/folders).
+  base::FilePath resolved_root = base::MakeAbsoluteFilePath(workspace_root);
+  if (resolved_root.empty()) {
+    resolved_root = workspace_root;
+  }
+
+  base::FilePath joined = resolved_root.Append(candidate);
 
   base::FilePath resolved = base::MakeAbsoluteFilePath(joined);
   if (resolved.empty()) {
     resolved = joined;
   }
 
-  if (resolved != workspace_root && !workspace_root.IsParent(resolved)) {
+  if (resolved != resolved_root && !resolved_root.IsParent(resolved)) {
     return base::unexpected(WorkspaceError::kInvalidPath);
   }
 

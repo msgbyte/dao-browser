@@ -10,7 +10,10 @@
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "dao_agent_workspace_service_unittest.cc",
     "workspace/path_normalizer_unittest.cc",
+    "workspace/text_only_filter_unittest.cc",
+    "workspace/workspace_quota_unittest.cc",
   ]
   deps = [
     "//base",

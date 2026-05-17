@@ -18,16 +18,24 @@ class PathNormalizerTest : public ::testing::Test {
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     root_ = temp_dir_.GetPath();
+    // NormalizePath canonicalizes symlinks (e.g. macOS /var -> /private/var),
+    // so equality checks against root_ must use the canonical form.
+    resolved_root_ = base::MakeAbsoluteFilePath(root_);
+    if (resolved_root_.empty()) {
+      resolved_root_ = root_;
+    }
   }
 
   base::ScopedTempDir temp_dir_;
   base::FilePath root_;
+  base::FilePath resolved_root_;
 };
 
 TEST_F(PathNormalizerTest, AcceptsSimpleRelativePath) {
   auto result = NormalizePath(root_, "notes.md");
   ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(root_.Append(FILE_PATH_LITERAL("notes.md")), result.value());
+  EXPECT_EQ(resolved_root_.Append(FILE_PATH_LITERAL("notes.md")),
+            result.value());
 }
 
 TEST_F(PathNormalizerTest, AcceptsNestedRelativePath) {
@@ -80,7 +88,8 @@ TEST_F(PathNormalizerTest, RejectsHiddenSubcomponent) {
 TEST_F(PathNormalizerTest, AllowsAuditLog) {
   auto result = NormalizePath(root_, ".audit.log");
   ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(root_.Append(FILE_PATH_LITERAL(".audit.log")), result.value());
+  EXPECT_EQ(resolved_root_.Append(FILE_PATH_LITERAL(".audit.log")),
+            result.value());
 }
 
 TEST_F(PathNormalizerTest, RejectsSymlinkEscape) {
