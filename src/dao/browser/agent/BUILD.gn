@@ -13,6 +13,10 @@ source_set("unit_tests") {
     "dao_agent_workspace_service_unittest.cc",
     "workspace/path_normalizer_unittest.cc",
     "workspace/text_only_filter_unittest.cc",
+    "workspace/v4a_patch_applier_unittest.cc",
+    "workspace/v4a_patch_parser_unittest.cc",
+    "workspace/workspace_audit_unittest.cc",
+    "workspace/workspace_index_unittest.cc",
     "workspace/workspace_quota_unittest.cc",
   ]
   deps = [

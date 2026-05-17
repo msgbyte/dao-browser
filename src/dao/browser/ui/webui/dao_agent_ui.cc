@@ -10,8 +10,10 @@
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/files/file_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -41,6 +43,10 @@
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_skill_service.h"
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
+#include "dao/browser/agent/dao_agent_workspace_service.h"
+#include "dao/browser/agent/dao_agent_workspace_service_factory.h"
+#include "dao/browser/agent/workspace/text_only_filter.h"
+#include "dao/browser/agent/workspace/workspace_quota.h"
 #include "dao/browser/dao_pref_names.h"
 #include "content/public/browser/storage_partition.h"
 #include "net/base/load_flags.h"
@@ -616,6 +622,10 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "nativeFetch",
       base::BindRepeating(&DaoAgentUIHandler::HandleNativeFetch,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "workspaceDownload",
+      base::BindRepeating(&DaoAgentUIHandler::HandleWorkspaceDownload,
                           base::Unretained(this)));
 }
 
@@ -3927,6 +3937,320 @@ void DaoAgentSkillHandler::HandleOpenSkillManager(
   Navigate(&params);
 }
 
+// ---- DaoAgentWorkspaceHandler ----
+
+DaoAgentWorkspaceHandler::DaoAgentWorkspaceHandler() = default;
+DaoAgentWorkspaceHandler::~DaoAgentWorkspaceHandler() = default;
+
+DaoAgentWorkspaceService*
+DaoAgentWorkspaceHandler::GetWorkspaceService() {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  return DaoAgentWorkspaceServiceFactory::GetForProfile(profile);
+}
+
+void DaoAgentWorkspaceHandler::RegisterMessages() {
+  web_ui()->RegisterMessageCallback(
+      "workspaceRead",
+      base::BindRepeating(&DaoAgentWorkspaceHandler::HandleWorkspaceRead,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "workspaceWrite",
+      base::BindRepeating(&DaoAgentWorkspaceHandler::HandleWorkspaceWrite,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "workspaceEdit",
+      base::BindRepeating(&DaoAgentWorkspaceHandler::HandleWorkspaceEdit,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "workspaceApplyPatch",
+      base::BindRepeating(
+          &DaoAgentWorkspaceHandler::HandleWorkspaceApplyPatch,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "workspaceOpenFolder",
+      base::BindRepeating(
+          &DaoAgentWorkspaceHandler::HandleWorkspaceOpenFolder,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "workspaceGetRecentActivity",
+      base::BindRepeating(
+          &DaoAgentWorkspaceHandler::HandleWorkspaceGetRecentActivity,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "workspaceGetInfo",
+      base::BindRepeating(
+          &DaoAgentWorkspaceHandler::HandleWorkspaceGetInfo,
+          base::Unretained(this)));
+}
+
+namespace {
+
+const char* WorkspaceErrorCode(WorkspaceError e) {
+  switch (e) {
+    case WorkspaceError::kInvalidPath:
+      return "invalid_path";
+    case WorkspaceError::kNotFound:
+      return "not_found";
+    case WorkspaceError::kAlreadyExists:
+      return "already_exists";
+    case WorkspaceError::kQuotaExceeded:
+      return "quota_exceeded";
+    case WorkspaceError::kBinaryRejected:
+      return "binary_rejected";
+    case WorkspaceError::kPatchParseError:
+      return "patch_parse_error";
+    case WorkspaceError::kPatchContextMismatch:
+      return "patch_context_mismatch";
+    case WorkspaceError::kEditNotUnique:
+      return "edit_not_unique";
+    case WorkspaceError::kIoError:
+      return "io_error";
+    case WorkspaceError::kOk:
+      return "io_error";
+  }
+  return "io_error";
+}
+
+}  // namespace
+
+void DaoAgentWorkspaceHandler::ReplyOk(const std::string& cb_id,
+                                       base::DictValue body) {
+  body.Set("ok", true);
+  ResolveJavascriptCallback(base::Value(cb_id), base::Value(std::move(body)));
+}
+
+void DaoAgentWorkspaceHandler::ReplyError(const std::string& cb_id,
+                                          WorkspaceError err) {
+  base::DictValue body;
+  body.Set("ok", false);
+  body.Set("code", WorkspaceErrorCode(err));
+  ResolveJavascriptCallback(base::Value(cb_id), base::Value(std::move(body)));
+}
+
+void DaoAgentWorkspaceHandler::HandleWorkspaceRead(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  std::string cb_id = args[0].GetString();
+  const base::DictValue& dict = args[1].GetDict();
+  const std::string* path = dict.FindString("path");
+  if (!path) {
+    ReplyError(cb_id, WorkspaceError::kInvalidPath);
+    return;
+  }
+  int offset = dict.FindInt("offset").value_or(0);
+  int limit = dict.FindInt("limit").value_or(500);
+
+  GetWorkspaceService()->Read(
+      *path, offset, limit,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentWorkspaceHandler> self, std::string cb_id,
+             base::expected<ReadResult, WorkspaceError> result) {
+            if (!self) {
+              return;
+            }
+            if (!result.has_value()) {
+              self->ReplyError(cb_id, result.error());
+              return;
+            }
+            base::DictValue body;
+            body.Set("content", result->content);
+            body.Set("total_lines", result->total_lines);
+            body.Set("returned_lines", result->returned_lines);
+            body.Set("truncated", result->truncated);
+            self->ReplyOk(cb_id, std::move(body));
+          },
+          weak_factory_.GetWeakPtr(), cb_id));
+}
+
+void DaoAgentWorkspaceHandler::HandleWorkspaceWrite(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  std::string cb_id = args[0].GetString();
+  const base::DictValue& dict = args[1].GetDict();
+  const std::string* path = dict.FindString("path");
+  const std::string* content = dict.FindString("content");
+  if (!path || !content) {
+    ReplyError(cb_id, WorkspaceError::kInvalidPath);
+    return;
+  }
+  GetWorkspaceService()->Write(
+      *path, *content,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentWorkspaceHandler> self, std::string cb_id,
+             base::expected<WriteResult, WorkspaceError> result) {
+            if (!self) {
+              return;
+            }
+            if (!result.has_value()) {
+              self->ReplyError(cb_id, result.error());
+              return;
+            }
+            base::DictValue body;
+            body.Set("bytes_written",
+                     static_cast<int>(result->bytes_written));
+            body.Set("created", result->created);
+            self->ReplyOk(cb_id, std::move(body));
+          },
+          weak_factory_.GetWeakPtr(), cb_id));
+}
+
+void DaoAgentWorkspaceHandler::HandleWorkspaceEdit(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  std::string cb_id = args[0].GetString();
+  const base::DictValue& dict = args[1].GetDict();
+  const std::string* path = dict.FindString("path");
+  const std::string* old_str = dict.FindString("old_str");
+  const std::string* new_str = dict.FindString("new_str");
+  if (!path || !old_str || !new_str) {
+    ReplyError(cb_id, WorkspaceError::kInvalidPath);
+    return;
+  }
+  GetWorkspaceService()->Edit(
+      *path, *old_str, *new_str,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentWorkspaceHandler> self, std::string cb_id,
+             base::expected<WriteResult, WorkspaceError> result) {
+            if (!self) {
+              return;
+            }
+            if (!result.has_value()) {
+              self->ReplyError(cb_id, result.error());
+              return;
+            }
+            base::DictValue body;
+            body.Set("bytes_written",
+                     static_cast<int>(result->bytes_written));
+            self->ReplyOk(cb_id, std::move(body));
+          },
+          weak_factory_.GetWeakPtr(), cb_id));
+}
+
+void DaoAgentWorkspaceHandler::HandleWorkspaceApplyPatch(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  std::string cb_id = args[0].GetString();
+  const std::string* patch = args[1].GetDict().FindString("patch");
+  if (!patch) {
+    ReplyError(cb_id, WorkspaceError::kPatchParseError);
+    return;
+  }
+  GetWorkspaceService()->ApplyPatch(
+      *patch,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentWorkspaceHandler> self, std::string cb_id,
+             base::expected<PatchResult, WorkspaceError> result) {
+            if (!self) {
+              return;
+            }
+            if (!result.has_value()) {
+              self->ReplyError(cb_id, result.error());
+              return;
+            }
+            base::DictValue body;
+            base::ListValue added;
+            base::ListValue updated;
+            base::ListValue deleted;
+            base::ListValue moved;
+            for (const auto& p : result->added) {
+              added.Append(p);
+            }
+            for (const auto& p : result->updated) {
+              updated.Append(p);
+            }
+            for (const auto& p : result->deleted) {
+              deleted.Append(p);
+            }
+            for (const auto& [from, to] : result->moved) {
+              base::DictValue m;
+              m.Set("from", from);
+              m.Set("to", to);
+              moved.Append(std::move(m));
+            }
+            body.Set("added", std::move(added));
+            body.Set("updated", std::move(updated));
+            body.Set("deleted", std::move(deleted));
+            body.Set("moved", std::move(moved));
+            self->ReplyOk(cb_id, std::move(body));
+          },
+          weak_factory_.GetWeakPtr(), cb_id));
+}
+
+void DaoAgentWorkspaceHandler::HandleWorkspaceOpenFolder(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  std::string cb_id = args[0].GetString();
+  GetWorkspaceService()->OpenInFileManager();
+  ReplyOk(cb_id, base::DictValue());
+}
+
+void DaoAgentWorkspaceHandler::HandleWorkspaceGetRecentActivity(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  std::string cb_id = args[0].GetString();
+  GetWorkspaceService()->GetRecentAuditAsync(base::BindOnce(
+      [](base::WeakPtr<DaoAgentWorkspaceHandler> self, std::string cb_id,
+         std::vector<AuditEntry> entries) {
+        if (!self) {
+          return;
+        }
+        base::DictValue body;
+        base::ListValue list;
+        for (const auto& e : entries) {
+          base::DictValue d;
+          d.Set("ts", e.ts);
+          d.Set("op", e.op);
+          d.Set("path", e.path);
+          list.Append(std::move(d));
+        }
+        body.Set("entries", std::move(list));
+        self->ReplyOk(cb_id, std::move(body));
+      },
+      weak_factory_.GetWeakPtr(), cb_id));
+}
+
+void DaoAgentWorkspaceHandler::HandleWorkspaceGetInfo(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  std::string cb_id = args[0].GetString();
+  GetWorkspaceService()->GetUsageInfo(base::BindOnce(
+      [](base::WeakPtr<DaoAgentWorkspaceHandler> self, std::string cb_id,
+         DaoAgentWorkspaceService::UsageSnapshot snap) {
+        if (!self) {
+          return;
+        }
+        base::DictValue body;
+        body.Set("root", snap.root.AsUTF8Unsafe());
+        body.Set("used_bytes", static_cast<double>(snap.used_bytes));
+        body.Set("cap_bytes", static_cast<double>(snap.cap_bytes));
+        body.Set("file_count", static_cast<int>(snap.file_count));
+        body.Set("file_count_cap", static_cast<int>(snap.file_count_cap));
+        self->ReplyOk(cb_id, std::move(body));
+      },
+      weak_factory_.GetWeakPtr(), cb_id));
+}
+
 // ---- DaoAgentUIConfig ----
 
 DaoAgentUIConfig::DaoAgentUIConfig()
@@ -3973,6 +4297,7 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui)
   web_ui->AddMessageHandler(std::make_unique<DaoAgentUIHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentMemoryHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentSkillHandler>());
+  web_ui->AddMessageHandler(std::make_unique<DaoAgentWorkspaceHandler>());
 }
 
 DaoAgentUI::~DaoAgentUI() = default;
@@ -4012,6 +4337,7 @@ DaoSkillsUI::DaoSkillsUI(content::WebUI* web_ui)
 
   // Register skill message handler only.
   web_ui->AddMessageHandler(std::make_unique<DaoAgentSkillHandler>());
+  web_ui->AddMessageHandler(std::make_unique<DaoAgentWorkspaceHandler>());
 }
 
 DaoSkillsUI::~DaoSkillsUI() = default;
@@ -4023,6 +4349,16 @@ DaoAgentUIHandler::NativeFetchRequest&
 DaoAgentUIHandler::NativeFetchRequest::operator=(
     NativeFetchRequest&&) noexcept = default;
 DaoAgentUIHandler::NativeFetchRequest::~NativeFetchRequest() = default;
+
+DaoAgentUIHandler::WorkspaceDownloadRequest::WorkspaceDownloadRequest() =
+    default;
+DaoAgentUIHandler::WorkspaceDownloadRequest::WorkspaceDownloadRequest(
+    WorkspaceDownloadRequest&&) noexcept = default;
+DaoAgentUIHandler::WorkspaceDownloadRequest&
+DaoAgentUIHandler::WorkspaceDownloadRequest::operator=(
+    WorkspaceDownloadRequest&&) noexcept = default;
+DaoAgentUIHandler::WorkspaceDownloadRequest::~WorkspaceDownloadRequest() =
+    default;
 
 void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
   AllowJavascript();
@@ -4182,6 +4518,388 @@ void DaoAgentUIHandler::OnNativeFetchComplete(
   native_fetch_inflight_.erase(it);
 
   ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+namespace {
+
+// Reply helpers reused by HandleWorkspaceDownload. The workspace tool
+// family uses the {ok:false, code:"..."} wire format; HandleNativeFetch
+// uses a different shape, so we open-code the workspace shape here to
+// keep both flavors of error consistent for the TS dispatcher.
+base::DictValue DownloadErrorDict(const std::string& code) {
+  base::DictValue body;
+  body.Set("ok", false);
+  body.Set("code", code);
+  return body;
+}
+
+const char* WorkspaceErrorCodeForDownload(WorkspaceError e) {
+  switch (e) {
+    case WorkspaceError::kInvalidPath:
+      return "invalid_path";
+    case WorkspaceError::kNotFound:
+      return "not_found";
+    case WorkspaceError::kAlreadyExists:
+      return "already_exists";
+    case WorkspaceError::kQuotaExceeded:
+      return "quota_exceeded";
+    case WorkspaceError::kBinaryRejected:
+      return "binary_rejected";
+    case WorkspaceError::kPatchParseError:
+      return "patch_parse_error";
+    case WorkspaceError::kPatchContextMismatch:
+      return "patch_context_mismatch";
+    case WorkspaceError::kEditNotUnique:
+      return "edit_not_unique";
+    case WorkspaceError::kIoError:
+    case WorkspaceError::kOk:
+      return "io_error";
+  }
+  return "io_error";
+}
+
+}  // namespace
+
+void DaoAgentUIHandler::WriteDownloadedAndReply(
+    const std::string& callback_id,
+    const std::string& path,
+    const std::string& source_url,
+    std::string body,
+    bool truncated) {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentWorkspaceService* service =
+      DaoAgentWorkspaceServiceFactory::GetForProfile(profile);
+  if (!service) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("io_error"));
+    return;
+  }
+  service->Write(
+      path, body,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> self,
+             std::string cb_id, std::string path, std::string source_url,
+             bool truncated,
+             base::expected<WriteResult, WorkspaceError> result) {
+            if (!self) {
+              return;
+            }
+            if (!result.has_value()) {
+              self->ResolveJavascriptCallback(
+                  base::Value(cb_id),
+                  DownloadErrorDict(
+                      WorkspaceErrorCodeForDownload(result.error())));
+              return;
+            }
+            base::DictValue body;
+            body.Set("ok", true);
+            body.Set("path", path);
+            body.Set("bytes_written",
+                     static_cast<int>(result->bytes_written));
+            body.Set("created", result->created);
+            body.Set("source_url", source_url);
+            body.Set("truncated", truncated);
+            self->ResolveJavascriptCallback(base::Value(cb_id), body);
+          },
+          weak_factory_.GetWeakPtr(), callback_id, path, source_url,
+          truncated));
+}
+
+void DaoAgentUIHandler::HandleWorkspaceDownload(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const base::DictValue& params = args[1].GetDict();
+
+  const std::string* path_p = params.FindString("path");
+  if (!path_p || path_p->empty()) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("invalid_path"));
+    return;
+  }
+  const std::string path = *path_p;
+
+  // Determine source. Defaults: if "url" is provided we treat it as a
+  // URL fetch; otherwise we capture the active tab.
+  const std::string* explicit_source = params.FindString("source");
+  const std::string* url_p = params.FindString("url");
+  std::string source =
+      explicit_source ? *explicit_source
+                      : (url_p && !url_p->empty() ? "url" : "page");
+
+  if (source == "page" || source == "active_tab") {
+    content::WebContents* contents = EnsureAttached();
+    if (!contents) {
+      ResolveJavascriptCallback(base::Value(callback_id),
+                                DownloadErrorDict("io_error"));
+      return;
+    }
+    const std::string page_url = contents->GetURL().spec();
+
+    base::DictValue cdp_params;
+    cdp_params.Set("expression", "document.documentElement.outerHTML");
+    cdp_params.Set("returnByValue", true);
+    devtools_client_->SendCommand(
+        "Runtime.evaluate", std::move(cdp_params),
+        base::BindOnce(
+            [](base::WeakPtr<DaoAgentUIHandler> self,
+               std::string cb_id, std::string path, std::string source_url,
+               base::Value result) {
+              if (!self) {
+                return;
+              }
+              if (!result.is_dict()) {
+                self->ResolveJavascriptCallback(
+                    base::Value(cb_id), DownloadErrorDict("io_error"));
+                return;
+              }
+              auto* value =
+                  result.GetDict().FindByDottedPath("result.value");
+              if (!value || !value->is_string()) {
+                self->ResolveJavascriptCallback(
+                    base::Value(cb_id), DownloadErrorDict("io_error"));
+                return;
+              }
+              // No TruncateText: the body never goes through LLM
+              // context — it goes straight to disk via the workspace
+              // service. The workspace quota (per-file + total) is the
+              // only ceiling we need here.
+              std::string html = value->GetString();
+              self->WriteDownloadedAndReply(
+                  cb_id, path, source_url, std::move(html),
+                  /*truncated=*/false);
+            },
+            weak_factory_.GetWeakPtr(), callback_id, path, page_url));
+    return;
+  }
+
+  if (source != "url") {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("invalid_path"));
+    return;
+  }
+
+  if (!url_p || url_p->empty()) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("invalid_path"));
+    return;
+  }
+  GURL gurl(*url_p);
+  if (!gurl.is_valid() ||
+      (gurl.scheme() != "https" && gurl.scheme() != "http")) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("invalid_path"));
+    return;
+  }
+
+  // Reject non-text extensions before doing any network IO. We will
+  // also re-check after the bytes land (first-8KB NUL probe), but the
+  // extension check is cheap and saves an entire round-trip for the
+  // common ".png"/".zip" case.
+  if (!IsTextExtensionAllowed(base::FilePath::FromUTF8Unsafe(path))) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("binary_rejected"));
+    return;
+  }
+
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentWorkspaceService* service =
+      DaoAgentWorkspaceServiceFactory::GetForProfile(profile);
+  if (!service) {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("io_error"));
+    return;
+  }
+
+  auto request = std::make_unique<network::ResourceRequest>();
+  request->url = gurl;
+  request->method = "GET";
+  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+  request->load_flags = net::LOAD_BYPASS_CACHE;
+
+  if (const auto* headers_dict = params.FindDict("headers")) {
+    for (const auto kv : *headers_dict) {
+      if (!kv.second.is_string()) {
+        continue;
+      }
+      // Content-Type goes through AttachStringForUpload for bodies;
+      // download is GET-only so we just drop it.
+      if (base::EqualsCaseInsensitiveASCII(kv.first, "Content-Type")) {
+        continue;
+      }
+      request->headers.SetHeader(kv.first, kv.second.GetString());
+    }
+  }
+
+  static const net::NetworkTrafficAnnotationTag annotation =
+      net::DefineNetworkTrafficAnnotation("dao_agent_workspace_download", R"(
+        semantics {
+          sender: "Dao Agent Workspace Download"
+          description:
+            "Downloads a URL the agent picked into the user's agent "
+            "workspace sandbox. Bypasses LLM-context echo so large "
+            "documents are stored byte-for-byte instead of being "
+            "re-typed by the model."
+          trigger:
+            "User asks the agent to save the active page or an "
+            "arbitrary URL into the workspace via the `download` tool."
+          data:
+            "The URL the agent wants to download. No user credentials "
+            "or PII unless the user put them in the URL."
+          destination: WEBSITE
+        }
+        policy {
+          cookies_allowed: NO
+          setting: "Disable the Workspace tools group in agent settings."
+          policy_exception_justification:
+            "User-initiated agent action, equivalent to the user "
+            "saving a page themselves."
+        })");
+
+  std::unique_ptr<network::SimpleURLLoader> loader =
+      network::SimpleURLLoader::Create(std::move(request), annotation);
+  loader->SetTimeoutDuration(base::Seconds(30));
+
+  network::SimpleURLLoader* loader_ptr = loader.get();
+
+  WorkspaceDownloadRequest entry;
+  entry.loader = std::move(loader);
+  entry.callback_id = callback_id;
+  entry.workspace_path = path;
+  entry.source_url = gurl.spec();
+  workspace_download_inflight_[loader_ptr] = std::move(entry);
+
+  // Reserve a staging path on the workspace's own filesystem, then kick
+  // off DownloadToFile so bytes stream directly to disk (the whole
+  // response never sits in the browser-process heap). The completion
+  // callback hands the staged file to IngestStagedFile which validates
+  // & atomically renames it into the workspace.
+  service->AllocateStagingPath(
+      base::BindOnce(&DaoAgentUIHandler::OnDownloadStagingAllocated,
+                     weak_factory_.GetWeakPtr(), loader_ptr));
+}
+
+void DaoAgentUIHandler::OnDownloadStagingAllocated(
+    network::SimpleURLLoader* loader_ptr,
+    base::FilePath staging_path) {
+  auto it = workspace_download_inflight_.find(loader_ptr);
+  if (it == workspace_download_inflight_.end()) {
+    return;
+  }
+  if (staging_path.empty()) {
+    const std::string cb = it->second.callback_id;
+    workspace_download_inflight_.erase(it);
+    ResolveJavascriptCallback(base::Value(cb),
+                              DownloadErrorDict("io_error"));
+    return;
+  }
+  it->second.staging_path = staging_path;
+
+  network::mojom::URLLoaderFactory* factory =
+      Profile::FromWebUI(web_ui())
+          ->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess()
+          .get();
+
+  // max_body_size matches the workspace per-file cap so the loader
+  // aborts mid-stream once it would exceed the quota — saves filling
+  // up disk on a runaway response.
+  loader_ptr->DownloadToFile(
+      factory,
+      base::BindOnce(&DaoAgentUIHandler::OnWorkspaceDownloadFileComplete,
+                     weak_factory_.GetWeakPtr(), loader_ptr),
+      staging_path,
+      /*max_body_size=*/
+      static_cast<int64_t>(WorkspaceQuota::kPerFileMaxBytes));
+}
+
+void DaoAgentUIHandler::OnWorkspaceDownloadFileComplete(
+    network::SimpleURLLoader* loader_ptr,
+    base::FilePath returned_path) {
+  auto it = workspace_download_inflight_.find(loader_ptr);
+  if (it == workspace_download_inflight_.end()) {
+    return;
+  }
+  const std::string callback_id = it->second.callback_id;
+  const std::string workspace_path = it->second.workspace_path;
+  std::string source_url = it->second.source_url;
+  const base::FilePath staging_path = it->second.staging_path;
+
+  network::SimpleURLLoader* loader = it->second.loader.get();
+  int status_code = 0;
+  const network::mojom::URLResponseHead* response_info = loader->ResponseInfo();
+  if (response_info && response_info->headers) {
+    status_code = response_info->headers->response_code();
+  }
+  if (loader->GetFinalURL().is_valid()) {
+    source_url = loader->GetFinalURL().spec();
+  }
+  const bool http_ok = status_code >= 200 && status_code < 300;
+
+  // Erase BEFORE the (possibly long-running) ingest so the loader is
+  // freed promptly even if the ingest callback is delayed.
+  workspace_download_inflight_.erase(it);
+
+  // DownloadToFile signals failure with an empty path. On HTTP error
+  // the loader still wrote whatever body it received (e.g. a 404 page),
+  // which we don't want in the workspace either.
+  if (returned_path.empty() || !http_ok) {
+    if (!staging_path.empty()) {
+      base::ThreadPool::PostTask(
+          FROM_HERE,
+          {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+          base::BindOnce(base::IgnoreResult(&base::DeleteFile),
+                         staging_path));
+    }
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("io_error"));
+    return;
+  }
+
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentWorkspaceService* service =
+      DaoAgentWorkspaceServiceFactory::GetForProfile(profile);
+  if (!service) {
+    base::ThreadPool::PostTask(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+        base::BindOnce(base::IgnoreResult(&base::DeleteFile), staging_path));
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              DownloadErrorDict("io_error"));
+    return;
+  }
+
+  const std::string audit_detail =
+      "\"source\":\"url\",\"url\":\"" + source_url + "\"";
+  service->IngestStagedFile(
+      workspace_path, returned_path, audit_detail,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentUIHandler> self, std::string cb_id,
+             std::string path, std::string source_url,
+             base::expected<WriteResult, WorkspaceError> result) {
+            if (!self) {
+              return;
+            }
+            if (!result.has_value()) {
+              self->ResolveJavascriptCallback(
+                  base::Value(cb_id),
+                  DownloadErrorDict(
+                      WorkspaceErrorCodeForDownload(result.error())));
+              return;
+            }
+            base::DictValue body;
+            body.Set("ok", true);
+            body.Set("path", path);
+            body.Set("bytes_written",
+                     static_cast<int>(result->bytes_written));
+            body.Set("created", result->created);
+            body.Set("source_url", source_url);
+            body.Set("truncated", false);
+            self->ResolveJavascriptCallback(base::Value(cb_id), body);
+          },
+          weak_factory_.GetWeakPtr(), callback_id, workspace_path,
+          source_url));
 }
 
 }  // namespace dao

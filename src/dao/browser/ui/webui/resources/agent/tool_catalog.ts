@@ -71,6 +71,17 @@ export const TOOL_GROUPS: ToolGroup[] = [
     label: 'Web',
     toolNames: ['web_search', 'fetch_url'],
   },
+  {
+    id: 'workspace',
+    label: 'Workspace',
+    toolNames: [
+      'workspace_read',
+      'workspace_write',
+      'workspace_edit',
+      'apply_patch',
+      'download',
+    ],
+  },
 ];
 
 const STORAGE_KEY = 'dao_disabled_tools';

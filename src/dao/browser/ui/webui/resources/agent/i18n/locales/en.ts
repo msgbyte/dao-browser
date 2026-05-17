@@ -61,6 +61,34 @@ const dict: Dictionary = {
   'chat.skill_picker.title': 'Skills',
   'chat.skill_picker.hint':
       '↑↓ to navigate · Enter to select · Esc to dismiss',
+
+  // -------- settings.workspace (dao_settings_view.ts → renderWorkspace_) -----
+  'settings.workspace.subtab_label': 'Workspace',
+  'settings.workspace.section_title': 'Agent Workspace',
+  'settings.workspace.section_desc':
+      'The agent can read and write text files in a sandboxed folder on '
+      + 'disk so notes and drafts persist across conversations. Files '
+      + 'are stored in your Dao profile and never uploaded.',
+  'settings.workspace.root_label': 'Folder',
+  'settings.workspace.root_reveal_button': 'Show in Finder',
+  'settings.workspace.usage_label': 'Storage used',
+  // {used} and {cap} are pre-formatted strings like "4.2 MB" / "100 MB".
+  // {percent} is an integer 0–100.
+  'settings.workspace.usage_value': '{used} of {cap} ({percent}%)',
+  'settings.workspace.file_count_label': 'Files',
+  // {count} is an integer; {cap} is the file-count cap, e.g. 500.
+  'settings.workspace.file_count_value': '{count} of {cap}',
+  'settings.workspace.activity_title': 'Recent activity',
+  'settings.workspace.activity_empty':
+      'No workspace activity yet. The agent will write here when it uses '
+      + 'workspace_write, workspace_edit, or apply_patch.',
+  'settings.workspace.activity_loading': 'Loading…',
+  // Activity row template — {when} is a short relative time, {op} is one
+  // of "write" / "edit" / "apply_patch", {path} is the workspace-relative
+  // path.
+  'settings.workspace.activity_row': '{when} · {op} · {path}',
+  'settings.workspace.activity_error':
+      'Could not load recent activity: {error}',
 };
 
 export default dict;

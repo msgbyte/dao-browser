@@ -16,8 +16,10 @@ namespace dao {
 
 class WorkspaceQuota {
  public:
-  static constexpr size_t kPerFileMaxBytes = 5 * 1024 * 1024;    // 5 MB
-  static constexpr size_t kTotalMaxBytes = 100 * 1024 * 1024;    // 100 MB
+  // Per-file cap matches the total cap so users effectively only see
+  // the workspace-wide budget, not a separate single-file ceiling.
+  static constexpr size_t kPerFileMaxBytes = 500 * 1024 * 1024;  // 500 MB
+  static constexpr size_t kTotalMaxBytes = 500 * 1024 * 1024;    // 500 MB
   static constexpr size_t kMaxEntries = 500;
 
   struct Usage {

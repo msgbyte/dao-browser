@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -22,6 +23,7 @@
 #include "content/public/browser/webui_config.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
 #include "dao/browser/agent/dao_agent_proactive_engine.h"
+#include "dao/browser/agent/dao_agent_workspace_types.h"
 #include "pdf/mojom/pdf.mojom-forward.h"
 #include "url/gurl.h"
 
@@ -38,6 +40,7 @@ namespace dao {
 class DaoAgentMemoryService;
 class DaoAgentSkillService;
 class DaoAgentUI;
+class DaoAgentWorkspaceService;
 
 // WebUI config for chrome://agent
 class DaoAgentUIConfig : public content::WebUIConfig {
@@ -187,6 +190,15 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   // origin checks that block fetch() from `dao://agent`.
   void HandleNativeFetch(const base::ListValue& args);
 
+  // Zero-copy `download` tool: writes content straight into the agent
+  // workspace without round-tripping the body through LLM output.
+  // Supported sources:
+  //   { source: "page", path }      -- captures active tab outerHTML
+  //   { source: "url",  path, url } -- fetches URL via SimpleURLLoader
+  // On success replies { ok: true, path, bytes_written, source_url,
+  // truncated }. On failure replies the standard workspace error shape.
+  void HandleWorkspaceDownload(const base::ListValue& args);
+
   // Per-request state for in-flight nativeFetch calls. The
   // SimpleURLLoader must be kept alive until the response arrives;
   // we key by raw pointer so OnNativeFetchComplete can erase the
@@ -205,6 +217,42 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
 
   void OnNativeFetchComplete(network::SimpleURLLoader* loader_ptr,
                              std::optional<std::string> body);
+
+  // Per-request state for in-flight workspace_download URL fetches.
+  // Keyed by raw pointer so OnWorkspaceDownloadFileComplete can erase
+  // the matching entry. The URL path streams bytes directly to
+  // `staging_path` via SimpleURLLoader::DownloadToFile so multi-hundred-MB
+  // downloads never sit in the browser process's heap.
+  struct WorkspaceDownloadRequest {
+    WorkspaceDownloadRequest();
+    WorkspaceDownloadRequest(WorkspaceDownloadRequest&&) noexcept;
+    WorkspaceDownloadRequest& operator=(WorkspaceDownloadRequest&&) noexcept;
+    ~WorkspaceDownloadRequest();
+
+    std::unique_ptr<network::SimpleURLLoader> loader;
+    std::string callback_id;
+    std::string workspace_path;
+    std::string source_url;
+    base::FilePath staging_path;
+  };
+  std::map<network::SimpleURLLoader*, WorkspaceDownloadRequest>
+      workspace_download_inflight_;
+
+  void OnDownloadStagingAllocated(network::SimpleURLLoader* loader_ptr,
+                                  base::FilePath staging_path);
+  void OnWorkspaceDownloadFileComplete(network::SimpleURLLoader* loader_ptr,
+                                       base::FilePath returned_path);
+
+  // Shared tail: write |body| to |path| in the workspace, then reply
+  // to |callback_id| with {ok, bytes_written, path, source_url,
+  // truncated}. |truncated| reflects whether the source-side capture
+  // hit its size cap (CDP path's 512 KiB outerHTML budget, or the URL
+  // path's 5 MiB body cap).
+  void WriteDownloadedAndReply(const std::string& callback_id,
+                               const std::string& path,
+                               const std::string& source_url,
+                               std::string body,
+                               bool truncated);
 
   void PerformCDPClick(const std::string& callback_id,
                        const std::string& escaped_selector,
@@ -351,6 +399,35 @@ class DaoAgentSkillHandler : public content::WebUIMessageHandler {
   void HandleOpenSkillManager(const base::ListValue& args);
 
   base::WeakPtrFactory<DaoAgentSkillHandler> weak_factory_{this};
+};
+
+// Workspace-specific message handler for the Agent file workspace.
+class DaoAgentWorkspaceHandler : public content::WebUIMessageHandler {
+ public:
+  DaoAgentWorkspaceHandler();
+  ~DaoAgentWorkspaceHandler() override;
+  DaoAgentWorkspaceHandler(const DaoAgentWorkspaceHandler&) = delete;
+  DaoAgentWorkspaceHandler& operator=(const DaoAgentWorkspaceHandler&) =
+      delete;
+
+  // content::WebUIMessageHandler:
+  void RegisterMessages() override;
+
+ private:
+  DaoAgentWorkspaceService* GetWorkspaceService();
+
+  void HandleWorkspaceRead(const base::ListValue& args);
+  void HandleWorkspaceWrite(const base::ListValue& args);
+  void HandleWorkspaceEdit(const base::ListValue& args);
+  void HandleWorkspaceApplyPatch(const base::ListValue& args);
+  void HandleWorkspaceOpenFolder(const base::ListValue& args);
+  void HandleWorkspaceGetRecentActivity(const base::ListValue& args);
+  void HandleWorkspaceGetInfo(const base::ListValue& args);
+
+  void ReplyOk(const std::string& cb_id, base::DictValue body);
+  void ReplyError(const std::string& cb_id, WorkspaceError err);
+
+  base::WeakPtrFactory<DaoAgentWorkspaceHandler> weak_factory_{this};
 };
 
 // WebUI controller for chrome://agent

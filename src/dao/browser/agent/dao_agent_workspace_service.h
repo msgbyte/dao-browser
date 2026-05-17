@@ -20,6 +20,8 @@
 
 namespace dao {
 
+class WorkspaceAudit;
+class WorkspaceIndex;
 class WorkspaceQuota;
 
 // Profile-keyed service owning <Profile>/DaoAgentWorkspace/.
@@ -49,9 +51,54 @@ class DaoAgentWorkspaceService : public KeyedService {
   void Write(const std::string& rel_path,
              const std::string& content,
              WriteCallback callback);
+  void Edit(const std::string& rel_path,
+            const std::string& old_str,
+            const std::string& new_str,
+            WriteCallback callback);
+  void ApplyPatch(const std::string& patch_text, PatchCallback callback);
+
+  // Returns an absolute path inside the workspace's staging directory
+  // that a network stack can write to (e.g. SimpleURLLoader::DownloadToFile).
+  // The path is unique per call and lives on the same filesystem as the
+  // workspace root so the follow-up rename in IngestStagedFile is atomic.
+  // Returns an empty path if staging-dir creation fails. The caller is
+  // responsible for deleting the staged file if it never reaches
+  // IngestStagedFile.
+  void AllocateStagingPath(
+      base::OnceCallback<void(base::FilePath)> callback);
+
+  // Validates `staged_abs_path` (text-only filter, workspace quota) and
+  // atomically renames it into the workspace under `rel_path`. On failure
+  // the staged file is deleted. On success the file becomes a normal
+  // workspace entry and an audit row is appended with op="download".
+  void IngestStagedFile(const std::string& rel_path,
+                        const base::FilePath& staged_abs_path,
+                        const std::string& audit_detail,
+                        WriteCallback callback);
 
   // For the settings activity list. Snapshot is taken on the UI thread.
   std::vector<AuditEntry> GetRecentAudit() const;
+
+  // Async variant: snapshots the audit ring on the io_runner_ and replies on
+  // the calling sequence.
+  void GetRecentAuditAsync(
+      base::OnceCallback<void(std::vector<AuditEntry>)> callback);
+
+  // Snapshot of workspace usage information for the settings panel. Bytes
+  // are uint64 because they are exposed to the WebUI as JS numbers (≤100MB
+  // fits comfortably below 2^53).
+  struct UsageSnapshot {
+    base::FilePath root;
+    uint64_t used_bytes = 0;
+    uint64_t cap_bytes = 0;
+    uint32_t file_count = 0;
+    uint32_t file_count_cap = 0;
+  };
+  void GetUsageInfo(base::OnceCallback<void(UsageSnapshot)> callback);
+
+  // Opens the workspace root in the platform's file manager. Must be called
+  // on the UI thread.
+  void OpenInFileManager();
 
   const base::FilePath& workspace_root() const { return workspace_root_; }
 
@@ -64,6 +111,17 @@ class DaoAgentWorkspaceService : public KeyedService {
   base::expected<WriteResult, WorkspaceError> WriteOnIO(
       const std::string& rel_path,
       const std::string& content);
+  base::expected<WriteResult, WorkspaceError> EditOnIO(
+      const std::string& rel_path,
+      const std::string& old_str,
+      const std::string& new_str);
+  base::expected<PatchResult, WorkspaceError> ApplyPatchOnIO(
+      const std::string& patch_text);
+  base::FilePath AllocateStagingPathOnIO();
+  base::expected<WriteResult, WorkspaceError> IngestStagedFileOnIO(
+      const std::string& rel_path,
+      const base::FilePath& staged_abs_path,
+      const std::string& audit_detail);
 
   void EnsureRootExistsOnIO();
   void ClearStagingOnIO();
@@ -72,6 +130,8 @@ class DaoAgentWorkspaceService : public KeyedService {
   scoped_refptr<base::SequencedTaskRunner> io_runner_;
 
   std::unique_ptr<WorkspaceQuota> quota_;  // io_runner_-only
+  std::unique_ptr<WorkspaceAudit> audit_;  // io_runner_-only
+  std::unique_ptr<WorkspaceIndex> index_;  // io_runner_-only
 
   base::WeakPtrFactory<DaoAgentWorkspaceService> weak_factory_{this};
 };

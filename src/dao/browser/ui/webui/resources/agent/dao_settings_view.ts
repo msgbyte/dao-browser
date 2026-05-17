@@ -6,6 +6,7 @@ import {CrLitElement, css, html, nothing} from
     '//resources/lit/v3_0/lit.rollup.js';
 
 import {
+  callNative,
   callNativeArgs,
   CONFIDENCE_THRESHOLD_MAP,
   currentSoulContent,
@@ -16,6 +17,25 @@ import {
   saveSoul,
   soulChannel,
 } from './agent_bridge.js';
+import {t} from './i18n/i18n.js';
+
+// Reply shape from C++ workspaceGetInfo (DaoAgentWorkspaceHandler).
+interface WorkspaceInfo {
+  root: string;          // absolute path
+  used_bytes: number;
+  cap_bytes: number;
+  file_count: number;
+  file_count_cap: number;
+}
+
+// Reply shape from C++ workspaceGetRecentActivity. `ts` is an ISO-8601 string
+// produced by base::TimeFormatAsIso8601. `op` is one of 'write' | 'edit' |
+// 'apply_patch'.
+interface WorkspaceAuditEntry {
+  ts: string;
+  op: string;
+  path: string;
+}
 import type {AgentStats} from './agent_bridge.js';
 import {
   getActiveProvider,
@@ -67,6 +87,8 @@ export class DaoSettingsView extends CrLitElement {
       toolCallShowDetails_: {type: Boolean, state: true},
       resumeLastSession_: {type: Boolean, state: true},
       resumeStaleHours_: {type: Number, state: true},
+      workspaceInfo_: {type: Object, state: true},
+      workspaceActivity_: {type: Array, state: true},
     };
   }
 
@@ -94,6 +116,8 @@ export class DaoSettingsView extends CrLitElement {
   declare private toolCallShowDetails_: boolean;
   declare private resumeLastSession_: boolean;
   declare private resumeStaleHours_: number;
+  declare private workspaceInfo_: WorkspaceInfo|null;
+  declare private workspaceActivity_: WorkspaceAuditEntry[]|null;
 
   static override get styles() {
     return css`
@@ -495,6 +519,8 @@ export class DaoSettingsView extends CrLitElement {
     this.toolCallShowDetails_ = false;
     this.resumeLastSession_ = true;
     this.resumeStaleHours_ = 3;
+    this.workspaceInfo_ = null;
+    this.workspaceActivity_ = null;
   }
 
 
@@ -537,13 +563,17 @@ export class DaoSettingsView extends CrLitElement {
       this.loadStorageStats_();
     } else if (tab === 'stats') {
       this.agentStats_ = getAgentStats();
+    } else if (tab === 'tools') {
+      this.loadWorkspaceInfo_();
+      this.loadWorkspaceActivity_();
     }
   }
 
   override render() {
     return html`
       <div class="settings-sub-tabs">
-        ${['general', 'soul', 'tools', 'skills', 'stats'].map(tab => html`
+        ${['general', 'soul', 'tools', 'skills', 'stats'].map(
+            tab => html`
           <button class="sub-tab ${this.activeSubTab_ === tab ? 'active' : ''}"
               @click=${() => this.switchSubTab(tab)}>
             ${tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -834,6 +864,131 @@ export class DaoSettingsView extends CrLitElement {
       </div>`;
   }
 
+  // ---- Workspace ----
+
+  private async loadWorkspaceInfo_() {
+    try {
+      const info = await callNative('workspaceGetInfo', {}) as WorkspaceInfo;
+      this.workspaceInfo_ = info;
+    } catch (_e) {
+      this.workspaceInfo_ = null;
+    }
+  }
+
+  private async loadWorkspaceActivity_() {
+    this.workspaceActivity_ = null;
+    try {
+      const reply = await callNative('workspaceGetRecentActivity', {}) as
+          {entries?: WorkspaceAuditEntry[]};
+      this.workspaceActivity_ = reply.entries ?? [];
+    } catch (e) {
+      this.workspaceActivity_ = [];
+      console.warn('Failed to load workspace activity', e);
+    }
+  }
+
+  private async revealWorkspaceInFinder_() {
+    try {
+      await callNative('workspaceOpenFolder', {});
+    } catch (e) {
+      console.warn('Failed to reveal workspace folder', e);
+    }
+  }
+
+  private formatBytes_(n: number): string {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  private formatRelativeTime_(ts: string): string {
+    const epochMs = Date.parse(ts);
+    if (Number.isNaN(epochMs)) {
+      return ts;
+    }
+    const delta = Date.now() - epochMs;
+    if (delta < 60_000) return 'just now';
+    if (delta < 3_600_000) return `${Math.floor(delta / 60_000)}m ago`;
+    if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)}h ago`;
+    return `${Math.floor(delta / 86_400_000)}d ago`;
+  }
+
+  private renderWorkspace_() {
+    const info = this.workspaceInfo_;
+    const used = info ? this.formatBytes_(info.used_bytes) : '—';
+    const cap = info ? this.formatBytes_(info.cap_bytes) : '—';
+    const percent = info && info.cap_bytes > 0
+        ? Math.floor((info.used_bytes / info.cap_bytes) * 100)
+        : 0;
+
+    const activity = this.workspaceActivity_;
+
+    return html`
+      <div class="panel">
+        <div class="section-title">
+          ${t('settings.workspace.section_title')}
+        </div>
+        <div class="section-desc">
+          ${t('settings.workspace.section_desc')}
+        </div>
+
+        <label>${t('settings.workspace.root_label')}</label>
+        <div style="display:flex; gap:8px; align-items:center;
+                    margin-bottom:14px;">
+          <input type="text" readonly
+              .value=${info?.root ?? ''}
+              style="flex:1; font-family: ui-monospace,'SF Mono',Menlo,monospace;
+                     font-size:11px;">
+          <button class="btn-secondary"
+              ?disabled=${!info}
+              @click=${() => this.revealWorkspaceInFinder_()}>
+            ${t('settings.workspace.root_reveal_button')}
+          </button>
+        </div>
+
+        <label>${t('settings.workspace.usage_label')}</label>
+        <div style="margin-bottom:8px; color: var(--text-secondary);
+                    font-size: 12px;">
+          ${info ? t('settings.workspace.usage_value',
+                     {used, cap, percent: String(percent)}) : '—'}
+        </div>
+        <label>${t('settings.workspace.file_count_label')}</label>
+        <div style="margin-bottom:18px; color: var(--text-secondary);
+                    font-size: 12px;">
+          ${info ? t('settings.workspace.file_count_value',
+                     {count: String(info.file_count),
+                      cap: String(info.file_count_cap)}) : '—'}
+        </div>
+
+        <div class="section-title">
+          ${t('settings.workspace.activity_title')}
+        </div>
+        ${activity === null ? html`
+          <div style="color: var(--text-tertiary); font-size: 12px;">
+            ${t('settings.workspace.activity_loading')}
+          </div>
+        ` : activity.length === 0 ? html`
+          <div style="color: var(--text-tertiary); font-size: 12px;">
+            ${t('settings.workspace.activity_empty')}
+          </div>
+        ` : html`
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${activity.map(e => html`
+              <div style="font-size:12px; color: var(--text-secondary);
+                          font-family: ui-monospace,'SF Mono',Menlo,monospace;
+                          word-break: break-all;">
+                ${t('settings.workspace.activity_row', {
+                    when: this.formatRelativeTime_(e.ts),
+                    op: e.op,
+                    path: e.path,
+                  })}
+              </div>`)}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
   // ---- Stats ----
 
   private renderStats_() {
@@ -1082,7 +1237,8 @@ export class DaoSettingsView extends CrLitElement {
           from the model, so it will not attempt to use them. Changes take
           effect on the next turn of any open chat.</div>
         ${TOOL_GROUPS.map(group => this.renderToolGroup_(group.id))}
-      </div>`;
+      </div>
+      ${this.renderWorkspace_()}`;
   }
 
   private onSearchSourceChange_(e: Event) {

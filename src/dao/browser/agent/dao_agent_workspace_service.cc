@@ -12,12 +12,20 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/i18n/time_formatting.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "base/uuid.h"
+#include "chrome/browser/platform_util.h"
 #include "dao/browser/agent/workspace/path_normalizer.h"
 #include "dao/browser/agent/workspace/text_only_filter.h"
+#include "dao/browser/agent/workspace/v4a_patch_applier.h"
+#include "dao/browser/agent/workspace/v4a_patch_parser.h"
+#include "dao/browser/agent/workspace/workspace_audit.h"
+#include "dao/browser/agent/workspace/workspace_index.h"
 #include "dao/browser/agent/workspace/workspace_quota.h"
 
 namespace dao {
@@ -68,7 +76,9 @@ DaoAgentWorkspaceService::DaoAgentWorkspaceService(
     : workspace_root_(profile_path.AppendASCII(kWorkspaceDirName)),
       io_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE})),
-      quota_(std::make_unique<WorkspaceQuota>(workspace_root_)) {
+      quota_(std::make_unique<WorkspaceQuota>(workspace_root_)),
+      audit_(std::make_unique<WorkspaceAudit>(workspace_root_, /*ring=*/200)),
+      index_(std::make_unique<WorkspaceIndex>(workspace_root_)) {
   io_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&DaoAgentWorkspaceService::EnsureRootExistsOnIO,
@@ -90,12 +100,57 @@ std::vector<AuditEntry> DaoAgentWorkspaceService::GetRecentAudit() const {
   return {};
 }
 
+void DaoAgentWorkspaceService::GetRecentAuditAsync(
+    base::OnceCallback<void(std::vector<AuditEntry>)> callback) {
+  io_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](WorkspaceAudit* audit) { return audit->Snapshot(); },
+          audit_.get()),
+      std::move(callback));
+}
+
+void DaoAgentWorkspaceService::GetUsageInfo(
+    base::OnceCallback<void(UsageSnapshot)> callback) {
+  io_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](WorkspaceQuota* quota, base::FilePath root) {
+            WorkspaceQuota::Usage usage = quota->GetUsage();
+            UsageSnapshot snap;
+            snap.root = std::move(root);
+            snap.used_bytes = usage.total_bytes;
+            snap.cap_bytes = WorkspaceQuota::kTotalMaxBytes;
+            snap.file_count = usage.entry_count;
+            snap.file_count_cap = WorkspaceQuota::kMaxEntries;
+            return snap;
+          },
+          quota_.get(), workspace_root_),
+      std::move(callback));
+}
+
+void DaoAgentWorkspaceService::OpenInFileManager() {
+  io_runner_->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentWorkspaceService::EnsureRootExistsOnIO,
+                     base::Unretained(this)),
+      base::BindOnce(
+          [](base::FilePath path) {
+            platform_util::OpenItem(/*profile=*/nullptr, path,
+                                    platform_util::OPEN_FOLDER,
+                                    platform_util::OpenOperationCallback());
+          },
+          workspace_root_));
+}
+
 void DaoAgentWorkspaceService::EnsureRootExistsOnIO() {
   base::CreateDirectory(workspace_root_);
 }
 
 void DaoAgentWorkspaceService::ClearStagingOnIO() {
-  base::DeletePathRecursively(StagingDirFor(workspace_root_));
+  const base::FilePath staging = StagingDirFor(workspace_root_);
+  base::DeletePathRecursively(staging);
+  base::CreateDirectory(staging);
 }
 
 void DaoAgentWorkspaceService::Read(const std::string& rel_path,
@@ -174,6 +229,69 @@ void DaoAgentWorkspaceService::Write(const std::string& rel_path,
       std::move(callback));
 }
 
+void DaoAgentWorkspaceService::Edit(const std::string& rel_path,
+                                    const std::string& old_str,
+                                    const std::string& new_str,
+                                    WriteCallback callback) {
+  io_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentWorkspaceService::EditOnIO,
+                     base::Unretained(this), rel_path, old_str, new_str),
+      std::move(callback));
+}
+
+base::expected<WriteResult, WorkspaceError>
+DaoAgentWorkspaceService::EditOnIO(const std::string& rel_path,
+                                   const std::string& old_str,
+                                   const std::string& new_str) {
+  auto abs = NormalizePath(workspace_root_, rel_path);
+  if (!abs.has_value()) {
+    return base::unexpected(abs.error());
+  }
+  if (!base::PathExists(*abs)) {
+    return base::unexpected(WorkspaceError::kNotFound);
+  }
+  std::string body;
+  if (!base::ReadFileToString(*abs, &body)) {
+    return base::unexpected(WorkspaceError::kIoError);
+  }
+
+  // Count occurrences (require exactly one).
+  size_t first = body.find(old_str);
+  if (first == std::string::npos) {
+    return base::unexpected(WorkspaceError::kNotFound);
+  }
+  size_t second = body.find(old_str, first + old_str.size());
+  if (second != std::string::npos) {
+    return base::unexpected(WorkspaceError::kEditNotUnique);
+  }
+
+  std::string updated = body;
+  updated.replace(first, old_str.size(), new_str);
+
+  if (ContainsNulByte(updated)) {
+    return base::unexpected(WorkspaceError::kBinaryRejected);
+  }
+  if (!quota_->CanAcceptWrite(rel_path, updated.size(), body.size())) {
+    return base::unexpected(WorkspaceError::kQuotaExceeded);
+  }
+
+  auto result = AtomicWrite(StagingDirFor(workspace_root_), *abs, updated);
+  if (result.has_value()) {
+    quota_->InvalidateCache();
+    result->created = false;
+    AuditEntry entry;
+    entry.ts = base::TimeFormatAsIso8601(base::Time::Now());
+    entry.op = "edit";
+    entry.path = rel_path;
+    entry.detail = base::StringPrintf("\"old_len\":%zu,\"new_len\":%zu",
+                                      old_str.size(), new_str.size());
+    audit_->Append(entry);
+    index_->Rewrite();
+  }
+  return result;
+}
+
 base::expected<WriteResult, WorkspaceError>
 DaoAgentWorkspaceService::WriteOnIO(const std::string& rel_path,
                                     const std::string& content) {
@@ -200,6 +318,170 @@ DaoAgentWorkspaceService::WriteOnIO(const std::string& rel_path,
   auto result = AtomicWrite(StagingDirFor(workspace_root_), *abs, content);
   if (result.has_value()) {
     quota_->InvalidateCache();
+    // Audit + index.
+    AuditEntry entry;
+    entry.ts = base::TimeFormatAsIso8601(base::Time::Now());
+    entry.op = "write";
+    entry.path = rel_path;
+    entry.detail = base::StringPrintf("\"bytes\":%zu,\"created\":%s",
+                                       content.size(),
+                                       result->created ? "true" : "false");
+    audit_->Append(entry);
+    index_->Rewrite();
+  }
+  return result;
+}
+
+void DaoAgentWorkspaceService::AllocateStagingPath(
+    base::OnceCallback<void(base::FilePath)> callback) {
+  io_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentWorkspaceService::AllocateStagingPathOnIO,
+                     base::Unretained(this)),
+      std::move(callback));
+}
+
+base::FilePath DaoAgentWorkspaceService::AllocateStagingPathOnIO() {
+  const base::FilePath staging = StagingDirFor(workspace_root_);
+  if (!base::CreateDirectory(staging)) {
+    return {};
+  }
+  return staging.AppendASCII(
+      base::Uuid::GenerateRandomV4().AsLowercaseString());
+}
+
+void DaoAgentWorkspaceService::IngestStagedFile(
+    const std::string& rel_path,
+    const base::FilePath& staged_abs_path,
+    const std::string& audit_detail,
+    WriteCallback callback) {
+  io_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentWorkspaceService::IngestStagedFileOnIO,
+                     base::Unretained(this), rel_path, staged_abs_path,
+                     audit_detail),
+      std::move(callback));
+}
+
+base::expected<WriteResult, WorkspaceError>
+DaoAgentWorkspaceService::IngestStagedFileOnIO(
+    const std::string& rel_path,
+    const base::FilePath& staged_abs_path,
+    const std::string& audit_detail) {
+  // Resolve target. Failures here delete the staged file so we never
+  // leak partial downloads.
+  auto cleanup_staging = [&] {
+    if (!staged_abs_path.empty()) {
+      base::DeleteFile(staged_abs_path);
+    }
+  };
+
+  auto abs = NormalizePath(workspace_root_, rel_path);
+  if (!abs.has_value()) {
+    cleanup_staging();
+    return base::unexpected(abs.error());
+  }
+  if (!IsTextExtensionAllowed(*abs)) {
+    cleanup_staging();
+    return base::unexpected(WorkspaceError::kBinaryRejected);
+  }
+
+  std::optional<int64_t> staged_size = base::GetFileSize(staged_abs_path);
+  if (!staged_size.has_value()) {
+    cleanup_staging();
+    return base::unexpected(WorkspaceError::kIoError);
+  }
+
+  // First-8 KiB NUL probe — defense in depth against text-extensioned
+  // binaries (e.g. UTF-16 .txt). Matches WriteOnIO's policy.
+  // ReadFileToStringWithMaxSize returns false if the file is larger
+  // than `max_size` but still populates `head` with the first
+  // max_size bytes, which is exactly what we want for the probe. We
+  // only treat "wanted bytes but got zero on a non-empty file" as an
+  // IO error.
+  {
+    std::string head;
+    base::ReadFileToStringWithMaxSize(staged_abs_path, &head, 8192);
+    if (head.empty() && *staged_size > 0) {
+      cleanup_staging();
+      return base::unexpected(WorkspaceError::kIoError);
+    }
+    if (ContainsNulByte(head)) {
+      cleanup_staging();
+      return base::unexpected(WorkspaceError::kBinaryRejected);
+    }
+  }
+
+  uint64_t existing = 0;
+  if (base::PathExists(*abs)) {
+    std::optional<int64_t> size = base::GetFileSize(*abs);
+    if (size.has_value()) {
+      existing = static_cast<uint64_t>(*size);
+    }
+  }
+  if (!quota_->CanAcceptWrite(rel_path, static_cast<uint64_t>(*staged_size),
+                              existing)) {
+    cleanup_staging();
+    return base::unexpected(WorkspaceError::kQuotaExceeded);
+  }
+
+  if (!base::CreateDirectory(abs->DirName())) {
+    cleanup_staging();
+    return base::unexpected(WorkspaceError::kIoError);
+  }
+  const bool created = !base::PathExists(*abs);
+  if (!base::ReplaceFile(staged_abs_path, *abs, /*error=*/nullptr)) {
+    cleanup_staging();
+    return base::unexpected(WorkspaceError::kIoError);
+  }
+  // Successfully moved — no cleanup needed.
+
+  quota_->InvalidateCache();
+  AuditEntry entry;
+  entry.ts = base::TimeFormatAsIso8601(base::Time::Now());
+  entry.op = "download";
+  entry.path = rel_path;
+  entry.detail = audit_detail;
+  audit_->Append(entry);
+  index_->Rewrite();
+
+  WriteResult r;
+  r.bytes_written = static_cast<size_t>(*staged_size);
+  r.created = created;
+  return r;
+}
+
+void DaoAgentWorkspaceService::ApplyPatch(const std::string& patch_text,
+                                          PatchCallback callback) {
+  io_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentWorkspaceService::ApplyPatchOnIO,
+                     base::Unretained(this), patch_text),
+      std::move(callback));
+}
+
+base::expected<PatchResult, WorkspaceError>
+DaoAgentWorkspaceService::ApplyPatchOnIO(const std::string& patch_text) {
+  auto parsed = ParseV4APatch(patch_text);
+  if (!parsed.has_value()) {
+    return base::unexpected(WorkspaceError::kPatchParseError);
+  }
+  const std::string request_id =
+      base::Uuid::GenerateRandomV4().AsLowercaseString();
+  auto result = ApplyV4APatch(workspace_root_,
+                              StagingDirFor(workspace_root_),
+                              request_id, quota_.get(), *parsed);
+  if (result.has_value()) {
+    AuditEntry entry;
+    entry.ts = base::TimeFormatAsIso8601(base::Time::Now());
+    entry.op = "apply_patch";
+    entry.path = "";
+    entry.detail = base::StringPrintf(
+        "\"added\":%zu,\"updated\":%zu,\"deleted\":%zu,\"moved\":%zu",
+        result->added.size(), result->updated.size(),
+        result->deleted.size(), result->moved.size());
+    audit_->Append(entry);
+    index_->Rewrite();
   }
   return result;
 }

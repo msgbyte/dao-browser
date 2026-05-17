@@ -152,6 +152,22 @@ TEST_F(DaoAgentWorkspaceServiceTest, WriteRejectsPerFileQuota) {
   EXPECT_EQ(WorkspaceError::kQuotaExceeded, result.error());
 }
 
+TEST_F(DaoAgentWorkspaceServiceTest, WriteUpdatesIndexAndAudit) {
+  std::ignore = Sync<WriteResult>(
+      [&](auto cb) { service_->Write("notes.md", "hi\n", std::move(cb)); });
+
+  base::FilePath ws =
+      profile_dir_.GetPath().AppendASCII("DaoAgentWorkspace");
+  std::string index;
+  ASSERT_TRUE(base::ReadFileToString(ws.AppendASCII("WORKSPACE.md"), &index));
+  EXPECT_NE(std::string::npos, index.find("`notes.md`"));
+
+  std::string audit;
+  ASSERT_TRUE(base::ReadFileToString(ws.AppendASCII(".audit.log"), &audit));
+  EXPECT_NE(std::string::npos, audit.find("\"op\":\"write\""));
+  EXPECT_NE(std::string::npos, audit.find("\"path\":\"notes.md\""));
+}
+
 TEST_F(DaoAgentWorkspaceServiceTest, WriteIsAtomic) {
   // Force a write failure mid-flight by pre-creating a directory at the
   // target path — the staged rename will fail and the temp file should
@@ -170,6 +186,145 @@ TEST_F(DaoAgentWorkspaceServiceTest, WriteIsAtomic) {
                                   /*recursive=*/true,
                                   base::FileEnumerator::FILES);
   EXPECT_TRUE(enumerator.Next().empty());
+}
+
+TEST_F(DaoAgentWorkspaceServiceTest, EditUniqueMatchReplaces) {
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Write("notes.md", "alpha\nbeta\ngamma\n", std::move(cb));
+  });
+  auto edit = Sync<WriteResult>([&](auto cb) {
+    service_->Edit("notes.md", "beta", "BETA", std::move(cb));
+  });
+  ASSERT_TRUE(edit.has_value());
+
+  auto read = Sync<ReadResult>([&](auto cb) {
+    service_->Read("notes.md", 0, 100, std::move(cb));
+  });
+  ASSERT_TRUE(read.has_value());
+  EXPECT_EQ("alpha\nBETA\ngamma\n", read->content);
+}
+
+TEST_F(DaoAgentWorkspaceServiceTest, EditRejectsNotUnique) {
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Write("notes.md", "x\nx\nx\n", std::move(cb));
+  });
+  auto result = Sync<WriteResult>([&](auto cb) {
+    service_->Edit("notes.md", "x", "Y", std::move(cb));
+  });
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(WorkspaceError::kEditNotUnique, result.error());
+}
+
+TEST_F(DaoAgentWorkspaceServiceTest, EditNotFoundWhenMissing) {
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Write("notes.md", "alpha", std::move(cb));
+  });
+  auto result = Sync<WriteResult>([&](auto cb) {
+    service_->Edit("notes.md", "missing", "X", std::move(cb));
+  });
+  ASSERT_FALSE(result.has_value());
+  // old_str not present → kNotFound (per spec §7 error table).
+  EXPECT_EQ(WorkspaceError::kNotFound, result.error());
+}
+
+TEST_F(DaoAgentWorkspaceServiceTest, EditOnNonexistentFile) {
+  auto result = Sync<WriteResult>([&](auto cb) {
+    service_->Edit("ghost.md", "x", "y", std::move(cb));
+  });
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(WorkspaceError::kNotFound, result.error());
+}
+
+TEST_F(DaoAgentWorkspaceServiceTest, EditAuditsAsEditNotWrite) {
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Write("notes.md", "alpha", std::move(cb));
+  });
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Edit("notes.md", "alpha", "BETA", std::move(cb));
+  });
+  std::string audit;
+  ASSERT_TRUE(base::ReadFileToString(
+      profile_dir_.GetPath()
+          .AppendASCII("DaoAgentWorkspace")
+          .AppendASCII(".audit.log"),
+      &audit));
+  EXPECT_NE(std::string::npos, audit.find("\"op\":\"edit\""));
+}
+
+TEST_F(DaoAgentWorkspaceServiceTest, ApplyPatchAddUpdateDelete) {
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Write("keep.md", "hello\n", std::move(cb));
+  });
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Write("gone.md", "bye\n", std::move(cb));
+  });
+
+  std::string patch =
+      "*** Begin Patch\n"
+      "*** Add File: brand_new.md\n"
+      "+fresh\n"
+      "*** Update File: keep.md\n"
+      "@@\n"
+      "-hello\n"
+      "+HELLO\n"
+      "*** End of File\n"
+      "*** Delete File: gone.md\n"
+      "*** End Patch\n";
+  auto r = Sync<PatchResult>([&](auto cb) {
+    service_->ApplyPatch(patch, std::move(cb));
+  });
+  ASSERT_TRUE(r.has_value());
+  EXPECT_EQ(1u, r->added.size());
+  EXPECT_EQ(1u, r->updated.size());
+  EXPECT_EQ(1u, r->deleted.size());
+}
+
+TEST_F(DaoAgentWorkspaceServiceTest, ApplyPatchRollsBack) {
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Write("a.md", "old-a\n", std::move(cb));
+  });
+  std::string patch =
+      "*** Begin Patch\n"
+      "*** Update File: a.md\n"
+      "@@\n"
+      "-old-a\n"
+      "+new-a\n"
+      "*** End of File\n"
+      "*** Update File: a.md\n"  // duplicate destination → rejected
+      "@@\n"
+      "-x\n"
+      "+y\n"
+      "*** End of File\n"
+      "*** End Patch\n";
+  auto r = Sync<PatchResult>([&](auto cb) {
+    service_->ApplyPatch(patch, std::move(cb));
+  });
+  ASSERT_FALSE(r.has_value());
+  // a.md must be unchanged.
+  auto read = Sync<ReadResult>([&](auto cb) {
+    service_->Read("a.md", 0, 100, std::move(cb));
+  });
+  EXPECT_EQ("old-a\n", read->content);
+}
+
+TEST_F(DaoAgentWorkspaceServiceTest, ApplyPatchAuditsAggregateOp) {
+  std::ignore = Sync<WriteResult>([&](auto cb) {
+    service_->Write("a.md", "x\n", std::move(cb));
+  });
+  std::string patch =
+      "*** Begin Patch\n"
+      "*** Add File: b.md\n+y\n"
+      "*** End Patch\n";
+  std::ignore = Sync<PatchResult>([&](auto cb) {
+    service_->ApplyPatch(patch, std::move(cb));
+  });
+  std::string audit;
+  ASSERT_TRUE(base::ReadFileToString(
+      profile_dir_.GetPath()
+          .AppendASCII("DaoAgentWorkspace")
+          .AppendASCII(".audit.log"),
+      &audit));
+  EXPECT_NE(std::string::npos, audit.find("\"op\":\"apply_patch\""));
 }
 
 }  // namespace

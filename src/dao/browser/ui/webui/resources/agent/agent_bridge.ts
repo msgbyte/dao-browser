@@ -8,6 +8,7 @@
 import {getActiveLLMConfig} from './llm_config.js';
 import {saveUserSkill} from './skill_registry.js';
 import {webSearch as wsRun, fetchUrl as wsFetch} from './web_search/index.js';
+import {executeWorkspaceTool} from './workspace/bridge.js';
 
 // ---- Interfaces ----
 
@@ -977,6 +978,134 @@ export const tools: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'workspace_read',
+      description:
+          'Read a text file from the agent workspace. Returns content ' +
+          'paginated by line range; the workspace is text-only and ' +
+          'enforces a quota.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {type: 'string', description: 'Relative path in workspace.'},
+          offset: {
+            type: 'integer',
+            description: 'Optional 0-based starting line offset (default 0).',
+          },
+          limit: {
+            type: 'integer',
+            description:
+                'Optional max number of lines to return (default 500, max 5000).',
+          },
+        },
+        required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'workspace_write',
+      description:
+          'Write (create or overwrite) a text file in the agent ' +
+          'workspace. Subject to the workspace text-only filter and quota.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {type: 'string', description: 'Relative path in workspace.'},
+          content: {
+            type: 'string',
+            description: 'Full text content to write.',
+          },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'workspace_edit',
+      description:
+          'Replace a unique substring in a workspace file. Fails if ' +
+          'old_text matches zero or multiple locations — widen the ' +
+          'context until unique.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {type: 'string', description: 'Relative path in workspace.'},
+          old_text: {
+            type: 'string',
+            description: 'Exact substring to replace; must be unique.',
+          },
+          new_text: {
+            type: 'string',
+            description: 'Replacement text.',
+          },
+        },
+        required: ['path', 'old_text', 'new_text'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'apply_patch',
+      description:
+          'Apply a V4A-format multi-file patch to the workspace ' +
+          '(atomic across files). Use for batched add/update/delete/move ' +
+          'operations.',
+      parameters: {
+        type: 'object',
+        properties: {
+          patch: {
+            type: 'string',
+            description: 'Full V4A patch text (Begin Patch ... End Patch).',
+          },
+        },
+        required: ['patch'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'download',
+      description:
+          'Save content directly into the agent workspace without ' +
+          'echoing it through tool arguments — use this whenever you ' +
+          'want to persist a page or URL, instead of capturing the ' +
+          'body and pasting it into workspace_write. Sources: ' +
+          '"page" captures the active tab\'s outerHTML; "url" fetches ' +
+          'an arbitrary http(s) URL. Subject to the workspace text-' +
+          'only filter and quota (binaries are rejected; 5 MiB body cap).',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            description:
+                'Relative path in workspace (e.g. "baidu.html").',
+          },
+          source: {
+            type: 'string',
+            description:
+                'Source of the content. One of "page" (active tab ' +
+                'outerHTML) or "url" (fetch an http(s) URL). Defaults ' +
+                'to "url" when "url" is provided, otherwise "page".',
+          },
+          url: {
+            type: 'string',
+            description:
+                'Required when source="url". Must be http(s).',
+          },
+        },
+        required: ['path'],
+      },
+    },
+  },
 ];
 
 // ---- Tool Execution ----
@@ -1003,6 +1132,12 @@ const SCREENSHOT_MIN_INTERVAL_MS = 2500;
 export async function executeTool(
     name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
+    case 'workspace_read':
+    case 'workspace_write':
+    case 'workspace_edit':
+    case 'apply_patch':
+    case 'download':
+      return await executeWorkspaceTool(name, args);
     case 'get_page_info':
       return await callNative('getPageInfo');
     case 'click_element':

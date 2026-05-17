@@ -10,6 +10,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
@@ -43,6 +44,9 @@
 #include "dao/browser/agent/dao_agent_skill_service.h"
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
 #include "dao/browser/agent/dao_agent_skill_types.h"
+#include "dao/browser/agent/dao_agent_workspace_service.h"
+#include "dao/browser/agent/dao_agent_workspace_service_factory.h"
+#include "dao/browser/agent/dao_agent_workspace_types.h"
 #include "dao/browser/dao_auto_pip_visibility_helper.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
@@ -2496,6 +2500,61 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(tab_count_before, tab_strip->count());
   EXPECT_EQ(dest_contents, tab_strip->GetActiveWebContents());
+}
+
+class DaoAgentWorkspaceBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest, ServiceBoundToProfile) {
+  EXPECT_NE(nullptr,
+            DaoAgentWorkspaceServiceFactory::GetForProfile(
+                browser()->profile()));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
+                       WorkspaceRootCreatedOnFirstWrite) {
+  auto* svc = DaoAgentWorkspaceServiceFactory::GetForProfile(
+      browser()->profile());
+  ASSERT_TRUE(svc);
+
+  base::RunLoop loop;
+  svc->Write("hello.md", "world\n",
+             base::BindLambdaForTesting(
+                 [&](base::expected<WriteResult, WorkspaceError> r) {
+                   EXPECT_TRUE(r.has_value());
+                   loop.Quit();
+                 }));
+  loop.Run();
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  EXPECT_TRUE(base::PathExists(
+      svc->workspace_root().AppendASCII("hello.md")));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
+                       StagingDirClearedOnStartup) {
+  auto* svc = DaoAgentWorkspaceServiceFactory::GetForProfile(
+      browser()->profile());
+  ASSERT_TRUE(svc);
+
+  base::FilePath stage =
+      svc->workspace_root().AppendASCII(".workspace_tmp");
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::CreateDirectory(stage));
+    base::FilePath leftover = stage.AppendASCII("leftover");
+    ASSERT_TRUE(base::WriteFile(leftover, "junk"));
+  }
+
+  base::RunLoop loop;
+  svc->Read("does-not-matter.md", 0, 10,
+            base::BindLambdaForTesting(
+                [&](base::expected<ReadResult, WorkspaceError>) {
+                  loop.Quit();
+                }));
+  loop.Run();
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  EXPECT_TRUE(base::DirectoryExists(stage));
 }
 
 }  // namespace

@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
 index 00b9254990..e698ee122a 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -47,6 +47,116 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -47,6 +47,124 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
@@ -36,6 +36,14 @@ index 00b9254990..e698ee122a 100644
 +    "//dao/browser/agent/workspace/path_normalizer.h",
 +    "//dao/browser/agent/workspace/text_only_filter.cc",
 +    "//dao/browser/agent/workspace/text_only_filter.h",
++    "//dao/browser/agent/workspace/v4a_patch_applier.cc",
++    "//dao/browser/agent/workspace/v4a_patch_applier.h",
++    "//dao/browser/agent/workspace/v4a_patch_parser.cc",
++    "//dao/browser/agent/workspace/v4a_patch_parser.h",
++    "//dao/browser/agent/workspace/workspace_audit.cc",
++    "//dao/browser/agent/workspace/workspace_audit.h",
++    "//dao/browser/agent/workspace/workspace_index.cc",
++    "//dao/browser/agent/workspace/workspace_index.h",
 +    "//dao/browser/agent/workspace/workspace_quota.cc",
 +    "//dao/browser/agent/workspace/workspace_quota.h",
 +    "//dao/browser/dao_auto_pip_visibility_helper.cc",
@@ -119,7 +127,7 @@ index 00b9254990..e698ee122a 100644
      "accelerator_utils.h",
      "browser_navigator.h",
      "browser_navigator_params.cc",
-@@ -256,6 +366,12 @@ static_library("ui") {
+@@ -256,6 +374,12 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
@@ -132,7 +140,7 @@ index 00b9254990..e698ee122a 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -559,6 +675,7 @@ static_library("ui") {
+@@ -559,6 +683,7 @@ static_library("ui") {
      "//components/payments/content/icon",
      "//components/payments/core:error_strings",
 +    "//components/pdf/browser",
@@ -140,7 +148,7 @@ index 00b9254990..e698ee122a 100644
      "//components/performance_manager",
      "//components/permissions",
      "//components/policy/content",
-@@ -568,6 +685,7 @@ static_library("ui") {
+@@ -568,6 +693,7 @@ static_library("ui") {
      "//components/privacy_sandbox:privacy_sandbox_prefs",
      "//components/profile_metrics",
      "//components/proxy_config",
@@ -148,7 +156,7 @@ index 00b9254990..e698ee122a 100644
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
-@@ -5547,7 +5664,7 @@ static_library("ui") {
+@@ -5547,7 +5672,7 @@ static_library("ui") {
  # //chrome/browser. These are semantically a part of
  # //chrome/browser:browser_public_dependencies since //chrome/browser and
  # //chrome/browser/ui allow circular dependencies.
@@ -157,7 +165,7 @@ index 00b9254990..e698ee122a 100644
    visibility = [ "//chrome/browser:browser_public_dependencies" ]
    public_deps = [
      "//components/cross_device/logging",
-@@ -5586,7 +5703,6 @@ static_library("ui_public_dependencies") {
+@@ -5586,7 +5711,6 @@ static_library("ui_public_dependencies") {
      public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
    }
    if (is_win) {
@@ -165,7 +173,7 @@ index 00b9254990..e698ee122a 100644
      public_deps += [
        "//build:branding_buildflags",
        "//ui/views",
-@@ -5913,3 +6029,25 @@ if (use_aura) {
+@@ -5913,3 +6037,25 @@ if (use_aura) {
      ]
    }
  }

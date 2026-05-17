@@ -1,23 +1,25 @@
 diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-index b183333a16..cba0af4a39 100644
+index b183333a16..51f37a1eaf 100644
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-@@ -602,6 +602,9 @@
+@@ -602,6 +602,10 @@
  #include "chrome/browser/net/nss_service_factory.h"
  #endif
  
 +#include "dao/browser/agent/dao_agent_memory_service_factory.h"
 +#include "dao/browser/agent/dao_agent_skill_service_factory.h"
++#include "dao/browser/agent/dao_agent_workspace_service_factory.h"
 +
  void AddProfilesExtraParts(ChromeBrowserMainParts* main_parts) {
    main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsProfiles>());
  }
-@@ -871,6 +874,8 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -871,6 +875,9 @@ void ChromeBrowserMainExtraPartsProfiles::
    CookieSettingsFactory::GetInstance();
    CrossDevicePrefTrackerFactory::GetInstance();
    DataTypeStoreServiceFactory::GetInstance();
 +  dao::DaoAgentMemoryServiceFactory::GetInstance();
 +  dao::DaoAgentSkillServiceFactory::GetInstance();
++  dao::DaoAgentWorkspaceServiceFactory::GetInstance();
  #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
    data_controls::ChromeRulesServiceFactory::GetInstance();
  #endif
