@@ -1,16 +1,17 @@
 diff --git a/chrome/browser/chrome_browser_main_mac.mm b/chrome/browser/chrome_browser_main_mac.mm
-index 7244516188..06660cb7e4 100644
+index 7244516188..4e775fa45a 100644
 --- a/chrome/browser/chrome_browser_main_mac.mm
 +++ b/chrome/browser/chrome_browser_main_mac.mm
-@@ -39,6 +39,7 @@
+@@ -39,6 +39,8 @@
  #include "chrome/common/chrome_switches.h"
  #include "chrome/common/pref_names.h"
  #include "chrome/grit/branded_strings.h"
++#include "dao/browser/telemetry/dao_telemetry_service.h"
 +#include "dao/browser/updater/dao_updater_service.h"
  #include "components/metrics/metrics_service.h"
  #include "components/os_crypt/sync/os_crypt.h"
  #include "components/version_info/channel.h"
-@@ -178,6 +179,13 @@
+@@ -178,6 +180,16 @@
  void ChromeBrowserMainPartsMac::PostProfileInit(Profile* profile,
                                                  bool is_initial_profile) {
    ChromeBrowserMainPartsPosix::PostProfileInit(profile, is_initial_profile);
@@ -20,6 +21,9 @@ index 7244516188..06660cb7e4 100644
 +  // already-running updater instance — Init() is idempotent.
 +  if (is_initial_profile) {
 +    dao::DaoUpdaterService::GetInstance()->Init();
++
++    dao::DaoTelemetryService::GetInstance()->SetProfile(profile);
++    dao::DaoTelemetryService::GetInstance()->ReportBrowserOpenedOnce();
 +  }
  }
  

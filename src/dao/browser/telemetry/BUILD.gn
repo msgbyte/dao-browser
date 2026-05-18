@@ -1,0 +1,28 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# -----------------------------------------------------------------------------
+# Public source_set: dao_telemetry
+#
+# Lightweight HTTP-based event reporter that pushes anonymous usage events
+# to the Tianji application tracking endpoint. Compiled into //chrome/browser
+# so it can be reached from PostProfileInit and from agent-side handlers.
+# -----------------------------------------------------------------------------
+
+source_set("dao_telemetry") {
+  sources = [
+    "dao_telemetry_service.cc",
+    "dao_telemetry_service.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//content/public/browser",
+    "//net/traffic_annotation",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//url",
+  ]
+}

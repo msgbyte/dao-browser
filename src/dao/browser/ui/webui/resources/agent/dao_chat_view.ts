@@ -28,6 +28,7 @@ import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
 import {renderShareImage} from './dao_share_image.js';
+import {reportTelemetryEvent} from './dao_telemetry.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
 import {toolConfigChannel} from './tool_catalog.js';
 import './dao_chat_history_panel.js';
@@ -805,6 +806,10 @@ export class DaoChatView extends CrLitElement {
         this.origSendMessage_ = iface.sendMessage.bind(iface);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         iface.sendMessage = async (text: string, attachments: any[]) => {
+          reportTelemetryEvent('agent_message_send', {
+            textLength: text?.length ?? 0,
+            attachmentCount: attachments?.length ?? 0,
+          });
           this.refreshModel_();
           // Pull latest soul into the live systemPrompt before the turn is
           // packed into the LLM request. Handles the same-tab update_soul

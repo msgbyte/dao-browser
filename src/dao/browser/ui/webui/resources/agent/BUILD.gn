@@ -39,6 +39,7 @@ build_webui("build") {
     "pi_llm_stream.ts",
     "pi_tool_adapter.ts",
     "readability_bundle.ts",
+    "dao_telemetry.ts",
     "skill_registry.ts",
     "skills.ts",
     "tool_catalog.ts",
