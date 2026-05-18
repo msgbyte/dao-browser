@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/resources/pdf/pdf_scripting_api.ts b/chrome/browser/resources/pdf/pdf_scripting_api.ts
+index 7e6a5a553d..d0f2e4f0a8 100644
+--- a/chrome/browser/resources/pdf/pdf_scripting_api.ts
++++ b/chrome/browser/resources/pdf/pdf_scripting_api.ts
+@@ -97,7 +97,8 @@ export class PdfScriptingApi {
+     window.addEventListener('message', event => {
+       if (event.origin !==
+               'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai' &&
+-          event.origin !== 'chrome://print') {
++          event.origin !== 'chrome://print' &&
++          event.origin !== 'dao://print') {
+         console.error(
+             'Received message that was not from the extension: ' + event);
+         return;

@@ -1,0 +1,34 @@
+diff --git a/pdf/pdf_view_web_plugin.cc b/pdf/pdf_view_web_plugin.cc
+index 1f1e8cb39d..205760c727 100644
+--- a/pdf/pdf_view_web_plugin.cc
++++ b/pdf/pdf_view_web_plugin.cc
+@@ -152,6 +152,9 @@ constexpr std::string_view kChromeExtensionHost =
+ // Print Preview base URL.
+ constexpr std::string_view kChromePrintHost = "chrome://print/";
+ 
++// Dao Browser Print Preview base URL.
++constexpr std::string_view kDaoPrintHost = "dao://print/";
++
+ // Untrusted Print Preview base URL.
+ constexpr std::string_view kChromeUntrustedPrintHost =
+     "chrome-untrusted://print/";
+@@ -244,6 +247,10 @@ bool IsPrintPreviewUrl(std::string_view url) {
+   return base::StartsWith(url, kChromeUntrustedPrintHost);
+ }
+ 
++bool IsPrintPreviewEmbedderOrigin(std::string_view origin) {
++  return origin == kChromePrintHost || origin == kDaoPrintHost;
++}
++
+ int ExtractPrintPreviewPageIndex(std::string_view src_url) {
+   // Sample `src_url` format: chrome-untrusted://print/id/page_index/print.pdf
+   // The page_index is zero-based, but can be negative with special meanings.
+@@ -573,7 +580,7 @@ bool PdfViewWebPlugin::InitializeCommon() {
+   // This is enforced before creating the plugin (see
+   // `pdf::CreateInternalPlugin()`), so we just `CHECK` for defense-in-depth.
+   const std::string& embedder_origin = client_->GetEmbedderOriginString();
+-  is_print_preview_ = (embedder_origin == kChromePrintHost);
++  is_print_preview_ = IsPrintPreviewEmbedderOrigin(embedder_origin);
+   CHECK(IsPrintPreview() || embedder_origin == kChromeExtensionHost);
+ 
+   full_frame_ = params->full_frame;

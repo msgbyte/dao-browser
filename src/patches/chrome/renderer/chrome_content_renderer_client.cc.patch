@@ -1,0 +1,15 @@
+diff --git a/chrome/renderer/chrome_content_renderer_client.cc b/chrome/renderer/chrome_content_renderer_client.cc
+index dcc6684123..a1b9be928a 100644
+--- a/chrome/renderer/chrome_content_renderer_client.cc
++++ b/chrome/renderer/chrome_content_renderer_client.cc
+@@ -305,7 +305,9 @@ namespace {
+ 
+ #if BUILDFLAG(ENABLE_PDF)
+ std::vector<url::Origin> GetAdditionalPdfInternalPluginAllowedOrigins() {
+-  return {url::Origin::Create(GURL(chrome::kChromeUIPrintURL))};
++  return {url::Origin::Create(GURL(chrome::kChromeUIPrintURL)),
++          url::Origin::Create(
++              GURL("dao://print/"))};
+ }
+ #endif  // BUILDFLAG(ENABLE_PDF)
+ 

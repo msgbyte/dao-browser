@@ -1,8 +1,67 @@
 diff --git a/content/browser/webui/web_ui_data_source_impl.cc b/content/browser/webui/web_ui_data_source_impl.cc
-index 8dd7796aab..d915b82723 100644
+index 07cdf7dde6..98b3f8e052 100644
 --- a/content/browser/webui/web_ui_data_source_impl.cc
 +++ b/content/browser/webui/web_ui_data_source_impl.cc
-@@ -340,6 +340,7 @@ void WebUIDataSourceImpl::AddFrameAncestor(const GURL& frame_ancestor) {
+@@ -133,6 +133,45 @@ void GetDataResourceBytesOnWorkerThreadFromDisk(
+ }
+ #endif  // BUILDFLAG(LOAD_WEBUI_FROM_DISK)
+ 
++// Dao Browser: kChromeUIScheme is renamed from "chrome" to "dao". Many
++// upstream Chromium WebUIs hard-code "chrome://..." source-list tokens in
++// their CSP strings (e.g. `script-src chrome://resources chrome://webui-test
++// 'self';`). Rather than patching every such WebUI, mirror every
++// "chrome://X" token in a CSP value to also include the matching "dao://X"
++// token (and vice versa), so loads from either scheme are allowed regardless
++// of which one the caller spelled. This is paired with the URLDataSource
++// patch that serves both schemes from the same data source.
++std::string MirrorChromeAndDaoSchemesInCsp(const std::string& value) {
++  static constexpr const char* kPrefixPairs[][2] = {
++      {"chrome://", "dao://"},
++      {"dao://", "chrome://"},
++  };
++  std::string result = value;
++  for (const auto& pair : kPrefixPairs) {
++    const std::string from_prefix = pair[0];
++    const std::string to_prefix = pair[1];
++    size_t scan_pos = 0;
++    while ((scan_pos = result.find(from_prefix, scan_pos)) !=
++           std::string::npos) {
++      size_t end = result.find_first_of(" \t;", scan_pos);
++      if (end == std::string::npos) {
++        end = result.size();
++      }
++      const std::string from_token = result.substr(scan_pos, end - scan_pos);
++      const std::string to_token =
++          to_prefix + from_token.substr(from_prefix.size());
++      if (result.find(to_token) == std::string::npos) {
++        const std::string insertion = " " + to_token;
++        result.insert(end, insertion);
++        scan_pos = end + insertion.size();
++      } else {
++        scan_pos = end;
++      }
++    }
++  }
++  return result;
++}
++
+ }  // namespace
+ 
+ // Internal class to hide the fact that WebUIDataSourceImpl implements
+@@ -318,7 +357,11 @@ bool WebUIDataSourceImpl::IsWebUIDataSourceImpl() const {
+ void WebUIDataSourceImpl::OverrideContentSecurityPolicy(
+     network::mojom::CSPDirectiveName directive,
+     const std::string& value) {
+-  csp_overrides_.insert_or_assign(directive, value);
++  // Dao Browser: rewrite the CSP value so any hard-coded "chrome://..." or
++  // "dao://..." source-list token is mirrored to the other scheme. See
++  // MirrorChromeAndDaoSchemesInCsp() above for rationale.
++  csp_overrides_.insert_or_assign(directive,
++                                  MirrorChromeAndDaoSchemesInCsp(value));
+ }
+ 
+ void WebUIDataSourceImpl::OverrideCrossOriginOpenerPolicy(
+@@ -350,6 +393,7 @@ void WebUIDataSourceImpl::AddFrameAncestor(const GURL& frame_ancestor) {
    // Do not allow a wildcard to be a frame ancestor or it will allow any website
    // to embed the WebUI.
    CHECK(frame_ancestor.SchemeIs(kChromeUIScheme) ||

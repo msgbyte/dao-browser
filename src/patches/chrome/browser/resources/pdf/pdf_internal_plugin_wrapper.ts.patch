@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/resources/pdf/pdf_internal_plugin_wrapper.ts b/chrome/browser/resources/pdf/pdf_internal_plugin_wrapper.ts
+index 0f221c0532..c0c8dd2941 100644
+--- a/chrome/browser/resources/pdf/pdf_internal_plugin_wrapper.ts
++++ b/chrome/browser/resources/pdf/pdf_internal_plugin_wrapper.ts
+@@ -20,9 +20,15 @@ const plugin = document.querySelector<InProcessPdfPluginElement>('embed')!;
+ 
+ const srcUrl = new URL(plugin.src);
+ let parentOrigin = srcUrl.origin;
++const printPreviewParentOrigins = ['chrome://print', 'dao://print'];
+ if (parentOrigin === 'chrome-untrusted://print') {
+   // Within Print Preview, the source origin differs from the parent origin.
+-  parentOrigin = 'chrome://print';
++  const ancestorOrigin = window.location.ancestorOrigins.length > 0 ?
++      window.location.ancestorOrigins[0]! :
++      '';
++  parentOrigin = printPreviewParentOrigins.includes(ancestorOrigin) ?
++      ancestorOrigin :
++      'chrome://print';
+ }
+ 
+ // Plugin-to-parent message handlers. All messages are passed through, but some
+@@ -93,7 +99,8 @@ channel.port1.onmessage = e => {
+       // Snoop on "viewport" message to support real RTL scrolling in Print
+       // Preview.
+       // TODO(crbug.com/40737077): Support real RTL scrolling in the PDF viewer.
+-      if (parentOrigin === 'chrome://print' && e.data.layoutOptions) {
++      if (printPreviewParentOrigins.includes(parentOrigin) &&
++          e.data.layoutOptions) {
+         switch (e.data.layoutOptions.direction) {
+           case 1:
+             document.dir = 'rtl';
