@@ -89,6 +89,142 @@ const dict: Dictionary = {
   'settings.workspace.activity_row': '{when} · {op} · {path}',
   'settings.workspace.activity_error':
       'Could not load recent activity: {error}',
+
+  // -------- settings sub-tab labels (dao_settings_view.ts) --------
+  'settings.tabs.general_label': 'General',
+  'settings.tabs.soul_label': 'Soul',
+  'settings.tabs.tools_label': 'Tools',
+  'settings.tabs.skills_label': 'Skills',
+  'settings.tabs.stats_label': 'Stats',
+
+  // Shared confirm-dialog button used by both memory and stats reset.
+  'settings.dialog.cancel': 'Cancel',
+
+  // -------- settings.general (dao_settings_view.ts → renderGeneral_) --------
+  'settings.general.api_connection_title': 'API Connection',
+  'settings.general.api_connection_desc':
+      'Configure the LLM provider for the agent. Each provider keeps '
+      + 'its own credentials.',
+  'settings.general.provider_label': 'Provider',
+  'settings.general.api_key_label': 'API Key',
+  'settings.general.base_url_label': 'Base URL',
+  'settings.general.model_label': 'Model',
+  'settings.general.display_title': 'Display',
+  'settings.general.show_tool_details_name': 'Show Tool Call Details',
+  'settings.general.show_tool_details_desc':
+      'Expand every tool call input / output by default',
+  'settings.general.session_title': 'Session',
+  'settings.general.resume_session_name': 'Resume Last Session',
+  'settings.general.resume_session_desc':
+      'Reopen the most recent conversation when the agent panel opens',
+  'settings.general.stale_threshold_name': 'Stale Session Threshold',
+  'settings.general.stale_threshold_desc':
+      'Start a new conversation if the last message is older than this '
+      + 'many hours (0 = always resume)',
+  'settings.general.stale_threshold_aria': 'Stale session threshold in hours',
+  'settings.general.hours_unit': 'hours',
+
+  // -------- settings.soul (dao_settings_view.ts → renderSoul_) --------
+  'settings.soul.title': 'Soul Prompt',
+  'settings.soul.desc':
+      "Define the AI agent's personality and behavior. This is used as "
+      + 'the system prompt in every conversation.',
+  'settings.soul.placeholder': 'Enter your soul prompt here...',
+  'settings.soul.save_button': 'Save',
+  'settings.soul.reset_button': 'Reset to Default',
+  // Transient status flashed next to the Save button.
+  'settings.soul.saved_status': 'Saved',
+  'settings.soul.reset_status': 'Reset to default',
+
+  // -------- settings.memory (dao_settings_view.ts → renderMemory_) --------
+  'settings.memory.title': 'Memory',
+  'settings.memory.desc':
+      'Control how the Agent remembers and learns from your interactions.',
+  'settings.memory.enable_name': 'Enable Memory',
+  'settings.memory.enable_desc': 'Master switch for all memory features',
+  'settings.memory.proactive_name': 'Proactive Suggestions',
+  'settings.memory.proactive_desc':
+      'Show tips based on your browsing context',
+  'settings.memory.threshold_name': 'Suggestion Threshold',
+  'settings.memory.threshold_aria': 'Suggestion threshold',
+  // Radio labels for the threshold segment selector.
+  'settings.memory.threshold_quiet': 'Quiet',
+  'settings.memory.threshold_balanced': 'Balanced',
+  'settings.memory.threshold_active': 'Active',
+  'settings.memory.page_context_name': 'Page Context Memory',
+  'settings.memory.page_context_desc':
+      'Remember interactions on specific pages',
+  'settings.memory.conversation_name': 'Conversation History',
+  'settings.memory.conversation_desc': 'Save chat history across sessions',
+  'settings.memory.usage_title': 'Memory Usage',
+  'settings.memory.conversations': 'Conversations',
+  'settings.memory.preferences': 'Preferences',
+  'settings.memory.episodes': 'Episodes',
+  // {kb} is a pre-formatted string like "4.2".
+  'settings.memory.total_format': 'Total: {kb} KB',
+  'settings.memory.clear_button': 'Clear All Memory',
+  'settings.memory.clear_dialog_title': 'Clear All Memory?',
+  'settings.memory.clear_dialog_desc':
+      'This will permanently erase all conversations, preferences, and '
+      + 'page episodes. This action cannot be undone.',
+  'settings.memory.clear_confirm': 'Clear All',
+  'settings.memory.toast_cleared': 'All memory cleared',
+  'settings.memory.toast_clear_failed': 'Failed to clear memory',
+
+  // -------- settings.stats (dao_settings_view.ts → renderStats_) --------
+  'settings.stats.title': 'Agent Statistics',
+  // {date} is a localized short date like "May 18, 2026".
+  'settings.stats.since_format': 'Usage since {date}',
+  'settings.stats.api_calls': 'API Calls',
+  'settings.stats.tool_calls': 'Tool Calls',
+  // {inTok} / {outTok} are pre-formatted compact numbers like "12.3K".
+  'settings.stats.total_tokens_format':
+      'Total Tokens ({inTok} in / {outTok} out)',
+  'settings.stats.estimated_cost': 'Estimated Cost',
+  'settings.stats.tool_breakdown': 'Tool Breakdown',
+  'settings.stats.table_tool_header': 'Tool',
+  'settings.stats.table_calls_header': 'Calls',
+  'settings.stats.empty': 'No tool calls recorded yet.',
+  'settings.stats.reset_button': 'Reset Statistics',
+  'settings.stats.reset_dialog_title': 'Reset Statistics?',
+  'settings.stats.reset_dialog_desc':
+      'This will clear all recorded API calls, tool usage counts, token '
+      + 'usage, and cost data. This action cannot be undone.',
+  'settings.stats.reset_confirm': 'Reset',
+  'settings.stats.toast_reset': 'Statistics reset',
+
+  // -------- settings.tools (dao_settings_view.ts → renderTools_*) --------
+  'settings.tools.title': 'Tools',
+  'settings.tools.desc':
+      'Choose which tools the agent can call. Disabled tools are hidden '
+      + 'from the model, so it will not attempt to use them. Changes take '
+      + 'effect on the next turn of any open chat.',
+  // {group} is the translated tool group label.
+  'settings.tools.toggle_all_aria': 'Toggle all {group} tools',
+  // {name} is the technical tool identifier (kept untranslated).
+  'settings.tools.toggle_one_aria': 'Toggle {name}',
+  // Web search source picker, shown only inside the "web" tool group.
+  'settings.tools.search_source_label': 'Search source',
+  'settings.tools.search_auto': 'Auto',
+  'settings.tools.search_provider_only': 'Provider only',
+  'settings.tools.search_duckduckgo_only': 'DuckDuckGo only',
+  // Tool group display names (TOOL_GROUPS in tool_catalog.ts owns the ids;
+  // the labels are translated here so we don't have to fan i18n into the
+  // catalog itself).
+  'settings.tools.group.page': 'Page',
+  'settings.tools.group.tabs': 'Tabs',
+  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.memory-skills': 'Memory & Skills',
+  'settings.tools.group.web': 'Web',
+  'settings.tools.group.workspace': 'Workspace',
+
+  // -------- settings.skills (dao_settings_view.ts → renderSkills_) --------
+  'settings.skills.title': 'Skills',
+  'settings.skills.desc':
+      'Manage slash-command skills for the agent. Open the Skill Manager '
+      + 'to create, edit, and delete skills in a full-page editor.',
+  'settings.skills.open_manager_button': 'Open Skill Manager',
+  'settings.skills.open_directory_button': 'Open Skills Directory',
 };
 
 export default dict;

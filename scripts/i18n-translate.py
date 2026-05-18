@@ -26,6 +26,7 @@ Usage (typically wrapped by scripts/i18n-translate.sh):
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import os
 import re
@@ -398,6 +399,9 @@ def main() -> None:
     p.add_argument("--dry-run", action="store_true",
                    help="Show what would be translated without calling "
                    "OpenAI or writing files.")
+    p.add_argument("--jobs", type=int, default=4,
+                   help="Number of locales to translate in parallel. "
+                   "Default: 4. Set to 1 to run serially.")
     args = p.parse_args()
 
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -416,77 +420,113 @@ def main() -> None:
     en_keys = list(en_dict.keys())
 
     print(f"grd: {len(grd_messages)} messages; webui: {len(en_dict)} keys; "
-          f"target locales: {len(wanted)}")
+          f"target locales: {len(wanted)}; jobs: {args.jobs}")
 
-    for lang_code, lang_name in wanted:
-        # ---- grd / xtb ----
-        if args.only != "webui":
-            xtb_path = XTB_DIR / f"dao_strings_{lang_code}.xtb"
-            existing = read_existing_xtb(xtb_path)
-            need: Dict[str, Tuple[str, str]] = {}  # key -> (id, source)
-            for name, presentable, source in grd_messages:
-                tid = str(GenerateMessageId(presentable))
-                if not args.force and tid in existing:
-                    continue
-                need[name] = (tid, source)
-            if need:
-                print(f"[{lang_code}/grd] translating "
-                      f"{len(need)} messages...")
-                if args.dry_run:
-                    for k, (tid, src) in need.items():
-                        print(f"  {k} ({tid}): {src!r}")
-                else:
-                    payload = {k: src for k, (tid, src) in need.items()}
-                    translated = translate_batch(
-                        payload, lang_code, lang_name, api_key, args.model)
-                    new_xtb = dict(existing)
-                    for k, (tid, _src) in need.items():
-                        if k in translated:
-                            new_xtb[tid] = translated[k]
-                    write_xtb(xtb_path, lang_code, new_xtb)
-                    print(f"[{lang_code}/grd] wrote {xtb_path.name} "
-                          f"({len(new_xtb)} entries)")
+    jobs = max(1, args.jobs)
+    if jobs == 1:
+        for lang_code, lang_name in wanted:
+            for line in translate_one_locale(
+                    lang_code, lang_name, args, api_key,
+                    grd_messages, en_dict, en_keys):
+                print(line)
+            # Be polite to the API when running serially.
+            if not args.dry_run:
+                time.sleep(0.2)
+        return
+
+    # Parallel mode: each worker collects its log lines and we flush them in
+    # one chunk per locale so output stays grouped instead of interleaved.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
+        futures = {
+            pool.submit(
+                translate_one_locale, lang_code, lang_name, args, api_key,
+                grd_messages, en_dict, en_keys): lang_code
+            for lang_code, lang_name in wanted
+        }
+        for fut in concurrent.futures.as_completed(futures):
+            lang_code = futures[fut]
+            try:
+                for line in fut.result():
+                    print(line)
+            except Exception as e:
+                print(f"[{lang_code}] FAILED: {e}", file=sys.stderr)
+
+
+def translate_one_locale(lang_code: str, lang_name: str, args,
+                         api_key: Optional[str],
+                         grd_messages: List[Tuple[str, str, str]],
+                         en_dict: Dict[str, str],
+                         en_keys: List[str]) -> List[str]:
+    """Process one locale end-to-end. Returns log lines instead of printing
+    so callers in parallel mode can keep per-locale output grouped."""
+    log: List[str] = []
+
+    # ---- grd / xtb ----
+    if args.only != "webui":
+        xtb_path = XTB_DIR / f"dao_strings_{lang_code}.xtb"
+        existing = read_existing_xtb(xtb_path)
+        need: Dict[str, Tuple[str, str]] = {}  # key -> (id, source)
+        for name, presentable, source in grd_messages:
+            tid = str(GenerateMessageId(presentable))
+            if not args.force and tid in existing:
+                continue
+            need[name] = (tid, source)
+        if need:
+            log.append(f"[{lang_code}/grd] translating "
+                       f"{len(need)} messages...")
+            if args.dry_run:
+                for k, (tid, src) in need.items():
+                    log.append(f"  {k} ({tid}): {src!r}")
             else:
-                print(f"[{lang_code}/grd] up-to-date")
+                payload = {k: src for k, (tid, src) in need.items()}
+                translated = translate_batch(
+                    payload, lang_code, lang_name, api_key, args.model)
+                new_xtb = dict(existing)
+                for k, (tid, _src) in need.items():
+                    if k in translated:
+                        new_xtb[tid] = translated[k]
+                write_xtb(xtb_path, lang_code, new_xtb)
+                log.append(f"[{lang_code}/grd] wrote {xtb_path.name} "
+                           f"({len(new_xtb)} entries)")
+        else:
+            log.append(f"[{lang_code}/grd] up-to-date")
 
-        # ---- webui ts ----
-        if args.only != "grd":
-            ts_path = WEBUI_LOCALES / f"{lang_code}.ts"
-            existing_ts = parse_ts_dict(ts_path) if ts_path.exists() else {}
-            need_ts: Dict[str, str] = {}
-            for k, v in en_dict.items():
-                if (not args.force and k in existing_ts and
-                        existing_ts[k] != v):
-                    # already overridden (translated)
-                    continue
-                if not args.force and existing_ts.get(k) == v:
-                    # placeholder fallback to en — needs translation
-                    pass
-                need_ts[k] = v
-            # Drop keys that are already explicitly overridden when not --force.
-            if not args.force:
-                need_ts = {k: v for k, v in need_ts.items()
-                           if k not in existing_ts or existing_ts[k] == v}
-            if need_ts:
-                print(f"[{lang_code}/webui] translating "
-                      f"{len(need_ts)} entries...")
-                if args.dry_run:
-                    for k, v in list(need_ts.items())[:5]:
-                        print(f"  {k}: {v!r}")
-                    print("  ...")
-                else:
-                    translated_ts = translate_batch(
-                        need_ts, lang_code, lang_name, api_key, args.model)
-                    merged = {**existing_ts, **translated_ts}
-                    write_ts_locale(ts_path, lang_code, merged, en_keys)
-                    print(f"[{lang_code}/webui] wrote {ts_path.name} "
-                          f"({len(merged)} entries)")
+    # ---- webui ts ----
+    if args.only != "grd":
+        ts_path = WEBUI_LOCALES / f"{lang_code}.ts"
+        existing_ts = parse_ts_dict(ts_path) if ts_path.exists() else {}
+        need_ts: Dict[str, str] = {}
+        for k, v in en_dict.items():
+            if (not args.force and k in existing_ts and
+                    existing_ts[k] != v):
+                # already overridden (translated)
+                continue
+            if not args.force and existing_ts.get(k) == v:
+                # placeholder fallback to en — needs translation
+                pass
+            need_ts[k] = v
+        # Drop keys already explicitly overridden when not --force.
+        if not args.force:
+            need_ts = {k: v for k, v in need_ts.items()
+                       if k not in existing_ts or existing_ts[k] == v}
+        if need_ts:
+            log.append(f"[{lang_code}/webui] translating "
+                       f"{len(need_ts)} entries...")
+            if args.dry_run:
+                for k, v in list(need_ts.items())[:5]:
+                    log.append(f"  {k}: {v!r}")
+                log.append("  ...")
             else:
-                print(f"[{lang_code}/webui] up-to-date")
+                translated_ts = translate_batch(
+                    need_ts, lang_code, lang_name, api_key, args.model)
+                merged = {**existing_ts, **translated_ts}
+                write_ts_locale(ts_path, lang_code, merged, en_keys)
+                log.append(f"[{lang_code}/webui] wrote {ts_path.name} "
+                           f"({len(merged)} entries)")
+        else:
+            log.append(f"[{lang_code}/webui] up-to-date")
 
-        # Be polite to the API.
-        if not args.dry_run:
-            time.sleep(0.2)
+    return log
 
 
 if __name__ == "__main__":

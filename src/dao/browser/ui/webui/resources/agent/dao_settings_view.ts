@@ -512,7 +512,7 @@ export class DaoSettingsView extends CrLitElement {
     this.statConversations_ = 0;
     this.statPreferences_ = 0;
     this.statEpisodes_ = 0;
-    this.statTotal_ = 'Total: 0 KB';
+    this.statTotal_ = t('settings.memory.total_format', {kb: '0'});
     this.showConfirmDialog_ = false;
     this.agentStats_ = null;
     this.showResetStatsDialog_ = false;
@@ -576,7 +576,7 @@ export class DaoSettingsView extends CrLitElement {
             tab => html`
           <button class="sub-tab ${this.activeSubTab_ === tab ? 'active' : ''}"
               @click=${() => this.switchSubTab(tab)}>
-            ${tab.charAt(0).toUpperCase() + tab.slice(1)}
+            ${t(`settings.tabs.${tab}_label`)}
           </button>`)}
       </div>
       ${this.activeSubTab_ === 'soul' ? this.renderSoul_() :
@@ -594,11 +594,11 @@ export class DaoSettingsView extends CrLitElement {
     const spec = this.getProviderSpec_(this.provider_);
     return html`
       <div class="panel">
-        <div class="section-title">API Connection</div>
+        <div class="section-title">
+          ${t('settings.general.api_connection_title')}</div>
         <div class="section-desc">
-          Configure the LLM provider for the agent. Each provider keeps
-          its own credentials.</div>
-        <label>Provider</label>
+          ${t('settings.general.api_connection_desc')}</div>
+        <label>${t('settings.general.provider_label')}</label>
         <select .value=${this.provider_}
             @change=${(e: Event) =>
                 this.onProviderChange_(
@@ -607,37 +607,39 @@ export class DaoSettingsView extends CrLitElement {
             <option value=${p.id}
                 ?selected=${p.id === this.provider_}>${p.label}</option>`)}
         </select>
-        <label>API Key</label>
+        <label>${t('settings.general.api_key_label')}</label>
         <input type="password" .value=${this.apiKey_}
             placeholder=${spec.apiKeyPlaceholder}
             @change=${(e: Event) => this.onApiKeyChange_(
                 (e.target as HTMLInputElement).value)}>
         ${spec.needsBaseUrl ? html`
-          <label>Base URL</label>
+          <label>${t('settings.general.base_url_label')}</label>
           <input type="text" .value=${this.baseUrl_}
               placeholder=${spec.defaultBaseUrl ?? ''}
               @change=${(e: Event) => this.onBaseUrlChange_(
                   (e.target as HTMLInputElement).value)}>` : nothing}
-        <label>Model</label>
+        <label>${t('settings.general.model_label')}</label>
         <input type="text" .value=${this.model_}
             placeholder=${spec.defaultModel}
             @change=${(e: Event) => this.onModelChange_(
                 (e.target as HTMLInputElement).value)}>
 
-        <div class="section-title" style="margin-top:18px">Display</div>
+        <div class="section-title" style="margin-top:18px">
+          ${t('settings.general.display_title')}</div>
         ${this.renderToggle_(
-            'Show Tool Call Details',
-            'Expand every tool call input / output by default',
+            t('settings.general.show_tool_details_name'),
+            t('settings.general.show_tool_details_desc'),
             this.toolCallShowDetails_, (v) => {
               this.toolCallShowDetails_ = v;
               localStorage.setItem(
                   'dao_tool_call_show_details', String(v));
             })}
 
-        <div class="section-title" style="margin-top:18px">Session</div>
+        <div class="section-title" style="margin-top:18px">
+          ${t('settings.general.session_title')}</div>
         ${this.renderToggle_(
-            'Resume Last Session',
-            'Reopen the most recent conversation when the agent panel opens',
+            t('settings.general.resume_session_name'),
+            t('settings.general.resume_session_desc'),
             this.resumeLastSession_, (v) => {
               this.resumeLastSession_ = v;
               localStorage.setItem(
@@ -645,14 +647,15 @@ export class DaoSettingsView extends CrLitElement {
             })}
         <div class="toggle-row">
           <div class="toggle-label">
-            <span class="toggle-name">Stale Session Threshold</span>
-            <span class="toggle-desc">Start a new conversation if the last
-              message is older than this many hours (0 = always resume)</span>
+            <span class="toggle-name">
+              ${t('settings.general.stale_threshold_name')}</span>
+            <span class="toggle-desc">
+              ${t('settings.general.stale_threshold_desc')}</span>
           </div>
           <div style="display:flex; align-items:center; gap:6px;
               flex-shrink:0;">
             <input type="number" min="0" step="1"
-                aria-label="Stale session threshold in hours"
+                aria-label=${t('settings.general.stale_threshold_aria')}
                 .value=${String(this.resumeStaleHours_)}
                 ?disabled=${!this.resumeLastSession_}
                 style="width:64px; height:28px; padding:0 8px;
@@ -663,7 +666,7 @@ export class DaoSettingsView extends CrLitElement {
                 @change=${(e: Event) => this.onResumeStaleHoursChange_(
                     (e.target as HTMLInputElement).value)}>
             <span style="font-size:12px; color:var(--text-tertiary);">
-              hours</span>
+              ${t('settings.general.hours_unit')}</span>
           </div>
         </div>
       </div>`;
@@ -717,20 +720,20 @@ export class DaoSettingsView extends CrLitElement {
   private renderSoul_() {
     return html`
       <div class="panel">
-        <div class="section-title">Soul Prompt</div>
-        <div class="section-desc">Define the AI agent's personality and
-          behavior. This is used as the system prompt in every
-          conversation.</div>
+        <div class="section-title">${t('settings.soul.title')}</div>
+        <div class="section-desc">${t('settings.soul.desc')}</div>
         <textarea class="soul-editor"
-            placeholder="Enter your soul prompt here..."
+            placeholder=${t('settings.soul.placeholder')}
             .value=${this.soulText_}
             @input=${(e: Event) =>
               this.soulText_ = (e.target as HTMLTextAreaElement).value}
         ></textarea>
         <div class="soul-actions">
-          <button class="btn-primary" @click=${this.saveSoul_}>Save</button>
+          <button class="btn-primary" @click=${this.saveSoul_}>
+            ${t('settings.soul.save_button')}</button>
           <button class="btn-secondary"
-              @click=${this.resetSoul_}>Reset to Default</button>
+              @click=${this.resetSoul_}>
+            ${t('settings.soul.reset_button')}</button>
           <span class="save-status ${this.saveStatusVisible_ ?
               'visible' : ''}">${this.saveStatusText_}</span>
         </div>
@@ -741,19 +744,19 @@ export class DaoSettingsView extends CrLitElement {
     const thresholds = ['quiet', 'balanced', 'active'] as const;
     return html`
       <div class="panel">
-        <div class="section-title">Memory</div>
-        <div class="section-desc">Control how the Agent remembers and
-          learns from your interactions.</div>
+        <div class="section-title">${t('settings.memory.title')}</div>
+        <div class="section-desc">${t('settings.memory.desc')}</div>
 
         ${this.renderToggle_(
-            'Enable Memory', 'Master switch for all memory features',
+            t('settings.memory.enable_name'),
+            t('settings.memory.enable_desc'),
             this.memoryEnabled_, (v) => {
               this.memoryEnabled_ = v;
               callNativeArgs('setMemoryEnabled', v).catch(() => {});
             })}
         ${this.renderToggle_(
-            'Proactive Suggestions',
-            'Show tips based on your browsing context',
+            t('settings.memory.proactive_name'),
+            t('settings.memory.proactive_desc'),
             this.proactiveEnabled_, (v) => {
               this.proactiveEnabled_ = v;
               localStorage.setItem(
@@ -762,31 +765,33 @@ export class DaoSettingsView extends CrLitElement {
             })}
 
         <div class="setting-group">
-          <span class="toggle-name">Suggestion Threshold</span>
+          <span class="toggle-name">
+            ${t('settings.memory.threshold_name')}</span>
           <div class="segment-selector" role="radiogroup"
-              aria-label="Suggestion threshold"
+              aria-label=${t('settings.memory.threshold_aria')}
               @keydown=${this.onSegmentKeydown_}>
-            ${thresholds.map(t => html`
-              <button class="segment ${this.threshold_ === t ? 'active' : ''}"
+            ${thresholds.map(tier => html`
+              <button class="segment ${
+                  this.threshold_ === tier ? 'active' : ''}"
                   role="radio"
-                  aria-checked=${String(this.threshold_ === t)}
-                  @click=${() => this.setThreshold_(t)}>
-                ${t.charAt(0).toUpperCase() + t.slice(1)}
+                  aria-checked=${String(this.threshold_ === tier)}
+                  @click=${() => this.setThreshold_(tier)}>
+                ${t(`settings.memory.threshold_${tier}`)}
               </button>`)}
           </div>
         </div>
 
         ${this.renderToggle_(
-            'Page Context Memory',
-            'Remember interactions on specific pages',
+            t('settings.memory.page_context_name'),
+            t('settings.memory.page_context_desc'),
             this.pageContextEnabled_, (v) => {
               this.pageContextEnabled_ = v;
               localStorage.setItem(
                   'dao_page_context_enabled', String(v));
             })}
         ${this.renderToggle_(
-            'Conversation History',
-            'Save chat history across sessions',
+            t('settings.memory.conversation_name'),
+            t('settings.memory.conversation_desc'),
             this.conversationEnabled_, (v) => {
               this.conversationEnabled_ = v;
               localStorage.setItem(
@@ -794,21 +799,22 @@ export class DaoSettingsView extends CrLitElement {
             })}
 
         <div class="memory-stats">
-          <div class="section-title">Memory Usage</div>
+          <div class="section-title">
+            ${t('settings.memory.usage_title')}</div>
           <div class="stats-list" role="list">
             <div class="stat-row" role="listitem">
               <span class="stat-dot dot-accent"></span>
-              <span>Conversations</span>
+              <span>${t('settings.memory.conversations')}</span>
               <span class="stat-count">${this.statConversations_}</span>
             </div>
             <div class="stat-row" role="listitem">
               <span class="stat-dot dot-blue"></span>
-              <span>Preferences</span>
+              <span>${t('settings.memory.preferences')}</span>
               <span class="stat-count">${this.statPreferences_}</span>
             </div>
             <div class="stat-row" role="listitem">
               <span class="stat-dot dot-green"></span>
-              <span>Episodes</span>
+              <span>${t('settings.memory.episodes')}</span>
               <span class="stat-count">${this.statEpisodes_}</span>
             </div>
           </div>
@@ -817,7 +823,7 @@ export class DaoSettingsView extends CrLitElement {
 
         <button class="btn-danger"
             @click=${() => this.showConfirmDialog_ = true}>
-          Clear All Memory
+          ${t('settings.memory.clear_button')}
         </button>
       </div>`;
   }
@@ -849,16 +855,17 @@ export class DaoSettingsView extends CrLitElement {
             }
           }}>
         <div class="confirm-card">
-          <div class="confirm-title">Clear All Memory?</div>
-          <div class="confirm-desc">This will permanently erase all
-            conversations, preferences, and page episodes. This action
-            cannot be undone.</div>
+          <div class="confirm-title">
+            ${t('settings.memory.clear_dialog_title')}</div>
+          <div class="confirm-desc">
+            ${t('settings.memory.clear_dialog_desc')}</div>
           <div class="confirm-actions">
             <button class="btn-secondary"
                 @click=${() => this.showConfirmDialog_ = false}>
-              Cancel</button>
+              ${t('settings.dialog.cancel')}</button>
             <button class="btn-danger"
-                @click=${this.clearAllMemory_}>Clear All</button>
+                @click=${this.clearAllMemory_}>
+              ${t('settings.memory.clear_confirm')}</button>
           </div>
         </div>
       </div>`;
@@ -1024,57 +1031,65 @@ export class DaoSettingsView extends CrLitElement {
 
     return html`
       <div class="panel">
-        <div class="section-title">Agent Statistics</div>
+        <div class="section-title">${t('settings.stats.title')}</div>
         <div class="section-desc">
-          Usage since ${sinceStr}</div>
+          ${t('settings.stats.since_format', {date: sinceStr})}</div>
 
         <div class="stats-cards">
           <div class="stats-card">
             <div class="stats-icon purple">${apiIcon}</div>
             <div>
               <div class="stats-value">${s.apiCalls}</div>
-              <div class="stats-label">API Calls</div>
+              <div class="stats-label">${t('settings.stats.api_calls')}</div>
             </div>
           </div>
           <div class="stats-card">
             <div class="stats-icon blue">${toolIcon}</div>
             <div>
               <div class="stats-value">${totalToolCalls}</div>
-              <div class="stats-label">Tool Calls</div>
+              <div class="stats-label">${t('settings.stats.tool_calls')}</div>
             </div>
           </div>
           <div class="stats-card">
             <div class="stats-icon green">${tokenIcon}</div>
             <div>
               <div class="stats-value">${this.formatNumber_(s.totalTokens)}</div>
-              <div class="stats-label">Total Tokens (${this.formatNumber_(s.promptTokens)} in / ${this.formatNumber_(s.completionTokens)} out)</div>
+              <div class="stats-label">${
+                  t('settings.stats.total_tokens_format', {
+                    inTok: this.formatNumber_(s.promptTokens),
+                    outTok: this.formatNumber_(s.completionTokens),
+                  })}</div>
             </div>
           </div>
           <div class="stats-card">
             <div class="stats-icon orange">${costIcon}</div>
             <div>
               <div class="stats-value">$${s.estimatedCost.toFixed(4)}</div>
-              <div class="stats-label">Estimated Cost</div>
+              <div class="stats-label">
+                ${t('settings.stats.estimated_cost')}</div>
             </div>
           </div>
         </div>
 
-        <div class="section-title">Tool Breakdown</div>
+        <div class="section-title">
+          ${t('settings.stats.tool_breakdown')}</div>
         ${toolEntries.length > 0 ? html`
           <table class="tool-table">
             <thead>
-              <tr><th>Tool</th><th>Calls</th></tr>
+              <tr><th>${t('settings.stats.table_tool_header')}</th>
+                  <th>${t('settings.stats.table_calls_header')}</th></tr>
             </thead>
             <tbody>
               ${toolEntries.map(([name, count]) => html`
                 <tr><td>${name}</td><td>${count}</td></tr>`)}
             </tbody>
           </table>` :
-          html`<div class="empty-state">No tool calls recorded yet.</div>`}
+          html`<div class="empty-state">
+            ${t('settings.stats.empty')}</div>`}
 
         <button class="btn-danger"
             @click=${() => this.showResetStatsDialog_ = true}>
-          Reset Statistics
+          ${t('settings.stats.reset_button')}
         </button>
       </div>`;
   }
@@ -1094,16 +1109,17 @@ export class DaoSettingsView extends CrLitElement {
             }
           }}>
         <div class="confirm-card">
-          <div class="confirm-title">Reset Statistics?</div>
-          <div class="confirm-desc">This will clear all recorded API calls,
-            tool usage counts, token usage, and cost data. This action
-            cannot be undone.</div>
+          <div class="confirm-title">
+            ${t('settings.stats.reset_dialog_title')}</div>
+          <div class="confirm-desc">
+            ${t('settings.stats.reset_dialog_desc')}</div>
           <div class="confirm-actions">
             <button class="btn-secondary"
                 @click=${() => this.showResetStatsDialog_ = false}>
-              Cancel</button>
+              ${t('settings.dialog.cancel')}</button>
             <button class="btn-danger"
-                @click=${this.resetStats_}>Reset</button>
+                @click=${this.resetStats_}>
+              ${t('settings.stats.reset_confirm')}</button>
           </div>
         </div>
       </div>`;
@@ -1113,7 +1129,7 @@ export class DaoSettingsView extends CrLitElement {
     this.showResetStatsDialog_ = false;
     resetAgentStats();
     this.agentStats_ = getAgentStats();
-    this.fireToast_('Statistics reset');
+    this.fireToast_(t('settings.stats.toast_reset'));
   }
 
   // ---- Settings Persistence ----
@@ -1162,13 +1178,13 @@ export class DaoSettingsView extends CrLitElement {
 
   private saveSoul_() {
     saveSoul(this.soulText_);
-    this.showSaveStatus_('Saved');
+    this.showSaveStatus_(t('settings.soul.saved_status'));
   }
 
   private resetSoul_() {
     this.soulText_ = DEFAULT_SOUL;
     saveSoul(DEFAULT_SOUL);
-    this.showSaveStatus_('Reset to default');
+    this.showSaveStatus_(t('settings.soul.reset_status'));
   }
 
   private showSaveStatus_(text: string) {
@@ -1211,7 +1227,7 @@ export class DaoSettingsView extends CrLitElement {
       this.statPreferences_ = stats.preferenceCount || 0;
       this.statEpisodes_ = stats.episodeCount || 0;
       const kb = ((stats.totalSize || 0) / 1024).toFixed(1);
-      this.statTotal_ = 'Total: ' + kb + ' KB';
+      this.statTotal_ = t('settings.memory.total_format', {kb});
     } catch (_) { /* non-critical */ }
   }
 
@@ -1219,10 +1235,10 @@ export class DaoSettingsView extends CrLitElement {
     this.showConfirmDialog_ = false;
     try {
       await callNativeArgs('clearAllMemory');
-      this.fireToast_('All memory cleared');
+      this.fireToast_(t('settings.memory.toast_cleared'));
       this.loadStorageStats_();
     } catch (_) {
-      this.fireToast_('Failed to clear memory');
+      this.fireToast_(t('settings.memory.toast_clear_failed'));
     }
   }
 
@@ -1231,11 +1247,8 @@ export class DaoSettingsView extends CrLitElement {
   private renderTools_() {
     return html`
       <div class="panel">
-        <div class="section-title">Tools</div>
-        <div class="section-desc">
-          Choose which tools the agent can call. Disabled tools are hidden
-          from the model, so it will not attempt to use them. Changes take
-          effect on the next turn of any open chat.</div>
+        <div class="section-title">${t('settings.tools.title')}</div>
+        <div class="section-desc">${t('settings.tools.desc')}</div>
         ${TOOL_GROUPS.map(group => this.renderToolGroup_(group.id))}
       </div>
       ${this.renderWorkspace_()}`;
@@ -1255,6 +1268,10 @@ export class DaoSettingsView extends CrLitElement {
     const allChecked = state === 'all';
     const indeterminate = state === 'some';
     const expanded = isGroupExpanded(groupId);
+    // Translated group label; falls back to the catalog label if no key
+    // exists yet for a newly added group id.
+    const groupKey = `settings.tools.group.${groupId}`;
+    const groupLabel = t(groupKey) === groupKey ? group.label : t(groupKey);
 
     const onHeaderToggle = () => {
       setGroupExpanded(groupId, !expanded);
@@ -1272,11 +1289,12 @@ export class DaoSettingsView extends CrLitElement {
           <input type="checkbox" class="tool-group-checkbox"
               .checked=${allChecked}
               .indeterminate=${indeterminate}
-              aria-label="Toggle all ${group.label} tools"
+              aria-label=${t('settings.tools.toggle_all_aria',
+                              {group: groupLabel})}
               @click=${(e: Event) => e.stopPropagation()}
               @change=${(e: Event) => setGroupEnabled(
                   groupId, (e.target as HTMLInputElement).checked)}>
-          <span class="tool-group-label">${group.label}</span>
+          <span class="tool-group-label">${groupLabel}</span>
           <span class="tool-group-count">
             ${counts.enabled}/${counts.total}
           </span>
@@ -1291,19 +1309,19 @@ export class DaoSettingsView extends CrLitElement {
               const cur = getSearchSourceOverride();
               return html`
                 <div class="dao-search-source">
-                  <span>Search source</span>
+                  <span>${t('settings.tools.search_source_label')}</span>
                   <select
                       class="dao-search-source-select"
                       @change=${(e: Event) => this.onSearchSourceChange_(e)}>
                     <option value="auto" ?selected=${cur === 'auto'}>
-                      Auto
+                      ${t('settings.tools.search_auto')}
                     </option>
                     <option value="provider" ?selected=${cur === 'provider'}>
-                      Provider only
+                      ${t('settings.tools.search_provider_only')}
                     </option>
                     <option value="duckduckgo"
                         ?selected=${cur === 'duckduckgo'}>
-                      DuckDuckGo only
+                      ${t('settings.tools.search_duckduckgo_only')}
                     </option>
                   </select>
                 </div>`;
@@ -1314,14 +1332,14 @@ export class DaoSettingsView extends CrLitElement {
   }
 
   private renderToolRow_(name: string) {
-    const def = allTools.find(t => t.function.name === name);
+    const def = allTools.find(tool => tool.function.name === name);
     const desc = def?.function.description ?? '';
     const enabled = isToolEnabled(name);
     return html`
       <label class="tool-row">
         <input type="checkbox" class="tool-checkbox"
             .checked=${enabled}
-            aria-label="Toggle ${name}"
+            aria-label=${t('settings.tools.toggle_one_aria', {name})}
             @change=${(e: Event) => setToolEnabled(
                 name, (e.target as HTMLInputElement).checked)}>
         <div class="tool-meta">
@@ -1336,19 +1354,17 @@ export class DaoSettingsView extends CrLitElement {
   private renderSkills_() {
     return html`
       <div class="panel">
-        <div class="section-title">Skills</div>
-        <div class="section-desc">
-          Manage slash-command skills for the agent. Open the Skill Manager
-          to create, edit, and delete skills in a full-page editor.</div>
+        <div class="section-title">${t('settings.skills.title')}</div>
+        <div class="section-desc">${t('settings.skills.desc')}</div>
         <button class="btn-primary"
             style="width: 100%; height: 36px; margin-top: 8px"
             @click=${this.openSkillManager_}>
-          Open Skill Manager
+          ${t('settings.skills.open_manager_button')}
         </button>
         <button class="btn-secondary"
             style="width: 100%; margin-top: 8px"
             @click=${() => chrome.send('openSkillsDirectory', [])}>
-          Open Skills Directory
+          ${t('settings.skills.open_directory_button')}
         </button>
       </div>`;
   }
