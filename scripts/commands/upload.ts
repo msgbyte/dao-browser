@@ -270,6 +270,10 @@ const CONTENT_TYPES: Record<string, string> = {
   ".gz": "application/gzip",
   ".tgz": "application/gzip",
   ".sig": "application/octet-stream",
+  // Sparkle binary delta patches (BinaryDelta archives produced by
+  // generate_appcast). Served as octet-stream so browsers / proxies
+  // don't try to sniff or transform them.
+  ".delta": "application/octet-stream",
 };
 
 function guessContentType(filePath: string): string | null {

@@ -1,6 +1,12 @@
 import { Command } from "commander";
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import chalk from "chalk";
 import {
@@ -346,11 +352,23 @@ export const releaseCommand = new Command("release")
       "bin",
       "generate_appcast"
     );
+    // --download-url-prefix pins the host used in every <enclosure url=...>
+    // generate_appcast writes (for both the full .dmg and every .delta it
+    // synthesizes). Without this, generate_appcast inherits the prefix
+    // from the previous enclosure in the seeded appcast, which means a
+    // single bad legacy entry (or a host migration) silently propagates
+    // forward. Artifacts ship from dao-release.msgbyte.com — keep this
+    // in sync with website/public/appcast.xml and the R2 bucket's
+    // custom-domain binding.
     await runStep(
       opts.dryRun,
       "Generating Sparkle appcast",
       generateAppcast,
-      [path.join(ROOT_DIR, "dist")]
+      [
+        "--download-url-prefix",
+        "https://dao-release.msgbyte.com/",
+        path.join(ROOT_DIR, "dist"),
+      ]
     );
 
     // ------------------------------------------------------------------
@@ -411,15 +429,64 @@ export const releaseCommand = new Command("release")
     }
 
     // ------------------------------------------------------------------
-    // Step 6 — upload .dmg to R2
+    // Step 6 — upload .dmg + every .delta in dist/ to R2
+    //
+    // generate_appcast writes signed <enclosure> entries for delta
+    // patches alongside the full dmg; the appcast advertises both. If
+    // we don't upload the .delta files, clients fetch the appcast,
+    // pick a delta matching their current version, and hit a 404 — at
+    // which point Sparkle reports "Update Error" instead of silently
+    // falling back to the full dmg. So delta upload is not optional.
     // ------------------------------------------------------------------
     if (willUpload) {
-      const uploadArgs = ["tsx", "scripts/cli.ts", "upload", dmgPath];
+      const distDir = path.join(ROOT_DIR, "dist");
+
+      // Whitelist delta uploads against the freshly-regenerated appcast.
+      // generate_appcast does prune unreferenced delta files into
+      // dist/old_updates/, but a resumed/partial release can leave stray
+      // .delta files in dist/ root from a previous run. Without this
+      // filter we'd silently re-upload those orphans to R2. Parse the
+      // appcast we just wrote and only ship delta filenames it actually
+      // references.
+      const referencedDeltas = !opts.dryRun
+        ? collectReferencedDeltaBasenames(appcastDest)
+        : new Set<string>();
+      const allDeltas = existsSync(distDir)
+        ? readdirSync(distDir).filter((f) => f.endsWith(".delta"))
+        : [];
+      const deltaPaths: string[] = [];
+      const skippedDeltas: string[] = [];
+      for (const name of allDeltas) {
+        if (opts.dryRun || referencedDeltas.has(name)) {
+          deltaPaths.push(path.join(distDir, name));
+        } else {
+          skippedDeltas.push(name);
+        }
+      }
+      if (skippedDeltas.length > 0) {
+        warn(
+          `Skipping ${skippedDeltas.length} unreferenced delta file(s) in ` +
+            `dist/ (not present in appcast): ${skippedDeltas.join(", ")}`
+        );
+      }
+
+      const uploadArgs = [
+        "tsx",
+        "scripts/cli.ts",
+        "upload",
+        dmgPath,
+        ...deltaPaths,
+      ];
       if (opts.bucket) uploadArgs.push("--bucket", opts.bucket);
       if (opts.prefix) uploadArgs.push("--prefix", opts.prefix);
+
+      const deltaSummary =
+        deltaPaths.length > 0
+          ? ` + ${deltaPaths.length} delta(s)`
+          : " (no referenced delta files in dist/)";
       await runStep(
         opts.dryRun,
-        `Uploading ${dmgName} to R2`,
+        `Uploading ${dmgName}${deltaSummary} to R2`,
         "npx",
         uploadArgs
       );
@@ -726,6 +793,28 @@ function injectGitCommitIntoAppcast(
   }
   writeFileSync(appcastPath, updated);
   success(`appcast stamped with git commit ${gitCommit.slice(0, 7)}`);
+}
+
+// Parse the just-regenerated appcast and return the set of .delta basenames
+// it references in any <enclosure url="...">. Used by Step 6 to whitelist
+// delta uploads so stale orphan files left in dist/ from a previous run
+// aren't shipped to R2 alongside the current release.
+//
+// Same string-surgery rationale as injectGitCommitIntoAppcast — Sparkle's
+// output shape is stable enough that a regex over <enclosure> tags is
+// sufficient without taking on an XML parser dependency.
+function collectReferencedDeltaBasenames(appcastPath: string): Set<string> {
+  const referenced = new Set<string>();
+  if (!existsSync(appcastPath)) return referenced;
+  const xml = readFileSync(appcastPath, "utf-8");
+  for (const m of xml.matchAll(/<enclosure\b[^>]*\burl="([^"]+)"/g)) {
+    const url = m[1];
+    const tail = url.split("/").pop() || "";
+    if (tail.endsWith(".delta")) {
+      referenced.add(tail);
+    }
+  }
+  return referenced;
 }
 
 // ---------------------------------------------------------------------------
