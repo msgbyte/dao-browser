@@ -22,6 +22,9 @@ export interface FeatureSectionProps {
   mockupVariant?: MockupVariant;
   customVisual?: ReactNode;
   mockupSide?: 'left' | 'right'; // default 'right'
+  /** Optional "Learn more →" link rendered under the bullets. */
+  learnMoreHref?: string;
+  learnMoreLabel?: string;
 }
 
 export function FeatureSection({
@@ -33,6 +36,8 @@ export function FeatureSection({
   mockupVariant,
   customVisual,
   mockupSide = 'right',
+  learnMoreHref,
+  learnMoreLabel,
 }: FeatureSectionProps) {
   return (
     <section
@@ -51,6 +56,12 @@ export function FeatureSection({
             </li>
           ))}
         </ul>
+        {learnMoreHref && (
+          <a className={styles.learnMore} href={learnMoreHref}>
+            {learnMoreLabel ?? 'Learn more'}
+            <LucideIcon name="arrow-right" size={14} />
+          </a>
+        )}
       </div>
       <div>
         {customVisual ?? (mockupVariant && (

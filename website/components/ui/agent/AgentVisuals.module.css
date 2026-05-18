@@ -1,0 +1,622 @@
+/* ============================================================
+ * Shared frame used by every visual on the /agent page.
+ * Same aspect/elevation as HostSkillsVisual so all sections line up.
+ * ============================================================ */
+.frame {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: var(--shadow-frame);
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .frame {
+    padding: 22px;
+    aspect-ratio: auto;
+  }
+}
+
+/* ============================================================
+ * Focus Context — page snippet with selection + agent capture
+ * ============================================================ */
+.focusRoot {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+}
+
+.focusPage {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.focusHost {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.focusTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+
+.focusLine {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface);
+  width: 100%;
+}
+.focusLine.short {
+  width: 70%;
+}
+.focusLine.highlight {
+  background: var(--accent-dim);
+  position: relative;
+}
+.focusLine.highlight::after {
+  content: '';
+  position: absolute;
+  inset: -3px -4px;
+  border: 1.5px solid var(--accent);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.focusArrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 22px;
+  font-weight: 300;
+}
+
+.focusAgent {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.focusAgentHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.focusAgentHeader .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.focusContextChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  align-self: flex-start;
+  border: 1px solid var(--accent-dim);
+}
+
+.focusBubble {
+  background: var(--accent);
+  color: white;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  align-self: flex-end;
+  max-width: 90%;
+}
+
+.focusReply {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text);
+  max-width: 95%;
+}
+
+@media (max-width: 640px) {
+  .focusRoot {
+    grid-template-columns: 1fr;
+  }
+  .focusArrow {
+    transform: rotate(90deg);
+  }
+}
+
+/* ============================================================
+ * Memory Visual — timeline of remembered facts
+ * ============================================================ */
+.memoryRoot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.memoryRow {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.memoryDate {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: right;
+}
+
+.memoryCard {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--text);
+  position: relative;
+  line-height: 1.45;
+}
+
+.memoryKind {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+@media (max-width: 640px) {
+  .memoryRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .memoryDate {
+    text-align: left;
+  }
+}
+
+/* ============================================================
+ * Soul Visual — a single long-running companion card
+ * ============================================================ */
+.soulSingleCard {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 480px;
+  margin: auto;
+  position: relative;
+}
+
+.soulSingleHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.soulAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.soulHeaderText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.soulHeaderName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.soulHeaderSince {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.soulTagline {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+
+.soulFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.soulField {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  font-size: 12px;
+  align-items: baseline;
+}
+
+.soulFieldLabel {
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.soulFieldValue {
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+}
+
+.soulFootnote {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.soulFootnote svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .soulField {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* ============================================================
+ * Evolution Visual — feedback loop
+ * ============================================================ */
+.evolutionRoot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+}
+
+.evolutionTrack {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  width: 100%;
+  max-width: 520px;
+  position: relative;
+}
+
+.evolutionNode {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.evolutionNodeIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.evolutionNodeLabel {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.evolutionNodeSub {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+
+.evolutionLoopHint {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--bg-elevated);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-dim);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .evolutionTrack {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ============================================================
+ * Workspace Visual — file tree + scope
+ * ============================================================ */
+.workspaceRoot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  align-items: stretch;
+}
+
+.workspaceTree {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.workspaceTreeHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: -apple-system, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.treeRow {
+  white-space: pre;
+  color: var(--text);
+}
+.treeRow.muted {
+  color: var(--text-tertiary);
+}
+.treeRow.accent {
+  color: var(--accent);
+}
+
+.workspaceMeta {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workspaceMetaRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workspaceMetaLabel {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.workspaceMetaValue {
+  font-size: 12.5px;
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.workspaceQuota {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspaceQuotaBar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.workspaceQuotaFill {
+  height: 100%;
+  width: 32%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.workspaceQuotaLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.workspaceCapList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.workspaceCapList li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspaceCapBadge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .workspaceRoot {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+ * Model Swap Visual — vendor-agnostic socket
+ * ============================================================ */
+.modelRoot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+}
+
+.modelRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.modelChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 12.5px;
+  color: var(--text);
+  font-weight: 500;
+  position: relative;
+}
+.modelChip.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.modelChipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.modelSocket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.modelSocketBox {
+  width: 200px;
+  height: 56px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.modelHint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+  max-width: 380px;
+}
+
+@media (max-width: 640px) {
+  .modelSocketBox {
+    width: 100%;
+  }
+}

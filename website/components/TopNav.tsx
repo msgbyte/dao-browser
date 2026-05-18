@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+import Link from 'next/link';
 import { GITHUB_URL } from '@/lib/version';
 import { Button } from './ui/Button';
 import { LucideIcon } from './ui/LucideIcon';
@@ -31,9 +32,12 @@ export function TopNav() {
         <span className={styles.brandWord}>Dao</span>
       </a>
       <div className={styles.links}>
-        <a href="#features" className={styles.link}>
+        <Link href="/#features" className={styles.link}>
           <span className={styles.linkText}>Features</span>
-        </a>
+        </Link>
+        <Link href="/agent" className={styles.link}>
+          <span className={styles.linkText}>AI Agent</span>
+        </Link>
         <a
           href={GITHUB_URL}
           target="_blank"

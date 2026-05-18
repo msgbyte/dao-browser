@@ -1,0 +1,116 @@
+/* Hero for the /agent page — narrower & quieter than the home hero. */
+.hero {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 96px 24px 16px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 64px 20px 12px;
+  }
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.h1 {
+  font-size: clamp(32px, 4.5vw, 48px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  margin: 16px auto 0;
+  color: var(--text);
+  max-width: 760px;
+}
+
+.subtitle {
+  font-size: 17px;
+  color: var(--text-secondary);
+  margin: 16px auto 0;
+  max-width: 620px;
+}
+
+.heroPillRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.heroPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.heroPill svg {
+  color: var(--accent);
+}
+
+/* Inline TOC under hero — quick jumps to each section. */
+.toc {
+  max-width: 1120px;
+  margin: 32px auto 0;
+  padding: 0 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.tocLink {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 999px;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.tocLink:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Closing CTA. */
+.cta {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 64px 24px 96px;
+  text-align: center;
+}
+
+.ctaHeading {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.ctaBody {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 auto 24px;
+  max-width: 540px;
+}
+
+.ctaActions {
+  display: inline-flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}

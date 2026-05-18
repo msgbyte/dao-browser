@@ -76,3 +76,20 @@
   color: var(--accent);
   flex-shrink: 0;
 }
+
+.learnMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent);
+  width: fit-content;
+  transition: color 150ms ease, gap 200ms ease;
+}
+
+.learnMore:hover {
+  color: var(--accent-hover);
+  gap: 10px;
+}

@@ -33,7 +33,18 @@ export type IconName =
   | 'star'
   | 'arrow-right'
   | 'clock'
-  | 'maximize';
+  | 'maximize'
+  | 'cpu'
+  | 'eye'
+  | 'scan-eye'
+  | 'layers'
+  | 'repeat'
+  | 'refresh-cw'
+  | 'lock-open'
+  | 'target'
+  | 'file-text'
+  | 'heart'
+  | 'shield-check';
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   'panel-left': (
@@ -189,6 +200,96 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
       <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
       <path d="M3 16v3a2 2 0 0 0 2 2h3" />
       <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </>
+  ),
+  cpu: (
+    <>
+      <path d="M12 20v2" />
+      <path d="M12 2v2" />
+      <path d="M17 20v2" />
+      <path d="M17 2v2" />
+      <path d="M2 12h2" />
+      <path d="M2 17h2" />
+      <path d="M2 7h2" />
+      <path d="M20 12h2" />
+      <path d="M20 17h2" />
+      <path d="M20 7h2" />
+      <path d="M7 20v2" />
+      <path d="M7 2v2" />
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <rect x="8" y="8" width="8" height="8" rx="1" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  'scan-eye': (
+    <>
+      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+      <circle cx="12" cy="12" r="1" />
+      <path d="M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0" />
+    </>
+  ),
+  layers: (
+    <>
+      <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+      <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+      <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+    </>
+  ),
+  repeat: (
+    <>
+      <path d="m17 2 4 4-4 4" />
+      <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+      <path d="m7 22-4-4 4-4" />
+      <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+    </>
+  ),
+  'refresh-cw': (
+    <>
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M8 16H3v5" />
+    </>
+  ),
+  'lock-open': (
+    <>
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+    </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+    </>
+  ),
+  'file-text': (
+    <>
+      <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+      <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+      <path d="M10 9H8" />
+      <path d="M16 13H8" />
+      <path d="M16 17H8" />
+    </>
+  ),
+  heart: (
+    <>
+      <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" />
+    </>
+  ),
+  'shield-check': (
+    <>
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+      <path d="m9 12 2 2 4-4" />
     </>
   ),
 };

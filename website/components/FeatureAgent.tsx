@@ -13,6 +13,8 @@ export function FeatureAgent() {
       ]}
       mockupVariant="agent"
       mockupSide="right"
+      learnMoreHref="/agent"
+      learnMoreLabel="See how Dao Agent works"
     />
   );
 }
