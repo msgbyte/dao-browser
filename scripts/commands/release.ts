@@ -188,20 +188,23 @@ export const releaseCommand = new Command("release")
 
     // ------------------------------------------------------------------
     // Step 1b — tag current HEAD as v${newVersion}, so the released
-    // artifact maps back to a specific source revision. Done up-front
-    // (right after the version is fixed) for two reasons:
-    //   - if the build fails, a rerun with --skip-bump finds the same
-    //     tag already pointing at the same HEAD and becomes a no-op
-    //   - if HEAD has drifted since the previous failed run, we want
-    //     to fail loudly rather than silently retag a different commit
+    // artifact maps back to a specific source revision. Skipped when
+    // --skip-bump is set: that flag means we're resuming a previously
+    // failed run, where the first attempt already tagged HEAD. Re-tagging
+    // is at best a no-op (if HEAD hasn't moved) and at worst a hard
+    // error (if HEAD moved meanwhile) — neither is useful during a resume.
     // Pushing the tag is left to the operator (see end-of-run hints).
     // ------------------------------------------------------------------
-    const tagName = `v${newVersion}`;
-    log(`Tagging current HEAD as ${tagName}`);
-    if (opts.dryRun) {
-      console.log(`  [dry-run] git tag -a ${tagName} -m "Release ${tagName}" HEAD`);
+    if (opts.skipBump) {
+      log(`Skipping tag step (--skip-bump assumes v${newVersion} already exists)`);
     } else {
-      tagCurrentCommit(tagName);
+      const tagName = `v${newVersion}`;
+      log(`Tagging current HEAD as ${tagName}`);
+      if (opts.dryRun) {
+        console.log(`  [dry-run] git tag -a ${tagName} -m "Release ${tagName}" HEAD`);
+      } else {
+        tagCurrentCommit(tagName);
+      }
     }
 
     const arch = config.build.target_cpu;
@@ -426,13 +429,9 @@ export const releaseCommand = new Command("release")
 
     success(`Release ${newVersion} ready.`);
     log("Next manual steps (not done by this script):");
+    log("  - Commit + push (one-liner):");
     log(
-      "  - Commit dao.json + website/public/appcast.xml + " +
-        "website/public/info.json."
-    );
-    log(
-      `  - Push the commit and the v${newVersion} tag: ` +
-        `git push && git push origin v${newVersion}  (or: git push --follow-tags)`
+      `      git add . && git commit -m "chore: dump to version v${newVersion}" && git push --follow-tags`
     );
     log("  - Deploy the website so dao.msgbyte.com/appcast.xml updates.");
     log(
