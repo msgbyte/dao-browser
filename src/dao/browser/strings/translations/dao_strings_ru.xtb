@@ -7,6 +7,7 @@
 <translation id="3708693288863478389">Введите URL или поиск...</translation>
 <translation id="385051799172605136">Назад</translation>
 <translation id="3891466792657071243">Остановить загрузку</translation>
+<translation id="4380677223237520064">Расшифровать QR-код</translation>
 <translation id="4543782226216763900">Переключить боковую панель (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Спросить AI: <ph name="PROMPT" /></translation>
 <translation id="4881695831933465202">Открыть</translation>
@@ -15,6 +16,7 @@
 <translation id="5192454087436290060">Центр управления</translation>
 <translation id="5538307496474303926">Очистка...</translation>
 <translation id="5556459405103347317">Перезагрузить</translation>
+<translation id="5953452567010839148">QR-код не найден</translation>
 <translation id="6736243959894955139">Адрес</translation>
 <translation id="6829876854799051628">Очистить cookies</translation>
 <translation id="6896758677409633944">Копировать</translation>

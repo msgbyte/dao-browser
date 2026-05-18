@@ -2,7 +2,7 @@ diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/
 index 69da6a650e..1862c7a73d 100644
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
-@@ -141,8 +141,13 @@
+@@ -141,8 +141,14 @@
  #include "chrome/common/pref_names.h"
  #include "chrome/common/url_constants.h"
  #include "chrome/common/webui_url_constants.h"
@@ -11,12 +11,13 @@ index 69da6a650e..1862c7a73d 100644
  #include "chrome/grit/generated_resources.h"
 +#include "dao/browser/qrcode/dao_qr_code_decoder.h"
 +#include "dao/browser/qrcode/dao_qr_code_types.h"
++#include "dao/browser/strings/grit/dao_strings.h"
 +#include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
 +#include "dao/browser/ui/views/dao_toast_view.h"
  #include "components/autofill/content/browser/content_autofill_client.h"
  #include "components/autofill/content/browser/content_autofill_driver.h"
  #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
-@@ -575,13 +580,17 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
+@@ -575,13 +581,17 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
         {IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS, 160},
         {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY, 161},
         {IDC_CONTENT_CONTEXT_GLIC, 162},
@@ -35,17 +36,17 @@ index 69da6a650e..1862c7a73d 100644
    // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:RenderViewContextMenuItem)
  
    // LINT.IfChange(ContextMenuOptionDesktop)
-@@ -2085,6 +2094,9 @@ void RenderViewContextMenu::AppendImageItems() {
+@@ -2085,6 +2095,9 @@ void RenderViewContextMenu::AppendImageItems() {
    menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_COPYIMAGELOCATION,
                                    IDS_CONTENT_CONTEXT_COPYIMAGELOCATION);
  
 +  // Dao: decode QR codes embedded in the image.
-+  menu_model_.AddItem(IDC_DAO_DECODE_QR_CODE, u"Decode QR Code");
++  menu_model_.AddItem(IDC_DAO_DECODE_QR_CODE, l10n_util::GetStringUTF16(IDS_DAO_CONTEXT_MENU_DECODE_QR_CODE));
 +
    // Don't double-add for linked images, which also add the item.
    if (params_.link_url.is_empty()) {
      AppendQRCodeGeneratorItem(/*for_image=*/true, /*draw_icon=*/false,
-@@ -3020,6 +3032,9 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
+@@ -3020,6 +3033,9 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
      case IDC_CONTENT_CONTEXT_COPYIMAGE:
        return params_.has_image_contents;
  
@@ -55,7 +56,7 @@ index 69da6a650e..1862c7a73d 100644
      // Loop command should be disabled if the player is in an error state.
      case IDC_CONTENT_CONTEXT_LOOP:
        return (params_.media_flags & ContextMenuData::kMediaCanLoop) != 0 &&
-@@ -3380,6 +3395,10 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+@@ -3380,6 +3396,10 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
        ExecCopyImageAt();
        break;
  
@@ -66,7 +67,7 @@ index 69da6a650e..1862c7a73d 100644
      case IDC_CONTENT_CONTEXT_SAVEVIDEOFRAMEAS:
        ExecSaveVideoFrameAs();
        break;
-@@ -5165,3 +5184,51 @@ bool RenderViewContextMenu::IsLinkToIsolatedWebApp() const {
+@@ -5165,3 +5185,51 @@ bool RenderViewContextMenu::IsLinkToIsolatedWebApp() const {
  }
  #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
          // BUILDFLAG(IS_CHROMEOS)
@@ -74,7 +75,7 @@ index 69da6a650e..1862c7a73d 100644
 +void RenderViewContextMenu::ExecuteDecodeQrCode() {
 +  content::RenderFrameHost* rfh = GetRenderFrameHost();
 +  if (!rfh) {
-+    ShowQrToast(u"No QR code found");
++    ShowQrToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
 +    return;
 +  }
 +  mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame> chrome_render_frame;
@@ -90,7 +91,7 @@ index 69da6a650e..1862c7a73d 100644
 +        /*kept_alive*/,
 +    const SkBitmap& bitmap) {
 +  if (bitmap.drawsNothing()) {
-+    ShowQrToast(u"No QR code found");
++    ShowQrToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
 +    return;
 +  }
 +  dao::DaoQrCodeDecoder::DecodeBitmapAsync(
@@ -100,7 +101,7 @@ index 69da6a650e..1862c7a73d 100644
 +
 +void RenderViewContextMenu::OnQrDecoded(dao::DecodedQrCodes results) {
 +  if (results.empty()) {
-+    ShowQrToast(u"No QR code found");
++    ShowQrToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
 +    return;
 +  }
 +  dao::DaoQrCodeResultDialogView::Show(source_web_contents_,

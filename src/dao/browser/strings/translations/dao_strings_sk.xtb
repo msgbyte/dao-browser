@@ -7,6 +7,7 @@
 <translation id="3708693288863478389">Zadajte URL alebo hľadajte...</translation>
 <translation id="385051799172605136">Späť</translation>
 <translation id="3891466792657071243">Zastaviť načítavanie</translation>
+<translation id="4380677223237520064">Dekódovať QR kód</translation>
 <translation id="4543782226216763900">Prepnúť bočný panel (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Opýtať sa AI: <ph name="PROMPT" /></translation>
 <translation id="4881695831933465202">Otvoriť</translation>
@@ -15,6 +16,7 @@
 <translation id="5192454087436290060">Control Center</translation>
 <translation id="5538307496474303926">Vymazávanie...</translation>
 <translation id="5556459405103347317">Obnoviť</translation>
+<translation id="5953452567010839148">Nenašiel sa žiadny QR kód</translation>
 <translation id="6736243959894955139">Adresa</translation>
 <translation id="6829876854799051628">Vymazať cookies</translation>
 <translation id="6896758677409633944">Kopírovať</translation>

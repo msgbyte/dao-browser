@@ -257,6 +257,12 @@
       </message>
 
       <!-- QR code dialog (after scanning a QR via right-click on an image) -->
+      <message name="IDS_DAO_CONTEXT_MENU_DECODE_QR_CODE" desc="Image right-click context menu item that decodes any QR code embedded in the image and shows the result.">
+        Decode QR Code
+      </message>
+      <message name="IDS_DAO_QR_NO_CODE_FOUND" desc="Toast shown when the user invoked Decode QR Code on an image but no QR code could be decoded.">
+        No QR code found
+      </message>
       <message name="IDS_DAO_QR_RESULT_DIALOG_TITLE" desc="Title of the dialog shown when a QR code in the page has been decoded.">
         QR Code Result
       </message>

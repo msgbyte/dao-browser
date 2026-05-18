@@ -61,7 +61,7 @@ const dict: Dictionary = {
   'settings.general.api_key_label': 'API-nyckel',
   'settings.general.base_url_label': 'Bas-URL',
   'settings.general.model_label': 'Modell',
-  'settings.general.display_title': 'Display',
+  'settings.general.display_title': 'Skärm',
   'settings.general.show_tool_details_name': 'Visa verktygsanropsdetaljer',
   'settings.general.show_tool_details_desc': 'Expandera varje verktygsanropsinmatning / utmatning som standard',
   'settings.general.session_title': 'Session',

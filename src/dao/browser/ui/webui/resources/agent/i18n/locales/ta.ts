@@ -129,7 +129,7 @@ const dict: Dictionary = {
   'settings.tools.search_duckduckgo_only': 'DuckDuckGo மட்டும்',
   'settings.tools.group.page': 'பக்கம்',
   'settings.tools.group.tabs': 'தாவல்கள்',
-  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.devtools': 'டெவ்டூல்ஸ்',
   'settings.tools.group.memory-skills': 'நினைவகம் & திறமைகள்',
   'settings.tools.group.web': 'இணையம்',
   'settings.tools.group.workspace': 'வேலைத்தளம்',

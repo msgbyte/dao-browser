@@ -7,6 +7,7 @@
 <translation id="3708693288863478389">URLを入力または検索...</translation>
 <translation id="385051799172605136">戻る</translation>
 <translation id="3891466792657071243">読み込みを停止</translation>
+<translation id="4380677223237520064">QRコードをデコード</translation>
 <translation id="4543782226216763900">サイドバーを切り替え (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AIに質問: <ph name="PROMPT" /></translation>
 <translation id="4881695831933465202">開く</translation>
@@ -15,6 +16,7 @@
 <translation id="5192454087436290060">Control Center</translation>
 <translation id="5538307496474303926">クリア中...</translation>
 <translation id="5556459405103347317">再読み込み</translation>
+<translation id="5953452567010839148">QRコードが見つかりません</translation>
 <translation id="6736243959894955139">アドレス</translation>
 <translation id="6829876854799051628">クッキーをクリア</translation>
 <translation id="6896758677409633944">コピー</translation>
