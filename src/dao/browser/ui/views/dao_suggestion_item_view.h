@@ -19,6 +19,10 @@ namespace favicon {
 class FaviconService;
 }
 
+namespace gfx {
+struct VectorIcon;
+}
+
 namespace views {
 class ImageView;
 class Label;
@@ -48,12 +52,23 @@ class DaoSuggestionItemView : public views::View {
 
   void SetSelected(bool selected);
 
+  // Re-apply theme-dependent colors after a NativeTheme change. Refreshes
+  // title / description text color and re-rasterizes the vector icon with
+  // the current theme color. Favicon images (loaded from disk for URL
+  // matches) are left untouched.
+  void RefreshTheme();
+
   // views::View:
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
 
  private:
+  // Describes how the leading icon should be (re)rendered when the theme
+  // changes.  Favicons override vector icons for HTTP/HTTPS matches and
+  // intentionally stay theme-independent.
+  enum class IconMode { kNone, kVectorMatch, kAskAi };
+
   void UpdateBackground();
   void OnFaviconFetched(const GURL& page_url,
                         const favicon_base::FaviconImageResult& result);
@@ -67,6 +82,11 @@ class DaoSuggestionItemView : public views::View {
   raw_ptr<views::ImageView> icon_view_ = nullptr;
   raw_ptr<views::Label> title_label_ = nullptr;
   raw_ptr<views::Label> description_label_ = nullptr;
+
+  // State needed to re-rasterize the leading icon on theme change.
+  IconMode icon_mode_ = IconMode::kNone;
+  raw_ptr<const gfx::VectorIcon> current_vector_icon_ = nullptr;
+  bool has_favicon_ = false;
 
   // Tracks the URL for the current favicon request so stale callbacks are
   // ignored.

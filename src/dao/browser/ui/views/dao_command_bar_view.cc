@@ -241,6 +241,18 @@ void DaoCommandBarView::ApplyTheme() {
   if (ghost_text_label_) {
     ghost_text_label_->SetEnabledColor(GhostTextColor());
   }
+  // Suggestion rows cache their text color in views::Label and rasterize
+  // their vector icons at SetMatch time, so they need an explicit refresh
+  // when the theme changes.  Favicon images are left untouched.
+  for (auto& item : suggestion_views_) {
+    if (item) {
+      item->RefreshTheme();
+    }
+  }
+  // Re-rasterize the input field's leading icon (favicon or sparkle) so it
+  // matches the new theme.  UpdateInputIcon() picks the right glyph based
+  // on the current selection / input.
+  UpdateInputIcon();
 }
 
 void DaoCommandBarView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {

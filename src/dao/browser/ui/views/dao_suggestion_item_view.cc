@@ -89,6 +89,9 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
   const gfx::VectorIcon& vector_icon = match.GetVectorIcon(is_bookmark);
   icon_view_->SetImage(ui::ImageModel::FromImageSkia(
       gfx::CreateVectorIcon(vector_icon, 18, SuggestionIconColor())));
+  icon_mode_ = IconMode::kVectorMatch;
+  current_vector_icon_ = &vector_icon;
+  has_favicon_ = false;
 
   // Cancel any pending favicon request
   favicon_tracker_.TryCancelAll();
@@ -128,6 +131,9 @@ void DaoSuggestionItemView::SetAskAiPrompt(const std::u16string& prompt) {
 
   icon_view_->SetImage(ui::ImageModel::FromImageSkia(
       CreateLucideImageSkia(LucideIcon::kSparkles, 18, SuggestionIconColor())));
+  icon_mode_ = IconMode::kAskAi;
+  current_vector_icon_ = nullptr;
+  has_favicon_ = false;
 
   title_label_->SetText(
       l10n_util::GetStringFUTF16(IDS_DAO_SUGGESTION_ASK_AI, prompt));
@@ -153,6 +159,33 @@ void DaoSuggestionItemView::OnFaviconFetched(
       gfx::ImageSkiaOperations::CreateResizedImage(
           favicon, skia::ImageOperations::RESIZE_BEST, gfx::Size(18, 18));
   icon_view_->SetImage(ui::ImageModel::FromImageSkia(resized));
+  has_favicon_ = true;
+}
+
+void DaoSuggestionItemView::RefreshTheme() {
+  // Labels cache their color via SetEnabledColor; reapply with the current
+  // theme.
+  if (title_label_) {
+    title_label_->SetEnabledColor(SuggestionTitleColor());
+  }
+  if (description_label_) {
+    description_label_->SetEnabledColor(TextMuted());
+  }
+
+  // Vector icons are rasterized at SetMatch / SetAskAiPrompt time with the
+  // theme color baked in; re-rasterize with the new color. Favicons are
+  // real site images and intentionally stay theme-independent.
+  if (!icon_view_ || has_favicon_) {
+    return;
+  }
+  const SkColor icon_color = SuggestionIconColor();
+  if (icon_mode_ == IconMode::kVectorMatch && current_vector_icon_) {
+    icon_view_->SetImage(ui::ImageModel::FromImageSkia(
+        gfx::CreateVectorIcon(*current_vector_icon_, 18, icon_color)));
+  } else if (icon_mode_ == IconMode::kAskAi) {
+    icon_view_->SetImage(ui::ImageModel::FromImageSkia(
+        CreateLucideImageSkia(LucideIcon::kSparkles, 18, icon_color)));
+  }
 }
 
 void DaoSuggestionItemView::SetSelected(bool selected) {
