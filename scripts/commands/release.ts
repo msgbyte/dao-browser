@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import chalk from "chalk";
@@ -186,6 +186,24 @@ export const releaseCommand = new Command("release")
       }
     }
 
+    // ------------------------------------------------------------------
+    // Step 1b — tag current HEAD as v${newVersion}, so the released
+    // artifact maps back to a specific source revision. Done up-front
+    // (right after the version is fixed) for two reasons:
+    //   - if the build fails, a rerun with --skip-bump finds the same
+    //     tag already pointing at the same HEAD and becomes a no-op
+    //   - if HEAD has drifted since the previous failed run, we want
+    //     to fail loudly rather than silently retag a different commit
+    // Pushing the tag is left to the operator (see end-of-run hints).
+    // ------------------------------------------------------------------
+    const tagName = `v${newVersion}`;
+    log(`Tagging current HEAD as ${tagName}`);
+    if (opts.dryRun) {
+      console.log(`  [dry-run] git tag -a ${tagName} -m "Release ${tagName}" HEAD`);
+    } else {
+      tagCurrentCommit(tagName);
+    }
+
     const arch = config.build.target_cpu;
     const baseName = `dao-browser-${newVersion}-mac-${arch}`;
     const dmgName = `${baseName}.dmg`;
@@ -333,6 +351,25 @@ export const releaseCommand = new Command("release")
     );
 
     // ------------------------------------------------------------------
+    // Step 5a — stamp the new <item> with the git commit this build was
+    // cut from, so anyone reading the appcast can map a shipped release
+    // back to the exact source revision. generate_appcast preserves
+    // unknown child elements on subsequent runs, so this stays put for
+    // historical items.
+    // ------------------------------------------------------------------
+    log("Stamping git commit into the new appcast <item>");
+    if (!opts.dryRun) {
+      const gitCommit = readGitHead();
+      if (gitCommit) {
+        injectGitCommitIntoAppcast(appcastDest, dmgName, gitCommit);
+      } else {
+        warn(
+          "Could not resolve git HEAD — skipping git commit stamp in appcast."
+        );
+      }
+    }
+
+    // ------------------------------------------------------------------
     // Step 5b — copy regenerated appcast to website/public/ so the
     // public feed (https://dao.msgbyte.com/appcast.xml) reflects the
     // new release the next time the website deploys.
@@ -391,9 +428,11 @@ export const releaseCommand = new Command("release")
     log("Next manual steps (not done by this script):");
     log(
       "  - Commit dao.json + website/public/appcast.xml + " +
-        "website/public/info.json, tag v" +
-        newVersion +
-        ", push."
+        "website/public/info.json."
+    );
+    log(
+      `  - Push the commit and the v${newVersion} tag: ` +
+        `git push && git push origin v${newVersion}  (or: git push --follow-tags)`
     );
     log("  - Deploy the website so dao.msgbyte.com/appcast.xml updates.");
     log(
@@ -539,6 +578,155 @@ function today(): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+// ---------------------------------------------------------------------------
+// Stamp the build's git commit into the freshly generated appcast <item>
+// ---------------------------------------------------------------------------
+
+function readGitHead(): string | null {
+  const r = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: ROOT_DIR,
+    encoding: "utf-8",
+  });
+  if (r.status !== 0) return null;
+  const hash = (r.stdout || "").trim();
+  return /^[0-9a-f]{40}$/i.test(hash) ? hash : null;
+}
+
+// Create an annotated tag on HEAD. Idempotent: if the tag already exists
+// and points at HEAD, no-op; if it points elsewhere, error out so we
+// don't silently retag a different commit (which would orphan the
+// previously released artifact from the tag that used to identify it).
+function tagCurrentCommit(tagName: string): void {
+  const head = readGitHead();
+  if (!head) {
+    error("Could not resolve git HEAD — refusing to tag.");
+    process.exit(1);
+  }
+
+  const existing = spawnSync(
+    "git",
+    ["rev-parse", "--verify", `refs/tags/${tagName}`],
+    { cwd: ROOT_DIR, encoding: "utf-8" }
+  );
+  if (existing.status === 0) {
+    const tagged = (existing.stdout || "").trim();
+    if (tagged === head) {
+      log(`Tag ${tagName} already points at HEAD — skipping.`);
+      return;
+    }
+    error(
+      `Tag ${tagName} already exists but points at ${tagged.slice(0, 7)}, ` +
+        `not HEAD (${head.slice(0, 7)}).\n` +
+        `  Either move HEAD back to ${tagged.slice(0, 7)}, or delete the tag ` +
+        `with: git tag -d ${tagName}`
+    );
+    process.exit(1);
+  }
+
+  const created = spawnSync(
+    "git",
+    ["tag", "-a", tagName, "-m", `Release ${tagName}`, "HEAD"],
+    { cwd: ROOT_DIR, encoding: "utf-8" }
+  );
+  if (created.status !== 0) {
+    error(
+      `git tag failed (exit ${created.status}):\n` +
+        (created.stderr || created.stdout || "").trim()
+    );
+    process.exit(1);
+  }
+  success(`Tagged ${head.slice(0, 7)} as ${tagName}`);
+}
+
+// Find the <item> whose <enclosure url="..."> ends with dmgName and add
+// (or replace) a <dao:gitCommit> child element holding the commit hash.
+// Also ensures xmlns:dao is declared on the root <rss> element.
+//
+// We avoid pulling in an XML parser dependency — the file is generated by
+// Sparkle and follows a stable shape, so anchored string surgery is enough.
+function injectGitCommitIntoAppcast(
+  appcastPath: string,
+  dmgName: string,
+  gitCommit: string
+): void {
+  if (!existsSync(appcastPath)) {
+    warn(`appcast not found at ${appcastPath} — skipping git commit stamp.`);
+    return;
+  }
+  const original = readFileSync(appcastPath, "utf-8");
+  const DAO_NS = "https://dao.msgbyte.com/xml-namespaces/dao";
+
+  let updated = original;
+
+  // 1. Ensure xmlns:dao is declared on <rss ...>. Sparkle re-emits this
+  //    root tag verbatim on every regen, so a one-time injection sticks.
+  if (!/\sxmlns:dao\s*=/.test(updated)) {
+    updated = updated.replace(
+      /<rss\b([^>]*?)>/,
+      (_match, attrs: string) => `<rss${attrs} xmlns:dao="${DAO_NS}">`
+    );
+  }
+
+  // 2. Locate the <item> block whose <enclosure url=...> matches dmgName.
+  //    generate_appcast emits the enclosure with the dmg file at the end
+  //    of the URL path, so a suffix match on the filename is the most
+  //    reliable identifier (independent of download-url-prefix config).
+  const itemRegex = /<item\b[^>]*>[\s\S]*?<\/item>/g;
+  let matchedRange: { start: number; end: number; body: string } | null = null;
+  for (const m of updated.matchAll(itemRegex)) {
+    const body = m[0];
+    const enclosure = body.match(/<enclosure\b[^>]*\burl="([^"]+)"/);
+    if (!enclosure) continue;
+    const url = enclosure[1];
+    const tail = url.split("/").pop() || "";
+    if (tail === dmgName) {
+      matchedRange = {
+        start: m.index ?? 0,
+        end: (m.index ?? 0) + body.length,
+        body,
+      };
+      break;
+    }
+  }
+  if (!matchedRange) {
+    warn(
+      `Could not find appcast <item> for ${dmgName}; skipping git commit stamp.`
+    );
+    return;
+  }
+
+  // 3. Replace an existing <dao:gitCommit>...</dao:gitCommit> if present,
+  //    otherwise insert one right before </item>.
+  const tag = `<dao:gitCommit>${gitCommit}</dao:gitCommit>`;
+  let newBody: string;
+  if (/<dao:gitCommit>[^<]*<\/dao:gitCommit>/.test(matchedRange.body)) {
+    newBody = matchedRange.body.replace(
+      /<dao:gitCommit>[^<]*<\/dao:gitCommit>/,
+      tag
+    );
+  } else {
+    newBody = matchedRange.body.replace(/(\s*)<\/item>\s*$/, (m, indent) => {
+      // Match Sparkle's 12-space indent for item children when we can.
+      const childIndent = indent && indent.includes("\n")
+        ? indent + "    "
+        : "\n            ";
+      return `${childIndent}${tag}${indent || "\n        "}</item>`;
+    });
+  }
+
+  updated =
+    updated.slice(0, matchedRange.start) +
+    newBody +
+    updated.slice(matchedRange.end);
+
+  if (updated === original) {
+    warn("appcast unchanged after git commit stamp (already up-to-date?).");
+    return;
+  }
+  writeFileSync(appcastPath, updated);
+  success(`appcast stamped with git commit ${gitCommit.slice(0, 7)}`);
 }
 
 // ---------------------------------------------------------------------------
