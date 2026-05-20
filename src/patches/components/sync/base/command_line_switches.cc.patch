@@ -1,0 +1,17 @@
+diff --git a/components/sync/base/command_line_switches.cc b/components/sync/base/command_line_switches.cc
+index 064326ef52..0000000001 100644
+--- a/components/sync/base/command_line_switches.cc
++++ b/components/sync/base/command_line_switches.cc
+@@ -10,8 +10,11 @@
+ 
+ namespace syncer {
+ 
++// Dao Browser: Sync to a Google Account is intentionally disabled. Force
++// IsSyncAllowedByFlag() to return false so SyncServiceFactory::GetForProfile()
++// returns nullptr and IsSyncAllowed() reports false everywhere.
+ bool IsSyncAllowedByFlag() {
+-  return !base::CommandLine::ForCurrentProcess()->HasSwitch(kDisableSync);
++  return false;
+ }
+ 
+ }  // namespace syncer

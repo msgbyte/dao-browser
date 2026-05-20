@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/resources/settings/router.ts b/chrome/browser/resources/settings/router.ts
+index 2977bf7cb1..0000000001 100644
+--- a/chrome/browser/resources/settings/router.ts
++++ b/chrome/browser/resources/settings/router.ts
+@@ -343,6 +343,12 @@
+     // Allow trailing slash in paths.
+     const canonicalPath = path.replace(CANONICAL_PATH_REGEX, '$1$2');
+ 
++    // Dao Browser: block direct navigation to the disabled Sync settings
++    // section so that chrome://settings/syncSetup falls back to BASIC.
++    if (canonicalPath === '/syncSetup' || canonicalPath === '/syncSetup/advanced') {
++      return null;
++    }
++
+     // TODO(tommycli): Use Object.values once Closure compilation supports it.
+     const matchingKey =
+         Object.keys(this.routes_)
+@@ -386,6 +392,12 @@
+     if (route === this.routes_.ADVANCED) {
+       route = this.routes_.BASIC;
+     }
++    // Dao Browser: Sync section is disabled, redirect any programmatic
++    // navigation back to BASIC instead of opening an empty Sync page.
++    if (route === this.routes_.SYNC ||
++        route === this.routes_.SYNC_ADVANCED) {
++      route = this.routes_.BASIC;
++    }
+ 
+     const params = dynamicParameters || new URLSearchParams();
+ 

@@ -2,6 +2,23 @@ diff --git a/chrome/browser/resources/settings/people_page/people_page.html b/ch
 index 75306f9c6a..f3707f2dc6 100644
 --- a/chrome/browser/resources/settings/people_page/people_page.html
 +++ b/chrome/browser/resources/settings/people_page/people_page.html
+@@ -127,14 +127,14 @@
+         <cr-link-row id="sync-setup"
+             label="$i18n{syncAndNonPersonalizedServices}"
+             on-click="onSyncClick_"
+             role-description="$i18n{subpageArrowRoleDescription}"
+-            hidden="[[shouldHideSyncSetupLinkRow_(syncStatus)]]">
++            hidden="[[!signinAllowed_]]">
+         </cr-link-row>
+         <cr-link-row id="google-services"
+             label="$i18n{googleServicesPageTitle}"
+             on-click="onGoogleServicesClick_"
+             role-description="$i18n{subpageArrowRoleDescription}"
+-            hidden="[[!shouldHideSyncSetupLinkRow_(syncStatus)]]">
++            hidden="[[!signinAllowed_]]">
+         </cr-link-row>
+ 
+         <template is="dom-if" if="[[signinAllowed_]]">
 @@ -188,6 +188,7 @@
          <cr-link-row id="sync-setup"
              label="$i18n{syncAndNonPersonalizedServices}"

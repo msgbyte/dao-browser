@@ -19,6 +19,8 @@ google_default_client_secret = ""
 # Disable telemetry and reporting
 enable_reporting = false
 safe_browsing_mode = 1
-enable_gcm_driver = false
+# GCM is force-disabled at runtime via
+# src/patches/google_apis/gcm/engine/registration_request.cc.patch
+# (Chromium has no GN arg to compile it out on desktop.)
 disable_fieldtrial_testing_config = true
 enable_hangout_services_extension = false
