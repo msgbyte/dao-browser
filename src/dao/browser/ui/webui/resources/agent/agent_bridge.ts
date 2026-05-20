@@ -144,6 +144,16 @@ export interface NativeFetchInit {
   method?: string;
   headers?: Record<string, string>;
   body?: string;
+  // Credentials policy:
+  //  - 'omit' (default): never attach the user's cookies. Used by all
+  //    third-party endpoints (DuckDuckGo, Jina Reader, etc.).
+  //  - 'include_if_same_origin_active_tab': attach the user's cookies
+  //    ONLY when the browser process confirms the target URL is
+  //    same-origin with the currently active tab. Used by fetch_url
+  //    so the agent can read authenticated content the user is logged
+  //    into. Same-origin enforcement happens server-side; the JS layer
+  //    cannot trick this into leaking cookies cross-origin.
+  credentials?: 'omit'|'include_if_same_origin_active_tab';
 }
 
 export interface NativeFetchResponse {
@@ -190,6 +200,7 @@ export function callNativeFetch(
       method: init?.method ?? 'GET',
       headers: init?.headers ?? {},
       body: init?.body ?? '',
+      credentials: init?.credentials ?? 'omit',
     }]);
     // Outer 35s guard — native loader's own timeout is 30s.
     timer = setTimeout(() => {
@@ -973,6 +984,18 @@ export const tools: ToolDefinition[] = [
             type: 'string',
             description: 'The URL to fetch',
           },
+          with_credentials: {
+            type: 'boolean',
+            description:
+                'Optional. Defaults to false. When true, the request is ' +
+                'sent with the user\'s cookies attached IF the target URL ' +
+                'is same-origin (scheme + host + port) with the active ' +
+                'tab — useful for reading authenticated content the user ' +
+                'is currently logged into (e.g. their inbox, a paywalled ' +
+                'article). Cross-origin URLs are still fetched without ' +
+                'cookies regardless of this flag. Only applies to GET; ' +
+                'ignored for any non-GET method.',
+          },
         },
         required: ['url'],
       },
@@ -1407,7 +1430,21 @@ export async function executeTool(
     }
     case 'fetch_url': {
       const url = getStringArg(args, 'url');
-      const resp = await wsFetch(url);
+      const withCredentials = getBooleanArg(args, 'with_credentials');
+      // Only probe the active tab when the LLM actually opted in to
+      // sending cookies — otherwise the same-origin shortcut never
+      // fires and the extra IPC is pure waste.
+      let activeTabUrl: string|undefined;
+      if (withCredentials) {
+        try {
+          const info = await callNative('getPageInfo') as
+              {url?: string} | null;
+          if (info && typeof info.url === 'string') {
+            activeTabUrl = info.url;
+          }
+        } catch (_) { /* best-effort */ }
+      }
+      const resp = await wsFetch(url, {activeTabUrl, withCredentials});
       return resp;
     }
     default:

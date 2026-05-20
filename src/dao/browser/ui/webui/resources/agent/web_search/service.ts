@@ -91,7 +91,38 @@ export async function webSearch(
   return searchViaDuckDuckGo(query, max);
 }
 
-export async function fetchUrl(targetUrl: string): Promise<FetchResponse> {
+export interface FetchUrlOptions {
+  // URL of the currently active tab. Used together with `withCredentials`
+  // to decide whether to take the same-origin authenticated path.
+  // Has no effect on its own.
+  activeTabUrl?: string;
+  // Opt-in: caller wants cookies attached. Defaults to false. Cookies
+  // are still ONLY attached when `activeTabUrl` is same-origin
+  // (scheme + host + port) with the target URL — the native side
+  // re-validates this independently. Always false-equivalent for any
+  // non-GET method (the native handler ignores the flag for non-GET).
+  withCredentials?: boolean;
+}
+
+// Returns true if the two URLs share scheme + host + port. Both must
+// parse cleanly and have a non-opaque origin (e.g. http(s)). Anything
+// else (file:, data:, opaque blob:, malformed input) returns false so
+// we never accidentally widen credential exposure.
+function isSameOrigin(a: string, b: string): boolean {
+  try {
+    const ua = new URL(a);
+    const ub = new URL(b);
+    if (ua.protocol !== 'http:' && ua.protocol !== 'https:') return false;
+    if (ub.protocol !== 'http:' && ub.protocol !== 'https:') return false;
+    return ua.origin === ub.origin;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchUrl(
+    targetUrl: string,
+    opts?: FetchUrlOptions): Promise<FetchResponse> {
   // Validate early so the LLM gets a clear error, not an opaque DOM
   // exception from URL parsing inside the tier.
   try { new URL(targetUrl); } catch {
@@ -102,6 +133,27 @@ export async function fetchUrl(targetUrl: string): Promise<FetchResponse> {
   }
 
   const override = getSearchSourceOverride();
+
+  // Authenticated same-origin shortcut. Triggers ONLY when the caller
+  // explicitly opts in via `withCredentials` AND the target URL is
+  // same-origin with the active tab. In that case we go straight to
+  // the browser tier with credentials enabled — Jina Reader would just
+  // hand back the public/anonymous view of the same URL, defeating the
+  // whole point of opting in.
+  //
+  // The native side re-validates the same-origin check independently
+  // before attaching any cookies and ignores the flag entirely for
+  // non-GET methods, so the worst-case if the active tab changed mid-
+  // request is an unauthenticated fetch — never a cross-origin leak.
+  const wantsCredentials = opts?.withCredentials === true;
+  const sameOriginAsActiveTab = !!opts?.activeTabUrl &&
+      isSameOrigin(opts.activeTabUrl, targetUrl);
+  if (wantsCredentials && sameOriginAsActiveTab &&
+      override !== 'provider') {
+    return fetchUrlViaBrowser(targetUrl, {
+      includeCredentialsIfSameOriginActiveTab: true,
+    });
+  }
 
   // Override semantics for fetch_url:
   //  - 'provider'   : provider tier doesn't expose a reader, so we

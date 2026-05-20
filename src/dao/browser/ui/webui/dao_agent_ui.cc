@@ -50,15 +50,18 @@
 #include "dao/browser/dao_pref_names.h"
 #include "content/public/browser/storage_partition.h"
 #include "net/base/load_flags.h"
+#include "net/cookies/site_for_cookies.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "pdf/mojom/pdf.mojom.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
+#include "url/origin.h"
 
 namespace dao {
 
@@ -4446,11 +4449,52 @@ void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
   const std::string* method_p = params.FindString("method");
   std::string method = method_p ? *method_p : "GET";
 
+  // Decide credentials mode. Default: kOmit (existing behavior — used by
+  // DDG search and Jina Reader, both third-party endpoints that must
+  // never see the user's cookies). Opt-in: when JS passes
+  // credentials="include_if_same_origin_active_tab", we attach cookies
+  // ONLY if (a) the method is GET and (b) the target URL is same-origin
+  // with the currently active tab. The GET-only restriction is a
+  // defense-in-depth guarantee: cookie-bearing POST/PUT/DELETE on behalf
+  // of the agent would let a model trivially perform CSRF-style actions
+  // on the user's session. Reads are the only safe surface here.
+  network::mojom::CredentialsMode credentials_mode =
+      network::mojom::CredentialsMode::kOmit;
+  url::Origin active_tab_origin;
+  if (const std::string* cred_p = params.FindString("credentials");
+      cred_p && *cred_p == "include_if_same_origin_active_tab" &&
+      method == "GET") {
+    Browser* active_browser = chrome::FindLastActive();
+    content::WebContents* active_contents = nullptr;
+    if (active_browser) {
+      active_contents =
+          active_browser->tab_strip_model()->GetActiveWebContents();
+    }
+    if (active_contents) {
+      const GURL active_url = active_contents->GetLastCommittedURL();
+      const url::Origin candidate = url::Origin::Create(active_url);
+      const url::Origin target_origin = url::Origin::Create(gurl);
+      if (!candidate.opaque() && !target_origin.opaque() &&
+          candidate.IsSameOriginWith(target_origin)) {
+        credentials_mode = network::mojom::CredentialsMode::kInclude;
+        active_tab_origin = candidate;
+      }
+    }
+  }
+
   auto request = std::make_unique<network::ResourceRequest>();
   request->url = gurl;
   request->method = method;
-  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+  request->credentials_mode = credentials_mode;
   request->load_flags = net::LOAD_BYPASS_CACHE;
+  if (credentials_mode == network::mojom::CredentialsMode::kInclude) {
+    // Pretend the request is initiated from the active tab so SameSite
+    // cookie rules treat it as a same-site fetch and the user's session
+    // cookies are actually attached.
+    request->site_for_cookies = net::SiteForCookies::FromOrigin(
+        active_tab_origin);
+    request->request_initiator = active_tab_origin;
+  }
 
   // Capture Content-Type early so we can pass it to AttachStringForUpload.
   std::string content_type = "application/octet-stream";
@@ -4478,22 +4522,30 @@ void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
           description:
             "Fetches search results from DuckDuckGo HTML and article "
             "content from Jina Reader on behalf of the agent's "
-            "web_search and fetch_url tools."
+            "web_search and fetch_url tools. Also used by fetch_url "
+            "to fetch a URL same-origin with the active tab so the "
+            "agent can read authenticated content the user is "
+            "currently logged into."
           trigger:
             "User asks the agent to search the web or read a URL."
           data:
-            "The user's search query (sent to DuckDuckGo) or the URL "
-            "the agent wants to read (sent to Jina Reader). No user "
-            "credentials, no PII unless the user typed it into the "
-            "query."
+            "The user's search query (sent to DuckDuckGo), the URL "
+            "the agent wants to read (sent to Jina Reader), or — only "
+            "when the target URL is same-origin with the active tab — "
+            "the user's cookies for that origin so the request can "
+            "see authenticated content."
           destination: WEBSITE
         }
         policy {
-          cookies_allowed: NO
+          cookies_allowed: YES
+          cookies_store: "user"
           setting: "Disable the Web tools group in agent settings."
           policy_exception_justification:
-            "User-initiated agent action, like a user typing into a "
-            "search engine themselves."
+            "User-initiated agent action, like a user typing the URL "
+            "into the address bar themselves. Cookies are attached "
+            "only when the target URL is same-origin with the active "
+            "tab; cross-origin and third-party endpoints (DuckDuckGo, "
+            "Jina Reader) are always sent with credentials omitted."
         })");
 
   std::unique_ptr<network::SimpleURLLoader> loader =

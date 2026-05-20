@@ -184,10 +184,21 @@ function domToMarkdown(root: Element): string {
   return out.join('').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+export interface FetchUrlBrowserOptions {
+  // When true, the native side attaches the user's cookies if the
+  // target URL is same-origin with the active tab. Cross-origin
+  // requests still go out unauthenticated regardless of this flag.
+  includeCredentialsIfSameOriginActiveTab?: boolean;
+}
+
 export async function fetchUrlViaBrowser(
-    targetUrl: string): Promise<FetchResponse> {
+    targetUrl: string,
+    opts?: FetchUrlBrowserOptions): Promise<FetchResponse> {
   const r = await callNativeFetch(targetUrl, {
     headers: {'Accept': 'text/html,application/xhtml+xml'},
+    credentials: opts?.includeCredentialsIfSameOriginActiveTab
+        ? 'include_if_same_origin_active_tab'
+        : 'omit',
   });
   if (!r.ok) {
     return {

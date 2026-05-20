@@ -224,4 +224,93 @@ describe('fetchUrl', () => {
     const r = await fetchUrl('https://example.com');
     expect(r.source).toBe('failed');
   });
+
+  it('skips Jina and asks for cookies when same-origin and withCredentials=true', async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      body: '<html><body><main><p>logged-in body</p></main></body></html>',
+      finalUrl: 'https://example.com/inbox',
+    });
+    const r = await fetchUrl('https://example.com/inbox', {
+      activeTabUrl: 'https://example.com/dashboard',
+      withCredentials: true,
+    });
+    expect(r.source).toBe('browser');
+    expect(r.content).toContain('logged-in body');
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+    const init = (mockedFetch.mock.calls[0] as unknown[])[1] as
+        {credentials?: string};
+    expect(init.credentials).toBe('include_if_same_origin_active_tab');
+  });
+
+  it('keeps Jina-first path when same-origin but withCredentials=false (default)', async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      body: JSON.stringify({
+        data: { title: 'T', content: '# x', url: 'https://example.com/inbox' },
+      }),
+    });
+    const r = await fetchUrl('https://example.com/inbox', {
+      activeTabUrl: 'https://example.com/dashboard',
+      // withCredentials omitted → defaults to false
+    });
+    expect(r.source).toBe('jina');
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+    const init = (mockedFetch.mock.calls[0] as unknown[])[1] as
+        {credentials?: string};
+    expect(init?.credentials ?? 'omit').toBe('omit');
+  });
+
+  it('keeps Jina-first path when withCredentials=true but cross-origin', async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      body: JSON.stringify({
+        data: { title: 'T', content: '# x', url: 'https://other.com' },
+      }),
+    });
+    const r = await fetchUrl('https://other.com', {
+      activeTabUrl: 'https://example.com/dashboard',
+      withCredentials: true,
+    });
+    expect(r.source).toBe('jina');
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+    // Jina call must NOT request credentials.
+    const init = (mockedFetch.mock.calls[0] as unknown[])[1] as
+        {credentials?: string};
+    expect(init?.credentials ?? 'omit').toBe('omit');
+  });
+
+  it('treats different ports as cross-origin (no cookie shortcut)', async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      body: JSON.stringify({
+        data: { title: 'T', content: '# x', url: 'https://example.com:8443' },
+      }),
+    });
+    const r = await fetchUrl('https://example.com:8443/api', {
+      activeTabUrl: 'https://example.com/page',
+      withCredentials: true,
+    });
+    // Different ports → not same-origin → Jina path runs.
+    expect(r.source).toBe('jina');
+  });
+
+  it('does not enable cookie shortcut for non-http active tab', async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      body: JSON.stringify({
+        data: { title: 'T', content: '# x', url: 'https://example.com' },
+      }),
+    });
+    const r = await fetchUrl('https://example.com', {
+      activeTabUrl: 'chrome://newtab/',
+      withCredentials: true,
+    });
+    expect(r.source).toBe('jina');
+  });
 });
