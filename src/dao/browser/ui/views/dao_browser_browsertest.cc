@@ -14,6 +14,8 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/timer/timer.h"
+#include "content/public/browser/page_navigator.h"
 #include "base/command_line.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
@@ -62,6 +64,7 @@
 #include "dao/browser/ui/views/dao_control_center_button.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
+#include "dao/browser/ui/views/dao_load_progress_view.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
@@ -2555,6 +2558,176 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
 
   base::ScopedAllowBlockingForTesting allow_blocking;
   EXPECT_TRUE(base::DirectoryExists(stage));
+}
+
+// =============================================================================
+// DaoLoadProgressBrowserTest
+// =============================================================================
+
+class DaoLoadProgressBrowserTest : public InProcessBrowserTest {
+ public:
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest, ViewExists) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  ASSERT_TRUE(browser_view);
+  auto* progress = browser_view->dao_load_progress();
+  ASSERT_TRUE(progress);
+  // The view exists; its visible state depends on whether the active tab is
+  // currently loading at this moment (NTP can still be loading at test start),
+  // so we don't assert on opacity here. End-to-end load behavior is covered
+  // by tests added in Task 7.
+  ASSERT_TRUE(progress->layer());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest,
+                       StartLoadingMakesBarVisible) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* progress = browser_view->dao_load_progress();
+  ASSERT_TRUE(progress);
+
+  progress->StartLoading();
+  EXPECT_TRUE(progress->is_loading_for_testing());
+  EXPECT_GT(progress->layer()->opacity(), 0.0f);
+  EXPECT_EQ(progress->displayed_progress_for_testing(), 0.0);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest, RealLoadShowsThenHides) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* progress = browser_view->dao_load_progress();
+  ASSERT_TRUE(progress);
+
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  // After NavigateToURL returns, DidStopLoading has fired and the controller
+  // begins the Completing/FadingOut sequence. Pump the message loop until the
+  // layer opacity falls back to ~0 (or 1s elapses, in which case the EXPECT
+  // below catches the failure).
+  base::RunLoop loop;
+  base::OneShotTimer timeout;
+  base::RepeatingTimer poller;
+  timeout.Start(FROM_HERE, base::Seconds(2),
+                base::BindLambdaForTesting([&]() { loop.Quit(); }));
+  poller.Start(FROM_HERE, base::Milliseconds(50),
+               base::BindLambdaForTesting([&]() {
+                 if (progress->layer()->opacity() <= 0.01f) {
+                   loop.Quit();
+                 }
+               }));
+  loop.Run();
+  poller.Stop();
+  timeout.Stop();
+
+  EXPECT_LE(progress->layer()->opacity(), 0.01f);
+  EXPECT_FALSE(progress->is_loading_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest,
+                       SwitchingToFinishedTabHidesBar) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* progress = browser_view->dao_load_progress();
+  ASSERT_TRUE(progress);
+
+  // Tab 0: load and finish.
+  const GURL url_a = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_a));
+
+  // Tab 1: open and load. AddTabAtIndex waits for the navigation to complete
+  // via an internal NavigationObserver, so on return the controller will have
+  // received FinishLoading() and the bar is either still fading out or already
+  // hidden.
+  const GURL url_b = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(AddTabAtIndex(1, url_b, ui::PAGE_TRANSITION_TYPED));
+
+  // Poll until the in-flight fade-out animation has settled (opacity <= 0.01).
+  // This avoids relying on a fixed wall-clock delay.
+  {
+    base::RunLoop loop;
+    base::RepeatingTimer poller;
+    base::OneShotTimer timeout;
+    timeout.Start(FROM_HERE, base::Seconds(2),
+                  base::BindLambdaForTesting([&]() { loop.Quit(); }));
+    poller.Start(FROM_HERE, base::Milliseconds(50),
+                 base::BindLambdaForTesting([&]() {
+                   if (progress->layer()->opacity() <= 0.01f) {
+                     loop.Quit();
+                   }
+                 }));
+    loop.Run();
+    poller.Stop();
+    timeout.Stop();
+  }
+
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  // Allow the controller to react to the tab switch.
+  base::RunLoop().RunUntilIdle();
+  EXPECT_LE(progress->layer()->opacity(), 0.01f);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest, StopCommandHidesBar) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* progress = browser_view->dao_load_progress();
+  ASSERT_TRUE(progress);
+
+  // Start a navigation, then immediately stop. We don't await NavigateToURL
+  // — instead we kick off a slow navigation and call Stop before it
+  // completes.
+  const GURL url = embedded_test_server()->GetURL("/slow?2");
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  content::TestNavigationManager nav_manager(web_contents, url);
+  content::OpenURLParams open_params(
+      url, content::Referrer(), WindowOpenDisposition::CURRENT_TAB,
+      ui::PAGE_TRANSITION_TYPED, /*is_renderer_initiated=*/false);
+  browser()->OpenURL(open_params, /*navigation_handle_callback=*/{});
+
+  // Wait until the navigation actually starts on the network side — this is
+  // a reliable signal that DidStartLoading has been dispatched to observers.
+  ASSERT_TRUE(nav_manager.WaitForRequestStart());
+  EXPECT_TRUE(progress->is_loading_for_testing());
+
+  chrome::Stop(browser());
+  // Pump until DidStopLoading + fade-out completes.
+  base::RunLoop run_loop;
+  base::OneShotTimer timer;
+  timer.Start(FROM_HERE, base::Milliseconds(800), run_loop.QuitClosure());
+  run_loop.Run();
+
+  EXPECT_LE(progress->layer()->opacity(), 0.01f);
+  EXPECT_FALSE(progress->is_loading_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest,
+                       LayoutFollowsSidebarCollapse) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* progress = browser_view->dao_load_progress();
+  auto* sidebar = browser_view->dao_sidebar();
+  ASSERT_TRUE(progress);
+  ASSERT_TRUE(sidebar);
+
+  // Force a layout pass with expanded sidebar.
+  ASSERT_FALSE(sidebar->collapsed());
+  browser_view->DeprecatedLayoutImmediately();
+  const int expanded_x = progress->bounds().x();
+  const int expanded_w = progress->bounds().width();
+
+  // Collapse the sidebar and re-layout.
+  sidebar->ToggleCollapsed();
+  // The sidebar collapse animation runs ~250ms. Pump and wait.
+  {
+    base::RunLoop run_loop;
+    base::OneShotTimer timer;
+    timer.Start(FROM_HERE, base::Milliseconds(500), run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  browser_view->DeprecatedLayoutImmediately();
+
+  EXPECT_NE(progress->bounds().x(), expanded_x);
+  EXPECT_NE(progress->bounds().width(), expanded_w);
 }
 
 }  // namespace

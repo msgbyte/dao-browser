@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_imp
 index eb2876bca5..2de7945de1 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -17,7 +17,25 @@
+@@ -17,7 +17,26 @@
  #include "chrome/browser/ui/layout_constants.h"
  #include "chrome/browser/ui/ui_features.h"
  #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
@@ -16,6 +16,7 @@ index eb2876bca5..2de7945de1 100644
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
 +#include "dao/browser/ui/views/dao_control_center_popup.h"
 +#include "dao/browser/ui/views/dao_corner_overlay_view.h"
++#include "dao/browser/ui/views/dao_load_progress_view.h"
 +#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
@@ -28,7 +29,7 @@ index eb2876bca5..2de7945de1 100644
  #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
  #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-@@ -967,11 +985,172 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -967,11 +986,190 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      content_right =
          std::min(content_right, browser_params.visual_client_area.right());
    }
@@ -131,6 +132,24 @@ index eb2876bca5..2de7945de1 100644
 +      }
 +    }
 +
++    // Load progress bar: the bright 1 px core line sits flush against the
++    // top edge of the content card, and a tall blurred glow rises upward
++    // into the space above as a soft luminous band (Dia-style diffusion).
++    // The view's bottom edge aligns with dao_content_area.y().
++    if (auto* const load_progress = dao_bv->dao_load_progress()) {
++      if (dao_sidebar_active && !dao_true_fullscreen) {
++        constexpr int kProgressViewHeight = 36;
++        layout.AddChild(
++            load_progress,
++            gfx::Rect(dao_content_area.x(),
++                      dao_content_area.y() - kProgressViewHeight,
++                      dao_content_area.width(), kProgressViewHeight),
++            true);
++      } else {
++        layout.AddChild(load_progress, gfx::Rect(), false);
++      }
++    }
++
 +    // Agent cursor overlay covers content area (below the address bar).
 +    if (auto* const cursor = dao_bv->dao_agent_cursor()) {
 +      layout.AddChild(cursor, dao_content_area);
@@ -205,7 +224,7 @@ index eb2876bca5..2de7945de1 100644
  
    // Maybe expand and clip the web contents to avoid issues during animation.
    if (features::UseSidePanelFlyoverAnimation()) {
-@@ -1101,24 +1280,45 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayout(
+@@ -1101,24 +1300,45 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayout(
    // Lay out toolbar. If tabstrip is completely absent (or vertical), this can
    // go in the top exclusion area.
    const bool toolbar_visible = delegate().IsToolbarVisible();

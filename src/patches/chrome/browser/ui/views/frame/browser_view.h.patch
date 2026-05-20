@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/vi
 index 79feee7f43..2e7c286cfa 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -124,6 +124,22 @@ enum class InstallableWebAppCheckResult;
+@@ -124,6 +124,24 @@ enum class InstallableWebAppCheckResult;
  struct WebAppBannerData;
  }  // namespace webapps
  
@@ -18,6 +18,8 @@ index 79feee7f43..2e7c286cfa 100644
 +class DaoSplitView;
 +class DaoAgentLockBannerView;
 +class DaoAgentCursorView;
++class DaoLoadProgressController;
++class DaoLoadProgressView;
 +class DaoTabTooltipView;
 +class DaoToastView;
 +}  // namespace dao
@@ -25,13 +27,14 @@ index 79feee7f43..2e7c286cfa 100644
  class CustomFloatingCorner;
  
  ///////////////////////////////////////////////////////////////////////////////
-@@ -274,6 +290,20 @@ class BrowserView : public BrowserWindow,
+@@ -274,6 +292,21 @@ class BrowserView : public BrowserWindow,
  
    MultiContentsView* multi_contents_view() { return multi_contents_view_; }
  
 +  dao::DaoAddressBarView* dao_address_bar() { return dao_address_bar_; }
 +  dao::DaoSidebarView* dao_sidebar() { return dao_sidebar_; }
 +  dao::DaoCornerOverlayView* dao_corner_overlay() { return dao_corner_overlay_; }
++  dao::DaoLoadProgressView* dao_load_progress() { return dao_load_progress_; }
 +  dao::DaoCommandBarView* dao_command_bar() { return dao_command_bar_; }
 +  dao::DaoDownloadFlyoutView* dao_download_flyout() { return dao_download_flyout_; }
 +  dao::DaoLittleDaoView* dao_little_dao_view() { return dao_little_dao_view_; }
@@ -46,7 +49,7 @@ index 79feee7f43..2e7c286cfa 100644
    // Returns either the Horizontal or Vertical TabStrip.
    TabStripRegionView* tab_strip_view() const;
  
-@@ -1317,6 +1347,21 @@ class BrowserView : public BrowserWindow,
+@@ -1317,6 +1350,24 @@ class BrowserView : public BrowserWindow,
    // side_panel_coordinator is created.
    raw_ptr<SidePanel> contents_height_side_panel_ = nullptr;
  
@@ -54,6 +57,9 @@ index 79feee7f43..2e7c286cfa 100644
 +  raw_ptr<dao::DaoAddressBarView> dao_address_bar_ = nullptr;
 +  raw_ptr<dao::DaoSidebarView> dao_sidebar_ = nullptr;
 +  raw_ptr<dao::DaoCornerOverlayView> dao_corner_overlay_ = nullptr;
++  raw_ptr<dao::DaoLoadProgressView> dao_load_progress_ = nullptr;
++  std::unique_ptr<dao::DaoLoadProgressController>
++      dao_load_progress_controller_;
 +  raw_ptr<dao::DaoCommandBarView> dao_command_bar_ = nullptr;
 +  raw_ptr<dao::DaoDownloadFlyoutView> dao_download_flyout_ = nullptr;
 +  raw_ptr<dao::DaoLittleDaoView> dao_little_dao_view_ = nullptr;
