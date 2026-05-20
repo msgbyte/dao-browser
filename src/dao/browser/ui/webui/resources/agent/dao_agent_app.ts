@@ -17,6 +17,7 @@ import './dao_settings_view.js';
 import type {DaoChatView} from './dao_chat_view.js';
 import type {DaoSettingsView} from './dao_settings_view.js';
 import {initI18n} from './i18n/i18n.js';
+import {refreshSkillRegistryIfStale} from './skill_registry.js';
 
 // Kick off locale loading at module import time so the dictionary is in
 // place before any t() call from a child view's render. Fire-and-forget:
@@ -62,6 +63,10 @@ export class DaoAgentApp extends CrLitElement {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         setTimeout(() => this.getChatView_()?.focusInput(), 100);
+        // Cross-WebUI sync: skills created in the dao://skills tab while
+        // this sidebar was hidden won't have propagated to our cache.
+        // Throttled — no-op when the registry is already fresh.
+        void refreshSkillRegistryIfStale();
       }
     });
     if (document.visibilityState === 'visible') {

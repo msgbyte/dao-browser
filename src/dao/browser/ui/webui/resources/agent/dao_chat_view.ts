@@ -33,7 +33,7 @@ import {buildAgentTools} from './pi_tool_adapter.js';
 import {toolConfigChannel} from './tool_catalog.js';
 import './dao_chat_history_panel.js';
 import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
-import {getAllSkills, initSkillRegistry, loadSkillInstructions, type SkillRegistryEntry} from './skill_registry.js';
+import {getAllSkills, initSkillRegistry, loadSkillInstructions, refreshSkillRegistry, refreshSkillRegistryIfStale, type SkillRegistryEntry} from './skill_registry.js';
 import {t} from './i18n/i18n.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as pi from './vendor/pi_runtime_bundle.js';
@@ -1870,6 +1870,19 @@ export class DaoChatView extends CrLitElement {
       this.hideSkillPicker_();
       return;
     }
+    // Cross-WebUI sync: skills created/deleted in the dao://skills tab
+    // don't update this page's module-local registry cache. Refresh on
+    // demand (throttled to avoid spamming on every keystroke) and re-run
+    // the picker once new data lands so newly-added skills show up
+    // without a sidebar reload.
+    void refreshSkillRegistryIfStale().then((refreshed) => {
+      if (!refreshed) return;
+      const ta2 = this.composerTextarea_;
+      if (!ta2) return;
+      if (/^\/([A-Za-z0-9_-]*)$/.test(ta2.value)) {
+        this.updateSkillPicker_();
+      }
+    });
     this.skillPickerQuery_ = (m[1] || '').toLowerCase();
     const all = getAllSkills();
     const q = this.skillPickerQuery_;
@@ -2002,8 +2015,20 @@ export class DaoChatView extends CrLitElement {
   // Warm the instructions cache before the message hits state.messages so
   // convertToLlm can splice the body in synchronously on the next turn.
   private async ensureSkillLoadedFromText_(text: string): Promise<void> {
-    const parsed = this.parseSkillPrefix_(text);
-    if (!parsed) return;
+    let parsed = this.parseSkillPrefix_(text);
+    if (!parsed) {
+      // The text looks like `/<id> ...` but the id wasn't in our cache.
+      // This is the "user created a skill in dao://skills and typed
+      // /id fast enough to skip the picker" path. Bypass the staleness
+      // throttle (a recent refresh from picker-open could still be from
+      // before the skill was created in the other tab) and force one
+      // fresh fetch before declaring the prefix unknown.
+      if (/^\/([A-Za-z0-9_-]+)(?:\s|$)/.test(text.trim())) {
+        await refreshSkillRegistry();
+        parsed = this.parseSkillPrefix_(text);
+      }
+      if (!parsed) return;
+    }
     if (this.skillInstructionsCache_.has(parsed.skillId)) return;
     const content = await loadSkillInstructions(parsed.skillId);
     if (content && content.instructions) {
