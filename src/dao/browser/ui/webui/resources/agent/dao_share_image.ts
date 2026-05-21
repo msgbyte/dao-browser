@@ -58,7 +58,7 @@ const TEXT_VERY_MUTED = 'rgba(30, 20, 40, 0.4)';
 const ACCENT_COLOR = 'rgb(70, 120, 190)';
 const FOOTER_BG = 'rgb(54, 59, 64)';
 const FOOTER_FG = 'rgb(255, 255, 255)';
-const CODE_BG = 'rgba(0, 0, 0, 0.06)';
+const INLINE_CODE_COLOR = 'rgba(30, 20, 40, 0.72)';
 const CODE_BLOCK_BG = 'rgba(0, 0, 0, 0.05)';
 const CODE_BLOCK_BORDER = 'rgba(0, 0, 0, 0.08)';
 const HR_COLOR = 'rgba(0, 0, 0, 0.12)';
@@ -73,8 +73,8 @@ const SYN_COMMENT = 'rgba(30, 20, 40, 0.45)';
 const SYN_NUMBER = 'rgb(180, 100, 30)';
 const SYN_FUNCTION = 'rgb(70, 100, 180)';
 
-type RunStyle = 'normal' | 'bold' | 'italic' | 'bold-italic' | 'code' | 'link'
-    | 'strike';
+type RunStyle = 'normal' | 'bold' | 'italic' | 'bold-italic' | 'code'
+    | 'inline-code' | 'link' | 'strike';
 interface TextRun {
   text: string;
   style: RunStyle;
@@ -141,7 +141,7 @@ function tokensToRuns(
         out.push(...tokensToRuns(tk.tokens, 'strike'));
         break;
       case 'codespan':
-        out.push({text: decodeEntities(tk.text || ''), style: 'code'});
+        out.push({text: decodeEntities(tk.text || ''), style: 'inline-code'});
         break;
       case 'link':
         if (tk.tokens && tk.tokens.length > 0) {
@@ -175,6 +175,7 @@ function tokensToRuns(
 
 function mergeStyle(a: RunStyle, b: RunStyle): RunStyle {
   if (a === 'code' || b === 'code') return 'code';
+  if (a === 'inline-code' || b === 'inline-code') return 'inline-code';
   if (a === 'link' || b === 'link') return 'link';
   const isBold = a === 'bold' || a === 'bold-italic' || b === 'bold' ||
       b === 'bold-italic';
@@ -206,6 +207,7 @@ function fontFor(style: RunStyle, sizePx: number, weight?: number): string {
     case 'bold-italic':
       return `italic ${weight ?? 600} ${sizePx}px ${FONT_FAMILY}`;
     case 'code':
+    case 'inline-code':
       return `${sizePx - 2}px ${MONO_FAMILY}`;
     case 'strike':
     case 'link':
@@ -278,11 +280,17 @@ function paintLine(
   for (const run of line.runs) {
     g.font = fontFor(run.style, sizePx, weight);
     const w = g.measureText(run.text).width;
-    if (run.style === 'code') {
-      g.fillStyle = CODE_BG;
-      paintRoundedRect(g, cursorX - 2, y - sizePx + 2, w + 4, sizePx + 2, 4);
-    }
-    g.fillStyle = run.color || (run.style === 'link' ? ACCENT_COLOR : color);
+    // Inline code: the prior CODE_BG pill visually read as a text-selection
+    // highlight against the light surface. Distinguish code via the
+    // monospace font + a muted tint instead. White-on-blue bubbles keep
+    // their bubble text color so code stays legible on accent. Code blocks
+    // (style 'code', set by syntaxRuns) keep their syntax-tinted palette.
+    g.fillStyle = run.color ||
+        (run.style === 'link' ?
+             ACCENT_COLOR :
+             (run.style === 'inline-code' && color === TEXT_COLOR ?
+                  INLINE_CODE_COLOR :
+                  color));
     g.textBaseline = 'alphabetic';
     g.fillText(run.text, cursorX, y);
     if (run.style === 'strike') {
