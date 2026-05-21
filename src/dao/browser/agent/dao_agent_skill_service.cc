@@ -74,42 +74,6 @@ requiresPageContent: false
 ```
 )";
 
-// Built-in skill: reverse-engineer-site
-constexpr char kReverseEngineerSkillMd[] = R"(---
-name: reverse-engineer-site
-description: Systematically reverse-engineer the current site — enumerate resources, read source, and trace behavior back to concrete code.
-hosts:
-  - "*"
-requiresPageContent: true
----
-# Reverse-Engineer Site
-
-## Goal
-Give the user an accurate, source-backed understanding of how the current page works — what stack it's built on, what endpoints it calls, what a specific behavior maps to in code.
-
-## Workflow
-
-1. **Enumerate** — call `list_page_resources` first. Group the output mentally into:
-   - `Document` — main HTML and iframes
-   - `Script` — split into app bundles vs. vendor libs by URL (look for `/static/`, `/_next/`, `/chunks/`, or filenames like `react-dom.production.min.js`)
-   - `Stylesheet` / `Image` / `Font`
-   - `XHR` / `Fetch` — runtime API calls (use `get_network_body` for these once `enable_network_tracking` is on)
-
-2. **Pick a question, then the right tool:**
-   - *"What framework does this use?"* — check `get_page_html` for root markers (`data-reactroot`, `ng-version`, `__NEXT_DATA__`, Nuxt/SvelteKit hydration tags) and cross-reference vendor bundle URLs.
-   - *"How does action X work?"* — `search_in_resources` with likely keywords (the button label, event name, endpoint path). For each hit, open the file with `get_resource_content` and quote the surrounding lines.
-   - *"What API does this page call?"* — run `enable_network_tracking`, reproduce the action via `click_by_ref`, then `get_network_requests` + `get_network_body` on the interesting ones.
-
-3. **Summarize with citations.** Every claim should cite the source URL and line range, not just "I looked at the bundle".
-
-## Rules
-
-- **Never recommend bypassing DRM, authentication, subscription paywalls, or site ToS.** Decline politely and explain.
-- **Mention when code is minified** and offer to paste a specific section into a beautifier if the user wants it cleaned up. Don't dump a full minified bundle into the chat.
-- **Budget:** fetch at most 3 full resources before pausing to summarize, unless the user explicitly asks for more.
-- **Truncation awareness:** if a response has `truncated: true`, say so and offer to refetch a specific section by line.
-)";
-
 // Trims leading and trailing whitespace from a string.
 std::string TrimString(const std::string& s) {
   std::string result;
@@ -176,13 +140,12 @@ void DaoAgentSkillService::InitBuiltinSkillsOnBackground(
     }
   }
 
-  // Write reverse-engineer-site skill if missing.
+  // Remove deprecated reverse-engineer-site builtin skill from existing
+  // profiles. This skill was previously written here but has been retired;
+  // clean up the on-disk directory so it no longer shows up in the registry.
   base::FilePath reverse_dir = builtin_dir.AppendASCII("reverse-engineer-site");
-  base::FilePath reverse_file = reverse_dir.AppendASCII(kSkillFileName);
-  if (!base::PathExists(reverse_file)) {
-    if (base::CreateDirectory(reverse_dir)) {
-      base::WriteFile(reverse_file, kReverseEngineerSkillMd);
-    }
+  if (base::PathExists(reverse_dir)) {
+    base::DeletePathRecursively(reverse_dir);
   }
 }
 
