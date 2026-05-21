@@ -105,6 +105,14 @@ class DaoCommandBarView : public views::View,
   void UpdateGhostText();
   void PositionGhostText();
   void UpdateInputIcon();
+
+  // Derives a stable inline completion for the current user input from the
+  // full autocomplete result, falling back through the priority order
+  // documented in the command-bar PRD: default match's inline_autocompletion,
+  // any match's inline_autocompletion, then fill_into_edit prefix match.
+  // Returns the empty string when nothing applies or when ghost text is
+  // suppressed for the current query.
+  std::u16string GetInlineAutocompletionForResult() const;
   void OnInputFaviconFetched(const GURL& page_url,
                              const favicon_base::FaviconImageResult& result);
   void ApplySelectedSuggestion();
@@ -130,6 +138,18 @@ class DaoCommandBarView : public views::View,
   std::u16string inline_autocompletion_;
   bool updating_textfield_ = false;
   int visible_suggestion_count_ = 0;
+
+  // True while the user is deleting in the current query lifetime — set in
+  // ContentsChanged when the textfield shrinks and on the first Backspace
+  // that absorbs visible ghost text. Cleared on the next non-deletion query.
+  // Blocks both Chromium's async inline-autocomplete output and Dao's local
+  // fallback derivation so deletion does not feel sticky.
+  bool suppress_ghost_for_current_query_ = false;
+
+  // Length of |user_input_text_| at the previous ContentsChanged tick. Used
+  // to distinguish growth (typing) from shrinkage (deletion) without having
+  // to inspect the textfield state directly.
+  size_t last_text_length_ = 0;
 
   // Index inside suggestion_views_ of the synthetic "Ask AI" row, or -1
   // when the current input does not qualify (empty / looks like a URL) or

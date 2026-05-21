@@ -85,6 +85,23 @@ DaoSuggestionItemView::~DaoSuggestionItemView() = default;
 
 void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
                                       bool is_bookmark) {
+  // Async autocomplete ticks frequently re-emit the same match for the
+  // same row. Bail out early when the visible content is unchanged to
+  // avoid redundant text relayout, vector icon rasterization, and
+  // favicon fetches that would otherwise fire on every tick.
+  if (!last_was_ask_ai_ && last_match_url_ == match.destination_url &&
+      last_match_contents_ == match.contents &&
+      last_match_description_ == match.description &&
+      last_match_is_bookmark_ == is_bookmark) {
+    return;
+  }
+  last_was_ask_ai_ = false;
+  last_match_url_ = match.destination_url;
+  last_match_contents_ = match.contents;
+  last_match_description_ = match.description;
+  last_match_is_bookmark_ = is_bookmark;
+  last_ask_ai_prompt_.clear();
+
   // Always set the vector icon first as immediate fallback
   const gfx::VectorIcon& vector_icon = match.GetVectorIcon(is_bookmark);
   icon_view_->SetImage(ui::ImageModel::FromImageSkia(
@@ -126,6 +143,17 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
 }
 
 void DaoSuggestionItemView::SetAskAiPrompt(const std::u16string& prompt) {
+  // Cheap no-op when the rendered Ask-AI prompt is unchanged across ticks.
+  if (last_was_ask_ai_ && last_ask_ai_prompt_ == prompt) {
+    return;
+  }
+  last_was_ask_ai_ = true;
+  last_ask_ai_prompt_ = prompt;
+  last_match_url_ = GURL();
+  last_match_contents_.clear();
+  last_match_description_.clear();
+  last_match_is_bookmark_ = false;
+
   favicon_tracker_.TryCancelAll();
   pending_favicon_url_ = GURL();
 

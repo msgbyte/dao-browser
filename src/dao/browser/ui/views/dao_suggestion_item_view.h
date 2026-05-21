@@ -88,6 +88,16 @@ class DaoSuggestionItemView : public views::View {
   raw_ptr<const gfx::VectorIcon> current_vector_icon_ = nullptr;
   bool has_favicon_ = false;
 
+  // Cached rendered match state for cheap no-op when an async autocomplete
+  // tick re-emits the same row. Avoids redundant text relayout, vector
+  // icon rasterization, and favicon fetches when nothing visible changed.
+  GURL last_match_url_;
+  std::u16string last_match_contents_;
+  std::u16string last_match_description_;
+  bool last_match_is_bookmark_ = false;
+  std::u16string last_ask_ai_prompt_;
+  bool last_was_ask_ai_ = false;
+
   // Tracks the URL for the current favicon request so stale callbacks are
   // ignored.
   GURL pending_favicon_url_;

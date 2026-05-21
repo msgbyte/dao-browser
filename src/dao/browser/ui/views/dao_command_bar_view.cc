@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "dao/browser/strings/grit/dao_strings.h"
@@ -100,6 +101,37 @@ class FrostedGlassBackground : public views::Background {
   SkColor paint_color_;
 };
 
+// Background for the ghost-text label. The label itself takes the full
+// textfield height so its RenderText baseline aligns with the textfield's
+// (otherwise the user sees the text "drop down" when Right Arrow accepts
+// the completion). This background, however, only paints a rounded pill
+// at the font height vertically centered in the bounds, so the accent
+// fill hugs the glyphs as the PRD requires.
+class GhostTextPillBackground : public views::Background {
+ public:
+  GhostTextPillBackground(SkColor paint_color, int pill_height, float radius)
+      : paint_color_(paint_color), pill_height_(pill_height), radius_(radius) {
+    SetColor(SK_ColorWHITE);
+  }
+
+  void Paint(gfx::Canvas* canvas, views::View* view) const override {
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+    flags.setColor(paint_color_);
+
+    const float top = std::max(0.f, (view->height() - pill_height_) / 2.0f);
+    gfx::RectF pill_rect(0.0f, top, view->width(),
+                          std::min<float>(pill_height_, view->height()));
+    canvas->DrawRoundRect(pill_rect, radius_, flags);
+  }
+
+ private:
+  SkColor paint_color_;
+  int pill_height_;
+  float radius_;
+};
+
 // A view whose sole job is to paint a DrawLooper shadow.
 // It has its own layer so it can render outside its clip without
 // requiring the parent DaoCommandBarView to have a layer (which
@@ -194,16 +226,20 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   card_layout->SetFlexForView(textfield_, 1);
 
   // Ghost text label: overlaid on the textfield area, shows inline
-  // autocompletion in a muted color.  Added as a direct child of |this|
-  // (not card_container_) so it is not managed by the card's BoxLayout.
+  // autocompletion as a "selected" pill (accent-blue translucent fill +
+  // primary text color). Added as a direct child of |this| (not
+  // card_container_) so it is not managed by the card's BoxLayout, and
+  // promoted to its own layer so it paints above glass_container_.
   auto ghost_label = std::make_unique<views::Label>();
   ghost_label->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 16,
-                                          gfx::Font::Weight::NORMAL));
+                                          gfx::Font::Weight::SEMIBOLD));
   ghost_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   ghost_label->SetSubpixelRenderingEnabled(false);
   ghost_label->SetVisible(false);
   ghost_label->SetCanProcessEventsWithinSubtree(false);
   ghost_label->SetBackgroundColor(SK_ColorTRANSPARENT);
+  ghost_label->SetPaintToLayer();
+  ghost_label->layer()->SetFillsBoundsOpaquely(false);
   ghost_text_label_ = AddChildView(std::move(ghost_label));
 
   // Dropdown container: inside the glass container (no own layer)
@@ -239,7 +275,17 @@ void DaoCommandBarView::ApplyTheme() {
     textfield_->SetTextColor(TextPrimary());
   }
   if (ghost_text_label_) {
-    ghost_text_label_->SetEnabledColor(GhostTextColor());
+    // Selected style per PRD: primary text color over an accent-blue
+    // translucent fill, so the inline completion reads as "highlighted".
+    // The label's bounds match the textfield height (for baseline parity);
+    // the pill background only paints at font height so the fill hugs the
+    // glyphs.
+    ghost_text_label_->SetEnabledColor(TextPrimary());
+    const int pill_height =
+        ghost_text_label_->GetPreferredSize().height() + 2;
+    ghost_text_label_->SetBackground(
+        std::make_unique<GhostTextPillBackground>(
+            GhostTextSelectedBackground(), pill_height, /*radius=*/4.0f));
   }
   // Suggestion rows cache their text color in views::Label and rasterize
   // their vector icons at SetMatch time, so they need an explicit refresh
@@ -296,6 +342,8 @@ void DaoCommandBarView::Show() {
   selected_index_ = -1;
   inline_autocompletion_.clear();
   ghost_text_label_->SetVisible(false);
+  suppress_ghost_for_current_query_ = false;
+  last_text_length_ = 0;
 
   InitAutocompleteController();
 
@@ -323,6 +371,13 @@ void DaoCommandBarView::Show() {
       l->parent()->StackAtTop(l);
     }
   }
+  // The ghost text label has its own layer so it can paint above the
+  // frosted glass container. Restack it last so it is not occluded by
+  // the glass layer stacked above.
+  if (ghost_text_label_ && ghost_text_label_->layer()) {
+    ghost_text_label_->layer()->parent()->StackAtTop(
+        ghost_text_label_->layer());
+  }
 
   // Prevent web content's native view from stealing events
   SetWebContentEventProcessing(false);
@@ -338,6 +393,7 @@ void DaoCommandBarView::Show() {
       textfield_->SelectAll(false);
       updating_textfield_ = false;
       user_input_text_ = url_text;
+      last_text_length_ = url_text.length();
       StartAutocomplete(url_text);
 
       // Show favicon for the current page
@@ -381,6 +437,8 @@ void DaoCommandBarView::ShowForNewTab() {
   inline_autocompletion_.clear();
   ghost_text_label_->SetVisible(false);
   user_input_text_.clear();
+  suppress_ghost_for_current_query_ = false;
+  last_text_length_ = 0;
 
   InitAutocompleteController();
 
@@ -406,6 +464,13 @@ void DaoCommandBarView::ShowForNewTab() {
          l = l->parent()) {
       l->parent()->StackAtTop(l);
     }
+  }
+  // The ghost text label has its own layer so it can paint above the
+  // frosted glass container. Restack it last so it is not occluded by
+  // the glass layer stacked above.
+  if (ghost_text_label_ && ghost_text_label_->layer()) {
+    ghost_text_label_->layer()->parent()->StackAtTop(
+        ghost_text_label_->layer());
   }
 
   // Prevent web content's native view from stealing events
@@ -575,12 +640,56 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
     return;
   }
 
+  const size_t prev_len = last_text_length_;
+  const size_t new_len = new_contents.length();
+  const bool is_deletion = new_len < prev_len;
+
+  // Bridge the async gap: if the user typed exactly one new character and
+  // that character matches the first ghost character, trim the ghost's
+  // leading character immediately so the suggestion appears continuous
+  // while we wait for the next autocomplete result tick. If the typed
+  // character diverges, ghost text is cleared until autocomplete provides
+  // a fresh completion.
+  bool bridged_ghost = false;
+  if (!is_deletion && new_len == prev_len + 1 &&
+      !inline_autocompletion_.empty() &&
+      new_contents.compare(0, prev_len, user_input_text_) == 0) {
+    char16_t typed = new_contents[prev_len];
+    char16_t ghost_first = inline_autocompletion_[0];
+    if (typed == ghost_first) {
+      inline_autocompletion_ = inline_autocompletion_.substr(1);
+      bridged_ghost = true;
+    }
+  }
+
   user_input_text_ = new_contents;
-  inline_autocompletion_.clear();
-  ghost_text_label_->SetVisible(false);
+  last_text_length_ = new_len;
   selected_index_ = -1;
 
-  // Update the intent icon based on input
+  // Deletion queries must not show ghost text until the next non-deletion
+  // edit — every Backspace otherwise re-rasterizes a new ghost and the
+  // input feels sticky.
+  if (is_deletion) {
+    suppress_ghost_for_current_query_ = true;
+    inline_autocompletion_.clear();
+    ghost_text_label_->SetVisible(false);
+  } else {
+    suppress_ghost_for_current_query_ = false;
+    if (!bridged_ghost) {
+      inline_autocompletion_.clear();
+      ghost_text_label_->SetVisible(false);
+    } else {
+      // Re-render the trimmed ghost text right away so it does not flicker.
+      if (inline_autocompletion_.empty()) {
+        ghost_text_label_->SetVisible(false);
+      } else {
+        ghost_text_label_->SetText(inline_autocompletion_);
+        ghost_text_label_->SetVisible(true);
+        PositionGhostText();
+      }
+    }
+  }
+
   UpdateInputIcon();
 
   if (new_contents.empty()) {
@@ -602,6 +711,20 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
 
   if (key_event.key_code() == ui::VKEY_RETURN) {
     ApplySelectedSuggestion();
+    return true;
+  }
+
+  // First Backspace with visible ghost text: consume the keypress to clear
+  // only the ghost label, leaving the user's typed input intact. The
+  // suppression flag stops subsequent autocomplete ticks from immediately
+  // re-rendering ghost text for the same query.
+  if (key_event.key_code() == ui::VKEY_BACK &&
+      !inline_autocompletion_.empty() &&
+      sender->GetCursorPosition() == user_input_text_.length() &&
+      !sender->HasSelection()) {
+    inline_autocompletion_.clear();
+    ghost_text_label_->SetVisible(false);
+    suppress_ghost_for_current_query_ = true;
     return true;
   }
 
@@ -649,6 +772,8 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
         sender->SetText(user_input_text_);
         sender->SetSelectedRange(gfx::Range(user_input_text_.length()));
         updating_textfield_ = false;
+        last_text_length_ = user_input_text_.length();
+        suppress_ghost_for_current_query_ = false;
         StartAutocomplete(user_input_text_);
         return true;
       }
@@ -665,8 +790,15 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
 void DaoCommandBarView::OnResultChanged(AutocompleteController* controller,
                                         bool default_match_changed) {
   UpdateSuggestions();
+  // Ghost text must update on every tick — providers may publish a valid
+  // inline_autocompletion without flipping the default match.
   UpdateGhostText();
-  UpdateInputIcon();
+  // The input field's leading icon is keyed off the default match; only
+  // refresh it when the default has actually changed so we don't fire
+  // redundant favicon lookups for every async tick.
+  if (default_match_changed) {
+    UpdateInputIcon();
+  }
 }
 
 void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
@@ -674,10 +806,22 @@ void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
     return;
   }
 
+  // Pass the caret position via the cursor_position constructor. Some
+  // providers (notably HistoryURL) suppress inline_autocompletion entirely
+  // when the cursor is unspecified, which breaks the stability that ghost
+  // text depends on.
   AutocompleteInput input(
-      text,
+      text, /*cursor_position=*/text.length(),
       metrics::OmniboxEventProto::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
       *scheme_classifier_);
+
+  // Deletion queries must also tell Chromium not to compute an
+  // inline_autocompletion; without this, the providers can still publish
+  // one after a Backspace and the suppression check would have to filter
+  // it out tick-by-tick.
+  if (suppress_ghost_for_current_query_) {
+    input.set_prevent_inline_autocomplete(true);
+  }
   autocomplete_controller_->Start(input);
 }
 
@@ -766,25 +910,76 @@ void DaoCommandBarView::UpdateSuggestions() {
   InvalidateLayout();
 }
 
-void DaoCommandBarView::UpdateGhostText() {
-  if (!autocomplete_controller_) {
-    ghost_text_label_->SetVisible(false);
-    inline_autocompletion_.clear();
-    return;
+std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
+  if (!autocomplete_controller_ || suppress_ghost_for_current_query_ ||
+      user_input_text_.empty()) {
+    return std::u16string();
   }
 
   const AutocompleteResult& result = autocomplete_controller_->result();
-  const AutocompleteMatch* default_match = result.default_match();
 
+  // Priority 1: default match's own inline_autocompletion.
+  const AutocompleteMatch* default_match = result.default_match();
   if (default_match && !default_match->inline_autocompletion.empty()) {
-    inline_autocompletion_ = default_match->inline_autocompletion;
-    ghost_text_label_->SetText(inline_autocompletion_);
-    ghost_text_label_->SetVisible(true);
-    PositionGhostText();
-  } else {
-    inline_autocompletion_.clear();
-    ghost_text_label_->SetVisible(false);
+    return default_match->inline_autocompletion;
   }
+
+  // Priority 2: any other match still carrying a usable
+  // inline_autocompletion. Async ticks can briefly promote a search
+  // suggestion to default while a URL/history match continues to advertise
+  // a valid inline completion.
+  for (size_t i = 0; i < result.size(); ++i) {
+    const AutocompleteMatch& m = result.match_at(i);
+    if (!m.inline_autocompletion.empty()) {
+      return m.inline_autocompletion;
+    }
+  }
+
+  // Priority 3: derive from a fill_into_edit value that case-insensitively
+  // starts with the user's current input. This bridges async gaps where
+  // providers know the completion but haven't published it as
+  // inline_autocompletion yet.
+  const std::u16string& input = user_input_text_;
+  for (size_t i = 0; i < result.size(); ++i) {
+    const AutocompleteMatch& m = result.match_at(i);
+    const std::u16string& fill = m.fill_into_edit;
+    if (fill.size() <= input.size()) {
+      continue;
+    }
+    if (base::EqualsCaseInsensitiveASCII(fill.substr(0, input.size()),
+                                          input)) {
+      return fill.substr(input.size());
+    }
+  }
+
+  return std::u16string();
+}
+
+void DaoCommandBarView::UpdateGhostText() {
+  std::u16string ghost = GetInlineAutocompletionForResult();
+
+  // Cheap no-op when the rendered value has not changed. This avoids
+  // re-rasterizing the layered label on every async result tick.
+  if (ghost == inline_autocompletion_) {
+    if (!ghost.empty()) {
+      // Position can shift if the textfield was relaid out; keep it in
+      // sync but skip the SetText work.
+      ghost_text_label_->SetVisible(true);
+      PositionGhostText();
+    } else {
+      ghost_text_label_->SetVisible(false);
+    }
+    return;
+  }
+
+  inline_autocompletion_ = ghost;
+  if (ghost.empty()) {
+    ghost_text_label_->SetVisible(false);
+    return;
+  }
+  ghost_text_label_->SetText(ghost);
+  ghost_text_label_->SetVisible(true);
+  PositionGhostText();
 }
 
 void DaoCommandBarView::PositionGhostText() {
@@ -792,11 +987,11 @@ void DaoCommandBarView::PositionGhostText() {
     return;
   }
 
-  // Measure the width of user's input text using the textfield's font
+  // Measure the width of user's input text using the textfield's font.
   int text_width =
       gfx::GetStringWidth(user_input_text_, textfield_->GetFontList());
 
-  // Convert textfield origin to DaoCommandBarView coordinate space
+  // Convert textfield origin to DaoCommandBarView coordinate space.
   gfx::Point tf_origin;
   views::View::ConvertPointToTarget(textfield_, this, &tf_origin);
 
@@ -804,12 +999,27 @@ void DaoCommandBarView::PositionGhostText() {
   int ghost_y = tf_origin.y();
   int max_width = glass_container_->bounds().right() - ghost_x - 16;
 
-  if (max_width > 0) {
-    ghost_text_label_->SetBounds(ghost_x, ghost_y, max_width,
-                                  textfield_->height());
-  } else {
+  if (max_width <= 0) {
     ghost_text_label_->SetVisible(false);
+    return;
   }
+
+  // Tightly hug the ghost text with a 2px anti-aliasing buffer so the
+  // accent fill does not extend past the glyphs. Cap at the available
+  // width so an oversized completion stays inside the card.
+  constexpr int kAntiAliasBuffer = 2;
+  int natural_width = gfx::GetStringWidth(ghost_text_label_->GetText(),
+                                          ghost_text_label_->font_list()) +
+                      kAntiAliasBuffer;
+  int label_width = std::min(natural_width, max_width);
+
+  // Reuse the textfield's full y/height for the ghost label so both
+  // RenderText surfaces share the same vertical centering math; with a
+  // matching font this lines the glyph baselines up. Shrinking the label
+  // bounds to the font's preferred height instead would re-center inside
+  // a smaller box and make the accepted text appear to drop down.
+  ghost_text_label_->SetBounds(ghost_x, ghost_y, label_width,
+                                textfield_->height());
 }
 
 void DaoCommandBarView::UpdateInputIcon() {
