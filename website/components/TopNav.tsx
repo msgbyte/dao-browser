@@ -47,9 +47,9 @@ export function TopNav() {
         >
           <GitHubIcon size={18} aria-hidden />
         </a>
-        <Button variant="primary" disabled>
-          <LucideIcon name="clock" size={16} aria-hidden />
-          Coming Soon
+        <Button href="/download" variant="primary">
+          <LucideIcon name="download" size={16} aria-hidden />
+          Download
         </Button>
       </div>
     </nav>

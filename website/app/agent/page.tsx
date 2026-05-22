@@ -200,9 +200,9 @@ export default function AgentPage() {
             account. Open the sidebar, pick a soul, plug in a key.
           </p>
           <div className={styles.ctaActions}>
-            <Button variant="primary" disabled>
-              <LucideIcon name="clock" size={16} aria-hidden />
-              Coming Soon
+            <Button href="/download" variant="primary">
+              <LucideIcon name="download" size={16} aria-hidden />
+              Download
             </Button>
             <Button href={GITHUB_URL} variant="ghost" external>
               <LucideIcon name="star" size={16} aria-hidden />

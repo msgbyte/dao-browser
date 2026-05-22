@@ -14,12 +14,12 @@ export function DownloadCTA() {
       <p className={styles.sub}>
         v{PRODUCT_VERSION} · Built on Chromium {CHROMIUM_VERSION}
       </p>
-      <Button variant="primary" disabled>
-        <LucideIcon name="clock" size={16} aria-hidden />
-        Coming Soon
+      <Button href="/download" variant="primary">
+        <LucideIcon name="download" size={16} aria-hidden />
+        Download
       </Button>
       <p className={styles.hint}>
-        Mac, Linux and Windows · Coming soon ·{' '}
+        macOS (Apple Silicon) available · Linux and Windows coming soon ·{' '}
         <a
           href={GITHUB_URL}
           target="_blank"
