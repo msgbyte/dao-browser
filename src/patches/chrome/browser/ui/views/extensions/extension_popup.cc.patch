@@ -13,7 +13,7 @@ index bd4d2193c3..cac33a3713 100644
  #include "chrome/browser/ui/browser.h"
  #include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
-@@ -271,7 +273,13 @@ ExtensionPopup::ExtensionPopup(
+@@ -271,7 +273,16 @@ ExtensionPopup::ExtensionPopup(
        deferred_close_weak_ptr_factory_(this) {
    g_last_popup_for_testing = this;
    SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
@@ -25,6 +25,9 @@ index bd4d2193c3..cac33a3713 100644
 +  SetShowTitle(true);
 +  SetShowCloseButton(true);
 +  set_draggable(true);
- 
++  // Tighten the title bar and keep top/bottom symmetric so the title text
++  // is vertically centered relative to the close button.
++  set_title_margins(gfx::Insets::TLBR(10, 16, 10, 16));
+
    set_margins(gfx::Insets());
    SetLayoutManager(std::make_unique<views::FillLayout>());
