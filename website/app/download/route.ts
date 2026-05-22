@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   if (wantsHtml) {
     const url = request.nextUrl.clone();
     url.pathname = '/download-browser';
-    return NextResponse.rewrite(url);
+    return NextResponse.redirect(url, 302);
   }
 
   try {

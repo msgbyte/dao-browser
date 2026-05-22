@@ -11,7 +11,49 @@
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 14px;
+}
+
+.iconWrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.iconWrapLoading {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+
+.iconWrapReady {
+  background: color-mix(in srgb, #16a34a 12%, transparent);
+  color: #16a34a;
+}
+
+.iconWrapError {
+  background: color-mix(in srgb, #dc2626 12%, transparent);
+  color: #dc2626;
+}
+
+.spin {
+  animation: dao-download-spin 1s linear infinite;
+}
+
+@keyframes dao-download-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
 }
 
 .heading {
@@ -29,10 +71,41 @@
   line-height: 1.5;
 }
 
+.platformChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.manualLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.manualLink:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
 .link {
   color: var(--accent);
   text-decoration: underline;
 }
 .link:hover {
   color: var(--accent-hover);
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }

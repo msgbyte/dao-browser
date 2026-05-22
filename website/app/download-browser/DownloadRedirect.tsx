@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { LucideIcon } from '@/components/ui/LucideIcon';
 import styles from './download.module.css';
 
 interface PlatformInfo {
@@ -81,6 +82,14 @@ export function DownloadRedirect() {
       <div className={styles.card}>
         {status === 'loading' && (
           <>
+            <div className={`${styles.iconWrap} ${styles.iconWrapLoading}`}>
+              <LucideIcon
+                name="loader-circle"
+                size={36}
+                className={styles.spin}
+                aria-hidden
+              />
+            </div>
             <h1 className={styles.heading}>Preparing your download…</h1>
             <p className={styles.body}>
               Fetching the latest release. You&apos;ll be redirected in a moment.
@@ -90,24 +99,32 @@ export function DownloadRedirect() {
 
         {status === 'ready' && config && targetUrl && (
           <>
+            <div className={`${styles.iconWrap} ${styles.iconWrapReady}`}>
+              <LucideIcon name="circle-check" size={40} aria-hidden />
+            </div>
             <h1 className={styles.heading}>Your download is starting</h1>
-            <p className={styles.body}>
+            <span className={styles.platformChip}>
+              <LucideIcon name="download" size={14} aria-hidden />
               Dao Browser v{config.version} ·{' '}
               {config.platforms[detectPlatformKey(config)]?.label ??
                 config.platforms[config.default].label}
-            </p>
+            </span>
             <p className={styles.body}>
               If nothing happens,{' '}
-              <a href={targetUrl} className={styles.link}>
+              <a href={targetUrl} className={styles.manualLink}>
+                <LucideIcon name="download" size={14} aria-hidden />
                 click here to download manually
+                <LucideIcon name="arrow-right" size={14} aria-hidden />
               </a>
-              .
             </p>
           </>
         )}
 
         {status === 'error' && (
           <>
+            <div className={`${styles.iconWrap} ${styles.iconWrapError}`}>
+              <LucideIcon name="circle-alert" size={40} aria-hidden />
+            </div>
             <h1 className={styles.heading}>We couldn&apos;t prepare your download</h1>
             <p className={styles.body}>
               {errorMessage ?? 'Something went wrong.'}
@@ -115,12 +132,14 @@ export function DownloadRedirect() {
             <p className={styles.body}>
               Please head to{' '}
               <a
-                className={styles.link}
+                className={styles.manualLink}
                 href="https://github.com/moonrailgun/dao-browser/releases"
                 target="_blank"
                 rel="noopener noreferrer"
               >
+                <LucideIcon name="star" size={14} aria-hidden />
                 the GitHub Releases page
+                <LucideIcon name="arrow-right" size={14} aria-hidden />
               </a>{' '}
               and grab the latest build.
             </p>
