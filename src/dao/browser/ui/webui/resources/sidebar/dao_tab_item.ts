@@ -106,8 +106,8 @@ export class DaoTabItem extends CrLitElement {
       }
 
       .close-btn {
-        width: 16px;
-        height: 16px;
+        width: 20px;
+        height: 20px;
         border: none;
         background: transparent;
         color: var(--text-muted);
@@ -118,7 +118,8 @@ export class DaoTabItem extends CrLitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: opacity 0.1s ease;
+        border-radius: 6px;
+        transition: opacity 0.1s ease, background 0.12s ease, color 0.12s ease;
       }
 
       .tab-row:hover .close-btn {
@@ -126,6 +127,7 @@ export class DaoTabItem extends CrLitElement {
       }
 
       .close-btn:hover {
+        background: var(--ink-drop);
         color: var(--text-primary);
       }
 

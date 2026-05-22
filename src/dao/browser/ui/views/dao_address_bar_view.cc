@@ -99,7 +99,7 @@ class NavIconButton : public views::Button {
     if (!nav_enabled_) return;
     Button::OnMouseEntered(event);
     SetBackground(views::CreateRoundedRectBackground(
-        SkColorSetARGB(20, 0, 0, 0), kNavButtonRadius));
+        hover_bg_color_, kNavButtonRadius));
     SchedulePaint();
   }
 
@@ -114,6 +114,17 @@ class NavIconButton : public views::Button {
     // Compute disabled color: same hue but much lower opacity
     disabled_color_ = SkColorSetA(color, SkColorGetA(color) / 3);
     SchedulePaint();
+  }
+
+  void SetHoverBgColor(SkColor color) {
+    if (hover_bg_color_ == color) return;
+    hover_bg_color_ = color;
+    if (background()) {
+      // Refresh the active hover background with the new color.
+      SetBackground(views::CreateRoundedRectBackground(
+          hover_bg_color_, kNavButtonRadius));
+      SchedulePaint();
+    }
   }
 
   void SetNavEnabled(bool enabled) {
@@ -187,6 +198,7 @@ class NavIconButton : public views::Button {
   LucideIcon icon_;
   SkColor icon_color_ = SkColorSetARGB(180, 100, 100, 100);
   SkColor disabled_color_ = SkColorSetARGB(60, 100, 100, 100);
+  SkColor hover_bg_color_ = SkColorSetARGB(20, 0, 0, 0);
   bool nav_enabled_ = true;
   bool highlighted_ = false;
   bool animate_on_press_ = false;
@@ -606,11 +618,16 @@ void DaoAddressBarView::UpdateToggleButtonColor() {
   int g = SkColorGetG(bg_color);
   int b = SkColorGetB(bg_color);
   double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-  SkColor icon_color = luminance < 128
+  bool dark_background = luminance < 128;
+  SkColor icon_color = dark_background
       ? SkColorSetARGB(230, 255, 255, 255)  // dark bg → white icon
       : SkColorSetARGB(200, 0, 0, 0);       // light bg → dark icon
-  static_cast<NavIconButton*>(sidebar_toggle_button_.get())
-      ->SetIconColor(icon_color);
+  SkColor hover_bg = dark_background
+      ? SkColorSetARGB(20, 255, 255, 255)
+      : SkColorSetARGB(20, 0, 0, 0);
+  auto* toggle = static_cast<NavIconButton*>(sidebar_toggle_button_.get());
+  toggle->SetIconColor(icon_color);
+  toggle->SetHoverBgColor(hover_bg);
 }
 
 void DaoAddressBarView::OnToggleButtonPressed() {
@@ -746,14 +763,22 @@ void DaoAddressBarView::UpdateNavButtonColors() {
   int g = SkColorGetG(bg_color);
   int b = SkColorGetB(bg_color);
   double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-  SkColor icon_color = luminance < 128
+  bool dark_background = luminance < 128;
+  SkColor icon_color = dark_background
       ? SkColorSetARGB(180, 255, 255, 255)
       : SkColorSetARGB(160, 0, 0, 0);
+  // Adaptive hover background: dark surfaces need white tint, light surfaces
+  // need black tint, to keep the rounded highlight visible against any page.
+  SkColor hover_bg = dark_background
+      ? SkColorSetARGB(20, 255, 255, 255)
+      : SkColorSetARGB(20, 0, 0, 0);
 
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
                               stop_refresh_button_.get(), chat_button_.get()}) {
     if (btn) {
-      static_cast<NavIconButton*>(btn)->SetIconColor(icon_color);
+      auto* nav_btn = static_cast<NavIconButton*>(btn);
+      nav_btn->SetIconColor(icon_color);
+      nav_btn->SetHoverBgColor(hover_bg);
     }
   }
   if (control_center_button_) {
