@@ -42,5 +42,19 @@
     <true/>
     <key>com.apple.security.print</key>
     <true/>
+
+    <!-- Touch ID / platform authenticator (WebAuthn passkeys). The Chromium
+         Touch ID context stores credentials in a keychain access group derived
+         at runtime as <TeamID>.<CFBundleIdentifier>.webauthn; without this
+         entitlement it logs "Touch ID authenticator unavailable" on every
+         WebAuthn capability probe and falls back to other authenticators.
+         codesign substitutes $(AppIdentifierPrefix) -> "<TeamID>." and
+         $(CFBundleIdentifier) from the bundle's Info.plist at sign time, so
+         this works for both release (com.msgbyte.dao) and debug-suffixed
+         (com.msgbyte.dao.debug) builds with a real Developer ID signature. -->
+    <key>keychain-access-group</key>
+    <array>
+        <string>$(AppIdentifierPrefix)$(CFBundleIdentifier).webauthn</string>
+    </array>
 </dict>
 </plist>
