@@ -3,7 +3,8 @@ import {
   CHROMIUM_VERSION,
   GITHUB_URL,
 } from '@/lib/version';
-import { Button } from './ui/Button';
+import { TrackedButton } from './ui/TrackedButton';
+import { TrackedLink } from './ui/TrackedLink';
 import { LucideIcon } from './ui/LucideIcon';
 import styles from './DownloadCTA.module.css';
 
@@ -14,20 +15,27 @@ export function DownloadCTA() {
       <p className={styles.sub}>
         v{PRODUCT_VERSION} · Built on Chromium {CHROMIUM_VERSION}
       </p>
-      <Button href="/download" variant="primary">
+      <TrackedButton
+        href="/download"
+        variant="primary"
+        event="download_click"
+        eventPayload={{ source: 'cta' }}
+      >
         <LucideIcon name="download" size={16} aria-hidden />
         Download
-      </Button>
+      </TrackedButton>
       <p className={styles.hint}>
         macOS (Apple Silicon) available · Linux and Windows coming soon ·{' '}
-        <a
+        <TrackedLink
           href={GITHUB_URL}
           target="_blank"
           rel="noopener noreferrer"
           className={styles.hintLink}
+          event="github_click"
+          eventPayload={{ source: 'cta_hint' }}
         >
           ★ Star on GitHub for updates
-        </a>
+        </TrackedLink>
       </p>
     </section>
   );

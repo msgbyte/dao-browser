@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import { SITE_URL } from '@/lib/version';
+import { TIANJI_WEBSITE_ID } from '@/lib/analytics';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -54,6 +56,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>{children}</body>
+      <Script
+        src="https://app.tianji.dev/tracker.js"
+        data-website-id={TIANJI_WEBSITE_ID}
+        strategy="afterInteractive"
+      />
     </html>
   );
 }

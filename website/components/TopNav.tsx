@@ -1,9 +1,12 @@
+'use client';
+
 /* eslint-disable @next/next/no-img-element */
 import Link from 'next/link';
 import { GITHUB_URL } from '@/lib/version';
 import { Button } from './ui/Button';
 import { LucideIcon } from './ui/LucideIcon';
 import { GitHubIcon } from './ui/BrandIcons';
+import { trackEvent } from '@/lib/analytics';
 import styles from './TopNav.module.css';
 
 export function TopNav() {
@@ -32,10 +35,18 @@ export function TopNav() {
         <span className={styles.brandWord}>Dao</span>
       </a>
       <div className={styles.links}>
-        <Link href="/#features" className={styles.link}>
+        <Link
+          href="/#features"
+          className={styles.link}
+          onClick={() => trackEvent('nav_link_click', { target: 'features' })}
+        >
           <span className={styles.linkText}>Features</span>
         </Link>
-        <Link href="/agent" className={styles.link}>
+        <Link
+          href="/agent"
+          className={styles.link}
+          onClick={() => trackEvent('nav_link_click', { target: 'agent' })}
+        >
           <span className={styles.linkText}>AI Agent</span>
         </Link>
         <a
@@ -44,10 +55,15 @@ export function TopNav() {
           rel="noopener noreferrer"
           className={styles.link}
           aria-label="GitHub repository"
+          onClick={() => trackEvent('github_click', { source: 'nav' })}
         >
           <GitHubIcon size={18} aria-hidden />
         </a>
-        <Button href="/download" variant="primary">
+        <Button
+          href="/download"
+          variant="primary"
+          onClick={() => trackEvent('download_click', { source: 'nav' })}
+        >
           <LucideIcon name="download" size={16} aria-hidden />
           Download
         </Button>

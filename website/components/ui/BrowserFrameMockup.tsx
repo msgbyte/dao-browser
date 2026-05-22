@@ -271,7 +271,7 @@ function ArticlePage({
         <article className={styles.article}>
           <div className={styles.articleEyebrow}>ESSAY · 8 MIN READ</div>
           <h1 className={styles.articleTitle}>Why we still build browsers</h1>
-          <div className={styles.articleByline}>by Jamie Lin · April 2026</div>
+          <div className={styles.articleByline}>by Lyon Chen · April 2026</div>
           <p className={styles.articleBody}>
             The browser has been with us for thirty years, and somehow it has never
             stopped feeling unfinished. Tabs sprawl. Sidebars clutter. Search bars
@@ -402,7 +402,7 @@ function AgentMockup() {
           <article className={styles.article}>
             <div className={styles.articleEyebrow}>ESSAY · 8 MIN READ</div>
             <h1 className={styles.articleTitle}>Why we still build browsers</h1>
-            <div className={styles.articleByline}>by Jamie Lin · April 2026</div>
+            <div className={styles.articleByline}>by Lyon Chen · April 2026</div>
             <p className={styles.articleBody}>
               The browser has been with us for thirty years, and somehow it has never
               stopped feeling unfinished. Tabs sprawl. Sidebars clutter. Search bars

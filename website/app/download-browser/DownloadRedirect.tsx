@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { LucideIcon } from '@/components/ui/LucideIcon';
+import { trackEvent } from '@/lib/analytics';
 import styles from './download.module.css';
 
 interface PlatformInfo {
@@ -59,6 +60,11 @@ export function DownloadRedirect() {
         setConfig(cfg);
         setTargetUrl(target);
         setStatus('ready');
+
+        trackEvent('download_redirect', {
+          platform: key,
+          version: cfg.version,
+        });
 
         // Redirect on the next tick so the "preparing your download" message
         // is rendered before navigation. `replace` keeps the back button sane.
