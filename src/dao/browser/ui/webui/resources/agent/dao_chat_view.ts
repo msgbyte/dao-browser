@@ -1008,19 +1008,49 @@ export class DaoChatView extends CrLitElement {
   private async maybeResumeLastSession_() {
     if (localStorage.getItem('dao_resume_last_session') === 'false') return;
     if (!this.agent_) return;
-    // Don't clobber an ongoing conversation: only resume when the live
-    // panel is still the blank post-mount state. A user who has sent any
-    // message (or has a session id from a prior resume) keeps their
-    // current context when they toggle the sidebar off and back on.
-    if (this.currentSessionId_) return;
-    if ((this.agent_.state.messages?.length ?? 0) > 0) return;
+    // Always preserve in-flight work. Streaming would drop tokens mid-turn;
+    // an external submit is about to overwrite session state with a fresh
+    // prompt and racing it would re-hydrate the previous conversation.
     if (this.isStreaming_) return;
-    // The C++ command bar opens the sidebar and submits a prompt while we're
-    // still mounting. If that path is already in flight, skip the resume —
-    // submitExternalPrompt is about to call startNewSession() and then send
-    // the user's prompt, and we don't want a slow getAllMetadata() to land
-    // after that and re-hydrate state.messages with the previous session.
     if (this.externalSubmitInFlight_) return;
+
+    const staleMs = this.getStaleThresholdMs_();
+    const isStale = (lastModified: string | undefined) => {
+      if (!staleMs || !lastModified) return false;
+      const ts = Date.parse(lastModified);
+      return Number.isFinite(ts) && Date.now() - ts > staleMs;
+    };
+
+    // Already showing a session (from a prior resume or because the user
+    // sent something earlier). On a Cmd+E reopen / visibilitychange we
+    // want to drop into a fresh conversation when that session has gone
+    // stale, otherwise keep the live context untouched.
+    const hasLiveSession =
+        !!this.currentSessionId_ ||
+        (this.agent_.state.messages?.length ?? 0) > 0;
+    if (hasLiveSession) {
+      // Unsaved fresh session (no id yet) — keep it. lastModified isn't
+      // available until pi-storage persists the first message, and a
+      // brand-new turn can't be stale anyway.
+      if (!this.currentSessionId_) return;
+      if (!staleMs) return;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const storage = await ensurePiAppStorage() as any;
+        if (this.isStreaming_) return;
+        if (this.externalSubmitInFlight_) return;
+        const meta =
+            await storage.sessions.getMetadata?.(this.currentSessionId_) ??
+            null;
+        if (meta && isStale(meta.lastModified)) {
+          this.startNewSession();
+        }
+      } catch (_) { /* ignore — keep the current session on lookup error */ }
+      return;
+    }
+
+    // Blank post-mount state — resume the most recent non-empty session
+    // unless it has gone stale.
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const storage = await ensurePiAppStorage() as any;
@@ -1038,20 +1068,19 @@ export class DaoChatView extends CrLitElement {
           .sort((a, b) => b.lastModified.localeCompare(a.lastModified));
       const latest = candidates[0];
       if (!latest) return;
-      // Skip resume when the latest session has gone stale, so the user
-      // lands on a fresh conversation instead of one they had likely
-      // mentally moved on from. Threshold is configurable; 0 disables.
-      const staleRaw = localStorage.getItem('dao_resume_stale_hours');
-      const staleHours = staleRaw === null ? 3 : Number(staleRaw);
-      if (Number.isFinite(staleHours) && staleHours > 0) {
-        const lastTs = Date.parse(latest.lastModified);
-        if (Number.isFinite(lastTs) &&
-            Date.now() - lastTs > staleHours * 3600_000) {
-          return;
-        }
-      }
+      if (isStale(latest.lastModified)) return;
       await this.loadSession_(latest.id);
     } catch (_) { /* ignore — stay on the empty session */ }
+  }
+
+  // Reads the user-configurable `dao_resume_stale_hours` setting (default 3,
+  // 0 disables) and returns it in milliseconds. Returns 0 when stale-gating
+  // is off so callers can skip the check entirely.
+  private getStaleThresholdMs_(): number {
+    const raw = localStorage.getItem('dao_resume_stale_hours');
+    const hours = raw === null ? 3 : Number(raw);
+    if (!Number.isFinite(hours) || hours <= 0) return 0;
+    return hours * 3600_000;
   }
 
   // Debounced decoration pass — coalesces rapid-fire message_end events
