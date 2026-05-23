@@ -1,124 +1,43 @@
-# Dao Browser
+<div align="center">
+  <img src="branding/dao_logo.svg" alt="Dao Browser" width="120" />
 
-A Chromium-based browser with a left sidebar for vertical tabs, inspired by Arc.
+  ### Dao Browser
 
-## Prerequisites
+  An **AI-native**, content-first Chromium-based browser with a vertical tab sidebar — built for the agentic web.
 
-- macOS (initial target platform)
-- Xcode and Command Line Tools
-- [depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up) installed and in `PATH`
-- Node.js >= 18
-- ~100 GB free disk space for Chromium source + build
+  [Download](https://dao.msgbyte.com/download) · [Website](https://dao.msgbyte.com/) · [Features](docs/features.md) · [Development](docs/development.md)
+</div>
 
-### Setting up depot_tools
+---
 
-[depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up) is a collection of tools built by the Chromium team for managing the Chromium source code. It provides `gclient` (dependency management), `gn` (build file generation), `autoninja` (parallel build), and other utilities required to fetch and build Chromium-based projects.
+### Built-in AI Agent
 
-```bash
-git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+Dao isn't a browser with an AI extension bolted on — the **AI Agent is a first-class citizen**, woven into the browsing surface itself.
 
-# Add to your shell profile (~/.zshrc or ~/.bash_profile)
-export PATH="$PATH:/path/to/depot_tools"
-```
+- **Tool-calling agent** that can read, click, scroll, and navigate live pages on your behalf — with an animated cursor + tab-lock banner so you always see what it's doing
+- **Long-term memory** (SQLite + FTS5) across episodic and semantic stores — Dao remembers what you've worked on, not just what's in the current tab
+- **Proactive suggestions** triggered by navigation — Dao notices when a page matches a scenario you've taught it, then offers to act
+- **Skill system** — extend the agent with reusable skills; manage them from `chrome://dao-agent/skills`
+- **Ask AI from the command bar** (Cmd+L) — turn any thought into an agent task without leaving the keyboard
+- **Page → Markdown capture** and **share-card generation** baked into the chat surface
 
-After adding to PATH, restart your terminal and verify:
+→ Full architecture in [docs/features.md § AI Agent System](docs/features.md#2-ai-agent-system) · API in [docs/agent-console-api.md](docs/agent-console-api.md)
 
-```bash
-gclient --version
-```
+### Other Highlights
 
-> **Note:** On first run, depot_tools will automatically bootstrap the required Python environment. Ensure you have a working internet connection.
+- **Vertical Tab Sidebar** — Arc-style collapsible sidebar with spaces, favorites, and dual-line active tabs
+- **Spotlight Command Bar** — translucent floating command bar with ghost-text completion + Ask AI integration
+- **Picture-in-Picture & Split View** — keep content where you need it
+- **Calm Minimalism** — chrome recedes so the web page (and the agent) is the focal point
 
-## Quick Start
+### Platforms
 
-```bash
-npm install
-npm run setup     # download chromium + apply patches
-npm run build     # build Dao Browser
-```
+- `macOS` — `arm64` (Apple Silicon)
 
-## Commands
+### Contributing
 
-| Command | Description |
-|---------|-------------|
-| `npm run download` | Fetch Chromium source at the version specified in `dao.json` |
-| `npm run import` | Apply patches and copy Dao code into the Chromium tree |
-| `npm run export` | Generate patch files from modifications in the Chromium tree |
-| `npm run build` | Build Dao Browser (gn gen + autoninja) |
-| `npm run package` | Package into a `.dmg` for distribution |
-| `npm run package:zip` | Package into a `.zip` for distribution |
-| `npm run setup` | download + import (first-time setup) |
-| `npm run rebuild` | import + build (iterative development) |
+Dao Browser is an open-source project. Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/msgbyte/dao-browser/issues). To build from source or contribute code, see the [development guide](docs/development.md).
 
-## Development Workflow
+### License
 
-1. Run `npm run setup` to fetch Chromium and apply all patches
-2. Make changes directly in `engine/` for rapid iteration
-3. Run `npm run export -- <filepath>` to capture changes as patch files
-4. Run `npm run rebuild` to verify patches apply cleanly and build succeeds
-
-## Project Structure
-
-```
-dao-browser/
-├── dao.json          # Core config (Chromium version, branding)
-├── scripts/          # TypeScript build toolchain (CLI)
-├── src/
-│   ├── patches/      # Patch files against Chromium (mirrors Chromium dir structure)
-│   └── dao/          # Dao's own code (copied into engine/ on import)
-├── configs/          # GN build arguments
-└── branding/         # Brand assets (icons, logos)
-```
-
-## Packaging
-
-After building, create a distributable package:
-
-```bash
-npm run package       # creates dist/dao-browser-<version>-mac-arm64.dmg
-npm run package:zip   # creates dist/dao-browser-<version>-mac-arm64.zip
-```
-
-Options:
-- `--zip` — produce a `.zip` instead of `.dmg`
-- `--sign` — apply ad-hoc code signature (off by default)
-
-## Installation (for users)
-
-### macOS
-
-Dao Browser is currently distributed without Apple notarization. macOS Gatekeeper will block the first launch. Use one of the following methods to open it:
-
-**Method 1 — Right-click to open (simplest)**
-
-1. Right-click (or Control-click) on `Dao Browser.app`
-2. Select **Open** from the context menu
-3. In the dialog that appears, click **Open**
-
-You only need to do this once.
-
-**Method 2 — System Settings**
-
-1. Double-click the app (it will be blocked)
-2. Open **System Settings → Privacy & Security**
-3. Scroll down and click **Open Anyway** next to the Dao Browser message
-
-**Method 3 — Terminal (recommended)**
-
-```bash
-xattr -cr /Applications/Dao\ Browser.app
-```
-
-This removes the quarantine attribute entirely. Run it once after each update.
-
-> **Note:** On macOS Sequoia (15+), Method 1 may not work. Use Method 2 or 3 instead.
-
-## Architecture
-
-Chromium source lives in `engine/` (gitignored). Only patch files and Dao's own
-code are version-controlled. This follows the Zen Browser approach of maintaining
-a clean separation between upstream and custom code.
-
-## License
-
-MPL-2.0
+[MIT](LICENSE) — Dao Browser is built on top of [Chromium](https://www.chromium.org/), which is licensed under the [3-Clause BSD License](https://chromium.googlesource.com/chromium/src/+/main/LICENSE).

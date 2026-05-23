@@ -60,7 +60,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 
 ## 2. AI Agent System
 
-Dao Browser ships a full AI agent stack: LLM tool calling, long-term memory, proactive suggestions, and a skill system.
+**The AI Agent is Dao's flagship feature.** Unlike browsers that bolt on a chat sidebar, Dao integrates the agent into the page lifecycle itself — it can read DOM, click elements, navigate, and remember context across sessions. Every layer (C++ Views, WebUI, Mojo bridge, LLM runtime, vendor pipeline) is purpose-built for agentic browsing.
+
+The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), **proactive suggestions**, a **skill system**, and **page-aware tools** (page capture, readable extraction, element interaction, accessibility tree, resource inspection).
 
 ### 2.1 Agent Core Services (`src/dao/browser/agent/`)
 - **DaoAgentMemoryService** (+ `DaoAgentMemoryServiceFactory`) — Profile-keyed long-term memory service, SQLite backend, background sequenced execution

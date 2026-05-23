@@ -53,5 +53,5 @@
     "glob": "^11.0.1",
     "tsx": "^4.19.0"
   },
-  "license": "MPL-2.0"
+  "license": "MIT"
 }
