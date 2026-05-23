@@ -5,7 +5,7 @@
 
   An **AI-native**, content-first Chromium-based browser with a vertical tab sidebar — built for the agentic web.
 
-  [Download](https://dao.msgbyte.com/download) · [Website](https://dao.msgbyte.com/) · [Features](docs/features.md) · [Development](docs/development.md)
+  [Download](https://dao.msgbyte.com/download) · [Website](https://dao.msgbyte.com/) · [AI Agent](https://dao.msgbyte.com/agent) · [Features](docs/features.md) · [Development](docs/development.md)
 </div>
 
 ---
@@ -21,7 +21,7 @@ Dao isn't a browser with an AI extension bolted on — the **AI Agent is a first
 - **Ask AI from the command bar** (Cmd+L) — turn any thought into an agent task without leaving the keyboard
 - **Page → Markdown capture** and **share-card generation** baked into the chat surface
 
-→ Full architecture in [docs/features.md § AI Agent System](docs/features.md#2-ai-agent-system) · API in [docs/agent-console-api.md](docs/agent-console-api.md)
+Learn more at [dao.msgbyte.com/agent](https://dao.msgbyte.com/agent).
 
 ### Other Highlights
 
