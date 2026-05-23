@@ -27,16 +27,21 @@ export class DaoDownloadButton extends CrLitElement {
         gap: 4px;
       }
 
-      .file-list {
+      .popup-stack {
         position: absolute;
         bottom: 100%;
         left: -6px;
         width: calc(100vw - 12px);
+        padding: 0 6px;
+        box-sizing: content-box;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .file-list {
         max-height: 0;
         overflow: hidden;
         transition: max-height 0.15s ease-out;
-        padding: 0 6px;
-        box-sizing: content-box;
       }
 
       :host(.expanded) .file-list {
@@ -142,11 +147,14 @@ export class DaoDownloadButton extends CrLitElement {
         color: var(--text-muted);
         white-space: nowrap;
         flex-shrink: 0;
+        max-width: 70px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .cancel-btn {
-        width: 16px;
-        height: 16px;
+        width: 20px;
+        height: 20px;
         border: none;
         background: transparent;
         color: var(--text-muted);
@@ -156,9 +164,12 @@ export class DaoDownloadButton extends CrLitElement {
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        border-radius: 6px;
+        transition: background 0.12s ease, color 0.12s ease;
       }
 
       .cancel-btn:hover {
+        background: var(--ink-drop);
         color: var(--text-primary);
       }
 
@@ -224,58 +235,60 @@ export class DaoDownloadButton extends CrLitElement {
   override render() {
     return html`
       <div class="container">
-        <div class="file-list">
-          ${this.recentFiles_.map(file => html`
-            <div class="file-item"
-                 @mousedown=${(e: MouseEvent) =>
-                     this.onFileMouseDown_(e, file.index)}>
-              ${file.iconUrl
-                ? html`<img class="file-icon" src=${file.iconUrl} alt="">`
-                : html`<div class="file-icon placeholder">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                    </svg>
-                  </div>`}
-              <span class="file-name">${file.name}</span>
-            </div>
-          `)}
-        </div>
-
-        ${this.activeDownloads_.length > 0 ? html`
-          <div class="active-downloads">
-            ${this.activeDownloads_.map(dl => html`
-              <div class="active-item">
-                <svg class="active-icon" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <div class="active-mid">
-                  <span class="active-name">${dl.name}</span>
-                  <div class="progress-bar">
-                    <div class="progress-fill"
-                         style="width: ${Math.max(0, dl.percent)}%"></div>
-                  </div>
-                </div>
-                <span class="active-speed">${dl.speed}</span>
-                <button class="cancel-btn" title="Cancel"
-                        @click=${() => this.onCancelDownload_(dl.id)}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2"
-                       stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
+        <div class="popup-stack">
+          <div class="file-list">
+            ${this.recentFiles_.map(file => html`
+              <div class="file-item"
+                   @mousedown=${(e: MouseEvent) =>
+                       this.onFileMouseDown_(e, file.index)}>
+                ${file.iconUrl
+                  ? html`<img class="file-icon" src=${file.iconUrl} alt="">`
+                  : html`<div class="file-icon placeholder">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" stroke-width="2"
+                           stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                      </svg>
+                    </div>`}
+                <span class="file-name">${file.name}</span>
               </div>
             `)}
           </div>
-        ` : ''}
+
+          ${this.activeDownloads_.length > 0 ? html`
+            <div class="active-downloads">
+              ${this.activeDownloads_.map(dl => html`
+                <div class="active-item">
+                  <svg class="active-icon" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <div class="active-mid">
+                    <span class="active-name">${dl.name}</span>
+                    <div class="progress-bar">
+                      <div class="progress-fill"
+                           style="width: ${Math.max(0, dl.percent)}%"></div>
+                    </div>
+                  </div>
+                  <span class="active-speed">${dl.speed}</span>
+                  <button class="cancel-btn" title="Cancel"
+                          @click=${() => this.onCancelDownload_(dl.id)}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+              `)}
+            </div>
+          ` : ''}
+        </div>
 
         <button class="download-btn" title="Downloads"
                 @click=${this.onButtonClick_}>
