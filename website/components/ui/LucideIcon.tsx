@@ -47,7 +47,11 @@ export type IconName =
   | 'shield-check'
   | 'loader-circle'
   | 'circle-check'
-  | 'circle-alert';
+  | 'circle-alert'
+  | 'package'
+  | 'calendar'
+  | 'hard-drive'
+  | 'apple';
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   'panel-left': (
@@ -311,6 +315,36 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
       <circle cx="12" cy="12" r="10" />
       <line x1="12" x2="12" y1="8" y2="12" />
       <line x1="12" x2="12.01" y1="16" y2="16" />
+    </>
+  ),
+  package: (
+    <>
+      <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+      <path d="M12 22V12" />
+      <polyline points="3.29 7 12 12 20.71 7" />
+      <path d="m7.5 4.27 9 5.15" />
+    </>
+  ),
+  calendar: (
+    <>
+      <path d="M8 2v4" />
+      <path d="M16 2v4" />
+      <rect width="18" height="18" x="3" y="4" rx="2" />
+      <path d="M3 10h18" />
+    </>
+  ),
+  'hard-drive': (
+    <>
+      <path d="M10 16h.01" />
+      <path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+      <path d="M21.946 12.013H2.054" />
+      <path d="M6 16h.01" />
+    </>
+  ),
+  apple: (
+    <>
+      <path d="M12 6.528V3a1 1 0 0 1 1-1h0" />
+      <path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21" />
     </>
   ),
 };

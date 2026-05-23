@@ -2,7 +2,6 @@ import { GITHUB_URL, DOWNLOAD_URL } from '@/lib/version';
 import styles from './Footer.module.css';
 
 export function Footer() {
-  const releasesUrl = `${GITHUB_URL}/releases`;
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
@@ -37,13 +36,8 @@ export function Footer() {
               </a>
             </li>
             <li>
-              <a
-                className={styles.link}
-                href={releasesUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Releases
+              <a className={styles.link} href="/history">
+                Version history
               </a>
             </li>
           </ul>

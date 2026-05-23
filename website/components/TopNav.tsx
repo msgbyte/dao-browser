@@ -49,6 +49,13 @@ export function TopNav() {
         >
           <span className={styles.linkText}>AI Agent</span>
         </Link>
+        <Link
+          href="/history"
+          className={styles.link}
+          onClick={() => trackEvent('nav_link_click', { target: 'history' })}
+        >
+          <span className={styles.linkText}>Versions</span>
+        </Link>
         <a
           href={GITHUB_URL}
           target="_blank"
