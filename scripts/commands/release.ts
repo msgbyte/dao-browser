@@ -360,6 +360,11 @@ export const releaseCommand = new Command("release")
     // forward. Artifacts ship from dao-release.msgbyte.com — keep this
     // in sync with website/public/appcast.xml and the R2 bucket's
     // custom-domain binding.
+    //
+    // --maximum-versions 0 preserves every <item> in the seeded appcast.
+    // Default is 3, which silently prunes older releases out of the feed
+    // each time we ship. The website's /history page reads this file to
+    // list every shipped version, so we need the full history retained.
     await runStep(
       opts.dryRun,
       "Generating Sparkle appcast",
@@ -367,6 +372,8 @@ export const releaseCommand = new Command("release")
       [
         "--download-url-prefix",
         "https://dao-release.msgbyte.com/",
+        "--maximum-versions",
+        "0",
         path.join(ROOT_DIR, "dist"),
       ]
     );
