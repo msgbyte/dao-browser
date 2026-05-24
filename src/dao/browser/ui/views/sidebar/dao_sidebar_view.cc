@@ -144,13 +144,39 @@ class DaoToggleButton : public views::Button {
   }
 
   void PaintButtonContents(gfx::Canvas* canvas) override {
-    float icon_size = 16.0f;
-    float x = (width() - icon_size) / 2.0f;
-    float y = (height() - icon_size) / 2.0f;
+    constexpr float kHoverSize = 24.0f;
+    constexpr float kHoverRadius = 6.0f;
+    constexpr float kIconSize = 16.0f;
+    if (hovered_) {
+      float hx = (width() - kHoverSize) / 2.0f;
+      float hy = (height() - kHoverSize) / 2.0f;
+      cc::PaintFlags flags;
+      flags.setAntiAlias(true);
+      flags.setColor(dao::ControlCenterHoverBg());
+      canvas->DrawRoundRect(gfx::RectF(hx, hy, kHoverSize, kHoverSize),
+                            kHoverRadius, flags);
+    }
+    float x = (width() - kIconSize) / 2.0f;
+    float y = (height() - kIconSize) / 2.0f;
     DrawLucideIcon(canvas, LucideIcon::kPanelLeftClose,
-                   gfx::RectF(x, y, icon_size, icon_size),
+                   gfx::RectF(x, y, kIconSize, kIconSize),
                    dao::TextSecondary());
   }
+
+  void OnMouseEntered(const ui::MouseEvent& event) override {
+    Button::OnMouseEntered(event);
+    hovered_ = true;
+    SchedulePaint();
+  }
+
+  void OnMouseExited(const ui::MouseEvent& event) override {
+    Button::OnMouseExited(event);
+    hovered_ = false;
+    SchedulePaint();
+  }
+
+ private:
+  bool hovered_ = false;
 };
 
 BEGIN_METADATA(DaoToggleButton)
