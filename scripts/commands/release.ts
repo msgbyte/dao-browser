@@ -5,6 +5,7 @@ import {
   existsSync,
   readFileSync,
   readdirSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -356,6 +357,20 @@ export const releaseCommand = new Command("release")
     }
 
     // ------------------------------------------------------------------
+    // Snapshot pre-existing .delta files in dist/ BEFORE generate_appcast
+    // runs, so we can distinguish "delta this run produced (or refreshed)"
+    // from "delta that's been sitting in dist/ since a previous release".
+    // Only the former needs to ship to R2 — the latter is already up there.
+    // Captures filename → mtime; we compare both presence and mtime after
+    // regen, because generate_appcast may overwrite an existing .delta if
+    // the source dmg changed.
+    // ------------------------------------------------------------------
+    const distDir = path.join(ROOT_DIR, "dist");
+    const preExistingDeltas = !opts.dryRun
+      ? snapshotDeltaMtimes(distDir)
+      : new Map<string, number>();
+
+    // ------------------------------------------------------------------
     // Step 5 — generate_appcast dist/  (Sparkle EdDSA-signs each enclosure)
     // ------------------------------------------------------------------
     const generateAppcast = path.join(
@@ -449,7 +464,7 @@ export const releaseCommand = new Command("release")
     }
 
     // ------------------------------------------------------------------
-    // Step 6 — upload .dmg + every .delta in dist/ to R2
+    // Step 6 — upload .dmg + new/changed .delta files in dist/ to R2
     //
     // generate_appcast writes signed <enclosure> entries for delta
     // patches alongside the full dmg; the appcast advertises both. If
@@ -457,10 +472,20 @@ export const releaseCommand = new Command("release")
     // pick a delta matching their current version, and hit a 404 — at
     // which point Sparkle reports "Update Error" instead of silently
     // falling back to the full dmg. So delta upload is not optional.
+    //
+    // Incremental upload: a .delta file ships only if it's both
+    //   (a) referenced by the freshly regenerated appcast, AND
+    //   (b) newly created by this run, OR its mtime changed (meaning
+    //       generate_appcast re-synthesized it because its source dmg
+    //       was rebuilt).
+    // Deltas that already existed before this run with unchanged mtime
+    // are assumed to be already on R2 from a previous release — they're
+    // still listed in the appcast (so the feed stays valid for older
+    // clients), but we don't re-PUT them. This makes a typical release
+    // upload one .dmg + one .delta (vs current N-version, the most
+    // common case for active users) instead of all historical deltas.
     // ------------------------------------------------------------------
     if (willUpload) {
-      const distDir = path.join(ROOT_DIR, "dist");
-
       // Whitelist delta uploads against the freshly-regenerated appcast.
       // generate_appcast does prune unreferenced delta files into
       // dist/old_updates/, but a resumed/partial release can leave stray
@@ -471,22 +496,42 @@ export const releaseCommand = new Command("release")
       const referencedDeltas = !opts.dryRun
         ? collectReferencedDeltaBasenames(appcastDest)
         : new Set<string>();
-      const allDeltas = existsSync(distDir)
-        ? readdirSync(distDir).filter((f) => f.endsWith(".delta"))
-        : [];
+      const postRunDeltas = existsSync(distDir)
+        ? snapshotDeltaMtimes(distDir)
+        : new Map<string, number>();
       const deltaPaths: string[] = [];
-      const skippedDeltas: string[] = [];
-      for (const name of allDeltas) {
-        if (opts.dryRun || referencedDeltas.has(name)) {
+      const skippedUnreferenced: string[] = [];
+      const skippedUnchanged: string[] = [];
+      for (const [name, mtime] of postRunDeltas) {
+        if (opts.dryRun) {
+          deltaPaths.push(path.join(distDir, name));
+          continue;
+        }
+        if (!referencedDeltas.has(name)) {
+          skippedUnreferenced.push(name);
+          continue;
+        }
+        const previous = preExistingDeltas.get(name);
+        const isNewOrChanged = previous === undefined || previous !== mtime;
+        if (isNewOrChanged) {
           deltaPaths.push(path.join(distDir, name));
         } else {
-          skippedDeltas.push(name);
+          skippedUnchanged.push(name);
         }
       }
-      if (skippedDeltas.length > 0) {
+      if (skippedUnreferenced.length > 0) {
         warn(
-          `Skipping ${skippedDeltas.length} unreferenced delta file(s) in ` +
-            `dist/ (not present in appcast): ${skippedDeltas.join(", ")}`
+          `Skipping ${skippedUnreferenced.length} unreferenced delta file(s) ` +
+            `in dist/ (not present in appcast): ${skippedUnreferenced.join(
+              ", "
+            )}`
+        );
+      }
+      if (skippedUnchanged.length > 0) {
+        log(
+          `Skipping ${skippedUnchanged.length} unchanged delta file(s) ` +
+            `(already on R2 from a previous release): ` +
+            skippedUnchanged.join(", ")
         );
       }
 
@@ -502,8 +547,8 @@ export const releaseCommand = new Command("release")
 
       const deltaSummary =
         deltaPaths.length > 0
-          ? ` + ${deltaPaths.length} delta(s)`
-          : " (no referenced delta files in dist/)";
+          ? ` + ${deltaPaths.length} new/changed delta(s)`
+          : " (no new delta files to upload)";
       await runStep(
         opts.dryRun,
         `Uploading ${dmgName}${deltaSummary} to R2`,
@@ -835,6 +880,27 @@ function collectReferencedDeltaBasenames(appcastPath: string): Set<string> {
     }
   }
   return referenced;
+}
+
+// Snapshot the .delta files currently in dist/ along with their mtime in
+// milliseconds. Used by the release flow to diff before/after
+// generate_appcast so we only re-upload deltas that this run created or
+// refreshed — preexisting deltas with unchanged mtime are assumed to be
+// already in R2 from a previous release.
+function snapshotDeltaMtimes(distDir: string): Map<string, number> {
+  const snapshot = new Map<string, number>();
+  if (!existsSync(distDir)) return snapshot;
+  for (const name of readdirSync(distDir)) {
+    if (!name.endsWith(".delta")) continue;
+    const full = path.join(distDir, name);
+    try {
+      const st = statSync(full);
+      snapshot.set(name, st.mtimeMs);
+    } catch {
+      // File vanished between readdir and stat — ignore.
+    }
+  }
+  return snapshot;
 }
 
 // ---------------------------------------------------------------------------

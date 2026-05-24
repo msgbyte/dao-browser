@@ -55,30 +55,6 @@
     </item>
     -->
         <item>
-            <title>1.0.22.0</title>
-            <pubDate>Sun, 24 May 2026 18:04:37 +0800</pubDate>
-            <sparkle:version>22.0</sparkle:version>
-            <sparkle:shortVersionString>1.0.22.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://dao-release.msgbyte.com/dao-browser-1.0.22-mac-arm64.dmg" length="153929567" type="application/octet-stream" sparkle:edSignature="vcpeDS9KEI3m6vDXiVv7pZABiZ+NhUG9IujhwJocEs5BW7TW8CMu9a3fZWlefuDG96j5TdohHQmc95vJNz9UCw=="/>
-            <sparkle:deltas>
-                <enclosure url="https://dao-release.msgbyte.com/Dao22.0-21.0.delta" sparkle:deltaFrom="21.0" length="66490" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="HnoxxaFeMP8K7clBagGWV+YcYyXqHjQxoEXpvN0j7bU1+OWHcWWQBQFL8YvenJwEu53i1ETxQ4OP5xecUv65DA=="/>
-                <enclosure url="https://dao-release.msgbyte.com/Dao22.0-20.0.delta" sparkle:deltaFrom="20.0" length="2731798" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="3hPRcyyZBPL0UPzWtdDgotpmMMeLFCnP844NffLGNn9babkzg5ZuM893WCXU8iGGnsHLQRF90TtEq5h+A0+uBg=="/>
-                <enclosure url="https://dao-release.msgbyte.com/Dao22.0-19.0.delta" sparkle:deltaFrom="19.0" length="7300194" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="YFcyfa5i8XMw5UWqWuY9lmaJf7eCAe01UYGhpXzsRkjQA8RtCiildC4u/1BkwLrpwY+a8M0o1RxuiZqXNJL9CQ=="/>
-                <enclosure url="https://dao-release.msgbyte.com/Dao22.0-17.0.delta" sparkle:deltaFrom="17.0" length="7298986" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="Ce5hTEFrVWINdPSVMxe7owVC69NaNExcwrL1RK97dgzcfTEQD0BhFSxKlu9sVljiOjUkS5GzLrlfe70rYkvMAQ=="/>
-                <enclosure url="https://dao-release.msgbyte.com/Dao22.0-16.0.delta" sparkle:deltaFrom="16.0" length="7581166" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="047uNWAZ2kFqyhorZNEWl5VJser03vnPGEXAVqzquM/Cd9JIFsRAkq6VwF0NdIYDWlIOQzC7QYZIeGV6trjLAg=="/>
-            </sparkle:deltas>
-            <dao:gitCommit>55383d1d020efb05836a8d0622487d0a8ca3f8bc</dao:gitCommit>
-        </item>
-        <item>
-            <title>1.0.21.0</title>
-            <pubDate>Sat, 23 May 2026 10:46:05 +0800</pubDate>
-            <sparkle:version>21.0</sparkle:version>
-            <sparkle:shortVersionString>1.0.21.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://dao-release.msgbyte.com/dao-browser-1.0.21-mac-arm64.dmg" length="153930494" type="application/octet-stream" sparkle:edSignature="dQppEhrj/nb9wtrGXkS5ABFpLeG+nUKTqeouc/Jb6LTRhmyJFpAR/UfedEWLEiB1OMFX/S1uJaGh4qy8UZ3dAQ=="/>
-        </item>
-        <item>
             <title>1.0.20.0</title>
             <pubDate>Fri, 22 May 2026 04:27:46 +0800</pubDate>
             <sparkle:version>20.0</sparkle:version>
