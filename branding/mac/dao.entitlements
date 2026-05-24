@@ -44,15 +44,19 @@
     <true/>
 
     <!-- Touch ID / platform authenticator (WebAuthn passkeys). The Chromium
-         Touch ID context stores credentials in a keychain access group derived
-         at runtime as <TeamID>.<CFBundleIdentifier>.webauthn; without this
-         entitlement it logs "Touch ID authenticator unavailable" on every
-         WebAuthn capability probe and falls back to other authenticators.
-         codesign substitutes $(AppIdentifierPrefix) -> "<TeamID>." and
-         $(CFBundleIdentifier) from the bundle's Info.plist at sign time, so
-         this works for both release (com.msgbyte.dao) and debug-suffixed
-         (com.msgbyte.dao.debug) builds with a real Developer ID signature. -->
-    <key>keychain-access-group</key>
+         Touch ID context stores credentials in a keychain access group of the
+         form <TeamID>.<CFBundleIdentifier>.webauthn; without this entitlement
+         it logs "Touch ID authenticator unavailable" on every WebAuthn
+         capability probe and falls back to other authenticators.
+         The values below use Xcode-style placeholders for AppIdentifierPrefix
+         and CFBundleIdentifier. macOS codesign does NOT expand them;
+         package.ts renders this template into a tmp file (substituting the
+         real Team ID and the debug-vs-release bundle id) before passing it
+         to `codesign --entitlements`. Leaving an unexpanded placeholder in
+         the signed entitlements makes taskgated reject the signature with
+         "Code Signature Invalid" at launch — package.ts has a self-check
+         that fails the build if any placeholder slips through. -->
+    <key>keychain-access-groups</key>
     <array>
         <string>$(AppIdentifierPrefix)$(CFBundleIdentifier).webauthn</string>
     </array>

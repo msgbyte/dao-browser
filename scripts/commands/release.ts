@@ -26,6 +26,10 @@ interface ReleaseOptions {
   skipUpload?: boolean;
   skipBuild?: boolean;
   skipBump?: boolean;
+  // Default true. Set to false via --no-force-import to call
+  // `cli.ts import` without --force, e.g. when iterating on a release
+  // failure and you've already reset engine/src yourself.
+  forceImport?: boolean;
   // Resume from staple: dmg has already been notarized externally
   // (e.g. you ran `xcrun stapler staple dist/...dmg` yourself), and
   // we just need to finish appcast + copy + upload.
@@ -69,6 +73,12 @@ export const releaseCommand = new Command("release")
   .option("-p, --prefix <prefix>", "R2 key prefix for the .dmg", "")
   .option("--skip-upload", "Skip the R2 upload step (still produces artifacts)")
   .option("--skip-build", "Skip import + build (use existing dist/ artifact)")
+  .option(
+    "--no-force-import",
+    "Run `cli.ts import` without --force (default: forced). " +
+      "Use this when engine/src is already in a known-good state and you " +
+      "don't want the import step to reset local edits."
+  )
   .option(
     "--skip-bump",
     "Use the version already in dao.json instead of bumping " +
@@ -280,11 +290,14 @@ export const releaseCommand = new Command("release")
     // ------------------------------------------------------------------
     const skipBuildPhase = opts.skipBuild || opts.resumeFromStaple;
     if (!skipBuildPhase) {
+      const forceImport = opts.forceImport !== false;
+      const importArgs = ["tsx", "scripts/cli.ts", "import"];
+      if (forceImport) importArgs.push("--force");
       await runStep(
         opts.dryRun,
-        "Importing patches (force)",
+        forceImport ? "Importing patches (force)" : "Importing patches",
         "npx",
-        ["tsx", "scripts/cli.ts", "import", "--force"]
+        importArgs
       );
 
       await runStep(opts.dryRun, "Building (release)", "npx", [

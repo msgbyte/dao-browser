@@ -12,6 +12,8 @@ import {
   openSync,
   readSync,
   closeSync,
+  readFileSync,
+  writeFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -382,18 +384,116 @@ function signAppBundle(appBundle: string, identity: string): void {
 
   log(`Signing ${path.basename(appBundle)} with identity: ${identity}`);
 
-  const items = collectSignables(appBundle);
-  // Sort by depth descending so children sign before parents.
-  items.sort((a, b) => depth(b) - depth(a));
+  // codesign does not expand $(AppIdentifierPrefix) / $(CFBundleIdentifier)
+  // — those are Xcode build-phase substitutions. Render the templates here
+  // so the signed entitlements contain fully-qualified literals; an
+  // unexpanded placeholder would make taskgated reject the signature with
+  // "Code Signature Invalid" at launch.
+  const teamId = extractTeamId(identity);
+  const bundleId = readBundleIdentifier(appBundle);
+  const renderDir = mkdtempSync(path.join(os.tmpdir(), "dao-entitlements-"));
+  const mainRendered = renderEntitlements(
+    ENTITLEMENTS,
+    renderDir,
+    "dao.entitlements",
+    teamId,
+    bundleId
+  );
+  const helperRendered = renderEntitlements(
+    HELPER_ENTITLEMENTS,
+    renderDir,
+    "dao_helper.entitlements",
+    teamId,
+    bundleId
+  );
 
-  for (const item of items) {
-    const ent = isAppBundle(item) ? HELPER_ENTITLEMENTS : null;
-    signOne(item, identity, ent);
+  try {
+    const items = collectSignables(appBundle);
+    // Sort by depth descending so children sign before parents.
+    items.sort((a, b) => depth(b) - depth(a));
+
+    for (const item of items) {
+      const ent = isAppBundle(item) ? helperRendered : null;
+      signOne(item, identity, ent);
+    }
+
+    // Outer app last.
+    signOne(appBundle, identity, mainRendered);
+    success("App bundle signed");
+  } finally {
+    rmSync(renderDir, { recursive: true, force: true });
+  }
+}
+
+// Pull the 10-char Team ID out of "Developer ID Application: Foo Bar (TEAMID1234)".
+function extractTeamId(identity: string): string {
+  const m = identity.match(/\(([A-Z0-9]{10})\)\s*$/);
+  if (!m) {
+    error(
+      `Could not extract Team ID from DAO_SIGN_IDENTITY: "${identity}".\n` +
+        '  Expected format: "Developer ID Application: <Name> (TEAMID1234)"'
+    );
+    process.exit(1);
+  }
+  return m[1];
+}
+
+function readBundleIdentifier(appBundle: string): string {
+  const infoPlist = path.join(appBundle, "Contents", "Info.plist");
+  if (!existsSync(infoPlist)) {
+    error(`Info.plist not found inside app bundle: ${infoPlist}`);
+    process.exit(1);
+  }
+  // `defaults read` strips the .plist suffix and prints the raw value.
+  const out = run(
+    `defaults read "${infoPlist.replace(/\.plist$/, "")}" CFBundleIdentifier`,
+    { silent: true }
+  ).trim();
+  if (!out) {
+    error(`CFBundleIdentifier is empty in ${infoPlist}`);
+    process.exit(1);
+  }
+  return out;
+}
+
+// Render an entitlements template by substituting Xcode-style placeholders,
+// then assert no `$(...)` remain. Any survivor would be silently signed into
+// the binary and rejected at launch by taskgated.
+//
+// Also strips XML comments before writing: codesign's AMFI parser is stricter
+// than plutil and rejects some perfectly valid UTF-8 inside <!-- ... -->
+// (em dashes, backticks, etc.) with "AMFIUnserializeXML: syntax error".
+// Comments are only useful for humans reading the source template anyway —
+// no need to ship them into the signature.
+function renderEntitlements(
+  templatePath: string,
+  outDir: string,
+  outName: string,
+  teamId: string,
+  bundleId: string
+): string {
+  const src = readFileSync(templatePath, "utf8");
+  const stripped = src.replace(/<!--[\s\S]*?-->/g, "");
+  const rendered = stripped
+    // $(AppIdentifierPrefix) expands to "<TeamID>." (trailing dot — that's
+    // how Xcode's expansion works, since downstream values concatenate
+    // "$(AppIdentifierPrefix)$(CFBundleIdentifier)" without a separator).
+    .replace(/\$\(AppIdentifierPrefix\)/g, `${teamId}.`)
+    .replace(/\$\(CFBundleIdentifier\)/g, bundleId);
+
+  const leftover = rendered.match(/\$\([^)]+\)/);
+  if (leftover) {
+    error(
+      `Unexpanded placeholder ${leftover[0]} in ${path.basename(templatePath)}.\n` +
+        "  Add it to renderEntitlements() in scripts/commands/package.ts,\n" +
+        "  or replace it with a literal value in the entitlements file."
+    );
+    process.exit(1);
   }
 
-  // Outer app last.
-  signOne(appBundle, identity, ENTITLEMENTS);
-  success("App bundle signed");
+  const outPath = path.join(outDir, outName);
+  writeFileSync(outPath, rendered);
+  return outPath;
 }
 
 function collectSignables(root: string): string[] {
@@ -510,6 +610,23 @@ function verifyCodesign(appBundle: string): void {
   run(`codesign --verify --strict --deep --verbose=2 "${appBundle}"`, {
     silent: false,
   });
+  // Last-line-of-defence: inspect the entitlements that actually got signed
+  // into the bundle. Any `$(...)` survivor here means a placeholder slipped
+  // past renderEntitlements, and taskgated will SIGKILL the app at launch
+  // with "Code Signature Invalid".
+  const embedded = run(
+    `codesign -d --entitlements - --xml "${appBundle}"`,
+    { silent: true }
+  );
+  const leftover = embedded.match(/\$\([^)]+\)/);
+  if (leftover) {
+    error(
+      `Signed entitlements still contain unexpanded ${leftover[0]}.\n` +
+        "  This will cause taskgated to reject the signature at launch.\n" +
+        "  Fix: handle the placeholder in renderEntitlements()."
+    );
+    process.exit(1);
+  }
   success("Signature verified");
 }
 
