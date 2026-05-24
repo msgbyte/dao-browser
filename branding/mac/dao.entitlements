@@ -51,10 +51,11 @@
          abort launch with "Restricted entitlements not validated, error
          -67671 / -413 No matching profile found" — observed in 1.0.22.
          Touch ID / platform authenticator therefore stays in fallback mode
-         (same as <=1.0.20). Re-enabling Touch ID requires registering the
-         App ID + keychain access group on developer.apple.com, generating
-         a Developer ID provisioning profile for the bundle id, embedding
-         it at Dao.app/Contents/embedded.provisionprofile during packaging,
-         and only then adding the entitlement back. -->
+         (same as <=1.0.20). To re-enable, follow the PRD + ops guide at
+         docs/webauthn-touchid-restore.md (registers the App ID + keychain
+         access group on developer.apple.com, generates a Developer ID
+         provisioning profile, embeds it at Dao.app/Contents/
+         embedded.provisionprofile during packaging, then adds the
+         entitlement back). -->
 </dict>
 </plist>
