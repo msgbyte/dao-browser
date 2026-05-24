@@ -360,7 +360,11 @@ void DaoSidebarView::DoStartFileDrag(const base::FilePath& path) {
 }
 
 gfx::Rect DaoSidebarView::header_bounds_in_sidebar() const {
-  if (!header_row_ || !inner_container_) {
+  // When collapsed, inner_container_ still holds user_width_ for animation
+  // clipping, so header_row_->bounds() reports the full pre-collapse width.
+  // Returning that would make NonClientHitTest mark the address bar area as
+  // a window drag region and swallow clicks on the address-bar toggle.
+  if (!header_row_ || !inner_container_ || collapsed_) {
     return gfx::Rect();
   }
   gfx::Rect r = header_row_->bounds();

@@ -620,8 +620,8 @@ void DaoAddressBarView::UpdateToggleButtonColor() {
   double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
   bool dark_background = luminance < 128;
   SkColor icon_color = dark_background
-      ? SkColorSetARGB(230, 255, 255, 255)  // dark bg → white icon
-      : SkColorSetARGB(200, 0, 0, 0);       // light bg → dark icon
+      ? SkColorSetARGB(180, 255, 255, 255)  // dark bg → white icon
+      : SkColorSetARGB(160, 0, 0, 0);       // light bg → dark icon
   SkColor hover_bg = dark_background
       ? SkColorSetARGB(20, 255, 255, 255)
       : SkColorSetARGB(20, 0, 0, 0);
