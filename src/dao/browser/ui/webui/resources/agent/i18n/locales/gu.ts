@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'એજન્ટ માટે સ્લેશ-કમાન્ડ કૌશલ્ય મેનેજ કરો. કૌશલ્ય મેનેજર ખોલો, કૌશલ્ય બનાવો, સંપાદિત કરો, અને સંપૂર્ણ-પૃષ્ઠ સંપાદકમાં કૌશલ્ય કાઢી નાખો.',
   'settings.skills.open_manager_button': 'કૌશલ્ય મેનેજર ખોલો',
   'settings.skills.open_directory_button': 'કૌશલ્ય ડિરેક્ટરી ખોલો',
+  'skills.toggle.enable_aria': 'સ્કિલ {name} સક્ષમ કરો',
+  'skills.toggle.disable_aria': 'સ્કિલ {name} નિષ્ક્રિય કરો',
+  'skills.toggle.failed': 'સ્કિલ અપડેટ કરવામાં નિષ્ફળ',
 };
 
 export default dict;

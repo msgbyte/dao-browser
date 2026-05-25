@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Quản lý kỹ năng lệnh gạch chéo cho agent. Mở Trình quản lý Kỹ năng để tạo, chỉnh sửa và xóa kỹ năng trong trình chỉnh sửa toàn trang.',
   'settings.skills.open_manager_button': 'Mở Trình quản lý Kỹ năng',
   'settings.skills.open_directory_button': 'Mở Thư mục Kỹ năng',
+  'skills.toggle.enable_aria': 'Bật kỹ năng {name}',
+  'skills.toggle.disable_aria': 'Tắt kỹ năng {name}',
+  'skills.toggle.failed': 'Không thể cập nhật kỹ năng',
 };
 
 export default dict;

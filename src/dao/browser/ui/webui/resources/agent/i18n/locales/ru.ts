@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Управляйте навыками команд слэш для агента. Откройте менеджер навыков, чтобы создавать, редактировать и удалять навыки в полноэкранном редакторе.',
   'settings.skills.open_manager_button': 'Открыть менеджер навыков',
   'settings.skills.open_directory_button': 'Открыть каталог навыков',
+  'skills.toggle.enable_aria': 'Включить навык {name}',
+  'skills.toggle.disable_aria': 'Отключить навык {name}',
+  'skills.toggle.failed': 'Не удалось обновить навык',
 };
 
 export default dict;

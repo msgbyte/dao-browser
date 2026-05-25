@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': '管理代理的斜線命令技能。打開技能管理器以在全頁編輯器中創建、編輯和刪除技能。',
   'settings.skills.open_manager_button': '打開技能管理器',
   'settings.skills.open_directory_button': '打開技能目錄',
+  'skills.toggle.enable_aria': '啟用技能 {name}',
+  'skills.toggle.disable_aria': '停用技能 {name}',
+  'skills.toggle.failed': '更新技能失敗',
 };
 
 export default dict;

@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Kudeatu agenteak dituen slash-komando trebetasunak. Ireki Trebetasun Kudeatzailea trebetasunak sortzeko, editatzeko eta ezabatzeko orri oso bateko editorean.',
   'settings.skills.open_manager_button': 'Ireki Trebetasun Kudeatzailea',
   'settings.skills.open_directory_button': 'Ireki Trebetasun Direktoria',
+  'skills.toggle.enable_aria': 'Gaitu {name} trebetasuna',
+  'skills.toggle.disable_aria': 'Desgaitu {name} trebetasuna',
+  'skills.toggle.failed': 'Huts egin du trebetasuna eguneratzean',
 };
 
 export default dict;

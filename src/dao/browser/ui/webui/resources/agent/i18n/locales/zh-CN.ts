@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': '管理 Agent 的斜杠命令技能。打开技能管理器以在整页编辑器中创建、编辑和删除技能。',
   'settings.skills.open_manager_button': '打开技能管理器',
   'settings.skills.open_directory_button': '打开技能目录',
+  'skills.toggle.enable_aria': '启用技能 {name}',
+  'skills.toggle.disable_aria': '禁用技能 {name}',
+  'skills.toggle.failed': '更新技能状态失败',
 };
 
 export default dict;

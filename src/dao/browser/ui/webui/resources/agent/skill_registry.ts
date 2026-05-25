@@ -13,6 +13,7 @@ export interface SkillRegistryEntry {
   source: string;
   hosts: string[];
   requiresPageContent: boolean;
+  disabled: boolean;
 }
 
 export interface SkillContent {
@@ -81,7 +82,7 @@ export function getAllSkills(): SkillRegistryEntry[] {
 
 export function getAvailableSkills(currentHost: string): SkillRegistryEntry[] {
   return cachedRegistry.filter(
-      skill => isSkillAvailableForHost(skill, currentHost));
+      skill => !skill.disabled && isSkillAvailableForHost(skill, currentHost));
 }
 
 function isSkillAvailableForHost(
@@ -123,6 +124,18 @@ export async function deleteUserSkill(skillId: string): Promise<boolean> {
   try {
     const result =
         await callNativeArgs('deleteUserSkill', skillId) as boolean;
+    await refreshSkillRegistry();
+    return result;
+  } catch (_) {
+    return false;
+  }
+}
+
+export async function setSkillDisabled(
+    skillId: string, disabled: boolean): Promise<boolean> {
+  try {
+    const result = await callNativeArgs(
+        'setSkillDisabled', skillId, disabled) as boolean;
     await refreshSkillRegistry();
     return result;
   } catch (_) {

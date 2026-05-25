@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Керуйте навичками слеш-команд для агента. Відкрийте Менеджер навичок, щоб створювати, редагувати та видаляти навички у повноекранному редакторі.',
   'settings.skills.open_manager_button': 'Відкрити Менеджер навичок',
   'settings.skills.open_directory_button': 'Відкрити Довідник навичок',
+  'skills.toggle.enable_aria': 'Увімкнути навичку {name}',
+  'skills.toggle.disable_aria': 'Вимкнути навичку {name}',
+  'skills.toggle.failed': 'Не вдалося оновити навичку',
 };
 
 export default dict;

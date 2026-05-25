@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Spravujte zručnosti príkazov so skratkou pre agenta. Otvorte Správcu zručností na vytváranie, úpravu a mazanie zručností v editore na celej stránke.',
   'settings.skills.open_manager_button': 'Otvoriť Správcu zručností',
   'settings.skills.open_directory_button': 'Otvoriť adresár zručností',
+  'skills.toggle.enable_aria': 'Povoliť zručnosť {name}',
+  'skills.toggle.disable_aria': 'Zakázať zručnosť {name}',
+  'skills.toggle.failed': 'Nepodarilo sa aktualizovať zručnosť',
 };
 
 export default dict;

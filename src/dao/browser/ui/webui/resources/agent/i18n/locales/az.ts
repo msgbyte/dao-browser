@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Agent üçün slash-komanda bacarıqlarını idarə edin. Bacarıq Menecerini açaraq tam səhifə redaktorunda bacarıqlar yaradın, redaktə edin və silin.',
   'settings.skills.open_manager_button': 'Bacarıq Menecerini Aç',
   'settings.skills.open_directory_button': 'Bacarıqlar Kataloqunu Aç',
+  'skills.toggle.enable_aria': 'Bacarıq {name} aktiv et',
+  'skills.toggle.disable_aria': 'Bacarıq {name} deaktiv et',
+  'skills.toggle.failed': 'Bacarıq yenilənmədi',
 };
 
 export default dict;

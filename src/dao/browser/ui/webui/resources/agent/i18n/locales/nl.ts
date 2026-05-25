@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Beheer slash-commando vaardigheden voor de agent. Open de Vaardighedenbeheerder om vaardigheden te maken, bewerken en verwijderen in een volledige pagina-editor.',
   'settings.skills.open_manager_button': 'Open Vaardighedenbeheerder',
   'settings.skills.open_directory_button': 'Open Vaardighedengids',
+  'skills.toggle.enable_aria': 'Skill {name} inschakelen',
+  'skills.toggle.disable_aria': 'Skill {name} uitschakelen',
+  'skills.toggle.failed': 'Bijwerken van skill mislukt',
 };
 
 export default dict;

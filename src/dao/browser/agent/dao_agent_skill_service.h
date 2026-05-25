@@ -62,6 +62,13 @@ class DaoAgentSkillService : public KeyedService {
   void DeleteUserSkill(const std::string& skill_id,
                        base::OnceCallback<void(bool)> callback);
 
+  // Toggle the disabled state of a skill (works for both builtin and user
+  // skills). Updates the `disabled:` field in the YAML frontmatter of the
+  // skill's SKILL.md, inserting it if missing.
+  void SetSkillDisabled(const std::string& skill_id,
+                        bool disabled,
+                        base::OnceCallback<void(bool)> callback);
+
   // Write built-in skills to disk if they don't already exist.
   void InitBuiltinSkills();
 
@@ -79,6 +86,10 @@ class DaoAgentSkillService : public KeyedService {
                                         const std::string& host);
   static bool DeleteUserSkillOnBackground(const base::FilePath& skills_path,
                                           const std::string& skill_id);
+
+  static bool SetSkillDisabledOnBackground(const base::FilePath& skills_path,
+                                           const std::string& skill_id,
+                                           bool disabled);
 
   // Parses a SKILL.md file content into metadata and instructions.
   static bool ParseSkillMd(const std::string& content,

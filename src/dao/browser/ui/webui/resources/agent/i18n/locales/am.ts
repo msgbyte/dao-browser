@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'ለወኪሉ የስላሽ ትእዛዝ ክህሎቶችን ያቆጣጠሩ። በሙሉ ገጽ አርትዕ ውስጥ ክህሎቶችን ለመፍጠር፣ ለማርትዕ እና ለማጥፋት የክህሎት አስተዳደር ክፍት ይሁን።',
   'settings.skills.open_manager_button': 'የክህሎት አስተዳደር ክፍት',
   'settings.skills.open_directory_button': 'የክህሎቶች ማውጫ ክፍት',
+  'skills.toggle.enable_aria': 'ችሎታ {name} እንዲሰራ አድርግ',
+  'skills.toggle.disable_aria': 'ችሎታ {name} እንዳይሰራ አድርግ',
+  'skills.toggle.failed': 'ችሎታን ማሻሻል አልተሳካም',
 };
 
 export default dict;

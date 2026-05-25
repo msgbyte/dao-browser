@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'จัดการทักษะคำสั่งสแลชสำหรับเอเจนต์ เปิดตัวจัดการทักษะเพื่อสร้าง แก้ไข และลบทักษะในตัวแก้ไขเต็มหน้า',
   'settings.skills.open_manager_button': 'เปิดตัวจัดการทักษะ',
   'settings.skills.open_directory_button': 'เปิดไดเรกทอรีทักษะ',
+  'skills.toggle.enable_aria': 'เปิดใช้งานสกิล {name}',
+  'skills.toggle.disable_aria': 'ปิดใช้งานสกิล {name}',
+  'skills.toggle.failed': 'ไม่สามารถอัปเดตสกิล',
 };
 
 export default dict;

@@ -129,7 +129,7 @@ const dict: Dictionary = {
   'settings.tools.search_duckduckgo_only': 'Solo DuckDuckGo',
   'settings.tools.group.page': 'Página',
   'settings.tools.group.tabs': 'Pestañas',
-  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.devtools': 'Herramientas de desarrollo',
   'settings.tools.group.memory-skills': 'Memoria y habilidades',
   'settings.tools.group.web': 'Web',
   'settings.tools.group.workspace': 'Espacio de trabajo',
@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Administra habilidades de comando de barra para el agente. Abre el Administrador de Habilidades para crear, editar y eliminar habilidades en un editor de página completa.',
   'settings.skills.open_manager_button': 'Abrir Administrador de Habilidades',
   'settings.skills.open_directory_button': 'Abrir Directorio de Habilidades',
+  'skills.toggle.enable_aria': 'Habilitar skill {name}',
+  'skills.toggle.disable_aria': 'Deshabilitar skill {name}',
+  'skills.toggle.failed': 'Error al actualizar skill',
 };
 
 export default dict;

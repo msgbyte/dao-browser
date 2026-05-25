@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Gestiona las habilidades de comandos de barra para el agente. Abre el Administrador de Habilidades para crear, editar y eliminar habilidades en un editor de página completa.',
   'settings.skills.open_manager_button': 'Abrir Administrador de Habilidades',
   'settings.skills.open_directory_button': 'Abrir Directorio de Habilidades',
+  'skills.toggle.enable_aria': 'Habilitar skill {name}',
+  'skills.toggle.disable_aria': 'Deshabilitar skill {name}',
+  'skills.toggle.failed': 'Error al actualizar skill',
 };
 
 export default dict;

@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'ఏజెంట్ కోసం స్లాష్-కమాండ్ నైపుణ్యాలను నిర్వహించండి. పూర్తి-పేజీ ఎడిటర్‌లో నైపుణ్యాలను సృష్టించడానికి, సవరించడానికి, మరియు తొలగించడానికి నైపుణ్య మేనేజర్‌ను తెరవండి.',
   'settings.skills.open_manager_button': 'నైపుణ్య మేనేజర్‌ను తెరవండి',
   'settings.skills.open_directory_button': 'నైపుణ్య డైరెక్టరీని తెరవండి',
+  'skills.toggle.enable_aria': 'స్కిల్ {name} ను ప్రారంభించండి',
+  'skills.toggle.disable_aria': 'స్కిల్ {name} ను నిలిపివేయండి',
+  'skills.toggle.failed': 'స్కిల్ ను నవీకరించడం విఫలమైంది',
 };
 
 export default dict;

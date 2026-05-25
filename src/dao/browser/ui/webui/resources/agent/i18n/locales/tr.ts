@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Temsilci için eğik çizgi komut becerilerini yönetin. Becerileri tam sayfa düzenleyicide oluşturmak, düzenlemek ve silmek için Beceri Yöneticisini açın.',
   'settings.skills.open_manager_button': 'Beceri Yöneticisini Aç',
   'settings.skills.open_directory_button': 'Beceri Dizini Aç',
+  'skills.toggle.enable_aria': 'Beceri {name} etkinleştir',
+  'skills.toggle.disable_aria': 'Beceri {name} devre dışı bırak',
+  'skills.toggle.failed': 'Beceri güncellenemedi',
 };
 
 export default dict;

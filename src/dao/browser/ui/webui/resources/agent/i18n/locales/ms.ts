@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Urus kemahiran perintah-selak untuk ejen. Buka Pengurus Kemahiran untuk membuat, mengedit, dan memadam kemahiran dalam editor halaman penuh.',
   'settings.skills.open_manager_button': 'Buka Pengurus Kemahiran',
   'settings.skills.open_directory_button': 'Buka Direktori Kemahiran',
+  'skills.toggle.enable_aria': 'Aktifkan skill {name}',
+  'skills.toggle.disable_aria': 'Nyahaktifkan skill {name}',
+  'skills.toggle.failed': 'Gagal mengemas kini skill',
 };
 
 export default dict;

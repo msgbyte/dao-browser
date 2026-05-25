@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Upravljajte sposobnosti ukazov s poševnico za agenta. Odprite upravitelja sposobnosti za ustvarjanje, urejanje in brisanje sposobnosti v urejevalniku na celotni strani.',
   'settings.skills.open_manager_button': 'Odpri upravitelja sposobnosti',
   'settings.skills.open_directory_button': 'Odpri imenik sposobnosti',
+  'skills.toggle.enable_aria': 'Omogoči spretnost {name}',
+  'skills.toggle.disable_aria': 'Onemogoči spretnost {name}',
+  'skills.toggle.failed': 'Posodobitev spretnosti ni uspela',
 };
 
 export default dict;

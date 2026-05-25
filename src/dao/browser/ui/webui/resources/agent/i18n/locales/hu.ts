@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Kezelje az ügynök perjel-parancs képességeit. Nyissa meg a Képességkezelőt, hogy teljes oldalas szerkesztőben hozzon létre, szerkesszen és töröljön képességeket.',
   'settings.skills.open_manager_button': 'Képességkezelő megnyitása',
   'settings.skills.open_directory_button': 'Képességek könyvtárának megnyitása',
+  'skills.toggle.enable_aria': 'Képesség engedélyezése: {name}',
+  'skills.toggle.disable_aria': 'Képesség letiltása: {name}',
+  'skills.toggle.failed': 'A képesség frissítése sikertelen',
 };
 
 export default dict;

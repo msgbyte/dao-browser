@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Dhibiti ujuzi wa amri ya slash kwa wakala. Fungua Meneja wa Ujuzi kuunda, kuhariri, na kufuta ujuzi katika mhariri wa ukurasa mzima.',
   'settings.skills.open_manager_button': 'Fungua Meneja wa Ujuzi',
   'settings.skills.open_directory_button': 'Fungua Saraka ya Ujuzi',
+  'skills.toggle.enable_aria': 'Wezesha Skill {name}',
+  'skills.toggle.disable_aria': 'Zima Skill {name}',
+  'skills.toggle.failed': 'Imeshindwa kusasisha Skill',
 };
 
 export default dict;

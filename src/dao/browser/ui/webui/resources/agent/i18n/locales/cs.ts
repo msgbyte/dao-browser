@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Spravujte dovednosti příkazů pro agenta. Otevřete Správce dovedností pro vytvoření, úpravu a odstranění dovedností v editoru na celé stránce.',
   'settings.skills.open_manager_button': 'Otevřít Správce dovedností',
   'settings.skills.open_directory_button': 'Otevřít adresář dovedností',
+  'skills.toggle.enable_aria': 'Povolit dovednost {name}',
+  'skills.toggle.disable_aria': 'Zakázat dovednost {name}',
+  'skills.toggle.failed': 'Nepodařilo se aktualizovat dovednost',
 };
 
 export default dict;

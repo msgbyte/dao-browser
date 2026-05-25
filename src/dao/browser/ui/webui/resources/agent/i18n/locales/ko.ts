@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': '에이전트의 슬래시 명령 스킬을 관리합니다. 스킬 관리자를 열어 전체 페이지 편집기에서 스킬을 생성, 편집 및 삭제합니다.',
   'settings.skills.open_manager_button': '스킬 관리자 열기',
   'settings.skills.open_directory_button': '스킬 디렉토리 열기',
+  'skills.toggle.enable_aria': '스킬 {name} 활성화',
+  'skills.toggle.disable_aria': '스킬 {name} 비활성화',
+  'skills.toggle.failed': '스킬 업데이트 실패',
 };
 
 export default dict;

@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'ایجنٹ کے لیے سلیش-کمانڈ مہارتوں کا انتظام کریں۔ مکمل صفحہ ایڈیٹر میں مہارتیں بنانے، ترمیم کرنے، اور حذف کرنے کے لیے اسکل مینیجر کھولیں۔',
   'settings.skills.open_manager_button': 'اسکل مینیجر کھولیں',
   'settings.skills.open_directory_button': 'اسکلز ڈائریکٹری کھولیں',
+  'skills.toggle.enable_aria': 'صلاحیت {name} کو فعال کریں',
+  'skills.toggle.disable_aria': 'صلاحیت {name} کو غیر فعال کریں',
+  'skills.toggle.failed': 'صلاحیت کو اپ ڈیٹ کرنے میں ناکام',
 };
 
 export default dict;

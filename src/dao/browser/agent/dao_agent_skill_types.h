@@ -25,6 +25,7 @@ struct SkillRegistryEntry {
   std::string source;  // "builtin" or "user"
   std::vector<std::string> hosts;
   bool requires_page_content = false;
+  bool disabled = false;
 };
 
 // Full skill content: metadata plus the instruction body from SKILL.md.

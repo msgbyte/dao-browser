@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Administrer ferdigheter for skråstrekkommandoer for agenten. Åpne ferdighetsbehandleren for å opprette, redigere og slette ferdigheter i en fullsideeditor.',
   'settings.skills.open_manager_button': 'Åpne ferdighetsbehandler',
   'settings.skills.open_directory_button': 'Åpne ferdighetsbibliotek',
+  'skills.toggle.enable_aria': 'Aktiver ferdighet {name}',
+  'skills.toggle.disable_aria': 'Deaktiver ferdighet {name}',
+  'skills.toggle.failed': 'Kunne ikke oppdatere ferdighet',
 };
 
 export default dict;

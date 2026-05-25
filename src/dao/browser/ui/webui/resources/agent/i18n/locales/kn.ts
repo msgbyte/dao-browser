@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'ಏಜೆಂಟ್‌ಗಾಗಿ ಸ್ಲ್ಯಾಶ್-ಕಮಾಂಡ್ ಕೌಶಲ್ಯಗಳನ್ನು ನಿರ್ವಹಿಸಿ. ಸಂಪೂರ್ಣ ಪುಟ ಸಂಪಾದಕದಲ್ಲಿ ಕೌಶಲ್ಯಗಳನ್ನು ರಚಿಸಲು, ಸಂಪಾದಿಸಲು ಮತ್ತು ಅಳಿಸಲು ಕೌಶಲ್ಯ ನಿರ್ವಾಹಕವನ್ನು ತೆರೆಯಿರಿ.',
   'settings.skills.open_manager_button': 'ಕೌಶಲ್ಯ ನಿರ್ವಾಹಕವನ್ನು ತೆರೆಯಿರಿ',
   'settings.skills.open_directory_button': 'ಕೌಶಲ್ಯ ಡೈರೆಕ್ಟರಿಯನ್ನು ತೆರೆಯಿರಿ',
+  'skills.toggle.enable_aria': 'ಕೌಶಲ್ಯ {name} ಸಕ್ರಿಯಗೊಳಿಸಿ',
+  'skills.toggle.disable_aria': 'ಕೌಶಲ್ಯ {name} ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ',
+  'skills.toggle.failed': 'ಕೌಶಲ್ಯವನ್ನು ನವೀಕರಿಸಲು ವಿಫಲವಾಗಿದೆ',
 };
 
 export default dict;

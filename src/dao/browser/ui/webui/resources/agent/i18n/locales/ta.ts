@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'முகவருக்கான ஸ்லாஷ்-கமாண்ட் திறமைகளை நிர்வகிக்கவும். முழு-பக்கத் தொகுப்பியில் திறமைகளை உருவாக்க, திருத்த, மற்றும் நீக்க திறமைகள் மேலாளரைத் திறக்கவும்.',
   'settings.skills.open_manager_button': 'திறமைகள் மேலாளரைத் திறக்கவும்',
   'settings.skills.open_directory_button': 'திறமைகள் அடைவைத் திறக்கவும்',
+  'skills.toggle.enable_aria': 'திறன் {name} ஐ இயக்கவும்',
+  'skills.toggle.disable_aria': 'திறன் {name} ஐ முடக்கவும்',
+  'skills.toggle.failed': 'திறனை புதுப்பிக்க முடியவில்லை',
 };
 
 export default dict;

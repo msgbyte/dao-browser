@@ -3750,6 +3750,10 @@ void DaoAgentSkillHandler::RegisterMessages() {
       base::BindRepeating(&DaoAgentSkillHandler::HandleDeleteUserSkill,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "setSkillDisabled",
+      base::BindRepeating(&DaoAgentSkillHandler::HandleSetSkillDisabled,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "openSkillsDirectory",
       base::BindRepeating(&DaoAgentSkillHandler::HandleOpenSkillsDirectory,
                           base::Unretained(this)));
@@ -3788,6 +3792,7 @@ void DaoAgentSkillHandler::HandleGetSkillRegistry(
           dict.Set("description", entry.description);
           dict.Set("source", entry.source);
           dict.Set("requiresPageContent", entry.requires_page_content);
+          dict.Set("disabled", entry.disabled);
 
           base::ListValue hosts_list;
           for (const auto& host : entry.hosts) {
@@ -3842,6 +3847,7 @@ void DaoAgentSkillHandler::HandleGetSkillContent(
             metadata.Set("source", content->metadata.source);
             metadata.Set("requiresPageContent",
                          content->metadata.requires_page_content);
+            metadata.Set("disabled", content->metadata.disabled);
 
             base::ListValue hosts_list;
             for (const auto& host : content->metadata.hosts) {
@@ -3926,6 +3932,37 @@ void DaoAgentSkillHandler::HandleOpenSkillsDirectory(
       profile->GetPath().AppendASCII("DaoAgentSkills");
   platform_util::OpenItem(profile, skills_path, platform_util::OPEN_FOLDER,
                           platform_util::OpenOperationCallback());
+}
+
+void DaoAgentSkillHandler::HandleSetSkillDisabled(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 3 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const std::string skill_id =
+      args[1].is_string() ? args[1].GetString() : "";
+  const bool disabled = args[2].is_bool() ? args[2].GetBool() : false;
+
+  auto* service = GetSkillService();
+  if (!service || skill_id.empty()) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value(false));
+    return;
+  }
+
+  service->SetSkillDisabled(
+      skill_id, disabled,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentSkillHandler> handler, std::string cb_id,
+             bool success) {
+            if (!handler) {
+              return;
+            }
+            handler->ResolveJavascriptCallback(base::Value(cb_id),
+                                               base::Value(success));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
 }
 
 void DaoAgentSkillHandler::HandleOpenSkillManager(

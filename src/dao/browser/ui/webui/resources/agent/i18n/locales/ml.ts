@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'ഏജന്റിനായി സ്ലാഷ്-കമാൻഡ് കൗശലങ്ങൾ മാനേജ് ചെയ്യുക. ഒരു പൂർണ്ണ-പേജ് എഡിറ്ററിൽ കൗശലങ്ങൾ സൃഷ്ടിക്കാനും, എഡിറ്റ് ചെയ്യാനും, ഇല്ലാതാക്കാനും കൗശൽ മാനേജർ തുറക്കുക.',
   'settings.skills.open_manager_button': 'കൗശൽ മാനേജർ തുറക്കുക',
   'settings.skills.open_directory_button': 'കൗശല ഡയറക്ടറി തുറക്കുക',
+  'skills.toggle.enable_aria': 'സ്കിൽ {name} സജീവമാക്കുക',
+  'skills.toggle.disable_aria': 'സ്കിൽ {name} അപ്രാപ്തമാക്കുക',
+  'skills.toggle.failed': 'സ്കിൽ അപ്ഡേറ്റ് ചെയ്യാൻ പരാജയപ്പെട്ടു',
 };
 
 export default dict;

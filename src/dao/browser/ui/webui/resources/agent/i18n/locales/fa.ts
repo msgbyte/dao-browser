@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'مدیریت مهارت‌های فرمان اسلش برای عامل. مدیر مهارت را باز کنید تا مهارت‌ها را در یک ویرایشگر صفحه کامل ایجاد، ویرایش و حذف کنید.',
   'settings.skills.open_manager_button': 'باز کردن مدیر مهارت',
   'settings.skills.open_directory_button': 'باز کردن فهرست مهارت‌ها',
+  'skills.toggle.enable_aria': 'فعال‌سازی مهارت {name}',
+  'skills.toggle.disable_aria': 'غیرفعال‌سازی مهارت {name}',
+  'skills.toggle.failed': 'به‌روزرسانی مهارت ناموفق بود',
 };
 
 export default dict;

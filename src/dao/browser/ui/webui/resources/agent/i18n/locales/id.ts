@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Kelola keahlian perintah garis miring untuk agen. Buka Manajer Keahlian untuk membuat, mengedit, dan menghapus keahlian dalam editor halaman penuh.',
   'settings.skills.open_manager_button': 'Buka Manajer Keahlian',
   'settings.skills.open_directory_button': 'Buka Direktori Keahlian',
+  'skills.toggle.enable_aria': 'Aktifkan skill {name}',
+  'skills.toggle.disable_aria': 'Nonaktifkan skill {name}',
+  'skills.toggle.failed': 'Gagal memperbarui skill',
 };
 
 export default dict;

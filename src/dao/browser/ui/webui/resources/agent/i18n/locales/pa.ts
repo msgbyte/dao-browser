@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'ਏਜੰਟ ਲਈ ਸਲੈਸ਼-ਕਮਾਂਡ ਹੁਨਰਾਂ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ। ਪੂਰੇ ਪੰਨੇ ਦੇ ਸੰਪਾਦਕ ਵਿੱਚ ਹੁਨਰ ਬਣਾਉਣ, ਸੰਪਾਦਿਤ ਕਰਨ, ਅਤੇ ਮਿਟਾਉਣ ਲਈ ਹੁਨਰ ਪ੍ਰਬੰਧਕ ਖੋਲ੍ਹੋ।',
   'settings.skills.open_manager_button': 'ਹੁਨਰ ਪ੍ਰਬੰਧਕ ਖੋਲ੍ਹੋ',
   'settings.skills.open_directory_button': 'ਹੁਨਰ ਡਾਇਰੈਕਟਰੀ ਖੋਲ੍ਹੋ',
+  'skills.toggle.enable_aria': 'ਹੁਨਰ {name} ਨੂੰ ਯੋਗ ਕਰੋ',
+  'skills.toggle.disable_aria': 'ਹੁਨਰ {name} ਨੂੰ ਅਯੋਗ ਕਰੋ',
+  'skills.toggle.failed': 'ਹੁਨਰ ਅਪਡੇਟ ਕਰਨ ਵਿੱਚ ਅਸਫਲ',
 };
 
 export default dict;

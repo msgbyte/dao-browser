@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Zarządzaj umiejętnościami poleceń ukośnikowych dla agenta. Otwórz Menedżera Umiejętności, aby tworzyć, edytować i usuwać umiejętności w edytorze pełnoekranowym.',
   'settings.skills.open_manager_button': 'Otwórz Menedżera Umiejętności',
   'settings.skills.open_directory_button': 'Otwórz Katalog Umiejętności',
+  'skills.toggle.enable_aria': 'Włącz umiejętność {name}',
+  'skills.toggle.disable_aria': 'Wyłącz umiejętność {name}',
+  'skills.toggle.failed': 'Nie udało się zaktualizować umiejętności',
 };
 
 export default dict;

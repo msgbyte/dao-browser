@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Gestisci le competenze dei comandi slash per l\'agente. Apri il Gestore delle Competenze per creare, modificare ed eliminare competenze in un editor a pagina intera.',
   'settings.skills.open_manager_button': 'Apri Gestore delle Competenze',
   'settings.skills.open_directory_button': 'Apri Directory delle Competenze',
+  'skills.toggle.enable_aria': 'Abilita skill {name}',
+  'skills.toggle.disable_aria': 'Disabilita skill {name}',
+  'skills.toggle.failed': 'Aggiornamento skill non riuscito',
 };
 
 export default dict;

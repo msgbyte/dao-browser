@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Upravljajte veštinama sa komandama kosom crtom za agenta. Otvorite Menadžer veština da kreirate, uređujete i brišete veštine u uređivaču preko celog ekrana.',
   'settings.skills.open_manager_button': 'Otvori Menadžer veština',
   'settings.skills.open_directory_button': 'Otvori Direktorijum veština',
+  'skills.toggle.enable_aria': 'Omogući skill {name}',
+  'skills.toggle.disable_aria': 'Onemogući skill {name}',
+  'skills.toggle.failed': 'Nije uspelo ažuriranje skilla',
 };
 
 export default dict;

@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'නියෝජිතයා සඳහා සලේෂ-විධාන කෞශල්‍ය කළමනාකරණය කරන්න. සම්පූර්ණ පිටු සංස්කාරකයක කෞශල්‍ය කළමනාකරු විවෘත කිරීමට, සංස්කරණය කිරීමට, සහ මකා දැමීමට විවෘත කරන්න.',
   'settings.skills.open_manager_button': 'කෞශල්‍ය කළමනාකරු විවෘත කරන්න',
   'settings.skills.open_directory_button': 'කෞශල්‍ය නාමාවලිය විවෘත කරන්න',
+  'skills.toggle.enable_aria': 'දක්ෂතාවය සක්‍රීය කරන්න {name}',
+  'skills.toggle.disable_aria': 'දක්ෂතාවය අක්‍රීය කරන්න {name}',
+  'skills.toggle.failed': 'දක්ෂතාවය යාවත්කාලීන කිරීම අසාර්ථක විය',
 };
 
 export default dict;

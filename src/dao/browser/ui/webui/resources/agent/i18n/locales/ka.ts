@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'მართეთ აგენტის სლეშ-კომანდის უნარები. გახსენით უნარების მენეჯერი უნარების შესაქმნელად, შესაცვლელად და წასაშლელად სრულ გვერდზე რედაქტორში.',
   'settings.skills.open_manager_button': 'გახსენით უნარების მენეჯერი',
   'settings.skills.open_directory_button': 'გახსენით უნარების დირექტორია',
+  'skills.toggle.enable_aria': 'ჩართეთ უნარი {name}',
+  'skills.toggle.disable_aria': 'გამორთეთ უნარი {name}',
+  'skills.toggle.failed': 'ვერ განახლდა უნარი',
 };
 
 export default dict;

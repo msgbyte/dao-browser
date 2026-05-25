@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Agent အတွက် slash-command ကျွမ်းကျင်မှုများကို စီမံပါ။ ကျွမ်းကျင်မှုများကို ဖန်တီးရန်၊ ပြင်ဆင်ရန်၊ နှင့် ဖျက်ရန် Skill Manager ကို ဖွင့်ပါ။',
   'settings.skills.open_manager_button': 'Skill Manager ကို ဖွင့်ပါ',
   'settings.skills.open_directory_button': 'ကျွမ်းကျင်မှုများ ဒိုင်ရက်ထရီကို ဖွင့်ပါ',
+  'skills.toggle.enable_aria': 'ကျွမ်းကျင်မှု {name} ကို ဖွင့်ပါ',
+  'skills.toggle.disable_aria': 'ကျွမ်းကျင်မှု {name} ကို ပိတ်ပါ',
+  'skills.toggle.failed': 'ကျွမ်းကျင်မှုကို အပ်ဒိတ်လုပ်ရန် မအောင်မြင်ပါ',
 };
 
 export default dict;

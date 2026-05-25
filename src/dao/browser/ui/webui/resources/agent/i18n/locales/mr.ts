@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'एजंटसाठी स्लॅश-कमांड कौशल्ये व्यवस्थापित करा. कौशल्य व्यवस्थापक उघडा, पूर्ण-पृष्ठ संपादकात कौशल्ये तयार करा, संपादित करा आणि हटवा.',
   'settings.skills.open_manager_button': 'कौशल्य व्यवस्थापक उघडा',
   'settings.skills.open_directory_button': 'कौशल्य निर्देशिका उघडा',
+  'skills.toggle.enable_aria': 'कौशल्य सक्षम करा {name}',
+  'skills.toggle.disable_aria': 'कौशल्य अक्षम करा {name}',
+  'skills.toggle.failed': 'कौशल्य अद्यतनित करण्यात अयशस्वी',
 };
 
 export default dict;

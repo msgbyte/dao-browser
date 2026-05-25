@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Gerir skills de comando de barra para o agente. Abra o Gestor de Skills para criar, editar e eliminar skills num editor de página inteira.',
   'settings.skills.open_manager_button': 'Abrir Gestor de Skills',
   'settings.skills.open_directory_button': 'Abrir Diretório de Skills',
+  'skills.toggle.enable_aria': 'Ativar skill {name}',
+  'skills.toggle.disable_aria': 'Desativar skill {name}',
+  'skills.toggle.failed': 'Falha ao atualizar skill',
 };
 
 export default dict;

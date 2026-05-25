@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Bestuur skuinsstreep-opdrag vaardighede vir die agent. Maak die Vaardigheid Bestuurder oop om vaardighede in \'n volbladredigeerder te skep, te wysig, en te verwyder.',
   'settings.skills.open_manager_button': 'Maak Vaardigheid Bestuurder Oop',
   'settings.skills.open_directory_button': 'Maak Vaardighede Gids Oop',
+  'skills.toggle.enable_aria': 'Aktiveer vaardigheid {name}',
+  'skills.toggle.disable_aria': 'Deaktiveer vaardigheid {name}',
+  'skills.toggle.failed': 'Kon nie vaardigheid opdateer nie',
 };
 
 export default dict;

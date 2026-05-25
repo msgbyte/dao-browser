@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Pamahalaan ang mga kasanayan sa slash-command para sa agent. Buksan ang Skill Manager upang lumikha, mag-edit, at magtanggal ng mga kasanayan sa isang full-page na editor.',
   'settings.skills.open_manager_button': 'Buksan ang Skill Manager',
   'settings.skills.open_directory_button': 'Buksan ang Skills Directory',
+  'skills.toggle.enable_aria': 'I-enable ang skill {name}',
+  'skills.toggle.disable_aria': 'I-disable ang skill {name}',
+  'skills.toggle.failed': 'Nabigong i-update ang skill',
 };
 
 export default dict;

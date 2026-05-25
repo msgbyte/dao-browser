@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'एजेन्टको लागि स्ल्यास-कमाण्ड सीपहरू व्यवस्थापन गर्नुहोस्। पूर्ण-पृष्ठ सम्पादकमा सीपहरू सिर्जना, सम्पादन, र मेट्न सीप प्रबन्धक खोल्नुहोस्।',
   'settings.skills.open_manager_button': 'सीप प्रबन्धक खोल्नुहोस्',
   'settings.skills.open_directory_button': 'सीप निर्देशिका खोल्नुहोस्',
+  'skills.toggle.enable_aria': 'सीप {name} सक्षम गर्नुहोस्',
+  'skills.toggle.disable_aria': 'सीप {name} अक्षम गर्नुहोस्',
+  'skills.toggle.failed': 'सीप अद्यावधिक गर्न असफल भयो',
 };
 
 export default dict;

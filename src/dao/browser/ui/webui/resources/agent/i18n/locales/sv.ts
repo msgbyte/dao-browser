@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Hantera färdigheter för snedstreckskommandon för agenten. Öppna Färdighetschef för att skapa, redigera och ta bort färdigheter i en helsidesredigerare.',
   'settings.skills.open_manager_button': 'Öppna Färdighetschef',
   'settings.skills.open_directory_button': 'Öppna Färdighetsbibliotek',
+  'skills.toggle.enable_aria': 'Aktivera skill {name}',
+  'skills.toggle.disable_aria': 'Inaktivera skill {name}',
+  'skills.toggle.failed': 'Misslyckades med att uppdatera skill',
 };
 
 export default dict;

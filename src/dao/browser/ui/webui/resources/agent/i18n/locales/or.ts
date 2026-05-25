@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'ଏଜେଣ୍ଟ ପାଇଁ ସ୍ଲାସ୍-କମାଣ୍ଡ ଦକ୍ଷତାଗୁଡିକୁ ପରିଚାଳନା କରନ୍ତୁ। ସମ୍ପୂର୍ଣ୍ଣ ପୃଷ୍ଠା ସମ୍ପାଦକରେ ଦକ୍ଷତା ମ୍ୟାନେଜର ଖୋଲିବାକୁ, ସୃଷ୍ଟି କରନ୍ତୁ, ସମ୍ପାଦନା କରନ୍ତୁ, ଏବଂ ଦକ୍ଷତାଗୁଡିକୁ ମିଟାନ୍ତୁ।',
   'settings.skills.open_manager_button': 'ଦକ୍ଷତା ମ୍ୟାନେଜର ଖୋଲନ୍ତୁ',
   'settings.skills.open_directory_button': 'ଦକ୍ଷତା ଡାଇରେକ୍ଟରୀ ଖୋଲନ୍ତୁ',
+  'skills.toggle.enable_aria': 'କୌଶଳ {name} ସକ୍ରିୟ କରନ୍ତୁ',
+  'skills.toggle.disable_aria': 'କୌଶଳ {name} ନିଷ୍କ୍ରିୟ କରନ୍ତୁ',
+  'skills.toggle.failed': 'କୌଶଳ ଅଦ୍ୟତନ କରିବାରେ ବିଫଳ',
 };
 
 export default dict;

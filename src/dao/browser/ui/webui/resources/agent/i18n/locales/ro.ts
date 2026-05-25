@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Gestionează abilitățile de comandă slash pentru agent. Deschide Managerul de Abilități pentru a crea, edita și șterge abilități într-un editor pe pagină completă.',
   'settings.skills.open_manager_button': 'Deschide Managerul de Abilități',
   'settings.skills.open_directory_button': 'Deschide Directorul de Abilități',
+  'skills.toggle.enable_aria': 'Activează skill {name}',
+  'skills.toggle.disable_aria': 'Dezactivează skill {name}',
+  'skills.toggle.failed': 'Nu s-a putut actualiza skill',
 };
 
 export default dict;

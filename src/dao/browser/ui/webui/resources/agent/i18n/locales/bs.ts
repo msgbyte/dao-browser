@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Upravljajte vještinama slash-komandi za agenta. Otvorite Upravitelj Vještina za kreiranje, uređivanje i brisanje vještina u uređivaču preko cijelog ekrana.',
   'settings.skills.open_manager_button': 'Otvori Upravitelj Vještina',
   'settings.skills.open_directory_button': 'Otvori Direktorij Vještina',
+  'skills.toggle.enable_aria': 'Omogući skill {name}',
+  'skills.toggle.disable_aria': 'Onemogući skill {name}',
+  'skills.toggle.failed': 'Neuspješno ažuriranje skilla',
 };
 
 export default dict;

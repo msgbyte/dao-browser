@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Administrer skråstreg-kommando færdigheder for agenten. Åbn færdighedsadministratoren for at oprette, redigere og slette færdigheder i en fuldside-editor.',
   'settings.skills.open_manager_button': 'Åbn færdighedsadministrator',
   'settings.skills.open_directory_button': 'Åbn færdighedskatalog',
+  'skills.toggle.enable_aria': 'Aktivér skill {name}',
+  'skills.toggle.disable_aria': 'Deaktivér skill {name}',
+  'skills.toggle.failed': 'Kunne ikke opdatere skill',
 };
 
 export default dict;

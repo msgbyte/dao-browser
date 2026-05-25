@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'エージェントのスラッシュコマンドスキルを管理します。スキルマネージャーを開いて、スキルを作成、編集、削除します。',
   'settings.skills.open_manager_button': 'スキルマネージャーを開く',
   'settings.skills.open_directory_button': 'スキルディレクトリを開く',
+  'skills.toggle.enable_aria': 'スキル {name} を有効にする',
+  'skills.toggle.disable_aria': 'スキル {name} を無効にする',
+  'skills.toggle.failed': 'スキルの更新に失敗しました',
 };
 
 export default dict;

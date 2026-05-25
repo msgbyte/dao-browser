@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'এজেন্টের জন্য স্ল্যাশ-কমান্ড স্কিলস পরিচালনা করুন। সম্পূর্ণ পৃষ্ঠা সম্পাদকতে স্কিল তৈরি, সম্পাদনা এবং মুছে ফেলার জন্য স্কিল ম্যানেজার খুলুন।',
   'settings.skills.open_manager_button': 'স্কিল ম্যানেজার খুলুন',
   'settings.skills.open_directory_button': 'স্কিলস ডিরেক্টরি খুলুন',
+  'skills.toggle.enable_aria': 'স্কিল {name} সক্রিয় করুন',
+  'skills.toggle.disable_aria': 'স্কিল {name} নিষ্ক্রিয় করুন',
+  'skills.toggle.failed': 'স্কিল আপডেট ব্যর্থ হয়েছে',
 };
 
 export default dict;

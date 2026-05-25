@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Menaxhoni aftësitë e komandave të shkurtra për agjentin. Hapni Menaxherin e Aftësive për të krijuar, redaktuar dhe fshirë aftësitë në një redaktor me faqe të plotë.',
   'settings.skills.open_manager_button': 'Hap Menaxherin e Aftësive',
   'settings.skills.open_directory_button': 'Hap Drejtorinë e Aftësive',
+  'skills.toggle.enable_aria': 'Aktivizo skill {name}',
+  'skills.toggle.disable_aria': 'Çaktivizo skill {name}',
+  'skills.toggle.failed': 'Dështoi për të përditësuar skill',
 };
 
 export default dict;

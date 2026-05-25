@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Halda agendi kaldkriipsu-käskluse oskusi. Ava Oskuste Haldur, et luua, redigeerida ja kustutada oskusi täisekraanil redaktoris.',
   'settings.skills.open_manager_button': 'Ava Oskuste Haldur',
   'settings.skills.open_directory_button': 'Ava Oskuste Kataloog',
+  'skills.toggle.enable_aria': 'Luba oskus {name}',
+  'skills.toggle.disable_aria': 'Keela oskus {name}',
+  'skills.toggle.failed': 'Oskuse uuendamine ebaõnnestus',
 };
 
 export default dict;

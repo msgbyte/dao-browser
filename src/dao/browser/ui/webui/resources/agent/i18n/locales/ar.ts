@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'إدارة مهارات الأوامر المائلة للوكيل. افتح مدير المهارات لإنشاء وتحرير وحذف المهارات في محرر كامل الصفحة.',
   'settings.skills.open_manager_button': 'فتح مدير المهارات',
   'settings.skills.open_directory_button': 'فتح دليل المهارات',
+  'skills.toggle.enable_aria': 'تفعيل المهارة {name}',
+  'skills.toggle.disable_aria': 'تعطيل المهارة {name}',
+  'skills.toggle.failed': 'فشل في تحديث المهارة',
 };
 
 export default dict;

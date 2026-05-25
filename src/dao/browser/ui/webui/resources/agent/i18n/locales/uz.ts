@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Agent uchun slash-buyruq ko\'nikmalarini boshqaring. To\'liq sahifa muharririda ko\'nikmalarni yaratish, tahrirlash va o\'chirish uchun Ko\'nikmalar boshqaruvchisini oching.',
   'settings.skills.open_manager_button': 'Ko\'nikmalar boshqaruvchisini ochish',
   'settings.skills.open_directory_button': 'Ko\'nikmalar katalogini ochish',
+  'skills.toggle.enable_aria': 'Ko\'nikmani yoqish {name}',
+  'skills.toggle.disable_aria': 'Ko\'nikmani o\'chirish {name}',
+  'skills.toggle.failed': 'Ko\'nikmani yangilash muvaffaqiyatsiz bo\'ldi',
 };
 
 export default dict;

@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Hallitse agentin kauttaviiva-komentotaitoja. Avaa Taitojen hallinta luodaksesi, muokataksesi ja poistaaksesi taitoja koko sivun editorissa.',
   'settings.skills.open_manager_button': 'Avaa Taitojen hallinta',
   'settings.skills.open_directory_button': 'Avaa Taitojen hakemisto',
+  'skills.toggle.enable_aria': 'Ota käyttöön taito {name}',
+  'skills.toggle.disable_aria': 'Poista käytöstä taito {name}',
+  'skills.toggle.failed': 'Taidon päivittäminen epäonnistui',
 };
 
 export default dict;

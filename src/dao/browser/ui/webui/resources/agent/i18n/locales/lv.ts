@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Pārvaldiet aģenta slīpsvītras komandu prasmes. Atveriet Prasmju pārvaldnieku, lai izveidotu, rediģētu un dzēstu prasmes pilnekrāna redaktorā.',
   'settings.skills.open_manager_button': 'Atvērt prasmju pārvaldnieku',
   'settings.skills.open_directory_button': 'Atvērt prasmju direktoriju',
+  'skills.toggle.enable_aria': 'Iespējot prasmju {name}',
+  'skills.toggle.disable_aria': 'Atspējot prasmju {name}',
+  'skills.toggle.failed': 'Neizdevās atjaunināt prasmi',
 };
 
 export default dict;

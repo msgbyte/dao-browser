@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Gestiona les habilitats de comandament amb barra per a l\'agent. Obre el gestor d\'habilitats per crear, editar i eliminar habilitats en un editor de pàgina completa.',
   'settings.skills.open_manager_button': 'Obre el gestor d\'habilitats',
   'settings.skills.open_directory_button': 'Obre el directori d\'habilitats',
+  'skills.toggle.enable_aria': 'Habilita la skill {name}',
+  'skills.toggle.disable_aria': 'Deshabilita la skill {name}',
+  'skills.toggle.failed': 'No s\'ha pogut actualitzar la skill',
 };
 
 export default dict;

@@ -129,7 +129,7 @@ const dict: Dictionary = {
   'settings.tools.search_duckduckgo_only': 'Само DuckDuckGo',
   'settings.tools.group.page': 'Страница',
   'settings.tools.group.tabs': 'Раздели',
-  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.devtools': 'Инструменти за разработка',
   'settings.tools.group.memory-skills': 'Памет и умения',
   'settings.tools.group.web': 'Уеб',
   'settings.tools.group.workspace': 'Работно пространство',
@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Управлявайте уменията за команди със слеш за агента. Отворете мениджъра на умения, за да създавате, редактирате и изтривате умения в редактор на цяла страница.',
   'settings.skills.open_manager_button': 'Отваряне на мениджъра на умения',
   'settings.skills.open_directory_button': 'Отваряне на директорията на уменията',
+  'skills.toggle.enable_aria': 'Активиране на умение {name}',
+  'skills.toggle.disable_aria': 'Деактивиране на умение {name}',
+  'skills.toggle.failed': 'Неуспешно актуализиране на умение',
 };
 
 export default dict;

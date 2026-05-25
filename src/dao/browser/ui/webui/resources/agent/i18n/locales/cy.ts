@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Rheoli sgiliau gorchymyn-lletraws ar gyfer yr asiant. Agor y Rheolwr Sgiliau i greu, golygu, a dileu sgiliau mewn golygydd tudalen lawn.',
   'settings.skills.open_manager_button': 'Agor Rheolwr Sgiliau',
   'settings.skills.open_directory_button': 'Agor Cyfeiriadur Sgiliau',
+  'skills.toggle.enable_aria': 'Galluogi sgil {name}',
+  'skills.toggle.disable_aria': 'Analluogi sgil {name}',
+  'skills.toggle.failed': 'Methwyd diweddaru\'r sgil',
 };
 
 export default dict;

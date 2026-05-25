@@ -5,12 +5,14 @@
 import {CrLitElement, css, html, nothing} from
     '//resources/lit/v3_0/lit.rollup.js';
 
+import {t} from './i18n/i18n.js';
 import {
   deleteUserSkill,
   getAllSkills,
   initSkillRegistry,
   loadSkillInstructions,
   saveUserSkill,
+  setSkillDisabled,
 } from './skill_registry.js';
 import type {SkillRegistryEntry} from './skill_registry.js';
 
@@ -134,6 +136,10 @@ export class DaoSkillManagerView extends CrLitElement {
         border-left: 3px solid var(--accent);
         padding-left: 11px;
       }
+      .skill-item.disabled .skill-name,
+      .skill-item.disabled .skill-desc {
+        opacity: 0.5;
+      }
       .skill-item-header {
         display: flex;
         align-items: center;
@@ -161,7 +167,6 @@ export class DaoSkillManagerView extends CrLitElement {
         border-radius: 4px;
         color: var(--text-tertiary);
         background: var(--surface);
-        margin-left: auto;
       }
       .skill-desc {
         font-size: 11px;
@@ -169,6 +174,46 @@ export class DaoSkillManagerView extends CrLitElement {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      /* ---- Toggle switch ---- */
+      .skill-toggle {
+        --switch-w: 28px;
+        --switch-h: 16px;
+        --thumb: 12px;
+        position: relative;
+        display: inline-block;
+        flex-shrink: 0;
+        width: var(--switch-w);
+        height: var(--switch-h);
+        margin-left: auto;
+        cursor: pointer;
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 999px;
+        transition: background 0.18s;
+      }
+      .skill-toggle.checked {
+        background: var(--accent);
+      }
+      .skill-toggle::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: var(--thumb);
+        height: var(--thumb);
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+        transition: transform 0.18s;
+      }
+      .skill-toggle.checked::after {
+        transform: translateX(calc(var(--switch-w) - var(--thumb) - 4px));
+      }
+      @media (prefers-color-scheme: dark) {
+        .skill-toggle {
+          background: rgba(255, 255, 255, 0.18);
+        }
       }
       .list-empty {
         padding: 24px;
@@ -346,9 +391,14 @@ export class DaoSkillManagerView extends CrLitElement {
   }
 
   private renderSkillItem_(s: SkillRegistryEntry) {
+    const enabled = !s.disabled;
+    const toggleAria = enabled
+        ? t('skills.toggle.disable_aria', {name: s.name})
+        : t('skills.toggle.enable_aria', {name: s.name});
     return html`
       <div class="skill-item ${
-          this.selectedSkillId_ === s.id ? 'selected' : ''}"
+          this.selectedSkillId_ === s.id ? 'selected' : ''} ${
+          s.disabled ? 'disabled' : ''}"
           @click=${() => this.selectSkill_(s.id)}>
         <div class="skill-item-header">
           <span class="skill-name">/${s.name}</span>
@@ -356,6 +406,17 @@ export class DaoSkillManagerView extends CrLitElement {
               s.source === 'builtin' ? 'builtin' : ''}">${s.source}</span>
           ${s.hosts && s.hosts.length > 0 && !s.hosts.includes('*') ? html`
             <span class="skill-host-badge">${s.hosts[0]}</span>` : nothing}
+          <span class="skill-toggle ${enabled ? 'checked' : ''}"
+              role="switch"
+              aria-checked=${enabled ? 'true' : 'false'}
+              aria-label=${toggleAria}
+              tabindex="0"
+              @click=${(e: Event) => this.onToggleDisabled_(e, s)}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  this.onToggleDisabled_(e, s);
+                }
+              }}></span>
         </div>
         <span class="skill-desc">${s.description}</span>
       </div>`;
@@ -443,6 +504,9 @@ export class DaoSkillManagerView extends CrLitElement {
       if (meta.requiresPageContent) {
         frontmatter += 'requiresPageContent: true\n';
       }
+      if (meta.disabled) {
+        frontmatter += 'disabled: true\n';
+      }
       frontmatter += '---\n';
       this.editorContent_ = frontmatter + '\n' + content.instructions;
     } else {
@@ -510,6 +574,25 @@ requiresPageContent: false
       await this.loadSkillList_();
     } else {
       this.fireToast_('Failed to delete skill');
+    }
+  }
+
+  private async onToggleDisabled_(e: Event, s: SkillRegistryEntry) {
+    e.stopPropagation();
+    e.preventDefault();
+    const nextDisabled = !s.disabled;
+    const ok = await setSkillDisabled(s.id, nextDisabled);
+    if (ok) {
+      await this.loadSkillList_();
+      // Rebuild the editor frontmatter so the `disabled:` line reflects the
+      // new state on the currently open skill. Without this the right-pane
+      // textarea keeps showing stale frontmatter even though the disk file
+      // and the left-list switch have already updated.
+      if (this.selectedSkillId_ === s.id && !this.isNewSkill_) {
+        await this.selectSkill_(s.id);
+      }
+    } else {
+      this.fireToast_(t('skills.toggle.failed'));
     }
   }
 

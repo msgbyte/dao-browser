@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'ຈັດການທັກສະຄຳສັ່ງ Slash ສຳລັບ Agent. ເປີດຜູ້ຈັດການທັກສະເພື່ອສ້າງ, ແກ້ໄຂ, ແລະລຶບທັກສະໃນຕົວແກ້ໄຂໜ້າເຕັມ.',
   'settings.skills.open_manager_button': 'ເປີດຜູ້ຈັດການທັກສະ',
   'settings.skills.open_directory_button': 'ເປີດໄດເຣັກທັກສະ',
+  'skills.toggle.enable_aria': 'ເປີດໃຊ້ skill {name}',
+  'skills.toggle.disable_aria': 'ປິດໃຊ້ skill {name}',
+  'skills.toggle.failed': 'ບໍ່ສາມາດປັບປຸງ skill',
 };
 
 export default dict;

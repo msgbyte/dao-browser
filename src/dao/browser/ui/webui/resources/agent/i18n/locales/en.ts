@@ -225,6 +225,12 @@ const dict: Dictionary = {
       + 'to create, edit, and delete skills in a full-page editor.',
   'settings.skills.open_manager_button': 'Open Skill Manager',
   'settings.skills.open_directory_button': 'Open Skills Directory',
+
+  // -------- skills (dao_skill_manager_view.ts) --------
+  // {name} is the technical skill identifier (kept untranslated).
+  'skills.toggle.enable_aria': 'Enable skill {name}',
+  'skills.toggle.disable_aria': 'Disable skill {name}',
+  'skills.toggle.failed': 'Failed to update skill',
 };
 
 export default dict;

@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Կառավարել գործակալի հմտությունները: Բացեք հմտությունների կառավարիչը՝ ստեղծելու, խմբագրելու և ջնջելու հմտությունները ամբողջ էջի խմբագրիչում:',
   'settings.skills.open_manager_button': 'Բացել հմտությունների կառավարիչը',
   'settings.skills.open_directory_button': 'Բացել հմտությունների գրացուցակը',
+  'skills.toggle.enable_aria': 'Միացնել {name} հմտությունը',
+  'skills.toggle.disable_aria': 'Անջատել {name} հմտությունը',
+  'skills.toggle.failed': 'Հմտության թարմացումը ձախողվեց',
 };
 
 export default dict;

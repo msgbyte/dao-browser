@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Stjórna hæfileikum fyrir skástriksskipanir fyrir umboðsmanninn. Opnaðu hæfileikastjórann til að búa til, breyta og eyða hæfileikum í fullskjásritstjóra.',
   'settings.skills.open_manager_button': 'Opna hæfileikastjóra',
   'settings.skills.open_directory_button': 'Opna hæfileikaskrá',
+  'skills.toggle.enable_aria': 'Virkja hæfni {name}',
+  'skills.toggle.disable_aria': 'Óvirkja hæfni {name}',
+  'skills.toggle.failed': 'Mistókst að uppfæra hæfni',
 };
 
 export default dict;

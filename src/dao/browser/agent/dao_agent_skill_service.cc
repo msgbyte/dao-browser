@@ -417,6 +417,118 @@ bool DaoAgentSkillService::DeleteUserSkillOnBackground(
   return false;
 }
 
+void DaoAgentSkillService::SetSkillDisabled(
+    const std::string& skill_id,
+    bool disabled,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentSkillService::SetSkillDisabledOnBackground,
+                     skills_path_, skill_id, disabled),
+      std::move(callback));
+}
+
+// static
+bool DaoAgentSkillService::SetSkillDisabledOnBackground(
+    const base::FilePath& skills_path,
+    const std::string& skill_id,
+    bool disabled) {
+  // Locate the skill's SKILL.md across all known locations (builtin,
+  // user/global, user/hosts/*).
+  std::vector<base::FilePath> search_paths;
+  search_paths.push_back(
+      skills_path.AppendASCII("builtin").AppendASCII(skill_id));
+  search_paths.push_back(skills_path.AppendASCII("user")
+                             .AppendASCII("global")
+                             .AppendASCII(skill_id));
+
+  base::FilePath hosts_dir =
+      skills_path.AppendASCII("user").AppendASCII("hosts");
+  if (base::PathExists(hosts_dir)) {
+    base::FileEnumerator host_enum(hosts_dir, false,
+                                   base::FileEnumerator::DIRECTORIES);
+    for (base::FilePath host_path = host_enum.Next(); !host_path.empty();
+         host_path = host_enum.Next()) {
+      search_paths.push_back(host_path.AppendASCII(skill_id));
+    }
+  }
+
+  base::FilePath skill_file;
+  std::string content;
+  for (const auto& dir : search_paths) {
+    base::FilePath candidate = dir.AppendASCII(kSkillFileName);
+    if (base::PathExists(candidate) &&
+        base::ReadFileToString(candidate, &content)) {
+      skill_file = candidate;
+      break;
+    }
+  }
+
+  if (skill_file.empty()) {
+    LOG(WARNING) << "Skill not found for disable toggle: " << skill_id;
+    return false;
+  }
+
+  // Locate the YAML frontmatter delimiters. We need them to know where the
+  // existing keys live (so we can update/insert `disabled:` without touching
+  // the body).
+  size_t first_delim = content.find("---");
+  if (first_delim == std::string::npos) {
+    return false;
+  }
+  size_t first_newline = content.find('\n', first_delim + 3);
+  if (first_newline == std::string::npos) {
+    return false;
+  }
+  size_t second_delim = content.find("\n---", first_newline);
+  if (second_delim == std::string::npos) {
+    return false;
+  }
+
+  std::string before_fm = content.substr(0, first_newline + 1);
+  std::string frontmatter =
+      content.substr(first_newline + 1, second_delim - first_newline - 1);
+  std::string after_fm = content.substr(second_delim + 1);  // includes "---\n..."
+
+  // Scan frontmatter line-by-line. If a `disabled:` key exists, update it
+  // in place; otherwise append a new line at the end of the frontmatter.
+  std::vector<std::string> lines = base::SplitString(
+      frontmatter, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  bool found = false;
+  for (auto& line : lines) {
+    std::string trimmed = TrimString(line);
+    size_t colon_pos = trimmed.find(':');
+    if (colon_pos == std::string::npos) {
+      continue;
+    }
+    std::string key = TrimString(trimmed.substr(0, colon_pos));
+    if (key == "disabled") {
+      line = std::string("disabled: ") + (disabled ? "true" : "false");
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    // Drop trailing empty lines so we insert cleanly before the closing
+    // delimiter, then append.
+    while (!lines.empty() && TrimString(lines.back()).empty()) {
+      lines.pop_back();
+    }
+    lines.push_back(std::string("disabled: ") + (disabled ? "true" : "false"));
+  }
+
+  std::string new_frontmatter = base::JoinString(lines, "\n");
+  // Ensure trailing newline before the closing delimiter.
+  if (new_frontmatter.empty() || new_frontmatter.back() != '\n') {
+    new_frontmatter.push_back('\n');
+  }
+
+  std::string new_content = before_fm + new_frontmatter + after_fm;
+  return base::WriteFile(skill_file, new_content);
+}
+
 // static
 bool DaoAgentSkillService::ParseSkillMd(const std::string& content,
                                         SkillRegistryEntry* entry,
@@ -497,6 +609,8 @@ bool DaoAgentSkillService::ParseSkillMd(const std::string& content,
       entry->description = value;
     } else if (key == "requiresPageContent") {
       entry->requires_page_content = (value == "true");
+    } else if (key == "disabled") {
+      entry->disabled = (value == "true");
     } else if (key == "hosts") {
       // Check for inline array format: [a, b, c]
       if (!value.empty() && value.front() == '[') {

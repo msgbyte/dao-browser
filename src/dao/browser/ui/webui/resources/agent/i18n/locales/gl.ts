@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Xestiona as habilidades de comandos de barra para o axente. Abre o Xestor de Skills para crear, editar e eliminar habilidades nun editor de páxina completa.',
   'settings.skills.open_manager_button': 'Abrir Xestor de Skills',
   'settings.skills.open_directory_button': 'Abrir Directorio de Skills',
+  'skills.toggle.enable_aria': 'Activar habilidade {name}',
+  'skills.toggle.disable_aria': 'Desactivar habilidade {name}',
+  'skills.toggle.failed': 'Non se puido actualizar a habilidade',
 };
 
 export default dict;

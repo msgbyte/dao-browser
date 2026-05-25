@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Агент үшін слэш-команда дағдыларын басқару. Дағдыларды толық бет редакторында жасау, өңдеу және жою үшін Дағдылар менеджерін ашыңыз.',
   'settings.skills.open_manager_button': 'Дағдылар менеджерін ашу',
   'settings.skills.open_directory_button': 'Дағдылар каталогын ашу',
+  'skills.toggle.enable_aria': 'Қабілетті іске қосу {name}',
+  'skills.toggle.disable_aria': 'Қабілетті өшіру {name}',
+  'skills.toggle.failed': 'Қабілетті жаңарту сәтсіз аяқталды',
 };
 
 export default dict;

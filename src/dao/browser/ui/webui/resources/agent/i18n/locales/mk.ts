@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Управувајте со вештините за команди со коса црта за агентот. Отворете го менаџерот на вештини за да креирате, уредувате и бришете вештини во уредувач на цела страница.',
   'settings.skills.open_manager_button': 'Отвори менаџер на вештини',
   'settings.skills.open_directory_button': 'Отвори директориум на вештини',
+  'skills.toggle.enable_aria': 'Овозможи вештина {name}',
+  'skills.toggle.disable_aria': 'Оневозможи вештина {name}',
+  'skills.toggle.failed': 'Неуспешно ажурирање на вештината',
 };
 
 export default dict;

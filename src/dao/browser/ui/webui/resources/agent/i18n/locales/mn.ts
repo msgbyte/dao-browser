@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Агентын slash-командын ур чадварыг удирдах. Ур чадварын менежерийг нээж, бүтэн хуудасны редакторт ур чадвар үүсгэх, засах, устгах.',
   'settings.skills.open_manager_button': 'Ур чадварын менежерийг нээх',
   'settings.skills.open_directory_button': 'Ур чадварын лавлахыг нээх',
+  'skills.toggle.enable_aria': 'Ур чадварыг идэвхжүүлэх {name}',
+  'skills.toggle.disable_aria': 'Ур чадварыг идэвхгүй болгох {name}',
+  'skills.toggle.failed': 'Ур чадварыг шинэчлэхэд амжилтгүй боллоо',
 };
 
 export default dict;

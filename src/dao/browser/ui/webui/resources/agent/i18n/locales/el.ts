@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Διαχειριστείτε δεξιότητες εντολών με κάθετο για τον πράκτορα. Ανοίξτε τον Διαχειριστή Δεξιοτήτων για να δημιουργήσετε, να επεξεργαστείτε και να διαγράψετε δεξιότητες σε έναν πλήρη επεξεργαστή σελίδας.',
   'settings.skills.open_manager_button': 'Άνοιγμα Διαχειριστή Δεξιοτήτων',
   'settings.skills.open_directory_button': 'Άνοιγμα Καταλόγου Δεξιοτήτων',
+  'skills.toggle.enable_aria': 'Ενεργοποίηση της δεξιότητας {name}',
+  'skills.toggle.disable_aria': 'Απενεργοποίηση της δεξιότητας {name}',
+  'skills.toggle.failed': 'Αποτυχία ενημέρωσης της δεξιότητας',
 };
 
 export default dict;

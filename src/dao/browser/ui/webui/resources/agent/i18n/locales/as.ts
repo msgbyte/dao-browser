@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'এজেণ্টৰ বাবে স্লাশ-কমাণ্ড দক্ষতা পৰিচালনা কৰক। সম্পূৰ্ণ পৃষ্ঠা সম্পাদনাত দক্ষতা সৃষ্টি, সম্পাদনা, আৰু মচিবলৈ দক্ষতা পৰিচালক খোলক।',
   'settings.skills.open_manager_button': 'দক্ষতা পৰিচালক খোলক',
   'settings.skills.open_directory_button': 'দক্ষতা ডিৰেক্টৰী খোলক',
+  'skills.toggle.enable_aria': 'স্কিল {name} সক্ৰিয় কৰক',
+  'skills.toggle.disable_aria': 'স্কিল {name} নিষ্ক্ৰিয় কৰক',
+  'skills.toggle.failed': 'স্কিল আপডেট কৰাত ব্যৰ্থ',
 };
 
 export default dict;

@@ -1913,7 +1913,7 @@ export class DaoChatView extends CrLitElement {
       }
     });
     this.skillPickerQuery_ = (m[1] || '').toLowerCase();
-    const all = getAllSkills();
+    const all = getAllSkills().filter((s) => !s.disabled);
     const q = this.skillPickerQuery_;
     const filtered = q === '' ? all : all.filter((s) => {
       return s.id.toLowerCase().includes(q) ||
@@ -2030,14 +2030,16 @@ export class DaoChatView extends CrLitElement {
   }
 
   // Parse a leading `/skillId` from `text`. Returns null if the text does
-  // not start with a known skill marker.
+  // not start with a known skill marker. Disabled skills are treated as
+  // unknown so `/disabled-id` falls through to a plain message instead of
+  // expanding into the LLM payload.
   private parseSkillPrefix_(text: string):
       {skillId: string, skill: SkillRegistryEntry, rest: string} | null {
     const m = /^\/([A-Za-z0-9_-]+)(?:\s+([\s\S]*))?$/.exec(text.trim());
     if (!m || !m[1]) return null;
     const skillId = m[1];
     const skill = getAllSkills().find((s) => s.id === skillId);
-    if (!skill) return null;
+    if (!skill || skill.disabled) return null;
     return {skillId, skill, rest: (m[2] || '').trim()};
   }
 

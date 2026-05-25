@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'נהל כישורי פקודות סלאש עבור הסוכן. פתח את מנהל הכישורים כדי ליצור, לערוך ולמחוק כישורים בעורך עמוד מלא.',
   'settings.skills.open_manager_button': 'פתח מנהל כישורים',
   'settings.skills.open_directory_button': 'פתח ספריית כישורים',
+  'skills.toggle.enable_aria': 'הפעל מיומנות {name}',
+  'skills.toggle.disable_aria': 'השבת מיומנות {name}',
+  'skills.toggle.failed': 'נכשל בעדכון המיומנות',
 };
 
 export default dict;

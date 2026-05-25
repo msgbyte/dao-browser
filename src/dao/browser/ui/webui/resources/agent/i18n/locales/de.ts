@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Verwalten Sie Slash-Command-Skills für den Agenten. Öffnen Sie den Skill-Manager, um Skills in einem Vollseiten-Editor zu erstellen, zu bearbeiten und zu löschen.',
   'settings.skills.open_manager_button': 'Skill-Manager öffnen',
   'settings.skills.open_directory_button': 'Skill-Verzeichnis öffnen',
+  'skills.toggle.enable_aria': 'Skill {name} aktivieren',
+  'skills.toggle.disable_aria': 'Skill {name} deaktivieren',
+  'skills.toggle.failed': 'Skill konnte nicht aktualisiert werden',
 };
 
 export default dict;

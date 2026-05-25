@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Tvarkykite agento įgūdžius su pasviruoju brūkšniu. Atidarykite Įgūdžių valdymo įrankį, kad sukurtumėte, redaguotumėte ir ištrintumėte įgūdžius viso puslapio redaktoriuje.',
   'settings.skills.open_manager_button': 'Atidaryti įgūdžių valdymo įrankį',
   'settings.skills.open_directory_button': 'Atidaryti įgūdžių katalogą',
+  'skills.toggle.enable_aria': 'Įjungti įgūdį {name}',
+  'skills.toggle.disable_aria': 'Išjungti įgūdį {name}',
+  'skills.toggle.failed': 'Nepavyko atnaujinti įgūdžio',
 };
 
 export default dict;

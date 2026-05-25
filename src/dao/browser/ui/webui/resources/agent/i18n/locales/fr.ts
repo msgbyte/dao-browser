@@ -129,7 +129,7 @@ const dict: Dictionary = {
   'settings.tools.search_duckduckgo_only': 'DuckDuckGo uniquement',
   'settings.tools.group.page': 'Page',
   'settings.tools.group.tabs': 'Onglets',
-  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.devtools': 'Outils de développement',
   'settings.tools.group.memory-skills': 'Mémoire & Compétences',
   'settings.tools.group.web': 'Web',
   'settings.tools.group.workspace': 'Espace de travail',
@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Gérer les compétences de commande slash pour l\'agent. Ouvrez le gestionnaire de compétences pour créer, éditer et supprimer des compétences dans un éditeur en pleine page.',
   'settings.skills.open_manager_button': 'Ouvrir le gestionnaire de compétences',
   'settings.skills.open_directory_button': 'Ouvrir le répertoire des compétences',
+  'skills.toggle.enable_aria': 'Activer la compétence {name}',
+  'skills.toggle.disable_aria': 'Désactiver la compétence {name}',
+  'skills.toggle.failed': 'Échec de la mise à jour de la compétence',
 };
 
 export default dict;

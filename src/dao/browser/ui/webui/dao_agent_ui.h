@@ -395,6 +395,7 @@ class DaoAgentSkillHandler : public content::WebUIMessageHandler {
   void HandleGetSkillContent(const base::ListValue& args);
   void HandleSaveUserSkill(const base::ListValue& args);
   void HandleDeleteUserSkill(const base::ListValue& args);
+  void HandleSetSkillDisabled(const base::ListValue& args);
   void HandleOpenSkillsDirectory(const base::ListValue& args);
   void HandleOpenSkillManager(const base::ListValue& args);
 

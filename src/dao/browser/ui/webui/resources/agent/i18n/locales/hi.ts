@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'एजेंट के लिए स्लैश-कमांड स्किल्स प्रबंधित करें। स्किल मैनेजर खोलें ताकि आप स्किल्स को पूर्ण-पृष्ठ संपादक में बना, संपादित और हटा सकें।',
   'settings.skills.open_manager_button': 'स्किल मैनेजर खोलें',
   'settings.skills.open_directory_button': 'स्किल्स डायरेक्टरी खोलें',
+  'skills.toggle.enable_aria': 'स्किल {name} सक्षम करें',
+  'skills.toggle.disable_aria': 'स्किल {name} अक्षम करें',
+  'skills.toggle.failed': 'स्किल अपडेट करने में विफल',
 };
 
 export default dict;

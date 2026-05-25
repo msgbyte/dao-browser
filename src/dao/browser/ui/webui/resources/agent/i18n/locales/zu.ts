@@ -137,6 +137,9 @@ const dict: Dictionary = {
   'settings.skills.desc': 'Phatha amakhono omyalo wokuhudula we-agent. Vula i-Manager ye-Skill ukuze udale, uhlele, futhi ususe amakhono kumhleli wekhasi eligcwele.',
   'settings.skills.open_manager_button': 'Vula Umphathi Wamakhono',
   'settings.skills.open_directory_button': 'Vula Imenyu Yamakhono',
+  'skills.toggle.enable_aria': 'Vula ikhono {name}',
+  'skills.toggle.disable_aria': 'Vala ikhono {name}',
+  'skills.toggle.failed': 'Yehlulekile ukuvuselela ikhono',
 };
 
 export default dict;
