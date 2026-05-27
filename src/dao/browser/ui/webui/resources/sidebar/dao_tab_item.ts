@@ -27,17 +27,37 @@ export class DaoTabItem extends CrLitElement {
         cursor: default;
         gap: 8px;
         position: relative;
-        transition: background 0.15s ease;
+        transition: background 0.12s ease, box-shadow 0.12s ease;
       }
 
       .tab-row:hover {
-        background: var(--ink-drop);
+        background: var(--ink-drop-strong, rgba(0, 0, 0, 0.06));
       }
 
-      :host([active]) .tab-row {
+      /* Active state — explicitly defined for both hover and non-hover to
+       * defend against CSS specificity edge cases and ensure the active
+       * row never reverts to the hover background. The accent-tinted
+       * hairline ring gives the active tab a clear boundary so users can
+       * distinguish it from the surrounding sidebar even when the
+       * translucent white surface blends into a light background. */
+      :host([active]) .tab-row,
+      :host([active]) .tab-row:hover {
         background: var(--surface-active);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08),
+        box-shadow: 0 0 0 0.5px rgba(70, 120, 190, 0.24),
+                    0 1px 3px rgba(0, 0, 0, 0.10),
                     0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .tab-row:hover {
+          background: var(--ink-drop-strong, rgba(255, 255, 255, 0.10));
+        }
+        :host([active]) .tab-row,
+        :host([active]) .tab-row:hover {
+          box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+                      0 1px 3px rgba(0, 0, 0, 0.30),
+                      0 1px 2px rgba(0, 0, 0, 0.18);
+        }
       }
 
       .favicon {
@@ -89,6 +109,15 @@ export class DaoTabItem extends CrLitElement {
         text-overflow: ellipsis;
         font-size: 13px;
         color: var(--text-primary);
+      }
+
+      /* Reaffirm title color under active state. Defensive: keeps text
+       * legible even if a stale CSS variable from a media-query transition
+       * briefly leaks (e.g. system theme auto-switch) and prevents
+       * "white-on-white" symptoms on the near-white active surface. */
+      :host([active]) .title {
+        color: var(--text-primary);
+        font-weight: 500;
       }
 
       .audio-btn {

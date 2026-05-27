@@ -11,6 +11,11 @@
   --accent: rgb(70, 120, 190);
   --accent-subtle: rgba(70, 120, 190, 0.10);
   --ink-drop: rgba(0, 0, 0, 0.04);
+  /* Stronger hover ink-drop used by primary row hovers (tabs, folders).
+   * The base --ink-drop is too subtle (4% black) for primary navigation
+   * surfaces; the strong variant gives clearer feedback without changing
+   * tertiary hover affordances (icon buttons, scrollbar, etc.). */
+  --ink-drop-strong: rgba(0, 0, 0, 0.07);
   --scrollbar-thumb: rgba(0, 0, 0, 0.15);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
   --radius-tab: 12px;
@@ -29,6 +34,7 @@
     --text-muted: rgba(255, 255, 255, 0.40);
     --accent-subtle: rgba(70, 120, 190, 0.18);
     --ink-drop: rgba(255, 255, 255, 0.06);
+    --ink-drop-strong: rgba(255, 255, 255, 0.10);
     --scrollbar-thumb: rgba(255, 255, 255, 0.18);
     --scrollbar-thumb-hover: rgba(255, 255, 255, 0.30);
   }
