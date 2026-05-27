@@ -129,7 +129,7 @@ const dict: Dictionary = {
   'settings.tools.search_duckduckgo_only': 'DuckDuckGo ብቻ',
   'settings.tools.group.page': 'ገጽ',
   'settings.tools.group.tabs': 'ትምህርቶች',
-  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.devtools': 'ዴቭ መሳሪያዎች',
   'settings.tools.group.memory-skills': 'ማህደር እና ክህሎቶች',
   'settings.tools.group.web': 'ድህረ ገጽ',
   'settings.tools.group.workspace': 'የሥራ ቦታ',
