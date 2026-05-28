@@ -10,11 +10,14 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_management.h"
+#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
+#include "chrome/browser/extensions/mv2_experiment_stage.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
@@ -26,8 +29,10 @@
 #include "dao/browser/extensions/legacy_mv2/dao_mv2_pref_defaults.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/browser/pref_names.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_features.h"
 
 namespace dao {
 
@@ -192,6 +197,63 @@ IN_PROC_BROWSER_TEST_F(DaoMV2BrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoMV2BrowserTest, APIRouter_DefaultsArePassThrough) {
   EXPECT_TRUE(DaoMV2APIRouter::Get().WebRequestBlockingEnabled());
   EXPECT_TRUE(DaoMV2APIRouter::Get().BackgroundPagePersistenceEnabled());
+}
+
+// ----- Rebase canary: each EXPECT names the patch it covers ------------
+//
+// When upgrading Chromium, run `npm run test --gtest_filter=*RebaseCanary*`
+// first. Each EXPECT failure includes a `<<` hint pointing at the exact
+// patch (or upstream symbol) likely to have drifted, so triage on a
+// rebase doesn't require re-deriving the MV2 control flow from scratch.
+IN_PROC_BROWSER_TEST_F(DaoMV2BrowserTest, RebaseCanary_AllPatchesAreLive) {
+  // 1. extensions/common/extension_features.cc.patch — both deprecation
+  //    features must default to DISABLED so the experiment manager stays
+  //    out of unsupported / disable-with-re-enable territory.
+  EXPECT_FALSE(base::FeatureList::IsEnabled(
+      extensions_features::kExtensionManifestV2Unsupported))
+      << "Patch stale: src/patches/extensions/common/extension_features.cc.patch "
+      << "(kExtensionManifestV2Unsupported should default to DISABLED).";
+  EXPECT_FALSE(base::FeatureList::IsEnabled(
+      extensions_features::kExtensionManifestV2Disabled))
+      << "Patch stale: src/patches/extensions/common/extension_features.cc.patch "
+      << "(kExtensionManifestV2Disabled should default to DISABLED).";
+
+  // 2. ManifestV2ExperimentManager — final converge point of every MV2
+  //    gate. If this trips while #1 is green, upstream introduced a
+  //    new MV2 gate beyond those two features and Dao needs another patch.
+  auto* exp_mgr = extensions::ManifestV2ExperimentManager::Get(profile());
+  ASSERT_TRUE(exp_mgr);
+  EXPECT_EQ(extensions::MV2ExperimentStage::kWarning,
+            exp_mgr->GetCurrentExperimentStage())
+      << "MV2 deprecation stage advanced past kWarning. If extension_features "
+      << ".cc.patch is healthy (see #1), upstream added a new gate — inspect "
+      << "ManifestV2ExperimentManager::CalculateCurrentExperimentStage() in "
+      << "the new Chromium and add a corresponding patch.";
+
+  // 3. extensions/browser/extension_prefs.cc.patch — registered default
+  //    of the availability pref must equal Dao's computed default. Use the
+  //    canonical pref-name constant so an upstream rename triggers a
+  //    compile failure, not a runtime "unregistered pref" crash.
+  EXPECT_EQ(DaoMV2PrefDefaults::DefaultManifestV2Availability(),
+            profile()->GetPrefs()->GetInteger(
+                extensions::pref_names::kManifestV2Availability))
+      << "Patch stale: src/patches/extensions/browser/extension_prefs.cc.patch "
+      << "(RegisterIntegerPref no longer hands Dao's default to the registry).";
+
+  // 4. chrome/browser/extensions/extension_management.cc.patch — when the
+  //    pref is unmanaged (the common case), the management layer must
+  //    fall back to Dao's default and report MV2 as exempt.
+  auto* mgmt =
+      extensions::ExtensionManagementFactory::GetForBrowserContext(profile());
+  ASSERT_TRUE(mgmt);
+  EXPECT_TRUE(mgmt->IsExemptFromMV2DeprecationByPolicy(
+      /*manifest_version=*/2,
+      /*extension_id=*/"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      extensions::Manifest::Type::TYPE_EXTENSION))
+      << "Patch stale: "
+      << "src/patches/chrome/browser/extensions/extension_management.cc.patch "
+      << "(ExtensionManagement::Refresh() no longer applies the Dao "
+      << "default for the unmanaged-pref branch).";
 }
 
 }  // namespace dao
