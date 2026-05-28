@@ -259,6 +259,16 @@ export class DaoTabItem extends CrLitElement {
     `;
   }
 
+  override updated(changedProperties: Map<PropertyKey, unknown>) {
+    // Keep the active tab inside the sidebar's scroll viewport whenever it
+    // becomes active (tab switch, newly opened active tab, or first render).
+    // `nearest` is a no-op when the tab is already fully visible, so it never
+    // disrupts the user's current scroll position.
+    if (changedProperties.has('active') && this.active) {
+      this.scrollIntoView({block: 'nearest'});
+    }
+  }
+
   private onActivate_() {
     sendNative('activateTab', this.tabData.index);
   }
