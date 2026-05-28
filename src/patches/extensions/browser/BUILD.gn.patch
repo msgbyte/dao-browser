@@ -1,0 +1,13 @@
+diff --git a/extensions/browser/BUILD.gn b/extensions/browser/BUILD.gn
+index 1e90d94432..93f8f19ae3 100644
+--- a/extensions/browser/BUILD.gn
++++ b/extensions/browser/BUILD.gn
+@@ -657,6 +657,8 @@ source_set("browser_sources") {
+     "//ui/color",
+     "//ui/display",
+     "//ui/menus",
++    # Dao MV2 Support: bring in DaoMV2PrefDefaults for extension_prefs.cc.
++    "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
+     "//url",
+   ]
+ 

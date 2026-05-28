@@ -1,0 +1,11 @@
+{
+  "manifest_version": 2,
+  "name": "Dao MV2 Test: Persistent Background",
+  "version": "1.0",
+  "description": "Sets a persistent global on its background page for the MV2 canary suite.",
+  "permissions": [],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  }
+}

@@ -1,0 +1,23 @@
+diff --git a/extensions/common/extension_features.cc b/extensions/common/extension_features.cc
+index 0000000000..1111111111 100644
+--- a/extensions/common/extension_features.cc
++++ b/extensions/common/extension_features.cc
+@@ -70,13 +70,16 @@ BASE_FEATURE(kExtensionLocalizationGuid, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+ BASE_FEATURE(kExtensionIconVariants, base::FEATURE_DISABLED_BY_DEFAULT);
+ 
+-BASE_FEATURE(kExtensionManifestV2Unsupported, base::FEATURE_ENABLED_BY_DEFAULT);
++// Dao MV2 Support: keep legacy MV2 extensions installable and runnable.
++// Disables Chromium's MV2 deprecation experiment so the experiment stage stays
++// at kWarning instead of kUnsupported / kDisableWithReEnable.
++BASE_FEATURE(kExtensionManifestV2Unsupported, base::FEATURE_DISABLED_BY_DEFAULT);
+ 
+ BASE_FEATURE(kExtensionManifestV2ExceptionList,
+              base::FEATURE_DISABLED_BY_DEFAULT);
+ 
+-BASE_FEATURE(kExtensionManifestV2Disabled, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kExtensionManifestV2Disabled, base::FEATURE_DISABLED_BY_DEFAULT);
+ 
+ BASE_FEATURE(kExtensionsBackgroundCompilation,
+              base::FEATURE_DISABLED_BY_DEFAULT);
+ 

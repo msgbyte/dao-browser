@@ -1,8 +1,17 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 969c2af443..39a0fb2bc5 100644
+index 969c2af443..70b75c0a19 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -6495,6 +6495,8 @@ static_library("browser") {
+@@ -2382,6 +2382,8 @@ static_library("browser") {
+     "//content/public/common",
+     "//content/public/common:buildflags",
+     "//crypto",
++    # Dao MV2 Support: provide kRestoreManifestV2Deprecation feature for about_flags.cc.
++    "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
+     "//device/base",
+     "//device/base/synchronization",
+     "//device/fido",
+@@ -6495,6 +6497,8 @@ static_library("browser") {
        "//chrome/services/mac_notifications",
        "//chrome/services/mac_notifications/public/cpp",
        "//chrome/services/mac_notifications/public/mojom",
@@ -11,7 +20,7 @@ index 969c2af443..39a0fb2bc5 100644
        "//components/crash/core/app",
        "//components/device_signals/core/browser/mac",
        "//components/enterprise/platform_auth:enterprise_platform_auth",
-@@ -8307,7 +8309,7 @@ static_library("browser") {
+@@ -8307,7 +8311,7 @@ static_library("browser") {
  # all public deps of "browser" into a new target, and all circular dependencies
  # must include this target in a public_dep. This ensures stability and
  # correctness of the build-graph outside of //chrome/browser.
@@ -20,7 +29,7 @@ index 969c2af443..39a0fb2bc5 100644
    public_deps = [
      # To avoid every target that is circularly dependent on
      # //chrome/browser:browser needing to include 2 separate targets, we include
-@@ -8458,7 +8460,7 @@ static_library("browser_public_dependencies") {
+@@ -8458,7 +8462,7 @@ static_library("browser_public_dependencies") {
  # //chrome/browser:browser should be listed here. This ensures that the build
  # graph is correct and that all headers are generated before any translation
  # units are compiled.

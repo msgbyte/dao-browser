@@ -1,0 +1,15 @@
+{
+  "manifest_version": 2,
+  "name": "Dao MV2 Test: WebRequest Blocking",
+  "version": "1.0",
+  "description": "Cancels requests to dao-mv2-blocked.test for the MV2 canary suite.",
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  }
+}

@@ -1,0 +1,67 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# -----------------------------------------------------------------------------
+# Public source_set: dao_legacy_mv2
+#
+# Dao's long-term Manifest V2 (MV2) extension support. Owns the
+# Dao-controlled pref default, the chrome://flags feature, the install-
+# dialog notice helpers, and the forward-looking compat-router seam.
+# Compiled into //extensions/browser and //chrome/browser/ui so it can
+# be reached from pref registration and from the install dialog view.
+# -----------------------------------------------------------------------------
+
+source_set("dao_legacy_mv2") {
+  sources = [
+    "dao_mv2_api_router.cc",
+    "dao_mv2_api_router.h",
+    "dao_mv2_features.cc",
+    "dao_mv2_features.h",
+    "dao_mv2_install_notice.cc",
+    "dao_mv2_install_notice.h",
+    "dao_mv2_pref_defaults.cc",
+    "dao_mv2_pref_defaults.h",
+  ]
+
+  deps = [
+    "//base",
+    "//extensions/common",
+    "//ui/base",
+  ]
+
+  public_deps = [
+    "//dao/browser/strings:dao_strings",
+  ]
+}
+
+source_set("dao_legacy_mv2_tests") {
+  testonly = true
+  sources = [ "dao_mv2_browsertest.cc" ]
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  data = [
+    "test_data/webrequest_blocking/background.js",
+    "test_data/webrequest_blocking/manifest.json",
+    "test_data/persistent_background/background.js",
+    "test_data/persistent_background/manifest.json",
+    "test_data/mv3_minimal/manifest.json",
+  ]
+
+  deps = [
+    ":dao_legacy_mv2",
+    "//base",
+    "//chrome/browser",
+    "//chrome/browser/extensions",
+    "//chrome/browser/profiles",
+    "//chrome/browser/ui:ui",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//content/test:test_support",
+    "//extensions/browser",
+    "//extensions/common",
+    "//testing/gtest",
+    "//ui/views",
+  ]
+}

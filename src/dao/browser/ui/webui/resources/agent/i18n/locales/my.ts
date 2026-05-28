@@ -58,7 +58,7 @@ const dict: Dictionary = {
   'settings.general.api_connection_title': 'API ချိတ်ဆက်မှု',
   'settings.general.api_connection_desc': 'Agent အတွက် LLM ပံ့ပိုးသူကို ပြင်ဆင်ပါ။ တစ်ခုချင်းစီသည် ၎င်း၏ ကိုယ်ပိုင် လက်မှတ်များကို သိမ်းဆည်းထားသည်။',
   'settings.general.provider_label': 'ပံ့ပိုးသူ',
-  'settings.general.api_key_label': 'API Key',
+  'settings.general.api_key_label': 'API သော့',
   'settings.general.base_url_label': 'အခြေခံ URL',
   'settings.general.model_label': 'မော်ဒယ်',
   'settings.general.display_title': 'ပြသမှု',

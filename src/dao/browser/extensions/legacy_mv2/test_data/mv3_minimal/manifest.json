@@ -1,0 +1,7 @@
+{
+  "manifest_version": 3,
+  "name": "Dao MV3 Test: Notice Negative Control",
+  "version": "1.0",
+  "description": "Minimal MV3 fixture used to verify the legacy-MV2 notice does NOT show for non-MV2 extensions.",
+  "permissions": []
+}

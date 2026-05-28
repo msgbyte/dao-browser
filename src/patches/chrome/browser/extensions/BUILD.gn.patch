@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/extensions/BUILD.gn b/chrome/browser/extensions/BUILD.gn
+index c7c960abd7..1d252fe7fc 100644
+--- a/chrome/browser/extensions/BUILD.gn
++++ b/chrome/browser/extensions/BUILD.gn
+@@ -592,6 +592,8 @@ source_set("extensions") {
+     "//components/user_prefs",
+     "//components/vector_icons",
+     "//content/public/browser",
++    # Dao MV2 Support: bring in DaoMV2PrefDefaults for extension_management.cc.
++    "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
+     "//extensions/browser",
+     "//extensions/browser:crx_installer",
+     "//extensions/browser:keepalive",

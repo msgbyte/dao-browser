@@ -280,6 +280,10 @@
       <message name="IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME" desc="Accessible name for the button that promotes the current Little Dao mini-browser tab into a full Dao Browser tab.">
         Open in Dao
       </message>
+      <!-- Install dialog notice -->
+      <message name="IDS_DAO_INSTALL_PROMPT_LEGACY_MV2_NOTICE" desc="One-line notice shown above the permission list in the extension install dialog when the extension being installed is a legacy Manifest V2 extension. Tells the user that Dao still supports MV2 but most other browsers do not. Plain text, no link.">
+        This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.
+      </message>
     </messages>
   </release>
 </grit>

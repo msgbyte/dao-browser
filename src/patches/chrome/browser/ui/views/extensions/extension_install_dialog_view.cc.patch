@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc b/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
+index 220a8c654c..17044ddd6b 100644
+--- a/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
++++ b/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
+@@ -26,6 +26,7 @@
+ #include "components/constrained_window/constrained_window_views.h"
+ #include "content/public/browser/browser_thread.h"
+ #include "content/public/browser/page_navigator.h"
++#include "dao/browser/extensions/legacy_mv2/dao_mv2_install_notice.h"
+ #include "extensions/common/constants.h"
+ #include "extensions/common/extension.h"
+ #include "extensions/common/extension_urls.h"
+@@ -539,6 +540,18 @@ ExtensionInstallDialogView::CreateExtensionInfoContainer(
+           .SetBetweenChildSpacing(provider->GetDistanceMetric(
+               views::DISTANCE_UNRELATED_CONTROL_VERTICAL));
+ 
++  // Dao MV2 Support: legacy-MV2 notice rendered above the permission list.
++  if (dao::DaoMV2InstallNotice::ShouldShowLegacyMV2Notice(
++          prompt_->extension())) {
++    extension_info_container.AddChild(
++        views::Builder<views::Label>()
++            .SetText(dao::DaoMV2InstallNotice::GetLegacyMV2NoticeText())
++            .SetTextContext(views::style::CONTEXT_DIALOG_BODY_TEXT)
++            .SetTextStyle(views::style::STYLE_SECONDARY)
++            .SetHorizontalAlignment(gfx::ALIGN_LEFT)
++            .SetMultiLine(true));
++  }
++
+   if (has_permissions) {
+     extension_info_container.AddChild(
+         views::Builder<views::BoxLayoutView>()

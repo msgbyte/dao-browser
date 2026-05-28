@@ -1,0 +1,24 @@
+diff --git a/extensions/browser/extension_prefs.cc b/extensions/browser/extension_prefs.cc
+index f1294e1273..5f01622710 100644
+--- a/extensions/browser/extension_prefs.cc
++++ b/extensions/browser/extension_prefs.cc
+@@ -33,6 +33,7 @@
+ #include "components/prefs/pref_service.h"
+ #include "components/supervised_user/core/common/buildflags.h"
+ #include "components/supervised_user/core/common/pref_names.h"
++#include "dao/browser/extensions/legacy_mv2/dao_mv2_pref_defaults.h"
+ #include "extensions/browser/api/declarative_net_request/utils.h"
+ #include "extensions/browser/api/web_request/extension_web_request_event_router.h"
+ #include "extensions/browser/app_sorting.h"
+@@ -2215,7 +2216,10 @@ void ExtensionPrefs::RegisterProfilePrefs(
+   registry->RegisterDictionaryPref(pref_names::kExtensionManagement);
+   registry->RegisterDictionaryPref(pref_names::kOAuthRedirectUrls);
+   registry->RegisterListPref(pref_names::kAllowedTypes);
+-  registry->RegisterIntegerPref(pref_names::kManifestV2Availability, 0);
++  // Dao MV2 Support: semantic-default alignment for the MV2 availability pref.
++  registry->RegisterIntegerPref(
++      pref_names::kManifestV2Availability,
++      dao::DaoMV2PrefDefaults::DefaultManifestV2Availability());
+   registry->RegisterListPref(pref_names::kAllowedInstallSites);
+   registry->RegisterStringPref(pref_names::kLastChromeVersion, std::string());
+   registry->RegisterDictionaryPref(kInstallSignature);

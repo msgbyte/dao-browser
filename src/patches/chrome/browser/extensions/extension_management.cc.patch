@@ -1,0 +1,36 @@
+diff --git a/chrome/browser/extensions/extension_management.cc b/chrome/browser/extensions/extension_management.cc
+index 2c809ad239..6b2cbb5c5e 100644
+--- a/chrome/browser/extensions/extension_management.cc
++++ b/chrome/browser/extensions/extension_management.cc
+@@ -46,6 +46,7 @@
+ #include "components/pref_registry/pref_registry_syncable.h"
+ #include "components/prefs/pref_service.h"
+ #include "content/public/common/content_switches.h"
++#include "dao/browser/extensions/legacy_mv2/dao_mv2_pref_defaults.h"
+ #include "extensions/browser/blocklist_extension_prefs.h"
+ #include "extensions/browser/extension_prefs.h"
+ #include "extensions/browser/forced_extensions/install_stage_tracker.h"
+@@ -806,11 +807,18 @@ void ExtensionManagement::Refresh() {
+     }
+   }
+ 
+-  if (manifest_v2_pref) {
+-    global_settings_->manifest_v2_setting =
+-        static_cast<internal::GlobalSettings::ManifestV2Setting>(
+-            manifest_v2_pref->GetInt());
+-  }
++  // Dao MV2 Support: when the pref is not policy-controlled, fall back to
++  // Dao's default (kEnabled by default; kDefault when the user flips the
++  // restore-manifest-v2-deprecation flag in chrome://flags). Without this,
++  // LoadPreference(force_managed=true) returns nullptr for the unmanaged
++  // case and `manifest_v2_setting` stays at kDefault, defeating Dao's
++  // default-on MV2 stance.
++  global_settings_->manifest_v2_setting =
++      manifest_v2_pref
++          ? static_cast<internal::GlobalSettings::ManifestV2Setting>(
++                manifest_v2_pref->GetInt())
++          : static_cast<internal::GlobalSettings::ManifestV2Setting>(
++                dao::DaoMV2PrefDefaults::DefaultManifestV2Availability());
+ 
+   if (unpublished_availability_pref) {
+     global_settings_->unpublished_availability_setting =

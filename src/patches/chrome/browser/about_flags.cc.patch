@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/about_flags.cc b/chrome/browser/about_flags.cc
+index 016ba0e25f..678ea95e57 100644
+--- a/chrome/browser/about_flags.cc
++++ b/chrome/browser/about_flags.cc
+@@ -207,6 +207,7 @@
+ #include "content/common/features.h"
+ #include "content/public/common/content_features.h"
+ #include "content/public/common/content_switches.h"
++#include "dao/browser/extensions/legacy_mv2/dao_mv2_features.h"
+ #include "device/base/features.h"
+ #include "device/bluetooth/bluez/bluez_features.h"
+ #include "device/bluetooth/chromeos_platform_features.h"
+@@ -9165,6 +9166,13 @@ const FeatureEntry kFeatureEntries[] = {
+      flag_descriptions::kExtensionManifestV2DeprecationUnsupportedDescription,
+      kOsDesktop,
+      FEATURE_VALUE_TYPE(extensions_features::kExtensionManifestV2Unsupported)},
++
++    // Dao MV2 Support: opt back into Chromium's standard MV2 deprecation.
++    {"restore-manifest-v2-deprecation",
++     flag_descriptions::kRestoreManifestV2DeprecationName,
++     flag_descriptions::kRestoreManifestV2DeprecationDescription,
++     kOsAll,
++     FEATURE_VALUE_TYPE(dao::kRestoreManifestV2Deprecation)},
+ #endif  // ENABLE_EXTENSIONS
+ 
+ #if !BUILDFLAG(IS_ANDROID)
