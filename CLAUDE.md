@@ -112,7 +112,7 @@ Patches inject Dao components into the Chromium frame:
 - **Always verify with build** — After a complete task's code changes are all done, run `npm run rebuild` (import + build) to verify compilation. Do not consider the task finished until the build passes.
 - **NEVER use `npm run build`** — Always use `npm run build:debug` (debug build) instead. The release build is extremely slow and not needed during development. This applies to all build-related commands: use `npm run rebuild` (which uses debug) for iterative dev, and `npm run build:debug` for build-only.
 - **⚠️ NEVER run `autoninja`, `ninja`, `siso`, or any build tool directly ⚠️** — This is the single most important build rule. NEVER run `autoninja -C ...`, `ninja -C ...`, or any direct build command. ALWAYS use the project npm scripts (`npm run rebuild`, `npm run build:debug`). Direct invocation causes Siso/Ninja state mismatches that corrupt the build directory and trigger expensive full rebuilds. If you see a build state mismatch error, run `gn clean out/dao-debug` and then `npm run build:debug` — do NOT attempt to fix it by running ninja/autoninja directly, that will make it worse.
-- **NEVER commit to git automatically** — Do not run `git add`, `git commit`, or `git push` unless the user explicitly asks. Leave all git operations to the user.
+- **⚠️ NEVER commit to git automatically ⚠️** — Do not run `git add`, `git commit`, `git push`, `git reset`, `git rebase`, `git stash`, or any other state-changing git command unless the user **explicitly authorizes it in the latest message**. The user owns the commit timing and the commit boundary; you only stage code edits in the working tree. See **ABSOLUTE GIT RULES** below for the full contract — plan execution, TodoWrite progress, subagent workflows, and "tiny cleanups" do NOT auto-authorize git operations.
 - **Agent WebUI: never use Tailwind utility classes in Dao-owned code** — The Tailwind CSS under `src/dao/browser/ui/webui/resources/agent/vendor/pi_web_ui.css` is **precompiled** by the vendor pipeline from pi-web-ui's source. Any utility class we write in Dao-owned files (`agent.html`, `dao_agent_app.ts`, `dao_chat_view.ts`, `dao_settings_view.ts`, etc.) is NOT in that compiled output and will silently render as unstyled. Always use inline `style=""` attributes or scoped rules in `agent.css` / lit `<style>` blocks for Dao-owned UI. Utility classes like `bg-card`, `rounded-xl`, `p-4` are fine ONLY when they appear inside pi-web-ui components that we render through — because those classes were scanned at pi-web-ui build time.
 - **Agent WebUI vendor directory is generated — NEVER hand-edit** — Everything under `src/dao/browser/ui/webui/resources/agent/vendor/` (currently `pi_runtime_bundle.ts` and `pi_web_ui.css`) is produced by `npm run vendor` from `vendor.config.ts` + `vendor/entries/*`. Treat these files as read-only build artifacts. To change anything that ends up there: edit the entry source (e.g., `vendor/entries/pi-runtime.entry.ts` to re-export more pi-mono APIs; `vendor/entries/pi-web-ui-css.build.mjs` to tweak the CSS copy step) and re-run `npm run vendor` (or `npm run vendor -- --entry=<name>` to rebuild one entry). Never patch the generated files directly — the next `npm run vendor` will overwrite your edits and the `manifest.json` sha256 check will flag the drift.
 
@@ -173,6 +173,22 @@ Available skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/pla
 2. **ALWAYS use `npm run rebuild` or `npm run build:debug`** — these are the ONLY approved ways to build.
 3. **NEVER run `gn gen` directly** — the npm scripts handle this automatically.
 4. If build state is corrupted (Siso/Ninja mismatch), run `gn clean out/dao-debug` then `npm run build:debug`.
+
+## ABSOLUTE GIT RULES (READ BEFORE ANY GIT ACTION)
+
+The user owns every commit. Your job ends at "the working tree contains the right code"; turning that into commits is the user's call, not yours.
+
+1. **NEVER run state-changing git commands without an explicit in-the-latest-message authorization from the user.** This covers `git add`, `git commit`, `git push`, `git pull`, `git reset`, `git rebase`, `git checkout` (when it discards changes), `git stash`, `git tag`, `git merge`, `git cherry-pick`, `git restore`, and `git apply` against the repo root. There are NO exceptions, including:
+   - Plan-mode / Subagent-Driven / `TodoWrite` workflows — even when the plan literally says "commit after this step", you do NOT commit. Finish the edits, leave them unstaged, summarize, and **wait for the user to say commit**.
+   - "1", "approved", "looks good", "go ahead", "继续" against a plan or menu — these authorize **execution**, not git operations.
+   - Code-review fix-ups, README/docs polish, build-fix follow-ups, "tiny cleanups", lint fixes — still need an explicit commit instruction in the latest message.
+   - Subagents must inherit this rule. When dispatching a subagent, instruct it to leave changes unstaged and never run git write commands itself.
+2. **Read-only git is always allowed** — `git status`, `git log`, `git diff`, `git show`, `git branch` (no `-d`), `git blame`, `git apply --check`, `git apply --reverse --check` (verification only). Use these freely to understand state.
+3. **Explicit phrasing required** — wait for clear opt-in like "commit", "commit it", "提交", "push it", "ship it", "land it". Vague affirmations ("ok", "thanks", "nice") are NOT git authorization.
+4. **One commit per authorization** — if the user says "commit", that authorizes one commit, not a series. For follow-up commits, wait for another explicit instruction.
+5. **NEVER push, force-push, amend, or rewrite history** without a separate, explicit instruction in the latest message ("push", "force push", "amend", "rebase onto X"). Approval to commit is NOT approval to push.
+6. **Branch policy reminder** — even when authorized to commit, all work stays on `main`. Do NOT create feature branches or git worktrees (see "Git Branch Policy" above).
+7. **If unsure, ask.** A one-line "want me to commit this?" is always cheaper than an unwanted commit.
 
 ## Prerequisites
 
