@@ -24,6 +24,8 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
+#include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
+#include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -405,6 +407,57 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateTabsGetDistinctSidebarTabIds)
   model->MoveWebContentsAt(2, 1, false);
   EXPECT_EQ(original_id, GetSidebarTabId(original));
   EXPECT_EQ(duplicate_id, GetSidebarTabId(duplicate));
+}
+
+// External URL entry points (macOS application:openURLs:, Universal Links,
+// other apps invoking "open in browser") all funnel through
+// StartupBrowserCreatorImpl::OpenURLsInBrowser with process_startup == kNo.
+// Without an explicit tabstrip_index, AddTab normalizes -1 to count() and
+// appends the tab to the end of the strip — the *bottom* of the vertical
+// sidebar — which contradicts the command-bar new-tab UX where new tabs land
+// at the top. Patches in src/patches/chrome/browser/ui/startup/ force top
+// insertion; these tests guard that behavior.
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, ExternalUrlOpensAtTopOfStrip) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  const int initial_count = model->count();
+  ASSERT_GE(initial_count, 3);
+
+  base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
+  StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
+                                   chrome::startup::IsFirstRun::kNo);
+  launch.OpenURLsInBrowser(browser(),
+                           chrome::startup::IsProcessStartup::kNo,
+                           {GURL("data:text/plain,external")});
+
+  EXPECT_EQ(initial_count + 1, model->count());
+  EXPECT_EQ(0, model->active_index());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       ExternalUrlsPreserveInputOrderAtTop) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  const int initial_count = model->count();
+  ASSERT_GE(initial_count, 2);
+
+  base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
+  StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
+                                   chrome::startup::IsFirstRun::kNo);
+  const std::vector<GURL> urls = {
+      GURL("data:text/plain,a"),
+      GURL("data:text/plain,b"),
+      GURL("data:text/plain,c"),
+  };
+  launch.OpenURLsInBrowser(browser(),
+                           chrome::startup::IsProcessStartup::kNo, urls);
+
+  ASSERT_EQ(initial_count + 3, model->count());
+  EXPECT_EQ(0, model->active_index());
+  EXPECT_EQ(urls[0], model->GetWebContentsAt(0)->GetVisibleURL());
+  EXPECT_EQ(urls[1], model->GetWebContentsAt(1)->GetVisibleURL());
+  EXPECT_EQ(urls[2], model->GetWebContentsAt(2)->GetVisibleURL());
 }
 
 // =============================================================================

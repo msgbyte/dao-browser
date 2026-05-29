@@ -2,7 +2,28 @@ diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/
 index 1cefe11155..89e244b960 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-@@ -713,8 +713,21 @@ Browser* StartupBrowserCreatorImpl::RestoreOrCreateBrowser(
+@@ -331,7 +331,8 @@ Browser* StartupBrowserCreatorImpl::OpenTabsInBrowser(
+   }
+   CHECK(profile_);
+ 
+   bool first_tab = true;
++  int dao_external_url_insertion_index = 0;
+   bool process_headless_commands = headless::ShouldProcessHeadlessCommands();
+   custom_handlers::ProtocolHandlerRegistry* registry =
+       ProtocolHandlerRegistryFactory::GetForBrowserContext(profile_);
+@@ -409,7 +410,11 @@ Browser* StartupBrowserCreatorImpl::OpenTabsInBrowser(
+     NavigateParams params(browser, tab.url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+     params.disposition = first_tab ? WindowOpenDisposition::NEW_FOREGROUND_TAB
+                                    : WindowOpenDisposition::NEW_BACKGROUND_TAB;
+     params.tabstrip_add_types = add_types;
++    // Dao: external URLs use AUTO_TOPLEVEL which bypasses
++    // DetermineInsertionIndex; force top insertion (counter preserves
++    // input order for multi-URL launches).
++    params.tabstrip_index = dao_external_url_insertion_index++;
+ 
+ #if BUILDFLAG(ENABLE_RLZ)
+     if (process_startup == chrome::startup::IsProcessStartup::kYes &&
+@@ -713,8 +718,21 @@ Browser* StartupBrowserCreatorImpl::RestoreOrCreateBrowser(
        restore_options |= SessionRestore::RESTORE_APPS;
      }
  
@@ -25,7 +46,7 @@ index 1cefe11155..89e244b960 100644
      if (browser) {
        return browser;
      }
-@@ -772,11 +785,13 @@ StartupBrowserCreatorImpl::DetermineBrowserOpenBehavior(
+@@ -772,11 +790,13 @@ StartupBrowserCreatorImpl::DetermineBrowserOpenBehavior(
    }
  
    if (pref.ShouldRestoreLastSession()) {
