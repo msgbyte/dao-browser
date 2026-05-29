@@ -50,23 +50,70 @@ const SOURCE_LINE_HEIGHT = 14;
 const FONT_FAMILY = 'system-ui, -apple-system, "Helvetica Neue", sans-serif';
 const MONO_FAMILY = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 
-const BG_COLOR = 'rgb(231, 238, 245)';
-const BG_COLOR_TRANSPARENT = 'rgba(231, 238, 245, 0)';
-const TEXT_COLOR = 'rgb(30, 20, 40)';
-const TEXT_MUTED = 'rgba(30, 20, 40, 0.55)';
-const TEXT_VERY_MUTED = 'rgba(30, 20, 40, 0.4)';
-const ACCENT_COLOR = 'rgb(70, 120, 190)';
-const FOOTER_BG = 'rgb(54, 59, 64)';
-const FOOTER_FG = 'rgb(255, 255, 255)';
-const INLINE_CODE_COLOR = 'rgba(30, 20, 40, 0.72)';
-const CODE_BLOCK_BG = 'rgba(0, 0, 0, 0.05)';
-const CODE_BLOCK_BORDER = 'rgba(0, 0, 0, 0.08)';
-const HR_COLOR = 'rgba(0, 0, 0, 0.12)';
-const BLOCKQUOTE_BAR = 'rgba(30, 20, 40, 0.25)';
+interface ShareTheme {
+  bg: string;
+  bgTransparent: string;
+  text: string;
+  textMuted: string;
+  textVeryMuted: string;
+  accent: string;
+  userBubble: string;
+  footerBg: string;
+  footerFg: string;
+  inlineCode: string;
+  codeBlockBg: string;
+  codeBlockBorder: string;
+  hr: string;
+  blockquoteBar: string;
+}
+
+const LIGHT_THEME: ShareTheme = {
+  bg: 'rgb(231, 238, 245)',
+  bgTransparent: 'rgba(231, 238, 245, 0)',
+  text: 'rgb(30, 20, 40)',
+  textMuted: 'rgba(30, 20, 40, 0.55)',
+  textVeryMuted: 'rgba(30, 20, 40, 0.4)',
+  accent: 'rgb(70, 120, 190)',
+  userBubble: 'rgb(70, 120, 190)',
+  footerBg: 'rgb(54, 59, 64)',
+  footerFg: 'rgb(255, 255, 255)',
+  inlineCode: 'rgba(30, 20, 40, 0.72)',
+  codeBlockBg: 'rgba(0, 0, 0, 0.05)',
+  codeBlockBorder: 'rgba(0, 0, 0, 0.08)',
+  hr: 'rgba(0, 0, 0, 0.12)',
+  blockquoteBar: 'rgba(30, 20, 40, 0.22)',
+};
+
+const DARK_THEME: ShareTheme = {
+  bg: 'rgb(54, 59, 64)',
+  bgTransparent: 'rgba(54, 59, 64, 0)',
+  text: 'rgba(245, 245, 245, 0.92)',
+  textMuted: 'rgba(255, 255, 255, 0.60)',
+  textVeryMuted: 'rgba(255, 255, 255, 0.40)',
+  accent: 'rgb(120, 170, 240)',
+  userBubble: 'rgba(70, 120, 190, 0.70)',
+  footerBg: 'rgb(45, 49, 54)',
+  footerFg: 'rgba(255, 255, 255, 0.92)',
+  inlineCode: 'rgba(255, 255, 255, 0.72)',
+  codeBlockBg: 'rgba(255, 255, 255, 0.06)',
+  codeBlockBorder: 'rgba(255, 255, 255, 0.12)',
+  hr: 'rgba(255, 255, 255, 0.12)',
+  blockquoteBar: 'rgba(255, 255, 255, 0.16)',
+};
+
+function currentShareTheme(): ShareTheme {
+  try {
+    if (globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+      return DARK_THEME;
+    }
+  } catch (_) {
+    // matchMedia can be unavailable in tests or older WebUI contexts.
+  }
+  return LIGHT_THEME;
+}
 
 // Lightweight syntax palette. We only colorize a few categories the eye
-// uses to scan code; the rest stays in TEXT_COLOR. Picked to look correct
-// in both light and dark previews (the canvas is light-mode for now).
+// uses to scan code; the rest stays in the active theme text color.
 const SYN_KEYWORD = 'rgb(170, 50, 130)';
 const SYN_STRING = 'rgb(70, 130, 70)';
 const SYN_COMMENT = 'rgba(30, 20, 40, 0.45)';
@@ -275,7 +322,7 @@ function wrapRuns(
 
 function paintLine(
     g: CanvasRenderingContext2D, line: LayoutLine, x: number, y: number,
-    sizePx: number, color: string, weight?: number): void {
+    sizePx: number, color: string, theme: ShareTheme, weight?: number): void {
   let cursorX = x;
   for (const run of line.runs) {
     g.font = fontFor(run.style, sizePx, weight);
@@ -287,9 +334,9 @@ function paintLine(
     // (style 'code', set by syntaxRuns) keep their syntax-tinted palette.
     g.fillStyle = run.color ||
         (run.style === 'link' ?
-             ACCENT_COLOR :
-             (run.style === 'inline-code' && color === TEXT_COLOR ?
-                  INLINE_CODE_COLOR :
+             theme.accent :
+             (run.style === 'inline-code' && color === theme.text ?
+                  theme.inlineCode :
                   color));
     g.textBaseline = 'alphabetic';
     g.fillText(run.text, cursorX, y);
@@ -302,7 +349,7 @@ function paintLine(
       g.stroke();
     } else if (run.style === 'link') {
       // Subtle underline so links stay legible even without color contrast.
-      g.strokeStyle = ACCENT_COLOR;
+      g.strokeStyle = theme.accent;
       g.lineWidth = 1;
       g.beginPath();
       g.moveTo(cursorX, y + 2);
@@ -478,6 +525,7 @@ interface BuildOpts {
   textColor: string;
   baseSize: number;
   baseLineHeight: number;
+  theme: ShareTheme;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -486,11 +534,9 @@ function buildBlocks(tokens: any[], opts: BuildOpts): Block[] {
   for (const tk of tokens) {
     if (!tk) continue;
     if (tk.type === 'space') {
-      out.push({
-        height: PARAGRAPH_SPACING,
-        trailingSpace: PARAGRAPH_SPACING,
-        paint: () => {},
-      });
+      // The preceding block already contributes its own trailing margin.
+      // Treat marked's blank-line token as structural only so paragraph
+      // gaps do not double up in the exported image.
       continue;
     }
     if (tk.type === 'hr') {
@@ -498,7 +544,7 @@ function buildBlocks(tokens: any[], opts: BuildOpts): Block[] {
         height: PARAGRAPH_SPACING * 2,
         trailingSpace: PARAGRAPH_SPACING,
         paint(g, x, y, w) {
-          g.strokeStyle = HR_COLOR;
+          g.strokeStyle = opts.theme.hr;
           g.lineWidth = 1;
           g.beginPath();
           g.moveTo(x, y + PARAGRAPH_SPACING);
@@ -561,7 +607,7 @@ function buildParagraph(
     paint: (g, x, y, _w) => {
       let cy = y + opts.baseSize;
       for (const line of lines) {
-        paintLine(g, line, x, cy, opts.baseSize, opts.textColor);
+        paintLine(g, line, x, cy, opts.baseSize, opts.textColor, opts.theme);
         cy += opts.baseLineHeight;
       }
     },
@@ -570,32 +616,25 @@ function buildParagraph(
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildHeading(tk: any, opts: BuildOpts): Block {
-  // h1 28, h2 24, h3 20, h4 18, h5 16, h6 14
-  const sizeMap = [28, 28, 24, 20, 18, 16, 14];
-  const size = sizeMap[Math.max(1, Math.min(6, tk.depth || 1))]!;
+  // Keep exported headings close to pi-web-ui's compact markdown-block
+  // scale: semibold emphasis, not document-style display headings.
+  const sizeMap = [22, 22, 20, 19, 18, 18, 18];
+  const depth = Math.max(1, Math.min(6, tk.depth || 1));
+  const size = sizeMap[depth]!;
   const lineHeight = Math.round(size * 1.35);
   const runs = tokensToRuns(tk.tokens, 'bold');
-  const lines = wrapRuns(opts.ctx, runs, opts.maxWidth, size, 700);
-  const topPad = Math.round(size * 0.6);
-  const botPad = Math.round(size * 0.3);
+  const lines = wrapRuns(opts.ctx, runs, opts.maxWidth, size, 600);
+  const topPad = depth <= 2 ? 14 : 10;
+  const botPad = 6;
   const height = topPad + lines.length * lineHeight + botPad;
   return {
     height,
     trailingSpace: botPad,
-    paint: (g, x, y, w) => {
+    paint: (g, x, y, _w) => {
       let cy = y + topPad + size;
       for (const line of lines) {
-        paintLine(g, line, x, cy, size, opts.textColor, 700);
+        paintLine(g, line, x, cy, size, opts.textColor, opts.theme, 600);
         cy += lineHeight;
-      }
-      // h1 / h2 get a subtle underline for visual weight.
-      if (tk.depth <= 2) {
-        g.strokeStyle = HR_COLOR;
-        g.lineWidth = 1;
-        g.beginPath();
-        g.moveTo(x, y + height - 4);
-        g.lineTo(x + w, y + height - 4);
-        g.stroke();
       }
     },
   };
@@ -644,20 +683,20 @@ function buildCodeBlock(tk: any, opts: BuildOpts): Block {
     height,
     trailingSpace: PARAGRAPH_SPACING,
     paint: (g, x, y, _w) => {
-      g.fillStyle = CODE_BLOCK_BG;
+      g.fillStyle = opts.theme.codeBlockBg;
       paintRoundedRect(g, x, y, opts.maxWidth, blockHeight, 8);
-      g.strokeStyle = CODE_BLOCK_BORDER;
+      g.strokeStyle = opts.theme.codeBlockBorder;
       g.lineWidth = 1;
       strokeRoundedRect(g, x, y, opts.maxWidth, blockHeight, 8);
       if (langLabel) {
         g.font = `500 11px ${MONO_FAMILY}`;
-        g.fillStyle = TEXT_VERY_MUTED;
+        g.fillStyle = opts.theme.textVeryMuted;
         g.textBaseline = 'alphabetic';
         g.fillText(langLabel, x + PAD_X, y + 14);
       }
       let cy = y + labelHeight + PAD_Y + codeSize;
       for (const line of lines) {
-        paintLine(g, line, x + PAD_X, cy, codeSize, opts.textColor);
+        paintLine(g, line, x + PAD_X, cy, codeSize, opts.textColor, opts.theme);
         cy += codeLineHeight;
       }
     },
@@ -667,19 +706,19 @@ function buildCodeBlock(tk: any, opts: BuildOpts): Block {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildBlockquote(tk: any, opts: BuildOpts): Block {
   const INDENT = 16;
-  const BAR_W = 3;
+  const BAR_W = 4;
   const inner = buildBlocks(tk.tokens || [], {
     ...opts,
     maxWidth: opts.maxWidth - INDENT,
-    textColor: TEXT_MUTED,
+    textColor: opts.theme.textMuted,
   });
-  const innerHeight = inner.reduce((sum, b) => sum + b.height, 0);
+  const innerHeight = sumBlockHeight(inner);
   return {
     height: innerHeight + PARAGRAPH_SPACING / 2,
     trailingSpace: PARAGRAPH_SPACING / 2,
     paint: (g, x, y, _w) => {
-      g.fillStyle = BLOCKQUOTE_BAR;
-      g.fillRect(x, y + 2, BAR_W, innerHeight - 4);
+      g.fillStyle = opts.theme.blockquoteBar;
+      g.fillRect(x, y + 2, BAR_W, Math.max(0, innerHeight - 4));
       let cy = y;
       for (const b of inner) {
         b.paint(g, x + INDENT, cy, opts.maxWidth - INDENT);
@@ -743,7 +782,7 @@ function buildList(tk: any, opts: BuildOpts, depth: number): Block {
         g.font = ordered ?
             `500 ${opts.baseSize}px ${FONT_FAMILY}` :
             `${opts.baseSize + 2}px ${FONT_FAMILY}`;
-        g.fillStyle = TEXT_MUTED;
+        g.fillStyle = opts.theme.textMuted;
         g.textBaseline = 'alphabetic';
         g.fillText(item.marker,
                    x + INDENT - MARKER_GAP -
@@ -817,6 +856,7 @@ function lexMarkdown(src: string): any[] {
 }
 
 export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
+  const theme = currentShareTheme();
   const measureCanvas = createCanvas(SHARE_CANVAS_WIDTH, 16);
   const measure =
       measureCanvas.getContext('2d') as unknown as CanvasRenderingContext2D;
@@ -829,9 +869,10 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
   const answerBlocks = buildBlocks(answerTokens, {
     ctx: measure,
     maxWidth: answerMaxWidth,
-    textColor: TEXT_COLOR,
+    textColor: theme.text,
     baseSize: answerSize,
     baseLineHeight: answerLineHeight,
+    theme,
   });
   const answerHeight = sumBlockHeight(answerBlocks);
 
@@ -849,6 +890,7 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
         textColor: '#ffffff',
         baseSize: bubbleSize,
         baseLineHeight: bubbleLineHeight,
+        theme,
       }) :
       [];
   // For the bubble width, run a quick text-only sniff to find the widest
@@ -906,11 +948,11 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
       canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
   g.scale(dpr, dpr);
 
-  g.fillStyle = BG_COLOR;
+  g.fillStyle = theme.bg;
   g.fillRect(0, 0, SHARE_CANVAS_WIDTH, totalHeight);
 
   if (hasBubble) {
-    g.fillStyle = ACCENT_COLOR;
+    g.fillStyle = theme.userBubble;
     paintRoundedRect(
         g, bubbleX, bubbleY, bubbleOuterWidth, bubbleOuterHeight,
         BUBBLE_RADIUS);
@@ -924,7 +966,7 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
 
   if (ctx.source) {
     g.font = `${SOURCE_FONT_SIZE}px ${FONT_FAMILY}`;
-    g.fillStyle = TEXT_VERY_MUTED;
+    g.fillStyle = theme.textVeryMuted;
     g.textBaseline = 'alphabetic';
     const sourceText = `From ${ctx.source.domain}`;
     const w = g.measureText(sourceText).width;
@@ -954,12 +996,12 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
     const fadeTop = totalHeight - FOOTER_HEIGHT - OVERFLOW_FADE_HEIGHT;
     const grad = g.createLinearGradient(
         0, fadeTop, 0, totalHeight - FOOTER_HEIGHT);
-    grad.addColorStop(0, BG_COLOR_TRANSPARENT);
-    grad.addColorStop(1, BG_COLOR);
+    grad.addColorStop(0, theme.bgTransparent);
+    grad.addColorStop(1, theme.bg);
     g.fillStyle = grad;
     g.fillRect(0, fadeTop, SHARE_CANVAS_WIDTH, OVERFLOW_FADE_HEIGHT);
     g.font = `24px ${FONT_FAMILY}`;
-    g.fillStyle = TEXT_VERY_MUTED;
+    g.fillStyle = theme.textVeryMuted;
     g.textAlign = 'center';
     g.fillText(
         '…', SHARE_CANVAS_WIDTH / 2,
@@ -967,11 +1009,11 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
     g.textAlign = 'left';
   }
 
-  g.fillStyle = FOOTER_BG;
+  g.fillStyle = theme.footerBg;
   g.fillRect(
       0, totalHeight - FOOTER_HEIGHT, SHARE_CANVAS_WIDTH, FOOTER_HEIGHT);
   g.font = `12px ${FONT_FAMILY}`;
-  g.fillStyle = FOOTER_FG;
+  g.fillStyle = theme.footerFg;
   g.textBaseline = 'middle';
   g.fillText(
       'Answered by Dao Browser', OUTER_PADDING,
