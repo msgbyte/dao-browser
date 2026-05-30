@@ -1,0 +1,113 @@
+diff --git a/ui/views/window/dialog_delegate.cc b/ui/views/window/dialog_delegate.cc
+index c1f2ec4786..50dd475f3a 100644
+--- a/ui/views/window/dialog_delegate.cc
++++ b/ui/views/window/dialog_delegate.cc
+@@ -21,9 +21,12 @@
+ #include "ui/base/mojom/dialog_button.mojom.h"
+ #include "ui/base/mojom/ui_base_types.mojom-shared.h"
+ #include "ui/base/ui_base_types.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_variant.h"
+ #include "ui/gfx/color_palette.h"
+ #include "ui/gfx/geometry/insets.h"
+ #include "ui/gfx/geometry/rounded_corners_f.h"
++#include "ui/native_theme/native_theme.h"
+ #include "ui/strings/grit/ui_strings.h"
+ #include "ui/views/bubble/bubble_border.h"
+ #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+@@ -72,6 +75,17 @@ bool HasCallback(
+       [](const auto& variant) { return static_cast<bool>(variant); }, callback);
+ }
+ 
++// These constants live in ui/views to avoid depending on Dao-owned color
++// headers from upstream Views code.
++SkColor DaoSystemDialogSurfaceColor() {
++  const ui::NativeTheme* theme = ui::NativeTheme::GetInstanceForNativeUi();
++  const bool dark =
++      theme && theme->preferred_color_scheme() ==
++                   ui::NativeTheme::PreferredColorScheme::kDark;
++  return dark ? SkColorSetARGB(242, 47, 53, 60)
++              : SkColorSetARGB(242, 255, 255, 255);
++}
++
+ #if !BUILDFLAG(IS_APPLE)
+ bool UseDesktopWidgetOverride(WidgetDelegate* delegate) {
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -85,6 +99,21 @@ bool UseDesktopWidgetOverride(WidgetDelegate* delegate) {
+ 
+ }  // namespace
+ 
++////////////////////////////////////////////////////////////////////////////////
++// DialogDelegate::DialogButtonShortcut:
++
++DialogDelegate::DialogButtonShortcut::DialogButtonShortcut() = default;
++DialogDelegate::DialogButtonShortcut::DialogButtonShortcut(
++    const ui::Accelerator& accelerator,
++    std::u16string keycap)
++    : accelerator(accelerator), keycap(std::move(keycap)) {}
++DialogDelegate::DialogButtonShortcut::DialogButtonShortcut(
++    const DialogButtonShortcut&) = default;
++DialogDelegate::DialogButtonShortcut&
++DialogDelegate::DialogButtonShortcut::operator=(const DialogButtonShortcut&) =
++    default;
++DialogDelegate::DialogButtonShortcut::~DialogButtonShortcut() = default;
++
+ ////////////////////////////////////////////////////////////////////////////////
+ // DialogDelegate::Params:
+ DialogDelegate::Params::Params() = default;
+@@ -232,6 +261,45 @@ ui::ButtonStyle DialogDelegate::GetDialogButtonStyle(
+                               : ui::ButtonStyle::kTonal;
+ }
+ 
++void DialogDelegate::SetUseDaoSystemDialogStyle(bool use_style) {
++  if (params_.use_dao_system_dialog_style == use_style) {
++    return;
++  }
++  params_.use_dao_system_dialog_style = use_style;
++  if (BubbleFrameView* frame = GetBubbleFrameView()) {
++    frame->SetBackgroundColor(
++        use_style ? ui::ColorVariant(DaoSystemDialogSurfaceColor())
++                  : ui::ColorVariant(ui::kColorDialogBackground));
++  }
++  DialogModelChanged();
++}
++
++void DialogDelegate::SetButtonShortcut(ui::mojom::DialogButton button,
++                                       const ui::Accelerator& accelerator,
++                                       std::u16string_view keycap) {
++  DialogButtonShortcut shortcut(accelerator, std::u16string(keycap));
++  auto& target = params_.button_shortcuts[static_cast<size_t>(button)];
++  if (target == shortcut) {
++    return;
++  }
++  target = std::move(shortcut);
++  DialogModelChanged();
++}
++
++void DialogDelegate::ClearButtonShortcut(ui::mojom::DialogButton button) {
++  auto& target = params_.button_shortcuts[static_cast<size_t>(button)];
++  if (!target.has_value()) {
++    return;
++  }
++  target.reset();
++  DialogModelChanged();
++}
++
++std::optional<DialogDelegate::DialogButtonShortcut>
++DialogDelegate::GetButtonShortcut(ui::mojom::DialogButton button) const {
++  return params_.button_shortcuts[static_cast<size_t>(button)];
++}
++
+ bool DialogDelegate::GetIsDefault(ui::mojom::DialogButton button) const {
+   return GetDefaultDialogButton() == static_cast<int>(button) &&
+          (button != ui::mojom::DialogButton::kCancel ||
+@@ -396,6 +464,9 @@ std::unique_ptr<FrameView> DialogDelegate::CreateDialogFrameView(
+         provider->GetInsetsMetric(INSETS_DIALOG_TITLE), gfx::Insets());
+   }
+   frame->SetBubbleBorder(std::move(border));
++  if (delegate && delegate->use_dao_system_dialog_style()) {
++    frame->SetBackgroundColor(DaoSystemDialogSurfaceColor());
++  }
+   return frame;
+ }
+ 

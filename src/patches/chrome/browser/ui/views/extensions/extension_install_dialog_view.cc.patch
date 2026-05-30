@@ -2,15 +2,24 @@ diff --git a/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
 index 220a8c654c..17044ddd6b 100644
 --- a/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
 +++ b/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
-@@ -26,6 +26,7 @@
+@@ -26,6 +26,8 @@
  #include "components/constrained_window/constrained_window_views.h"
  #include "content/public/browser/browser_thread.h"
  #include "content/public/browser/page_navigator.h"
 +#include "dao/browser/extensions/legacy_mv2/dao_mv2_install_notice.h"
++#include "dao/browser/ui/views/dao_system_dialog.h"
  #include "extensions/common/constants.h"
  #include "extensions/common/extension.h"
  #include "extensions/common/extension_urls.h"
-@@ -539,6 +540,18 @@ ExtensionInstallDialogView::CreateExtensionInfoContainer(
+@@ -292,6 +294,7 @@ ExtensionInstallDialogView::ExtensionInstallDialogView(
+   SetButtonLabel(ui::mojom::DialogButton::kOk, prompt_->GetAcceptButtonLabel());
+   SetButtonLabel(ui::mojom::DialogButton::kCancel,
+                  prompt_->GetAbortButtonLabel());
++  dao::ConfigureDaoSystemDialog(this);
+   set_close_on_deactivate(false);
+   SetShowCloseButton(false);
+   CreateContents();
+@@ -539,6 +542,18 @@ ExtensionInstallDialogView::CreateExtensionInfoContainer(
            .SetBetweenChildSpacing(provider->GetDistanceMetric(
                views::DISTANCE_UNRELATED_CONTROL_VERTICAL));
  

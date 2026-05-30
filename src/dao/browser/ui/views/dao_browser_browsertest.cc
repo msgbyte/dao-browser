@@ -6,6 +6,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -32,6 +33,7 @@
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/constrained_window/constrained_window_views.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
@@ -67,6 +69,8 @@
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
+#include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
+#include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
@@ -84,11 +88,21 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/compositor/layer.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/events/event.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/native_theme/native_theme.h"
+#include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/test/button_test_api.h"
+#include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
+#include "ui/views/view_utils.h"
+#include "ui/views/window/dialog_delegate.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_observer.h"
 #include "url/url_constants.h"
 
 namespace dao {
@@ -97,6 +111,136 @@ namespace {
 BrowserView* GetBrowserView(Browser* browser) {
   return BrowserView::GetBrowserViewForBrowser(browser);
 }
+
+bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
+  if (!root) {
+    return false;
+  }
+  if (auto* label = views::AsViewClass<views::Label>(root);
+      label && label->GetText() == text) {
+    return true;
+  }
+  for (views::View* child : root->children()) {
+    if (HasDescendantLabelText(child, text)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+views::MdTextButton* FindDescendantTextButton(views::View* root,
+                                              std::u16string_view text) {
+  if (!root) {
+    return nullptr;
+  }
+  if (auto* button = views::AsViewClass<views::MdTextButton>(root);
+      button && button->GetText() == text) {
+    return button;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* button = FindDescendantTextButton(child, text)) {
+      return button;
+    }
+  }
+  return nullptr;
+}
+
+void SendDialogKey(views::Widget* widget,
+                   ui::KeyboardCode key_code,
+                   int flags = ui::EF_NONE) {
+  ui::KeyEvent event(ui::EventType::kKeyPressed, key_code, flags);
+  if (widget->GetFocusManager()->OnKeyEvent(event)) {
+    widget->OnKeyEvent(&event);
+  }
+}
+
+class CountingDialogDelegate : public views::DialogDelegate {
+ public:
+  CountingDialogDelegate() {
+    SetTitle(u"Dao system dialog test");
+    SetModalType(ui::mojom::ModalType::kWindow);
+    SetShowCloseButton(false);
+    SetContentsView(std::make_unique<views::View>());
+    SetAcceptCallbackWithClose(base::BindRepeating(
+        &CountingDialogDelegate::OnAccepted, base::Unretained(this)));
+    SetCancelCallbackWithClose(base::BindRepeating(
+        &CountingDialogDelegate::OnCancelled, base::Unretained(this)));
+  }
+
+  int accepted_count() const { return accepted_count_; }
+  int cancelled_count() const { return cancelled_count_; }
+
+ private:
+  bool OnAccepted() {
+    ++accepted_count_;
+    return false;
+  }
+
+  bool OnCancelled() {
+    ++cancelled_count_;
+    return false;
+  }
+
+  int accepted_count_ = 0;
+  int cancelled_count_ = 0;
+};
+
+views::Widget* ShowCountingDialog(Browser* browser,
+                                  CountingDialogDelegate* dialog) {
+  return constrained_window::CreateBrowserModalDialogViews(
+      dialog, browser->window()->GetNativeWindow());
+}
+
+class ScopedWidgetCloser {
+ public:
+  explicit ScopedWidgetCloser(views::Widget* widget) : widget_(widget) {}
+
+  ScopedWidgetCloser(const ScopedWidgetCloser&) = delete;
+  ScopedWidgetCloser& operator=(const ScopedWidgetCloser&) = delete;
+
+  ~ScopedWidgetCloser() {
+    if (widget_ && !widget_->IsClosed()) {
+      widget_->CloseNow();
+    }
+  }
+
+ private:
+  raw_ptr<views::Widget> widget_;
+};
+
+class WidgetCloseRequestObserver : public views::WidgetObserver {
+ public:
+  explicit WidgetCloseRequestObserver(views::Widget* widget) : widget_(widget) {
+    widget_->AddObserver(this);
+  }
+
+  WidgetCloseRequestObserver(const WidgetCloseRequestObserver&) = delete;
+  WidgetCloseRequestObserver& operator=(const WidgetCloseRequestObserver&) =
+      delete;
+
+  ~WidgetCloseRequestObserver() override {
+    if (widget_) {
+      widget_->RemoveObserver(this);
+    }
+  }
+
+  bool close_requested() const { return close_requested_; }
+
+ private:
+  void OnWidgetClosing(views::Widget* widget) override {
+    DCHECK_EQ(widget_, widget);
+    close_requested_ = true;
+  }
+
+  void OnWidgetDestroyed(views::Widget* widget) override {
+    DCHECK_EQ(widget_, widget);
+    widget_->RemoveObserver(this);
+    widget_ = nullptr;
+  }
+
+  raw_ptr<views::Widget> widget_;
+  bool close_requested_ = false;
+};
 
 // =============================================================================
 // DaoSidebarBrowserTest
@@ -2781,6 +2925,238 @@ IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest,
 
   EXPECT_NE(progress->bounds().x(), expanded_x);
   EXPECT_NE(progress->bounds().width(), expanded_w);
+}
+
+// =============================================================================
+// DaoSystemDialogBrowserTest
+// =============================================================================
+
+class DaoSystemDialogBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
+                       NonOptInDialogHasNoDaoShortcutBadges) {
+  auto dialog = std::make_unique<CountingDialogDelegate>();
+  CountingDialogDelegate* raw_dialog = dialog.get();
+  views::Widget* widget = ShowCountingDialog(browser(), raw_dialog);
+  ScopedWidgetCloser close_widget(widget);
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+
+  ASSERT_FALSE(raw_dialog->use_dao_system_dialog_style());
+  ASSERT_NE(nullptr, raw_dialog->GetOkButton());
+  ASSERT_NE(nullptr, raw_dialog->GetCancelButton());
+  EXPECT_FALSE(raw_dialog->GetButtonShortcut(
+      ui::mojom::DialogButton::kOk).has_value());
+  EXPECT_FALSE(raw_dialog->GetButtonShortcut(
+      ui::mojom::DialogButton::kCancel).has_value());
+  EXPECT_FALSE(HasDescendantLabelText(raw_dialog->GetOkButton(), u"Enter"));
+  EXPECT_FALSE(HasDescendantLabelText(raw_dialog->GetCancelButton(), u"Esc"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
+                       OptInDialogShowsShortcutBadges) {
+  auto dialog = std::make_unique<CountingDialogDelegate>();
+  CountingDialogDelegate* raw_dialog = dialog.get();
+  dao::ConfigureDaoSystemDialog(raw_dialog);
+  views::Widget* widget = ShowCountingDialog(browser(), raw_dialog);
+  ScopedWidgetCloser close_widget(widget);
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+
+  ASSERT_TRUE(raw_dialog->use_dao_system_dialog_style());
+  ASSERT_NE(nullptr, raw_dialog->GetOkButton());
+  ASSERT_NE(nullptr, raw_dialog->GetCancelButton());
+  auto ok_shortcut =
+      raw_dialog->GetButtonShortcut(ui::mojom::DialogButton::kOk);
+  auto cancel_shortcut =
+      raw_dialog->GetButtonShortcut(ui::mojom::DialogButton::kCancel);
+  ASSERT_TRUE(ok_shortcut.has_value());
+  ASSERT_TRUE(cancel_shortcut.has_value());
+  EXPECT_EQ(u"Enter", ok_shortcut->keycap);
+  EXPECT_EQ(u"Esc", cancel_shortcut->keycap);
+  EXPECT_TRUE(HasDescendantLabelText(raw_dialog->GetOkButton(), u"Enter"));
+  EXPECT_TRUE(HasDescendantLabelText(raw_dialog->GetCancelButton(), u"Esc"));
+  EXPECT_EQ(raw_dialog->GetDialogButtonLabel(ui::mojom::DialogButton::kOk),
+            raw_dialog->GetOkButton()->GetText());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
+                       OptInDialogKeyboardActionsUseDialogCallbacks) {
+  auto dialog = std::make_unique<CountingDialogDelegate>();
+  CountingDialogDelegate* raw_dialog = dialog.get();
+  dao::ConfigureDaoSystemDialog(raw_dialog);
+  views::Widget* widget = ShowCountingDialog(browser(), raw_dialog);
+  ScopedWidgetCloser close_widget(widget);
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+
+  SendDialogKey(widget, ui::VKEY_RETURN);
+  EXPECT_EQ(1, raw_dialog->accepted_count());
+  EXPECT_EQ(0, raw_dialog->cancelled_count());
+
+  SendDialogKey(widget, ui::VKEY_ESCAPE);
+  EXPECT_EQ(1, raw_dialog->accepted_count());
+  EXPECT_EQ(1, raw_dialog->cancelled_count());
+
+  raw_dialog->SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
+  SendDialogKey(widget, ui::VKEY_RETURN);
+  EXPECT_EQ(1, raw_dialog->accepted_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
+                       HelperButtonInvokesSameCallbackFromAccelerator) {
+  int pressed_count = 0;
+  auto button = dao::CreateDaoDialogButton(
+      base::BindLambdaForTesting([&](const ui::Event&) { ++pressed_count; }),
+      u"Copy",
+      dao::DaoDialogShortcut{ui::Accelerator(ui::VKEY_C,
+                                             ui::EF_PLATFORM_ACCELERATOR |
+                                                 ui::EF_SHIFT_DOWN),
+                             dao::PlatformShortcutKeycap(u"C", true)},
+      ui::ButtonStyle::kTonal);
+
+  EXPECT_TRUE(HasDescendantLabelText(button.get(),
+                                     dao::PlatformShortcutKeycap(u"C", true)));
+  EXPECT_TRUE(button->AcceleratorPressed(ui::Accelerator(
+      ui::VKEY_C, ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN)));
+  EXPECT_EQ(1, pressed_count);
+
+  button->SetEnabled(false);
+  EXPECT_FALSE(button->AcceleratorPressed(ui::Accelerator(
+      ui::VKEY_C, ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN)));
+  EXPECT_EQ(1, pressed_count);
+}
+
+class DaoQrCodeResultDialogBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
+                       SingleResultUsesDaoSystemDialogHelper) {
+  DecodedQrCodes results;
+  DecodedQrCode result;
+  result.text = "https://example.com/";
+  result.is_url = true;
+  result.url = GURL("https://example.com/");
+  results.push_back(std::move(result));
+
+  DaoQrCodeResultDialogView dialog(
+      browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
+
+  EXPECT_TRUE(dialog.use_dao_system_dialog_style());
+  EXPECT_TRUE(HasDescendantLabelText(dialog.GetContentsView(),
+                                     dao::PlatformShortcutKeycap(u"C", false)));
+  EXPECT_FALSE(HasDescendantLabelText(
+      dialog.GetContentsView(), dao::PlatformShortcutKeycap(u"C", true)));
+  EXPECT_TRUE(HasDescendantLabelText(dialog.GetContentsView(),
+                                     dao::PlatformShortcutKeycap(u"O", false)));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
+                       MultipleResultsOmitAmbiguousRowShortcuts) {
+  DecodedQrCodes results;
+  DecodedQrCode first;
+  first.text = "https://example.com/";
+  first.is_url = true;
+  first.url = GURL("https://example.com/");
+  results.push_back(std::move(first));
+  DecodedQrCode second;
+  second.text = "second payload";
+  results.push_back(std::move(second));
+
+  DaoQrCodeResultDialogView dialog(
+      browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
+
+  EXPECT_TRUE(dialog.use_dao_system_dialog_style());
+  EXPECT_FALSE(HasDescendantLabelText(
+      dialog.GetContentsView(), dao::PlatformShortcutKeycap(u"C", false)));
+  EXPECT_FALSE(HasDescendantLabelText(
+      dialog.GetContentsView(), dao::PlatformShortcutKeycap(u"O", false)));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
+                       CopyButtonClickClosesDialog) {
+  DecodedQrCodes results;
+  DecodedQrCode result;
+  result.text = "copy payload";
+  results.push_back(std::move(result));
+
+  auto dialog = std::make_unique<DaoQrCodeResultDialogView>(
+      browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->window()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  WidgetCloseRequestObserver close_observer(widget);
+  views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+
+  views::MdTextButton* copy_button = FindDescendantTextButton(
+      widget->GetRootView(),
+      l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_COPY));
+  ASSERT_NE(nullptr, copy_button);
+
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(),
+                       gfx::Point(), base::TimeTicks::Now(), ui::EF_NONE,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(copy_button).NotifyClick(event);
+
+  EXPECT_TRUE(close_observer.close_requested());
+  if (close_observer.close_requested()) {
+    destroyed_waiter.Wait();
+  } else {
+    widget->CloseNow();
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
+                       CopyButtonShortcutClosesDialog) {
+  DecodedQrCodes results;
+  DecodedQrCode result;
+  result.text = "copy payload";
+  results.push_back(std::move(result));
+
+  auto dialog = std::make_unique<DaoQrCodeResultDialogView>(
+      browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->window()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  WidgetCloseRequestObserver close_observer(widget);
+  views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+
+  SendDialogKey(widget, ui::VKEY_C, ui::EF_PLATFORM_ACCELERATOR);
+
+  EXPECT_TRUE(close_observer.close_requested());
+  if (close_observer.close_requested()) {
+    destroyed_waiter.Wait();
+  } else {
+    widget->CloseNow();
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
+                       CopyButtonShiftShortcutDoesNotCloseDialog) {
+  DecodedQrCodes results;
+  DecodedQrCode result;
+  result.text = "copy payload";
+  results.push_back(std::move(result));
+
+  auto dialog = std::make_unique<DaoQrCodeResultDialogView>(
+      browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->window()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  WidgetCloseRequestObserver close_observer(widget);
+
+  SendDialogKey(widget, ui::VKEY_C,
+                ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN);
+
+  EXPECT_FALSE(close_observer.close_requested());
+  if (close_observer.close_requested()) {
+    views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+    destroyed_waiter.Wait();
+  } else {
+    widget->CloseNow();
+  }
 }
 
 }  // namespace

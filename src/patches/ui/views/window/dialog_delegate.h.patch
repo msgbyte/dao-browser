@@ -1,0 +1,69 @@
+diff --git a/ui/views/window/dialog_delegate.h b/ui/views/window/dialog_delegate.h
+index fbfbc2da5d..6e6171014b 100644
+--- a/ui/views/window/dialog_delegate.h
++++ b/ui/views/window/dialog_delegate.h
+@@ -18,6 +18,7 @@
+ #include "base/time/time.h"
+ #include "base/types/pass_key.h"
+ #include "ui/accessibility/ax_enums.mojom-forward.h"
++#include "ui/base/accelerators/accelerator.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ #include "ui/base/mojom/dialog_button.mojom.h"
+ #include "ui/base/mojom/ui_base_types.mojom-shared.h"
+@@ -255,6 +256,20 @@ FORWARD_DECLARE_TEST(WidgetCaptureTest, SystemModalWindowReleasesCapture);
+ ///////////////////////////////////////////////////////////////////////////////
+ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
+  public:
++  struct DialogButtonShortcut {
++    DialogButtonShortcut();
++    DialogButtonShortcut(const ui::Accelerator& accelerator,
++                         std::u16string keycap);
++    DialogButtonShortcut(const DialogButtonShortcut&);
++    DialogButtonShortcut& operator=(const DialogButtonShortcut&);
++    ~DialogButtonShortcut();
++
++    bool operator==(const DialogButtonShortcut&) const = default;
++
++    ui::Accelerator accelerator;
++    std::u16string keycap;
++  };
++
+   struct Params {
+     Params();
+     ~Params();
+@@ -288,6 +303,16 @@ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
+                static_cast<size_t>(ui::mojom::DialogButton::kCancel) + 1>
+         button_styles;
+ 
++    // Dao system dialog opt-in. Defaults off so upstream Chromium dialogs keep
++    // their existing appearance and behavior unless explicitly enabled.
++    bool use_dao_system_dialog_style = false;
++
++    // Optional visual and keyboard shortcut metadata for opt-in Dao system
++    // dialog buttons.
++    std::array<std::optional<DialogButtonShortcut>,
++               static_cast<size_t>(ui::mojom::DialogButton::kCancel) + 1>
++        button_shortcuts;
++
+     // A bitmask of buttons (from ui::mojom::DialogButton) that are enabled in
+     // this dialog. It's legal for a button to be marked enabled that isn't
+     // present in |buttons| (see above).
+@@ -343,6 +368,18 @@ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
+   // Returns the style of the specific dialog button.
+   ui::ButtonStyle GetDialogButtonStyle(ui::mojom::DialogButton button) const;
+ 
++  void SetUseDaoSystemDialogStyle(bool use_style);
++  bool use_dao_system_dialog_style() const {
++    return params_.use_dao_system_dialog_style;
++  }
++
++  void SetButtonShortcut(ui::mojom::DialogButton button,
++                         const ui::Accelerator& accelerator,
++                         std::u16string_view keycap);
++  void ClearButtonShortcut(ui::mojom::DialogButton button);
++  std::optional<DialogButtonShortcut> GetButtonShortcut(
++      ui::mojom::DialogButton button) const;
++
+   // Returns true if `button` should be the default button.
+   bool GetIsDefault(ui::mojom::DialogButton button) const;
+ 
