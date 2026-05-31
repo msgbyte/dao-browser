@@ -20,13 +20,15 @@ namespace dao {
 
 namespace {
 
-// Main-world PiP override template. %s is replaced with the CSS selector.
+// Main-world PiP override template. The first %s is the CSS selector JS string
+// literal, and the second %s is the custom styles JS array literal.
 constexpr char kPipOverrideMainWorldTemplate[] = R"js(
 (function() {
   if (window.__daoPipOverrideInstalled) return;
   window.__daoPipOverrideInstalled = true;
 
-  var DAO_PIP_SELECTOR = '%s';
+  var DAO_PIP_SELECTOR = %s;
+  var DAO_PIP_CUSTOM_STYLES = %s;
   var origRequestPiP = HTMLVideoElement.prototype.requestPictureInPicture;
 
   async function daoDocumentPip(videoEl) {
@@ -71,6 +73,12 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
       '{width:100vw!important;height:100vh!important;' +
       'position:fixed!important;top:0!important;left:0!important}';
     pipWindow.document.head.appendChild(pipStyle);
+
+    if (DAO_PIP_CUSTOM_STYLES.length) {
+      var customStyle = document.createElement('style');
+      customStyle.textContent = DAO_PIP_CUSTOM_STYLES.join('\n');
+      pipWindow.document.head.appendChild(customStyle);
+    }
 
     var originalParent = target.parentElement;
     var originalNextSibling = target.nextSibling;
@@ -176,9 +184,26 @@ std::string EscapeForTemplateLiteral(const std::string& input) {
   return escaped;
 }
 
-std::string BuildInjectionScript(const std::string& selector) {
-  std::string main_world_js =
-      base::StringPrintf(kPipOverrideMainWorldTemplate, selector.c_str());
+std::string BuildCustomStylesArrayLiteral(
+    const std::vector<std::string>& custom_styles) {
+  std::string literal = "[";
+  for (size_t i = 0; i < custom_styles.size(); ++i) {
+    if (i > 0) {
+      literal.append(",");
+    }
+    literal.append(EscapeForTemplateLiteral(custom_styles[i]));
+  }
+  literal.append("]");
+  return literal;
+}
+
+std::string BuildInjectionScript(const PipSiteRule& rule) {
+  std::string selector_literal = EscapeForTemplateLiteral(rule.target_selector);
+  std::string custom_styles_literal =
+      BuildCustomStylesArrayLiteral(rule.custom_styles);
+  std::string main_world_js = base::StringPrintf(
+      kPipOverrideMainWorldTemplate, selector_literal.c_str(),
+      custom_styles_literal.c_str());
   std::string escaped = EscapeForTemplateLiteral(main_world_js);
   return base::StringPrintf(
       R"js(
@@ -226,7 +251,7 @@ void DaoPipInterceptor::MaybeInjectPipOverride() {
     return;
   }
 
-  std::string script = BuildInjectionScript(rule->target_selector);
+  std::string script = BuildInjectionScript(*rule);
   frame->ExecuteJavaScriptInIsolatedWorld(
       base::UTF8ToUTF16(script), base::DoNothing(),
       ISOLATED_WORLD_ID_CHROME_INTERNAL);

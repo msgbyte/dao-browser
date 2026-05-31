@@ -14,11 +14,22 @@
 namespace dao {
 
 struct PipSiteRule {
+  PipSiteRule();
+  PipSiteRule(std::string domain_value,
+              std::string target_selector_value,
+              std::vector<std::string> custom_styles_value);
+  PipSiteRule(const PipSiteRule& other);
+  PipSiteRule& operator=(const PipSiteRule& other);
+  ~PipSiteRule();
+
   // Domain pattern, e.g. "bilibili.com" matches *.bilibili.com.
   std::string domain;
 
   // CSS selector for the DOM element to PiP instead of the video.
   std::string target_selector;
+
+  // Extra CSS rules injected into the Document PiP window.
+  std::vector<std::string> custom_styles;
 };
 
 // Returns the PiP site rule matching the given URL, or nullopt if none.

@@ -1042,6 +1042,15 @@ IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest, SeedRulesPresent) {
   EXPECT_TRUE(has_bilibili);
 }
 
+IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest,
+                       BilibiliRuleIncludesCustomStyles) {
+  auto rule = dao::GetPipSiteRule(GURL("https://www.bilibili.com/video/BV1xx"));
+  ASSERT_TRUE(rule.has_value());
+  ASSERT_EQ(1u, rule->custom_styles.size());
+  EXPECT_EQ(".bpx-player-sending-bar{display:none!important}",
+            rule->custom_styles[0]);
+}
+
 IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest, MatchesBareDomain) {
   auto rule = dao::GetPipSiteRule(GURL("https://bilibili.com/video/BV1xx"));
   ASSERT_TRUE(rule.has_value());
