@@ -128,6 +128,15 @@ bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
   return false;
 }
 
+std::u16string ExpectedAddressBarHostText(const GURL& url) {
+  std::string host(url.host());
+  if (url.has_port()) {
+    host += ":";
+    host += url.port();
+  }
+  return base::UTF8ToUTF16(host);
+}
+
 views::MdTextButton* FindDescendantTextButton(views::View* root,
                                               std::u16string_view text) {
   if (!root) {
@@ -306,10 +315,52 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
       GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
 
-  EXPECT_EQ(base::UTF8ToUTF16(url.host()),
+  EXPECT_EQ(ExpectedAddressBarHostText(url),
             address_bar->GetHostTextForTesting());
   EXPECT_EQ(base::UTF8ToUTF16(std::string(url.path()) + "?" +
                               std::string(url.query())),
+            address_bar->GetPathTextForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest, AddressBarShowsFragment) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL url =
+      embedded_test_server()->GetURL("/hello/world?foo=bar#section");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  DaoAddressBarView* address_bar =
+      GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+
+  EXPECT_EQ(ExpectedAddressBarHostText(url),
+            address_bar->GetHostTextForTesting());
+  EXPECT_EQ(u"/hello/world?foo=bar#section",
+            address_bar->GetPathTextForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
+                       AddressBarUpdatesOnSameDocumentFragmentNavigation) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  DaoAddressBarView* address_bar =
+      GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  EXPECT_EQ(base::UTF8ToUTF16(url.path()),
+            address_bar->GetPathTextForTesting());
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  const GURL fragment_url = url.Resolve("#details");
+  content::TestNavigationObserver observer(web_contents);
+  ASSERT_TRUE(content::ExecJs(web_contents, "location.hash = '#details';"));
+  observer.Wait();
+  EXPECT_EQ(fragment_url, observer.last_navigation_url());
+
+  EXPECT_EQ(base::UTF8ToUTF16(std::string(url.path()) + "#details"),
             address_bar->GetPathTextForTesting());
 }
 

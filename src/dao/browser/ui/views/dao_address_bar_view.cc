@@ -405,13 +405,21 @@ void DaoAddressBarView::UpdateURL() {
 
   // Host part
   std::string host(url.host());
+  if (url.has_port()) {
+    host += ":";
+    host += url.port();
+  }
   host_label_->SetText(base::UTF8ToUTF16(host));
 
-  // Path + query part
+  // Path + query + fragment part
   std::string path_and_query(url.path());
   if (url.has_query()) {
     path_and_query += "?";
     path_and_query += url.query();
+  }
+  if (url.has_ref()) {
+    path_and_query += "#";
+    path_and_query += url.ref();
   }
   if (path_and_query == "/") {
     path_and_query.clear();
@@ -741,6 +749,10 @@ void DaoAddressBarView::DidStopLoading() {
 
 void DaoAddressBarView::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame() &&
+      navigation_handle->HasCommitted()) {
+    UpdateURL();
+  }
   UpdateNavButtonEnabled();
   UpdateStopRefreshButton();
 }
