@@ -1051,6 +1051,14 @@ IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest,
             rule->custom_styles[0]);
 }
 
+IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest,
+                       BilibiliRuleTargetsPlayerContainer) {
+  auto rule = dao::GetPipSiteRule(GURL("https://www.bilibili.com/video/BV1xx"));
+  ASSERT_TRUE(rule.has_value());
+  EXPECT_EQ("#bilibili-player .bpx-player-container",
+            rule->target_selector);
+}
+
 IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest, MatchesBareDomain) {
   auto rule = dao::GetPipSiteRule(GURL("https://bilibili.com/video/BV1xx"));
   ASSERT_TRUE(rule.has_value());

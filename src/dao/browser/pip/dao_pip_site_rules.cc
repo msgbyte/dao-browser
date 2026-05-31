@@ -18,7 +18,7 @@ namespace {
 constexpr char kPipSiteRulesJson[] = R"json([
   {
     "domain": "bilibili.com",
-    "target_selector": "#bilibili-player .bpx-player-video-area",
+    "target_selector": "#bilibili-player .bpx-player-container",
     "custom_styles": [
       ".bpx-player-sending-bar{display:none!important}"
     ]
