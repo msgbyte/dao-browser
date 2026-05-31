@@ -25,6 +25,8 @@ class DaoWebstoreBrandingTabHelper
   // content::WebContentsObserver:
   void DocumentOnLoadCompletedInPrimaryMainFrame() override;
 
+  static void InjectBrandingScriptForTesting(content::WebContents* contents);
+
  private:
   friend class content::WebContentsUserData<DaoWebstoreBrandingTabHelper>;
   explicit DaoWebstoreBrandingTabHelper(content::WebContents* web_contents);

@@ -66,7 +66,9 @@
 #include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_control_center_button.h"
+#include "dao/browser/ui/views/dao_control_center_more_menu.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_control_center_qr_view.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
 #include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
@@ -126,6 +128,22 @@ bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
     }
   }
   return false;
+}
+
+template <typename T>
+T* FindDescendantViewOfClass(views::View* root) {
+  if (!root) {
+    return nullptr;
+  }
+  if (auto* view = views::AsViewClass<T>(root)) {
+    return view;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* view = FindDescendantViewOfClass<T>(child)) {
+      return view;
+    }
+  }
+  return nullptr;
 }
 
 std::u16string ExpectedAddressBarHostText(const GURL& url) {
@@ -564,13 +582,18 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, TabClose) {
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateActiveTabInsertsAfterOriginal) {
   TabStripModel* model = browser()->tab_strip_model();
-  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL original_url = embedded_test_server()->GetURL("/title1.html");
+  chrome::AddTabAt(browser(), original_url, -1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   ASSERT_EQ(3, model->count());
 
   model->ActivateTabAt(1);
   content::WebContents* original = model->GetWebContentsAt(1);
   ASSERT_NE(nullptr, original);
+  ASSERT_EQ(original_url, original->GetLastCommittedURL());
 
   ASSERT_TRUE(DuplicateActiveTab(browser()));
   ASSERT_EQ(4, model->count());
@@ -579,8 +602,9 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateActiveTabInsertsAfterOriginal
 
   content::WebContents* duplicate = model->GetWebContentsAt(2);
   ASSERT_NE(nullptr, duplicate);
+  ASSERT_TRUE(content::WaitForLoadStop(duplicate));
   EXPECT_NE(original, duplicate);
-  EXPECT_EQ(original->GetVisibleURL(), duplicate->GetVisibleURL());
+  EXPECT_EQ(original->GetLastCommittedURL(), duplicate->GetLastCommittedURL());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateTabsGetDistinctSidebarTabIds) {
@@ -1388,6 +1412,77 @@ IN_PROC_BROWSER_TEST_F(DaoWebstoreBrandingTabHelperBrowserTest,
   EXPECT_EQ(helper, dao::DaoWebstoreBrandingTabHelper::FromWebContents(contents));
 }
 
+class DaoWebstoreBrandingScriptBrowserTest : public InProcessBrowserTest {
+ public:
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+        &DaoWebstoreBrandingScriptBrowserTest::HandleWebstoreRequest));
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+ private:
+  static std::unique_ptr<net::test_server::HttpResponse>
+  HandleWebstoreRequest(const net::test_server::HttpRequest& request) {
+    if (request.relative_url != "/webstore-branding.html") {
+      return nullptr;
+    }
+    auto response =
+        std::make_unique<net::test_server::BasicHttpResponse>();
+    response->set_code(net::HTTP_OK);
+    response->set_content_type("text/html");
+    response->set_content(
+        "<!DOCTYPE html><html><body>"
+        "<button id=\"install\" aria-label=\"Install Chrome extension\" "
+        "title=\"Remove from Chromium\">Add to Chrome</button>"
+        "<a id=\"link\" class=\"button\">Remove from Chrome</a>"
+        "<p id=\"plain\">Chrome outside button</p>"
+        "</body></html>");
+    return response;
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(DaoWebstoreBrandingScriptBrowserTest,
+                       RewritesButtonTextAttributesAndDynamicNodes) {
+  const GURL url = embedded_test_server()->GetURL("/webstore-branding.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  DaoWebstoreBrandingTabHelper::InjectBrandingScriptForTesting(contents);
+
+  constexpr char kScript[] = R"(
+    (async () => {
+      const install = document.querySelector('#install');
+      if (!install) {
+        return 'missing-install:' + location.href + ':' +
+            (document.body?.textContent || '').slice(0, 120);
+      }
+      for (let i = 0; i < 20 && !install.textContent.includes('Dao'); i++) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      const later = document.createElement('button');
+      later.id = 'later';
+      later.textContent = 'Remove from Chromium';
+      document.body.appendChild(later);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return [
+        install.textContent,
+        install.getAttribute('aria-label'),
+        install.getAttribute('title'),
+        document.querySelector('#link').textContent,
+        document.querySelector('#plain').textContent,
+        later.textContent,
+      ].join('|');
+    })()
+  )";
+
+  EXPECT_EQ(
+      "Add to Dao|Install Dao extension|Remove from Dao|Remove from "
+      "Dao|Chrome outside button|Remove from Dao",
+      content::EvalJs(contents, kScript));
+}
+
 // =============================================================================
 // DaoToastViewBrowserTest
 //
@@ -1451,6 +1546,32 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest, SwitchSubPanels) {
   popup->ShowMoreMenu();
   popup->ShowMainPanel();
   EXPECT_TRUE(popup->GetVisible());
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       SubPanelVisibilityFollowsSelection) {
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  popup->ShowAt(gfx::Point(100, 100));
+  auto* qr_view = FindDescendantViewOfClass<DaoControlCenterQrView>(popup);
+  auto* more_menu = FindDescendantViewOfClass<DaoControlCenterMoreMenu>(popup);
+  ASSERT_NE(nullptr, qr_view);
+  ASSERT_NE(nullptr, more_menu);
+
+  popup->ShowQrView();
+  EXPECT_TRUE(qr_view->GetVisible());
+  EXPECT_FALSE(more_menu->GetVisible());
+
+  popup->ShowMoreMenu();
+  EXPECT_FALSE(qr_view->GetVisible());
+  EXPECT_TRUE(more_menu->GetVisible());
+
+  popup->ShowMainPanel();
+  EXPECT_FALSE(qr_view->GetVisible());
+  EXPECT_FALSE(more_menu->GetVisible());
 
   popup->Hide();
 }
@@ -1533,8 +1654,9 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, LoadsWithoutConsoleErrors) {
 // =============================================================================
 // DaoAgentShareImageTest
 //
-// Direct EvalJs coverage for dao_share_image.ts. Imports the deployed
-// module from chrome://agent/ and asserts the renderer's contract:
+// Direct EvalJs coverage for dao_share_image.ts. Drives the deployed
+// module through <dao-chat-view>'s testing hook and asserts the renderer's
+// contract:
 //   - Always returns a PNG Blob, even on degenerate inputs
 //   - Skips the question bubble when question is blank, producing a
 //     visibly shorter image than the with-bubble case
@@ -1553,8 +1675,20 @@ IN_PROC_BROWSER_TEST_F(DaoAgentShareImageTest, RendersValidPngWithBubble) {
 
   constexpr char kScript[] = R"(
     (async () => {
-      const m = await import('chrome://agent/dao_share_image.js');
-      const blob = await m.renderShareImage({
+      await customElements.whenDefined('dao-chat-view');
+      const view = await new Promise(resolve => {
+        const found = document.querySelector('dao-chat-view');
+        if (found) return resolve(found);
+        const mo = new MutationObserver(() => {
+          const v = document.querySelector('dao-chat-view');
+          if (v) { mo.disconnect(); resolve(v); }
+        });
+        mo.observe(document.body, {childList: true, subtree: true});
+      });
+      if (typeof view._daoTestRenderShareImage !== 'function') {
+        return 'no-test-hook';
+      }
+      const blob = await view._daoTestRenderShareImage({
         question: 'What is the capital of France?',
         answer: 'Paris is the capital of France.',
       });
@@ -1582,17 +1716,38 @@ IN_PROC_BROWSER_TEST_F(DaoAgentShareImageTest, SkipsBubbleWhenQuestionEmpty) {
   // We instead read the decoded ImageBitmap height to compare layouts.
   constexpr char kScript[] = R"(
     (async () => {
-      const m = await import('chrome://agent/dao_share_image.js');
+      await customElements.whenDefined('dao-chat-view');
+      const view = await new Promise(resolve => {
+        const found = document.querySelector('dao-chat-view');
+        if (found) return resolve(found);
+        const mo = new MutationObserver(() => {
+          const v = document.querySelector('dao-chat-view');
+          if (v) { mo.disconnect(); resolve(v); }
+        });
+        mo.observe(document.body, {childList: true, subtree: true});
+      });
+      if (typeof view._daoTestRenderShareImage !== 'function') {
+        return 'no-test-hook';
+      }
       const answer = 'Paris is the capital of France.';
-      const blobWith = await m.renderShareImage({question: 'q', answer});
-      const blobNo = await m.renderShareImage({question: '', answer});
+      const blobWith = await view._daoTestRenderShareImage({
+        question: 'q',
+        answer,
+      });
+      const blobNo = await view._daoTestRenderShareImage({
+        question: '',
+        answer,
+      });
       const bmpWith = await createImageBitmap(blobWith);
       const bmpNo = await createImageBitmap(blobNo);
       if (bmpNo.height >= bmpWith.height) {
         return 'bubble-not-skipped:' + bmpNo.height + '>=' + bmpWith.height;
       }
       // Whitespace-only question must be treated identically to empty.
-      const blobWs = await m.renderShareImage({question: '   ', answer});
+      const blobWs = await view._daoTestRenderShareImage({
+        question: '   ',
+        answer,
+      });
       const bmpWs = await createImageBitmap(blobWs);
       if (bmpWs.height !== bmpNo.height) {
         return 'whitespace-not-trimmed:' + bmpWs.height + '!=' + bmpNo.height;
@@ -1615,8 +1770,23 @@ IN_PROC_BROWSER_TEST_F(DaoAgentShareImageTest, HandlesEmptyAnswerWithoutCrash) {
   // doesn't throw.
   constexpr char kScript[] = R"(
     (async () => {
-      const m = await import('chrome://agent/dao_share_image.js');
-      const blob = await m.renderShareImage({question: '', answer: ''});
+      await customElements.whenDefined('dao-chat-view');
+      const view = await new Promise(resolve => {
+        const found = document.querySelector('dao-chat-view');
+        if (found) return resolve(found);
+        const mo = new MutationObserver(() => {
+          const v = document.querySelector('dao-chat-view');
+          if (v) { mo.disconnect(); resolve(v); }
+        });
+        mo.observe(document.body, {childList: true, subtree: true});
+      });
+      if (typeof view._daoTestRenderShareImage !== 'function') {
+        return 'no-test-hook';
+      }
+      const blob = await view._daoTestRenderShareImage({
+        question: '',
+        answer: '',
+      });
       if (!(blob instanceof Blob)) return 'not-a-blob';
       if (blob.type !== 'image/png') return 'wrong-type:' + blob.type;
       if (blob.size <= 0) return 'empty-blob';
@@ -2167,6 +2337,41 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, PlaceholderSubstitutionWorks) {
   std::u16string result = l10n_util::GetStringFUTF16(
       IDS_DAO_SUGGESTION_ASK_AI, u"hello world");
   EXPECT_EQ(u"Ask AI: hello world", result);
+}
+
+class DaoWelcomeWebUIBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest,
+                       LoadsAndMarksWelcomeShown) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoWelcomeShown, false);
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  content::WebContentsConsoleObserver observer(contents);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://welcome/")));
+
+  constexpr char kWaitForWelcome[] = R"(
+    (async () => {
+      await customElements.whenDefined('dao-welcome-app');
+      return !!document.querySelector('dao-welcome-app');
+    })()
+  )";
+  EXPECT_EQ(true, content::EvalJs(contents, kWaitForWelcome));
+  EXPECT_TRUE(browser()->profile()->GetPrefs()->GetBoolean(
+      dao::prefs::kDaoWelcomeShown));
+
+  std::vector<std::string> errors;
+  for (const auto& msg : observer.messages()) {
+    if (msg.log_level == blink::mojom::ConsoleMessageLevel::kError) {
+      errors.push_back(base::UTF16ToUTF8(msg.message));
+    }
+  }
+  EXPECT_TRUE(errors.empty())
+      << "dao://welcome emitted console errors during load:\n - "
+      << base::JoinString(errors, "\n - ");
 }
 
 // =============================================================================

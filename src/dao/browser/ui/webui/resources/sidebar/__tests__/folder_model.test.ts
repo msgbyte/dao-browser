@@ -1,0 +1,133 @@
+// Copyright 2026 Dao Browser Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+import {FolderModel} from '../dao_folder_model.js';
+import type {TabData} from '../sidebar_bridge.js';
+
+function tab(
+    tabId: string, url: string, title: string,
+    extra: Partial<TabData> = {}): TabData {
+  return {
+    tabId,
+    index: 0,
+    title,
+    url,
+    faviconUrl: '',
+    isActive: false,
+    isPinned: false,
+    isAudible: false,
+    isMuted: false,
+    ...extra,
+  };
+}
+
+describe('FolderModel', () => {
+  beforeEach(() => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(
+        'folderid-1234-4000-8000-000000000000');
+  });
+
+  it('serializes folders without volatile runtime tab ids', () => {
+    const model = new FolderModel();
+    const folder = model.addFolder('Research');
+
+    model.moveTabToFolder(
+        tab('runtime-1', 'https://example.com/a', 'A'), folder.id);
+
+    const persisted = JSON.parse(model.toJson());
+    expect(persisted.items[0].children[0]).toEqual({
+      type: 'tab',
+      url: 'https://example.com/a',
+      title: 'A',
+    });
+    expect(persisted.items[0].children[0]).not.toHaveProperty('tabId');
+  });
+
+  it('releases folder children at the folder position when deleting', () => {
+    const model = new FolderModel();
+    expect(model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [
+        {type: 'tab', url: 'https://first.example', title: 'First'},
+        {
+          type: 'folder',
+          id: 'f1',
+          name: 'Folder',
+          collapsed: false,
+          children: [
+            {type: 'tab', url: 'https://child.example', title: 'Child'},
+          ],
+        },
+        {type: 'tab', url: 'https://last.example', title: 'Last'},
+      ],
+    }))).toBe(true);
+
+    model.deleteFolder('f1');
+
+    expect(model.getOrderedItems().map(item => item.type === 'tab'
+      ? item.title
+      : item.name)).toEqual(['First', 'Child', 'Last']);
+  });
+
+  it('reconciles stored folders with actual tabs and drops stale refs', () => {
+    const model = new FolderModel();
+    model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [
+        {type: 'tab', tabId: 'a', url: 'https://a.example', title: 'A'},
+        {
+          type: 'folder',
+          id: 'f1',
+          name: 'Reading',
+          collapsed: true,
+          children: [
+            {type: 'tab', tabId: 'b', url: 'https://b.example', title: 'B'},
+            {type: 'tab', tabId: 'stale', url: 'https://gone.example', title: 'Gone'},
+          ],
+        },
+      ],
+    }));
+
+    model.reconcile([
+      tab('a', 'https://a.example', 'A'),
+      tab('c', 'https://c.example', 'C'),
+      tab('b', 'https://b.example', 'B'),
+      tab('d', 'https://d.example', 'D'),
+    ]);
+
+    const items = model.getOrderedItems();
+    expect(items.map(item => item.type === 'tab' ? item.title : item.name))
+        .toEqual(['A', 'C', 'Reading', 'D']);
+    expect(items[2]).toMatchObject({
+      type: 'folder',
+      id: 'f1',
+      collapsed: true,
+      children: [{type: 'tab', tabId: 'b', title: 'B'}],
+    });
+  });
+
+  it('keeps loose split siblings adjacent after reconcile', () => {
+    const model = new FolderModel();
+    model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [
+        {type: 'tab', tabId: 'a', url: 'https://a.example', title: 'A'},
+        {type: 'tab', tabId: 'c', url: 'https://c.example', title: 'C'},
+        {type: 'tab', tabId: 'b', url: 'https://b.example', title: 'B'},
+      ],
+    }));
+
+    model.reconcile([
+      tab('a', 'https://a.example', 'A', {isInSplit: true}),
+      tab('b', 'https://b.example', 'B', {isInSplit: true}),
+      tab('c', 'https://c.example', 'C'),
+    ]);
+
+    expect(model.getOrderedItems().map(item => item.type === 'tab'
+      ? item.title
+      : item.name)).toEqual(['A', 'B', 'C']);
+  });
+});

@@ -84,6 +84,21 @@ constexpr char kBrandingScript[] = R"js(
 })();
 )js";
 
+void ExecuteBrandingScript(content::WebContents* contents) {
+  if (!contents) {
+    return;
+  }
+
+  content::RenderFrameHost* frame = contents->GetPrimaryMainFrame();
+  if (!frame) {
+    return;
+  }
+
+  frame->ExecuteJavaScriptInIsolatedWorld(
+      base::UTF8ToUTF16(std::string(kBrandingScript)), base::DoNothing(),
+      ISOLATED_WORLD_ID_CHROME_INTERNAL);
+}
+
 }  // namespace
 
 DaoWebstoreBrandingTabHelper::DaoWebstoreBrandingTabHelper(
@@ -98,6 +113,11 @@ void DaoWebstoreBrandingTabHelper::DocumentOnLoadCompletedInPrimaryMainFrame() {
   MaybeInjectBrandingScript();
 }
 
+void DaoWebstoreBrandingTabHelper::InjectBrandingScriptForTesting(
+    content::WebContents* contents) {
+  ExecuteBrandingScript(contents);
+}
+
 void DaoWebstoreBrandingTabHelper::MaybeInjectBrandingScript() {
   content::WebContents* contents = web_contents();
   if (!contents) {
@@ -109,14 +129,7 @@ void DaoWebstoreBrandingTabHelper::MaybeInjectBrandingScript() {
     return;
   }
 
-  content::RenderFrameHost* frame = contents->GetPrimaryMainFrame();
-  if (!frame) {
-    return;
-  }
-
-  frame->ExecuteJavaScriptInIsolatedWorld(
-      base::UTF8ToUTF16(std::string(kBrandingScript)), base::DoNothing(),
-      ISOLATED_WORLD_ID_CHROME_INTERNAL);
+  ExecuteBrandingScript(contents);
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(DaoWebstoreBrandingTabHelper);

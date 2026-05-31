@@ -2303,6 +2303,14 @@ export class DaoChatView extends CrLitElement {
     return renderAssistantMarkdown(markdown);
   }
 
+  // Testing hook: shares the already-loaded dao_share_image module with
+  // browser_tests. Importing the module again from EvalJs can re-run the
+  // vendored runtime under a second WebUI URL and trip Trusted Types.
+  _daoTestRenderShareImage(
+      ctx: Parameters<typeof renderShareImage>[0]): Promise<Blob> {
+    return renderShareImage(ctx);
+  }
+
   focusInput() {
     const editor = this.panel_?.querySelector(
         'message-editor textarea, message-editor input') as HTMLElement | null;
