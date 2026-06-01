@@ -10,6 +10,7 @@
 // and Turndown IIFEs in a single injected script.
 
 import {callNative} from './agent_bridge.js';
+import type {ElementContextCapture} from './dao_element_context.js';
 import {READABILITY_BUNDLE_IIFE} from './readability_bundle.js';
 import {TURNDOWN_BUNDLE_IIFE} from './turndown_bundle.js';
 
@@ -126,6 +127,400 @@ export function isCapturablePageUrl(url: string): boolean {
   if (url.startsWith('view-source:')) return false;
   if (url.startsWith('data:')) return false;
   return true;
+}
+
+const ELEMENT_PICKER_START_SCRIPT = `(function() {
+  try {
+    var existing = window.__dao_element_picker__;
+    if (existing && existing.cancel) existing.cancel();
+
+    var previousCursor = document.documentElement.style.cursor;
+    var state = {active: true, result: null};
+    var overlay = document.createElement('div');
+    overlay.setAttribute('data-dao-element-picker-overlay', '1');
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.width = '0';
+    overlay.style.height = '0';
+    overlay.style.border = '2px solid rgba(70, 120, 190, 0.95)';
+    overlay.style.borderRadius = '8px';
+    overlay.style.background = 'rgba(70, 120, 190, 0.12)';
+    overlay.style.boxShadow = '0 0 0 9999px rgba(15, 23, 42, 0.08)';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.zIndex = '2147483647';
+    overlay.style.display = 'none';
+    document.documentElement.appendChild(overlay);
+    document.documentElement.style.cursor = 'crosshair';
+
+    function cleanText(value, max) {
+      var text = String(value || '').replace(/\\s+/g, ' ').trim();
+      if (text.length > max) text = text.slice(0, max - 3) + '...';
+      return text;
+    }
+
+    function getAttr(el, name) {
+      try {
+        var value = el.getAttribute(name);
+        return value ? cleanText(value, 160) : '';
+      } catch (_e) {
+        return '';
+      }
+    }
+
+    function cssEscape(value) {
+      if (window.CSS && window.CSS.escape) return window.CSS.escape(value);
+      return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\\\$&');
+    }
+
+    function cssAttr(name, value) {
+      return '[' + name + '="' +
+          String(value).replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"') +
+          '"]';
+    }
+
+    function isUnique(selector) {
+      try {
+        return document.querySelectorAll(selector).length === 1;
+      } catch (_e) {
+        return false;
+      }
+    }
+
+    function getRole(el) {
+      var role = getAttr(el, 'role');
+      if (role) return role;
+      var tag = el.tagName.toLowerCase();
+      var type = getAttr(el, 'type').toLowerCase();
+      if (tag === 'a') return 'link';
+      if (tag === 'button') return 'button';
+      if (tag === 'select') return 'combobox';
+      if (tag === 'textarea') return 'textbox';
+      if (tag === 'input') {
+        if (type === 'checkbox') return 'checkbox';
+        if (type === 'radio') return 'radio';
+        if (type === 'submit' || type === 'button' || type === 'reset') {
+          return 'button';
+        }
+        if (type === 'range') return 'slider';
+        return 'textbox';
+      }
+      if (tag === 'img') return 'image';
+      if (/^h[1-6]$/.test(tag)) return 'heading';
+      return 'generic';
+    }
+
+    function getName(el) {
+      var name = getAttr(el, 'aria-label') || getAttr(el, 'alt') ||
+          getAttr(el, 'title') || getAttr(el, 'placeholder');
+      if (name) return name;
+      if (el.labels && el.labels.length) {
+        return cleanText(el.labels[0].textContent, 120);
+      }
+      if (el.id) {
+        try {
+          var label = document.querySelector('label[for="' + cssEscape(el.id) + '"]');
+          if (label) return cleanText(label.textContent, 120);
+        } catch (_e) {}
+      }
+      return cleanText(el.innerText || el.textContent, 120);
+    }
+
+    function collectAttributes(el) {
+      var names = [
+        'id', 'name', 'type', 'value', 'placeholder', 'aria-label',
+        'aria-labelledby', 'title', 'alt', 'href', 'data-testid',
+        'data-test', 'data-cy'
+      ];
+      var out = {};
+      for (var i = 0; i < names.length; i++) {
+        var value = getAttr(el, names[i]);
+        if (value) out[names[i]] = value;
+      }
+      return out;
+    }
+
+    function pathPart(el) {
+      var tag = el.tagName.toLowerCase();
+      var id = getAttr(el, 'id');
+      if (id && isUnique(tag + '#' + cssEscape(id))) {
+        return tag + '#' + cssEscape(id);
+      }
+      var stableAttrs = ['data-testid', 'data-test', 'data-cy', 'name'];
+      for (var i = 0; i < stableAttrs.length; i++) {
+        var value = getAttr(el, stableAttrs[i]);
+        if (value) return tag + cssAttr(stableAttrs[i], value);
+      }
+      var index = 1;
+      var sibling = el;
+      while ((sibling = sibling.previousElementSibling)) {
+        if (sibling.tagName === el.tagName) index++;
+      }
+      return tag + ':nth-of-type(' + index + ')';
+    }
+
+    function fallbackPath(el) {
+      var parts = [];
+      var cur = el;
+      while (cur && cur.nodeType === Node.ELEMENT_NODE &&
+             cur !== document.documentElement) {
+        parts.unshift(pathPart(cur));
+        var candidate = parts.join(' > ');
+        if (isUnique(candidate)) return candidate;
+        cur = cur.parentElement;
+      }
+      return parts.join(' > ');
+    }
+
+    function stableSelector(el) {
+      var tag = el.tagName.toLowerCase();
+      var attrs = ['data-testid', 'data-test', 'data-cy', 'id', 'name',
+                   'aria-label', 'placeholder', 'href'];
+      for (var i = 0; i < attrs.length; i++) {
+        var value = getAttr(el, attrs[i]);
+        if (!value) continue;
+        var selector = tag + cssAttr(attrs[i], value);
+        if (isUnique(selector)) return selector;
+        selector = cssAttr(attrs[i], value);
+        if (isUnique(selector)) return selector;
+      }
+      return fallbackPath(el);
+    }
+
+    function nearText(el) {
+      var out = [];
+      function add(value) {
+        var text = cleanText(value, 120);
+        if (text && out.indexOf(text) < 0) out.push(text);
+      }
+      if (el.labels) {
+        for (var i = 0; i < el.labels.length; i++) add(el.labels[i].textContent);
+      }
+      if (el.id) {
+        try {
+          var labels = document.querySelectorAll('label[for="' + cssEscape(el.id) + '"]');
+          for (var j = 0; j < labels.length; j++) add(labels[j].textContent);
+        } catch (_e) {}
+      }
+      var label = el.closest && el.closest('label');
+      if (label) add(label.textContent);
+      if (el.previousElementSibling) add(el.previousElementSibling.textContent);
+      var parent = el.parentElement;
+      if (parent) add(parent.textContent);
+      var form = el.closest && el.closest('form,[role="form"]');
+      if (form) add(form.textContent);
+      return out.slice(0, 5);
+    }
+
+    function capture(el) {
+      var rect = el.getBoundingClientRect();
+      var role = getRole(el);
+      var name = getName(el);
+      var text = cleanText(el.innerText || el.textContent, 300);
+      var locator = {
+        role: role,
+        name: name,
+        tag: el.tagName.toLowerCase(),
+        text: text,
+        attributes: collectAttributes(el),
+        css: stableSelector(el),
+        fallbackPath: fallbackPath(el),
+        nearText: nearText(el),
+        bounds: {
+          x: Math.round(rect.left),
+          y: Math.round(rect.top),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height)
+        }
+      };
+      return {
+        status: 'selected',
+        url: location.href,
+        title: document.title || '',
+        label: name || text || role,
+        text: text,
+        locator: locator
+      };
+    }
+
+    function eventElement(event) {
+      var path = event.composedPath ? event.composedPath() : [];
+      for (var i = 0; i < path.length; i++) {
+        var node = path[i];
+        if (node && node.nodeType === Node.ELEMENT_NODE &&
+            node !== overlay && node !== document.documentElement) {
+          return node;
+        }
+      }
+      return document.elementFromPoint(event.clientX, event.clientY);
+    }
+
+    function moveOverlay(el) {
+      if (!el || !el.getBoundingClientRect) return;
+      var rect = el.getBoundingClientRect();
+      overlay.style.display = 'block';
+      overlay.style.left = Math.round(rect.left) + 'px';
+      overlay.style.top = Math.round(rect.top) + 'px';
+      overlay.style.width = Math.round(rect.width) + 'px';
+      overlay.style.height = Math.round(rect.height) + 'px';
+    }
+
+    function onMove(event) {
+      moveOverlay(eventElement(event));
+    }
+
+    function cleanup(result) {
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mouseover', onMove, true);
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+      document.documentElement.style.cursor = previousCursor;
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      state.active = false;
+      if (result) state.result = result;
+    }
+
+    function onClick(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      var el = eventElement(event);
+      cleanup(capture(el));
+      return false;
+    }
+
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        cleanup({status: 'cancelled'});
+      }
+    }
+
+    document.addEventListener('mousemove', onMove, true);
+    document.addEventListener('mouseover', onMove, true);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
+
+    window.__dao_element_picker__ = {
+      active: true,
+      getResult: function() {
+        return state.result || {status: state.active ? 'pending' : 'cancelled'};
+      },
+      cancel: function() {
+        cleanup({status: 'cancelled'});
+        return true;
+      }
+    };
+
+    return JSON.stringify({started: true});
+  } catch (e) {
+    return JSON.stringify({error: (e && e.message) || String(e)});
+  }
+})()`;
+
+const ELEMENT_PICKER_RESULT_SCRIPT = `(function() {
+  try {
+    var picker = window.__dao_element_picker__;
+    if (!picker || !picker.getResult) {
+      return JSON.stringify({status: 'missing'});
+    }
+    return JSON.stringify(picker.getResult());
+  } catch (e) {
+    return JSON.stringify({error: (e && e.message) || String(e)});
+  }
+})()`;
+
+const ELEMENT_PICKER_CANCEL_SCRIPT = `(function() {
+  try {
+    var picker = window.__dao_element_picker__;
+    if (picker && picker.cancel) picker.cancel();
+    return JSON.stringify({ok: true});
+  } catch (e) {
+    return JSON.stringify({ok: false, error: (e && e.message) || String(e)});
+  }
+})()`;
+
+interface ElementPickerOptions {
+  pollIntervalMs?: number;
+  timeoutMs?: number;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function parseNativeJson(raw: unknown): Record<string, unknown> | null {
+  const result = raw as {result?: unknown; error?: unknown} | null;
+  if (!result || result.error || typeof result.result !== 'string') return null;
+  try {
+    const parsed = JSON.parse(result.result);
+    return parsed && typeof parsed === 'object' ?
+        parsed as Record<string, unknown> :
+        null;
+  } catch (_) {
+    return null;
+  }
+}
+
+type SelectedElementContextPayload =
+    Record<string, unknown> & ElementContextCapture & {status: 'selected'};
+
+function isElementContextCapture(value: Record<string, unknown>):
+    value is SelectedElementContextPayload {
+  return value['status'] === 'selected' &&
+      typeof value['url'] === 'string' &&
+      typeof value['title'] === 'string' &&
+      typeof value['label'] === 'string' &&
+      typeof value['text'] === 'string' &&
+      !!value['locator'] &&
+      typeof value['locator'] === 'object';
+}
+
+export async function cancelElementPicker(): Promise<void> {
+  try {
+    await callNative('executeScript', {
+      code: ELEMENT_PICKER_CANCEL_SCRIPT,
+      lockTab: false,
+    });
+  } catch (_) { /* best-effort */ }
+}
+
+export async function startElementPicker(
+    options: ElementPickerOptions = {}): Promise<ElementContextCapture | null> {
+  const pollIntervalMs = options.pollIntervalMs ?? 150;
+  const timeoutMs = options.timeoutMs ?? 30000;
+  const started = parseNativeJson(await callNative('executeScript', {
+    code: ELEMENT_PICKER_START_SCRIPT,
+    lockTab: false,
+  }));
+  if (!started || started['error']) return null;
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() <= deadline) {
+    await delay(pollIntervalMs);
+    const payload = parseNativeJson(await callNative('executeScript', {
+      code: ELEMENT_PICKER_RESULT_SCRIPT,
+      lockTab: false,
+    }));
+    if (!payload) continue;
+    if (isElementContextCapture(payload)) {
+      return {
+        url: payload.url,
+        title: payload.title,
+        label: payload.label,
+        text: payload.text,
+        locator: payload.locator,
+      };
+    }
+    if (payload['status'] === 'cancelled' || payload['status'] === 'missing' ||
+        payload['error']) {
+      return null;
+    }
+  }
+
+  await cancelElementPicker();
+  return null;
 }
 
 // Combined injection script. Runs Readability on a clone of the page,

@@ -24,9 +24,10 @@ import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {BASE_SYSTEM_PROMPT, currentSoulContent, recordApiCall, refreshSoulContent, soulChannel} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
+import {addReusableElementContext, buildElementContextAttachment, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
-import {buildPageAttachment, buildSelectionAttachment, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
+import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
 import {renderShareImage} from './dao_share_image.js';
 import {reportTelemetryEvent} from './dao_telemetry.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
@@ -183,6 +184,8 @@ export class DaoChatView extends CrLitElement {
       isStreaming_: {type: Boolean, state: true},
       pendingPageAttachment_: {state: true},
       pendingSelection_: {state: true},
+      pendingElementContexts_: {state: true},
+      elementPicking_: {type: Boolean, state: true},
       skillPickerVisible_: {state: true},
       skillPickerSkills_: {state: true},
       skillPickerIndex_: {state: true},
@@ -206,6 +209,8 @@ export class DaoChatView extends CrLitElement {
     this.isStreaming_ = false;
     this.pendingPageAttachment_ = null;
     this.pendingSelection_ = null;
+    this.pendingElementContexts_ = getReusableElementContexts();
+    this.elementPicking_ = false;
     this.skillPickerVisible_ = false;
     this.skillPickerSkills_ = [];
     this.skillPickerIndex_ = 0;
@@ -259,6 +264,12 @@ export class DaoChatView extends CrLitElement {
   // every send picks up whatever the selection currently is, and the
   // selection is cleared in the tab after a successful send.
   declare protected pendingSelection_: SelectionCapture | null;
+
+  // User-picked element contexts from the active WebContents. Unlike text
+  // selection, these are reusable: every normal send attaches them until the
+  // user dismisses individual chips.
+  declare protected pendingElementContexts_: ElementContextCapture[];
+  declare protected elementPicking_: boolean;
 
   // URLs we've already injected as a <current-webpage> block in this
   // session — the chip hides for them so the same page isn't re-attached
@@ -317,6 +328,7 @@ export class DaoChatView extends CrLitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    if (this.elementPicking_) void cancelElementPicker();
     // Unblock anything awaiting mount; safe to call when already resolved.
     this.mountReadyResolve_();
     this.unsubscribeAgent_?.();
@@ -611,8 +623,28 @@ export class DaoChatView extends CrLitElement {
           @history-deleted=${this.onHistoryDeleted_}>
       </dao-chat-history-panel>
       ${this.renderSkillPicker_()}
-      ${(this.pendingPageAttachment_ || this.pendingSelection_) ? html`
-        <div class="dao-page-chip-row">
+      <div class="dao-page-chip-row">
+        <button class=${'dao-element-pick-button' +
+            (this.elementPicking_ ? ' active' : '')}
+            @click=${this.onElementPickClick_}
+            title=${this.elementPicking_ ?
+              t('chat.attach.element.pick_active_tooltip') :
+              t('chat.attach.element.pick_tooltip')}
+            aria-label=${this.elementPicking_ ?
+              t('chat.attach.element.pick_active_tooltip') :
+              t('chat.attach.element.pick_tooltip')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 2v4"></path>
+            <path d="M12 18v4"></path>
+            <path d="M2 12h4"></path>
+            <path d="M18 12h4"></path>
+          </svg>
+        </button>
+        ${(this.pendingPageAttachment_ || this.pendingSelection_ ||
+           this.pendingElementContexts_.length > 0) ? html`
           ${this.pendingPageAttachment_ ? html`
             <div class="dao-page-chip"
                 title=${this.pendingPageAttachment_.url}>
@@ -668,7 +700,39 @@ export class DaoChatView extends CrLitElement {
                 </svg>
               </button>
             </div>` : ''}
-        </div>` : ''}`;
+          ${this.pendingElementContexts_.map(context => html`
+            <div class="dao-page-chip dao-element-chip"
+                title=${context.text || context.label}>
+              <span class="dao-page-chip-favicon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 4h16v16H4z"></path>
+                  <path d="M9 9h6v6H9z"></path>
+                </svg>
+              </span>
+              <span class="dao-page-chip-text">
+                <span class="dao-page-chip-title">
+                  ${this.selectionPreview_(context.label)}
+                </span>
+                <span class="dao-page-chip-domain">
+                  ${t('chat.attach.element.label')}
+                </span>
+              </span>
+              <button class="dao-page-chip-close"
+                  @click=${() => this.onElementContextDismiss_(
+                    context.contextId || '')}
+                  title=${t('chat.attach.element.dismiss_title')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18"></path>
+                  <path d="m6 6 12 12"></path>
+                </svg>
+              </button>
+            </div>`)}
+        ` : ''}
+      </div>`;
   }
 
   override firstUpdated() {
@@ -827,7 +891,8 @@ export class DaoChatView extends CrLitElement {
             this.suppressChipAttachOnce_ = false;
           } else {
             const withPage = await this.maybeAttachPage_(merged);
-            merged = await this.maybeAttachSelection_(withPage);
+            const withSelection = await this.maybeAttachSelection_(withPage);
+            merged = await this.maybeAttachElementContext_(withSelection);
           }
           return this.origSendMessage_!(text, merged);
         };
@@ -1623,6 +1688,48 @@ export class DaoChatView extends CrLitElement {
     void clearCurrentSelection();
   }
 
+  private onElementContextDismiss_(contextId: string) {
+    if (!contextId) return;
+    removeReusableElementContext(contextId);
+    this.pendingElementContexts_ = getReusableElementContexts();
+  }
+
+  private showToast_(text: string) {
+    this.dispatchEvent(new CustomEvent('show-toast', {
+      bubbles: true,
+      composed: true,
+      detail: {text},
+    }));
+  }
+
+  private async onElementPickClick_() {
+    if (this.elementPicking_) {
+      await cancelElementPicker();
+      this.elementPicking_ = false;
+      this.showToast_(t('chat.attach.element.pick_cancelled'));
+      return;
+    }
+
+    this.elementPicking_ = true;
+    try {
+      const capture = await startElementPicker();
+      if (capture) {
+        const context = addReusableElementContext(capture);
+        this.pendingElementContexts_ = getReusableElementContexts();
+        this.showToast_(t('chat.attach.element.pick_selected', {
+          label: context.label,
+        }));
+      } else {
+        this.showToast_(t('chat.attach.element.pick_cancelled'));
+      }
+    } catch (e) {
+      console.warn('[dao] element picker failed', e);
+      this.showToast_(t('chat.attach.element.pick_failed'));
+    } finally {
+      this.elementPicking_ = false;
+    }
+  }
+
   // Splice the current selection into the attachments list as a
   // <selected-text> block. Runs alongside maybeAttachPage_ — both can
   // attach on the same turn. After a successful attach we clear the tab's
@@ -1640,6 +1747,15 @@ export class DaoChatView extends CrLitElement {
     // fails the next poll will pick up whatever selection still exists.
     void clearCurrentSelection();
     return [...attachments, att];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async maybeAttachElementContext_(attachments: any[]): Promise<any[]> {
+    if (this.pendingElementContexts_.length === 0) return attachments;
+    return [
+      ...attachments,
+      ...this.pendingElementContexts_.map(buildElementContextAttachment),
+    ];
   }
 
   private selectionPreview_(text: string): string {
@@ -2247,6 +2363,8 @@ export class DaoChatView extends CrLitElement {
       this.dismissedUrls_.clear();
       this.pendingPageAttachment_ = null;
       this.pendingSelection_ = null;
+      this.pendingElementContexts_ = getReusableElementContexts();
+      this.elementPicking_ = false;
       this.syncMeta_();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const iface = this.panel_?.querySelector('agent-interface') as any;
@@ -2348,6 +2466,8 @@ export class DaoChatView extends CrLitElement {
     this.dismissedUrls_.clear();
     this.pendingPageAttachment_ = null;
     this.pendingSelection_ = null;
+    this.pendingElementContexts_ = getReusableElementContexts();
+    this.elementPicking_ = false;
     this.syncMeta_();
     void this.refreshPageChip_();
     void this.refreshSelectionChip_();

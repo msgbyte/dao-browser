@@ -34,6 +34,13 @@ const dict: Dictionary = {
   'chat.attach.page.dismiss_title': "Don't attach this page",
   'chat.attach.selection.label': 'selection',
   'chat.attach.selection.dismiss_title': "Don't attach this selection",
+  'chat.attach.element.label': 'element',
+  'chat.attach.element.dismiss_title': "Don't attach this element",
+  'chat.attach.element.pick_tooltip': 'Pick an element from the page',
+  'chat.attach.element.pick_active_tooltip': 'Cancel element picking',
+  'chat.attach.element.pick_selected': 'Added element: {label}',
+  'chat.attach.element.pick_cancelled': 'Element picking cancelled',
+  'chat.attach.element.pick_failed': 'Element picking failed',
 
   // Per-message action buttons (Copy / Share-as-image / Regenerate).
   'chat.message_actions.copy_tooltip': 'Copy answer text',

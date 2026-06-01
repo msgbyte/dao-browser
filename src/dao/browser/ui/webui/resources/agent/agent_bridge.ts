@@ -5,6 +5,7 @@
 // Shared non-UI utilities: chrome.send bridge, interfaces, LLM streaming,
 // markdown rendering, constants.
 
+import {getReusableElementContexts, makeResolveElementContextScript, type ElementContextCapture} from './dao_element_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {saveUserSkill} from './skill_registry.js';
 import {webSearch as wsRun, fetchUrl as wsFetch} from './web_search/index.js';
@@ -233,6 +234,7 @@ You have the following browser tools at your disposal — use them proactively w
 - **highlight_element** — Highlight an element on the page with a purple border overlay.
 - **get_accessibility_tree** — Get a semantic accessibility tree of the current page with element roles, names, and ref_ids for interactive elements. **Use this before interacting with page elements** — it gives you a precise map of what's on the page. Use the ref_ids with \`click_by_ref\` for reliable clicking.
 - **click_by_ref** — Click an interactive element by its ref_id from the accessibility tree. More reliable than CSS selectors because ref_ids are assigned deterministically.
+- **resolve_element_context** — Resolve a reusable element selected by the user in the current page. Pass \`context_id\` when multiple \`<element-context>\` chips are attached. Returns a temporary selector, usually \`[data-dao-element-context="current"]\`, that can be passed to \`click_element\`, \`agent_click\`, \`highlight_element\`, or \`scroll_to_element\`.
 - **capture_screenshot** — Capture a screenshot of the current page viewport. **Expensive — avoid unless necessary.** Each screenshot is a full base64-encoded image that balloons the conversation context. Only call when: (a) the user explicitly asks what the page looks like / to see something, (b) you need visual layout info that text tools cannot provide (e.g. colors, relative positions, image contents), or (c) a prior text tool returned ambiguous / empty output and a visual check is the only way forward. **Do NOT** screenshot to "verify" a click, scroll, or form fill — the tool already returns structured success info. **Do NOT** screenshot at the start of a task "to get oriented" — use \`get_accessibility_tree\` or the \`<current-webpage>\` block the user message already contains. **Do NOT** screenshot after every navigation; one per task at most unless the user asks for more.
 - **scroll_down** / **scroll_up** — Scroll the page down or up by one viewport height. Returns scroll position info.
 - **scroll_to_element** — Scroll a specific element into view. Accepts either a CSS selector or a ref_id from the accessibility tree.
@@ -268,10 +270,11 @@ You have the following browser tools at your disposal — use them proactively w
 
 - **Recommended workflow for reading page content:** The user's message usually already includes a \`<current-webpage url="..." title="...">\` markdown block (either inline or as an attached \`<title>.md\` document) — that block IS the page, extracted via Readability and converted to clean markdown. Answer questions like "summarize this", "what does this article say", "find X on this page" directly from that block. Do **not** call \`get_page_html\`, \`get_accessibility_tree\`, or \`capture_screenshot\` just to re-read content that is already in your context.
 - **Recommended workflow for page interaction:**
-  1. \`get_accessibility_tree\` — understand what's on the page
-  2. \`click_by_ref\` / \`scroll_*\` / \`type_text\` — interact using ref_ids
-  3. Trust the tool's return value as proof the action happened. Only re-query the page (\`get_accessibility_tree\`) if you need to see a *new* state; never screenshot just to "verify". The user can see their own screen.
-- **Tool cost ladder (cheapest → most expensive), pick the lowest rung that answers the question:** \`<current-webpage>\` attachment (free, already in context) → \`get_page_info\` (a few hundred bytes) → \`get_accessibility_tree\` (compact tree of interactive elements) → \`search_in_resources\` / targeted \`execute_script\` (one regex hit or one querySelector value) → \`list_page_resources\` + \`get_resource_content\` (one specific file) → \`get_page_html\` (up to 512 KiB, last resort) → \`capture_screenshot\` (full base64 image).
+  1. If the user selected reusable \`<element-context>\` chip(s), call \`resolve_element_context\` first. When there are multiple chips, pass the \`context_id\` from the matching \`<element-context>\` block.
+  2. Otherwise, call \`get_accessibility_tree\` — understand what's on the page
+  3. \`click_by_ref\` / \`scroll_*\` / \`type_text\` — interact using ref_ids
+  4. Trust the tool's return value as proof the action happened. Only re-query the page (\`get_accessibility_tree\`) if you need to see a *new* state; never screenshot just to "verify". The user can see their own screen.
+- **Tool cost ladder (cheapest → most expensive), pick the lowest rung that answers the question:** \`<current-webpage>\` attachment (free, already in context) → \`resolve_element_context\` (if the user selected an element) → \`get_page_info\` (a few hundred bytes) → \`get_accessibility_tree\` (compact tree of interactive elements) → \`search_in_resources\` / targeted \`execute_script\` (one regex hit or one querySelector value) → \`list_page_resources\` + \`get_resource_content\` (one specific file) → \`get_page_html\` (up to 512 KiB, last resort) → \`capture_screenshot\` (full base64 image).
 - When the user attaches a document named \`<title>.md\` containing a \`<current-webpage url="..." title="...">\` block (or such a block appears inline in the user text), treat the block as the authoritative snapshot of the active tab at send time — answer from it directly instead of trying to re-read the page.
 - Prefer \`click_by_ref\` with ref_ids from the accessibility tree over CSS selectors. Fall back to \`click_element\` with CSS selectors only if the accessibility tree is not available.
 - For \`execute_script\`, return serializable values (strings, numbers, plain objects). Avoid returning DOM nodes directly.
@@ -610,6 +613,35 @@ export const tools: ToolDefinition[] = [
           },
         },
         required: ['ref_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'resolve_element_context',
+      description:
+          'Resolve one reusable element selected by the user on the current page. When multiple element chips are selected, pass context_id or index. Returns a temporary selector for that element, usually [data-dao-element-context="current"].',
+      parameters: {
+        type: 'object',
+        properties: {
+          context_id: {
+            type: 'string',
+            description:
+                'The context_id from an <element-context> block.',
+          },
+          index: {
+            type: 'number',
+            description:
+                'Zero-based index from the resolver error contexts list.',
+          },
+          label: {
+            type: 'string',
+            description:
+                'Element label to resolve when context_id is unavailable.',
+          },
+        },
+        required: [],
       },
     },
   },
@@ -1171,6 +1203,84 @@ function getBooleanArg(args: Record<string, unknown>, key: string): boolean {
   return args[key] === true;
 }
 
+function getNumberArg(args: Record<string, unknown>, key: string):
+    number | null {
+  return typeof args[key] === 'number' && Number.isFinite(args[key]) ?
+      args[key] as number :
+      null;
+}
+
+function summarizeElementContexts(contexts: ElementContextCapture[]):
+    Array<{context_id: string; label: string; index: number}> {
+  return contexts.map((context, index) => ({
+    context_id: context.contextId || '',
+    label: context.label,
+    index,
+  }));
+}
+
+function chooseElementContext(
+    contexts: ElementContextCapture[],
+    args: Record<string, unknown>):
+    {context?: ElementContextCapture; error?: Record<string, unknown>} {
+  if (contexts.length === 0) {
+    return {error: {error: 'No reusable element context selected.'}};
+  }
+
+  const contextId = getStringArg(args, 'context_id');
+  if (contextId) {
+    const context = contexts.find(item => item.contextId === contextId);
+    if (context) return {context};
+    return {
+      error: {
+        error: 'Reusable element context not found.',
+        context_id: contextId,
+        contexts: summarizeElementContexts(contexts),
+      },
+    };
+  }
+
+  const index = getNumberArg(args, 'index');
+  if (index !== null) {
+    const context = Number.isInteger(index) ? contexts[index] : undefined;
+    if (context) return {context};
+    return {
+      error: {
+        error: 'Reusable element context index out of range.',
+        index,
+        contexts: summarizeElementContexts(contexts),
+      },
+    };
+  }
+
+  const label = getStringArg(args, 'label').toLowerCase();
+  if (label) {
+    const exact =
+        contexts.find(item => item.label.toLowerCase() === label);
+    if (exact) return {context: exact};
+    const partial =
+        contexts.find(item => item.label.toLowerCase().includes(label));
+    if (partial) return {context: partial};
+    return {
+      error: {
+        error: 'Reusable element context label not found.',
+        label,
+        contexts: summarizeElementContexts(contexts),
+      },
+    };
+  }
+
+  if (contexts.length === 1) return {context: contexts[0]};
+
+  return {
+    error: {
+      error:
+          'Multiple reusable element contexts selected. Provide context_id or index.',
+      contexts: summarizeElementContexts(contexts),
+    },
+  };
+}
+
 // Runtime guardrail against capture_screenshot spam. Prompts alone don't
 // fully suppress the "screenshot after every action" pattern on weaker
 // models; a time-based dedup per (url, viewport) window nudges without
@@ -1276,6 +1386,31 @@ export async function executeTool(
         ref_id: getStringArg(args, 'ref_id'),
         description: getStringArg(args, 'description'),
       });
+    case 'resolve_element_context': {
+      const chosen = chooseElementContext(getReusableElementContexts(), args);
+      if (chosen.error) return chosen.error;
+      const context = chosen.context!;
+      const raw = await callNative('executeScript', {
+        code: makeResolveElementContextScript(context.locator),
+        lockTab: false,
+      }) as {result?: unknown; error?: string};
+      if (raw.error) return {error: raw.error};
+      const result = typeof raw.result === 'string' ? raw.result :
+          JSON.stringify(raw.result ?? {});
+      try {
+        const parsed = JSON.parse(result);
+        return {
+          ...parsed,
+          context_id: context.contextId,
+          label: context.label,
+        };
+      } catch (_) {
+        return {
+          error: 'Invalid element context resolver response.',
+          result,
+        };
+      }
+    }
     case 'capture_screenshot': {
       const pageInfo = await callNative('getPageInfo') as {url?: string};
       const currentUrl = pageInfo?.url || '';

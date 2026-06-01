@@ -30,6 +30,7 @@ build_webui("build") {
     "dao_chat_history_panel.ts",
     "dao_chat_view.ts",
     "dao_compact.ts",
+    "dao_element_context.ts",
     "dao_settings_view.ts",
     "dao_skill_manager_view.ts",
     "dao_tool_renderer.ts",

@@ -108,6 +108,34 @@ dao-chat-view {
   pointer-events: none;
   z-index: 2;
 }
+.dao-element-pick-button {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: rgba(70, 120, 190, 0.95);
+  background: rgba(255, 255, 255, 0.70);
+  border: 1px solid rgba(70, 120, 190, 0.24);
+  border-radius: 13px;
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: 0 1px 4px rgba(30, 20, 40, 0.08);
+  cursor: pointer;
+}
+.dao-element-pick-button:hover,
+.dao-element-pick-button.active {
+  color: white;
+  background: rgba(70, 120, 190, 0.92);
+  border-color: rgba(70, 120, 190, 0.92);
+}
+.dao-element-pick-button svg {
+  width: 14px;
+  height: 14px;
+}
 /* Selection chip: inherits the page chip's shape, but its left icon is a
  * text/cursor glyph instead of a favicon so the user can tell the two
  * apart at a glance. */
@@ -116,6 +144,14 @@ dao-chat-view {
   color: rgba(70, 120, 190, 0.95);
 }
 .dao-selection-chip .dao-page-chip-favicon svg {
+  width: 12px;
+  height: 12px;
+}
+.dao-element-chip .dao-page-chip-favicon {
+  background: rgba(70, 120, 190, 0.16);
+  color: rgba(70, 120, 190, 0.95);
+}
+.dao-element-chip .dao-page-chip-favicon svg {
   width: 12px;
   height: 12px;
 }
@@ -1008,6 +1044,22 @@ body {
     color: rgba(245, 245, 245, 0.95);
   }
   .dao-selection-chip .dao-page-chip-favicon {
+    background: rgba(70, 120, 190, 0.28);
+    color: rgba(170, 200, 240, 0.95);
+  }
+  .dao-element-pick-button {
+    color: rgba(170, 200, 240, 0.95);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(70, 120, 190, 0.35);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  }
+  .dao-element-pick-button:hover,
+  .dao-element-pick-button.active {
+    color: white;
+    background: rgba(70, 120, 190, 0.72);
+    border-color: rgba(70, 120, 190, 0.72);
+  }
+  .dao-element-chip .dao-page-chip-favicon {
     background: rgba(70, 120, 190, 0.28);
     color: rgba(170, 200, 240, 0.95);
   }

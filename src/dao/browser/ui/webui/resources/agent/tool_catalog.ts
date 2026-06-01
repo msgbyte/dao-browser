@@ -26,6 +26,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       'get_page_info',
       'get_page_html',
       'get_accessibility_tree',
+      'resolve_element_context',
       'capture_screenshot',
       'click_element',
       'agent_click',

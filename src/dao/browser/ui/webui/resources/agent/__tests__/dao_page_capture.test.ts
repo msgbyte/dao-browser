@@ -13,11 +13,14 @@ vi.mock('../agent_bridge.js', () => ({
 import {
   buildPageAttachment,
   buildSelectionAttachment,
+  cancelElementPicker,
   captureCurrentPageMarkdown,
   fetchCurrentSelection,
   fetchPageProbeState,
   isCapturablePageUrl,
+  startElementPicker,
 } from '../dao_page_capture.js';
+import {buildElementContextAttachment} from '../dao_element_context.js';
 
 describe('dao_page_capture attachments', () => {
   beforeEach(() => {
@@ -54,6 +57,45 @@ describe('dao_page_capture attachments', () => {
     expect(atob(attachment.content)).toBe('first / line\nsecond line');
     expect(attachment.extractedText).toContain('<selected-text');
   });
+
+  it('builds element context attachments with locator metadata', () => {
+    const attachment = buildElementContextAttachment({
+      url: 'https://example.com/login',
+      title: 'Login',
+      contextId: 'ctx_sign_in',
+      label: 'Sign in button',
+      text: 'Sign in',
+      locator: {
+        role: 'button',
+        name: 'Sign in',
+        tag: 'button',
+        text: 'Sign in',
+        attributes: {
+          type: 'submit',
+          'data-testid': 'login-submit',
+        },
+        css: '[data-testid="login-submit"]',
+        fallbackPath: 'body > form > button:nth-of-type(1)',
+        nearText: ['Email', 'Password'],
+        bounds: {x: 12, y: 34, width: 80, height: 32},
+      },
+    });
+
+    expect(attachment.fileName).toBe('Sign in button.element.json');
+    expect(attachment.mimeType).toBe('application/json');
+    expect(attachment.daoPageUrl).toBe('https://example.com/login');
+    expect(attachment.extractedText).toContain('<element-context');
+    expect(attachment.extractedText).toContain('context_id="ctx_sign_in"');
+    expect(attachment.extractedText).toContain('label="Sign in button"');
+    expect(attachment.extractedText).toContain('role: button');
+    expect(attachment.extractedText).toContain('name: Sign in');
+    expect(attachment.extractedText).toContain('near: Email, Password');
+    expect(attachment.extractedText).not.toContain('"data-testid"');
+    expect(atob(attachment.content)).toContain('"role": "button"');
+    expect(atob(attachment.content)).toContain('"contextId": "ctx_sign_in"');
+    expect(atob(attachment.content)).toContain('"data-testid": "login-submit"');
+  });
+
 
   it('rejects browser-internal and empty URLs for page capture', () => {
     expect(isCapturablePageUrl('https://example.com')).toBe(true);
@@ -153,6 +195,68 @@ describe('dao_page_capture native probes', () => {
       fallback: true,
     });
     expect(callNativeMock).toHaveBeenLastCalledWith(
+        'executeScript',
+        expect.objectContaining({lockTab: false}));
+  });
+
+  it('polls the injected element picker until a selected element is returned', async () => {
+    vi.useFakeTimers();
+    callNativeMock
+        .mockResolvedValueOnce({result: JSON.stringify({started: true})})
+        .mockResolvedValueOnce({result: JSON.stringify({status: 'pending'})})
+        .mockResolvedValueOnce({
+          result: JSON.stringify({
+            status: 'selected',
+            url: 'https://example.com/login',
+            title: 'Login',
+            label: 'Sign in',
+            text: 'Sign in',
+            locator: {
+              role: 'button',
+              name: 'Sign in',
+              tag: 'button',
+              text: 'Sign in',
+              attributes: {type: 'submit'},
+              css: 'button[type="submit"]',
+              fallbackPath: 'body > form > button:nth-of-type(1)',
+              nearText: ['Email'],
+              bounds: {x: 1, y: 2, width: 3, height: 4},
+            },
+          }),
+        });
+
+    const promise = startElementPicker({pollIntervalMs: 25, timeoutMs: 200});
+    await vi.advanceTimersByTimeAsync(25);
+    await vi.advanceTimersByTimeAsync(25);
+
+    await expect(promise).resolves.toEqual({
+      url: 'https://example.com/login',
+      title: 'Login',
+      label: 'Sign in',
+      text: 'Sign in',
+      locator: {
+        role: 'button',
+        name: 'Sign in',
+        tag: 'button',
+        text: 'Sign in',
+        attributes: {type: 'submit'},
+        css: 'button[type="submit"]',
+        fallbackPath: 'body > form > button:nth-of-type(1)',
+        nearText: ['Email'],
+        bounds: {x: 1, y: 2, width: 3, height: 4},
+      },
+    });
+    expect(callNativeMock).toHaveBeenCalledWith(
+        'executeScript',
+        expect.objectContaining({lockTab: false}));
+    vi.useRealTimers();
+  });
+
+  it('cancels the injected element picker without throwing', async () => {
+    callNativeMock.mockResolvedValueOnce({result: JSON.stringify({ok: true})});
+
+    await expect(cancelElementPicker()).resolves.toBeUndefined();
+    expect(callNativeMock).toHaveBeenCalledWith(
         'executeScript',
         expect.objectContaining({lockTab: false}));
   });
