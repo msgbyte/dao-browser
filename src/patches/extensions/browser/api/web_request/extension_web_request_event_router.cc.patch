@@ -1,5 +1,5 @@
 diff --git a/extensions/browser/api/web_request/extension_web_request_event_router.cc b/extensions/browser/api/web_request/extension_web_request_event_router.cc
-index e0298d214e..46575bf92b 100644
+index e0298d214e..c512ec7249 100644
 --- a/extensions/browser/api/web_request/extension_web_request_event_router.cc
 +++ b/extensions/browser/api/web_request/extension_web_request_event_router.cc
 @@ -1965,7 +1965,10 @@ bool WebRequestEventRouter::AddEventListener(
@@ -14,3 +14,17 @@ index e0298d214e..46575bf92b 100644
      is_reactivated = erased > 0u;
    }
  
+@@ -2123,8 +2126,11 @@ void WebRequestEventRouter::RemoveLazyListener(
+   // We should only have a maximum of two listeners removed - one for the
+   // on-the-record and one for the off-the-record profile - since each listener
+   // must either be active *or* inactive.
+-  DCHECK_LE(removed_listeners.size(), 2u);
+-
++  // Dao Browser: the upstream invariant is violated in the wild (observed with
++  // MV2 ad blockers + session restore finalizing a shutdown-delayed install on
++  // v147), so the DCHECK was removed. The cleanup loop below already handles an
++  // arbitrary number of removed listeners correctly, and release builds (where
++  // the DCHECK is compiled out) already tolerate this.
+   std::set<content::BrowserContext*> contexts_to_update;
+   for (const auto& listener : removed_listeners) {
+     contexts_to_update.insert(listener->id.browser_context.get());

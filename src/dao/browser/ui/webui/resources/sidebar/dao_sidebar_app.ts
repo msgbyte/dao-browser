@@ -44,14 +44,6 @@ export class DaoSidebarApp extends CrLitElement {
         overflow-x: hidden;
       }
 
-      .bottom-section {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 6px 6px;
-      }
-
       .plus-menu-container {
         position: relative;
       }
@@ -427,9 +419,8 @@ export class DaoSidebarApp extends CrLitElement {
 
         <dao-media-control></dao-media-control>
 
-        <div class="bottom-section">
-          <dao-download-button></dao-download-button>
-          <div class="plus-menu-container">
+        <dao-download-button>
+          <div class="plus-menu-container" slot="toolbar-end">
             ${this.showPlusMenu_ ? html`
               <div class="plus-menu">
                 <button class="plus-menu-item" @click=${this.onNewTab_}>
@@ -460,7 +451,7 @@ export class DaoSidebarApp extends CrLitElement {
               </svg>
             </button>
           </div>
-        </div>
+        </dao-download-button>
       </div>
     `;
   }
