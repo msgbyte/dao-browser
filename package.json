@@ -33,6 +33,7 @@
     "sparkle:keygen": "tsx scripts/cli.ts sparkle keygen",
     "sparkle:sign": "tsx scripts/cli.ts sparkle sign",
     "upload:release": "tsx scripts/cli.ts upload",
+    "upload:cleanup": "tsx scripts/cli.ts upload cleanup",
     "release": "tsx scripts/cli.ts release",
     "release:minor": "tsx scripts/cli.ts release --bump minor",
     "release:major": "tsx scripts/cli.ts release --bump major"
