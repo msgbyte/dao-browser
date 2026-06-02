@@ -45,6 +45,16 @@ const HELPER_ENTITLEMENTS = path.join(
   "mac",
   "dao_helper.entitlements"
 );
+const REQUIRED_MAIN_ENTITLEMENTS = [
+  "com.apple.security.cs.allow-jit",
+  "com.apple.security.cs.allow-unsigned-executable-memory",
+  "com.apple.security.cs.disable-library-validation",
+];
+const REQUIRED_HELPER_ENTITLEMENTS = [
+  "com.apple.security.cs.allow-jit",
+  "com.apple.security.cs.allow-unsigned-executable-memory",
+  "com.apple.security.cs.disable-library-validation",
+];
 
 interface PackageOptions {
   zip?: boolean;
@@ -53,6 +63,25 @@ interface PackageOptions {
   notarize?: boolean;
   staple?: boolean;
   debug?: boolean;
+}
+
+export function assertRequiredEntitlementsPresent(
+  target: string,
+  embeddedEntitlementsXml: string,
+  requiredKeys: string[]
+): void {
+  if (!embeddedEntitlementsXml.trim()) {
+    throw new Error(`${target} is missing signed entitlements.`);
+  }
+
+  const missing = requiredKeys.filter(
+    (key) => !embeddedEntitlementsXml.includes(`<key>${key}</key>`)
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `${target} is missing required signed entitlements: ${missing.join(", ")}`
+    );
+  }
 }
 
 export const packageCommand = new Command("package")
@@ -627,7 +656,41 @@ function verifyCodesign(appBundle: string): void {
     );
     process.exit(1);
   }
+  assertRequiredEntitlementsPresent(
+    appBundle,
+    embedded,
+    REQUIRED_MAIN_ENTITLEMENTS
+  );
+  verifyChromiumHelperEntitlements(appBundle);
   success("Signature verified");
+}
+
+function verifyChromiumHelperEntitlements(appBundle: string): void {
+  const helperApps = collectSignables(appBundle)
+    .filter((item) => isAppBundle(item))
+    .filter(isChromiumHelperApp);
+
+  if (helperApps.length === 0) {
+    error(`No Chromium helper apps found under ${appBundle}.`);
+    process.exit(1);
+  }
+
+  for (const helperApp of helperApps) {
+    const embedded = run(
+      `codesign -d --entitlements - --xml "${helperApp}"`,
+      { silent: true }
+    );
+    assertRequiredEntitlementsPresent(
+      helperApp,
+      embedded,
+      REQUIRED_HELPER_ENTITLEMENTS
+    );
+  }
+}
+
+function isChromiumHelperApp(item: string): boolean {
+  const base = path.basename(item);
+  return base.includes("Helper") && base.endsWith(".app");
 }
 
 // ---------------------------------------------------------------------------
