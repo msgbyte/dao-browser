@@ -69,6 +69,26 @@ namespace dao {
 
 namespace {
 
+constexpr char kDaoWelcomeHost[] = "welcome";
+constexpr char kDaoWelcomeURL[] = "dao://welcome/";
+
+bool IsReplaceableFirstRunWelcomeURL(const GURL& url) {
+  if (url.is_empty() || url == GURL(url::kAboutBlankURL) ||
+      url == GURL(chrome::kChromeUINewTabURL) ||
+      url == GURL(chrome::kChromeUINewTabPageURL)) {
+    return true;
+  }
+
+  if (!url.SchemeIs(content::kChromeUIScheme)) {
+    return false;
+  }
+
+  const auto host = url.host();
+  return host == chrome::kChromeUINewTabHost ||
+         host == chrome::kChromeUINewTabPageHost ||
+         host == kDaoWelcomeHost;
+}
+
 // Check if a tab is audible, matching Chrome's own detection logic.
 // Uses RecentlyAudibleHelper (persists for 2s after audio stops) when
 // available, falling back to IsCurrentlyAudible().
@@ -313,8 +333,8 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
                 download_manager, this);
       }
       // Open dao://welcome on first launch. If the browser was just
-      // started with a single fresh NTP tab, replace that tab so the
-      // user does not end up with both chrome://newtab and dao://welcome.
+      // started with a single fresh NTP/welcome tab, replace that tab so the
+      // user does not end up with both the startup tab and dao://welcome.
       if (!profile->GetPrefs()->GetBoolean(prefs::kDaoWelcomeShown)) {
         base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
             FROM_HERE,
@@ -329,16 +349,13 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
                         tab_strip->GetActiveWebContents();
                     if (active) {
                       const GURL& url = active->GetVisibleURL();
-                      if (url.is_empty() || url == GURL(url::kAboutBlankURL) ||
-                          url == GURL(chrome::kChromeUINewTabURL) ||
-                          url == GURL(chrome::kChromeUINewTabPageURL)) {
+                      if (IsReplaceableFirstRunWelcomeURL(url)) {
                         disposition = WindowOpenDisposition::CURRENT_TAB;
                       }
                     }
                   }
-                  NavigateParams params(
-                      self->browser_, GURL("dao://welcome"),
-                      ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+                  NavigateParams params(self->browser_, GURL(kDaoWelcomeURL),
+                                        ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
                   params.disposition = disposition;
                   Navigate(&params);
                 },

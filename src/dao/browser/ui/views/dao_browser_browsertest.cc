@@ -56,6 +56,7 @@
 #include "dao/browser/agent/dao_agent_workspace_types.h"
 #include "dao/browser/dao_auto_pip_visibility_helper.h"
 #include "dao/browser/dao_pref_names.h"
+#include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/dao_webstore_branding_tab_helper.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
@@ -2600,6 +2601,25 @@ IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest,
   EXPECT_TRUE(errors.empty())
       << "dao://welcome emitted console errors during load:\n - "
       << base::JoinString(errors, "\n - ");
+}
+
+IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest,
+                       FirstRunWelcomeReusesDaoWelcomeStartupTab) {
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(1, model->count());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://welcome/")));
+  ASSERT_EQ(1, model->count());
+
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoWelcomeShown, false);
+
+  dao::DaoSidebarUIHandler handler;
+  handler.SetBrowser(browser());
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_EQ(1, model->count())
+      << "The first-run welcome navigation should reuse the existing "
+         "dao://welcome startup tab instead of opening a duplicate tab.";
 }
 
 // =============================================================================
