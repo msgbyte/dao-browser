@@ -4,7 +4,6 @@
 
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 
-#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "dao/browser/strings/grit/dao_strings.h"
@@ -275,12 +274,12 @@ void DaoCommandBarView::ApplyTheme() {
     textfield_->SetTextColor(TextPrimary());
   }
   if (ghost_text_label_) {
-    // Selected style per PRD: primary text color over an accent-blue
-    // translucent fill, so the inline completion reads as "highlighted".
+    // Mirror the selected suggestion row tokens so the inline completion
+    // visually belongs to the same default action.
     // The label's bounds match the textfield height (for baseline parity);
     // the pill background only paints at font height so the fill hugs the
     // glyphs.
-    ghost_text_label_->SetEnabledColor(TextPrimary());
+    ghost_text_label_->SetEnabledColor(SuggestionTitleColor());
     const int pill_height =
         ghost_text_label_->GetPreferredSize().height() + 2;
     ghost_text_label_->SetBackground(
@@ -340,6 +339,7 @@ void DaoCommandBarView::Show() {
 
   is_new_tab_mode_ = false;
   selected_index_ = -1;
+  selection_explicitly_changed_ = false;
   inline_autocompletion_.clear();
   ghost_text_label_->SetVisible(false);
   suppress_ghost_for_current_query_ = false;
@@ -434,6 +434,7 @@ void DaoCommandBarView::ShowForNewTab() {
 
   is_new_tab_mode_ = true;
   selected_index_ = -1;
+  selection_explicitly_changed_ = false;
   inline_autocompletion_.clear();
   ghost_text_label_->SetVisible(false);
   user_input_text_.clear();
@@ -644,27 +645,10 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
   const size_t new_len = new_contents.length();
   const bool is_deletion = new_len < prev_len;
 
-  // Bridge the async gap: if the user typed exactly one new character and
-  // that character matches the first ghost character, trim the ghost's
-  // leading character immediately so the suggestion appears continuous
-  // while we wait for the next autocomplete result tick. If the typed
-  // character diverges, ghost text is cleared until autocomplete provides
-  // a fresh completion.
-  bool bridged_ghost = false;
-  if (!is_deletion && new_len == prev_len + 1 &&
-      !inline_autocompletion_.empty() &&
-      new_contents.compare(0, prev_len, user_input_text_) == 0) {
-    char16_t typed = new_contents[prev_len];
-    char16_t ghost_first = inline_autocompletion_[0];
-    if (typed == ghost_first) {
-      inline_autocompletion_ = inline_autocompletion_.substr(1);
-      bridged_ghost = true;
-    }
-  }
-
   user_input_text_ = new_contents;
   last_text_length_ = new_len;
   selected_index_ = -1;
+  selection_explicitly_changed_ = false;
 
   // Deletion queries must not show ghost text until the next non-deletion
   // edit — every Backspace otherwise re-rasterizes a new ghost and the
@@ -675,19 +659,8 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
     ghost_text_label_->SetVisible(false);
   } else {
     suppress_ghost_for_current_query_ = false;
-    if (!bridged_ghost) {
-      inline_autocompletion_.clear();
-      ghost_text_label_->SetVisible(false);
-    } else {
-      // Re-render the trimmed ghost text right away so it does not flicker.
-      if (inline_autocompletion_.empty()) {
-        ghost_text_label_->SetVisible(false);
-      } else {
-        ghost_text_label_->SetText(inline_autocompletion_);
-        ghost_text_label_->SetVisible(true);
-        PositionGhostText();
-      }
-    }
+    inline_autocompletion_.clear();
+    ghost_text_label_->SetVisible(false);
   }
 
   UpdateInputIcon();
@@ -743,7 +716,7 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
       if (next >= visible_suggestion_count_) {
         next = 0;
       }
-      SetSelectedIndex(next);
+      SetSelectedIndex(next, true);
     }
     return true;
   }
@@ -754,7 +727,7 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
       if (prev < 0) {
         prev = visible_suggestion_count_ - 1;
       }
-      SetSelectedIndex(prev);
+      SetSelectedIndex(prev, true);
     }
     return true;
   }
@@ -773,6 +746,8 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
         sender->SetSelectedRange(gfx::Range(user_input_text_.length()));
         updating_textfield_ = false;
         last_text_length_ = user_input_text_.length();
+        selected_index_ = -1;
+        selection_explicitly_changed_ = false;
         suppress_ghost_for_current_query_ = false;
         StartAutocomplete(user_input_text_);
         return true;
@@ -815,11 +790,12 @@ void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
       metrics::OmniboxEventProto::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
       *scheme_classifier_);
 
-  // Deletion queries must also tell Chromium not to compute an
-  // inline_autocompletion; without this, the providers can still publish
-  // one after a Backspace and the suppression check would have to filter
-  // it out tick-by-tick.
-  if (suppress_ghost_for_current_query_) {
+  // Deletion queries and longer search-like inputs must also tell Chromium
+  // not to compute inline_autocompletion; without this, providers can still
+  // publish aggressive history URL tails that Dao then has to filter out
+  // tick-by-tick.
+  if (suppress_ghost_for_current_query_ ||
+      ShouldSuppressSearchLikeInlineAutocompletion(text)) {
     input.set_prevent_inline_autocomplete(true);
   }
   autocomplete_controller_->Start(input);
@@ -832,6 +808,7 @@ void DaoCommandBarView::StopAutocomplete() {
   inline_autocompletion_.clear();
   ghost_text_label_->SetVisible(false);
   selected_index_ = -1;
+  selection_explicitly_changed_ = false;
 }
 
 void DaoCommandBarView::UpdateSuggestions() {
@@ -897,11 +874,11 @@ void DaoCommandBarView::UpdateSuggestions() {
     dropdown_container_->SetVisible(true);
     // Auto-select first item if nothing is selected
     if (selected_index_ < 0) {
-      SetSelectedIndex(0);
+      SetSelectedIndex(0, false);
     } else if (selected_index_ >= visible_suggestion_count_) {
       // Previously-selected index is no longer visible (e.g. results
       // shrank while the user was typing); clamp back onto the list.
-      SetSelectedIndex(visible_suggestion_count_ - 1);
+      SetSelectedIndex(visible_suggestion_count_ - 1, false);
     }
   } else {
     dropdown_container_->SetVisible(false);
@@ -912,47 +889,88 @@ void DaoCommandBarView::UpdateSuggestions() {
 
 std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
   if (!autocomplete_controller_ || suppress_ghost_for_current_query_ ||
-      user_input_text_.empty()) {
+      user_input_text_.empty() ||
+      ShouldSuppressSearchLikeInlineAutocompletion(user_input_text_)) {
     return std::u16string();
   }
 
   const AutocompleteResult& result = autocomplete_controller_->result();
 
-  // Priority 1: default match's own inline_autocompletion.
   const AutocompleteMatch* default_match = result.default_match();
-  if (default_match && !default_match->inline_autocompletion.empty()) {
-    return default_match->inline_autocompletion;
+  if (!default_match) {
+    return std::u16string();
   }
 
-  // Priority 2: any other match still carrying a usable
-  // inline_autocompletion. Async ticks can briefly promote a search
-  // suggestion to default while a URL/history match continues to advertise
-  // a valid inline completion.
-  for (size_t i = 0; i < result.size(); ++i) {
-    const AutocompleteMatch& m = result.match_at(i);
-    if (!m.inline_autocompletion.empty()) {
-      return m.inline_autocompletion;
-    }
+  if (!IsAutocompleteResultStableForInlineAutocompletion()) {
+    return std::u16string();
   }
 
-  // Priority 3: derive from a fill_into_edit value that case-insensitively
-  // starts with the user's current input. This bridges async gaps where
-  // providers know the completion but haven't published it as
-  // inline_autocompletion yet.
-  const std::u16string& input = user_input_text_;
-  for (size_t i = 0; i < result.size(); ++i) {
-    const AutocompleteMatch& m = result.match_at(i);
-    const std::u16string& fill = m.fill_into_edit;
-    if (fill.size() <= input.size()) {
-      continue;
-    }
-    if (base::EqualsCaseInsensitiveASCII(fill.substr(0, input.size()),
-                                          input)) {
-      return fill.substr(input.size());
-    }
+  return default_match->inline_autocompletion;
+}
+
+bool DaoCommandBarView::IsAutocompleteResultStableForInlineAutocompletion()
+    const {
+  if (autocomplete_update_type_for_testing_.has_value()) {
+    // Mirror AutocompleteController::done(). kLastAsyncPassExceptDoc still
+    // waits for the doc provider and can carry transient inline text.
+    return *autocomplete_update_type_for_testing_ ==
+               AutocompleteController::UpdateType::kNone ||
+           *autocomplete_update_type_for_testing_ ==
+               AutocompleteController::UpdateType::kSyncPassOnly ||
+           *autocomplete_update_type_for_testing_ ==
+               AutocompleteController::UpdateType::kLastAsyncPass ||
+           *autocomplete_update_type_for_testing_ ==
+               AutocompleteController::UpdateType::kStop ||
+           *autocomplete_update_type_for_testing_ ==
+               AutocompleteController::UpdateType::kMatchDeletion;
   }
 
-  return std::u16string();
+  if (!autocomplete_controller_) {
+    return false;
+  }
+
+  return autocomplete_controller_->done();
+}
+
+bool DaoCommandBarView::ShouldSuppressSearchLikeInlineAutocompletion(
+    const std::u16string& text) {
+  constexpr size_t kMaxSearchLikeShortcutLength = 2;
+  return text.length() > kMaxSearchLikeShortcutLength && !LooksLikeURL(text);
+}
+
+bool DaoCommandBarView::HasSubmittableInlineAutocompletion() const {
+  return textfield_ && !inline_autocompletion_.empty() &&
+         std::u16string(textfield_->GetText()) == user_input_text_ &&
+         textfield_->GetCursorPosition() == user_input_text_.length() &&
+         !textfield_->HasSelection();
+}
+
+std::u16string DaoCommandBarView::GetInlineAutocompletedInputText() const {
+  std::u16string text(textfield_->GetText());
+  if (HasSubmittableInlineAutocompletion()) {
+    text += inline_autocompletion_;
+  }
+  return text;
+}
+
+const AutocompleteMatch*
+DaoCommandBarView::GetVisibleInlineAutocompletionMatch() const {
+  if (!autocomplete_controller_ || !HasSubmittableInlineAutocompletion()) {
+    return nullptr;
+  }
+
+  const AutocompleteResult& result = autocomplete_controller_->result();
+  const AutocompleteMatch* default_match = result.default_match();
+  if (!default_match) {
+    return nullptr;
+  }
+
+  if (!default_match->inline_autocompletion.empty() &&
+      default_match->inline_autocompletion == inline_autocompletion_) {
+    return default_match;
+  }
+
+  return nullptr;
 }
 
 void DaoCommandBarView::UpdateGhostText() {
@@ -1116,7 +1134,72 @@ void DaoCommandBarView::OnInputFaviconFetched(
           favicon, skia::ImageOperations::RESIZE_BEST, gfx::Size(18, 18))));
 }
 
-void DaoCommandBarView::SetSelectedIndex(int index) {
+void DaoCommandBarView::SetUserInputAndInlineAutocompletionForTesting(
+    const std::u16string& user_input,
+    const std::u16string& inline_autocompletion) {
+  user_input_text_ = user_input;
+  inline_autocompletion_ = inline_autocompletion;
+  last_text_length_ = user_input.length();
+  suppress_ghost_for_current_query_ = false;
+  selected_index_ = -1;
+  selection_explicitly_changed_ = false;
+  ask_ai_row_index_ = -1;
+
+  updating_textfield_ = true;
+  textfield_->SetText(user_input);
+  textfield_->SetSelectedRange(gfx::Range(user_input.length()));
+  updating_textfield_ = false;
+  textfield_->RequestFocus();
+
+  if (inline_autocompletion.empty()) {
+    ghost_text_label_->SetVisible(false);
+  } else {
+    ghost_text_label_->SetText(inline_autocompletion);
+    ghost_text_label_->SetVisible(true);
+    PositionGhostText();
+  }
+  UpdateInputIcon();
+}
+
+void DaoCommandBarView::SetAutocompleteMatchesForTesting(
+    const ACMatches& matches) {
+  autocomplete_update_type_for_testing_.reset();
+  InitAutocompleteController();
+  AutocompleteResult& result =
+      const_cast<AutocompleteResult&>(autocomplete_controller_->result());
+  result.Reset();
+  result.AppendMatches(matches);
+  UpdateSuggestions();
+  UpdateGhostText();
+}
+
+void DaoCommandBarView::SetAutocompleteMatchesForTesting(
+    const ACMatches& matches,
+    bool autocomplete_done) {
+  SetAutocompleteMatchesForTesting(
+      matches, autocomplete_done
+                   ? AutocompleteController::UpdateType::kLastAsyncPass
+                   : AutocompleteController::UpdateType::kAsyncPass);
+}
+
+void DaoCommandBarView::SetAutocompleteMatchesForTesting(
+    const ACMatches& matches,
+    AutocompleteController::UpdateType update_type) {
+  autocomplete_update_type_for_testing_ = update_type;
+  InitAutocompleteController();
+  AutocompleteResult& result =
+      const_cast<AutocompleteResult&>(autocomplete_controller_->result());
+  result.Reset();
+  result.AppendMatches(matches);
+  UpdateSuggestions();
+  UpdateGhostText();
+}
+
+void DaoCommandBarView::SetSelectedIndex(int index, bool user_initiated) {
+  if (user_initiated) {
+    selection_explicitly_changed_ = true;
+  }
+
   if (index == selected_index_) {
     return;
   }
@@ -1138,6 +1221,22 @@ void DaoCommandBarView::SetSelectedIndex(int index) {
 }
 
 void DaoCommandBarView::ApplySelectedSuggestion() {
+  if (!selection_explicitly_changed_) {
+    if (HasSubmittableInlineAutocompletion()) {
+      if (const AutocompleteMatch* inline_match =
+              GetVisibleInlineAutocompletionMatch()) {
+        NavigateToMatch(*inline_match);
+        return;
+      }
+
+      Navigate(GetInlineAutocompletedInputText());
+      return;
+    }
+
+    Navigate(std::u16string(textfield_->GetText()));
+    return;
+  }
+
   // Ask-AI row wins over autocomplete match lookup — its slot sits between
   // real matches, so check it first.
   if (selected_index_ >= 0 && selected_index_ == ask_ai_row_index_ &&
@@ -1147,7 +1246,7 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
   }
 
   if (!autocomplete_controller_) {
-    Navigate(std::u16string(textfield_->GetText()));
+    Navigate(GetInlineAutocompletedInputText());
     return;
   }
 
@@ -1164,7 +1263,7 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
     NavigateToMatch(result.match_at(match_index));
   } else {
     // No selected match — use plain text navigation
-    Navigate(std::u16string(textfield_->GetText()));
+    Navigate(GetInlineAutocompletedInputText());
   }
 }
 
@@ -1264,7 +1363,7 @@ void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
 }
 
 void DaoCommandBarView::OnSuggestionClicked(int index) {
-  SetSelectedIndex(index);
+  SetSelectedIndex(index, true);
   ApplySelectedSuggestion();
 }
 

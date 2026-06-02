@@ -6,6 +6,7 @@
 #define DAO_BROWSER_UI_VIEWS_DAO_COMMAND_BAR_VIEW_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -84,6 +85,19 @@ class DaoCommandBarView : public views::View,
   // URL detection heuristic (public for testing).
   static bool LooksLikeURL(const std::u16string& text);
 
+  void SetUserInputAndInlineAutocompletionForTesting(
+      const std::u16string& user_input,
+      const std::u16string& inline_autocompletion);
+  void SetAutocompleteMatchesForTesting(const ACMatches& matches);
+  void SetAutocompleteMatchesForTesting(const ACMatches& matches,
+                                        bool autocomplete_done);
+  void SetAutocompleteMatchesForTesting(
+      const ACMatches& matches,
+      AutocompleteController::UpdateType update_type);
+  const std::u16string& GetInlineAutocompletionForTesting() const {
+    return inline_autocompletion_;
+  }
+
  private:
   static constexpr int kMaxSuggestions = 5;
 
@@ -106,17 +120,21 @@ class DaoCommandBarView : public views::View,
   void PositionGhostText();
   void UpdateInputIcon();
 
-  // Derives a stable inline completion for the current user input from the
-  // full autocomplete result, falling back through the priority order
-  // documented in the command-bar PRD: default match's inline_autocompletion,
-  // any match's inline_autocompletion, then fill_into_edit prefix match.
-  // Returns the empty string when nothing applies or when ghost text is
-  // suppressed for the current query.
+  // Derives inline completion from the current default action only. This keeps
+  // ghost text, auto-selection, and Enter submission aligned with browser
+  // omnibox behavior. Returns the empty string when nothing applies or when
+  // ghost text is suppressed for the current query.
   std::u16string GetInlineAutocompletionForResult() const;
+  bool IsAutocompleteResultStableForInlineAutocompletion() const;
+  static bool ShouldSuppressSearchLikeInlineAutocompletion(
+      const std::u16string& text);
+  bool HasSubmittableInlineAutocompletion() const;
+  std::u16string GetInlineAutocompletedInputText() const;
+  const AutocompleteMatch* GetVisibleInlineAutocompletionMatch() const;
   void OnInputFaviconFetched(const GURL& page_url,
                              const favicon_base::FaviconImageResult& result);
   void ApplySelectedSuggestion();
-  void SetSelectedIndex(int index);
+  void SetSelectedIndex(int index, bool user_initiated);
   void OnSuggestionClicked(int index);
 
   raw_ptr<Browser> browser_;
@@ -134,10 +152,16 @@ class DaoCommandBarView : public views::View,
   std::unique_ptr<ChromeAutocompleteSchemeClassifier> scheme_classifier_;
 
   int selected_index_ = -1;
+  // Auto-selection keeps this false so Enter follows visible inline
+  // completion or the typed input; arrow keys and clicks flip it so explicit
+  // suggestions win.
+  bool selection_explicitly_changed_ = false;
   std::u16string user_input_text_;
   std::u16string inline_autocompletion_;
   bool updating_textfield_ = false;
   int visible_suggestion_count_ = 0;
+  std::optional<AutocompleteController::UpdateType>
+      autocomplete_update_type_for_testing_;
 
   // True while the user is deleting in the current query lifetime — set in
   // ContentsChanged when the textfield shrinks and on the first Backspace

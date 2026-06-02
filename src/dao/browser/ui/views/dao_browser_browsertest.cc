@@ -34,6 +34,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/omnibox/browser/autocomplete_match.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
@@ -542,6 +543,215 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
     command_bar->Hide();
     EXPECT_FALSE(command_bar->GetVisible());
   }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnterSubmitsVisibleInlineAutocompletion) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL target_url = embedded_test_server()->GetURL("/title1.html");
+  const std::u16string target_text = base::UTF8ToUTF16(target_url.spec());
+  constexpr std::u16string_view kTypedPrefix = u"http://127.0";
+  ASSERT_TRUE(base::StartsWith(target_text, kTypedPrefix,
+                               base::CompareCase::SENSITIVE));
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  ASSERT_TRUE(command_bar->GetVisible());
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(
+      std::u16string(kTypedPrefix), target_text.substr(kTypedPrefix.size()));
+
+  ui_test_utils::TabAddedWaiter tab_waiter(browser());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  content::WebContents* contents = tab_waiter.Wait();
+  ASSERT_NE(nullptr, contents);
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+
+  EXPECT_EQ(target_url, contents->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnterSubmitsTypedInputWhenSelectionIsAutomatic) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL typed_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL suggestion_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_NE(typed_url, suggestion_url);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(
+      base::UTF8ToUTF16(typed_url.spec()), u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = base::UTF8ToUTF16(suggestion_url.spec());
+  default_match.contents = base::UTF8ToUTF16(suggestion_url.spec());
+  default_match.destination_url = suggestion_url;
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+  ASSERT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+
+  ui_test_utils::TabAddedWaiter tab_waiter(browser());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  content::WebContents* contents = tab_waiter.Wait();
+  ASSERT_NE(nullptr, contents);
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+
+  EXPECT_EQ(typed_url, contents->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InlineAutocompletionUsesOnlyDefaultMatch) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"dao", u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = u"dao";
+  default_match.contents = u"dao";
+  default_match.destination_url = GURL("https://www.google.com/search?q=dao");
+
+  AutocompleteMatch secondary_match(nullptr, 900, false,
+                                    AutocompleteMatchType::HISTORY_URL);
+  secondary_match.allowed_to_be_default_match = false;
+  secondary_match.inline_autocompletion = u".com";
+  secondary_match.fill_into_edit = u"dao.com";
+  secondary_match.contents = u"dao.com";
+  secondary_match.destination_url = GURL("https://dao.com/");
+
+  command_bar->SetAutocompleteMatchesForTesting(
+      ACMatches{default_match, secondary_match});
+
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InlineAutocompletionRequiresDefaultMatchInlineText) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"go", u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = u"google.com";
+  default_match.contents = u"google.com";
+  default_match.destination_url = GURL("https://google.com/");
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InlineAutocompletionClearsForNewQuery) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"go", u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.inline_autocompletion = u"ogle.com";
+  default_match.fill_into_edit = u"google.com";
+  default_match.contents = u"google.com";
+  default_match.destination_url = GURL("https://google.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+  ASSERT_EQ(u"ogle.com", command_bar->GetInlineAutocompletionForTesting());
+
+  command_bar->ContentsChanged(nullptr, u"goo");
+
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InlineAutocompletionWaitsForStableResult) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"go", u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.inline_autocompletion = u"ogle.com";
+  default_match.fill_into_edit = u"https://google.com";
+  default_match.contents = u"https://google.com";
+  default_match.destination_url = GURL("https://google.com/");
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match},
+                                                false);
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match}, true);
+  EXPECT_EQ(u"ogle.com", command_bar->GetInlineAutocompletionForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InlineAutocompletionSuppressesLongSearchLikeInput) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"goo", u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.inline_autocompletion = u"gle.com";
+  default_match.fill_into_edit = u"https://google.com";
+  default_match.contents = u"https://google.com";
+  default_match.destination_url = GURL("https://google.com/");
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match}, true);
+
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InlineAutocompletionIgnoresDocPendingResult) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"go", u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.inline_autocompletion = u"ogle.com";
+  default_match.fill_into_edit = u"https://google.com";
+  default_match.contents = u"https://google.com";
+  default_match.destination_url = GURL("https://google.com/");
+
+  command_bar->SetAutocompleteMatchesForTesting(
+      ACMatches{default_match},
+      AutocompleteController::UpdateType::kLastAsyncPassExceptDoc);
+
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
 }
 
 // =============================================================================

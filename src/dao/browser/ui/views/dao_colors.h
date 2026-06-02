@@ -38,9 +38,7 @@ SkColor SuggestionHover();
 SkColor SuggestionSelected();
 SkColor SuggestionTitleColor();
 SkColor SuggestionIconColor();
-SkColor GhostTextColor();
-// Selected-style ghost text: accent-blue translucent fill behind the
-// inline completion label so it reads as "this will be inserted".
+// Selected-style ghost text mirrors the selected suggestion row.
 SkColor GhostTextSelectedBackground();
 
 // Content area styling

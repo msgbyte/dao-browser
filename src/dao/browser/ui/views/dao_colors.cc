@@ -103,17 +103,8 @@ SkColor SuggestionIconColor() {
   return TextSecondary();  // alias
 }
 
-SkColor GhostTextColor() {
-  return IsDarkMode() ? SkColorSetARGB(77, 255, 255, 255)
-                      : SkColorSetARGB(77, 30, 20, 40);
-}
-
 SkColor GhostTextSelectedBackground() {
-  // Brand accent (70,120,190) at low opacity so the textfield's content
-  // background continues to read through. Slightly stronger in dark mode
-  // where the surface is darker.
-  return IsDarkMode() ? SkColorSetARGB(72, 100, 150, 220)
-                      : SkColorSetARGB(56, 70, 120, 190);
+  return SuggestionSelected();
 }
 
 SkColor DividerColor() {
