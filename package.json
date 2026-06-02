@@ -14,6 +14,7 @@
     "build:release": "npm run import && tsx scripts/cli.ts build",
     "start": "open 'engine/src/out/dao/Dao.app' --args --use-mock-keychain",
     "start:debug": "'engine/src/out/dao-debug/Dao Debug.app/Contents/MacOS/Dao Debug' --use-mock-keychain --enable-logging=stderr --log-level=2",
+    "start:debug:clean": "sh scripts/start-debug-clean.sh",
     "start:debug:view": "'engine/src/out/dao-debug/Dao Debug.app/Contents/MacOS/Dao Debug' --use-mock-keychain --enable-ui-devtools=9223 --enable-logging=stderr --v=1",
     "start:little": "open -a \"$(pwd)/engine/src/out/dao-debug/Dao Debug.app\" 'https://bing.com' --args --use-mock-keychain",
     "package": "tsx scripts/cli.ts package",
