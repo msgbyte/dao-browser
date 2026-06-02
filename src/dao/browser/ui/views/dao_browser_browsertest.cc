@@ -679,6 +679,24 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   EXPECT_EQ(urls[2], model->GetWebContentsAt(2)->GetVisibleURL());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, AutoTopLevelBrowserOpenUrlOpensAtTop) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  const int initial_count = model->count();
+  ASSERT_GE(initial_count, 3);
+
+  content::OpenURLParams params(
+      GURL("data:text/plain,direct-external"), content::Referrer(),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, false);
+  browser()->OpenURL(params, /*navigation_handle_callback=*/{});
+
+  EXPECT_EQ(initial_count + 1, model->count());
+  EXPECT_EQ(0, model->active_index());
+  EXPECT_EQ(params.url, model->GetWebContentsAt(0)->GetVisibleURL());
+}
+
 // =============================================================================
 // DaoSplitViewBrowserTest
 // =============================================================================
