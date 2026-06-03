@@ -422,6 +422,21 @@ void HideNativeSplitIndicatorForWindow(NSWindow* window) {
   }
 }
 
+NSRect TargetFrameForWebContentsInContentView(NSView* native,
+                                              NSView* content_view) {
+  if (!native || !content_view) {
+    return NSZeroRect;
+  }
+
+  NSRect target_frame = [native convertRect:[native bounds]
+                                     toView:content_view];
+  target_frame = NSIntersectionRect(target_frame, [content_view bounds]);
+  if (NSIsEmptyRect(target_frame)) {
+    return NSZeroRect;
+  }
+  return target_frame;
+}
+
 // Detach every mounted interceptor from its contentView and drop the
 // table entries. Called after a native Dao-tab drop completes, so the
 // next HTML5 drag in any window's sidebar starts with an unobstructed
@@ -469,10 +484,18 @@ void BlockWebContentNativeEvents(content::WebContents* web_contents) {
              << window
              << " existing_interceptor=" << (interceptor ? "yes" : "no");
 
-  // If one is already mounted on this window, nothing to do — just leave
-  // it in place. Re-mounting would briefly tear it down and break an
+  NSRect target_frame =
+      TargetFrameForWebContentsInContentView(native, contentView);
+  if (NSIsEmptyRect(target_frame)) {
+    LOG(ERROR) << "[Dao-Xwin] BlockWebContentNativeEvents: empty target frame";
+    return;
+  }
+
+  // If one is already mounted on this window, expand it to cover this
+  // WebContents too. Re-mounting would briefly tear it down and break an
   // in-flight drag session.
   if (interceptor && [interceptor superview] == contentView) {
+    interceptor.frame = NSUnionRect([interceptor frame], target_frame);
     return;
   }
 
@@ -484,14 +507,12 @@ void BlockWebContentNativeEvents(content::WebContents* web_contents) {
     [interceptor removeFromSuperview];
   }
 
-  // Cover the ENTIRE window contentView so that no native WebContents view
-  // (RenderWidgetHostViewCocoa) can intercept drag events. Placing the
-  // interceptor as the topmost subview of BridgedContentView ensures that
-  // macOS hit-tests land on the interceptor first. The interceptor's
-  // NSDraggingDestination methods forward to the contentView
-  // (BridgedContentView), which routes through DragDropClientMac →
-  // DropHelper → views::View tree, reaching DaoSplitView.
-  interceptor.frame = contentView.bounds;
+  // Cover only the WebContents native view, not the full window contentView.
+  // The sidebar WebUI must remain unobstructed so a tab dragged out of the
+  // sidebar can re-enter and resume the HTML5 drag/drop path. The interceptor
+  // still sits above RenderWidgetHostViewCocoa in the page content area, so
+  // web pages cannot swallow split/cross-window tab drags.
+  interceptor.frame = target_frame;
   interceptor.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 
   [contentView addSubview:interceptor

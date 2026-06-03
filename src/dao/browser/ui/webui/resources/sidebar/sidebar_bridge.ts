@@ -152,6 +152,19 @@ export const TAB_DRAG_PREFIX = 'dao-tab-drag:';
 export const FOLDER_MIME_TYPE = 'application/x-dao-folder';
 
 /**
+ * Returns true when a drag event point has left a viewport.
+ */
+export function isPointOutsideViewport(
+    clientX: number, clientY: number, viewportWidth: number,
+    viewportHeight: number): boolean {
+  if (clientX < 0 || clientY < 0) return true;
+  if (clientX > viewportWidth || clientY > viewportHeight) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Parse a tab drag data string ("dao-tab-drag:<sessionId>:<tabIndex>").
  * Returns {sessionId, tabIndex} or null if the format is invalid.
  */

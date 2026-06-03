@@ -4,7 +4,12 @@
 
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {sendNative, TAB_DRAG_PREFIX, FOLDER_MIME_TYPE} from './sidebar_bridge.js';
+import {
+  sendNative,
+  TAB_DRAG_PREFIX,
+  FOLDER_MIME_TYPE,
+  isPointOutsideViewport,
+} from './sidebar_bridge.js';
 import type {TabData, FolderData, FolderAction} from './sidebar_bridge.js';
 import type {FolderModel} from './dao_folder_model.js';
 import './dao_tab_item.js';
@@ -487,10 +492,11 @@ export class DaoTabList extends CrLitElement {
     sendNative('setDropInsertIndex', -1);
 
     // Activate native event blocking so DaoSplitView can receive the
-    // drag that just left the sidebar WebView.  This must happen AFTER
-    // the drag leaves, not at dragstart, because the interceptor covers
-    // the entire window and would kill HTML5 drag inside the WebView.
-    if (!this.tabDragActivated_) {
+    // drag that just left the sidebar WebView. This must happen AFTER the
+    // drag leaves, because activating the native path too early can still
+    // steal HTML5 drag events that should remain inside the sidebar.
+    if (!this.tabDragActivated_ &&
+        this.isPointOutsideSidebar_(e.clientX, e.clientY)) {
       console.error('[Dao-Xwin-JS] onDragLeave_: activating tabDragActive');
       this.tabDragActivated_ = true;
       sendNative('tabDragActive', true);
@@ -544,11 +550,8 @@ export class DaoTabList extends CrLitElement {
    * the WebContents entirely.
    */
   private isPointOutsideSidebar_(clientX: number, clientY: number): boolean {
-    if (clientX < 0 || clientY < 0) return true;
-    if (clientX > window.innerWidth || clientY > window.innerHeight) {
-      return true;
-    }
-    return false;
+    return isPointOutsideViewport(
+        clientX, clientY, window.innerWidth, window.innerHeight);
   }
 
   private onDrop_(e: DragEvent) {
