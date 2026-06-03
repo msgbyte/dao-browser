@@ -383,44 +383,109 @@ interface ListR2ObjectsArgs {
   remote: boolean;
 }
 
-function listR2Objects(args: ListR2ObjectsArgs): Promise<R2Object[]> {
-  const cliArgs = ["r2", "object", "list", args.bucket, "--json"];
-  if (args.prefix) {
-    cliArgs.push("--prefix", args.prefix);
-  }
-  if (args.remote) {
-    cliArgs.push("--remote");
+// Wrangler 4.x dropped `r2 object list`, so listing goes directly through the
+// Cloudflare REST API. `put` and `delete` still exist in wrangler and are kept
+// on the wrangler path so we don't have to sign S3 SigV4 requests here.
+async function listR2Objects(args: ListR2ObjectsArgs): Promise<R2Object[]> {
+  if (!args.remote) {
+    error(
+      "Listing the local wrangler simulator is not supported.\n" +
+        "Wrangler 4.x removed `r2 object list`; cleanup now uses the\n" +
+        "Cloudflare REST API, which only targets real R2 buckets.\n" +
+        "Re-run without --no-remote to list the live bucket."
+    );
+    process.exit(1);
   }
 
-  console.log(chalk.dim(`$ wrangler ${cliArgs.map(shellEscape).join(" ")}`));
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  if (!accountId || !apiToken) {
+    error(
+      "Listing R2 objects requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN."
+    );
+    process.exit(1);
+  }
 
-  return new Promise((resolve) => {
-    const child = spawn("wrangler", cliArgs, {
-      cwd: ROOT_DIR,
-      stdio: ["ignore", "pipe", "inherit"],
-      env: process.env,
-    });
-    let stdout = "";
-    child.stdout.setEncoding("utf-8");
-    child.stdout.on("data", (chunk) => (stdout += chunk));
-    child.on("error", (err) => {
-      error(`Failed to launch wrangler: ${err.message}`);
+  const baseUrl =
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}` +
+    `/r2/buckets/${encodeURIComponent(args.bucket)}/objects`;
+
+  console.log(
+    chalk.dim(
+      `$ GET /accounts/${accountId}/r2/buckets/${args.bucket}/objects` +
+        (args.prefix ? `?prefix=${args.prefix}` : "")
+    )
+  );
+
+  const all: R2Object[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 100; page += 1) {
+    const url = new URL(baseUrl);
+    url.searchParams.set("per_page", "1000");
+    if (args.prefix) url.searchParams.set("prefix", args.prefix);
+    if (cursor) url.searchParams.set("cursor", cursor);
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          Accept: "application/json",
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      error(`Failed to reach Cloudflare API: ${message}`);
       process.exit(1);
-    });
-    child.on("close", (code) => {
-      if (code !== 0) {
-        error(`wrangler exited with code ${code} while listing R2 objects.`);
-        process.exit(1);
-      }
-      try {
-        resolve(parseR2ListOutput(stdout));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        error(`Failed to parse wrangler list output: ${message}`);
-        process.exit(1);
-      }
-    });
-  });
+    }
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      error(
+        `Cloudflare API returned ${res.status} ${res.statusText} while listing R2 objects.` +
+          (body ? `\n${body}` : "")
+      );
+      process.exit(1);
+    }
+
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      error(`Failed to parse Cloudflare API response: ${message}`);
+      process.exit(1);
+    }
+
+    if (!isRecord(json) || json.success !== true) {
+      const detail =
+        isRecord(json) && Array.isArray(json.errors) && json.errors.length > 0
+          ? JSON.stringify(json.errors)
+          : "<no error detail>";
+      error(`Cloudflare API reported failure listing R2 objects: ${detail}`);
+      process.exit(1);
+    }
+
+    try {
+      all.push(...parseR2ListOutput(JSON.stringify(json)));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      error(`Failed to parse Cloudflare list response: ${message}`);
+      process.exit(1);
+    }
+
+    const info = isRecord(json.result_info) ? json.result_info : null;
+    const nextCursor =
+      info && typeof info.cursor === "string" ? info.cursor : "";
+    const truncated = !!info && info.is_truncated === true;
+    if (!truncated || !nextCursor) {
+      return all;
+    }
+    cursor = nextCursor;
+  }
+
+  error("Aborting R2 list after 100 pages — bucket may be unexpectedly large.");
+  process.exit(1);
 }
 
 interface DeleteR2ObjectArgs {
@@ -481,10 +546,18 @@ export function parseR2ListOutput(output: string): R2Object[] {
     if (!isRecord(row) || typeof row.key !== "string") {
       return [];
     }
+    // Wrangler's `r2 object list` returned `uploaded`; Cloudflare's REST API
+    // returns `last_modified`. Accept either so the parser works for both.
+    const uploaded =
+      typeof row.uploaded === "string"
+        ? row.uploaded
+        : typeof row.last_modified === "string"
+          ? row.last_modified
+          : undefined;
     return [{
       key: row.key,
       size: typeof row.size === "number" ? row.size : undefined,
-      uploaded: typeof row.uploaded === "string" ? row.uploaded : undefined,
+      uploaded,
     }];
   });
 }
