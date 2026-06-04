@@ -100,6 +100,7 @@
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/controls/webview/webview.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
@@ -181,6 +182,43 @@ void SendDialogKey(views::Widget* widget,
   if (widget->GetFocusManager()->OnKeyEvent(event)) {
     widget->OnKeyEvent(&event);
   }
+}
+
+const base::DictValue* FindDictByStringField(const base::ListValue& list,
+                                             const char* key,
+                                             const std::string& value) {
+  for (const base::Value& item : list) {
+    const base::DictValue* dict = item.GetIfDict();
+    if (!dict) {
+      continue;
+    }
+
+    const std::string* field = dict->FindString(key);
+    if (field && *field == value) {
+      return dict;
+    }
+  }
+  return nullptr;
+}
+
+std::string GetStringField(const base::DictValue& dict, const char* key) {
+  const std::string* value = dict.FindString(key);
+  return value ? *value : std::string();
+}
+
+bool GetBoolField(const base::DictValue& dict, const char* key) {
+  const base::Value* value = dict.Find(key);
+  return value && value->is_bool() && value->GetBool();
+}
+
+int GetIntField(const base::DictValue& dict, const char* key) {
+  return dict.FindInt(key).value_or(-1);
+}
+
+void AttachSidebarHandlerForTesting(Browser* browser,
+                                    DaoSidebarUIHandler* handler) {
+  browser->profile()->GetPrefs()->SetBoolean(prefs::kDaoWelcomeShown, true);
+  handler->SetBrowser(browser);
 }
 
 class CountingDialogDelegate : public views::DialogDelegate {
@@ -308,6 +346,189 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, SidebarToggleExpandRestore) {
 
   sidebar->ToggleCollapsed();
   EXPECT_FALSE(sidebar->collapsed());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, WebUIStartsCloseToHeader) {
+  DaoSidebarView* sidebar = GetBrowserView(browser())->dao_sidebar();
+  ASSERT_NE(nullptr, sidebar);
+
+  auto* web_view = FindDescendantViewOfClass<views::WebView>(sidebar);
+  ASSERT_NE(nullptr, web_view);
+
+  gfx::Rect web_bounds = web_view->bounds();
+  views::View::ConvertRectToTarget(web_view->parent(), sidebar, &web_bounds);
+  const int gap = web_bounds.y() - sidebar->header_bounds_in_sidebar().bottom();
+
+  EXPECT_LE(gap, 2);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       PinNormalTabAddsPinnedItemAndExcludesFromUnpinnedTabs) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL unpinned_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+  chrome::AddTabAt(browser(), unpinned_url, -1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(0);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(2, model->count());
+  EXPECT_TRUE(model->IsTabPinned(0));
+  EXPECT_FALSE(model->IsTabPinned(1));
+
+  base::ListValue pinned_items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, pinned_items.size());
+  const base::DictValue* pinned_item =
+      FindDictByStringField(pinned_items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, pinned_item);
+  EXPECT_TRUE(GetBoolField(*pinned_item, "isOpen"));
+  EXPECT_EQ(0, GetIntField(*pinned_item, "openTabIndex"));
+
+  base::DictValue state = handler.GetSidebarStateForTesting();
+  const base::ListValue* pinned_tabs = state.FindList("pinnedTabs");
+  ASSERT_NE(nullptr, pinned_tabs);
+  EXPECT_NE(nullptr,
+            FindDictByStringField(*pinned_tabs, "url", pinned_url.spec()));
+
+  const base::ListValue* unpinned_tabs = state.FindList("unpinnedTabs");
+  ASSERT_NE(nullptr, unpinned_tabs);
+  EXPECT_EQ(nullptr,
+            FindDictByStringField(*unpinned_tabs, "url", pinned_url.spec()));
+  EXPECT_NE(nullptr,
+            FindDictByStringField(*unpinned_tabs, "url", unpinned_url.spec()));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ClosingPinnedBackingTabLeavesDormantPinnedItem) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL unpinned_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+  chrome::AddTabAt(browser(), unpinned_url, -1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(0);
+
+  base::ListValue open_items = handler.GetPinnedItemsForTesting();
+  const base::DictValue* open_item =
+      FindDictByStringField(open_items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, open_item);
+  const std::string pinned_item_id = GetStringField(*open_item, "id");
+  ASSERT_FALSE(pinned_item_id.empty());
+
+  handler.ClosePinnedItemTabForTesting(pinned_item_id);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(1, model->count());
+  EXPECT_EQ(unpinned_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_FALSE(model->IsTabPinned(0));
+
+  base::ListValue dormant_items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, dormant_items.size());
+  const base::DictValue* dormant_item =
+      FindDictByStringField(dormant_items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, dormant_item);
+  EXPECT_FALSE(GetBoolField(*dormant_item, "isOpen"));
+  EXPECT_EQ(-1, GetIntField(*dormant_item, "openTabIndex"));
+
+  base::DictValue state = handler.GetSidebarStateForTesting();
+  const base::ListValue* pinned_tabs = state.FindList("pinnedTabs");
+  ASSERT_NE(nullptr, pinned_tabs);
+  EXPECT_TRUE(pinned_tabs->empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ReopeningDormantPinnedItemPinsAndActivatesTab) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL unpinned_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+  chrome::AddTabAt(browser(), unpinned_url, -1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(0);
+
+  base::ListValue open_items = handler.GetPinnedItemsForTesting();
+  const base::DictValue* open_item =
+      FindDictByStringField(open_items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, open_item);
+  const std::string pinned_item_id = GetStringField(*open_item, "id");
+  ASSERT_FALSE(pinned_item_id.empty());
+  handler.ClosePinnedItemTabForTesting(pinned_item_id);
+  ASSERT_EQ(1, browser()->tab_strip_model()->count());
+
+  ui_test_utils::TabAddedWaiter tab_waiter(browser());
+  handler.ActivateOrOpenPinnedItemForTesting(pinned_item_id);
+  content::WebContents* reopened_contents = tab_waiter.Wait();
+  ASSERT_NE(nullptr, reopened_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(reopened_contents));
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(2, model->count());
+  const int active_index = model->active_index();
+  ASSERT_GE(active_index, 0);
+  EXPECT_EQ(reopened_contents, model->GetWebContentsAt(active_index));
+  EXPECT_TRUE(model->IsTabPinned(active_index));
+  EXPECT_EQ(pinned_url, reopened_contents->GetLastCommittedURL());
+
+  base::ListValue reopened_items = handler.GetPinnedItemsForTesting();
+  const base::DictValue* reopened_item =
+      FindDictByStringField(reopened_items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, reopened_item);
+  EXPECT_TRUE(GetBoolField(*reopened_item, "isOpen"));
+  EXPECT_TRUE(GetBoolField(*reopened_item, "isActive"));
+  EXPECT_EQ(active_index, GetIntField(*reopened_item, "openTabIndex"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       UnpinRemovesPinnedItemAndUnpinsBackingTab) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(0);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_TRUE(model->IsTabPinned(0));
+
+  base::ListValue pinned_items = handler.GetPinnedItemsForTesting();
+  const base::DictValue* pinned_item =
+      FindDictByStringField(pinned_items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, pinned_item);
+  const std::string pinned_item_id = GetStringField(*pinned_item, "id");
+  ASSERT_FALSE(pinned_item_id.empty());
+
+  handler.UnpinPinnedItemForTesting(pinned_item_id);
+
+  EXPECT_FALSE(model->IsTabPinned(0));
+  EXPECT_TRUE(handler.GetPinnedItemsForTesting().empty());
+
+  base::DictValue state = handler.GetSidebarStateForTesting();
+  const base::ListValue* pinned_tabs = state.FindList("pinnedTabs");
+  ASSERT_NE(nullptr, pinned_tabs);
+  EXPECT_TRUE(pinned_tabs->empty());
+
+  const base::ListValue* unpinned_tabs = state.FindList("unpinnedTabs");
+  ASSERT_NE(nullptr, unpinned_tabs);
+  EXPECT_NE(nullptr,
+            FindDictByStringField(*unpinned_tabs, "url", pinned_url.spec()));
 }
 
 // =============================================================================

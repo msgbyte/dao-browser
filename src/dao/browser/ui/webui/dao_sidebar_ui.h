@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -19,6 +20,7 @@
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
+#include "dao/browser/ui/webui/dao_pinned_tab_model.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
 #include "ui/menus/simple_menu_model.h"
@@ -59,12 +61,11 @@ class DaoSidebarUIConfig : public content::WebUIConfig {
 };
 
 // Message handler for the sidebar WebUI.
-class DaoSidebarUIHandler
-    : public content::WebUIMessageHandler,
-      public TabStripModelObserver,
-      public download::AllDownloadItemNotifier::Observer,
-      public ui::SimpleMenuModel::Delegate,
-      public media_session::mojom::MediaSessionObserver {
+class DaoSidebarUIHandler : public content::WebUIMessageHandler,
+                            public TabStripModelObserver,
+                            public download::AllDownloadItemNotifier::Observer,
+                            public ui::SimpleMenuModel::Delegate,
+                            public media_session::mojom::MediaSessionObserver {
  public:
   DaoSidebarUIHandler();
   ~DaoSidebarUIHandler() override;
@@ -114,6 +115,13 @@ class DaoSidebarUIHandler
   void MediaSessionPositionChanged(
       const std::optional<media_session::MediaPosition>& position) override {}
 
+  base::ListValue GetPinnedItemsForTesting();
+  base::DictValue GetSidebarStateForTesting();
+  void PinTabForTesting(int index);
+  void UnpinPinnedItemForTesting(const std::string& id);
+  void ActivateOrOpenPinnedItemForTesting(const std::string& id);
+  void ClosePinnedItemTabForTesting(const std::string& id);
+
  private:
   // Returns the split view for this browser, or nullptr.
   DaoSplitView* GetSplitView() const;
@@ -128,6 +136,16 @@ class DaoSidebarUIHandler
       content::WebContents* anchor);
 
   void PushFullState();
+  base::DictValue BuildSidebarState();
+  base::ListValue BuildPinnedItems();
+  int FindOpenPinnedTabIndexForItem(const DaoPinnedTabItem& item) const;
+  void LoadPinnedItemsThenPushFullState();
+  void SavePinnedItems();
+  void PinTabAtIndex(int index);
+  void UnpinPinnedItemById(const std::string& id);
+  void ActivateOrOpenPinnedItem(const std::string& id);
+  void ClosePinnedItemTab(const std::string& id);
+  void MovePinnedItem(const std::string& id, int to_index);
   void PushTabUpdate(int index);
   void OnSplitStateChanged();
   void ConsolidateSplitGroupTabs();
@@ -162,6 +180,12 @@ class DaoSidebarUIHandler
   void HandleLoadFolders(const base::ListValue& args);
   void HandleSaveFolders(const base::ListValue& args);
   void HandleShowTabContextMenu(const base::ListValue& args);
+  void HandlePinTab(const base::ListValue& args);
+  void HandleUnpinPinnedItem(const base::ListValue& args);
+  void HandleActivateOrOpenPinnedItem(const base::ListValue& args);
+  void HandleClosePinnedItemTab(const base::ListValue& args);
+  void HandleMovePinnedItem(const base::ListValue& args);
+  void HandleShowPinnedItemContextMenu(const base::ListValue& args);
   void HandleShowTabTooltip(const base::ListValue& args);
   void HandleHideTabTooltip(const base::ListValue& args);
 
@@ -194,6 +218,11 @@ class DaoSidebarUIHandler
     kCloseTabsAbove,
     kCloseTabsBelow,
     kInspectSidebar,
+    kPinTab,
+    kPinnedOpen,
+    kPinnedUnpin,
+    kPinnedCloseTab,
+    kPinnedCopyLink,
   };
 
   raw_ptr<Browser> browser_ = nullptr;
@@ -212,11 +241,17 @@ class DaoSidebarUIHandler
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
   std::vector<base::FilePath> recent_file_paths_;
   std::string folder_json_;  // Per-window folder data (in-memory)
+  DaoPinnedTabModel pinned_tab_model_;
+  bool pinned_items_loaded_ = false;
+  bool pinned_items_load_pending_ = false;
+  bool pinned_items_auto_save_enabled_ = true;
 
   // Context menu state.
   int context_menu_tab_index_ = -1;
+  std::string context_menu_pinned_item_id_;
   std::set<int> folder_tab_indices_;
-  std::vector<int> visual_tab_order_;  // Tab model indices in visual order (top to bottom)
+  std::vector<int>
+      visual_tab_order_;  // Tab model indices in visual order (top to bottom)
   std::unique_ptr<ui::SimpleMenuModel> tab_context_menu_model_;
   std::unique_ptr<views::MenuRunner> tab_context_menu_runner_;
 

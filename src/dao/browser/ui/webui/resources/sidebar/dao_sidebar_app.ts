@@ -5,11 +5,12 @@
 import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {sendNative, addListener, loadFolders, saveFolders, parseTabDragData} from './sidebar_bridge.js';
-import type {SidebarState, TabData, FolderAction} from './sidebar_bridge.js';
+import type {SidebarState, TabData, PinnedItemData, FolderAction} from './sidebar_bridge.js';
 import {FolderModel} from './dao_folder_model.js';
 
 import './dao_favorites_view.js';
 import './dao_new_tab_button.js';
+import './dao_pinned_tabs_grid.js';
 import './dao_sidebar_section.js';
 import './dao_tab_list.js';
 import './dao_download_button.js';
@@ -124,6 +125,7 @@ export class DaoSidebarApp extends CrLitElement {
 
   static override get properties() {
     return {
+      pinnedItems_: {type: Array},
       pinnedTabs_: {type: Array},
       unpinnedTabs_: {type: Array},
       sessionId_: {type: Number},
@@ -140,6 +142,7 @@ export class DaoSidebarApp extends CrLitElement {
   // on `this`, overriding the reactive accessor Lit installs from
   // `static get properties()`. That makes property assignments silently
   // skip update scheduling.
+  declare protected pinnedItems_: PinnedItemData[];
   declare protected pinnedTabs_: TabData[];
   declare protected unpinnedTabs_: TabData[];
   declare protected sessionId_: number;
@@ -156,6 +159,7 @@ export class DaoSidebarApp extends CrLitElement {
 
   constructor() {
     super();
+    this.pinnedItems_ = [];
     this.pinnedTabs_ = [];
     this.unpinnedTabs_ = [];
     this.sessionId_ = 0;
@@ -169,6 +173,7 @@ export class DaoSidebarApp extends CrLitElement {
 
     addListener('sidebarStateChanged', (...args: unknown[]) => {
       const state = args[0] as SidebarState;
+      this.pinnedItems_ = state.pinnedItems || [];
       this.pinnedTabs_ = state.pinnedTabs;
       this.unpinnedTabs_ = state.unpinnedTabs;
       this.sessionId_ = state.sessionId;
@@ -398,13 +403,17 @@ export class DaoSidebarApp extends CrLitElement {
   override render() {
     return html`
       <div class="sidebar-content">
-        <dao-new-tab-button ?highlighted=${this.newTabHighlighted_}></dao-new-tab-button>
-
-        ${this.pinnedTabs_.length > 0 ? html`
+        ${this.pinnedItems_.length > 0 ? html`
+          <dao-pinned-tabs-grid
+            .items=${this.pinnedItems_}>
+          </dao-pinned-tabs-grid>
+        ` : this.pinnedTabs_.length > 0 ? html`
           <dao-favorites-view
             .tabs=${this.pinnedTabs_}>
           </dao-favorites-view>
         ` : ''}
+
+        <dao-new-tab-button ?highlighted=${this.newTabHighlighted_}></dao-new-tab-button>
 
         <div class="tab-section">
           <dao-sidebar-section sectionTitle="Today">

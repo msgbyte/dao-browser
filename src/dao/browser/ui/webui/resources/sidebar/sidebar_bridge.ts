@@ -81,7 +81,19 @@ export interface TabData {
   isFaviconLight?: boolean;
 }
 
+export interface PinnedItemData {
+  id: string;
+  title: string;
+  url: string;
+  faviconUrl: string;
+  isOpen: boolean;
+  openTabIndex: number;
+  isActive: boolean;
+  isFaviconLight?: boolean;
+}
+
 export interface SidebarState {
+  pinnedItems: PinnedItemData[];
   pinnedTabs: TabData[];
   unpinnedTabs: TabData[];
   activeIndex: number;

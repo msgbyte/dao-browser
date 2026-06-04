@@ -1,14 +1,18 @@
 diff --git a/third_party/blink/renderer/core/html/resources/html.css b/third_party/blink/renderer/core/html/resources/html.css
-index a6e58b7450..35e1eb9869 100644
+index 550429aedb..f94027aa1f 100644
 --- a/third_party/blink/renderer/core/html/resources/html.css
 +++ b/third_party/blink/renderer/core/html/resources/html.css
-@@ -1862,3 +1862,27 @@ dialog:where(:modal) {
+@@ -2614,3 +2614,31 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
      display: none;
    }
  }
 +
-+/* Dao Browser: slim transparent scrollbar */
-+::-webkit-scrollbar {
++/* Dao Browser: slim transparent scrollbars.
++ * Only the page scrollbar gets fixed geometry. DOM scroll containers keep
++ * their page-defined width so app-level hide/show rules do not oscillate.
++ */
++html::-webkit-scrollbar,
++body::-webkit-scrollbar {
 +  width: 6px;
 +  height: 6px;
 +  background: transparent;

@@ -25,6 +25,7 @@ build_webui("build") {
     "dao_new_tab_button.ts",
     "dao_sidebar_section.ts",
     "dao_favorites_view.ts",
+    "dao_pinned_tabs_grid.ts",
     "dao_tab_list.ts",
     "dao_tab_item.ts",
     "dao_download_button.ts",

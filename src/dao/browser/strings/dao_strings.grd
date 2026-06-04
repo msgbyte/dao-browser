@@ -219,6 +219,21 @@
       <message name="IDS_DAO_ADDRESS_BAR_RELOAD_ACCESSIBLE_NAME" desc="Accessible name for the button in the address bar that reloads the current page.">
         Reload
       </message>
+      <message name="IDS_DAO_TAB_CONTEXT_PIN_TAB" desc="Context menu item that pins a regular tab into the Dao sidebar pinned items section.">
+        Pin Tab
+      </message>
+      <message name="IDS_DAO_PINNED_TAB_CONTEXT_OPEN" desc="Context menu item that opens a dormant pinned sidebar item in a browser tab.">
+        Open
+      </message>
+      <message name="IDS_DAO_PINNED_TAB_CONTEXT_UNPIN" desc="Context menu item that removes a pinned sidebar item from the pinned items section.">
+        Unpin
+      </message>
+      <message name="IDS_DAO_PINNED_TAB_CONTEXT_CLOSE_TAB" desc="Context menu item that closes the open browser tab backing a pinned sidebar item without removing the pinned item.">
+        Close Tab
+      </message>
+      <message name="IDS_DAO_PINNED_TAB_CONTEXT_COPY_LINK" desc="Context menu item that copies the URL for a pinned sidebar item to the clipboard.">
+        Copy Link
+      </message>
 
       <!-- Command bar -->
       <message name="IDS_DAO_COMMAND_BAR_PLACEHOLDER" desc="Placeholder text shown in the Spotlight-style command bar (Cmd+L) prompting the user to type either a URL or a search query.">

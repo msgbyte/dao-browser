@@ -20,6 +20,7 @@ import {
   DAO_SRC_DIR,
   BRANDING_DIR,
   THIRD_PARTY_DIR,
+  ROOT_DIR,
   log,
   success,
   warn,
@@ -29,6 +30,32 @@ import {
 } from "../utils.js";
 
 const execFileAsync = promisify(execFile);
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+export function buildFixImportPatchesCommand(patchFiles: string[]): string {
+  const args = patchFiles.map((patchFile) => {
+    let repoRelativePatch = patchFile;
+    if (path.isAbsolute(patchFile)) {
+      repoRelativePatch = path.relative(ROOT_DIR, patchFile);
+    } else if (!patchFile.startsWith(`src${path.sep}patches${path.sep}`) &&
+               !patchFile.startsWith("src/patches/")) {
+      repoRelativePatch = path.join("src", "patches", patchFile);
+    }
+    return shellQuote(repoRelativePatch);
+  });
+  return ["sh", "scripts/fix-import-patches.sh", ...args].join(" ");
+}
+
+export function buildFixImportPatchesMessage(patchFiles: string[]): string {
+  return [
+    "Repair failed patch targets with:",
+    buildFixImportPatchesCommand(patchFiles),
+    "Then re-run: npm run import",
+  ].join("\n");
+}
 
 export const importCommand = new Command("import")
   .description("Apply patches and copy Dao code into the Chromium tree")
@@ -77,6 +104,7 @@ export const importCommand = new Command("import")
     let applied = 0;
     let skipped = 0;
     let failed = 0;
+    const failedPatchFiles: string[] = [];
 
     const sortedPatches = patchFiles.sort();
 
@@ -122,6 +150,7 @@ export const importCommand = new Command("import")
             applied++;
           } catch {
             error(`Failed to apply: ${patchFile}`);
+            failedPatchFiles.push(patchFile);
             failed++;
           }
         }
@@ -344,6 +373,7 @@ export const importCommand = new Command("import")
 
     if (failed > 0) {
       error(`${failed} patch(es) failed to apply. Manual resolution needed.`);
+      console.error(buildFixImportPatchesMessage(failedPatchFiles));
       process.exit(1);
     }
 

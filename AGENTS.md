@@ -17,7 +17,7 @@ Read `docs/features.md` first when asked what Dao Browser does, when locating th
 
 - `src/dao/` contains Dao-owned C++ / WebUI / assets copied into Chromium during import.
 - `src/patches/` contains unified diff patches against Chromium files. Patch paths mirror `engine/src/`.
-- `engine/` is generated / checked-out Chromium state. Read it for context or build errors, but do not make deliverable edits there.
+- `engine/` is generated / checked-out Chromium state. Read it for context or build errors, but do not edit it directly unless the latest user message explicitly asks you to do so.
 - `branding/` contains brand assets used by the import pipeline.
 - `configs/` and `dao.json` define Chromium version, platform, GN args, and branding metadata.
 - `scripts/cli.ts` is the single CLI entrypoint behind the npm scripts.
@@ -27,7 +27,7 @@ Treat `src/dao/` and `src/patches/` as canonical. If `engine/` and tracked files
 
 ## Critical Rules
 
-- Never edit files under `engine/` as the final deliverable.
+- Never edit files under `engine/` directly unless the latest user message explicitly asks for an `engine/` edit. Keep deliverable changes in `src/dao/`, `src/patches/`, or other tracked Dao-owned sources.
 - Never run `autoninja`, `ninja`, `siso`, or direct Chromium build tools.
 - Never run `gn gen` directly.
 - For compile confirmation, use only `npm run rebuild`. Do not use `npm run build`, `npm run build:debug`, `npm run test:build`, direct Chromium build tools, or any other compile path as a substitute. Other compile paths can lose or corrupt the warm Chromium build cache.
@@ -62,7 +62,8 @@ Chromium builds are expensive. Batch related C++, header, BUILD.gn patch, resour
 - Add Dao-owned files under `src/dao/`.
 - Update Chromium integration through `src/patches/**/*.patch`.
 - Run `npm run import` to apply patches into `engine/src/`.
-- If you need to iterate inside `engine/src/` during debugging, export only the file you intentionally changed with `npm run export -- <file>`.
+- Do not hand-edit `engine/src/` to sync patch changes. Update the canonical tracked file first, then run `npm run import`.
+- If the user explicitly asks you to iterate inside `engine/src/` during debugging, export only the file you intentionally changed with `npm run export -- <file>`.
 - After reverting a patch file, also ensure the corresponding `engine/src/` file is reverted and the intended patch state is reapplied.
 
 Bare `npm run export` is dangerous because it can create false patches for branding-managed files and rewrite unrelated patches.

@@ -196,7 +196,7 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
   inner_container_->SetLayoutManager(
       std::make_unique<views::BoxLayout>(
           views::BoxLayout::Orientation::kVertical,
-          gfx::Insets::TLBR(0, 4, 0, 4), 16));
+          gfx::Insets::TLBR(0, 4, 0, 4), 2));
 
   // Header row: traffic-light spacer + toggle sidebar button
   auto header_row = std::make_unique<views::View>();
