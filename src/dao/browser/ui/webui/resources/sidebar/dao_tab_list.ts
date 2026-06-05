@@ -5,9 +5,12 @@
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {
+  clearActivePinnedItemDragId,
   sendNative,
+  getActivePinnedItemDragId,
   TAB_DRAG_PREFIX,
   FOLDER_MIME_TYPE,
+  PINNED_ITEM_DRAG_MIME_TYPE,
   isPointOutsideViewport,
 } from './sidebar_bridge.js';
 import type {TabData, FolderData, FolderAction} from './sidebar_bridge.js';
@@ -310,7 +313,9 @@ export class DaoTabList extends CrLitElement {
 
   private isInternalReorder_(e: DragEvent): boolean {
     if (!e.dataTransfer) return false;
+    if (getActivePinnedItemDragId()) return true;
     return e.dataTransfer.types.includes('text/plain') ||
+        e.dataTransfer.types.includes(PINNED_ITEM_DRAG_MIME_TYPE) ||
         e.dataTransfer.types.includes(FOLDER_MIME_TYPE);
   }
 
@@ -559,6 +564,18 @@ export class DaoTabList extends CrLitElement {
 
     // Handle internal tab reorder or cross-window tab move
     if (e.dataTransfer) {
+      const pinnedItemId = e.dataTransfer.getData(PINNED_ITEM_DRAG_MIME_TYPE) ||
+          getActivePinnedItemDragId();
+      if (pinnedItemId) {
+        e.preventDefault();
+        e.stopPropagation();
+        sendNative('unpinPinnedItem', pinnedItemId, this.dropInsertIndex_);
+        clearActivePinnedItemDragId();
+        this.dropInsertIndex_ = -1;
+        this.dropModelIndex_ = -1;
+        return;
+      }
+
       const data = e.dataTransfer.getData('text/plain');
       console.error('[Dao-Xwin-JS] onDrop_: data=' + JSON.stringify(data) +
           ' thisSessionId=' + this.sessionId +

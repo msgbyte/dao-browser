@@ -161,7 +161,24 @@ export interface FolderFileData {
 // ---- Drag-and-Drop Constants ----
 
 export const TAB_DRAG_PREFIX = 'dao-tab-drag:';
+export const TAB_DRAG_MIME_TYPE = 'application/x-dao-tab-drag';
 export const FOLDER_MIME_TYPE = 'application/x-dao-folder';
+export const PINNED_ITEM_DRAG_MIME_TYPE =
+    'application/x-dao-pinned-item-id';
+
+let activePinnedItemDragId = '';
+
+export function setActivePinnedItemDragId(id: string) {
+  activePinnedItemDragId = id;
+}
+
+export function getActivePinnedItemDragId(): string {
+  return activePinnedItemDragId;
+}
+
+export function clearActivePinnedItemDragId() {
+  activePinnedItemDragId = '';
+}
 
 /**
  * Returns true when a drag event point has left a viewport.

@@ -4,6 +4,10 @@
 
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
+import {
+  PINNED_ITEM_DRAG_MIME_TYPE,
+  TAB_DRAG_MIME_TYPE,
+} from '../sidebar_bridge.js';
 import type {PinnedItemData, SidebarState} from '../sidebar_bridge.js';
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
@@ -30,6 +34,7 @@ async function loadGrid() {
   await import('../dao_pinned_tabs_grid.js');
   const el = document.createElement('dao-pinned-tabs-grid') as HTMLElement & {
     items: PinnedItemData[];
+    sessionId: number;
     updateComplete: Promise<boolean>;
   };
   document.body.appendChild(el);
@@ -62,6 +67,18 @@ function fakeDataTransfer(initialData = ''): FakeDataTransfer {
     }),
   };
   return fake;
+}
+
+function protectedTabDragDataTransfer(payload: string): FakeDataTransfer {
+  const dataTransfer = fakeDataTransfer();
+  dataTransfer.types.push(TAB_DRAG_MIME_TYPE, 'text/plain');
+  dataTransfer.getData.mockImplementation((format: string) => {
+    if (format === TAB_DRAG_MIME_TYPE || format === 'text/plain') {
+      return payload;
+    }
+    return '';
+  });
+  return dataTransfer;
 }
 
 function dragEvent(type: string, dataTransfer?: FakeDataTransfer): DragEvent {
@@ -125,6 +142,18 @@ describe('dao-pinned-tabs-grid', () => {
         'activateOrOpenPinnedItem', ['pin-click']);
   });
 
+  it('prevents favicon images from becoming the drag source', async () => {
+    const {el} = await loadGrid();
+    el.items = [item({
+      id: 'pin-favicon',
+      faviconUrl: 'chrome://favicon2/?url=https://ublockorigin.com/',
+    })];
+    await el.updateComplete;
+
+    const favicon = el.shadowRoot!.querySelector('.favicon') as HTMLImageElement;
+    expect(favicon.draggable).toBe(false);
+  });
+
   it('shows the tab tooltip after hovering a pinned item', async () => {
     vi.useFakeTimers();
     try {
@@ -182,6 +211,8 @@ describe('dao-pinned-tabs-grid', () => {
 
     tiles[0]!.dispatchEvent(dragEvent('dragstart', dataTransfer));
     expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'pin-a');
+    expect(dataTransfer.setData).toHaveBeenCalledWith(
+        PINNED_ITEM_DRAG_MIME_TYPE, 'pin-a');
     expect(dataTransfer.effectAllowed).toBe('move');
 
     const dragOver = dragEvent('dragover', dataTransfer);
@@ -195,6 +226,46 @@ describe('dao-pinned-tabs-grid', () => {
     expect(drop.defaultPrevented).toBe(true);
     expect(send).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledWith('movePinnedItem', ['pin-a', 1]);
+  });
+
+  it('pins a same-window tab dropped on the pinned grid', async () => {
+    const {el, send} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [item({id: 'pin-a', title: 'A'})];
+    await el.updateComplete;
+
+    const tile = el.shadowRoot!.querySelector('.tile') as HTMLElement;
+    const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:3');
+    dataTransfer.getData.mockReturnValueOnce('');
+    const dragOver = dragEvent('dragover', dataTransfer);
+    tile.dispatchEvent(dragOver);
+    expect(dragOver.defaultPrevented).toBe(true);
+    expect(dataTransfer.dropEffect).toBe('move');
+
+    const drop = dragEvent('drop', dataTransfer);
+    tile.dispatchEvent(drop);
+
+    expect(drop.defaultPrevented).toBe(true);
+    expect(send).toHaveBeenCalledWith('pinTab', [3]);
+  });
+
+  it('ignores cross-window tab drops on the pinned grid', async () => {
+    const {el, send} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [item({id: 'pin-a', title: 'A'})];
+    await el.updateComplete;
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const dataTransfer = fakeDataTransfer('dao-tab-drag:8:3');
+    const dragOver = dragEvent('dragover', dataTransfer);
+    grid.dispatchEvent(dragOver);
+    expect(dragOver.defaultPrevented).toBe(false);
+
+    const drop = dragEvent('drop', dataTransfer);
+    grid.dispatchEvent(drop);
+    expect(drop.defaultPrevented).toBe(false);
+
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('ignores same-item, missing, and unknown pinned item drops', async () => {

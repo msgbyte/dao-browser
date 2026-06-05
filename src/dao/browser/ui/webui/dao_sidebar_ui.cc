@@ -429,8 +429,9 @@ void DaoSidebarUIHandler::PinTabForTesting(int index) {
   PinTabAtIndex(index);
 }
 
-void DaoSidebarUIHandler::UnpinPinnedItemForTesting(const std::string& id) {
-  UnpinPinnedItemById(id);
+void DaoSidebarUIHandler::UnpinPinnedItemForTesting(const std::string& id,
+                                                    int target_index) {
+  UnpinPinnedItemById(id, target_index);
 }
 
 void DaoSidebarUIHandler::ActivateOrOpenPinnedItemForTesting(
@@ -892,7 +893,8 @@ void DaoSidebarUIHandler::PinTabAtIndex(int index) {
   }
 }
 
-void DaoSidebarUIHandler::UnpinPinnedItemById(const std::string& id) {
+void DaoSidebarUIHandler::UnpinPinnedItemById(const std::string& id,
+                                              int target_index) {
   if (!browser_) {
     return;
   }
@@ -904,7 +906,32 @@ void DaoSidebarUIHandler::UnpinPinnedItemById(const std::string& id) {
 
   const int open_tab_index = FindOpenPinnedTabIndexForItem(*item);
   if (open_tab_index >= 0) {
-    browser_->tab_strip_model()->SetTabPinned(open_tab_index, false);
+    TabStripModel* model = browser_->tab_strip_model();
+    content::WebContents* contents = model->GetWebContentsAt(open_tab_index);
+    model->SetTabPinned(open_tab_index, false);
+
+    if (target_index >= 0 && contents) {
+      int current_index = model->GetIndexOfWebContents(contents);
+      if (current_index != TabStripModel::kNoTab) {
+        int move_target = target_index;
+        if (open_tab_index < move_target) {
+          move_target--;
+        }
+        move_target = std::clamp(move_target, 0, model->count() - 1);
+        if (current_index != move_target) {
+          model->MoveWebContentsAt(current_index, move_target, false);
+        }
+      }
+    }
+  } else if (target_index >= 0) {
+    GURL url(item->url);
+    if (url.is_valid()) {
+      TabStripModel* model = browser_->tab_strip_model();
+      NavigateParams params(browser_, url, ui::PAGE_TRANSITION_TYPED);
+      params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+      params.tabstrip_index = std::clamp(target_index, 0, model->count());
+      Navigate(&params);
+    }
   }
 
   if (pinned_tab_model_.RemoveById(id)) {
@@ -1671,7 +1698,8 @@ void DaoSidebarUIHandler::HandleUnpinPinnedItem(const base::ListValue& args) {
     return;
   }
 
-  UnpinPinnedItemById(*id);
+  UnpinPinnedItemById(*id, args.size() > 1 ? args[1].GetIfInt().value_or(-1)
+                                           : -1);
 }
 
 void DaoSidebarUIHandler::HandleActivateOrOpenPinnedItem(

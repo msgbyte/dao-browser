@@ -4,10 +4,16 @@
 
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {sendNative} from './sidebar_bridge.js';
+import {
+  clearActivePinnedItemDragId,
+  getActivePinnedItemDragId,
+  PINNED_ITEM_DRAG_MIME_TYPE,
+  setActivePinnedItemDragId,
+  TAB_DRAG_MIME_TYPE,
+  parseTabDragData,
+  sendNative,
+} from './sidebar_bridge.js';
 import type {PinnedItemData} from './sidebar_bridge.js';
-
-const PINNED_ITEM_DRAG_MIME_TYPE = 'application/x-dao-pinned-item-id';
 
 export class DaoPinnedTabsGrid extends CrLitElement {
   static get is() {
@@ -118,11 +124,12 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   static override get properties() {
     return {
       items: {type: Array},
+      sessionId: {type: Number},
     };
   }
 
   declare items: PinnedItemData[];
-  private draggedItemId_: string = '';
+  declare sessionId: number;
   private tooltipTimer_: number = 0;
   private lastMouseX_: number = 0;
   private lastMouseY_: number = 0;
@@ -130,11 +137,14 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   constructor() {
     super();
     this.items = [];
+    this.sessionId = 0;
   }
 
   override render() {
     return html`
-      <div class="grid">
+      <div class="grid"
+           @dragover=${(e: DragEvent) => this.onGridDragOver_(e)}
+           @drop=${(e: DragEvent) => this.onGridDrop_(e)}>
         ${this.items.map(item => this.renderTile_(item))}
       </div>
     `;
@@ -159,7 +169,7 @@ export class DaoPinnedTabsGrid extends CrLitElement {
               @mouseleave=${() => this.onHideTooltip_()}>
         ${item.faviconUrl
             ? html`<img class="favicon ${item.isFaviconLight ? 'light-icon' : ''}"
-                        src=${item.faviconUrl} alt="">`
+                        src=${item.faviconUrl} alt="" draggable="false">`
             : html`<div class="placeholder"></div>`}
         <div class="title">${displayTitle}</div>
       </button>
@@ -171,7 +181,7 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   }
 
   private onDragStart_(e: DragEvent, item: PinnedItemData) {
-    this.draggedItemId_ = item.id;
+    setActivePinnedItemDragId(item.id);
     if (e.dataTransfer) {
       e.dataTransfer.setData(PINNED_ITEM_DRAG_MIME_TYPE, item.id);
       e.dataTransfer.setData('text/plain', item.id);
@@ -202,7 +212,7 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     const toIndex = this.items.findIndex(pinnedItem => pinnedItem.id === item.id);
     const draggedIndex =
         this.items.findIndex(pinnedItem => pinnedItem.id === draggedId);
-    this.draggedItemId_ = '';
+    clearActivePinnedItemDragId();
 
     if (!draggedId || draggedId === item.id ||
         draggedIndex < 0 || toIndex < 0) {
@@ -212,8 +222,30 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     sendNative('movePinnedItem', draggedId, toIndex);
   }
 
+  private onGridDragOver_(e: DragEvent) {
+    if (!this.hasTabDrag_(e)) {
+      return;
+    }
+
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  private onGridDrop_(e: DragEvent) {
+    const tabIndex = this.getSameWindowDraggedTabIndex_(e);
+    if (tabIndex === null) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    sendNative('pinTab', tabIndex);
+  }
+
   private hasInternalDrag_(e: DragEvent): boolean {
-    if (this.draggedItemId_) {
+    if (getActivePinnedItemDragId()) {
       return true;
     }
     return this.getDataTransferTypes_(e).includes(PINNED_ITEM_DRAG_MIME_TYPE);
@@ -221,7 +253,21 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
   private getDraggedItemId_(e: DragEvent): string {
     const markedId = e.dataTransfer?.getData(PINNED_ITEM_DRAG_MIME_TYPE) || '';
-    return markedId || this.draggedItemId_;
+    return markedId || getActivePinnedItemDragId();
+  }
+
+  private getSameWindowDraggedTabIndex_(e: DragEvent): number|null {
+    const dragData = e.dataTransfer?.getData(TAB_DRAG_MIME_TYPE) ||
+        e.dataTransfer?.getData('text/plain') || '';
+    const parsed = parseTabDragData(dragData);
+    if (!parsed || parsed.sessionId !== this.sessionId) {
+      return null;
+    }
+    return parsed.tabIndex;
+  }
+
+  private hasTabDrag_(e: DragEvent): boolean {
+    return this.getDataTransferTypes_(e).includes(TAB_DRAG_MIME_TYPE);
   }
 
   private getDataTransferTypes_(e: DragEvent): string[] {
@@ -232,7 +278,7 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   }
 
   private onDragEnd_() {
-    this.draggedItemId_ = '';
+    clearActivePinnedItemDragId();
   }
 
   private onContextMenu_(e: MouseEvent, item: PinnedItemData) {

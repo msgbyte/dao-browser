@@ -405,7 +405,8 @@ export class DaoSidebarApp extends CrLitElement {
       <div class="sidebar-content">
         ${this.pinnedItems_.length > 0 ? html`
           <dao-pinned-tabs-grid
-            .items=${this.pinnedItems_}>
+            .items=${this.pinnedItems_}
+            .sessionId=${this.sessionId_}>
           </dao-pinned-tabs-grid>
         ` : this.pinnedTabs_.length > 0 ? html`
           <dao-favorites-view

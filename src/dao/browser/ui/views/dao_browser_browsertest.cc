@@ -215,6 +215,17 @@ int GetIntField(const base::DictValue& dict, const char* key) {
   return dict.FindInt(key).value_or(-1);
 }
 
+int FindTabIndexByUrl(Browser* browser, const GURL& url) {
+  TabStripModel* model = browser->tab_strip_model();
+  for (int i = 0; i < model->count(); ++i) {
+    content::WebContents* contents = model->GetWebContentsAt(i);
+    if (contents && contents->GetLastCommittedURL() == url) {
+      return i;
+    }
+  }
+  return TabStripModel::kNoTab;
+}
+
 void AttachSidebarHandlerForTesting(Browser* browser,
                                     DaoSidebarUIHandler* handler) {
   browser->profile()->GetPrefs()->SetBoolean(prefs::kDaoWelcomeShown, true);
@@ -355,8 +366,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, WebUIStartsCloseToHeader) {
   auto* web_view = FindDescendantViewOfClass<views::WebView>(sidebar);
   ASSERT_NE(nullptr, web_view);
 
-  gfx::Rect web_bounds = web_view->bounds();
-  views::View::ConvertRectToTarget(web_view->parent(), sidebar, &web_bounds);
+  gfx::Rect web_bounds = views::View::ConvertRectToTarget(
+      web_view->parent(), sidebar, web_view->bounds());
   const int gap = web_bounds.y() - sidebar->header_bounds_in_sidebar().bottom();
 
   EXPECT_LE(gap, 2);
@@ -369,13 +380,14 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
   const GURL unpinned_url = embedded_test_server()->GetURL("/title2.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
-  chrome::AddTabAt(browser(), unpinned_url, -1, true);
+  chrome::AddTabAt(browser(), unpinned_url, 1, true);
   ASSERT_TRUE(content::WaitForLoadStop(
       browser()->tab_strip_model()->GetActiveWebContents()));
 
   dao::DaoSidebarUIHandler handler;
   AttachSidebarHandlerForTesting(browser(), &handler);
-  handler.PinTabForTesting(0);
+  ASSERT_NE(TabStripModel::kNoTab, FindTabIndexByUrl(browser(), pinned_url));
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), pinned_url));
 
   TabStripModel* model = browser()->tab_strip_model();
   ASSERT_EQ(2, model->count());
@@ -411,13 +423,14 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
   const GURL unpinned_url = embedded_test_server()->GetURL("/title2.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
-  chrome::AddTabAt(browser(), unpinned_url, -1, true);
+  chrome::AddTabAt(browser(), unpinned_url, 1, true);
   ASSERT_TRUE(content::WaitForLoadStop(
       browser()->tab_strip_model()->GetActiveWebContents()));
 
   dao::DaoSidebarUIHandler handler;
   AttachSidebarHandlerForTesting(browser(), &handler);
-  handler.PinTabForTesting(0);
+  ASSERT_NE(TabStripModel::kNoTab, FindTabIndexByUrl(browser(), pinned_url));
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), pinned_url));
 
   base::ListValue open_items = handler.GetPinnedItemsForTesting();
   const base::DictValue* open_item =
@@ -454,13 +467,14 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
   const GURL unpinned_url = embedded_test_server()->GetURL("/title2.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
-  chrome::AddTabAt(browser(), unpinned_url, -1, true);
+  chrome::AddTabAt(browser(), unpinned_url, 1, true);
   ASSERT_TRUE(content::WaitForLoadStop(
       browser()->tab_strip_model()->GetActiveWebContents()));
 
   dao::DaoSidebarUIHandler handler;
   AttachSidebarHandlerForTesting(browser(), &handler);
-  handler.PinTabForTesting(0);
+  ASSERT_NE(TabStripModel::kNoTab, FindTabIndexByUrl(browser(), pinned_url));
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), pinned_url));
 
   base::ListValue open_items = handler.GetPinnedItemsForTesting();
   const base::DictValue* open_item =
@@ -529,6 +543,151 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   ASSERT_NE(nullptr, unpinned_tabs);
   EXPECT_NE(nullptr,
             FindDictByStringField(*unpinned_tabs, "url", pinned_url.spec()));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       UnpinPinnedItemCanMoveBackingTabToDropIndex) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL first_url = embedded_test_server()->GetURL("/title2.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title3.html");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+  chrome::AddTabAt(browser(), first_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  chrome::AddTabAt(browser(), second_url, 2, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  ASSERT_NE(TabStripModel::kNoTab, FindTabIndexByUrl(browser(), pinned_url));
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), pinned_url));
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(3, model->count());
+  ASSERT_TRUE(model->IsTabPinned(0));
+  EXPECT_EQ(pinned_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_EQ(first_url, model->GetWebContentsAt(1)->GetLastCommittedURL());
+  EXPECT_EQ(second_url, model->GetWebContentsAt(2)->GetLastCommittedURL());
+
+  base::ListValue pinned_items = handler.GetPinnedItemsForTesting();
+  const base::DictValue* pinned_item =
+      FindDictByStringField(pinned_items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, pinned_item);
+  const std::string pinned_item_id = GetStringField(*pinned_item, "id");
+  ASSERT_FALSE(pinned_item_id.empty());
+
+  handler.UnpinPinnedItemForTesting(pinned_item_id, 2);
+
+  ASSERT_EQ(3, model->count());
+  EXPECT_FALSE(model->IsTabPinned(1));
+  EXPECT_EQ(first_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_EQ(pinned_url, model->GetWebContentsAt(1)->GetLastCommittedURL());
+  EXPECT_EQ(second_url, model->GetWebContentsAt(2)->GetLastCommittedURL());
+  EXPECT_TRUE(handler.GetPinnedItemsForTesting().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       UnpinDormantPinnedItemOpensTabAtDropIndex) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL first_url = embedded_test_server()->GetURL("/title2.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title3.html");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+  chrome::AddTabAt(browser(), first_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  chrome::AddTabAt(browser(), second_url, 2, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  ASSERT_NE(TabStripModel::kNoTab, FindTabIndexByUrl(browser(), pinned_url));
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), pinned_url));
+
+  base::ListValue open_items = handler.GetPinnedItemsForTesting();
+  const base::DictValue* open_item =
+      FindDictByStringField(open_items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, open_item);
+  const std::string pinned_item_id = GetStringField(*open_item, "id");
+  ASSERT_FALSE(pinned_item_id.empty());
+
+  handler.ClosePinnedItemTabForTesting(pinned_item_id);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(2, model->count());
+  EXPECT_EQ(first_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_EQ(second_url, model->GetWebContentsAt(1)->GetLastCommittedURL());
+
+  handler.UnpinPinnedItemForTesting(pinned_item_id, 1);
+
+  ASSERT_EQ(3, model->count());
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetWebContentsAt(1)));
+  EXPECT_FALSE(model->IsTabPinned(1));
+  EXPECT_EQ(first_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_EQ(pinned_url, model->GetWebContentsAt(1)->GetLastCommittedURL());
+  EXPECT_EQ(second_url, model->GetWebContentsAt(2)->GetLastCommittedURL());
+  EXPECT_TRUE(handler.GetPinnedItemsForTesting().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       UnpinDormantPinnedItemOffsetsExistingPinnedTabs) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL other_pinned_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL dormant_url = embedded_test_server()->GetURL("/title2.html");
+  const GURL first_url = embedded_test_server()->GetURL("/title3.html");
+  const GURL second_url = embedded_test_server()->GetURL("/simple.html");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), other_pinned_url));
+  chrome::AddTabAt(browser(), dormant_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  chrome::AddTabAt(browser(), first_url, 2, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  chrome::AddTabAt(browser(), second_url, 3, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), other_pinned_url));
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), dormant_url));
+
+  base::ListValue pinned_items = handler.GetPinnedItemsForTesting();
+  const base::DictValue* dormant_item =
+      FindDictByStringField(pinned_items, "url", dormant_url.spec());
+  ASSERT_NE(nullptr, dormant_item);
+  const std::string dormant_item_id = GetStringField(*dormant_item, "id");
+  ASSERT_FALSE(dormant_item_id.empty());
+
+  handler.ClosePinnedItemTabForTesting(dormant_item_id);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(3, model->count());
+  ASSERT_TRUE(model->IsTabPinned(0));
+  EXPECT_EQ(other_pinned_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_EQ(first_url, model->GetWebContentsAt(1)->GetLastCommittedURL());
+  EXPECT_EQ(second_url, model->GetWebContentsAt(2)->GetLastCommittedURL());
+
+  handler.UnpinPinnedItemForTesting(dormant_item_id, 2);
+
+  ASSERT_EQ(4, model->count());
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetWebContentsAt(2)));
+  EXPECT_TRUE(model->IsTabPinned(0));
+  EXPECT_FALSE(model->IsTabPinned(1));
+  EXPECT_FALSE(model->IsTabPinned(2));
+  EXPECT_EQ(other_pinned_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_EQ(first_url, model->GetWebContentsAt(1)->GetLastCommittedURL());
+  EXPECT_EQ(dormant_url, model->GetWebContentsAt(2)->GetLastCommittedURL());
+  EXPECT_EQ(second_url, model->GetWebContentsAt(3)->GetLastCommittedURL());
 }
 
 // =============================================================================
