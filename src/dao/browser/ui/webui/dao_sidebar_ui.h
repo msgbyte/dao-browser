@@ -117,7 +117,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
 
   base::ListValue GetPinnedItemsForTesting();
   base::DictValue GetSidebarStateForTesting();
-  void PinTabForTesting(int index);
+  void PinTabForTesting(int index, int pinned_target_index = -1);
   void UnpinPinnedItemForTesting(const std::string& id,
                                  int target_index = -1);
   void ActivateOrOpenPinnedItemForTesting(const std::string& id);
@@ -142,7 +142,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   int FindOpenPinnedTabIndexForItem(const DaoPinnedTabItem& item) const;
   void LoadPinnedItemsThenPushFullState();
   void SavePinnedItems();
-  void PinTabAtIndex(int index);
+  void PinTabAtIndex(int index, int pinned_target_index = -1);
   void UnpinPinnedItemById(const std::string& id, int target_index = -1);
   void ActivateOrOpenPinnedItem(const std::string& id);
   void ClosePinnedItemTab(const std::string& id);

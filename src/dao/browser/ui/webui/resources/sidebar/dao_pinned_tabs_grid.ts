@@ -90,6 +90,15 @@ export class DaoPinnedTabsGrid extends CrLitElement {
         background: var(--surface);
       }
 
+      .drag-placeholder {
+        min-width: 0;
+        height: 56px;
+        border: 1px dashed rgba(70, 120, 190, 0.48);
+        border-radius: var(--radius-tab, 12px);
+        background: rgba(70, 120, 190, 0.12);
+        box-sizing: border-box;
+      }
+
       .title {
         max-width: 100%;
         min-width: 0;
@@ -117,6 +126,11 @@ export class DaoPinnedTabsGrid extends CrLitElement {
                       0 1px 3px rgba(0, 0, 0, 0.30),
                       0 1px 2px rgba(0, 0, 0, 0.18);
         }
+
+        .drag-placeholder {
+          border-color: rgba(130, 170, 230, 0.54);
+          background: rgba(130, 170, 230, 0.16);
+        }
       }
     `;
   }
@@ -130,6 +144,8 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
   declare items: PinnedItemData[];
   declare sessionId: number;
+  private dragPlaceholderIndex_: number = -1;
+  private tabDragPlaceholderVisible_: boolean = false;
   private tooltipTimer_: number = 0;
   private lastMouseX_: number = 0;
   private lastMouseY_: number = 0;
@@ -144,10 +160,45 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     return html`
       <div class="grid"
            @dragover=${(e: DragEvent) => this.onGridDragOver_(e)}
+           @dragleave=${(e: DragEvent) => this.onGridDragLeave_(e)}
            @drop=${(e: DragEvent) => this.onGridDrop_(e)}>
-        ${this.items.map(item => this.renderTile_(item))}
+        ${this.renderTiles_()}
       </div>
     `;
+  }
+
+  private renderTiles_() {
+    const draggedId = getActivePinnedItemDragId();
+    if (this.tabDragPlaceholderVisible_) {
+      return this.renderItemsWithPlaceholder_(this.items, this.getPinnedDropIndex_());
+    }
+
+    if (!draggedId || this.dragPlaceholderIndex_ < 0) {
+      return this.items.map(item => this.renderTile_(item));
+    }
+
+    const visibleItems = this.items.filter(item => item.id !== draggedId);
+    return this.renderItemsWithPlaceholder_(
+        visibleItems, Math.min(this.dragPlaceholderIndex_, visibleItems.length));
+  }
+
+  private renderItemsWithPlaceholder_(
+      items: PinnedItemData[], placeholderIndex: number) {
+    const boundedIndex = Math.min(Math.max(0, placeholderIndex), items.length);
+    const fragments = [];
+    for (let i = 0; i <= items.length; i++) {
+      if (i === boundedIndex) {
+        fragments.push(this.renderDragPlaceholder_());
+      }
+      if (i < items.length) {
+        fragments.push(this.renderTile_(items[i]!));
+      }
+    }
+    return fragments;
+  }
+
+  private renderDragPlaceholder_() {
+    return html`<div class="drag-placeholder" aria-hidden="true"></div>`;
   }
 
   private renderTile_(item: PinnedItemData) {
@@ -161,7 +212,7 @@ export class DaoPinnedTabsGrid extends CrLitElement {
               @click=${() => this.onActivateOrOpen_(item)}
               @contextmenu=${(e: MouseEvent) => this.onContextMenu_(e, item)}
               @dragstart=${(e: DragEvent) => this.onDragStart_(e, item)}
-              @dragover=${(e: DragEvent) => this.onDragOver_(e)}
+              @dragover=${(e: DragEvent) => this.onDragOver_(e, item)}
               @drop=${(e: DragEvent) => this.onDrop_(e, item)}
               @dragend=${() => this.onDragEnd_()}
               @mouseenter=${(e: MouseEvent) => this.onShowTooltip_(e, item)}
@@ -189,12 +240,22 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     }
   }
 
-  private onDragOver_(e: DragEvent) {
-    if (!this.hasInternalDrag_(e)) {
+  private onDragOver_(e: DragEvent, item: PinnedItemData) {
+    const isInternalDrag = this.hasInternalDrag_(e);
+    const isTabDrag = this.hasTabDrag_(e);
+    if (!isInternalDrag && !isTabDrag) {
       return;
     }
 
     e.preventDefault();
+    e.stopPropagation();
+    this.setDragPlaceholderIndex_(
+        this.getTileDropIndex_(e, item, isInternalDrag));
+    if (isTabDrag) {
+      this.showTabDragPlaceholder_();
+    } else {
+      this.clearTabDragPlaceholder_();
+    }
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'move';
     }
@@ -209,31 +270,65 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     e.preventDefault();
     e.stopPropagation();
 
-    const toIndex = this.items.findIndex(pinnedItem => pinnedItem.id === item.id);
-    const draggedIndex =
-        this.items.findIndex(pinnedItem => pinnedItem.id === draggedId);
-    clearActivePinnedItemDragId();
-
-    if (!draggedId || draggedId === item.id ||
-        draggedIndex < 0 || toIndex < 0) {
-      return;
-    }
-
-    sendNative('movePinnedItem', draggedId, toIndex);
+    const toIndex = this.dragPlaceholderIndex_ >= 0 ?
+        this.getPinnedDropIndex_() :
+        this.getTileDropIndex_(e, item, true);
+    this.movePinnedItem_(draggedId, toIndex);
   }
 
   private onGridDragOver_(e: DragEvent) {
+    if (this.hasInternalDrag_(e)) {
+      e.preventDefault();
+      if (this.isDragPlaceholderTarget_(e)) {
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'move';
+        }
+        return;
+      }
+      if (this.dragPlaceholderIndex_ < 0) {
+        this.setDragPlaceholderIndex_(this.items.length - 1);
+      }
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+      }
+      return;
+    }
+
     if (!this.hasTabDrag_(e)) {
       return;
     }
 
     e.preventDefault();
+    if (this.shouldKeepCurrentTabDropIndex_(e)) {
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+      }
+      return;
+    }
+    this.setDragPlaceholderIndex_(this.items.length);
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'move';
     }
+    this.showTabDragPlaceholder_();
+  }
+
+  private onGridDragLeave_(e: DragEvent) {
+    const relatedTarget = e.relatedTarget as Node | null;
+    if (relatedTarget && this.shadowRoot?.contains(relatedTarget)) {
+      return;
+    }
+    this.clearTabDragPlaceholder_();
   }
 
   private onGridDrop_(e: DragEvent) {
+    const draggedId = this.getDraggedItemId_(e);
+    if (draggedId) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.movePinnedItem_(draggedId, this.getPinnedDropIndex_());
+      return;
+    }
+
     const tabIndex = this.getSameWindowDraggedTabIndex_(e);
     if (tabIndex === null) {
       return;
@@ -241,7 +336,103 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
     e.preventDefault();
     e.stopPropagation();
-    sendNative('pinTab', tabIndex);
+    sendNative('pinTab', tabIndex, this.getPinnedDropIndex_());
+    this.clearTabDragPlaceholder_();
+  }
+
+  private movePinnedItem_(draggedId: string, toIndex: number) {
+    const draggedIndex =
+        this.items.findIndex(pinnedItem => pinnedItem.id === draggedId);
+    this.clearPinnedDrag_();
+
+    if (!draggedId || draggedIndex === toIndex ||
+        draggedIndex < 0 || toIndex < 0) {
+      return;
+    }
+
+    sendNative('movePinnedItem', draggedId, toIndex);
+  }
+
+  private getPinnedDropIndex_(): number {
+    return Math.min(
+        Math.max(0, this.dragPlaceholderIndex_), this.items.length);
+  }
+
+  private getTileDropIndex_(
+      e: DragEvent, item: PinnedItemData, adjustForDraggedItem: boolean): number {
+    const targetIndex =
+        this.items.findIndex(pinnedItem => pinnedItem.id === item.id);
+    if (targetIndex < 0) {
+      return -1;
+    }
+
+    let dropIndex = targetIndex;
+    let usedPointerPosition = false;
+    const target = e.currentTarget;
+    if (target instanceof HTMLElement && e.clientX !== 0) {
+      const rect = target.getBoundingClientRect();
+      if (rect.width > 0 || rect.height > 0) {
+        usedPointerPosition = true;
+        const afterThresholdX = rect.left + rect.width * 2 / 3;
+        if (e.clientX > afterThresholdX) {
+          dropIndex++;
+        }
+      }
+    }
+
+    if (!adjustForDraggedItem) {
+      return dropIndex;
+    }
+
+    if (!usedPointerPosition) {
+      return dropIndex;
+    }
+
+    const draggedIndex = this.items.findIndex(
+        pinnedItem => pinnedItem.id === getActivePinnedItemDragId());
+    if (draggedIndex >= 0 && draggedIndex < dropIndex) {
+      return dropIndex - 1;
+    }
+    return dropIndex;
+  }
+
+  private isDragPlaceholderTarget_(e: DragEvent): boolean {
+    return e.target instanceof HTMLElement &&
+        e.target.classList.contains('drag-placeholder');
+  }
+
+  private shouldKeepCurrentTabDropIndex_(e: DragEvent): boolean {
+    if (this.isDragPlaceholderTarget_(e)) {
+      return true;
+    }
+    if (!this.tabDragPlaceholderVisible_ || this.dragPlaceholderIndex_ < 0) {
+      return false;
+    }
+    return !this.isAfterLastRenderedTile_(e);
+  }
+
+  private isAfterLastRenderedTile_(e: DragEvent): boolean {
+    const elements =
+        this.shadowRoot?.querySelectorAll('.tile, .drag-placeholder') || [];
+    const last = elements[elements.length - 1];
+    if (!(last instanceof HTMLElement)) {
+      return false;
+    }
+
+    const rect = last.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      return false;
+    }
+
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    if (clientX === 0 && clientY === 0) {
+      return false;
+    }
+
+    return clientY > rect.bottom ||
+        (clientY >= rect.top && clientY <= rect.bottom &&
+         clientX > rect.right);
   }
 
   private hasInternalDrag_(e: DragEvent): boolean {
@@ -278,7 +469,41 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   }
 
   private onDragEnd_() {
+    this.clearPinnedDrag_();
+  }
+
+  private setDragPlaceholderIndex_(index: number) {
+    const nextIndex = Math.max(0, index);
+    if (this.dragPlaceholderIndex_ === nextIndex) {
+      return;
+    }
+    this.dragPlaceholderIndex_ = nextIndex;
+    this.requestUpdate();
+  }
+
+  private clearPinnedDrag_() {
     clearActivePinnedItemDragId();
+    if (this.dragPlaceholderIndex_ === -1) {
+      return;
+    }
+    this.dragPlaceholderIndex_ = -1;
+    this.requestUpdate();
+  }
+
+  private showTabDragPlaceholder_() {
+    if (this.tabDragPlaceholderVisible_) {
+      return;
+    }
+    this.tabDragPlaceholderVisible_ = true;
+    this.requestUpdate();
+  }
+
+  private clearTabDragPlaceholder_() {
+    if (!this.tabDragPlaceholderVisible_) {
+      return;
+    }
+    this.tabDragPlaceholderVisible_ = false;
+    this.requestUpdate();
   }
 
   private onContextMenu_(e: MouseEvent, item: PinnedItemData) {

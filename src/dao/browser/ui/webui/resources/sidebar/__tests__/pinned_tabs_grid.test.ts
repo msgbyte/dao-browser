@@ -5,6 +5,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {
+  clearActivePinnedItemDragId,
   PINNED_ITEM_DRAG_MIME_TYPE,
   TAB_DRAG_MIME_TYPE,
 } from '../sidebar_bridge.js';
@@ -92,6 +93,18 @@ function dragEvent(type: string, dataTransfer?: FakeDataTransfer): DragEvent {
   return event;
 }
 
+function renderedTileOrder(el: HTMLElement): string[] {
+  return Array.from(
+      el.shadowRoot!.querySelectorAll('.tile, .drag-placeholder'))
+      .map(node => {
+        const element = node as HTMLElement;
+        if (element.classList.contains('drag-placeholder')) {
+          return 'placeholder';
+        }
+        return element.textContent?.trim() || '';
+      });
+}
+
 describe('dao-pinned-tabs-grid', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -99,6 +112,7 @@ describe('dao-pinned-tabs-grid', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+    clearActivePinnedItemDragId();
     vi.restoreAllMocks();
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
   });
@@ -228,6 +242,111 @@ describe('dao-pinned-tabs-grid', () => {
     expect(send).toHaveBeenCalledWith('movePinnedItem', ['pin-a', 1]);
   });
 
+  it('shows a grid placeholder at the pinned item drop position', async () => {
+    const {el} = await loadGrid();
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    let tiles = el.shadowRoot!.querySelectorAll('.tile');
+    const dataTransfer = fakeDataTransfer();
+    tiles[0]!.dispatchEvent(dragEvent('dragstart', dataTransfer));
+    await el.updateComplete;
+
+    expect(renderedTileOrder(el)).toEqual(['A', 'B', 'C']);
+
+    tiles = el.shadowRoot!.querySelectorAll('.tile');
+    const dragOver = dragEvent('dragover', dataTransfer);
+    tiles[1]!.dispatchEvent(dragOver);
+    await el.updateComplete;
+
+    expect(dragOver.defaultPrevented).toBe(true);
+    expect(renderedTileOrder(el)).toEqual(['B', 'placeholder', 'C']);
+
+    tiles[0]!.dispatchEvent(dragEvent('dragend', dataTransfer));
+  });
+
+  it('moves a pinned item dropped on the grid placeholder', async () => {
+    const {el, send} = await loadGrid();
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    let tiles = el.shadowRoot!.querySelectorAll('.tile');
+    const dataTransfer = fakeDataTransfer();
+    tiles[0]!.dispatchEvent(dragEvent('dragstart', dataTransfer));
+
+    const dragOver = dragEvent('dragover', dataTransfer);
+    tiles[1]!.dispatchEvent(dragOver);
+    await el.updateComplete;
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const drop = dragEvent('drop', dataTransfer);
+    grid.dispatchEvent(drop);
+
+    expect(drop.defaultPrevented).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith('movePinnedItem', ['pin-a', 1]);
+
+    tiles = el.shadowRoot!.querySelectorAll('.tile');
+    tiles[0]!.dispatchEvent(dragEvent('dragend', dataTransfer));
+  });
+
+  it('centers a pinned item placeholder around the pointer on a pinned tile', async () => {
+    const {el, send} = await loadGrid();
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    let tiles = el.shadowRoot!.querySelectorAll('.tile');
+    const dataTransfer = fakeDataTransfer();
+    tiles[0]!.dispatchEvent(dragEvent('dragstart', dataTransfer));
+
+    tiles = el.shadowRoot!.querySelectorAll('.tile');
+    vi.spyOn(tiles[1] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      bottom: 60,
+      height: 56,
+      left: 60,
+      right: 116,
+      top: 4,
+      width: 56,
+      x: 60,
+      y: 4,
+      toJSON: () => {},
+    });
+
+    const dragOver = dragEvent('dragover', dataTransfer);
+    Object.defineProperties(dragOver, {
+      clientX: {value: 70},
+      clientY: {value: 30},
+    });
+    tiles[1]!.dispatchEvent(dragOver);
+    await el.updateComplete;
+
+    expect(dragOver.defaultPrevented).toBe(true);
+    expect(renderedTileOrder(el)).toEqual(['placeholder', 'B', 'C']);
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const drop = dragEvent('drop', dataTransfer);
+    grid.dispatchEvent(drop);
+    await el.updateComplete;
+
+    expect(drop.defaultPrevented).toBe(true);
+    expect(send).not.toHaveBeenCalled();
+
+    tiles = el.shadowRoot!.querySelectorAll('.tile');
+    tiles[0]!.dispatchEvent(dragEvent('dragend', dataTransfer));
+  });
+
   it('pins a same-window tab dropped on the pinned grid', async () => {
     const {el, send} = await loadGrid();
     el.sessionId = 7;
@@ -246,7 +365,251 @@ describe('dao-pinned-tabs-grid', () => {
     tile.dispatchEvent(drop);
 
     expect(drop.defaultPrevented).toBe(true);
-    expect(send).toHaveBeenCalledWith('pinTab', [3]);
+    expect(send).toHaveBeenCalledWith('pinTab', [3, 0]);
+  });
+
+  it('shows an end placeholder for a same-window tab dragged into the pinned grid', async () => {
+    const {el, send} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+    ];
+    await el.updateComplete;
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:3');
+    const dragOver = dragEvent('dragover', dataTransfer);
+    grid.dispatchEvent(dragOver);
+    await el.updateComplete;
+
+    expect(dragOver.defaultPrevented).toBe(true);
+    expect(dataTransfer.dropEffect).toBe('move');
+    expect(renderedTileOrder(el)).toEqual(['A', 'B', 'placeholder']);
+
+    const drop = dragEvent('drop', dataTransfer);
+    grid.dispatchEvent(drop);
+    await el.updateComplete;
+
+    expect(drop.defaultPrevented).toBe(true);
+    expect(send).toHaveBeenCalledWith('pinTab', [3, 2]);
+    expect(renderedTileOrder(el)).toEqual(['A', 'B']);
+  });
+
+  it('shows a middle placeholder for a same-window tab dragged over a pinned tile', async () => {
+    const {el, send} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    let tiles = el.shadowRoot!.querySelectorAll('.tile');
+    const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:4');
+    const dragOver = dragEvent('dragover', dataTransfer);
+    tiles[1]!.dispatchEvent(dragOver);
+    await el.updateComplete;
+
+    expect(dragOver.defaultPrevented).toBe(true);
+    expect(dataTransfer.dropEffect).toBe('move');
+    expect(renderedTileOrder(el)).toEqual(['A', 'placeholder', 'B', 'C']);
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const drop = dragEvent('drop', dataTransfer);
+    grid.dispatchEvent(drop);
+    await el.updateComplete;
+
+    expect(drop.defaultPrevented).toBe(true);
+    expect(send).toHaveBeenCalledWith('pinTab', [4, 1]);
+
+    tiles = el.shadowRoot!.querySelectorAll('.tile');
+    tiles[0]!.dispatchEvent(dragEvent('dragend', dataTransfer));
+  });
+
+  it('keeps the tab placeholder before a pinned tile through its left two thirds', async () => {
+    const {el, send} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    const tiles = el.shadowRoot!.querySelectorAll('.tile');
+    vi.spyOn(tiles[1] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      bottom: 60,
+      height: 56,
+      left: 60,
+      right: 116,
+      top: 4,
+      width: 56,
+      x: 60,
+      y: 4,
+      toJSON: () => {},
+    });
+
+    const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:4');
+    const dragOver = dragEvent('dragover', dataTransfer);
+    Object.defineProperties(dragOver, {
+      clientX: {value: 96},
+      clientY: {value: 30},
+    });
+    tiles[1]!.dispatchEvent(dragOver);
+    await el.updateComplete;
+
+    expect(dragOver.defaultPrevented).toBe(true);
+    expect(renderedTileOrder(el)).toEqual(['A', 'placeholder', 'B', 'C']);
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const drop = dragEvent('drop', dataTransfer);
+    grid.dispatchEvent(drop);
+    await el.updateComplete;
+
+    expect(drop.defaultPrevented).toBe(true);
+    expect(send).toHaveBeenCalledWith('pinTab', [4, 1]);
+  });
+
+  it('moves the tab placeholder after a pinned tile in its right third', async () => {
+    const {el, send} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    const tiles = el.shadowRoot!.querySelectorAll('.tile');
+    vi.spyOn(tiles[1] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      bottom: 60,
+      height: 56,
+      left: 60,
+      right: 116,
+      top: 4,
+      width: 56,
+      x: 60,
+      y: 4,
+      toJSON: () => {},
+    });
+
+    const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:4');
+    const dragOver = dragEvent('dragover', dataTransfer);
+    Object.defineProperties(dragOver, {
+      clientX: {value: 104},
+      clientY: {value: 30},
+    });
+    tiles[1]!.dispatchEvent(dragOver);
+    await el.updateComplete;
+
+    expect(dragOver.defaultPrevented).toBe(true);
+    expect(renderedTileOrder(el)).toEqual(['A', 'B', 'placeholder', 'C']);
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const drop = dragEvent('drop', dataTransfer);
+    grid.dispatchEvent(drop);
+    await el.updateComplete;
+
+    expect(drop.defaultPrevented).toBe(true);
+    expect(send).toHaveBeenCalledWith('pinTab', [4, 2]);
+  });
+
+  it('keeps the tab placeholder stable when dragging over the placeholder', async () => {
+    const {el} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    const tiles = el.shadowRoot!.querySelectorAll('.tile');
+    const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:4');
+    tiles[1]!.dispatchEvent(dragEvent('dragover', dataTransfer));
+    await el.updateComplete;
+
+    expect(renderedTileOrder(el)).toEqual(['A', 'placeholder', 'B', 'C']);
+
+    const placeholder =
+        el.shadowRoot!.querySelector('.drag-placeholder') as HTMLElement;
+    const placeholderDragOver = dragEvent('dragover', dataTransfer);
+    placeholder.dispatchEvent(placeholderDragOver);
+    await el.updateComplete;
+
+    expect(placeholderDragOver.defaultPrevented).toBe(true);
+    expect(renderedTileOrder(el)).toEqual(['A', 'placeholder', 'B', 'C']);
+  });
+
+  it('keeps the tab placeholder stable when dragging through grid gaps', async () => {
+    const {el} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    const tiles = el.shadowRoot!.querySelectorAll('.tile');
+    const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:4');
+    tiles[1]!.dispatchEvent(dragEvent('dragover', dataTransfer));
+    await el.updateComplete;
+
+    expect(renderedTileOrder(el)).toEqual(['A', 'placeholder', 'B', 'C']);
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const gapDragOver = dragEvent('dragover', dataTransfer);
+    grid.dispatchEvent(gapDragOver);
+    await el.updateComplete;
+
+    expect(gapDragOver.defaultPrevented).toBe(true);
+    expect(renderedTileOrder(el)).toEqual(['A', 'placeholder', 'B', 'C']);
+  });
+
+  it('moves the tab placeholder to the end when dragging past the last tile', async () => {
+    const {el} = await loadGrid();
+    el.sessionId = 7;
+    el.items = [
+      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-b', title: 'B'}),
+      item({id: 'pin-c', title: 'C'}),
+    ];
+    await el.updateComplete;
+
+    const tiles = el.shadowRoot!.querySelectorAll('.tile');
+    const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:4');
+    tiles[1]!.dispatchEvent(dragEvent('dragover', dataTransfer));
+    await el.updateComplete;
+
+    expect(renderedTileOrder(el)).toEqual(['A', 'placeholder', 'B', 'C']);
+
+    const lastTile = el.shadowRoot!.querySelectorAll('.tile')[2] as HTMLElement;
+    vi.spyOn(lastTile, 'getBoundingClientRect').mockReturnValue({
+      bottom: 60,
+      height: 56,
+      left: 120,
+      right: 176,
+      top: 4,
+      width: 56,
+      x: 120,
+      y: 4,
+      toJSON: () => {},
+    });
+
+    const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+    const endDragOver = dragEvent('dragover', dataTransfer);
+    Object.defineProperties(endDragOver, {
+      clientX: {value: 190},
+      clientY: {value: 30},
+    });
+    grid.dispatchEvent(endDragOver);
+    await el.updateComplete;
+
+    expect(endDragOver.defaultPrevented).toBe(true);
+    expect(renderedTileOrder(el)).toEqual(['A', 'B', 'C', 'placeholder']);
   });
 
   it('ignores cross-window tab drops on the pinned grid', async () => {

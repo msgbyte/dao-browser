@@ -425,8 +425,9 @@ base::DictValue DaoSidebarUIHandler::GetSidebarStateForTesting() {
   return BuildSidebarState();
 }
 
-void DaoSidebarUIHandler::PinTabForTesting(int index) {
-  PinTabAtIndex(index);
+void DaoSidebarUIHandler::PinTabForTesting(int index,
+                                           int pinned_target_index) {
+  PinTabAtIndex(index, pinned_target_index);
 }
 
 void DaoSidebarUIHandler::UnpinPinnedItemForTesting(const std::string& id,
@@ -868,7 +869,7 @@ void DaoSidebarUIHandler::SavePinnedItems() {
       base::BindOnce(&WriteFileOnThreadPool, path, std::move(json)));
 }
 
-void DaoSidebarUIHandler::PinTabAtIndex(int index) {
+void DaoSidebarUIHandler::PinTabAtIndex(int index, int pinned_target_index) {
   if (!browser_) {
     return;
   }
@@ -883,9 +884,14 @@ void DaoSidebarUIHandler::PinTabAtIndex(int index) {
     return;
   }
 
-  pinned_tab_model_.AddOrUpdate(base::UTF16ToUTF8(contents->GetTitle()),
-                                contents->GetVisibleURL().spec(),
-                                FaviconToDataUrl(contents));
+  DaoPinnedTabItem& pinned_item =
+      pinned_tab_model_.AddOrUpdate(base::UTF16ToUTF8(contents->GetTitle()),
+                                    contents->GetVisibleURL().spec(),
+                                    FaviconToDataUrl(contents));
+  if (pinned_target_index >= 0) {
+    pinned_tab_model_.Move(pinned_item.id,
+                           static_cast<size_t>(pinned_target_index));
+  }
   model->SetTabPinned(index, true);
   SavePinnedItems();
   if (IsJavascriptAllowed()) {
@@ -1685,7 +1691,8 @@ void DaoSidebarUIHandler::HandlePinTab(const base::ListValue& args) {
     return;
   }
 
-  PinTabAtIndex(args[0].GetIfInt().value_or(-1));
+  PinTabAtIndex(args[0].GetIfInt().value_or(-1),
+                args.size() > 1 ? args[1].GetIfInt().value_or(-1) : -1);
 }
 
 void DaoSidebarUIHandler::HandleUnpinPinnedItem(const base::ListValue& args) {

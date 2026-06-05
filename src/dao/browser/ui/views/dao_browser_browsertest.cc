@@ -417,6 +417,40 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       PinNormalTabCanInsertPinnedItemAtTargetIndex) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL first_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title2.html");
+  const GURL third_url = embedded_test_server()->GetURL("/title3.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  chrome::AddTabAt(browser(), second_url, 1, true);
+  chrome::AddTabAt(browser(), third_url, 2, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), first_url));
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), second_url));
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), third_url), 1);
+
+  base::ListValue pinned_items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(3u, pinned_items.size());
+
+  auto item = pinned_items.begin();
+  const base::DictValue* first_item = (item++)->GetIfDict();
+  const base::DictValue* third_item = (item++)->GetIfDict();
+  const base::DictValue* second_item = item->GetIfDict();
+  ASSERT_NE(nullptr, first_item);
+  ASSERT_NE(nullptr, third_item);
+  ASSERT_NE(nullptr, second_item);
+  EXPECT_EQ(first_url.spec(), GetStringField(*first_item, "url"));
+  EXPECT_EQ(third_url.spec(), GetStringField(*third_item, "url"));
+  EXPECT_EQ(second_url.spec(), GetStringField(*second_item, "url"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        ClosingPinnedBackingTabLeavesDormantPinnedItem) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
