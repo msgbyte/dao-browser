@@ -6,14 +6,14 @@ index fd75b56b17..2fcc13ab3b 100644
                            color_utils::kMinimumVisibleContrastRatio);
    mixer[kColorPerformanceInterventionButtonIconInactive] = {
        kColorToolbarButtonIcon};
-+  // Dao: PiP window dark purple theme matching sidebar colors.
++  // Dao: PiP window dark blue-gray theme matching sidebar colors.
    mixer[kColorPipWindowBackToTabButtonBackground] = {
 -      SkColorSetA(SK_ColorBLACK, 0x60)};
 -  mixer[kColorPipWindowBackground] = {SK_ColorBLACK};
 -  mixer[kColorPipWindowTopBarBackground] = {gfx::kGoogleGrey900};
-+      SkColorSetA(SkColorSetRGB(40, 32, 48), 0x60)};
-+  mixer[kColorPipWindowBackground] = {SkColorSetRGB(40, 32, 48)};
-+  mixer[kColorPipWindowTopBarBackground] = {SkColorSetRGB(50, 42, 58)};
++      SkColorSetA(SkColorSetRGB(54, 59, 64), 0x60)};
++  mixer[kColorPipWindowBackground] = {SkColorSetRGB(54, 59, 64)};
++  mixer[kColorPipWindowTopBarBackground] = {SkColorSetRGB(70, 76, 82)};
    mixer[kColorPipWindowForeground] =
        ui::GetColorWithMaxContrast(kColorPipWindowBackground);
 -  mixer[kColorPipWindowForegroundInactive] = {gfx::kGoogleGrey500};
@@ -21,22 +21,22 @@ index fd75b56b17..2fcc13ab3b 100644
 +  mixer[kColorPipWindowForegroundInactive] = {
 +      SkColorSetARGB(150, 255, 255, 255)};
 +  mixer[kColorPipWindowScrimFull] = {
-+      SkColorSetA(SkColorSetRGB(40, 32, 48), 0x66)};
++      SkColorSetA(SkColorSetRGB(54, 59, 64), 0x66)};
    mixer[kColorPipWindowScrimTopGradientStart] = {
 -      SkColorSetA(SK_ColorBLACK, 0xCD)};
-+      SkColorSetA(SkColorSetRGB(40, 32, 48), 0xCD)};
++      SkColorSetA(SkColorSetRGB(54, 59, 64), 0xCD)};
    mixer[kColorPipWindowScrimTopGradientEnd] = {
 -      SkColorSetA(SK_ColorBLACK, 0x00)};
-+      SkColorSetA(SkColorSetRGB(40, 32, 48), 0x00)};
++      SkColorSetA(SkColorSetRGB(54, 59, 64), 0x00)};
    mixer[kColorPipWindowScrimBottomGradientStart] = {
 -      SkColorSetA(SK_ColorBLACK, 0x00)};
-+      SkColorSetA(SkColorSetRGB(40, 32, 48), 0x00)};
++      SkColorSetA(SkColorSetRGB(54, 59, 64), 0x00)};
    mixer[kColorPipWindowScrimBottomGradientEnd] = {
 -      SkColorSetA(SK_ColorBLACK, 0xCD)};
 -  mixer[kColorPipWindowSkipAdButtonBackground] = {gfx::kGoogleGrey700};
-+      SkColorSetA(SkColorSetRGB(40, 32, 48), 0xCD)};
++      SkColorSetA(SkColorSetRGB(54, 59, 64), 0xCD)};
 +  mixer[kColorPipWindowSkipAdButtonBackground] = {
-+      SkColorSetRGB(60, 52, 68)};
++      SkColorSetRGB(80, 86, 92)};
    mixer[kColorPipWindowSkipAdButtonBorder] = {kColorPipWindowForeground};
    mixer[kColorProfileMenuBackground] = {ui::kColorDialogBackground};
    // TODO(crbug.com/40833357): stop forcing the light theme once the
