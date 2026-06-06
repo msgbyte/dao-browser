@@ -45,7 +45,7 @@ State-changing git commands include `git add`, `git commit`, `git push`, `git pu
 npm run setup          # First-time setup: download Chromium and apply patches
 npm run import         # Apply patches and copy src/dao into engine
 npm run rebuild        # The only allowed compile-confirmation command
-npm run test           # Lit lint, build browser_tests, run Dao* tests
+npm run test           # Full Dao test sweep; use only when broad coverage is needed
 npm run test:build     # Build browser_tests only; never use for compile confirmation
 npm run test:webui     # Run Vitest WebUI tests
 npm run lint:lit       # Check Lit reactive fields
@@ -124,7 +124,8 @@ Never hardcode user-facing English in Dao-owned UI.
 ## Testing And Verification
 
 - For C++ / Chromium changes, compile confirmation must be `npm run rebuild` after edits are complete. Do not substitute any other command for compilation confirmation.
-- For browser tests, use `npm run test` when practical, but treat it as test verification, not compile confirmation. If compilation must be confirmed, run `npm run rebuild`.
+- Do not run the full test suite by default. Choose the smallest relevant verification for the changed surface, such as focused WebUI tests, lint checks, targeted browser test filters, or a narrow manual/browser verification path.
+- For browser tests, prefer running only the relevant test binary and `--gtest_filter` needed for the change. Use `npm run test` only when broad Dao coverage is intentionally needed, and treat it as test verification, not compile confirmation. If compilation must be confirmed, run `npm run rebuild`.
 - For WebUI-only changes, run `npm run test:webui` and `npm run lint:lit` when relevant.
 - Existing browser tests live mainly in `src/dao/browser/ui/views/dao_browser_browsertest.cc`.
 - Dao browser test filters are typically `Dao*`, `DaoSidebar*`, or `DaoTabBrowserTest.*`.
