@@ -11,11 +11,26 @@ index 220a8c654c..17044ddd6b 100644
  #include "extensions/common/constants.h"
  #include "extensions/common/extension.h"
  #include "extensions/common/extension_urls.h"
-@@ -292,6 +294,7 @@ ExtensionInstallDialogView::ExtensionInstallDialogView(
+@@ -252,5 +254,10 @@ ExtensionInstallDialogView::ExtensionInstallDialogView(
+   DCHECK(buttons & static_cast<int>(ui::mojom::DialogButton::kCancel));
+-
+-  int default_button = static_cast<int>(ui::mojom::DialogButton::kCancel);
+-
++
++  // Dao keeps normal install prompts without a default button until the
++  // delayed install action is enabled, so Cancel never gets primary treatment.
++  int default_button =
++      prompt_->type() == ExtensionInstallPrompt::PromptType::INSTALL_PROMPT
++          ? static_cast<int>(ui::mojom::DialogButton::kNone)
++          : static_cast<int>(ui::mojom::DialogButton::kCancel);
++
+   // If the prompt is related to requesting an extension, set the default button
+@@ -292,6 +294,8 @@ ExtensionInstallDialogView::ExtensionInstallDialogView(
    SetButtonLabel(ui::mojom::DialogButton::kOk, prompt_->GetAcceptButtonLabel());
    SetButtonLabel(ui::mojom::DialogButton::kCancel,
                   prompt_->GetAbortButtonLabel());
 +  dao::ConfigureDaoSystemDialog(this);
++  SetButtonStyle(ui::mojom::DialogButton::kOk, ui::ButtonStyle::kProminent);
    set_close_on_deactivate(false);
    SetShowCloseButton(false);
    CreateContents();
@@ -38,3 +53,13 @@ index 220a8c654c..17044ddd6b 100644
    if (has_permissions) {
      extension_info_container.AddChild(
          views::Builder<views::BoxLayoutView>()
+@@ -697,4 +718,9 @@ void ExtensionInstallDialogView::EnableInstallButton() {
+ void ExtensionInstallDialogView::EnableInstallButton() {
+   install_button_enabled_ = true;
++  if (prompt_->type() == ExtensionInstallPrompt::PromptType::INSTALL_PROMPT) {
++    SetDefaultButton(static_cast<int>(ui::mojom::DialogButton::kOk));
++    return;
++  }
++
+   DialogModelChanged();
+ }

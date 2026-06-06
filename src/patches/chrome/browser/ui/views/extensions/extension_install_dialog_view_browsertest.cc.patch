@@ -1,0 +1,77 @@
+diff --git a/chrome/browser/ui/views/extensions/extension_install_dialog_view_browsertest.cc b/chrome/browser/ui/views/extensions/extension_install_dialog_view_browsertest.cc
+--- a/chrome/browser/ui/views/extensions/extension_install_dialog_view_browsertest.cc
++++ b/chrome/browser/ui/views/extensions/extension_install_dialog_view_browsertest.cc
+@@ -303,6 +303,52 @@ class ExtensionInstallDialogViewTest
+   }
+ };
+ 
++IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewTest,
++                       DaoInstallDialogKeepsCancelButtonCompact) {
++  ExtensionInstallDialogView::SetInstallButtonDelayForTesting(0);
++  ExtensionInstallPromptTestHelper helper;
++  ExtensionInstallDialogView* delegate_view = CreateAndShowPrompt(&helper);
++
++  views::Widget* widget = delegate_view->GetWidget();
++  ASSERT_NE(nullptr, widget);
++  widget->GetRootView()->DeprecatedLayoutImmediately();
++
++  views::MdTextButton* ok_button = delegate_view->GetOkButton();
++  views::MdTextButton* cancel_button = delegate_view->GetCancelButton();
++  ASSERT_NE(nullptr, ok_button);
++  ASSERT_NE(nullptr, cancel_button);
++
++  EXPECT_FALSE(
++      delegate_view->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
++  EXPECT_TRUE(
++      delegate_view->IsDialogButtonEnabled(ui::mojom::DialogButton::kCancel));
++  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kNone),
++            delegate_view->GetDefaultDialogButton());
++  EXPECT_FALSE(ok_button->GetIsDefault());
++  EXPECT_FALSE(cancel_button->GetIsDefault());
++
++  base::RunLoop().RunUntilIdle();
++  widget->GetRootView()->DeprecatedLayoutImmediately();
++
++  EXPECT_TRUE(
++      delegate_view->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
++  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kOk),
++            delegate_view->GetDefaultDialogButton());
++  EXPECT_TRUE(ok_button->GetIsDefault());
++  EXPECT_FALSE(cancel_button->GetIsDefault());
++  EXPECT_EQ(ui::ButtonStyle::kProminent,
++            delegate_view->GetDialogButtonStyle(ui::mojom::DialogButton::kOk));
++  EXPECT_NE(
++      ui::ButtonStyle::kProminent,
++      delegate_view->GetDialogButtonStyle(ui::mojom::DialogButton::kCancel));
++  EXPECT_EQ(144, ok_button->width());
++  EXPECT_EQ(36, ok_button->height());
++  EXPECT_LT(cancel_button->width(), ok_button->width());
++  EXPECT_LE(cancel_button->height(), ok_button->height());
++
++  CloseAndWait(widget);
++}
++
+ IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewTest, NotifyDelegate) {
+   {
+     // User presses install. Note that we have to wait for the 0ms delay for the
+@@ -390,16 +436,16 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewTest, InstallButtonDelay) {
+   EXPECT_FALSE(
+       delegate_view->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+   EXPECT_TRUE(
+       delegate_view->IsDialogButtonEnabled(ui::mojom::DialogButton::kCancel));
+-  EXPECT_TRUE(delegate_view->GetInitiallyFocusedView()->HasFocus());
++  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kNone),
++            delegate_view->GetDefaultDialogButton());
+ 
+   // Check OK button state after timeout to verify that it is re-enabled.
+   base::RunLoop().RunUntilIdle();
+   EXPECT_TRUE(
+       delegate_view->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+-
+-  // Ensure default button (cancel) has focus.
+-  EXPECT_TRUE(delegate_view->GetInitiallyFocusedView()->HasFocus());
++  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kOk),
++            delegate_view->GetDefaultDialogButton());
+   CloseAndWait(delegate_view->GetWidget());
+ }
+ 

@@ -3916,6 +3916,56 @@ IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
+                       OptInDialogProminentButtonKeepsPrimaryWidth) {
+  auto dialog = std::make_unique<CountingDialogDelegate>();
+  CountingDialogDelegate* raw_dialog = dialog.get();
+  dao::DaoSystemDialogOptions options;
+  options.show_enter_for_default = false;
+  dao::ConfigureDaoSystemDialog(raw_dialog, options);
+  raw_dialog->SetButtonLabel(ui::mojom::DialogButton::kOk, u"Add");
+  raw_dialog->SetButtonLabel(ui::mojom::DialogButton::kCancel, u"Cancel");
+  raw_dialog->SetButtonStyle(ui::mojom::DialogButton::kOk,
+                             ui::ButtonStyle::kProminent);
+
+  views::Widget* widget = ShowCountingDialog(browser(), raw_dialog);
+  ScopedWidgetCloser close_widget(widget);
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  widget->GetRootView()->DeprecatedLayoutImmediately();
+
+  ASSERT_NE(nullptr, raw_dialog->GetOkButton());
+  ASSERT_NE(nullptr, raw_dialog->GetCancelButton());
+  EXPECT_FALSE(HasDescendantLabelText(raw_dialog->GetOkButton(), u"Enter"));
+  EXPECT_TRUE(HasDescendantLabelText(raw_dialog->GetCancelButton(), u"Esc"));
+  EXPECT_EQ(144, raw_dialog->GetOkButton()->width());
+  EXPECT_EQ(36, raw_dialog->GetOkButton()->height());
+  EXPECT_GT(raw_dialog->GetOkButton()->width(),
+            raw_dialog->GetCancelButton()->width());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
+                       OptInDialogCancelStyleDoesNotFollowDefaultState) {
+  auto dialog = std::make_unique<CountingDialogDelegate>();
+  CountingDialogDelegate* raw_dialog = dialog.get();
+  dao::ConfigureDaoSystemDialog(raw_dialog);
+  raw_dialog->SetButtonStyle(ui::mojom::DialogButton::kCancel,
+                             ui::ButtonStyle::kTonal);
+  raw_dialog->SetDefaultButton(
+      static_cast<int>(ui::mojom::DialogButton::kCancel));
+
+  views::Widget* widget = ShowCountingDialog(browser(), raw_dialog);
+  ScopedWidgetCloser close_widget(widget);
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  widget->GetRootView()->DeprecatedLayoutImmediately();
+
+  ASSERT_NE(nullptr, raw_dialog->GetCancelButton());
+  raw_dialog->GetCancelButton()->SetIsDefault(true);
+  EXPECT_TRUE(raw_dialog->GetCancelButton()->GetIsDefault());
+  EXPECT_EQ(ui::ButtonStyle::kTonal, raw_dialog->GetCancelButton()->GetStyle());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
                        OptInDialogKeyboardActionsUseDialogCallbacks) {
   auto dialog = std::make_unique<CountingDialogDelegate>();
   CountingDialogDelegate* raw_dialog = dialog.get();
