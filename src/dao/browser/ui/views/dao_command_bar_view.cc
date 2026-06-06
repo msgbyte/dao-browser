@@ -5,6 +5,7 @@
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 
 #include "base/strings/utf_string_conversions.h"
+#include "base/strings/escape.h"
 #include "base/task/single_thread_task_runner.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
@@ -28,6 +30,8 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_result.h"
+#include "components/search_engines/template_url.h"
+#include "components/search_engines/template_url_service.h"
 #include "content/public/browser/web_contents.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/vector_icons/vector_icons.h"
@@ -1386,20 +1390,22 @@ void DaoCommandBarView::Navigate(const std::u16string& text) {
     }
     url = GURL(input);
   } else {
-    // Build Google search URL
-    std::string query;
-    for (char c : input) {
-      if (c == ' ') {
-        query += '+';
-      } else if (c == '+' || c == '&' || c == '=' || c == '%' || c == '#') {
-        char buf[4];
-        snprintf(buf, sizeof(buf), "%%%02X", static_cast<unsigned char>(c));
-        query += buf;
-      } else {
-        query += c;
-      }
+    TemplateURLService* template_url_service =
+        TemplateURLServiceFactory::GetForProfile(browser_->profile());
+    const TemplateURL* default_provider =
+        template_url_service
+            ? template_url_service->GetDefaultSearchProvider()
+            : nullptr;
+    if (default_provider &&
+        default_provider->SupportsReplacement(
+            template_url_service->search_terms_data())) {
+      url = default_provider->GenerateSearchURL(
+          template_url_service->search_terms_data(), text);
     }
-    url = GURL("https://www.google.com/search?q=" + query);
+    if (!url.is_valid()) {
+      url = GURL("https://www.google.com/search?q=" +
+                 base::EscapeQueryParamValue(input, true));
+    }
   }
 
   if (!url.is_valid()) {

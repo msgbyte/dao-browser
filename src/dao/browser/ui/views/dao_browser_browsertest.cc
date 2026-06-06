@@ -20,6 +20,7 @@
 #include "base/command_line.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
@@ -36,6 +37,10 @@
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/prefs/pref_service.h"
+#include "components/search_engines/template_url.h"
+#include "components/search_engines/template_url_data.h"
+#include "components/search_engines/template_url_service.h"
+#include "chrome/test/base/search_test_utils.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
@@ -1021,6 +1026,43 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_TRUE(content::WaitForLoadStop(contents));
 
   EXPECT_EQ(typed_url, contents->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnterUsesDefaultSearchProviderForTypedSearch) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  TemplateURLService* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_NE(nullptr, template_url_service);
+  search_test_utils::WaitForTemplateURLServiceToLoad(template_url_service);
+
+  TemplateURLData data;
+  data.SetShortName(u"Dao Test Search");
+  data.SetKeyword(u"dao-test");
+  data.SetURL(embedded_test_server()
+                  ->GetURL("/search?q={searchTerms}")
+                  .spec());
+  TemplateURL* template_url =
+      template_url_service->Add(std::make_unique<TemplateURL>(data));
+  ASSERT_NE(nullptr, template_url);
+  template_url_service->SetUserSelectedDefaultSearchProvider(template_url);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"dao", u"");
+
+  ui_test_utils::TabAddedWaiter tab_waiter(browser());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  content::WebContents* contents = tab_waiter.Wait();
+  ASSERT_NE(nullptr, contents);
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+
+  EXPECT_EQ(embedded_test_server()->GetURL("/search?q=dao"),
+            contents->GetLastCommittedURL());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
