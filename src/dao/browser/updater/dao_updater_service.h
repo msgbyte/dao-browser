@@ -54,8 +54,8 @@ class DaoUpdaterService {
 
   // Starts the platform updater. Idempotent: a second call is a no-op. Safe to
   // call before any browser window exists. On macOS this constructs the
-  // SPUStandardUpdaterController and asks Sparkle to begin its scheduled
-  // background checks.
+  // SPUStandardUpdaterController, asks Sparkle to begin its scheduled
+  // background checks, and performs one silent startup check.
   void Init();
 
   // Triggers a user-visible update check (shows progress UI even if no update

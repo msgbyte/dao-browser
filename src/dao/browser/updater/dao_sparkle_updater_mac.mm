@@ -128,9 +128,9 @@ void DaoSparkleUpdaterMac::Start(
   // which is what we want — Sparkle's stock UI for "Check for Updates...",
   // "An update is available", and silent background install on quit.
   //
-  // Passing startingUpdater:YES makes Sparkle begin its scheduled background
-  // checks immediately (interval comes from SUScheduledCheckInterval in
-  // Info.plist; SUEnableAutomaticChecks must also be YES).
+  // Passing startingUpdater:YES starts Sparkle's background scheduler
+  // (interval comes from SUScheduledCheckInterval in Info.plist;
+  // SUEnableAutomaticChecks must also be YES).
   SPUStandardUpdaterController* controller =
       [[SPUStandardUpdaterController alloc] initWithStartingUpdater:YES
                                                     updaterDelegate:delegate
@@ -148,6 +148,11 @@ void DaoSparkleUpdaterMac::Start(
 
   // Retain into the type-erased void* slot.
   controller_ = (__bridge_retained void*)controller;
+
+  // Run one silent startup check immediately. Sparkle still owns the recurring
+  // schedule, and checkForUpdatesInBackground shows no UI unless an update is
+  // found.
+  [controller.updater checkForUpdatesInBackground];
 
   LOG(INFO) << "DaoSparkleUpdaterMac: started. Feed URL and check interval "
                "are configured via Info.plist.";

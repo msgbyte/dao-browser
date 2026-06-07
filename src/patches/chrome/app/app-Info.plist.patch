@@ -51,9 +51,9 @@ index e813de1e4e..51be2e1056 100644
 +	<true/>
 +	<key>SUAutomaticallyUpdate</key>
 +	<true/>
-+	<!-- 3600 seconds = 1 hour. Sparkle's documented minimum is 3600. -->
++	<!-- 86400 seconds = 24 hours. Sparkle's documented minimum is 3600. -->
 +	<key>SUScheduledCheckInterval</key>
-+	<integer>3600</integer>
++	<integer>86400</integer>
 +	<!-- We sign all artifacts; do NOT allow insecure HTTP feed URLs. -->
 +	<key>SUEnableInstallerLauncherService</key>
 +	<true/>

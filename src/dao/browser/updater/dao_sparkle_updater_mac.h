@@ -35,9 +35,9 @@ class DaoSparkleUpdaterMac {
   DaoSparkleUpdaterMac(const DaoSparkleUpdaterMac&) = delete;
   DaoSparkleUpdaterMac& operator=(const DaoSparkleUpdaterMac&) = delete;
 
-  // Constructs the SPUStandardUpdaterController and tells Sparkle to start
-  // its scheduled checks. Safe to call before any windows exist; Sparkle
-  // schedules its first check off the main run loop.
+  // Constructs the SPUStandardUpdaterController, tells Sparkle to start its
+  // scheduled checks, and performs one silent background check immediately.
+  // Safe to call before any windows exist.
   void Start(ReadyToInstallCallback ready_to_install_callback,
              UpdateSessionFinishedCallback update_session_finished_callback);
 

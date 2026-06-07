@@ -132,7 +132,7 @@ After a release ships, the user does **nothing**. Because we configure
 
 ```
 [user is on 0.5.0]
-  ↓ Sparkle background-checks SUFeedURL every hour
+  ↓ Sparkle background-checks SUFeedURL on startup, then every 24 hours
   ↓ discovers 0.5.1
   ↓ downloads .dmg silently
   ↓ verifies EdDSA signature against SUPublicEDKey
@@ -400,7 +400,7 @@ Phase 2 (CI/CD) wraps this in a GitHub Actions workflow.
 After cutting a release:
 
 1. Install the **previous** version on a clean test machine (or in a VM).
-2. Wait for `SUScheduledCheckInterval` (1 hour by default), or use
+2. Wait for `SUScheduledCheckInterval` (24 hours by default), or use
    `Dao → Check for Updates...` to force a check.
 3. Sparkle should download → verify the EdDSA signature → relaunch into
    the new version on the next quit.
