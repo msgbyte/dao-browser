@@ -4,7 +4,7 @@
 
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-import type {PinnedItemData} from '../sidebar_bridge.js';
+import type {PinnedItemData, UpdateStateData} from '../sidebar_bridge.js';
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
@@ -36,6 +36,7 @@ async function loadApp() {
   await import('../dao_sidebar_app.js');
   const el = document.createElement('dao-sidebar-app') as HTMLElement & {
     pinnedItems_: PinnedItemData[];
+    updateState_: UpdateStateData | null;
     updateComplete: Promise<boolean>;
   };
   document.body.appendChild(el);
@@ -69,5 +70,30 @@ describe('dao-sidebar-app', () => {
     expect(pinnedIndex).toBeGreaterThanOrEqual(0);
     expect(newTabIndex).toBeGreaterThanOrEqual(0);
     expect(pinnedIndex).toBeLessThan(newTabIndex);
+  });
+
+  it('requests the initial sidebar and update states on connect', async () => {
+    const {send} = await loadApp();
+
+    expect(send).toHaveBeenCalledWith('getInitialState', []);
+    expect(send).toHaveBeenCalledWith('requestUpdateState', []);
+  });
+
+  it('renders the update button before the plus menu at the toolbar end', async () => {
+    const {el} = await loadApp();
+    el.updateState_ = {
+      state: 'ready',
+      displayVersion: '1.2.3',
+      label: 'Update',
+      applyingLabel: 'Applying',
+    };
+    await el.updateComplete;
+
+    const actions = el.shadowRoot!.querySelector('.toolbar-end-actions')!;
+    const children = Array.from(actions.children);
+
+    expect(children).toHaveLength(2);
+    expect(children[0]!.tagName.toLowerCase()).toBe('dao-update-button');
+    expect(children[1]!.classList.contains('plus-menu-container')).toBe(true);
   });
 });

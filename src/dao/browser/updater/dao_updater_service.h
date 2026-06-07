@@ -6,10 +6,30 @@
 #define DAO_BROWSER_UPDATER_DAO_UPDATER_SERVICE_H_
 
 #include <memory>
+#include <string>
 
+#include "base/functional/callback.h"
 #include "base/no_destructor.h"
+#include "base/observer_list_types.h"
 
 namespace dao {
+
+enum class DaoUpdateState {
+  kIdle,
+  kReady,
+  kApplying,
+  kUnsupported,
+};
+
+struct DaoUpdateStatus {
+  DaoUpdateState state = DaoUpdateState::kIdle;
+  std::string display_version;
+};
+
+class DaoUpdaterServiceObserver : public base::CheckedObserver {
+ public:
+  virtual void OnDaoUpdateStatusChanged(const DaoUpdateStatus& status) = 0;
+};
 
 // Process-wide auto-update facade. Wraps the platform-specific updater
 // implementation (Sparkle on macOS). Browser code should never #include the
@@ -46,6 +66,19 @@ class DaoUpdaterService {
   // On macOS this is always true; provided as a hook for future platforms or
   // for developer builds that want to disable the updater entirely.
   bool IsSupported() const;
+
+  void AddObserver(DaoUpdaterServiceObserver* observer);
+  void RemoveObserver(DaoUpdaterServiceObserver* observer);
+
+  DaoUpdateStatus GetUpdateStatus() const;
+  bool ApplyReadyUpdate();
+
+  void SetReadyUpdateForTesting(std::string display_version,
+                                base::OnceClosure install_callback);
+  // Test setup/cleanup hook. This intentionally resets silently without
+  // notifying observers; tests with live observers should remove them first or
+  // request the current state again after reset.
+  void ResetForTesting();
 
  private:
   friend class base::NoDestructor<DaoUpdaterService>;

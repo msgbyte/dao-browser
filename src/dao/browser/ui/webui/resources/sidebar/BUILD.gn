@@ -29,6 +29,7 @@ build_webui("build") {
     "dao_tab_list.ts",
     "dao_tab_item.ts",
     "dao_download_button.ts",
+    "dao_update_button.ts",
     "dao_media_control.ts",
     "dao_folder_item.ts",
     "dao_folder_model.ts",

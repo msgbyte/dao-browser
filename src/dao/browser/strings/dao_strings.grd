@@ -213,6 +213,12 @@
       <message name="IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME" desc="Accessible name (read aloud by screen readers) for the sidebar toggle button.">
         Toggle Sidebar
       </message>
+      <message name="IDS_DAO_UPDATE_READY_ACTION" desc="Label and tooltip for the sidebar button that applies a downloaded Dao Browser update.">
+        Update
+      </message>
+      <message name="IDS_DAO_UPDATE_APPLYING_ACTION" desc="Transient label for the sidebar update button after the user clicks it and Dao starts applying the update.">
+        Applying
+      </message>
       <message name="IDS_DAO_ADDRESS_BAR_STOP_LOADING_ACCESSIBLE_NAME" desc="Accessible name for the button in the address bar that stops the current page from loading.">
         Stop Loading
       </message>

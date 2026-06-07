@@ -5,6 +5,9 @@
 #ifndef DAO_BROWSER_UPDATER_DAO_SPARKLE_UPDATER_MAC_H_
 #define DAO_BROWSER_UPDATER_DAO_SPARKLE_UPDATER_MAC_H_
 
+#include <string>
+
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr_exclusion.h"
 
 namespace dao {
@@ -22,6 +25,10 @@ namespace dao {
 // have to drag in <Foundation/Foundation.h>.
 class DaoSparkleUpdaterMac {
  public:
+  using ReadyToInstallCallback =
+      base::RepeatingCallback<void(std::string, base::OnceClosure)>;
+  using UpdateSessionFinishedCallback = base::RepeatingClosure;
+
   DaoSparkleUpdaterMac();
   ~DaoSparkleUpdaterMac();
 
@@ -31,7 +38,8 @@ class DaoSparkleUpdaterMac {
   // Constructs the SPUStandardUpdaterController and tells Sparkle to start
   // its scheduled checks. Safe to call before any windows exist; Sparkle
   // schedules its first check off the main run loop.
-  void Start();
+  void Start(ReadyToInstallCallback ready_to_install_callback,
+             UpdateSessionFinishedCallback update_session_finished_callback);
 
   // Equivalent to clicking "Check for Updates..." in the app menu — shows
   // user-visible progress UI and an "up to date" sheet if no update is found.
@@ -48,6 +56,16 @@ class DaoSparkleUpdaterMac {
   // C++ heap object. raw_ptr<T> would mishandle the lifetime model and
   // emit dangling-pointer false positives across the bridge boundary.
   RAW_PTR_EXCLUSION void* controller_ = nullptr;
+
+  // Strongly-retained SPUUpdaterDelegate. Released in the dtor. Sparkle's
+  // SPUStandardUpdaterController delegate outlet is weak, so the wrapper owns
+  // the delegate for as long as the controller may call it.
+  //
+  // RAW_PTR_EXCLUSION: this points to an Objective-C object retained via
+  // ARC bridge cast (CFRetain semantics), not to a Chromium-allocated
+  // C++ heap object. raw_ptr<T> would mishandle the lifetime model and
+  // emit dangling-pointer false positives across the bridge boundary.
+  RAW_PTR_EXCLUSION void* delegate_ = nullptr;
 };
 
 }  // namespace dao

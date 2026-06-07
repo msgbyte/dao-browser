@@ -5,9 +5,12 @@
 import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {sendNative, addListener, loadFolders, saveFolders, parseTabDragData} from './sidebar_bridge.js';
-import type {SidebarState, TabData, PinnedItemData, FolderAction} from './sidebar_bridge.js';
+import type {
+  SidebarState, TabData, PinnedItemData, FolderAction, UpdateStateData
+} from './sidebar_bridge.js';
 import {FolderModel} from './dao_folder_model.js';
 
+import './dao_update_button.js';
 import './dao_favorites_view.js';
 import './dao_new_tab_button.js';
 import './dao_pinned_tabs_grid.js';
@@ -47,6 +50,13 @@ export class DaoSidebarApp extends CrLitElement {
 
       .plus-menu-container {
         position: relative;
+      }
+
+      .toolbar-end-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
       }
 
       .plus-btn {
@@ -132,6 +142,7 @@ export class DaoSidebarApp extends CrLitElement {
       folderModelVersion_: {type: Number},
       showPlusMenu_: {type: Boolean},
       newTabHighlighted_: {type: Boolean},
+      updateState_: {type: Object},
     };
   }
 
@@ -149,6 +160,7 @@ export class DaoSidebarApp extends CrLitElement {
   declare protected folderModelVersion_: number;
   declare protected showPlusMenu_: boolean;
   declare protected newTabHighlighted_: boolean;
+  declare protected updateState_: UpdateStateData | null;
 
   // Non-reactive internals — plain fields are fine here because Lit doesn't
   // install accessors for these.
@@ -166,6 +178,7 @@ export class DaoSidebarApp extends CrLitElement {
     this.folderModelVersion_ = 0;
     this.showPlusMenu_ = false;
     this.newTabHighlighted_ = false;
+    this.updateState_ = null;
   }
 
   override connectedCallback() {
@@ -215,6 +228,10 @@ export class DaoSidebarApp extends CrLitElement {
       this.newTabHighlighted_ = args[0] as boolean;
     });
 
+    addListener('updateStateChanged', (...args: unknown[]) => {
+      this.updateState_ = args[0] as UpdateStateData;
+    });
+
     // Listen for folder actions from child components.
     this.addEventListener('folder-action', ((e: CustomEvent<FolderAction>) => {
       this.handleFolderAction_(e.detail);
@@ -226,6 +243,7 @@ export class DaoSidebarApp extends CrLitElement {
     });
 
     sendNative('getInitialState');
+    sendNative('requestUpdateState');
   }
 
   /**
@@ -430,36 +448,39 @@ export class DaoSidebarApp extends CrLitElement {
         <dao-media-control></dao-media-control>
 
         <dao-download-button>
-          <div class="plus-menu-container" slot="toolbar-end">
-            ${this.showPlusMenu_ ? html`
-              <div class="plus-menu">
-                <button class="plus-menu-item" @click=${this.onNewTab_}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2"
-                       stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  New Tab
-                </button>
-                <button class="plus-menu-item" @click=${this.onNewFolder_}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2"
-                       stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                  </svg>
-                  New Folder
-                </button>
-              </div>
-            ` : nothing}
-            <button class="plus-btn" @click=${this.onPlusClick_}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
+          <div class="toolbar-end-actions" slot="toolbar-end">
+            <dao-update-button .updateState=${this.updateState_}></dao-update-button>
+            <div class="plus-menu-container">
+              ${this.showPlusMenu_ ? html`
+                <div class="plus-menu">
+                  <button class="plus-menu-item" @click=${this.onNewTab_}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    New Tab
+                  </button>
+                  <button class="plus-menu-item" @click=${this.onNewFolder_}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    New Folder
+                  </button>
+                </div>
+              ` : nothing}
+              <button class="plus-btn" @click=${this.onPlusClick_}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
           </div>
         </dao-download-button>
       </div>

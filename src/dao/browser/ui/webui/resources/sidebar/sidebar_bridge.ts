@@ -121,6 +121,16 @@ export interface DownloadState {
   activeDownloads: ActiveDownloadData[];
 }
 
+// ---- Application Update Data Types ----
+
+export type UpdateState = 'idle' | 'ready' | 'applying' | 'unsupported';
+export interface UpdateStateData {
+  state: UpdateState;
+  displayVersion: string;
+  label: string;
+  applyingLabel: string;
+}
+
 // ---- Media Playback Data Types ----
 
 export interface MediaPlaybackState {

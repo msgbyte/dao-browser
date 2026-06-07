@@ -20,6 +20,7 @@
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
+#include "dao/browser/updater/dao_updater_service.h"
 #include "dao/browser/ui/webui/dao_pinned_tab_model.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
@@ -65,7 +66,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
                             public TabStripModelObserver,
                             public download::AllDownloadItemNotifier::Observer,
                             public ui::SimpleMenuModel::Delegate,
-                            public media_session::mojom::MediaSessionObserver {
+                            public media_session::mojom::MediaSessionObserver,
+                            public DaoUpdaterServiceObserver {
  public:
   DaoSidebarUIHandler();
   ~DaoSidebarUIHandler() override;
@@ -115,8 +117,12 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void MediaSessionPositionChanged(
       const std::optional<media_session::MediaPosition>& position) override {}
 
+  // DaoUpdaterServiceObserver:
+  void OnDaoUpdateStatusChanged(const DaoUpdateStatus& status) override;
+
   base::ListValue GetPinnedItemsForTesting();
   base::DictValue GetSidebarStateForTesting();
+  base::DictValue GetUpdateStateForTesting();
   void PinTabForTesting(int index, int pinned_target_index = -1);
   void UnpinPinnedItemForTesting(const std::string& id,
                                  int target_index = -1);
@@ -152,6 +158,9 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void ConsolidateSplitGroupTabs();
   void PushDownloadState();
   void PushActiveDownloads();
+  void PushUpdateState();
+  base::DictValue BuildUpdateState();
+  static std::string UpdateStateToString(DaoUpdateState state);
 
   // Media playback widget.
   int FindAudibleTabIndex() const;
@@ -171,6 +180,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleFileDrop(const base::ListValue& args);
   void HandleSetDropInsertIndex(const base::ListValue& args);
   void HandleRequestDownloadState(const base::ListValue& args);
+  void HandleRequestUpdateState(const base::ListValue& args);
+  void HandleApplyReadyUpdate(const base::ListValue& args);
   void HandleOpenDownloadsFolder(const base::ListValue& args);
   void HandleOpenRecentFile(const base::ListValue& args);
   void HandleCancelDownload(const base::ListValue& args);

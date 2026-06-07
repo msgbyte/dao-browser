@@ -16,6 +16,7 @@
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "content/public/browser/page_navigator.h"
 #include "base/command_line.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
@@ -87,6 +88,7 @@
 #include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 #include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
+#include "dao/browser/updater/dao_updater_service.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
@@ -325,6 +327,80 @@ class WidgetCloseRequestObserver : public views::WidgetObserver {
   bool close_requested_ = false;
 };
 
+#if BUILDFLAG(IS_MAC)
+class ReenteringUpdateObserver : public dao::DaoUpdaterServiceObserver {
+ public:
+  explicit ReenteringUpdateObserver(dao::DaoUpdaterService* service)
+      : service_(service) {}
+
+  bool reentered() const { return reentered_; }
+
+ private:
+  void OnDaoUpdateStatusChanged(const dao::DaoUpdateStatus& status) override {
+    if (reentered_ || status.state != dao::DaoUpdateState::kReady ||
+        status.display_version != "1.2.3") {
+      return;
+    }
+
+    reentered_ = true;
+    service_->SetReadyUpdateForTesting("2.0.0",
+                                       base::BindLambdaForTesting([]() {}));
+  }
+
+  raw_ptr<dao::DaoUpdaterService> service_;
+  bool reentered_ = false;
+};
+
+class RecordingUpdateObserver : public dao::DaoUpdaterServiceObserver {
+ public:
+  int notification_count() const { return notification_count_; }
+  const dao::DaoUpdateStatus& last_status() const { return last_status_; }
+  bool saw_stale_ready_status() const { return saw_stale_ready_status_; }
+
+ private:
+  void OnDaoUpdateStatusChanged(const dao::DaoUpdateStatus& status) override {
+    ++notification_count_;
+    last_status_ = status;
+    if (status.state == dao::DaoUpdateState::kReady &&
+        status.display_version == "1.2.3") {
+      saw_stale_ready_status_ = true;
+    }
+  }
+
+  int notification_count_ = 0;
+  dao::DaoUpdateStatus last_status_;
+  bool saw_stale_ready_status_ = false;
+};
+
+class ReentrantApplyObserver : public dao::DaoUpdaterServiceObserver {
+ public:
+  explicit ReentrantApplyObserver(dao::DaoUpdaterService* service)
+      : service_(service) {}
+
+  bool reentered() const { return reentered_; }
+  bool nested_apply_result() const { return nested_apply_result_; }
+  const dao::DaoUpdateStatus& status_after_nested_apply() const {
+    return status_after_nested_apply_;
+  }
+
+ private:
+  void OnDaoUpdateStatusChanged(const dao::DaoUpdateStatus& status) override {
+    if (reentered_ || status.state != dao::DaoUpdateState::kApplying) {
+      return;
+    }
+
+    reentered_ = true;
+    nested_apply_result_ = service_->ApplyReadyUpdate();
+    status_after_nested_apply_ = service_->GetUpdateStatus();
+  }
+
+  raw_ptr<dao::DaoUpdaterService> service_;
+  bool reentered_ = false;
+  bool nested_apply_result_ = true;
+  dao::DaoUpdateStatus status_after_nested_apply_;
+};
+#endif
+
 // =============================================================================
 // DaoSidebarBrowserTest
 // =============================================================================
@@ -377,6 +453,189 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, WebUIStartsCloseToHeader) {
 
   EXPECT_LE(gap, 2);
 }
+
+#if BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       SidebarHandlerSerializesIdleUpdateState) {
+  dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
+  service->ResetForTesting();
+
+  {
+    dao::DaoSidebarUIHandler handler;
+    AttachSidebarHandlerForTesting(browser(), &handler);
+
+    base::DictValue update_state = handler.GetUpdateStateForTesting();
+    EXPECT_EQ("idle", GetStringField(update_state, "state"));
+    EXPECT_EQ("", GetStringField(update_state, "displayVersion"));
+    EXPECT_EQ("Update", GetStringField(update_state, "label"));
+    EXPECT_EQ("Applying", GetStringField(update_state, "applyingLabel"));
+  }
+
+  service->ResetForTesting();
+}
+#endif
+
+#if BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ReadyUpdateStatusRetainsDisplayVersion) {
+  dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
+  service->ResetForTesting();
+
+  int apply_count = 0;
+  service->SetReadyUpdateForTesting(
+      "1.2.3", base::BindLambdaForTesting([&]() { ++apply_count; }));
+
+  const dao::DaoUpdateStatus status = service->GetUpdateStatus();
+  EXPECT_EQ(dao::DaoUpdateState::kReady, status.state);
+  EXPECT_EQ("1.2.3", status.display_version);
+
+  service->ResetForTesting();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       SidebarHandlerSerializesReadyUpdateState) {
+  dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
+  service->ResetForTesting();
+
+  service->SetReadyUpdateForTesting("1.2.3",
+                                    base::BindLambdaForTesting([]() {}));
+
+  {
+    dao::DaoSidebarUIHandler handler;
+    AttachSidebarHandlerForTesting(browser(), &handler);
+
+    base::DictValue update_state = handler.GetUpdateStateForTesting();
+    EXPECT_EQ("ready", GetStringField(update_state, "state"));
+    EXPECT_EQ("1.2.3", GetStringField(update_state, "displayVersion"));
+    EXPECT_EQ("Update", GetStringField(update_state, "label"));
+    EXPECT_EQ("Applying", GetStringField(update_state, "applyingLabel"));
+  }
+
+  service->ResetForTesting();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ApplyingReadyUpdateConsumesInstallCallbackOnce) {
+  dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
+  service->ResetForTesting();
+
+  int apply_count = 0;
+  service->SetReadyUpdateForTesting(
+      "1.2.3", base::BindLambdaForTesting([&]() { ++apply_count; }));
+
+  EXPECT_TRUE(service->ApplyReadyUpdate());
+  EXPECT_EQ(1, apply_count);
+  EXPECT_FALSE(service->ApplyReadyUpdate());
+  EXPECT_EQ(1, apply_count);
+  EXPECT_EQ(dao::DaoUpdateState::kIdle, service->GetUpdateStatus().state);
+
+  service->ResetForTesting();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ApplyingReadyUpdatePreservesReentrantReadyState) {
+  dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
+  service->ResetForTesting();
+
+  int apply_count = 0;
+  int replacement_apply_count = 0;
+  service->SetReadyUpdateForTesting(
+      "1.2.3", base::BindLambdaForTesting([&]() {
+        ++apply_count;
+        service->SetReadyUpdateForTesting(
+            "2.0.0",
+            base::BindLambdaForTesting([&]() { ++replacement_apply_count; }));
+      }));
+
+  EXPECT_TRUE(service->ApplyReadyUpdate());
+  EXPECT_EQ(1, apply_count);
+
+  const dao::DaoUpdateStatus status = service->GetUpdateStatus();
+  EXPECT_EQ(dao::DaoUpdateState::kReady, status.state);
+  EXPECT_EQ("2.0.0", status.display_version);
+
+  EXPECT_TRUE(service->ApplyReadyUpdate());
+  EXPECT_EQ(1, replacement_apply_count);
+  EXPECT_EQ(dao::DaoUpdateState::kIdle, service->GetUpdateStatus().state);
+
+  service->ResetForTesting();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ApplyingStateSurvivesReentrantApplyAttempt) {
+  dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
+  service->ResetForTesting();
+
+  ReentrantApplyObserver observer(service);
+  service->AddObserver(&observer);
+
+  int apply_count = 0;
+  bool callback_saw_applying = false;
+  service->SetReadyUpdateForTesting(
+      "1.2.3", base::BindLambdaForTesting([&]() {
+        ++apply_count;
+        callback_saw_applying =
+            service->GetUpdateStatus().state == dao::DaoUpdateState::kApplying;
+      }));
+
+  EXPECT_TRUE(service->ApplyReadyUpdate());
+  EXPECT_TRUE(observer.reentered());
+  EXPECT_FALSE(observer.nested_apply_result());
+  EXPECT_EQ(dao::DaoUpdateState::kApplying,
+            observer.status_after_nested_apply().state);
+  EXPECT_EQ(1, apply_count);
+  EXPECT_TRUE(callback_saw_applying);
+  EXPECT_EQ(dao::DaoUpdateState::kIdle, service->GetUpdateStatus().state);
+
+  service->RemoveObserver(&observer);
+  service->ResetForTesting();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ObserversSkipStaleStatusAfterReentrantUpdate) {
+  dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
+  service->ResetForTesting();
+
+  ReenteringUpdateObserver reentering_observer(service);
+  RecordingUpdateObserver recording_observer;
+  service->AddObserver(&reentering_observer);
+  service->AddObserver(&recording_observer);
+
+  service->SetReadyUpdateForTesting(
+      "1.2.3", base::BindLambdaForTesting([]() {}));
+
+  EXPECT_TRUE(reentering_observer.reentered());
+  EXPECT_EQ(1, recording_observer.notification_count());
+  EXPECT_FALSE(recording_observer.saw_stale_ready_status());
+  EXPECT_EQ(dao::DaoUpdateState::kReady,
+            recording_observer.last_status().state);
+  EXPECT_EQ("2.0.0", recording_observer.last_status().display_version);
+
+  service->RemoveObserver(&recording_observer);
+  service->RemoveObserver(&reentering_observer);
+  service->ResetForTesting();
+}
+#else
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       UpdateStatusIsUnsupportedOnUnsupportedPlatform) {
+  dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
+  service->ResetForTesting();
+
+  int apply_count = 0;
+  service->SetReadyUpdateForTesting(
+      "1.2.3", base::BindLambdaForTesting([&]() { ++apply_count; }));
+
+  const dao::DaoUpdateStatus status = service->GetUpdateStatus();
+  EXPECT_EQ(dao::DaoUpdateState::kUnsupported, status.state);
+  EXPECT_TRUE(status.display_version.empty());
+  EXPECT_FALSE(service->ApplyReadyUpdate());
+  EXPECT_EQ(0, apply_count);
+  EXPECT_EQ(dao::DaoUpdateState::kUnsupported,
+            service->GetUpdateStatus().state);
+
+  service->ResetForTesting();
+}
+#endif
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        PinNormalTabAddsPinnedItemAndExcludesFromUnpinnedTabs) {

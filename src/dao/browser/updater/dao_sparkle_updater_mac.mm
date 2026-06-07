@@ -4,9 +4,93 @@
 
 #include "dao/browser/updater/dao_sparkle_updater_mac.h"
 
+#include <utility>
+
 #import <Sparkle/Sparkle.h>
 
+#include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/strings/sys_string_conversions.h"
+
+@interface DaoSparkleUpdaterDelegate : NSObject <SPUUpdaterDelegate> {
+ @private
+  dao::DaoSparkleUpdaterMac::ReadyToInstallCallback ready_to_install_callback_;
+  dao::DaoSparkleUpdaterMac::UpdateSessionFinishedCallback
+      update_session_finished_callback_;
+}
+
+- (instancetype)initWithReadyToInstallCallback:
+                    (dao::DaoSparkleUpdaterMac::ReadyToInstallCallback)
+                        readyToInstallCallback
+            updateSessionFinishedCallback:
+                (dao::DaoSparkleUpdaterMac::UpdateSessionFinishedCallback)
+                    updateSessionFinishedCallback;
+
+@end
+
+@implementation DaoSparkleUpdaterDelegate
+
+- (instancetype)initWithReadyToInstallCallback:
+                    (dao::DaoSparkleUpdaterMac::ReadyToInstallCallback)
+                        readyToInstallCallback
+            updateSessionFinishedCallback:
+                (dao::DaoSparkleUpdaterMac::UpdateSessionFinishedCallback)
+                    updateSessionFinishedCallback {
+  self = [super init];
+  if (self) {
+    ready_to_install_callback_ = std::move(readyToInstallCallback);
+    update_session_finished_callback_ = std::move(updateSessionFinishedCallback);
+  }
+  return self;
+}
+
+- (BOOL)updater:(SPUUpdater*)updater
+    willInstallUpdateOnQuit:(SUAppcastItem*)item
+    immediateInstallationBlock:(void (^)(void))immediateInstallHandler {
+  (void)updater;
+
+  void (^install_block)(void) = [immediateInstallHandler copy];
+  base::OnceClosure install_callback = base::BindOnce(^{
+    if (install_block) {
+      install_block();
+    }
+  });
+
+  std::string display_version;
+  if (item.displayVersionString) {
+    display_version = base::SysNSStringToUTF8(item.displayVersionString);
+  }
+
+  if (!ready_to_install_callback_.is_null()) {
+    ready_to_install_callback_.Run(std::move(display_version),
+                                   std::move(install_callback));
+  }
+
+  return YES;
+}
+
+- (void)updater:(SPUUpdater*)updater
+    didFinishUpdateCycleForUpdateCheck:(SPUUpdateCheck)updateCheck
+                                 error:(NSError*)error {
+  (void)updater;
+  (void)updateCheck;
+  (void)error;
+
+  if (!update_session_finished_callback_.is_null()) {
+    update_session_finished_callback_.Run();
+  }
+}
+
+- (void)updater:(SPUUpdater*)updater didAbortWithError:(NSError*)error {
+  (void)updater;
+  (void)error;
+
+  if (!update_session_finished_callback_.is_null()) {
+    update_session_finished_callback_.Run();
+  }
+}
+
+@end
 
 namespace dao {
 
@@ -19,12 +103,26 @@ DaoSparkleUpdaterMac::~DaoSparkleUpdaterMac() {
     (void)c;  // Released by ARC at scope exit.
     controller_ = nullptr;
   }
+  if (delegate_) {
+    DaoSparkleUpdaterDelegate* delegate =
+        (__bridge_transfer DaoSparkleUpdaterDelegate*)delegate_;
+    (void)delegate;  // Released by ARC at scope exit.
+    delegate_ = nullptr;
+  }
 }
 
-void DaoSparkleUpdaterMac::Start() {
+void DaoSparkleUpdaterMac::Start(
+    ReadyToInstallCallback ready_to_install_callback,
+    UpdateSessionFinishedCallback update_session_finished_callback) {
   if (controller_) {
     return;
   }
+
+  DaoSparkleUpdaterDelegate* delegate = [[DaoSparkleUpdaterDelegate alloc]
+      initWithReadyToInstallCallback:std::move(ready_to_install_callback)
+        updateSessionFinishedCallback:std::move(
+                                          update_session_finished_callback)];
+  delegate_ = (__bridge_retained void*)delegate;
 
   // SPUStandardUpdaterController bundles SPUUpdater + SPUStandardUserDriver,
   // which is what we want — Sparkle's stock UI for "Check for Updates...",
@@ -33,19 +131,18 @@ void DaoSparkleUpdaterMac::Start() {
   // Passing startingUpdater:YES makes Sparkle begin its scheduled background
   // checks immediately (interval comes from SUScheduledCheckInterval in
   // Info.plist; SUEnableAutomaticChecks must also be YES).
-  //
-  // We pass nil for the delegates: declarative config via Info.plist is
-  // enough for the static feed URL + EdDSA pubkey + auto-install behaviour.
-  // If we ever need callbacks (e.g. "an update is ready, please relaunch"
-  // toast), this is where a real delegate object would be passed.
   SPUStandardUpdaterController* controller =
       [[SPUStandardUpdaterController alloc] initWithStartingUpdater:YES
-                                                    updaterDelegate:nil
+                                                    updaterDelegate:delegate
                                                  userDriverDelegate:nil];
 
   if (!controller) {
     LOG(ERROR) << "DaoSparkleUpdaterMac: failed to construct "
                   "SPUStandardUpdaterController.";
+    DaoSparkleUpdaterDelegate* unused_delegate =
+        (__bridge_transfer DaoSparkleUpdaterDelegate*)delegate_;
+    (void)unused_delegate;  // Released by ARC at scope exit.
+    delegate_ = nullptr;
     return;
   }
 

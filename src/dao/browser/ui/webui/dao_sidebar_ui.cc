@@ -46,6 +46,7 @@
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/strings/grit/dao_strings.h"
+#include "dao/browser/updater/dao_updater_service.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
@@ -340,9 +341,12 @@ void DaoSidebarUIHandler::PlaceGroupAroundAnchor(
   }
 }
 
-DaoSidebarUIHandler::DaoSidebarUIHandler() = default;
+DaoSidebarUIHandler::DaoSidebarUIHandler() {
+  DaoUpdaterService::GetInstance()->AddObserver(this);
+}
 
 DaoSidebarUIHandler::~DaoSidebarUIHandler() {
+  DaoUpdaterService::GetInstance()->RemoveObserver(this);
   download_notifier_.reset();
   if (browser_) {
     browser_->tab_strip_model()->RemoveObserver(this);
@@ -425,6 +429,10 @@ base::DictValue DaoSidebarUIHandler::GetSidebarStateForTesting() {
   return BuildSidebarState();
 }
 
+base::DictValue DaoSidebarUIHandler::GetUpdateStateForTesting() {
+  return BuildUpdateState();
+}
+
 void DaoSidebarUIHandler::PinTabForTesting(int index,
                                            int pinned_target_index) {
   PinTabAtIndex(index, pinned_target_index);
@@ -477,6 +485,14 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "requestDownloadState",
       base::BindRepeating(&DaoSidebarUIHandler::HandleRequestDownloadState,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "requestUpdateState",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleRequestUpdateState,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "applyReadyUpdate",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleApplyReadyUpdate,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "openDownloadsFolder",
@@ -578,9 +594,14 @@ void DaoSidebarUIHandler::OnJavascriptAllowed() {
   if (browser_) {
     PushFullState();
   }
+  PushUpdateState();
 }
 
 void DaoSidebarUIHandler::OnJavascriptDisallowed() {}
+
+void DaoSidebarUIHandler::OnDaoUpdateStatusChanged(const DaoUpdateStatus&) {
+  PushUpdateState();
+}
 
 void DaoSidebarUIHandler::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
@@ -1333,6 +1354,44 @@ std::string DaoSidebarUIHandler::FormatSpeed(int64_t bytes_per_sec) {
   return std::string(buf);
 }
 
+// static
+std::string DaoSidebarUIHandler::UpdateStateToString(DaoUpdateState state) {
+  switch (state) {
+    case DaoUpdateState::kIdle:
+      return "idle";
+    case DaoUpdateState::kReady:
+      return "ready";
+    case DaoUpdateState::kApplying:
+      return "applying";
+    case DaoUpdateState::kUnsupported:
+      return "unsupported";
+  }
+  return "idle";
+}
+
+base::DictValue DaoSidebarUIHandler::BuildUpdateState() {
+  const DaoUpdateStatus status =
+      DaoUpdaterService::GetInstance()->GetUpdateStatus();
+  const std::string label = base::UTF16ToUTF8(
+      l10n_util::GetStringUTF16(IDS_DAO_UPDATE_READY_ACTION));
+  const std::string applying_label = base::UTF16ToUTF8(
+      l10n_util::GetStringUTF16(IDS_DAO_UPDATE_APPLYING_ACTION));
+
+  base::DictValue state;
+  state.Set("state", UpdateStateToString(status.state));
+  state.Set("displayVersion", status.display_version);
+  state.Set("label", label);
+  state.Set("applyingLabel", applying_label);
+  return state;
+}
+
+void DaoSidebarUIHandler::PushUpdateState() {
+  if (!IsJavascriptAllowed()) {
+    return;
+  }
+  FireWebUIListener("updateStateChanged", BuildUpdateState());
+}
+
 void DaoSidebarUIHandler::HandleRequestDownloadState(
     const base::ListValue& args) {
   if (!browser_) {
@@ -1340,6 +1399,17 @@ void DaoSidebarUIHandler::HandleRequestDownloadState(
   }
   PushDownloadState();
   PushActiveDownloads();
+}
+
+void DaoSidebarUIHandler::HandleRequestUpdateState(
+    const base::ListValue& args) {
+  AllowJavascript();
+  PushUpdateState();
+}
+
+void DaoSidebarUIHandler::HandleApplyReadyUpdate(const base::ListValue& args) {
+  DaoUpdaterService::GetInstance()->ApplyReadyUpdate();
+  PushUpdateState();
 }
 
 void DaoSidebarUIHandler::HandleOpenDownloadsFolder(
