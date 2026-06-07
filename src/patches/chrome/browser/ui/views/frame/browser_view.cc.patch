@@ -28,6 +28,21 @@ index e4d4e62095..055a20963c 100644
  #include <stdint.h>
  
  #include <algorithm>
+@@ -754,6 +773,14 @@ class BrowserView::ExclusiveAccessContextImpl
+       // ...TYPE_NONE indicates deleting the bubble, except when used with
+       // download.
+       should_close_bubble |= params.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE;
++#if BUILDFLAG(IS_MAC)
++      // Dao: Browser fullscreen is our sidebar immersive mode. Keep webpage
++      // fullscreen and keyboard/pointer-lock warnings visible.
++      should_close_bubble |=
++          browser_view_->dao_sidebar() &&
++          params.type ==
++              EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION;
++#endif
+ #if BUILDFLAG(IS_CHROMEOS)
+       // Immersive mode allows the toolbar to be shown, so do not show the
+       // bubble. However, do show the bubble in a managed guest session (see
 @@ -963,6 +982,86 @@ BrowserView::BrowserView(Browser* browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);

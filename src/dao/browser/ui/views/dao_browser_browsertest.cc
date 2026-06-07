@@ -24,6 +24,10 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
@@ -100,6 +104,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
 #include "ui/compositor/layer.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/events/event.h"
@@ -453,6 +458,31 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, WebUIStartsCloseToHeader) {
 
   EXPECT_LE(gap, 2);
 }
+
+#if BUILDFLAG(IS_MAC)
+class DaoSidebarFullscreenBrowserTest : public DaoSidebarBrowserTest {
+ private:
+  // Avoid relying on macOS window-server fullscreen transitions in tests.
+  ui::test::ScopedFakeNSWindowFullscreen fake_fullscreen_window_;
+};
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarFullscreenBrowserTest,
+                       BrowserFullscreenDoesNotShowExitBubble) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view->dao_sidebar());
+
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(browser_view->IsFullscreen());
+
+  auto* manager = browser()->GetFeatures().exclusive_access_manager();
+  ASSERT_NE(nullptr, manager);
+  EXPECT_EQ(EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
+            manager->GetExclusiveAccessExitBubbleType());
+  EXPECT_FALSE(manager->context()->IsExclusiveAccessBubbleDisplayed());
+
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+}
+#endif
 
 #if BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
