@@ -715,6 +715,8 @@ void DaoSidebarView::OnMouseEntered(const ui::MouseEvent& event) {
 }
 
 void DaoSidebarView::OnMouseExited(const ui::MouseEvent& event) {
+  NotifySidebarPointerExited();
+
   if (auto_expanded_) {
     auto_expanded_ = false;
     collapsed_ = true;
@@ -725,6 +727,18 @@ void DaoSidebarView::OnMouseExited(const ui::MouseEvent& event) {
     PreferredSizeChanged();
     AnimateLayerSlide(old_width, kCollapsedWidth);
   }
+}
+
+void DaoSidebarView::NotifySidebarPointerExited() {
+  if (!sidebar_web_view_ || !sidebar_web_view_->GetWebContents()) {
+    return;
+  }
+  content::WebUI* web_ui = sidebar_web_view_->GetWebContents()->GetWebUI();
+  if (!web_ui) {
+    return;
+  }
+  web_ui->CallJavascriptFunctionUnsafe("cr.webUIListenerCallback",
+                                       base::Value("sidebarPointerExited"));
 }
 
 // --- Command bar delegation -------------------------------------------------

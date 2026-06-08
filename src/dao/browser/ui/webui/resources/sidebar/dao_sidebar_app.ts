@@ -19,6 +19,8 @@ import './dao_tab_list.js';
 import './dao_download_button.js';
 import './dao_media_control.js';
 
+const TAB_SCROLLBAR_STALE_HOVER_MS = 600;
+
 export class DaoSidebarApp extends CrLitElement {
   static get is() {
     return 'dao-sidebar-app';
@@ -217,6 +219,7 @@ export class DaoSidebarApp extends CrLitElement {
   private foldersLoaded_: boolean = false;
   private initialStateReceived_: boolean = false;
   private boundClosePlusMenu_: ((e: MouseEvent) => void) | null = null;
+  private tabScrollbarHoverTimeout_: number | null = null;
   private boundWindowMouseOut_ = (e: MouseEvent) => {
     if (!e.relatedTarget) {
       this.hideTabScrollbar_();
@@ -294,6 +297,10 @@ export class DaoSidebarApp extends CrLitElement {
       this.newTabHighlighted_ = args[0] as boolean;
     });
 
+    addListener('sidebarPointerExited', () => {
+      this.hideTabScrollbar_();
+    });
+
     addListener('updateStateChanged', (...args: unknown[]) => {
       this.updateState_ = args[0] as UpdateStateData;
     });
@@ -318,6 +325,7 @@ export class DaoSidebarApp extends CrLitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback?.();
+    this.clearTabScrollbarHoverTimeout_();
     window.removeEventListener('mouseout', this.boundWindowMouseOut_);
     window.removeEventListener('blur', this.boundWindowBlur_);
     document.removeEventListener(
@@ -500,23 +508,49 @@ export class DaoSidebarApp extends CrLitElement {
     return this.unpinnedTabs_.find(t => t.tabId === tabId) || null;
   }
 
-  private onTabSectionScroll_() {
-    this.updateTabScrollbar_();
-  }
+  private onTabSectionScroll_ = () => {
+    this.showTabScrollbar_();
+  };
 
-  private onTabSectionPointerEnter_() {
-    this.tabScrollbarHovered_ = true;
-    this.updateTabScrollbar_();
-  }
+  private onTabSectionPointerEnter_ = () => {
+    this.showTabScrollbar_();
+  };
 
-  private onTabSectionPointerLeave_() {
+  private onTabSectionPointerMove_ = () => {
+    this.showTabScrollbar_();
+  };
+
+  private onTabSectionPointerLeave_ = () => {
     this.hideTabScrollbar_();
+  };
+
+  private showTabScrollbar_() {
+    if (!this.tabScrollbarHovered_) {
+      this.tabScrollbarHovered_ = true;
+    }
+    this.updateTabScrollbar_();
+    this.armTabScrollbarHoverTimeout_();
   }
 
   private hideTabScrollbar_() {
+    this.clearTabScrollbarHoverTimeout_();
     if (this.tabScrollbarHovered_) {
       this.tabScrollbarHovered_ = false;
     }
+  }
+
+  private armTabScrollbarHoverTimeout_() {
+    this.clearTabScrollbarHoverTimeout_();
+    this.tabScrollbarHoverTimeout_ = window.setTimeout(() => {
+      this.tabScrollbarHoverTimeout_ = null;
+      this.hideTabScrollbar_();
+    }, TAB_SCROLLBAR_STALE_HOVER_MS);
+  }
+
+  private clearTabScrollbarHoverTimeout_() {
+    if (this.tabScrollbarHoverTimeout_ === null) return;
+    window.clearTimeout(this.tabScrollbarHoverTimeout_);
+    this.tabScrollbarHoverTimeout_ = null;
   }
 
   private getTabScrollbarThumbStyle_(): string {
@@ -572,6 +606,7 @@ export class DaoSidebarApp extends CrLitElement {
 
         <div class="tab-section-shell"
              @pointerenter=${this.onTabSectionPointerEnter_}
+             @pointermove=${this.onTabSectionPointerMove_}
              @pointerleave=${this.onTabSectionPointerLeave_}>
           <div class="tab-section" @scroll=${this.onTabSectionScroll_}
                @pointerenter=${this.onTabSectionPointerEnter_}>

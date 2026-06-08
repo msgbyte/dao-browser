@@ -53,10 +53,10 @@ describe('dao-sidebar-app', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     document.body.innerHTML = '';
     vi.restoreAllMocks();
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
-    delete (window as unknown as {cr?: unknown}).cr;
   });
 
   it('renders pinned tabs above the new tab button', async () => {
@@ -141,6 +141,43 @@ describe('dao-sidebar-app', () => {
       bubbles: true,
       relatedTarget: null,
     }));
+    await el.updateComplete;
+
+    expect(el.tabScrollbarHovered_).toBe(false);
+    expect(el.shadowRoot!.querySelector('.tab-scrollbar.hovered')).toBeNull();
+  });
+
+  it('clears stale overlay scrollbar hover without a leave event', async () => {
+    vi.useFakeTimers();
+
+    const {el} = await loadApp();
+    await el.updateComplete;
+
+    const shell = el.shadowRoot!.querySelector('.tab-section-shell')!;
+    shell.dispatchEvent(new Event('pointerenter'));
+    await el.updateComplete;
+
+    expect(el.tabScrollbarHovered_).toBe(true);
+    expect(el.shadowRoot!.querySelector('.tab-scrollbar.hovered')).not.toBeNull();
+
+    vi.advanceTimersByTime(900);
+    await el.updateComplete;
+
+    expect(el.tabScrollbarHovered_).toBe(false);
+    expect(el.shadowRoot!.querySelector('.tab-scrollbar.hovered')).toBeNull();
+  });
+
+  it('hides the overlay scrollbar when the host sidebar exits', async () => {
+    const {el} = await loadApp();
+    el.tabScrollbarVisible_ = true;
+    el.tabScrollbarHovered_ = true;
+    await el.updateComplete;
+
+    expect(el.shadowRoot!.querySelector('.tab-scrollbar.hovered')).not.toBeNull();
+
+    (window as unknown as {
+      cr: {webUIListenerCallback: (event: string) => void};
+    }).cr.webUIListenerCallback('sidebarPointerExited');
     await el.updateComplete;
 
     expect(el.tabScrollbarHovered_).toBe(false);

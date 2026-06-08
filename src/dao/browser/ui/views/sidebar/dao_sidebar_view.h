@@ -148,6 +148,7 @@ class DaoSidebarView : public views::View,
   void EnsureWebUILoaded();
   void DoStartFileDrag(const base::FilePath& path);
   void ApplyTheme();
+  void NotifySidebarPointerExited();
   static void SchedulePaintRecursive(views::View* view);
 
   bool webui_loaded_ = false;
