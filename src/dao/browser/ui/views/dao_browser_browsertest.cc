@@ -112,6 +112,7 @@
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/widget_test.h"
@@ -143,6 +144,23 @@ bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
     }
   }
   return false;
+}
+
+views::Label* FindDescendantLabelWithText(views::View* root,
+                                          std::u16string_view text) {
+  if (!root) {
+    return nullptr;
+  }
+  if (auto* label = views::AsViewClass<views::Label>(root);
+      label && label->GetText() == text) {
+    return label;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* label = FindDescendantLabelWithText(child, text)) {
+      return label;
+    }
+  }
+  return nullptr;
 }
 
 template <typename T>
@@ -1115,6 +1133,24 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, CommandBarShowAndHide) {
 
   command_bar->Hide();
   EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InputAndInlineCompletionUseSeventeenPointText) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"dao", u".com");
+
+  auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  EXPECT_EQ(17, textfield->GetFontList().GetFontSize());
+
+  auto* ghost_label = FindDescendantLabelWithText(command_bar, u".com");
+  ASSERT_NE(nullptr, ghost_label);
+  EXPECT_EQ(17, ghost_label->font_list().GetFontSize());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowIsIdempotent) {

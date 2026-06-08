@@ -64,6 +64,12 @@
 
 namespace dao {
 
+namespace {
+
+constexpr int kCommandBarTextFontSize = 17;
+
+}  // namespace
+
 // Custom Textfield that prevents FocusManager from intercepting Tab for focus
 // traversal.  Without this, Tab events never reach HandleKeyEvent() because
 // FocusManager consumes them in its pre-target handler for AdvanceFocus().
@@ -221,7 +227,8 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   textfield->set_controller(this);
   textfield->SetBorder(nullptr);
   textfield->SetBackgroundColor(SK_ColorTRANSPARENT);
-  textfield->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 16,
+  textfield->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL,
+                                        kCommandBarTextFontSize,
                                         gfx::Font::Weight::SEMIBOLD));
   textfield_ = card_container_->AddChildView(std::move(textfield));
 
@@ -234,7 +241,8 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   // card_container_) so it is not managed by the card's BoxLayout, and
   // promoted to its own layer so it paints above glass_container_.
   auto ghost_label = std::make_unique<views::Label>();
-  ghost_label->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 16,
+  ghost_label->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL,
+                                          kCommandBarTextFontSize,
                                           gfx::Font::Weight::SEMIBOLD));
   ghost_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   ghost_label->SetSubpixelRenderingEnabled(false);
