@@ -22,9 +22,9 @@
 
 import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {BASE_SYSTEM_PROMPT, currentSoulContent, recordApiCall, refreshSoulContent, soulChannel} from './agent_bridge.js';
+import {BASE_SYSTEM_PROMPT, callNative, currentSoulContent, recordApiCall, refreshSoulContent, soulChannel} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
-import {addReusableElementContext, buildElementContextAttachment, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
+import {addReusableElementContext, buildElementContextAttachment, consumeReusableElementContexts, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
@@ -265,9 +265,8 @@ export class DaoChatView extends CrLitElement {
   // selection is cleared in the tab after a successful send.
   declare protected pendingSelection_: SelectionCapture | null;
 
-  // User-picked element contexts from the active WebContents. Unlike text
-  // selection, these are reusable: every normal send attaches them until the
-  // user dismisses individual chips.
+  // User-picked element contexts from the active WebContents. These follow
+  // text selection semantics: once attached to a send, the chips are cleared.
   declare protected pendingElementContexts_: ElementContextCapture[];
   declare protected elementPicking_: boolean;
 
@@ -1719,6 +1718,7 @@ export class DaoChatView extends CrLitElement {
         this.showToast_(t('chat.attach.element.pick_selected', {
           label: context.label,
         }));
+        this.focusInput();
       } else {
         this.showToast_(t('chat.attach.element.pick_cancelled'));
       }
@@ -1752,9 +1752,12 @@ export class DaoChatView extends CrLitElement {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async maybeAttachElementContext_(attachments: any[]): Promise<any[]> {
     if (this.pendingElementContexts_.length === 0) return attachments;
+    const contexts = consumeReusableElementContexts();
+    this.pendingElementContexts_ = [];
+    if (contexts.length === 0) return attachments;
     return [
       ...attachments,
-      ...this.pendingElementContexts_.map(buildElementContextAttachment),
+      ...contexts.map(buildElementContextAttachment),
     ];
   }
 
@@ -2429,10 +2432,17 @@ export class DaoChatView extends CrLitElement {
     return renderShareImage(ctx);
   }
 
-  focusInput() {
+  private focusInputDom_() {
     const editor = this.panel_?.querySelector(
         'message-editor textarea, message-editor input') as HTMLElement | null;
     editor?.focus();
+  }
+
+  focusInput() {
+    this.focusInputDom_();
+    void callNative('focusAgentSidebar')
+        .catch(() => null)
+        .then(() => this.focusInputDom_());
   }
 
   endCurrentSession() {

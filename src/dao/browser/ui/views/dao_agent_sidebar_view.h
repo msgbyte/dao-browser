@@ -50,6 +50,10 @@ class DaoAgentSidebarView : public views::View,
 
   bool is_expanded() const { return expanded_; }
 
+  // Routes keyboard focus into the embedded Agent WebView. Returns false
+  // when the sidebar is not currently focusable.
+  bool RequestWebViewFocus();
+
   // Expands the sidebar (if not already) and submits `prompt` as the first
   // turn of a fresh chat session.  Called from the command bar when the
   // user picks the "Ask AI" row.  The actual submission is deferred until

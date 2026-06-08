@@ -238,7 +238,7 @@ bool DaoAgentSidebarView::Toggle() {
               if (!self || !self->expanded_ || !self->web_view_) {
                 return;
               }
-              self->web_view_->RequestFocus();
+              self->RequestWebViewFocus();
             },
             weak_factory_.GetWeakPtr()));
   } else {
@@ -249,6 +249,14 @@ bool DaoAgentSidebarView::Toggle() {
   }
 
   return expanded_;
+}
+
+bool DaoAgentSidebarView::RequestWebViewFocus() {
+  if (!expanded_ || !GetVisible() || !web_view_) {
+    return false;
+  }
+  web_view_->RequestFocus();
+  return true;
 }
 
 void DaoAgentSidebarView::StartWidthAnimation(int from, int to) {

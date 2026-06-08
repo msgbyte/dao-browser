@@ -7,6 +7,7 @@ import {beforeEach, describe, expect, it} from 'vitest';
 import {
   addReusableElementContext,
   clearReusableElementContext,
+  consumeReusableElementContexts,
   getReusableElementContexts,
   getReusableElementContext,
   makeResolveElementContextScript,
@@ -77,6 +78,18 @@ describe('dao_element_context store', () => {
     removeReusableElementContext(first.contextId);
     expect(getReusableElementContexts().map(item => item.label))
         .toEqual(['Forgot password link']);
+  });
+
+  it('consumes reusable element contexts as a one-shot attachment payload', () => {
+    const first = addReusableElementContext(sampleContext());
+    const second = addReusableElementContext(
+        sampleContext('Forgot password link', 'forgot-password', 'Forgot password'));
+
+    expect(consumeReusableElementContexts().map(item => item.contextId))
+        .toEqual([first.contextId, second.contextId]);
+    expect(getReusableElementContexts()).toEqual([]);
+    expect(localStorage.getItem(REUSABLE_ELEMENT_CONTEXT_STORAGE_KEY))
+        .toBeNull();
   });
 
   it('restores multiple reusable element contexts from local storage', () => {

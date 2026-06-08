@@ -607,6 +607,10 @@ void DaoAgentUIHandler::RegisterMessages() {
       base::BindRepeating(&DaoAgentUIHandler::HandleCloseSidebar,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "focusAgentSidebar",
+      base::BindRepeating(&DaoAgentUIHandler::HandleFocusAgentSidebar,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "getPageHtml",
       base::BindRepeating(&DaoAgentUIHandler::HandleGetPageHtml,
                           base::Unretained(this)));
@@ -2819,6 +2823,29 @@ void DaoAgentUIHandler::HandleCloseSidebar(
       browser_view->dao_address_bar()->SetChatButtonHighlighted(false);
     }
   }
+}
+
+void DaoAgentUIHandler::HandleFocusAgentSidebar(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+
+  Browser* browser = chrome::FindLastActive();
+  BrowserView* browser_view =
+      browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
+  dao::DaoAgentSidebarView* sidebar =
+      browser_view ? browser_view->dao_agent_sidebar() : nullptr;
+  const bool success = sidebar && sidebar->RequestWebViewFocus();
+
+  base::DictValue response;
+  response.Set("success", success);
+  if (!success) {
+    response.Set("error", "Agent sidebar unavailable");
+  }
+  ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
 // ---- DaoAgentMemoryHandler ----

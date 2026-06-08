@@ -191,6 +191,12 @@ export function clearReusableElementContext(): void {
   } catch (_) { /* ignore */ }
 }
 
+export function consumeReusableElementContexts(): ElementContextCapture[] {
+  const contexts = getReusableElementContexts();
+  clearReusableElementContext();
+  return contexts;
+}
+
 export function buildElementContextAttachment(capture: ElementContextCapture):
     PiAttachment {
   const safeTitle = capture.title.replace(/"/g, '&quot;');

@@ -183,6 +183,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
 
   // Sidebar control.
   void HandleCloseSidebar(const base::ListValue& args);
+  void HandleFocusAgentSidebar(const base::ListValue& args);
 
   // CORS-bypass fetch for the agent's web_search tool. The handler
   // runs SimpleURLLoader in the browser process so requests to e.g.
