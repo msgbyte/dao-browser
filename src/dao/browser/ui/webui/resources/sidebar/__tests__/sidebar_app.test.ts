@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {readFileSync} from 'node:fs';
+
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import type {PinnedItemData, UpdateStateData} from '../sidebar_bridge.js';
@@ -37,6 +39,8 @@ async function loadApp() {
   const el = document.createElement('dao-sidebar-app') as HTMLElement & {
     pinnedItems_: PinnedItemData[];
     updateState_: UpdateStateData | null;
+    tabScrollbarVisible_: boolean;
+    tabScrollbarHovered_: boolean;
     updateComplete: Promise<boolean>;
   };
   document.body.appendChild(el);
@@ -95,5 +99,59 @@ describe('dao-sidebar-app', () => {
     expect(children).toHaveLength(2);
     expect(children[0]!.tagName.toLowerCase()).toBe('dao-update-button');
     expect(children[1]!.classList.contains('plus-menu-container')).toBe(true);
+  });
+
+  it('replaces the native tab scrollbar with a thin overlay thumb', async () => {
+    const {DaoSidebarApp} = await import('../dao_sidebar_app.js');
+    const styles = (DaoSidebarApp as unknown as {
+      styles: {strings: TemplateStringsArray};
+    }).styles;
+    const cssText = Array.from(styles.strings).join('');
+
+    expect(cssText).toMatch(
+        /\.tab-section-shell\s*{[^}]*position:\s*relative;/s);
+    expect(cssText).toMatch(
+        /\.tab-section\s*{[^}]*scrollbar-width:\s*none;/s);
+    expect(cssText).toMatch(
+        /\.tab-section::-webkit-scrollbar\s*{[^}]*display:\s*none;/s);
+    expect(cssText).toMatch(
+        /\.tab-scrollbar\s*{[^}]*right:\s*0;[^}]*width:\s*4px;/s);
+    expect(cssText).toMatch(
+        /\.tab-scrollbar-thumb\s*{[^}]*width:\s*4px;/s);
+    expect(cssText).toMatch(
+        /\.tab-scrollbar\.visible\.hovered\s*{[^}]*opacity:\s*1;/s);
+
+    const {el} = await loadApp();
+    await el.updateComplete;
+
+    expect(el.shadowRoot!.querySelector('.tab-section-shell')).not.toBeNull();
+    expect(el.shadowRoot!.querySelector('.tab-scrollbar')).not.toBeNull();
+    expect(el.shadowRoot!.querySelector('.tab-scrollbar-thumb')).not.toBeNull();
+  });
+
+  it('hides the overlay scrollbar when the pointer leaves the sidebar window', async () => {
+    const {el} = await loadApp();
+    el.tabScrollbarVisible_ = true;
+    el.tabScrollbarHovered_ = true;
+    await el.updateComplete;
+
+    expect(el.shadowRoot!.querySelector('.tab-scrollbar.hovered')).not.toBeNull();
+
+    window.dispatchEvent(new MouseEvent('mouseout', {
+      bubbles: true,
+      relatedTarget: null,
+    }));
+    await el.updateComplete;
+
+    expect(el.tabScrollbarHovered_).toBe(false);
+    expect(el.shadowRoot!.querySelector('.tab-scrollbar.hovered')).toBeNull();
+  });
+
+  it('hides page-level sidebar scrollbars until the page is hovered', () => {
+    const cssText = readFileSync(
+        'src/dao/browser/ui/webui/resources/sidebar/sidebar.css', 'utf8');
+
+    expect(cssText).toMatch(/scrollbar-width:\s*none;/);
+    expect(cssText).toMatch(/::-webkit-scrollbar\s*{[^}]*display:\s*none;/s);
   });
 });

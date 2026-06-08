@@ -41,11 +41,52 @@ export class DaoSidebarApp extends CrLitElement {
         padding: 4px 0;
       }
 
-      .tab-section {
+      .tab-section-shell {
+        position: relative;
         flex: 1;
         min-height: 0;
+      }
+
+      .tab-section {
+        height: 100%;
         overflow-y: auto;
         overflow-x: hidden;
+        scrollbar-width: none;
+      }
+
+      .tab-section::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+
+      .tab-scrollbar {
+        position: absolute;
+        top: 4px;
+        right: 0;
+        bottom: 4px;
+        width: 4px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 120ms ease;
+      }
+
+      .tab-scrollbar.visible.hovered {
+        opacity: 1;
+      }
+
+      .tab-scrollbar-thumb {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 4px;
+        min-height: 18px;
+        background: var(--scrollbar-thumb);
+        border-radius: 2px;
+      }
+
+      .tab-scrollbar.visible.hovered .tab-scrollbar-thumb {
+        background: var(--scrollbar-thumb-hover);
       }
 
       .plus-menu-container {
@@ -143,6 +184,10 @@ export class DaoSidebarApp extends CrLitElement {
       showPlusMenu_: {type: Boolean},
       newTabHighlighted_: {type: Boolean},
       updateState_: {type: Object},
+      tabScrollbarVisible_: {type: Boolean},
+      tabScrollbarHovered_: {type: Boolean},
+      tabScrollbarThumbTop_: {type: Number},
+      tabScrollbarThumbHeight_: {type: Number},
     };
   }
 
@@ -161,6 +206,10 @@ export class DaoSidebarApp extends CrLitElement {
   declare protected showPlusMenu_: boolean;
   declare protected newTabHighlighted_: boolean;
   declare protected updateState_: UpdateStateData | null;
+  declare protected tabScrollbarVisible_: boolean;
+  declare protected tabScrollbarHovered_: boolean;
+  declare protected tabScrollbarThumbTop_: number;
+  declare protected tabScrollbarThumbHeight_: number;
 
   // Non-reactive internals — plain fields are fine here because Lit doesn't
   // install accessors for these.
@@ -168,6 +217,19 @@ export class DaoSidebarApp extends CrLitElement {
   private foldersLoaded_: boolean = false;
   private initialStateReceived_: boolean = false;
   private boundClosePlusMenu_: ((e: MouseEvent) => void) | null = null;
+  private boundWindowMouseOut_ = (e: MouseEvent) => {
+    if (!e.relatedTarget) {
+      this.hideTabScrollbar_();
+    }
+  };
+  private boundWindowBlur_ = () => {
+    this.hideTabScrollbar_();
+  };
+  private boundVisibilityChange_ = () => {
+    if (document.visibilityState !== 'visible') {
+      this.hideTabScrollbar_();
+    }
+  };
 
   constructor() {
     super();
@@ -179,6 +241,10 @@ export class DaoSidebarApp extends CrLitElement {
     this.showPlusMenu_ = false;
     this.newTabHighlighted_ = false;
     this.updateState_ = null;
+    this.tabScrollbarVisible_ = false;
+    this.tabScrollbarHovered_ = false;
+    this.tabScrollbarThumbTop_ = 0;
+    this.tabScrollbarThumbHeight_ = 0;
   }
 
   override connectedCallback() {
@@ -244,6 +310,22 @@ export class DaoSidebarApp extends CrLitElement {
 
     sendNative('getInitialState');
     sendNative('requestUpdateState');
+
+    window.addEventListener('mouseout', this.boundWindowMouseOut_);
+    window.addEventListener('blur', this.boundWindowBlur_);
+    document.addEventListener('visibilitychange', this.boundVisibilityChange_);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback?.();
+    window.removeEventListener('mouseout', this.boundWindowMouseOut_);
+    window.removeEventListener('blur', this.boundWindowBlur_);
+    document.removeEventListener(
+        'visibilitychange', this.boundVisibilityChange_);
+  }
+
+  override updated() {
+    this.updateTabScrollbar_();
   }
 
   /**
@@ -418,6 +500,60 @@ export class DaoSidebarApp extends CrLitElement {
     return this.unpinnedTabs_.find(t => t.tabId === tabId) || null;
   }
 
+  private onTabSectionScroll_() {
+    this.updateTabScrollbar_();
+  }
+
+  private onTabSectionPointerEnter_() {
+    this.tabScrollbarHovered_ = true;
+    this.updateTabScrollbar_();
+  }
+
+  private onTabSectionPointerLeave_() {
+    this.hideTabScrollbar_();
+  }
+
+  private hideTabScrollbar_() {
+    if (this.tabScrollbarHovered_) {
+      this.tabScrollbarHovered_ = false;
+    }
+  }
+
+  private getTabScrollbarThumbStyle_(): string {
+    return `height: ${this.tabScrollbarThumbHeight_}px; ` +
+        `transform: translateY(${this.tabScrollbarThumbTop_}px);`;
+  }
+
+  private updateTabScrollbar_() {
+    const scroller = this.shadowRoot?.querySelector('.tab-section') as
+        HTMLElement | null;
+    if (!scroller) return;
+
+    const clientHeight = scroller.clientHeight;
+    const scrollHeight = scroller.scrollHeight;
+    const scrollRange = scrollHeight - clientHeight;
+    const visible = clientHeight > 0 && scrollRange > 1;
+
+    let thumbTop = 0;
+    let thumbHeight = 0;
+    if (visible) {
+      const trackHeight = Math.max(0, clientHeight - 8);
+      thumbHeight = Math.min(
+          trackHeight,
+          Math.max(18, Math.round(trackHeight * clientHeight / scrollHeight)));
+      const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+      thumbTop = Math.round(scroller.scrollTop / scrollRange * maxThumbTop);
+    }
+
+    if (this.tabScrollbarVisible_ !== visible ||
+        this.tabScrollbarThumbTop_ !== thumbTop ||
+        this.tabScrollbarThumbHeight_ !== thumbHeight) {
+      this.tabScrollbarVisible_ = visible;
+      this.tabScrollbarThumbTop_ = thumbTop;
+      this.tabScrollbarThumbHeight_ = thumbHeight;
+    }
+  }
+
   override render() {
     return html`
       <div class="sidebar-content">
@@ -434,15 +570,24 @@ export class DaoSidebarApp extends CrLitElement {
 
         <dao-new-tab-button ?highlighted=${this.newTabHighlighted_}></dao-new-tab-button>
 
-        <div class="tab-section">
-          <dao-sidebar-section sectionTitle="Today">
-            <dao-tab-list
-              .tabs=${this.newTabHighlighted_ ? this.unpinnedTabs_.map(t => ({...t, isActive: false})) : this.unpinnedTabs_}
-              .sessionId=${this.sessionId_}
-              .folderModel=${this.foldersLoaded_ ? this.folderModel_ : null}
-              .folderModelVersion=${this.folderModelVersion_}>
-            </dao-tab-list>
-          </dao-sidebar-section>
+        <div class="tab-section-shell"
+             @pointerenter=${this.onTabSectionPointerEnter_}
+             @pointerleave=${this.onTabSectionPointerLeave_}>
+          <div class="tab-section" @scroll=${this.onTabSectionScroll_}
+               @pointerenter=${this.onTabSectionPointerEnter_}>
+            <dao-sidebar-section sectionTitle="Today">
+              <dao-tab-list
+                .tabs=${this.newTabHighlighted_ ? this.unpinnedTabs_.map(t => ({...t, isActive: false})) : this.unpinnedTabs_}
+                .sessionId=${this.sessionId_}
+                .folderModel=${this.foldersLoaded_ ? this.folderModel_ : null}
+                .folderModelVersion=${this.folderModelVersion_}>
+              </dao-tab-list>
+            </dao-sidebar-section>
+          </div>
+          <div class="tab-scrollbar ${this.tabScrollbarVisible_ ? 'visible' : ''} ${this.tabScrollbarHovered_ ? 'hovered' : ''}">
+            <div class="tab-scrollbar-thumb"
+                 style="${this.getTabScrollbarThumbStyle_()}"></div>
+          </div>
         </div>
 
         <dao-media-control></dao-media-control>

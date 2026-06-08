@@ -53,24 +53,14 @@ body {
   font-size: 13px;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 2px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+  display: none;
+  width: 0;
+  height: 0;
 }
