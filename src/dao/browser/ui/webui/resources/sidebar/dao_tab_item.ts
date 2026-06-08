@@ -5,6 +5,7 @@
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {
+  SIDEBAR_POINTER_EXITED_EVENT,
   sendNative,
   TAB_DRAG_MIME_TYPE,
   TAB_DRAG_PREFIX,
@@ -164,6 +165,23 @@ export class DaoTabItem extends CrLitElement {
         color: var(--text-primary);
       }
 
+      :host([hover-suppressed]) .tab-row:hover {
+        background: transparent;
+      }
+
+      :host([active][hover-suppressed]) .tab-row:hover {
+        background: var(--surface-active);
+      }
+
+      :host([hover-suppressed]) .tab-row:hover .close-btn {
+        opacity: 0;
+      }
+
+      :host([hover-suppressed]) .close-btn:hover {
+        background: transparent;
+        color: var(--text-muted);
+      }
+
     `;
   }
 
@@ -172,12 +190,18 @@ export class DaoTabItem extends CrLitElement {
       tabData: {type: Object},
       active: {type: Boolean, reflect: true},
       sessionId: {type: Number},
+      hoverSuppressed_: {
+        type: Boolean,
+        reflect: true,
+        attribute: 'hover-suppressed',
+      },
     };
   }
 
   declare tabData: TabData;
   declare active: boolean;
   declare sessionId: number;
+  declare protected hoverSuppressed_: boolean;
 
   constructor() {
     super();
@@ -194,11 +218,27 @@ export class DaoTabItem extends CrLitElement {
     };
     this.active = false;
     this.sessionId = 0;
+    this.hoverSuppressed_ = false;
   }
 
   private tooltipTimer_: number = 0;
+  private tooltipScheduled_: boolean = false;
+  private tooltipVisible_: boolean = false;
   private lastMouseX_: number = 0;
   private lastMouseY_: number = 0;
+  private boundSidebarPointerExited_ = () => this.onSidebarPointerExited_();
+
+  override connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener(
+        SIDEBAR_POINTER_EXITED_EVENT, this.boundSidebarPointerExited_);
+  }
+
+  override disconnectedCallback() {
+    window.removeEventListener(
+        SIDEBAR_POINTER_EXITED_EVENT, this.boundSidebarPointerExited_);
+    super.disconnectedCallback?.();
+  }
 
   override render() {
     const tab = this.tabData;
@@ -289,6 +329,7 @@ export class DaoTabItem extends CrLitElement {
 
   private onDragStart_(e: DragEvent) {
     if (!e.dataTransfer) return;
+    this.clearTooltip_(this.tooltipVisible_);
     const payload =
         `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}`;
     console.error('[Dao-Xwin-JS] dragstart: payload=' +
@@ -299,11 +340,16 @@ export class DaoTabItem extends CrLitElement {
   }
 
   private onTrackMouse_(e: MouseEvent) {
+    this.setHoverSuppressed_(false);
     this.lastMouseX_ = e.screenX;
     this.lastMouseY_ = e.screenY;
-    // Reset timer on every move — only show after 2s of no movement.
-    window.clearTimeout(this.tooltipTimer_);
+    // Reset timer on every move: only show after the pointer settles.
+    this.clearTooltip_(false);
+    this.tooltipScheduled_ = true;
     this.tooltipTimer_ = window.setTimeout(() => {
+      this.tooltipTimer_ = 0;
+      this.tooltipScheduled_ = false;
+      this.tooltipVisible_ = true;
       const title = this.tabData.title || this.tabData.url || 'New Tab';
       sendNative('showTabTooltip',
           this.lastMouseX_ + 4,
@@ -313,10 +359,15 @@ export class DaoTabItem extends CrLitElement {
   }
 
   private onShowTooltip_(e: MouseEvent) {
+    this.setHoverSuppressed_(false);
     this.lastMouseX_ = e.screenX;
     this.lastMouseY_ = e.screenY;
-    window.clearTimeout(this.tooltipTimer_);
+    this.clearTooltip_(false);
+    this.tooltipScheduled_ = true;
     this.tooltipTimer_ = window.setTimeout(() => {
+      this.tooltipTimer_ = 0;
+      this.tooltipScheduled_ = false;
+      this.tooltipVisible_ = true;
       const title = this.tabData.title || this.tabData.url || 'New Tab';
       sendNative('showTabTooltip',
           this.lastMouseX_ + 4,
@@ -326,8 +377,31 @@ export class DaoTabItem extends CrLitElement {
   }
 
   private onHideTooltip_() {
-    window.clearTimeout(this.tooltipTimer_);
-    sendNative('hideTabTooltip');
+    this.clearTooltip_(true);
+  }
+
+  private onSidebarPointerExited_() {
+    this.setHoverSuppressed_(true);
+    this.clearTooltip_(true);
+  }
+
+  private setHoverSuppressed_(suppressed: boolean) {
+    this.hoverSuppressed_ = suppressed;
+    this.toggleAttribute('hover-suppressed', suppressed);
+  }
+
+  private clearTooltip_(sendHide: boolean) {
+    const shouldHide = sendHide &&
+        (this.tooltipScheduled_ || this.tooltipVisible_);
+    if (this.tooltipTimer_) {
+      window.clearTimeout(this.tooltipTimer_);
+      this.tooltipTimer_ = 0;
+    }
+    this.tooltipScheduled_ = false;
+    this.tooltipVisible_ = false;
+    if (shouldHide) {
+      sendNative('hideTabTooltip');
+    }
   }
 
   private onContextMenu_(e: MouseEvent) {

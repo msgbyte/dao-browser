@@ -36,6 +36,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -1721,6 +1722,35 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, SplitPaneCreatesTwo) {
   EXPECT_EQ(2, split_view->PaneCount());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
+                       EnteringSplitContentHidesTabTooltip) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view);
+  DaoSplitView* split_view = browser_view->dao_split_view();
+  ASSERT_NE(nullptr, split_view);
+  ASSERT_NE(nullptr, browser_view->dao_tab_tooltip());
+
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* first = model->GetWebContentsAt(0);
+  content::WebContents* second = model->GetWebContentsAt(1);
+  model->ActivateTabAt(0);
+
+  ASSERT_TRUE(split_view->SplitPane(
+      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(split_view->IsSplitActive());
+
+  browser_view->dao_tab_tooltip()->ShowTooltip(u"Docs", gfx::Point(120, 30));
+  ASSERT_TRUE(browser_view->dao_tab_tooltip()->GetVisible());
+
+  ui::MouseEvent enter_event(ui::EventType::kMouseEntered, gfx::Point(10, 10),
+                             gfx::Point(10, 10), base::TimeTicks::Now(),
+                             ui::EF_NONE, ui::EF_NONE);
+  split_view->OnMouseEntered(enter_event);
+
+  EXPECT_FALSE(browser_view->dao_tab_tooltip()->GetVisible());
+}
+
 // Regression: unsplit (close one pane via the keep-one helper) used to abort
 // inside content::WebContentsViewMac::ViewsHostableDetach when the WebContents
 // being detached had a stale views_host_. The detach path is now idempotent —
@@ -1779,6 +1809,146 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   EXPECT_EQ(0, model->GetIndexOfWebContents(anchor));
   EXPECT_NE(TabStripModel::kNoTab,
             model->GetIndexOfWebContents(far_member));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
+                       ReturningToSplitGroupDetachesPrimaryContentsHost) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view);
+  DaoSplitView* split_view = browser_view->dao_split_view();
+  ASSERT_NE(nullptr, split_view);
+
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* first = model->GetWebContentsAt(0);
+  content::WebContents* second = model->GetWebContentsAt(1);
+  model->ActivateTabAt(0);
+
+  ASSERT_TRUE(split_view->SplitPane(
+      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(split_view->IsSplitActive());
+
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  content::WebContents* single_tab = model->GetActiveWebContents();
+  ASSERT_NE(first, single_tab);
+  ASSERT_NE(second, single_tab);
+  ASSERT_FALSE(split_view->IsSplitActive());
+  ASSERT_EQ(single_tab, browser_view->contents_web_view()->web_contents());
+
+  model->ActivateTabAt(model->GetIndexOfWebContents(first));
+
+  EXPECT_TRUE(split_view->IsSplitActive());
+  EXPECT_EQ(2, split_view->PaneCount());
+  EXPECT_NE(first, browser_view->contents_web_view()->web_contents());
+  EXPECT_NE(second, browser_view->contents_web_view()->web_contents());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
+                       RestoreLayoutRecreatesSplitGroupInNewBrowser) {
+  const GURL first_url("data:text/html,dao-split-restore-one");
+  const GURL second_url("data:text/html,dao-split-restore-two");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), second_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view);
+  DaoSplitView* split_view = browser_view->dao_split_view();
+  ASSERT_NE(nullptr, split_view);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* first = model->GetWebContentsAt(0);
+  content::WebContents* second = model->GetWebContentsAt(1);
+  model->ActivateTabAt(0);
+
+  ASSERT_TRUE(split_view->SplitPane(
+      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(split_view->IsSplitActive());
+
+  Browser* restored_browser = CreateBrowser(browser()->profile());
+  ASSERT_NE(nullptr, restored_browser);
+  ASSERT_NE(browser(), restored_browser);
+  restored_browser->set_is_session_restore(true);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(restored_browser, first_url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      restored_browser, second_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  TabStripModel* restored_model = restored_browser->tab_strip_model();
+  content::WebContents* restored_first = restored_model->GetWebContentsAt(0);
+  content::WebContents* restored_second = restored_model->GetWebContentsAt(1);
+  restored_model->ActivateTabAt(0);
+
+  BrowserView* restored_browser_view = GetBrowserView(restored_browser);
+  ASSERT_NE(nullptr, restored_browser_view);
+  DaoSplitView* restored_split_view = restored_browser_view->dao_split_view();
+  ASSERT_NE(nullptr, restored_split_view);
+
+  EXPECT_TRUE(restored_split_view->IsSplitActive());
+  EXPECT_EQ(2, restored_split_view->PaneCount());
+  EXPECT_TRUE(restored_split_view->ContainsWebContents(restored_first));
+  EXPECT_TRUE(restored_split_view->ContainsWebContents(restored_second));
+  EXPECT_NE(restored_first,
+            restored_browser_view->contents_web_view()->web_contents());
+  EXPECT_NE(restored_second,
+            restored_browser_view->contents_web_view()->web_contents());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
+                       ClosingAllTabsPreservesSavedSplitLayoutForRestore) {
+  const GURL first_url("data:text/html,dao-split-close-restore-one");
+  const GURL second_url("data:text/html,dao-split-close-restore-two");
+
+  Browser* source_browser = CreateBrowser(browser()->profile());
+  ASSERT_NE(nullptr, source_browser);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(source_browser, first_url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      source_browser, second_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  BrowserView* source_browser_view = GetBrowserView(source_browser);
+  ASSERT_NE(nullptr, source_browser_view);
+  DaoSplitView* source_split_view = source_browser_view->dao_split_view();
+  ASSERT_NE(nullptr, source_split_view);
+
+  TabStripModel* source_model = source_browser->tab_strip_model();
+  content::WebContents* first = source_model->GetWebContentsAt(0);
+  content::WebContents* second = source_model->GetWebContentsAt(1);
+  source_model->ActivateTabAt(0);
+
+  ASSERT_TRUE(source_split_view->SplitPane(
+      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_FALSE(browser()
+                   ->profile()
+                   ->GetPrefs()
+                   ->GetDict(dao::prefs::kDaoSplitLayout)
+                   .empty());
+
+  source_model->CloseAllTabs();
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_FALSE(browser()
+                   ->profile()
+                   ->GetPrefs()
+                   ->GetDict(dao::prefs::kDaoSplitLayout)
+                   .empty());
+
+  Browser* restored_browser = browser();
+  restored_browser->set_is_session_restore(true);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(restored_browser, first_url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      restored_browser, second_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  BrowserView* restored_browser_view = GetBrowserView(restored_browser);
+  ASSERT_NE(nullptr, restored_browser_view);
+  DaoSplitView* restored_split_view = restored_browser_view->dao_split_view();
+  ASSERT_NE(nullptr, restored_split_view);
+
+  EXPECT_TRUE(restored_split_view->IsSplitActive());
+  EXPECT_EQ(2, restored_split_view->PaneCount());
 }
 
 // =============================================================================
@@ -3248,6 +3418,54 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
       << "Target should have one more tab after move.";
   EXPECT_EQ(moving_contents, target->tab_strip_model()->GetWebContentsAt(0))
       << "Moved tab must appear at insert index 0.";
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
+                       SplitDropAcceptsBrowserViewCoordinates) {
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_GE(model->count(), 2);
+  model->ActivateTabAt(0);
+
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view);
+  DaoSplitView* split = browser_view->dao_split_view();
+  ASSERT_NE(nullptr, split);
+  browser_view->DeprecatedLayoutImmediately();
+
+  // Pick a point inside DaoSplitView near its local right edge. In BrowserView
+  // coordinates this includes the sidebar/content offset; old hit-testing
+  // compared that point directly against split->bounds(), which is relative to
+  // contents_container and rejected valid drops.
+  gfx::Point drop_point(split->width() - 8, split->height() / 2);
+  views::View::ConvertPointToTarget(split, browser_view, &drop_point);
+  ASSERT_TRUE(browser_view->contents_container()->bounds().Contains(drop_point));
+
+  bool split_state_changed = false;
+  base::RunLoop split_run_loop;
+  split->set_split_state_changed_callback(base::BindRepeating(
+      [](bool* split_state_changed, base::RunLoop* split_run_loop) {
+        *split_state_changed = true;
+        split_run_loop->Quit();
+      },
+      &split_state_changed, &split_run_loop));
+
+  const std::string payload = base::StrCat({
+      dao::kDaoTabDragPrefix,
+      base::NumberToString(browser()->session_id().id()),
+      ":1",
+  });
+  ASSERT_TRUE(dao::PerformSplitTabDrop(browser(), drop_point, payload));
+
+  base::OneShotTimer timeout;
+  timeout.Start(FROM_HERE, base::Milliseconds(1000),
+                split_run_loop.QuitClosure());
+  split_run_loop.Run();
+  split->set_split_state_changed_callback(base::RepeatingClosure());
+
+  EXPECT_TRUE(split_state_changed);
+  EXPECT_TRUE(split->IsSplitActive());
+  EXPECT_EQ(2, split->PaneCount());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,

@@ -308,6 +308,7 @@ export class DaoTabList extends CrLitElement {
         (HTMLElement & {tabData: TabData}) | undefined;
     if (target) {
       this.draggedTabIndex_ = target.tabData.index;
+      this.activateNativeTabDrag_();
     }
   }
 
@@ -496,16 +497,19 @@ export class DaoTabList extends CrLitElement {
     this.dropModelIndex_ = -1;
     sendNative('setDropInsertIndex', -1);
 
-    // Activate native event blocking so DaoSplitView can receive the
-    // drag that just left the sidebar WebView. This must happen AFTER the
-    // drag leaves, because activating the native path too early can still
-    // steal HTML5 drag events that should remain inside the sidebar.
-    if (!this.tabDragActivated_ &&
-        this.isPointOutsideSidebar_(e.clientX, e.clientY)) {
-      console.error('[Dao-Xwin-JS] onDragLeave_: activating tabDragActive');
-      this.tabDragActivated_ = true;
-      sendNative('tabDragActive', true);
+    // Fallback for tab drags that did not originate from dao-tab-item.
+    if (this.isPointOutsideSidebar_(e.clientX, e.clientY)) {
+      this.activateNativeTabDrag_();
     }
+  }
+
+  private activateNativeTabDrag_() {
+    if (this.tabDragActivated_) {
+      return;
+    }
+    console.error('[Dao-Xwin-JS] activating tabDragActive');
+    this.tabDragActivated_ = true;
+    sendNative('tabDragActive', true);
   }
 
   private onDragEnd_(e: DragEvent) {
@@ -523,8 +527,7 @@ export class DaoTabList extends CrLitElement {
     // If no target accepted the drop, detach to a new window at cursor.
     // Two guards prevent a fast drag+release inside the sidebar from
     // being mistaken for a drag-out:
-    //   1. tabDragActivated_ must be true — the drag actually left the
-    //      sidebar WebContents at some point (onDragLeave_ fired).
+    //   1. tabDragActivated_ must be true — this is a Dao tab drag.
     //   2. The release point must be outside the sidebar's viewport —
     //      if the pointer is still inside, the user was reordering
     //      within the sidebar and released before any dragover target

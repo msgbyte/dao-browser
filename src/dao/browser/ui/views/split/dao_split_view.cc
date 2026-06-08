@@ -6,9 +6,12 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
+#include <set>
 #include <string>
 
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -21,11 +24,16 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/dao_pref_names.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/ui/views/split/dao_split_divider_view.h"
 #include "dao/browser/ui/views/split/dao_split_node.h"
 #include "dao/browser/ui/views/split/dao_split_pane_view.h"
@@ -46,6 +54,18 @@ namespace dao {
 namespace {
 
 constexpr auto kDeferredDropActionDelay = base::Milliseconds(25);
+constexpr char kSplitLayoutGroupsKey[] = "groups";
+constexpr char kSplitNodeTypeKey[] = "type";
+constexpr char kSplitNodeBranchType[] = "branch";
+constexpr char kSplitNodeLeafType[] = "leaf";
+constexpr char kSplitNodeDirectionKey[] = "direction";
+constexpr char kSplitNodeHorizontalDirection[] = "horizontal";
+constexpr char kSplitNodeVerticalDirection[] = "vertical";
+constexpr char kSplitNodeRatioKey[] = "ratio";
+constexpr char kSplitNodeFirstKey[] = "first";
+constexpr char kSplitNodeSecondKey[] = "second";
+constexpr char kSplitNodeUrlKey[] = "url";
+constexpr char kSplitNodeTabSessionIdKey[] = "tab_session_id";
 
 void RefreshSplitLayout(Browser* browser, views::View* view) {
   if (view->parent()) {
@@ -76,6 +96,118 @@ void CollectLeafContents(DaoSplitNode* node,
     CollectLeafContents(branch->first(), contents);
     CollectLeafContents(branch->second(), contents);
   }
+}
+
+std::string SplitLayoutStorageKey(Browser* browser) {
+  return browser ? base::NumberToString(browser->session_id().id())
+                 : std::string();
+}
+
+content::WebContents* FindTabBySessionId(
+    TabStripModel* tab_strip_model,
+    int tab_session_id,
+    const std::set<content::WebContents*>& used_contents) {
+  if (!tab_strip_model)
+    return nullptr;
+
+  for (int index = 0; index < tab_strip_model->count(); ++index) {
+    content::WebContents* contents = tab_strip_model->GetWebContentsAt(index);
+    if (!contents || used_contents.contains(contents)) {
+      continue;
+    }
+    const auto candidate_id = sessions::SessionTabHelper::IdForTab(contents);
+    if (candidate_id.is_valid() && candidate_id.id() == tab_session_id) {
+      return contents;
+    }
+  }
+  return nullptr;
+}
+
+content::WebContents* FindTabByUrl(
+    TabStripModel* tab_strip_model,
+    const std::string& url,
+    const std::set<content::WebContents*>& used_contents) {
+  if (!tab_strip_model || url.empty())
+    return nullptr;
+
+  for (int index = 0; index < tab_strip_model->count(); ++index) {
+    content::WebContents* contents = tab_strip_model->GetWebContentsAt(index);
+    if (!contents || used_contents.contains(contents)) {
+      continue;
+    }
+    if (contents->GetVisibleURL().spec() == url ||
+        contents->GetLastCommittedURL().spec() == url) {
+      return contents;
+    }
+  }
+  return nullptr;
+}
+
+std::unique_ptr<DaoSplitNode> RestoreNodeFromLayout(
+    const base::DictValue& dict,
+    TabStripModel* tab_strip_model,
+    std::set<content::WebContents*>* used_contents) {
+  const std::string* type = dict.FindString(kSplitNodeTypeKey);
+  if (!type || !used_contents)
+    return nullptr;
+
+  if (*type == kSplitNodeLeafType) {
+    content::WebContents* contents = nullptr;
+    const std::optional<int> tab_session_id =
+        dict.FindInt(kSplitNodeTabSessionIdKey);
+    if (tab_session_id.has_value()) {
+      contents = FindTabBySessionId(tab_strip_model, tab_session_id.value(),
+                                    *used_contents);
+    }
+    if (!contents) {
+      const std::string* url = dict.FindString(kSplitNodeUrlKey);
+      if (url) {
+        contents = FindTabByUrl(tab_strip_model, *url, *used_contents);
+      }
+    }
+    if (!contents)
+      return nullptr;
+
+    used_contents->insert(contents);
+    return std::make_unique<DaoSplitLeafNode>(contents);
+  }
+
+  if (*type != kSplitNodeBranchType)
+    return nullptr;
+
+  const std::string* direction_string =
+      dict.FindString(kSplitNodeDirectionKey);
+  if (!direction_string)
+    return nullptr;
+
+  SplitDirection direction;
+  if (*direction_string == kSplitNodeHorizontalDirection) {
+    direction = SplitDirection::kHorizontal;
+  } else if (*direction_string == kSplitNodeVerticalDirection) {
+    direction = SplitDirection::kVertical;
+  } else {
+    return nullptr;
+  }
+
+  const base::DictValue* first_dict = dict.FindDict(kSplitNodeFirstKey);
+  const base::DictValue* second_dict = dict.FindDict(kSplitNodeSecondKey);
+  if (!first_dict || !second_dict)
+    return nullptr;
+
+  std::set<content::WebContents*> used_before_branch = *used_contents;
+  auto first = RestoreNodeFromLayout(*first_dict, tab_strip_model,
+                                     used_contents);
+  auto second = RestoreNodeFromLayout(*second_dict, tab_strip_model,
+                                      used_contents);
+  if (!first || !second) {
+    *used_contents = std::move(used_before_branch);
+    return nullptr;
+  }
+
+  const std::optional<double> ratio = dict.FindDouble(kSplitNodeRatioKey);
+  return std::make_unique<DaoSplitBranchNode>(
+      direction, ratio.has_value() ? static_cast<float>(ratio.value()) : 0.5f,
+      std::move(first), std::move(second));
 }
 
 // A simple overlay view drawn over the drop zone during drag.
@@ -132,6 +264,12 @@ DaoSplitView::DaoSplitView(Browser* browser)
   // regular mouse events pass through to the ContentsWebView below.
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
+
+  if (browser_->is_session_restore()) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&DaoSplitView::RestoreLayout,
+                                  weak_factory_.GetWeakPtr()));
+  }
 }
 
 DaoSplitView::~DaoSplitView() {
@@ -190,6 +328,16 @@ bool DaoSplitView::GetCanProcessEventsWithinSubtree() const {
     return true;
 
   return false;
+}
+
+void DaoSplitView::OnMouseEntered(const ui::MouseEvent& event) {
+  views::View::OnMouseEntered(event);
+  ClearSidebarHoverState();
+}
+
+void DaoSplitView::OnMouseMoved(const ui::MouseEvent& event) {
+  views::View::OnMouseMoved(event);
+  ClearSidebarHoverState();
 }
 
 bool DaoSplitView::IsSplitActive() const {
@@ -718,11 +866,158 @@ void DaoSplitView::EnsureAllPanesShown() {
 }
 
 void DaoSplitView::SaveLayout() {
-  // TODO: Persist tree to profile prefs under "dao.split_layout".
+  if (!browser_ || !browser_->profile())
+    return;
+  if ((tab_strip_model_ && tab_strip_model_->closing_all()) ||
+      browser_->IsAttemptingToCloseBrowser()) {
+    return;
+  }
+
+  PrefService* prefs = browser_->profile()->GetPrefs();
+  if (!prefs)
+    return;
+
+  const std::string storage_key = SplitLayoutStorageKey(browser_);
+  if (storage_key.empty())
+    return;
+
+  base::ListValue groups;
+  for (const auto& group : split_groups_) {
+    if (!group || !group->root || group->root->CountLeaves() <= 1) {
+      continue;
+    }
+    groups.Append(group->root->Serialize());
+  }
+
+  ScopedDictPrefUpdate update(prefs, dao::prefs::kDaoSplitLayout);
+  base::DictValue& layouts = update.Get();
+  if (groups.empty()) {
+    layouts.Remove(storage_key);
+    return;
+  }
+
+  base::DictValue window_layout;
+  window_layout.Set(kSplitLayoutGroupsKey, std::move(groups));
+  layouts.Set(storage_key, std::move(window_layout));
 }
 
 void DaoSplitView::RestoreLayout() {
-  // TODO: Read from profile prefs and rebuild tree.
+  if (!browser_ || !browser_->profile() || !tab_strip_model_)
+    return;
+  if (!split_groups_.empty())
+    return;
+
+  PrefService* prefs = browser_->profile()->GetPrefs();
+  if (!prefs)
+    return;
+
+  const base::DictValue& layouts =
+      prefs->GetDict(dao::prefs::kDaoSplitLayout);
+  const std::string current_storage_key = SplitLayoutStorageKey(browser_);
+  if (current_storage_key.empty())
+    return;
+
+  struct RestoreCandidate {
+    std::string storage_key;
+    std::vector<std::unique_ptr<SplitGroup>> groups;
+    int leaf_count = 0;
+  };
+
+  auto build_candidate =
+      [this](const std::string& storage_key,
+             const base::DictValue& window_layout,
+             RestoreCandidate* candidate) {
+        const base::ListValue* serialized_groups =
+            window_layout.FindList(kSplitLayoutGroupsKey);
+        if (!serialized_groups)
+          return false;
+
+        std::vector<std::unique_ptr<SplitGroup>> restored_groups;
+        std::set<content::WebContents*> used_contents;
+        int restored_leaf_count = 0;
+        bool saw_serialized_group = false;
+        for (const base::Value& serialized_group : *serialized_groups) {
+          const base::DictValue* group_dict = serialized_group.GetIfDict();
+          if (!group_dict)
+            continue;
+
+          saw_serialized_group = true;
+          std::set<content::WebContents*> used_before_group = used_contents;
+          auto root = RestoreNodeFromLayout(*group_dict, tab_strip_model_,
+                                            &used_contents);
+          if (!root || root->CountLeaves() <= 1) {
+            used_contents = std::move(used_before_group);
+            return false;
+          }
+
+          restored_leaf_count += root->CountLeaves();
+          auto group = std::make_unique<SplitGroup>();
+          group->root = std::move(root);
+          restored_groups.push_back(std::move(group));
+        }
+
+        if (!saw_serialized_group || restored_groups.empty())
+          return false;
+
+        candidate->storage_key = storage_key;
+        candidate->groups = std::move(restored_groups);
+        candidate->leaf_count = restored_leaf_count;
+        return true;
+      };
+
+  RestoreCandidate selected_candidate;
+  bool has_candidate = false;
+
+  if (const base::DictValue* current_window_layout =
+          layouts.FindDict(current_storage_key)) {
+    has_candidate =
+        build_candidate(current_storage_key, *current_window_layout,
+                        &selected_candidate);
+  }
+
+  if (!has_candidate) {
+    for (const auto [storage_key, window_layout] : layouts) {
+      if (storage_key == current_storage_key || !window_layout.is_dict()) {
+        continue;
+      }
+
+      RestoreCandidate candidate;
+      if (!build_candidate(storage_key, window_layout.GetDict(), &candidate)) {
+        continue;
+      }
+      if (!has_candidate ||
+          candidate.leaf_count > selected_candidate.leaf_count) {
+        selected_candidate = std::move(candidate);
+        has_candidate = true;
+      }
+    }
+  }
+
+  if (!has_candidate)
+    return;
+
+  const std::string restored_storage_key = selected_candidate.storage_key;
+  split_groups_ = std::move(selected_candidate.groups);
+  SyncActiveGroupWithActiveTab();
+  if (active_group_) {
+    DetachPrimaryContentsHostForActiveGroup();
+    RebuildViews();
+    UpdatePaneVisibility();
+    EnsureAllPanesShown();
+    SyncActivePaneWithActiveTab();
+  }
+
+  RefreshSplitLayout(browser_, this);
+  UpdateHoverTracking();
+  SaveLayout();
+
+  if (restored_storage_key != current_storage_key) {
+    ScopedDictPrefUpdate update(prefs, dao::prefs::kDaoSplitLayout);
+    update->Remove(restored_storage_key);
+  }
+
+  if (split_state_changed_callback_)
+    split_state_changed_callback_.Run();
 }
 
 // --- TabStripModelObserver ---------------------------------------------------
@@ -732,6 +1027,11 @@ void DaoSplitView::OnTabStripModelChanged(
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
   if (change.type() == TabStripModelChange::kRemoved) {
+    if (tab_strip_model->closing_all() ||
+        (browser_ && browser_->IsAttemptingToCloseBrowser())) {
+      return;
+    }
+
     for (const auto& removed : change.GetRemove()->contents) {
       if (ContainsWebContents(removed.contents)) {
         ClosePane(removed.contents);
@@ -741,6 +1041,9 @@ void DaoSplitView::OnTabStripModelChanged(
   }
 
   SyncSinglePaneRootWithActiveTab();
+  if (split_groups_.empty() && browser_ && browser_->is_session_restore()) {
+    RestoreLayout();
+  }
 
   if (selection.active_tab_changed()) {
     SplitGroup* previous_group = active_group_;
@@ -1313,6 +1616,7 @@ void DaoSplitView::CheckCursorOverPanes() {
 
   gfx::Point cursor_screen =
       display::Screen::Get()->GetCursorScreenPoint();
+  bool cursor_over_pane = false;
 
   for (DaoSplitPaneView* pane : pane_views_) {
     if (!pane || !pane->GetVisible())
@@ -1321,10 +1625,34 @@ void DaoSplitView::CheckCursorOverPanes() {
     gfx::Point local = cursor_screen;
     views::View::ConvertPointFromScreen(pane, &local);
 
-    bool in_top_area = local.x() >= 0 && local.x() < pane->width() &&
-                       local.y() >= 0 &&
-                       local.y() < DaoAddressBarView::kBarHeight;
+    const bool in_pane = local.x() >= 0 && local.x() < pane->width() &&
+                         local.y() >= 0 && local.y() < pane->height();
+    cursor_over_pane = cursor_over_pane || in_pane;
+
+    bool in_top_area = in_pane && local.y() < DaoAddressBarView::kBarHeight;
     pane->SetHeaderHovered(in_top_area);
+  }
+
+  if (cursor_over_pane) {
+    ClearSidebarHoverState();
+  }
+}
+
+void DaoSplitView::ClearSidebarHoverState() {
+  if (!IsSplitActive() || !browser_) {
+    return;
+  }
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view) {
+    return;
+  }
+
+  if (auto* tooltip = browser_view->dao_tab_tooltip()) {
+    tooltip->HideTooltip();
+  }
+  if (auto* sidebar = browser_view->dao_sidebar()) {
+    sidebar->NotifySidebarPointerExited();
   }
 }
 
@@ -1452,6 +1780,27 @@ void DaoSplitView::DetachPrimaryContentsHost(
   }
 }
 
+void DaoSplitView::DetachPrimaryContentsHostForActiveGroup() {
+  if (!active_group_ || !active_group_->root) {
+    return;
+  }
+
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view) {
+    return;
+  }
+
+  auto* contents_web_view = browser_view->contents_web_view();
+  if (!contents_web_view) {
+    return;
+  }
+
+  content::WebContents* hosted_contents = contents_web_view->web_contents();
+  if (hosted_contents && active_group_->root->FindLeaf(hosted_contents)) {
+    contents_web_view->SetWebContents(nullptr);
+  }
+}
+
 void DaoSplitView::PerformDeferredSplit(content::WebContents* existing_contents,
                                         SplitDirection direction,
                                         bool new_contents_first,
@@ -1541,6 +1890,8 @@ void DaoSplitView::RebuildViews() {
     pane_views_.clear();
     return;
   }
+
+  DetachPrimaryContentsHostForActiveGroup();
 
   std::vector<raw_ptr<DaoSplitPaneView>> rebuilt_panes;
   std::function<void(DaoSplitNode*)> rebuild_node = [&](DaoSplitNode* node) {

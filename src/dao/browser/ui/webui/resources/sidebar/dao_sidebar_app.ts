@@ -4,7 +4,15 @@
 
 import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {sendNative, addListener, loadFolders, saveFolders, parseTabDragData} from './sidebar_bridge.js';
+import {
+  SIDEBAR_POINTER_EXITED_EVENT,
+  sendNative,
+  addListener,
+  removeListener,
+  loadFolders,
+  saveFolders,
+  parseTabDragData,
+} from './sidebar_bridge.js';
 import type {
   SidebarState, TabData, PinnedItemData, FolderAction, UpdateStateData
 } from './sidebar_bridge.js';
@@ -220,17 +228,18 @@ export class DaoSidebarApp extends CrLitElement {
   private initialStateReceived_: boolean = false;
   private boundClosePlusMenu_: ((e: MouseEvent) => void) | null = null;
   private tabScrollbarHoverTimeout_: number | null = null;
+  private listenerHandles_: Array<ReturnType<typeof addListener>> = [];
   private boundWindowMouseOut_ = (e: MouseEvent) => {
     if (!e.relatedTarget) {
-      this.hideTabScrollbar_();
+      this.clearPointerState_();
     }
   };
   private boundWindowBlur_ = () => {
-    this.hideTabScrollbar_();
+    this.clearPointerState_();
   };
   private boundVisibilityChange_ = () => {
     if (document.visibilityState !== 'visible') {
-      this.hideTabScrollbar_();
+      this.clearPointerState_();
     }
   };
 
@@ -253,7 +262,7 @@ export class DaoSidebarApp extends CrLitElement {
   override connectedCallback() {
     super.connectedCallback();
 
-    addListener('sidebarStateChanged', (...args: unknown[]) => {
+    this.addSidebarListener_('sidebarStateChanged', (...args: unknown[]) => {
       const state = args[0] as SidebarState;
       this.pinnedItems_ = state.pinnedItems || [];
       this.pinnedTabs_ = state.pinnedTabs;
@@ -273,7 +282,7 @@ export class DaoSidebarApp extends CrLitElement {
       }
     });
 
-    addListener('tabUpdated', (...args: unknown[]) => {
+    this.addSidebarListener_('tabUpdated', (...args: unknown[]) => {
       const updated = args[0] as TabData;
       // Update in pinned or unpinned list
       if (updated.isPinned) {
@@ -285,7 +294,7 @@ export class DaoSidebarApp extends CrLitElement {
       }
     });
 
-    addListener('activeTabChanged', (...args: unknown[]) => {
+    this.addSidebarListener_('activeTabChanged', (...args: unknown[]) => {
       const data = args[0] as {activeIndex: number};
       this.pinnedTabs_ = this.pinnedTabs_.map(
           t => ({...t, isActive: t.index === data.activeIndex}));
@@ -293,15 +302,14 @@ export class DaoSidebarApp extends CrLitElement {
           t => ({...t, isActive: t.index === data.activeIndex}));
     });
 
-    addListener('newTabButtonHighlight', (...args: unknown[]) => {
+    this.addSidebarListener_('newTabButtonHighlight', (...args: unknown[]) => {
       this.newTabHighlighted_ = args[0] as boolean;
     });
 
-    addListener('sidebarPointerExited', () => {
-      this.hideTabScrollbar_();
-    });
+    this.addSidebarListener_(
+        'sidebarPointerExited', () => this.clearPointerState_());
 
-    addListener('updateStateChanged', (...args: unknown[]) => {
+    this.addSidebarListener_('updateStateChanged', (...args: unknown[]) => {
       this.updateState_ = args[0] as UpdateStateData;
     });
 
@@ -326,6 +334,10 @@ export class DaoSidebarApp extends CrLitElement {
   override disconnectedCallback() {
     super.disconnectedCallback?.();
     this.clearTabScrollbarHoverTimeout_();
+    for (const handle of this.listenerHandles_) {
+      removeListener(handle);
+    }
+    this.listenerHandles_ = [];
     window.removeEventListener('mouseout', this.boundWindowMouseOut_);
     window.removeEventListener('blur', this.boundWindowBlur_);
     document.removeEventListener(
@@ -537,6 +549,16 @@ export class DaoSidebarApp extends CrLitElement {
     if (this.tabScrollbarHovered_) {
       this.tabScrollbarHovered_ = false;
     }
+  }
+
+  private addSidebarListener_(
+      event: string, callback: (...args: unknown[]) => void) {
+    this.listenerHandles_.push(addListener(event, callback));
+  }
+
+  private clearPointerState_() {
+    this.hideTabScrollbar_();
+    window.dispatchEvent(new CustomEvent(SIDEBAR_POINTER_EXITED_EVENT));
   }
 
   private armTabScrollbarHoverTimeout_() {

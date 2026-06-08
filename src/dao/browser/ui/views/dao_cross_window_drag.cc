@@ -68,17 +68,16 @@ DaoSplitView* SplitViewFor(Browser* browser) {
 void UpdateSplitDropIndicator(Browser* target_browser,
                               const gfx::Point& point_in_browser_view) {
   DaoSplitView* sv = SplitViewFor(target_browser);
-  if (!sv) {
-    return;
-  }
-  if (!sv->bounds().Contains(point_in_browser_view)) {
-    sv->HideNativeDropIndicator();
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(target_browser);
+  if (!sv || !bv) {
     return;
   }
   gfx::Point pt_in_split = point_in_browser_view;
-  views::View::ConvertPointToTarget(
-      BrowserView::GetBrowserViewForBrowser(target_browser), sv,
-      &pt_in_split);
+  views::View::ConvertPointToTarget(bv, sv, &pt_in_split);
+  if (!sv->GetLocalBounds().Contains(pt_in_split)) {
+    sv->HideNativeDropIndicator();
+    return;
+  }
   sv->UpdateNativeDropIndicator(pt_in_split);
 }
 
@@ -92,16 +91,15 @@ bool PerformSplitTabDrop(Browser* target_browser,
                          const gfx::Point& point_in_browser_view,
                          const std::string& payload) {
   DaoSplitView* sv = SplitViewFor(target_browser);
-  if (!sv) {
-    return false;
-  }
-  if (!sv->bounds().Contains(point_in_browser_view)) {
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(target_browser);
+  if (!sv || !bv) {
     return false;
   }
   gfx::Point pt_in_split = point_in_browser_view;
-  views::View::ConvertPointToTarget(
-      BrowserView::GetBrowserViewForBrowser(target_browser), sv,
-      &pt_in_split);
+  views::View::ConvertPointToTarget(bv, sv, &pt_in_split);
+  if (!sv->GetLocalBounds().Contains(pt_in_split)) {
+    return false;
+  }
   return sv->ProcessNativeTabDrop(pt_in_split, payload);
 }
 

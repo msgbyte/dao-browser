@@ -182,4 +182,41 @@ describe('dao-tab-list', () => {
         expect(send).toHaveBeenCalledWith(
             'unpinPinnedItem', ['pin-dormant', 2]);
       });
+
+  it('activates native tab drag as soon as a tab drag starts', async () => {
+    const {el, send} = createList();
+    await el.updateComplete;
+
+    const tabItem = el.shadowRoot!.querySelector('dao-tab-item') as HTMLElement;
+    const dataTransfer = fakeDataTransfer({'text/plain': 'dao-tab-drag:7:1'});
+    tabItem.dispatchEvent(dragEvent('dragstart', dataTransfer));
+
+    expect(send).toHaveBeenCalledWith('tabDragActive', [true]);
+
+    tabItem.dispatchEvent(dragEvent('dragend', dataTransfer));
+    expect(send).toHaveBeenCalledWith('tabDragActive', [false]);
+  });
+
+  it('activates native tab drag when leaving at the viewport edge', async () => {
+    const {el, send} = createList();
+    await el.updateComplete;
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 240,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 800,
+    });
+
+    el.dispatchEvent(dragEvent('dragleave', undefined, {
+      clientX: 240,
+      clientY: 120,
+      relatedTarget: null,
+    }));
+
+    expect(send).toHaveBeenCalledWith('setDropInsertIndex', [-1]);
+    expect(send).toHaveBeenCalledWith('tabDragActive', [true]);
+  });
 });

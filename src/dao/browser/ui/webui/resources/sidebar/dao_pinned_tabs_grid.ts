@@ -8,8 +8,11 @@ import {
   clearActivePinnedItemDragId,
   getActivePinnedItemDragId,
   PINNED_ITEM_DRAG_MIME_TYPE,
+  SIDEBAR_POINTER_EXITED_EVENT,
   setActivePinnedItemDragId,
   TAB_DRAG_MIME_TYPE,
+  TAB_DRAG_PREFIX,
+  isPointOutsideViewport,
   parseTabDragData,
   sendNative,
 } from './sidebar_bridge.js';
@@ -132,6 +135,14 @@ export class DaoPinnedTabsGrid extends CrLitElement {
           background: rgba(130, 170, 230, 0.16);
         }
       }
+
+      :host([hover-suppressed]) .tile:hover {
+        background: transparent;
+      }
+
+      :host([hover-suppressed]) .tile.active:hover {
+        background: var(--surface-active);
+      }
     `;
   }
 
@@ -139,21 +150,44 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     return {
       items: {type: Array},
       sessionId: {type: Number},
+      hoverSuppressed_: {
+        type: Boolean,
+        reflect: true,
+        attribute: 'hover-suppressed',
+      },
     };
   }
 
   declare items: PinnedItemData[];
   declare sessionId: number;
+  declare protected hoverSuppressed_: boolean;
   private dragPlaceholderIndex_: number = -1;
   private tabDragPlaceholderVisible_: boolean = false;
+  private tabDragActivated_: boolean = false;
   private tooltipTimer_: number = 0;
+  private tooltipScheduled_: boolean = false;
+  private tooltipVisible_: boolean = false;
   private lastMouseX_: number = 0;
   private lastMouseY_: number = 0;
+  private boundSidebarPointerExited_ = () => this.onSidebarPointerExited_();
 
   constructor() {
     super();
     this.items = [];
     this.sessionId = 0;
+    this.hoverSuppressed_ = false;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener(
+        SIDEBAR_POINTER_EXITED_EVENT, this.boundSidebarPointerExited_);
+  }
+
+  override disconnectedCallback() {
+    window.removeEventListener(
+        SIDEBAR_POINTER_EXITED_EVENT, this.boundSidebarPointerExited_);
+    super.disconnectedCallback?.();
   }
 
   override render() {
@@ -232,10 +266,19 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   }
 
   private onDragStart_(e: DragEvent, item: PinnedItemData) {
+    this.clearTooltip_(this.tooltipVisible_);
     setActivePinnedItemDragId(item.id);
     if (e.dataTransfer) {
       e.dataTransfer.setData(PINNED_ITEM_DRAG_MIME_TYPE, item.id);
-      e.dataTransfer.setData('text/plain', item.id);
+      if (item.isOpen && item.openTabIndex >= 0) {
+        const tabPayload =
+            `${TAB_DRAG_PREFIX}${this.sessionId}:${item.openTabIndex}`;
+        e.dataTransfer.setData(TAB_DRAG_MIME_TYPE, tabPayload);
+        e.dataTransfer.setData('text/plain', tabPayload);
+        this.activateNativeTabDrag_();
+      } else {
+        e.dataTransfer.setData('text/plain', item.id);
+      }
       e.dataTransfer.effectAllowed = 'move';
     }
   }
@@ -251,10 +294,10 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     e.stopPropagation();
     this.setDragPlaceholderIndex_(
         this.getTileDropIndex_(e, item, isInternalDrag));
-    if (isTabDrag) {
-      this.showTabDragPlaceholder_();
-    } else {
+    if (isInternalDrag) {
       this.clearTabDragPlaceholder_();
+    } else if (isTabDrag) {
+      this.showTabDragPlaceholder_();
     }
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'move';
@@ -318,6 +361,20 @@ export class DaoPinnedTabsGrid extends CrLitElement {
       return;
     }
     this.clearTabDragPlaceholder_();
+
+    if (this.hasTabDrag_(e) &&
+        isPointOutsideViewport(
+            e.clientX, e.clientY, window.innerWidth, window.innerHeight)) {
+      this.activateNativeTabDrag_();
+    }
+  }
+
+  private activateNativeTabDrag_() {
+    if (this.tabDragActivated_) {
+      return;
+    }
+    this.tabDragActivated_ = true;
+    sendNative('tabDragActive', true);
   }
 
   private onGridDrop_(e: DragEvent) {
@@ -470,6 +527,10 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
   private onDragEnd_() {
     this.clearPinnedDrag_();
+    if (this.tabDragActivated_) {
+      this.tabDragActivated_ = false;
+      sendNative('tabDragActive', false);
+    }
   }
 
   private setDragPlaceholderIndex_(index: number) {
@@ -513,20 +574,26 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   }
 
   private onTrackMouse_(e: MouseEvent, item: PinnedItemData) {
+    this.setHoverSuppressed_(false);
     this.lastMouseX_ = e.screenX;
     this.lastMouseY_ = e.screenY;
     this.scheduleTooltip_(item);
   }
 
   private onShowTooltip_(e: MouseEvent, item: PinnedItemData) {
+    this.setHoverSuppressed_(false);
     this.lastMouseX_ = e.screenX;
     this.lastMouseY_ = e.screenY;
     this.scheduleTooltip_(item);
   }
 
   private scheduleTooltip_(item: PinnedItemData) {
-    window.clearTimeout(this.tooltipTimer_);
+    this.clearTooltip_(false);
+    this.tooltipScheduled_ = true;
     this.tooltipTimer_ = window.setTimeout(() => {
+      this.tooltipTimer_ = 0;
+      this.tooltipScheduled_ = false;
+      this.tooltipVisible_ = true;
       const title = item.title || item.url || 'New Tab';
       sendNative(
           'showTabTooltip', this.lastMouseX_ + 4, this.lastMouseY_ + 4, title);
@@ -534,8 +601,31 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   }
 
   private onHideTooltip_() {
-    window.clearTimeout(this.tooltipTimer_);
-    sendNative('hideTabTooltip');
+    this.clearTooltip_(true);
+  }
+
+  private onSidebarPointerExited_() {
+    this.setHoverSuppressed_(true);
+    this.clearTooltip_(true);
+  }
+
+  private setHoverSuppressed_(suppressed: boolean) {
+    this.hoverSuppressed_ = suppressed;
+    this.toggleAttribute('hover-suppressed', suppressed);
+  }
+
+  private clearTooltip_(sendHide: boolean) {
+    const shouldHide = sendHide &&
+        (this.tooltipScheduled_ || this.tooltipVisible_);
+    if (this.tooltipTimer_) {
+      window.clearTimeout(this.tooltipTimer_);
+      this.tooltipTimer_ = 0;
+    }
+    this.tooltipScheduled_ = false;
+    this.tooltipVisible_ = false;
+    if (shouldHide) {
+      sendNative('hideTabTooltip');
+    }
   }
 }
 

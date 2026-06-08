@@ -4,7 +4,10 @@
 
 import {afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {TAB_DRAG_MIME_TYPE} from '../sidebar_bridge.js';
+import {
+  SIDEBAR_POINTER_EXITED_EVENT,
+  TAB_DRAG_MIME_TYPE,
+} from '../sidebar_bridge.js';
 import type {TabData} from '../sidebar_bridge.js';
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
@@ -104,4 +107,75 @@ describe('dao-tab-item', () => {
         'text/plain', 'dao-tab-drag:7:3');
     expect(dataTransfer.effectAllowed).toBe('move');
   });
+
+  it('does not show a scheduled hover tooltip after drag starts', async () => {
+    vi.useFakeTimers();
+    try {
+      const send = vi.fn();
+      (globalThis as unknown as {chrome: {send: typeof send}}).chrome = {send};
+      const el = document.createElement('dao-tab-item') as TestTabItem;
+      el.sessionId = 7;
+      el.tabData = tab({index: 3, title: 'Docs'});
+      document.body.appendChild(el);
+      await el.updateComplete;
+
+      (el as unknown as {onShowTooltip_: (e: MouseEvent) => void})
+          .onShowTooltip_(new MouseEvent('mouseenter', {
+            screenX: 20,
+            screenY: 30,
+          }));
+      vi.advanceTimersByTime(1000);
+
+      const dataTransfer = fakeDataTransfer();
+      (el as unknown as {onDragStart_: (e: DragEvent) => void})
+          .onDragStart_(dragEvent('dragstart', dataTransfer));
+      vi.advanceTimersByTime(600);
+
+      expect(send).not.toHaveBeenCalledWith(
+          'showTabTooltip', [24, 34, 'Docs']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('clears tooltip and suppresses hover when the sidebar pointer exits',
+      async () => {
+        vi.useFakeTimers();
+        try {
+          const send = vi.fn();
+          (globalThis as unknown as {chrome: {send: typeof send}}).chrome =
+              {send};
+          const el = document.createElement('dao-tab-item') as TestTabItem;
+          el.sessionId = 7;
+          el.tabData = tab({index: 3, title: 'Docs'});
+          document.body.appendChild(el);
+          await el.updateComplete;
+
+          (el as unknown as {onShowTooltip_: (e: MouseEvent) => void})
+              .onShowTooltip_(new MouseEvent('mouseenter', {
+                screenX: 20,
+                screenY: 30,
+              }));
+          vi.advanceTimersByTime(1000);
+
+          window.dispatchEvent(new CustomEvent(SIDEBAR_POINTER_EXITED_EVENT));
+          vi.advanceTimersByTime(600);
+          await el.updateComplete;
+
+          expect(send).toHaveBeenCalledWith('hideTabTooltip', []);
+          expect(send).not.toHaveBeenCalledWith(
+              'showTabTooltip', [24, 34, 'Docs']);
+          expect(el.hasAttribute('hover-suppressed')).toBe(true);
+
+          (el as unknown as {onShowTooltip_: (e: MouseEvent) => void})
+              .onShowTooltip_(new MouseEvent('mouseenter', {
+                screenX: 22,
+                screenY: 32,
+              }));
+          await el.updateComplete;
+          expect(el.hasAttribute('hover-suppressed')).toBe(false);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
 });

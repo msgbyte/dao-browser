@@ -36,16 +36,16 @@ describe('sidebar_bridge', () => {
     expect(bridge.parseTabDragData('other:12:3')).toBeNull();
   });
 
-  it('only treats drag points outside the sidebar viewport as leaving', async () => {
+  it('treats drag points at the viewport edge as leaving', async () => {
     const {bridge} = await loadBridge();
 
     expect(bridge.isPointOutsideViewport(12, 24, 240, 800)).toBe(false);
     expect(bridge.isPointOutsideViewport(0, 0, 240, 800)).toBe(false);
-    expect(bridge.isPointOutsideViewport(240, 800, 240, 800)).toBe(false);
+    expect(bridge.isPointOutsideViewport(239, 799, 240, 800)).toBe(false);
     expect(bridge.isPointOutsideViewport(-1, 24, 240, 800)).toBe(true);
     expect(bridge.isPointOutsideViewport(12, -1, 240, 800)).toBe(true);
-    expect(bridge.isPointOutsideViewport(241, 24, 240, 800)).toBe(true);
-    expect(bridge.isPointOutsideViewport(12, 801, 240, 800)).toBe(true);
+    expect(bridge.isPointOutsideViewport(240, 24, 240, 800)).toBe(true);
+    expect(bridge.isPointOutsideViewport(12, 800, 240, 800)).toBe(true);
   });
 
   it('dispatches and removes WebUI listeners by event id', async () => {

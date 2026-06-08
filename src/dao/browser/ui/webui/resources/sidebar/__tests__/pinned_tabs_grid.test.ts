@@ -7,6 +7,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
   clearActivePinnedItemDragId,
   PINNED_ITEM_DRAG_MIME_TYPE,
+  SIDEBAR_POINTER_EXITED_EVENT,
   TAB_DRAG_MIME_TYPE,
 } from '../sidebar_bridge.js';
 import type {PinnedItemData, SidebarState} from '../sidebar_bridge.js';
@@ -82,7 +83,10 @@ function protectedTabDragDataTransfer(payload: string): FakeDataTransfer {
   return dataTransfer;
 }
 
-function dragEvent(type: string, dataTransfer?: FakeDataTransfer): DragEvent {
+function dragEvent(
+    type: string,
+    dataTransfer?: FakeDataTransfer,
+    extra: Partial<DragEvent> = {}): DragEvent {
   const event = new Event(type, {
     bubbles: true,
     cancelable: true,
@@ -90,6 +94,9 @@ function dragEvent(type: string, dataTransfer?: FakeDataTransfer): DragEvent {
   Object.defineProperty(event, 'dataTransfer', {
     value: dataTransfer ?? null,
   });
+  for (const [key, value] of Object.entries(extra)) {
+    Object.defineProperty(event, key, {value});
+  }
   return event;
 }
 
@@ -194,6 +201,66 @@ describe('dao-pinned-tabs-grid', () => {
     }
   });
 
+  it('does not show a scheduled pinned tooltip after drag starts', async () => {
+    vi.useFakeTimers();
+    try {
+      const {el, send} = await loadGrid();
+      el.sessionId = 9;
+      el.items = [item({id: 'pin-tooltip-drag', title: 'Pinned Docs'})];
+      await el.updateComplete;
+
+      const tile = el.shadowRoot!.querySelector('.tile') as HTMLElement;
+      tile.dispatchEvent(new MouseEvent('mouseenter', {
+        screenX: 20,
+        screenY: 30,
+      }));
+      vi.advanceTimersByTime(1000);
+
+      tile.dispatchEvent(dragEvent('dragstart', fakeDataTransfer()));
+      vi.advanceTimersByTime(600);
+
+      expect(send).not.toHaveBeenCalledWith(
+          'showTabTooltip', [24, 34, 'Pinned Docs']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('clears tooltip and suppresses hover when the sidebar pointer exits',
+      async () => {
+        vi.useFakeTimers();
+        try {
+          const {el, send} = await loadGrid();
+          el.items = [item({id: 'pin-tooltip-exit', title: 'Pinned Docs'})];
+          await el.updateComplete;
+
+          const tile = el.shadowRoot!.querySelector('.tile') as HTMLElement;
+          tile.dispatchEvent(new MouseEvent('mouseenter', {
+            screenX: 20,
+            screenY: 30,
+          }));
+          vi.advanceTimersByTime(1000);
+
+          window.dispatchEvent(new CustomEvent(SIDEBAR_POINTER_EXITED_EVENT));
+          vi.advanceTimersByTime(600);
+          await el.updateComplete;
+
+          expect(send).toHaveBeenCalledWith('hideTabTooltip', []);
+          expect(send).not.toHaveBeenCalledWith(
+              'showTabTooltip', [24, 34, 'Pinned Docs']);
+          expect(el.hasAttribute('hover-suppressed')).toBe(true);
+
+          tile.dispatchEvent(new MouseEvent('mouseenter', {
+            screenX: 22,
+            screenY: 32,
+          }));
+          await el.updateComplete;
+          expect(el.hasAttribute('hover-suppressed')).toBe(false);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
   it('shows a pinned item context menu with the item id', async () => {
     const {el, send} = await loadGrid();
     el.items = [item({id: 'pin-menu'})];
@@ -213,8 +280,9 @@ describe('dao-pinned-tabs-grid', () => {
 
   it('moves a dragged pinned item to the dropped tile index', async () => {
     const {el, send} = await loadGrid();
+    el.sessionId = 9;
     el.items = [
-      item({id: 'pin-a', title: 'A'}),
+      item({id: 'pin-a', title: 'A', openTabIndex: 4}),
       item({id: 'pin-b', title: 'B'}),
       item({id: 'pin-c', title: 'C'}),
     ];
@@ -224,9 +292,12 @@ describe('dao-pinned-tabs-grid', () => {
     const dataTransfer = fakeDataTransfer();
 
     tiles[0]!.dispatchEvent(dragEvent('dragstart', dataTransfer));
-    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'pin-a');
     expect(dataTransfer.setData).toHaveBeenCalledWith(
         PINNED_ITEM_DRAG_MIME_TYPE, 'pin-a');
+    expect(dataTransfer.setData).toHaveBeenCalledWith(
+        TAB_DRAG_MIME_TYPE, 'dao-tab-drag:9:4');
+    expect(dataTransfer.setData).toHaveBeenCalledWith(
+        'text/plain', 'dao-tab-drag:9:4');
     expect(dataTransfer.effectAllowed).toBe('move');
 
     const dragOver = dragEvent('dragover', dataTransfer);
@@ -238,9 +309,41 @@ describe('dao-pinned-tabs-grid', () => {
     tiles[1]!.dispatchEvent(drop);
 
     expect(drop.defaultPrevented).toBe(true);
-    expect(send).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledWith('movePinnedItem', ['pin-a', 1]);
   });
+
+  it('activates native tab drag as soon as an open pinned tab drag starts',
+      async () => {
+        const {el, send} = await loadGrid();
+        el.sessionId = 9;
+        el.items = [item({id: 'pin-a', title: 'A', openTabIndex: 4})];
+        await el.updateComplete;
+
+        Object.defineProperty(window, 'innerWidth', {
+          configurable: true,
+          value: 240,
+        });
+        Object.defineProperty(window, 'innerHeight', {
+          configurable: true,
+          value: 800,
+        });
+
+        const dataTransfer = fakeDataTransfer();
+        const tile = el.shadowRoot!.querySelector('.tile') as HTMLElement;
+        const grid = el.shadowRoot!.querySelector('.grid') as HTMLElement;
+        tile.dispatchEvent(dragEvent('dragstart', dataTransfer));
+
+        expect(send).toHaveBeenCalledWith('tabDragActive', [true]);
+
+        grid.dispatchEvent(dragEvent('dragleave', dataTransfer, {
+          clientX: 240,
+          clientY: 120,
+          relatedTarget: null,
+        }));
+
+        tile.dispatchEvent(dragEvent('dragend', dataTransfer));
+        expect(send).toHaveBeenCalledWith('tabDragActive', [false]);
+      });
 
   it('shows a grid placeholder at the pinned item drop position', async () => {
     const {el} = await loadGrid();
@@ -291,7 +394,6 @@ describe('dao-pinned-tabs-grid', () => {
     grid.dispatchEvent(drop);
 
     expect(drop.defaultPrevented).toBe(true);
-    expect(send).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledWith('movePinnedItem', ['pin-a', 1]);
 
     tiles = el.shadowRoot!.querySelectorAll('.tile');
@@ -310,6 +412,7 @@ describe('dao-pinned-tabs-grid', () => {
     let tiles = el.shadowRoot!.querySelectorAll('.tile');
     const dataTransfer = fakeDataTransfer();
     tiles[0]!.dispatchEvent(dragEvent('dragstart', dataTransfer));
+    send.mockClear();
 
     tiles = el.shadowRoot!.querySelectorAll('.tile');
     vi.spyOn(tiles[1] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
@@ -642,6 +745,7 @@ describe('dao-pinned-tabs-grid', () => {
     const tiles = el.shadowRoot!.querySelectorAll('.tile');
     const sameItemData = fakeDataTransfer();
     tiles[0]!.dispatchEvent(dragEvent('dragstart', sameItemData));
+    send.mockClear();
     tiles[0]!.dispatchEvent(dragEvent('drop', sameItemData));
 
     tiles[1]!.dispatchEvent(dragEvent('drop', fakeDataTransfer()));

@@ -6,6 +6,9 @@ import {readFileSync} from 'node:fs';
 
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
+import {
+  SIDEBAR_POINTER_EXITED_EVENT,
+} from '../sidebar_bridge.js';
 import type {PinnedItemData, UpdateStateData} from '../sidebar_bridge.js';
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
@@ -183,6 +186,20 @@ describe('dao-sidebar-app', () => {
     expect(el.tabScrollbarHovered_).toBe(false);
     expect(el.shadowRoot!.querySelector('.tab-scrollbar.hovered')).toBeNull();
   });
+
+  it('broadcasts a DOM pointer-exit event when the host sidebar exits',
+      async () => {
+        await loadApp();
+        const listener = vi.fn();
+        window.addEventListener(SIDEBAR_POINTER_EXITED_EVENT, listener);
+
+        (window as unknown as {
+          cr: {webUIListenerCallback: (event: string) => void};
+        }).cr.webUIListenerCallback('sidebarPointerExited');
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        window.removeEventListener(SIDEBAR_POINTER_EXITED_EVENT, listener);
+      });
 
   it('hides page-level sidebar scrollbars until the page is hovered', () => {
     const cssText = readFileSync(

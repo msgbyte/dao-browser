@@ -76,6 +76,9 @@ class DaoSidebarView : public views::View,
   // Push new-tab button highlight state to the sidebar WebUI.
   void SetNewTabButtonHighlight(bool highlighted);
 
+  // Tell the sidebar WebUI to clear pointer-driven hover/tooltip state.
+  void NotifySidebarPointerExited();
+
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   void Layout(PassKey) override;
@@ -148,7 +151,6 @@ class DaoSidebarView : public views::View,
   void EnsureWebUILoaded();
   void DoStartFileDrag(const base::FilePath& path);
   void ApplyTheme();
-  void NotifySidebarPointerExited();
   static void SchedulePaintRecursive(views::View* view);
 
   bool webui_loaded_ = false;

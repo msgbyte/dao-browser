@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/check.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_colors.h"
 
@@ -155,12 +156,11 @@ base::DictValue DaoSplitLeafNode::Serialize() const {
   dict.Set("type", "leaf");
   if (web_contents_) {
     dict.Set("url", web_contents_->GetVisibleURL().spec());
-    // Use the pointer address as a transient identifier for matching
-    // during session restore (not persisted across restarts; URL is the
-    // stable fallback).
-    dict.Set("session_id",
-             static_cast<int>(reinterpret_cast<uintptr_t>(
-                 web_contents_.get()) & 0x7FFFFFFF));
+    const auto tab_session_id =
+        sessions::SessionTabHelper::IdForTab(web_contents_);
+    if (tab_session_id.is_valid()) {
+      dict.Set("tab_session_id", tab_session_id.id());
+    }
   }
   return dict;
 }

@@ -18,6 +18,9 @@ let uidCounter = 1;
 const webUiListenerMap:
     Record<string, Record<number, (...args: unknown[]) => void>> = {};
 
+export const SIDEBAR_POINTER_EXITED_EVENT =
+    'dao-sidebar-pointer-exited';
+
 function webUIListenerCallback(event: string, ...args: unknown[]): void {
   const listeners = webUiListenerMap[event];
   if (!listeners) return;
@@ -197,7 +200,7 @@ export function isPointOutsideViewport(
     clientX: number, clientY: number, viewportWidth: number,
     viewportHeight: number): boolean {
   if (clientX < 0 || clientY < 0) return true;
-  if (clientX > viewportWidth || clientY > viewportHeight) {
+  if (clientX >= viewportWidth || clientY >= viewportHeight) {
     return true;
   }
   return false;

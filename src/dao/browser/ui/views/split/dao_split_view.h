@@ -160,6 +160,8 @@ class DaoSplitView : public views::View,
   // views::View:
   void Layout(PassKey) override;
   bool GetCanProcessEventsWithinSubtree() const override;
+  void OnMouseEntered(const ui::MouseEvent& event) override;
+  void OnMouseMoved(const ui::MouseEvent& event) override;
   bool GetDropFormats(int* formats,
                       std::set<ui::ClipboardFormatType>* format_types) override;
   bool CanDrop(const ui::OSExchangeData& data) override;
@@ -203,6 +205,7 @@ class DaoSplitView : public views::View,
   DaoSplitNode* GetLayoutRoot() const;
   void DetachPrimaryContentsHost(content::WebContents* first_contents,
                                  content::WebContents* second_contents);
+  void DetachPrimaryContentsHostForActiveGroup();
   void PerformDeferredSplit(content::WebContents* existing_contents,
                             SplitDirection direction,
                             bool new_contents_first,
@@ -246,6 +249,7 @@ class DaoSplitView : public views::View,
   // Periodically check cursor position to show/hide pane headers on hover.
   void UpdateHoverTracking();
   void CheckCursorOverPanes();
+  void ClearSidebarHoverState();
 
   // Re-attach a WebContents to the primary ContentsWebView after split
   // deactivation.  Called via PostTask to give the renderer time to process
