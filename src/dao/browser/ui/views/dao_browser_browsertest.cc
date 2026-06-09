@@ -180,6 +180,45 @@ T* FindDescendantViewOfClass(views::View* root) {
   return nullptr;
 }
 
+std::string CallAgentNativeField(content::WebContents* agent_contents,
+                                 const std::string& method,
+                                 const std::string& field) {
+  const std::string script = base::StrCat({
+      R"JS(
+    (async () => {
+      const method = ')JS",
+      method,
+      R"JS(';
+      const field = ')JS",
+      field,
+      R"JS(';
+      const result = await new Promise(resolve => {
+        const id = method + '_browser_test_' +
+            Math.random().toString(36).slice(2);
+        const cr = window.cr || (window.cr = {});
+        const previous = cr.webUIResponse;
+        cr.webUIResponse = (callbackId, isSuccess, payload) => {
+          if (callbackId !== id) {
+            if (previous) {
+              previous(callbackId, isSuccess, payload);
+            }
+            return;
+          }
+          cr.webUIResponse = previous;
+          resolve({isSuccess, payload: payload || {}});
+        };
+        chrome.send(method, [id, {}]);
+      });
+      const payload = result.payload || {};
+      if (field === 'success') {
+        return String(!!payload.success);
+      }
+      return String(payload[field] || payload.error || '');
+    })()
+  )JS"});
+  return content::EvalJs(agent_contents, script).ExtractString();
+}
+
 std::u16string ExpectedAddressBarHostText(const GURL& url) {
   std::string host(url.host());
   if (url.has_port()) {
@@ -3859,6 +3898,64 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, WidthClampedToBounds) {
   EXPECT_LE(V::kMinWidth, V::kDefaultWidth);
   EXPECT_LE(V::kDefaultWidth, V::kMaxWidth);
   EXPECT_GE(V::kResizeAreaWidth, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
+                       AgentTurnKeepsOriginalTabWhenActiveTabChanges) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL first_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title2.html");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  chrome::AddTabAt(browser(), second_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  ASSERT_EQ(first_url, browser()
+                           ->tab_strip_model()
+                           ->GetActiveWebContents()
+                           ->GetLastCommittedURL());
+
+  auto* sidebar = GetBrowserView(browser())->dao_agent_sidebar();
+  ASSERT_NE(nullptr, sidebar);
+  auto* web_view = FindDescendantViewOfClass<views::WebView>(sidebar);
+  ASSERT_NE(nullptr, web_view);
+  content::WebContents* agent_contents = web_view->GetWebContents();
+  ASSERT_NE(nullptr, agent_contents);
+
+  const GURL agent_url("chrome://agent/");
+  if (agent_contents->GetLastCommittedURL() != agent_url) {
+    content::TestNavigationObserver observer(agent_contents);
+    sidebar->Toggle();
+    observer.Wait();
+  } else {
+    sidebar->Toggle();
+  }
+  ASSERT_TRUE(content::WaitForLoadStop(agent_contents));
+
+  constexpr char kWaitForAgentApp[] = R"(
+    (async () => {
+      await customElements.whenDefined('dao-agent-app');
+      return true;
+    })()
+  )";
+  EXPECT_EQ(true, content::EvalJs(agent_contents, kWaitForAgentApp));
+
+  EXPECT_EQ(first_url.spec(),
+            CallAgentNativeField(agent_contents, "beginAgentTurn", "url"));
+
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  ASSERT_EQ(second_url, browser()
+                            ->tab_strip_model()
+                            ->GetActiveWebContents()
+                            ->GetLastCommittedURL());
+
+  EXPECT_EQ(first_url.spec(),
+            CallAgentNativeField(agent_contents, "getPageInfo", "url"));
+  EXPECT_EQ("true",
+            CallAgentNativeField(agent_contents, "endAgentTurn", "success"));
+  EXPECT_EQ(second_url.spec(),
+            CallAgentNativeField(agent_contents, "getPageInfo", "url"));
 }
 
 // =============================================================================

@@ -869,31 +869,49 @@ export class DaoChatView extends CrLitElement {
         this.origSendMessage_ = iface.sendMessage.bind(iface);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         iface.sendMessage = async (text: string, attachments: any[]) => {
-          reportTelemetryEvent('agent_message_send', {
-            textLength: text?.length ?? 0,
-            attachmentCount: attachments?.length ?? 0,
-          });
-          this.refreshModel_();
-          // Pull latest soul into the live systemPrompt before the turn is
-          // packed into the LLM request. Handles the same-tab update_soul
-          // path (BroadcastChannel doesn't echo to its own document).
-          this.refreshSystemPrompt_();
-          // Keep the user's typed `/skill rest` visible in the bubble;
-          // load the SKILL.md body into the session cache so convertToLlm
-          // can splice it synchronously at LLM-conversion time.
-          await this.ensureSkillLoadedFromText_(text);
-          // Cmd+T external submits suppress page/selection on their first
-          // turn (set by submitExternalPrompt); subsequent turns fall through
-          // to the normal chip-attach path.
-          let merged = attachments || [];
-          if (this.suppressChipAttachOnce_) {
-            this.suppressChipAttachOnce_ = false;
-          } else {
-            const withPage = await this.maybeAttachPage_(merged);
-            const withSelection = await this.maybeAttachSelection_(withPage);
-            merged = await this.maybeAttachElementContext_(withSelection);
+          let turnTargetStarted = false;
+          try {
+            try {
+              await callNative('beginAgentTurn');
+              turnTargetStarted = true;
+            } catch (e) {
+              console.warn('[dao-agent] beginAgentTurn failed', e);
+            }
+
+            reportTelemetryEvent('agent_message_send', {
+              textLength: text?.length ?? 0,
+              attachmentCount: attachments?.length ?? 0,
+            });
+            this.refreshModel_();
+            // Pull latest soul into the live systemPrompt before the turn is
+            // packed into the LLM request. Handles the same-tab update_soul
+            // path (BroadcastChannel doesn't echo to its own document).
+            this.refreshSystemPrompt_();
+            // Keep the user's typed `/skill rest` visible in the bubble;
+            // load the SKILL.md body into the session cache so convertToLlm
+            // can splice it synchronously at LLM-conversion time.
+            await this.ensureSkillLoadedFromText_(text);
+            // Cmd+T external submits suppress page/selection on their first
+            // turn (set by submitExternalPrompt); subsequent turns fall through
+            // to the normal chip-attach path.
+            let merged = attachments || [];
+            if (this.suppressChipAttachOnce_) {
+              this.suppressChipAttachOnce_ = false;
+            } else {
+              const withPage = await this.maybeAttachPage_(merged);
+              const withSelection = await this.maybeAttachSelection_(withPage);
+              merged = await this.maybeAttachElementContext_(withSelection);
+            }
+            return await this.origSendMessage_!(text, merged);
+          } finally {
+            if (turnTargetStarted) {
+              try {
+                await callNative('endAgentTurn');
+              } catch (e) {
+                console.warn('[dao-agent] endAgentTurn failed', e);
+              }
+            }
           }
-          return this.origSendMessage_!(text, merged);
         };
       }
     }

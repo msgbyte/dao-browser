@@ -499,6 +499,14 @@ DaoAgentUIHandler::~DaoAgentUIHandler() = default;
 
 void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
+      "beginAgentTurn",
+      base::BindRepeating(&DaoAgentUIHandler::HandleBeginAgentTurn,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "endAgentTurn",
+      base::BindRepeating(&DaoAgentUIHandler::HandleEndAgentTurn,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "getPageInfo",
       base::BindRepeating(&DaoAgentUIHandler::HandleGetPageInfo,
                           base::Unretained(this)));
@@ -636,7 +644,7 @@ void DaoAgentUIHandler::RegisterMessages() {
                           base::Unretained(this)));
 }
 
-content::WebContents* DaoAgentUIHandler::EnsureAttached() {
+content::WebContents* DaoAgentUIHandler::GetActivePageContents() {
   Browser* browser = chrome::FindLastActive();
   if (!browser) {
     return nullptr;
@@ -653,11 +661,67 @@ content::WebContents* DaoAgentUIHandler::EnsureAttached() {
     return nullptr;
   }
 
+  return contents;
+}
+
+content::WebContents* DaoAgentUIHandler::ResolveTargetContents() {
+  if (agent_turn_target_) {
+    content::WebContents* contents = agent_turn_target_.get();
+    if (contents && contents->GetURL().host() != "agent") {
+      return contents;
+    }
+    agent_turn_target_.reset();
+  }
+
+  return GetActivePageContents();
+}
+
+content::WebContents* DaoAgentUIHandler::EnsureAttached() {
+  content::WebContents* contents = ResolveTargetContents();
+  if (!contents) {
+    return nullptr;
+  }
+
   if (!devtools_client_->AttachTo(contents)) {
     return nullptr;
   }
 
   return contents;
+}
+
+void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+
+  content::WebContents* contents = GetActivePageContents();
+  base::DictValue response;
+  if (!contents) {
+    agent_turn_target_.reset();
+    response.Set("error", "No active tab");
+  } else {
+    agent_turn_target_ = contents->GetWeakPtr();
+    response.Set("success", true);
+    response.Set("url", contents->GetVisibleURL().spec());
+    response.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
+  }
+
+  ResolveJavascriptCallback(base::Value(callback_id), response);
+}
+
+void DaoAgentUIHandler::HandleEndAgentTurn(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+
+  agent_turn_target_.reset();
+  base::DictValue response;
+  response.Set("success", true);
+  ResolveJavascriptCallback(base::Value(callback_id), response);
 }
 
 void DaoAgentUIHandler::HandleGetPageInfo(const base::ListValue& args) {
@@ -668,11 +732,7 @@ void DaoAgentUIHandler::HandleGetPageInfo(const base::ListValue& args) {
   }
   const std::string callback_id = args[0].GetString();
 
-  Browser* browser = chrome::FindLastActive();
-  content::WebContents* contents = nullptr;
-  if (browser) {
-    contents = browser->tab_strip_model()->GetActiveWebContents();
-  }
+  content::WebContents* contents = ResolveTargetContents();
 
   base::DictValue response;
   if (contents) {
@@ -1133,10 +1193,11 @@ void DaoAgentUIHandler::HandleMoveCursor(const base::ListValue& args) {
     vy = args[1].GetDict().FindDouble("y").value_or(0);
   }
 
-  Browser* browser = chrome::FindLastActive();
+  content::WebContents* wc = ResolveTargetContents();
+  Browser* browser = wc ? chrome::FindBrowserWithTab(wc) : nullptr;
   if (!browser) {
     ResolveJavascriptCallback(base::Value(callback_id),
-                              base::Value("No browser"));
+                              base::Value("No target browser"));
     return;
   }
 
@@ -1151,8 +1212,6 @@ void DaoAgentUIHandler::HandleMoveCursor(const base::ListValue& args) {
   // Convert viewport coords to cursor view local coords.
   // Viewport coords (from getBoundingClientRect) are relative to the web
   // content render area, so use the RenderWidgetHostView bounds.
-  content::WebContents* wc =
-      browser->tab_strip_model()->GetActiveWebContents();
   gfx::Rect viewport_screen;
   if (wc && wc->GetRenderWidgetHostView()) {
     viewport_screen = wc->GetRenderWidgetHostView()->GetViewBounds();
@@ -1270,7 +1329,7 @@ void DaoAgentUIHandler::HandleAgentClick(const base::ListValue& args) {
             double vx = parsed->GetDict().FindDouble("x").value_or(0);
             double vy = parsed->GetDict().FindDouble("y").value_or(0);
 
-            Browser* browser = chrome::FindLastActive();
+            Browser* browser = chrome::FindBrowserWithTab(locked_contents);
             BrowserView* bv = browser ?
                 BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
             auto* cursor = bv ? bv->dao_agent_cursor() : nullptr;
@@ -1313,8 +1372,7 @@ void DaoAgentUIHandler::HandleAgentClick(const base::ListValue& args) {
                         UnlockLockedTab(locked);
                         return;
                       }
-                      Browser* br =
-                          chrome::FindLastActive();
+                      Browser* br = chrome::FindBrowserWithTab(locked);
                       BrowserView* view = br ?
                           BrowserView::GetBrowserViewForBrowser(br) : nullptr;
                       auto* cur = view ?
@@ -1607,8 +1665,7 @@ void DaoAgentUIHandler::HandleClickByRef(const base::ListValue& args) {
             double vy = parsed->GetDict().FindDouble("y").value_or(0);
 
             // Move cursor then click, same as HandleAgentClick.
-            Browser* browser =
-                chrome::FindLastActive();
+            Browser* browser = chrome::FindBrowserWithTab(locked_contents);
             BrowserView* bv = browser
                 ? BrowserView::GetBrowserViewForBrowser(browser)
                 : nullptr;
@@ -1654,8 +1711,7 @@ void DaoAgentUIHandler::HandleClickByRef(const base::ListValue& args) {
                         UnlockLockedTab(locked);
                         return;
                       }
-                      Browser* br =
-                          chrome::FindLastActive();
+                      Browser* br = chrome::FindBrowserWithTab(locked);
                       BrowserView* view = br
                           ? BrowserView::GetBrowserViewForBrowser(br)
                           : nullptr;
@@ -1889,7 +1945,12 @@ void DaoAgentUIHandler::HandleListTabs(const base::ListValue& args) {
   if (args.size() < 1 || !args[0].is_string()) return;
   const std::string callback_id = args[0].GetString();
 
-  Browser* browser = chrome::FindLastActive();
+  content::WebContents* target_contents = ResolveTargetContents();
+  Browser* browser =
+      target_contents ? chrome::FindBrowserWithTab(target_contents) : nullptr;
+  if (!browser) {
+    browser = chrome::FindLastActive();
+  }
   base::ListValue tabs_list;
 
   if (browser) {
@@ -1923,7 +1984,12 @@ void DaoAgentUIHandler::HandleSwitchTab(const base::ListValue& args) {
     index = args[1].GetDict().FindInt("index").value_or(-1);
   }
 
-  Browser* browser = chrome::FindLastActive();
+  content::WebContents* target_contents = ResolveTargetContents();
+  Browser* browser =
+      target_contents ? chrome::FindBrowserWithTab(target_contents) : nullptr;
+  if (!browser) {
+    browser = chrome::FindLastActive();
+  }
   base::DictValue response;
 
   if (!browser || index < 0 ||
@@ -1938,6 +2004,9 @@ void DaoAgentUIHandler::HandleSwitchTab(const base::ListValue& args) {
     response.Set("url", wc ? wc->GetURL().spec() : "");
     response.Set("title",
                  wc ? base::UTF16ToUTF8(wc->GetTitle()) : "");
+    if (wc) {
+      agent_turn_target_ = wc->GetWeakPtr();
+    }
   }
 
   ResolveJavascriptCallback(base::Value(callback_id), response);
@@ -1954,7 +2023,12 @@ void DaoAgentUIHandler::HandleOpenTab(const base::ListValue& args) {
     if (u) url_str = *u;
   }
 
-  Browser* browser = chrome::FindLastActive();
+  content::WebContents* target_contents = ResolveTargetContents();
+  Browser* browser =
+      target_contents ? chrome::FindBrowserWithTab(target_contents) : nullptr;
+  if (!browser) {
+    browser = chrome::FindLastActive();
+  }
   base::DictValue response;
 
   if (!browser) {
@@ -1971,6 +2045,9 @@ void DaoAgentUIHandler::HandleOpenTab(const base::ListValue& args) {
       params.tabstrip_index = active_index + 1;
     }
     Navigate(&params);
+    if (params.navigated_or_inserted_contents) {
+      agent_turn_target_ = params.navigated_or_inserted_contents->GetWeakPtr();
+    }
     response.Set("success", true);
     response.Set("url", url.spec());
   }
@@ -1988,7 +2065,12 @@ void DaoAgentUIHandler::HandleCloseTab(const base::ListValue& args) {
     index = args[1].GetDict().FindInt("index").value_or(-1);
   }
 
-  Browser* browser = chrome::FindLastActive();
+  content::WebContents* target_contents = ResolveTargetContents();
+  Browser* browser =
+      target_contents ? chrome::FindBrowserWithTab(target_contents) : nullptr;
+  if (!browser) {
+    browser = chrome::FindLastActive();
+  }
   base::DictValue response;
 
   if (!browser) {
@@ -1997,15 +2079,25 @@ void DaoAgentUIHandler::HandleCloseTab(const base::ListValue& args) {
     TabStripModel* model = browser->tab_strip_model();
     // Default to active tab.
     if (index < 0) {
-      index = model->active_index();
+      index = target_contents ? model->GetIndexOfWebContents(target_contents)
+                              : model->active_index();
     }
     if (index < 0 || index >= model->count()) {
       response.Set("error", "Invalid tab index");
     } else if (model->count() <= 1) {
       response.Set("error", "Cannot close the last tab");
     } else {
+      content::WebContents* closing_contents = model->GetWebContentsAt(index);
       model->CloseWebContentsAt(index,
                                 TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
+      if (closing_contents == target_contents) {
+        content::WebContents* next_target = model->GetActiveWebContents();
+        if (next_target) {
+          agent_turn_target_ = next_target->GetWeakPtr();
+        } else {
+          agent_turn_target_.reset();
+        }
+      }
       response.Set("success", true);
     }
   }
@@ -4528,12 +4620,7 @@ void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
   if (const std::string* cred_p = params.FindString("credentials");
       cred_p && *cred_p == "include_if_same_origin_active_tab" &&
       method == "GET") {
-    Browser* active_browser = chrome::FindLastActive();
-    content::WebContents* active_contents = nullptr;
-    if (active_browser) {
-      active_contents =
-          active_browser->tab_strip_model()->GetActiveWebContents();
-    }
+    content::WebContents* active_contents = ResolveTargetContents();
     if (active_contents) {
       const GURL active_url = active_contents->GetLastCommittedURL();
       const url::Origin candidate = url::Origin::Create(active_url);

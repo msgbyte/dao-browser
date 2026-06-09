@@ -150,6 +150,42 @@ function sampleContext(): ElementContextCapture {
   };
 }
 
+type MockAgentInterface = HTMLElement & {
+  sendMessage: ReturnType<typeof vi.fn>;
+  requestUpdate: ReturnType<typeof vi.fn>;
+};
+
+async function mountChatViewWithSend(originalSend: ReturnType<typeof vi.fn>) {
+  const view = document.createElement('dao-chat-view') as HTMLElement;
+  const panel = document.createElement('div') as HTMLElement & {
+    setAgent: ReturnType<typeof vi.fn>;
+  };
+  const iface = document.createElement('agent-interface') as MockAgentInterface;
+  iface.sendMessage = originalSend;
+  iface.requestUpdate = vi.fn();
+  panel.setAgent = vi.fn(async () => undefined);
+  panel.appendChild(iface);
+
+  Object.assign(view, {
+    panel_: panel,
+    refreshChips_: vi.fn(async () => undefined),
+    maybeResumeLastSession_: vi.fn(async () => undefined),
+    suppressChipAttachOnce_: true,
+  });
+
+  await (view as unknown as {mount_: () => Promise<void>}).mount_();
+  pickerMocks.callNative.mockClear();
+
+  return {view, iface};
+}
+
+function clearTabWatchTimer(view: HTMLElement) {
+  const timer = (view as unknown as {tabWatchTimer_?: number}).tabWatchTimer_;
+  if (timer) {
+    window.clearInterval(timer);
+  }
+}
+
 describe('dao-chat-view element picker', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -183,5 +219,64 @@ describe('dao-chat-view element picker', () => {
 
     expect(pickerMocks.callNative).toHaveBeenCalledWith('focusAgentSidebar');
     expect(focusSpy).toHaveBeenCalled();
+  });
+
+  it('brackets a user send with an agent turn tab target', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+
+    try {
+      const result = await iface.sendMessage('hello', []);
+
+      expect(result).toBe('sent');
+      expect(originalSend).toHaveBeenCalledWith('hello', []);
+      expect(pickerMocks.callNative.mock.calls.map(call => call[0])).toEqual([
+        'beginAgentTurn',
+        'endAgentTurn',
+      ]);
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('ends the agent turn when the original send rejects', async () => {
+    const originalSend = vi.fn(async () => {
+      throw new Error('send failed');
+    });
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+
+    try {
+      await expect(iface.sendMessage('hello', [])).rejects.toThrow(
+          'send failed');
+      expect(pickerMocks.callNative.mock.calls.map(call => call[0])).toEqual([
+        'beginAgentTurn',
+        'endAgentTurn',
+      ]);
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('does not end an agent turn that failed to start', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    pickerMocks.callNative.mockImplementation(async method => {
+      if (method === 'beginAgentTurn') {
+        throw new Error('no tab');
+      }
+      return {success: true};
+    });
+
+    try {
+      await expect(iface.sendMessage('hello', [])).resolves.toBe('sent');
+      expect(originalSend).toHaveBeenCalledWith('hello', []);
+      expect(pickerMocks.callNative.mock.calls.map(call => call[0])).toEqual([
+        'beginAgentTurn',
+      ]);
+    } finally {
+      warnSpy.mockRestore();
+      clearTabWatchTimer(view);
+    }
   });
 });

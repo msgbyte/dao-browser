@@ -102,11 +102,15 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   void RegisterMessages() override;
 
  private:
-  // Ensures the CDP client is attached to the active tab.
-  // Returns the active WebContents, or nullptr on failure.
+  // Ensures the CDP client is attached to the current agent target.
+  // Returns the target WebContents, or nullptr on failure.
   content::WebContents* EnsureAttached();
+  content::WebContents* ResolveTargetContents();
+  content::WebContents* GetActivePageContents();
 
   // Message handlers called from JS via chrome.send().
+  void HandleBeginAgentTurn(const base::ListValue& args);
+  void HandleEndAgentTurn(const base::ListValue& args);
   void HandleGetPageInfo(const base::ListValue& args);
   void HandleClickElement(const base::ListValue& args);
   void HandleExecuteScript(const base::ListValue& args);
@@ -323,6 +327,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
 
   // Domain security: expected domain set at session start.
   std::string expected_domain_;
+  base::WeakPtr<content::WebContents> agent_turn_target_;
 
   // Network tracking state.
   bool network_tracking_enabled_ = false;
