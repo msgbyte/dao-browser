@@ -1395,6 +1395,22 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnterUsesDefaultSearchProviderForTypedSearch) {
+  // The default test server has no /search endpoint; without a handler the
+  // navigation commits a 404 error page and WaitForLoadStop returns false.
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (!base::StartsWith(request.relative_url, "/search",
+                              base::CompareCase::SENSITIVE)) {
+          return nullptr;
+        }
+        auto response =
+            std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_code(net::HTTP_OK);
+        response->set_content_type("text/html");
+        response->set_content("<html><body>results</body></html>");
+        return response;
+      }));
   ASSERT_TRUE(embedded_test_server()->Start());
 
   TemplateURLService* template_url_service =
@@ -1531,7 +1547,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       InlineAutocompletionSuppressesLongSearchLikeInput) {
+                       InlineAutocompletionAllowsSearchLikeInput) {
   DaoCommandBarView* command_bar =
       GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -1549,7 +1565,9 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match}, true);
 
-  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+  // Search-like inputs (no dot, >2 chars) used to be suppressed; ghost
+  // text now follows the default match like the browser omnibox does.
+  EXPECT_EQ(u"gle.com", command_bar->GetInlineAutocompletionForTesting());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,

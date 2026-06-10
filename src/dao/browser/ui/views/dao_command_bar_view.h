@@ -103,6 +103,10 @@ class DaoCommandBarView : public views::View,
 
   void Navigate(const std::u16string& text);
   void NavigateToMatch(const AutocompleteMatch& match);
+  // Feeds the accepted input -> match association into the shortcuts
+  // database so ShortcutsProvider ranks this destination higher for the
+  // same prefix next time (mirrors ChromeOmniboxClient's behavior).
+  void RecordShortcut(const AutocompleteMatch& match);
   void SubmitAskAi(const std::u16string& prompt);
   void DeferredRequestFocus();
   void Dismiss();
@@ -126,8 +130,6 @@ class DaoCommandBarView : public views::View,
   // ghost text is suppressed for the current query.
   std::u16string GetInlineAutocompletionForResult() const;
   bool IsAutocompleteResultStableForInlineAutocompletion() const;
-  static bool ShouldSuppressSearchLikeInlineAutocompletion(
-      const std::u16string& text);
   bool HasSubmittableInlineAutocompletion() const;
   std::u16string GetInlineAutocompletedInputText() const;
   const AutocompleteMatch* GetVisibleInlineAutocompletionMatch() const;

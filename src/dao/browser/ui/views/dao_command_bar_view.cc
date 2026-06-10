@@ -6,10 +6,12 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/strings/escape.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
+#include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
@@ -30,6 +32,7 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_result.h"
+#include "components/omnibox/browser/shortcuts_backend.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/web_contents.h"
@@ -337,6 +340,7 @@ void DaoCommandBarView::InitAutocompleteController() {
                           AutocompleteProvider::TYPE_HISTORY_URL |
                           AutocompleteProvider::TYPE_BOOKMARK |
                           AutocompleteProvider::TYPE_SEARCH |
+                          AutocompleteProvider::TYPE_SHORTCUTS |
                           AutocompleteProvider::TYPE_OPEN_TAB;
 
   autocomplete_controller_ = std::make_unique<AutocompleteController>(
@@ -802,12 +806,12 @@ void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
       metrics::OmniboxEventProto::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
       *scheme_classifier_);
 
-  // Deletion queries and longer search-like inputs must also tell Chromium
-  // not to compute inline_autocompletion; without this, providers can still
-  // publish aggressive history URL tails that Dao then has to filter out
-  // tick-by-tick.
-  if (suppress_ghost_for_current_query_ ||
-      ShouldSuppressSearchLikeInlineAutocompletion(text)) {
+  // Deletion queries must also tell Chromium not to compute
+  // inline_autocompletion; without this, providers can still publish
+  // aggressive history URL tails that Dao then has to filter out
+  // tick-by-tick. Note this flag also lowers history match relevance
+  // caps inside the providers, so it must stay scoped to deletion only.
+  if (suppress_ghost_for_current_query_) {
     input.set_prevent_inline_autocomplete(true);
   }
   autocomplete_controller_->Start(input);
@@ -901,8 +905,7 @@ void DaoCommandBarView::UpdateSuggestions() {
 
 std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
   if (!autocomplete_controller_ || suppress_ghost_for_current_query_ ||
-      user_input_text_.empty() ||
-      ShouldSuppressSearchLikeInlineAutocompletion(user_input_text_)) {
+      user_input_text_.empty()) {
     return std::u16string();
   }
 
@@ -942,12 +945,6 @@ bool DaoCommandBarView::IsAutocompleteResultStableForInlineAutocompletion()
   }
 
   return autocomplete_controller_->done();
-}
-
-bool DaoCommandBarView::ShouldSuppressSearchLikeInlineAutocompletion(
-    const std::u16string& text) {
-  constexpr size_t kMaxSearchLikeShortcutLength = 2;
-  return text.length() > kMaxSearchLikeShortcutLength && !LooksLikeURL(text);
 }
 
 bool DaoCommandBarView::HasSubmittableInlineAutocompletion() const {
@@ -1313,7 +1310,28 @@ void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
   }
 }
 
+void DaoCommandBarView::RecordShortcut(const AutocompleteMatch& match) {
+  // Unlike Chromium, which records after the navigation commits
+  // successfully (ChromeOmniboxNavigationObserver), Dao records at
+  // accept time. A shortcut for an occasionally failing navigation is
+  // harmless — its relevance decays when unused.
+  scoped_refptr<ShortcutsBackend> shortcuts_backend =
+      ShortcutsBackendFactory::GetForProfile(browser_->profile());
+  // Can be null in incognito.
+  if (!shortcuts_backend) {
+    return;
+  }
+  shortcuts_backend->AddOrUpdateShortcut(user_input_text_, match);
+}
+
 void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
+  // Learn from the accepted suggestion regardless of which navigation
+  // branch runs below; invalid destinations fall back to plain text
+  // navigation and carry nothing worth learning.
+  if (match.destination_url.is_valid()) {
+    RecordShortcut(match);
+  }
+
   // Check if this is a tab switch match
   if (match.has_tab_match.value_or(false)) {
     NavigateParams params(browser_, match.destination_url,
