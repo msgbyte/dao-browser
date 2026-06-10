@@ -419,7 +419,7 @@ function AgentMockup() {
         <div className={styles.agentTitlebar}>
           <Sparkle />
           <span className={styles.agentHeaderTitle}>Dao Agent</span>
-          <span className={styles.agentHeaderModel}>Claude Sonnet 4.5</span>
+          <span className={styles.agentHeaderModel}>Claude Fable 5</span>
         </div>
         <div className={styles.agentBody}>
           <div className={styles.agentLog}>

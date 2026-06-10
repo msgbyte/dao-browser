@@ -271,19 +271,19 @@ export function ModelSwapVisual() {
       <div className={styles.modelRoot}>
         <div className={styles.modelRow}>
           <span className={`${styles.modelChip} ${styles.active}`}>
-            <span className={styles.modelChipDot} /> Claude 4.5
+            <span className={styles.modelChipDot} /> Claude Fable 5
           </span>
           <span className={styles.modelChip}>
-            <span className={styles.modelChipDot} /> GPT-5
+            <span className={styles.modelChipDot} /> GPT-5.5
           </span>
           <span className={styles.modelChip}>
-            <span className={styles.modelChipDot} /> Gemini 2.5
+            <span className={styles.modelChipDot} /> Gemini 3.5 Flash
           </span>
           <span className={styles.modelChip}>
-            <span className={styles.modelChipDot} /> DeepSeek-V3
+            <span className={styles.modelChipDot} /> DeepSeek-V4-Pro
           </span>
           <span className={styles.modelChip}>
-            <span className={styles.modelChipDot} /> Ollama (local)
+            <span className={styles.modelChipDot} /> Qwen3.5 (local)
           </span>
         </div>
 
