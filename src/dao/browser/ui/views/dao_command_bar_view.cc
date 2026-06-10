@@ -287,6 +287,9 @@ void DaoCommandBarView::ApplyTheme() {
   }
   if (textfield_) {
     textfield_->SetTextColor(TextPrimary());
+    // Placeholder sits at the lightest step of the text hierarchy (40%)
+    // so it reads as a hint rather than content.
+    textfield_->set_placeholder_text_color(TextMuted());
   }
   if (ghost_text_label_) {
     // Mirror the selected suggestion row tokens so the inline completion
