@@ -21,10 +21,10 @@ import {initI18n} from './i18n/i18n.js';
 import {refreshSkillRegistryIfStale} from './skill_registry.js';
 
 // Kick off locale loading at module import time so the dictionary is in
-// place before any t() call from a child view's render. Fire-and-forget:
-// initI18n() is idempotent and child views await it themselves if they
-// need to render synchronously before mount.
-void initI18n();
+// place before most t() calls from child views. The first render can still
+// beat the async locale import, so connectedCallback refreshes mounted views
+// when this promise resolves.
+const i18nReady = initI18n();
 
 export class DaoAgentApp extends CrLitElement {
   static override get properties() {
@@ -130,6 +130,11 @@ export class DaoAgentApp extends CrLitElement {
       // Let the active-tab flip render before the first attempt.
       this.updateComplete.then(tryOnce);
     };
+
+    void i18nReady.then(() => {
+      if (!this.isConnected) return;
+      this.refreshLocalizedViews_();
+    });
   }
 
   override render() {
@@ -351,6 +356,15 @@ export class DaoAgentApp extends CrLitElement {
 
   private getSettingsView_(): DaoSettingsView|null {
     return this.querySelector('dao-settings-view');
+  }
+
+  private refreshLocalizedViews_() {
+    this.requestUpdate();
+    const root = this.shadowRoot ?? this;
+    for (const el of root.querySelectorAll('*')) {
+      const litElement = el as HTMLElement & {requestUpdate?: () => void};
+      litElement.requestUpdate?.();
+    }
   }
 
   private showToast_(text: string, duration = 3000) {
