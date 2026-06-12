@@ -106,6 +106,9 @@ class DaoAgentMemoryStore {
   bool ExecuteOptionalSql(base::cstring_view sql);
   bool CreateSchema();
   bool MigrateIfNeeded();
+  bool EnsureEpisodeActionColumns();
+  bool EnsureEpisodeColumn(base::cstring_view column,
+                           base::cstring_view definition);
   void DatabaseErrorCallback(int error, sql::Statement* stmt);
 
   static constexpr int kCurrentSchemaVersion = 3;

@@ -5,6 +5,7 @@
 #include "dao/browser/agent/dao_agent_memory_store.h"
 
 #include <algorithm>
+#include <string_view>
 #include <tuple>
 
 #include "base/logging.h"
@@ -92,6 +93,10 @@ bool DaoAgentMemoryStore::Init() {
     return false;
   }
 
+  if (!EnsureEpisodeActionColumns()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -176,7 +181,9 @@ bool DaoAgentMemoryStore::CreateSchema() {
           "  tools_used TEXT,"
           "  outcome TEXT,"
           "  timestamp INTEGER NOT NULL,"
-          "  confidence REAL DEFAULT 0.7"
+          "  confidence REAL DEFAULT 0.7,"
+          "  user_action TEXT,"
+          "  action_result TEXT"
           ")")) {
     return false;
   }
@@ -352,6 +359,36 @@ bool DaoAgentMemoryStore::MigrateIfNeeded() {
   }
 
   return true;
+}
+
+bool DaoAgentMemoryStore::EnsureEpisodeActionColumns() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return EnsureEpisodeColumn("user_action", "user_action TEXT") &&
+         EnsureEpisodeColumn("action_result", "action_result TEXT");
+}
+
+bool DaoAgentMemoryStore::EnsureEpisodeColumn(base::cstring_view column,
+                                              base::cstring_view definition) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  sql::Statement stmt(db_->GetUniqueStatement("PRAGMA table_info(episodes)"));
+  if (!stmt.is_valid()) {
+    return false;
+  }
+
+  while (stmt.Step()) {
+    if (stmt.ColumnStringView(1) == std::string_view(column)) {
+      return true;
+    }
+  }
+
+  if (!stmt.Succeeded()) {
+    return false;
+  }
+
+  const std::string sql =
+      base::StrCat({"ALTER TABLE episodes ADD COLUMN ", definition});
+  return db_->Execute(sql);
 }
 
 void DaoAgentMemoryStore::DatabaseErrorCallback(int error,

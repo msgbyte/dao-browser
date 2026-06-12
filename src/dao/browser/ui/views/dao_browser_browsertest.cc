@@ -53,6 +53,10 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "sql/database.h"
+#include "sql/meta_table.h"
+#include "sql/statement.h"
+#include "sql/test/test_helpers.h"
 #include "ui/base/hit_test.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
@@ -2507,6 +2511,17 @@ IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest, SeedBeatsPersonalOnConflict
 // `feedback_sqlite_fts5_poison` memory entry.
 // =============================================================================
 
+bool HasEpisodeActionColumns(const base::FilePath& db_path) {
+  sql::Database db(sql::test::kTestTag);
+  if (!db.Open(db_path)) {
+    return false;
+  }
+
+  sql::Statement stmt(db.GetUniqueStatement(
+      "SELECT user_action, action_result FROM episodes LIMIT 0"));
+  return stmt.is_valid();
+}
+
 class DaoAgentMemoryStoreTest : public InProcessBrowserTest {
  protected:
   void SetUpOnMainThread() override {
@@ -2541,6 +2556,59 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, StatsBeforeInitReturnsZeros) {
   EXPECT_EQ(0, stats.summary_count);
   EXPECT_EQ(0, stats.episode_count);
   EXPECT_EQ(0, stats.preference_count);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
+                       FreshSchemaCreatesEpisodeActionColumns) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath db_path =
+      temp_dir.GetPath().AppendASCII("DaoAgentMemory.db");
+
+  {
+    dao::DaoAgentMemoryStore store(db_path);
+    ASSERT_TRUE(store.Init());
+  }
+
+  EXPECT_TRUE(HasEpisodeActionColumns(db_path));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
+                       RepairsCurrentSchemaMissingEpisodeActionColumns) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath db_path =
+      temp_dir.GetPath().AppendASCII("DaoAgentMemory.db");
+
+  {
+    sql::Database db(sql::test::kTestTag);
+    ASSERT_TRUE(db.Open(db_path));
+    sql::MetaTable meta_table;
+    ASSERT_TRUE(meta_table.Init(&db, /*version=*/3, /*compatible_version=*/3));
+    ASSERT_TRUE(db.Execute(
+        "CREATE TABLE episodes ("
+        "  id INTEGER PRIMARY KEY,"
+        "  domain TEXT NOT NULL,"
+        "  path_template TEXT,"
+        "  url TEXT NOT NULL,"
+        "  title TEXT,"
+        "  intent TEXT,"
+        "  entities TEXT,"
+        "  tools_used TEXT,"
+        "  outcome TEXT,"
+        "  timestamp INTEGER NOT NULL,"
+        "  confidence REAL DEFAULT 0.7"
+        ")"));
+  }
+
+  {
+    dao::DaoAgentMemoryStore store(db_path);
+    ASSERT_TRUE(store.Init());
+  }
+
+  EXPECT_TRUE(HasEpisodeActionColumns(db_path));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_PreferenceRoundTrip) {
