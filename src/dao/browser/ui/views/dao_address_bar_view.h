@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/view.h"
 
@@ -103,6 +104,7 @@ class DaoAddressBarView : public views::View,
 
  private:
   void UpdateURL();
+  SkColor GetCurrentPageBackgroundColor() const;
   void UpdateBackgroundColor();
   void UpdateUrlTextColors(SkColor background_color);
   void UpdateToggleButtonColor();

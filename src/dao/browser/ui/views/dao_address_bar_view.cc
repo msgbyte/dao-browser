@@ -519,20 +519,29 @@ void DaoAddressBarView::OnBackgroundColorChanged() {
   UpdateBackgroundColor();
 }
 
-void DaoAddressBarView::UpdateBackgroundColor() {
-  SkColor bg_color = SK_ColorWHITE;
+SkColor DaoAddressBarView::GetCurrentPageBackgroundColor() const {
   if (tab_strip_model_) {
     auto* web_contents = tab_strip_model_->GetActiveWebContents();
     if (web_contents) {
+      auto web_contents_color = web_contents->GetBackgroundColor();
+      if (web_contents_color.has_value()) {
+        return web_contents_color.value();
+      }
+
       auto* rwhv = web_contents->GetRenderWidgetHostView();
       if (rwhv) {
         auto color = rwhv->GetBackgroundColor();
         if (color.has_value()) {
-          bg_color = color.value();
+          return color.value();
         }
       }
     }
   }
+  return SK_ColorWHITE;
+}
+
+void DaoAddressBarView::UpdateBackgroundColor() {
+  SkColor bg_color = GetCurrentPageBackgroundColor();
   SetBackground(views::CreateSolidBackground(bg_color));
   UpdateUrlTextColors(bg_color);
 
@@ -609,19 +618,7 @@ void DaoAddressBarView::UpdateToggleButtonColor() {
     return;
   }
   // Adapt icon color to match the address bar background luminance
-  SkColor bg_color = SK_ColorWHITE;
-  if (tab_strip_model_) {
-    auto* web_contents = tab_strip_model_->GetActiveWebContents();
-    if (web_contents) {
-      auto* rwhv = web_contents->GetRenderWidgetHostView();
-      if (rwhv) {
-        auto color = rwhv->GetBackgroundColor();
-        if (color.has_value()) {
-          bg_color = color.value();
-        }
-      }
-    }
-  }
+  SkColor bg_color = GetCurrentPageBackgroundColor();
   int r = SkColorGetR(bg_color);
   int g = SkColorGetG(bg_color);
   int b = SkColorGetB(bg_color);
@@ -752,25 +749,14 @@ void DaoAddressBarView::DidFinishNavigation(
   if (navigation_handle->IsInPrimaryMainFrame() &&
       navigation_handle->HasCommitted()) {
     UpdateURL();
+    UpdateBackgroundColor();
   }
   UpdateNavButtonEnabled();
   UpdateStopRefreshButton();
 }
 
 void DaoAddressBarView::UpdateNavButtonColors() {
-  SkColor bg_color = SK_ColorWHITE;
-  if (tab_strip_model_) {
-    auto* web_contents = tab_strip_model_->GetActiveWebContents();
-    if (web_contents) {
-      auto* rwhv = web_contents->GetRenderWidgetHostView();
-      if (rwhv) {
-        auto color = rwhv->GetBackgroundColor();
-        if (color.has_value()) {
-          bg_color = color.value();
-        }
-      }
-    }
-  }
+  SkColor bg_color = GetCurrentPageBackgroundColor();
   int r = SkColorGetR(bg_color);
   int g = SkColorGetG(bg_color);
   int b = SkColorGetB(bg_color);

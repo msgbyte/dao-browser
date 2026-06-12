@@ -1150,6 +1150,32 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
             address_bar->GetPathTextForTesting());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
+                       AddressBarUsesCommittedPageBackgroundColor) {
+  const SkColor expected_color = SkColorSetRGB(12, 34, 56);
+  const GURL url(
+      "data:text/html,<style>html,body{margin:0;min-height:100%;"
+      "background-color:rgb(12,34,56);}</style><body>bg</body>");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(web_contents));
+  EXPECT_EQ("rgb(12, 34, 56)",
+            content::EvalJs(
+                web_contents,
+                "getComputedStyle(document.body).backgroundColor"));
+  ASSERT_EQ(expected_color, web_contents->GetBackgroundColor());
+
+  DaoAddressBarView* address_bar =
+      GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  address_bar->OnBackgroundColorChanged();
+
+  ASSERT_TRUE(address_bar->background());
+  EXPECT_EQ(expected_color, address_bar->background()->color());
+}
+
 // =============================================================================
 // DaoCommandBarBrowserTest
 // =============================================================================
