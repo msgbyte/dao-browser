@@ -9,7 +9,12 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
   SIDEBAR_POINTER_EXITED_EVENT,
 } from '../sidebar_bridge.js';
-import type {PinnedItemData, UpdateStateData} from '../sidebar_bridge.js';
+import type {
+  PinnedItemData,
+  SidebarState,
+  TabData,
+  UpdateStateData,
+} from '../sidebar_bridge.js';
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
@@ -35,12 +40,40 @@ function pinnedItem(extra: Partial<PinnedItemData> = {}): PinnedItemData {
   };
 }
 
+function tab(extra: Partial<TabData> = {}): TabData {
+  return {
+    tabId: 'tab-1',
+    index: 0,
+    title: 'Docs',
+    url: 'https://docs.example/',
+    faviconUrl: '',
+    isActive: false,
+    isPinned: false,
+    isAudible: false,
+    isMuted: false,
+    ...extra,
+  };
+}
+
+function sidebarState(extra: Partial<SidebarState> = {}): SidebarState {
+  return {
+    pinnedItems: [],
+    pinnedTabs: [],
+    unpinnedTabs: [],
+    activeIndex: 0,
+    sessionId: 7,
+    ...extra,
+  };
+}
+
 async function loadApp() {
   const send = vi.fn();
   (globalThis as unknown as {chrome: {send: typeof send}}).chrome = {send};
   await import('../dao_sidebar_app.js');
   const el = document.createElement('dao-sidebar-app') as HTMLElement & {
     pinnedItems_: PinnedItemData[];
+    autoScrollTabId_: string;
+    autoScrollToken_: number;
     updateState_: UpdateStateData | null;
     tabScrollbarVisible_: boolean;
     tabScrollbarHovered_: boolean;
@@ -85,6 +118,50 @@ describe('dao-sidebar-app', () => {
     expect(send).toHaveBeenCalledWith('getInitialState', []);
     expect(send).toHaveBeenCalledWith('requestUpdateState', []);
   });
+
+  it('creates a one-shot scroll intent from sidebar state', async () => {
+    const {el} = await loadApp();
+    await el.updateComplete;
+
+    (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, state: SidebarState) => void};
+    }).cr.webUIListenerCallback('sidebarStateChanged', sidebarState({
+      unpinnedTabs: [tab({tabId: 'tab-a', isActive: true})],
+      scrollTargetTabId: 'tab-a',
+    } as Partial<SidebarState>));
+    await el.updateComplete;
+
+    expect(el.autoScrollTabId_).toBe('tab-a');
+    expect(el.autoScrollToken_).toBe(1);
+  });
+
+  it('does not refresh the scroll token when sidebar state has no target',
+      async () => {
+        const {el} = await loadApp();
+        await el.updateComplete;
+
+        (window as unknown as {
+          cr: {
+            webUIListenerCallback: (event: string, state: SidebarState) => void
+          };
+        }).cr.webUIListenerCallback('sidebarStateChanged', sidebarState({
+          unpinnedTabs: [tab({tabId: 'tab-a', isActive: true})],
+          scrollTargetTabId: 'tab-a',
+        } as Partial<SidebarState>));
+        await el.updateComplete;
+
+        (window as unknown as {
+          cr: {
+            webUIListenerCallback: (event: string, state: SidebarState) => void
+          };
+        }).cr.webUIListenerCallback('sidebarStateChanged', sidebarState({
+          unpinnedTabs: [tab({tabId: 'tab-a', isActive: true})],
+        }));
+        await el.updateComplete;
+
+        expect(el.autoScrollTabId_).toBe('');
+        expect(el.autoScrollToken_).toBe(1);
+      });
 
   it('renders the update button before the plus menu at the toolbar end', async () => {
     const {el} = await loadApp();

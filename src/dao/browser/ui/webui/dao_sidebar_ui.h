@@ -154,6 +154,9 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void ClosePinnedItemTab(const std::string& id);
   void MovePinnedItem(const std::string& id, int to_index);
   void PushTabUpdate(int index);
+  std::string GetInsertedActiveTabIdForScroll(
+      const TabStripModelChange& change,
+      const TabStripSelectionChange& selection) const;
   void OnSplitStateChanged();
   void ConsolidateSplitGroupTabs();
   void PushDownloadState();
@@ -257,6 +260,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   bool pinned_items_loaded_ = false;
   bool pinned_items_load_pending_ = false;
   bool pinned_items_auto_save_enabled_ = true;
+  std::string pending_scroll_target_tab_id_;
 
   // Context menu state.
   int context_menu_tab_index_ = -1;

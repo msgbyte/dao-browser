@@ -16,8 +16,11 @@ vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
 
 interface TestTabItem extends HTMLElement {
   tabData: TabData;
+  active: boolean;
+  autoScrollToken: number;
   sessionId: number;
   updateComplete: Promise<boolean>;
+  updated: (changedProperties: Map<PropertyKey, unknown>) => void;
 }
 
 interface FakeDataTransfer {
@@ -107,6 +110,54 @@ describe('dao-tab-item', () => {
         'text/plain', 'dao-tab-drag:7:3');
     expect(dataTransfer.effectAllowed).toBe('move');
   });
+
+  it('does not scroll just because a tab becomes active', async () => {
+    const el = document.createElement('dao-tab-item') as TestTabItem;
+    el.tabData = tab({isActive: true});
+    el.active = true;
+    el.scrollIntoView = vi.fn();
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    el.updated(new Map<PropertyKey, unknown>([['active', false]]));
+
+    expect(el.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('smooth scrolls active tab when an auto-scroll token arrives', async () => {
+    const el = document.createElement('dao-tab-item') as TestTabItem;
+    el.tabData = tab({isActive: true});
+    el.active = true;
+    el.autoScrollToken = 1;
+    el.scrollIntoView = vi.fn();
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    el.updated(new Map<PropertyKey, unknown>([['autoScrollToken', 0]]));
+
+    expect(el.scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+      behavior: 'smooth',
+    });
+  });
+
+  it('smooth scrolls a target tab even when active styling is suppressed',
+      async () => {
+        const el = document.createElement('dao-tab-item') as TestTabItem;
+        el.tabData = tab({isActive: true});
+        el.active = false;
+        el.autoScrollToken = 1;
+        el.scrollIntoView = vi.fn();
+        document.body.appendChild(el);
+        await el.updateComplete;
+
+        el.updated(new Map<PropertyKey, unknown>([['autoScrollToken', 0]]));
+
+        expect(el.scrollIntoView).toHaveBeenCalledWith({
+          block: 'nearest',
+          behavior: 'smooth',
+        });
+      });
 
   it('does not show a scheduled hover tooltip after drag starts', async () => {
     vi.useFakeTimers();

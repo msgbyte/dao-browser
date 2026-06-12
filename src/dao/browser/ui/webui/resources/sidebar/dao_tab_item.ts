@@ -190,6 +190,7 @@ export class DaoTabItem extends CrLitElement {
       tabData: {type: Object},
       active: {type: Boolean, reflect: true},
       sessionId: {type: Number},
+      autoScrollToken: {type: Number},
       hoverSuppressed_: {
         type: Boolean,
         reflect: true,
@@ -201,6 +202,7 @@ export class DaoTabItem extends CrLitElement {
   declare tabData: TabData;
   declare active: boolean;
   declare sessionId: number;
+  declare autoScrollToken: number;
   declare protected hoverSuppressed_: boolean;
 
   constructor() {
@@ -218,6 +220,7 @@ export class DaoTabItem extends CrLitElement {
     };
     this.active = false;
     this.sessionId = 0;
+    this.autoScrollToken = 0;
     this.hoverSuppressed_ = false;
   }
 
@@ -304,12 +307,8 @@ export class DaoTabItem extends CrLitElement {
   }
 
   override updated(changedProperties: Map<PropertyKey, unknown>) {
-    // Keep the active tab inside the sidebar's scroll viewport whenever it
-    // becomes active (tab switch, newly opened active tab, or first render).
-    // `nearest` is a no-op when the tab is already fully visible, so it never
-    // disrupts the user's current scroll position.
-    if (changedProperties.has('active') && this.active) {
-      this.scrollIntoView({block: 'nearest'});
+    if (changedProperties.has('autoScrollToken') && this.autoScrollToken > 0) {
+      this.scrollIntoView({block: 'nearest', behavior: 'smooth'});
     }
   }
 

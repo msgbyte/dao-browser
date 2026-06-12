@@ -101,6 +101,7 @@ export interface SidebarState {
   unpinnedTabs: TabData[];
   activeIndex: number;
   sessionId: number;
+  scrollTargetTabId?: string;
 }
 
 // ---- Download Data Types ----

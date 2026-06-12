@@ -91,6 +91,8 @@ export class DaoTabList extends CrLitElement {
       sessionId: {type: Number},
       folderModel: {type: Object},
       folderModelVersion: {type: Number},
+      autoScrollTabId: {type: String},
+      autoScrollToken: {type: Number},
     };
   }
 
@@ -102,6 +104,8 @@ export class DaoTabList extends CrLitElement {
   declare sessionId: number;
   declare folderModel: FolderModel | null;
   declare folderModelVersion: number;
+  declare autoScrollTabId: string;
+  declare autoScrollToken: number;
 
   private dropIndicatorY_: number = 0;
   private dropInsertIndex_: number = -1;
@@ -115,6 +119,8 @@ export class DaoTabList extends CrLitElement {
     this.sessionId = 0;
     this.folderModel = null;
     this.folderModelVersion = 0;
+    this.autoScrollTabId = '';
+    this.autoScrollToken = 0;
   }
 
   override connectedCallback() {
@@ -183,6 +189,7 @@ export class DaoTabList extends CrLitElement {
           <dao-tab-item
             .tabData=${tab}
             .sessionId=${this.sessionId}
+            .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
             ?active=${tab.isActive}>
           </dao-tab-item>
         `);
@@ -200,6 +207,7 @@ export class DaoTabList extends CrLitElement {
           <dao-tab-item
             .tabData=${tab}
             .sessionId=${this.sessionId}
+            .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
             ?active=${tab.isActive}>
           </dao-tab-item>
         `);
@@ -229,7 +237,9 @@ export class DaoTabList extends CrLitElement {
           <dao-folder-item
             .folder=${folder}
             .matchedTabs=${matchedChildren}
-            .sessionId=${this.sessionId}>
+            .sessionId=${this.sessionId}
+            .autoScrollTabId=${this.autoScrollTabId}
+            .autoScrollToken=${this.autoScrollToken}>
           </dao-folder-item>
         `);
       }
@@ -266,6 +276,7 @@ export class DaoTabList extends CrLitElement {
           <dao-tab-item
             .tabData=${tab}
             .sessionId=${this.sessionId}
+            .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
             ?active=${tab.isActive}>
           </dao-tab-item>
         `);
@@ -283,6 +294,7 @@ export class DaoTabList extends CrLitElement {
           <dao-tab-item
             .tabData=${tab}
             .sessionId=${this.sessionId}
+            .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
             ?active=${tab.isActive}>
           </dao-tab-item>
         `);
@@ -295,6 +307,10 @@ export class DaoTabList extends CrLitElement {
            style="top: ${this.dropIndicatorY_}px"></div>
       ${fragments}
     `;
+  }
+
+  private getAutoScrollTokenForTab_(tab: TabData): number {
+    return tab.tabId === this.autoScrollTabId ? this.autoScrollToken : 0;
   }
 
   private onDragStart_(e: DragEvent) {

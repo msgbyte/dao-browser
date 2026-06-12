@@ -614,6 +614,8 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
   // Structural changes (insert, remove, move, replace) need a full refresh
   // because tab indices shift.
   if (change.type() != TabStripModelChange::kSelectionOnly) {
+    pending_scroll_target_tab_id_ =
+        GetInsertedActiveTabIdForScroll(change, selection);
     PushFullState();
     return;
   }
@@ -695,6 +697,7 @@ void DaoSidebarUIHandler::PushFullState() {
 
   base::DictValue state = BuildSidebarState();
   FireWebUIListener("sidebarStateChanged", state);
+  pending_scroll_target_tab_id_.clear();
   PushMediaPlaybackState();
 }
 
@@ -748,6 +751,9 @@ base::DictValue DaoSidebarUIHandler::BuildSidebarState() {
   state.Set("unpinnedTabs", std::move(unpinned_tabs));
   state.Set("activeIndex", model->active_index());
   state.Set("sessionId", static_cast<int>(browser_->session_id().id()));
+  if (!pending_scroll_target_tab_id_.empty()) {
+    state.Set("scrollTargetTabId", pending_scroll_target_tab_id_);
+  }
   return state;
 }
 
@@ -1073,6 +1079,22 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
 
   FireWebUIListener("tabUpdated", tab);
   PushMediaPlaybackState();
+}
+
+std::string DaoSidebarUIHandler::GetInsertedActiveTabIdForScroll(
+    const TabStripModelChange& change,
+    const TabStripSelectionChange& selection) const {
+  if (change.type() != TabStripModelChange::kInserted ||
+      !selection.active_tab_changed() || !selection.new_contents) {
+    return std::string();
+  }
+
+  for (const auto& inserted : change.GetInsert()->contents) {
+    if (inserted.contents == selection.new_contents) {
+      return GetSidebarTabId(selection.new_contents);
+    }
+  }
+  return std::string();
 }
 
 void DaoSidebarUIHandler::HandleGetInitialState(const base::ListValue& args) {

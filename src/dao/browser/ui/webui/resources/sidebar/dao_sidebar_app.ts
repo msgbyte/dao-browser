@@ -194,6 +194,8 @@ export class DaoSidebarApp extends CrLitElement {
       showPlusMenu_: {type: Boolean},
       newTabHighlighted_: {type: Boolean},
       updateState_: {type: Object},
+      autoScrollTabId_: {type: String},
+      autoScrollToken_: {type: Number},
       tabScrollbarVisible_: {type: Boolean},
       tabScrollbarHovered_: {type: Boolean},
       tabScrollbarThumbTop_: {type: Number},
@@ -216,6 +218,8 @@ export class DaoSidebarApp extends CrLitElement {
   declare protected showPlusMenu_: boolean;
   declare protected newTabHighlighted_: boolean;
   declare protected updateState_: UpdateStateData | null;
+  declare protected autoScrollTabId_: string;
+  declare protected autoScrollToken_: number;
   declare protected tabScrollbarVisible_: boolean;
   declare protected tabScrollbarHovered_: boolean;
   declare protected tabScrollbarThumbTop_: number;
@@ -253,6 +257,8 @@ export class DaoSidebarApp extends CrLitElement {
     this.showPlusMenu_ = false;
     this.newTabHighlighted_ = false;
     this.updateState_ = null;
+    this.autoScrollTabId_ = '';
+    this.autoScrollToken_ = 0;
     this.tabScrollbarVisible_ = false;
     this.tabScrollbarHovered_ = false;
     this.tabScrollbarThumbTop_ = 0;
@@ -268,6 +274,12 @@ export class DaoSidebarApp extends CrLitElement {
       this.pinnedTabs_ = state.pinnedTabs;
       this.unpinnedTabs_ = state.unpinnedTabs;
       this.sessionId_ = state.sessionId;
+      if (state.scrollTargetTabId) {
+        this.autoScrollTabId_ = state.scrollTargetTabId;
+        this.autoScrollToken_++;
+      } else {
+        this.autoScrollTabId_ = '';
+      }
 
       // On the very first state push, reconcile folder model with
       // actual tabs (session restore matching).
@@ -637,7 +649,9 @@ export class DaoSidebarApp extends CrLitElement {
                 .tabs=${this.newTabHighlighted_ ? this.unpinnedTabs_.map(t => ({...t, isActive: false})) : this.unpinnedTabs_}
                 .sessionId=${this.sessionId_}
                 .folderModel=${this.foldersLoaded_ ? this.folderModel_ : null}
-                .folderModelVersion=${this.folderModelVersion_}>
+                .folderModelVersion=${this.folderModelVersion_}
+                .autoScrollTabId=${this.autoScrollTabId_}
+                .autoScrollToken=${this.autoScrollToken_}>
               </dao-tab-list>
             </dao-sidebar-section>
           </div>

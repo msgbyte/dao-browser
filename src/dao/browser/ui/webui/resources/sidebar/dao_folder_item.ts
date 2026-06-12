@@ -191,6 +191,8 @@ export class DaoFolderItem extends CrLitElement {
       folder: {type: Object},
       matchedTabs: {type: Array},
       sessionId: {type: Number},
+      autoScrollTabId: {type: String},
+      autoScrollToken: {type: Number},
       isRenaming_: {type: Boolean},
       showContextMenu_: {type: Boolean},
       contextMenuX_: {type: Number},
@@ -202,6 +204,8 @@ export class DaoFolderItem extends CrLitElement {
   declare folder: FolderData;
   declare matchedTabs: TabData[];
   declare sessionId: number;
+  declare autoScrollTabId: string;
+  declare autoScrollToken: number;
 
   declare protected isRenaming_: boolean;
   declare protected showContextMenu_: boolean;
@@ -222,6 +226,8 @@ export class DaoFolderItem extends CrLitElement {
     };
     this.matchedTabs = [];
     this.sessionId = 0;
+    this.autoScrollTabId = '';
+    this.autoScrollToken = 0;
     this.isRenaming_ = false;
     this.showContextMenu_ = false;
     this.contextMenuX_ = 0;
@@ -286,6 +292,7 @@ export class DaoFolderItem extends CrLitElement {
             <dao-tab-item
               .tabData=${tab}
               .sessionId=${this.sessionId}
+              .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
               ?active=${tab.isActive}
               data-folder-id=${this.folder.id}>
             </dao-tab-item>
@@ -322,6 +329,10 @@ export class DaoFolderItem extends CrLitElement {
         </div>
       ` : nothing}
     `;
+  }
+
+  private getAutoScrollTokenForTab_(tab: TabData): number {
+    return tab.tabId === this.autoScrollTabId ? this.autoScrollToken : 0;
   }
 
   override updated() {
