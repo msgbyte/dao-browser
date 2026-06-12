@@ -44,15 +44,25 @@ import '../dao_dream_app.js';
 
 type TestDreamApp = HTMLElement & {updateComplete: Promise<boolean>};
 
-function report(dreamDate: string) {
+function report(dreamDate: string, habitCandidates = '[]') {
   return {
     id: Number(dreamDate.slice(-2)),
     dreamDate,
     reportMarkdown: `# ${dreamDate}`,
-    habitCandidates: '[]',
+    habitCandidates,
     debugMaterialJson: '',
     triggerKind: 'manual',
   };
+}
+
+function habitCandidates() {
+  return JSON.stringify([{
+    key: 'preferred_search',
+    value: 'Uses documentation search for implementation details',
+    confidence: 0.7,
+    evidence: 'Opened API docs before coding',
+    relation: 'new',
+  }]);
 }
 
 async function mountDreamApp(pathname: string): Promise<TestDreamApp> {
@@ -71,10 +81,12 @@ describe('dao-dream-app routing', () => {
     bridgeMocks.callNative.mockReset();
     bridgeMocks.callNativeArgs.mockReset();
     bridgeMocks.callNativeArgs.mockResolvedValue({success: true});
+    localStorage.clear();
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
+    localStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -111,5 +123,34 @@ describe('dao-dream-app routing', () => {
     expect(bridgeMocks.callNative).not.toHaveBeenCalledWith(
         'getDreamReports', {limit: 30});
     expect(el.shadowRoot!.textContent).toContain('2026-06-13');
+  });
+
+  it('keeps habit feedback selected when the same report is reopened', async () => {
+    bridgeMocks.callNative.mockResolvedValue([
+      report('2026-06-12', habitCandidates()),
+    ]);
+
+    const el = await mountDreamApp('/');
+    const confirmButton = Array.from(el.shadowRoot!.querySelectorAll('button'))
+                              .find(button => button.textContent?.includes(
+                                  'chat.dream.habit_confirm'));
+    expect(confirmButton).toBeTruthy();
+
+    confirmButton!.click();
+    await el.updateComplete;
+
+    expect(bridgeMocks.callNativeArgs).toHaveBeenCalledWith(
+        'updatePreference', 'preferred_search',
+        'Uses documentation search for implementation details', 0.95);
+    expect(el.shadowRoot!.textContent).toContain(
+        'chat.dream.habit_confirmed');
+
+    document.body.innerHTML = '';
+    const reopened = await mountDreamApp('/');
+
+    expect(reopened.shadowRoot!.textContent).toContain(
+        'chat.dream.habit_confirmed');
+    expect(reopened.shadowRoot!.textContent).not.toContain(
+        'chat.dream.habit_reject');
   });
 });

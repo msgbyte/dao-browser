@@ -27,6 +27,8 @@ interface DreamReportData {
 
 type HabitState = 'confirmed'|'rejected';
 
+const DREAM_HABIT_FEEDBACK_STORAGE_KEY = 'dao.dream.habitFeedback.v1';
+
 export class DaoDreamApp extends CrLitElement {
   static get is() {
     return 'dao-dream-app';
@@ -380,7 +382,7 @@ export class DaoDreamApp extends CrLitElement {
       const report = this.normalizeReport_(raw);
       this.report_ = report;
       this.reports_ = [];
-      this.habitStates_ = {};
+      this.habitStates_ = report ? this.loadPersistedHabitStates_(report) : {};
       if (report) {
         this.markReportViewed_(report);
       }
@@ -397,7 +399,8 @@ export class DaoDreamApp extends CrLitElement {
       const reports = this.normalizeReports_(raw);
       this.reports_ = reports;
       this.report_ = reports[0] || null;
-      this.habitStates_ = {};
+      this.habitStates_ =
+          this.report_ ? this.loadPersistedHabitStates_(this.report_) : {};
       if (this.report_) {
         this.markReportViewed_(this.report_);
       }
@@ -457,13 +460,14 @@ export class DaoDreamApp extends CrLitElement {
 
   private selectHistoryReport_(report: DreamReportData) {
     this.report_ = report;
-    this.habitStates_ = {};
+    this.habitStates_ = this.loadPersistedHabitStates_(report);
     this.markReportViewed_(report);
   }
 
   private confirmHabit_(habit: DreamHabit, index: number) {
     callNativeArgs('updatePreference', habit.key, habit.value, 0.95)
         .catch(() => {});
+    this.persistHabitState_(habit, 'confirmed');
     this.habitStates_ = {...this.habitStates_, [index]: 'confirmed'};
   }
 
@@ -478,7 +482,58 @@ export class DaoDreamApp extends CrLitElement {
           return undefined;
         })
         .catch(() => {});
+    this.persistHabitState_(habit, 'rejected');
     this.habitStates_ = {...this.habitStates_, [index]: 'rejected'};
+  }
+
+  private loadPersistedHabitStates_(report: DreamReportData):
+      Record<number, HabitState> {
+    const stored = this.readHabitFeedbackStore_();
+    const states: Record<number, HabitState> = {};
+    report.habits
+        .filter((h) => h.relation !== 'reinforce')
+        .forEach((habit, index) => {
+          const state = stored[this.habitFeedbackKey_(report, habit)];
+          if (state === 'confirmed' || state === 'rejected') {
+            states[index] = state;
+          }
+        });
+    return states;
+  }
+
+  private persistHabitState_(habit: DreamHabit, state: HabitState) {
+    if (!this.report_) {
+      return;
+    }
+    const stored = this.readHabitFeedbackStore_();
+    stored[this.habitFeedbackKey_(this.report_, habit)] = state;
+    try {
+      localStorage.setItem(
+          DREAM_HABIT_FEEDBACK_STORAGE_KEY, JSON.stringify(stored));
+    } catch {}
+  }
+
+  private readHabitFeedbackStore_(): Record<string, HabitState> {
+    try {
+      const parsed = JSON.parse(
+          localStorage.getItem(DREAM_HABIT_FEEDBACK_STORAGE_KEY) || '{}');
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return {};
+      }
+      const states: Record<string, HabitState> = {};
+      for (const [key, value] of Object.entries(parsed)) {
+        if (value === 'confirmed' || value === 'rejected') {
+          states[key] = value;
+        }
+      }
+      return states;
+    } catch {
+      return {};
+    }
+  }
+
+  private habitFeedbackKey_(report: DreamReportData, habit: DreamHabit) {
+    return `${report.dreamDate}\u0000${habit.key}\u0000${habit.value}`;
   }
 
   private renderMarkdown_(markdown: string) {
