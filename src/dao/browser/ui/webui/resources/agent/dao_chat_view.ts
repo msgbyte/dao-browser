@@ -30,6 +30,7 @@ import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
 import {renderShareImage} from './dao_share_image.js';
 import {reportTelemetryEvent} from './dao_telemetry.js';
+import {lookupCostByModelId} from './llm_cost.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
 import {toolConfigChannel} from './tool_catalog.js';
 import './dao_chat_history_panel.js';
@@ -41,6 +42,20 @@ import * as pi from './vendor/pi_runtime_bundle.js';
 
 // Structural types — the bundle ships `@ts-nocheck`, so imports above are
 // all typed `any`. We name the small surface we actually touch.
+
+// Latest unviewed dream report, loaded via getUnviewedDreamReport and
+// rendered as a card at the top of the chat view.
+interface DreamReportData {
+  id: number;
+  dreamDate: string;
+  reportMarkdown: string;
+  habits: Array<{
+    key: string; value: string; confidence: number; evidence: string;
+    relation: 'new'|'reinforce'|'contradict';
+  }>;
+  debugMaterialJson: string;
+}
+
 interface PiAgent {
   state: {
     systemPrompt: string;
@@ -75,37 +90,6 @@ interface PiChatPanel extends HTMLElement {
   }): Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   agentInterface?: any;
-}
-
-// When the user routes a well-known model through an OpenAI-compatible
-// gateway (e.g. OpenRouter, LiteLLM, a corporate proxy), pi-ai's built-in
-// catalog still has the real pricing for that model id. Do a name-based
-// lookup across every provider in the catalog so Estimated Cost reflects
-// real rates instead of $0. Only the `cost` field is lifted — api / baseUrl
-// / provider stay pointed at the user's configured endpoint so requests
-// still go through their gateway.
-function lookupCostByModelId(modelId: string):
-    {input: number; output: number; cacheRead: number; cacheWrite: number} {
-  const zero = {input: 0, output: 0, cacheRead: 0, cacheWrite: 0};
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod = pi as any;
-    const providers: string[] = mod.getProviders?.() ?? [];
-    for (const p of providers) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const models: any[] = mod.getModels?.(p) ?? [];
-      const hit = models.find((m) => m?.id === modelId);
-      if (hit?.cost) {
-        return {
-          input: Number(hit.cost.input) || 0,
-          output: Number(hit.cost.output) || 0,
-          cacheRead: Number(hit.cost.cacheRead) || 0,
-          cacheWrite: Number(hit.cost.cacheWrite) || 0,
-        };
-      }
-    }
-  } catch (_) { /* catalog access failed — fall through to zeros */ }
-  return zero;
 }
 
 function buildOpenAICompatModel(modelId: string, baseUrl: string) {
@@ -192,6 +176,8 @@ export class DaoChatView extends CrLitElement {
       skillPickerAnchor_: {state: true},
       historyOpen_: {state: true},
       currentSessionId_: {state: true},
+      dreamReport_: {state: true},
+      dreamExpanded_: {type: Boolean, state: true},
     };
   }
 
@@ -217,9 +203,19 @@ export class DaoChatView extends CrLitElement {
     this.historyOpen_ = false;
     this.currentSessionId_ = '';
     this.messageCount_ = 0;
+    this.dreamReport_ = null;
+    this.dreamExpanded_ = false;
   }
   override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    void this.loadDreamReport_();
+    this.onDreamReportUpdated_ = () => void this.loadDreamReport_();
+    window.addEventListener(
+        'dao-dream-report-updated', this.onDreamReportUpdated_);
   }
 
   private agent_: PiAgent | null = null;
@@ -325,9 +321,21 @@ export class DaoChatView extends CrLitElement {
   declare protected currentSessionId_: string;
   private saveSessionScheduled_ = false;
 
+  // Dream Analysis morning-report card state. `dreamReport_` holds the
+  // latest unviewed report (null = no card); habit rows track per-index
+  // confirm/reject so the buttons collapse into a status label.
+  declare protected dreamReport_: DreamReportData|null;
+  declare protected dreamExpanded_: boolean;
+  private onDreamReportUpdated_: (() => void)|null = null;
+
   override disconnectedCallback() {
     super.disconnectedCallback();
     if (this.elementPicking_) void cancelElementPicker();
+    if (this.onDreamReportUpdated_) {
+      window.removeEventListener(
+          'dao-dream-report-updated', this.onDreamReportUpdated_);
+      this.onDreamReportUpdated_ = null;
+    }
     // Unblock anything awaiting mount; safe to call when already resolved.
     this.mountReadyResolve_();
     this.unsubscribeAgent_?.();
@@ -613,6 +621,7 @@ export class DaoChatView extends CrLitElement {
             ${t('chat.empty_guide.hint')}
           </div>
         </div>` : ''}
+      ${this.renderDreamCard_()}
       <pi-chat-panel></pi-chat-panel>
       <dao-chat-history-panel
           ?open=${this.historyOpen_}
@@ -2214,6 +2223,102 @@ export class DaoChatView extends CrLitElement {
     const head = '<skill name="' + parsed.skill.name + '">\n' + instructions +
         '\n</skill>';
     return parsed.rest ? head + '\n\n' + parsed.rest : head;
+  }
+
+  // ---- Dream Analysis morning-report card ----
+
+  private async loadDreamReport_() {
+    try {
+      const raw = await callNative('getUnviewedDreamReport') as {
+        id?: number; dreamDate?: string; reportMarkdown?: string;
+        habitCandidates?: string; debugMaterialJson?: string;
+      } | null;
+      if (!raw || typeof raw.id !== 'number') {
+        this.dreamReport_ = null;
+        return;
+      }
+      let habits: DreamReportData['habits'] = [];
+      try {
+        const parsed = JSON.parse(raw.habitCandidates || '[]');
+        if (Array.isArray(parsed)) habits = parsed;
+      } catch {}
+      this.dreamReport_ = {
+        id: raw.id,
+        dreamDate: raw.dreamDate || '',
+        reportMarkdown: raw.reportMarkdown || '',
+        habits,
+        debugMaterialJson: raw.debugMaterialJson || '',
+      };
+      this.dreamExpanded_ = false;
+    } catch {
+      this.dreamReport_ = null;
+    }
+  }
+
+  private toggleDreamExpanded_() {
+    if (!this.dreamReport_) {
+      return;
+    }
+    callNative('openTab', {url: 'dao://dream/'}).catch(() => {});
+  }
+
+  private renderDreamCard_() {
+    const r = this.dreamReport_;
+    if (!r) return nothing;
+    return html`
+      <style>
+        .dao-dream-card {
+          border: 1px solid rgba(127,127,127,0.18);
+          border-radius: 12px;
+          padding: 12px 14px;
+          margin: 8px 12px 0;
+          flex-shrink: 0;
+          font-size: 13px;
+          color: var(--text, inherit);
+        }
+        .dao-dream-btn {
+          font: inherit;
+          font-size: 11px;
+          color: var(--text-secondary, inherit);
+          background: rgba(127,127,127,0.10);
+          border: 1px solid rgba(127,127,127,0.20);
+          border-radius: 8px;
+          padding: 2px 10px;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .dao-dream-btn:hover { background: rgba(127,127,127,0.18); }
+        .dao-dream-md { margin-top: 10px; font-size: 13px; }
+        .dao-dream-debug-pre {
+          font-size: 11px;
+          max-height: 300px;
+          overflow: auto;
+          background: rgba(127,127,127,0.08);
+          border-radius: 8px;
+          padding: 8px;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+      </style>
+      <div class="dao-dream-card">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true"
+              style="flex-shrink:0;">
+            <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
+          </svg>
+          <span style="font-weight:600;">${t('chat.dream.card_title')}</span>
+          <span style="font-size:11px;opacity:.6;white-space:nowrap;
+              overflow:hidden;text-overflow:ellipsis;">
+            ${t('chat.dream.card_date', {date: r.dreamDate})}</span>
+          <span style="flex:1"></span>
+          <button class="dao-dream-btn"
+              @click=${this.toggleDreamExpanded_}>
+            ${t('chat.dream.expand')}
+          </button>
+        </div>
+      </div>`;
   }
 
   private renderSkillPicker_() {

@@ -450,4 +450,88 @@ void DaoAgentMemoryService::GetMemoryContext(
       std::move(callback));
 }
 
+// --- Dream Reports ---
+
+void DaoAgentMemoryService::SaveDreamReport(
+    DreamReport report,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, DreamReport r) {
+            return store->SaveDreamReport(r);
+          },
+          store_.get(), std::move(report)),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetDreamReportByDate(
+    const std::string& date,
+    base::OnceCallback<void(std::optional<DreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string d) {
+            return store->GetDreamReportByDate(d);
+          },
+          store_.get(), date),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetDreamReports(
+    int limit,
+    base::OnceCallback<void(std::vector<DreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, int lim) {
+            return store->GetDreamReports(lim);
+          },
+          store_.get(), limit),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetLatestDreamReport(
+    base::OnceCallback<void(std::optional<DreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store) {
+            return store->GetLatestDreamReport();
+          },
+          store_.get()),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetLatestUnviewedDreamReport(
+    base::OnceCallback<void(std::optional<DreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store) {
+            return store->GetLatestUnviewedDreamReport();
+          },
+          store_.get()),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::MarkDreamReportViewed(
+    int64_t id,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, int64_t report_id) {
+            return store->MarkDreamReportViewed(report_id);
+          },
+          store_.get(), id),
+      std::move(callback));
+}
+
 }  // namespace dao

@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="fil">
 <translation id="1653598257495639807">Resulta ng QR Code</translation>
+<translation id="21133533946938348">I-pin ang Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3551320343578183772">Isara ang Tab</translation>
 <translation id="3657099196021255130">Buksan sa Dao</translation>
 <translation id="3708693288863478389">Mag-type ng URL o maghanap...</translation>
 <translation id="385051799172605136">Bumalik</translation>
 <translation id="3891466792657071243">Itigil ang Paglo-load</translation>
+<translation id="3984237987235889323">Inia-apply</translation>
+<translation id="4285498937028063278">I-unpin</translation>
 <translation id="4380677223237520064">I-decode ang QR Code</translation>
 <translation id="4543782226216763900">I-toggle ang Sidebar (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Tanungin ang AI: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">I-update</translation>
 <translation id="4881695831933465202">Buksan</translation>
 <translation id="501297852093417632">I-clear ang Cache</translation>
 <translation id="5027562294707732951">Magdagdag ng extension</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Nililinis...</translation>
 <translation id="5556459405103347317">I-reload</translation>
 <translation id="5953452567010839148">Walang QR code na nakita</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Address</translation>
 <translation id="6829876854799051628">I-clear ang Cookies</translation>
 <translation id="6896758677409633944">Kopyahin</translation>
 <translation id="8137559199583651773">Pamahalaan ang mga extension</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Bumalik</translation>
+<translation id="8717864919010420084">Kopyahin ang Link</translation>
 <translation id="9191338038518226120">I-toggle ang Sidebar</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

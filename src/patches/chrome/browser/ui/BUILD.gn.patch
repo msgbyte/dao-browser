@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 00b9254990..8f3b3a38ef 100644
+index 00b9254990..f2c4b0664c 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -47,6 +47,132 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -47,6 +47,138 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # circular includes from each other.
  static_library("ui") {
    sources = [
@@ -32,6 +32,12 @@ index 00b9254990..8f3b3a38ef 100644
 +    "//dao/browser/agent/dao_agent_workspace_service_factory.h",
 +    "//dao/browser/agent/dao_agent_workspace_types.cc",
 +    "//dao/browser/agent/dao_agent_workspace_types.h",
++    "//dao/browser/agent/dao_dream_material_collector.cc",
++    "//dao/browser/agent/dao_dream_material_collector.h",
++    "//dao/browser/agent/dao_dream_service.cc",
++    "//dao/browser/agent/dao_dream_service.h",
++    "//dao/browser/agent/dao_dream_service_factory.cc",
++    "//dao/browser/agent/dao_dream_service_factory.h",
 +    "//dao/browser/agent/workspace/path_normalizer.cc",
 +    "//dao/browser/agent/workspace/path_normalizer.h",
 +    "//dao/browser/agent/workspace/text_only_filter.cc",
@@ -135,7 +141,7 @@ index 00b9254990..8f3b3a38ef 100644
      "accelerator_utils.h",
      "browser_navigator.h",
      "browser_navigator_params.cc",
-@@ -256,6 +380,14 @@ static_library("ui") {
+@@ -256,6 +388,14 @@ static_library("ui") {
    deps = [
      ":browser_element_identifiers",
      ":ui_features",
@@ -150,7 +156,7 @@ index 00b9254990..8f3b3a38ef 100644
      ":url_identity",
      "//base",
      "//base:i18n",
-@@ -558,6 +690,7 @@ static_library("ui") {
+@@ -558,6 +698,7 @@ static_library("ui") {
      "//components/payments/content:utils",
      "//components/payments/content/icon",
      "//components/payments/core:error_strings",
@@ -158,7 +164,7 @@ index 00b9254990..8f3b3a38ef 100644
      "//components/pdf/common:util",
      "//components/performance_manager",
      "//components/permissions",
-@@ -568,6 +701,7 @@ static_library("ui") {
+@@ -568,6 +709,7 @@ static_library("ui") {
      "//components/privacy_sandbox:privacy_sandbox_prefs",
      "//components/profile_metrics",
      "//components/proxy_config",
@@ -166,7 +172,7 @@ index 00b9254990..8f3b3a38ef 100644
      "//components/qr_code_generator:bitmap_generator",
      "//components/query_parser",
      "//components/reading_list/core",
-@@ -5547,7 +5681,7 @@ static_library("ui") {
+@@ -5547,7 +5689,7 @@ static_library("ui") {
  # //chrome/browser. These are semantically a part of
  # //chrome/browser:browser_public_dependencies since //chrome/browser and
  # //chrome/browser/ui allow circular dependencies.
@@ -175,7 +181,7 @@ index 00b9254990..8f3b3a38ef 100644
    visibility = [ "//chrome/browser:browser_public_dependencies" ]
    public_deps = [
      "//components/cross_device/logging",
-@@ -5586,7 +5720,6 @@ static_library("ui_public_dependencies") {
+@@ -5586,7 +5728,6 @@ static_library("ui_public_dependencies") {
      public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
    }
    if (is_win) {
@@ -183,14 +189,17 @@ index 00b9254990..8f3b3a38ef 100644
      public_deps += [
        "//build:branding_buildflags",
        "//ui/views",
-@@ -5913,3 +6046,26 @@ if (use_aura) {
+@@ -5913,3 +6054,30 @@ if (use_aura) {
      ]
    }
  }
 +
 +source_set("dao_browser_tests") {
 +  testonly = true
-+  sources = [ "//dao/browser/ui/views/dao_browser_browsertest.cc" ]
++  sources = [
++    "//dao/browser/agent/dao_dream_browsertest.cc",
++    "//dao/browser/ui/views/dao_browser_browsertest.cc",
++  ]
 +  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 +  deps = [
 +    ":ui",
@@ -202,6 +211,7 @@ index 00b9254990..8f3b3a38ef 100644
 +    "//chrome/test:test_support_ui",
 +    "//content/test:test_support",
 +    "//dao/browser/updater:dao_updater",
++    "//sql:test_support",
 +    "//testing/gtest",
 +    "//ui/views",
 +  ]

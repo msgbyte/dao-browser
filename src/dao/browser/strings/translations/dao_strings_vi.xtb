@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="vi">
 <translation id="1653598257495639807">Kết quả Mã QR</translation>
+<translation id="21133533946938348">Ghim thẻ</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3551320343578183772">Đóng thẻ</translation>
 <translation id="3657099196021255130">Mở trong Dao</translation>
 <translation id="3708693288863478389">Nhập URL hoặc tìm kiếm...</translation>
 <translation id="385051799172605136">Quay lại</translation>
 <translation id="3891466792657071243">Dừng tải</translation>
+<translation id="3984237987235889323">Đang áp dụng</translation>
+<translation id="4285498937028063278">Bỏ ghim</translation>
 <translation id="4380677223237520064">Giải mã mã QR</translation>
 <translation id="4543782226216763900">Chuyển đổi Thanh bên (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Hỏi AI: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">Cập nhật</translation>
 <translation id="4881695831933465202">Mở</translation>
 <translation id="501297852093417632">Xóa bộ nhớ đệm</translation>
 <translation id="5027562294707732951">Thêm tiện ích</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Đang xóa...</translation>
 <translation id="5556459405103347317">Tải lại</translation>
 <translation id="5953452567010839148">Không tìm thấy mã QR</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Địa chỉ</translation>
 <translation id="6829876854799051628">Xóa cookie</translation>
 <translation id="6896758677409633944">Sao chép</translation>
 <translation id="8137559199583651773">Quản lý tiện ích</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Quay lại</translation>
+<translation id="8717864919010420084">Sao chép liên kết</translation>
 <translation id="9191338038518226120">Chuyển đổi Thanh bên</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

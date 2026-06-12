@@ -24,6 +24,7 @@
 #include "dao/browser/agent/dao_agent_memory_types.h"
 #include "dao/browser/agent/dao_agent_proactive_engine.h"
 #include "dao/browser/agent/dao_agent_workspace_types.h"
+#include "dao/browser/agent/dao_dream_service.h"
 #include "pdf/mojom/pdf.mojom-forward.h"
 #include "url/gurl.h"
 
@@ -41,6 +42,17 @@ class DaoAgentMemoryService;
 class DaoAgentSkillService;
 class DaoAgentUI;
 class DaoAgentWorkspaceService;
+
+// WebUI config for chrome://dream
+class DaoDreamUIConfig : public content::WebUIConfig {
+ public:
+  DaoDreamUIConfig();
+
+  // content::WebUIConfig:
+  std::unique_ptr<content::WebUIController> CreateWebUIController(
+      content::WebUI* web_ui,
+      const GURL& url) override;
+};
 
 // WebUI config for chrome://agent
 class DaoAgentUIConfig : public content::WebUIConfig {
@@ -385,6 +397,58 @@ class DaoAgentMemoryHandler : public content::WebUIMessageHandler,
   base::WeakPtrFactory<DaoAgentMemoryHandler> weak_factory_{this};
 };
 
+// Report-only Dream message handler used by the standalone dream page.
+class DaoDreamReportHandler : public content::WebUIMessageHandler {
+ public:
+  DaoDreamReportHandler();
+  ~DaoDreamReportHandler() override;
+
+  // content::WebUIMessageHandler:
+  void RegisterMessages() override;
+
+ private:
+  void HandleGetDreamReport(const base::ListValue& args);
+  void HandleGetDreamReports(const base::ListValue& args);
+  void HandleGetTodayDreamReport(const base::ListValue& args);
+  void HandleMarkDreamReportViewed(const base::ListValue& args);
+
+  base::WeakPtrFactory<DaoDreamReportHandler> weak_factory_{this};
+};
+
+// WebUI message handler for the Dream Analysis system. Registers itself
+// as the DaoDreamService runner so the resident agent WebUI executes the
+// LLM summarization for nightly dream runs.
+class DaoAgentDreamHandler : public content::WebUIMessageHandler,
+                             public DaoDreamService::Runner {
+ public:
+  DaoAgentDreamHandler();
+  ~DaoAgentDreamHandler() override;
+
+  // content::WebUIMessageHandler:
+  void RegisterMessages() override;
+  void OnJavascriptAllowed() override;
+  void OnJavascriptDisallowed() override;
+
+  // DaoDreamService::Runner:
+  void RunDream(const std::string& dream_date,
+                const base::DictValue& material) override;
+
+ private:
+  DaoDreamService* GetDreamService();
+
+  void HandleDreamComplete(const base::ListValue& args);
+  void HandleDreamFailed(const base::ListValue& args);
+  void HandleGetDreamEnabled(const base::ListValue& args);
+  void HandleSetDreamEnabled(const base::ListValue& args);
+  void HandleGetDreamDebug(const base::ListValue& args);
+  void HandleSetDreamDebug(const base::ListValue& args);
+  void HandleStartManualDream(const base::ListValue& args);
+  void HandleGetUnviewedDreamReport(const base::ListValue& args);
+  void HandleMarkDreamReportViewed(const base::ListValue& args);
+
+  base::WeakPtrFactory<DaoAgentDreamHandler> weak_factory_{this};
+};
+
 // Skill-specific message handler for managing agent skills.
 class DaoAgentSkillHandler : public content::WebUIMessageHandler {
  public:
@@ -436,6 +500,13 @@ class DaoAgentWorkspaceHandler : public content::WebUIMessageHandler {
   void ReplyError(const std::string& cb_id, WorkspaceError err);
 
   base::WeakPtrFactory<DaoAgentWorkspaceHandler> weak_factory_{this};
+};
+
+// WebUI controller for chrome://dream
+class DaoDreamUI : public content::WebUIController {
+ public:
+  explicit DaoDreamUI(content::WebUI* web_ui);
+  ~DaoDreamUI() override;
 };
 
 // WebUI controller for chrome://agent

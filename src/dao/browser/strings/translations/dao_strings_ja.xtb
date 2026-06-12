@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="ja">
 <translation id="1653598257495639807">QRコードの結果</translation>
+<translation id="21133533946938348">タブを固定</translation>
 <translation id="3062877722240966678">Dao i18n パイプライン OK</translation>
+<translation id="3551320343578183772">タブを閉じる</translation>
 <translation id="3657099196021255130">Daoで開く</translation>
 <translation id="3708693288863478389">URLを入力または検索...</translation>
 <translation id="385051799172605136">戻る</translation>
 <translation id="3891466792657071243">読み込みを停止</translation>
+<translation id="3984237987235889323">適用中</translation>
+<translation id="4285498937028063278">固定解除</translation>
 <translation id="4380677223237520064">QRコードをデコード</translation>
 <translation id="4543782226216763900">サイドバーを切り替え (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AIに質問: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">更新</translation>
 <translation id="4881695831933465202">開く</translation>
 <translation id="501297852093417632">キャッシュをクリア</translation>
 <translation id="5027562294707732951">拡張機能を追加</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">クリア中...</translation>
 <translation id="5556459405103347317">再読み込み</translation>
 <translation id="5953452567010839148">QRコードが見つかりません</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">アドレス</translation>
 <translation id="6829876854799051628">クッキーをクリア</translation>
 <translation id="6896758677409633944">コピー</translation>
 <translation id="8137559199583651773">拡張機能を管理</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> 戻る</translation>
+<translation id="8717864919010420084">リンクをコピー</translation>
 <translation id="9191338038518226120">サイドバーを切り替え</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

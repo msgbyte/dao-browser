@@ -17,6 +17,7 @@ build_webui("build") {
   static_files = [
     "agent.css",
     "agent.html",
+    "dream.html",
     "skills.html",
     # PR3 spike: pre-compiled Tailwind CSS shipped with pi-web-ui. Loaded
     # via <link> from agent.html. See vendor/pi-web-ui-css.build.mjs.
@@ -30,10 +31,14 @@ build_webui("build") {
     "dao_chat_history_panel.ts",
     "dao_chat_view.ts",
     "dao_compact.ts",
+    "dao_dream_app.ts",
+    "dao_dream_runner.ts",
     "dao_element_context.ts",
+    "dao_markdown.ts",
     "dao_settings_view.ts",
     "dao_skill_manager_view.ts",
     "dao_tool_renderer.ts",
+    "llm_cost.ts",
     "llm_config.ts",
     "model_capabilities.ts",
     "pi_app_storage.ts",
@@ -47,6 +52,8 @@ build_webui("build") {
     "turndown_bundle.ts",
     "dao_page_capture.ts",
     "dao_share_image.ts",
+    "dream.ts",
+    "dream_bridge.ts",
     "web_search/circuit_breaker.ts",
     "web_search/index.ts",
     "web_search/provider_capabilities.ts",

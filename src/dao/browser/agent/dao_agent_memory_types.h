@@ -147,6 +147,28 @@ struct StorageStats {
   int preference_count = 0;
 };
 
+// One Dream Analysis run's archived output (see DaoDreamService).
+struct DreamReport {
+  DreamReport();
+  ~DreamReport();
+  DreamReport(const DreamReport&);
+  DreamReport& operator=(const DreamReport&);
+  DreamReport(DreamReport&&);
+  DreamReport& operator=(DreamReport&&);
+
+  int64_t id = 0;
+  std::string dream_date;        // "YYYY-MM-DD" local dream-day attribution
+  std::string report_markdown;
+  std::string habit_candidates;  // JSON array (LLM "habits" output)
+  std::string material_stats;    // JSON: per-source counts
+  std::string status;            // "completed" | "failed"
+  int attempt_count = 0;
+  std::string trigger_kind;      // "nightly" | "catchup" | "manual"
+  std::string debug_material_json;  // material pack when debug mode on
+  base::Time viewed_at;          // null = unread
+  base::Time created_at;
+};
+
 struct ProactiveSuggestion {
   ProactiveSuggestion();
   ~ProactiveSuggestion();

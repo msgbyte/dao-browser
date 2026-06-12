@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-TW">
 <translation id="1653598257495639807">QR Code 結果</translation>
+<translation id="21133533946938348">固定分頁</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3551320343578183772">關閉分頁</translation>
 <translation id="3657099196021255130">在 Dao 中開啟</translation>
 <translation id="3708693288863478389">輸入網址或搜尋...</translation>
 <translation id="385051799172605136">返回</translation>
 <translation id="3891466792657071243">停止載入</translation>
+<translation id="3984237987235889323">正在套用</translation>
+<translation id="4285498937028063278">取消固定</translation>
 <translation id="4380677223237520064">解碼 QR Code</translation>
 <translation id="4543782226216763900">切換側邊欄 (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">詢問 AI：<ph name="PROMPT" /></translation>
+<translation id="473775607612524610">更新</translation>
 <translation id="4881695831933465202">開啟</translation>
 <translation id="501297852093417632">清除快取</translation>
 <translation id="5027562294707732951">新增擴充功能</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">正在清除...</translation>
 <translation id="5556459405103347317">重新載入</translation>
 <translation id="5953452567010839148">找不到 QR Code</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">地址</translation>
 <translation id="6829876854799051628">清除 Cookie</translation>
 <translation id="6896758677409633944">複製</translation>
 <translation id="8137559199583651773">管理擴充功能</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> 返回</translation>
+<translation id="8717864919010420084">複製連結</translation>
 <translation id="9191338038518226120">切換側邊欄</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

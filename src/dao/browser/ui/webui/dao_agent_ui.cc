@@ -45,6 +45,8 @@
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
 #include "dao/browser/agent/dao_agent_workspace_service.h"
 #include "dao/browser/agent/dao_agent_workspace_service_factory.h"
+#include "dao/browser/agent/dao_dream_service.h"
+#include "dao/browser/agent/dao_dream_service_factory.h"
 #include "dao/browser/agent/workspace/text_only_filter.h"
 #include "dao/browser/agent/workspace/workspace_quota.h"
 #include "dao/browser/dao_pref_names.h"
@@ -95,6 +97,26 @@ void UnlockLockedTab(content::WebContents* contents) {
     return;
   }
   DaoAgentLockTabHelper::UnlockContents(contents);
+}
+
+base::DictValue DreamReportToDict(const DreamReport& report) {
+  base::DictValue dict;
+  dict.Set("id", static_cast<double>(report.id));
+  dict.Set("dreamDate", report.dream_date);
+  dict.Set("reportMarkdown", report.report_markdown);
+  dict.Set("habitCandidates", report.habit_candidates);
+  dict.Set("materialStats", report.material_stats);
+  dict.Set("debugMaterialJson", report.debug_material_json);
+  dict.Set("triggerKind", report.trigger_kind);
+  return dict;
+}
+
+base::ListValue DreamReportsToList(const std::vector<DreamReport>& reports) {
+  base::ListValue list;
+  for (const DreamReport& report : reports) {
+    list.Append(DreamReportToDict(report));
+  }
+  return list;
 }
 
 // JS to inject highlight infrastructure into a page.
@@ -3840,6 +3862,402 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
       content::ISOLATED_WORLD_ID_CONTENT_END);
 }
 
+// ---- DaoDreamReportHandler ----
+
+DaoDreamReportHandler::DaoDreamReportHandler() = default;
+
+DaoDreamReportHandler::~DaoDreamReportHandler() = default;
+
+void DaoDreamReportHandler::RegisterMessages() {
+  web_ui()->RegisterMessageCallback(
+      "getDreamReport",
+      base::BindRepeating(&DaoDreamReportHandler::HandleGetDreamReport,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getDreamReports",
+      base::BindRepeating(&DaoDreamReportHandler::HandleGetDreamReports,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getTodayDreamReport",
+      base::BindRepeating(&DaoDreamReportHandler::HandleGetTodayDreamReport,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "markDreamReportViewed",
+      base::BindRepeating(&DaoDreamReportHandler::HandleMarkDreamReportViewed,
+                          base::Unretained(this)));
+}
+
+void DaoDreamReportHandler::HandleGetDreamReport(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (!memory) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value());
+    return;
+  }
+
+  std::string date;
+  if (args.size() >= 2 && args[1].is_dict()) {
+    if (const std::string* d = args[1].GetDict().FindString("date")) {
+      date = *d;
+    }
+  }
+
+  auto reply = base::BindOnce(
+      [](base::WeakPtr<DaoDreamReportHandler> self, std::string callback_id,
+         std::optional<DreamReport> report) {
+        if (!self) {
+          return;
+        }
+        if (!report) {
+          self->ResolveJavascriptCallback(base::Value(callback_id),
+                                          base::Value());
+          return;
+        }
+        self->ResolveJavascriptCallback(base::Value(callback_id),
+                                        DreamReportToDict(*report));
+      },
+      weak_factory_.GetWeakPtr(), callback_id);
+
+  if (!date.empty()) {
+    memory->GetDreamReportByDate(date, std::move(reply));
+  } else {
+    memory->GetLatestDreamReport(std::move(reply));
+  }
+}
+
+void DaoDreamReportHandler::HandleGetDreamReports(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (!memory) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::ListValue());
+    return;
+  }
+
+  int limit = 30;
+  if (args.size() >= 2 && args[1].is_dict()) {
+    limit = args[1].GetDict().FindInt("limit").value_or(limit);
+  }
+  memory->GetDreamReports(
+      limit,
+      base::BindOnce(
+          [](base::WeakPtr<DaoDreamReportHandler> self,
+             std::string callback_id, std::vector<DreamReport> reports) {
+            if (!self) {
+              return;
+            }
+            self->ResolveJavascriptCallback(base::Value(callback_id),
+                                            DreamReportsToList(reports));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoDreamReportHandler::HandleGetTodayDreamReport(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (!memory) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value());
+    return;
+  }
+
+  const std::string dream_date =
+      DaoDreamService::DreamDateFor(base::Time::Now());
+  memory->GetDreamReportByDate(
+      dream_date,
+      base::BindOnce(
+          [](base::WeakPtr<DaoDreamReportHandler> self,
+             std::string callback_id, std::optional<DreamReport> report) {
+            if (!self) {
+              return;
+            }
+            if (!report) {
+              self->ResolveJavascriptCallback(base::Value(callback_id),
+                                              base::Value());
+              return;
+            }
+            self->ResolveJavascriptCallback(base::Value(callback_id),
+                                            DreamReportToDict(*report));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoDreamReportHandler::HandleMarkDreamReportViewed(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() ||
+      (!args[1].is_double() && !args[1].is_int())) {
+    return;
+  }
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (memory) {
+    memory->MarkDreamReportViewed(static_cast<int64_t>(args[1].GetDouble()),
+                                  base::DoNothing());
+  }
+  ResolveJavascriptCallback(base::Value(args[0].GetString()),
+                            base::Value(true));
+}
+
+// ---- DaoAgentDreamHandler ----
+
+DaoAgentDreamHandler::DaoAgentDreamHandler() = default;
+
+DaoAgentDreamHandler::~DaoAgentDreamHandler() {
+  if (DaoDreamService* service = GetDreamService()) {
+    service->ClearRunner(this);
+  }
+}
+
+DaoDreamService* DaoAgentDreamHandler::GetDreamService() {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  return DaoDreamServiceFactory::GetForProfile(profile);
+}
+
+void DaoAgentDreamHandler::RegisterMessages() {
+  web_ui()->RegisterMessageCallback(
+      "dreamComplete",
+      base::BindRepeating(&DaoAgentDreamHandler::HandleDreamComplete,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "dreamFailed",
+      base::BindRepeating(&DaoAgentDreamHandler::HandleDreamFailed,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getDreamEnabled",
+      base::BindRepeating(&DaoAgentDreamHandler::HandleGetDreamEnabled,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setDreamEnabled",
+      base::BindRepeating(&DaoAgentDreamHandler::HandleSetDreamEnabled,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getDreamDebug",
+      base::BindRepeating(&DaoAgentDreamHandler::HandleGetDreamDebug,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setDreamDebug",
+      base::BindRepeating(&DaoAgentDreamHandler::HandleSetDreamDebug,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "startManualDream",
+      base::BindRepeating(&DaoAgentDreamHandler::HandleStartManualDream,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getUnviewedDreamReport",
+      base::BindRepeating(
+          &DaoAgentDreamHandler::HandleGetUnviewedDreamReport,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "markDreamReportViewed",
+      base::BindRepeating(
+          &DaoAgentDreamHandler::HandleMarkDreamReportViewed,
+          base::Unretained(this)));
+}
+
+void DaoAgentDreamHandler::OnJavascriptAllowed() {
+  if (DaoDreamService* service = GetDreamService()) {
+    service->SetRunner(this);
+  }
+}
+
+void DaoAgentDreamHandler::OnJavascriptDisallowed() {
+  if (DaoDreamService* service = GetDreamService()) {
+    service->ClearRunner(this);
+  }
+}
+
+void DaoAgentDreamHandler::RunDream(const std::string& dream_date,
+                                    const base::DictValue& material) {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  base::DictValue payload;
+  payload.Set("dreamDate", dream_date);
+  payload.Set("material", material.Clone());
+  payload.Set("debug",
+              profile->GetPrefs()->GetBoolean(prefs::kDaoDreamDebug));
+  FireWebUIListener("dream-run", payload);
+}
+
+void DaoAgentDreamHandler::HandleDreamComplete(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  if (DaoDreamService* service = GetDreamService()) {
+    service->OnDreamResult(args[0].GetString(), args[1].GetDict().Clone());
+  }
+}
+
+void DaoAgentDreamHandler::HandleDreamFailed(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_string()) {
+    return;
+  }
+  if (DaoDreamService* service = GetDreamService()) {
+    service->OnDreamFailed(args[0].GetString(), args[1].GetString());
+  }
+}
+
+void DaoAgentDreamHandler::HandleGetDreamEnabled(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  Profile* profile = Profile::FromWebUI(web_ui());
+  ResolveJavascriptCallback(
+      base::Value(args[0].GetString()),
+      base::Value(profile->GetPrefs()->GetBoolean(prefs::kDaoDreamEnabled)));
+}
+
+void DaoAgentDreamHandler::HandleSetDreamEnabled(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_bool()) {
+    return;
+  }
+  Profile* profile = Profile::FromWebUI(web_ui());
+  profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, args[1].GetBool());
+  // Instantiate the service (and register us as runner) when enabling.
+  if (args[1].GetBool()) {
+    if (DaoDreamService* service = GetDreamService()) {
+      service->SetRunner(this);
+    }
+  }
+  ResolveJavascriptCallback(base::Value(args[0].GetString()),
+                            base::Value(true));
+}
+
+void DaoAgentDreamHandler::HandleGetDreamDebug(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  Profile* profile = Profile::FromWebUI(web_ui());
+  ResolveJavascriptCallback(
+      base::Value(args[0].GetString()),
+      base::Value(profile->GetPrefs()->GetBoolean(prefs::kDaoDreamDebug)));
+}
+
+void DaoAgentDreamHandler::HandleSetDreamDebug(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_bool()) {
+    return;
+  }
+  Profile* profile = Profile::FromWebUI(web_ui());
+  profile->GetPrefs()->SetBoolean(prefs::kDaoDreamDebug, args[1].GetBool());
+  ResolveJavascriptCallback(base::Value(args[0].GetString()),
+                            base::Value(true));
+}
+
+void DaoAgentDreamHandler::HandleStartManualDream(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  DaoDreamService* service = GetDreamService();
+  if (!service) {
+    RejectJavascriptCallback(base::Value(callback_id),
+                             base::Value("dream service unavailable"));
+    return;
+  }
+  service->SetRunner(this);
+  service->StartManualDream(base::BindOnce(
+      [](base::WeakPtr<DaoAgentDreamHandler> self, std::string callback_id,
+         bool success, const std::string& error) {
+        if (!self) {
+          return;
+        }
+        if (success) {
+          self->ResolveJavascriptCallback(base::Value(callback_id),
+                                          base::Value(true));
+        } else {
+          self->RejectJavascriptCallback(base::Value(callback_id),
+                                         base::Value(
+                                             error.empty()
+                                                 ? "dream run failed"
+                                                 : error));
+        }
+      },
+      weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentDreamHandler::HandleGetUnviewedDreamReport(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (!memory) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value());
+    return;
+  }
+  memory->GetLatestUnviewedDreamReport(base::BindOnce(
+      [](base::WeakPtr<DaoAgentDreamHandler> self, std::string callback_id,
+         std::optional<DreamReport> report) {
+        if (!self) {
+          return;
+        }
+        if (!report) {
+          self->ResolveJavascriptCallback(base::Value(callback_id),
+                                          base::Value());
+          return;
+        }
+        base::DictValue dict;
+        dict.Set("id", static_cast<double>(report->id));
+        dict.Set("dreamDate", report->dream_date);
+        dict.Set("reportMarkdown", report->report_markdown);
+        dict.Set("habitCandidates", report->habit_candidates);
+        dict.Set("materialStats", report->material_stats);
+        dict.Set("debugMaterialJson", report->debug_material_json);
+        dict.Set("triggerKind", report->trigger_kind);
+        self->ResolveJavascriptCallback(base::Value(callback_id), dict);
+      },
+      weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentDreamHandler::HandleMarkDreamReportViewed(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() ||
+      (!args[1].is_double() && !args[1].is_int())) {
+    return;
+  }
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (memory) {
+    memory->MarkDreamReportViewed(static_cast<int64_t>(args[1].GetDouble()),
+                                  base::DoNothing());
+  }
+  ResolveJavascriptCallback(base::Value(args[0].GetString()),
+                            base::Value(true));
+}
+
 // ---- DaoAgentSkillHandler ----
 
 DaoAgentSkillHandler::DaoAgentSkillHandler() = default;
@@ -4461,6 +4879,42 @@ void DaoAgentWorkspaceHandler::HandleWorkspaceGetInfo(
       weak_factory_.GetWeakPtr(), cb_id));
 }
 
+// ---- DaoDreamUIConfig ----
+
+DaoDreamUIConfig::DaoDreamUIConfig()
+    : WebUIConfig(content::kChromeUIScheme, "dream") {}
+
+std::unique_ptr<content::WebUIController>
+DaoDreamUIConfig::CreateWebUIController(content::WebUI* web_ui,
+                                        const GURL& url) {
+  return std::make_unique<DaoDreamUI>(web_ui);
+}
+
+// ---- DaoDreamUI ----
+
+DaoDreamUI::DaoDreamUI(content::WebUI* web_ui)
+    : WebUIController(web_ui) {
+  Profile* profile = Profile::FromWebUI(web_ui);
+  content::WebUIDataSource* source =
+      content::WebUIDataSource::CreateAndAdd(profile, "dream");
+
+  source->AddResourcePaths(kDaoAgentResources);
+  source->SetDefaultResource(IDR_DAO_AGENT_DREAM_HTML);
+
+  source->AddString("dao_app_locale",
+                    g_browser_process->GetApplicationLocale());
+  source->UseStringsJs();
+
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::TrustedTypes,
+      "trusted-types default lit-html-desktop lit-html;");
+
+  web_ui->AddMessageHandler(std::make_unique<DaoDreamReportHandler>());
+  web_ui->AddMessageHandler(std::make_unique<DaoAgentMemoryHandler>());
+}
+
+DaoDreamUI::~DaoDreamUI() = default;
+
 // ---- DaoAgentUIConfig ----
 
 DaoAgentUIConfig::DaoAgentUIConfig()
@@ -4506,6 +4960,7 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui)
   // Register message handlers.
   web_ui->AddMessageHandler(std::make_unique<DaoAgentUIHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentMemoryHandler>());
+  web_ui->AddMessageHandler(std::make_unique<DaoAgentDreamHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentSkillHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentWorkspaceHandler>());
 }

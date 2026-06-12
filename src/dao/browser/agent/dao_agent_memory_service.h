@@ -6,6 +6,7 @@
 #define DAO_BROWSER_AGENT_DAO_AGENT_MEMORY_SERVICE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -121,6 +122,22 @@ class DaoAgentMemoryService : public KeyedService {
 
   // Stats
   void GetStorageStats(base::OnceCallback<void(StorageStats)> callback);
+
+  // Dream reports
+  void SaveDreamReport(DreamReport report,
+                       base::OnceCallback<void(bool)> callback);
+  void GetDreamReportByDate(
+      const std::string& date,
+      base::OnceCallback<void(std::optional<DreamReport>)> callback);
+  void GetDreamReports(
+      int limit,
+      base::OnceCallback<void(std::vector<DreamReport>)> callback);
+  void GetLatestDreamReport(
+      base::OnceCallback<void(std::optional<DreamReport>)> callback);
+  void GetLatestUnviewedDreamReport(
+      base::OnceCallback<void(std::optional<DreamReport>)> callback);
+  void MarkDreamReportViewed(int64_t id,
+                             base::OnceCallback<void(bool)> callback);
 
   // Memory context (combined query for LLM injection)
   void GetMemoryContext(

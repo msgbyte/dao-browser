@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="te">
 <translation id="1653598257495639807">QR కోడ్ ఫలితం</translation>
+<translation id="21133533946938348">ట్యాబ్‌ను పిన్ చేయండి</translation>
 <translation id="3062877722240966678">Dao i18n పైప్‌లైన్ సరే</translation>
+<translation id="3551320343578183772">ట్యాబ్‌ను మూసివేయండి</translation>
 <translation id="3657099196021255130">Dao లో తెరవండి</translation>
 <translation id="3708693288863478389">URL లేదా శోధన టైప్ చేయండి...</translation>
 <translation id="385051799172605136">వెనుకకు</translation>
 <translation id="3891466792657071243">లోడ్ ఆపండి</translation>
+<translation id="3984237987235889323">వర్తింపజేస్తోంది</translation>
+<translation id="4285498937028063278">అన్‌పిన్ చేయండి</translation>
 <translation id="4380677223237520064">QR కోడ్ డీకోడ్ చేయండి</translation>
 <translation id="4543782226216763900">సైడ్‌బార్ మార్చు (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">AI ని అడగండి: <ph name="PROMPT" />$1</translation>
+<translation id="473775607612524610">నవీకరణ</translation>
 <translation id="4881695831933465202">తెరవండి</translation>
 <translation id="501297852093417632">క్యాష్ క్లియర్ చేయండి</translation>
 <translation id="5027562294707732951">ఎక్స్‌టెన్షన్ జోడించండి</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">క్లియర్ చేస్తోంది...</translation>
 <translation id="5556459405103347317">మళ్లీ లోడ్ చేయండి</translation>
 <translation id="5953452567010839148">QR కోడ్ కనబడలేదు</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">చిరునామా</translation>
 <translation id="6829876854799051628">కుకీస్ క్లియర్ చేయండి</translation>
 <translation id="6896758677409633944">కాపీ</translation>
 <translation id="8137559199583651773">ఎక్స్‌టెన్షన్లను నిర్వహించండి</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← వెనుకకు</translation>
+<translation id="8717864919010420084">లింక్ కాపీ చేయండి</translation>
 <translation id="9191338038518226120">సైడ్‌బార్ మార్చు</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

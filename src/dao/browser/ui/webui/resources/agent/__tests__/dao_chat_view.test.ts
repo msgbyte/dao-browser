@@ -10,6 +10,7 @@ const pickerMocks = vi.hoisted(() => ({
   startElementPicker: vi.fn(),
   cancelElementPicker: vi.fn(),
   callNative: vi.fn(),
+  callNativeArgs: vi.fn(),
 }));
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
@@ -20,6 +21,7 @@ vi.mock('../agent_bridge.js', () => ({
   BASE_SYSTEM_PROMPT: 'base prompt',
   currentSoulContent: 'soul',
   callNative: (...args: unknown[]) => pickerMocks.callNative(...args),
+  callNativeArgs: (...args: unknown[]) => pickerMocks.callNativeArgs(...args),
   recordApiCall: vi.fn(),
   refreshSoulContent: vi.fn(),
   soulChannel: {
@@ -193,7 +195,9 @@ describe('dao-chat-view element picker', () => {
     pickerMocks.startElementPicker.mockReset();
     pickerMocks.cancelElementPicker.mockReset();
     pickerMocks.callNative.mockReset();
+    pickerMocks.callNativeArgs.mockReset();
     pickerMocks.callNative.mockResolvedValue({success: true});
+    pickerMocks.callNativeArgs.mockResolvedValue({success: true});
   });
 
   afterEach(() => {
@@ -278,5 +282,36 @@ describe('dao-chat-view element picker', () => {
       warnSpy.mockRestore();
       clearTabWatchTimer(view);
     }
+  });
+
+  it('opens the standalone dream page instead of expanding the report', async () => {
+    pickerMocks.callNative.mockResolvedValue({success: true});
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      dreamReport_: {
+        id: number;
+        dreamDate: string;
+        reportMarkdown: string;
+        habits: unknown[];
+        debugMaterialJson: string;
+      };
+      dreamExpanded_: boolean;
+      toggleDreamExpanded_: () => void;
+    };
+    view.dreamReport_ = {
+      id: 7,
+      dreamDate: '2026-06-11',
+      reportMarkdown: 'Report body should stay outside the agent panel',
+      habits: [],
+      debugMaterialJson: '',
+    };
+
+    view.toggleDreamExpanded_();
+    await Promise.resolve();
+
+    expect(pickerMocks.callNative).toHaveBeenCalledWith(
+        'openTab', {url: 'dao://dream/'});
+    expect(view.dreamExpanded_).toBe(false);
+    expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+        'markDreamReportViewed', 7);
   });
 });

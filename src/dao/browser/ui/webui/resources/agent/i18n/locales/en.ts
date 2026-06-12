@@ -101,6 +101,7 @@ const dict: Dictionary = {
   'settings.tabs.general_label': 'General',
   'settings.tabs.soul_label': 'Soul',
   'settings.tabs.tools_label': 'Tools',
+  'settings.tabs.memory_label': 'Memory',
   'settings.tabs.skills_label': 'Skills',
   'settings.tabs.stats_label': 'Stats',
 
@@ -177,6 +178,51 @@ const dict: Dictionary = {
   'settings.memory.clear_confirm': 'Clear All',
   'settings.memory.toast_cleared': 'All memory cleared',
   'settings.memory.toast_clear_failed': 'Failed to clear memory',
+
+  // -------- settings.dream (dao_settings_view.ts → renderDream_) --------
+  'settings.dream.title': 'Dream Analysis',
+  'settings.dream.desc':
+      'At night, while you are away, Dao reviews your day and learns ' +
+      'your habits.',
+  'settings.dream.enable_name': 'Enable Dream Analysis',
+  'settings.dream.enable_desc':
+      'Each night, the domains you visited, page titles and search ' +
+      'keywords from your day are sent to your configured AI provider ' +
+      'for analysis.',
+  'settings.dream.debug_name': 'Debug mode',
+  'settings.dream.debug_desc':
+      'Store the exact input sent to the AI for each dream run and show ' +
+      'it on the report card.',
+  'settings.dream.run_now_button': 'Dream now',
+  'settings.dream.run_running': 'Dreaming…',
+  'settings.dream.run_done_toast': 'Dream report generated',
+  'settings.dream.run_failed_toast': 'Dream run failed: {error}',
+  'settings.dream.no_key_toast':
+      'Configure an AI provider and API key first',
+
+  // -------- chat.dream (dao_chat_view.ts → renderDreamCard_) --------
+  'chat.dream.card_title': 'Last night\'s dream report',
+  'chat.dream.card_date': 'About your day on {date}',
+  'chat.dream.expand': 'Read the report',
+  'chat.dream.collapse': 'Collapse',
+  'chat.dream.habits_title': 'I think I noticed…',
+  'chat.dream.habit_confirm': 'Yes',
+  'chat.dream.habit_reject': 'Not really',
+  'chat.dream.habit_confirmed': 'Got it, remembered',
+  'chat.dream.habit_rejected': 'Okay, forgotten',
+  'chat.dream.contradict_prefix': 'I noticed a change:',
+  'chat.dream.debug_title': 'Debug: inputs used for this dream',
+  'dream.page.eyebrow': 'Dream Analysis',
+  'dream.page.title': 'Dream Report',
+  'dream.page.loading': 'Loading dream report...',
+  'dream.page.empty_title': 'No dream report yet',
+  'dream.page.empty_desc':
+      'Run Dream Analysis from Agent settings to generate a report.',
+  'dream.page.error': 'Failed to load dream report: {error}',
+  'dream.page.history_title': 'History',
+  'dream.trigger.nightly': 'Nightly',
+  'dream.trigger.catchup': 'Catch-up',
+  'dream.trigger.manual': 'Manual',
 
   // -------- settings.stats (dao_settings_view.ts → renderStats_) --------
   'settings.stats.title': 'Agent Statistics',

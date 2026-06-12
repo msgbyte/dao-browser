@@ -13,13 +13,14 @@ index c1d2e75f82..7afef4af13 100644
  #include "build/android_buildflags.h"
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
-@@ -239,6 +243,12 @@ void RegisterChromeWebUIConfigs() {
+@@ -239,6 +243,13 @@ void RegisterChromeWebUIConfigs() {
    auto& map = content::WebUIConfigMap::GetInstance();
    map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
 +
 +  // Dao: Register WebUI pages
 +  map.AddWebUIConfig(std::make_unique<dao::DaoAgentUIConfig>());
++  map.AddWebUIConfig(std::make_unique<dao::DaoDreamUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoSidebarUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoSkillsUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoWelcomeUIConfig>());

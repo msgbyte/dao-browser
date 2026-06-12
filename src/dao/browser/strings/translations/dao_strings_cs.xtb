@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="cs">
 <translation id="1653598257495639807">Výsledek QR kódu</translation>
+<translation id="21133533946938348">Připnout kartu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3551320343578183772">Zavřít kartu</translation>
 <translation id="3657099196021255130">Otevřít v Dao</translation>
 <translation id="3708693288863478389">Zadejte URL nebo hledejte...</translation>
 <translation id="385051799172605136">Zpět</translation>
 <translation id="3891466792657071243">Zastavit načítání</translation>
+<translation id="3984237987235889323">Používání</translation>
+<translation id="4285498937028063278">Odepnout</translation>
 <translation id="4380677223237520064">Dekódovat QR kód</translation>
 <translation id="4543782226216763900">Přepnout postranní panel (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">Zeptat se AI: <ph name="PROMPT" />$1</translation>
+<translation id="473775607612524610">Aktualizovat</translation>
 <translation id="4881695831933465202">Otevřít</translation>
 <translation id="501297852093417632">Vymazat mezipaměť</translation>
 <translation id="5027562294707732951">Přidat rozšíření</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Vymazávání...</translation>
 <translation id="5556459405103347317">Znovu načíst</translation>
 <translation id="5953452567010839148">Nenalezen žádný QR kód</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresa</translation>
 <translation id="6829876854799051628">Vymazat cookies</translation>
 <translation id="6896758677409633944">Kopírovat</translation>
 <translation id="8137559199583651773">Spravovat rozšíření</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← Zpět</translation>
+<translation id="8717864919010420084">Kopírovat odkaz</translation>
 <translation id="9191338038518226120">Přepnout postranní panel</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

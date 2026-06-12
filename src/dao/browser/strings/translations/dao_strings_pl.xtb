@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="pl">
 <translation id="1653598257495639807">Wynik kodu QR</translation>
+<translation id="21133533946938348">Przypnij kartę</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3551320343578183772">Zamknij kartę</translation>
 <translation id="3657099196021255130">Otwórz w Dao</translation>
 <translation id="3708693288863478389">Wpisz adres URL lub wyszukaj...</translation>
 <translation id="385051799172605136">Wstecz</translation>
 <translation id="3891466792657071243">Zatrzymaj ładowanie</translation>
+<translation id="3984237987235889323">Zastosowywanie</translation>
+<translation id="4285498937028063278">Odepnij</translation>
 <translation id="4380677223237520064">Odszyfruj kod QR</translation>
 <translation id="4543782226216763900">Przełącz pasek boczny (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Zapytaj AI: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">Aktualizuj</translation>
 <translation id="4881695831933465202">Otwórz</translation>
 <translation id="501297852093417632">Wyczyść pamięć podręczną</translation>
 <translation id="5027562294707732951">Dodaj rozszerzenie</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Czyszczenie...</translation>
 <translation id="5556459405103347317">Przeładuj</translation>
 <translation id="5953452567010839148">Nie znaleziono kodu QR</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adres</translation>
 <translation id="6829876854799051628">Wyczyść ciasteczka</translation>
 <translation id="6896758677409633944">Kopiuj</translation>
 <translation id="8137559199583651773">Zarządzaj rozszerzeniami</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Wstecz</translation>
+<translation id="8717864919010420084">Kopiuj link</translation>
 <translation id="9191338038518226120">Przełącz pasek boczny</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

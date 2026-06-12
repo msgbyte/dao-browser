@@ -6,11 +6,13 @@
 #define DAO_BROWSER_AGENT_DAO_AGENT_MEMORY_STORE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/sequence_checker.h"
+#include "base/strings/cstring_view.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
 
 namespace sql {
@@ -88,15 +90,25 @@ class DaoAgentMemoryStore {
   // Stats
   StorageStats GetStorageStats();
 
+  // Dream reports (no FTS — plain queries only)
+  bool SaveDreamReport(const DreamReport& report);  // upsert by dream_date
+  std::optional<DreamReport> GetDreamReportByDate(const std::string& date);
+  std::vector<DreamReport> GetDreamReports(int limit);
+  std::optional<DreamReport> GetLatestDreamReport();
+  std::optional<DreamReport> GetLatestUnviewedDreamReport();
+  bool MarkDreamReportViewed(int64_t id);
+
   // Row limits
   bool EnforceRowLimits();
 
  private:
+  void InstallErrorCallback();
+  bool ExecuteOptionalSql(base::cstring_view sql);
   bool CreateSchema();
   bool MigrateIfNeeded();
   void DatabaseErrorCallback(int error, sql::Statement* stmt);
 
-  static constexpr int kCurrentSchemaVersion = 2;
+  static constexpr int kCurrentSchemaVersion = 3;
   static constexpr int kMaxConversationRows = 10000;
   static constexpr int kMaxEpisodes = 500;
   static constexpr int kMaxPreferences = 100;

@@ -122,6 +122,24 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - Artifacts: `agent/vendor/pi_runtime_bundle.ts` and `agent/vendor/pi_web_ui.css`
 - `manifest.json` sha256 drift check guards against direct edits
 
+### 2.5 Dream Analysis (nightly behavior learning)
+- **DaoDreamService** (+ Factory) — profile-keyed scheduler: nightly
+  (22:00–06:00 local, system idle ≥1h), daytime catch-up for yesterday,
+  and manual trigger from Agent settings. Off by default
+  (`dao.dream_enabled`), double-gated behind agent memory.
+- **DreamMaterialCollector** — aggregates one day of signals: history
+  (domain+title+time-bucket granularity, top 50; full URLs never leave
+  the browser), search keywords (extracted in C++), agent conversation
+  excerpts, proactive-feedback stats.
+- **dao_dream_runner.ts** — resident agent WebUI executes the LLM
+  summarization (user's configured provider) and returns structured
+  habits + a morning-report markdown.
+- Results: habits merged into `preferences` (LLM confidence capped at
+  0.8; user confirmation raises to 0.95), report archived in the
+  `dream_reports` table, morning report card in the Agent panel with
+  per-habit confirm/reject and an optional debug view of the exact LLM
+  input (`dao.dream_debug`).
+
 ## 3. Picture-in-Picture Enhancements
 
 Built on Chromium's native PiP, adds a Document-PiP interception layer plus several visual + behavior tweaks.

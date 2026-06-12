@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="lt">
 <translation id="1653598257495639807">QR kodo rezultatas</translation>
+<translation id="21133533946938348">Prisegti kortelę</translation>
 <translation id="3062877722240966678">Dao i18n kanalas GERAI</translation>
+<translation id="3551320343578183772">Uždaryti kortelę</translation>
 <translation id="3657099196021255130">Atidaryti Dao</translation>
 <translation id="3708693288863478389">Įveskite URL arba ieškokite...</translation>
 <translation id="385051799172605136">Atgal</translation>
 <translation id="3891466792657071243">Sustabdyti įkėlimą</translation>
+<translation id="3984237987235889323">Taikoma</translation>
+<translation id="4285498937028063278">Atsegti</translation>
 <translation id="4380677223237520064">Dekoduoti QR kodą</translation>
 <translation id="4543782226216763900">Perjungti šoninę juostą (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Klausti AI: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">Atnaujinti</translation>
 <translation id="4881695831933465202">Atidaryti</translation>
 <translation id="501297852093417632">Išvalyti talpyklą</translation>
 <translation id="5027562294707732951">Pridėti plėtinį</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Valoma...</translation>
 <translation id="5556459405103347317">Perkrauti</translation>
 <translation id="5953452567010839148">QR kodas nerastas</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresas</translation>
 <translation id="6829876854799051628">Išvalyti slapukus</translation>
 <translation id="6896758677409633944">Kopijuoti</translation>
 <translation id="8137559199583651773">Tvarkyti plėtinius</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Atgal</translation>
+<translation id="8717864919010420084">Kopijuoti nuorodą</translation>
 <translation id="9191338038518226120">Perjungti šoninę juostą</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

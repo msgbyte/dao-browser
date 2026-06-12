@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="ru">
 <translation id="1653598257495639807">Результат QR-кода</translation>
+<translation id="21133533946938348">Закрепить вкладку</translation>
 <translation id="3062877722240966678">Dao i18n pipeline ОК</translation>
+<translation id="3551320343578183772">Закрыть вкладку</translation>
 <translation id="3657099196021255130">Открыть в Dao</translation>
 <translation id="3708693288863478389">Введите URL или поиск...</translation>
 <translation id="385051799172605136">Назад</translation>
 <translation id="3891466792657071243">Остановить загрузку</translation>
+<translation id="3984237987235889323">Применение</translation>
+<translation id="4285498937028063278">Открепить</translation>
 <translation id="4380677223237520064">Расшифровать QR-код</translation>
 <translation id="4543782226216763900">Переключить боковую панель (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Спросить AI: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">Обновить</translation>
 <translation id="4881695831933465202">Открыть</translation>
 <translation id="501297852093417632">Очистить кэш</translation>
 <translation id="5027562294707732951">Добавить расширение</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Очистка...</translation>
 <translation id="5556459405103347317">Перезагрузить</translation>
 <translation id="5953452567010839148">QR-код не найден</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Адрес</translation>
 <translation id="6829876854799051628">Очистить cookies</translation>
 <translation id="6896758677409633944">Копировать</translation>
 <translation id="8137559199583651773">Управление расширениями</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Назад</translation>
+<translation id="8717864919010420084">Копировать ссылку</translation>
 <translation id="9191338038518226120">Переключить боковую панель</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

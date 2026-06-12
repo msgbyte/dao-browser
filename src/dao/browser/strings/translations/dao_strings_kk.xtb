@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="kk">
 <translation id="1653598257495639807">QR код нәтижесі</translation>
+<translation id="21133533946938348">Қойындыны бекіту</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3551320343578183772">Қойындыны жабу</translation>
 <translation id="3657099196021255130">Dao-да ашу</translation>
 <translation id="3708693288863478389">URL немесе іздеу енгізіңіз...</translation>
 <translation id="385051799172605136">Артқа</translation>
 <translation id="3891466792657071243">Жүктеуді тоқтату</translation>
+<translation id="3984237987235889323">Қолдану</translation>
+<translation id="4285498937028063278">Бекітуді алып тастау</translation>
 <translation id="4380677223237520064">QR кодты декодтау</translation>
 <translation id="4543782226216763900">Бүйірлік тақтаны ауыстыру (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI-дан сұрау: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">Жаңарту</translation>
 <translation id="4881695831933465202">Ашу</translation>
 <translation id="501297852093417632">Кэшті тазалау</translation>
 <translation id="5027562294707732951">Кеңейтімді қосу</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Тазалау...</translation>
 <translation id="5556459405103347317">Қайта жүктеу</translation>
 <translation id="5953452567010839148">QR код табылмады</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Мекенжай</translation>
 <translation id="6829876854799051628">Кукилерді тазалау</translation>
 <translation id="6896758677409633944">Көшіру</translation>
 <translation id="8137559199583651773">Кеңейтімдерді басқару</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Артқа</translation>
+<translation id="8717864919010420084">Сілтемені көшіру</translation>
 <translation id="9191338038518226120">Бүйірлік тақтаны ауыстыру</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

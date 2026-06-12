@@ -70,4 +70,11 @@ MemoryContext& MemoryContext::operator=(const MemoryContext&) = default;
 MemoryContext::MemoryContext(MemoryContext&&) = default;
 MemoryContext& MemoryContext::operator=(MemoryContext&&) = default;
 
+DreamReport::DreamReport() = default;
+DreamReport::~DreamReport() = default;
+DreamReport::DreamReport(const DreamReport&) = default;
+DreamReport& DreamReport::operator=(const DreamReport&) = default;
+DreamReport::DreamReport(DreamReport&&) = default;
+DreamReport& DreamReport::operator=(DreamReport&&) = default;
+
 }  // namespace dao

@@ -36,6 +36,9 @@ interface WorkspaceAuditEntry {
   op: string;
   path: string;
 }
+
+const DREAM_RUN_NATIVE_TIMEOUT_MS = 6 * 60 * 1000;
+
 import type {AgentStats} from './agent_bridge.js';
 import {
   getActiveProvider,
@@ -74,6 +77,9 @@ export class DaoSettingsView extends CrLitElement {
       saveStatusVisible_: {type: Boolean, state: true},
       memoryEnabled_: {type: Boolean, state: true},
       proactiveEnabled_: {type: Boolean, state: true},
+      dreamEnabled_: {type: Boolean, state: true},
+      dreamDebug_: {type: Boolean, state: true},
+      dreamRunning_: {type: Boolean, state: true},
       pageContextEnabled_: {type: Boolean, state: true},
       conversationEnabled_: {type: Boolean, state: true},
       threshold_: {type: String, state: true},
@@ -102,6 +108,9 @@ export class DaoSettingsView extends CrLitElement {
   declare private saveStatusVisible_: boolean;
   declare private memoryEnabled_: boolean;
   declare private proactiveEnabled_: boolean;
+  declare private dreamEnabled_: boolean;
+  declare private dreamDebug_: boolean;
+  declare private dreamRunning_: boolean;
   declare private pageContextEnabled_: boolean;
   declare private conversationEnabled_: boolean;
   declare private threshold_: string;
@@ -506,6 +515,9 @@ export class DaoSettingsView extends CrLitElement {
     this.saveStatusVisible_ = false;
     this.memoryEnabled_ = false;
     this.proactiveEnabled_ = true;
+    this.dreamEnabled_ = false;
+    this.dreamDebug_ = false;
+    this.dreamRunning_ = false;
     this.pageContextEnabled_ = true;
     this.conversationEnabled_ = true;
     this.threshold_ = 'balanced';
@@ -572,7 +584,7 @@ export class DaoSettingsView extends CrLitElement {
   override render() {
     return html`
       <div class="settings-sub-tabs">
-        ${['general', 'soul', 'tools', 'skills', 'stats'].map(
+        ${['general', 'soul', 'tools', 'memory', 'skills', 'stats'].map(
             tab => html`
           <button class="sub-tab ${this.activeSubTab_ === tab ? 'active' : ''}"
               @click=${() => this.switchSubTab(tab)}>
@@ -753,7 +765,11 @@ export class DaoSettingsView extends CrLitElement {
             this.memoryEnabled_, (v) => {
               this.memoryEnabled_ = v;
               callNativeArgs('setMemoryEnabled', v).catch(() => {});
+              if (v) {
+                this.loadStorageStats_();
+              }
             })}
+        ${this.memoryEnabled_ ? html`
         ${this.renderToggle_(
             t('settings.memory.proactive_name'),
             t('settings.memory.proactive_desc'),
@@ -825,7 +841,55 @@ export class DaoSettingsView extends CrLitElement {
             @click=${() => this.showConfirmDialog_ = true}>
           ${t('settings.memory.clear_button')}
         </button>
+        ` : nothing}
+      </div>
+      ${this.memoryEnabled_ ? this.renderDream_() : nothing}`;
+  }
+
+  private renderDream_() {
+    return html`
+      <div class="panel">
+        <div class="section-title">${t('settings.dream.title')}</div>
+        <div class="section-desc">${t('settings.dream.desc')}</div>
+        ${this.renderToggle_(
+            t('settings.dream.enable_name'),
+            t('settings.dream.enable_desc'),
+            this.dreamEnabled_, (v) => {
+              this.dreamEnabled_ = v;
+              callNativeArgs('setDreamEnabled', v).catch(() => {});
+            })}
+        ${this.renderToggle_(
+            t('settings.dream.debug_name'),
+            t('settings.dream.debug_desc'),
+            this.dreamDebug_, (v) => {
+              this.dreamDebug_ = v;
+              callNativeArgs('setDreamDebug', v).catch(() => {});
+            })}
+        <div class="soul-actions">
+          <button class="btn-secondary"
+              ?disabled=${this.dreamRunning_ || !this.dreamEnabled_}
+              @click=${this.runDreamNow_}>
+            ${this.dreamRunning_ ? t('settings.dream.run_running') :
+                                   t('settings.dream.run_now_button')}
+          </button>
+        </div>
       </div>`;
+  }
+
+  private async runDreamNow_() {
+    this.dreamRunning_ = true;
+    try {
+      await callNative('startManualDream', undefined, {
+        timeoutMs: DREAM_RUN_NATIVE_TIMEOUT_MS,
+      });
+      this.fireToast_(t('settings.dream.run_done_toast'));
+      window.dispatchEvent(new Event('dao-dream-report-updated'));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.fireToast_(t('settings.dream.run_failed_toast', {error: msg}));
+    } finally {
+      this.dreamRunning_ = false;
+    }
   }
 
   private renderToggle_(
@@ -1165,6 +1229,13 @@ export class DaoSettingsView extends CrLitElement {
 
     callNativeArgs('getMemoryEnabled').then(enabled => {
       this.memoryEnabled_ = !!enabled;
+    }).catch(() => {});
+
+    callNativeArgs('getDreamEnabled').then(enabled => {
+      this.dreamEnabled_ = !!enabled;
+    }).catch(() => {});
+    callNativeArgs('getDreamDebug').then(enabled => {
+      this.dreamDebug_ = !!enabled;
     }).catch(() => {});
 
     callNativeArgs(

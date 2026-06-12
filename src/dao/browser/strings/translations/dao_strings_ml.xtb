@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="ml">
 <translation id="1653598257495639807">QR കോഡ് ഫലം</translation>
+<translation id="21133533946938348">ടാബ് പിന്‍ ചെയ്യുക</translation>
 <translation id="3062877722240966678">Dao i18n പൈപ്പ്‌ലൈൻ ശരി</translation>
+<translation id="3551320343578183772">ടാബ് അടയ്ക്കുക</translation>
 <translation id="3657099196021255130">Daoയിൽ തുറക്കുക</translation>
 <translation id="3708693288863478389">ഒരു URL അല്ലെങ്കിൽ തിരയൽ ടൈപ്പ് ചെയ്യുക...</translation>
 <translation id="385051799172605136">പിൻവാങ്ങുക</translation>
 <translation id="3891466792657071243">ലോഡിംഗ് നിർത്തുക</translation>
+<translation id="3984237987235889323">പ്രയോഗിക്കുന്നു</translation>
+<translation id="4285498937028063278">പിന്‍ നീക്കുക</translation>
 <translation id="4380677223237520064">QR കോഡ് ഡികോഡ് ചെയ്യുക</translation>
 <translation id="4543782226216763900">സൈഡ്ബാർ (<ph name="SHORTCUT" />) മാറ്റുക</translation>
 <translation id="4562670065683676797">AIനെ ചോദിക്കുക: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">അപ്ഡേറ്റ്</translation>
 <translation id="4881695831933465202">തുറക്കുക</translation>
 <translation id="501297852093417632">കാഷെ മായ്ക്കുക</translation>
 <translation id="5027562294707732951">വിസ്താരം ചേർക്കുക</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">മായ്ക്കുന്നു...</translation>
 <translation id="5556459405103347317">വീണ്ടും ലോഡ് ചെയ്യുക</translation>
 <translation id="5953452567010839148">QR കോഡ് കണ്ടെത്തിയില്ല</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">വിലാസം</translation>
 <translation id="6829876854799051628">കുക്കികൾ മായ്ക്കുക</translation>
 <translation id="6896758677409633944">പകർത്തുക</translation>
 <translation id="8137559199583651773">വിസ്താരങ്ങൾ കൈകാര്യം ചെയ്യുക</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> പിൻവാങ്ങുക</translation>
+<translation id="8717864919010420084">ലിങ്ക് പകർത്തുക</translation>
 <translation id="9191338038518226120">സൈഡ്ബാർ മാറ്റുക</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

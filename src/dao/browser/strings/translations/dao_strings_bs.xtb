@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="bs">
 <translation id="1653598257495639807">Rezultat QR koda</translation>
+<translation id="21133533946938348">Prikvači karticu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3551320343578183772">Zatvori karticu</translation>
 <translation id="3657099196021255130">Otvori u Dao</translation>
 <translation id="3708693288863478389">Upišite URL ili pretražujte...</translation>
 <translation id="385051799172605136">Nazad</translation>
 <translation id="3891466792657071243">Zaustavi učitavanje</translation>
+<translation id="3984237987235889323">Primjenjuje se</translation>
+<translation id="4285498937028063278">Otkači</translation>
 <translation id="4380677223237520064">Dekodiraj QR kod</translation>
 <translation id="4543782226216763900">Prebaci bočnu traku (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Pitaj AI: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">Ažuriraj</translation>
 <translation id="4881695831933465202">Otvori</translation>
 <translation id="501297852093417632">Očisti keš</translation>
 <translation id="5027562294707732951">Dodaj ekstenziju</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Čišćenje...</translation>
 <translation id="5556459405103347317">Ponovo učitaj</translation>
 <translation id="5953452567010839148">Nije pronađen QR kod</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresa</translation>
 <translation id="6829876854799051628">Očisti kolačiće</translation>
 <translation id="6896758677409633944">Kopiraj</translation>
 <translation id="8137559199583651773">Upravljaj ekstenzijama</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Nazad</translation>
+<translation id="8717864919010420084">Kopiraj link</translation>
 <translation id="9191338038518226120">Prebaci bočnu traku</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

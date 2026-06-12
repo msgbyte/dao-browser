@@ -13,6 +13,7 @@
 // type-safe on the consuming side.
 
 import {lookupModelCapabilities} from './model_capabilities.js';
+import {lookupCostByModelId} from './llm_cost.js';
 import {decideProviderInjection} from './web_search/tier_provider.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as piAgent from './vendor/pi_runtime_bundle.js';
@@ -127,7 +128,7 @@ function buildOpenAICompatModel(modelId: string, baseUrl: string): PiModel {
     baseUrl: base,
     reasoning: false,
     input: ['text', 'image'],
-    cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
+    cost: lookupCostByModelId(modelId),
     contextWindow: caps.contextWindow,
     maxTokens: caps.maxTokens,
   };
@@ -259,7 +260,12 @@ export async function callLLMStreamingWithPi(
       {name: string; description: string; parameters: object} |
       Record<string, unknown>> = convertTools(effectiveTools);
 
-  if (decision.injectSpec) {
+  // Provider-native web-search injection only makes sense for tool-using
+  // turns. A caller that passes zero tools (e.g. the dream runner's
+  // single-shot summarization) wants a pure text completion — injecting
+  // the provider spec there would make it tools[0] and trip gateways
+  // that validate every entry against the function-tool schema.
+  if (decision.injectSpec && tools.length > 0) {
     convertedTools.push(decision.injectSpec as Record<string, unknown>);
   }
 
@@ -269,8 +275,10 @@ export async function callLLMStreamingWithPi(
     // Provider built-in tool specs do not match pi-ai's local
     // ToolDefinition shape — pi-ai forwards unknown tool entries
     // verbatim to the upstream API, which is exactly what we need.
+    // An empty list is sent as `undefined` instead of `tools: []` —
+    // some gateways reject the empty array outright.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tools: convertedTools as any,
+    tools: convertedTools.length > 0 ? (convertedTools as any) : undefined,
   };
 
   let events: AsyncIterable<PiEvent>;

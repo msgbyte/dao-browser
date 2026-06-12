@@ -13,6 +13,7 @@ import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {callNative} from './agent_bridge.js';
 import './dao_chat_view.js';
+import './dao_dream_runner.js';
 import './dao_settings_view.js';
 import type {DaoChatView} from './dao_chat_view.js';
 import type {DaoSettingsView} from './dao_settings_view.js';

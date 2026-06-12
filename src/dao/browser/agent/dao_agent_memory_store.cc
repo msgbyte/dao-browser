@@ -8,6 +8,7 @@
 #include <tuple>
 
 #include "base/logging.h"
+#include "base/strings/strcat.h"
 #include "sql/database.h"
 #include "sql/meta_table.h"
 #include "sql/statement.h"
@@ -23,6 +24,29 @@ base::Time TimeFromInt(int64_t t) {
 
 int64_t TimeToInt(base::Time t) {
   return t.ToDeltaSinceWindowsEpoch().InMicroseconds();
+}
+
+constexpr char kDreamReportColumns[] =
+    "id, dream_date, report_markdown, habit_candidates, material_stats, "
+    "status, attempt_count, trigger_kind, debug_material_json, viewed_at, "
+    "created_at";
+
+DreamReport DreamReportFromStatement(sql::Statement& stmt) {
+  DreamReport r;
+  r.id = stmt.ColumnInt64(0);
+  r.dream_date = stmt.ColumnString(1);
+  r.report_markdown = stmt.ColumnString(2);
+  r.habit_candidates = stmt.ColumnString(3);
+  r.material_stats = stmt.ColumnString(4);
+  r.status = stmt.ColumnString(5);
+  r.attempt_count = stmt.ColumnInt(6);
+  r.trigger_kind = stmt.ColumnString(7);
+  r.debug_material_json = stmt.ColumnString(8);
+  if (stmt.GetColumnType(9) != sql::ColumnType::kNull) {
+    r.viewed_at = TimeFromInt(stmt.ColumnInt64(9));
+  }
+  r.created_at = TimeFromInt(stmt.ColumnInt64(10));
+  return r;
 }
 
 }  // namespace
@@ -43,9 +67,7 @@ bool DaoAgentMemoryStore::Init() {
   db_ = std::make_unique<sql::Database>(sql::DatabaseOptions(),
                                         sql::Database::Tag("DaoAgentMemory"));
 
-  db_->set_error_callback(
-      base::BindRepeating(&DaoAgentMemoryStore::DatabaseErrorCallback,
-                          base::Unretained(this)));
+  InstallErrorCallback();
 
   if (!db_->Open(db_path_)) {
     LOG(ERROR) << "Failed to open DaoAgentMemory database";
@@ -71,6 +93,25 @@ bool DaoAgentMemoryStore::Init() {
   }
 
   return true;
+}
+
+void DaoAgentMemoryStore::InstallErrorCallback() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  db_->set_error_callback(
+      base::BindRepeating(&DaoAgentMemoryStore::DatabaseErrorCallback,
+                          base::Unretained(this)));
+}
+
+bool DaoAgentMemoryStore::ExecuteOptionalSql(base::cstring_view sql) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  db_->reset_error_callback();
+  const bool ok = db_->Execute(sql);
+  if (!ok) {
+    LOG(WARNING) << "Optional DaoAgentMemory SQL unavailable: "
+                 << db_->GetErrorMessage();
+  }
+  InstallErrorCallback();
+  return ok;
 }
 
 bool DaoAgentMemoryStore::CreateSchema() {
@@ -141,28 +182,28 @@ bool DaoAgentMemoryStore::CreateSchema() {
   }
 
   // FTS5 virtual tables (non-critical; may fail on older SQLite builds).
-  std::ignore = db_->Execute(
+  std::ignore = ExecuteOptionalSql(
       "CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts USING fts5("
       "  intent, entities, outcome, content=episodes, content_rowid=id"
       ")");
-  std::ignore = db_->Execute(
+  std::ignore = ExecuteOptionalSql(
       "CREATE VIRTUAL TABLE IF NOT EXISTS preferences_fts USING fts5("
       "  key, value, content=preferences, content_rowid=id"
       ")");
 
   // FTS sync triggers for episodes
-  std::ignore = db_->Execute(
+  std::ignore = ExecuteOptionalSql(
       "CREATE TRIGGER IF NOT EXISTS episodes_ai AFTER INSERT ON episodes BEGIN"
       "  INSERT INTO episodes_fts(rowid, intent, entities, outcome)"
       "  VALUES (new.id, new.intent, new.entities, new.outcome);"
       "END");
-  std::ignore = db_->Execute(
+  std::ignore = ExecuteOptionalSql(
       "CREATE TRIGGER IF NOT EXISTS episodes_ad AFTER DELETE ON episodes BEGIN"
       "  INSERT INTO episodes_fts(episodes_fts, rowid, intent, entities, "
       "outcome)"
       "  VALUES('delete', old.id, old.intent, old.entities, old.outcome);"
       "END");
-  std::ignore = db_->Execute(
+  std::ignore = ExecuteOptionalSql(
       "CREATE TRIGGER IF NOT EXISTS episodes_au AFTER UPDATE ON episodes BEGIN"
       "  INSERT INTO episodes_fts(episodes_fts, rowid, intent, entities, "
       "outcome)"
@@ -172,19 +213,19 @@ bool DaoAgentMemoryStore::CreateSchema() {
       "END");
 
   // FTS sync triggers for preferences
-  std::ignore = db_->Execute(
+  std::ignore = ExecuteOptionalSql(
       "CREATE TRIGGER IF NOT EXISTS preferences_ai AFTER INSERT ON preferences "
       "BEGIN"
       "  INSERT INTO preferences_fts(rowid, key, value)"
       "  VALUES (new.id, new.key, new.value);"
       "END");
-  std::ignore = db_->Execute(
+  std::ignore = ExecuteOptionalSql(
       "CREATE TRIGGER IF NOT EXISTS preferences_ad AFTER DELETE ON preferences "
       "BEGIN"
       "  INSERT INTO preferences_fts(preferences_fts, rowid, key, value)"
       "  VALUES('delete', old.id, old.key, old.value);"
       "END");
-  std::ignore = db_->Execute(
+  std::ignore = ExecuteOptionalSql(
       "CREATE TRIGGER IF NOT EXISTS preferences_au AFTER UPDATE ON preferences "
       "BEGIN"
       "  INSERT INTO preferences_fts(preferences_fts, rowid, key, value)"
@@ -230,6 +271,24 @@ bool DaoAgentMemoryStore::CreateSchema() {
     return false;
   }
 
+  // Dream reports table (Dream Analysis archive; no FTS)
+  if (!db_->Execute(
+          "CREATE TABLE IF NOT EXISTS dream_reports ("
+          "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+          "  dream_date TEXT NOT NULL UNIQUE,"
+          "  report_markdown TEXT NOT NULL DEFAULT '',"
+          "  habit_candidates TEXT NOT NULL DEFAULT '[]',"
+          "  material_stats TEXT NOT NULL DEFAULT '{}',"
+          "  status TEXT NOT NULL,"
+          "  attempt_count INTEGER NOT NULL DEFAULT 0,"
+          "  trigger_kind TEXT NOT NULL,"
+          "  debug_material_json TEXT NOT NULL DEFAULT '',"
+          "  viewed_at INTEGER,"
+          "  created_at INTEGER NOT NULL"
+          ")")) {
+    return false;
+  }
+
   // Indexes
   std::ignore = db_->Execute(
       "CREATE INDEX IF NOT EXISTS idx_conversations_session "
@@ -252,6 +311,9 @@ bool DaoAgentMemoryStore::CreateSchema() {
   std::ignore = db_->Execute(
       "CREATE INDEX IF NOT EXISTS idx_feedback_lookup "
       "ON action_feedback(scenario_id, domain, timestamp)");
+  std::ignore = db_->Execute(
+      "CREATE INDEX IF NOT EXISTS idx_dream_reports_date "
+      "ON dream_reports(dream_date)");
 
   return transaction.Commit();
 }
@@ -278,6 +340,15 @@ bool DaoAgentMemoryStore::MigrateIfNeeded() {
         db_->Execute("ALTER TABLE episodes ADD COLUMN action_result TEXT");
     std::ignore = meta_table_->SetVersionNumber(2);
     std::ignore = meta_table_->SetCompatibleVersionNumber(2);
+    version = 2;
+  }
+
+  // v2 → v3: dream_reports table (created in CreateSchema via IF NOT
+  // EXISTS; only the version number needs to move).
+  if (version == 2) {
+    std::ignore = meta_table_->SetVersionNumber(3);
+    std::ignore = meta_table_->SetCompatibleVersionNumber(3);
+    version = 3;
   }
 
   return true;
@@ -735,41 +806,57 @@ StorageStats DaoAgentMemoryStore::GetStorageStats() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   StorageStats stats;
+  if (!db_ || !db_->is_open()) {
+    return stats;
+  }
 
   {
     sql::Statement stmt(db_->GetCachedStatement(
         SQL_FROM_HERE, "SELECT COUNT(*) FROM conversations"));
-    if (stmt.Step()) {
+    if (stmt.is_valid() && stmt.Step()) {
       stats.conversation_count = stmt.ColumnInt(0);
     }
   }
   {
     sql::Statement stmt(db_->GetCachedStatement(
         SQL_FROM_HERE, "SELECT COUNT(*) FROM conversation_summaries"));
-    if (stmt.Step()) {
+    if (stmt.is_valid() && stmt.Step()) {
       stats.summary_count = stmt.ColumnInt(0);
     }
   }
   {
     sql::Statement stmt(db_->GetCachedStatement(
         SQL_FROM_HERE, "SELECT COUNT(*) FROM episodes"));
-    if (stmt.Step()) {
+    if (stmt.is_valid() && stmt.Step()) {
       stats.episode_count = stmt.ColumnInt(0);
     }
   }
   {
     sql::Statement stmt(db_->GetCachedStatement(
         SQL_FROM_HERE, "SELECT COUNT(*) FROM preferences"));
-    if (stmt.Step()) {
+    if (stmt.is_valid() && stmt.Step()) {
       stats.preference_count = stmt.ColumnInt(0);
     }
   }
   {
-    sql::Statement stmt(db_->GetCachedStatement(
-        SQL_FROM_HERE, "SELECT page_count * page_size FROM pragma_page_count, "
-                       "pragma_page_size"));
-    if (stmt.Step()) {
-      stats.total_size_bytes = stmt.ColumnInt64(0);
+    int64_t page_count = 0;
+    int64_t page_size = 0;
+    {
+      sql::Statement stmt(
+          db_->GetCachedStatement(SQL_FROM_HERE, "PRAGMA page_count"));
+      if (stmt.is_valid() && stmt.Step()) {
+        page_count = stmt.ColumnInt64(0);
+      }
+    }
+    {
+      sql::Statement stmt(
+          db_->GetCachedStatement(SQL_FROM_HERE, "PRAGMA page_size"));
+      if (stmt.is_valid() && stmt.Step()) {
+        page_size = stmt.ColumnInt64(0);
+      }
+    }
+    if (page_count > 0 && page_size > 0) {
+      stats.total_size_bytes = page_count * page_size;
     }
   }
   return stats;
@@ -988,6 +1075,96 @@ bool DaoAgentMemoryStore::ClearDismissedFeedback() {
   sql::Statement stmt(db_->GetCachedStatement(
       SQL_FROM_HERE,
       "DELETE FROM action_feedback WHERE outcome='dismissed'"));
+  return stmt.Run();
+}
+
+// --- Dream Reports ---
+
+bool DaoAgentMemoryStore::SaveDreamReport(const DreamReport& report) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Chromium's SQLite is built with SQLITE_OMIT_UPSERT, so
+  // "ON CONFLICT ... DO UPDATE" is unavailable. INSERT OR REPLACE keeps
+  // the upsert-by-dream_date semantics (the UNIQUE constraint replaces
+  // the old row; a re-run intentionally resets viewed_at to unread).
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "INSERT OR REPLACE INTO dream_reports (dream_date, report_markdown, "
+      "habit_candidates, material_stats, status, attempt_count, "
+      "trigger_kind, debug_material_json, viewed_at, created_at) "
+      "VALUES (?,?,?,?,?,?,?,?,NULL,?)"));
+  stmt.BindString(0, report.dream_date);
+  stmt.BindString(1, report.report_markdown);
+  stmt.BindString(2, report.habit_candidates);
+  stmt.BindString(3, report.material_stats);
+  stmt.BindString(4, report.status);
+  stmt.BindInt(5, report.attempt_count);
+  stmt.BindString(6, report.trigger_kind);
+  stmt.BindString(7, report.debug_material_json);
+  stmt.BindInt64(8, TimeToInt(base::Time::Now()));
+  return stmt.Run();
+}
+
+std::optional<DreamReport> DaoAgentMemoryStore::GetDreamReportByDate(
+    const std::string& date) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetUniqueStatement(
+      base::StrCat({"SELECT ", kDreamReportColumns,
+                    " FROM dream_reports WHERE dream_date = ?"})));
+  stmt.BindString(0, date);
+  if (!stmt.Step()) {
+    return std::nullopt;
+  }
+  return DreamReportFromStatement(stmt);
+}
+
+std::vector<DreamReport> DaoAgentMemoryStore::GetDreamReports(int limit) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  limit = std::clamp(limit, 1, 100);
+  sql::Statement stmt(db_->GetUniqueStatement(
+      base::StrCat({"SELECT ", kDreamReportColumns,
+                    " FROM dream_reports WHERE status = 'completed' "
+                    "ORDER BY dream_date DESC LIMIT ?"})));
+  stmt.BindInt(0, limit);
+  std::vector<DreamReport> reports;
+  while (stmt.Step()) {
+    reports.push_back(DreamReportFromStatement(stmt));
+  }
+  return reports;
+}
+
+std::optional<DreamReport> DaoAgentMemoryStore::GetLatestDreamReport() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetUniqueStatement(
+      base::StrCat({"SELECT ", kDreamReportColumns,
+                    " FROM dream_reports WHERE status = 'completed' "
+                    "ORDER BY dream_date DESC LIMIT 1"})));
+  if (!stmt.is_valid() || !stmt.Step()) {
+    return std::nullopt;
+  }
+  return DreamReportFromStatement(stmt);
+}
+
+std::optional<DreamReport>
+DaoAgentMemoryStore::GetLatestUnviewedDreamReport() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetUniqueStatement(
+      base::StrCat({"SELECT ", kDreamReportColumns,
+                    " FROM dream_reports WHERE viewed_at IS NULL "
+                    "AND status = 'completed' "
+                    "ORDER BY dream_date DESC LIMIT 1"})));
+  if (!stmt.Step()) {
+    return std::nullopt;
+  }
+  return DreamReportFromStatement(stmt);
+}
+
+bool DaoAgentMemoryStore::MarkDreamReportViewed(int64_t id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "UPDATE dream_reports SET viewed_at = ? WHERE id = ?"));
+  stmt.BindInt64(0, TimeToInt(base::Time::Now()));
+  stmt.BindInt64(1, id);
   return stmt.Run();
 }
 

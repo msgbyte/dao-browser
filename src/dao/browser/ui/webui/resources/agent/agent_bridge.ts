@@ -49,6 +49,10 @@ interface PendingCallback {
   reject: (reason: unknown) => void;
 }
 
+export interface NativeCallOptions {
+  timeoutMs?: number|null;
+}
+
 interface CrNamespace {
   webUIResponse:
       (id: string, isSuccess: boolean, response: unknown) => void;
@@ -90,6 +94,7 @@ export const cr =
 
 const pendingCallbacks: Record<string, PendingCallback> = {};
 let callbackCounter = 0;
+const DEFAULT_NATIVE_CALL_TIMEOUT_MS = 15000;
 
 cr.webUIResponse =
     function(id: string, isSuccess: boolean, response: unknown): void {
@@ -103,18 +108,48 @@ cr.webUIResponse =
   }
 };
 
+// ---- WebUI Listener Infrastructure ----
+// (mirrors Chromium's cr.ts: FireWebUIListener → webUIListenerCallback)
+
+const webUiListenerMap:
+    Record<string, Array<(...args: unknown[]) => void>> = {};
+
+(cr as unknown as {
+  webUIListenerCallback: (event: string, ...args: unknown[]) => void;
+}).webUIListenerCallback = function(event: string, ...args: unknown[]) {
+  const listeners = webUiListenerMap[event];
+  if (!listeners) return;
+  for (const cb of listeners) {
+    cb(...args);
+  }
+};
+
+/** Listen for events pushed from C++ via FireWebUIListener. */
+export function addWebUIListener(
+    event: string, callback: (...args: unknown[]) => void): void {
+  (webUiListenerMap[event] = webUiListenerMap[event] || []).push(callback);
+}
+
 export function callNative(
-    method: string, params?: Record<string, unknown>): Promise<unknown> {
+    method: string, params?: Record<string, unknown>,
+    options?: NativeCallOptions): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const id = method + '_' + (++callbackCounter);
     pendingCallbacks[id] = {resolve, reject};
     chrome.send(method, [id, params || {}]);
+    const timeoutMs =
+        options?.timeoutMs === undefined ? DEFAULT_NATIVE_CALL_TIMEOUT_MS :
+                                           options.timeoutMs;
+    if (timeoutMs === null || timeoutMs <= 0 ||
+        !Number.isFinite(timeoutMs)) {
+      return;
+    }
     setTimeout(() => {
       if (pendingCallbacks[id]) {
         delete pendingCallbacks[id];
         reject(new Error('Timeout calling ' + method));
       }
-    }, 15000);
+    }, timeoutMs);
   });
 }
 
@@ -129,7 +164,7 @@ export function callNativeArgs(
         delete pendingCallbacks[id];
         reject(new Error('Timeout calling ' + method));
       }
-    }, 15000);
+    }, DEFAULT_NATIVE_CALL_TIMEOUT_MS);
   });
 }
 

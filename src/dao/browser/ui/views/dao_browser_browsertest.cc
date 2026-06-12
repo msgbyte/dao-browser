@@ -2501,6 +2501,22 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, ServiceAvailableForProfile) {
   EXPECT_NE(nullptr, service());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, StatsBeforeInitReturnsZeros) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  dao::DaoAgentMemoryStore store(
+      temp_dir.GetPath().AppendASCII("DaoAgentMemory.db"));
+
+  dao::StorageStats stats = store.GetStorageStats();
+
+  EXPECT_EQ(0, stats.total_size_bytes);
+  EXPECT_EQ(0, stats.conversation_count);
+  EXPECT_EQ(0, stats.summary_count);
+  EXPECT_EQ(0, stats.episode_count);
+  EXPECT_EQ(0, stats.preference_count);
+}
+
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_PreferenceRoundTrip) {
   base::test::TestFuture<bool> merged;
   service()->MergePreference("prefers_language", "English", 0.9,
@@ -2886,6 +2902,60 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, LoadsWithoutConsoleErrors) {
   EXPECT_TRUE(errors.empty())
       << "chrome://agent/ emitted console errors during load:\n - "
       << base::JoinString(errors, "\n - ");
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, DreamPageLoadsWithoutConsoleErrors) {
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  for (const char* url :
+       {"dao://dream/", "dao://dream/history", "dao://dream/today"}) {
+    content::WebContentsConsoleObserver observer(web_contents);
+
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url))) << url;
+
+    constexpr char kWaitScript[] = R"(
+      (async () => {
+        await customElements.whenDefined('dao-dream-app');
+        return !!document.querySelector('dao-dream-app');
+      })()
+    )";
+    EXPECT_EQ(true, content::EvalJs(web_contents, kWaitScript)) << url;
+    EXPECT_EQ("0px", content::EvalJs(
+                          web_contents,
+                          "getComputedStyle(document.body).marginTop"))
+        << url;
+    EXPECT_EQ("0px", content::EvalJs(
+                          web_contents,
+                          "getComputedStyle(document.body).marginLeft"))
+        << url;
+    EXPECT_EQ("rgb(238, 243, 248)",
+              content::EvalJs(
+                  web_contents,
+                  "getComputedStyle(document.body).backgroundColor"))
+        << url;
+    EXPECT_EQ(0, content::EvalJs(
+                     web_contents,
+                     "Math.round(document.querySelector('dao-dream-app')"
+                     ".getBoundingClientRect().top)"))
+        << url;
+    EXPECT_EQ(0, content::EvalJs(
+                     web_contents,
+                     "Math.round(document.querySelector('dao-dream-app')"
+                     ".getBoundingClientRect().left)"))
+        << url;
+
+    std::vector<std::string> errors;
+    for (const auto& msg : observer.messages()) {
+      if (msg.log_level == blink::mojom::ConsoleMessageLevel::kError) {
+        errors.push_back(base::UTF16ToUTF8(msg.message));
+      }
+    }
+    EXPECT_TRUE(errors.empty())
+        << url << " emitted console errors during load:\n - "
+        << base::JoinString(errors, "\n - ");
+  }
 }
 
 // =============================================================================
@@ -4091,6 +4161,30 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest, StatsAvailable) {
   // Just verify the call returns; numeric values are non-deterministic across
   // runs but should be >= 0.
   EXPECT_GE(stats.Get().episode_count, 0);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
+                       StatsDoesNotPoisonStore) {
+  auto* svc = dao::DaoAgentMemoryServiceFactory::GetForProfile(
+      browser()->profile());
+  ASSERT_NE(nullptr, svc);
+
+  base::test::TestFuture<dao::StorageStats> stats;
+  svc->GetStorageStats(stats.GetCallback());
+  EXPECT_GE(stats.Get().total_size_bytes, 0);
+
+  std::vector<dao::ConversationMessage> messages;
+  dao::ConversationMessage m;
+  m.role = "user";
+  m.content = "hello after stats";
+  m.timestamp = base::Time::Now();
+  messages.push_back(m);
+
+  base::test::TestFuture<bool> saved;
+  svc->SaveConversationMessages("stats_does_not_poison",
+                                std::move(messages),
+                                saved.GetCallback());
+  EXPECT_TRUE(saved.Get());
 }
 
 // =============================================================================

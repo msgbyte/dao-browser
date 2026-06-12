@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="sw">
 <translation id="1653598257495639807">Matokeo ya QR Code</translation>
+<translation id="21133533946938348">Kibandika Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline SAWA</translation>
+<translation id="3551320343578183772">Funga Tab</translation>
 <translation id="3657099196021255130">Fungua katika Dao</translation>
 <translation id="3708693288863478389">Andika URL au tafuta...</translation>
 <translation id="385051799172605136">Rudi</translation>
 <translation id="3891466792657071243">Acha Kupakia</translation>
+<translation id="3984237987235889323">Inatumika</translation>
+<translation id="4285498937028063278">Ondoa Kibandika</translation>
 <translation id="4380677223237520064">Fasiri Msimbo wa QR</translation>
 <translation id="4543782226216763900">Badilisha Upau wa Pembeni (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Uliza AI: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">Sasisha</translation>
 <translation id="4881695831933465202">Fungua</translation>
 <translation id="501297852093417632">Futa Akiba</translation>
 <translation id="5027562294707732951">Ongeza kiendelezi</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Inafuta...</translation>
 <translation id="5556459405103347317">Pakia Upya</translation>
 <translation id="5953452567010839148">Hakuna msimbo wa QR uliopatikana</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Anwani</translation>
 <translation id="6829876854799051628">Futa Vidakuzi</translation>
 <translation id="6896758677409633944">Nakili</translation>
 <translation id="8137559199583651773">Dhibiti viendelezi</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Rudi</translation>
+<translation id="8717864919010420084">Nakili Kiungo</translation>
 <translation id="9191338038518226120">Badilisha Upau wa Pembeni</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>

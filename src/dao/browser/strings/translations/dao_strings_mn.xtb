@@ -2,14 +2,19 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="mn">
 <translation id="1653598257495639807">QR кодын үр дүн</translation>
+<translation id="21133533946938348">Хавчуурга тогтоох</translation>
 <translation id="3062877722240966678">Dao i18n pipeline БОЛЛОО</translation>
+<translation id="3551320343578183772">Хавчуургыг хаах</translation>
 <translation id="3657099196021255130">Dao-д нээх</translation>
 <translation id="3708693288863478389">URL эсвэл хайлт оруулна уу...</translation>
 <translation id="385051799172605136">Буцах</translation>
 <translation id="3891466792657071243">Ачаалалтыг зогсоох</translation>
+<translation id="3984237987235889323">Хэрэгжүүлж байна</translation>
+<translation id="4285498937028063278">Тогтоосон хавчуургыг салгах</translation>
 <translation id="4380677223237520064">QR код тайлах</translation>
 <translation id="4543782226216763900">Хажуугийн самбарыг солих (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI-аас асуу: <ph name="PROMPT" /></translation>
+<translation id="473775607612524610">Шинэчлэх</translation>
 <translation id="4881695831933465202">Нээх</translation>
 <translation id="501297852093417632">Кэшийг цэвэрлэх</translation>
 <translation id="5027562294707732951">Өргөтгөл нэмэх</translation>
@@ -17,11 +22,12 @@
 <translation id="5538307496474303926">Цэвэрлэж байна...</translation>
 <translation id="5556459405103347317">Дахин ачаалах</translation>
 <translation id="5953452567010839148">QR код олдсонгүй</translation>
+<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Хаяг</translation>
 <translation id="6829876854799051628">Күүкийг цэвэрлэх</translation>
 <translation id="6896758677409633944">Хуулах</translation>
 <translation id="8137559199583651773">Өргөтгөлүүдийг удирдах</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Буцах</translation>
+<translation id="8717864919010420084">Холбоосыг хуулбарлах</translation>
 <translation id="9191338038518226120">Хажуугийн самбарыг солих</translation>
-<translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 </translationbundle>
