@@ -35,6 +35,7 @@ build_webui("build") {
     "dao_dream_runner.ts",
     "dao_element_context.ts",
     "dao_markdown.ts",
+    "dao_memory_context.ts",
     "dao_settings_view.ts",
     "dao_skill_manager_view.ts",
     "dao_tool_renderer.ts",

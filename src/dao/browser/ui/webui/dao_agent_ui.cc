@@ -377,6 +377,63 @@ constexpr char kAccessibilityTreeScript[] = R"js(
 
 }  // namespace
 
+base::DictValue SerializeMemoryContextForAgentUi(
+    const MemoryContext& context) {
+  base::DictValue result;
+
+  base::ListValue prefs;
+  for (const auto& p : context.preferences) {
+    base::DictValue pref;
+    pref.Set("key", p.key);
+    pref.Set("value", p.value);
+    pref.Set("confidence", p.confidence);
+    prefs.Append(std::move(pref));
+  }
+  result.Set("preferences", std::move(prefs));
+
+  base::ListValue eps;
+  for (const auto& e : context.episodes) {
+    base::DictValue ep;
+    ep.Set("intent", e.intent);
+    ep.Set("outcome", e.outcome);
+    ep.Set("timestamp",
+           static_cast<double>(
+               e.timestamp.ToDeltaSinceWindowsEpoch().InMicroseconds()));
+    eps.Append(std::move(ep));
+  }
+  result.Set("episodes", std::move(eps));
+
+  base::ListValue msgs;
+  for (const auto& m : context.recent_messages) {
+    base::DictValue msg;
+    msg.Set("role", m.role);
+    msg.Set("content", m.content);
+    msgs.Append(std::move(msg));
+  }
+  result.Set("recentMessages", std::move(msgs));
+
+  if (context.relevant_summary.has_value()) {
+    const ConversationSummary& summary = *context.relevant_summary;
+    base::DictValue relevant_summary;
+    relevant_summary.Set("summary", summary.summary);
+    relevant_summary.Set("messageCount", summary.message_count);
+    relevant_summary.Set(
+        "firstTimestamp",
+        static_cast<double>(
+            summary.first_timestamp.ToDeltaSinceWindowsEpoch()
+                .InMicroseconds()));
+    relevant_summary.Set(
+        "lastTimestamp",
+        static_cast<double>(
+            summary.last_timestamp.ToDeltaSinceWindowsEpoch()
+                .InMicroseconds()));
+    relevant_summary.Set("primaryDomain", summary.primary_domain);
+    result.Set("relevantSummary", std::move(relevant_summary));
+  }
+
+  return result;
+}
+
 // ---- DaoAgentDevToolsClient ----
 
 DaoAgentDevToolsClient::DaoAgentDevToolsClient() = default;
@@ -3123,44 +3180,8 @@ void DaoAgentMemoryHandler::HandleGetMemoryContext(
             if (!handler) {
               return;
             }
-            base::DictValue result;
-
-            // Preferences
-            base::ListValue prefs;
-            for (const auto& p : ctx.preferences) {
-              base::DictValue pref;
-              pref.Set("key", p.key);
-              pref.Set("value", p.value);
-              pref.Set("confidence", p.confidence);
-              prefs.Append(std::move(pref));
-            }
-            result.Set("preferences", std::move(prefs));
-
-            // Episodes
-            base::ListValue eps;
-            for (const auto& e : ctx.episodes) {
-              base::DictValue ep;
-              ep.Set("intent", e.intent);
-              ep.Set("outcome", e.outcome);
-              ep.Set("timestamp",
-                     static_cast<double>(
-                         e.timestamp.ToDeltaSinceWindowsEpoch()
-                             .InMicroseconds()));
-              eps.Append(std::move(ep));
-            }
-            result.Set("episodes", std::move(eps));
-
-            // Recent messages
-            base::ListValue msgs;
-            for (const auto& m : ctx.recent_messages) {
-              base::DictValue msg;
-              msg.Set("role", m.role);
-              msg.Set("content", m.content);
-              msgs.Append(std::move(msg));
-            }
-            result.Set("recentMessages", std::move(msgs));
-
-            handler->ResolveJavascriptCallback(base::Value(cb_id), result);
+            handler->ResolveJavascriptCallback(
+                base::Value(cb_id), SerializeMemoryContextForAgentUi(ctx));
           },
           weak_factory_.GetWeakPtr(), callback_id));
 }

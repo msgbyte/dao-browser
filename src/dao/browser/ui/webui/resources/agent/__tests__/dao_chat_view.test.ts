@@ -17,18 +17,24 @@ vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('../../sidebar/__tests__/lit_test_shim.js');
 });
 
-vi.mock('../agent_bridge.js', () => ({
-  BASE_SYSTEM_PROMPT: 'base prompt',
-  currentSoulContent: 'soul',
-  callNative: (...args: unknown[]) => pickerMocks.callNative(...args),
-  callNativeArgs: (...args: unknown[]) => pickerMocks.callNativeArgs(...args),
-  recordApiCall: vi.fn(),
-  refreshSoulContent: vi.fn(),
-  soulChannel: {
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  },
-}));
+vi.mock('../agent_bridge.js', async () => {
+  const actual =
+      await vi.importActual<typeof import('../agent_bridge.js')>(
+          '../agent_bridge.js');
+  return {
+    ...actual,
+    currentSoulContent: 'soul',
+    callNative: (...args: unknown[]) => pickerMocks.callNative(...args),
+    callNativeArgs: (...args: unknown[]) =>
+        pickerMocks.callNativeArgs(...args),
+    recordApiCall: vi.fn(),
+    refreshSoulContent: vi.fn(),
+    soulChannel: {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    },
+  };
+});
 
 vi.mock('../dao_compact.js', () => ({
   compactAgentMessages: vi.fn(),
@@ -280,6 +286,237 @@ describe('dao-chat-view element picker', () => {
       ]);
     } finally {
       warnSpy.mockRestore();
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('includes the memory context contract in the system prompt', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+
+    try {
+      const prompt =
+          (view as unknown as {buildSystemPrompt_: () => string})
+              .buildSystemPrompt_();
+
+      expect(prompt).toContain('<memory-context>');
+      expect(prompt).toContain('historical, potentially stale personal context');
+      expect(prompt).toContain('Current user instructions');
+      expect(prompt).toContain('<soul>\nsoul\n</soul>');
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('attaches memory context on send', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    Object.assign(view, {
+      suppressChipAttachOnce_: false,
+      pendingPageAttachment_: null,
+      pendingSelection_: null,
+      pendingElementContexts_: [],
+    });
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      if (method === 'getPageInfo') {
+        return {url: 'https://example.com/app', title: 'Example App'};
+      }
+      return {success: true};
+    });
+    pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
+      if (method === 'getMemoryContext') {
+        return {
+          preferences: [{
+            key: 'response.style',
+            value: 'Prefers concise implementation notes',
+            confidence: 0.92,
+          }],
+          episodes: [{
+            title: 'Example App',
+            intent: 'Summarize dashboard data',
+            outcome: 'Returned grouped findings',
+            confidence: 0.78,
+          }],
+          recentMessages: [],
+          relevantSummary: {
+            summary: 'User often asks for implementation-focused help here.',
+            primaryDomain: 'example.com',
+          },
+        };
+      }
+      return {success: true};
+    });
+
+    try {
+      await expect(iface.sendMessage('what next?', [])).resolves.toBe('sent');
+      const firstSendCall = originalSend.mock.calls[0] || [];
+      const sentAttachments = firstSendCall[1] || [];
+      expect(sentAttachments).toHaveLength(1);
+      expect(sentAttachments[0].extractedText).toContain('<memory-context');
+      expect(sentAttachments[0].extractedText).toContain(
+          'Prefers concise implementation notes');
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'getMemoryContext',
+          'https://example.com/app',
+          'example.com',
+          '');
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('continues sending when memory context retrieval fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    Object.assign(view, {
+      suppressChipAttachOnce_: false,
+      pendingPageAttachment_: null,
+      pendingSelection_: null,
+      pendingElementContexts_: [],
+    });
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      if (method === 'getPageInfo') {
+        return {url: 'https://example.com/app', title: 'Example App'};
+      }
+      return {success: true};
+    });
+    pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
+      if (method === 'getMemoryContext') {
+        throw new Error('memory unavailable');
+      }
+      return {success: true};
+    });
+
+    try {
+      await expect(iface.sendMessage('hello', [])).resolves.toBe('sent');
+      expect(originalSend).toHaveBeenCalledWith('hello', []);
+    } finally {
+      warnSpy.mockRestore();
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('skips memory context when suppressChipAttachOnce_ is true', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    Object.assign(view, {
+      suppressChipAttachOnce_: true,
+      pendingPageAttachment_: null,
+      pendingSelection_: null,
+      pendingElementContexts_: [],
+    });
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      if (method === 'getPageInfo') {
+        return {url: 'https://example.com/app', title: 'Example App'};
+      }
+      return {success: true};
+    });
+    pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
+      if (method === 'getMemoryContext') {
+        return {
+          preferences: [{
+            key: 'response.style',
+            value: 'Should not be attached',
+            confidence: 0.92,
+          }],
+        };
+      }
+      return {success: true};
+    });
+
+    try {
+      await expect(iface.sendMessage('hello', [])).resolves.toBe('sent');
+      expect(originalSend).toHaveBeenCalledWith('hello', []);
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalled();
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('skips memory context for non-capturable internal URLs', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    Object.assign(view, {
+      suppressChipAttachOnce_: false,
+      pendingPageAttachment_: null,
+      pendingSelection_: null,
+      pendingElementContexts_: [],
+    });
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      if (method === 'getPageInfo') {
+        return {url: 'chrome://settings', title: 'Settings'};
+      }
+      return {success: true};
+    });
+    pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
+      if (method === 'getMemoryContext') {
+        return {
+          preferences: [{
+            key: 'response.style',
+            value: 'Should not be attached',
+            confidence: 0.92,
+          }],
+        };
+      }
+      return {success: true};
+    });
+
+    try {
+      await expect(iface.sendMessage('hello', [])).resolves.toBe('sent');
+      expect(originalSend).toHaveBeenCalledWith('hello', []);
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalled();
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('does not attach memory context for empty native payload', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    Object.assign(view, {
+      suppressChipAttachOnce_: false,
+      pendingPageAttachment_: null,
+      pendingSelection_: null,
+      pendingElementContexts_: [],
+    });
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      if (method === 'getPageInfo') {
+        return {url: 'https://example.com/app', title: 'Example App'};
+      }
+      return {success: true};
+    });
+    pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
+      if (method === 'getMemoryContext') {
+        return {};
+      }
+      return {success: true};
+    });
+
+    try {
+      await expect(iface.sendMessage('hello', [])).resolves.toBe('sent');
+      expect(originalSend).toHaveBeenCalledWith('hello', []);
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'getMemoryContext',
+          'https://example.com/app',
+          'example.com',
+          '');
+    } finally {
       clearTabWatchTimer(view);
     }
   });

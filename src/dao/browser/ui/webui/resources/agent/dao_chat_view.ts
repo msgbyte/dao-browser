@@ -22,9 +22,10 @@
 
 import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {BASE_SYSTEM_PROMPT, callNative, currentSoulContent, recordApiCall, refreshSoulContent, soulChannel} from './agent_bridge.js';
+import {BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, soulChannel} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {addReusableElementContext, buildElementContextAttachment, consumeReusableElementContexts, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
+import {buildMemoryContextAttachment, type NativeMemoryContext} from './dao_memory_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
@@ -909,7 +910,9 @@ export class DaoChatView extends CrLitElement {
             } else {
               const withPage = await this.maybeAttachPage_(merged);
               const withSelection = await this.maybeAttachSelection_(withPage);
-              merged = await this.maybeAttachElementContext_(withSelection);
+              const withElement =
+                  await this.maybeAttachElementContext_(withSelection);
+              merged = await this.maybeAttachMemoryContext_(withElement);
             }
             return await this.origSendMessage_!(text, merged);
           } finally {
@@ -1786,6 +1789,31 @@ export class DaoChatView extends CrLitElement {
       ...attachments,
       ...contexts.map(buildElementContextAttachment),
     ];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async maybeAttachMemoryContext_(attachments: any[]): Promise<any[]> {
+    try {
+      const info = await fetchCurrentPageInfo();
+      if (!info?.url || !isCapturablePageUrl(info.url)) return attachments;
+
+      const domain = new URL(info.url).hostname;
+      if (!domain) return attachments;
+
+      const payload = await callNativeArgs(
+          'getMemoryContext', info.url, domain, this.currentSessionId_ || '') as
+          NativeMemoryContext;
+      const attachment = buildMemoryContextAttachment({
+        url: info.url,
+        domain,
+        payload: payload || {},
+      });
+      if (!attachment) return attachments;
+      return [...attachments, attachment];
+    } catch (e) {
+      console.warn('[dao-agent] memory context unavailable', e);
+      return attachments;
+    }
   }
 
   private selectionPreview_(text: string): string {

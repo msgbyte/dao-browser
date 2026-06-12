@@ -29,6 +29,7 @@
 #include "dao/browser/agent/dao_dream_service.h"
 #include "dao/browser/agent/dao_dream_service_factory.h"
 #include "dao/browser/dao_pref_names.h"
+#include "dao/browser/ui/webui/dao_agent_ui.h"
 #include "url/gurl.h"
 
 namespace dao {
@@ -233,6 +234,75 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, CollectorCapsLongHistoryText) {
   ASSERT_TRUE(queries);
   ASSERT_FALSE(queries->empty());
   EXPECT_LE((*queries)[0].GetString().size(), 240u);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       MemoryContextIncludesDomainSummary) {
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+
+  ConversationSummary summary;
+  summary.session_id = "summary-session";
+  summary.summary = "User compared documentation and release notes.";
+  summary.message_count = 4;
+  summary.first_timestamp = base::Time::FromSecondsSinceUnixEpoch(1800000000);
+  summary.last_timestamp = base::Time::FromSecondsSinceUnixEpoch(1800000300);
+  summary.primary_domain = "docs.example";
+
+  {
+    bool saved = false;
+    base::RunLoop loop;
+    memory->SaveConversationSummary(
+        summary, base::BindLambdaForTesting([&](bool ok) {
+          saved = ok;
+          loop.Quit();
+        }));
+    loop.Run();
+    ASSERT_TRUE(saved);
+  }
+
+  MemoryContext context;
+  base::RunLoop loop;
+  memory->GetMemoryContext(
+      "https://docs.example/release-notes", "docs.example", "",
+      base::BindLambdaForTesting([&](MemoryContext ctx) {
+        context = std::move(ctx);
+        loop.Quit();
+      }));
+  loop.Run();
+
+  ASSERT_TRUE(context.relevant_summary.has_value());
+  EXPECT_EQ("User compared documentation and release notes.",
+            context.relevant_summary->summary);
+  EXPECT_EQ(4, context.relevant_summary->message_count);
+  EXPECT_EQ(summary.first_timestamp,
+            context.relevant_summary->first_timestamp);
+  EXPECT_EQ(summary.last_timestamp, context.relevant_summary->last_timestamp);
+  EXPECT_EQ("docs.example", context.relevant_summary->primary_domain);
+
+  const base::DictValue response = SerializeMemoryContextForAgentUi(context);
+  const base::DictValue* relevant_summary =
+      response.FindDict("relevantSummary");
+  ASSERT_TRUE(relevant_summary);
+  const std::string* serialized_summary =
+      relevant_summary->FindString("summary");
+  ASSERT_TRUE(serialized_summary);
+  EXPECT_EQ("User compared documentation and release notes.",
+            *serialized_summary);
+  EXPECT_EQ(4, relevant_summary->FindInt("messageCount").value_or(0));
+  EXPECT_EQ(static_cast<double>(
+                summary.first_timestamp.ToDeltaSinceWindowsEpoch()
+                    .InMicroseconds()),
+            relevant_summary->FindDouble("firstTimestamp").value_or(0));
+  EXPECT_EQ(static_cast<double>(
+                summary.last_timestamp.ToDeltaSinceWindowsEpoch()
+                    .InMicroseconds()),
+            relevant_summary->FindDouble("lastTimestamp").value_or(0));
+  const std::string* primary_domain =
+      relevant_summary->FindString("primaryDomain");
+  ASSERT_TRUE(primary_domain);
+  EXPECT_EQ("docs.example", *primary_domain);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, DreamReportStoreRoundTrip) {

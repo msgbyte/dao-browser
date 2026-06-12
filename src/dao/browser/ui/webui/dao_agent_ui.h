@@ -43,6 +43,10 @@ class DaoAgentSkillService;
 class DaoAgentUI;
 class DaoAgentWorkspaceService;
 
+// Serializes native memory context into the object returned to the Agent WebUI.
+base::DictValue SerializeMemoryContextForAgentUi(
+    const MemoryContext& context);
+
 // WebUI config for chrome://dream
 class DaoDreamUIConfig : public content::WebUIConfig {
  public:
