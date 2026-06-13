@@ -2,9 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { describe, expect, it } from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import { parseDuckDuckGoHtml } from '../web_search/tier_duckduckgo.js';
+vi.mock('../agent_bridge.js', () => ({
+  callNativeFetch: vi.fn(),
+}));
+
+import {callNativeFetch} from '../agent_bridge.js';
+import {
+  fetchUrlViaBrowser,
+  parseDuckDuckGoHtml,
+} from '../web_search/tier_duckduckgo.js';
+
+const mockedFetch = callNativeFetch as unknown as ReturnType<typeof vi.fn>;
 
 function ddgResultRow(
     title: string, href: string, snippet: string): string {
@@ -34,11 +44,57 @@ describe('parseDuckDuckGoHtml', () => {
     });
   });
 
+  it('preserves encoded characters inside decoded uddg target URLs', () => {
+    const targetUrl = 'https://example.com/search?q=a%2Fb&next=%252Fdashboard';
+    const html = `
+      <html><body>
+        ${ddgResultRow(
+          'Encoded Query',
+          '//duckduckgo.com/l/?uddg=' + encodeURIComponent(targetUrl),
+          'A result with encoded query values.')}
+      </body></html>`;
+
+    const out = parseDuckDuckGoHtml(html);
+
+    expect(out[0].url).toBe(targetUrl);
+  });
+
+  it('decodes root-relative uddg redirect URLs', () => {
+    const html = `<html><body>${ddgResultRow(
+      'Root Relative Redirect',
+      '/l/?uddg=' + encodeURIComponent('https://example.net/path?a=1'),
+      'snippet')}</body></html>`;
+
+    const out = parseDuckDuckGoHtml(html);
+
+    expect(out[0].url).toBe('https://example.net/path?a=1');
+  });
+
   it('passes through non-redirect URLs unchanged', () => {
     const html = `<html><body>${ddgResultRow(
       'Direct', 'https://example.org/page', 'snippet')}</body></html>`;
     const out = parseDuckDuckGoHtml(html);
     expect(out[0].url).toBe('https://example.org/page');
+  });
+
+  it('normalizes relative non-redirect URLs against DuckDuckGo', () => {
+    const html = `<html><body>${ddgResultRow(
+      'DuckDuckGo Help', '/duckduckgo-help-pages/results/syntax/', 'snippet')}
+      </body></html>`;
+
+    const out = parseDuckDuckGoHtml(html);
+
+    expect(out[0].url)
+      .toBe('https://duckduckgo.com/duckduckgo-help-pages/results/syntax/');
+  });
+
+  it('keeps malformed href values unchanged', () => {
+    const html = `<html><body>${ddgResultRow(
+      'Malformed', 'http://[::1', 'snippet')}</body></html>`;
+
+    const out = parseDuckDuckGoHtml(html);
+
+    expect(out[0].url).toBe('http://[::1');
   });
 
   it('honours maxResults', () => {
@@ -82,5 +138,113 @@ describe('parseDuckDuckGoHtml', () => {
     const out = parseDuckDuckGoHtml(html);
     expect(out[0].title).toBe('Padded Title');
     expect(out[0].snippet).toBe('padded snippet');
+  });
+
+  it('uses an empty snippet when a result row has no snippet node', () => {
+    const html = `
+      <html><body>
+        <div class="result">
+          <a class="result__a" href="https://example.com">No Snippet</a>
+        </div>
+      </body></html>`;
+
+    const out = parseDuckDuckGoHtml(html);
+
+    expect(out[0]).toEqual({
+      title: 'No Snippet',
+      url: 'https://example.com/',
+      snippet: '',
+    });
+  });
+});
+
+describe('fetchUrlViaBrowser', () => {
+  beforeEach(() => {
+    mockedFetch.mockReset();
+  });
+
+  it('prefers article content, strips page chrome, and converts basic HTML to markdown',
+     async () => {
+    mockedFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      finalUrl: 'https://example.com/final',
+      body: `
+        <html>
+          <head><title>Fallback Title</title></head>
+          <body>
+            <nav>Global nav</nav>
+            <article>
+              <h1>Article Title</h1>
+              <p>Hello <a href="https://example.com/ref">reference</a>.</p>
+              <ul><li>First</li><li>Second</li></ul>
+              <script>window.noise = true;</script>
+            </article>
+            <aside>Related links</aside>
+          </body>
+        </html>`,
+    });
+
+    const out = await fetchUrlViaBrowser('https://example.com/original');
+
+    expect(out).toMatchObject({
+      source: 'browser',
+      url: 'https://example.com/final',
+      title: 'Fallback Title',
+    });
+    expect(out.content).toContain('# Article Title');
+    expect(out.content).toContain(
+        'Hello [reference](https://example.com/ref).');
+    expect(out.content).toContain('- First');
+    expect(out.content).toContain('- Second');
+    expect(out.content).not.toContain('Global nav');
+    expect(out.content).not.toContain('Related links');
+    expect(out.content).not.toContain('window.noise');
+  });
+
+  it('returns no-content when the cleaned body has no readable text',
+     async () => {
+    mockedFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: `
+        <html>
+          <head><title>Empty</title></head>
+          <body>
+            <nav>Navigation</nav>
+            <script>console.log('noise')</script>
+            <style>body { color: red; }</style>
+          </body>
+        </html>`,
+    });
+
+    const out = await fetchUrlViaBrowser('https://example.com/empty');
+
+    expect(out).toMatchObject({
+      source: 'failed',
+      url: 'https://example.com/empty',
+      title: 'Empty',
+      content: '',
+      error: 'no-content',
+    });
+  });
+
+  it('requests same-origin active-tab credentials only when asked',
+     async () => {
+    mockedFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: '<html><body><main><p>Private page</p></main></body></html>',
+    });
+
+    await fetchUrlViaBrowser('https://example.com/private', {
+      includeCredentialsIfSameOriginActiveTab: true,
+    });
+    await fetchUrlViaBrowser('https://example.com/public');
+
+    expect((mockedFetch.mock.calls[0] as unknown[])[1])
+      .toMatchObject({credentials: 'include_if_same_origin_active_tab'});
+    expect((mockedFetch.mock.calls[1] as unknown[])[1])
+      .toMatchObject({credentials: 'omit'});
   });
 });

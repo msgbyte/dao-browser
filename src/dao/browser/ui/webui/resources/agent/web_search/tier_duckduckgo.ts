@@ -49,7 +49,7 @@ export function parseDuckDuckGoHtml(
     try {
       const u = new URL(url, 'https://duckduckgo.com');
       const real = u.searchParams.get('uddg');
-      if (real) url = decodeURIComponent(real);
+      if (real) url = real;
       else url = u.toString();
     } catch { /* keep as-is */ }
 
