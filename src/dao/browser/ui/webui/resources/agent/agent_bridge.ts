@@ -70,6 +70,20 @@ export interface ScenarioData {
   confidence: number;
 }
 
+export interface ProactiveSuggestionData {
+  episodeId: number;
+  text: string;
+  confidence: number;
+  type: string;
+  actionType: number;
+  scenarioId: string;
+  scenarioName: string;
+  actionLabel: string;
+  actionPrompt: string;
+  requiresPageContent: boolean;
+  tabId: number;
+}
+
 // ---- UI Message (for rendering) ----
 
 export interface UIMessage {
@@ -128,6 +142,15 @@ const webUiListenerMap:
 export function addWebUIListener(
     event: string, callback: (...args: unknown[]) => void): void {
   (webUiListenerMap[event] = webUiListenerMap[event] || []).push(callback);
+}
+
+export function removeWebUIListener(
+    event: string, callback: (...args: unknown[]) => void): void {
+  const listeners = webUiListenerMap[event];
+  if (!listeners) return;
+  const index = listeners.indexOf(callback);
+  if (index >= 0) listeners.splice(index, 1);
+  if (listeners.length === 0) delete webUiListenerMap[event];
 }
 
 export function callNative(

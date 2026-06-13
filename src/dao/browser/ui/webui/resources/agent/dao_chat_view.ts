@@ -22,13 +22,13 @@
 
 import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, soulChannel} from './agent_bridge.js';
+import {addWebUIListener, BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, removeWebUIListener, soulChannel, type ProactiveSuggestionData} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {addReusableElementContext, buildElementContextAttachment, consumeReusableElementContexts, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
 import {buildMemoryContextAttachment, type NativeMemoryContext} from './dao_memory_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
-import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type SelectionCapture} from './dao_page_capture.js';
+import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type PiAttachment, type SelectionCapture} from './dao_page_capture.js';
 import {renderShareImage} from './dao_share_image.js';
 import {reportTelemetryEvent} from './dao_telemetry.js';
 import {lookupCostByModelId} from './llm_cost.js';
@@ -160,6 +160,30 @@ function escapeHtml(s: string): string {
       .replace(/'/g, '&#39;');
 }
 
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+}
+
+function utf8ToBase64(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(
+        null, Array.from(bytes.subarray(i, i + chunk)) as number[]);
+  }
+  return btoa(binary);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+const MAX_PROACTIVE_PAGE_CONTENT_CHARS = 12000;
+
 export class DaoChatView extends CrLitElement {
   static override get properties() {
     return {
@@ -179,6 +203,8 @@ export class DaoChatView extends CrLitElement {
       currentSessionId_: {state: true},
       dreamReport_: {state: true},
       dreamExpanded_: {type: Boolean, state: true},
+      proactiveSuggestion_: {state: true},
+      proactiveRunning_: {type: Boolean, state: true},
     };
   }
 
@@ -206,6 +232,8 @@ export class DaoChatView extends CrLitElement {
     this.messageCount_ = 0;
     this.dreamReport_ = null;
     this.dreamExpanded_ = false;
+    this.proactiveSuggestion_ = null;
+    this.proactiveRunning_ = false;
   }
   override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -217,6 +245,13 @@ export class DaoChatView extends CrLitElement {
     this.onDreamReportUpdated_ = () => void this.loadDreamReport_();
     window.addEventListener(
         'dao-dream-report-updated', this.onDreamReportUpdated_);
+    this.boundOnProactiveSuggestion_ =
+        (raw: unknown) => this.onProactiveSuggestion_(raw);
+    addWebUIListener(
+        'proactiveSuggestion', this.boundOnProactiveSuggestion_);
+    if (localStorage.getItem('dao_proactive_enabled') === 'false') {
+      callNativeArgs('setProactiveEnabled', false).catch(() => {});
+    }
   }
 
   private agent_: PiAgent | null = null;
@@ -244,6 +279,8 @@ export class DaoChatView extends CrLitElement {
   private boundOnToolConfigChanged_: (() => void) | null = null;
   private boundOnChipHint_: (() => void) | null = null;
   private boundOnVisibilityHint_: (() => void) | null = null;
+  private boundOnProactiveSuggestion_:
+      ((raw: unknown) => void) | null = null;
   declare protected messageCount_: number;
   declare protected tokenEstimate_: number;
   declare protected compacting_: boolean;
@@ -328,6 +365,8 @@ export class DaoChatView extends CrLitElement {
   declare protected dreamReport_: DreamReportData|null;
   declare protected dreamExpanded_: boolean;
   private onDreamReportUpdated_: (() => void)|null = null;
+  declare protected proactiveSuggestion_: ProactiveSuggestionData|null;
+  declare protected proactiveRunning_: boolean;
 
   override disconnectedCallback() {
     super.disconnectedCallback();
@@ -336,6 +375,11 @@ export class DaoChatView extends CrLitElement {
       window.removeEventListener(
           'dao-dream-report-updated', this.onDreamReportUpdated_);
       this.onDreamReportUpdated_ = null;
+    }
+    if (this.boundOnProactiveSuggestion_) {
+      removeWebUIListener(
+          'proactiveSuggestion', this.boundOnProactiveSuggestion_);
+      this.boundOnProactiveSuggestion_ = null;
     }
     // Unblock anything awaiting mount; safe to call when already resolved.
     this.mountReadyResolve_();
@@ -573,6 +617,79 @@ export class DaoChatView extends CrLitElement {
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+        .dao-proactive-card {
+          margin: 8px 12px 0;
+          padding: 12px;
+          border: 1px solid rgba(70, 120, 190, 0.24);
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.62);
+          color: var(--text, rgba(30, 20, 40, 0.92));
+          box-shadow: 0 1px 4px rgba(30, 20, 40, 0.08);
+          flex-shrink: 0;
+        }
+        .dao-proactive-head {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+        .dao-proactive-icon {
+          flex: 0 0 auto;
+          width: 18px;
+          height: 18px;
+          color: rgba(70, 120, 190, 0.95);
+        }
+        .dao-proactive-copy {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+          flex: 1 1 auto;
+        }
+        .dao-proactive-title {
+          font-size: 13px;
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .dao-proactive-hint {
+          font-size: 11px;
+          color: var(--text-secondary, rgba(30, 20, 40, 0.58));
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .dao-proactive-actions {
+          display: flex;
+          gap: 6px;
+          margin-top: 10px;
+        }
+        .dao-proactive-btn {
+          font: inherit;
+          font-size: 11px;
+          border-radius: 8px;
+          padding: 4px 10px;
+          cursor: pointer;
+          border: 1px solid rgba(127,127,127,0.20);
+          background: rgba(127,127,127,0.10);
+          color: var(--text-secondary, rgba(30, 20, 40, 0.70));
+        }
+        .dao-proactive-btn.primary {
+          color: white;
+          border-color: rgba(70, 120, 190, 0.92);
+          background: rgba(70, 120, 190, 0.92);
+        }
+        .dao-proactive-btn:hover:not(:disabled) {
+          background: rgba(127,127,127,0.18);
+        }
+        .dao-proactive-btn.primary:hover:not(:disabled) {
+          background: rgba(58, 102, 166, 0.96);
+        }
+        .dao-proactive-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
       </style>
       ${showBar ? html`
         <div class="dao-compact-bar ${stateClass}">
@@ -623,6 +740,7 @@ export class DaoChatView extends CrLitElement {
           </div>
         </div>` : ''}
       ${this.renderDreamCard_()}
+      ${this.renderProactiveCard_()}
       <pi-chat-panel></pi-chat-panel>
       <dao-chat-history-panel
           ?open=${this.historyOpen_}
@@ -2347,6 +2465,228 @@ export class DaoChatView extends CrLitElement {
           </button>
         </div>
       </div>`;
+  }
+
+  private normalizeProactiveSuggestion_(
+      raw: unknown): ProactiveSuggestionData|null {
+    if (!isRecord(raw)) return null;
+    const text = typeof raw['text'] === 'string' ? raw['text'] : '';
+    const scenarioName =
+        typeof raw['scenarioName'] === 'string' ? raw['scenarioName'] : '';
+    const label = (scenarioName || text).trim();
+    if (!label) return null;
+    return {
+      episodeId: typeof raw['episodeId'] === 'number' ? raw['episodeId'] : 0,
+      text: text || label,
+      confidence:
+          typeof raw['confidence'] === 'number' ? raw['confidence'] : 0,
+      type: typeof raw['type'] === 'string' ? raw['type'] : '',
+      actionType:
+          typeof raw['actionType'] === 'number' ? raw['actionType'] : 0,
+      scenarioId:
+          typeof raw['scenarioId'] === 'string' ? raw['scenarioId'] : '',
+      scenarioName,
+      actionLabel:
+          typeof raw['actionLabel'] === 'string' ? raw['actionLabel'] : '',
+      actionPrompt:
+          typeof raw['actionPrompt'] === 'string' ? raw['actionPrompt'] : '',
+      requiresPageContent: raw['requiresPageContent'] === true,
+      tabId: typeof raw['tabId'] === 'number' ? raw['tabId'] : -1,
+    };
+  }
+
+  private onProactiveSuggestion_(raw: unknown) {
+    if (localStorage.getItem('dao_proactive_enabled') === 'false') {
+      return;
+    }
+    const suggestion = this.normalizeProactiveSuggestion_(raw);
+    if (!suggestion) return;
+    this.proactiveSuggestion_ = suggestion;
+    this.proactiveRunning_ = false;
+  }
+
+  private renderProactiveCard_() {
+    const s = this.proactiveSuggestion_;
+    if (!s) return nothing;
+    const title = s.scenarioName || s.text;
+    const running = this.proactiveRunning_ || this.isStreaming_;
+    return html`
+      <div class="dao-proactive-card">
+        <div class="dao-proactive-head">
+          <svg class="dao-proactive-icon" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5A4.8 4.8 0 0 0 18 8a6 6 0 0 0-12 0c0 1.3.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"></path>
+            <path d="M9 18h6"></path>
+            <path d="M10 22h4"></path>
+          </svg>
+          <div class="dao-proactive-copy">
+            <div class="dao-proactive-title">${title}</div>
+            <div class="dao-proactive-hint">
+              ${t('chat.proactive.cost_hint')}
+            </div>
+          </div>
+        </div>
+        <div class="dao-proactive-actions">
+          <button class="dao-proactive-btn primary"
+              ?disabled=${running}
+              @click=${this.runProactiveSuggestion_}
+              aria-label=${t('chat.proactive.run_aria', {title})}>
+            ${this.proactiveRunning_
+                ? t('chat.proactive.running')
+                : t('chat.proactive.run')}
+          </button>
+          <button class="dao-proactive-btn"
+              ?disabled=${this.proactiveRunning_}
+              @click=${this.dismissProactiveSuggestion_}
+              aria-label=${t('chat.proactive.dismiss_aria', {title})}>
+            ${t('chat.proactive.dismiss')}
+          </button>
+        </div>
+      </div>`;
+  }
+
+  private async buildProactiveFeedback_(
+      suggestion: ProactiveSuggestionData): Promise<Record<string, unknown>> {
+    let url = '';
+    let domain = '';
+    try {
+      const info = await fetchCurrentPageInfo();
+      url = info?.url || '';
+      domain = url ? new URL(url).hostname : '';
+    } catch (_) { /* best effort */ }
+    return {
+      scenarioId: suggestion.scenarioId,
+      actionLabel: suggestion.actionLabel || suggestion.text,
+      domain,
+      url,
+      confidence: suggestion.confidence,
+    };
+  }
+
+  private truncateProactivePageContent_(text: string):
+      {text: string, truncated: boolean} {
+    const cleaned = text.replace(/\u0000/g, '').trim();
+    if (cleaned.length <= MAX_PROACTIVE_PAGE_CONTENT_CHARS) {
+      return {text: cleaned, truncated: false};
+    }
+    return {
+      text: cleaned.slice(0, MAX_PROACTIVE_PAGE_CONTENT_CHARS) +
+          `\n\n[Page content truncated to ${
+              MAX_PROACTIVE_PAGE_CONTENT_CHARS} characters before sending.]`,
+      truncated: true,
+    };
+  }
+
+  private buildProactivePromptAttachment_(
+      suggestion: ProactiveSuggestionData,
+      prompt: string): PiAttachment {
+    const title = suggestion.scenarioName || suggestion.text ||
+        t('chat.proactive.attachment_title');
+    const extractedText =
+        `<proactive-suggestion name="${escapeAttr(title)}"` +
+        ` scenario_id="${escapeAttr(suggestion.scenarioId)}">` +
+        `\n${prompt}\n</proactive-suggestion>`;
+    const safeName =
+        title.replace(/[\\/\n\r\t\x00-\x1f]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .slice(0, 70) || t('chat.proactive.attachment_title');
+    return {
+      id: `dao-proactive-${Date.now()}-${
+          Math.random().toString(36).slice(2)}`,
+      type: 'document',
+      fileName: `${safeName}.md`,
+      mimeType: 'text/markdown',
+      size: new TextEncoder().encode(prompt).length,
+      content: utf8ToBase64(prompt),
+      extractedText,
+    };
+  }
+
+  private async buildProactivePayload_(
+      suggestion: ProactiveSuggestionData):
+      Promise<{text: string, attachments: PiAttachment[]}> {
+    const title = suggestion.scenarioName || suggestion.text;
+    if (!suggestion.actionPrompt) {
+      return {
+        text: suggestion.text || t('chat.proactive.default_user_prompt'),
+        attachments: [],
+      };
+    }
+
+    let prompt = suggestion.actionPrompt;
+    if (suggestion.requiresPageContent) {
+      const raw = await callNativeArgs(
+          'getPageContentForScenario', suggestion.tabId) as
+          {text?: string, error?: string};
+      if (!raw || raw.error || !raw.text) {
+        throw new Error(raw?.error || 'page content unavailable');
+      }
+      const page = this.truncateProactivePageContent_(raw.text);
+      prompt = prompt.replaceAll('{page_content}', page.text);
+    } else {
+      prompt = prompt.replaceAll('{page_content}', '');
+    }
+
+    return {
+      text: t('chat.proactive.user_prompt', {title}),
+      attachments: [this.buildProactivePromptAttachment_(suggestion, prompt)],
+    };
+  }
+
+  private async dismissProactiveSuggestion_() {
+    const suggestion = this.proactiveSuggestion_;
+    if (!suggestion) return;
+    this.proactiveSuggestion_ = null;
+    try {
+      if (suggestion.scenarioId) {
+        await callNativeArgs(
+            'dismissSuggestion',
+            await this.buildProactiveFeedback_(suggestion));
+      } else if (suggestion.episodeId) {
+        await callNativeArgs('dismissSuggestion', suggestion.episodeId);
+      }
+    } catch (e) {
+      console.warn('[dao-agent] dismiss proactive suggestion failed', e);
+    }
+  }
+
+  private async runProactiveSuggestion_() {
+    const suggestion = this.proactiveSuggestion_;
+    if (!suggestion || this.proactiveRunning_) return;
+    if (this.isStreaming_) {
+      this.showToast_(t('chat.toast.wait_for_turn'));
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iface = this.panel_?.querySelector('agent-interface') as any;
+    if (!iface || typeof iface.sendMessage !== 'function') {
+      return;
+    }
+
+    this.proactiveRunning_ = true;
+    try {
+      const payload = await this.buildProactivePayload_(suggestion);
+      if (suggestion.scenarioId) {
+        await callNativeArgs(
+            'acceptSuggestion',
+            await this.buildProactiveFeedback_(suggestion));
+      } else if (suggestion.episodeId) {
+        await callNativeArgs('acceptSuggestion', suggestion.episodeId);
+      }
+      this.proactiveSuggestion_ = null;
+      // The proactive payload already carries its deliberate context. Skip
+      // automatic page / selection / memory attachment for this turn so a
+      // click never sends duplicate page text.
+      this.suppressChipAttachOnce_ = true;
+      await iface.sendMessage(payload.text, payload.attachments);
+    } catch (e) {
+      console.warn('[dao-agent] proactive suggestion failed', e);
+      this.showToast_(t('chat.proactive.failed'));
+    } finally {
+      this.proactiveRunning_ = false;
+    }
   }
 
   private renderSkillPicker_() {

@@ -42,6 +42,18 @@ const dict: Dictionary = {
   'chat.attach.element.pick_cancelled': 'Element picking cancelled',
   'chat.attach.element.pick_failed': 'Element picking failed',
 
+  // Proactive suggestion card. Detection is local; AI runs only after Run.
+  'chat.proactive.cost_hint': 'No AI is used until you click Run.',
+  'chat.proactive.run': 'Run',
+  'chat.proactive.running': 'Starting…',
+  'chat.proactive.dismiss': 'Dismiss',
+  'chat.proactive.run_aria': 'Run suggestion: {title}',
+  'chat.proactive.dismiss_aria': 'Dismiss suggestion: {title}',
+  'chat.proactive.failed': 'Could not start this suggestion',
+  'chat.proactive.user_prompt': 'Run suggestion: {title}',
+  'chat.proactive.default_user_prompt': 'Help me with this page.',
+  'chat.proactive.attachment_title': 'Proactive suggestion',
+
   // Per-message action buttons (Copy / Share-as-image / Regenerate).
   'chat.message_actions.copy_tooltip': 'Copy answer text',
   'chat.message_actions.share_tooltip': 'Copy as image',
