@@ -5,13 +5,14 @@
 #include "dao/browser/agent/dao_dream_service.h"
 
 #include <algorithm>
-#include <cstdio>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
@@ -33,8 +34,12 @@ std::string FormatYmd(base::Time t) {
 
 // Parses "YYYY-MM-DD" into local midnight. Returns false on bad input.
 bool ParseYmd(const std::string& ymd, base::Time* out) {
+  std::vector<std::string_view> parts =
+      base::SplitStringPiece(ymd, "-", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   int y = 0, m = 0, d = 0;
-  if (sscanf(ymd.c_str(), "%d-%d-%d", &y, &m, &d) != 3) {
+  if (parts.size() != 3 || !base::StringToInt(parts[0], &y) ||
+      !base::StringToInt(parts[1], &m) ||
+      !base::StringToInt(parts[2], &d)) {
     return false;
   }
   base::Time::Exploded e = {};
