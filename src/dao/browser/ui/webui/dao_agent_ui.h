@@ -41,11 +41,34 @@ namespace dao {
 class DaoAgentMemoryService;
 class DaoAgentSkillService;
 class DaoAgentUI;
+class DaoIndexUI;
 class DaoAgentWorkspaceService;
 
 // Serializes native memory context into the object returned to the Agent WebUI.
 base::DictValue SerializeMemoryContextForAgentUi(
     const MemoryContext& context);
+
+// WebUI config for dao://index
+class DaoIndexUIConfig : public content::WebUIConfig {
+ public:
+  DaoIndexUIConfig();
+
+  // content::WebUIConfig:
+  std::unique_ptr<content::WebUIController> CreateWebUIController(
+      content::WebUI* web_ui,
+      const GURL& url) override;
+};
+
+// WebUI config for chrome://memory
+class DaoMemoryUIConfig : public content::WebUIConfig {
+ public:
+  DaoMemoryUIConfig();
+
+  // content::WebUIConfig:
+  std::unique_ptr<content::WebUIController> CreateWebUIController(
+      content::WebUI* web_ui,
+      const GURL& url) override;
+};
 
 // WebUI config for chrome://dream
 class DaoDreamUIConfig : public content::WebUIConfig {
@@ -419,6 +442,24 @@ class DaoDreamReportHandler : public content::WebUIMessageHandler {
   base::WeakPtrFactory<DaoDreamReportHandler> weak_factory_{this};
 };
 
+// Debug SQL browser handler for dao://memory.
+class DaoMemoryBrowserHandler : public content::WebUIMessageHandler {
+ public:
+  DaoMemoryBrowserHandler();
+  ~DaoMemoryBrowserHandler() override;
+
+  // content::WebUIMessageHandler:
+  void RegisterMessages() override;
+
+ private:
+  DaoAgentMemoryService* GetMemoryService();
+
+  void HandleGetTables(const base::ListValue& args);
+  void HandleExecuteSql(const base::ListValue& args);
+
+  base::WeakPtrFactory<DaoMemoryBrowserHandler> weak_factory_{this};
+};
+
 // WebUI message handler for the Dream Analysis system. Registers itself
 // as the DaoDreamService runner so the resident agent WebUI executes the
 // LLM summarization for nightly dream runs.
@@ -506,11 +547,25 @@ class DaoAgentWorkspaceHandler : public content::WebUIMessageHandler {
   base::WeakPtrFactory<DaoAgentWorkspaceHandler> weak_factory_{this};
 };
 
+// WebUI controller for dao://index
+class DaoIndexUI : public content::WebUIController {
+ public:
+  explicit DaoIndexUI(content::WebUI* web_ui);
+  ~DaoIndexUI() override;
+};
+
 // WebUI controller for chrome://dream
 class DaoDreamUI : public content::WebUIController {
  public:
   explicit DaoDreamUI(content::WebUI* web_ui);
   ~DaoDreamUI() override;
+};
+
+// WebUI controller for chrome://memory
+class DaoMemoryUI : public content::WebUIController {
+ public:
+  explicit DaoMemoryUI(content::WebUI* web_ui);
+  ~DaoMemoryUI() override;
 };
 
 // WebUI controller for chrome://agent

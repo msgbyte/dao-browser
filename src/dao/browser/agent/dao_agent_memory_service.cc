@@ -419,6 +419,21 @@ void DaoAgentMemoryService::GetStorageStats(
       std::move(callback));
 }
 
+void DaoAgentMemoryService::ExecuteReadOnlySqlForDebug(
+    const std::string& sql,
+    int max_rows,
+    base::OnceCallback<void(MemorySqlQueryResult)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string query, int limit) {
+            return store->ExecuteReadOnlySqlForDebug(query, limit);
+          },
+          store_.get(), sql, max_rows),
+      std::move(callback));
+}
+
 // --- Memory Context ---
 
 void DaoAgentMemoryService::GetMemoryContext(

@@ -1,0 +1,21 @@
+diff --git a/sql/statement.cc b/sql/statement.cc
+--- a/sql/statement.cc
++++ b/sql/statement.cc
+@@ -482,6 +482,17 @@ int Statement::ColumnCount() const {
+   return sqlite3_column_count(ref_->stmt());
+ }
+ 
++std::string Statement::ColumnName(int column_index) const {
++  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++
++  if (!is_valid() || column_index < 0 || column_index >= ColumnCount()) {
++    return std::string();
++  }
++
++  const char* name = sqlite3_column_name(ref_->stmt(), column_index);
++  return name ? std::string(name) : std::string();
++}
++
+ // Verify that our enum matches sqlite's values.
+ static_assert(static_cast<int>(ColumnType::kInteger) == SQLITE_INTEGER,
+               "INTEGER mismatch");

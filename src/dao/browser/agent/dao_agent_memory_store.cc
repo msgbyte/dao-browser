@@ -5,11 +5,17 @@
 #include "dao/browser/agent/dao_agent_memory_store.h"
 
 #include <algorithm>
+#include <cctype>
+#include <optional>
+#include <set>
 #include <string_view>
 #include <tuple>
 
 #include "base/logging.h"
+#include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "sql/database.h"
 #include "sql/meta_table.h"
 #include "sql/statement.h"
@@ -48,6 +54,291 @@ DreamReport DreamReportFromStatement(sql::Statement& stmt) {
   }
   r.created_at = TimeFromInt(stmt.ColumnInt64(10));
   return r;
+}
+
+MemorySqlQueryResult ErrorResult(std::string error) {
+  MemorySqlQueryResult result;
+  result.ok = false;
+  result.error = std::move(error);
+  return result;
+}
+
+std::string TrimSql(const std::string& sql) {
+  return std::string(base::TrimWhitespaceASCII(sql, base::TRIM_ALL));
+}
+
+bool IsIdentChar(char c) {
+  return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+std::vector<std::string> SqlTokensOutsideStringsAndComments(
+    std::string_view sql) {
+  std::vector<std::string> tokens;
+  std::string token;
+  bool in_single_quote = false;
+  bool in_double_quote = false;
+  bool in_line_comment = false;
+  bool in_block_comment = false;
+
+  auto flush_token = [&]() {
+    if (!token.empty()) {
+      tokens.push_back(base::ToLowerASCII(token));
+      token.clear();
+    }
+  };
+
+  for (size_t i = 0; i < sql.size(); ++i) {
+    const char c = sql[i];
+    const char next = i + 1 < sql.size() ? sql[i + 1] : '\0';
+
+    if (in_line_comment) {
+      if (c == '\n' || c == '\r') {
+        in_line_comment = false;
+      }
+      continue;
+    }
+
+    if (in_block_comment) {
+      if (c == '*' && next == '/') {
+        in_block_comment = false;
+        ++i;
+      }
+      continue;
+    }
+
+    if (in_single_quote) {
+      if (c == '\'' && next == '\'') {
+        ++i;
+      } else if (c == '\'') {
+        in_single_quote = false;
+      }
+      continue;
+    }
+
+    if (in_double_quote) {
+      if (c == '"' && next == '"') {
+        ++i;
+      } else if (c == '"') {
+        in_double_quote = false;
+      }
+      continue;
+    }
+
+    if (c == '-' && next == '-') {
+      flush_token();
+      in_line_comment = true;
+      ++i;
+      continue;
+    }
+    if (c == '/' && next == '*') {
+      flush_token();
+      in_block_comment = true;
+      ++i;
+      continue;
+    }
+    if (c == '\'') {
+      flush_token();
+      in_single_quote = true;
+      continue;
+    }
+    if (c == '"') {
+      flush_token();
+      in_double_quote = true;
+      continue;
+    }
+
+    if (IsIdentChar(c)) {
+      token.push_back(c);
+    } else {
+      flush_token();
+    }
+  }
+  flush_token();
+  return tokens;
+}
+
+bool TrimToSingleStatement(std::string* sql, std::string* error) {
+  bool in_single_quote = false;
+  bool in_double_quote = false;
+  bool in_line_comment = false;
+  bool in_block_comment = false;
+
+  for (size_t i = 0; i < sql->size(); ++i) {
+    const char c = (*sql)[i];
+    const char next = i + 1 < sql->size() ? (*sql)[i + 1] : '\0';
+
+    if (in_line_comment) {
+      if (c == '\n' || c == '\r') {
+        in_line_comment = false;
+      }
+      continue;
+    }
+
+    if (in_block_comment) {
+      if (c == '*' && next == '/') {
+        in_block_comment = false;
+        ++i;
+      }
+      continue;
+    }
+
+    if (in_single_quote) {
+      if (c == '\'' && next == '\'') {
+        ++i;
+      } else if (c == '\'') {
+        in_single_quote = false;
+      }
+      continue;
+    }
+
+    if (in_double_quote) {
+      if (c == '"' && next == '"') {
+        ++i;
+      } else if (c == '"') {
+        in_double_quote = false;
+      }
+      continue;
+    }
+
+    if (c == '-' && next == '-') {
+      in_line_comment = true;
+      ++i;
+      continue;
+    }
+    if (c == '/' && next == '*') {
+      in_block_comment = true;
+      ++i;
+      continue;
+    }
+    if (c == '\'') {
+      in_single_quote = true;
+      continue;
+    }
+    if (c == '"') {
+      in_double_quote = true;
+      continue;
+    }
+
+    if (c == ';') {
+      const std::string rest =
+          std::string(base::TrimWhitespaceASCII(sql->substr(i + 1),
+                                                base::TRIM_ALL));
+      if (!rest.empty()) {
+        *error = "Only a single SQL statement can be executed";
+        return false;
+      }
+      *sql = TrimSql(sql->substr(0, i));
+      return true;
+    }
+  }
+
+  if (in_single_quote || in_double_quote || in_block_comment) {
+    *error = "SQL statement is incomplete";
+    return false;
+  }
+  return true;
+}
+
+bool IsSafePragma(const std::vector<std::string>& tokens) {
+  if (tokens.size() < 2 || tokens[0] != "pragma") {
+    return false;
+  }
+
+  static const base::NoDestructor<std::set<std::string>> kAllowedPragmas({
+      "database_list",
+      "foreign_key_list",
+      "index_info",
+      "index_list",
+      "index_xinfo",
+      "table_info",
+      "table_list",
+      "table_xinfo",
+  });
+  return kAllowedPragmas->contains(tokens[1]);
+}
+
+std::optional<std::string> ValidateDebugReadOnlySql(std::string* sql) {
+  *sql = TrimSql(*sql);
+  if (sql->empty()) {
+    return "Enter a SQL statement";
+  }
+
+  std::string error;
+  if (!TrimToSingleStatement(sql, &error)) {
+    return error;
+  }
+  if (sql->empty()) {
+    return "Enter a SQL statement";
+  }
+
+  const std::vector<std::string> tokens =
+      SqlTokensOutsideStringsAndComments(*sql);
+  if (tokens.empty()) {
+    return "Enter a SQL statement";
+  }
+
+  static const base::NoDestructor<std::set<std::string>> kForbiddenTokens({
+      "alter",       "analyze",  "attach",  "begin",   "commit",
+      "create",      "delete",   "detach",  "drop",    "insert",
+      "load_extension", "reindex", "release", "replace", "rollback",
+      "savepoint",   "update",   "vacuum",
+  });
+  for (const std::string& token : tokens) {
+    if (kForbiddenTokens->contains(token)) {
+      return "Only read-only SELECT/WITH queries and safe PRAGMA statements "
+             "are allowed";
+    }
+  }
+
+  if (tokens[0] == "select" || tokens[0] == "with") {
+    return std::nullopt;
+  }
+
+  if (tokens[0] == "pragma" && IsSafePragma(tokens)) {
+    return std::nullopt;
+  }
+
+  return "Only read-only SELECT/WITH queries and safe PRAGMA statements are "
+         "allowed";
+}
+
+std::string ColumnTypeToString(sql::ColumnType type) {
+  switch (type) {
+    case sql::ColumnType::kInteger:
+      return "integer";
+    case sql::ColumnType::kFloat:
+      return "real";
+    case sql::ColumnType::kText:
+      return "text";
+    case sql::ColumnType::kBlob:
+      return "blob";
+    case sql::ColumnType::kNull:
+      return "null";
+  }
+}
+
+MemorySqlCell CellFromStatement(sql::Statement& stmt, int column) {
+  MemorySqlCell cell;
+  const sql::ColumnType type = stmt.GetColumnType(column);
+  cell.type = ColumnTypeToString(type);
+  switch (type) {
+    case sql::ColumnType::kInteger:
+      cell.value = base::NumberToString(stmt.ColumnInt64(column));
+      break;
+    case sql::ColumnType::kFloat:
+      cell.value = base::NumberToString(stmt.ColumnDouble(column));
+      break;
+    case sql::ColumnType::kText:
+      cell.value = stmt.ColumnString(column);
+      break;
+    case sql::ColumnType::kBlob:
+      cell.value = base::HexEncode(stmt.ColumnBlob(column));
+      break;
+    case sql::ColumnType::kNull:
+      cell.value.clear();
+      break;
+  }
+  return cell;
 }
 
 }  // namespace
@@ -897,6 +1188,62 @@ StorageStats DaoAgentMemoryStore::GetStorageStats() {
     }
   }
   return stats;
+}
+
+MemorySqlQueryResult DaoAgentMemoryStore::ExecuteReadOnlySqlForDebug(
+    const std::string& sql,
+    int max_rows) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!db_ || !db_->is_open()) {
+    return ErrorResult("Memory database is not open");
+  }
+
+  std::string normalized_sql = sql;
+  if (std::optional<std::string> error =
+          ValidateDebugReadOnlySql(&normalized_sql)) {
+    return ErrorResult(*error);
+  }
+
+  max_rows = std::clamp(max_rows, 1, 500);
+
+  sql::Statement stmt(db_->GetReadonlyStatement(normalized_sql));
+  if (!stmt.is_valid()) {
+    return ErrorResult("SQL is not read-only or could not be prepared");
+  }
+
+  MemorySqlQueryResult result;
+  result.ok = true;
+
+  const int column_count = stmt.ColumnCount();
+  result.columns.reserve(column_count);
+  for (int column = 0; column < column_count; ++column) {
+    std::string name = stmt.ColumnName(column);
+    if (name.empty()) {
+      name = base::StrCat({"column_", base::NumberToString(column + 1)});
+    }
+    result.columns.push_back(std::move(name));
+  }
+
+  while (stmt.Step()) {
+    if (static_cast<int>(result.rows.size()) >= max_rows) {
+      result.truncated = true;
+      break;
+    }
+
+    std::vector<MemorySqlCell> row;
+    row.reserve(column_count);
+    for (int column = 0; column < column_count; ++column) {
+      row.push_back(CellFromStatement(stmt, column));
+    }
+    result.rows.push_back(std::move(row));
+  }
+
+  if (!stmt.Succeeded()) {
+    return ErrorResult("SQL execution failed");
+  }
+
+  return result;
 }
 
 bool DaoAgentMemoryStore::EnforceRowLimits() {

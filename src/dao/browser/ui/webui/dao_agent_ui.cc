@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/webui/dao_agent_ui.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/json/json_reader.h"
@@ -117,6 +118,35 @@ base::ListValue DreamReportsToList(const std::vector<DreamReport>& reports) {
     list.Append(DreamReportToDict(report));
   }
   return list;
+}
+
+base::DictValue MemorySqlQueryResultToDict(
+    const MemorySqlQueryResult& result) {
+  base::DictValue dict;
+  dict.Set("ok", result.ok);
+  dict.Set("error", result.error);
+  dict.Set("truncated", result.truncated);
+
+  base::ListValue columns;
+  for (const std::string& column : result.columns) {
+    columns.Append(column);
+  }
+  dict.Set("columns", std::move(columns));
+
+  base::ListValue rows;
+  for (const auto& source_row : result.rows) {
+    base::ListValue row;
+    for (const MemorySqlCell& source_cell : source_row) {
+      base::DictValue cell;
+      cell.Set("type", source_cell.type);
+      cell.Set("value", source_cell.value);
+      row.Append(std::move(cell));
+    }
+    rows.Append(std::move(row));
+  }
+  dict.Set("rows", std::move(rows));
+
+  return dict;
 }
 
 // JS to inject highlight infrastructure into a page.
@@ -4040,6 +4070,103 @@ void DaoDreamReportHandler::HandleMarkDreamReportViewed(
                             base::Value(true));
 }
 
+// ---- DaoMemoryBrowserHandler ----
+
+DaoMemoryBrowserHandler::DaoMemoryBrowserHandler() = default;
+
+DaoMemoryBrowserHandler::~DaoMemoryBrowserHandler() = default;
+
+DaoAgentMemoryService* DaoMemoryBrowserHandler::GetMemoryService() {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  return DaoAgentMemoryServiceFactory::GetForProfile(profile);
+}
+
+void DaoMemoryBrowserHandler::RegisterMessages() {
+  web_ui()->RegisterMessageCallback(
+      "memoryGetTables",
+      base::BindRepeating(&DaoMemoryBrowserHandler::HandleGetTables,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "memoryExecuteSql",
+      base::BindRepeating(&DaoMemoryBrowserHandler::HandleExecuteSql,
+                          base::Unretained(this)));
+}
+
+void DaoMemoryBrowserHandler::HandleGetTables(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+
+  const std::string callback_id = args[0].GetString();
+  DaoAgentMemoryService* service = GetMemoryService();
+  if (!service) {
+    MemorySqlQueryResult result;
+    result.error = "Agent memory is disabled";
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              MemorySqlQueryResultToDict(result));
+    return;
+  }
+
+  service->ExecuteReadOnlySqlForDebug(
+      "SELECT name, type FROM sqlite_schema "
+      "WHERE type IN ('table', 'view') "
+      "AND name NOT LIKE 'sqlite_%' "
+      "ORDER BY type, name",
+      200,
+      base::BindOnce(
+          [](base::WeakPtr<DaoMemoryBrowserHandler> self,
+             std::string callback_id, MemorySqlQueryResult result) {
+            if (!self) {
+              return;
+            }
+            self->ResolveJavascriptCallback(base::Value(callback_id),
+                                            MemorySqlQueryResultToDict(result));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoMemoryBrowserHandler::HandleExecuteSql(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+
+  const std::string callback_id = args[0].GetString();
+  std::string sql;
+  int max_rows = 100;
+  if (args.size() >= 2 && args[1].is_dict()) {
+    const base::DictValue& params = args[1].GetDict();
+    if (const std::string* s = params.FindString("sql")) {
+      sql = *s;
+    }
+    max_rows = params.FindInt("maxRows").value_or(max_rows);
+  }
+  max_rows = std::clamp(max_rows, 1, 500);
+
+  DaoAgentMemoryService* service = GetMemoryService();
+  if (!service) {
+    MemorySqlQueryResult result;
+    result.error = "Agent memory is disabled";
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              MemorySqlQueryResultToDict(result));
+    return;
+  }
+
+  service->ExecuteReadOnlySqlForDebug(
+      sql, max_rows,
+      base::BindOnce(
+          [](base::WeakPtr<DaoMemoryBrowserHandler> self,
+             std::string callback_id, MemorySqlQueryResult result) {
+            if (!self) {
+              return;
+            }
+            self->ResolveJavascriptCallback(base::Value(callback_id),
+                                            MemorySqlQueryResultToDict(result));
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
 // ---- DaoAgentDreamHandler ----
 
 DaoAgentDreamHandler::DaoAgentDreamHandler() = default;
@@ -4899,6 +5026,70 @@ void DaoAgentWorkspaceHandler::HandleWorkspaceGetInfo(
       },
       weak_factory_.GetWeakPtr(), cb_id));
 }
+
+// ---- DaoIndexUIConfig ----
+
+DaoIndexUIConfig::DaoIndexUIConfig()
+    : WebUIConfig(content::kChromeUIScheme, "index") {}
+
+std::unique_ptr<content::WebUIController>
+DaoIndexUIConfig::CreateWebUIController(content::WebUI* web_ui,
+                                        const GURL& url) {
+  return std::make_unique<DaoIndexUI>(web_ui);
+}
+
+// ---- DaoIndexUI ----
+
+DaoIndexUI::DaoIndexUI(content::WebUI* web_ui)
+    : WebUIController(web_ui) {
+  Profile* profile = Profile::FromWebUI(web_ui);
+  content::WebUIDataSource* source =
+      content::WebUIDataSource::CreateAndAdd(profile, "index");
+
+  source->AddResourcePaths(kDaoAgentResources);
+  source->SetDefaultResource(IDR_DAO_AGENT_INDEX_HTML);
+
+  source->AddString("dao_app_locale",
+                    g_browser_process->GetApplicationLocale());
+  source->UseStringsJs();
+
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::TrustedTypes,
+      "trusted-types default lit-html-desktop lit-html;");
+}
+
+DaoIndexUI::~DaoIndexUI() = default;
+
+// ---- DaoMemoryUIConfig ----
+
+DaoMemoryUIConfig::DaoMemoryUIConfig()
+    : WebUIConfig(content::kChromeUIScheme, "memory") {}
+
+std::unique_ptr<content::WebUIController>
+DaoMemoryUIConfig::CreateWebUIController(content::WebUI* web_ui,
+                                         const GURL& url) {
+  return std::make_unique<DaoMemoryUI>(web_ui);
+}
+
+// ---- DaoMemoryUI ----
+
+DaoMemoryUI::DaoMemoryUI(content::WebUI* web_ui)
+    : WebUIController(web_ui) {
+  Profile* profile = Profile::FromWebUI(web_ui);
+  content::WebUIDataSource* source =
+      content::WebUIDataSource::CreateAndAdd(profile, "memory");
+
+  source->AddResourcePaths(kDaoAgentResources);
+  source->SetDefaultResource(IDR_DAO_AGENT_MEMORY_HTML);
+
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::TrustedTypes,
+      "trusted-types default lit-html-desktop lit-html;");
+
+  web_ui->AddMessageHandler(std::make_unique<DaoMemoryBrowserHandler>());
+}
+
+DaoMemoryUI::~DaoMemoryUI() = default;
 
 // ---- DaoDreamUIConfig ----
 

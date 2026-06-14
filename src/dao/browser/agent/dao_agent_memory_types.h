@@ -147,6 +147,33 @@ struct StorageStats {
   int preference_count = 0;
 };
 
+struct MemorySqlCell {
+  MemorySqlCell();
+  ~MemorySqlCell();
+  MemorySqlCell(const MemorySqlCell&);
+  MemorySqlCell& operator=(const MemorySqlCell&);
+  MemorySqlCell(MemorySqlCell&&);
+  MemorySqlCell& operator=(MemorySqlCell&&);
+
+  std::string type;  // "integer", "real", "text", "blob", or "null"
+  std::string value;
+};
+
+struct MemorySqlQueryResult {
+  MemorySqlQueryResult();
+  ~MemorySqlQueryResult();
+  MemorySqlQueryResult(const MemorySqlQueryResult&);
+  MemorySqlQueryResult& operator=(const MemorySqlQueryResult&);
+  MemorySqlQueryResult(MemorySqlQueryResult&&);
+  MemorySqlQueryResult& operator=(MemorySqlQueryResult&&);
+
+  bool ok = false;
+  std::string error;
+  std::vector<std::string> columns;
+  std::vector<std::vector<MemorySqlCell>> rows;
+  bool truncated = false;
+};
+
 // One Dream Analysis run's archived output (see DaoDreamService).
 struct DreamReport {
   DreamReport();

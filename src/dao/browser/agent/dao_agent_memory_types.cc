@@ -54,6 +54,23 @@ Episode& Episode::operator=(const Episode&) = default;
 Episode::Episode(Episode&&) = default;
 Episode& Episode::operator=(Episode&&) = default;
 
+MemorySqlCell::MemorySqlCell() = default;
+MemorySqlCell::~MemorySqlCell() = default;
+MemorySqlCell::MemorySqlCell(const MemorySqlCell&) = default;
+MemorySqlCell& MemorySqlCell::operator=(const MemorySqlCell&) = default;
+MemorySqlCell::MemorySqlCell(MemorySqlCell&&) = default;
+MemorySqlCell& MemorySqlCell::operator=(MemorySqlCell&&) = default;
+
+MemorySqlQueryResult::MemorySqlQueryResult() = default;
+MemorySqlQueryResult::~MemorySqlQueryResult() = default;
+MemorySqlQueryResult::MemorySqlQueryResult(const MemorySqlQueryResult&) =
+    default;
+MemorySqlQueryResult& MemorySqlQueryResult::operator=(
+    const MemorySqlQueryResult&) = default;
+MemorySqlQueryResult::MemorySqlQueryResult(MemorySqlQueryResult&&) = default;
+MemorySqlQueryResult& MemorySqlQueryResult::operator=(MemorySqlQueryResult&&) =
+    default;
+
 ProactiveSuggestion::ProactiveSuggestion() = default;
 ProactiveSuggestion::~ProactiveSuggestion() = default;
 ProactiveSuggestion::ProactiveSuggestion(const ProactiveSuggestion&) = default;

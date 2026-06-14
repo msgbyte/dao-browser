@@ -1,0 +1,14 @@
+diff --git a/sql/statement.h b/sql/statement.h
+--- a/sql/statement.h
++++ b/sql/statement.h
+@@ -176,6 +176,10 @@ class COMPONENT_EXPORT(SQL) Statement {
+   // Returns the number of output columns in the result.
+   int ColumnCount() const;
+ 
++  // Returns the name SQLite assigned to an output column. Returns an empty
++  // string for invalid statements or invalid indexes.
++  std::string ColumnName(int column_index) const;
++
+   // Returns the type associated with the given column.
+   //
+   // Watch out: the type may be undefined if you've done something to cause a

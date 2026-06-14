@@ -90,6 +90,11 @@ class DaoAgentMemoryStore {
   // Stats
   StorageStats GetStorageStats();
 
+  // Debug SQL browser. Executes one read-only SELECT/WITH statement or a
+  // small allowlisted read-only PRAGMA and returns display-ready cells.
+  MemorySqlQueryResult ExecuteReadOnlySqlForDebug(const std::string& sql,
+                                                  int max_rows);
+
   // Dream reports (no FTS — plain queries only)
   bool SaveDreamReport(const DreamReport& report);  // upsert by dream_date
   std::optional<DreamReport> GetDreamReportByDate(const std::string& date);

@@ -123,6 +123,12 @@ class DaoAgentMemoryService : public KeyedService {
   // Stats
   void GetStorageStats(base::OnceCallback<void(StorageStats)> callback);
 
+  // Debug SQL browser.
+  void ExecuteReadOnlySqlForDebug(
+      const std::string& sql,
+      int max_rows,
+      base::OnceCallback<void(MemorySqlQueryResult)> callback);
+
   // Dream reports
   void SaveDreamReport(DreamReport report,
                        base::OnceCallback<void(bool)> callback);

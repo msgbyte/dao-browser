@@ -1528,6 +1528,12 @@ bool DaoCommandBarView::LooksLikeURL(const std::u16string& text) {
     return true;
   }
 
+  // Dao WebUI pages are entered through the Dao command bar, not Chromium's
+  // native omnibox, so the local URL heuristic must recognize them directly.
+  if (s.find("dao://") == 0 || s.find("chrome://") == 0) {
+    return true;
+  }
+
   // Is localhost (with optional port)
   if (s.find("localhost") == 0) {
     return true;

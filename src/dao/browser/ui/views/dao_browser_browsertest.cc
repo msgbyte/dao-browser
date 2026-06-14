@@ -1314,6 +1314,12 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLWithHTTPS) {
   EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"http://example.com"));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLWithInternalScheme) {
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"dao://index"));
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"dao://memory"));
+  EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"chrome://version"));
+}
+
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLWithDot) {
   EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"example.com"));
   EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"github.com/user/repo"));
