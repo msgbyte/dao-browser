@@ -11,12 +11,15 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/sys_string_conversions.h"
+#include "dao/browser/updater/dao_sparkle_update_session_state.h"
 
-@interface DaoSparkleUpdaterDelegate : NSObject <SPUUpdaterDelegate> {
+@interface DaoSparkleUpdaterDelegate
+    : NSObject <SPUUpdaterDelegate, SPUStandardUserDriverDelegate> {
  @private
   dao::DaoSparkleUpdaterMac::ReadyToInstallCallback ready_to_install_callback_;
   dao::DaoSparkleUpdaterMac::UpdateSessionFinishedCallback
       update_session_finished_callback_;
+  dao::DaoSparkleUpdateSessionState update_session_state_;
 }
 
 - (instancetype)initWithReadyToInstallCallback:
@@ -49,6 +52,10 @@
     immediateInstallationBlock:(void (^)(void))immediateInstallHandler {
   (void)updater;
 
+  if (!update_session_state_.ShouldDaoHandleInstallOnQuit()) {
+    return NO;
+  }
+
   void (^install_block)(void) = [immediateInstallHandler copy];
   base::OnceClosure install_callback = base::BindOnce(^{
     if (install_block) {
@@ -69,12 +76,23 @@
   return YES;
 }
 
+- (void)standardUserDriverWillHandleShowingUpdate:(BOOL)handleShowingUpdate
+                                        forUpdate:(SUAppcastItem*)update
+                                            state:(SPUUserUpdateState*)state {
+  (void)handleShowingUpdate;
+  (void)update;
+
+  update_session_state_.OnStandardUpdateWillBeShown(state.userInitiated);
+}
+
 - (void)updater:(SPUUpdater*)updater
     didFinishUpdateCycleForUpdateCheck:(SPUUpdateCheck)updateCheck
                                  error:(NSError*)error {
   (void)updater;
   (void)updateCheck;
   (void)error;
+
+  update_session_state_.OnUpdateSessionFinished();
 
   if (!update_session_finished_callback_.is_null()) {
     update_session_finished_callback_.Run();
@@ -84,6 +102,8 @@
 - (void)updater:(SPUUpdater*)updater didAbortWithError:(NSError*)error {
   (void)updater;
   (void)error;
+
+  update_session_state_.OnUpdateSessionFinished();
 
   if (!update_session_finished_callback_.is_null()) {
     update_session_finished_callback_.Run();
@@ -134,7 +154,7 @@ void DaoSparkleUpdaterMac::Start(
   SPUStandardUpdaterController* controller =
       [[SPUStandardUpdaterController alloc] initWithStartingUpdater:YES
                                                     updaterDelegate:delegate
-                                                 userDriverDelegate:nil];
+                                                 userDriverDelegate:delegate];
 
   if (!controller) {
     LOG(ERROR) << "DaoSparkleUpdaterMac: failed to construct "

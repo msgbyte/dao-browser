@@ -97,6 +97,7 @@
 #include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 #include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
+#include "dao/browser/updater/dao_sparkle_update_session_state.h"
 #include "dao/browser/updater/dao_updater_service.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
@@ -395,6 +396,41 @@ class WidgetCloseRequestObserver : public views::WidgetObserver {
 };
 
 #if BUILDFLAG(IS_MAC)
+TEST(DaoSparkleUpdateSessionStateTest,
+     BackgroundInstallOnQuitUsesDaoReadyButton) {
+  dao::DaoSparkleUpdateSessionState state;
+
+  EXPECT_TRUE(state.ShouldDaoHandleInstallOnQuit());
+}
+
+TEST(DaoSparkleUpdateSessionStateTest,
+     UserInitiatedUpdateKeepsSparkleInstallPrompt) {
+  dao::DaoSparkleUpdateSessionState state;
+
+  state.OnStandardUpdateWillBeShown(/*user_initiated=*/true);
+
+  EXPECT_FALSE(state.ShouldDaoHandleInstallOnQuit());
+}
+
+TEST(DaoSparkleUpdateSessionStateTest,
+     FinishingSessionRestoresBackgroundHandling) {
+  dao::DaoSparkleUpdateSessionState state;
+  state.OnStandardUpdateWillBeShown(/*user_initiated=*/true);
+
+  state.OnUpdateSessionFinished();
+
+  EXPECT_TRUE(state.ShouldDaoHandleInstallOnQuit());
+}
+
+TEST(DaoSparkleUpdateSessionStateTest,
+     ScheduledReminderStillUsesDaoReadyButton) {
+  dao::DaoSparkleUpdateSessionState state;
+
+  state.OnStandardUpdateWillBeShown(/*user_initiated=*/false);
+
+  EXPECT_TRUE(state.ShouldDaoHandleInstallOnQuit());
+}
+
 class ReenteringUpdateObserver : public dao::DaoUpdaterServiceObserver {
  public:
   explicit ReenteringUpdateObserver(dao::DaoUpdaterService* service)

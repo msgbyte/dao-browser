@@ -54,6 +54,8 @@ if (is_mac) {
 
 source_set("dao_updater") {
   sources = [
+    "dao_sparkle_update_session_state.cc",
+    "dao_sparkle_update_session_state.h",
     "dao_updater_service.cc",
     "dao_updater_service.h",
   ]
