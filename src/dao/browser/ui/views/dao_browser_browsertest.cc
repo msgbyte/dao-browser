@@ -75,6 +75,7 @@
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/dao_webstore_branding_tab_helper.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
+#include "dao/browser/pip/dao_pip_resize_utils.h"
 #include "dao/browser/pip/dao_pip_site_rules.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
@@ -429,6 +430,79 @@ TEST(DaoSparkleUpdateSessionStateTest,
   state.OnStandardUpdateWillBeShown(/*user_initiated=*/false);
 
   EXPECT_TRUE(state.ShouldDaoHandleInstallOnQuit());
+}
+
+TEST(DaoPipOverlayResizeTest, TopCornersAreOnlyResizeTargets) {
+  const gfx::Size overlay_size(400, 34);
+
+  EXPECT_EQ(dao::PipOverlayResizeTarget::kTopLeft,
+            dao::GetPipOverlayResizeTarget(gfx::Point(0, 0), overlay_size));
+  EXPECT_EQ(dao::PipOverlayResizeTarget::kTopLeft,
+            dao::GetPipOverlayResizeTarget(gfx::Point(15, 15), overlay_size));
+  EXPECT_EQ(dao::PipOverlayResizeTarget::kTopRight,
+            dao::GetPipOverlayResizeTarget(gfx::Point(384, 0), overlay_size));
+  EXPECT_EQ(dao::PipOverlayResizeTarget::kTopRight,
+            dao::GetPipOverlayResizeTarget(gfx::Point(399, 15), overlay_size));
+
+  EXPECT_EQ(dao::PipOverlayResizeTarget::kNone,
+            dao::GetPipOverlayResizeTarget(gfx::Point(16, 0), overlay_size));
+  EXPECT_EQ(dao::PipOverlayResizeTarget::kNone,
+            dao::GetPipOverlayResizeTarget(gfx::Point(383, 0), overlay_size));
+  EXPECT_EQ(dao::PipOverlayResizeTarget::kNone,
+            dao::GetPipOverlayResizeTarget(gfx::Point(200, 0), overlay_size));
+  EXPECT_EQ(dao::PipOverlayResizeTarget::kNone,
+            dao::GetPipOverlayResizeTarget(gfx::Point(399, 16), overlay_size));
+}
+
+TEST(DaoPipOverlayResizeTest, TopCornerResizeKeepsOppositeEdgesAnchored) {
+  const gfx::Rect start_bounds(100, 100, 400, 300);
+  const gfx::Point drag_start(500, 100);
+  const gfx::Size minimum_size(200, 150);
+  const gfx::Size maximum_size(800, 600);
+
+  gfx::Rect top_right = dao::ResizePipWindowFromOverlayCorner(
+      start_bounds, drag_start, gfx::Point(540, 80),
+      dao::PipOverlayResizeTarget::kTopRight, minimum_size, maximum_size);
+  EXPECT_EQ(100, top_right.x());
+  EXPECT_EQ(80, top_right.y());
+  EXPECT_EQ(440, top_right.width());
+  EXPECT_EQ(320, top_right.height());
+  EXPECT_EQ(start_bounds.bottom(), top_right.bottom());
+
+  gfx::Rect top_left = dao::ResizePipWindowFromOverlayCorner(
+      start_bounds, gfx::Point(100, 100), gfx::Point(70, 120),
+      dao::PipOverlayResizeTarget::kTopLeft, minimum_size, maximum_size);
+  EXPECT_EQ(70, top_left.x());
+  EXPECT_EQ(120, top_left.y());
+  EXPECT_EQ(430, top_left.width());
+  EXPECT_EQ(280, top_left.height());
+  EXPECT_EQ(start_bounds.right(), top_left.right());
+  EXPECT_EQ(start_bounds.bottom(), top_left.bottom());
+}
+
+TEST(DaoPipOverlayResizeTest, TopCornerResizeClampsToMinimumSize) {
+  const gfx::Rect start_bounds(100, 100, 400, 300);
+  const gfx::Size minimum_size(200, 150);
+  const gfx::Size maximum_size(800, 600);
+
+  gfx::Rect top_right = dao::ResizePipWindowFromOverlayCorner(
+      start_bounds, gfx::Point(500, 100), gfx::Point(0, 500),
+      dao::PipOverlayResizeTarget::kTopRight, minimum_size, maximum_size);
+  EXPECT_EQ(100, top_right.x());
+  EXPECT_EQ(250, top_right.y());
+  EXPECT_EQ(200, top_right.width());
+  EXPECT_EQ(150, top_right.height());
+  EXPECT_EQ(start_bounds.bottom(), top_right.bottom());
+
+  gfx::Rect top_left = dao::ResizePipWindowFromOverlayCorner(
+      start_bounds, gfx::Point(100, 100), gfx::Point(700, 500),
+      dao::PipOverlayResizeTarget::kTopLeft, minimum_size, maximum_size);
+  EXPECT_EQ(300, top_left.x());
+  EXPECT_EQ(250, top_left.y());
+  EXPECT_EQ(200, top_left.width());
+  EXPECT_EQ(150, top_left.height());
+  EXPECT_EQ(start_bounds.right(), top_left.right());
+  EXPECT_EQ(start_bounds.bottom(), top_left.bottom());
 }
 
 class ReenteringUpdateObserver : public dao::DaoUpdaterServiceObserver {

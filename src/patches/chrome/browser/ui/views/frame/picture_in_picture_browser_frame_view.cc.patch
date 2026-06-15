@@ -2,22 +2,28 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 index 64e203c67d..7898abcd73 100644
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-@@ -45,10 +45,14 @@
+@@ -10,6 +10,7 @@
+ #include "base/metrics/histogram_functions.h"
+ #include "base/notreached.h"
+ #include "chrome/app/vector_icons/vector_icons.h"
++#include "dao/browser/pip/dao_pip_resize_utils.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
+@@ -45,10 +46,12 @@
  #include "ui/base/ui_base_features.h"
  #include "ui/compositor/layer.h"
  #include "ui/display/screen.h"
-+#include "ui/events/event_handler.h"
 +#include "ui/events/event_handler.h"
  #include "ui/events/event_observer.h"
  #include "ui/gfx/animation/animation.h"
  #include "ui/gfx/animation/animation_container.h"
  #include "ui/gfx/geometry/insets.h"
 +#include "ui/gfx/geometry/rounded_corners_f.h"
-+#include "ui/gfx/geometry/rounded_corners_f.h"
  #include "ui/gfx/text_constants.h"
  #include "ui/views/accessibility/view_accessibility.h"
  #include "ui/views/animation/animation_builder.h"
-@@ -59,6 +63,7 @@
+@@ -59,6 +62,7 @@
  #include "ui/views/metadata/view_factory.h"
  #include "ui/views/style/typography.h"
  #include "ui/views/style/typography_provider.h"
@@ -66,16 +72,89 @@ index 64e203c67d..7898abcd73 100644
  };
  
  void DefinitelyExitPictureInPicture(
-@@ -209,6 +234,67 @@ void DefinitelyExitPictureInPicture(
+@@ -209,6 +234,140 @@ void DefinitelyExitPictureInPicture(
    }
  }
  
-+// Dao: PostTargetHandler installed on the top-bar overlay widget's root view
-+// so that dragging in non-button areas of the floating top bar moves the main
-+// PiP window. Runs after the target view (e.g. a button) has had a chance to
-+// handle the event; if the event is already handled we leave it alone. This
-+// keeps the overlay as an independent NSWindow (so button hit-tests are not
-+// shadowed by WebContents) while still giving users a draggable caption.
++// Dao: Pre-target handler installed on the top-bar overlay widget's root view.
++// It intercepts only the tiny top-left/top-right corner drags for resize.
++class OverlayResizeHandler : public ui::EventHandler {
++ public:
++  OverlayResizeHandler(views::Widget* main_widget,
++                       views::Widget* overlay_widget)
++      : main_widget_(main_widget), overlay_widget_(overlay_widget) {}
++  OverlayResizeHandler(const OverlayResizeHandler&) = delete;
++  OverlayResizeHandler& operator=(const OverlayResizeHandler&) = delete;
++  ~OverlayResizeHandler() override = default;
++
++  void OnMouseEvent(ui::MouseEvent* event) override {
++    if (!main_widget_) {
++      return;
++    }
++    switch (event->type()) {
++      case ui::EventType::kMousePressed: {
++        if (!event->IsOnlyLeftMouseButton()) {
++          return;
++        }
++        resize_target_ = GetResizeTargetForEvent(event);
++        if (resize_target_ == dao::PipOverlayResizeTarget::kNone) {
++          return;
++        }
++        drag_start_mouse_screen_ =
++            display::Screen::Get()->GetCursorScreenPoint();
++        drag_start_widget_bounds_ = main_widget_->GetWindowBoundsInScreen();
++        dragging_ = true;
++        event->SetHandled();
++        break;
++      }
++      case ui::EventType::kMouseDragged: {
++        if (!dragging_) {
++          break;
++        }
++        gfx::Point current =
++            display::Screen::Get()->GetCursorScreenPoint();
++        main_widget_->SetBounds(dao::ResizePipWindowFromOverlayCorner(
++            drag_start_widget_bounds_, drag_start_mouse_screen_, current,
++            resize_target_, main_widget_->GetMinimumSize(),
++            main_widget_->GetMaximumSize()));
++        event->SetHandled();
++        break;
++      }
++      case ui::EventType::kMouseReleased: {
++        if (!dragging_) {
++          break;
++        }
++        dragging_ = false;
++        resize_target_ = dao::PipOverlayResizeTarget::kNone;
++        event->SetHandled();
++        break;
++      }
++      default:
++        break;
++    }
++  }
++
++ private:
++  dao::PipOverlayResizeTarget GetResizeTargetForEvent(
++      ui::MouseEvent* event) const {
++    return dao::GetPipOverlayResizeTarget(
++        event->root_location(),
++        overlay_widget_ ? overlay_widget_->GetRootView()->size()
++                        : gfx::Size());
++  }
++
++  raw_ptr<views::Widget> main_widget_;
++  raw_ptr<views::Widget> overlay_widget_;
++  gfx::Point drag_start_mouse_screen_;
++  gfx::Rect drag_start_widget_bounds_;
++  dao::PipOverlayResizeTarget resize_target_ =
++      dao::PipOverlayResizeTarget::kNone;
++  bool dragging_ = false;
++};
++
++// Dao: Post-target handler installed on the top-bar overlay widget's root
++// view. It moves the main PiP window from non-button title-bar drags without
++// stealing button clicks.
 +class OverlayDragHandler : public ui::EventHandler {
 + public:
 +  explicit OverlayDragHandler(views::Widget* main_widget)
@@ -134,7 +213,7 @@ index 64e203c67d..7898abcd73 100644
  }  // namespace
  
  PictureInPictureBrowserFrameView::ChildDialogObserverHelper::
-@@ -553,12 +639,40 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+@@ -553,12 +618,40 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
    location_bar_model_ = std::make_unique<LocationBarModelImpl>(
        this, content::kMaxURLDisplayChars);
  
@@ -215,13 +294,17 @@ index 64e203c67d..7898abcd73 100644
    window_event_observer_ = std::make_unique<WindowEventObserver>(this);
    child_dialog_observer_helper_ =
        std::make_unique<ChildDialogObserverHelper>(this, GetBrowserView());
-@@ -989,6 +1110,30 @@ void PictureInPictureBrowserFrameView::RemovedFromWidget() {
+@@ -989,6 +1110,23 @@ void PictureInPictureBrowserFrameView::RemovedFromWidget() {
    window_event_observer_.reset();
    child_dialog_observer_helper_.reset();
  
 +  // Dao: Tear down the overlay widget. `top_bar_container_view_` is owned by
 +  // this widget's content view, so closing the widget releases it.
 +  if (dao_top_bar_overlay_widget_) {
++    if (dao_overlay_resize_handler_) {
++      dao_top_bar_overlay_widget_->GetRootView()->RemovePreTargetHandler(
++          dao_overlay_resize_handler_.get());
++    }
 +    if (dao_overlay_drag_handler_) {
 +      dao_top_bar_overlay_widget_->GetRootView()->RemovePostTargetHandler(
 +          dao_overlay_drag_handler_.get());
@@ -229,18 +312,7 @@ index 64e203c67d..7898abcd73 100644
 +    top_bar_container_view_ = nullptr;
 +    dao_top_bar_overlay_widget_.reset();
 +  }
-+  dao_overlay_drag_handler_.reset();
-+
-+  // Dao: Tear down the overlay widget. `top_bar_container_view_` is owned by
-+  // this widget's content view, so closing the widget releases it.
-+  if (dao_top_bar_overlay_widget_) {
-+    if (dao_overlay_drag_handler_) {
-+      dao_top_bar_overlay_widget_->GetRootView()->RemovePostTargetHandler(
-+          dao_overlay_drag_handler_.get());
-+    }
-+    top_bar_container_view_ = nullptr;
-+    dao_top_bar_overlay_widget_.reset();
-+  }
++  dao_overlay_resize_handler_.reset();
 +  dao_overlay_drag_handler_.reset();
 +
    // Clear the AutoPiP setting overlay view.
@@ -310,7 +382,7 @@ index 64e203c67d..7898abcd73 100644
  }
  
  gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
-@@ -1591,6 +1770,74 @@ bool PictureInPictureBrowserFrameView::IsOverlayViewVisible() const {
+@@ -1591,6 +1770,82 @@ bool PictureInPictureBrowserFrameView::IsOverlayViewVisible() const {
    return auto_pip_setting_overlay_ && auto_pip_setting_overlay_->GetVisible();
  }
  
@@ -339,9 +411,17 @@ index 64e203c67d..7898abcd73 100644
 +  overlay->SetContentsView(std::move(dao_top_bar_container_owned_));
 +  dao_top_bar_overlay_widget_ = std::move(overlay);
 +
-+  // Dao: Install a post-target mouse handler on the overlay's root view so
-+  // drags in non-button areas of the top bar move the main PiP window.
-+  dao_overlay_drag_handler_ = std::make_unique<OverlayDragHandler>(GetWidget());
++  // Dao: Install a pre-target resize handler so the title bar and buttons
++  // cannot swallow the tiny top-corner resize zones.
++  dao_overlay_resize_handler_ = std::make_unique<OverlayResizeHandler>(
++      GetWidget(), dao_top_bar_overlay_widget_.get());
++  dao_top_bar_overlay_widget_->GetRootView()->AddPreTargetHandler(
++      dao_overlay_resize_handler_.get());
++
++  // Dao: Install a post-target move handler so non-button title-bar drags
++  // still move the main PiP window without stealing button clicks.
++  dao_overlay_drag_handler_ = std::make_unique<OverlayDragHandler>(
++      GetWidget());
 +  dao_top_bar_overlay_widget_->GetRootView()->AddPostTargetHandler(
 +      dao_overlay_drag_handler_.get());
 +

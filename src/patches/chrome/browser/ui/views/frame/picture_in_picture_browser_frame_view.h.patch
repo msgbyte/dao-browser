@@ -39,7 +39,7 @@ index 785bd22434..658b09eae3 100644
  
    bool mouse_inside_window_ = false;
  
-@@ -421,6 +435,38 @@ class PictureInPictureBrowserFrameView : public BrowserFrameView,
+@@ -421,6 +435,43 @@ class PictureInPictureBrowserFrameView : public BrowserFrameView,
    std::unique_ptr<PictureInPictureTucker> tucker_;
    bool is_tucking_forced_ = false;
  
@@ -60,9 +60,14 @@ index 785bd22434..658b09eae3 100644
 +  // `GetTopAreaHeight()` reserves no layout space.
 +  std::unique_ptr<views::Widget> dao_top_bar_overlay_widget_;
 +
++  // Dao: Pre-target mouse handler installed on the overlay widget's root view.
++  // It intercepts only the tiny top-corner resize zones before title-bar
++  // buttons can consume those events.
++  std::unique_ptr<ui::EventHandler> dao_overlay_resize_handler_;
++
 +  // Dao: Post-target mouse handler installed on the overlay widget's root
-+  // view. Forwards drag operations on non-button areas of the top bar to the
-+  // main PiP widget (moves the main window). Typed as base class so the
++  // view. It forwards drag operations on non-button areas of the top bar to
++  // the main PiP widget (moves the main window). Typed as base class so the
 +  // header does not have to include the private handler definition.
 +  std::unique_ptr<ui::EventHandler> dao_overlay_drag_handler_;
 +
