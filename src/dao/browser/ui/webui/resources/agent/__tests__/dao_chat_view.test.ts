@@ -124,6 +124,7 @@ vi.mock('../i18n/i18n.js', () => ({
 
 vi.mock('../vendor/pi_runtime_bundle.js', () => ({
   Agent: class {
+    convertToLlm: (msgs: any[]) => any[];
     state = {
       systemPrompt: '',
       model: {},
@@ -132,6 +133,13 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
       messages: [],
       isStreaming: false,
     };
+    constructor(opts: any = {}) {
+      this.state = {
+        ...this.state,
+        ...(opts.initialState || {}),
+      };
+      this.convertToLlm = opts.convertToLlm || ((msgs: any[]) => msgs);
+    }
     subscribe() {
       return () => {};
     }
@@ -325,9 +333,28 @@ describe('dao-chat-view element picker', () => {
     }
   });
 
-  it('attaches memory context on send', async () => {
-    const originalSend = vi.fn(async () => 'sent');
+  it('keeps memory context hidden from visible attachments while sending it to LLM', async () => {
+    let viewRef: HTMLElement | null = null;
+    let llmMessages: any[] = [];
+    const originalSend = vi.fn(async (text: string, attachments: any[]) => {
+      const agent = (viewRef as unknown as {agent_: {
+        convertToLlm: (msgs: any[]) => any[];
+      }}).agent_;
+      const msg = attachments.length > 0 ? {
+        role: 'user-with-attachments',
+        content: text,
+        attachments,
+        timestamp: Date.now(),
+      } : {
+        role: 'user',
+        content: text,
+        timestamp: Date.now(),
+      };
+      llmMessages = agent.convertToLlm([msg]);
+      return 'sent';
+    });
     const {view, iface} = await mountChatViewWithSend(originalSend);
+    viewRef = view;
     Object.assign(view, {
       suppressChipAttachOnce_: false,
       pendingPageAttachment_: null,
@@ -357,7 +384,10 @@ describe('dao-chat-view element picker', () => {
             outcome: 'Returned grouped findings',
             confidence: 0.78,
           }],
-          recentMessages: [],
+          recentMessages: [{
+            role: 'user',
+            content: 'Duplicated recent message should stay out.',
+          }],
           relevantSummary: {
             summary: 'User often asks for implementation-focused help here.',
             primaryDomain: 'example.com',
@@ -371,10 +401,16 @@ describe('dao-chat-view element picker', () => {
       await expect(iface.sendMessage('what next?', [])).resolves.toBe('sent');
       const firstSendCall = originalSend.mock.calls[0] || [];
       const sentAttachments = firstSendCall[1] || [];
-      expect(sentAttachments).toHaveLength(1);
-      expect(sentAttachments[0].extractedText).toContain('<memory-context');
-      expect(sentAttachments[0].extractedText).toContain(
+      expect(sentAttachments).toHaveLength(0);
+      expect(llmMessages).toHaveLength(1);
+      expect(llmMessages[0].content).toContain('<memory-context');
+      expect(llmMessages[0].content).toContain(
           'Prefers concise implementation notes');
+      expect(llmMessages[0].content).toContain(
+          'User often asks for implementation-focused help here.');
+      expect(llmMessages[0].content).not.toContain(
+          'Duplicated recent message should stay out.');
+      expect(llmMessages[0].content).toContain('what next?');
       expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
           'getMemoryContext',
           'https://example.com/app',

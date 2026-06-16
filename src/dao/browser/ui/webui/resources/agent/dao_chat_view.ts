@@ -25,7 +25,7 @@ import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 import {addWebUIListener, BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, removeWebUIListener, soulChannel, type ProactiveSuggestionData} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {addReusableElementContext, buildElementContextAttachment, consumeReusableElementContexts, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
-import {buildMemoryContextAttachment, type NativeMemoryContext} from './dao_memory_context.js';
+import {buildMemoryContextText, hasMemoryContextPayload, type NativeMemoryContext} from './dao_memory_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type PiAttachment, type SelectionCapture} from './dao_page_capture.js';
@@ -321,6 +321,7 @@ export class DaoChatView extends CrLitElement {
   private origSendMessage_: ((text: string, attachments: any[]) =>
                              Promise<void>) | null = null;
   private pendingDecorateTimer_ = 0;
+  private pendingMemoryContextText_: string | null = null;
 
   // Slash-command skill picker state. When the composer textarea starts with
   // `/query` (no space), a floating list of matching skills is shown.
@@ -914,14 +915,38 @@ export class DaoChatView extends CrLitElement {
       convertToLlm: (msgs: any[]) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const out: any[] = [];
-        for (const m of msgs) {
+        const pendingMemory = this.pendingMemoryContextText_;
+        let pendingMemoryUserIndex = -1;
+        if (pendingMemory) {
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            const role = msgs[i]?.role;
+            if (role === 'user' || role === 'user-with-attachments') {
+              pendingMemoryUserIndex = i;
+              break;
+            }
+          }
+        }
+        for (let i = 0; i < msgs.length; i++) {
+          const m = msgs[i];
           if (!m) continue;
           if (m.role === 'assistant' || m.role === 'toolResult') {
             out.push(m);
           } else if (m.role === 'user') {
-            const orig = typeof m.content === 'string' ? m.content : '';
+            const hasPendingMemory =
+                !!pendingMemory && i === pendingMemoryUserIndex;
+            const orig = typeof m.content === 'string' ?
+                m.content :
+                (hasPendingMemory ? this.extractAssistantText_(m) : '');
             const expanded = this.expandSkillPrefix_(orig);
-            if (expanded === orig) {
+            if (hasPendingMemory) {
+              const trimmed = expanded.trim();
+              out.push({
+                role: 'user',
+                content: trimmed ? `${pendingMemory}\n\n${expanded}` :
+                                   pendingMemory,
+                timestamp: m.timestamp,
+              });
+            } else if (expanded === orig) {
               out.push(m);
             } else {
               out.push({
@@ -938,6 +963,9 @@ export class DaoChatView extends CrLitElement {
                   a.extractedText.length > 0) {
                 pieces.push(a.extractedText);
               }
+            }
+            if (pendingMemory && i === pendingMemoryUserIndex) {
+              pieces.push(pendingMemory);
             }
             const orig = typeof m.content === 'string' ? m.content : '';
             const expandedOrig = this.expandSkillPrefix_(orig);
@@ -986,18 +1014,17 @@ export class DaoChatView extends CrLitElement {
       iface.enableThinkingSelector = false;
       iface.requestUpdate?.();
 
-      // Intercept sendMessage so we can splice the current-page capture
-      // into the outgoing `attachments` array. The actual merging of
-      // attachment contents into the LLM request is done in the custom
-      // convertToLlm above — this layer only runs the readability +
-      // turndown capture and appends the pi-web-ui attachment object so
-      // pi renders a native tile in the user bubble. We keep the user's
-      // typed text untouched so their message bubble stays clean.
+      // Intercept sendMessage so Dao can gather automatic context before
+      // the turn starts. Visible page / selection / element context still
+      // travels as pi-web-ui attachments; memory context is kept in
+      // pendingMemoryContextText_ and spliced only inside convertToLlm so
+      // it never renders as a user-visible attachment.
       if (typeof iface.sendMessage === 'function' && !this.origSendMessage_) {
         this.origSendMessage_ = iface.sendMessage.bind(iface);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         iface.sendMessage = async (text: string, attachments: any[]) => {
           let turnTargetStarted = false;
+          this.pendingMemoryContextText_ = null;
           try {
             try {
               await callNative('beginAgentTurn');
@@ -1030,10 +1057,13 @@ export class DaoChatView extends CrLitElement {
               const withSelection = await this.maybeAttachSelection_(withPage);
               const withElement =
                   await this.maybeAttachElementContext_(withSelection);
-              merged = await this.maybeAttachMemoryContext_(withElement);
+              merged = withElement;
+              this.pendingMemoryContextText_ =
+                  await this.maybeBuildMemoryContextText_();
             }
             return await this.origSendMessage_!(text, merged);
           } finally {
+            this.pendingMemoryContextText_ = null;
             if (turnTargetStarted) {
               try {
                 await callNative('endAgentTurn');
@@ -1909,28 +1939,27 @@ export class DaoChatView extends CrLitElement {
     ];
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async maybeAttachMemoryContext_(attachments: any[]): Promise<any[]> {
+  private async maybeBuildMemoryContextText_(): Promise<string|null> {
     try {
       const info = await fetchCurrentPageInfo();
-      if (!info?.url || !isCapturablePageUrl(info.url)) return attachments;
+      if (!info?.url || !isCapturablePageUrl(info.url)) return null;
 
       const domain = new URL(info.url).hostname;
-      if (!domain) return attachments;
+      if (!domain) return null;
 
       const payload = await callNativeArgs(
           'getMemoryContext', info.url, domain, this.currentSessionId_ || '') as
           NativeMemoryContext;
-      const attachment = buildMemoryContextAttachment({
+      if (!hasMemoryContextPayload(payload || {})) return null;
+      const text = buildMemoryContextText({
         url: info.url,
         domain,
         payload: payload || {},
       });
-      if (!attachment) return attachments;
-      return [...attachments, attachment];
+      return text || null;
     } catch (e) {
       console.warn('[dao-agent] memory context unavailable', e);
-      return attachments;
+      return null;
     }
   }
 

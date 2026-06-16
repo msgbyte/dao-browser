@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {PiAttachment} from './dao_page_capture.js';
-
 export interface NativePreference {
   key: string;
   value: string;
@@ -17,11 +15,6 @@ export interface NativeEpisode {
   confidence?: number;
 }
 
-export interface NativeRecentMessage {
-  role: string;
-  content: string;
-}
-
 export interface NativeRelevantSummary {
   summary: string;
   primaryDomain: string;
@@ -30,7 +23,6 @@ export interface NativeRelevantSummary {
 export interface NativeMemoryContext {
   preferences?: NativePreference[];
   episodes?: NativeEpisode[];
-  recentMessages?: NativeRecentMessage[];
   relevantSummary?: NativeRelevantSummary | null;
 }
 
@@ -44,14 +36,13 @@ interface MemoryContextBuildOptions {
 type RenderedSection = {text: string; truncated: boolean};
 
 type RenderEntryKind =
-    'preference'|'episode'|'recent-message'|'summary';
+    'preference'|'episode'|'summary';
 
 interface RenderEntry {
   kind: RenderEntryKind;
   value: string;
   key?: string;
   title?: string;
-  role?: string;
   confidence?: number;
   domain?: string;
   defaultBudget: number;
@@ -60,7 +51,6 @@ interface RenderEntry {
 const DEFAULT_MEMORY_CONTEXT_CHAR_BUDGET = 7000;
 const DEFAULT_PREFERENCE_TEXT_BUDGET = 600;
 const DEFAULT_EPISODE_TEXT_BUDGET = 800;
-const DEFAULT_MESSAGE_TEXT_BUDGET = 240;
 const DEFAULT_SUMMARY_TEXT_BUDGET = 1000;
 const TRUNCATION_MARKER = '<truncated>true</truncated>';
 
@@ -89,27 +79,10 @@ function isEpisode(value: unknown): value is NativeEpisode {
        typeof value['confidence'] === 'number');
 }
 
-function isRecentMessage(value: unknown): value is NativeRecentMessage {
-  return isRecord(value) &&
-      isNonEmptyString(value['role']) &&
-      isNonEmptyString(value['content']);
-}
-
 function isRelevantSummary(value: unknown): value is NativeRelevantSummary {
   return isRecord(value) &&
       isNonEmptyString(value['summary']) &&
       isNonEmptyString(value['primaryDomain']);
-}
-
-function utf8ToBase64(s: string): string {
-  const bytes = new TextEncoder().encode(s);
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode.apply(
-        null, Array.from(bytes.subarray(i, i + chunk)) as number[]);
-  }
-  return btoa(binary);
 }
 
 function escapeXmlText(value: string): string {
@@ -170,8 +143,6 @@ function entryDefaultBudget(kind: RenderEntryKind): number {
       return DEFAULT_PREFERENCE_TEXT_BUDGET;
     case 'episode':
       return DEFAULT_EPISODE_TEXT_BUDGET;
-    case 'recent-message':
-      return DEFAULT_MESSAGE_TEXT_BUDGET;
     case 'summary':
       return DEFAULT_SUMMARY_TEXT_BUDGET;
   }
@@ -219,18 +190,6 @@ function makeRenderableEntries(payload: NativeMemoryContext): RenderEntry[] {
     }
   }
 
-  if (Array.isArray(payload.recentMessages)) {
-    for (const msg of payload.recentMessages) {
-      if (!isRecentMessage(msg)) continue;
-      entries.push({
-        kind: 'recent-message',
-        value: msg.content,
-        role: msg.role,
-        defaultBudget: DEFAULT_MESSAGE_TEXT_BUDGET,
-      });
-    }
-  }
-
   return entries;
 }
 
@@ -258,13 +217,6 @@ function buildEntryText(entry: RenderEntry, textBudget: number): RenderedSection
       const attrs = attr.length ? ` ${attr.join(' ')}` : '';
       return {
         text: `<episode${attrs}>${trimmed.text}</episode>`,
-        truncated: trimmed.truncated,
-      };
-    }
-    case 'recent-message': {
-      const role = isNonEmptyString(entry.role) ? ` role="${escapeXmlAttribute(entry.role)}"` : '';
-      return {
-        text: `<recent-message${role}>${trimmed.text}</recent-message>`,
         truncated: trimmed.truncated,
       };
     }
@@ -348,13 +300,11 @@ export function hasMemoryContextPayload(payload: unknown):
       payload['preferences'].some(isPreference);
   const hasEpisodes = Array.isArray(payload['episodes']) &&
       payload['episodes'].some(isEpisode);
-  const hasRecentMessages = Array.isArray(payload['recentMessages']) &&
-      payload['recentMessages'].some(isRecentMessage);
   const hasSummary =
       payload['relevantSummary'] !== null &&
       isRelevantSummary(payload['relevantSummary']);
 
-  return hasPreferences || hasEpisodes || hasRecentMessages || hasSummary;
+  return hasPreferences || hasEpisodes || hasSummary;
 }
 
 export function buildMemoryContextText(options: MemoryContextBuildOptions): string {
@@ -408,24 +358,4 @@ export function buildMemoryContextText(options: MemoryContextBuildOptions): stri
   }
 
   return `${open}\n${TRUNCATION_MARKER}\n${close}`;
-}
-
-export function buildMemoryContextAttachment(
-    options: MemoryContextBuildOptions): PiAttachment | null {
-  if (!hasMemoryContextPayload(options.payload)) {
-    return null;
-  }
-
-  const extractedText = buildMemoryContextText(options);
-  const id = `dao-memory-context-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return {
-    id,
-    type: 'document',
-    fileName: 'dao-memory-context.md',
-    mimeType: 'text/markdown',
-    size: new TextEncoder().encode(extractedText).length,
-    content: utf8ToBase64(extractedText),
-    extractedText,
-    preview: '',
-  };
 }

@@ -433,15 +433,6 @@ base::DictValue SerializeMemoryContextForAgentUi(
   }
   result.Set("episodes", std::move(eps));
 
-  base::ListValue msgs;
-  for (const auto& m : context.recent_messages) {
-    base::DictValue msg;
-    msg.Set("role", m.role);
-    msg.Set("content", m.content);
-    msgs.Append(std::move(msg));
-  }
-  result.Set("recentMessages", std::move(msgs));
-
   if (context.relevant_summary.has_value()) {
     const ConversationSummary& summary = *context.relevant_summary;
     base::DictValue relevant_summary;

@@ -5,7 +5,6 @@
 import {describe, expect, it} from 'vitest';
 
 import {
-  buildMemoryContextAttachment,
   buildMemoryContextText,
   hasMemoryContextPayload,
   type NativeMemoryContext,
@@ -20,6 +19,22 @@ describe('dao memory context helper', () => {
       recentMessages: [],
       relevantSummary: null,
     })).toBe(false);
+  });
+
+  it('does not treat recent messages as memory context', () => {
+    const payload = {
+      recentMessages: [{
+        role: 'user',
+        content: 'This belongs to conversation state, not memory.',
+      }],
+    } as unknown as NativeMemoryContext;
+
+    expect(hasMemoryContextPayload(payload)).toBe(false);
+    expect(buildMemoryContextText({
+      url: 'https://example.com/a',
+      domain: 'example.com',
+      payload,
+    })).toBe('');
   });
 
   it('renders preferences, summary, and episodes with escaped XML', () => {
@@ -56,29 +71,6 @@ describe('dao memory context helper', () => {
         '<episode confidence="0.77" title="Pull request &quot;review&quot; &lt;stage&gt;">');
     expect(text).toContain('Review auth changes with &quot;strict&quot; &lt;checks&gt;.');
     expect(text).toContain('Pointed out missing tests because A&amp;B&lt;&gt;&quot; are ambiguous.');
-  });
-
-  it('builds a hidden pi attachment with extracted text', () => {
-    const attachment = buildMemoryContextAttachment({
-      url: 'https://example.com/a',
-      domain: 'example.com',
-      payload: {
-        preferences: [{
-          key: 'interest.dao',
-          value: 'Likes Dao Browser implementation details',
-          confidence: 0.8,
-        }],
-      },
-    });
-
-    expect(attachment).not.toBeNull();
-    if (!attachment) return;
-    expect(attachment.type).toBe('document');
-    expect(attachment.fileName).toBe('dao-memory-context.md');
-    expect(attachment.mimeType).toBe('text/markdown');
-    expect(atob(attachment.content)).toBe(attachment.extractedText);
-    expect(attachment.extractedText).toContain('<memory-context');
-    expect(attachment.preview).toBe('');
   });
 
   it('trims oversized memory values while preserving closing tags', () => {

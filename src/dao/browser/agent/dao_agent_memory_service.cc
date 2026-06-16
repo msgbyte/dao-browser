@@ -437,31 +437,25 @@ void DaoAgentMemoryService::ExecuteReadOnlySqlForDebug(
 // --- Memory Context ---
 
 void DaoAgentMemoryService::GetMemoryContext(
-    const std::string& url,
+    const std::string&,
     const std::string& domain,
-    const std::string& session_id,
+    const std::string&,
     base::OnceCallback<void(MemoryContext)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
   background_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          [](DaoAgentMemoryStore* store, std::string u, std::string dom,
-             std::string sid) {
+          [](DaoAgentMemoryStore* store, std::string dom) {
             MemoryContext ctx;
             // Top 5 preferences with confidence >= 0.6
             ctx.preferences = store->GetPreferences(5, 0.6);
             // Up to 3 domain episodes
             ctx.episodes = store->GetEpisodesByDomain(dom, 3);
-            // Recent messages for session continuity
-            if (!sid.empty()) {
-              ctx.recent_messages =
-                  store->LoadConversationMessages(sid, 20);
-            }
             // Relevant summary by domain
             ctx.relevant_summary = store->FindSummaryByDomain(dom);
             return ctx;
           },
-          store_.get(), url, domain, session_id),
+          store_.get(), domain),
       std::move(callback));
 }
 

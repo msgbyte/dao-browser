@@ -229,7 +229,6 @@ struct MemoryContext {
 
   std::vector<Preference> preferences;
   std::vector<Episode> episodes;
-  std::vector<ConversationMessage> recent_messages;
   std::optional<ConversationSummary> relevant_summary;
 };
 
