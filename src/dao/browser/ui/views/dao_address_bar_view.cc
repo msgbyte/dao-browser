@@ -4,10 +4,19 @@
 
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 
+#include <memory>
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/location.h"
+#include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
@@ -22,7 +31,10 @@
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+#include "ui/base/menu_source_utils.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/gfx/font_list.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
@@ -30,6 +42,9 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/controls/menu/menu_item_view.h"
+#include "ui/views/controls/menu/menu_model_adapter.h"
+#include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/style/typography.h"
@@ -58,6 +73,9 @@ class NavIconButton : public views::Button {
   METADATA_HEADER(NavIconButton, views::Button)
 
  public:
+  using MenuModelFactory =
+      base::RepeatingCallback<std::unique_ptr<ui::MenuModel>()>;
+
   NavIconButton(views::Button::PressedCallback callback,
                 LucideIcon icon,
                 const std::u16string& accessible_name)
@@ -151,6 +169,10 @@ class NavIconButton : public views::Button {
   // Enable press-rotation animation (e.g. for the refresh button).
   void SetAnimateOnPress(bool animate) { animate_on_press_ = animate; }
 
+  void SetMenuModelFactory(MenuModelFactory menu_model_factory) {
+    menu_model_factory_ = std::move(menu_model_factory);
+  }
+
   bool highlighted() const { return highlighted_; }
   bool nav_enabled() const { return nav_enabled_; }
 
@@ -167,6 +189,59 @@ class NavIconButton : public views::Button {
   }
 
  protected:
+  bool OnMousePressed(const ui::MouseEvent& event) override {
+    if (event.IsOnlyRightMouseButton() && CanShowHistoryMenu(event.location())) {
+      ShowDropDownMenu(ui::GetMenuSourceTypeForEvent(event),
+                       /*suppress_next_click=*/false);
+      return true;
+    }
+
+    if (event.IsOnlyLeftMouseButton() && CanShowHistoryMenu(event.location())) {
+      y_position_on_lbuttondown_ = event.y();
+      menu_show_factory_.InvalidateWeakPtrs();
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&NavIconButton::ShowDropDownMenu,
+                         menu_show_factory_.GetWeakPtr(),
+                         ui::GetMenuSourceTypeForEvent(event),
+                         /*suppress_next_click=*/true),
+          base::Milliseconds(500));
+    }
+
+    return Button::OnMousePressed(event);
+  }
+
+  bool OnMouseDragged(const ui::MouseEvent& event) override {
+    bool result = Button::OnMouseDragged(event);
+    if (menu_show_factory_.HasWeakPtrs() &&
+        event.y() >
+            y_position_on_lbuttondown_ +
+                views::View::GetHorizontalDragThreshold()) {
+      menu_show_factory_.InvalidateWeakPtrs();
+      ShowDropDownMenu(ui::GetMenuSourceTypeForEvent(event),
+                       /*suppress_next_click=*/true);
+    }
+    return result;
+  }
+
+  void OnMouseReleased(const ui::MouseEvent& event) override {
+    Button::OnMouseReleased(event);
+    menu_show_factory_.InvalidateWeakPtrs();
+  }
+
+  void OnMouseCaptureLost() override {
+    menu_show_factory_.InvalidateWeakPtrs();
+    Button::OnMouseCaptureLost();
+  }
+
+  void NotifyClick(const ui::Event& event) override {
+    if (suppress_next_click_) {
+      suppress_next_click_ = false;
+      return;
+    }
+    Button::NotifyClick(event);
+  }
+
   void StateChanged(ButtonState old_state) override {
     Button::StateChanged(old_state);
     if (!animate_on_press_) {
@@ -187,6 +262,52 @@ class NavIconButton : public views::Button {
   }
 
  private:
+  bool CanShowHistoryMenu(const gfx::Point& location) const {
+    return GetEnabled() && !menu_model_factory_.is_null() &&
+           HitTestPoint(location) && GetWidget();
+  }
+
+  void ShowDropDownMenu(ui::mojom::MenuSourceType source_type,
+                        bool suppress_next_click) {
+    menu_show_factory_.InvalidateWeakPtrs();
+    if (menu_model_factory_.is_null() || !GetEnabled() || !GetWidget()) {
+      return;
+    }
+
+    auto menu_model = menu_model_factory_.Run();
+    if (!menu_model || menu_model->GetItemCount() == 0) {
+      return;
+    }
+
+    suppress_next_click_ = suppress_next_click;
+    SetState(STATE_PRESSED);
+
+    history_menu_model_ = std::move(menu_model);
+    history_menu_adapter_ = std::make_unique<views::MenuModelAdapter>(
+        history_menu_model_.get(),
+        base::BindRepeating(&NavIconButton::OnHistoryMenuClosed,
+                            base::Unretained(this)));
+    history_menu_adapter_->set_triggerable_event_flags(
+        ui::EF_LEFT_MOUSE_BUTTON | ui::EF_MIDDLE_MOUSE_BUTTON);
+
+    std::unique_ptr<views::MenuItemView> root =
+        history_menu_adapter_->CreateMenu();
+    history_menu_runner_ = std::make_unique<views::MenuRunner>(
+        std::move(root), views::MenuRunner::HAS_MNEMONICS);
+    history_menu_runner_->RunMenuAt(
+        GetWidget(), nullptr, GetAnchorBoundsInScreen(),
+        views::MenuAnchorPosition::kTopLeft, source_type);
+  }
+
+  void OnHistoryMenuClosed() {
+    history_menu_runner_.reset();
+    history_menu_adapter_.reset();
+    history_menu_model_.reset();
+    if (GetState() != STATE_DISABLED) {
+      SetState(STATE_NORMAL);
+    }
+  }
+
   void StopRotation() {
     if (rotation_animation_) {
       rotation_animation_->Stop();
@@ -202,8 +323,15 @@ class NavIconButton : public views::Button {
   bool nav_enabled_ = true;
   bool highlighted_ = false;
   bool animate_on_press_ = false;
+  bool suppress_next_click_ = false;
+  int y_position_on_lbuttondown_ = 0;
   double rotation_degrees_ = 0;
   std::unique_ptr<gfx::LinearAnimation> rotation_animation_;
+  MenuModelFactory menu_model_factory_;
+  std::unique_ptr<ui::MenuModel> history_menu_model_;
+  std::unique_ptr<views::MenuModelAdapter> history_menu_adapter_;
+  std::unique_ptr<views::MenuRunner> history_menu_runner_;
+  base::WeakPtrFactory<NavIconButton> menu_show_factory_{this};
 };
 
 BEGIN_METADATA(NavIconButton)
@@ -259,15 +387,23 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   left_spacer_ = AddChildView(std::move(left_spacer));
 
   // Navigation buttons: back, forward, close
-  back_button_ = AddChildView(std::make_unique<NavIconButton>(
+  auto back_btn = std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnBackButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kArrowLeft, u"Go Back"));
+      LucideIcon::kArrowLeft, u"Go Back");
+  back_btn->SetMenuModelFactory(base::BindRepeating(
+      &DaoAddressBarView::CreateHistoryMenuModel, base::Unretained(this),
+      /*forward=*/false));
+  back_button_ = AddChildView(std::move(back_btn));
 
-  forward_button_ = AddChildView(std::make_unique<NavIconButton>(
+  auto forward_btn = std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnForwardButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kArrowRight, u"Go Forward"));
+      LucideIcon::kArrowRight, u"Go Forward");
+  forward_btn->SetMenuModelFactory(base::BindRepeating(
+      &DaoAddressBarView::CreateHistoryMenuModel, base::Unretained(this),
+      /*forward=*/true));
+  forward_button_ = AddChildView(std::move(forward_btn));
 
   // Stop/Refresh button: shows X (stop) while loading, RotateCw (refresh) when loaded
   auto stop_refresh_btn = std::make_unique<NavIconButton>(
@@ -590,6 +726,33 @@ void DaoAddressBarView::ObserveActiveWebContents() {
   UpdateStopRefreshButton();
 }
 
+std::unique_ptr<ui::MenuModel> DaoAddressBarView::CreateHistoryMenuModel(
+    bool forward) const {
+  if (!browser_ || !tab_strip_model_ ||
+      !tab_strip_model_->GetActiveWebContents()) {
+    return nullptr;
+  }
+
+  return std::make_unique<BackForwardMenuModel>(
+      browser_,
+      forward ? BackForwardMenuModel::ModelType::kForward
+              : BackForwardMenuModel::ModelType::kBackward);
+}
+
+size_t DaoAddressBarView::GetHistoryMenuItemCountForTesting(
+    bool forward) const {
+  std::unique_ptr<ui::MenuModel> menu_model = CreateHistoryMenuModel(forward);
+  return menu_model ? menu_model->GetItemCount() : 0;
+}
+
+size_t DaoAddressBarView::GetBackHistoryMenuItemCountForTesting() const {
+  return GetHistoryMenuItemCountForTesting(/*forward=*/false);
+}
+
+size_t DaoAddressBarView::GetForwardHistoryMenuItemCountForTesting() const {
+  return GetHistoryMenuItemCountForTesting(/*forward=*/true);
+}
+
 void DaoAddressBarView::SetSidebarCollapsed(bool collapsed) {
   if (sidebar_collapsed_ == collapsed) {
     return;
@@ -658,13 +821,11 @@ void DaoAddressBarView::OnBackButtonPressed() {
 }
 
 void DaoAddressBarView::OnForwardButtonPressed() {
-  if (!tab_strip_model_) {
+  if (!browser_) {
     return;
   }
-  content::WebContents* contents =
-      tab_strip_model_->GetActiveWebContents();
-  if (contents && contents->GetController().CanGoForward()) {
-    contents->GetController().GoForward();
+  if (chrome::CanGoForward(browser_)) {
+    chrome::GoForward(browser_, WindowOpenDisposition::CURRENT_TAB);
   }
 }
 

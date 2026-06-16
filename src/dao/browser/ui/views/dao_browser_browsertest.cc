@@ -36,6 +36,7 @@
 #include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
@@ -1322,6 +1323,53 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
 
   ASSERT_TRUE(address_bar->background());
   EXPECT_EQ(expected_color, address_bar->background()->color());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
+                       BackForwardHistoryMenusUseNavigationEntries) {
+  embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL first_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title2.html");
+  const GURL third_url = embedded_test_server()->GetURL("/title3.html");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), second_url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), third_url));
+
+  DaoAddressBarView* address_bar =
+      GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+
+  const auto get_expected_menu_count =
+      [this](BackForwardMenuModel::ModelType model_type) {
+        BackForwardMenuModel menu_model(browser(), model_type);
+        return menu_model.GetItemCount();
+      };
+
+  EXPECT_EQ(get_expected_menu_count(BackForwardMenuModel::ModelType::kBackward),
+            address_bar->GetBackHistoryMenuItemCountForTesting());
+  EXPECT_EQ(get_expected_menu_count(BackForwardMenuModel::ModelType::kForward),
+            address_bar->GetForwardHistoryMenuItemCountForTesting());
+  EXPECT_GT(address_bar->GetBackHistoryMenuItemCountForTesting(), 0u);
+  EXPECT_EQ(0u, address_bar->GetForwardHistoryMenuItemCountForTesting());
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, web_contents);
+  {
+    content::TestNavigationObserver back_observer(web_contents);
+    chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
+    back_observer.Wait();
+  }
+
+  EXPECT_EQ(get_expected_menu_count(BackForwardMenuModel::ModelType::kBackward),
+            address_bar->GetBackHistoryMenuItemCountForTesting());
+  EXPECT_EQ(get_expected_menu_count(BackForwardMenuModel::ModelType::kForward),
+            address_bar->GetForwardHistoryMenuItemCountForTesting());
+  EXPECT_GT(address_bar->GetBackHistoryMenuItemCountForTesting(), 0u);
+  EXPECT_GT(address_bar->GetForwardHistoryMenuItemCountForTesting(), 0u);
 }
 
 // =============================================================================

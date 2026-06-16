@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_ADDRESS_BAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_ADDRESS_BAR_VIEW_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,10 @@ class TabInterface;
 namespace views {
 class Button;
 class Label;
+}
+
+namespace ui {
+class MenuModel;
 }
 
 namespace dao {
@@ -92,6 +97,10 @@ class DaoAddressBarView : public views::View,
 
   std::u16string GetPathTextForTesting() const;
 
+  size_t GetBackHistoryMenuItemCountForTesting() const;
+
+  size_t GetForwardHistoryMenuItemCountForTesting() const;
+
   // Returns rects of all interactive elements (buttons, URL pill, control
   // center) in address bar coordinates, for hit-testing in the layout.
   std::vector<gfx::Rect> interactive_rects() const;
@@ -113,6 +122,8 @@ class DaoAddressBarView : public views::View,
   void UpdateStopRefreshButton();
   void UpdateUrlContainerHover(bool hovered);
   void ObserveActiveWebContents();
+  std::unique_ptr<ui::MenuModel> CreateHistoryMenuModel(bool forward) const;
+  size_t GetHistoryMenuItemCountForTesting(bool forward) const;
   void OnToggleButtonPressed();
   void OnBackButtonPressed();
   void OnForwardButtonPressed();
