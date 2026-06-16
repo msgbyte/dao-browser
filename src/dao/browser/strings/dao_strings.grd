@@ -213,6 +213,9 @@
       <message name="IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME" desc="Accessible name (read aloud by screen readers) for the sidebar toggle button.">
         Toggle Sidebar
       </message>
+      <message name="IDS_DAO_SIDEBAR_TOGGLE_RETRY_TOAST" desc="Toast shown when a webpage handles the Command+S sidebar shortcut first. The keyboard shortcut symbol is the macOS Command key (⌘) followed by 'S'.">
+        Press <ph name="SHORTCUT">⌘S</ph> again to toggle sidebar
+      </message>
       <message name="IDS_DAO_UPDATE_READY_ACTION" desc="Label and tooltip for the sidebar button that applies a downloaded Dao Browser update.">
         Update
       </message>

@@ -130,7 +130,7 @@ export function SoulVisual() {
           </div>
           <div className={styles.soulField}>
             <span className={styles.soulFieldLabel}>language</span>
-            <span className={styles.soulFieldValue}>中文 first, EN for code</span>
+            <span className={styles.soulFieldValue}>German first, EN for code</span>
           </div>
           <div className={styles.soulField}>
             <span className={styles.soulFieldLabel}>cares about</span>

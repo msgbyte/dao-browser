@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -18,6 +19,7 @@
 #include "content/public/common/url_constants.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -54,6 +56,15 @@
 #include "ui/views/widget/widget.h"
 
 namespace dao {
+
+namespace {
+
+constexpr base::TimeDelta kCommandSInterceptToastDelay =
+    base::Milliseconds(250);
+constexpr base::TimeDelta kCommandSConfirmationDuration =
+    base::Milliseconds(2500);
+
+}  // namespace
 
 // Transparent overlay that paints on its own layer above all sidebar content.
 class DaoDropOverlayView : public views::View {
@@ -292,6 +303,53 @@ bool DaoSidebarView::HandleKeyboardEvent(
       event, GetFocusManager());
 }
 
+void DaoSidebarView::TrackCommandSShortcutSentToWebContents() {
+  if (command_s_toggle_confirmation_pending_) {
+    return;
+  }
+
+  command_s_intercept_toast_timer_.Start(
+      FROM_HERE, kCommandSInterceptToastDelay,
+      base::BindOnce(&DaoSidebarView::ShowCommandSShortcutInterceptedToast,
+                     weak_factory_.GetWeakPtr()));
+}
+
+bool DaoSidebarView::MaybeHandleConfirmedCommandSShortcut() {
+  if (!command_s_toggle_confirmation_pending_) {
+    return false;
+  }
+
+  DidHandleCommandSShortcutInBrowser();
+  ToggleCollapsed();
+  return true;
+}
+
+void DaoSidebarView::DidHandleCommandSShortcutInBrowser() {
+  ClearCommandSShortcutConfirmation();
+}
+
+void DaoSidebarView::ShowCommandSShortcutInterceptedToast() {
+  command_s_toggle_confirmation_pending_ = true;
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (browser_view && browser_view->dao_toast()) {
+    browser_view->dao_toast()->ShowToast(
+        l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_RETRY_TOAST));
+    browser_view->InvalidateLayout();
+  }
+
+  command_s_confirmation_timer_.Start(
+      FROM_HERE, kCommandSConfirmationDuration,
+      base::BindOnce(&DaoSidebarView::ClearCommandSShortcutConfirmation,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void DaoSidebarView::ClearCommandSShortcutConfirmation() {
+  command_s_intercept_toast_timer_.Stop();
+  command_s_confirmation_timer_.Stop();
+  command_s_toggle_confirmation_pending_ = false;
+}
+
 bool DaoSidebarView::PreHandleGestureEvent(
     content::WebContents* source,
     const blink::WebGestureEvent& event) {
@@ -481,6 +539,7 @@ void DaoSidebarView::OnResize(int resize_amount, bool done_resizing) {
 // --- Collapse / expand ---------------------------------------------------
 
 void DaoSidebarView::ToggleCollapsed() {
+  ClearCommandSShortcutConfirmation();
   auto_expanded_ = false;
   collapsed_ = !collapsed_;
 
@@ -694,7 +753,13 @@ bool DaoSidebarView::AcceleratorPressed(
     }
     return true;
   }
-  // Cmd+\ or Cmd+S: toggle sidebar
+  if (accelerator.key_code() == ui::VKEY_S) {
+    DidHandleCommandSShortcutInBrowser();
+    ToggleCollapsed();
+    return true;
+  }
+
+  // Cmd+\: toggle sidebar
   ToggleCollapsed();
   return true;
 }

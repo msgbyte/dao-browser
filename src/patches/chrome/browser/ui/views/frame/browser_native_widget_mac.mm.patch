@@ -10,7 +10,7 @@ index fc79b13d4d..a901c8ec88 100644
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
  #import "chrome/browser/ui/cocoa/browser_window_command_handler.h"
  #import "chrome/browser/ui/cocoa/chrome_command_dispatcher_delegate.h"
-@@ -28,6 +29,16 @@
+@@ -28,6 +29,18 @@
  #include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/ui/views/frame/browser_widget.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
@@ -23,11 +23,34 @@ index fc79b13d4d..a901c8ec88 100644
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
 +#include "ui/base/clipboard/scoped_clipboard_writer.h"
++#include "ui/events/keycodes/keyboard_codes.h"
++#include "third_party/blink/public/common/input/web_input_event.h"
 +#include "url/gurl.h"
  #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_metrics.h"
  #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
-@@ -174,7 +185,15 @@ - (NSTouchBar*)makeTouchBar {
+@@ -83,6 +96,20 @@ bool ShouldHandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) {
+   return event.os_event && event.os_event.Get().type == NSEventTypeKeyDown;
+ }
+ 
++bool IsDaoCommandSShortcut(const input::NativeWebKeyboardEvent& event) {
++  if (event.GetType() != blink::WebInputEvent::Type::kRawKeyDown) {
++    return false;
++  }
++
++  constexpr int kDisallowedModifiers = blink::WebInputEvent::kShiftKey |
++                                       blink::WebInputEvent::kControlKey |
++                                       blink::WebInputEvent::kAltKey;
++  const int modifiers = event.GetModifiers();
++  return event.windows_key_code == ui::VKEY_S &&
++         (modifiers & blink::WebInputEvent::kMetaKey) &&
++         !(modifiers & kDisallowedModifiers);
++}
++
+ }  // namespace
+ 
+ // Bridge Obj-C class for WindowTouchBarDelegate and
+@@ -174,7 +201,15 @@ - (NSTouchBar*)makeTouchBar {
                   top_element_info.toolbar_minimum_height) +
          browser_view_->browser_widget()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
@@ -44,7 +67,7 @@ index fc79b13d4d..a901c8ec88 100644
      }
    } else {
      *override_titlebar_height = false;
-@@ -214,6 +233,38 @@ - (NSTouchBar*)makeTouchBar {
+@@ -214,6 +249,38 @@ - (NSTouchBar*)makeTouchBar {
  void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -83,7 +106,7 @@ index fc79b13d4d..a901c8ec88 100644
    Browser* const browser = browser_view_ ? browser_view_->browser() : nullptr;
    if (!browser || !chrome::SupportsCommand(browser, tag)) {
      result->enable = false;
-@@ -444,6 +495,43 @@ - (NSTouchBar*)makeTouchBar {
+@@ -444,6 +511,43 @@ - (NSTouchBar*)makeTouchBar {
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
@@ -127,7 +150,7 @@ index fc79b13d4d..a901c8ec88 100644
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -492,6 +580,16 @@ - (NSTouchBar*)makeTouchBar {
+@@ -492,6 +596,16 @@ - (NSTouchBar*)makeTouchBar {
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -144,7 +167,7 @@ index fc79b13d4d..a901c8ec88 100644
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
-@@ -561,6 +659,12 @@ - (NSTouchBar*)makeTouchBar {
+@@ -561,6 +675,12 @@ - (NSTouchBar*)makeTouchBar {
      views::Widget::InitParams::Ownership ownership) {
    views::Widget::InitParams params(ownership);
    params.native_widget = this;
@@ -157,3 +180,20 @@ index fc79b13d4d..a901c8ec88 100644
    return params;
  }
  
+@@ -586,5 +706,16 @@ content::KeyboardEventProcessingResult
+ BrowserNativeWidgetMac::PreHandleKeyboardEvent(
+     const input::NativeWebKeyboardEvent& event) {
++  if (browser_view_ && browser_view_->dao_sidebar() &&
++      IsDaoCommandSShortcut(event)) {
++    if (browser_view_->dao_sidebar()->MaybeHandleConfirmedCommandSShortcut()) {
++      browser_view_->InvalidateLayout();
++      return content::KeyboardEventProcessingResult::HANDLED;
++    }
++
++    browser_view_->dao_sidebar()->TrackCommandSShortcutSentToWebContents();
++    return content::KeyboardEventProcessingResult::NOT_HANDLED_IS_SHORTCUT;
++  }
++
+   // On macOS, all keyEquivalents that use modifier keys are handled by
+   // -[CommandDispatcher performKeyEquivalent:]. If this logic is being hit,
+   // it means that the event was not handled, so we must return either

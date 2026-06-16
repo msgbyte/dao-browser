@@ -12,6 +12,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
@@ -121,6 +122,7 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/focus/focus_manager.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
@@ -630,6 +632,38 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, WebUIStartsCloseToHeader) {
 
   EXPECT_LE(gap, 2);
 }
+
+#if BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       CommandSToggleShortcutLetsWebContentsTryFirst) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view->dao_sidebar());
+
+  views::FocusManager* focus_manager = browser_view->GetFocusManager();
+  ASSERT_NE(nullptr, focus_manager);
+  EXPECT_FALSE(focus_manager->HasPriorityHandler(
+      ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN)));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       CommandSInterceptToastAllowsSecondPressToggle) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  auto* sidebar = browser_view->dao_sidebar();
+  auto* toast = browser_view->dao_toast();
+  ASSERT_NE(nullptr, sidebar);
+  ASSERT_NE(nullptr, toast);
+  ASSERT_FALSE(sidebar->collapsed());
+
+  sidebar->TrackCommandSShortcutSentToWebContents();
+  EXPECT_FALSE(sidebar->collapsed());
+  ASSERT_TRUE(base::test::RunUntil([&]() { return toast->GetVisible(); }));
+  EXPECT_TRUE(sidebar->command_s_toggle_confirmation_pending_for_testing());
+
+  EXPECT_TRUE(sidebar->MaybeHandleConfirmedCommandSShortcut());
+  EXPECT_TRUE(sidebar->collapsed());
+  EXPECT_FALSE(sidebar->command_s_toggle_confirmation_pending_for_testing());
+}
+#endif
 
 #if BUILDFLAG(IS_MAC)
 class DaoSidebarFullscreenBrowserTest : public DaoSidebarBrowserTest {

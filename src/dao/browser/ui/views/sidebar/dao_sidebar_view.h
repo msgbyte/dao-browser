@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/drop_data.h"
@@ -64,6 +65,13 @@ class DaoSidebarView : public views::View,
 
   void ToggleCollapsed();
   bool collapsed() const { return collapsed_; }
+
+  void TrackCommandSShortcutSentToWebContents();
+  bool MaybeHandleConfirmedCommandSShortcut();
+  void DidHandleCommandSShortcutInBrowser();
+  bool command_s_toggle_confirmation_pending_for_testing() const {
+    return command_s_toggle_confirmation_pending_;
+  }
 
   // Returns the header row and toggle button bounds in the sidebar's own
   // coordinate space (caller adds sidebar->bounds().origin() for BrowserView).
@@ -151,6 +159,8 @@ class DaoSidebarView : public views::View,
   void EnsureWebUILoaded();
   void DoStartFileDrag(const base::FilePath& path);
   void ApplyTheme();
+  void ShowCommandSShortcutInterceptedToast();
+  void ClearCommandSShortcutConfirmation();
   static void SchedulePaintRecursive(views::View* view);
 
   bool webui_loaded_ = false;
@@ -170,6 +180,9 @@ class DaoSidebarView : public views::View,
   int webui_drop_insert_index_ = -1;  // Drop index set by WebUI JS
 
   views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
+  bool command_s_toggle_confirmation_pending_ = false;
+  base::OneShotTimer command_s_intercept_toast_timer_;
+  base::OneShotTimer command_s_confirmation_timer_;
 
   base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
       native_theme_observation_{this};
