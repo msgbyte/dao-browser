@@ -179,4 +179,15 @@ describe('renderShareImage visual parity', () => {
     expect(ops.find(op => op.type === 'fillRect' && op.w === 4)?.fillStyle)
         .toBe('rgba(255, 255, 255, 0.16)');
   });
+
+  it('renders markdown table cells instead of the table placeholder', async () => {
+    const ops = await renderOps(
+        '| Product | Users |\n| --- | ---: |\n| Dao | 1200 |');
+    const texts = ops.filter(op => op.type === 'fillText').map(op => op.text);
+    expect(texts).toContain('Product');
+    expect(texts).toContain('Users');
+    expect(texts).toContain('Dao');
+    expect(texts).toContain('1200');
+    expect(texts).not.toContain('[table]');
+  });
 });

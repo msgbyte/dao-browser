@@ -582,12 +582,8 @@ function buildBlocks(tokens: any[], opts: BuildOpts): Block[] {
       }
       continue;
     }
-    // Tables would need their own grid layout — punt on them: render as
-    // a single italic paragraph noting the omission so the user knows.
     if (tk.type === 'table') {
-      out.push(buildParagraph(
-          {tokens: [{type: 'em', tokens: [{type: 'text', text: '[table]'}]}]},
-          opts));
+      out.push(buildTable(tk, opts));
       continue;
     }
   }
@@ -610,6 +606,144 @@ function buildParagraph(
         paintLine(g, line, x, cy, opts.baseSize, opts.textColor, opts.theme);
         cy += opts.baseLineHeight;
       }
+    },
+  };
+}
+
+type TableTextAlign = 'left'|'center'|'right';
+
+interface TableCellLayout {
+  lines: LayoutLine[];
+  align: TableTextAlign;
+  isHeader: boolean;
+}
+
+interface TableRowLayout {
+  cells: TableCellLayout[];
+  height: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function tableRowCells(row: any): any[] {
+  if (Array.isArray(row)) return row;
+  if (row && Array.isArray(row.cells)) return row.cells;
+  return [];
+}
+
+function normalizeTableAlign(value: unknown): TableTextAlign {
+  if (value === 'center') return 'center';
+  if (value === 'right') return 'right';
+  return 'left';
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function tableCellRuns(cell: any, isHeader: boolean): TextRun[] {
+  if (cell && Array.isArray(cell.tokens)) {
+    return tokensToRuns(cell.tokens, isHeader ? 'bold' : 'normal');
+  }
+  const text =
+      typeof cell === 'string' ? cell : (cell?.text ?? cell?.raw ?? '');
+  return tokensToRuns(
+      [{type: 'text', text: String(text)}], isHeader ? 'bold' : 'normal');
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function tableCellAlign(tk: any, cell: any, col: number): TableTextAlign {
+  return normalizeTableAlign(cell?.align ?? tk.align?.[col]);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildTable(tk: any, opts: BuildOpts): Block {
+  const CELL_PAD_X = 12;
+  const CELL_PAD_Y = 9;
+  const fontSize = Math.max(12, opts.baseSize - 1);
+  const lineHeight = Math.round(fontSize * 1.45);
+  const headerCells = Array.isArray(tk.header) ? tk.header : [];
+  const bodyRowsRaw = Array.isArray(tk.rows) ?
+      tk.rows :
+      (Array.isArray(tk.cells) ? tk.cells : []);
+  const rowInputs = [
+    ...(headerCells.length > 0 ? [{cells: headerCells, isHeader: true}] : []),
+    ...bodyRowsRaw.map(
+        (row: unknown) => ({cells: tableRowCells(row), isHeader: false})),
+  ];
+  const colCount = Math.max(
+      0,
+      ...rowInputs.map(
+          row => Array.isArray(row.cells) ? row.cells.length : 0));
+  if (colCount === 0) {
+    return buildParagraph({tokens: [{type: 'text', text: ''}]}, opts);
+  }
+
+  const colWidth = opts.maxWidth / colCount;
+  const innerWidth = Math.max(8, colWidth - CELL_PAD_X * 2);
+  const rows: TableRowLayout[] = rowInputs.map(row => {
+    const cells: TableCellLayout[] = [];
+    let rowHeight = CELL_PAD_Y * 2 + lineHeight;
+    for (let col = 0; col < colCount; col++) {
+      const rawCell = row.cells[col];
+      const lines = wrapRuns(
+          opts.ctx, tableCellRuns(rawCell, row.isHeader), innerWidth,
+          fontSize, row.isHeader ? 600 : undefined);
+      rowHeight =
+          Math.max(rowHeight, CELL_PAD_Y * 2 + lines.length * lineHeight);
+      cells.push({
+        lines,
+        align: tableCellAlign(tk, rawCell, col),
+        isHeader: row.isHeader,
+      });
+    }
+    return {cells, height: rowHeight};
+  });
+  const tableHeight = rows.reduce((sum, row) => sum + row.height, 0);
+
+  return {
+    height: tableHeight + PARAGRAPH_SPACING,
+    trailingSpace: PARAGRAPH_SPACING,
+    paint: (g, x, y, _w) => {
+      let rowY = y;
+      for (const row of rows) {
+        if (row.cells.some(cell => cell.isHeader)) {
+          g.fillStyle = opts.theme.codeBlockBg;
+          g.fillRect(x, rowY, opts.maxWidth, row.height);
+        }
+        for (let col = 0; col < row.cells.length; col++) {
+          const cell = row.cells[col]!;
+          const cellX = x + col * colWidth;
+          let lineY = rowY + CELL_PAD_Y + fontSize;
+          for (const line of cell.lines) {
+            let textX = cellX + CELL_PAD_X;
+            if (cell.align === 'right') {
+              textX = cellX + colWidth - CELL_PAD_X - line.width;
+            } else if (cell.align === 'center') {
+              textX = cellX + (colWidth - line.width) / 2;
+            }
+            paintLine(
+                g, line, textX, lineY, fontSize, opts.textColor, opts.theme,
+                cell.isHeader ? 600 : undefined);
+            lineY += lineHeight;
+          }
+        }
+        rowY += row.height;
+      }
+
+      g.strokeStyle = opts.theme.codeBlockBorder;
+      g.lineWidth = 1;
+      g.beginPath();
+      let gridY = y;
+      g.moveTo(x, gridY);
+      g.lineTo(x + opts.maxWidth, gridY);
+      for (const row of rows) {
+        gridY += row.height;
+        g.moveTo(x, gridY);
+        g.lineTo(x + opts.maxWidth, gridY);
+      }
+      for (let col = 0; col <= colCount; col++) {
+        const gridX = x + col * colWidth;
+        g.moveTo(gridX, y);
+        g.lineTo(gridX, y + tableHeight);
+      }
+      g.stroke();
     },
   };
 }
