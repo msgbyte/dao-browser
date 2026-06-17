@@ -758,4 +758,77 @@ describe('dao-chat-view element picker', () => {
     expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
         'markDreamReportViewed', 7);
   });
+
+  it('dismisses the dream card locally without marking the report viewed', async () => {
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      dreamReport_: {
+        id: number;
+        dreamDate: string;
+        reportMarkdown: string;
+        habits: unknown[];
+        debugMaterialJson: string;
+      } | null;
+      dismissDreamReport_: () => void;
+    };
+    view.dreamReport_ = {
+      id: 7,
+      dreamDate: '2026-06-11',
+      reportMarkdown: 'Report body should stay in history',
+      habits: [],
+      debugMaterialJson: '',
+    };
+
+    view.dismissDreamReport_();
+    await Promise.resolve();
+
+    expect(view.dreamReport_).toBeNull();
+    expect(JSON.parse(
+        localStorage.getItem('dao_dismissed_dream_report_ids') || '[]'))
+        .toContain(7);
+    expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+        'markDreamReportViewed', 7);
+  });
+
+  it('does not show a locally dismissed unviewed dream report again', async () => {
+    pickerMocks.callNative.mockResolvedValue({
+      id: 7,
+      dreamDate: '2026-06-11',
+      reportMarkdown: 'Report body should stay in history',
+      habitCandidates: '[]',
+      debugMaterialJson: '',
+    });
+    localStorage.setItem('dao_dismissed_dream_report_ids', '[7]');
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      dreamReport_: unknown;
+      loadDreamReport_: () => Promise<void>;
+    };
+
+    await view.loadDreamReport_();
+
+    expect(view.dreamReport_).toBeNull();
+  });
+
+  it('does not show unviewed dream reports older than yesterday', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-12T12:00:00'));
+      pickerMocks.callNative.mockResolvedValue({
+        id: 7,
+        dreamDate: '2026-06-10',
+        reportMarkdown: 'Older report should stay in history',
+        habitCandidates: '[]',
+        debugMaterialJson: '',
+      });
+      const view = document.createElement('dao-chat-view') as HTMLElement & {
+        dreamReport_: unknown;
+        loadDreamReport_: () => Promise<void>;
+      };
+
+      await view.loadDreamReport_();
+
+      expect(view.dreamReport_).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

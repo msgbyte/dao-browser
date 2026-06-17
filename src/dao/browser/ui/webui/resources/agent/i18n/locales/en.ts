@@ -253,6 +253,7 @@ const dict: Dictionary = {
       'it on the report card.',
   'settings.dream.run_now_button': 'Dream now',
   'settings.dream.run_running': 'Dreaming…',
+  'settings.dream.history_button': 'View dream history',
   'settings.dream.run_done_toast': 'Dream report generated',
   'settings.dream.run_failed_toast': 'Dream run failed: {error}',
   'settings.dream.no_key_toast':
@@ -263,6 +264,7 @@ const dict: Dictionary = {
   'chat.dream.card_date': 'About your day on {date}',
   'chat.dream.expand': 'Read the report',
   'chat.dream.collapse': 'Collapse',
+  'chat.dream.dismiss': 'Dismiss dream report',
   'chat.dream.habits_title': 'I think I noticed…',
   'chat.dream.habit_confirm': 'Yes',
   'chat.dream.habit_reject': 'Not really',

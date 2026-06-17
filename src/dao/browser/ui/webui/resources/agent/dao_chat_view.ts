@@ -183,6 +183,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const MAX_PROACTIVE_PAGE_CONTENT_CHARS = 12000;
+const DISMISSED_DREAM_REPORT_IDS_KEY = 'dao_dismissed_dream_report_ids';
+
+function yesterdayLocalYmd(now = new Date()): string {
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const day = String(yesterday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function readDismissedDreamReportIds(): Set<number> {
+  try {
+    const parsed = JSON.parse(
+        localStorage.getItem(DISMISSED_DREAM_REPORT_IDS_KEY) || '[]');
+    if (!Array.isArray(parsed)) {
+      return new Set();
+    }
+    return new Set(parsed.filter((id): id is number =>
+      typeof id === 'number' && Number.isFinite(id)));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeDismissedDreamReportIds(ids: Set<number>) {
+  localStorage.setItem(
+      DISMISSED_DREAM_REPORT_IDS_KEY,
+      JSON.stringify(Array.from(ids).slice(-100)));
+}
 
 export class DaoChatView extends CrLitElement {
   static override get properties() {
@@ -2412,6 +2442,11 @@ export class DaoChatView extends CrLitElement {
         this.dreamReport_ = null;
         return;
       }
+      if (raw.dreamDate !== yesterdayLocalYmd() ||
+          readDismissedDreamReportIds().has(raw.id)) {
+        this.dreamReport_ = null;
+        return;
+      }
       let habits: DreamReportData['habits'] = [];
       try {
         const parsed = JSON.parse(raw.habitCandidates || '[]');
@@ -2435,6 +2470,16 @@ export class DaoChatView extends CrLitElement {
       return;
     }
     callNative('openTab', {url: 'dao://dream/'}).catch(() => {});
+  }
+
+  private dismissDreamReport_() {
+    if (!this.dreamReport_) {
+      return;
+    }
+    const dismissed = readDismissedDreamReportIds();
+    dismissed.add(this.dreamReport_.id);
+    writeDismissedDreamReportIds(dismissed);
+    this.dreamReport_ = null;
   }
 
   private renderDreamCard_() {
@@ -2463,6 +2508,19 @@ export class DaoChatView extends CrLitElement {
           flex-shrink: 0;
         }
         .dao-dream-btn:hover { background: rgba(127,127,127,0.18); }
+        .dao-dream-close {
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 8px;
+        }
+        .dao-dream-close svg {
+          width: 14px;
+          height: 14px;
+        }
         .dao-dream-md { margin-top: 10px; font-size: 13px; }
         .dao-dream-debug-pre {
           font-size: 11px;
@@ -2491,6 +2549,18 @@ export class DaoChatView extends CrLitElement {
           <button class="dao-dream-btn"
               @click=${this.toggleDreamExpanded_}>
             ${t('chat.dream.expand')}
+          </button>
+          <button class="dao-dream-btn dao-dream-close"
+              title=${t('chat.dream.dismiss')}
+              aria-label=${t('chat.dream.dismiss')}
+              @click=${this.dismissDreamReport_}>
+            <svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
           </button>
         </div>
       </div>`;

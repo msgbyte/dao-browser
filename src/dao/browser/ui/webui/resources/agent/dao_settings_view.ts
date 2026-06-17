@@ -872,8 +872,16 @@ export class DaoSettingsView extends CrLitElement {
             ${this.dreamRunning_ ? t('settings.dream.run_running') :
                                    t('settings.dream.run_now_button')}
           </button>
+          <button class="btn-secondary"
+              @click=${this.openDreamHistory_}>
+            ${t('settings.dream.history_button')}
+          </button>
         </div>
       </div>`;
+  }
+
+  private openDreamHistory_() {
+    callNative('openTab', {url: 'dao://dream/'}).catch(() => {});
   }
 
   private async runDreamNow_() {
