@@ -64,6 +64,23 @@ constexpr base::TimeDelta kCommandSInterceptToastDelay =
 constexpr base::TimeDelta kCommandSConfirmationDuration =
     base::Milliseconds(2500);
 
+void SynchronizeSplitContentLayoutForSidebarChange(Browser* browser) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+  if (!browser_view || !browser_view->dao_split_view() ||
+      !browser_view->dao_split_view()->IsSplitActive()) {
+    return;
+  }
+
+  browser_view->InvalidateLayout();
+  browser_view->DeprecatedLayoutImmediately();
+  if (browser_view->contents_container()) {
+    browser_view->contents_container()->InvalidateLayout();
+    browser_view->contents_container()->DeprecatedLayoutImmediately();
+  }
+  browser_view->dao_split_view()->InvalidateLayout();
+  browser_view->dao_split_view()->DeprecatedLayoutImmediately();
+}
+
 }  // namespace
 
 // Transparent overlay that paints on its own layer above all sidebar content.
@@ -534,6 +551,7 @@ void DaoSidebarView::OnResize(int resize_amount, bool done_resizing) {
     target_width_ = new_width;
   }
   PreferredSizeChanged();
+  SynchronizeSplitContentLayoutForSidebarChange(browser_);
 }
 
 // --- Collapse / expand ---------------------------------------------------
@@ -557,6 +575,7 @@ void DaoSidebarView::ToggleCollapsed() {
 
   // Commit final layout immediately (one layout pass).
   PreferredSizeChanged();
+  SynchronizeSplitContentLayoutForSidebarChange(browser_);
 
   // Animate via compositor layers.
   AnimateLayerSlide(old_width, new_width);
@@ -573,6 +592,9 @@ void DaoSidebarView::AnimateLayerSlide(int old_width, int new_width) {
     return;
   }
 
+  const bool split_active =
+      bv->dao_split_view() && bv->dao_split_view()->IsSplitActive();
+
   // Collect layers to the right of sidebar: address bar, corner overlay,
   // contents container. These all need to slide together.
   std::vector<ui::Layer*> slide_layers;
@@ -583,7 +605,12 @@ void DaoSidebarView::AnimateLayerSlide(int old_width, int new_width) {
     slide_layers.push_back(bv->dao_corner_overlay()->layer());
   }
   if (bv->contents_container() && bv->contents_container()->layer()) {
-    slide_layers.push_back(bv->contents_container()->layer());
+    if (split_active) {
+      bv->contents_container()->layer()->GetAnimator()->StopAnimating();
+      bv->contents_container()->layer()->SetTransform(gfx::Transform());
+    } else {
+      slide_layers.push_back(bv->contents_container()->layer());
+    }
   }
 
   // Snap all layers to old position (undo the layout jump).

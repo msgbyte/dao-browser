@@ -2268,6 +2268,79 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest, ResizeChangesWidth) {
   EXPECT_EQ(original_width + 50, sidebar->GetPreferredSize().width());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest,
+                       SplitResizeRelayoutsContentDuringDrag) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view);
+  DaoSidebarView* sidebar = browser_view->dao_sidebar();
+  DaoSplitView* split_view = browser_view->dao_split_view();
+  ASSERT_NE(nullptr, sidebar);
+  ASSERT_NE(nullptr, split_view);
+
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_GE(model->count(), 2);
+  content::WebContents* first = model->GetWebContentsAt(0);
+  content::WebContents* second = model->GetWebContentsAt(1);
+  model->ActivateTabAt(0);
+
+  ASSERT_TRUE(split_view->SplitPane(
+      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(split_view->IsSplitActive());
+
+  browser_view->DeprecatedLayoutImmediately();
+  const int original_width = sidebar->GetPreferredSize().width();
+  ASSERT_EQ(original_width, browser_view->contents_container()->bounds().x());
+  ASSERT_EQ(browser_view->contents_container()->GetLocalBounds(),
+            split_view->bounds());
+
+  constexpr int kResizeDelta = 48;
+  sidebar->OnResize(kResizeDelta, /*done_resizing=*/false);
+  const int resized_width = original_width + kResizeDelta;
+
+  EXPECT_EQ(resized_width, sidebar->GetPreferredSize().width());
+  EXPECT_EQ(resized_width, browser_view->contents_container()->bounds().x());
+  EXPECT_EQ(browser_view->contents_container()->GetLocalBounds(),
+            split_view->bounds());
+
+  sidebar->OnResize(kResizeDelta, /*done_resizing=*/true);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest,
+                       SplitToggleDoesNotAnimateContentsContainer) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view);
+  DaoSidebarView* sidebar = browser_view->dao_sidebar();
+  DaoSplitView* split_view = browser_view->dao_split_view();
+  ASSERT_NE(nullptr, sidebar);
+  ASSERT_NE(nullptr, split_view);
+  ASSERT_NE(nullptr, browser_view->contents_container());
+  ASSERT_NE(nullptr, browser_view->contents_container()->layer());
+
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_GE(model->count(), 2);
+  content::WebContents* first = model->GetWebContentsAt(0);
+  content::WebContents* second = model->GetWebContentsAt(1);
+  model->ActivateTabAt(0);
+
+  ASSERT_TRUE(split_view->SplitPane(
+      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(split_view->IsSplitActive());
+
+  sidebar->ToggleCollapsed();
+  EXPECT_FALSE(browser_view->contents_container()
+                   ->layer()
+                   ->GetAnimator()
+                   ->is_animating());
+
+  sidebar->ToggleCollapsed();
+  EXPECT_FALSE(browser_view->contents_container()
+                   ->layer()
+                   ->GetAnimator()
+                   ->is_animating());
+}
+
 IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest, ResizeClampsToMinWidth) {
   DaoSidebarView* sidebar = GetBrowserView(browser())->dao_sidebar();
   ASSERT_NE(nullptr, sidebar);
