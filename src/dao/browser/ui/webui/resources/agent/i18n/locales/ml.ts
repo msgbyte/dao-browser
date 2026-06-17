@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'ഫിൽട്ടർ ({count})',
   'memory.filter_panel_title': 'കോളം ഫിൽട്ടറുകൾ',
   'memory.clear_filters': 'ക്ലിയർ',
-  'memory.null': 'NULL',
+  'memory.null': 'ശൂന്യം',
   'memory.copy_sql': 'SQL പകർത്തുക',
   'memory.copied': 'പകർത്തി',
   'index.loading': 'പേജുകൾ ലോഡുചെയ്യുന്നു…',

@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'Saring ({count})',
   'memory.filter_panel_title': 'Filter kolom',
   'memory.clear_filters': 'Bersihkan',
-  'memory.null': 'NULL',
+  'memory.null': 'NOL',
   'memory.copy_sql': 'Salin SQL',
   'memory.copied': 'Disalin',
   'index.loading': 'Memuat halaman…',

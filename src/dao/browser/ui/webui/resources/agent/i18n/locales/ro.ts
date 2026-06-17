@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'Filtrează ({count})',
   'memory.filter_panel_title': 'Filtre de coloană',
   'memory.clear_filters': 'Șterge',
-  'memory.null': 'NULL',
+  'memory.null': 'NUL',
   'memory.copy_sql': 'Copiază SQL',
   'memory.copied': 'Copiat',
   'index.loading': 'Se încarcă paginile…',

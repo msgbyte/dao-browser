@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'Φίλτρο ({count})',
   'memory.filter_panel_title': 'Φίλτρα στηλών',
   'memory.clear_filters': 'Καθαρισμός',
-  'memory.null': 'NULL',
+  'memory.null': 'ΚΕΝΟ',
   'memory.copy_sql': 'Αντιγραφή SQL',
   'memory.copied': 'Αντιγράφηκε',
   'index.loading': 'Φόρτωση σελίδων…',

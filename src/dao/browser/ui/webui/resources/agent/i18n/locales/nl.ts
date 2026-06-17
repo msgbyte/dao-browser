@@ -67,7 +67,7 @@ const dict: Dictionary = {
   'settings.workspace.activity_row': '{when} · {op} · {path}',
   'settings.workspace.activity_error': 'Kon recente activiteit niet laden: {error}',
   'memory.title': 'Geheugen',
-  'memory.subtitle': 'SQLite debug browser',
+  'memory.subtitle': 'SQLite-debugbrowser',
   'memory.tables': 'Tabellen',
   'memory.tables_empty': 'Geen tabellen gevonden',
   'memory.tables_loading': 'Tabellen laden…',

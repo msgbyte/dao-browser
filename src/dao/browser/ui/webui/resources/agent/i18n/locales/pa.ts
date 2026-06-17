@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'ਫਿਲਟਰ ({count})',
   'memory.filter_panel_title': 'ਕਾਲਮ ਫਿਲਟਰ',
   'memory.clear_filters': 'ਸਾਫ ਕਰੋ',
-  'memory.null': 'NULL',
+  'memory.null': 'ਨੱਲ',
   'memory.copy_sql': 'SQL ਕਾਪੀ ਕਰੋ',
   'memory.copied': 'ਕਾਪੀ ਕੀਤਾ',
   'index.loading': 'ਪੰਨੇ ਲੋਡ ਹੋ ਰਹੇ ਹਨ…',

@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'Filtrar ({count})',
   'memory.filter_panel_title': 'Filtros de columna',
   'memory.clear_filters': 'Limpiar',
-  'memory.null': 'NULL',
+  'memory.null': 'NULO',
   'memory.copy_sql': 'Copiar SQL',
   'memory.copied': 'Copiado',
   'index.loading': 'Cargando páginas…',

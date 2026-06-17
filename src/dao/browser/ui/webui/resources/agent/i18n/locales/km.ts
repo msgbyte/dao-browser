@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'តម្រង ({count})',
   'memory.filter_panel_title': 'តម្រងជួរឈរ',
   'memory.clear_filters': 'សម្អាត',
-  'memory.null': 'NULL',
+  'memory.null': 'គ្មាន',
   'memory.copy_sql': 'ចម្លង SQL',
   'memory.copied': 'បានចម្លង',
   'index.loading': 'កំពុងផ្ទុកទំព័រ…',

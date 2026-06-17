@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'Chuja ({count})',
   'memory.filter_panel_title': 'Vichujio vya safu',
   'memory.clear_filters': 'Futa',
-  'memory.null': 'NULL',
+  'memory.null': 'BATILI',
   'memory.copy_sql': 'Nakili SQL',
   'memory.copied': 'Imenakiliwa',
   'index.loading': 'Inapakia kurasa…',

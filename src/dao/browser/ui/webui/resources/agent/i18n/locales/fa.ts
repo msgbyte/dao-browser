@@ -87,7 +87,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'فیلتر ({count})',
   'memory.filter_panel_title': 'فیلترهای ستون',
   'memory.clear_filters': 'پاک کردن',
-  'memory.null': 'NULL',
+  'memory.null': 'تهی',
   'memory.copy_sql': 'کپی SQL',
   'memory.copied': 'کپی شد',
   'index.loading': 'در حال بارگذاری صفحات…',
