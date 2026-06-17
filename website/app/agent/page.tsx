@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { LucideIcon } from '@/components/ui/LucideIcon';
 import {
   FocusContextVisual,
+  ProactiveSuggestionVisual,
   MemoryTimelineVisual,
   SoulVisual,
   EvolutionVisual,
@@ -19,14 +20,14 @@ import styles from './page.module.css';
 export const metadata: Metadata = {
   title: 'Dao Agent — A browser-native AI that lives next to your tabs.',
   description:
-    'Dao Agent is the AI built into Dao Browser. Focus-aware context, long-term memory, switchable souls, host-based skills, sandboxed workspace, self-evolution, and no vendor lock-in.',
+    'Dao Agent is the AI built into Dao Browser. Focus-aware context, explicit-run proactive suggestions, long-term memory, switchable souls, host-based skills, sandboxed workspace, self-evolution, and no vendor lock-in.',
   alternates: {
     canonical: `${SITE_URL}/agent`,
   },
   openGraph: {
     title: 'Dao Agent — AI built into the browser.',
     description:
-      'Focus-aware context, long-term memory, switchable souls, host-based skills, sandboxed workspace, self-evolution. Bring your own model.',
+      'Focus-aware context, explicit-run proactive suggestions, long-term memory, switchable souls, host-based skills, sandboxed workspace, self-evolution. Bring your own model.',
     url: `${SITE_URL}/agent`,
     siteName: 'Dao Browser',
     type: 'website',
@@ -45,14 +46,17 @@ export default function AgentPage() {
             A browser-native AI that learns you, on your terms.
           </h1>
           <p className={styles.subtitle}>
-            Focus-aware context, long-term memory, switchable souls, per-host
-            skills, a sandboxed workspace, self-evolution — and the model
-            choice stays yours.
+            Focus-aware context, explicit-run proactive suggestions, long-term
+            memory, switchable souls, per-host skills, a sandboxed workspace,
+            self-evolution — and the model choice stays yours.
           </p>
 
           <div className={styles.heroPillRow}>
             <span className={styles.heroPill}>
               <LucideIcon name="scan-eye" size={13} /> Focus context
+            </span>
+            <span className={styles.heroPill}>
+              <LucideIcon name="zap" size={13} /> Explicit-run suggestions
             </span>
             <span className={styles.heroPill}>
               <LucideIcon name="brain" size={13} /> Long-term memory
@@ -76,6 +80,7 @@ export default function AgentPage() {
 
           <nav className={styles.toc} aria-label="Page sections">
             <a className={styles.tocLink} href="#focus">Focus</a>
+            <a className={styles.tocLink} href="#proactive">Proactive</a>
             <a className={styles.tocLink} href="#memory">Memory</a>
             <a className={styles.tocLink} href="#soul">Soul</a>
             <a className={styles.tocLink} href="#evolution">Evolution</a>
@@ -100,10 +105,26 @@ export default function AgentPage() {
           mockupSide="right"
         />
 
-        {/* -------- 02 Long-term memory -------- */}
+        {/* -------- 02 Proactive suggestions -------- */}
+        <FeatureSection
+          id="proactive"
+          eyebrow="02 / PROACTIVE SUGGESTIONS"
+          heading="It can notice the moment to help. You decide when it runs."
+          body="Dao watches lightweight browser signals like navigation, host, title, and page metadata to surface a suggestion card inside the Agent sidebar. The card itself does not call the model or capture full page content. Only pressing Run starts an AI turn, attaches the relevant page context, and spends tokens; Dismiss just records local feedback."
+          bullets={[
+            { icon: 'zap', label: 'Appears as a card in the Agent sidebar' },
+            { icon: 'mouse-pointer-2', label: 'Run is the explicit AI trigger' },
+            { icon: 'shield-check', label: 'Dismiss sends no prompt or page content' },
+            { icon: 'layers', label: 'Page context is capped before attachment' },
+          ]}
+          customVisual={<ProactiveSuggestionVisual />}
+          mockupSide="left"
+        />
+
+        {/* -------- 03 Long-term memory -------- */}
         <FeatureSection
           id="memory"
-          eyebrow="02 / LONG-TERM MEMORY"
+          eyebrow="03 / LONG-TERM MEMORY"
           heading="Tell it once. It remembers."
           body="Facts you share — your role, your preferences, the projects you're shipping — become structured memory entries the agent loads on every turn. No prompt rewriting between sessions. The memory is local, inspectable, and yours to edit."
           bullets={[
@@ -115,10 +136,10 @@ export default function AgentPage() {
           mockupSide="left"
         />
 
-        {/* -------- 03 Soul -------- */}
+        {/* -------- 04 Soul -------- */}
         <FeatureSection
           id="soul"
-          eyebrow="03 / SOUL"
+          eyebrow="04 / SOUL"
           heading="One assistant. Yours. For the long run."
           body="Dao Agent isn't a row of role-bots you switch between — it's a single companion that grows into you. Its soul is the slow accumulation of how you speak, what you care about, what you can't stand. The same secretary every morning, sharper every month. You shape it; it stays."
           bullets={[
@@ -130,10 +151,10 @@ export default function AgentPage() {
           mockupSide="right"
         />
 
-        {/* -------- 04 Self-evolution -------- */}
+        {/* -------- 05 Self-evolution -------- */}
         <FeatureSection
           id="evolution"
-          eyebrow="04 / SELF-EVOLUTION"
+          eyebrow="05 / SELF-EVOLUTION"
           heading="It gets better the more you use it."
           body="After meaningful interactions, the agent reflects on what worked and what didn't — and rewrites its own memory, prunes stale references, sharpens its soul. You can review every change before it lands. Nothing learns silently."
           bullets={[
@@ -145,10 +166,10 @@ export default function AgentPage() {
           mockupSide="left"
         />
 
-        {/* -------- 05 Host-based skills -------- */}
+        {/* -------- 06 Host-based skills -------- */}
         <FeatureSection
           id="skills"
-          eyebrow="05 / HOST-BASED SKILLS"
+          eyebrow="06 / HOST-BASED SKILLS"
           heading="Skills tuned to where you are — taught in plain conversation."
           body="“Next time I'm on GitHub, summarize the PR diff for me.” That's it — the agent turns the request into a reusable skill, scoped to that one host, and brings it back the next time you land on the domain. Skills are scoped, so you can keep hundreds without bloating the prompt: only the ones relevant to the page you're on get loaded into context."
           bullets={[
@@ -161,10 +182,10 @@ export default function AgentPage() {
           mockupSide="right"
         />
 
-        {/* -------- 06 Workspace -------- */}
+        {/* -------- 07 Workspace -------- */}
         <FeatureSection
           id="workspace"
-          eyebrow="06 / WORKSPACE"
+          eyebrow="07 / WORKSPACE"
           heading="A sandboxed scratch disk for the agent."
           body="The agent has a quota-bounded, path-normalized workspace of its own — for notes, scrapes, scripts, saved souls. Read, write, list. It cannot escape that root or touch the rest of your filesystem. V4A diffs make every file change reversible."
           bullets={[
@@ -176,10 +197,10 @@ export default function AgentPage() {
           mockupSide="left"
         />
 
-        {/* -------- 07 Your API, your data -------- */}
+        {/* -------- 08 Your API, your data -------- */}
         <FeatureSection
           id="models"
-          eyebrow="07 / YOUR API, YOUR DATA"
+          eyebrow="08 / YOUR API, YOUR DATA"
           heading="Your model. Your key. Your data."
           body="Dao Agent talks to anything that speaks the OpenAI-compatible API: Claude, GPT, Gemini, DeepSeek, Qwen, your local Ollama. The endpoint and key live in your config — not in a Dao account. Every memory, every soul, every workspace byte is a file on your disk that you can read, edit, back up, or delete. No middleman, no telemetry, no lock-in."
           bullets={[

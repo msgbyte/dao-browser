@@ -55,6 +55,49 @@ export function FocusContextVisual() {
 }
 
 // ---------------------------------------------------------------------
+// ProactiveSuggestionVisual — suggestion cards that wait for Run
+// ---------------------------------------------------------------------
+export function ProactiveSuggestionVisual() {
+  return (
+    <Frame>
+      <div className={styles.proactiveRoot}>
+        <div className={styles.proactiveBrowser}>
+          <div className={styles.proactiveHost}>github.com/msgbyte/dao-browser</div>
+          <div className={styles.proactivePageTitle}>Pull request #42</div>
+          <div className={styles.proactivePageLine} />
+          <div className={`${styles.proactivePageLine} ${styles.short}`} />
+          <div className={`${styles.proactivePageLine} ${styles.accent}`} />
+          <div className={styles.proactivePageMeta}>
+            navigation · title · host · light metadata
+          </div>
+        </div>
+
+        <div className={styles.proactiveCard}>
+          <div className={styles.proactiveCardHeader}>
+            <span className={styles.proactiveCardIcon}>
+              <LucideIcon name="zap" size={14} />
+            </span>
+            Suggested help
+          </div>
+          <div className={styles.proactiveCardTitle}>Review this PR?</div>
+          <p className={styles.proactiveCardBody}>
+            Dao noticed a diff-heavy page. The model has not run yet.
+          </p>
+          <div className={styles.proactiveCostHint}>
+            <LucideIcon name="shield-check" size={12} />
+            AI starts only after Run.
+          </div>
+          <div className={styles.proactiveActions}>
+            <span className={styles.proactiveRunButton}>Run</span>
+            <span className={styles.proactiveDismissButton}>Dismiss</span>
+          </div>
+        </div>
+      </div>
+    </Frame>
+  );
+}
+
+// ---------------------------------------------------------------------
 // MemoryTimelineVisual — long-term memory as cards on a timeline
 // ---------------------------------------------------------------------
 const MEMORIES: { date: string; kind: string; text: string }[] = [

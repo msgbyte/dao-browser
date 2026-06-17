@@ -158,6 +158,157 @@
 }
 
 /* ============================================================
+ * Proactive Suggestions — lightweight signal card + explicit Run
+ * ============================================================ */
+.proactiveRoot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.9fr);
+  gap: 18px;
+  align-items: center;
+  width: 100%;
+}
+
+.proactiveBrowser {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.proactiveHost {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.proactivePageTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.proactivePageLine {
+  width: 100%;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.proactivePageLine.short {
+  width: 72%;
+}
+
+.proactivePageLine.accent {
+  width: 88%;
+  background: var(--accent-dim);
+}
+
+.proactivePageMeta {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.proactiveCard {
+  background: var(--bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--accent) 12%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.proactiveCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.proactiveCardIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--accent-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.proactiveCardTitle {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.proactiveCardBody {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.proactiveCostHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.proactiveActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.proactiveRunButton,
+.proactiveDismissButton {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.proactiveRunButton {
+  background: var(--accent);
+  color: white;
+}
+
+.proactiveDismissButton {
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .proactiveRoot {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
  * Memory Visual — timeline of remembered facts
  * ============================================================ */
 .memoryRoot {
