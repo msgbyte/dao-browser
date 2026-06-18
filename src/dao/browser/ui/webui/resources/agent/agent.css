@@ -618,15 +618,23 @@ attachment-tile[data-dao-decorated="1"] {
   color: rgba(30, 20, 40, 0.52);
 }
 
-/* Dao-owned action row appended after the last assistant-message by
- * dao_chat_view's retry observer. Sits flush with the left gutter of
- * the message body (pi-web-ui uses `px-4` inside assistant-message, so
- * match 16px) and gets a small top gap so it doesn't crowd the reply. */
-.dao-assistant-actions {
+/* Dao-owned action rows. Assistant rows sit below replies and flush with the
+ * left gutter of the message body (pi-web-ui uses `px-4` inside
+ * assistant-message, so match 16px). User rows live inside the user message's
+ * flex wrapper, immediately to the left of the blue bubble. */
+.dao-message-actions {
   display: flex;
   gap: 6px;
   padding: 4px 16px 0;
   margin-top: 2px;
+}
+.dao-user-actions {
+  align-self: flex-end;
+  flex: 0 0 auto;
+  justify-content: center;
+  margin: 0 6px 0 0;
+  padding: 0;
+  position: relative;
 }
 .dao-retry-btn,
 .dao-copy-btn,
@@ -669,7 +677,96 @@ attachment-tile[data-dao-decorated="1"] {
   background: rgba(70, 120, 190, 0.24);
   color: rgba(30, 20, 40, 0.92);
 }
-
+.dao-user-action-menu {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  z-index: 20;
+  min-width: 132px;
+  padding: 4px;
+  border: 1px solid rgba(70, 120, 190, 0.20);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(30, 20, 40, 0.16);
+}
+.dao-user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 7px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+.dao-user-menu-item:hover {
+  background: rgba(70, 120, 190, 0.12);
+}
+.dao-user-menu-item svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+.dao-retry-btn:disabled,
+.dao-copy-btn:disabled,
+.dao-share-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.dao-user-edit-wrap {
+  margin: 6px 16px 10px auto;
+  max-width: min(82%, 520px);
+}
+.dao-user-edit-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 70px;
+  padding: 10px 12px;
+  border: 1px solid rgba(70, 120, 190, 0.32);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.dao-user-edit-input:focus {
+  border-color: rgba(70, 120, 190, 0.70);
+  box-shadow: 0 0 0 3px rgba(70, 120, 190, 0.18);
+}
+.dao-user-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+.dao-user-edit-error {
+  margin-top: 5px;
+  color: var(--destructive);
+  font-size: 11px;
+}
+.dao-user-edit-actions button {
+  border: 1px solid rgba(70, 120, 190, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.dao-user-edit-actions button.primary {
+  background: rgba(70, 120, 190, 0.92);
+  border-color: rgba(70, 120, 190, 0.92);
+  color: white;
+}
 /* Dao-owned "Insert into focused input" button injected into every
  * <code-block> by dao_chat_view's decorateCodeBlocks_. Sits as a sibling
  * immediately before the vendor <copy-button>. Hidden by default —
@@ -1116,7 +1213,30 @@ body {
     background: rgba(70, 120, 190, 0.36);
     color: rgba(245, 245, 245, 0.95);
   }
-
+  .dao-user-action-menu {
+    background: rgba(54, 59, 64, 0.98);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.30);
+  }
+  .dao-user-menu-item {
+    color: rgba(245, 245, 245, 0.92);
+  }
+  .dao-user-menu-item:hover {
+    background: rgba(70, 120, 190, 0.24);
+  }
+  .dao-user-edit-input {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(170, 200, 240, 0.26);
+    color: rgba(245, 245, 245, 0.94);
+  }
+  .dao-user-edit-actions button {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(245, 245, 245, 0.92);
+  }
+  .dao-user-edit-actions button.primary {
+    background: rgba(70, 120, 190, 0.92);
+    color: white;
+  }
   /* Collapsible tool-call block. Dark surfaces need higher contrast than
    * light ones — bump container fill/border, and repaint state dots with
    * brighter, more saturated hues so they read on a dark backdrop. */

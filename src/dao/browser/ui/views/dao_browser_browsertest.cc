@@ -115,6 +115,7 @@
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/layer_animator.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -3531,19 +3532,19 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMarkdownTest, RendersAssistantMarkdownToHtml) {
 // =============================================================================
 // DaoAgentAssistantActionsTest
 //
-// Covers the "after restoring history, copy/share/retry buttons appear
-// on the last assistant bubble" path. We can't drive a full LLM round-
-// trip from a browser test, so we drive the injector directly: stage
-// a fake <assistant-message> in the chat panel, call the testing hook
-// on <dao-chat-view>, and assert .dao-assistant-actions was attached
-// after the last bubble. This is the same DOM contract loadSession_ now
-// re-runs after hydrating IndexedDB messages.
+// Covers the "after restoring history, per-message action rows appear in the
+// right place" path. We can't drive a full LLM round-trip from a browser test,
+// so we drive the injector directly: stage fake message hosts in the chat
+// panel, call the testing hook on <dao-chat-view>, and assert assistant rows
+// are below replies while user rows sit to the left of the matching bubble.
+// This is the same DOM contract loadSession_ re-runs after hydrating IndexedDB
+// messages.
 // =============================================================================
 
 using DaoAgentAssistantActionsTest = InProcessBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(DaoAgentAssistantActionsTest,
-                       AttachesActionRowToLastAssistantMessage) {
+                       AttachesAssistantRowsAndUserMoreMenus) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome://agent/")));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -3571,13 +3572,44 @@ IN_PROC_BROWSER_TEST_F(DaoAgentAssistantActionsTest,
       }
       const panel = view.querySelector('pi-chat-panel');
       if (!panel) return 'no-panel';
-      // Stage two fake assistant bubbles. refreshAssistantActions_ only
-      // attaches the row to the last one — we assert exactly that.
+      view.agent_ = {
+        state: {
+          isStreaming: false,
+          messages: [
+            {role: 'user', content: 'first prompt', dao: {id: 'u1'}},
+            {role: 'assistant', content: 'first answer', dao: {id: 'a1'}},
+            {
+              role: 'user',
+              content: 'second prompt',
+              dao: {
+                id: 'u2',
+                editHistory: [{content: 'older prompt', editedAt: 'now'}],
+              },
+            },
+            {role: 'assistant', content: 'second answer', dao: {id: 'a2'}},
+          ],
+        },
+      };
+      const makeUser = (name) => {
+        const user = document.createElement('user-message');
+        user.setAttribute('data-test', name);
+        const flex = document.createElement('div');
+        flex.className = 'flex justify-start mx-4';
+        const bubble = document.createElement('div');
+        bubble.className = 'user-message-container';
+        flex.appendChild(bubble);
+        user.appendChild(flex);
+        return user;
+      };
+      const userFirst = makeUser('user-first');
       const a1 = document.createElement('assistant-message');
-      a1.setAttribute('data-test', 'first');
+      a1.setAttribute('data-test', 'assistant-first');
+      const userSecond = makeUser('user-second');
       const a2 = document.createElement('assistant-message');
-      a2.setAttribute('data-test', 'last');
+      a2.setAttribute('data-test', 'assistant-second');
+      panel.appendChild(userFirst);
       panel.appendChild(a1);
+      panel.appendChild(userSecond);
       panel.appendChild(a2);
 
       if (typeof view._daoTestRefreshAssistantActions !== 'function') {
@@ -3585,29 +3617,60 @@ IN_PROC_BROWSER_TEST_F(DaoAgentAssistantActionsTest,
       }
       view._daoTestRefreshAssistantActions();
 
-      const rows = panel.querySelectorAll('.dao-assistant-actions');
-      if (rows.length !== 1) return 'wrong-row-count:' + rows.length;
-      const row = rows[0];
-      // The injector inserts the row as a sibling immediately after the
-      // last <assistant-message>.
-      if (row.previousElementSibling !== a2) {
-        return 'row-not-after-last:' +
-               (row.previousElementSibling &&
-                row.previousElementSibling.getAttribute('data-test'));
+      const assistantRows = panel.querySelectorAll('.dao-assistant-actions');
+      if (assistantRows.length !== 2) {
+        return 'wrong-assistant-row-count:' + assistantRows.length;
       }
-      // Confirm all three buttons are present (copy / share / retry).
-      const haveCopy = !!row.querySelector('.dao-copy-btn');
-      const haveShare = !!row.querySelector('.dao-share-btn');
-      const haveRetry = !!row.querySelector('.dao-retry-btn');
-      if (!haveCopy || !haveShare || !haveRetry) {
-        return 'missing-btn copy=' + haveCopy +
-               ' share=' + haveShare + ' retry=' + haveRetry;
+      if (assistantRows[0].previousElementSibling !== a1 ||
+          assistantRows[1].previousElementSibling !== a2) {
+        return 'assistant-row-placement';
+      }
+      const userRows = panel.querySelectorAll('.dao-user-actions');
+      if (userRows.length !== 2) {
+        return 'wrong-user-row-count:' + userRows.length;
+      }
+      const userBubble1 = userFirst.querySelector('.user-message-container');
+      const userBubble2 = userSecond.querySelector('.user-message-container');
+      if (userRows[0].parentElement !== userBubble1.parentElement ||
+          userRows[0].nextElementSibling !== userBubble1 ||
+          userRows[1].parentElement !== userBubble2.parentElement ||
+          userRows[1].nextElementSibling !== userBubble2) {
+        return 'user-row-placement';
+      }
+      const userAlign1 = getComputedStyle(userRows[0]).alignSelf;
+      const userAlign2 = getComputedStyle(userRows[1]).alignSelf;
+      if (userAlign1 !== 'flex-end' || userAlign2 !== 'flex-end') {
+        return 'user-row-not-bottom-aligned:' + userAlign1 + ':' + userAlign2;
+      }
+      for (const row of assistantRows) {
+        const haveCopy = !!row.querySelector('.dao-copy-btn');
+        const haveShare = !!row.querySelector('.dao-share-btn');
+        const haveRetry = !!row.querySelector('.dao-retry-btn');
+        if (!haveCopy || !haveShare || !haveRetry) {
+          return 'missing-assistant-btn';
+        }
+      }
+      for (const row of userRows) {
+        const more = row.querySelector('.dao-user-more-btn');
+        if (!more || row.querySelector('.dao-edit-btn')) {
+          return 'missing-user-more';
+        }
+      }
+      userRows[1].querySelector('.dao-user-more-btn').click();
+      const openMenu = panel.querySelector('.dao-user-action-menu');
+      if (!openMenu ||
+          !openMenu.querySelector('.dao-edit-menu-item') ||
+          openMenu.querySelector('.dao-history-menu-item')) {
+        return 'unexpected-user-menu-items';
       }
 
       // Idempotency: a second refresh must not duplicate rows.
       view._daoTestRefreshAssistantActions();
-      const rows2 = panel.querySelectorAll('.dao-assistant-actions');
-      if (rows2.length !== 1) return 'duplicated:' + rows2.length;
+      const assistantRows2 = panel.querySelectorAll('.dao-assistant-actions');
+      const userRows2 = panel.querySelectorAll('.dao-user-actions');
+      if (assistantRows2.length !== 2 || userRows2.length !== 2) {
+        return 'duplicated:' + assistantRows2.length + ':' + userRows2.length;
+      }
       return 'ok';
     })()
   )";

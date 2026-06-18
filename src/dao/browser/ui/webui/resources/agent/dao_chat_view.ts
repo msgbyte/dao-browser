@@ -57,6 +57,25 @@ interface DreamReportData {
   debugMaterialJson: string;
 }
 
+interface DaoMessageMetadata {
+  id: string;
+  editedAt?: string;
+}
+
+type DaoChatMessage = {
+  role?: string;
+  content?: unknown;
+  attachments?: unknown[];
+  timestamp?: unknown;
+  dao?: DaoMessageMetadata;
+};
+
+interface DaoAssistantPair {
+  question: string;
+  source?: {title: string; domain: string};
+  answer: string;
+}
+
 interface PiAgent {
   state: {
     systemPrompt: string;
@@ -221,6 +240,10 @@ export class DaoChatView extends CrLitElement {
       tokenEstimate_: {type: Number, state: true},
       compacting_: {type: Boolean, state: true},
       isStreaming_: {type: Boolean, state: true},
+      editingMessageId_: {type: String, state: true},
+      editingDraft_: {type: String, state: true},
+      editingError_: {type: String, state: true},
+      userActionMenuMessageId_: {type: String, state: true},
       pendingPageAttachment_: {state: true},
       pendingSelection_: {state: true},
       pendingElementContexts_: {state: true},
@@ -250,6 +273,10 @@ export class DaoChatView extends CrLitElement {
     this.tokenEstimate_ = 0;
     this.compacting_ = false;
     this.isStreaming_ = false;
+    this.editingMessageId_ = '';
+    this.editingDraft_ = '';
+    this.editingError_ = '';
+    this.userActionMenuMessageId_ = '';
     this.pendingPageAttachment_ = null;
     this.pendingSelection_ = null;
     this.pendingElementContexts_ = getReusableElementContexts();
@@ -315,6 +342,10 @@ export class DaoChatView extends CrLitElement {
   declare protected tokenEstimate_: number;
   declare protected compacting_: boolean;
   declare protected isStreaming_: boolean;
+  declare protected editingMessageId_: string;
+  declare protected editingDraft_: string;
+  declare protected editingError_: string;
+  declare protected userActionMenuMessageId_: string;
   // Current-page chip: renders as a small pill above the composer with the
   // active tab's title. Cleared when the URL is already in one of the
   // session sets (sent / dismissed) or the tab is a non-capturable surface
@@ -1157,6 +1188,7 @@ export class DaoChatView extends CrLitElement {
         const agent = this.agent_;
         if (!agent) return;
         agent.state.messages = agent.state.messages.slice();
+        this.ensureMessageIds_();
         this.syncMeta_();
         // If the just-ended message contained an `update_soul` tool call,
         // the on-disk soul is now stale relative to state.systemPrompt.
@@ -1198,7 +1230,7 @@ export class DaoChatView extends CrLitElement {
           const iface = panel.querySelector('agent-interface') as any;
           iface?.requestUpdate?.();
           this.isStreaming_ = !!this.agent_?.state.isStreaming;
-          this.refreshAssistantActions_();
+          this.refreshMessageActions_();
           this.decoratePageAttachments_();
         });
       }
@@ -1482,106 +1514,32 @@ export class DaoChatView extends CrLitElement {
     return pieces.join('\n\n');
   }
 
-  // Walks the message list backward and returns the last assistant reply
-  // paired with the user message that prompted it. `source` is populated
-  // from the first Dao-authored page/selection attachment on that user
-  // message. Returns null if there is no assistant reply yet.
-  private getLastQaPair_():
-      {question: string; source?: {title: string; domain: string};
-       answer: string}|null {
-    const agent = this.agent_;
-    if (!agent) return null;
-    const msgs = agent.state.messages;
-    // Walk backward and skip tool-only assistant messages (those whose
-    // content is just tool_use parts with no visible text). Copy / share
-    // should reflect the user-visible bubble, not the tool plumbing that
-    // produced it.
-    let assistantIdx = -1;
-    let answer = '';
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i]?.role !== 'assistant') continue;
-      const text = this.extractAssistantText_(msgs[i]);
-      if (text) {
-        assistantIdx = i;
-        answer = text;
-        break;
-      }
-    }
-    if (assistantIdx < 0) return null;
-
-    let question = '';
-    let source: {title: string; domain: string}|undefined;
-    for (let i = assistantIdx - 1; i >= 0; i--) {
-      const m = msgs[i];
-      const role = m?.role;
-      if (role !== 'user' && role !== 'user-with-attachments') continue;
-      // user.content can be a string (user-with-attachments path) or an
-      // array of {type:'text', text:'...'} blocks (plain prompt path —
-      // pi-mono's normalizePromptInput wraps the typed string before push).
-      // Reuse the same extractor as assistant so both shapes work.
-      const text = this.extractAssistantText_(m);
-      if (text.length > 0) {
-        question = text;
-      }
-      if (role === 'user-with-attachments' && Array.isArray(m.attachments)) {
-        for (const att of m.attachments) {
-          if (att && typeof att.daoPageUrl === 'string' && att.daoPageUrl) {
-            try {
-              const host = new URL(att.daoPageUrl).hostname.replace(
-                  /^www\./, '');
-              source = {
-                title: att.daoPageTitle || att.fileName || host,
-                domain: host,
-              };
-            } catch (_) {
-              // Bad URL — skip this attachment, keep looking.
-            }
-            if (source) break;
-          }
-        }
-      }
-      break;
-    }
-    return {question, source, answer};
+  private buildActionButton_(
+      className: string, titleKey: string, svg: string,
+      onClick: (btn: HTMLButtonElement) => void): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = className;
+    btn.title = t(titleKey);
+    btn.setAttribute('aria-label', t(titleKey));
+    btn.innerHTML = svg;
+    btn.addEventListener('click', () => onClick(btn));
+    return btn;
   }
 
-  private refreshAssistantActions_(): void {
-    const panel = this.panel_;
-    if (!panel) return;
-    panel.querySelectorAll('.dao-assistant-actions')
-        .forEach(el => el.remove());
-    if (this.agent_?.state.isStreaming) return;
-    const list = panel.querySelectorAll('assistant-message');
-    const last = list[list.length - 1] as HTMLElement | undefined;
-    if (!last) return;
-
+  private buildAssistantActionRow_(
+      msg: DaoChatMessage, disabled: boolean): HTMLElement {
     const row = document.createElement('div');
-    row.className = 'dao-assistant-actions';
-
-    const copyBtn = document.createElement('button');
-    copyBtn.type = 'button';
-    copyBtn.className = 'dao-copy-btn';
-    copyBtn.title = t('chat.message_actions.copy_tooltip');
-    copyBtn.setAttribute(
-        'aria-label', t('chat.message_actions.copy_tooltip'));
-    copyBtn.innerHTML =
+    row.className = 'dao-message-actions dao-assistant-actions';
+    row.dataset['daoMessageId'] = msg.dao?.id || '';
+    const copySvg =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
         ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
         ' aria-hidden="true">' +
         '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>' +
         '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1">' +
         '</path></svg>';
-    copyBtn.addEventListener(
-        'click', () => void this.copyAssistantText_(copyBtn));
-    row.appendChild(copyBtn);
-
-    const shareBtn = document.createElement('button');
-    shareBtn.type = 'button';
-    shareBtn.className = 'dao-share-btn';
-    shareBtn.title = t('chat.message_actions.share_tooltip');
-    shareBtn.setAttribute(
-        'aria-label', t('chat.message_actions.share_tooltip'));
-    shareBtn.innerHTML =
+    const imageSvg =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
         ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
         ' aria-hidden="true">' +
@@ -1589,38 +1547,180 @@ export class DaoChatView extends CrLitElement {
         '<circle cx="9" cy="9" r="2"></circle>' +
         '<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>' +
         '</svg>';
-    shareBtn.addEventListener(
-        'click', () => void this.shareAssistantAsImage_(shareBtn));
-    row.appendChild(shareBtn);
-
-    const retryBtn = document.createElement('button');
-    retryBtn.type = 'button';
-    retryBtn.className = 'dao-retry-btn';
-    retryBtn.title = t('chat.message_actions.regenerate_tooltip');
-    retryBtn.setAttribute(
-        'aria-label', t('chat.message_actions.regenerate_tooltip'));
-    retryBtn.innerHTML =
+    const regenSvg =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
         ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
         ' aria-hidden="true">' +
         '<path d="M3 12a9 9 0 1 0 3-6.7"></path>' +
         '<path d="M3 4v5h5"></path>' +
         '</svg>';
-    retryBtn.addEventListener('click', () => void this.retryLastAssistant_());
-    row.appendChild(retryBtn);
+    const id = msg.dao?.id || '';
+    const copy = this.buildActionButton_(
+        'dao-copy-btn', 'chat.message_actions.copy_tooltip', copySvg,
+        btn => void this.copyAssistantTextById_(id, btn));
+    const image = this.buildActionButton_(
+        'dao-share-btn', 'chat.message_actions.share_tooltip', imageSvg,
+        btn => void this.shareAssistantAsImageById_(id, btn));
+    const regen = this.buildActionButton_(
+        'dao-retry-btn', 'chat.message_actions.regenerate_tooltip', regenSvg,
+        () => void this.regenerateAssistantById_(id));
+    copy.disabled = disabled;
+    image.disabled = disabled;
+    regen.disabled = disabled;
+    row.append(copy, image, regen);
+    return row;
+  }
 
-    last.insertAdjacentElement('afterend', row);
-    // Re-decorate code blocks: streaming may have added new <code-block>
-    // elements (or finalized their internal <copy-button>) since the
-    // last decoration pass. Idempotent.
+  private buildUserActionRow_(
+      msg: DaoChatMessage, disabled: boolean): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'dao-message-actions dao-user-actions';
+    row.dataset['daoMessageId'] = msg.dao?.id || '';
+    const id = msg.dao?.id || '';
+    // Lucide ellipsis, copied from lucide-icons/lucide main.
+    const moreSvg =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="1"></circle>' +
+        '<circle cx="19" cy="12" r="1"></circle>' +
+        '<circle cx="5" cy="12" r="1"></circle>' +
+        '</svg>';
+    const more = this.buildActionButton_(
+        'dao-retry-btn dao-user-more-btn',
+        'chat.message_actions.more_tooltip',
+        moreSvg,
+        () => this.toggleUserActionMenu_(id));
+    more.disabled = disabled;
+    row.appendChild(more);
+    if (this.userActionMenuMessageId_ === id) {
+      row.appendChild(this.buildUserActionMenu_(id));
+    }
+    return row;
+  }
+
+  private buildUserActionMenu_(id: string): HTMLElement {
+    const menu = document.createElement('div');
+    menu.className = 'dao-user-action-menu';
+    menu.setAttribute('role', 'menu');
+    // Lucide square-pen, copied from lucide-icons/lucide main.
+    const editSvg =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14' +
+        'a2 2 0 0 0 2-2v-7"></path>' +
+        '<path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 ' +
+        '0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873' +
+        'a2 2 0 0 1 .506-.852z"></path>' +
+        '</svg>';
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'dao-user-menu-item dao-edit-menu-item';
+    edit.setAttribute('role', 'menuitem');
+    edit.innerHTML = editSvg + '<span>' + t('chat.message_actions.edit') +
+        '</span>';
+    edit.addEventListener('click', () => this.beginEditUserMessage_(id));
+    menu.appendChild(edit);
+    return menu;
+  }
+
+  private insertUserActionRow_(host: HTMLElement, row: HTMLElement): void {
+    const flex = host.querySelector('.flex.justify-start');
+    const bubble = host.querySelector('.user-message-container');
+    if (flex instanceof HTMLElement && bubble instanceof HTMLElement &&
+        bubble.parentElement === flex) {
+      flex.insertBefore(row, bubble);
+      return;
+    }
+    host.insertAdjacentElement('beforebegin', row);
+  }
+
+  private insertUserAuxiliaryAfterMessage_(
+      msg: DaoChatMessage, host: HTMLElement): void {
+    const id = msg.dao?.id || '';
+    if (this.editingMessageId_ === id) {
+      host.insertAdjacentElement('afterend', this.buildInlineEditor_(id));
+    }
+  }
+
+  private buildInlineEditor_(id: string): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'dao-user-edit-wrap';
+    const textarea = document.createElement('textarea');
+    textarea.className = 'dao-user-edit-input';
+    textarea.value = this.editingDraft_;
+    textarea.rows = Math.min(
+        8, Math.max(2, this.editingDraft_.split('\n').length));
+    textarea.addEventListener('input', e => this.onEditDraftInput_(e));
+    textarea.addEventListener('keydown', e => this.onEditDraftKeydown_(e));
+    const actions = document.createElement('div');
+    actions.className = 'dao-user-edit-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = t('chat.message_actions.cancel_edit');
+    cancel.addEventListener('click', () => this.cancelEditUserMessage_());
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'primary';
+    save.textContent = t('chat.message_actions.save_edit');
+    save.addEventListener(
+        'click', () => void this.applyUserMessageEdit_(id, textarea.value));
+    actions.append(cancel, save);
+    wrap.append(textarea);
+    if (this.editingError_) {
+      const error = document.createElement('div');
+      error.className = 'dao-user-edit-error';
+      error.textContent = this.editingError_;
+      wrap.appendChild(error);
+    }
+    wrap.append(actions);
+    setTimeout(() => textarea.focus(), 0);
+    return wrap;
+  }
+
+  private refreshMessageActions_(): void {
+    const panel = this.panel_;
+    if (!panel) return;
+    panel.querySelectorAll(
+        '.dao-message-actions, .dao-user-edit-wrap')
+        .forEach(el => el.remove());
+    this.ensureMessageIds_();
+    const disabled = !!this.agent_?.state.isStreaming;
+    const msgs = this.currentMessages_();
+    const userEls = Array.from(panel.querySelectorAll('user-message'));
+    const assistantEls = Array.from(panel.querySelectorAll('assistant-message'));
+    let userCursor = 0;
+    let assistantCursor = 0;
+    for (const msg of msgs) {
+      const role = msg.role;
+      if (role === 'user' || role === 'user-with-attachments') {
+        const el = userEls[userCursor++] as HTMLElement | undefined;
+        if (el && msg.dao?.id) {
+          const row = this.buildUserActionRow_(msg, disabled);
+          this.insertUserActionRow_(el, row);
+          this.insertUserAuxiliaryAfterMessage_(msg, el);
+        }
+      } else if (role === 'assistant') {
+        const el = assistantEls[assistantCursor++] as HTMLElement | undefined;
+        if (el && msg.dao?.id && this.isAssistantMessage_(msg)) {
+          el.insertAdjacentElement(
+              'afterend', this.buildAssistantActionRow_(msg, disabled));
+        }
+      }
+    }
     this.decorateCodeBlocks_();
+  }
+
+  private refreshAssistantActions_(): void {
+    this.refreshMessageActions_();
   }
 
   // Decorates every <code-block> in the message list with a Dao-owned
   // "Insert into focused input" button placed immediately before the
   // vendor <copy-button>. Idempotent via the `data-dao-insert-decorated`
   // attribute. Skips blocks whose internal <copy-button> hasn't rendered
-  // yet (streaming) — the next call (driven by refreshAssistantActions_
+  // yet (streaming) — the next call (driven by refreshMessageActions_
   // or the loadSession_ retry chain) picks them up.
   //
   // Decorates BOTH assistant-message code blocks AND tool-result code
@@ -1715,10 +1815,18 @@ export class DaoChatView extends CrLitElement {
     }, durationMs);
   }
 
-  private async copyAssistantText_(btn: HTMLButtonElement): Promise<void> {
-    const pair = this.getLastQaPair_();
+  private async copyAssistantTextById_(
+      assistantId: string, btn?: HTMLButtonElement): Promise<void> {
+    await this.copyAssistantPair_(
+        this.findPromptForAssistantId_(assistantId), btn);
+  }
+
+  private async copyAssistantPair_(
+      pair: DaoAssistantPair|null, btn?: HTMLButtonElement): Promise<void> {
     if (!pair || !pair.answer) {
-      this.flashButtonLabel_(btn, t('chat.message_actions.empty'), false);
+      if (btn) {
+        this.flashButtonLabel_(btn, t('chat.message_actions.empty'), false);
+      }
       return;
     }
     try {
@@ -1743,24 +1851,38 @@ export class DaoChatView extends CrLitElement {
       } else {
         await navigator.clipboard.writeText(pair.answer);
       }
-      this.flashButtonLabel_(btn, t('chat.message_actions.copied'), true);
+      if (btn) {
+        this.flashButtonLabel_(btn, t('chat.message_actions.copied'), true);
+      }
     } catch (e) {
       console.warn('[dao] copy text failed', e);
       try {
         await navigator.clipboard.writeText(pair.answer);
-        this.flashButtonLabel_(btn, t('chat.message_actions.copied'), true);
+        if (btn) {
+          this.flashButtonLabel_(btn, t('chat.message_actions.copied'), true);
+        }
       } catch (e2) {
         console.warn('[dao] copy text fallback failed', e2);
-        this.flashButtonLabel_(btn, t('chat.message_actions.failed'), false);
+        if (btn) {
+          this.flashButtonLabel_(
+              btn, t('chat.message_actions.failed'), false);
+        }
       }
     }
   }
 
-  private async shareAssistantAsImage_(btn: HTMLButtonElement):
-      Promise<void> {
-    const pair = this.getLastQaPair_();
+  private async shareAssistantAsImageById_(
+      assistantId: string, btn?: HTMLButtonElement): Promise<void> {
+    await this.shareAssistantPairAsImage_(
+        this.findPromptForAssistantId_(assistantId), btn);
+  }
+
+  private async shareAssistantPairAsImage_(
+      pair: DaoAssistantPair|null, btn?: HTMLButtonElement): Promise<void> {
     if (!pair || !pair.answer) {
-      this.flashButtonLabel_(btn, t('chat.message_actions.empty'), false);
+      if (btn) {
+        this.flashButtonLabel_(btn, t('chat.message_actions.empty'), false);
+      }
       return;
     }
     try {
@@ -1776,30 +1898,153 @@ export class DaoChatView extends CrLitElement {
       }
       await navigator.clipboard.write(
           [new ClipboardItemCtor({'image/png': blob})]);
-      this.flashButtonLabel_(btn, t('chat.message_actions.shared'), true);
+      if (btn) {
+        this.flashButtonLabel_(btn, t('chat.message_actions.shared'), true);
+      }
     } catch (e) {
       console.warn('[dao] share image failed', e);
-      this.flashButtonLabel_(btn, t('chat.message_actions.failed'), false);
+      if (btn) {
+        this.flashButtonLabel_(btn, t('chat.message_actions.failed'), false);
+      }
     }
   }
 
-  private async retryLastAssistant_(): Promise<void> {
+  private async regenerateAssistantById_(assistantId: string): Promise<void> {
+    const assistantIdx = this.findMessageIndexByDaoId_(assistantId);
+    const userIdx = this.findUserIndexForAssistantIndex_(assistantIdx);
+    await this.retryFromUserIndex_(userIdx);
+  }
+
+  private toggleUserActionMenu_(userId: string): void {
+    const idx = this.findMessageIndexByDaoId_(userId);
+    const msg = this.currentMessages_()[idx];
+    if (!this.isUserMessage_(msg)) return;
+    this.userActionMenuMessageId_ =
+        this.userActionMenuMessageId_ === userId ? '' : userId;
+    this.refreshMessageActions_();
+  }
+
+  private beginEditUserMessage_(userId: string): void {
+    const idx = this.findMessageIndexByDaoId_(userId);
+    const msg = this.currentMessages_()[idx];
+    if (!this.isUserMessage_(msg)) return;
+    this.editingMessageId_ = userId;
+    this.editingDraft_ = this.extractVisibleText_(msg);
+    this.editingError_ = '';
+    this.userActionMenuMessageId_ = '';
+    this.refreshMessageActions_();
+  }
+
+  private cancelEditUserMessage_(): void {
+    this.editingMessageId_ = '';
+    this.editingDraft_ = '';
+    this.editingError_ = '';
+    this.userActionMenuMessageId_ = '';
+    this.refreshMessageActions_();
+  }
+
+  private onEditDraftInput_(e: Event): void {
+    const target = e.target as HTMLInputElement | HTMLTextAreaElement | null;
+    this.editingDraft_ = target?.value ?? '';
+    if (this.editingDraft_.trim()) {
+      this.editingError_ = '';
+    }
+  }
+
+  private onEditDraftKeydown_(e: KeyboardEvent): void {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.cancelEditUserMessage_();
+      return;
+    }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      if (this.editingMessageId_) {
+        void this.applyUserMessageEdit_(
+            this.editingMessageId_, this.editingDraft_);
+      }
+    }
+  }
+
+  private async applyUserMessageEdit_(
+      userId: string, nextText: string): Promise<void> {
+    const agent = this.agent_;
+    if (!agent) return;
+    const trimmed = nextText.trim();
+    if (!trimmed) {
+      this.editingError_ = t('chat.message_actions.empty_edit');
+      this.refreshMessageActions_();
+      return;
+    }
+    let userIdx = this.findMessageIndexByDaoId_(userId);
+    let msg = agent.state.messages[userIdx] as DaoChatMessage | undefined;
+    if (userIdx < 0 || !this.isUserMessage_(msg)) return;
+
+    if (agent.state.isStreaming || this.isStreaming_) {
+      try {
+        agent.abort();
+      } catch (_) {
+        // Keep applying the explicit edit even if the in-flight run is
+        // already unwinding and abort reports an error.
+      }
+      try {
+        await agent.waitForIdle();
+      } catch (_) {
+        // The run may already be idle or tearing down; re-check messages below.
+      }
+      agent.state.isStreaming = false;
+      this.isStreaming_ = false;
+    }
+
+    const messages = agent.state.messages;
+    userIdx = this.findMessageIndexByDaoId_(userId);
+    msg = messages[userIdx] as DaoChatMessage | undefined;
+    if (userIdx < 0 || !this.isUserMessage_(msg)) return;
+
+    const now = new Date().toISOString();
+    const daoMeta = {
+      ...(msg.dao ?? {}),
+    } as DaoMessageMetadata & {editHistory?: unknown};
+    delete daoMeta.editHistory;
+    const editedMessage: DaoChatMessage = {
+      ...msg,
+      content: trimmed,
+      dao: {
+        ...daoMeta,
+        id: userId,
+        editedAt: now,
+      },
+    };
+
+    const nextMessages = messages.slice(0, userIdx + 1);
+    nextMessages[userIdx] = editedMessage;
+    agent.state.messages = nextMessages;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iface = this.panel_?.querySelector('agent-interface') as any;
+    iface?.requestUpdate?.();
+    this.syncMeta_();
+    this.cancelEditUserMessage_();
+    await this.saveCurrentSession_();
+    try {
+      await agent.continue();
+    } catch (e) {
+      console.warn('[dao] edit retry failed', e);
+      this.scheduleSaveSession_();
+    }
+  }
+
+  private async retryFromUserIndex_(userIdx: number): Promise<void> {
     const agent = this.agent_;
     if (!agent || agent.state.isStreaming) return;
     const messages = agent.state.messages;
-    let lastUserIdx = -1;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const role = messages[i].role;
-      if (role === 'user' || role === 'user-with-attachments') {
-        lastUserIdx = i;
-        break;
-      }
+    if (userIdx < 0 || userIdx >= messages.length ||
+        !this.isUserMessage_(messages[userIdx])) {
+      return;
     }
-    if (lastUserIdx < 0) return;
     // Keep the user message, drop all assistant / toolResult messages
     // that came after it. Replace the array (not mutate in place) so
     // pi-web-ui's reference-equality change detector picks it up.
-    agent.state.messages = messages.slice(0, lastUserIdx + 1);
+    agent.state.messages = messages.slice(0, userIdx + 1);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const iface = this.panel_?.querySelector('agent-interface') as any;
     iface?.requestUpdate?.();
@@ -1808,6 +2053,7 @@ export class DaoChatView extends CrLitElement {
       await agent.continue();
     } catch (e) {
       console.warn('[dao] retry failed', e);
+      this.scheduleSaveSession_();
     }
   }
 
@@ -2120,6 +2366,129 @@ export class DaoChatView extends CrLitElement {
     this.tokenEstimate_ = estimateMessagesTokens(msgs);
   }
 
+  private currentMessages_(): DaoChatMessage[] {
+    const msgs = this.agent_?.state.messages;
+    return Array.isArray(msgs) ? msgs as DaoChatMessage[] : [];
+  }
+
+  private newDaoMessageId_(): string {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    if (typeof uuid === 'string' && uuid.length > 0) {
+      return `dao-msg-${uuid}`;
+    }
+    return `dao-msg-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  }
+
+  private ensureMessageIds_(): boolean {
+    if (!this.agent_) return false;
+    const msgs = this.currentMessages_();
+    let changed = false;
+    for (const msg of msgs) {
+      if (!isRecord(msg)) continue;
+      if (!isRecord(msg.dao)) {
+        msg.dao = {id: this.newDaoMessageId_()};
+        changed = true;
+        continue;
+      }
+      if (typeof msg.dao.id !== 'string' || !msg.dao.id.length) {
+        msg.dao.id = this.newDaoMessageId_();
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.agent_.state.messages = msgs.slice();
+    }
+    return changed;
+  }
+
+  private findMessageIndexByDaoId_(id: string): number {
+    const msgs = this.currentMessages_();
+    for (let i = 0; i < msgs.length; i++) {
+      if (msgs[i]?.dao?.id === id) return i;
+    }
+    return -1;
+  }
+
+  private isUserMessage_(msg: unknown): msg is DaoChatMessage {
+    if (!isRecord(msg)) return false;
+    const role = msg['role'];
+    return role === 'user' || role === 'user-with-attachments';
+  }
+
+  private isAssistantMessage_(msg: unknown): msg is DaoChatMessage {
+    if (!isRecord(msg)) return false;
+    return msg['role'] === 'assistant' &&
+        !!this.extractVisibleText_(msg as DaoChatMessage);
+  }
+
+  private extractVisibleText_(msg: DaoChatMessage): string {
+    return this.extractAssistantText_(msg);
+  }
+
+  private pageSourceForUserMessage_(msg: DaoChatMessage):
+      {title: string; domain: string} | undefined {
+    if (msg.role !== 'user-with-attachments') return;
+    const attachments = Array.isArray(msg.attachments) ? msg.attachments : [];
+    for (const raw of attachments) {
+      if (!isRecord(raw)) continue;
+      const pageUrl = raw['daoPageUrl'];
+      if (typeof pageUrl !== 'string' || !pageUrl.length) continue;
+      const rawTitle = raw['daoPageTitle'];
+      const rawFileName = raw['fileName'];
+      const pageTitle =
+          typeof rawTitle === 'string' && rawTitle.length > 0 ?
+          rawTitle :
+          typeof rawFileName === 'string' && rawFileName.length > 0 ?
+          rawFileName :
+          '';
+      let host = '';
+      try {
+        host = new URL(pageUrl).hostname.replace(/^www\./, '');
+      } catch (_) {
+        continue;
+      }
+      return {
+        title: pageTitle || host,
+        domain: host,
+      };
+    }
+    return;
+  }
+
+  private findUserIndexForAssistantIndex_(assistantIdx: number): number {
+    const msgs = this.currentMessages_();
+    const assistant = msgs[assistantIdx];
+    if (!isRecord(assistant) || assistant['role'] !== 'assistant') return -1;
+    for (let i = assistantIdx - 1; i >= 0; i--) {
+      if (this.isUserMessage_(msgs[i])) return i;
+    }
+    return -1;
+  }
+
+  private findPromptForAssistantIndex_(assistantIdx: number):
+      DaoAssistantPair|null {
+    const msgs = this.currentMessages_();
+    const assistant = msgs[assistantIdx];
+    if (!this.isAssistantMessage_(assistant)) return null;
+    const answer = this.extractVisibleText_(assistant);
+    const userIdx = this.findUserIndexForAssistantIndex_(assistantIdx);
+    if (userIdx >= 0) {
+      const user = msgs[userIdx];
+      if (!this.isUserMessage_(user)) return {question: '', answer};
+      return {
+        question: this.extractVisibleText_(user),
+        source: this.pageSourceForUserMessage_(user),
+        answer,
+      };
+    }
+    return {question: '', answer};
+  }
+
+  private findPromptForAssistantId_(assistantId: string): DaoAssistantPair|null {
+    return this.findPromptForAssistantIndex_(
+        this.findMessageIndexByDaoId_(assistantId));
+  }
+
   private async onCompactClick_() {
     if (this.compacting_) {
       this.compactAbort_?.abort();
@@ -2141,6 +2510,7 @@ export class DaoChatView extends CrLitElement {
         signal: this.compactAbort_.signal,
         keepTailUserTurns: 1,
       });
+      this.ensureMessageIds_();
       this.syncMeta_();
       // pi-web-ui's <message-list> binds to agent.state.messages with
       // reference-equality; the setter inside compactAgentMessages already
@@ -2157,6 +2527,7 @@ export class DaoChatView extends CrLitElement {
           text: t('chat.compact.success', {count: result.collapsedCount}),
         },
       }));
+      this.scheduleSaveSession_();
     } catch (e) {
       const err = e as Error;
       const text = err.name === 'AbortError'
@@ -2883,6 +3254,7 @@ export class DaoChatView extends CrLitElement {
     const agent = this.agent_;
     if (!agent) return;
     if (!agent.state.messages || agent.state.messages.length === 0) return;
+    this.ensureMessageIds_();
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const storage = await ensurePiAppStorage() as any;
@@ -2951,6 +3323,7 @@ export class DaoChatView extends CrLitElement {
       this.agent_.state.messages = Array.isArray(sess.messages) ?
           sess.messages.slice() :
           [];
+      const addedMessageIds = this.ensureMessageIds_();
       this.isStreaming_ = false;
       this.sentPageUrls_.clear();
       this.dismissedUrls_.clear();
@@ -2962,10 +3335,13 @@ export class DaoChatView extends CrLitElement {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const iface = this.panel_?.querySelector('agent-interface') as any;
       iface?.requestUpdate?.();
+      if (addedMessageIds) {
+        this.scheduleSaveSession_();
+      }
       void this.refreshPageChip_();
       void this.refreshSelectionChip_();
       // After Lit re-renders the restored messages, re-inject the
-      // copy/share/retry action row on the last assistant bubble and
+      // message action rows below restored user / assistant bubbles and
       // re-decorate page attachments. Without this the buttons only
       // appear for replies generated in the current session — restored
       // history would have no actions until the user sent another
@@ -2974,17 +3350,16 @@ export class DaoChatView extends CrLitElement {
       // The exact tick when <assistant-message> elements appear in the
       // DOM depends on pi-web-ui's render schedule (Lit microtasks +
       // virtualization), so we retry on a few backoff steps until the
-      // last assistant bubble exists. 80/200/500ms covers cold starts
-      // where IndexedDB hydration competes with the first paint; once
-      // the row is injected refreshAssistantActions_ is idempotent so
+      // message hosts exist. 80/200/500ms covers cold starts where
+      // IndexedDB hydration competes with the first paint; once rows are
+      // injected refreshMessageActions_ is idempotent so
       // any later tick is harmless.
       const tryInject = (delay: number, remaining: number) => {
         setTimeout(() => {
-          this.refreshAssistantActions_();
+          this.refreshMessageActions_();
           this.decoratePageAttachments_();
           this.decorateCodeBlocks_();
-          const injected = !!this.panel_?.querySelector(
-              '.dao-assistant-actions');
+          const injected = !!this.panel_?.querySelector('.dao-message-actions');
           if (!injected && remaining > 0) {
             tryInject(delay * 2, remaining - 1);
           }
@@ -2996,6 +3371,34 @@ export class DaoChatView extends CrLitElement {
   }
 
   // ---- Public API kept for dao-agent-app compatibility ----
+
+  _daoTestEnsureMessageIds(): void {
+    this.ensureMessageIds_();
+  }
+
+  _daoTestFindMessageIndexByDaoId(id: string): number {
+    return this.findMessageIndexByDaoId_(id);
+  }
+
+  _daoTestFindPromptForAssistant(assistantId: string): DaoAssistantPair|null {
+    return this.findPromptForAssistantId_(assistantId);
+  }
+
+  _daoTestRegenerateAssistantById(assistantId: string): Promise<void> {
+    return this.regenerateAssistantById_(assistantId);
+  }
+
+  _daoTestApplyUserMessageEdit(id: string, text: string): Promise<void> {
+    return this.applyUserMessageEdit_(id, text);
+  }
+
+  _daoTestCopyAssistantById(assistantId: string): Promise<void> {
+    return this.copyAssistantTextById_(assistantId);
+  }
+
+  _daoTestShareAssistantAsImageById(assistantId: string): Promise<void> {
+    return this.shareAssistantAsImageById_(assistantId);
+  }
 
   // Testing hook: lets browser_tests drive the action-row injector
   // directly without round-tripping through a real LLM stream. Mirrors

@@ -159,6 +159,7 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
 }));
 
 import {clearReusableElementContext} from '../dao_element_context.js';
+import {renderShareImage} from '../dao_share_image.js';
 import '../dao_chat_view.js';
 
 function sampleContext(): ElementContextCapture {
@@ -216,6 +217,358 @@ function clearTabWatchTimer(view: HTMLElement) {
     window.clearInterval(timer);
   }
 }
+
+function restorePropertyDescriptor(
+    target: object, key: PropertyKey,
+    descriptor: PropertyDescriptor | undefined) {
+  if (descriptor) {
+    Object.defineProperty(target, key, descriptor);
+    return;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete (target as any)[key];
+}
+
+describe('dao-chat-view message metadata helpers', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+  });
+
+  function viewWithMessages(messages: any[]) {
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      agent_: {
+        state: {messages: any[]; isStreaming: boolean};
+        abort: ReturnType<typeof vi.fn>;
+        continue: ReturnType<typeof vi.fn>;
+      };
+      panel_: HTMLElement | null;
+      _daoTestEnsureMessageIds: () => void;
+      _daoTestFindMessageIndexByDaoId: (id: string) => number;
+      _daoTestFindPromptForAssistant:
+          (assistantId: string) => {question: string; answer: string;
+                                    source?: {title: string; domain: string}} |
+              null;
+      _daoTestRegenerateAssistantById: (assistantId: string) => Promise<void>;
+      _daoTestCopyAssistantById: (assistantId: string) => Promise<void>;
+      _daoTestShareAssistantAsImageById:
+          (assistantId: string) => Promise<void>;
+      _daoTestApplyUserMessageEdit:
+          (messageId: string, content: string) => Promise<void>;
+      _daoTestRefreshAssistantActions: () => void;
+    };
+    view.agent_ = {
+      state: {messages, isStreaming: false},
+      abort: vi.fn(),
+      continue: vi.fn(async () => undefined),
+    };
+    view.panel_ = null;
+    return view;
+  }
+
+  function selectedAssistantHistory() {
+    return [
+      {role: 'user', content: 'old user prompt'},
+      {role: 'assistant', content: 'old assistant answer'},
+      {role: 'user', content: 'latest user prompt'},
+      {role: 'assistant', content: 'latest assistant answer'},
+    ];
+  }
+
+  it('adds dao ids without replacing existing ids', () => {
+    const messages = [
+      {role: 'user', content: 'first'},
+      {role: 'assistant', content: 'answer', dao: {id: 'existing'}},
+      {role: 'toolResult', content: 'tool'},
+    ];
+    const view = viewWithMessages(messages);
+
+    view._daoTestEnsureMessageIds();
+
+    expect(messages[0].dao.id).toMatch(/^dao-msg-/);
+    expect(messages[1].dao.id).toBe('existing');
+    expect(messages[2].dao.id).toMatch(/^dao-msg-/);
+  });
+
+  it('finds a message index by dao id', () => {
+    const view = viewWithMessages([
+      {role: 'user', content: 'first', dao: {id: 'u1'}},
+      {role: 'assistant', content: 'answer', dao: {id: 'a1'}},
+    ]);
+
+    expect(view._daoTestFindMessageIndexByDaoId('a1')).toBe(1);
+    expect(view._daoTestFindMessageIndexByDaoId('missing')).toBe(-1);
+  });
+
+  it('builds a selected assistant share pair from its nearest user message', () => {
+    const view = viewWithMessages([
+      {role: 'user', content: 'older', dao: {id: 'u0'}},
+      {role: 'assistant', content: 'older answer', dao: {id: 'a0'}},
+      {
+        role: 'user-with-attachments',
+        content: 'summarize this',
+        dao: {id: 'u1'},
+        attachments: [{
+          daoPageUrl: 'https://example.com/docs',
+          daoPageTitle: 'Example Docs',
+          fileName: 'Example Docs.md',
+        }],
+      },
+      {role: 'assistant', content: 'selected answer', dao: {id: 'a1'}},
+      {role: 'user', content: 'newer', dao: {id: 'u2'}},
+      {role: 'assistant', content: 'newer answer', dao: {id: 'a2'}},
+    ]);
+
+    expect(view._daoTestFindPromptForAssistant('a1')).toEqual({
+      question: 'summarize this',
+      answer: 'selected answer',
+      source: {title: 'Example Docs', domain: 'example.com'},
+    });
+  });
+
+  it('renders user actions in a more menu to the left of the bubble', () => {
+    const view = viewWithMessages([
+      {
+        role: 'user',
+        content: 'editable prompt',
+        dao: {
+          id: 'u1',
+          editHistory: [{content: 'old prompt', editedAt: '2026-01-01'}],
+        },
+      },
+    ]);
+    const panel = document.createElement('div');
+    const host = document.createElement('user-message');
+    const flex = document.createElement('div');
+    flex.className = 'flex justify-start mx-4';
+    const bubble = document.createElement('div');
+    bubble.className = 'user-message-container';
+    flex.appendChild(bubble);
+    host.appendChild(flex);
+    panel.appendChild(host);
+    view.panel_ = panel;
+
+    view._daoTestRefreshAssistantActions();
+
+    const row = panel.querySelector('.dao-user-actions') as HTMLElement|null;
+    expect(row?.parentElement).toBe(flex);
+    expect(row?.nextElementSibling).toBe(bubble);
+    expect(panel.querySelector('.dao-edit-btn')).toBeNull();
+
+    const more =
+        row?.querySelector('.dao-user-more-btn') as HTMLButtonElement|null;
+    expect(more).toBeTruthy();
+    expect(more?.title).toBe('chat.message_actions.more_tooltip');
+    const circles = Array.from(more?.querySelectorAll('svg circle') ?? [])
+                        .map(circle => [
+                          circle.getAttribute('cx'),
+                          circle.getAttribute('cy'),
+                          circle.getAttribute('r'),
+                        ]);
+    expect(circles).toEqual([
+      ['12', '12', '1'],
+      ['19', '12', '1'],
+      ['5', '12', '1'],
+    ]);
+
+    more?.click();
+
+    const openRow =
+        panel.querySelector('.dao-user-actions') as HTMLElement|null;
+    const menu = openRow?.querySelector('.dao-user-action-menu');
+    expect(menu).toBeTruthy();
+    expect(menu?.querySelector('.dao-edit-menu-item')?.textContent).toContain(
+        'chat.message_actions.edit');
+    expect(menu?.querySelector('.dao-history-menu-item')).toBeNull();
+  });
+
+  it('regenerates from the user paired with the selected assistant', async () => {
+    const messages = selectedAssistantHistory();
+    const view = viewWithMessages(messages);
+
+    view._daoTestEnsureMessageIds();
+    const oldAssistantId = messages[1].dao.id;
+
+    await view._daoTestRegenerateAssistantById(oldAssistantId);
+
+    expect(view.agent_.continue).toHaveBeenCalledTimes(1);
+    expect(view.agent_.state.messages.map(({role, content}) => ({
+      role,
+      content,
+    }))).toEqual([
+      {role: 'user', content: 'old user prompt'},
+    ]);
+    expect(view.agent_.state.messages).not.toContainEqual(
+        expect.objectContaining({content: 'latest user prompt'}));
+  });
+
+  it('edits a user message without edit history, truncates later messages, and regenerates',
+     async () => {
+       const isoLikeTimestamp =
+           /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+       const attachments = [{id: 'dao-page-1', extractedText: 'page'}];
+       const messages = [
+         {
+           role: 'user-with-attachments',
+           content: 'old prompt',
+           dao: {
+             id: 'u1',
+             editHistory: [
+               {content: 'very old prompt', editedAt: '2026-01-01'},
+             ],
+           },
+           attachments,
+         },
+         {role: 'assistant', content: 'old answer', dao: {id: 'a1'}},
+         {role: 'user', content: 'later prompt', dao: {id: 'u2'}},
+       ];
+       const originalMessage = messages[0];
+       const view = viewWithMessages(messages);
+       const panel = document.createElement('div');
+       const iface = document.createElement('agent-interface') as HTMLElement & {
+         requestUpdate: ReturnType<typeof vi.fn>;
+       };
+       iface.requestUpdate = vi.fn();
+       panel.appendChild(iface);
+       view.panel_ = panel;
+
+       await view._daoTestApplyUserMessageEdit('u1', 'new prompt');
+
+       expect(view.agent_.state.messages).toHaveLength(1);
+       const editedMessage = view.agent_.state.messages[0];
+       expect(editedMessage).not.toBe(originalMessage);
+       expect(originalMessage.content).toBe('old prompt');
+       expect(editedMessage.content).toBe('new prompt');
+       expect(editedMessage.attachments).toEqual(attachments);
+       expect(editedMessage.dao.editedAt).toMatch(isoLikeTimestamp);
+       expect(editedMessage.dao.editHistory).toBeUndefined();
+       expect(iface.requestUpdate).toHaveBeenCalled();
+       expect(view.agent_.continue).toHaveBeenCalled();
+     });
+
+  it('rejects an empty user edit without truncating messages', async () => {
+    const messages = [
+      {role: 'user', content: 'old prompt', dao: {id: 'u1'}},
+      {role: 'assistant', content: 'old answer', dao: {id: 'a1'}},
+    ];
+    const view = viewWithMessages(messages);
+
+    await view._daoTestApplyUserMessageEdit('u1', '   ');
+
+    expect(view.agent_.state.messages.map(({content}) => content)).toEqual([
+      'old prompt',
+      'old answer',
+    ]);
+  });
+
+  it('aborts an active stream before saving an already-open edit', async () => {
+    const messages = [
+      {role: 'user', content: 'old prompt', dao: {id: 'u1'}},
+      {role: 'assistant', content: 'old answer', dao: {id: 'a1'}},
+    ];
+    const view = viewWithMessages(messages);
+    view.agent_.state.isStreaming = true;
+    view.agent_.abort = vi.fn(() => {
+      expect(view.agent_.state.messages.map(({content}) => content)).toEqual([
+        'old prompt',
+        'old answer',
+      ]);
+    });
+    view.agent_.continue = vi.fn(async () => undefined);
+
+    await view._daoTestApplyUserMessageEdit('u1', 'new prompt');
+
+    expect(view.agent_.abort).toHaveBeenCalled();
+    expect(view.agent_.state.messages.map(({content}) => content)).toEqual([
+      'new prompt',
+    ]);
+  });
+
+  it('copies the selected assistant text instead of the latest assistant text',
+     async () => {
+       const messages = selectedAssistantHistory();
+       const view = viewWithMessages(messages);
+       const writeText = vi.fn(async () => undefined);
+       const originalClipboardDescriptor =
+           Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+       const originalClipboardItemDescriptor =
+           Object.getOwnPropertyDescriptor(window, 'ClipboardItem');
+       Object.defineProperty(navigator, 'clipboard', {
+         configurable: true,
+         value: {writeText},
+       });
+       Object.defineProperty(window, 'ClipboardItem', {
+         configurable: true,
+         value: undefined,
+       });
+
+       try {
+         view._daoTestEnsureMessageIds();
+         const oldAssistantId = messages[1].dao.id;
+
+         await view._daoTestCopyAssistantById(oldAssistantId);
+
+         expect(writeText).toHaveBeenCalledWith('old assistant answer');
+         expect(writeText).not.toHaveBeenCalledWith('latest assistant answer');
+       } finally {
+         restorePropertyDescriptor(
+             navigator, 'clipboard', originalClipboardDescriptor);
+         restorePropertyDescriptor(
+             window, 'ClipboardItem', originalClipboardItemDescriptor);
+       }
+     });
+
+  it('renders a share image from the selected assistant pair', async () => {
+    const messages = selectedAssistantHistory();
+    const view = viewWithMessages(messages);
+    const renderShareImageMock = vi.mocked(renderShareImage);
+    renderShareImageMock.mockResolvedValue(new Blob(['png'], {
+      type: 'image/png',
+    }));
+    const write = vi.fn(async () => undefined);
+    const originalClipboardDescriptor =
+        Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const originalClipboardItemDescriptor =
+        Object.getOwnPropertyDescriptor(window, 'ClipboardItem');
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {write},
+    });
+    Object.defineProperty(window, 'ClipboardItem', {
+      configurable: true,
+      value: class {
+        constructor(public readonly items: Record<string, Blob>) {}
+      },
+    });
+
+    try {
+      view._daoTestEnsureMessageIds();
+      const oldAssistantId = messages[1].dao.id;
+
+      await view._daoTestShareAssistantAsImageById(oldAssistantId);
+
+      expect(renderShareImageMock).toHaveBeenCalledWith(expect.objectContaining({
+        question: 'old user prompt',
+        answer: 'old assistant answer',
+      }));
+      expect(renderShareImageMock).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            question: 'latest user prompt',
+            answer: 'latest assistant answer',
+          }));
+    } finally {
+      restorePropertyDescriptor(
+          navigator, 'clipboard', originalClipboardDescriptor);
+      restorePropertyDescriptor(
+          window, 'ClipboardItem', originalClipboardItemDescriptor);
+    }
+  });
+});
 
 describe('dao-chat-view element picker', () => {
   beforeEach(() => {
