@@ -317,6 +317,83 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, CollectorCapsLongHistoryText) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       CollectorIncludesHighConfidencePreferences) {
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+
+  {
+    bool saved = false;
+    base::RunLoop loop;
+    memory->MergePreference(
+        "interest.documentation",
+        "Prefers reading implementation documentation before coding.", 0.95,
+        base::BindLambdaForTesting([&](bool ok) {
+          saved = ok;
+          loop.Quit();
+        }));
+    loop.Run();
+    ASSERT_TRUE(saved);
+  }
+  {
+    bool saved = false;
+    base::RunLoop loop;
+    memory->MergePreference(
+        "interest.noisy_guess", "A weak one-off browsing guess.", 0.4,
+        base::BindLambdaForTesting([&](bool ok) {
+          saved = ok;
+          loop.Quit();
+        }));
+    loop.Run();
+    ASSERT_TRUE(saved);
+  }
+  {
+    bool saved = false;
+    base::RunLoop loop;
+    memory->MergePreference(
+        "interest.auto_candidate",
+        "A model-generated candidate that was not confirmed.", 0.8,
+        base::BindLambdaForTesting([&](bool ok) {
+          saved = ok;
+          loop.Quit();
+        }));
+    loop.Run();
+    ASSERT_TRUE(saved);
+  }
+
+  DreamMaterialCollector collector(browser()->profile(), memory);
+  const base::Time now = base::Time::Now();
+  base::DictValue pack;
+  base::RunLoop loop;
+  collector.Collect(now - base::Hours(6), now,
+                    base::BindLambdaForTesting([&](base::DictValue p) {
+                      pack = std::move(p);
+                      loop.Quit();
+                    }));
+  loop.Run();
+
+  const base::ListValue* preferences = pack.FindList("preferences");
+  ASSERT_TRUE(preferences);
+  ASSERT_EQ(1u, preferences->size());
+
+  const base::DictValue& pref = (*preferences)[0].GetDict();
+  EXPECT_EQ("interest.documentation", *pref.FindString("key"));
+  EXPECT_EQ("Prefers reading implementation documentation before coding.",
+            *pref.FindString("value"));
+  EXPECT_GE(pref.FindDouble("confidence").value_or(0), 0.9);
+  EXPECT_EQ(1, pref.FindInt("evidence_count").value_or(0));
+
+  const base::DictValue* stats = pack.FindDict("stats");
+  ASSERT_TRUE(stats);
+  EXPECT_EQ(1, stats->FindInt("preferences").value_or(0));
+
+  std::string json;
+  base::JSONWriter::Write(pack, &json);
+  EXPECT_EQ(std::string::npos, json.find("interest.noisy_guess"));
+  EXPECT_EQ(std::string::npos, json.find("interest.auto_candidate"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        MemoryContextIncludesDomainSummary) {
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());

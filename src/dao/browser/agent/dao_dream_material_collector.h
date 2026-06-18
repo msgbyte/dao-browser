@@ -22,7 +22,7 @@ class DaoAgentMemoryService;
 
 // Collects the material pack for one dream run: browsing history
 // (domain + title granularity), search keywords, agent conversation
-// excerpts, and action-feedback stats for the window
+// excerpts, known preferences, and action-feedback stats for the window
 // [window_start, window_end). All queries run in parallel; the callback
 // fires on the UI thread with a Dict shaped as:
 // {
@@ -33,9 +33,11 @@ class DaoAgentMemoryService;
 //                "buckets":{"morning":N,"afternoon":N,"evening":N,"night":N}}],
 //   "search_queries": ["...", ...],
 //   "conversations": [{"session_id","messages":["...",...]}],
+//   "preferences": [{"key","value","confidence","evidence_count"}],
 //   "feedback": [{"scenario_id","name","shown","clicked","dismissed"}],
 //   "stats": {"history_domains":N,"search_queries":N,
-//             "conversation_sessions":N,"feedback_scenarios":N}
+//             "conversation_sessions":N,"preferences":N,
+//             "feedback_scenarios":N}
 // }
 // PRIVACY INVARIANT: no full URL appears anywhere in the output.
 class DreamMaterialCollector {
@@ -43,6 +45,7 @@ class DreamMaterialCollector {
   static constexpr int kMaxDomains = 50;
   static constexpr int kMaxSearchQueries = 30;
   static constexpr int kMaxConversationSessions = 10;
+  static constexpr int kMaxPreferences = 10;
   static constexpr int kMaxTitlesPerDomain = 5;
   static constexpr int kMaxTextChars = 240;
 
@@ -68,6 +71,7 @@ class DreamMaterialCollector {
  private:
   void OnHistoryResults(base::ListValue domains, base::ListValue queries);
   void OnConversationsLoaded(base::ListValue sessions);
+  void OnPreferencesLoaded(base::ListValue preferences);
   void OnFeedbackLoaded(base::ListValue feedback);
   void OnPartDone();
 
@@ -82,6 +86,7 @@ class DreamMaterialCollector {
   base::ListValue history_part_;
   base::ListValue search_part_;
   base::ListValue conversations_part_;
+  base::ListValue preferences_part_;
   base::ListValue feedback_part_;
 
   base::CancelableTaskTracker history_tracker_;

@@ -38,6 +38,7 @@ constexpr SearchEngine kSearchEngines[] = {
     {"duckduckgo.com", "q"}, {"kagi.com", "q"},
     {"baidu.com", "wd"},     {"search.brave.com", "q"},
 };
+constexpr double kMinKnownPreferenceConfidence = 0.9;
 constexpr int kMediumForegroundSeconds = 5 * 60;
 constexpr int kDeepForegroundSeconds = 30 * 60;
 
@@ -169,11 +170,13 @@ void DreamMaterialCollector::Collect(base::Time window_start,
   history_part_.clear();
   search_part_.clear();
   conversations_part_.clear();
+  preferences_part_.clear();
   feedback_part_.clear();
 
-  // 3 parts: history (+search, same query), conversations, feedback.
+  // 4 parts: history (+search, same query), conversations, preferences,
+  // feedback.
   barrier_ = base::BarrierClosure(
-      3, base::BindOnce(&DreamMaterialCollector::OnPartDone,
+      4, base::BindOnce(&DreamMaterialCollector::OnPartDone,
                         weak_factory_.GetWeakPtr()));
 
   // Part 1: history → domains + search queries.
@@ -335,7 +338,31 @@ void DreamMaterialCollector::Collect(base::Time window_start,
           },
           weak_factory_.GetWeakPtr()));
 
-  // Part 3: proactive-action feedback. Scenario stat columns already
+  // Part 3: known high-confidence preferences. These are existing memory, not
+  // evidence from the current day. Keep this stricter than the generic memory
+  // context so unconfirmed dream guesses do not feed the next dream.
+  memory_service_->GetPreferences(
+      kMaxPreferences, kMinKnownPreferenceConfidence,
+      base::BindOnce(
+          [](base::WeakPtr<DreamMaterialCollector> self,
+             std::vector<Preference> preferences) {
+            if (!self) {
+              return;
+            }
+            base::ListValue list;
+            for (const auto& p : preferences) {
+              base::DictValue pref;
+              pref.Set("key", TruncateMaterialText(p.key));
+              pref.Set("value", TruncateMaterialText(p.value));
+              pref.Set("confidence", p.confidence);
+              pref.Set("evidence_count", p.evidence_count);
+              list.Append(std::move(pref));
+            }
+            self->OnPreferencesLoaded(std::move(list));
+          },
+          weak_factory_.GetWeakPtr()));
+
+  // Part 4: proactive-action feedback. Scenario stat columns already
   // aggregate lifetime counts; v1 surfaces those coarse signals.
   memory_service_->GetPersonalScenarios(base::BindOnce(
       [](base::WeakPtr<DreamMaterialCollector> self,
@@ -374,6 +401,11 @@ void DreamMaterialCollector::OnConversationsLoaded(
   barrier_.Run();
 }
 
+void DreamMaterialCollector::OnPreferencesLoaded(base::ListValue preferences) {
+  preferences_part_ = std::move(preferences);
+  barrier_.Run();
+}
+
 void DreamMaterialCollector::OnFeedbackLoaded(base::ListValue feedback) {
   feedback_part_ = std::move(feedback);
   barrier_.Run();
@@ -390,11 +422,13 @@ void DreamMaterialCollector::OnPartDone() {
   stats.Set("search_queries", static_cast<int>(search_part_.size()));
   stats.Set("conversation_sessions",
             static_cast<int>(conversations_part_.size()));
+  stats.Set("preferences", static_cast<int>(preferences_part_.size()));
   stats.Set("feedback_scenarios", static_cast<int>(feedback_part_.size()));
   pack.Set("stats", std::move(stats));
   pack.Set("history", std::move(history_part_));
   pack.Set("search_queries", std::move(search_part_));
   pack.Set("conversations", std::move(conversations_part_));
+  pack.Set("preferences", std::move(preferences_part_));
   pack.Set("feedback", std::move(feedback_part_));
   std::move(callback_).Run(std::move(pack));
 }

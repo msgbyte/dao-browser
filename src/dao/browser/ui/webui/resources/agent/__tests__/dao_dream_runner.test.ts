@@ -143,6 +143,23 @@ describe('runDream', () => {
        expect(systemPrompt).toContain('not like an audit log');
      });
 
+  it('asks the model to treat material preferences as existing memory',
+     async () => {
+       respondWith(VALID);
+       await runDream('2026-06-11', {});
+
+       const messages = callLLMStreaming.mock.calls[0]![0] as Array<{
+         role: string;
+         content: string;
+       }>;
+       const systemPrompt = messages[0]!.content;
+
+       expect(systemPrompt).toContain('material.preferences');
+       expect(systemPrompt).toContain('existing memory');
+       expect(systemPrompt).toContain('reinforce');
+       expect(systemPrompt).toContain('contradict');
+     });
+
   it('logs sanitized request info when debug mode is enabled', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     respondWith(VALID);
