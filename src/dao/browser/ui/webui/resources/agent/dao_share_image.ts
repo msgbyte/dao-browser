@@ -29,6 +29,13 @@ export interface ShareContext {
   answer: string;
 }
 
+export interface DreamReportShareContext {
+  title: string;
+  dateLabel: string;
+  markdown: string;
+  footer: string;
+}
+
 // Canvas layout constants. All values are in CSS pixels; the canvas is
 // scaled by devicePixelRatio on paint.
 export const SHARE_CANVAS_WIDTH = 1200;
@@ -46,6 +53,11 @@ const FOOTER_HEIGHT = 48;
 const OVERFLOW_FADE_HEIGHT = 120;
 const SOURCE_FONT_SIZE = 12;
 const SOURCE_LINE_HEIGHT = 14;
+const REPORT_TITLE_FONT_SIZE = 34;
+const REPORT_DATE_FONT_SIZE = 14;
+const REPORT_TITLE_LINE_HEIGHT = 42;
+const REPORT_DATE_LINE_HEIGHT = 20;
+const REPORT_HEADER_TO_BODY = 44;
 
 const FONT_FAMILY = 'system-ui, -apple-system, "Helvetica Neue", sans-serif';
 const MONO_FAMILY = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -971,6 +983,50 @@ function strokeRoundedRect(
   ctx.stroke();
 }
 
+interface MarkdownLayout {
+  blocks: Block[];
+  height: number;
+}
+
+function layoutMarkdown(
+    ctx: CanvasRenderingContext2D, markdown: string, maxWidth: number,
+    textColor: string, baseSize: number, baseLineHeight: number,
+    theme: ShareTheme): MarkdownLayout {
+  const tokens = lexMarkdown(markdown || '—');
+  const blocks = buildBlocks(tokens, {
+    ctx,
+    maxWidth,
+    textColor,
+    baseSize,
+    baseLineHeight,
+    theme,
+  });
+  return {blocks, height: sumBlockHeight(blocks)};
+}
+
+function paintMarkdownBlocks(
+    g: CanvasRenderingContext2D, blocks: Block[], x: number, y: number,
+    maxWidth: number) {
+  let cy = y;
+  for (const b of blocks) {
+    b.paint(g, x, cy, maxWidth);
+    cy += b.height;
+  }
+}
+
+function paintFooter(
+    g: CanvasRenderingContext2D, theme: ShareTheme, totalHeight: number,
+    footerText: string) {
+  g.fillStyle = theme.footerBg;
+  g.fillRect(
+      0, totalHeight - FOOTER_HEIGHT, SHARE_CANVAS_WIDTH, FOOTER_HEIGHT);
+  g.font = `12px ${FONT_FAMILY}`;
+  g.fillStyle = theme.footerFg;
+  g.textBaseline = 'middle';
+  g.fillText(
+      footerText, OUTER_PADDING, totalHeight - FOOTER_HEIGHT / 2);
+}
+
 // --------------- public entry ---------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -999,16 +1055,11 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
   const answerSize = 18;
   const answerLineHeight = Math.round(answerSize * 1.6);
   const answerMaxWidth = SHARE_CANVAS_WIDTH - OUTER_PADDING * 2;
-  const answerTokens = lexMarkdown(ctx.answer || '—');
-  const answerBlocks = buildBlocks(answerTokens, {
-    ctx: measure,
-    maxWidth: answerMaxWidth,
-    textColor: theme.text,
-    baseSize: answerSize,
-    baseLineHeight: answerLineHeight,
-    theme,
-  });
-  const answerHeight = sumBlockHeight(answerBlocks);
+  const answerLayout = layoutMarkdown(
+      measure, ctx.answer || '—', answerMaxWidth, theme.text, answerSize,
+      answerLineHeight, theme);
+  const answerBlocks = answerLayout.blocks;
+  const answerHeight = answerLayout.height;
 
   // --- question bubble ---
   const bubbleSize = 18;
@@ -1119,11 +1170,7 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
   g.rect(
       OUTER_PADDING, answerY, answerMaxWidth, answerPaintMax - answerY);
   g.clip();
-  let cy = answerY;
-  for (const b of answerBlocks) {
-    b.paint(g, OUTER_PADDING, cy, answerMaxWidth);
-    cy += b.height;
-  }
+  paintMarkdownBlocks(g, answerBlocks, OUTER_PADDING, answerY, answerMaxWidth);
   g.restore();
 
   if (truncated) {
@@ -1143,15 +1190,93 @@ export async function renderShareImage(ctx: ShareContext): Promise<Blob> {
     g.textAlign = 'left';
   }
 
-  g.fillStyle = theme.footerBg;
-  g.fillRect(
-      0, totalHeight - FOOTER_HEIGHT, SHARE_CANVAS_WIDTH, FOOTER_HEIGHT);
-  g.font = `12px ${FONT_FAMILY}`;
-  g.fillStyle = theme.footerFg;
-  g.textBaseline = 'middle';
+  paintFooter(g, theme, totalHeight, 'Answered by Dao Browser');
+
+  return canvasToBlob(canvas);
+}
+
+export async function copyPngBlobToClipboard(blob: Blob): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ClipboardItemCtor = (window as any).ClipboardItem;
+  if (!ClipboardItemCtor || !navigator.clipboard?.write) {
+    throw new Error('ClipboardItem API unavailable');
+  }
+  await navigator.clipboard.write(
+      [new ClipboardItemCtor({'image/png': blob})]);
+}
+
+export async function renderDreamReportShareImage(
+    ctx: DreamReportShareContext): Promise<Blob> {
+  const theme = currentShareTheme();
+  const measureCanvas = createCanvas(SHARE_CANVAS_WIDTH, 16);
+  const measure =
+      measureCanvas.getContext('2d') as unknown as CanvasRenderingContext2D;
+
+  const bodySize = 18;
+  const bodyLineHeight = Math.round(bodySize * 1.6);
+  const bodyMaxWidth = SHARE_CANVAS_WIDTH - OUTER_PADDING * 2;
+  const bodyLayout = layoutMarkdown(
+      measure, ctx.markdown || '—', bodyMaxWidth, theme.text, bodySize,
+      bodyLineHeight, theme);
+
+  const headerHeight = REPORT_TITLE_LINE_HEIGHT + REPORT_DATE_LINE_HEIGHT +
+      REPORT_HEADER_TO_BODY;
+  const contentHeight =
+      OUTER_PADDING + headerHeight + bodyLayout.height + OUTER_PADDING;
+  const totalHeight =
+      Math.min(contentHeight + FOOTER_HEIGHT, SHARE_CANVAS_MAX_HEIGHT);
+  const truncated = contentHeight + FOOTER_HEIGHT > SHARE_CANVAS_MAX_HEIGHT;
+
+  const dpr = globalThis.devicePixelRatio || 1;
+  const canvas = createCanvas(SHARE_CANVAS_WIDTH * dpr, totalHeight * dpr);
+  const g = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
+  g.scale(dpr, dpr);
+
+  g.fillStyle = theme.bg;
+  g.fillRect(0, 0, SHARE_CANVAS_WIDTH, totalHeight);
+
+  g.textAlign = 'left';
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = theme.text;
+  g.font = `700 ${REPORT_TITLE_FONT_SIZE}px ${FONT_FAMILY}`;
+  g.fillText(ctx.title || 'Dream Report', OUTER_PADDING,
+             OUTER_PADDING + REPORT_TITLE_FONT_SIZE);
+
+  g.fillStyle = theme.textMuted;
+  g.font = `${REPORT_DATE_FONT_SIZE}px ${FONT_FAMILY}`;
   g.fillText(
-      'Answered by Dao Browser', OUTER_PADDING,
-      totalHeight - FOOTER_HEIGHT / 2);
+      ctx.dateLabel || '', OUTER_PADDING,
+      OUTER_PADDING + REPORT_TITLE_LINE_HEIGHT + REPORT_DATE_FONT_SIZE);
+
+  const bodyY = OUTER_PADDING + headerHeight;
+  const bodyPaintMax =
+      truncated ? totalHeight - FOOTER_HEIGHT - OVERFLOW_FADE_HEIGHT / 2 :
+                  totalHeight - FOOTER_HEIGHT - OUTER_PADDING;
+  g.save();
+  g.beginPath();
+  g.rect(OUTER_PADDING, bodyY, bodyMaxWidth, bodyPaintMax - bodyY);
+  g.clip();
+  paintMarkdownBlocks(g, bodyLayout.blocks, OUTER_PADDING, bodyY, bodyMaxWidth);
+  g.restore();
+
+  if (truncated) {
+    const fadeTop = totalHeight - FOOTER_HEIGHT - OVERFLOW_FADE_HEIGHT;
+    const grad = g.createLinearGradient(
+        0, fadeTop, 0, totalHeight - FOOTER_HEIGHT);
+    grad.addColorStop(0, theme.bgTransparent);
+    grad.addColorStop(1, theme.bg);
+    g.fillStyle = grad;
+    g.fillRect(0, fadeTop, SHARE_CANVAS_WIDTH, OVERFLOW_FADE_HEIGHT);
+    g.font = `24px ${FONT_FAMILY}`;
+    g.fillStyle = theme.textVeryMuted;
+    g.textAlign = 'center';
+    g.fillText(
+        '…', SHARE_CANVAS_WIDTH / 2,
+        totalHeight - FOOTER_HEIGHT - 48);
+    g.textAlign = 'left';
+  }
+
+  paintFooter(g, theme, totalHeight, ctx.footer || 'Dreamed by Dao Browser');
 
   return canvasToBlob(canvas);
 }

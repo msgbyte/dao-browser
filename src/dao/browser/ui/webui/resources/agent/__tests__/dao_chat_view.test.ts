@@ -81,6 +81,7 @@ vi.mock('../dao_page_capture.js', async () => {
 });
 
 vi.mock('../dao_share_image.js', () => ({
+  copyPngBlobToClipboard: vi.fn(),
   renderShareImage: vi.fn(),
 }));
 
@@ -159,7 +160,10 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
 }));
 
 import {clearReusableElementContext} from '../dao_element_context.js';
-import {renderShareImage} from '../dao_share_image.js';
+import {
+  copyPngBlobToClipboard,
+  renderShareImage,
+} from '../dao_share_image.js';
 import '../dao_chat_view.js';
 
 function sampleContext(): ElementContextCapture {
@@ -527,46 +531,28 @@ describe('dao-chat-view message metadata helpers', () => {
     const messages = selectedAssistantHistory();
     const view = viewWithMessages(messages);
     const renderShareImageMock = vi.mocked(renderShareImage);
+    const copyPngBlobToClipboardMock = vi.mocked(copyPngBlobToClipboard);
     renderShareImageMock.mockResolvedValue(new Blob(['png'], {
       type: 'image/png',
     }));
-    const write = vi.fn(async () => undefined);
-    const originalClipboardDescriptor =
-        Object.getOwnPropertyDescriptor(navigator, 'clipboard');
-    const originalClipboardItemDescriptor =
-        Object.getOwnPropertyDescriptor(window, 'ClipboardItem');
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: {write},
-    });
-    Object.defineProperty(window, 'ClipboardItem', {
-      configurable: true,
-      value: class {
-        constructor(public readonly items: Record<string, Blob>) {}
-      },
-    });
+    copyPngBlobToClipboardMock.mockResolvedValue(undefined);
 
-    try {
-      view._daoTestEnsureMessageIds();
-      const oldAssistantId = messages[1].dao.id;
+    view._daoTestEnsureMessageIds();
+    const oldAssistantId = messages[1].dao.id;
 
-      await view._daoTestShareAssistantAsImageById(oldAssistantId);
+    await view._daoTestShareAssistantAsImageById(oldAssistantId);
 
-      expect(renderShareImageMock).toHaveBeenCalledWith(expect.objectContaining({
-        question: 'old user prompt',
-        answer: 'old assistant answer',
-      }));
-      expect(renderShareImageMock).not.toHaveBeenCalledWith(
-          expect.objectContaining({
-            question: 'latest user prompt',
-            answer: 'latest assistant answer',
-          }));
-    } finally {
-      restorePropertyDescriptor(
-          navigator, 'clipboard', originalClipboardDescriptor);
-      restorePropertyDescriptor(
-          window, 'ClipboardItem', originalClipboardItemDescriptor);
-    }
+    expect(renderShareImageMock).toHaveBeenCalledWith(expect.objectContaining({
+      question: 'old user prompt',
+      answer: 'old assistant answer',
+    }));
+    expect(renderShareImageMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          question: 'latest user prompt',
+          answer: 'latest assistant answer',
+        }));
+    const blob = await renderShareImageMock.mock.results[0]!.value;
+    expect(copyPngBlobToClipboardMock).toHaveBeenCalledWith(blob);
   });
 });
 

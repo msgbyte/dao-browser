@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {renderShareImage} from '../dao_share_image.js';
+import {
+  copyPngBlobToClipboard,
+  renderDreamReportShareImage,
+  renderShareImage,
+} from '../dao_share_image.js';
 
 type PaintOp = {
   type: string;
@@ -124,10 +128,53 @@ async function renderOps(markdown: string, dark = false): Promise<PaintOp[]> {
   return JSON.parse(await blob.text()).ops;
 }
 
+async function renderDreamOps(markdown: string, dark = false): Promise<PaintOp[]> {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (query: string) => ({
+      matches: dark && query.includes('prefers-color-scheme: dark'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+
+  const blob = await renderDreamReportShareImage({
+    title: 'Dream Report',
+    dateLabel: 'About your day on 2026-06-19',
+    markdown,
+    footer: 'Dreamed by Dao Browser',
+  });
+  return JSON.parse(await blob.text()).ops;
+}
+
+class FakeClipboardItem {
+  constructor(readonly items: Record<string, Blob>) {}
+}
+
 describe('renderShareImage visual parity', () => {
   const originalOffscreenCanvas = globalThis.OffscreenCanvas;
   const originalDevicePixelRatio = globalThis.devicePixelRatio;
   const originalMatchMedia = window.matchMedia;
+  const originalClipboardItemDescriptor =
+      Object.getOwnPropertyDescriptor(window, 'ClipboardItem');
+  const originalClipboardDescriptor =
+      Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+
+  function restorePropertyDescriptor(
+      target: object, key: PropertyKey,
+      descriptor: PropertyDescriptor | undefined) {
+    if (descriptor) {
+      Object.defineProperty(target, key, descriptor);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (target as any)[key];
+  }
 
   beforeEach(() => {
     Object.defineProperty(globalThis, 'OffscreenCanvas', {
@@ -153,6 +200,10 @@ describe('renderShareImage visual parity', () => {
       configurable: true,
       value: originalMatchMedia,
     });
+    restorePropertyDescriptor(
+        window, 'ClipboardItem', originalClipboardItemDescriptor);
+    restorePropertyDescriptor(
+        navigator, 'clipboard', originalClipboardDescriptor);
   });
 
   it('uses the dark sidebar palette when the agent page is in dark mode', async () => {
@@ -189,5 +240,84 @@ describe('renderShareImage visual parity', () => {
     expect(texts).toContain('Dao');
     expect(texts).toContain('1200');
     expect(texts).not.toContain('[table]');
+  });
+
+  it('renders dream report share images with title date body and dream footer',
+     async () => {
+       const ops = await renderDreamOps('## Focus\n\n- Read specs\n- Ship UI');
+       const texts =
+           ops.filter(op => op.type === 'fillText').map(op => op.text);
+       const joined = texts.join('');
+
+       expect(joined).toContain('Dream Report');
+       expect(joined).toContain('About your day on 2026-06-19');
+       expect(joined).toContain('Focus');
+       expect(joined).toContain('Read');
+       expect(joined).toContain('Ship UI');
+       expect(joined).toContain('Dreamed by Dao Browser');
+       expect(texts).not.toContain('Answered by Dao Browser');
+
+       let cursor = -1;
+       const expectedInOrder = ['Dream Report', 'Focus', 'Read', 'Ship UI'];
+       for (const text of expectedInOrder) {
+         const idx = joined.indexOf(text, cursor + 1);
+         expect(idx).toBeGreaterThan(cursor);
+         cursor = idx;
+       }
+     });
+
+  it('does not draw a chat user bubble for dream report share images',
+     async () => {
+       const ops = await renderDreamOps('Report body');
+       const bubbleRects =
+           ops.filter(op => op.type === 'fill' && op.fillStyle === 'rgb(70, 120, 190)');
+       expect(bubbleRects).toHaveLength(0);
+     });
+
+  it('copies png blobs through ClipboardItem', async () => {
+    const writes: unknown[][] = [];
+    Object.defineProperty(window, 'ClipboardItem', {
+      configurable: true,
+      value: FakeClipboardItem,
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {write: vi.fn(async (items: unknown[]) => writes.push(items))},
+    });
+
+    const blob = new Blob(['png'], {type: 'image/png'});
+    await copyPngBlobToClipboard(blob);
+
+    expect(writes).toHaveLength(1);
+    const item = writes[0]![0] as FakeClipboardItem;
+    expect(item.items['image/png']).toBe(blob);
+  });
+
+  it('rejects png copy when the image clipboard API is unavailable', async () => {
+    Object.defineProperty(window, 'ClipboardItem', {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {write: vi.fn()},
+    });
+
+    await expect(copyPngBlobToClipboard(new Blob(['png'])))
+        .rejects.toThrow('ClipboardItem API unavailable');
+  });
+
+  it('rejects png copy when the clipboard write API is unavailable', async () => {
+    Object.defineProperty(window, 'ClipboardItem', {
+      configurable: true,
+      value: FakeClipboardItem,
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {},
+    });
+
+    await expect(copyPngBlobToClipboard(new Blob(['png'])))
+        .rejects.toThrow('ClipboardItem API unavailable');
   });
 });

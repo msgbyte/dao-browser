@@ -7,6 +7,10 @@ import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.
 import {callNative, callNativeArgs} from './dream_bridge.js';
 import {initI18n, t} from './i18n/i18n.js';
 import {renderDaoMarkdown} from './dao_markdown.js';
+import {
+  copyPngBlobToClipboard,
+  renderDreamReportShareImage,
+} from './dao_share_image.js';
 
 interface DreamHabit {
   key: string;
@@ -26,6 +30,7 @@ interface DreamReportData {
 }
 
 type HabitState = 'confirmed'|'rejected';
+type ShareStatus = 'idle'|'copying'|'copied'|'failed';
 
 const DREAM_HABIT_FEEDBACK_STORAGE_KEY = 'dao.dream.habitFeedback.v1';
 
@@ -41,6 +46,7 @@ export class DaoDreamApp extends CrLitElement {
       reports_: {state: true},
       error_: {type: String, state: true},
       habitStates_: {state: true},
+      shareStatus_: {type: String, state: true},
     };
   }
 
@@ -49,6 +55,7 @@ export class DaoDreamApp extends CrLitElement {
   declare private reports_: DreamReportData[];
   declare private error_: string;
   declare private habitStates_: Record<number, HabitState>;
+  declare private shareStatus_: ShareStatus;
 
   constructor() {
     super();
@@ -57,6 +64,7 @@ export class DaoDreamApp extends CrLitElement {
     this.reports_ = [];
     this.error_ = '';
     this.habitStates_ = {};
+    this.shareStatus_ = 'idle';
   }
 
   static override get styles() {
@@ -105,6 +113,45 @@ export class DaoDreamApp extends CrLitElement {
         color: rgba(30, 20, 40, 0.56);
         font-size: 13px;
         white-space: nowrap;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .copy-image-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid rgba(70, 120, 190, 0.24);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.68);
+        color: rgba(30, 20, 40, 0.80);
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .copy-image-button:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.92);
+        border-color: rgba(70, 120, 190, 0.42);
+      }
+
+      .copy-image-button:disabled {
+        cursor: default;
+        opacity: 0.68;
+      }
+
+      .copy-image-button svg {
+        width: 14px;
+        height: 14px;
+        flex: 0 0 14px;
       }
 
       main {
@@ -329,6 +376,10 @@ export class DaoDreamApp extends CrLitElement {
           display: block;
           margin-top: 10px;
           white-space: normal;
+        }
+
+        .header-actions {
+          justify-content: flex-start;
         }
 
         .habit {
@@ -609,6 +660,97 @@ export class DaoDreamApp extends CrLitElement {
     }
   }
 
+  private shareButtonLabel_() {
+    switch (this.shareStatus_) {
+      case 'copying':
+        return t('dream.page.copy_image');
+      case 'copied':
+        return t('dream.page.copy_image_copied');
+      case 'failed':
+        return t('dream.page.copy_image_failed');
+      default:
+        return t('dream.page.copy_image');
+    }
+  }
+
+  private shareButtonIcon_() {
+    switch (this.shareStatus_) {
+      case 'copied':
+        return html`
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+            <path d="M20 6 9 17l-5-5"></path>
+          </svg>`;
+      case 'failed':
+        return html`
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>`;
+      default:
+        return html`
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="9" cy="9" r="2"></circle>
+            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+          </svg>`;
+    }
+  }
+
+  private renderCopyImageButton_() {
+    const label = this.shareButtonLabel_();
+    return this.shareStatus_ === 'copying' ? html`
+      <button class="copy-image-button" title="${label}"
+          aria-label="${label}" disabled
+          @click=${() => void this.copyReportImage_()}>
+        ${this.shareButtonIcon_()}
+      </button>
+    ` : html`
+      <button class="copy-image-button" title="${label}"
+          aria-label="${label}"
+          @click=${() => void this.copyReportImage_()}>
+        ${this.shareButtonIcon_()}
+      </button>
+    `;
+  }
+
+  private resetShareStatusLater_(status: ShareStatus) {
+    window.setTimeout(() => {
+      if (this.shareStatus_ === status) {
+        this.shareStatus_ = 'idle';
+      }
+    }, 2000);
+  }
+
+  private async copyReportImage_() {
+    const report = this.report_;
+    if (!report || this.shareStatus_ === 'copying') {
+      return;
+    }
+
+    this.shareStatus_ = 'copying';
+    try {
+      const blob = await renderDreamReportShareImage({
+        title: t('dream.page.title'),
+        dateLabel: t('chat.dream.card_date', {date: report.dreamDate}),
+        markdown: report.reportMarkdown,
+        footer: t('dream.share.footer'),
+      });
+      await copyPngBlobToClipboard(blob);
+      this.shareStatus_ = 'copied';
+      this.resetShareStatusLater_('copied');
+    } catch (e) {
+      console.warn('[dao] dream report image copy failed', e);
+      this.shareStatus_ = 'failed';
+      this.resetShareStatusLater_('failed');
+    }
+  }
+
   private renderReportArticle_(report: DreamReportData) {
     return html`
       <article>
@@ -633,8 +775,11 @@ export class DaoDreamApp extends CrLitElement {
             <h1>${t('dream.page.title')}</h1>
           </div>
           ${report ? html`
-            <div class="date">
-              ${t('chat.dream.card_date', {date: report.dreamDate})}
+            <div class="header-actions">
+              <div class="date">
+                ${t('chat.dream.card_date', {date: report.dreamDate})}
+              </div>
+              ${this.renderCopyImageButton_()}
             </div>` : nothing}
         </header>
         <main>

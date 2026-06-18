@@ -29,7 +29,10 @@ import {buildMemoryContextText, hasMemoryContextPayload, type NativeMemoryContex
 import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type PiAttachment, type SelectionCapture} from './dao_page_capture.js';
-import {renderShareImage} from './dao_share_image.js';
+import {
+  copyPngBlobToClipboard,
+  renderShareImage,
+} from './dao_share_image.js';
 import {reportTelemetryEvent} from './dao_telemetry.js';
 import {lookupCostByModelId} from './llm_cost.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
@@ -1891,13 +1894,7 @@ export class DaoChatView extends CrLitElement {
         source: pair.source,
         answer: pair.answer,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ClipboardItemCtor = (window as any).ClipboardItem;
-      if (!ClipboardItemCtor || !navigator.clipboard?.write) {
-        throw new Error('ClipboardItem API unavailable');
-      }
-      await navigator.clipboard.write(
-          [new ClipboardItemCtor({'image/png': blob})]);
+      await copyPngBlobToClipboard(blob);
       if (btn) {
         this.flashButtonLabel_(btn, t('chat.message_actions.shared'), true);
       }
