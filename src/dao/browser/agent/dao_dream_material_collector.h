@@ -28,6 +28,8 @@ class DaoAgentMemoryService;
 // {
 //   "window": {"start": "...", "end": "..."},
 //   "history": [{"domain","visit_count","titles":[..],
+//                "foreground_seconds":N,"total_seconds":N,
+//                "duration_level":"light|medium|deep",
 //                "buckets":{"morning":N,"afternoon":N,"evening":N,"night":N}}],
 //   "search_queries": ["...", ...],
 //   "conversations": [{"session_id","messages":["...",...]}],

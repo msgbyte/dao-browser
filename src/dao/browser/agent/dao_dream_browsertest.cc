@@ -49,6 +49,31 @@ base::Time LocalTime(int year, int month, int day, int hour, int minute) {
   return t;
 }
 
+void SetForegroundDurationForUrl(history::HistoryService* history,
+                                 const GURL& url,
+                                 base::TimeDelta duration) {
+  history::QueryURLAndVisitsResult result;
+  base::CancelableTaskTracker tracker;
+  base::RunLoop loop;
+  history->QueryURLAndVisits(
+      url, history::VisitQuery404sPolicy::kInclude404s,
+      base::BindLambdaForTesting(
+          [&](history::QueryURLAndVisitsResult query_result) {
+            result = std::move(query_result);
+            loop.Quit();
+          }),
+      &tracker);
+  loop.Run();
+
+  ASSERT_TRUE(result.success);
+  ASSERT_FALSE(result.visits.empty());
+
+  history::VisitContextAnnotations annotations;
+  annotations.total_foreground_duration = duration;
+  history->SetOnCloseContextAnnotationsForVisit(
+      result.visits.back().visit_id, annotations);
+}
+
 }  // namespace
 
 using DaoDreamStaticTest = InProcessBrowserTest;
@@ -183,6 +208,61 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   ASSERT_TRUE(queries);
   ASSERT_EQ(1u, queries->size());
   EXPECT_EQ("hello world", (*queries)[0].GetString());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       CollectorAggregatesForegroundDuration) {
+  history::HistoryService* history = HistoryServiceFactory::GetForProfile(
+      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  ASSERT_TRUE(history);
+  const base::Time now = base::Time::Now();
+  const GURL deep_url("https://deep.example/research");
+  const GURL quick_url("https://quick.example/glance");
+  history->AddPageWithDetails(deep_url, u"Deep research", 1, 0,
+                              now - base::Minutes(90), false,
+                              history::SOURCE_BROWSED);
+  history->AddPageWithDetails(quick_url, u"Quick glance", 1, 0,
+                              now - base::Minutes(30), false,
+                              history::SOURCE_BROWSED);
+
+  SetForegroundDurationForUrl(history, deep_url, base::Minutes(45));
+  SetForegroundDurationForUrl(history, quick_url, base::Seconds(30));
+
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+  DreamMaterialCollector collector(browser()->profile(), memory);
+
+  base::DictValue pack;
+  base::RunLoop loop;
+  collector.Collect(now - base::Hours(3), now,
+                    base::BindLambdaForTesting([&](base::DictValue p) {
+                      pack = std::move(p);
+                      loop.Quit();
+                    }));
+  loop.Run();
+
+  const base::ListValue* domains = pack.FindList("history");
+  ASSERT_TRUE(domains);
+  ASSERT_GE(domains->size(), 2u);
+
+  const base::DictValue& deep = (*domains)[0].GetDict();
+  EXPECT_EQ("deep.example", *deep.FindString("domain"));
+  std::optional<int> deep_foreground = deep.FindInt("foreground_seconds");
+  ASSERT_TRUE(deep_foreground.has_value());
+  EXPECT_EQ(2700, *deep_foreground);
+  const std::string* deep_level = deep.FindString("duration_level");
+  ASSERT_TRUE(deep_level);
+  EXPECT_EQ("deep", *deep_level);
+
+  const base::DictValue& quick = (*domains)[1].GetDict();
+  EXPECT_EQ("quick.example", *quick.FindString("domain"));
+  std::optional<int> quick_foreground = quick.FindInt("foreground_seconds");
+  ASSERT_TRUE(quick_foreground.has_value());
+  EXPECT_EQ(30, *quick_foreground);
+  const std::string* quick_level = quick.FindString("duration_level");
+  ASSERT_TRUE(quick_level);
+  EXPECT_EQ("light", *quick_level);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, CollectorCapsLongHistoryText) {

@@ -135,6 +135,9 @@ describe('runDream', () => {
 
        expect(systemPrompt).toContain(
            'summarize by topic, intent, and time pattern');
+       expect(systemPrompt).toContain('Use foreground_seconds');
+       expect(systemPrompt).toContain('deep');
+       expect(systemPrompt).toContain('light');
        expect(systemPrompt).toContain('Never expose');
        expect(systemPrompt).toContain('raw URLs');
        expect(systemPrompt).toContain('not like an audit log');

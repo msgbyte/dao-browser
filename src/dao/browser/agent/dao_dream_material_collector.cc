@@ -5,6 +5,7 @@
 #include "dao/browser/agent/dao_dream_material_collector.h"
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <set>
 #include <utility>
@@ -37,6 +38,8 @@ constexpr SearchEngine kSearchEngines[] = {
     {"duckduckgo.com", "q"}, {"kagi.com", "q"},
     {"baidu.com", "wd"},     {"search.brave.com", "q"},
 };
+constexpr int kMediumForegroundSeconds = 5 * 60;
+constexpr int kDeepForegroundSeconds = 30 * 60;
 
 // Local-time bucket for a visit: morning 06-12, afternoon 12-18,
 // evening 18-22, night 22-06.
@@ -65,9 +68,49 @@ std::string FormatLocalYmdHm(base::Time t) {
 
 struct DomainAgg {
   int visit_count = 0;
+  int foreground_seconds = 0;
+  int total_seconds = 0;
   std::vector<std::string> titles;
   std::map<std::string, int> buckets;
 };
+
+int MaterialSeconds(base::TimeDelta duration) {
+  if (duration <= base::Seconds(0)) {
+    return 0;
+  }
+  return static_cast<int>(
+      std::min<int64_t>(duration.InSeconds(), std::numeric_limits<int>::max()));
+}
+
+base::TimeDelta ForegroundDurationFor(const history::AnnotatedVisit& visit) {
+  const base::TimeDelta foreground =
+      visit.context_annotations.total_foreground_duration;
+  if (foreground >= base::Seconds(0)) {
+    return foreground;
+  }
+  if (visit.visit_row.visit_duration > base::Seconds(0)) {
+    return visit.visit_row.visit_duration;
+  }
+  return base::Seconds(0);
+}
+
+base::TimeDelta TotalDurationFor(const history::AnnotatedVisit& visit,
+                                 base::TimeDelta foreground) {
+  if (visit.visit_row.visit_duration > foreground) {
+    return visit.visit_row.visit_duration;
+  }
+  return foreground;
+}
+
+const char* DurationLevelFor(int foreground_seconds) {
+  if (foreground_seconds >= kDeepForegroundSeconds) {
+    return "deep";
+  }
+  if (foreground_seconds >= kMediumForegroundSeconds) {
+    return "medium";
+  }
+  return "light";
+}
 
 std::string TruncateMaterialText(const std::string& text) {
   std::u16string utf16 = base::UTF8ToUTF16(text);
@@ -144,35 +187,43 @@ void DreamMaterialCollector::Collect(base::Time window_start,
     options.end_time = window_end;
     options.max_count = 0;  // everything in range
     options.duplicate_policy = history::QueryOptions::KEEP_ALL_DUPLICATES;
-    history->QueryHistory(
-        std::u16string(), options,
+    history->GetAnnotatedVisits(
+        options, /*compute_redirect_chain_start_properties=*/false,
+        /*get_unclustered_visits_only=*/false,
         base::BindOnce(
             [](base::WeakPtr<DreamMaterialCollector> self,
-               history::QueryResults results) {
+               std::vector<history::AnnotatedVisit> visits) {
               if (!self) {
                 return;
               }
               std::map<std::string, DomainAgg> by_domain;
               std::vector<std::string> queries;
               std::set<std::string> seen_queries;
-              for (const auto& row : results) {
+              for (const auto& visit : visits) {
+                const GURL& url = visit.url_row.url();
                 // Search-query extraction first (uses URL, then drops it).
-                std::string q = ExtractSearchQuery(row.url().spec());
+                std::string q = ExtractSearchQuery(url.spec());
                 if (!q.empty() && seen_queries.insert(q).second &&
                     queries.size() <
                         static_cast<size_t>(kMaxSearchQueries)) {
                   queries.push_back(TruncateMaterialText(q));
                 }
                 // Domain aggregation — only domain + title survive.
-                const std::string domain(row.url().host());
+                const std::string domain(url.host());
                 if (domain.empty()) {
                   continue;
                 }
                 DomainAgg& agg = by_domain[domain];
                 agg.visit_count++;
-                agg.buckets[BucketFor(row.visit_time())]++;
+                const base::TimeDelta foreground =
+                    ForegroundDurationFor(visit);
+                agg.foreground_seconds += MaterialSeconds(foreground);
+                agg.total_seconds +=
+                    MaterialSeconds(TotalDurationFor(visit, foreground));
+                agg.buckets[BucketFor(visit.visit_row.visit_time)]++;
                 const std::string title =
-                    TruncateMaterialText(base::UTF16ToUTF8(row.title()));
+                    TruncateMaterialText(
+                        base::UTF16ToUTF8(visit.url_row.title()));
                 if (!title.empty() &&
                     agg.titles.size() <
                         static_cast<size_t>(kMaxTitlesPerDomain) &&
@@ -181,14 +232,22 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                   agg.titles.push_back(title);
                 }
               }
-              // Top-N domains by visit count.
+              // Top-N domains by foreground attention, then visit count.
               std::vector<std::pair<std::string, DomainAgg>> sorted(
                   std::make_move_iterator(by_domain.begin()),
                   std::make_move_iterator(by_domain.end()));
               std::sort(sorted.begin(), sorted.end(),
                         [](const auto& a, const auto& b) {
-                          return a.second.visit_count >
-                                 b.second.visit_count;
+                          if (a.second.foreground_seconds !=
+                              b.second.foreground_seconds) {
+                            return a.second.foreground_seconds >
+                                   b.second.foreground_seconds;
+                          }
+                          if (a.second.visit_count != b.second.visit_count) {
+                            return a.second.visit_count >
+                                   b.second.visit_count;
+                          }
+                          return a.first < b.first;
                         });
               if (sorted.size() > static_cast<size_t>(kMaxDomains)) {
                 sorted.resize(kMaxDomains);
@@ -198,6 +257,10 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                 base::DictValue d;
                 d.Set("domain", domain);
                 d.Set("visit_count", agg.visit_count);
+                d.Set("foreground_seconds", agg.foreground_seconds);
+                d.Set("total_seconds", agg.total_seconds);
+                d.Set("duration_level",
+                      DurationLevelFor(agg.foreground_seconds));
                 base::ListValue titles;
                 for (auto& t : agg.titles) {
                   titles.Append(t);
