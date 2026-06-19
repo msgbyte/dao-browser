@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/power_monitor/power_observer.h"
 #include "base/time/clock.h"
 #include "base/time/default_clock.h"
 #include "base/timer/timer.h"
@@ -31,7 +32,8 @@ class DreamMaterialCollector;
 // for LLM summarization, and persistence of results. The LLM call itself
 // happens in the resident agent WebUI (see DaoAgentDreamHandler); this
 // service exposes the material pack to it and receives the result.
-class DaoDreamService : public KeyedService {
+class DaoDreamService : public KeyedService,
+                        public base::PowerSuspendObserver {
  public:
   enum class State { kIdle, kCollecting, kDreaming, kSaving };
   enum class TriggerKind { kNightly, kCatchUp, kManual };
@@ -54,6 +56,9 @@ class DaoDreamService : public KeyedService {
 
   // KeyedService:
   void Shutdown() override;
+
+  // base::PowerSuspendObserver:
+  void OnResume() override;
 
   // Test hooks: inject a clock and an idle-seconds supplier.
   void SetClockForTesting(const base::Clock* clock) { clock_ = clock; }
@@ -97,6 +102,7 @@ class DaoDreamService : public KeyedService {
   void OnSchedulerTick();
   void MaybeStartNightly();
   void MaybeStartCatchUp();
+  void MaybeStartCatchUpForRecentActivity();
   void StartDream(const std::string& dream_date, TriggerKind kind);
   void OnExistingReportChecked(const std::string& dream_date,
                                TriggerKind kind,

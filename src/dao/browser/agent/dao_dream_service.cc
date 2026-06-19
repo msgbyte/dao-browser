@@ -11,6 +11,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/power_monitor/power_monitor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
@@ -56,14 +57,18 @@ DaoDreamService::DaoDreamService(Profile* profile,
     : profile_(profile), memory_service_(memory_service) {
   collector_ =
       std::make_unique<DreamMaterialCollector>(profile, memory_service);
+  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
   tick_timer_.Start(FROM_HERE, kTickInterval,
                     base::BindRepeating(&DaoDreamService::OnSchedulerTick,
                                         weak_factory_.GetWeakPtr()));
 }
 
-DaoDreamService::~DaoDreamService() = default;
+DaoDreamService::~DaoDreamService() {
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
+}
 
 void DaoDreamService::Shutdown() {
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
   tick_timer_.Stop();
   dream_timeout_timer_.Stop();
   runner_ = nullptr;
@@ -72,12 +77,17 @@ void DaoDreamService::Shutdown() {
 
 void DaoDreamService::SetRunner(Runner* runner) {
   runner_ = runner;
+  MaybeStartCatchUpForRecentActivity();
 }
 
 void DaoDreamService::ClearRunner(Runner* runner) {
   if (runner_ == runner) {
     runner_ = nullptr;
   }
+}
+
+void DaoDreamService::OnResume() {
+  MaybeStartCatchUpForRecentActivity();
 }
 
 // static
@@ -154,6 +164,16 @@ void DaoDreamService::MaybeStartCatchUp() {
       yesterday, base::BindOnce(&DaoDreamService::OnExistingReportChecked,
                                 weak_factory_.GetWeakPtr(), yesterday,
                                 TriggerKind::kCatchUp));
+}
+
+void DaoDreamService::MaybeStartCatchUpForRecentActivity() {
+  if (!DreamPrefEnabled() || state_ != State::kIdle || !runner_) {
+    return;
+  }
+  if (IsNightTime(clock_->Now())) {
+    return;
+  }
+  MaybeStartCatchUp();
 }
 
 void DaoDreamService::OnExistingReportChecked(

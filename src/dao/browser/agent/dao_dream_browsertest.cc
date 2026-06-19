@@ -11,6 +11,7 @@
 #include "base/json/json_writer.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/simple_test_clock.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -684,6 +685,31 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, SchedulerSkipsWithoutRunner) {
   // No runner registered → tick must NOT start (WebUI unavailable).
   service->TickForTesting();
   EXPECT_EQ(DaoDreamService::State::kIdle, service->state());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       RunnerRegistrationStartsCatchUpWithoutIdle) {
+  history::HistoryService* history = HistoryServiceFactory::GetForProfile(
+      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  ASSERT_TRUE(history);
+  history->AddPage(GURL("https://example.com/yesterday"),
+                   LocalTime(2026, 6, 10, 12, 0), history::SOURCE_BROWSED);
+
+  DaoDreamService* service = dream_service();
+  ASSERT_TRUE(service);
+  base::SimpleTestClock clock;
+  clock.SetNow(LocalTime(2026, 6, 11, 9, 0));
+  service->SetClockForTesting(&clock);
+  service->SetIdleTimeCallbackForTesting(base::BindRepeating([] {
+    return 0;
+  }));
+
+  FakeRunner runner;
+  service->SetRunner(&runner);
+
+  EXPECT_TRUE(base::test::RunUntil([&]() { return runner.ran; }));
+  EXPECT_EQ("2026-06-10", runner.last_dream_date);
+  service->ClearRunner(&runner);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
