@@ -27,6 +27,7 @@ interface DreamReportData {
   habits: DreamHabit[];
   debugMaterialJson: string;
   triggerKind: string;
+  createdAt?: number;
 }
 
 type HabitState = 'confirmed'|'rejected';
@@ -358,6 +359,12 @@ export class DaoDreamApp extends CrLitElement {
         word-break: break-word;
       }
 
+      .debug-meta {
+        margin: 12px 0 0;
+        color: rgba(30, 20, 40, 0.58);
+        font-size: 12px;
+      }
+
       @media (max-width: 640px) {
         .page {
           width: min(100vw - 28px, 880px);
@@ -470,6 +477,7 @@ export class DaoDreamApp extends CrLitElement {
       habitCandidates?: string;
       debugMaterialJson?: string;
       triggerKind?: string;
+      createdAt?: number;
     } | null;
     if (!r || typeof r.id !== 'number') {
       return null;
@@ -493,6 +501,9 @@ export class DaoDreamApp extends CrLitElement {
       habits,
       debugMaterialJson: r.debugMaterialJson || '',
       triggerKind: r.triggerKind || '',
+      createdAt:
+          typeof r.createdAt === 'number' && Number.isFinite(r.createdAt) ?
+          r.createdAt : undefined,
     };
   }
 
@@ -719,6 +730,25 @@ export class DaoDreamApp extends CrLitElement {
     `;
   }
 
+  private formatGeneratedAt_(createdAt?: number) {
+    if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) {
+      return '';
+    }
+    const date = new Date(createdAt);
+    if (!Number.isFinite(date.getTime())) {
+      return '';
+    }
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(date);
+  }
+
   private resetShareStatusLater_(status: ShareStatus) {
     window.setTimeout(() => {
       if (this.shareStatus_ === status) {
@@ -752,6 +782,7 @@ export class DaoDreamApp extends CrLitElement {
   }
 
   private renderReportArticle_(report: DreamReportData) {
+    const generatedAt = this.formatGeneratedAt_(report.createdAt);
     return html`
       <article>
         ${this.renderMarkdown_(report.reportMarkdown)}
@@ -759,6 +790,10 @@ export class DaoDreamApp extends CrLitElement {
         ${report.debugMaterialJson ? html`
           <details>
             <summary>${t('chat.dream.debug_title')}</summary>
+            ${generatedAt ? html`
+              <div class="debug-meta">
+                ${t('dream.debug.generated_at', {time: generatedAt})}
+              </div>` : nothing}
             <pre>${report.debugMaterialJson}</pre>
           </details>` : nothing}
       </article>`;

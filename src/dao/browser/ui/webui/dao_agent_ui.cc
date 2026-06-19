@@ -109,6 +109,11 @@ base::DictValue DreamReportToDict(const DreamReport& report) {
   dict.Set("materialStats", report.material_stats);
   dict.Set("debugMaterialJson", report.debug_material_json);
   dict.Set("triggerKind", report.trigger_kind);
+  if (!report.created_at.is_null()) {
+    dict.Set("createdAt",
+             static_cast<double>(
+                 report.created_at.InMillisecondsSinceUnixEpoch()));
+  }
   return dict;
 }
 

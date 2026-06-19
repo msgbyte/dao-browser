@@ -290,6 +290,7 @@ const dict: Dictionary = {
   'dream.page.copy_image': 'Copy image',
   'dream.page.copy_image_copied': 'Copied image',
   'dream.page.copy_image_failed': 'Copy failed',
+  'dream.debug.generated_at': 'Generated at: {time}',
   'dream.share.footer': 'Dreamed by Dao Browser',
   'dream.trigger.nightly': 'Nightly',
   'dream.trigger.catchup': 'Catch-up',

@@ -40,6 +40,7 @@ vi.mock('../i18n/i18n.js', () => ({
       'dream.page.copy_image_copied': 'Copied image',
       'dream.page.copy_image_failed': 'Copy failed',
       'dream.page.title': 'Dream Report',
+      'dream.debug.generated_at': 'Generated at: {time}',
       'dream.share.footer': 'Dreamed by Dao Browser',
     };
     const template = templates[key];
@@ -230,6 +231,24 @@ describe('dao-dream-app routing', () => {
                        .value;
     expect(shareMocks.copyPngBlobToClipboard).toHaveBeenCalledWith(blob);
     expectIconOnlyCopyButton(getCopyImageButton(el), 'Copied image');
+  });
+
+  it('shows the generated time inside debug details', async () => {
+    bridgeMocks.callNative.mockResolvedValueOnce([
+      {
+        ...report('2026-06-19'),
+        createdAt: Date.UTC(2026, 5, 19, 15, 42, 10),
+        debugMaterialJson: '{"private":true}',
+      },
+    ]);
+
+    const el = await mountDreamApp('/');
+    const text = el.shadowRoot!.textContent || '';
+
+    expect(text).toContain('Generated at:');
+    expect(text).toContain('2026');
+    expect(text).toContain('42');
+    expect(text).toContain('{"private":true}');
   });
 
   it('disables copy image button while copy is in progress', async () => {

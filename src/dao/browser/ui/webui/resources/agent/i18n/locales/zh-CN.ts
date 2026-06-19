@@ -204,6 +204,7 @@ const dict: Dictionary = {
   'dream.page.copy_image': '复制图片',
   'dream.page.copy_image_copied': '已复制图片',
   'dream.page.copy_image_failed': '复制失败',
+  'dream.debug.generated_at': '生成时间:{time}',
   'dream.share.footer': 'Dao Browser 梦境生成',
   'dream.trigger.nightly': '夜间自动',
   'dream.trigger.catchup': '补跑',
