@@ -55,6 +55,22 @@
     </item>
     -->
         <item>
+            <title>1.0.44.0</title>
+            <pubDate>Fri, 19 Jun 2026 12:07:03 +0800</pubDate>
+            <sparkle:version>44.0</sparkle:version>
+            <sparkle:shortVersionString>1.0.44.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://dao-release.msgbyte.com/dao-browser-1.0.44-mac-arm64.dmg" length="154210510" type="application/octet-stream" sparkle:edSignature="KOurMNH6AGAO6db8ze8qwB/38UR+qr3Ta/75lsQE/Ri3YHbSy7NYyajLAFCphinvjvEntxpWRE78D8J3LGpvDA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://dao-release.msgbyte.com/Dao44.0-43.0.delta" sparkle:deltaFrom="43.0" length="2625786" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="kXWUNhZES5zZIX9PqOy9LXc/GMPX3R3uqKet3JGtegnlEBHyWuFMdEz9/bbn/ybarOf/d+NKSqJug91J5AGmDA=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao44.0-41.0.delta" sparkle:deltaFrom="41.0" length="2645346" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="AxTGWv3bNrdFPJMyymhmxAIv1inZ2cRmMCVoZGTWLXIIw1nLUV2jU5ybfdTgRvVrJ9HiP1pRW1LQl1pLBHUeAw=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao44.0-40.0.delta" sparkle:deltaFrom="40.0" length="3041218" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="cLCBDkPFFMbGPAqnhJM6Crce3AxLsenSzdqDjgoaxqPFaM36g6gwSuXr0gGTa2kB6QG2eC0tjnYQQrSAGMERDw=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao44.0-39.0.delta" sparkle:deltaFrom="39.0" length="5126390" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="wLzIaocYRvkJPbUcl3mjVUhE4V0m/+N2Sxw6gU03zb9nnjNwaUmhvBISDJyDCyVvC+Mt0AKPBOuwW20adguaDg=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao44.0-38.0.delta" sparkle:deltaFrom="38.0" length="6659142" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="TjcQbI9e9tKUvgNCLQTOJzR+Su7FLUcNfdO6wrI/6MuHTrDVf8Bj8rLAsF/2jOCNqsKhn+mZZqP948DgQ4pvAA=="/>
+            </sparkle:deltas>
+            <dao:gitCommit>57bf79ad02be5a98aa624a9ace71f60cb1bdbb54</dao:gitCommit>
+        </item>
+        <item>
             <title>1.0.43.0</title>
             <pubDate>Thu, 18 Jun 2026 08:44:36 +0800</pubDate>
             <sparkle:version>43.0</sparkle:version>
