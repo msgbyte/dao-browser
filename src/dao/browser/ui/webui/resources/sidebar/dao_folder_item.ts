@@ -6,6 +6,11 @@ import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.
 
 import {TAB_DRAG_PREFIX, FOLDER_MIME_TYPE} from './sidebar_bridge.js';
 import type {FolderData, FolderAction, TabData} from './sidebar_bridge.js';
+import {
+  animateSurvivingFlipElements,
+  snapshotFlipElements,
+  type FlipMotionSnapshot,
+} from './dao_flip_motion.js';
 import './dao_tab_item.js';
 
 export class DaoFolderItem extends CrLitElement {
@@ -214,6 +219,7 @@ export class DaoFolderItem extends CrLitElement {
   declare protected childDropIndex_: number;
 
   private boundOnDocumentClick_: ((e: MouseEvent) => void) | null = null;
+  private previousFlipSnapshot_: FlipMotionSnapshot | null = null;
 
   constructor() {
     super();
@@ -236,7 +242,7 @@ export class DaoFolderItem extends CrLitElement {
   }
 
   override disconnectedCallback() {
-    super.disconnectedCallback();
+    super.disconnectedCallback?.();
     this.hideContextMenu_();
   }
 
@@ -290,6 +296,7 @@ export class DaoFolderItem extends CrLitElement {
             <div class="child-drop-indicator
                         ${this.childDropIndex_ === i ? 'visible' : ''}"></div>
             <dao-tab-item
+              data-tab-id=${this.getTabIdentity_(tab)}
               .tabData=${tab}
               .sessionId=${this.sessionId}
               .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
@@ -335,7 +342,14 @@ export class DaoFolderItem extends CrLitElement {
     return tab.tabId === this.autoScrollTabId ? this.autoScrollToken : 0;
   }
 
-  override updated() {
+  override willUpdate(changedProperties: Map<PropertyKey, unknown>) {
+    if (changedProperties.has('matchedTabs') ||
+        changedProperties.has('folder')) {
+      this.previousFlipSnapshot_ = this.snapshotChildTabs_();
+    }
+  }
+
+  override updated(changedProperties: Map<PropertyKey, unknown>) {
     // Auto-focus rename input when entering rename mode.
     if (this.isRenaming_) {
       const input = this.shadowRoot!.querySelector(
@@ -345,6 +359,11 @@ export class DaoFolderItem extends CrLitElement {
         input.select();
       }
     }
+
+    if (changedProperties.has('matchedTabs') ||
+        changedProperties.has('folder')) {
+      this.animateChildCloseMotion_();
+    }
   }
 
   /**
@@ -352,6 +371,25 @@ export class DaoFolderItem extends CrLitElement {
    */
   startRename() {
     this.isRenaming_ = true;
+  }
+
+  private snapshotChildTabs_(): FlipMotionSnapshot {
+    return snapshotFlipElements(
+        this.shadowRoot, '.children-inner dao-tab-item',
+        element => element.dataset['tabId'] || '');
+  }
+
+  private animateChildCloseMotion_() {
+    animateSurvivingFlipElements(
+        this.previousFlipSnapshot_, this.shadowRoot,
+        '.children-inner dao-tab-item',
+        element => element.dataset['tabId'] || '',
+        {skip: this.folder.collapsed || this.childDropIndex_ >= 0});
+    this.previousFlipSnapshot_ = null;
+  }
+
+  private getTabIdentity_(tab: TabData): string {
+    return tab.tabId || `${tab.index}:${tab.url}:${tab.title}`;
   }
 
   private onFolderDragStart_(e: DragEvent) {

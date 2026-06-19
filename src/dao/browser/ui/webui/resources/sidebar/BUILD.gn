@@ -28,6 +28,7 @@ build_webui("build") {
     "dao_pinned_tabs_grid.ts",
     "dao_tab_list.ts",
     "dao_tab_item.ts",
+    "dao_flip_motion.ts",
     "dao_download_button.ts",
     "dao_update_button.ts",
     "dao_media_control.ts",

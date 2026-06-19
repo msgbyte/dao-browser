@@ -15,6 +15,11 @@ import {
 } from './sidebar_bridge.js';
 import type {TabData, FolderData, FolderAction} from './sidebar_bridge.js';
 import type {FolderModel} from './dao_folder_model.js';
+import {
+  animateSurvivingFlipElements,
+  snapshotFlipElements,
+  type FlipMotionSnapshot,
+} from './dao_flip_motion.js';
 import './dao_tab_item.js';
 import './dao_folder_item.js';
 
@@ -112,6 +117,8 @@ export class DaoTabList extends CrLitElement {
   private dropModelIndex_: number = -1;
   private tabDragActivated_: boolean = false;
   private draggedTabIndex_: number = -1;
+  private previousFlipSnapshot_: FlipMotionSnapshot | null = null;
+  private previousFolderChildCounts_: Map<string, number> | null = null;
 
   constructor() {
     super();
@@ -156,6 +163,21 @@ export class DaoTabList extends CrLitElement {
     return this.renderFlat_();
   }
 
+  override willUpdate(changedProperties: Map<PropertyKey, unknown>) {
+    if (changedProperties.has('tabs') ||
+        changedProperties.has('folderModelVersion')) {
+      this.previousFlipSnapshot_ = this.snapshotSurfaceItems_();
+      this.previousFolderChildCounts_ = this.snapshotFolderChildCounts_();
+    }
+  }
+
+  override updated(changedProperties: Map<PropertyKey, unknown>) {
+    if (changedProperties.has('tabs') ||
+        changedProperties.has('folderModelVersion')) {
+      this.animateCloseMotion_();
+    }
+  }
+
   /**
    * Render from the folder model's items tree.
    * Matches stored tab refs to actual TabData by URL for each item.
@@ -187,6 +209,7 @@ export class DaoTabList extends CrLitElement {
       if (splitRun.length > 0) {
         const items = splitRun.map(tab => html`
           <dao-tab-item
+            data-tab-id=${this.getTabIdentity_(tab)}
             .tabData=${tab}
             .sessionId=${this.sessionId}
             .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
@@ -205,6 +228,7 @@ export class DaoTabList extends CrLitElement {
         flushSplitRun();
         fragments.push(html`
           <dao-tab-item
+            data-tab-id=${this.getTabIdentity_(tab)}
             .tabData=${tab}
             .sessionId=${this.sessionId}
             .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
@@ -235,6 +259,8 @@ export class DaoTabList extends CrLitElement {
 
         fragments.push(html`
           <dao-folder-item
+            data-folder-id=${folder.id}
+            data-folder-child-count=${matchedChildren.length}
             .folder=${folder}
             .matchedTabs=${matchedChildren}
             .sessionId=${this.sessionId}
@@ -274,6 +300,7 @@ export class DaoTabList extends CrLitElement {
       if (splitRun.length > 0) {
         const items = splitRun.map(tab => html`
           <dao-tab-item
+            data-tab-id=${this.getTabIdentity_(tab)}
             .tabData=${tab}
             .sessionId=${this.sessionId}
             .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
@@ -292,6 +319,7 @@ export class DaoTabList extends CrLitElement {
         flushSplitRun();
         fragments.push(html`
           <dao-tab-item
+            data-tab-id=${this.getTabIdentity_(tab)}
             .tabData=${tab}
             .sessionId=${this.sessionId}
             .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
@@ -311,6 +339,74 @@ export class DaoTabList extends CrLitElement {
 
   private getAutoScrollTokenForTab_(tab: TabData): number {
     return tab.tabId === this.autoScrollTabId ? this.autoScrollToken : 0;
+  }
+
+  private snapshotSurfaceItems_(): FlipMotionSnapshot {
+    return snapshotFlipElements(
+        this.shadowRoot, 'dao-tab-item, dao-folder-item',
+        element => this.getSurfaceItemIdentity_(element));
+  }
+
+  private animateCloseMotion_() {
+    const force = this.didAnyFolderShrink_();
+    animateSurvivingFlipElements(
+        this.previousFlipSnapshot_, this.shadowRoot,
+        'dao-tab-item, dao-folder-item',
+        element => this.getSurfaceItemIdentity_(element),
+        {force, skip: this.tabDragActivated_});
+    this.previousFlipSnapshot_ = null;
+    this.previousFolderChildCounts_ = null;
+  }
+
+  private getTabIdentity_(tab: TabData): string {
+    return tab.tabId || `${tab.index}:${tab.url}:${tab.title}`;
+  }
+
+  private getSurfaceItemIdentity_(element: HTMLElement): string {
+    const tabId = element.dataset['tabId'];
+    if (tabId) {
+      return `tab:${tabId}`;
+    }
+    const folderId = element.dataset['folderId'];
+    if (folderId) {
+      return `folder:${folderId}`;
+    }
+    return '';
+  }
+
+  private snapshotFolderChildCounts_(): Map<string, number> {
+    const counts = new Map<string, number>();
+    const folders =
+        this.shadowRoot?.querySelectorAll<HTMLElement>('dao-folder-item');
+    if (!folders) {
+      return counts;
+    }
+    for (const folder of folders) {
+      const folderId = folder.dataset['folderId'];
+      if (!folderId) {
+        continue;
+      }
+      const childCount = Number(folder.dataset['folderChildCount']);
+      if (!Number.isFinite(childCount)) {
+        continue;
+      }
+      counts.set(folderId, childCount);
+    }
+    return counts;
+  }
+
+  private didAnyFolderShrink_(): boolean {
+    if (!this.previousFolderChildCounts_) {
+      return false;
+    }
+    const currentCounts = this.snapshotFolderChildCounts_();
+    for (const [folderId, previousCount] of this.previousFolderChildCounts_) {
+      const currentCount = currentCounts.get(folderId);
+      if (currentCount !== undefined && currentCount < previousCount) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private onDragStart_(e: DragEvent) {
@@ -746,26 +842,23 @@ export class DaoTabList extends CrLitElement {
       };
     }
 
-    // Build lookup maps for O(1) matching instead of O(n) findIndex.
-    const byTabId = new Map<string, TabData>();
-    const byUrlTitle = new Map<string, TabData>();
-    const byUrl = new Map<string, TabData>();
-    for (const tab of this.tabs) {
-      if (tab.tabId) byTabId.set(tab.tabId, tab);
-      byUrlTitle.set(`${tab.url}\0${tab.title}`, tab);
-      if (!byUrl.has(tab.url)) byUrl.set(tab.url, tab);
-    }
-    const consumed = new Set<string>();
+    const remaining = [...this.tabs];
 
     const consume = (
         ref: {tabId?: string; url: string; title: string}): TabData | null => {
-      let tab: TabData | undefined;
-      if (ref.tabId) tab = byTabId.get(ref.tabId);
-      if (!tab) tab = byUrlTitle.get(`${ref.url}\0${ref.title}`);
-      if (!tab) tab = byUrl.get(ref.url);
-      if (!tab || consumed.has(tab.tabId)) return null;
-      consumed.add(tab.tabId);
-      return tab;
+      let idx = ref.tabId ?
+          remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
+      if (idx === -1) {
+        idx = remaining.findIndex(
+            tab => tab.url === ref.url && tab.title === ref.title);
+      }
+      if (idx === -1) {
+        idx = remaining.findIndex(tab => tab.url === ref.url);
+      }
+      if (idx === -1) {
+        return null;
+      }
+      return remaining.splice(idx, 1)[0]!;
     };
 
     const items = this.folderModel.getOrderedItems();
@@ -789,10 +882,8 @@ export class DaoTabList extends CrLitElement {
     }
 
     // Remaining unmatched tabs.
-    for (const tab of this.tabs) {
-      if (!consumed.has(tab.tabId)) {
-        visualOrder.push(tab.index);
-      }
+    for (const tab of remaining) {
+      visualOrder.push(tab.index);
     }
 
     return {visualOrder, folderTabIndices};

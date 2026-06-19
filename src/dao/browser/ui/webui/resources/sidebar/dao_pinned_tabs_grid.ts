@@ -5,6 +5,11 @@
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {
+  animateSurvivingFlipElements,
+  snapshotFlipElements,
+  type FlipMotionSnapshot,
+} from './dao_flip_motion.js';
+import {
   clearActivePinnedItemDragId,
   getActivePinnedItemDragId,
   PINNED_ITEM_DRAG_MIME_TYPE,
@@ -169,6 +174,7 @@ export class DaoPinnedTabsGrid extends CrLitElement {
   private tooltipVisible_: boolean = false;
   private lastMouseX_: number = 0;
   private lastMouseY_: number = 0;
+  private previousFlipSnapshot_: FlipMotionSnapshot | null = null;
   private boundSidebarPointerExited_ = () => this.onSidebarPointerExited_();
 
   constructor() {
@@ -188,6 +194,18 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     window.removeEventListener(
         SIDEBAR_POINTER_EXITED_EVENT, this.boundSidebarPointerExited_);
     super.disconnectedCallback?.();
+  }
+
+  override willUpdate(changedProperties: Map<PropertyKey, unknown>) {
+    if (changedProperties.has('items')) {
+      this.previousFlipSnapshot_ = this.snapshotTiles_();
+    }
+  }
+
+  override updated(changedProperties: Map<PropertyKey, unknown>) {
+    if (changedProperties.has('items')) {
+      this.animateCloseMotion_();
+    }
   }
 
   override render() {
@@ -241,6 +259,7 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
     return html`
       <button class="tile ${stateClass}"
+              data-pinned-item-id=${item.id}
               aria-label=${displayTitle}
               draggable=${true}
               @click=${() => this.onActivateOrOpen_(item)}
@@ -259,6 +278,23 @@ export class DaoPinnedTabsGrid extends CrLitElement {
         <div class="title">${displayTitle}</div>
       </button>
     `;
+  }
+
+  private snapshotTiles_(): FlipMotionSnapshot {
+    return snapshotFlipElements(
+        this.shadowRoot, '.tile',
+        element => element.dataset['pinnedItemId'] || '');
+  }
+
+  private animateCloseMotion_() {
+    animateSurvivingFlipElements(
+        this.previousFlipSnapshot_, this.shadowRoot, '.tile',
+        element => element.dataset['pinnedItemId'] || '',
+        {
+          skip: this.dragPlaceholderIndex_ >= 0 ||
+              this.tabDragPlaceholderVisible_,
+        });
+    this.previousFlipSnapshot_ = null;
   }
 
   private onActivateOrOpen_(item: PinnedItemData) {

@@ -16,6 +16,9 @@ vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
 });
 
+const originalAnimateDescriptor =
+    Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
+
 function item(extra: Partial<PinnedItemData> = {}): PinnedItemData {
   return {
     id: 'pin-1',
@@ -38,6 +41,8 @@ async function loadGrid() {
     items: PinnedItemData[];
     sessionId: number;
     updateComplete: Promise<boolean>;
+    willUpdate: (changedProperties: Map<PropertyKey, unknown>) => void;
+    updated: (changedProperties: Map<PropertyKey, unknown>) => void;
   };
   document.body.appendChild(el);
   return {el, send};
@@ -112,6 +117,42 @@ function renderedTileOrder(el: HTMLElement): string[] {
       });
 }
 
+function setTileBounds(element: HTMLElement, left: number, top: number) {
+  element.getBoundingClientRect = () => ({
+    top,
+    bottom: top + 56,
+    left,
+    right: left + 56,
+    width: 56,
+    height: 56,
+    x: left,
+    y: top,
+    toJSON: () => ({}),
+  });
+}
+
+function installAnimateMock() {
+  const animate = vi.fn(() => ({
+    cancel: vi.fn(),
+    finished: Promise.resolve(),
+  } as unknown as Animation));
+  Object.defineProperty(HTMLElement.prototype, 'animate', {
+    configurable: true,
+    value: animate,
+  });
+  return animate;
+}
+
+function restoreDescriptor(
+    target: object, key: PropertyKey, descriptor?: PropertyDescriptor) {
+  if (descriptor) {
+    Object.defineProperty(target, key, descriptor);
+    return;
+  }
+
+  Reflect.deleteProperty(target, key);
+}
+
 describe('dao-pinned-tabs-grid', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -121,6 +162,8 @@ describe('dao-pinned-tabs-grid', () => {
     document.body.innerHTML = '';
     clearActivePinnedItemDragId();
     vi.restoreAllMocks();
+    restoreDescriptor(
+        HTMLElement.prototype, 'animate', originalAnimateDescriptor);
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
   });
 
@@ -150,6 +193,143 @@ describe('dao-pinned-tabs-grid', () => {
     expect(cssText).toContain('minmax(');
     expect(cssText).not.toContain('grid-template-columns: repeat(3, 1fr)');
   });
+
+  it('animates surviving pinned tiles when a pinned item disappears',
+      async () => {
+        const animate = installAnimateMock();
+        const {el} = await loadGrid();
+        el.items = [
+          item({id: 'pin-a', title: 'A'}),
+          item({id: 'pin-b', title: 'B'}),
+          item({id: 'pin-c', title: 'C'}),
+        ];
+        await el.updateComplete;
+
+        let tiles = el.shadowRoot!.querySelectorAll('.tile');
+        setTileBounds(tiles[0] as HTMLElement, 0, 0);
+        setTileBounds(tiles[1] as HTMLElement, 62, 0);
+        setTileBounds(tiles[2] as HTMLElement, 124, 0);
+
+        const changedProperties = new Map<PropertyKey, unknown>([
+          ['items', el.items],
+        ]);
+        // The Lit test shim does not drive these hooks, so call them after
+        // setting jsdom bounds for FLIP snapshots.
+        el.willUpdate(changedProperties);
+        el.items = [
+          item({id: 'pin-b', title: 'B'}),
+          item({id: 'pin-c', title: 'C'}),
+        ];
+        await el.updateComplete;
+
+        tiles = el.shadowRoot!.querySelectorAll('.tile');
+        setTileBounds(tiles[0] as HTMLElement, 0, 0);
+        setTileBounds(tiles[1] as HTMLElement, 62, 0);
+        el.updated(changedProperties);
+
+        expect(animate).toHaveBeenCalledTimes(2);
+        expect(animate).toHaveBeenNthCalledWith(
+            1,
+            [
+              {transform: 'translate(62px, 0px)'},
+              {transform: 'translate(0, 0)'},
+            ],
+            {
+              duration: 140,
+              easing: 'cubic-bezier(0.2, 0, 0, 1)',
+            });
+        expect(animate).toHaveBeenNthCalledWith(
+            2,
+            [
+              {transform: 'translate(62px, 0px)'},
+              {transform: 'translate(0, 0)'},
+            ],
+            {
+              duration: 140,
+              easing: 'cubic-bezier(0.2, 0, 0, 1)',
+            });
+      });
+
+  it('skips close motion while a tab drag preview placeholder is visible',
+      async () => {
+        const animate = installAnimateMock();
+        const {el} = await loadGrid();
+        el.sessionId = 7;
+        el.items = [
+          item({id: 'pin-a', title: 'A'}),
+          item({id: 'pin-b', title: 'B'}),
+          item({id: 'pin-c', title: 'C'}),
+        ];
+        await el.updateComplete;
+
+        const dataTransfer = protectedTabDragDataTransfer('dao-tab-drag:7:4');
+        const tiles = el.shadowRoot!.querySelectorAll('.tile');
+        tiles[1]!.dispatchEvent(dragEvent('dragover', dataTransfer));
+        await el.updateComplete;
+        expect(renderedTileOrder(el)).toEqual(['A', 'placeholder', 'B', 'C']);
+
+        const renderedTiles = el.shadowRoot!.querySelectorAll('.tile');
+        setTileBounds(renderedTiles[0] as HTMLElement, 0, 0);
+        setTileBounds(renderedTiles[1] as HTMLElement, 62, 0);
+        setTileBounds(renderedTiles[2] as HTMLElement, 124, 0);
+
+        const changedProperties = new Map<PropertyKey, unknown>([
+          ['items', el.items],
+        ]);
+        // The Lit test shim does not drive these hooks, so call them after
+        // setting jsdom bounds for FLIP snapshots.
+        el.willUpdate(changedProperties);
+        el.items = [
+          item({id: 'pin-b', title: 'B'}),
+          item({id: 'pin-c', title: 'C'}),
+        ];
+        await el.updateComplete;
+        el.updated(changedProperties);
+
+        expect(animate).not.toHaveBeenCalled();
+      });
+
+  it('skips close motion while an internal pinned drag placeholder is visible',
+      async () => {
+        const animate = installAnimateMock();
+        const {el} = await loadGrid();
+        el.sessionId = 7;
+        el.items = [
+          item({id: 'pin-a', title: 'A'}),
+          item({id: 'pin-b', title: 'B'}),
+          item({id: 'pin-c', title: 'C'}),
+        ];
+        await el.updateComplete;
+
+        let tiles = el.shadowRoot!.querySelectorAll('.tile');
+        const dataTransfer = fakeDataTransfer();
+        tiles[0]!.dispatchEvent(dragEvent('dragstart', dataTransfer));
+        tiles[1]!.dispatchEvent(dragEvent('dragover', dataTransfer));
+        await el.updateComplete;
+        expect(renderedTileOrder(el)).toEqual(['B', 'placeholder', 'C']);
+
+        tiles = el.shadowRoot!.querySelectorAll('.tile');
+        setTileBounds(tiles[0] as HTMLElement, 0, 0);
+        setTileBounds(tiles[1] as HTMLElement, 62, 0);
+
+        const changedProperties = new Map<PropertyKey, unknown>([
+          ['items', el.items],
+        ]);
+        // The Lit test shim does not drive these hooks, so call them after
+        // setting jsdom bounds for FLIP snapshots.
+        el.willUpdate(changedProperties);
+        el.items = [
+          item({id: 'pin-b', title: 'B'}),
+          item({id: 'pin-c', title: 'C'}),
+        ];
+        await el.updateComplete;
+        el.updated(changedProperties);
+
+        expect(animate).not.toHaveBeenCalled();
+
+        tiles = el.shadowRoot!.querySelectorAll('.tile');
+        tiles[0]!.dispatchEvent(dragEvent('dragend', dataTransfer));
+      });
 
   it('activates or opens the clicked pinned item', async () => {
     const {el, send} = await loadGrid();
