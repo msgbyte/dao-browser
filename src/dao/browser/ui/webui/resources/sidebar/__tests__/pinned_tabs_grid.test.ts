@@ -183,14 +183,15 @@ describe('dao-pinned-tabs-grid', () => {
     expect(tiles[2]!.classList.contains('dormant')).toBe(true);
   });
 
-  it('uses responsive grid columns for pinned tiles', async () => {
+  it('keeps empty responsive grid tracks for sparse pinned tiles', async () => {
     await loadGrid();
     const ctor = customElements.get('dao-pinned-tabs-grid') as
         typeof HTMLElement & {styles: {strings: string[]}};
     const cssText = ctor.styles.strings.join('');
 
-    expect(cssText).toContain('grid-template-columns: repeat(auto-fit,');
+    expect(cssText).toContain('grid-template-columns: repeat(auto-fill,');
     expect(cssText).toContain('minmax(');
+    expect(cssText).not.toContain('grid-template-columns: repeat(auto-fit,');
     expect(cssText).not.toContain('grid-template-columns: repeat(3, 1fr)');
   });
 
@@ -355,11 +356,12 @@ describe('dao-pinned-tabs-grid', () => {
     expect(favicon.draggable).toBe(false);
   });
 
-  it('shows the tab tooltip after hovering a pinned item', async () => {
+  it('shows the full tab tooltip after hovering a pinned item', async () => {
     vi.useFakeTimers();
     try {
       const {el, send} = await loadGrid();
-      el.items = [item({id: 'pin-tooltip', title: 'Pinned Docs'})];
+      const fullTitle = 'Pinned Docs With A Long Title';
+      el.items = [item({id: 'pin-tooltip', title: fullTitle})];
       await el.updateComplete;
 
       const tile = el.shadowRoot!.querySelector('.tile') as HTMLElement;
@@ -372,7 +374,7 @@ describe('dao-pinned-tabs-grid', () => {
 
       vi.advanceTimersByTime(1);
       expect(send).toHaveBeenCalledWith(
-          'showTabTooltip', [24, 34, 'Pinned Docs']);
+          'showTabTooltip', [24, 34, fullTitle]);
 
       tile.dispatchEvent(new MouseEvent('mouseleave'));
       expect(send).toHaveBeenLastCalledWith('hideTabTooltip', []);

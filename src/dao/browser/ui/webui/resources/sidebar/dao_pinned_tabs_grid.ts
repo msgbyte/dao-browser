@@ -36,7 +36,7 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
         gap: 6px;
         padding: 4px 10px;
       }
