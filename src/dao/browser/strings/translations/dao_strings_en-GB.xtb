@@ -4,12 +4,15 @@
 <translation id="1653598257495639807">QR Code Result</translation>
 <translation id="21133533946938348">Pin Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3450492919008172498">No new tabs were archived</translation>
 <translation id="3551320343578183772">Close Tab</translation>
 <translation id="3657099196021255130">Open in Dao</translation>
 <translation id="3708693288863478389">Type a URL or search...</translation>
 <translation id="385051799172605136">Back</translation>
 <translation id="3891466792657071243">Stop Loading</translation>
+<translation id="3901975710974642844">Move Stale Tabs to "stale"</translation>
 <translation id="3984237987235889323">Applying</translation>
+<translation id="4201242995651540725">Archived tabs inactive for the past 24 hours</translation>
 <translation id="4285498937028063278">Unpin</translation>
 <translation id="4380677223237520064">Decode QR Code</translation>
 <translation id="4543782226216763900">Toggle Sidebar (<ph name="SHORTCUT" />)</translation>

@@ -4,12 +4,15 @@
 <translation id="1653598257495639807">QR Code 結果</translation>
 <translation id="21133533946938348">固定分頁</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3450492919008172498">沒有新的分頁被封存</translation>
 <translation id="3551320343578183772">關閉分頁</translation>
 <translation id="3657099196021255130">在 Dao 中開啟</translation>
 <translation id="3708693288863478389">輸入網址或搜尋...</translation>
 <translation id="385051799172605136">返回</translation>
 <translation id="3891466792657071243">停止載入</translation>
+<translation id="3901975710974642844">移動過期分頁到「過期」</translation>
 <translation id="3984237987235889323">正在套用</translation>
+<translation id="4201242995651540725">已封存過去 24 小時未使用的分頁</translation>
 <translation id="4285498937028063278">取消固定</translation>
 <translation id="4380677223237520064">解碼 QR Code</translation>
 <translation id="4543782226216763900">切換側邊欄 (<ph name="SHORTCUT" />)</translation>
