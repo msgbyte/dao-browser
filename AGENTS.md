@@ -5,7 +5,8 @@ This file gives Codex project-specific context for working in Dao Browser.
 ## Communication
 
 - Communicate with the user in Chinese.
-- Write source code, comments, commit messages, PR titles, and documentation in English unless the user explicitly asks otherwise.
+- Write source code, comments, tests, commit messages, PR titles, and documentation in English unless the user explicitly asks otherwise.
+- Do not embed non-English user-facing copy directly in code. User-visible text in any language must be provided through the appropriate internationalization system.
 
 ## Project Overview
 
@@ -101,7 +102,7 @@ Important Chromium integration patches include:
 - Follow Chromium C++ style: `raw_ptr<>`, `METADATA_HEADER`, include guards, existing ownership patterns, and existing `base` / `views` conventions.
 - Keep Dao-owned C++ in the `dao::` namespace.
 - Prefer existing local helpers and design tokens before adding new abstractions.
-- Do not hardcode user-facing English in Dao-owned code.
+- Do not hardcode user-facing copy in any language in Dao-owned code.
 - Do not use emoji as icons. Use Lucide SVGs for iconography.
 - When adding or changing Lucide icons, fetch the current upstream SVG and copy the child nodes verbatim; do not recreate path data from memory.
 
@@ -114,9 +115,10 @@ Important Chromium integration patches include:
 
 ## Internationalization
 
-Never hardcode user-facing English in Dao-owned UI.
+Never hardcode user-facing copy in Dao-owned UI. All user-visible text must have internationalization support, even when the source text is English.
 
 - C++ Views strings go in `src/dao/browser/strings/dao_strings.grd` and are read with `l10n_util::GetStringUTF16` or `GetStringFUTF16`.
+- Sidebar WebUI strings go in `src/dao/browser/strings/dao_strings.grd`, are registered on the sidebar `WebUIDataSource` with `AddLocalizedString` / `UseStringsJs`, and are read from TypeScript through `loadTimeData.getString(...)`.
 - Agent WebUI strings go in `src/dao/browser/ui/webui/resources/agent/i18n/locales/en.ts` and are read with `t('key', { var: 'x' })`.
 - `zh-CN` is hand-authored and treated as the tone reference.
 - Other locales are generated manually by the user via `OPENAI_API_KEY=... sh ./i18n.sh`; do not run it automatically.

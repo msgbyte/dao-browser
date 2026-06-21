@@ -26,8 +26,11 @@ function tab(
 
 describe('FolderModel', () => {
   beforeEach(() => {
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(
-        'folderid-1234-4000-8000-000000000000');
+    let uuidCounter = 0;
+    vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {
+      uuidCounter++;
+      return `folder${uuidCounter}-1234-4000-8000-000000000000`;
+    });
   });
 
   it('serializes folders without volatile runtime tab ids', () => {
@@ -70,6 +73,60 @@ describe('FolderModel', () => {
     expect(model.getOrderedItems().map(item => item.type === 'tab'
       ? item.title
       : item.name)).toEqual(['First', 'Child', 'Last']);
+  });
+
+  it('finds or creates folders by exact name', () => {
+    const model = new FolderModel();
+
+    const created = model.findOrCreateFolderByName('stale');
+    const reused = model.findOrCreateFolderByName('stale');
+    const differentlyCased = model.findOrCreateFolderByName('Stale');
+
+    expect(created.id).toBe(reused.id);
+    expect(differentlyCased.id).not.toBe(created.id);
+    expect(model.getFolders().map(folder => folder.name))
+        .toEqual(['stale', 'Stale']);
+  });
+
+  it('moves multiple tabs into a target folder without duplicates', () => {
+    const model = new FolderModel();
+    model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [
+        {type: 'tab', tabId: 'a', url: 'https://a.example', title: 'A'},
+        {
+          type: 'folder',
+          id: 'reading',
+          name: 'Reading',
+          collapsed: false,
+          children: [
+            {type: 'tab', tabId: 'b', url: 'https://b.example', title: 'B'},
+          ],
+        },
+        {
+          type: 'folder',
+          id: 'stale-id',
+          name: 'stale',
+          collapsed: true,
+          children: [
+            {type: 'tab', tabId: 'c', url: 'https://c.example', title: 'C'},
+          ],
+        },
+      ],
+    }));
+
+    const stale = model.findOrCreateFolderByName('stale');
+    model.moveTabsToFolder([
+      tab('a', 'https://a.example', 'A'),
+      tab('b', 'https://b.example', 'B'),
+      tab('c', 'https://c.example', 'C'),
+    ], stale.id);
+
+    expect(stale.collapsed).toBe(false);
+    expect(stale.children.map(child => child.title)).toEqual(['C', 'A', 'B']);
+
+    const reading = model.findFolderByName('Reading');
+    expect(reading?.children).toEqual([]);
   });
 
   it('reconciles stored folders with actual tabs and drops stale refs', () => {

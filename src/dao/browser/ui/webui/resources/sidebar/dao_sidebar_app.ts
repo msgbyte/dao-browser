@@ -28,6 +28,21 @@ import './dao_download_button.js';
 import './dao_media_control.js';
 
 const TAB_SCROLLBAR_STALE_HOVER_MS = 600;
+const STALE_TAB_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+const STALE_TABS_FOLDER_NAME = 'stale';
+const STALE_TABS_ARCHIVED_TOAST_KEY = 'daoSidebarStaleTabsArchivedToast';
+const NO_NEW_STALE_TABS_ARCHIVED_TOAST_KEY =
+    'daoSidebarNoNewStaleTabsArchivedToast';
+const TOAST_VISIBLE_MS = 3000;
+
+interface LoadTimeDataLike {
+  getString(id: string): string;
+}
+
+function getLocalizedString(id: string): string {
+  return (globalThis as unknown as {loadTimeData: LoadTimeDataLike})
+      .loadTimeData.getString(id);
+}
 
 export class DaoSidebarApp extends CrLitElement {
   static get is() {
@@ -97,6 +112,37 @@ export class DaoSidebarApp extends CrLitElement {
 
       .tab-scrollbar.visible.hovered .tab-scrollbar-thumb {
         background: var(--scrollbar-thumb-hover);
+      }
+
+      .dao-sidebar-toast {
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: calc(100vw - 24px);
+        box-sizing: border-box;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: white;
+        box-shadow: 0 4px 16px rgba(70, 120, 190, 0.30);
+        font-family: var(--font-family, system-ui);
+        font-size: 12px;
+        line-height: 16px;
+        text-align: center;
+        z-index: 1200;
+        animation: daoSidebarToastIn 180ms ease-out;
+      }
+
+      @keyframes daoSidebarToastIn {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
       }
 
       .plus-menu-container {
@@ -200,6 +246,8 @@ export class DaoSidebarApp extends CrLitElement {
       tabScrollbarHovered_: {type: Boolean},
       tabScrollbarThumbTop_: {type: Number},
       tabScrollbarThumbHeight_: {type: Number},
+      toastText_: {type: String},
+      toastVisible_: {type: Boolean},
     };
   }
 
@@ -224,6 +272,8 @@ export class DaoSidebarApp extends CrLitElement {
   declare protected tabScrollbarHovered_: boolean;
   declare protected tabScrollbarThumbTop_: number;
   declare protected tabScrollbarThumbHeight_: number;
+  declare protected toastText_: string;
+  declare protected toastVisible_: boolean;
 
   // Non-reactive internals — plain fields are fine here because Lit doesn't
   // install accessors for these.
@@ -246,6 +296,7 @@ export class DaoSidebarApp extends CrLitElement {
       this.clearPointerState_();
     }
   };
+  private toastTimer_: number | null = null;
 
   constructor() {
     super();
@@ -263,6 +314,8 @@ export class DaoSidebarApp extends CrLitElement {
     this.tabScrollbarHovered_ = false;
     this.tabScrollbarThumbTop_ = 0;
     this.tabScrollbarThumbHeight_ = 0;
+    this.toastText_ = '';
+    this.toastVisible_ = false;
   }
 
   override connectedCallback() {
@@ -321,6 +374,9 @@ export class DaoSidebarApp extends CrLitElement {
     this.addSidebarListener_(
         'sidebarPointerExited', () => this.clearPointerState_());
 
+    this.addSidebarListener_(
+        'moveStaleTabsRequested', () => this.moveStaleTabsToFolder_());
+
     this.addSidebarListener_('updateStateChanged', (...args: unknown[]) => {
       this.updateState_ = args[0] as UpdateStateData;
     });
@@ -346,6 +402,7 @@ export class DaoSidebarApp extends CrLitElement {
   override disconnectedCallback() {
     super.disconnectedCallback?.();
     this.clearTabScrollbarHoverTimeout_();
+    this.clearToastTimer_();
     for (const handle of this.listenerHandles_) {
       removeListener(handle);
     }
@@ -532,6 +589,48 @@ export class DaoSidebarApp extends CrLitElement {
     return this.unpinnedTabs_.find(t => t.tabId === tabId) || null;
   }
 
+  private getStaleTabs_(nowMs: number = Date.now()): TabData[] {
+    const threshold = nowMs - STALE_TAB_THRESHOLD_MS;
+    return this.unpinnedTabs_.filter(tab =>
+      !tab.isActive &&
+      !tab.isPinned &&
+      !tab.isAudible &&
+      !tab.isMuted &&
+      !tab.isAgentLocked &&
+      typeof tab.lastActiveTimeMs === 'number' &&
+      tab.lastActiveTimeMs < threshold);
+  }
+
+  private moveStaleTabsToFolder_() {
+    if (!this.foldersLoaded_) {
+      return;
+    }
+
+    const staleTabs = this.getStaleTabs_();
+    if (staleTabs.length === 0) {
+      this.showToast_(getLocalizedString(NO_NEW_STALE_TABS_ARCHIVED_TOAST_KEY));
+      return;
+    }
+
+    this.folderModel_.reconcile(this.unpinnedTabs_);
+    const existingFolder =
+        this.folderModel_.findFolderByName(STALE_TABS_FOLDER_NAME);
+    const tabsToMove = existingFolder ?
+        staleTabs.filter(tab =>
+          this.folderModel_.findTabFolder(tab) !== existingFolder.id) :
+        staleTabs;
+    if (tabsToMove.length === 0) {
+      this.showToast_(getLocalizedString(NO_NEW_STALE_TABS_ARCHIVED_TOAST_KEY));
+      return;
+    }
+
+    const folder = existingFolder ??
+        this.folderModel_.findOrCreateFolderByName(STALE_TABS_FOLDER_NAME);
+    this.folderModel_.moveTabsToFolder(tabsToMove, folder.id);
+    this.saveFolders_();
+    this.showToast_(getLocalizedString(STALE_TABS_ARCHIVED_TOAST_KEY));
+  }
+
   private onTabSectionScroll_ = () => {
     this.showTabScrollbar_();
   };
@@ -585,6 +684,22 @@ export class DaoSidebarApp extends CrLitElement {
     if (this.tabScrollbarHoverTimeout_ === null) return;
     window.clearTimeout(this.tabScrollbarHoverTimeout_);
     this.tabScrollbarHoverTimeout_ = null;
+  }
+
+  private showToast_(text: string, duration = TOAST_VISIBLE_MS) {
+    this.toastText_ = text;
+    this.toastVisible_ = true;
+    this.clearToastTimer_();
+    this.toastTimer_ = window.setTimeout(() => {
+      this.toastTimer_ = null;
+      this.toastVisible_ = false;
+    }, duration);
+  }
+
+  private clearToastTimer_() {
+    if (this.toastTimer_ === null) return;
+    window.clearTimeout(this.toastTimer_);
+    this.toastTimer_ = null;
   }
 
   private getTabScrollbarThumbStyle_(): string {
@@ -699,6 +814,11 @@ export class DaoSidebarApp extends CrLitElement {
             </div>
           </div>
         </dao-download-button>
+        ${this.toastVisible_ ? html`
+          <div class="dao-sidebar-toast" role="status" aria-live="polite">
+            ${this.toastText_}
+          </div>
+        ` : nothing}
       </div>
     `;
   }

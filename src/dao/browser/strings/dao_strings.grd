@@ -231,6 +231,15 @@
       <message name="IDS_DAO_TAB_CONTEXT_PIN_TAB" desc="Context menu item that pins a regular tab into the Dao sidebar pinned items section.">
         Pin Tab
       </message>
+      <message name="IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS" desc="Context menu item in the Dao sidebar that moves tabs inactive for more than 24 hours into a folder named stale.">
+        Move Stale Tabs to "stale"
+      </message>
+      <message name="IDS_DAO_SIDEBAR_STALE_TABS_ARCHIVED_TOAST" desc="Toast shown after the Dao sidebar moves tabs inactive for more than 24 hours into the stale folder.">
+        Archived tabs inactive for the past 24 hours
+      </message>
+      <message name="IDS_DAO_SIDEBAR_NO_NEW_STALE_TABS_ARCHIVED_TOAST" desc="Toast shown when the user asks the Dao sidebar to archive stale tabs, but no additional tabs need to be moved.">
+        No new tabs were archived
+      </message>
       <message name="IDS_DAO_PINNED_TAB_CONTEXT_OPEN" desc="Context menu item that opens a dormant pinned sidebar item in a browser tab.">
         Open
       </message>

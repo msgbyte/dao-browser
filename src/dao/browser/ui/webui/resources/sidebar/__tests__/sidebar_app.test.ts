@@ -9,12 +9,16 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
   SIDEBAR_POINTER_EXITED_EVENT,
 } from '../sidebar_bridge.js';
+import {FolderModel} from '../dao_folder_model.js';
 import type {
   PinnedItemData,
   SidebarState,
   TabData,
   UpdateStateData,
 } from '../sidebar_bridge.js';
+
+const ARCHIVED_TOAST_TEXT = 'Archived tabs inactive for the past 24 hours';
+const NO_NEW_TABS_TOAST_TEXT = 'No new tabs were archived';
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
@@ -66,9 +70,49 @@ function sidebarState(extra: Partial<SidebarState> = {}): SidebarState {
   };
 }
 
+type SidebarAppInternals = HTMLElement & {
+  folderModel_: FolderModel;
+  foldersLoaded_: boolean;
+  unpinnedTabs_: TabData[];
+  folderModelVersion_: number;
+  updateComplete: Promise<boolean>;
+};
+
+function installFolderModel(
+    el: SidebarAppInternals, json: string = ''): FolderModel {
+  const model = new FolderModel();
+  model.loadFromJson(json);
+  el.folderModel_ = model;
+  el.foldersLoaded_ = true;
+  return model;
+}
+
+function fireMoveStaleTabsRequested() {
+  (window as unknown as {
+    cr: {webUIListenerCallback: (event: string) => void};
+  }).cr.webUIListenerCallback('moveStaleTabsRequested');
+}
+
+function didSendNative(send: ReturnType<typeof vi.fn>, method: string): boolean {
+  return send.mock.calls.some(call => call[0] === method);
+}
+
+function installLoadTimeData() {
+  const strings: Record<string, string> = {
+    daoSidebarStaleTabsArchivedToast: ARCHIVED_TOAST_TEXT,
+    daoSidebarNoNewStaleTabsArchivedToast: NO_NEW_TABS_TOAST_TEXT,
+  };
+  const getString = vi.fn((id: string) => strings[id] ?? id);
+  (globalThis as unknown as {
+    loadTimeData: {getString: (id: string) => string};
+  }).loadTimeData = {getString};
+  return getString;
+}
+
 async function loadApp() {
   const send = vi.fn();
   (globalThis as unknown as {chrome: {send: typeof send}}).chrome = {send};
+  installLoadTimeData();
   await import('../dao_sidebar_app.js');
   const el = document.createElement('dao-sidebar-app') as HTMLElement & {
     pinnedItems_: PinnedItemData[];
@@ -93,6 +137,7 @@ describe('dao-sidebar-app', () => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
+    delete (globalThis as unknown as {loadTimeData?: unknown}).loadTimeData;
   });
 
   it('renders pinned tabs above the new tab button', async () => {
@@ -276,6 +321,246 @@ describe('dao-sidebar-app', () => {
 
         expect(listener).toHaveBeenCalledTimes(1);
         window.removeEventListener(SIDEBAR_POINTER_EXITED_EVENT, listener);
+      });
+
+  it('does not create stale folder or save folders when no tabs match',
+      async () => {
+        vi.useFakeTimers();
+        vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+
+        const {el, send} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app);
+        app.unpinnedTabs_ = [
+          tab({
+            tabId: 'fresh',
+            title: 'Fresh',
+            url: 'https://fresh.example/',
+            lastActiveTimeMs: Date.now() - 23 * 60 * 60 * 1000,
+          }),
+        ];
+
+        fireMoveStaleTabsRequested();
+        await el.updateComplete;
+        vi.advanceTimersByTime(300);
+
+        expect(app.folderModel_.getFolders()).toEqual([]);
+        expect(didSendNative(send, 'saveFolders')).toBe(false);
+        const toast = el.shadowRoot!.querySelector('.dao-sidebar-toast');
+        expect(toast).not.toBeNull();
+        expect(toast!.textContent).toContain(NO_NEW_TABS_TOAST_TEXT);
+      });
+
+  it('shows no-new-tabs toast when stale tabs are already archived',
+      async () => {
+        vi.useFakeTimers();
+        vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+
+        const {el, send} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app, JSON.stringify({
+          version: 1,
+          items: [
+            {
+              type: 'folder',
+              id: 'stale-folder',
+              name: 'stale',
+              collapsed: false,
+              children: [
+                {
+                  type: 'tab',
+                  tabId: 'old',
+                  url: 'https://old.example/',
+                  title: 'Old',
+                },
+              ],
+            },
+          ],
+        }));
+        app.unpinnedTabs_ = [
+          tab({
+            tabId: 'old',
+            title: 'Old',
+            url: 'https://old.example/',
+            lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+          }),
+        ];
+        app.folderModel_.reconcile(app.unpinnedTabs_);
+
+        fireMoveStaleTabsRequested();
+        await el.updateComplete;
+        vi.advanceTimersByTime(300);
+
+        expect(didSendNative(send, 'saveFolders')).toBe(false);
+        const toast = el.shadowRoot!.querySelector('.dao-sidebar-toast');
+        expect(toast).not.toBeNull();
+        expect(toast!.textContent).toContain(NO_NEW_TABS_TOAST_TEXT);
+      });
+
+  it('moves only ordinary stale tabs into a new stale folder', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    installFolderModel(app);
+    app.unpinnedTabs_ = [
+      tab({
+        tabId: 'old',
+        title: 'Old',
+        url: 'https://old.example/',
+        lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+      }),
+      tab({
+        tabId: 'fresh',
+        title: 'Fresh',
+        url: 'https://fresh.example/',
+        lastActiveTimeMs: Date.now() - 23 * 60 * 60 * 1000,
+      }),
+      tab({
+        tabId: 'active-old',
+        title: 'Active Old',
+        url: 'https://active.example/',
+        isActive: true,
+        lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+      }),
+      tab({
+        tabId: 'pinned-old',
+        title: 'Pinned Old',
+        url: 'https://pinned.example/',
+        isPinned: true,
+        lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+      }),
+      tab({
+        tabId: 'audible-old',
+        title: 'Audible Old',
+        url: 'https://audible.example/',
+        isAudible: true,
+        lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+      }),
+      tab({
+        tabId: 'muted-old',
+        title: 'Muted Old',
+        url: 'https://muted.example/',
+        isMuted: true,
+        lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+      }),
+      tab({
+        tabId: 'locked-old',
+        title: 'Locked Old',
+        url: 'https://locked.example/',
+        isAgentLocked: true,
+        lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+      }),
+      tab({
+        tabId: 'missing-time',
+        title: 'Missing Time',
+        url: 'https://missing.example/',
+      }),
+    ];
+    app.folderModel_.reconcile(app.unpinnedTabs_);
+
+    fireMoveStaleTabsRequested();
+    await el.updateComplete;
+    vi.advanceTimersByTime(300);
+
+    const stale = app.folderModel_.findFolderByName('stale');
+    expect(stale?.children.map(child => child.tabId)).toEqual(['old']);
+    expect(send).toHaveBeenCalledWith(
+        'saveFolders', [expect.stringContaining('"name": "stale"')]);
+    const toast = el.shadowRoot!.querySelector('.dao-sidebar-toast');
+    expect(toast).not.toBeNull();
+    expect(toast!.textContent).toContain(ARCHIVED_TOAST_TEXT);
+  });
+
+  it('loads WebUI strings before the sidebar app bundle', () => {
+    const htmlText = readFileSync(
+        'src/dao/browser/ui/webui/resources/sidebar/sidebar.html', 'utf8');
+
+    const stringsIndex = htmlText.indexOf('src="strings.m.js"');
+    const appIndex = htmlText.indexOf('src="sidebar.js"');
+
+    expect(stringsIndex).toBeGreaterThanOrEqual(0);
+    expect(appIndex).toBeGreaterThanOrEqual(0);
+    expect(stringsIndex).toBeLessThan(appIndex);
+  });
+
+  it('does not hardcode localized stale-tab toast copy in the app source',
+      () => {
+        const sourceText = readFileSync(
+            'src/dao/browser/ui/webui/resources/sidebar/dao_sidebar_app.ts',
+            'utf8');
+
+        expect(sourceText).not.toMatch(/[\u4e00-\u9fff]/);
+      });
+
+  it('reuses existing stale folder and moves stale tabs from other folders',
+      async () => {
+        vi.useFakeTimers();
+        vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+
+        const {el, send} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app, JSON.stringify({
+          version: 1,
+          items: [
+            {
+              type: 'folder',
+              id: 'reading',
+              name: 'Reading',
+              collapsed: false,
+              children: [
+                {
+                  type: 'tab',
+                  url: 'https://old.example/',
+                  title: 'Old',
+                },
+              ],
+            },
+            {
+              type: 'folder',
+              id: 'stale-folder',
+              name: 'stale',
+              collapsed: true,
+              children: [
+                {
+                  type: 'tab',
+                  url: 'https://already.example/',
+                  title: 'Already',
+                },
+              ],
+            },
+          ],
+        }));
+        app.unpinnedTabs_ = [
+          tab({
+            tabId: 'old',
+            title: 'Old',
+            url: 'https://old.example/',
+            lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+          }),
+          tab({
+            tabId: 'already',
+            title: 'Already',
+            url: 'https://already.example/',
+            lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+          }),
+        ];
+        app.folderModel_.reconcile(app.unpinnedTabs_);
+
+        fireMoveStaleTabsRequested();
+        await el.updateComplete;
+        vi.advanceTimersByTime(300);
+
+        const stale = app.folderModel_.findFolderByName('stale');
+        expect(stale?.id).toBe('stale-folder');
+        expect(stale?.collapsed).toBe(false);
+        expect(stale?.children.map(child => child.title))
+            .toEqual(['Already', 'Old']);
+        expect(app.folderModel_.findFolderByName('Reading')?.children)
+            .toEqual([]);
+        expect(send).toHaveBeenCalledWith(
+            'saveFolders', [expect.stringContaining('"id": "stale-folder"')]);
       });
 
   it('hides page-level sidebar scrollbars until the page is hovered', () => {

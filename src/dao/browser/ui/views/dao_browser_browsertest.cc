@@ -15,7 +15,9 @@
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "content/public/browser/page_navigator.h"
@@ -293,6 +295,11 @@ bool GetBoolField(const base::DictValue& dict, const char* key) {
 
 int GetIntField(const base::DictValue& dict, const char* key) {
   return dict.FindInt(key).value_or(-1);
+}
+
+double GetDoubleField(const base::DictValue& dict, const char* key) {
+  const base::Value* value = dict.Find(key);
+  return value && value->is_double() ? value->GetDouble() : -1.0;
 }
 
 int FindTabIndexByUrl(Browser* browser, const GURL& url) {
@@ -874,6 +881,124 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   service->ResetForTesting();
 }
 #endif
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       SidebarStateIncludesLastActiveTimeMs) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL first_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  chrome::AddTabAt(browser(), second_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+
+  base::DictValue state = handler.GetSidebarStateForTesting();
+  const base::ListValue* unpinned_tabs = state.FindList("unpinnedTabs");
+  ASSERT_NE(nullptr, unpinned_tabs);
+  const base::DictValue* first_tab =
+      FindDictByStringField(*unpinned_tabs, "url", first_url.spec());
+  const base::DictValue* second_tab =
+      FindDictByStringField(*unpinned_tabs, "url", second_url.spec());
+  ASSERT_NE(nullptr, first_tab);
+  ASSERT_NE(nullptr, second_tab);
+  EXPECT_GT(GetDoubleField(*first_tab, "lastActiveTimeMs"), 0.0);
+  EXPECT_GT(GetDoubleField(*second_tab, "lastActiveTimeMs"), 0.0);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       SidebarStateUsesWebContentsLastActiveTime) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  const double web_contents_last_active_time_ms =
+      contents->GetLastActiveTime().InMillisecondsFSinceUnixEpoch();
+  ASSERT_GT(web_contents_last_active_time_ms, 0.0);
+
+  base::PlatformThread::Sleep(base::Milliseconds(2));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+
+  base::DictValue state = handler.GetSidebarStateForTesting();
+  const base::ListValue* unpinned_tabs = state.FindList("unpinnedTabs");
+  ASSERT_NE(nullptr, unpinned_tabs);
+  const base::DictValue* tab =
+      FindDictByStringField(*unpinned_tabs, "url", url.spec());
+  ASSERT_NE(nullptr, tab);
+  EXPECT_EQ(web_contents_last_active_time_ms,
+            GetDoubleField(*tab, "lastActiveTimeMs"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ActivatingTabRefreshesLastActiveTimeMs) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL first_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  chrome::AddTabAt(browser(), second_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+
+  base::DictValue initial_state = handler.GetSidebarStateForTesting();
+  const base::ListValue* initial_unpinned_tabs =
+      initial_state.FindList("unpinnedTabs");
+  ASSERT_NE(nullptr, initial_unpinned_tabs);
+  const base::DictValue* initial_first_tab =
+      FindDictByStringField(*initial_unpinned_tabs, "url", first_url.spec());
+  ASSERT_NE(nullptr, initial_first_tab);
+  const double initial_last_active_time_ms =
+      GetDoubleField(*initial_first_tab, "lastActiveTimeMs");
+  ASSERT_GT(initial_last_active_time_ms, 0.0);
+
+  base::PlatformThread::Sleep(base::Milliseconds(2));
+  TabStripModel* model = browser()->tab_strip_model();
+  const int first_index = FindTabIndexByUrl(browser(), first_url);
+  ASSERT_NE(TabStripModel::kNoTab, first_index);
+  model->ActivateTabAt(first_index);
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    base::DictValue updated_state = handler.GetSidebarStateForTesting();
+    const base::ListValue* updated_unpinned_tabs =
+        updated_state.FindList("unpinnedTabs");
+    if (!updated_unpinned_tabs) {
+      return false;
+    }
+    const base::DictValue* updated_first_tab =
+        FindDictByStringField(*updated_unpinned_tabs, "url", first_url.spec());
+    return updated_first_tab &&
+           GetDoubleField(*updated_first_tab, "lastActiveTimeMs") >
+               initial_last_active_time_ms;
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       TabUpdateIncludesLastActiveTimeMs) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+
+  const int index = FindTabIndexByUrl(browser(), url);
+  ASSERT_NE(TabStripModel::kNoTab, index);
+  base::DictValue tab = handler.GetTabUpdateForTesting(index);
+  EXPECT_GT(GetDoubleField(tab, "lastActiveTimeMs"), 0.0);
+}
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        PinNormalTabAddsPinnedItemAndExcludesFromUnpinnedTabs) {

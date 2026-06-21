@@ -122,6 +122,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
 
   base::ListValue GetPinnedItemsForTesting();
   base::DictValue GetSidebarStateForTesting();
+  base::DictValue GetTabUpdateForTesting(int index);
   base::DictValue GetUpdateStateForTesting();
   void PinTabForTesting(int index, int pinned_target_index = -1);
   void UnpinPinnedItemForTesting(const std::string& id,
@@ -153,6 +154,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void ActivateOrOpenPinnedItem(const std::string& id);
   void ClosePinnedItemTab(const std::string& id);
   void MovePinnedItem(const std::string& id, int to_index);
+  base::DictValue BuildTabUpdate(int index);
   void PushTabUpdate(int index);
   std::string GetInsertedActiveTabIdForScroll(
       const TabStripModelChange& change,
@@ -234,6 +236,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kCloseTabsBelow,
     kInspectSidebar,
     kPinTab,
+    kMoveStaleTabsToFolder,
     kPinnedOpen,
     kPinnedUnpin,
     kPinnedCloseTab,

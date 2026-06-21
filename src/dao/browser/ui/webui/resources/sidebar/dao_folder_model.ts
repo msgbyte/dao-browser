@@ -424,6 +424,48 @@ export class FolderModel {
   }
 
   /**
+   * Return the first folder with an exact name match.
+   */
+  findFolderByName(name: string): FolderData | null {
+    const item = this.items_.find(
+        item => item.type === 'folder' && item.name === name);
+    return item ? item as FolderData : null;
+  }
+
+  /**
+   * Return the first exact-name folder match, or create it at the end.
+   */
+  findOrCreateFolderByName(name: string): FolderData {
+    const existing = this.findFolderByName(name);
+    if (existing) {
+      existing.collapsed = false;
+      return existing;
+    }
+    return this.addFolder(name);
+  }
+
+  /**
+   * Move tabs into the target folder, removing them from their current folder
+   * or top-level position first. Tabs already in the target folder are skipped.
+   */
+  moveTabsToFolder(
+      tabs: Array<Pick<TabData, 'tabId'|'url'|'title'>>,
+      folderId: string): void {
+    const targetFolder = this.findFolder_(folderId);
+    if (!targetFolder) return;
+
+    for (const tab of tabs) {
+      const sourceFolderId = this.findTabFolder(tab);
+      if (sourceFolderId === folderId) {
+        continue;
+      }
+      this.moveTabToFolder(tab, folderId, sourceFolderId || undefined);
+    }
+
+    targetFolder.collapsed = false;
+  }
+
+  /**
    * Check if the model has any data (folders or organized tabs).
    */
   hasData(): boolean {

@@ -18,6 +18,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/favicon/favicon_utils.h"
@@ -100,6 +101,14 @@ bool IsTabAudible(content::WebContents* contents) {
     return helper->WasRecentlyAudible();
   }
   return contents->IsCurrentlyAudible();
+}
+
+double GetLastActiveTimeMs(content::WebContents* contents) {
+  base::Time last_active_time = contents->GetLastActiveTime();
+  if (last_active_time.is_null()) {
+    last_active_time = base::Time::Now();
+  }
+  return last_active_time.InMillisecondsFSinceUnixEpoch();
 }
 
 std::string ImageSkiaToDataUrl(const gfx::ImageSkia& image) {
@@ -429,6 +438,10 @@ base::DictValue DaoSidebarUIHandler::GetSidebarStateForTesting() {
   return BuildSidebarState();
 }
 
+base::DictValue DaoSidebarUIHandler::GetTabUpdateForTesting(int index) {
+  return BuildTabUpdate(index);
+}
+
 base::DictValue DaoSidebarUIHandler::GetUpdateStateForTesting() {
   return BuildUpdateState();
 }
@@ -726,10 +739,12 @@ base::DictValue DaoSidebarUIHandler::BuildSidebarState() {
     }
 
     base::DictValue tab;
-    tab.Set("tabId", GetSidebarTabId(contents));
+    const std::string tab_id = GetSidebarTabId(contents);
+    tab.Set("tabId", tab_id);
     tab.Set("index", i);
     tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
     tab.Set("url", contents->GetVisibleURL().spec());
+    tab.Set("lastActiveTimeMs", GetLastActiveTimeMs(contents));
     tab.Set("faviconUrl", FaviconToDataUrl(contents));
     tab.Set("isFaviconLight", IsFaviconLight(contents));
     tab.Set("isActive", i == model->active_index());
@@ -1049,24 +1064,26 @@ void DaoSidebarUIHandler::MovePinnedItem(const std::string& id, int to_index) {
   }
 }
 
-void DaoSidebarUIHandler::PushTabUpdate(int index) {
+base::DictValue DaoSidebarUIHandler::BuildTabUpdate(int index) {
+  base::DictValue tab;
   if (!browser_) {
-    return;
+    return tab;
   }
   TabStripModel* model = browser_->tab_strip_model();
   if (index < 0 || index >= model->count()) {
-    return;
+    return tab;
   }
   content::WebContents* contents = model->GetWebContentsAt(index);
   if (!contents) {
-    return;
+    return tab;
   }
 
-  base::DictValue tab;
-  tab.Set("tabId", GetSidebarTabId(contents));
+  const std::string tab_id = GetSidebarTabId(contents);
+  tab.Set("tabId", tab_id);
   tab.Set("index", index);
   tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   tab.Set("url", contents->GetVisibleURL().spec());
+  tab.Set("lastActiveTimeMs", GetLastActiveTimeMs(contents));
   tab.Set("faviconUrl", FaviconToDataUrl(contents));
   tab.Set("isFaviconLight", IsFaviconLight(contents));
   tab.Set("isActive", index == model->active_index());
@@ -1076,6 +1093,14 @@ void DaoSidebarUIHandler::PushTabUpdate(int index) {
   tab.Set("isAgentLocked", DaoAgentLockTabHelper::IsLocked(contents));
 
   tab.Set("isInSplit", IsInAnySplitGroup(contents));
+  return tab;
+}
+
+void DaoSidebarUIHandler::PushTabUpdate(int index) {
+  base::DictValue tab = BuildTabUpdate(index);
+  if (tab.empty()) {
+    return;
+  }
 
   FireWebUIListener("tabUpdated", tab);
   PushMediaPlaybackState();
@@ -1744,6 +1769,9 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
     tab_context_menu_model_->AddItem(
         kPinTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_PIN_TAB));
   }
+  tab_context_menu_model_->AddItem(
+      kMoveStaleTabsToFolder,
+      l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
 
   bool is_muted = contents->IsAudioMuted();
   tab_context_menu_model_->AddItem(kToggleMute,
@@ -2176,6 +2204,9 @@ void DaoSidebarUIHandler::HandleShowSidebarContextMenu(
   context_menu_pinned_item_id_.clear();
 
   tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
+  tab_context_menu_model_->AddItem(
+      kMoveStaleTabsToFolder,
+      l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
 #if DCHECK_IS_ON()
   tab_context_menu_model_->AddItem(kInspectSidebar, u"Inspect");
 #endif
@@ -2245,6 +2276,9 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   if (command_id == kInspectSidebar) {
     return true;
   }
+  if (command_id == kMoveStaleTabsToFolder) {
+    return true;
+  }
   if (command_id == kPinnedOpen || command_id == kPinnedUnpin ||
       command_id == kPinnedCloseTab || command_id == kPinnedCopyLink) {
     const DaoPinnedTabItem* item =
@@ -2295,6 +2329,8 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
       return chrome::CanDuplicateTabAt(browser_, context_menu_tab_index_);
     case kPinTab:
       return !model->IsTabPinned(context_menu_tab_index_);
+    case kMoveStaleTabsToFolder:
+      return true;
     case kCopyLink:
     case kToggleMute:
     case kCloseTab:
@@ -2312,6 +2348,14 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
 
 void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
   if (!browser_) {
+    return;
+  }
+
+  if (command_id == kMoveStaleTabsToFolder) {
+    if (IsJavascriptAllowed()) {
+      FireWebUIListener("moveStaleTabsRequested");
+    }
+    ClearContextMenuState();
     return;
   }
 
@@ -2444,6 +2488,12 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
 
   source->AddResourcePaths(kDaoSidebarResources);
   source->SetDefaultResource(IDR_DAO_SIDEBAR_SIDEBAR_HTML);
+  source->AddLocalizedString("daoSidebarStaleTabsArchivedToast",
+                             IDS_DAO_SIDEBAR_STALE_TABS_ARCHIVED_TOAST);
+  source->AddLocalizedString(
+      "daoSidebarNoNewStaleTabsArchivedToast",
+      IDS_DAO_SIDEBAR_NO_NEW_STALE_TABS_ARCHIVED_TOAST);
+  source->UseStringsJs();
 
   // Allow innerHTML for Lit rendering.
   source->OverrideContentSecurityPolicy(

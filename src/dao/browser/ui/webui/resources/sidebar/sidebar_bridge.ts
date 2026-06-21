@@ -82,6 +82,7 @@ export interface TabData {
   isAgentLocked?: boolean;
   isInSplit?: boolean;
   isFaviconLight?: boolean;
+  lastActiveTimeMs?: number;
 }
 
 export interface PinnedItemData {
