@@ -570,19 +570,35 @@ export function getCleanupCandidates(
     const version = parseDaoReleaseVersion(obj.key);
     return version ? [{ ...obj, version }] : [];
   });
-  const sortedVersions = Array.from(
-    new Set(releaseObjects.map((obj) => obj.version))
-  ).sort(compareVersionsDesc);
-  const protectedVersions = new Set(sortedVersions.slice(0, keepVersions));
 
-  return releaseObjects
-    .filter((obj) => !protectedVersions.has(obj.version))
-    .sort((a, b) => {
-      const byVersion = compareVersionsDesc(a.version, b.version);
-      if (byVersion !== 0) return byVersion;
-      const byKind = releaseKindRank(a.key) - releaseKindRank(b.key);
-      return byKind === 0 ? a.key.localeCompare(b.key) : byKind;
-    });
+  // DMG and delta files use different version number schemes (display version
+  // vs CFBundleVersion), so compute the protected set independently for each
+  // kind. Mixing them into one pool causes incorrect keep decisions.
+  const dmgs = releaseObjects.filter((o) => o.key.endsWith(".dmg"));
+  const deltas = releaseObjects.filter((o) => o.key.endsWith(".delta"));
+
+  function protectedSet(items: CleanupCandidate[]): Set<string> {
+    const sorted = Array.from(new Set(items.map((o) => o.version))).sort(
+      compareVersionsDesc
+    );
+    return new Set(sorted.slice(0, keepVersions));
+  }
+
+  const protectedDmg = protectedSet(dmgs);
+  const protectedDelta = protectedSet(deltas);
+
+  const candidates = releaseObjects.filter((obj) => {
+    if (obj.key.endsWith(".dmg")) return !protectedDmg.has(obj.version);
+    if (obj.key.endsWith(".delta")) return !protectedDelta.has(obj.version);
+    return true;
+  });
+
+  return candidates.sort((a, b) => {
+    const byKind = releaseKindRank(a.key) - releaseKindRank(b.key);
+    if (byKind !== 0) return byKind;
+    const byVersion = compareVersionsDesc(a.version, b.version);
+    return byVersion === 0 ? a.key.localeCompare(b.key) : byVersion;
+  });
 }
 
 function parseDaoReleaseVersion(key: string): string | null {
@@ -590,7 +606,9 @@ function parseDaoReleaseVersion(key: string): string | null {
   const dmg = base.match(/^dao-browser-(\d+\.\d+\.\d+)-mac-[\w-]+\.dmg$/);
   if (dmg) return dmg[1];
 
-  const delta = base.match(/^dao-browser-(\d+\.\d+\.\d+)-.+\.delta$/);
+  // Sparkle names delta files using CFBundleVersion (build number), e.g.
+  // "Dao17.0-13.0.delta" where 17.0 is the target build and 13.0 the source.
+  const delta = base.match(/^Dao(\d+(?:\.\d+)*)-\d+(?:\.\d+)*\.delta$/);
   if (delta) return delta[1];
 
   return null;
