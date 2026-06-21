@@ -1,0 +1,23 @@
+diff --git a/chrome/common/extensions/chrome_extensions_client.cc b/chrome/common/extensions/chrome_extensions_client.cc
+index e8002e16dd..6021749535 100644
+--- a/chrome/common/extensions/chrome_extensions_client.cc
++++ b/chrome/common/extensions/chrome_extensions_client.cc
+@@ -39,6 +39,8 @@ const char kExtensionBlocklistUrlPrefix[] =
+ const char kExtensionBlocklistHttpsUrlPrefix[] =
+     "https://www.gstatic.com/chrome/extensions/blocklist";
+ 
++constexpr char kLegacyChromeUIScheme[] = "chrome";
++
+ }  // namespace
+ 
+ ChromeExtensionsClient::ChromeExtensionsClient() {
+@@ -106,7 +108,8 @@ void ChromeExtensionsClient::FilterHostPermissions(
+     PermissionIDSet* permissions) const {
+   for (auto i = hosts.begin(); i != hosts.end(); ++i) {
+     // Filters out every URL pattern that matches chrome:// scheme.
+-    if (i->scheme() == content::kChromeUIScheme) {
++    if (i->scheme() == content::kChromeUIScheme ||
++        i->scheme() == kLegacyChromeUIScheme) {
+       // chrome://favicon is the only URL for chrome:// scheme that we
+       // want to support. We want to deprecate the "chrome" scheme.
+       // We should not add any additional "host" here.

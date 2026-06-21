@@ -28,6 +28,7 @@ import {
   run,
   loadConfig,
 } from "../utils.js";
+import {applyChromiumRewrites} from "../chromium-rewrites.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -160,6 +161,28 @@ export const importCommand = new Command("import")
     log(
       `Patches: ${applied} applied, ${skipped} already applied, ${failed} failed`
     );
+
+    // Step 1.25: Apply generated rewrites for highly mechanical Chromium edits
+    // that would otherwise be tracked as dozens of one-line patch files.
+    const rewriteSummary = applyChromiumRewrites(srcDir);
+    if (rewriteSummary.filesChanged > 0) {
+      success(
+        `Generated Chromium rewrites: ${rewriteSummary.filesChanged} changed, ` +
+          `${rewriteSummary.filesUnchanged} unchanged, ` +
+          `${rewriteSummary.replacements} replacement(s)`
+      );
+    } else {
+      log(
+        `Generated Chromium rewrites: all ${rewriteSummary.filesUnchanged} ` +
+          "file(s) up to date"
+      );
+    }
+    if (rewriteSummary.filesMissing > 0) {
+      warn(
+        `Generated Chromium rewrites skipped ${rewriteSummary.filesMissing} ` +
+          "missing file(s)"
+      );
+    }
 
     // Step 1.5: Inject Dao version into version_ui.cc
     const config = loadConfig();

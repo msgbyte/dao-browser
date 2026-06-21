@@ -12,6 +12,7 @@ import {
   error,
   run,
 } from "../utils.js";
+import {isChromiumRewriteManagedPath} from "../chromium-rewrites.js";
 
 export const exportCommand = new Command("export")
   .description("Generate patch files from modifications in the Chromium tree")
@@ -69,6 +70,14 @@ async function exportSingleFile(
   srcDir: string,
   filePath: string
 ): Promise<void> {
+  if (isChromiumRewriteManagedPath(filePath)) {
+    warn(
+      `Skipping generated Chromium rewrite target: ${filePath}. ` +
+        "Edit scripts/chromium-rewrites.ts instead."
+    );
+    return;
+  }
+
   const patchRelPath = filePath + ".patch";
   const patchFullPath = path.join(PATCHES_DIR, patchRelPath);
 

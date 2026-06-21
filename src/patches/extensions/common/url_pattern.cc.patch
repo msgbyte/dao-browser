@@ -1,0 +1,31 @@
+diff --git a/extensions/common/url_pattern.cc b/extensions/common/url_pattern.cc
+index 5d856b4a45..1ea04d6b59 100644
+--- a/extensions/common/url_pattern.cc
++++ b/extensions/common/url_pattern.cc
+@@ -26,6 +26,10 @@ namespace {
+ 
+ // TODO(aa): What about more obscure schemes like javascript: ?
+ // Note: keep this array in sync with kValidSchemeMasks.
++// Dao uses dao:// for WebUIs, but extension metadata and MV2 favicon
++// permissions still contain legacy chrome:// URL patterns.
++constexpr char kLegacyChromeUIScheme[] = "chrome";
++
+ constexpr std::array kValidSchemes = {
+     url::kHttpScheme,          url::kHttpsScheme,
+     url::kFileScheme,          url::kFtpScheme,
+@@ -34,6 +38,7 @@ constexpr std::array kValidSchemes = {
+     url::kFileSystemScheme,    url::kWsScheme,
+     url::kWssScheme,           url::kDataScheme,
+     url::kUuidInPackageScheme,
++    kLegacyChromeUIScheme,
+ };
+ 
+ constexpr std::array kValidSchemeMasks = {
+@@ -48,6 +53,7 @@ constexpr std::array kValidSchemeMasks = {
+     URLPattern::SCHEME_WSS,
+     URLPattern::SCHEME_DATA,
+     URLPattern::SCHEME_UUID_IN_PACKAGE,
++    URLPattern::SCHEME_CHROMEUI,
+ };
+ 
+ static_assert(std::size(kValidSchemes) == std::size(kValidSchemeMasks),

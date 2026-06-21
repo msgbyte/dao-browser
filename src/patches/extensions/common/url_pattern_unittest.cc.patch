@@ -1,0 +1,30 @@
+diff --git a/extensions/common/url_pattern_unittest.cc b/extensions/common/url_pattern_unittest.cc
+index 61c931ccf6..3395d65801 100644
+--- a/extensions/common/url_pattern_unittest.cc
++++ b/extensions/common/url_pattern_unittest.cc
+@@ -65,6 +65,25 @@ TEST(ExtensionURLPatternTest, ParseInvalid) {
+   }
+ }
+ 
++TEST(ExtensionURLPatternTest, ChromeUiSchemeAllowsDaoAndLegacyChrome) {
++  URLPattern dao_pattern(URLPattern::SCHEME_CHROMEUI);
++  EXPECT_EQ(URLPattern::ParseResult::kSuccess,
++            dao_pattern.Parse(content::GetWebUIURLString("settings/*")));
++  EXPECT_EQ(content::kChromeUIScheme, dao_pattern.scheme());
++
++  URLPattern legacy_chrome_pattern(URLPattern::SCHEME_CHROMEUI);
++  EXPECT_EQ(URLPattern::ParseResult::kSuccess,
++            legacy_chrome_pattern.Parse("chrome://favicon/*"));
++  EXPECT_EQ("chrome", legacy_chrome_pattern.scheme());
++
++  URLPattern no_chrome_ui_pattern(URLPattern::SCHEME_HTTP);
++  EXPECT_EQ(URLPattern::ParseResult::kInvalidScheme,
++            no_chrome_ui_pattern.Parse(
++                content::GetWebUIURLString("settings/*")));
++  EXPECT_EQ(URLPattern::ParseResult::kInvalidScheme,
++            no_chrome_ui_pattern.Parse("chrome://favicon/*"));
++}
++
+ TEST(ExtensionURLPatternTest, Ports) {
+   const struct {
+     const std::string pattern;
