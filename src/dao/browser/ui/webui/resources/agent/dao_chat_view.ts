@@ -683,13 +683,25 @@ export class DaoChatView extends CrLitElement {
           white-space: nowrap;
         }
         .dao-proactive-card {
+          --dao-proactive-card-bg: rgba(255, 255, 255, 0.62);
+          --dao-proactive-card-border: rgba(70, 120, 190, 0.24);
+          --dao-proactive-card-shadow: 0 1px 4px rgba(30, 20, 40, 0.08);
+          --dao-proactive-icon-color: rgba(70, 120, 190, 0.95);
+          --dao-proactive-btn-bg: rgba(127, 127, 127, 0.10);
+          --dao-proactive-btn-border: rgba(127, 127, 127, 0.20);
+          --dao-proactive-btn-color:
+              var(--text-secondary, rgba(30, 20, 40, 0.70));
+          --dao-proactive-btn-hover-bg: rgba(127, 127, 127, 0.18);
+          --dao-proactive-primary-bg: rgba(70, 120, 190, 0.92);
+          --dao-proactive-primary-border: rgba(70, 120, 190, 0.92);
+          --dao-proactive-primary-hover-bg: rgba(58, 102, 166, 0.96);
           margin: 8px 12px 0;
           padding: 12px;
-          border: 1px solid rgba(70, 120, 190, 0.24);
+          border: 1px solid var(--dao-proactive-card-border);
           border-radius: 12px;
-          background: rgba(255, 255, 255, 0.62);
+          background: var(--dao-proactive-card-bg);
           color: var(--text, rgba(30, 20, 40, 0.92));
-          box-shadow: 0 1px 4px rgba(30, 20, 40, 0.08);
+          box-shadow: var(--dao-proactive-card-shadow);
           flex-shrink: 0;
         }
         .dao-proactive-head {
@@ -702,7 +714,7 @@ export class DaoChatView extends CrLitElement {
           flex: 0 0 auto;
           width: 18px;
           height: 18px;
-          color: rgba(70, 120, 190, 0.95);
+          color: var(--dao-proactive-icon-color);
         }
         .dao-proactive-copy {
           display: flex;
@@ -736,24 +748,39 @@ export class DaoChatView extends CrLitElement {
           border-radius: 8px;
           padding: 4px 10px;
           cursor: pointer;
-          border: 1px solid rgba(127,127,127,0.20);
-          background: rgba(127,127,127,0.10);
-          color: var(--text-secondary, rgba(30, 20, 40, 0.70));
+          border: 1px solid var(--dao-proactive-btn-border);
+          background: var(--dao-proactive-btn-bg);
+          color: var(--dao-proactive-btn-color);
         }
         .dao-proactive-btn.primary {
           color: white;
-          border-color: rgba(70, 120, 190, 0.92);
-          background: rgba(70, 120, 190, 0.92);
+          border-color: var(--dao-proactive-primary-border);
+          background: var(--dao-proactive-primary-bg);
         }
         .dao-proactive-btn:hover:not(:disabled) {
-          background: rgba(127,127,127,0.18);
+          background: var(--dao-proactive-btn-hover-bg);
         }
         .dao-proactive-btn.primary:hover:not(:disabled) {
-          background: rgba(58, 102, 166, 0.96);
+          background: var(--dao-proactive-primary-hover-bg);
         }
         .dao-proactive-btn:disabled {
           opacity: 0.55;
           cursor: not-allowed;
+        }
+        @media (prefers-color-scheme: dark) {
+          .dao-proactive-card {
+            --dao-proactive-card-bg: rgba(255, 255, 255, 0.06);
+            --dao-proactive-card-border: rgba(70, 120, 190, 0.35);
+            --dao-proactive-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+            --dao-proactive-icon-color: rgba(170, 200, 240, 0.95);
+            --dao-proactive-btn-bg: rgba(255, 255, 255, 0.04);
+            --dao-proactive-btn-border: rgba(255, 255, 255, 0.12);
+            --dao-proactive-btn-color: rgba(255, 255, 255, 0.65);
+            --dao-proactive-btn-hover-bg: rgba(70, 120, 190, 0.24);
+            --dao-proactive-primary-bg: rgba(70, 120, 190, 0.72);
+            --dao-proactive-primary-border: rgba(70, 120, 190, 0.72);
+            --dao-proactive-primary-hover-bg: rgba(58, 102, 166, 0.82);
+          }
         }
       </style>
       ${showBar ? html`
@@ -2940,14 +2967,15 @@ export class DaoChatView extends CrLitElement {
     const text = typeof raw['text'] === 'string' ? raw['text'] : '';
     const scenarioName =
         typeof raw['scenarioName'] === 'string' ? raw['scenarioName'] : '';
+    const type = typeof raw['type'] === 'string' ? raw['type'] : '';
     const label = (scenarioName || text).trim();
-    if (!label) return null;
+    if (!label && type !== 'repeat_action') return null;
     return {
       episodeId: typeof raw['episodeId'] === 'number' ? raw['episodeId'] : 0,
       text: text || label,
       confidence:
           typeof raw['confidence'] === 'number' ? raw['confidence'] : 0,
-      type: typeof raw['type'] === 'string' ? raw['type'] : '',
+      type,
       actionType:
           typeof raw['actionType'] === 'number' ? raw['actionType'] : 0,
       scenarioId:
@@ -2960,6 +2988,23 @@ export class DaoChatView extends CrLitElement {
       requiresPageContent: raw['requiresPageContent'] === true,
       tabId: typeof raw['tabId'] === 'number' ? raw['tabId'] : -1,
     };
+  }
+
+  private proactiveSuggestionTitle_(suggestion: ProactiveSuggestionData):
+      string {
+    if (suggestion.scenarioName) {
+      return suggestion.scenarioName;
+    }
+    if (suggestion.type === 'repeat_action') {
+      return t('chat.proactive.repeat_action_title');
+    }
+    if (suggestion.type === 'continue_conversation') {
+      const intent = suggestion.text.trim();
+      return intent ?
+          t('chat.proactive.continue_conversation_title', {intent}) :
+          t('chat.proactive.continue_conversation_title_fallback');
+    }
+    return suggestion.text;
   }
 
   private onProactiveSuggestion_(raw: unknown) {
@@ -2975,7 +3020,7 @@ export class DaoChatView extends CrLitElement {
   private renderProactiveCard_() {
     const s = this.proactiveSuggestion_;
     if (!s) return nothing;
-    const title = s.scenarioName || s.text;
+    const title = this.proactiveSuggestionTitle_(s);
     const running = this.proactiveRunning_ || this.isStreaming_;
     return html`
       <div class="dao-proactive-card">
@@ -3049,7 +3094,7 @@ export class DaoChatView extends CrLitElement {
   private buildProactivePromptAttachment_(
       suggestion: ProactiveSuggestionData,
       prompt: string): PiAttachment {
-    const title = suggestion.scenarioName || suggestion.text ||
+    const title = this.proactiveSuggestionTitle_(suggestion) ||
         t('chat.proactive.attachment_title');
     const extractedText =
         `<proactive-suggestion name="${escapeAttr(title)}"` +
@@ -3074,7 +3119,7 @@ export class DaoChatView extends CrLitElement {
   private async buildProactivePayload_(
       suggestion: ProactiveSuggestionData):
       Promise<{text: string, attachments: PiAttachment[]}> {
-    const title = suggestion.scenarioName || suggestion.text;
+    const title = this.proactiveSuggestionTitle_(suggestion);
     if (!suggestion.actionPrompt) {
       return {
         text: suggestion.text || t('chat.proactive.default_user_prompt'),

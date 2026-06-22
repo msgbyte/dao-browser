@@ -53,6 +53,12 @@ const dict: Dictionary = {
   'chat.proactive.user_prompt': 'Run suggestion: {title}',
   'chat.proactive.default_user_prompt': 'Help me with this page.',
   'chat.proactive.attachment_title': 'Proactive suggestion',
+  'chat.proactive.repeat_action_title':
+      'You usually interact with this page. Want me to help again?',
+  'chat.proactive.continue_conversation_title':
+      'Last time here, you discussed: {intent}',
+  'chat.proactive.continue_conversation_title_fallback':
+      'Continue where you left off?',
 
   // Per-message action buttons (Copy / Share-as-image / Regenerate).
   'chat.message_actions.copy_tooltip': 'Copy answer text',

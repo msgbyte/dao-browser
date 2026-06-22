@@ -350,11 +350,10 @@ void DaoAgentProactiveEngine::OnEpisodesLoaded(
   // Determine suggestion type based on whether there are multiple episodes.
   if (episodes.size() >= 2) {
     suggestion.type = "repeat_action";
-    suggestion.text =
-        "You usually interact with this page. Want me to help again?";
   } else {
     suggestion.type = "continue_conversation";
-    suggestion.text = "Last time here, you discussed: " + best->intent;
+    // WebUI owns the localized sentence; carry only the remembered intent.
+    suggestion.text = best->intent;
   }
 
   delegate_->OnProactiveSuggestion(suggestion);

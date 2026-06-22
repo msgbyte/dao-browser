@@ -222,6 +222,29 @@ function clearTabWatchTimer(view: HTMLElement) {
   }
 }
 
+function templateText(value: unknown): string {
+  if (value === null || value === undefined || value === false) {
+    return '';
+  }
+  if (Array.isArray(value)) {
+    return value.map(templateText).join('');
+  }
+  if (typeof value === 'object' && 'strings' in value && 'values' in value) {
+    const result = value as {
+      strings: ArrayLike<string>;
+      values: unknown[];
+    };
+    let out = '';
+    for (let i = 0; i < result.values.length; i++) {
+      out += result.strings[i] ?? '';
+      out += templateText(result.values[i]);
+    }
+    out += result.strings[result.strings.length - 1] ?? '';
+    return out;
+  }
+  return String(value);
+}
+
 function restorePropertyDescriptor(
     target: object, key: PropertyKey,
     descriptor: PropertyDescriptor | undefined) {
@@ -932,6 +955,36 @@ describe('dao-chat-view element picker', () => {
     expect(pickerMocks.callNative).not.toHaveBeenCalled();
     expect(pickerMocks.callNativeArgs).not.toHaveBeenCalled();
   });
+
+  it('renders a localized repeat-action title when native text is omitted',
+     () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         renderProactiveCard_: () => unknown;
+       };
+
+       view.onProactiveSuggestion_({
+         episodeId: 7,
+         type: 'repeat_action',
+         confidence: 0.8,
+       });
+
+       expect(templateText(view.renderProactiveCard_()))
+           .toContain('chat.proactive.repeat_action_title');
+     });
+
+  it('uses dark-mode-aware tokens for proactive suggestion styling',
+     () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         render: () => unknown;
+       };
+
+       const styleText = templateText(view.render());
+       expect(styleText).toContain('--dao-proactive-card-bg');
+       expect(styleText).toContain('@media (prefers-color-scheme: dark)');
+       expect(styleText).toContain(
+           'background: var(--dao-proactive-card-bg');
+     });
 
   it('ignores proactive suggestions when the local setting is disabled', () => {
     localStorage.setItem('dao_proactive_enabled', 'false');
