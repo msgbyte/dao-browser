@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="mk">
+<translation id="1293177648337752319">Вклучи звук на страницата</translation>
 <translation id="1653598257495639807">Резултат од QR код</translation>
 <translation id="21133533946938348">Закачи јазиче</translation>
+<translation id="2973324205039581528">Исклучи звук на страницата</translation>
+<translation id="3007771295016901659">Дуплирај јазиче</translation>
 <translation id="3062877722240966678">Dao i18n pipeline ОК</translation>
 <translation id="3450492919008172498">Нема нови јазичиња што беа архивирани</translation>
 <translation id="3551320343578183772">Затвори јазиче</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Се применува</translation>
 <translation id="4201242995651540725">Архивирани јазичиња неактивни во последните 24 часа</translation>
 <translation id="4285498937028063278">Откачи</translation>
+<translation id="4322394346347055525">Затвори други јазичиња</translation>
 <translation id="4380677223237520064">Декодирај QR код</translation>
 <translation id="4543782226216763900">Префрли странична лента (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Прашај AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Исчисти кеш</translation>
 <translation id="5027562294707732951">Додај екстензија</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Затвори јазичиња погоре</translation>
 <translation id="5538307496474303926">Се чисти...</translation>
 <translation id="5556459405103347317">Повтори вчитување</translation>
+<translation id="5611474372949142946">Затвори јазичиња подолу</translation>
 <translation id="5953452567010839148">Не е пронајден QR код</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Адреса</translation>

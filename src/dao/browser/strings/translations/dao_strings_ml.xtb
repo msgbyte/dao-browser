@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ml">
+<translation id="1293177648337752319">സൈറ്റ് അൺമ്യൂട്ട് ചെയ്യുക</translation>
 <translation id="1653598257495639807">QR കോഡ് ഫലം</translation>
 <translation id="21133533946938348">ടാബ് പിന്‍ ചെയ്യുക</translation>
+<translation id="2973324205039581528">സൈറ്റ് മ്യൂട്ട് ചെയ്യുക</translation>
+<translation id="3007771295016901659">ടാബ് പകർത്തുക</translation>
 <translation id="3062877722240966678">Dao i18n പൈപ്പ്‌ലൈൻ ശരി</translation>
 <translation id="3450492919008172498">പുതിയ ടാബുകൾ ആർക്കൈവ് ചെയ്തിട്ടില്ല</translation>
 <translation id="3551320343578183772">ടാബ് അടയ്ക്കുക</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">പ്രയോഗിക്കുന്നു</translation>
 <translation id="4201242995651540725">കഴിഞ്ഞ 24 മണിക്കൂറായി പ്രവർത്തനരഹിതമായ ടാബുകൾ ആർക്കൈവ് ചെയ്തു</translation>
 <translation id="4285498937028063278">പിന്‍ നീക്കുക</translation>
+<translation id="4322394346347055525">മറ്റ് ടാബുകൾ അടയ്ക്കുക</translation>
 <translation id="4380677223237520064">QR കോഡ് ഡികോഡ് ചെയ്യുക</translation>
 <translation id="4543782226216763900">സൈഡ്ബാർ (<ph name="SHORTCUT" />) മാറ്റുക</translation>
 <translation id="4562670065683676797">AIനെ ചോദിക്കുക: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">കാഷെ മായ്ക്കുക</translation>
 <translation id="5027562294707732951">വിസ്താരം ചേർക്കുക</translation>
 <translation id="5192454087436290060">കൺട്രോൾ സെന്റർ</translation>
+<translation id="5450299006531484229">മുകളിൽ ഉള്ള ടാബുകൾ അടയ്ക്കുക</translation>
 <translation id="5538307496474303926">മായ്ക്കുന്നു...</translation>
 <translation id="5556459405103347317">വീണ്ടും ലോഡ് ചെയ്യുക</translation>
+<translation id="5611474372949142946">താഴെ ഉള്ള ടാബുകൾ അടയ്ക്കുക</translation>
 <translation id="5953452567010839148">QR കോഡ് കണ്ടെത്തിയില്ല</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">വിലാസം</translation>

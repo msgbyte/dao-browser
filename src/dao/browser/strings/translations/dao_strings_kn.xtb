@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="kn">
+<translation id="1293177648337752319">ಸೈಟ್ ಅನ್ಮ್ಯೂಟ್</translation>
 <translation id="1653598257495639807">QR ಕೋಡ್ ಫಲಿತಾಂಶ</translation>
 <translation id="21133533946938348">ಟ್ಯಾಬ್ ಪಿನ್ ಮಾಡಿ</translation>
+<translation id="2973324205039581528">ಸೈಟ್ ಮ್ಯೂಟ್</translation>
+<translation id="3007771295016901659">ಟ್ಯಾಬ್ ನಕಲು</translation>
 <translation id="3062877722240966678">Dao i18n ಪೈಪ್‌ಲೈನ್ OK</translation>
 <translation id="3450492919008172498">ಯಾವುದೇ ಹೊಸ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಆರ್ಕೈವ್ ಮಾಡಲಾಗಿಲ್ಲ</translation>
 <translation id="3551320343578183772">ಟ್ಯಾಬ್ ಮುಚ್ಚಿ</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">ಅನ್ವಯಿಸುತ್ತಿದೆ</translation>
 <translation id="4201242995651540725">ಕಳೆದ 24 ಗಂಟೆಗಳ ಕಾಲ ಕ್ರಿಯಾಶೀಲವಾಗಿರದ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಆರ್ಕೈವ್ ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="4285498937028063278">ಅನ್‌ಪಿನ್ ಮಾಡಿ</translation>
+<translation id="4322394346347055525">ಇತರೆ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಮುಚ್ಚಿ</translation>
 <translation id="4380677223237520064">QR ಕೋಡ್ ಡಿಕೋಡ್ ಮಾಡಿ</translation>
 <translation id="4543782226216763900">ಸೈಡ್ಬಾರ್ (<ph name="SHORTCUT" />) ಅನ್ನು ಟಾಗಲ್ ಮಾಡಿ</translation>
 <translation id="4562670065683676797">AI ಅನ್ನು ಕೇಳಿ: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">ಕ್ಯಾಶ್ ತೆರವುಗೊಳಿಸಿ</translation>
 <translation id="5027562294707732951">ವಿಸ್ತರಣೆ ಸೇರಿಸಿ</translation>
 <translation id="5192454087436290060">ಕಂಟ್ರೋಲ್ ಸೆಂಟರ್</translation>
+<translation id="5450299006531484229">ಮೇಲಿನ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಮುಚ್ಚಿ</translation>
 <translation id="5538307496474303926">ತೆರವುಗೊಳಿಸಲಾಗುತ್ತಿದೆ...</translation>
 <translation id="5556459405103347317">ಮತ್ತೆ ಲೋಡ್ ಮಾಡಿ</translation>
+<translation id="5611474372949142946">ಕೆಳಗಿನ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಮುಚ್ಚಿ</translation>
 <translation id="5953452567010839148">QR ಕೋಡ್ ಕಂಡುಬಂದಿಲ್ಲ</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">ವಿಳಾಸ</translation>

@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="fi">
+<translation id="1293177648337752319">Poista sivuston mykistys</translation>
 <translation id="1653598257495639807">QR-koodin tulos</translation>
 <translation id="21133533946938348">Kiinnitä välilehti</translation>
+<translation id="2973324205039581528">Mykistä sivusto</translation>
+<translation id="3007771295016901659">Kahdenna välilehti</translation>
 <translation id="3062877722240966678">Dao i18n-putki OK</translation>
 <translation id="3450492919008172498">Ei uusia välilehtiä arkistoitu</translation>
 <translation id="3551320343578183772">Sulje välilehti</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Käytetään</translation>
 <translation id="4201242995651540725">Arkistoitu välilehdet, jotka ovat olleet käyttämättöminä viimeiset 24 tuntia</translation>
 <translation id="4285498937028063278">Poista kiinnitys</translation>
+<translation id="4322394346347055525">Sulje muut välilehdet</translation>
 <translation id="4380677223237520064">Purkaa QR-koodi</translation>
 <translation id="4543782226216763900">Vaihda sivupalkki (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Kysy tekoälyltä: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Tyhjennä välimuisti</translation>
 <translation id="5027562294707732951">Lisää laajennus</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Sulje ylemmät välilehdet</translation>
 <translation id="5538307496474303926">Tyhjennetään...</translation>
 <translation id="5556459405103347317">Lataa uudelleen</translation>
+<translation id="5611474372949142946">Sulje alemmat välilehdet</translation>
 <translation id="5953452567010839148">QR-koodia ei löytynyt</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Osoite</translation>

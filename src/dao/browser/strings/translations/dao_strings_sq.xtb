@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="sq">
+<translation id="1293177648337752319">Ndez Zërin e Faqes</translation>
 <translation id="1653598257495639807">Rezultati i Kodit QR</translation>
 <translation id="21133533946938348">Ngjit Tab</translation>
+<translation id="2973324205039581528">Fik Zërin e Faqes</translation>
+<translation id="3007771295016901659">Kopjo Skedën</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Nuk u arkivuan skeda të reja</translation>
 <translation id="3551320343578183772">Mbyll Tab</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Duke aplikuar</translation>
 <translation id="4201242995651540725">Skedat e arkivuara janë joaktive për 24 orët e fundit</translation>
 <translation id="4285498937028063278">Shkëput</translation>
+<translation id="4322394346347055525">Mbyll Skedat e Tjera</translation>
 <translation id="4380677223237520064">Dekodo Kodin QR</translation>
 <translation id="4543782226216763900">Ndërro Shiritin Anësor (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Pyet AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Pastro Cache</translation>
 <translation id="5027562294707732951">Shto shtesë</translation>
 <translation id="5192454087436290060">Qendra e Kontrollit</translation>
+<translation id="5450299006531484229">Mbyll Skedat Sipër</translation>
 <translation id="5538307496474303926">Duke pastruar...</translation>
 <translation id="5556459405103347317">Rifresko</translation>
+<translation id="5611474372949142946">Mbyll Skedat Poshtë</translation>
 <translation id="5953452567010839148">Nuk u gjet asnjë kod QR</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresa</translation>

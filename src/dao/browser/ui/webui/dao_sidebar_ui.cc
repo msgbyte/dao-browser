@@ -1763,8 +1763,11 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
   // Build the menu model.
   tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
 
-  tab_context_menu_model_->AddItem(kDuplicateTab, u"Duplicate Tab");
-  tab_context_menu_model_->AddItem(kCopyLink, u"Copy Link");
+  tab_context_menu_model_->AddItem(
+      kDuplicateTab,
+      l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_DUPLICATE_TAB));
+  tab_context_menu_model_->AddItem(
+      kCopyLink, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_COPY_LINK));
   if (!model->IsTabPinned(tab_index)) {
     tab_context_menu_model_->AddItem(
         kPinTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_PIN_TAB));
@@ -1774,15 +1777,29 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
       l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
 
   bool is_muted = contents->IsAudioMuted();
-  tab_context_menu_model_->AddItem(kToggleMute,
-                                   is_muted ? u"Unmute Site" : u"Mute Site");
+  if (is_muted) {
+    tab_context_menu_model_->AddItem(
+        kToggleMute,
+        l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_UNMUTE_SITE));
+  } else {
+    tab_context_menu_model_->AddItem(
+        kToggleMute,
+        l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_MUTE_SITE));
+  }
 
   tab_context_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
 
-  tab_context_menu_model_->AddItem(kCloseTab, u"Close Tab");
-  tab_context_menu_model_->AddItem(kCloseOtherTabs, u"Close Other Tabs");
-  tab_context_menu_model_->AddItem(kCloseTabsAbove, u"Close Tabs Above");
-  tab_context_menu_model_->AddItem(kCloseTabsBelow, u"Close Tabs Below");
+  tab_context_menu_model_->AddItem(
+      kCloseTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TAB));
+  tab_context_menu_model_->AddItem(
+      kCloseOtherTabs,
+      l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_OTHER_TABS));
+  tab_context_menu_model_->AddItem(
+      kCloseTabsAbove,
+      l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TABS_ABOVE));
+  tab_context_menu_model_->AddItem(
+      kCloseTabsBelow,
+      l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TABS_BELOW));
 
   // Get the Widget from the sidebar.
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);

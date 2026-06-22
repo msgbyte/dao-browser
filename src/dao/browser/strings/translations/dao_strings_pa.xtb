@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="pa">
+<translation id="1293177648337752319">ਸਾਈਟ ਨੂੰ ਅਨਮਿਊਟ ਕਰੋ</translation>
 <translation id="1653598257495639807">QR ਕੋਡ ਨਤੀਜਾ</translation>
 <translation id="21133533946938348">ਟੈਬ ਪਿੰਨ ਕਰੋ</translation>
+<translation id="2973324205039581528">ਸਾਈਟ ਨੂੰ ਮਿਊਟ ਕਰੋ</translation>
+<translation id="3007771295016901659">ਟੈਬ ਦੀ ਨਕਲ</translation>
 <translation id="3062877722240966678">Dao i18n ਪਾਈਪਲਾਈਨ ਠੀਕ ਹੈ</translation>
 <translation id="3450492919008172498">ਕੋਈ ਨਵੀਆਂ ਟੈਬਾਂ ਆਰਕਾਈਵ ਨਹੀਂ ਕੀਤੀਆਂ ਗਈਆਂ</translation>
 <translation id="3551320343578183772">ਟੈਬ ਬੰਦ ਕਰੋ</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">ਲਾਗੂ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="4201242995651540725">ਪਿਛਲੇ 24 ਘੰਟਿਆਂ ਲਈ ਗੈਰ-ਸਕ੍ਰਿਆ ਟੈਬਾਂ ਨੂੰ ਆਰਕਾਈਵ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="4285498937028063278">ਅਨਪਿੰਨ ਕਰੋ</translation>
+<translation id="4322394346347055525">ਹੋਰ ਟੈਬ ਬੰਦ ਕਰੋ</translation>
 <translation id="4380677223237520064">QR ਕੋਡ ਡਿਕੋਡ ਕਰੋ</translation>
 <translation id="4543782226216763900">ਸਾਈਡਬਾਰ ਟੌਗਲ ਕਰੋ (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI ਨੂੰ ਪੁੱਛੋ: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">ਕੈਸ਼ ਸਾਫ਼ ਕਰੋ</translation>
 <translation id="5027562294707732951">ਐਕਸਟੈਂਸ਼ਨ ਸ਼ਾਮਲ ਕਰੋ</translation>
 <translation id="5192454087436290060">ਕੰਟਰੋਲ ਸੈਂਟਰ</translation>
+<translation id="5450299006531484229">ਉੱਪਰਲੇ ਟੈਬ ਬੰਦ ਕਰੋ</translation>
 <translation id="5538307496474303926">ਸਾਫ਼ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="5556459405103347317">ਮੁੜ ਲੋਡ ਕਰੋ</translation>
+<translation id="5611474372949142946">ਹੇਠਲੇ ਟੈਬ ਬੰਦ ਕਰੋ</translation>
 <translation id="5953452567010839148">ਕੋਈ QR ਕੋਡ ਨਹੀਂ ਮਿਲਿਆ</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">ਪਤਾ</translation>

@@ -100,7 +100,7 @@ const dict: Dictionary = {
   'index.loading': 'Načítání stránek…',
   'index.title': 'Dao Stránky',
   'index.subtitle': 'Vlastní prohlížeč stránek Dao pro nástroje a ladění.',
-  'index.page.index.title': 'Index',
+  'index.page.index.title': 'Rejstřík',
   'index.page.index.desc': 'Adresář vlastních stránek Dao WebUI.',
   'index.page.agent.title': 'Agent',
   'index.page.agent.desc': 'Postranní panel AI asistenta a ladicí plocha.',

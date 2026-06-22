@@ -494,6 +494,55 @@ describe('dao-sidebar-app', () => {
         expect(sourceText).not.toMatch(/[\u4e00-\u9fff]/);
       });
 
+  it('localizes regular tab context menu labels in the native handler', () => {
+    const handlerText = readFileSync(
+        'src/dao/browser/ui/webui/dao_sidebar_ui.cc', 'utf8');
+    const grdText = readFileSync(
+        'src/dao/browser/strings/dao_strings.grd', 'utf8');
+    const zhCnText = readFileSync(
+        'src/dao/browser/strings/translations/dao_strings_zh-CN.xtb',
+        'utf8');
+
+    const menuLabels = [
+      [
+        'kDuplicateTab',
+        'IDS_DAO_TAB_CONTEXT_DUPLICATE_TAB',
+        '3007771295016901659',
+      ],
+      ['kCopyLink', 'IDS_DAO_TAB_CONTEXT_COPY_LINK', '8717864919010420084'],
+      ['kToggleMute', 'IDS_DAO_TAB_CONTEXT_MUTE_SITE', '2973324205039581528'],
+      [
+        'kToggleMute',
+        'IDS_DAO_TAB_CONTEXT_UNMUTE_SITE',
+        '1293177648337752319',
+      ],
+      ['kCloseTab', 'IDS_DAO_TAB_CONTEXT_CLOSE_TAB', '3551320343578183772'],
+      [
+        'kCloseOtherTabs',
+        'IDS_DAO_TAB_CONTEXT_CLOSE_OTHER_TABS',
+        '4322394346347055525',
+      ],
+      [
+        'kCloseTabsAbove',
+        'IDS_DAO_TAB_CONTEXT_CLOSE_TABS_ABOVE',
+        '5450299006531484229',
+      ],
+      [
+        'kCloseTabsBelow',
+        'IDS_DAO_TAB_CONTEXT_CLOSE_TABS_BELOW',
+        '5611474372949142946',
+      ],
+    ];
+
+    for (const [commandId, messageId, translationId] of menuLabels) {
+      expect(grdText).toContain(`<message name="${messageId}"`);
+      expect(zhCnText).toContain(`<translation id="${translationId}">`);
+      expect(handlerText).toMatch(new RegExp(
+          `${commandId}[\\s\\S]*?l10n_util::GetStringUTF16\\(\\s*` +
+          `${messageId}\\s*\\)`));
+    }
+  });
+
   it('reuses existing stale folder and moves stale tabs from other folders',
       async () => {
         vi.useFakeTimers();

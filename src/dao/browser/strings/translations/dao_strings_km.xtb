@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="km">
+<translation id="1293177648337752319">បើកសំឡេងតំបន់បណ្ដាញ</translation>
 <translation id="1653598257495639807">លទ្ធផលកូដ QR</translation>
 <translation id="21133533946938348">បិទភ្ជាប់ផ្ទាំង</translation>
+<translation id="2973324205039581528">បិទសំឡេងតំបន់បណ្ដាញ</translation>
+<translation id="3007771295016901659">ចម្លងផ្ទាំង</translation>
 <translation id="3062877722240966678">បណ្តាញ i18n របស់ Dao អូខេ</translation>
 <translation id="3450492919008172498">គ្មានផ្ទាំងថ្មីដែលបានបញ្ចូលក្នុងបញ្ជី</translation>
 <translation id="3551320343578183772">បិទផ្ទាំង</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">កំពុងអនុវត្ត</translation>
 <translation id="4201242995651540725">ផ្ទាំងដែលមិនសកម្មបានបញ្ចូលក្នុងបញ្ជីសម្រាប់ 24 ម៉ោងចុងក្រោយ</translation>
 <translation id="4285498937028063278">ដោះបិទភ្ជាប់</translation>
+<translation id="4322394346347055525">បិទផ្ទាំងផ្សេងទៀត</translation>
 <translation id="4380677223237520064">បកប្រែ QR Code</translation>
 <translation id="4543782226216763900">បិទបើករបារចំហៀង (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">សួរ AI: <ph name="PROMPT" />$1</translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">សម្អាតឃ្លាំងសម្ងាត់</translation>
 <translation id="5027562294707732951">បន្ថែមផ្នែកបន្ថែម</translation>
 <translation id="5192454087436290060">មជ្ឈមណ្ឌលត្រួតពិនិត្យ</translation>
+<translation id="5450299006531484229">បិទផ្ទាំងខាងលើ</translation>
 <translation id="5538307496474303926">កំពុងសម្អាត...</translation>
 <translation id="5556459405103347317">ផ្ទុកឡើងវិញ</translation>
+<translation id="5611474372949142946">បិទផ្ទាំងខាងក្រោម</translation>
 <translation id="5953452567010839148">រកមិនឃើញ QR code</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">អាសយដ្ឋាន</translation>

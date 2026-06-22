@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="gl">
+<translation id="1293177648337752319">Activar son do sitio</translation>
 <translation id="1653598257495639807">Resultado do código QR</translation>
 <translation id="21133533946938348">Fixar lapela</translation>
+<translation id="2973324205039581528">Silenciar sitio</translation>
+<translation id="3007771295016901659">Duplicar lapela</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Non se arquivaron novas pestanas</translation>
 <translation id="3551320343578183772">Pechar lapela</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Aplicando</translation>
 <translation id="4201242995651540725">Pestanas arquivadas inactivas nas últimas 24 horas</translation>
 <translation id="4285498937028063278">Desfixar</translation>
+<translation id="4322394346347055525">Pechar outras lapelas</translation>
 <translation id="4380677223237520064">Descodificar código QR</translation>
 <translation id="4543782226216763900">Alternar barra lateral (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">Preguntar á IA: <ph name="PROMPT" />$1</translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Limpar caché</translation>
 <translation id="5027562294707732951">Engadir extensión</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Pechar lapelas superiores</translation>
 <translation id="5538307496474303926">Limpando...</translation>
 <translation id="5556459405103347317">Recargar</translation>
+<translation id="5611474372949142946">Pechar lapelas inferiores</translation>
 <translation id="5953452567010839148">Non se atopou ningún código QR</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Enderezo</translation>

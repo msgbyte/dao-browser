@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="as">
+<translation id="1293177648337752319">ছাইট আনমিউট কৰক</translation>
 <translation id="1653598257495639807">QR ক'ড ফলাফল</translation>
 <translation id="21133533946938348">টেব পিন কৰক</translation>
+<translation id="2973324205039581528">ছাইট মিউট কৰক</translation>
+<translation id="3007771295016901659">টেব নকল কৰক</translation>
 <translation id="3062877722240966678">Dao i18n পাইপলাইন ঠিক আছে</translation>
 <translation id="3450492919008172498">কোনো নতুন টাব সংৰক্ষিত হোৱা নাই</translation>
 <translation id="3551320343578183772">টেব বন্ধ কৰক</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">প্ৰয়োগ কৰি আছে</translation>
 <translation id="4201242995651540725">যোৱা 24 ঘণ্টাৰ পৰা নিষ্ক্ৰিয় টাবসমূহ সংৰক্ষিত</translation>
 <translation id="4285498937028063278">আনপিন কৰক</translation>
+<translation id="4322394346347055525">আন টেবসমূহ বন্ধ কৰক</translation>
 <translation id="4380677223237520064">QR কোড ডিক'ড কৰক</translation>
 <translation id="4543782226216763900">সাইডবাৰ টগল কৰক (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">AI সোধক: <ph name="PROMPT" />$1</translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">কেচ পৰিষ্কাৰ কৰক</translation>
 <translation id="5027562294707732951">এক্সটেনচন যোগ কৰক</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">ওপৰৰ টেবসমূহ বন্ধ কৰক</translation>
 <translation id="5538307496474303926">পৰিষ্কাৰ কৰি আছে...</translation>
 <translation id="5556459405103347317">পুনৰ ল'ড কৰক</translation>
+<translation id="5611474372949142946">তলৰ টেবসমূহ বন্ধ কৰক</translation>
 <translation id="5953452567010839148">QR কোড পোৱা নগ'ল</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">ঠিকনা</translation>

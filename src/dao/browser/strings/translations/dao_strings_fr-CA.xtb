@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="fr-CA">
+<translation id="1293177648337752319">Rétablir le son du site</translation>
 <translation id="1653598257495639807">Résultat du code QR</translation>
 <translation id="21133533946938348">Épingler l'onglet</translation>
+<translation id="2973324205039581528">Couper le son du site</translation>
+<translation id="3007771295016901659">Dupliquer l'onglet</translation>
 <translation id="3062877722240966678">Pipeline i18n Dao OK</translation>
 <translation id="3450492919008172498">Aucun nouvel onglet n'a été archivé</translation>
 <translation id="3551320343578183772">Fermer l'onglet</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Application</translation>
 <translation id="4201242995651540725">Onglets archivés inactifs depuis les dernières 24 heures</translation>
 <translation id="4285498937028063278">Désépingler</translation>
+<translation id="4322394346347055525">Fermer les autres onglets</translation>
 <translation id="4380677223237520064">Décoder le code QR</translation>
 <translation id="4543782226216763900">Basculer la barre latérale (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Demander à l'IA : <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Effacer le cache</translation>
 <translation id="5027562294707732951">Ajouter une extension</translation>
 <translation id="5192454087436290060">Centre de contrôle</translation>
+<translation id="5450299006531484229">Fermer les onglets au-dessus</translation>
 <translation id="5538307496474303926">Effacement...</translation>
 <translation id="5556459405103347317">Recharger</translation>
+<translation id="5611474372949142946">Fermer les onglets en dessous</translation>
 <translation id="5953452567010839148">Aucun code QR trouvé</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresse</translation>

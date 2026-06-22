@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="or">
+<translation id="1293177648337752319">ସାଇଟ୍ ଅନ୍ମ୍ୟୁଟ୍ କରନ୍ତୁ</translation>
 <translation id="1653598257495639807">QR କୋଡ୍ ଫଳାଫଳ</translation>
 <translation id="21133533946938348">ଟାବ୍ ପିନ୍ କରନ୍ତୁ</translation>
+<translation id="2973324205039581528">ସାଇଟ୍ ମ୍ୟୁଟ୍ କରନ୍ତୁ</translation>
+<translation id="3007771295016901659">ଟାବ ଡୁପ୍ଲିକେଟ୍ କରନ୍ତୁ</translation>
 <translation id="3062877722240966678">Dao i18n ପାଇପଲାଇନ୍ ଠିକ୍ ଅଛି</translation>
 <translation id="3450492919008172498">କୌଣସି ନୂଆ ଟାବ ଆର୍କାଇଭ୍ ହୋଇନାହିଁ</translation>
 <translation id="3551320343578183772">ଟାବ୍ ବନ୍ଦ କରନ୍ତୁ</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">ଲାଗୁ ହେଉଛି</translation>
 <translation id="4201242995651540725">ଗତ 24 ଘଣ୍ଟା ଧରି ଅକ୍ରିୟ ଥିବା ଟାବଗୁଡ଼ିକୁ ଆର୍କାଇଭ୍ କରାଯାଇଛି</translation>
 <translation id="4285498937028063278">ଅନପିନ୍ କରନ୍ତୁ</translation>
+<translation id="4322394346347055525">ଅନ୍ୟ ଟାବଗୁଡିକ ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="4380677223237520064">QR କୋଡ୍‌ ଡିକୋଡ୍ କରନ୍ତୁ</translation>
 <translation id="4543782226216763900">ସାଇଡବାର ଟୋଗଲ୍ (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">AI କୁ ପଚାରନ୍ତୁ: <ph name="PROMPT" />$1</translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">କ୍ୟାଚ୍ ସଫା କରନ୍ତୁ</translation>
 <translation id="5027562294707732951">ଏକ୍ସଟେନ୍ସନ୍ ଯୋଗ କରନ୍ତୁ</translation>
 <translation id="5192454087436290060">କନ୍ଟ୍ରୋଲ୍ ସେଣ୍ଟର</translation>
+<translation id="5450299006531484229">ଉପରେ ଥିବା ଟାବଗୁଡିକ ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="5538307496474303926">ସଫା ହେଉଛି...</translation>
 <translation id="5556459405103347317">ପୁନଃ ଲୋଡ୍ କରନ୍ତୁ</translation>
+<translation id="5611474372949142946">ତଳେ ଥିବା ଟାବଗୁଡିକ ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="5953452567010839148">QR କୋଡ୍‌ ମିଳିଲା ନାହିଁ</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">ଠିକଣା</translation>

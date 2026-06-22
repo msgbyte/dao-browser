@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zu">
+<translation id="1293177648337752319">Vula Umsindo Wesayithi</translation>
 <translation id="1653598257495639807">Umphumela wekhodi ye-QR</translation>
 <translation id="21133533946938348">Beka Ithebhu</translation>
+<translation id="2973324205039581528">Thulisa Isayithi</translation>
+<translation id="3007771295016901659">Phinda Ithebhu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline KULUNGILE</translation>
 <translation id="3450492919008172498">Awekho amathebhu amasha agcinwe</translation>
 <translation id="3551320343578183772">Vala Ithebhu</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Kusebenza</translation>
 <translation id="4201242995651540725">Amathebhu agcinwe angasebenzi amahora angu-24 adlule</translation>
 <translation id="4285498937028063278">Khipha</translation>
+<translation id="4322394346347055525">Vala Amanye Amathebhu</translation>
 <translation id="4380677223237520064">Hlaziya ikhodi ye-QR</translation>
 <translation id="4543782226216763900">Shintsha i-Sidebar (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Buza i-AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Sula i-Cache</translation>
 <translation id="5027562294707732951">Engeza isandiso</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Vala Amathebhu Angaphezulu</translation>
 <translation id="5538307496474303926">Kusula...</translation>
 <translation id="5556459405103347317">Layisha kabusha</translation>
+<translation id="5611474372949142946">Vala Amathebhu Angaphansi</translation>
 <translation id="5953452567010839148">Ayikho ikhodi ye-QR etholakele</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Ikheli</translation>

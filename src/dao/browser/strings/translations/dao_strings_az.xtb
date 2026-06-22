@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="az">
+<translation id="1293177648337752319">Saytı səsli et</translation>
 <translation id="1653598257495639807">QR Kod Nəticəsi</translation>
 <translation id="21133533946938348">Vərəqi sanc</translation>
+<translation id="2973324205039581528">Saytı səssiz et</translation>
+<translation id="3007771295016901659">Sekməni təkrarla</translation>
 <translation id="3062877722240966678">Dao i18n boru xətti OK</translation>
 <translation id="3450492919008172498">Yeni sekme arxivlənmədi</translation>
 <translation id="3551320343578183772">Vərəqi bağla</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Tətbiq edilir</translation>
 <translation id="4201242995651540725">Son 24 saat ərzində qeyri-aktiv olan sekmelər arxivləndi</translation>
 <translation id="4285498937028063278">Sancağı çıxar</translation>
+<translation id="4322394346347055525">Digər sekmələri bağla</translation>
 <translation id="4380677223237520064">QR Kodunu deşifrə et</translation>
 <translation id="4543782226216763900">Yan paneli dəyiş (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI-dən soruş: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Keşi təmizlə</translation>
 <translation id="5027562294707732951">Genişləmə əlavə et</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Yuxarıdakı sekmələri bağla</translation>
 <translation id="5538307496474303926">Təmizlənir...</translation>
 <translation id="5556459405103347317">Yenidən yüklə</translation>
+<translation id="5611474372949142946">Aşağıdakı sekmələri bağla</translation>
 <translation id="5953452567010839148">QR kod tapılmadı</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Ünvan</translation>

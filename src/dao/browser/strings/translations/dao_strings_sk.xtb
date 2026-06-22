@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="sk">
+<translation id="1293177648337752319">Zrušiť stlmenie stránky</translation>
 <translation id="1653598257495639807">Výsledok QR kódu</translation>
 <translation id="21133533946938348">Pripnúť kartu</translation>
+<translation id="2973324205039581528">Stlmiť stránku</translation>
+<translation id="3007771295016901659">Duplikovať kartu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Žiadne nové karty neboli archivované</translation>
 <translation id="3551320343578183772">Zavrieť kartu</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Používam</translation>
 <translation id="4201242995651540725">Archivované karty neaktívne za posledných 24 hodín</translation>
 <translation id="4285498937028063278">Odopnúť</translation>
+<translation id="4322394346347055525">Zatvoriť ostatné karty</translation>
 <translation id="4380677223237520064">Dekódovať QR kód</translation>
 <translation id="4543782226216763900">Prepnúť bočný panel (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Opýtať sa AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Vymazať cache</translation>
 <translation id="5027562294707732951">Pridať rozšírenie</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Zatvoriť karty nad</translation>
 <translation id="5538307496474303926">Vymazávanie...</translation>
 <translation id="5556459405103347317">Obnoviť</translation>
+<translation id="5611474372949142946">Zatvoriť karty pod</translation>
 <translation id="5953452567010839148">Nenašiel sa žiadny QR kód</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresa</translation>

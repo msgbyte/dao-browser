@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="mr">
+<translation id="1293177648337752319">साइट अनम्यूट करा</translation>
 <translation id="1653598257495639807">QR कोड परिणाम</translation>
 <translation id="21133533946938348">टॅब पिन करा</translation>
+<translation id="2973324205039581528">साइट म्यूट करा</translation>
+<translation id="3007771295016901659">टॅब डुप्लिकेट करा</translation>
 <translation id="3062877722240966678">Dao i18n पाइपलाइन ठीक आहे</translation>
 <translation id="3450492919008172498">कोणतेही नवीन टॅब संग्रहित केले नाहीत</translation>
 <translation id="3551320343578183772">टॅब बंद करा</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">लागू करत आहे</translation>
 <translation id="4201242995651540725">मागील 24 तासांपासून निष्क्रिय असलेले टॅब संग्रहित केले</translation>
 <translation id="4285498937028063278">अनपिन</translation>
+<translation id="4322394346347055525">इतर टॅब बंद करा</translation>
 <translation id="4380677223237520064">QR कोड डिकोड करा</translation>
 <translation id="4543782226216763900">साइडबार टॉगल करा (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI ला विचारा: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">कॅश साफ करा</translation>
 <translation id="5027562294707732951">विस्तार जोडा</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">वरील टॅब बंद करा</translation>
 <translation id="5538307496474303926">साफ करत आहे...</translation>
 <translation id="5556459405103347317">पुन्हा लोड करा</translation>
+<translation id="5611474372949142946">खालील टॅब बंद करा</translation>
 <translation id="5953452567010839148">QR कोड सापडला नाही</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">पत्ता</translation>

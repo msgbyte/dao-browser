@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="sl">
+<translation id="1293177648337752319">Omogoči zvok mesta</translation>
 <translation id="1653598257495639807">Rezultat QR kode</translation>
 <translation id="21133533946938348">Pripni zavihek</translation>
+<translation id="2973324205039581528">Utišaj mesto</translation>
+<translation id="3007771295016901659">Podvoji zavihek</translation>
 <translation id="3062877722240966678">Dao i18n cevovod OK</translation>
 <translation id="3450492919008172498">Noben nov zavihek ni bil arhiviran</translation>
 <translation id="3551320343578183772">Zapri zavihek</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Uporablja se</translation>
 <translation id="4201242995651540725">Arhivirani zavihki, neaktivni zadnjih 24 ur</translation>
 <translation id="4285498937028063278">Odpni</translation>
+<translation id="4322394346347055525">Zapri druge zavihke</translation>
 <translation id="4380677223237520064">Dekodiraj QR kodo</translation>
 <translation id="4543782226216763900">Preklopi stransko vrstico (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Vprašaj AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Počisti predpomnilnik</translation>
 <translation id="5027562294707732951">Dodaj razširitev</translation>
 <translation id="5192454087436290060">Nadzorni center</translation>
+<translation id="5450299006531484229">Zapri zavihke zgoraj</translation>
 <translation id="5538307496474303926">Čiščenje...</translation>
 <translation id="5556459405103347317">Osveži</translation>
+<translation id="5611474372949142946">Zapri zavihke spodaj</translation>
 <translation id="5953452567010839148">QR koda ni bila najdena</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Naslov</translation>

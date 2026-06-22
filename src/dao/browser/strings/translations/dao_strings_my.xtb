@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="my">
+<translation id="1293177648337752319">ဆိုက်အသံဖွင့်ရန်</translation>
 <translation id="1653598257495639807">QR ကုဒ် ရလဒ်</translation>
 <translation id="21133533946938348">တဘ်ကို ပူးထားပါ</translation>
+<translation id="2973324205039581528">ဆိုက်အသံပိတ်ရန်</translation>
+<translation id="3007771295016901659">တစ်ခုထပ်မံဖွင့်ရန်</translation>
 <translation id="3062877722240966678">Dao i18n ပိုက်လိုင်း အိုကေ</translation>
 <translation id="3450492919008172498">မည်သည့် တဘ်အသစ်မျှ မျှဝေထားခြင်း မရှိပါ</translation>
 <translation id="3551320343578183772">တဘ်ကို ပိတ်ပါ</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">အပ်ဒိတ်လုပ်နေသည်</translation>
 <translation id="4201242995651540725">ပြီးခဲ့သော ၂၄ နာရီအတွင်း မသုံးခဲ့သော တဘ်များကို မျှဝေထားသည်</translation>
 <translation id="4285498937028063278">ပူးထားမှုကို ဖျက်ပါ</translation>
+<translation id="4322394346347055525">အခြားတဘ်များပိတ်ရန်</translation>
 <translation id="4380677223237520064">QR ကုဒ်ကိုဖျော်ဖြေရန်</translation>
 <translation id="4543782226216763900">ဘေးဘားကို ပြောင်းရန် (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI ကို မေးပါ: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Cache ရှင်းပါ</translation>
 <translation id="5027562294707732951">extension ထည့်ပါ</translation>
 <translation id="5192454087436290060">ထိန်းချုပ်မှု ဗဟို</translation>
+<translation id="5450299006531484229">အထက်တဘ်များပိတ်ရန်</translation>
 <translation id="5538307496474303926">ရှင်းလင်းနေသည်...</translation>
 <translation id="5556459405103347317">ပြန်လည်တင်ခြင်း</translation>
+<translation id="5611474372949142946">အောက်တဘ်များပိတ်ရန်</translation>
 <translation id="5953452567010839148">QR ကုဒ်မတွေ့ပါ</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">လိပ်စာ</translation>

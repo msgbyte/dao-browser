@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="tr">
+<translation id="1293177648337752319">Sitenin Sesini Aç</translation>
 <translation id="1653598257495639807">QR Kod Sonucu</translation>
 <translation id="21133533946938348">Sekmeyi Sabitle</translation>
+<translation id="2973324205039581528">Siteyi Sessize Al</translation>
+<translation id="3007771295016901659">Sekmeyi Çoğalt</translation>
 <translation id="3062877722240966678">Dao i18n hattı TAMAM</translation>
 <translation id="3450492919008172498">Yeni sekme arşivlenmedi</translation>
 <translation id="3551320343578183772">Sekmeyi Kapat</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Uygulanıyor</translation>
 <translation id="4201242995651540725">Son 24 saattir etkin olmayan sekmeler arşivlendi</translation>
 <translation id="4285498937028063278">Sabitlemeyi Kaldır</translation>
+<translation id="4322394346347055525">Diğer Sekmeleri Kapat</translation>
 <translation id="4380677223237520064">QR Kodunu Çöz</translation>
 <translation id="4543782226216763900">Kenar Çubuğunu Değiştir (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Yapay Zekaya Sor: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Önbelleği Temizle</translation>
 <translation id="5027562294707732951">Eklenti ekle</translation>
 <translation id="5192454087436290060">Kontrol Merkezi</translation>
+<translation id="5450299006531484229">Yukarıdaki Sekmeleri Kapat</translation>
 <translation id="5538307496474303926">Temizleniyor...</translation>
 <translation id="5556459405103347317">Yeniden Yükle</translation>
+<translation id="5611474372949142946">Aşağıdaki Sekmeleri Kapat</translation>
 <translation id="5953452567010839148">QR kodu bulunamadı</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adres</translation>

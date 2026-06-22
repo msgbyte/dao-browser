@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ne">
+<translation id="1293177648337752319">साइट अनम्यूट गर्नुहोस्</translation>
 <translation id="1653598257495639807">QR कोड परिणाम</translation>
 <translation id="21133533946938348">ट्याब पिन गर्नुहोस्</translation>
+<translation id="2973324205039581528">साइट म्यूट गर्नुहोस्</translation>
+<translation id="3007771295016901659">ट्याब नक्कल गर्नुहोस्</translation>
 <translation id="3062877722240966678">Dao i18n पाइपलाइन ठीक छ</translation>
 <translation id="3450492919008172498">कुनै नयाँ ट्याबहरू सङ्ग्रह गरिएनन्</translation>
 <translation id="3551320343578183772">ट्याब बन्द गर्नुहोस्</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">लागु गर्दै</translation>
 <translation id="4201242995651540725">पछिल्लो २४ घण्टादेखि निष्क्रिय भएका ट्याबहरू सङ्ग्रह गरियो</translation>
 <translation id="4285498937028063278">अनपिन गर्नुहोस्</translation>
+<translation id="4322394346347055525">अन्य ट्याबहरू बन्द गर्नुहोस्</translation>
 <translation id="4380677223237520064">QR कोड डिकोड गर्नुहोस्</translation>
 <translation id="4543782226216763900">साइडबार टगल गर्नुहोस् (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">AI सोध्नुहोस्: <ph name="PROMPT" />$1</translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">क्यास खाली गर्नुहोस्</translation>
 <translation id="5027562294707732951">एक्सटेन्सन थप्नुहोस्</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">माथिका ट्याबहरू बन्द गर्नुहोस्</translation>
 <translation id="5538307496474303926">खाली गर्दै...</translation>
 <translation id="5556459405103347317">पुनः लोड गर्नुहोस्</translation>
+<translation id="5611474372949142946">तलका ट्याबहरू बन्द गर्नुहोस्</translation>
 <translation id="5953452567010839148">QR कोड फेला परेन</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">ठेगाना</translation>

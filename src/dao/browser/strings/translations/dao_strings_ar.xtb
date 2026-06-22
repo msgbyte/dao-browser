@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ar">
+<translation id="1293177648337752319">إلغاء كتم الموقع</translation>
 <translation id="1653598257495639807">نتيجة رمز QR</translation>
 <translation id="21133533946938348">تثبيت علامة التبويب</translation>
+<translation id="2973324205039581528">كتم الموقع</translation>
+<translation id="3007771295016901659">تكرار علامة التبويب</translation>
 <translation id="3062877722240966678">مسار Dao i18n موافق</translation>
 <translation id="3450492919008172498">لم يتم أرشفة علامات تبويب جديدة</translation>
 <translation id="3551320343578183772">إغلاق علامة التبويب</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">جارٍ التطبيق</translation>
 <translation id="4201242995651540725">تم أرشفة علامات التبويب غير النشطة خلال الـ 24 ساعة الماضية</translation>
 <translation id="4285498937028063278">إلغاء التثبيت</translation>
+<translation id="4322394346347055525">إغلاق علامات التبويب الأخرى</translation>
 <translation id="4380677223237520064">فك شفرة رمز QR</translation>
 <translation id="4543782226216763900">تبديل الشريط الجانبي (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">اسأل الذكاء الاصطناعي: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">مسح الذاكرة المؤقتة</translation>
 <translation id="5027562294707732951">إضافة ملحق</translation>
 <translation id="5192454087436290060">مركز التحكم</translation>
+<translation id="5450299006531484229">إغلاق العلامات أعلاه</translation>
 <translation id="5538307496474303926">جارٍ المسح...</translation>
 <translation id="5556459405103347317">إعادة التحميل</translation>
+<translation id="5611474372949142946">إغلاق العلامات أدناه</translation>
 <translation id="5953452567010839148">لم يتم العثور على رمز QR</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">العنوان</translation>

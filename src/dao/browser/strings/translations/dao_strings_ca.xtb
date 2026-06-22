@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ca">
+<translation id="1293177648337752319">Activar so del lloc</translation>
 <translation id="1653598257495639807">Resultat del codi QR</translation>
 <translation id="21133533946938348">Fixa la pestanya</translation>
+<translation id="2973324205039581528">Silenciar lloc</translation>
+<translation id="3007771295016901659">Duplicar pestanya</translation>
 <translation id="3062877722240966678">Canalització i18n de Dao OK</translation>
 <translation id="3450492919008172498">No s'han arxivat pestanyes noves</translation>
 <translation id="3551320343578183772">Tanca la pestanya</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Aplicant</translation>
 <translation id="4201242995651540725">Pestanyes arxivades inactives durant les últimes 24 hores</translation>
 <translation id="4285498937028063278">Desfixa</translation>
+<translation id="4322394346347055525">Tancar altres pestanyes</translation>
 <translation id="4380677223237520064">Decodifica el codi QR</translation>
 <translation id="4543782226216763900">Commuta la barra lateral (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Pregunta a la IA: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Esborra la memòria cau</translation>
 <translation id="5027562294707732951">Afegeix extensió</translation>
 <translation id="5192454087436290060">Centre de Control</translation>
+<translation id="5450299006531484229">Tancar pestanyes de dalt</translation>
 <translation id="5538307496474303926">Esborrant...</translation>
 <translation id="5556459405103347317">Torna a carregar</translation>
+<translation id="5611474372949142946">Tancar pestanyes de baix</translation>
 <translation id="5953452567010839148">No s'ha trobat cap codi QR</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adreça</translation>

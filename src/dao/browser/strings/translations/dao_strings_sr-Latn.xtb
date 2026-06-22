@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="sr-Latn">
+<translation id="1293177648337752319">Uključi zvuk na sajtu</translation>
 <translation id="1653598257495639807">Rezultat QR koda</translation>
 <translation id="21133533946938348">Zakači karticu</translation>
+<translation id="2973324205039581528">Isključi zvuk na sajtu</translation>
+<translation id="3007771295016901659">Dupliraj karticu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Nijedna nova kartica nije arhivirana</translation>
 <translation id="3551320343578183772">Zatvori karticu</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Primena</translation>
 <translation id="4201242995651540725">Arhivirane kartice neaktivne u poslednja 24 sata</translation>
 <translation id="4285498937028063278">Otkači</translation>
+<translation id="4322394346347055525">Zatvori ostale kartice</translation>
 <translation id="4380677223237520064">Dekodiraj QR kod</translation>
 <translation id="4543782226216763900">Prebaci bočnu traku (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Pitaj AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Obriši keš</translation>
 <translation id="5027562294707732951">Dodaj ekstenziju</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Zatvori kartice iznad</translation>
 <translation id="5538307496474303926">Brisanje...</translation>
 <translation id="5556459405103347317">Ponovo učitaj</translation>
+<translation id="5611474372949142946">Zatvori kartice ispod</translation>
 <translation id="5953452567010839148">QR kod nije pronađen</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresa</translation>

@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ko">
+<translation id="1293177648337752319">사이트 음소거 해제</translation>
 <translation id="1653598257495639807">QR 코드 결과</translation>
 <translation id="21133533946938348">탭 고정</translation>
+<translation id="2973324205039581528">사이트 음소거</translation>
+<translation id="3007771295016901659">탭 복제</translation>
 <translation id="3062877722240966678">Dao i18n 파이프라인 확인</translation>
 <translation id="3450492919008172498">새로 보관된 탭이 없습니다</translation>
 <translation id="3551320343578183772">탭 닫기</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">적용 중</translation>
 <translation id="4201242995651540725">지난 24시간 동안 비활성화된 탭이 보관되었습니다</translation>
 <translation id="4285498937028063278">고정 해제</translation>
+<translation id="4322394346347055525">다른 탭 닫기</translation>
 <translation id="4380677223237520064">QR 코드 해독</translation>
 <translation id="4543782226216763900">사이드바 전환 (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI에게 물어보기: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">캐시 지우기</translation>
 <translation id="5027562294707732951">확장 프로그램 추가</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">위쪽 탭 닫기</translation>
 <translation id="5538307496474303926">지우는 중...</translation>
 <translation id="5556459405103347317">새로 고침</translation>
+<translation id="5611474372949142946">아래쪽 탭 닫기</translation>
 <translation id="5953452567010839148">QR 코드를 찾을 수 없음</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">주소</translation>

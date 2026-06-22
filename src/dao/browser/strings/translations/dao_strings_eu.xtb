@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="eu">
+<translation id="1293177648337752319">Desisildu gunea</translation>
 <translation id="1653598257495639807">QR kodearen emaitza</translation>
 <translation id="21133533946938348">Fitxa Finkatu</translation>
+<translation id="2973324205039581528">Isildu gunea</translation>
+<translation id="3007771295016901659">Bikoiztu fitxa</translation>
 <translation id="3062877722240966678">Dao i18n pipeline ADOS</translation>
 <translation id="3450492919008172498">Ez da fitxa berririk artxibatu</translation>
 <translation id="3551320343578183772">Itxi Fitxa</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Aplikatzen</translation>
 <translation id="4201242995651540725">Azken 24 orduetan inaktibo egon diren fitxak artxibatu dira</translation>
 <translation id="4285498937028063278">Desfinkatu</translation>
+<translation id="4322394346347055525">Itxi beste fitxak</translation>
 <translation id="4380677223237520064">QR kodea deskodetu</translation>
 <translation id="4543782226216763900">Alboko barra txandakatu (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Galdetu AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Garbitu cachea</translation>
 <translation id="5027562294707732951">Gehitu luzapena</translation>
 <translation id="5192454087436290060">Kontrol Zentroa</translation>
+<translation id="5450299006531484229">Itxi goiko fitxak</translation>
 <translation id="5538307496474303926">Garbitzen...</translation>
 <translation id="5556459405103347317">Birkargatu</translation>
+<translation id="5611474372949142946">Itxi beheko fitxak</translation>
 <translation id="5953452567010839148">QR kodearik ez da aurkitu</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Helbidea</translation>

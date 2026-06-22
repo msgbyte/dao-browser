@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="fil">
+<translation id="1293177648337752319">I-unmute ang Site</translation>
 <translation id="1653598257495639807">Resulta ng QR Code</translation>
 <translation id="21133533946938348">I-pin ang Tab</translation>
+<translation id="2973324205039581528">I-mute ang Site</translation>
+<translation id="3007771295016901659">Kopyahin ang Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Walang bagong tab na na-archive</translation>
 <translation id="3551320343578183772">Isara ang Tab</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Inia-apply</translation>
 <translation id="4201242995651540725">Na-archive ang mga tab na hindi aktibo sa nakaraang 24 oras</translation>
 <translation id="4285498937028063278">I-unpin</translation>
+<translation id="4322394346347055525">Isara ang Ibang Mga Tab</translation>
 <translation id="4380677223237520064">I-decode ang QR Code</translation>
 <translation id="4543782226216763900">I-toggle ang Sidebar (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Tanungin ang AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">I-clear ang Cache</translation>
 <translation id="5027562294707732951">Magdagdag ng extension</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Isara ang Mga Tab sa Itaas</translation>
 <translation id="5538307496474303926">Nililinis...</translation>
 <translation id="5556459405103347317">I-reload</translation>
+<translation id="5611474372949142946">Isara ang Mga Tab sa Ibaba</translation>
 <translation id="5953452567010839148">Walang QR code na nakita</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Address</translation>

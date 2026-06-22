@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="kk">
+<translation id="1293177648337752319">Сайтты дыбыстау</translation>
 <translation id="1653598257495639807">QR код нәтижесі</translation>
 <translation id="21133533946938348">Қойындыны бекіту</translation>
+<translation id="2973324205039581528">Сайтты үнсіздендіру</translation>
+<translation id="3007771295016901659">Қойындыны қайталау</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Жаңа қойындылар архивтелген жоқ</translation>
 <translation id="3551320343578183772">Қойындыны жабу</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Қолдану</translation>
 <translation id="4201242995651540725">Соңғы 24 сағат ішінде белсенді болмаған қойындылар архивтелді</translation>
 <translation id="4285498937028063278">Бекітуді алып тастау</translation>
+<translation id="4322394346347055525">Басқа қойындыларды жабу</translation>
 <translation id="4380677223237520064">QR кодты декодтау</translation>
 <translation id="4543782226216763900">Бүйірлік тақтаны ауыстыру (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI-дан сұрау: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Кэшті тазалау</translation>
 <translation id="5027562294707732951">Кеңейтімді қосу</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Жоғарыдағы қойындыларды жабу</translation>
 <translation id="5538307496474303926">Тазалау...</translation>
 <translation id="5556459405103347317">Қайта жүктеу</translation>
+<translation id="5611474372949142946">Төмендегі қойындыларды жабу</translation>
 <translation id="5953452567010839148">QR код табылмады</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Мекенжай</translation>

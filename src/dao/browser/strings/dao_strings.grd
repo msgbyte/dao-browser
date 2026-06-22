@@ -228,8 +228,32 @@
       <message name="IDS_DAO_ADDRESS_BAR_RELOAD_ACCESSIBLE_NAME" desc="Accessible name for the button in the address bar that reloads the current page.">
         Reload
       </message>
+      <message name="IDS_DAO_TAB_CONTEXT_DUPLICATE_TAB" desc="Context menu item that duplicates the selected regular tab in the Dao sidebar.">
+        Duplicate Tab
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_COPY_LINK" desc="Context menu item that copies the URL of the selected regular tab in the Dao sidebar.">
+        Copy Link
+      </message>
       <message name="IDS_DAO_TAB_CONTEXT_PIN_TAB" desc="Context menu item that pins a regular tab into the Dao sidebar pinned items section.">
         Pin Tab
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_MUTE_SITE" desc="Context menu item that mutes audio for the site in the selected regular tab in the Dao sidebar.">
+        Mute Site
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_UNMUTE_SITE" desc="Context menu item that unmutes audio for the site in the selected regular tab in the Dao sidebar.">
+        Unmute Site
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_CLOSE_TAB" desc="Context menu item that closes the selected regular tab in the Dao sidebar.">
+        Close Tab
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_CLOSE_OTHER_TABS" desc="Context menu item that closes all regular tabs except the selected tab in the Dao sidebar.">
+        Close Other Tabs
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_CLOSE_TABS_ABOVE" desc="Context menu item that closes regular tabs above the selected tab in the Dao sidebar visual order.">
+        Close Tabs Above
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_CLOSE_TABS_BELOW" desc="Context menu item that closes regular tabs below the selected tab in the Dao sidebar visual order.">
+        Close Tabs Below
       </message>
       <message name="IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS" desc="Context menu item in the Dao sidebar that moves tabs inactive for more than 24 hours into a folder named stale.">
         Move Stale Tabs to "stale"

@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="te">
+<translation id="1293177648337752319">సైట్ మూయింపు తొలగించు</translation>
 <translation id="1653598257495639807">QR కోడ్ ఫలితం</translation>
 <translation id="21133533946938348">ట్యాబ్‌ను పిన్ చేయండి</translation>
+<translation id="2973324205039581528">సైట్ మూయించు</translation>
+<translation id="3007771295016901659">ట్యాబ్ నకలు</translation>
 <translation id="3062877722240966678">Dao i18n పైప్‌లైన్ సరే</translation>
 <translation id="3450492919008172498">కొత్త ట్యాబ్‌లు ఆర్కైవ్ చేయబడలేదు</translation>
 <translation id="3551320343578183772">ట్యాబ్‌ను మూసివేయండి</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">వర్తింపజేస్తోంది</translation>
 <translation id="4201242995651540725">గత 24 గంటలుగా క్రియాశీలంగా లేని ట్యాబ్‌లు ఆర్కైవ్ చేయబడ్డాయి</translation>
 <translation id="4285498937028063278">అన్‌పిన్ చేయండి</translation>
+<translation id="4322394346347055525">ఇతర ట్యాబ్‌లను మూసివేయి</translation>
 <translation id="4380677223237520064">QR కోడ్ డీకోడ్ చేయండి</translation>
 <translation id="4543782226216763900">సైడ్‌బార్ మార్చు (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">AI ని అడగండి: <ph name="PROMPT" />$1</translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">క్యాష్ క్లియర్ చేయండి</translation>
 <translation id="5027562294707732951">ఎక్స్‌టెన్షన్ జోడించండి</translation>
 <translation id="5192454087436290060">కంట్రోల్ సెంటర్</translation>
+<translation id="5450299006531484229">పైన ఉన్న ట్యాబ్‌లను మూసివేయి</translation>
 <translation id="5538307496474303926">క్లియర్ చేస్తోంది...</translation>
 <translation id="5556459405103347317">మళ్లీ లోడ్ చేయండి</translation>
+<translation id="5611474372949142946">క్రింద ఉన్న ట్యాబ్‌లను మూసివేయి</translation>
 <translation id="5953452567010839148">QR కోడ్ కనబడలేదు</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">చిరునామా</translation>

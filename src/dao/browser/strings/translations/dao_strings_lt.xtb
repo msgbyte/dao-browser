@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="lt">
+<translation id="1293177648337752319">Įjungti svetainės garsą</translation>
 <translation id="1653598257495639807">QR kodo rezultatas</translation>
 <translation id="21133533946938348">Prisegti kortelę</translation>
+<translation id="2973324205039581528">Nutildyti svetainę</translation>
+<translation id="3007771295016901659">Dubliuoti kortelę</translation>
 <translation id="3062877722240966678">Dao i18n kanalas GERAI</translation>
 <translation id="3450492919008172498">Naujų skirtukų nebuvo archyvuota</translation>
 <translation id="3551320343578183772">Uždaryti kortelę</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Taikoma</translation>
 <translation id="4201242995651540725">Archyvuoti skirtukai, neaktyvūs pastarąsias 24 valandas</translation>
 <translation id="4285498937028063278">Atsegti</translation>
+<translation id="4322394346347055525">Uždaryti kitas korteles</translation>
 <translation id="4380677223237520064">Dekoduoti QR kodą</translation>
 <translation id="4543782226216763900">Perjungti šoninę juostą (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Klausti AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Išvalyti talpyklą</translation>
 <translation id="5027562294707732951">Pridėti plėtinį</translation>
 <translation id="5192454087436290060">Valdymo centras</translation>
+<translation id="5450299006531484229">Uždaryti korteles viršuje</translation>
 <translation id="5538307496474303926">Valoma...</translation>
 <translation id="5556459405103347317">Perkrauti</translation>
+<translation id="5611474372949142946">Uždaryti korteles apačioje</translation>
 <translation id="5953452567010839148">QR kodas nerastas</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresas</translation>

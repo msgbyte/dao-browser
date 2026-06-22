@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-HK">
+<translation id="1293177648337752319">取消靜音網站</translation>
 <translation id="1653598257495639807">QR 碼結果</translation>
 <translation id="21133533946938348">固定分頁</translation>
+<translation id="2973324205039581528">靜音網站</translation>
+<translation id="3007771295016901659">重複分頁</translation>
 <translation id="3062877722240966678">Dao i18n pipeline 確定</translation>
 <translation id="3450492919008172498">沒有新標籤被封存</translation>
 <translation id="3551320343578183772">關閉分頁</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">應用中</translation>
 <translation id="4201242995651540725">已封存過去24小時不活躍的標籤</translation>
 <translation id="4285498937028063278">取消固定</translation>
+<translation id="4322394346347055525">關閉其他分頁</translation>
 <translation id="4380677223237520064">解碼 QR Code</translation>
 <translation id="4543782226216763900">切換側邊欄 (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">詢問 AI：<ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">清除快取</translation>
 <translation id="5027562294707732951">新增擴充功能</translation>
 <translation id="5192454087436290060">控制中心</translation>
+<translation id="5450299006531484229">關閉上方分頁</translation>
 <translation id="5538307496474303926">正在清除...</translation>
 <translation id="5556459405103347317">重新載入</translation>
+<translation id="5611474372949142946">關閉下方分頁</translation>
 <translation id="5953452567010839148">未找到 QR Code</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">地址</translation>

@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="id">
+<translation id="1293177648337752319">Bunyikan Situs</translation>
 <translation id="1653598257495639807">Hasil Kode QR</translation>
 <translation id="21133533946938348">Sematkan Tab</translation>
+<translation id="2973324205039581528">Bisukan Situs</translation>
+<translation id="3007771295016901659">Duplikat Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Tidak ada tab baru yang diarsipkan</translation>
 <translation id="3551320343578183772">Tutup Tab</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Menerapkan</translation>
 <translation id="4201242995651540725">Tab yang tidak aktif selama 24 jam terakhir telah diarsipkan</translation>
 <translation id="4285498937028063278">Lepaskan Sematan</translation>
+<translation id="4322394346347055525">Tutup Tab Lain</translation>
 <translation id="4380677223237520064">Dekode QR Code</translation>
 <translation id="4543782226216763900">Alihkan Sidebar (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Tanya AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Bersihkan Cache</translation>
 <translation id="5027562294707732951">Tambahkan ekstensi</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Tutup Tab di Atas</translation>
 <translation id="5538307496474303926">Membersihkan...</translation>
 <translation id="5556459405103347317">Muat Ulang</translation>
+<translation id="5611474372949142946">Tutup Tab di Bawah</translation>
 <translation id="5953452567010839148">Tidak ada kode QR ditemukan</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Alamat</translation>

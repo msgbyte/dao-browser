@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="lo">
+<translation id="1293177648337752319">ເປີດສຽງເວັບໄຊ</translation>
 <translation id="1653598257495639807">ຜົນ QR Code</translation>
 <translation id="21133533946938348">ປັກໝຸດແຖບ</translation>
+<translation id="2973324205039581528">ປິດສຽງເວັບໄຊ</translation>
+<translation id="3007771295016901659">ສ້າງແຖບຄັດລອກ</translation>
 <translation id="3062877722240966678">ທົດສອບລະບົບ i18n ຂອງ Dao ສຳເລັດ</translation>
 <translation id="3450492919008172498">ບໍ່ມີແຖບໃໝ່ທີ່ຖືກບັນທຶກ</translation>
 <translation id="3551320343578183772">ປິດແຖບ</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">ກຳລັງນຳໃຊ້</translation>
 <translation id="4201242995651540725">ແຖບທີ່ບໍ່ໄດ້ໃຊ້ຖືກບັນທຶກໄວ້ສໍາລັບ 24 ຊົ່ວໂມງຜ່ານມາ</translation>
 <translation id="4285498937028063278">ປົດປັກໝຸດ</translation>
+<translation id="4322394346347055525">ປິດແຖບອື່ນ</translation>
 <translation id="4380677223237520064">ຖອດລະຫັດ QR Code</translation>
 <translation id="4543782226216763900">ສະຫຼັບ Sidebar (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">ຖາມ AI: <ph name="PROMPT" />$1</translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">ລ້າງ Cache</translation>
 <translation id="5027562294707732951">ເພີ່ມສ່ວນຂະຫຍາຍ</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">ປິດແຖບຂ້າງເທິງ</translation>
 <translation id="5538307496474303926">ກຳລັງລ້າງ...</translation>
 <translation id="5556459405103347317">ໂຫຼດໃໝ່</translation>
+<translation id="5611474372949142946">ປິດແຖບຂ້າງລຸ່ມ</translation>
 <translation id="5953452567010839148">ບໍ່ພົບ QR code</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">ທີ່ຢູ່</translation>

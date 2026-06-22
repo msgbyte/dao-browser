@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
+<translation id="1293177648337752319">取消网站静音</translation>
 <translation id="1653598257495639807">二维码扫描结果</translation>
 <translation id="21133533946938348">固定标签页</translation>
+<translation id="2973324205039581528">将网站静音</translation>
+<translation id="3007771295016901659">复制标签页</translation>
 <translation id="3062877722240966678">Dao i18n 管线正常</translation>
 <translation id="3450492919008172498">没有新的标签页被归档</translation>
 <translation id="3551320343578183772">关闭标签页</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">应用中</translation>
 <translation id="4201242995651540725">已归档过去24小时未活动的标签页</translation>
 <translation id="4285498937028063278">取消固定</translation>
+<translation id="4322394346347055525">关闭其他标签页</translation>
 <translation id="4380677223237520064">解码二维码</translation>
 <translation id="4543782226216763900">切换侧边栏（<ph name="SHORTCUT" />）</translation>
 <translation id="4562670065683676797">向 AI 提问：<ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">清除缓存</translation>
 <translation id="5027562294707732951">添加扩展</translation>
 <translation id="5192454087436290060">控制中心</translation>
+<translation id="5450299006531484229">关闭上方标签页</translation>
 <translation id="5538307496474303926">清除中...</translation>
 <translation id="5556459405103347317">重新加载</translation>
+<translation id="5611474372949142946">关闭下方标签页</translation>
 <translation id="5953452567010839148">未找到二维码</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">地址</translation>

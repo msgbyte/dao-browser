@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="fa">
+<translation id="1293177648337752319">بازگرداندن صدای سایت</translation>
 <translation id="1653598257495639807">نتیجه کد QR</translation>
 <translation id="21133533946938348">سنجاق کردن زبانه</translation>
+<translation id="2973324205039581528">بی‌صدا کردن سایت</translation>
+<translation id="3007771295016901659">تکرار زبانه</translation>
 <translation id="3062877722240966678">خط لوله i18n Dao تایید</translation>
 <translation id="3450492919008172498">زبانه جدیدی بایگانی نشد</translation>
 <translation id="3551320343578183772">بستن زبانه</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">در حال اعمال</translation>
 <translation id="4201242995651540725">زبانه‌های غیرفعال در ۲۴ ساعت گذشته بایگانی شدند</translation>
 <translation id="4285498937028063278">برداشتن سنجاق</translation>
+<translation id="4322394346347055525">بستن زبانه‌های دیگر</translation>
 <translation id="4380677223237520064">رمزگشایی کد QR</translation>
 <translation id="4543782226216763900">تغییر نوار کناری (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">پرسش از هوش مصنوعی: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">پاک کردن حافظه پنهان</translation>
 <translation id="5027562294707732951">افزودن افزونه</translation>
 <translation id="5192454087436290060">مرکز کنترل</translation>
+<translation id="5450299006531484229">بستن زبانه‌های بالا</translation>
 <translation id="5538307496474303926">در حال پاک‌سازی...</translation>
 <translation id="5556459405103347317">بارگذاری مجدد</translation>
+<translation id="5611474372949142946">بستن زبانه‌های پایین</translation>
 <translation id="5953452567010839148">هیچ کد QR یافت نشد</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">آدرس</translation>

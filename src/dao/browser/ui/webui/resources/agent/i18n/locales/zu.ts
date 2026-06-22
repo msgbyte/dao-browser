@@ -208,7 +208,7 @@ const dict: Dictionary = {
   'dream.share.footer': 'Kuphuphe nge-Dao Browser',
   'dream.trigger.nightly': 'Ngobusuku bonke',
   'dream.trigger.catchup': 'Ukubamba',
-  'dream.trigger.manual': 'Manual',
+  'dream.trigger.manual': 'Okuzenzakalelayo',
   'settings.stats.title': 'Izibalo ze-Agent',
   'settings.stats.since_format': 'Ukusetshenziswa kusukela {date}',
   'settings.stats.api_calls': 'Ukushaya kwe-API',

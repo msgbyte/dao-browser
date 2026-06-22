@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="vi">
+<translation id="1293177648337752319">Bật tiếng Trang</translation>
 <translation id="1653598257495639807">Kết quả Mã QR</translation>
 <translation id="21133533946938348">Ghim thẻ</translation>
+<translation id="2973324205039581528">Tắt tiếng Trang</translation>
+<translation id="3007771295016901659">Nhân bản Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Không có tab mới nào được lưu trữ</translation>
 <translation id="3551320343578183772">Đóng thẻ</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Đang áp dụng</translation>
 <translation id="4201242995651540725">Đã lưu trữ các tab không hoạt động trong 24 giờ qua</translation>
 <translation id="4285498937028063278">Bỏ ghim</translation>
+<translation id="4322394346347055525">Đóng các Tab khác</translation>
 <translation id="4380677223237520064">Giải mã mã QR</translation>
 <translation id="4543782226216763900">Chuyển đổi Thanh bên (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Hỏi AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Xóa bộ nhớ đệm</translation>
 <translation id="5027562294707732951">Thêm tiện ích</translation>
 <translation id="5192454087436290060">Trung tâm Điều khiển</translation>
+<translation id="5450299006531484229">Đóng các Tab phía trên</translation>
 <translation id="5538307496474303926">Đang xóa...</translation>
 <translation id="5556459405103347317">Tải lại</translation>
+<translation id="5611474372949142946">Đóng các Tab phía dưới</translation>
 <translation id="5953452567010839148">Không tìm thấy mã QR</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Địa chỉ</translation>

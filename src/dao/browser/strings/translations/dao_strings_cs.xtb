@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="cs">
+<translation id="1293177648337752319">Zapnout zvuk webu</translation>
 <translation id="1653598257495639807">Výsledek QR kódu</translation>
 <translation id="21133533946938348">Připnout kartu</translation>
+<translation id="2973324205039581528">Ztlumit web</translation>
+<translation id="3007771295016901659">Duplikovat kartu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Žádné nové karty nebyly archivovány</translation>
 <translation id="3551320343578183772">Zavřít kartu</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Používání</translation>
 <translation id="4201242995651540725">Archivované karty neaktivní za posledních 24 hodin</translation>
 <translation id="4285498937028063278">Odepnout</translation>
+<translation id="4322394346347055525">Zavřít ostatní karty</translation>
 <translation id="4380677223237520064">Dekódovat QR kód</translation>
 <translation id="4543782226216763900">Přepnout postranní panel (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">Zeptat se AI: <ph name="PROMPT" />$1</translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Vymazat mezipaměť</translation>
 <translation id="5027562294707732951">Přidat rozšíření</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5450299006531484229">Zavřít karty nahoře</translation>
 <translation id="5538307496474303926">Vymazávání...</translation>
 <translation id="5556459405103347317">Znovu načíst</translation>
+<translation id="5611474372949142946">Zavřít karty dole</translation>
 <translation id="5953452567010839148">Nenalezen žádný QR kód</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adresa</translation>

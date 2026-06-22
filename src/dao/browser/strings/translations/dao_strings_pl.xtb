@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="pl">
+<translation id="1293177648337752319">Wyłącz wyciszenie witryny</translation>
 <translation id="1653598257495639807">Wynik kodu QR</translation>
 <translation id="21133533946938348">Przypnij kartę</translation>
+<translation id="2973324205039581528">Wycisz witrynę</translation>
+<translation id="3007771295016901659">Duplikuj kartę</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
 <translation id="3450492919008172498">Nie zarchiwizowano nowych kart</translation>
 <translation id="3551320343578183772">Zamknij kartę</translation>
@@ -14,6 +17,7 @@
 <translation id="3984237987235889323">Zastosowywanie</translation>
 <translation id="4201242995651540725">Zarchiwizowane karty nieaktywne przez ostatnie 24 godziny</translation>
 <translation id="4285498937028063278">Odepnij</translation>
+<translation id="4322394346347055525">Zamknij inne karty</translation>
 <translation id="4380677223237520064">Odszyfruj kod QR</translation>
 <translation id="4543782226216763900">Przełącz pasek boczny (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Zapytaj AI: <ph name="PROMPT" /></translation>
@@ -22,8 +26,10 @@
 <translation id="501297852093417632">Wyczyść pamięć podręczną</translation>
 <translation id="5027562294707732951">Dodaj rozszerzenie</translation>
 <translation id="5192454087436290060">Centrum sterowania</translation>
+<translation id="5450299006531484229">Zamknij karty powyżej</translation>
 <translation id="5538307496474303926">Czyszczenie...</translation>
 <translation id="5556459405103347317">Przeładuj</translation>
+<translation id="5611474372949142946">Zamknij karty poniżej</translation>
 <translation id="5953452567010839148">Nie znaleziono kodu QR</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
 <translation id="6736243959894955139">Adres</translation>
