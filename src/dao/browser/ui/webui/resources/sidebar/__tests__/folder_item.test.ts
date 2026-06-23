@@ -218,4 +218,33 @@ describe('dao-folder-item', () => {
 
         expect(animate).not.toHaveBeenCalled();
       });
+
+  it('requests native context menu on folder right click', async () => {
+    const el = createFolderItem();
+    await el.updateComplete;
+
+    let menuDetail: unknown = null;
+    el.addEventListener('folder-context-menu', (e: Event) => {
+      menuDetail = (e as CustomEvent).detail;
+    });
+
+    const row = el.shadowRoot!.querySelector('.folder-row')!;
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      screenX: 42,
+      screenY: 64,
+      clientX: 42,
+      clientY: 64,
+    }));
+    await el.updateComplete;
+
+    expect(menuDetail).toEqual({
+      folderId: 'folder-1',
+      screenX: 42,
+      screenY: 64,
+    });
+    expect(el.shadowRoot!.querySelector('.context-menu')).toBeNull();
+  });
 });

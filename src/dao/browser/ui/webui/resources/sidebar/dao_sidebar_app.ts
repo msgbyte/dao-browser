@@ -377,6 +377,12 @@ export class DaoSidebarApp extends CrLitElement {
     this.addSidebarListener_(
         'moveStaleTabsRequested', () => this.moveStaleTabsToFolder_());
 
+    this.addSidebarListener_(
+        'folderContextMenuCommand', (...args: unknown[]) => {
+          this.handleFolderContextMenuCommand_(
+              args[0] as string, args[1] as string);
+        });
+
     this.addSidebarListener_('updateStateChanged', (...args: unknown[]) => {
       this.updateState_ = args[0] as UpdateStateData;
     });
@@ -629,6 +635,23 @@ export class DaoSidebarApp extends CrLitElement {
     this.folderModel_.moveTabsToFolder(tabsToMove, folder.id);
     this.saveFolders_();
     this.showToast_(getLocalizedString(STALE_TABS_ARCHIVED_TOAST_KEY));
+  }
+
+  private handleFolderContextMenuCommand_(folderId: string, command: string) {
+    if (!folderId) {
+      return;
+    }
+
+    if (command === 'rename') {
+      const tabList = this.shadowRoot!.querySelector('dao-tab-list') as
+          HTMLElement & {startFolderRename: (folderId: string) => void} | null;
+      tabList?.startFolderRename(folderId);
+      return;
+    }
+
+    if (command === 'delete') {
+      this.handleFolderAction_({action: 'delete', folderId});
+    }
   }
 
   private onTabSectionScroll_ = () => {

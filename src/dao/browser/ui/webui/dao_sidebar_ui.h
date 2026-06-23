@@ -203,6 +203,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleClosePinnedItemTab(const base::ListValue& args);
   void HandleMovePinnedItem(const base::ListValue& args);
   void HandleShowPinnedItemContextMenu(const base::ListValue& args);
+  void HandleShowFolderContextMenu(const base::ListValue& args);
   void HandleShowTabTooltip(const base::ListValue& args);
   void HandleHideTabTooltip(const base::ListValue& args);
 
@@ -241,6 +242,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kPinnedUnpin,
     kPinnedCloseTab,
     kPinnedCopyLink,
+    kFolderRename,
+    kFolderDelete,
   };
 
   raw_ptr<Browser> browser_ = nullptr;
@@ -268,6 +271,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   // Context menu state.
   int context_menu_tab_index_ = -1;
   std::string context_menu_pinned_item_id_;
+  std::string context_menu_folder_id_;
   std::set<int> folder_tab_indices_;
   std::vector<int>
       visual_tab_order_;  // Tab model indices in visual order (top to bottom)

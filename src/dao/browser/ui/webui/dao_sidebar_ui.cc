@@ -571,6 +571,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
       base::BindRepeating(&DaoSidebarUIHandler::HandleShowPinnedItemContextMenu,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "showFolderContextMenu",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleShowFolderContextMenu,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "showTabTooltip",
       base::BindRepeating(&DaoSidebarUIHandler::HandleShowTabTooltip,
                           base::Unretained(this)));
@@ -1734,6 +1738,7 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
 
   context_menu_tab_index_ = tab_index;
   context_menu_pinned_item_id_.clear();
+  context_menu_folder_id_.clear();
   content::WebContents* contents = model->GetWebContentsAt(tab_index);
   if (!contents) {
     return;
@@ -1919,6 +1924,7 @@ void DaoSidebarUIHandler::HandleShowPinnedItemContextMenu(
 
   context_menu_tab_index_ = -1;
   context_menu_pinned_item_id_ = *id;
+  context_menu_folder_id_.clear();
   folder_tab_indices_.clear();
   visual_tab_order_.clear();
 
@@ -1938,6 +1944,54 @@ void DaoSidebarUIHandler::HandleShowPinnedItemContextMenu(
   tab_context_menu_model_->AddItem(
       kPinnedCopyLink,
       l10n_util::GetStringUTF16(IDS_DAO_PINNED_TAB_CONTEXT_COPY_LINK));
+
+  tab_context_menu_runner_ = std::make_unique<views::MenuRunner>(
+      tab_context_menu_model_.get(),
+      views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU);
+
+  gfx::Rect anchor_rect(gfx::Point(screen_x, screen_y), gfx::Size());
+  tab_context_menu_runner_->RunMenuAt(widget, nullptr, anchor_rect,
+                                      views::MenuAnchorPosition::kTopLeft,
+                                      ui::mojom::MenuSourceType::kMouse);
+}
+
+void DaoSidebarUIHandler::HandleShowFolderContextMenu(
+    const base::ListValue& args) {
+  if (!browser_ || args.size() < 3) {
+    return;
+  }
+
+  const std::string* folder_id = args[0].GetIfString();
+  if (!folder_id || folder_id->empty()) {
+    return;
+  }
+
+  int screen_x = args[1].GetIfInt().value_or(0);
+  int screen_y = args[2].GetIfInt().value_or(0);
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view || !browser_view->dao_sidebar()) {
+    return;
+  }
+
+  views::Widget* widget = browser_view->dao_sidebar()->GetWidget();
+  if (!widget) {
+    return;
+  }
+
+  context_menu_tab_index_ = -1;
+  context_menu_pinned_item_id_.clear();
+  context_menu_folder_id_ = *folder_id;
+  folder_tab_indices_.clear();
+  visual_tab_order_.clear();
+
+  tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
+  tab_context_menu_model_->AddItem(
+      kFolderRename,
+      l10n_util::GetStringUTF16(IDS_DAO_FOLDER_CONTEXT_RENAME));
+  tab_context_menu_model_->AddItem(
+      kFolderDelete,
+      l10n_util::GetStringUTF16(IDS_DAO_FOLDER_CONTEXT_DELETE));
 
   tab_context_menu_runner_ = std::make_unique<views::MenuRunner>(
       tab_context_menu_model_.get(),
@@ -2219,6 +2273,7 @@ void DaoSidebarUIHandler::HandleShowSidebarContextMenu(
 
   context_menu_tab_index_ = -1;
   context_menu_pinned_item_id_.clear();
+  context_menu_folder_id_.clear();
 
   tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
   tab_context_menu_model_->AddItem(
@@ -2282,6 +2337,7 @@ void DaoSidebarUIHandler::CloseTabsInVisualRange(int from, int to) {
 void DaoSidebarUIHandler::ClearContextMenuState() {
   context_menu_tab_index_ = -1;
   context_menu_pinned_item_id_.clear();
+  context_menu_folder_id_.clear();
   folder_tab_indices_.clear();
   visual_tab_order_.clear();
 }
@@ -2295,6 +2351,9 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   }
   if (command_id == kMoveStaleTabsToFolder) {
     return true;
+  }
+  if (command_id == kFolderRename || command_id == kFolderDelete) {
+    return !context_menu_folder_id_.empty();
   }
   if (command_id == kPinnedOpen || command_id == kPinnedUnpin ||
       command_id == kPinnedCloseTab || command_id == kPinnedCopyLink) {
@@ -2371,6 +2430,16 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
   if (command_id == kMoveStaleTabsToFolder) {
     if (IsJavascriptAllowed()) {
       FireWebUIListener("moveStaleTabsRequested");
+    }
+    ClearContextMenuState();
+    return;
+  }
+
+  if (command_id == kFolderRename || command_id == kFolderDelete) {
+    if (IsJavascriptAllowed() && !context_menu_folder_id_.empty()) {
+      FireWebUIListener(
+          "folderContextMenuCommand", base::Value(context_menu_folder_id_),
+          base::Value(command_id == kFolderRename ? "rename" : "delete"));
     }
     ClearContextMenuState();
     return;

@@ -276,6 +276,12 @@
       <message name="IDS_DAO_PINNED_TAB_CONTEXT_COPY_LINK" desc="Context menu item that copies the URL for a pinned sidebar item to the clipboard.">
         Copy Link
       </message>
+      <message name="IDS_DAO_FOLDER_CONTEXT_RENAME" desc="Context menu item that starts renaming a folder in the Dao sidebar.">
+        Rename
+      </message>
+      <message name="IDS_DAO_FOLDER_CONTEXT_DELETE" desc="Context menu item that deletes a folder in the Dao sidebar. Tabs inside the folder remain open.">
+        Delete Folder
+      </message>
 
       <!-- Command bar -->
       <message name="IDS_DAO_COMMAND_BAR_PLACEHOLDER" desc="Placeholder text shown in the Spotlight-style command bar (Cmd+L) prompting the user to type either a URL or a search query.">

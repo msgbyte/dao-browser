@@ -139,6 +139,8 @@ export class DaoTabList extends CrLitElement {
     this.addEventListener('dragend', this.onDragEnd_.bind(this));
     this.addEventListener('tab-context-menu',
         ((e: CustomEvent) => this.onTabContextMenu_(e)) as EventListener);
+    this.addEventListener('folder-context-menu',
+        ((e: CustomEvent) => this.onFolderContextMenu_(e)) as EventListener);
 
     // Intercept folder-action events that involve drops to clean up
     // drag state (folder's stopPropagation prevents our onDrop_).
@@ -828,6 +830,14 @@ export class DaoTabList extends CrLitElement {
     const {visualOrder, folderTabIndices} = this.computeContextMenuData_();
     sendNative('showTabContextMenu', index, screenX, screenY,
         folderTabIndices, visualOrder);
+  }
+
+  /**
+   * Handle right-click on a folder item by asking C++ to show a native menu.
+   */
+  private onFolderContextMenu_(e: CustomEvent) {
+    const {folderId, screenX, screenY} = e.detail;
+    sendNative('showFolderContextMenu', folderId, screenX, screenY);
   }
 
   /**

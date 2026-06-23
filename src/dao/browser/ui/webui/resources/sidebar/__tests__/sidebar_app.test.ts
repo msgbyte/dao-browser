@@ -93,6 +93,15 @@ function fireMoveStaleTabsRequested() {
   }).cr.webUIListenerCallback('moveStaleTabsRequested');
 }
 
+function fireFolderContextMenuCommand(folderId: string, command: string) {
+  (window as unknown as {
+    cr: {
+      webUIListenerCallback:
+          (event: string, folderId: string, command: string) => void;
+    };
+  }).cr.webUIListenerCallback('folderContextMenuCommand', folderId, command);
+}
+
 function didSendNative(send: ReturnType<typeof vi.fn>, method: string): boolean {
   return send.mock.calls.some(call => call[0] === method);
 }
@@ -541,6 +550,87 @@ describe('dao-sidebar-app', () => {
           `${commandId}[\\s\\S]*?l10n_util::GetStringUTF16\\(\\s*` +
           `${messageId}\\s*\\)`));
     }
+  });
+
+  it('localizes folder context menu labels in the native handler', () => {
+    const handlerText = readFileSync(
+        'src/dao/browser/ui/webui/dao_sidebar_ui.cc', 'utf8');
+    const grdText = readFileSync(
+        'src/dao/browser/strings/dao_strings.grd', 'utf8');
+    const zhCnText = readFileSync(
+        'src/dao/browser/strings/translations/dao_strings_zh-CN.xtb',
+        'utf8');
+
+    const menuLabels = [
+      [
+        'kFolderRename',
+        'IDS_DAO_FOLDER_CONTEXT_RENAME',
+        '1173894706177603556',
+      ],
+      [
+        'kFolderDelete',
+        'IDS_DAO_FOLDER_CONTEXT_DELETE',
+        '1809939268435598390',
+      ],
+    ];
+
+    for (const [commandId, messageId, translationId] of menuLabels) {
+      expect(grdText).toContain(`<message name="${messageId}"`);
+      expect(zhCnText).toContain(`<translation id="${translationId}">`);
+      expect(handlerText).toMatch(new RegExp(
+          `${commandId}[\\s\\S]*?l10n_util::GetStringUTF16\\(\\s*` +
+          `${messageId}\\s*\\)`));
+    }
+  });
+
+  it('starts folder rename when native folder menu selects rename',
+      async () => {
+        const {el} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app, JSON.stringify({
+          version: 1,
+          items: [{
+            type: 'folder',
+            id: 'folder-1',
+            name: 'Work',
+            collapsed: false,
+            children: [],
+          }],
+        }));
+        await el.updateComplete;
+
+        const tabList = el.shadowRoot!.querySelector('dao-tab-list') as
+            HTMLElement & {startFolderRename: (folderId: string) => void};
+        const startFolderRename = vi.fn();
+        tabList.startFolderRename = startFolderRename;
+
+        fireFolderContextMenuCommand('folder-1', 'rename');
+
+        expect(startFolderRename).toHaveBeenCalledWith('folder-1');
+      });
+
+  it('deletes folder when native folder menu selects delete', async () => {
+    vi.useFakeTimers();
+
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    installFolderModel(app, JSON.stringify({
+      version: 1,
+      items: [{
+        type: 'folder',
+        id: 'folder-1',
+        name: 'Work',
+        collapsed: false,
+        children: [],
+      }],
+    }));
+
+    fireFolderContextMenuCommand('folder-1', 'delete');
+    vi.advanceTimersByTime(300);
+
+    expect(app.folderModel_.findFolderByName('Work')).toBeNull();
+    expect(send).toHaveBeenCalledWith(
+        'saveFolders', [expect.not.stringContaining('"name": "Work"')]);
   });
 
   it('reuses existing stale folder and moves stale tabs from other folders',

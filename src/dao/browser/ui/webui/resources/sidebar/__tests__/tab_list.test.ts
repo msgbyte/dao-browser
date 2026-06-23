@@ -624,6 +624,24 @@ describe('dao-tab-list', () => {
             'showTabContextMenu', [1, 20, 30, [0, 1], [0, 1, 2]]);
       });
 
+  it('forwards folder context menu requests to native handler', async () => {
+    const {el, send} = createList();
+    await el.updateComplete;
+
+    el.dispatchEvent(new CustomEvent('folder-context-menu', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        folderId: 'folder-1',
+        screenX: 20,
+        screenY: 30,
+      },
+    }));
+
+    expect(send).toHaveBeenCalledWith(
+        'showFolderContextMenu', ['folder-1', 20, 30]);
+  });
+
   it('activates native tab drag when leaving at the viewport edge', async () => {
     const {el, send} = createList();
     await el.updateComplete;

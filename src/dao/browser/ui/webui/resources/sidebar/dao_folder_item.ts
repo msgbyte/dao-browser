@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {TAB_DRAG_PREFIX, FOLDER_MIME_TYPE} from './sidebar_bridge.js';
 import type {FolderData, FolderAction, TabData} from './sidebar_bridge.js';
@@ -135,59 +135,6 @@ export class DaoFolderItem extends CrLitElement {
         display: block;
       }
 
-      .context-menu {
-        position: fixed;
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 8px;
-        padding: 4px;
-        min-width: 140px;
-        z-index: 1000;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-      }
-
-      .context-menu-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        height: 28px;
-        padding: 0 8px;
-        border: none;
-        border-radius: 4px;
-        background: transparent;
-        color: var(--text-primary);
-        font-family: var(--font-family, system-ui);
-        font-size: 12px;
-        cursor: default;
-        width: 100%;
-        text-align: left;
-      }
-
-      .context-menu-item:hover {
-        background: rgba(0, 0, 0, 0.06);
-      }
-
-      .context-menu-item.danger:hover {
-        background: rgba(220, 60, 60, 0.10);
-        color: rgb(200, 50, 50);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .context-menu {
-          background: rgba(70, 76, 82, 0.92);
-          border-color: rgba(255, 255, 255, 0.14);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.40);
-        }
-        .context-menu-item:hover {
-          background: rgba(255, 255, 255, 0.08);
-        }
-        .context-menu-item.danger:hover {
-          background: rgba(239, 68, 68, 0.22);
-          color: rgb(248, 140, 140);
-        }
-      }
     `;
   }
 
@@ -199,9 +146,6 @@ export class DaoFolderItem extends CrLitElement {
       autoScrollTabId: {type: String},
       autoScrollToken: {type: Number},
       isRenaming_: {type: Boolean},
-      showContextMenu_: {type: Boolean},
-      contextMenuX_: {type: Number},
-      contextMenuY_: {type: Number},
       childDropIndex_: {type: Number},
     };
   }
@@ -213,12 +157,8 @@ export class DaoFolderItem extends CrLitElement {
   declare autoScrollToken: number;
 
   declare protected isRenaming_: boolean;
-  declare protected showContextMenu_: boolean;
-  declare protected contextMenuX_: number;
-  declare protected contextMenuY_: number;
   declare protected childDropIndex_: number;
 
-  private boundOnDocumentClick_: ((e: MouseEvent) => void) | null = null;
   private previousFlipSnapshot_: FlipMotionSnapshot | null = null;
 
   constructor() {
@@ -235,15 +175,7 @@ export class DaoFolderItem extends CrLitElement {
     this.autoScrollTabId = '';
     this.autoScrollToken = 0;
     this.isRenaming_ = false;
-    this.showContextMenu_ = false;
-    this.contextMenuX_ = 0;
-    this.contextMenuY_ = 0;
     this.childDropIndex_ = -1;
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback?.();
-    this.hideContextMenu_();
   }
 
   override render() {
@@ -258,7 +190,7 @@ export class DaoFolderItem extends CrLitElement {
            draggable="true"
            @click=${this.onToggleCollapse_}
            @dblclick=${this.onStartRename_}
-           @contextmenu=${this.onContextMenu_}
+           @contextmenu=${(e: MouseEvent) => this.onContextMenu_(e)}
            @dragstart=${this.onFolderDragStart_}
            @dragover=${this.onDragOver_}
            @dragleave=${this.onDragLeave_}
@@ -309,32 +241,6 @@ export class DaoFolderItem extends CrLitElement {
                         'visible' : ''}"></div>
         </div>
       </div>
-
-      ${this.showContextMenu_ ? html`
-        <div class="context-menu"
-             style="left: ${this.contextMenuX_}px; top: ${this.contextMenuY_}px">
-          <button class="context-menu-item"
-                  @click=${this.onContextRename_}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Rename
-          </button>
-          <button class="context-menu-item danger"
-                  @click=${this.onContextDelete_}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-            Delete Folder
-          </button>
-        </div>
-      ` : nothing}
     `;
   }
 
@@ -443,42 +349,15 @@ export class DaoFolderItem extends CrLitElement {
   private onContextMenu_(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-
-    // Clamp position so the menu stays within the viewport.
-    // Approximate menu size: 140px wide, 68px tall (2 items).
-    const menuW = 148;
-    const menuH = 68;
-    const x = Math.min(e.clientX, window.innerWidth - menuW);
-    const y = Math.min(e.clientY, window.innerHeight - menuH);
-    this.contextMenuX_ = Math.max(0, x);
-    this.contextMenuY_ = Math.max(0, y);
-    this.showContextMenu_ = true;
-
-    // Close on next click anywhere.
-    this.boundOnDocumentClick_ = () => this.hideContextMenu_();
-    setTimeout(() => {
-      document.addEventListener('click', this.boundOnDocumentClick_!);
-    }, 0);
-  }
-
-  private hideContextMenu_() {
-    this.showContextMenu_ = false;
-    if (this.boundOnDocumentClick_) {
-      document.removeEventListener('click', this.boundOnDocumentClick_);
-      this.boundOnDocumentClick_ = null;
-    }
-  }
-
-  private onContextRename_(e: Event) {
-    e.stopPropagation();
-    this.hideContextMenu_();
-    this.isRenaming_ = true;
-  }
-
-  private onContextDelete_(e: Event) {
-    e.stopPropagation();
-    this.hideContextMenu_();
-    this.dispatchFolderAction_({action: 'delete', folderId: this.folder.id});
+    this.dispatchEvent(new CustomEvent('folder-context-menu', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        folderId: this.folder.id,
+        screenX: e.screenX,
+        screenY: e.screenY,
+      },
+    }));
   }
 
   // ---- Drag-and-drop: folder is a drop target for tabs ----
