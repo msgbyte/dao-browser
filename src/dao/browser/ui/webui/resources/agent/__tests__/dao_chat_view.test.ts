@@ -442,6 +442,147 @@ describe('dao-chat-view message metadata helpers', () => {
         /\.dao-user-message-line\s*>\s*\.dao-user-actions\s*{[^}]*align-self:\s*center;/s);
   });
 
+  it('keeps the user action menu anchored to the button and flips upward near the bottom',
+     () => {
+       const innerHeightDesc =
+           Object.getOwnPropertyDescriptor(window, 'innerHeight');
+       const innerWidthDesc =
+           Object.getOwnPropertyDescriptor(window, 'innerWidth');
+       Object.defineProperty(window, 'innerHeight', {
+         configurable: true,
+         value: 220,
+       });
+       Object.defineProperty(window, 'innerWidth', {
+         configurable: true,
+         value: 260,
+       });
+       try {
+         const view = viewWithMessages([
+           {role: 'user', content: 'bottom prompt', dao: {id: 'u1'}},
+         ]);
+         const panel = document.createElement('div');
+         const host = document.createElement('user-message');
+         const flex = document.createElement('div');
+         flex.className = 'flex justify-start mx-4';
+         const bubble = document.createElement('div');
+         bubble.className = 'user-message-container';
+         const markdown = document.createElement('markdown-block');
+         bubble.appendChild(markdown);
+         flex.appendChild(bubble);
+         host.appendChild(flex);
+         panel.appendChild(host);
+         view.panel_ = panel;
+
+         view._daoTestRefreshAssistantActions();
+         const more =
+             panel.querySelector('.dao-user-more-btn') as HTMLButtonElement;
+         more.getBoundingClientRect = () => ({
+           x: 196,
+           y: 188,
+           top: 188,
+           right: 220,
+           bottom: 212,
+           left: 196,
+           width: 24,
+           height: 24,
+           toJSON: () => ({}),
+         }) as DOMRect;
+
+         more.click();
+
+         const menu = panel.querySelector(
+             '.dao-user-action-menu') as HTMLElement|null;
+         expect(menu).toBeTruthy();
+         expect(menu?.classList.contains('dao-user-action-menu-above'))
+             .toBe(true);
+         expect(menu?.style.position).toBe('');
+         expect(menu?.style.bottom).toBe('');
+       } finally {
+         restorePropertyDescriptor(window, 'innerHeight', innerHeightDesc);
+         restorePropertyDescriptor(window, 'innerWidth', innerWidthDesc);
+       }
+     });
+
+  it('opens the user action menu to the right when the button is near the left edge',
+     () => {
+       const innerWidthDesc =
+           Object.getOwnPropertyDescriptor(window, 'innerWidth');
+       Object.defineProperty(window, 'innerWidth', {
+         configurable: true,
+         value: 180,
+       });
+       try {
+         const view = viewWithMessages([
+           {role: 'user', content: 'left edge prompt', dao: {id: 'u1'}},
+         ]);
+         const panel = document.createElement('div');
+         const host = document.createElement('user-message');
+         const flex = document.createElement('div');
+         flex.className = 'flex justify-start mx-4';
+         const bubble = document.createElement('div');
+         bubble.className = 'user-message-container';
+         const markdown = document.createElement('markdown-block');
+         bubble.appendChild(markdown);
+         flex.appendChild(bubble);
+         host.appendChild(flex);
+         panel.appendChild(host);
+         view.panel_ = panel;
+
+         view._daoTestRefreshAssistantActions();
+         const more =
+             panel.querySelector('.dao-user-more-btn') as HTMLButtonElement;
+         more.getBoundingClientRect = () => ({
+           x: 20,
+           y: 40,
+           top: 40,
+           right: 44,
+           bottom: 64,
+           left: 20,
+           width: 24,
+           height: 24,
+           toJSON: () => ({}),
+         }) as DOMRect;
+
+         more.click();
+
+         const menu = panel.querySelector(
+             '.dao-user-action-menu') as HTMLElement|null;
+         expect(menu).toBeTruthy();
+         expect(menu?.classList.contains('dao-user-action-menu-align-start'))
+             .toBe(true);
+       } finally {
+         restorePropertyDescriptor(window, 'innerWidth', innerWidthDesc);
+       }
+     });
+
+  it('closes the user action menu when clicking outside it', () => {
+    const view = viewWithMessages([
+      {role: 'user', content: 'close menu', dao: {id: 'u1'}},
+    ]);
+    const panel = document.createElement('div');
+    const host = document.createElement('user-message');
+    const flex = document.createElement('div');
+    flex.className = 'flex justify-start mx-4';
+    const bubble = document.createElement('div');
+    bubble.className = 'user-message-container';
+    const markdown = document.createElement('markdown-block');
+    bubble.appendChild(markdown);
+    flex.appendChild(bubble);
+    host.appendChild(flex);
+    panel.appendChild(host);
+    view.panel_ = panel;
+
+    view._daoTestRefreshAssistantActions();
+    const more =
+        panel.querySelector('.dao-user-more-btn') as HTMLButtonElement|null;
+    more?.click();
+    expect(panel.querySelector('.dao-user-action-menu')).toBeTruthy();
+
+    document.body.dispatchEvent(new Event('pointerdown', {bubbles: true}));
+
+    expect(panel.querySelector('.dao-user-action-menu')).toBeNull();
+  });
+
   it('shows full user context from the debug-only message menu', () => {
     const fullPageContext =
         '<current-webpage>\nFull page context body\n</current-webpage>';
@@ -515,8 +656,16 @@ describe('dao-chat-view message metadata helpers', () => {
     }
     expect(rendered).toContain('class="dao-user-context-scrim"');
     expect(rendered).toContain('class="dao-user-context-modal"');
-    expect(rendered).toContain('--dao-user-context-top: 148px');
-    expect(rendered).toContain('--dao-user-context-right: 60px');
+    expect(rendered).not.toContain('--dao-user-context-top');
+    expect(rendered).not.toContain('--dao-user-context-right');
+    const cssText = readFileSync(
+        'src/dao/browser/ui/webui/resources/agent/agent.css', 'utf8');
+    expect(cssText).toMatch(
+        /\.dao-user-context-modal\s*{[^}]*top:\s*50%;/s);
+    expect(cssText).toMatch(
+        /\.dao-user-context-modal\s*{[^}]*left:\s*50%;/s);
+    expect(cssText).toMatch(
+        /\.dao-user-context-modal\s*{[^}]*transform:\s*translate\(-50%,\s*-50%\);/s);
     expect(rendered).toContain('role="dialog"');
     expect(rendered).toContain('aria-modal="true"');
     expect(rendered).toContain('chat.message_actions.context_title');

@@ -251,7 +251,6 @@ export class DaoChatView extends CrLitElement {
       userActionMenuMessageId_: {type: String, state: true},
       debugMode_: {type: Boolean, state: true},
       debugContextMessageId_: {type: String, state: true},
-      debugContextAnchorStyle_: {type: String, state: true},
       pendingPageAttachment_: {state: true},
       pendingSelection_: {state: true},
       pendingElementContexts_: {state: true},
@@ -285,9 +284,9 @@ export class DaoChatView extends CrLitElement {
     this.editingDraft_ = '';
     this.editingError_ = '';
     this.userActionMenuMessageId_ = '';
+    this.userActionMenuOpenAbove_ = false;
     this.debugMode_ = this.readDebugMode_();
     this.debugContextMessageId_ = '';
-    this.debugContextAnchorStyle_ = '';
     this.pendingPageAttachment_ = null;
     this.pendingSelection_ = null;
     this.pendingElementContexts_ = getReusableElementContexts();
@@ -359,6 +358,8 @@ export class DaoChatView extends CrLitElement {
   private boundOnDebugModeChanged_: ((event: Event) => void) | null = null;
   private boundOnStorageChanged_: ((event: StorageEvent) => void) | null =
       null;
+  private boundOnUserActionMenuOutsidePointerDown_:
+      ((event: Event) => void) | null = null;
   declare protected messageCount_: number;
   declare protected tokenEstimate_: number;
   declare protected compacting_: boolean;
@@ -369,12 +370,13 @@ export class DaoChatView extends CrLitElement {
   declare protected userActionMenuMessageId_: string;
   declare protected debugMode_: boolean;
   declare protected debugContextMessageId_: string;
-  declare protected debugContextAnchorStyle_: string;
   // Current-page chip: renders as a small pill above the composer with the
   // active tab's title. Cleared when the URL is already in one of the
   // session sets (sent / dismissed) or the tab is a non-capturable surface
   // (chrome://, about:blank, ...).
   declare protected pendingPageAttachment_: PageInfo | null;
+  private userActionMenuOpenAbove_ = false;
+  private userActionMenuAlignStart_ = false;
 
   // Latest text selection from the active tab. Refreshed by the same 2s
   // poll that drives the page chip; displayed as its own chip below the
@@ -477,6 +479,7 @@ export class DaoChatView extends CrLitElement {
       window.removeEventListener('storage', this.boundOnStorageChanged_);
       this.boundOnStorageChanged_ = null;
     }
+    this.detachUserActionMenuOutsideListener_();
     // Unblock anything awaiting mount; safe to call when already resolved.
     this.mountReadyResolve_();
     this.unsubscribeAgent_?.();
@@ -999,7 +1002,6 @@ export class DaoChatView extends CrLitElement {
     this.debugMode_ = enabled;
     if (!enabled) {
       this.debugContextMessageId_ = '';
-      this.debugContextAnchorStyle_ = '';
     }
     this.refreshMessageActions_();
   }
@@ -1678,7 +1680,7 @@ export class DaoChatView extends CrLitElement {
         'dao-retry-btn dao-user-more-btn',
         'chat.message_actions.more_tooltip',
         moreSvg,
-        () => this.toggleUserActionMenu_(id));
+        btn => this.toggleUserActionMenu_(id, btn));
     more.disabled = disabled;
     row.appendChild(more);
     if (this.userActionMenuMessageId_ === id) {
@@ -1689,7 +1691,11 @@ export class DaoChatView extends CrLitElement {
 
   private buildUserActionMenu_(id: string): HTMLElement {
     const menu = document.createElement('div');
-    menu.className = 'dao-user-action-menu';
+    menu.className = 'dao-user-action-menu' +
+        (this.userActionMenuOpenAbove_ ? ' dao-user-action-menu-above' : '') +
+        (this.userActionMenuAlignStart_ ?
+             ' dao-user-action-menu-align-start' :
+             '');
     menu.setAttribute('role', 'menu');
     // Lucide square-pen, copied from lucide-icons/lucide main.
     const editSvg =
@@ -1833,7 +1839,6 @@ export class DaoChatView extends CrLitElement {
             }
           }}>
         <section class="dao-user-context-modal"
-            style=${this.debugContextAnchorStyle_}
             role="dialog"
             aria-modal="true"
             aria-label=${t('chat.message_actions.context_title')}>
@@ -1863,12 +1868,11 @@ export class DaoChatView extends CrLitElement {
     const idx = this.findMessageIndexByDaoId_(id);
     const msg = this.currentMessages_()[idx];
     if (!this.debugMode_ || !this.isUserMessage_(msg)) return;
-    this.debugContextAnchorStyle_ = this.userContextAnchorStyle_(id);
     this.debugContextMessageId_ = id;
     this.editingMessageId_ = '';
     this.editingDraft_ = '';
     this.editingError_ = '';
-    this.userActionMenuMessageId_ = '';
+    this.closeUserActionMenu_(false);
     this.refreshMessageActions_();
     window.setTimeout(() => {
       (this.querySelector(
@@ -1878,54 +1882,7 @@ export class DaoChatView extends CrLitElement {
 
   private hideUserContextDebug_(): void {
     this.debugContextMessageId_ = '';
-    this.debugContextAnchorStyle_ = '';
     this.refreshMessageActions_();
-  }
-
-  private userContextAnchorStyle_(id: string): string {
-    const panel = this.panel_;
-    if (!panel) return '';
-    const rows = Array.from(
-        panel.querySelectorAll<HTMLElement>('.dao-user-actions'));
-    const row = rows.find(el => el.dataset['daoMessageId'] === id);
-    if (!row) return '';
-    const target = this.userBubbleForActionRow_(row) || row;
-    const rect = target.getBoundingClientRect();
-    if (rect.width <= 0 && rect.height <= 0) return '';
-    const viewportWidth =
-        window.innerWidth || document.documentElement.clientWidth || 0;
-    const top = Math.max(12, Math.round(rect.bottom + 8));
-    const right = viewportWidth > 0 ?
-        Math.max(12, Math.round(viewportWidth - rect.right)) :
-        12;
-    return `--dao-user-context-top: ${top}px; ` +
-        `--dao-user-context-right: ${right}px;`;
-  }
-
-  private userBubbleForActionRow_(row: HTMLElement): HTMLElement | null {
-    const sibling = row.nextElementSibling;
-    if (sibling instanceof HTMLElement &&
-        sibling.localName === 'markdown-block') {
-      return sibling;
-    }
-    if (sibling instanceof HTMLElement &&
-        sibling.classList.contains('user-message-container')) {
-      const markdown =
-          sibling.querySelector<HTMLElement>('markdown-block');
-      return markdown || sibling;
-    }
-    const line = row.closest('.dao-user-message-line');
-    const lineMarkdown =
-        line?.querySelector?.('markdown-block');
-    if (lineMarkdown instanceof HTMLElement) {
-      return lineMarkdown;
-    }
-    const host = row.closest('user-message') ||
-        (sibling instanceof HTMLElement ? sibling : null);
-    const bubble = host?.querySelector?.('.user-message-container');
-    if (!(bubble instanceof HTMLElement)) return null;
-    const markdown = bubble.querySelector<HTMLElement>('markdown-block');
-    return markdown || bubble;
   }
 
   private buildUserContextDebugPayload_(id: string): Record<string, unknown> {
@@ -2277,13 +2234,88 @@ export class DaoChatView extends CrLitElement {
     await this.retryFromUserIndex_(userIdx);
   }
 
-  private toggleUserActionMenu_(userId: string): void {
+  private toggleUserActionMenu_(
+      userId: string, anchor?: HTMLElement): void {
     const idx = this.findMessageIndexByDaoId_(userId);
     const msg = this.currentMessages_()[idx];
     if (!this.isUserMessage_(msg)) return;
-    this.userActionMenuMessageId_ =
-        this.userActionMenuMessageId_ === userId ? '' : userId;
+    if (this.userActionMenuMessageId_ === userId) {
+      this.closeUserActionMenu_();
+      return;
+    }
+    this.userActionMenuMessageId_ = userId;
+    this.userActionMenuOpenAbove_ = anchor ?
+        this.shouldOpenUserActionMenuAbove_(anchor) :
+        false;
+    this.userActionMenuAlignStart_ = anchor ?
+        this.shouldAlignUserActionMenuStart_(anchor) :
+        false;
+    this.attachUserActionMenuOutsideListener_();
     this.refreshMessageActions_();
+  }
+
+  private closeUserActionMenu_(refresh = true): void {
+    this.userActionMenuMessageId_ = '';
+    this.userActionMenuOpenAbove_ = false;
+    this.userActionMenuAlignStart_ = false;
+    this.detachUserActionMenuOutsideListener_();
+    if (refresh) {
+      this.refreshMessageActions_();
+    }
+  }
+
+  private attachUserActionMenuOutsideListener_(): void {
+    if (this.boundOnUserActionMenuOutsidePointerDown_) return;
+    this.boundOnUserActionMenuOutsidePointerDown_ =
+        (event: Event) => this.onUserActionMenuOutsidePointerDown_(event);
+    document.addEventListener(
+        'pointerdown',
+        this.boundOnUserActionMenuOutsidePointerDown_,
+        true);
+  }
+
+  private detachUserActionMenuOutsideListener_(): void {
+    if (!this.boundOnUserActionMenuOutsidePointerDown_) return;
+    document.removeEventListener(
+        'pointerdown',
+        this.boundOnUserActionMenuOutsidePointerDown_,
+        true);
+    this.boundOnUserActionMenuOutsidePointerDown_ = null;
+  }
+
+  private onUserActionMenuOutsidePointerDown_(event: Event): void {
+    if (!this.userActionMenuMessageId_) return;
+    const target = event.target;
+    if (target instanceof Node && this.panel_) {
+      const rows = Array.from(
+          this.panel_.querySelectorAll<HTMLElement>('.dao-user-actions'));
+      if (rows.some(row => row.contains(target))) {
+        return;
+      }
+    }
+    this.closeUserActionMenu_();
+  }
+
+  private shouldOpenUserActionMenuAbove_(anchor: HTMLElement): boolean {
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) return false;
+
+    const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight || 0;
+    const edge = 12;
+    const estimatedHeight = (this.debugMode_ ? 2 : 1) * 32 + 10;
+    const spaceBelow = viewportHeight - rect.bottom - edge;
+    const spaceAbove = rect.top - edge;
+    return spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+  }
+
+  private shouldAlignUserActionMenuStart_(anchor: HTMLElement): boolean {
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) return false;
+
+    const edge = 12;
+    const estimatedWidth = this.debugMode_ ? 188 : 132;
+    return rect.left < estimatedWidth + edge;
   }
 
   private beginEditUserMessage_(userId: string): void {
@@ -2293,9 +2325,8 @@ export class DaoChatView extends CrLitElement {
     this.editingMessageId_ = userId;
     this.editingDraft_ = this.extractVisibleText_(msg);
     this.editingError_ = '';
-    this.userActionMenuMessageId_ = '';
+    this.closeUserActionMenu_(false);
     this.debugContextMessageId_ = '';
-    this.debugContextAnchorStyle_ = '';
     this.refreshMessageActions_();
   }
 
@@ -2303,7 +2334,7 @@ export class DaoChatView extends CrLitElement {
     this.editingMessageId_ = '';
     this.editingDraft_ = '';
     this.editingError_ = '';
-    this.userActionMenuMessageId_ = '';
+    this.closeUserActionMenu_(false);
     this.refreshMessageActions_();
   }
 

@@ -706,6 +706,16 @@ attachment-tile[data-dao-decorated="1"] {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 8px 24px rgba(30, 20, 40, 0.16);
+  max-height: min(320px, calc(100vh - 24px));
+  overflow-y: auto;
+}
+.dao-user-action-menu.dao-user-action-menu-above {
+  top: auto;
+  bottom: 28px;
+}
+.dao-user-action-menu.dao-user-action-menu-align-start {
+  left: 0;
+  right: auto;
 }
 .dao-user-menu-item {
   display: flex;
@@ -731,6 +741,10 @@ attachment-tile[data-dao-decorated="1"] {
   width: 13px;
   height: 13px;
   flex: 0 0 auto;
+}
+.dao-user-menu-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dao-retry-btn:disabled,
 .dao-copy-btn:disabled,
@@ -795,12 +809,13 @@ attachment-tile[data-dao-decorated="1"] {
 }
 .dao-user-context-modal {
   position: fixed;
-  top: var(--dao-user-context-top, 18px);
-  right: var(--dao-user-context-right, 18px);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
-  width: min(760px, calc(100vw - var(--dao-user-context-right, 18px) - 18px));
-  max-height: min(78vh, calc(100vh - var(--dao-user-context-top, 18px) - 18px));
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(78vh, calc(100vh - 32px));
   border: 1px solid rgba(70, 120, 190, 0.22);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.78);
