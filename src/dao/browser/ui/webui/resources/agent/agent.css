@@ -333,7 +333,8 @@ dao-agent-app .user-message-container {
   gap: 6px;
   max-width: 100%;
 }
-dao-agent-app .user-message-container > markdown-block {
+dao-agent-app .user-message-container > markdown-block,
+dao-agent-app .dao-user-message-line > markdown-block {
   display: block;
   background: rgba(70, 120, 190, 0.85);
   color: #fff;
@@ -342,10 +343,12 @@ dao-agent-app .user-message-container > markdown-block {
   max-width: 100%;
   word-break: break-word;
 }
-dao-agent-app .user-message-container > markdown-block * {
+dao-agent-app .user-message-container > markdown-block *,
+dao-agent-app .dao-user-message-line > markdown-block * {
   color: #fff;
 }
-dao-agent-app .user-message-container > markdown-block :where(p, ul, ol) {
+dao-agent-app .user-message-container > markdown-block :where(p, ul, ol),
+dao-agent-app .dao-user-message-line > markdown-block :where(p, ul, ol) {
   margin: 0;
 }
 /* Upstream adds `mt-3 flex flex-wrap gap-2` on the attachment row. We
@@ -361,6 +364,17 @@ dao-agent-app .user-message-container > .mt-3 {
  * edge and the attachment floats above it, also right-aligned. */
 dao-agent-app user-message > .flex.justify-start {
   justify-content: flex-end !important;
+}
+.dao-user-message-line {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+}
+.dao-user-message-line > markdown-block {
+  max-width: calc(100% - 30px);
 }
 
 
@@ -636,6 +650,10 @@ attachment-tile[data-dao-decorated="1"] {
   padding: 0;
   position: relative;
 }
+.dao-user-message-line > .dao-user-actions {
+  align-self: flex-end;
+  margin: 0;
+}
 .dao-retry-btn,
 .dao-copy-btn,
 .dao-share-btn {
@@ -766,6 +784,76 @@ attachment-tile[data-dao-decorated="1"] {
   background: rgba(70, 120, 190, 0.92);
   border-color: rgba(70, 120, 190, 0.92);
   color: white;
+}
+.dao-user-context-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(10, 14, 18, 0.34);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.dao-user-context-modal {
+  position: fixed;
+  top: var(--dao-user-context-top, 18px);
+  right: var(--dao-user-context-right, 18px);
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - var(--dao-user-context-right, 18px) - 18px));
+  max-height: min(78vh, calc(100vh - var(--dao-user-context-top, 18px) - 18px));
+  border: 1px solid rgba(70, 120, 190, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 6px 18px rgba(30, 20, 40, 0.10);
+  overflow: hidden;
+}
+.dao-user-context-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(70, 120, 190, 0.14);
+}
+.dao-user-context-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+.dao-user-context-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(70, 120, 190, 0.18);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.dao-user-context-close:hover {
+  background: rgba(70, 120, 190, 0.12);
+}
+.dao-user-context-close svg {
+  width: 12px;
+  height: 12px;
+}
+.dao-user-context-pre {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  background: rgba(127, 127, 127, 0.08);
+  color: var(--foreground);
+  font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 /* Dao-owned "Insert into focused input" button injected into every
  * <code-block> by dao_chat_view's decorateCodeBlocks_. Sits as a sibling
@@ -1228,6 +1316,32 @@ body {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(170, 200, 240, 0.26);
     color: rgba(245, 245, 245, 0.94);
+  }
+  .dao-user-context-scrim {
+    background: rgba(0, 0, 0, 0.48);
+  }
+  .dao-user-context-modal {
+    background: rgba(54, 59, 64, 0.96);
+    border-color: rgba(170, 200, 240, 0.18);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  }
+  .dao-user-context-head {
+    border-bottom-color: rgba(255, 255, 255, 0.10);
+  }
+  .dao-user-context-title {
+    color: rgba(245, 245, 245, 0.94);
+  }
+  .dao-user-context-close {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(245, 245, 245, 0.92);
+  }
+  .dao-user-context-close:hover {
+    background: rgba(70, 120, 190, 0.24);
+  }
+  .dao-user-context-pre {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(245, 245, 245, 0.92);
   }
   .dao-user-edit-actions button {
     background: rgba(255, 255, 255, 0.06);

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {readFileSync} from 'node:fs';
+
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import type {ElementContextCapture} from '../dao_element_context.js';
@@ -118,9 +120,10 @@ vi.mock('../tool_catalog.js', () => ({
 }));
 
 vi.mock('../i18n/i18n.js', () => ({
-  t: (key: string, vars?: Record<string, string | number>) =>
-      vars?.['label'] ? `${key}:${vars['label']}` :
-      vars?.['title'] ? `${key}:${vars['title']}` : key,
+  t: (key: string, vars?: Record<string, string | number>) => {
+    const first = Object.values(vars || {})[0];
+    return first === undefined ? key : `${key}:${first}`;
+  },
 }));
 
 vi.mock('../vendor/pi_runtime_bundle.js', () => ({
@@ -375,6 +378,19 @@ describe('dao-chat-view message metadata helpers', () => {
     flex.className = 'flex justify-start mx-4';
     const bubble = document.createElement('div');
     bubble.className = 'user-message-container';
+    const markdown = document.createElement('markdown-block');
+    markdown.getBoundingClientRect = () => ({
+      x: 520,
+      y: 100,
+      top: 100,
+      right: 640,
+      bottom: 140,
+      left: 520,
+      width: 120,
+      height: 40,
+      toJSON: () => ({}),
+    }) as DOMRect;
+    bubble.appendChild(markdown);
     flex.appendChild(bubble);
     host.appendChild(flex);
     panel.appendChild(host);
@@ -383,8 +399,11 @@ describe('dao-chat-view message metadata helpers', () => {
     view._daoTestRefreshAssistantActions();
 
     const row = panel.querySelector('.dao-user-actions') as HTMLElement|null;
-    expect(row?.parentElement).toBe(flex);
-    expect(row?.nextElementSibling).toBe(bubble);
+    const line =
+        panel.querySelector('.dao-user-message-line') as HTMLElement|null;
+    expect(row?.parentElement).toBe(line);
+    expect(row?.nextElementSibling).toBe(markdown);
+    expect(row?.style.marginLeft).not.toBe('auto');
     expect(panel.querySelector('.dao-edit-btn')).toBeNull();
 
     const more =
@@ -412,6 +431,122 @@ describe('dao-chat-view message metadata helpers', () => {
     expect(menu?.querySelector('.dao-edit-menu-item')?.textContent).toContain(
         'chat.message_actions.edit');
     expect(menu?.querySelector('.dao-history-menu-item')).toBeNull();
+  });
+
+  it('bottom-aligns user message actions with the visible bubble', () => {
+    const cssText = readFileSync(
+        'src/dao/browser/ui/webui/resources/agent/agent.css', 'utf8');
+    expect(cssText).toMatch(
+        /\.dao-user-message-line\s*>\s*\.dao-user-actions\s*{[^}]*align-self:\s*flex-end;/s);
+    expect(cssText).not.toMatch(
+        /\.dao-user-message-line\s*>\s*\.dao-user-actions\s*{[^}]*align-self:\s*center;/s);
+  });
+
+  it('shows full user context from the debug-only message menu', () => {
+    const fullPageContext =
+        '<current-webpage>\nFull page context body\n</current-webpage>';
+    localStorage.setItem('dao_agent_debug_mode', 'true');
+    const view = viewWithMessages([
+      {
+        role: 'user-with-attachments',
+        content: 'summarize this page',
+        timestamp: '2026-06-23T08:00:00.000Z',
+        dao: {id: 'u1'},
+        attachments: [{
+          id: 'dao-page-1',
+          daoPageUrl: 'https://example.com/docs',
+          daoPageTitle: 'Example Docs',
+          fileName: 'Example Docs.md',
+          extractedText: fullPageContext,
+        }],
+      },
+    ]);
+    const panel = document.createElement('div');
+    const host = document.createElement('user-message');
+    const flex = document.createElement('div');
+    flex.className = 'flex justify-start mx-4';
+    const bubble = document.createElement('div');
+    bubble.className = 'user-message-container';
+    const markdown = document.createElement('markdown-block');
+    markdown.getBoundingClientRect = () => ({
+      top: 100,
+      right: 640,
+      bottom: 140,
+      left: 520,
+      width: 120,
+      height: 40,
+      x: 520,
+      y: 100,
+      toJSON: () => ({}),
+    }) as DOMRect;
+    bubble.appendChild(markdown);
+    flex.appendChild(bubble);
+    host.appendChild(flex);
+    panel.appendChild(host);
+    view.panel_ = panel;
+
+    view._daoTestRefreshAssistantActions();
+    const more =
+        panel.querySelector('.dao-user-more-btn') as HTMLButtonElement|null;
+    more?.click();
+
+    const debugItem = panel.querySelector(
+        '.dao-debug-context-menu-item') as HTMLButtonElement|null;
+    expect(debugItem).toBeTruthy();
+    expect(debugItem?.textContent).toContain(
+        'chat.message_actions.view_context');
+
+    const originalInnerWidth =
+        Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 700,
+    });
+
+    let rendered = '';
+    try {
+      debugItem?.click();
+      const inlinePanel = panel.querySelector('.dao-user-context-wrap');
+      expect(inlinePanel).toBeNull();
+      rendered = templateText(
+          (view as unknown as {render: () => unknown}).render());
+    } finally {
+      restorePropertyDescriptor(window, 'innerWidth', originalInnerWidth);
+    }
+    expect(rendered).toContain('class="dao-user-context-scrim"');
+    expect(rendered).toContain('class="dao-user-context-modal"');
+    expect(rendered).toContain('--dao-user-context-top: 148px');
+    expect(rendered).toContain('--dao-user-context-right: 60px');
+    expect(rendered).toContain('role="dialog"');
+    expect(rendered).toContain('aria-modal="true"');
+    expect(rendered).toContain('chat.message_actions.context_title');
+    expect(rendered).toContain('Full page context body');
+    expect(rendered).toContain('llmMessagesUpToMessage');
+    expect(rendered).toContain('summarize this page');
+  });
+
+  it('hides the context action until General debug mode is enabled', () => {
+    localStorage.removeItem('dao_agent_debug_mode');
+    const view = viewWithMessages([
+      {role: 'user', content: 'plain prompt', dao: {id: 'u1'}},
+    ]);
+    const panel = document.createElement('div');
+    const host = document.createElement('user-message');
+    const flex = document.createElement('div');
+    flex.className = 'flex justify-start mx-4';
+    const bubble = document.createElement('div');
+    bubble.className = 'user-message-container';
+    flex.appendChild(bubble);
+    host.appendChild(flex);
+    panel.appendChild(host);
+    view.panel_ = panel;
+
+    view._daoTestRefreshAssistantActions();
+    const more =
+        panel.querySelector('.dao-user-more-btn') as HTMLButtonElement|null;
+    more?.click();
+
+    expect(panel.querySelector('.dao-debug-context-menu-item')).toBeNull();
   });
 
   it('regenerates from the user paired with the selected assistant', async () => {
@@ -971,6 +1106,82 @@ describe('dao-chat-view element picker', () => {
 
        expect(templateText(view.renderProactiveCard_()))
            .toContain('chat.proactive.repeat_action_title');
+     });
+
+  it('does not send the repeat-action display title as the model prompt',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+           return {success: true};
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         (view as unknown as {
+           onProactiveSuggestion_: (raw: unknown) => void;
+           runProactiveSuggestion_: () => Promise<void>;
+         }).onProactiveSuggestion_({
+           episodeId: 7,
+           type: 'repeat_action',
+           text: 'You usually interact with this page. Want me to help again?',
+           confidence: 0.8,
+         });
+
+         await (view as unknown as {
+           runProactiveSuggestion_: () => Promise<void>;
+         }).runProactiveSuggestion_();
+
+         expect(originalSend).toHaveBeenCalledTimes(1);
+         expect(originalSend.mock.calls[0][0]).toBe(
+             'chat.proactive.default_user_prompt');
+         expect(originalSend.mock.calls[0][0]).not.toBe(
+             'You usually interact with this page. Want me to help again?');
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'acceptSuggestion', 7);
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('wraps a continue-conversation intent in a localized model prompt',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+           return {success: true};
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         (view as unknown as {
+           onProactiveSuggestion_: (raw: unknown) => void;
+           runProactiveSuggestion_: () => Promise<void>;
+         }).onProactiveSuggestion_({
+           episodeId: 8,
+           type: 'continue_conversation',
+           text: 'comparing ticket prices',
+           confidence: 0.8,
+         });
+
+         await (view as unknown as {
+           runProactiveSuggestion_: () => Promise<void>;
+         }).runProactiveSuggestion_();
+
+         expect(originalSend).toHaveBeenCalledTimes(1);
+         expect(originalSend.mock.calls[0][0]).toBe(
+             'chat.proactive.continue_conversation_prompt:comparing ticket prices');
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'acceptSuggestion', 8);
+       } finally {
+         clearTabWatchTimer(view);
+       }
      });
 
   it('uses dark-mode-aware tokens for proactive suggestion styling',

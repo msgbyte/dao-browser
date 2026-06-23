@@ -206,6 +206,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const MAX_PROACTIVE_PAGE_CONTENT_CHARS = 12000;
 const DISMISSED_DREAM_REPORT_IDS_KEY = 'dao_dismissed_dream_report_ids';
+const DAO_AGENT_DEBUG_MODE_KEY = 'dao_agent_debug_mode';
+const DAO_AGENT_DEBUG_MODE_CHANGED_EVENT = 'dao-agent-debug-mode-changed';
 
 function yesterdayLocalYmd(now = new Date()): string {
   const yesterday = new Date(now);
@@ -247,6 +249,9 @@ export class DaoChatView extends CrLitElement {
       editingDraft_: {type: String, state: true},
       editingError_: {type: String, state: true},
       userActionMenuMessageId_: {type: String, state: true},
+      debugMode_: {type: Boolean, state: true},
+      debugContextMessageId_: {type: String, state: true},
+      debugContextAnchorStyle_: {type: String, state: true},
       pendingPageAttachment_: {state: true},
       pendingSelection_: {state: true},
       pendingElementContexts_: {state: true},
@@ -280,6 +285,9 @@ export class DaoChatView extends CrLitElement {
     this.editingDraft_ = '';
     this.editingError_ = '';
     this.userActionMenuMessageId_ = '';
+    this.debugMode_ = this.readDebugMode_();
+    this.debugContextMessageId_ = '';
+    this.debugContextAnchorStyle_ = '';
     this.pendingPageAttachment_ = null;
     this.pendingSelection_ = null;
     this.pendingElementContexts_ = getReusableElementContexts();
@@ -309,6 +317,13 @@ export class DaoChatView extends CrLitElement {
         (raw: unknown) => this.onProactiveSuggestion_(raw);
     addWebUIListener(
         'proactiveSuggestion', this.boundOnProactiveSuggestion_);
+    this.boundOnDebugModeChanged_ =
+        (event: Event) => this.onDebugModeChanged_(event);
+    window.addEventListener(
+        DAO_AGENT_DEBUG_MODE_CHANGED_EVENT, this.boundOnDebugModeChanged_);
+    this.boundOnStorageChanged_ =
+        (event: StorageEvent) => this.onStorageChanged_(event);
+    window.addEventListener('storage', this.boundOnStorageChanged_);
     if (localStorage.getItem('dao_proactive_enabled') === 'false') {
       callNativeArgs('setProactiveEnabled', false).catch(() => {});
     }
@@ -341,6 +356,9 @@ export class DaoChatView extends CrLitElement {
   private boundOnVisibilityHint_: (() => void) | null = null;
   private boundOnProactiveSuggestion_:
       ((raw: unknown) => void) | null = null;
+  private boundOnDebugModeChanged_: ((event: Event) => void) | null = null;
+  private boundOnStorageChanged_: ((event: StorageEvent) => void) | null =
+      null;
   declare protected messageCount_: number;
   declare protected tokenEstimate_: number;
   declare protected compacting_: boolean;
@@ -349,6 +367,9 @@ export class DaoChatView extends CrLitElement {
   declare protected editingDraft_: string;
   declare protected editingError_: string;
   declare protected userActionMenuMessageId_: string;
+  declare protected debugMode_: boolean;
+  declare protected debugContextMessageId_: string;
+  declare protected debugContextAnchorStyle_: string;
   // Current-page chip: renders as a small pill above the composer with the
   // active tab's title. Cleared when the URL is already in one of the
   // session sets (sent / dismissed) or the tab is a non-capturable surface
@@ -445,6 +466,16 @@ export class DaoChatView extends CrLitElement {
       removeWebUIListener(
           'proactiveSuggestion', this.boundOnProactiveSuggestion_);
       this.boundOnProactiveSuggestion_ = null;
+    }
+    if (this.boundOnDebugModeChanged_) {
+      window.removeEventListener(
+          DAO_AGENT_DEBUG_MODE_CHANGED_EVENT,
+          this.boundOnDebugModeChanged_);
+      this.boundOnDebugModeChanged_ = null;
+    }
+    if (this.boundOnStorageChanged_) {
+      window.removeEventListener('storage', this.boundOnStorageChanged_);
+      this.boundOnStorageChanged_ = null;
     }
     // Unblock anything awaiting mount; safe to call when already resolved.
     this.mountReadyResolve_();
@@ -842,6 +873,7 @@ export class DaoChatView extends CrLitElement {
           @history-deleted=${this.onHistoryDeleted_}>
       </dao-chat-history-panel>
       ${this.renderSkillPicker_()}
+      ${this.renderUserContextModal_()}
       <div class="dao-page-chip-row">
         <button class=${'dao-element-pick-button' +
             (this.elementPicking_ ? ' active' : '')}
@@ -957,6 +989,32 @@ export class DaoChatView extends CrLitElement {
   override firstUpdated() {
     this.panel_ = this.querySelector('pi-chat-panel') as PiChatPanel;
     void this.mount_();
+  }
+
+  private readDebugMode_(): boolean {
+    return localStorage.getItem(DAO_AGENT_DEBUG_MODE_KEY) === 'true';
+  }
+
+  private setDebugModeState_(enabled: boolean) {
+    this.debugMode_ = enabled;
+    if (!enabled) {
+      this.debugContextMessageId_ = '';
+      this.debugContextAnchorStyle_ = '';
+    }
+    this.refreshMessageActions_();
+  }
+
+  private onDebugModeChanged_(event: Event) {
+    const enabled = event instanceof CustomEvent &&
+        typeof event.detail?.enabled === 'boolean' ?
+        event.detail.enabled :
+        this.readDebugMode_();
+    this.setDebugModeState_(enabled);
+  }
+
+  private onStorageChanged_(event: StorageEvent) {
+    if (event.key !== DAO_AGENT_DEBUG_MODE_KEY) return;
+    this.setDebugModeState_(event.newValue === 'true');
   }
 
   private async mount_() {
@@ -1652,18 +1710,71 @@ export class DaoChatView extends CrLitElement {
         '</span>';
     edit.addEventListener('click', () => this.beginEditUserMessage_(id));
     menu.appendChild(edit);
+    if (this.debugMode_) {
+      // Lucide file-text, copied from lucide-icons/lucide main.
+      const contextSvg =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+          ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+          ' aria-hidden="true">' +
+          '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12' +
+          'a2 2 0 0 0 2-2V7Z"></path>' +
+          '<path d="M14 2v4a2 2 0 0 0 2 2h4"></path>' +
+          '<path d="M10 9H8"></path>' +
+          '<path d="M16 13H8"></path>' +
+          '<path d="M16 17H8"></path>' +
+          '</svg>';
+      const context = document.createElement('button');
+      context.type = 'button';
+      context.className =
+          'dao-user-menu-item dao-debug-context-menu-item';
+      context.setAttribute('role', 'menuitem');
+      context.innerHTML = contextSvg + '<span>' +
+          t('chat.message_actions.view_context') + '</span>';
+      context.addEventListener(
+          'click', () => this.showUserContextDebug_(id));
+      menu.appendChild(context);
+    }
     return menu;
   }
 
   private insertUserActionRow_(host: HTMLElement, row: HTMLElement): void {
-    const flex = host.querySelector('.flex.justify-start');
     const bubble = host.querySelector('.user-message-container');
+    if (bubble instanceof HTMLElement) {
+      const line = this.ensureUserMessageLine_(bubble);
+      const markdown = line?.querySelector<HTMLElement>(
+          ':scope > markdown-block');
+      if (line && markdown) {
+        line.insertBefore(row, markdown);
+        return;
+      }
+    }
+    const flex = host.querySelector('.flex.justify-start');
     if (flex instanceof HTMLElement && bubble instanceof HTMLElement &&
         bubble.parentElement === flex) {
       flex.insertBefore(row, bubble);
       return;
     }
     host.insertAdjacentElement('beforebegin', row);
+  }
+
+  private ensureUserMessageLine_(bubble: HTMLElement): HTMLElement | null {
+    let line =
+        bubble.querySelector<HTMLElement>(':scope > .dao-user-message-line');
+    const markdownInLine =
+        line?.querySelector<HTMLElement>(':scope > markdown-block') || null;
+    const markdown =
+        markdownInLine ||
+        bubble.querySelector<HTMLElement>(':scope > markdown-block');
+    if (!markdown) return line;
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'dao-user-message-line';
+      bubble.insertBefore(line, markdown);
+    }
+    if (markdown.parentElement !== line) {
+      line.appendChild(markdown);
+    }
+    return line;
   }
 
   private insertUserAuxiliaryAfterMessage_(
@@ -1707,6 +1818,233 @@ export class DaoChatView extends CrLitElement {
     wrap.append(actions);
     setTimeout(() => textarea.focus(), 0);
     return wrap;
+  }
+
+  private renderUserContextModal_() {
+    if (!this.debugContextMessageId_) return nothing;
+    const json = this.safeDebugJson_(
+        this.buildUserContextDebugPayload_(this.debugContextMessageId_));
+    return html`
+      <div class="dao-user-context-scrim"
+          role="presentation"
+          @click=${(e: Event) => {
+            if (e.target === e.currentTarget) {
+              this.hideUserContextDebug_();
+            }
+          }}>
+        <section class="dao-user-context-modal"
+            style=${this.debugContextAnchorStyle_}
+            role="dialog"
+            aria-modal="true"
+            aria-label=${t('chat.message_actions.context_title')}>
+          <div class="dao-user-context-head">
+            <div class="dao-user-context-title">
+              ${t('chat.message_actions.context_title')}
+            </div>
+            <button class="dao-user-context-close"
+                type="button"
+                title=${t('chat.message_actions.context_close')}
+                aria-label=${t('chat.message_actions.context_close')}
+                @click=${() => this.hideUserContextDebug_()}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <pre class="dao-user-context-pre">${json}</pre>
+        </section>
+      </div>`;
+  }
+
+  private showUserContextDebug_(id: string): void {
+    const idx = this.findMessageIndexByDaoId_(id);
+    const msg = this.currentMessages_()[idx];
+    if (!this.debugMode_ || !this.isUserMessage_(msg)) return;
+    this.debugContextAnchorStyle_ = this.userContextAnchorStyle_(id);
+    this.debugContextMessageId_ = id;
+    this.editingMessageId_ = '';
+    this.editingDraft_ = '';
+    this.editingError_ = '';
+    this.userActionMenuMessageId_ = '';
+    this.refreshMessageActions_();
+    window.setTimeout(() => {
+      (this.querySelector(
+          '.dao-user-context-close') as HTMLButtonElement|null)?.focus();
+    }, 0);
+  }
+
+  private hideUserContextDebug_(): void {
+    this.debugContextMessageId_ = '';
+    this.debugContextAnchorStyle_ = '';
+    this.refreshMessageActions_();
+  }
+
+  private userContextAnchorStyle_(id: string): string {
+    const panel = this.panel_;
+    if (!panel) return '';
+    const rows = Array.from(
+        panel.querySelectorAll<HTMLElement>('.dao-user-actions'));
+    const row = rows.find(el => el.dataset['daoMessageId'] === id);
+    if (!row) return '';
+    const target = this.userBubbleForActionRow_(row) || row;
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) return '';
+    const viewportWidth =
+        window.innerWidth || document.documentElement.clientWidth || 0;
+    const top = Math.max(12, Math.round(rect.bottom + 8));
+    const right = viewportWidth > 0 ?
+        Math.max(12, Math.round(viewportWidth - rect.right)) :
+        12;
+    return `--dao-user-context-top: ${top}px; ` +
+        `--dao-user-context-right: ${right}px;`;
+  }
+
+  private userBubbleForActionRow_(row: HTMLElement): HTMLElement | null {
+    const sibling = row.nextElementSibling;
+    if (sibling instanceof HTMLElement &&
+        sibling.localName === 'markdown-block') {
+      return sibling;
+    }
+    if (sibling instanceof HTMLElement &&
+        sibling.classList.contains('user-message-container')) {
+      const markdown =
+          sibling.querySelector<HTMLElement>('markdown-block');
+      return markdown || sibling;
+    }
+    const line = row.closest('.dao-user-message-line');
+    const lineMarkdown =
+        line?.querySelector?.('markdown-block');
+    if (lineMarkdown instanceof HTMLElement) {
+      return lineMarkdown;
+    }
+    const host = row.closest('user-message') ||
+        (sibling instanceof HTMLElement ? sibling : null);
+    const bubble = host?.querySelector?.('.user-message-container');
+    if (!(bubble instanceof HTMLElement)) return null;
+    const markdown = bubble.querySelector<HTMLElement>('markdown-block');
+    return markdown || bubble;
+  }
+
+  private buildUserContextDebugPayload_(id: string): Record<string, unknown> {
+    const messages = this.currentMessages_();
+    const messageIndex = this.findMessageIndexByDaoId_(id);
+    const rawMessage = messageIndex >= 0 ? messages[messageIndex] : null;
+    const messagesUpToMessage =
+        messageIndex >= 0 ? messages.slice(0, messageIndex + 1) : [];
+    return {
+      messageId: id,
+      messageIndex,
+      systemPrompt: this.agent_?.state.systemPrompt ?? '',
+      model: this.debugModelSnapshot_(this.agent_?.state.model),
+      rawMessage,
+      attachments:
+          rawMessage && Array.isArray(rawMessage.attachments) ?
+          rawMessage.attachments :
+          [],
+      rawMessagesUpToMessage: messagesUpToMessage,
+      llmMessagesUpToMessage:
+          this.buildDebugLlmMessages_(messagesUpToMessage),
+    };
+  }
+
+  private debugModelSnapshot_(model: unknown): Record<string, unknown>|null {
+    if (!isRecord(model)) return null;
+    const keys = [
+      'id',
+      'name',
+      'api',
+      'provider',
+      'baseUrl',
+      'reasoning',
+      'input',
+      'contextWindow',
+      'maxTokens',
+    ];
+    const out: Record<string, unknown> = {};
+    for (const key of keys) {
+      if (key in model) {
+        out[key] = model[key];
+      }
+    }
+    return out;
+  }
+
+  private buildDebugLlmMessages_(
+      messages: DaoChatMessage[]): Array<Record<string, unknown>> {
+    const out: Array<Record<string, unknown>> = [];
+    for (const msg of messages) {
+      if (!msg) continue;
+      if (msg.role === 'assistant' || msg.role === 'toolResult') {
+        out.push({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+        });
+        continue;
+      }
+      if (msg.role === 'user') {
+        const orig = typeof msg.content === 'string' ?
+            msg.content :
+            this.extractAssistantText_(msg);
+        const expanded = this.expandSkillPrefix_(orig);
+        out.push({
+          role: 'user',
+          content: typeof msg.content === 'string' || expanded !== orig ?
+              expanded :
+              msg.content,
+          timestamp: msg.timestamp,
+        });
+        continue;
+      }
+      if (msg.role === 'user-with-attachments') {
+        const pieces: string[] = [];
+        const attachments =
+            Array.isArray(msg.attachments) ? msg.attachments : [];
+        for (const attachment of attachments) {
+          if (isRecord(attachment) &&
+              typeof attachment['extractedText'] === 'string' &&
+              attachment['extractedText'].length > 0) {
+            pieces.push(attachment['extractedText']);
+          }
+        }
+        const orig = typeof msg.content === 'string' ?
+            msg.content :
+            this.extractAssistantText_(msg);
+        const expanded = this.expandSkillPrefix_(orig);
+        const trimmed = expanded.trim();
+        out.push({
+          role: 'user',
+          content: pieces.length > 0 ?
+              (trimmed ? `${pieces.join('\n\n')}\n\n${expanded}` :
+                         pieces.join('\n\n')) :
+              expanded,
+          timestamp: msg.timestamp,
+        });
+      }
+    }
+    return out;
+  }
+
+  private safeDebugJson_(value: unknown): string {
+    return JSON.stringify(value, (_key, item) => {
+      if (typeof item === 'function') {
+        return `[Function ${item.name || 'anonymous'}]`;
+      }
+      if (item instanceof Error) {
+        return {
+          name: item.name,
+          message: item.message,
+          stack: item.stack,
+        };
+      }
+      if (item === undefined) {
+        return '[undefined]';
+      }
+      return item;
+    }, 2) || '';
   }
 
   private refreshMessageActions_(): void {
@@ -1956,6 +2294,8 @@ export class DaoChatView extends CrLitElement {
     this.editingDraft_ = this.extractVisibleText_(msg);
     this.editingError_ = '';
     this.userActionMenuMessageId_ = '';
+    this.debugContextMessageId_ = '';
+    this.debugContextAnchorStyle_ = '';
     this.refreshMessageActions_();
   }
 
@@ -3007,6 +3347,20 @@ export class DaoChatView extends CrLitElement {
     return suggestion.text;
   }
 
+  private proactiveSuggestionPrompt_(suggestion: ProactiveSuggestionData):
+      string {
+    if (suggestion.type === 'repeat_action') {
+      return t('chat.proactive.default_user_prompt');
+    }
+    if (suggestion.type === 'continue_conversation') {
+      const intent = suggestion.text.trim();
+      return intent ?
+          t('chat.proactive.continue_conversation_prompt', {intent}) :
+          t('chat.proactive.default_user_prompt');
+    }
+    return suggestion.text || t('chat.proactive.default_user_prompt');
+  }
+
   private onProactiveSuggestion_(raw: unknown) {
     if (localStorage.getItem('dao_proactive_enabled') === 'false') {
       return;
@@ -3122,7 +3476,7 @@ export class DaoChatView extends CrLitElement {
     const title = this.proactiveSuggestionTitle_(suggestion);
     if (!suggestion.actionPrompt) {
       return {
-        text: suggestion.text || t('chat.proactive.default_user_prompt'),
+        text: this.proactiveSuggestionPrompt_(suggestion),
         attachments: [],
       };
     }

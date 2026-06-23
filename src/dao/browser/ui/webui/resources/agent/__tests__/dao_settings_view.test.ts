@@ -164,4 +164,29 @@ describe('dao-settings-view dream controls', () => {
     expect(settingsMocks.callNative).toHaveBeenCalledWith(
         'openTab', {url: 'dao://dream/'});
   });
+
+  it('persists the General debug mode toggle', async () => {
+    const listener = vi.fn();
+    window.addEventListener('dao-agent-debug-mode-changed', listener);
+    const view = document.createElement('dao-settings-view') as TestSettingsView;
+    document.body.appendChild(view);
+    await view.updateComplete;
+
+    const input = view.shadowRoot!.querySelector(
+        'label[aria-label="settings.general.debug_mode_name"] input',
+    ) as HTMLInputElement|null;
+    expect(input).toBeTruthy();
+    expect(input!.checked).toBe(false);
+
+    (view as unknown as {setDebugMode_: (enabled: boolean) => void})
+        .setDebugMode_(true);
+    await view.updateComplete;
+
+    expect(localStorage.getItem('dao_agent_debug_mode')).toBe('true');
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0][0]).toMatchObject({
+      detail: {enabled: true},
+    });
+    window.removeEventListener('dao-agent-debug-mode-changed', listener);
+  });
 });

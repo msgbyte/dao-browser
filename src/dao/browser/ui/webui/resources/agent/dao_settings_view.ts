@@ -64,6 +64,9 @@ import {getSearchSourceOverride, setSearchSourceOverride}
     from './web_search/index.js';
 import type {SearchSourceOverride} from './web_search/index.js';
 
+const DAO_AGENT_DEBUG_MODE_KEY = 'dao_agent_debug_mode';
+const DAO_AGENT_DEBUG_MODE_CHANGED_EVENT = 'dao-agent-debug-mode-changed';
+
 export class DaoSettingsView extends CrLitElement {
   static override get properties() {
     return {
@@ -91,6 +94,7 @@ export class DaoSettingsView extends CrLitElement {
       agentStats_: {type: Object, state: true},
       showResetStatsDialog_: {type: Boolean, state: true},
       toolCallShowDetails_: {type: Boolean, state: true},
+      debugMode_: {type: Boolean, state: true},
       resumeLastSession_: {type: Boolean, state: true},
       resumeStaleHours_: {type: Number, state: true},
       workspaceInfo_: {type: Object, state: true},
@@ -123,6 +127,7 @@ export class DaoSettingsView extends CrLitElement {
   declare private agentStats_: AgentStats|null;
   declare private showResetStatsDialog_: boolean;
   declare private toolCallShowDetails_: boolean;
+  declare private debugMode_: boolean;
   declare private resumeLastSession_: boolean;
   declare private resumeStaleHours_: number;
   declare private workspaceInfo_: WorkspaceInfo|null;
@@ -529,6 +534,7 @@ export class DaoSettingsView extends CrLitElement {
     this.agentStats_ = null;
     this.showResetStatsDialog_ = false;
     this.toolCallShowDetails_ = false;
+    this.debugMode_ = false;
     this.resumeLastSession_ = true;
     this.resumeStaleHours_ = 3;
     this.workspaceInfo_ = null;
@@ -646,6 +652,10 @@ export class DaoSettingsView extends CrLitElement {
               localStorage.setItem(
                   'dao_tool_call_show_details', String(v));
             })}
+        ${this.renderToggle_(
+            t('settings.general.debug_mode_name'),
+            t('settings.general.debug_mode_desc'),
+            this.debugMode_, (v) => this.setDebugMode_(v))}
 
         <div class="section-title" style="margin-top:18px">
           ${t('settings.general.session_title')}</div>
@@ -690,6 +700,14 @@ export class DaoSettingsView extends CrLitElement {
         Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 3;
     this.resumeStaleHours_ = next;
     localStorage.setItem('dao_resume_stale_hours', String(next));
+  }
+
+  private setDebugMode_(enabled: boolean) {
+    this.debugMode_ = enabled;
+    localStorage.setItem(DAO_AGENT_DEBUG_MODE_KEY, String(enabled));
+    window.dispatchEvent(new CustomEvent(
+        DAO_AGENT_DEBUG_MODE_CHANGED_EVENT,
+        {detail: {enabled}}));
   }
 
   private getProviderSpec_(id: string): ProviderSpec {
@@ -1215,6 +1233,8 @@ export class DaoSettingsView extends CrLitElement {
     this.soulText_ = currentSoulContent;
     this.toolCallShowDetails_ =
         localStorage.getItem('dao_tool_call_show_details') === 'true';
+    this.debugMode_ =
+        localStorage.getItem(DAO_AGENT_DEBUG_MODE_KEY) === 'true';
     this.resumeLastSession_ =
         localStorage.getItem('dao_resume_last_session') !== 'false';
     const staleRaw =

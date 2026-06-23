@@ -59,6 +59,8 @@ const dict: Dictionary = {
       'Last time here, you discussed: {intent}',
   'chat.proactive.continue_conversation_title_fallback':
       'Continue where you left off?',
+  'chat.proactive.continue_conversation_prompt':
+      'Continue helping me with: {intent}',
 
   // Per-message action buttons (Copy / Share-as-image / Regenerate).
   'chat.message_actions.copy_tooltip': 'Copy answer text',
@@ -67,6 +69,9 @@ const dict: Dictionary = {
   'chat.message_actions.more_tooltip': 'More actions',
   'chat.message_actions.edit': 'Edit',
   'chat.message_actions.edit_tooltip': 'Edit message',
+  'chat.message_actions.view_context': 'View context',
+  'chat.message_actions.context_title': 'Message context',
+  'chat.message_actions.context_close': 'Close context',
   'chat.message_actions.save_edit': 'Save',
   'chat.message_actions.cancel_edit': 'Cancel',
   'chat.message_actions.regenerating': 'Regenerating',
@@ -192,6 +197,9 @@ const dict: Dictionary = {
   'settings.general.show_tool_details_name': 'Show Tool Call Details',
   'settings.general.show_tool_details_desc':
       'Expand every tool call input / output by default',
+  'settings.general.debug_mode_name': 'Debug Mode',
+  'settings.general.debug_mode_desc':
+      'Show a context inspector on user messages for local debugging',
   'settings.general.session_title': 'Session',
   'settings.general.resume_session_name': 'Resume Last Session',
   'settings.general.resume_session_desc':
