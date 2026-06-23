@@ -24,11 +24,9 @@
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/manifest_handlers/icons_handler.h"
-#include "extensions/grit/extensions_browser_resources.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
-#include "ui/base/resource/resource_bundle.h"
+#include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/image_button.h"
@@ -53,8 +51,8 @@ class PinnedExtIconButton : public views::ImageButton {
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
     ImageButton::OnMouseEntered(event);
-    SetBackground(views::CreateRoundedRectBackground(
-        ControlCenterHoverBg(), kBtnRadius));
+    SetBackground(
+        views::CreateRoundedRectBackground(ControlCenterHoverBg(), kBtnRadius));
     SchedulePaint();
   }
 
@@ -82,15 +80,25 @@ DaoPinnedExtensionsContainer::DaoPinnedExtensionsContainer(Browser* browser)
     observation_.Observe(model_.get());
   }
 
+  tab_strip_model_ = browser_->tab_strip_model();
+  if (tab_strip_model_) {
+    tab_strip_model_->AddObserver(this);
+  }
+
   Rebuild();
 }
 
-DaoPinnedExtensionsContainer::~DaoPinnedExtensionsContainer() = default;
+DaoPinnedExtensionsContainer::~DaoPinnedExtensionsContainer() {
+  if (tab_strip_model_) {
+    tab_strip_model_->RemoveObserver(this);
+  }
+}
 
 void DaoPinnedExtensionsContainer::Rebuild() {
   RemoveAllChildViews();
   button_to_extension_id_.clear();
   id_to_button_.clear();
+  icon_factories_.clear();
 
   if (!model_ || !browser_) {
     SetVisible(false);
@@ -104,10 +112,6 @@ void DaoPinnedExtensionsContainer::Rebuild() {
     return;
   }
 
-  gfx::ImageSkia default_icon =
-      *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-          IDR_EXTENSIONS_FAVICON);
-
   const auto& pinned_ids = model_->pinned_action_ids();
   int count = 0;
   for (const auto& id : pinned_ids) {
@@ -120,21 +124,13 @@ void DaoPinnedExtensionsContainer::Rebuild() {
       continue;
     }
 
-    // Get or create a cached IconImage for this extension.
-    auto& icon_image = icon_images_[id];
-    if (!icon_image) {
-      const auto& icon_set = extensions::IconsInfo::GetIcons(extension);
-      icon_image = std::make_unique<extensions::IconImage>(
-          profile, extension, icon_set, kPinnedIconSize, default_icon, this);
-    }
-
-    const gfx::ImageSkia& icon = icon_image->image_skia();
+    gfx::ImageSkia icon = GetIconForExtension(id, *extension);
     std::u16string name = base::UTF8ToUTF16(extension->name());
     std::string ext_id = id;
 
-    auto btn = std::make_unique<PinnedExtIconButton>(base::BindRepeating(
-        &DaoPinnedExtensionsContainer::OnExtensionClicked,
-        base::Unretained(this), ext_id));
+    auto btn = std::make_unique<PinnedExtIconButton>(
+        base::BindRepeating(&DaoPinnedExtensionsContainer::OnExtensionClicked,
+                            base::Unretained(this), ext_id));
     btn->SetImageModel(views::Button::STATE_NORMAL,
                        ui::ImageModel::FromImageSkia(icon));
     btn->SetImageHorizontalAlignment(views::ImageButton::ALIGN_CENTER);
@@ -153,29 +149,75 @@ void DaoPinnedExtensionsContainer::Rebuild() {
     ++count;
   }
 
-  // Remove cached icons for extensions that are no longer pinned.
-  std::erase_if(icon_images_, [&pinned_ids](const auto& pair) {
-    return std::find(pinned_ids.begin(), pinned_ids.end(), pair.first) ==
-           pinned_ids.end();
-  });
-
   SetVisible(count > 0);
   InvalidateLayout();
 }
 
-void DaoPinnedExtensionsContainer::OnExtensionIconImageChanged(
-    extensions::IconImage* image) {
-  for (const auto& [ext_id, cached_image] : icon_images_) {
-    if (cached_image.get() == image) {
-      auto it = id_to_button_.find(ext_id);
-      if (it != id_to_button_.end() && it->second) {
-        it->second->SetImageModel(
-            views::Button::STATE_NORMAL,
-            ui::ImageModel::FromImageSkia(image->image_skia()));
-      }
-      break;
+gfx::ImageSkia DaoPinnedExtensionsContainer::GetIconForExtension(
+    const std::string& extension_id,
+    const extensions::Extension& extension) {
+  if (!browser_) {
+    return gfx::ImageSkia();
+  }
+
+  auto* action_manager =
+      extensions::ExtensionActionManager::Get(browser_->profile());
+  if (!action_manager) {
+    return gfx::ImageSkia();
+  }
+  auto* action = action_manager->GetExtensionAction(extension);
+  if (!action) {
+    return gfx::ImageSkia();
+  }
+
+  auto& icon_factory = icon_factories_[extension_id];
+  if (!icon_factory) {
+    icon_factory = std::make_unique<extensions::ExtensionActionIconFactory>(
+        &extension, action, this);
+  }
+
+  int tab_id = extensions::ExtensionAction::kDefaultTabId;
+  if (auto* tab_strip_model = browser_->tab_strip_model()) {
+    if (auto* web_contents = tab_strip_model->GetActiveWebContents()) {
+      tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
     }
   }
+
+  gfx::Image icon = icon_factory->GetIcon(tab_id);
+  return icon.AsImageSkia();
+}
+
+bool DaoPinnedExtensionsContainer::UpdateButtonIcon(
+    const std::string& extension_id) {
+  auto button_it = id_to_button_.find(extension_id);
+  if (button_it == id_to_button_.end() || !button_it->second || !browser_) {
+    return false;
+  }
+
+  auto* registry = extensions::ExtensionRegistry::Get(browser_->profile());
+  if (!registry) {
+    return false;
+  }
+  const auto* extension = registry->enabled_extensions().GetByID(extension_id);
+  if (!extension) {
+    return false;
+  }
+
+  button_it->second->SetImageModel(
+      views::Button::STATE_NORMAL,
+      ui::ImageModel::FromImageSkia(
+          GetIconForExtension(extension_id, *extension)));
+  return true;
+}
+
+void DaoPinnedExtensionsContainer::UpdateAllButtonIcons() {
+  for (const auto& entry : id_to_button_) {
+    UpdateButtonIcon(entry.first);
+  }
+}
+
+void DaoPinnedExtensionsContainer::OnIconUpdated() {
+  UpdateAllButtonIcons();
 }
 
 void DaoPinnedExtensionsContainer::OnToolbarActionAdded(
@@ -190,7 +232,9 @@ void DaoPinnedExtensionsContainer::OnToolbarActionRemoved(
 
 void DaoPinnedExtensionsContainer::OnToolbarActionUpdated(
     const ToolbarActionsModel::ActionId& id) {
-  Rebuild();
+  if (!UpdateButtonIcon(id)) {
+    Rebuild();
+  }
 }
 
 void DaoPinnedExtensionsContainer::OnToolbarModelInitialized() {
@@ -201,14 +245,28 @@ void DaoPinnedExtensionsContainer::OnToolbarPinnedActionsChanged() {
   Rebuild();
 }
 
+void DaoPinnedExtensionsContainer::OnTabStripModelChanged(
+    TabStripModel* tab_strip_model,
+    const TabStripModelChange& change,
+    const TabStripSelectionChange& selection) {
+  if (selection.active_tab_changed()) {
+    UpdateAllButtonIcons();
+  }
+}
+
+void DaoPinnedExtensionsContainer::OnTabChangedAt(tabs::TabInterface* tab,
+                                                  int index,
+                                                  TabChangeType change_type) {
+  UpdateAllButtonIcons();
+}
+
 void DaoPinnedExtensionsContainer::OnExtensionClicked(
     const std::string& extension_id) {
   if (!browser_) {
     return;
   }
 
-  auto* web_contents =
-      browser_->tab_strip_model()->GetActiveWebContents();
+  auto* web_contents = browser_->tab_strip_model()->GetActiveWebContents();
   if (!web_contents) {
     return;
   }
@@ -218,8 +276,7 @@ void DaoPinnedExtensionsContainer::OnExtensionClicked(
   if (!registry) {
     return;
   }
-  const auto* extension =
-      registry->enabled_extensions().GetByID(extension_id);
+  const auto* extension = registry->enabled_extensions().GetByID(extension_id);
   if (!extension) {
     return;
   }
@@ -234,8 +291,7 @@ void DaoPinnedExtensionsContainer::OnExtensionClicked(
       runner->RunAction(extension, /*grant_tab_permissions=*/true);
 
   if (result == extensions::ExtensionAction::ShowAction::kShowPopup) {
-    auto* action_manager =
-        extensions::ExtensionActionManager::Get(profile);
+    auto* action_manager = extensions::ExtensionActionManager::Get(profile);
     auto* action = action_manager->GetExtensionAction(*extension);
     if (!action) {
       return;
@@ -311,25 +367,21 @@ void DaoPinnedExtensionsContainer::ShowContextMenuForViewImpl(
   if (!registry) {
     return;
   }
-  const auto* extension =
-      registry->enabled_extensions().GetByID(extension_id);
+  const auto* extension = registry->enabled_extensions().GetByID(extension_id);
   if (!extension) {
     return;
   }
 
   bool is_pinned = model_ && model_->IsActionPinned(extension_id);
-  context_menu_model_ =
-      std::make_unique<extensions::ExtensionContextMenuModel>(
-          extension, browser_, is_pinned, /*delegate=*/nullptr,
-          /*can_show_icon_in_toolbar=*/true,
-          extensions::ExtensionContextMenuModel::ContextMenuSource::
-              kToolbarAction);
+  context_menu_model_ = std::make_unique<extensions::ExtensionContextMenuModel>(
+      extension, browser_, is_pinned, /*delegate=*/nullptr,
+      /*can_show_icon_in_toolbar=*/true,
+      extensions::ExtensionContextMenuModel::ContextMenuSource::kToolbarAction);
 
   context_menu_adapter_ = std::make_unique<views::MenuModelAdapter>(
       context_menu_model_.get(),
-      base::BindRepeating(
-          &DaoPinnedExtensionsContainer::OnContextMenuClosed,
-          base::Unretained(this)));
+      base::BindRepeating(&DaoPinnedExtensionsContainer::OnContextMenuClosed,
+                          base::Unretained(this)));
 
   auto menu = context_menu_adapter_->CreateMenu();
   context_menu_runner_ = std::make_unique<views::MenuRunner>(

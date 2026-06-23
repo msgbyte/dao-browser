@@ -13,15 +13,16 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
-#include "extensions/browser/extension_icon_image.h"
+#include "extensions/browser/extension_action_icon_factory.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/view.h"
 
 class Browser;
 
 namespace gfx {
+class ImageSkia;
 class Point;
-}
+}  // namespace gfx
 
 namespace ui {
 class MenuModel;
@@ -45,13 +46,13 @@ class DaoControlCenterExtensionsSection
     : public views::View,
       public ToolbarActionsModel::Observer,
       public views::ContextMenuController,
-      public extensions::IconImage::Observer {
+      public extensions::ExtensionActionIconFactory::Observer {
   METADATA_HEADER(DaoControlCenterExtensionsSection, views::View)
 
  public:
   explicit DaoControlCenterExtensionsSection(Browser* browser);
-  DaoControlCenterExtensionsSection(
-      const DaoControlCenterExtensionsSection&) = delete;
+  DaoControlCenterExtensionsSection(const DaoControlCenterExtensionsSection&) =
+      delete;
   DaoControlCenterExtensionsSection& operator=(
       const DaoControlCenterExtensionsSection&) = delete;
   ~DaoControlCenterExtensionsSection() override;
@@ -61,10 +62,8 @@ class DaoControlCenterExtensionsSection
 
   // ToolbarActionsModel::Observer:
   void OnToolbarActionAdded(const ToolbarActionsModel::ActionId& id) override;
-  void OnToolbarActionRemoved(
-      const ToolbarActionsModel::ActionId& id) override;
-  void OnToolbarActionUpdated(
-      const ToolbarActionsModel::ActionId& id) override;
+  void OnToolbarActionRemoved(const ToolbarActionsModel::ActionId& id) override;
+  void OnToolbarActionUpdated(const ToolbarActionsModel::ActionId& id) override;
   void OnToolbarModelInitialized() override;
   void OnToolbarPinnedActionsChanged() override;
 
@@ -74,11 +73,15 @@ class DaoControlCenterExtensionsSection
       const gfx::Point& point,
       ui::mojom::MenuSourceType source_type) override;
 
-  // extensions::IconImage::Observer:
-  void OnExtensionIconImageChanged(extensions::IconImage* image) override;
+  // extensions::ExtensionActionIconFactory::Observer:
+  void OnIconUpdated() override;
 
  private:
   void RebuildGrid();
+  gfx::ImageSkia GetIconForExtension(const std::string& extension_id,
+                                     const extensions::Extension& extension);
+  bool UpdateButtonIcon(const std::string& extension_id);
+  void UpdateAllButtonIcons();
   void OnExtensionClicked(const std::string& extension_id);
   void OnAddClicked();
   void OnManageClicked();
@@ -95,8 +98,9 @@ class DaoControlCenterExtensionsSection
   // Maps icon button pointers to extension IDs for context menu lookup.
   std::map<views::View*, std::string> button_to_extension_id_;
 
-  // Cached IconImages keyed by extension ID. Persisted across rebuilds.
-  std::map<std::string, std::unique_ptr<extensions::IconImage>> icon_images_;
+  // Cached action icon factories keyed by extension ID.
+  std::map<std::string, std::unique_ptr<extensions::ExtensionActionIconFactory>>
+      icon_factories_;
 
   // Maps extension ID to the corresponding button for async icon updates.
   std::map<std::string, raw_ptr<views::ImageButton>> id_to_button_;

@@ -22,6 +22,9 @@
 #include "build/build_config.h"
 #include "content/public/browser/page_navigator.h"
 #include "base/command_line.h"
+#include "chrome/browser/extensions/chrome_test_extension_loader.h"
+#include "chrome/browser/extensions/extension_action_dispatcher.h"
+#include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -39,6 +42,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
+#include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
@@ -88,11 +92,13 @@
 #include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_control_center_button.h"
+#include "dao/browser/ui/views/dao_control_center_extensions_section.h"
 #include "dao/browser/ui/views/dao_control_center_more_menu.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_control_center_qr_view.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
+#include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
@@ -107,6 +113,9 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "extensions/browser/extension_action.h"
+#include "extensions/browser/extension_action_manager.h"
+#include "extensions/test/test_extension_dir.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -114,6 +123,8 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
 #include "ui/compositor/layer.h"
@@ -121,7 +132,10 @@
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_skia_rep.h"
 #include "ui/native_theme/native_theme.h"
+#include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
@@ -190,6 +204,75 @@ T* FindDescendantViewOfClass(views::View* root) {
     }
   }
   return nullptr;
+}
+
+views::ImageButton* FindImageButtonWithAccessibleName(
+    views::View* root,
+    std::u16string_view accessible_name) {
+  if (!root) {
+    return nullptr;
+  }
+  if (auto* button = views::AsViewClass<views::ImageButton>(root);
+      button && button->GetAccessibleName() == accessible_name) {
+    return button;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* button =
+            FindImageButtonWithAccessibleName(child, accessible_name)) {
+      return button;
+    }
+  }
+  return nullptr;
+}
+
+gfx::Image CreateSolidExtensionIcon(SkColor color) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(16, 16);
+  bitmap.eraseColor(color);
+  return gfx::Image::CreateFrom1xBitmap(bitmap);
+}
+
+SkColor GetCenterPixelColor(const gfx::ImageSkia& image) {
+  const gfx::ImageSkiaRep& image_rep = image.GetRepresentation(1.0f);
+  const SkBitmap& bitmap = image_rep.GetBitmap();
+  if (bitmap.drawsNothing()) {
+    return SK_ColorTRANSPARENT;
+  }
+  return SkColorSetA(bitmap.getColor(bitmap.width() / 2, bitmap.height() / 2),
+                     SK_AlphaOPAQUE);
+}
+
+scoped_refptr<const extensions::Extension> LoadActionExtension(
+    Profile* profile,
+    extensions::TestExtensionDir* extension_dir) {
+  constexpr char kManifest[] = R"({
+    "name": "Dao Dynamic Icon Test",
+    "version": "1.0",
+    "manifest_version": 3,
+    "action": {}
+  })";
+  extension_dir->WriteManifest(kManifest);
+  extensions::ChromeTestExtensionLoader loader(profile);
+  return loader.LoadExtension(extension_dir->UnpackedPath());
+}
+
+void SetActionIconForActiveTab(Browser* browser,
+                               const extensions::Extension& extension,
+                               SkColor color) {
+  content::WebContents* web_contents =
+      browser->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, web_contents);
+
+  Profile* profile = browser->profile();
+  auto* action =
+      extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(
+          extension);
+  ASSERT_NE(nullptr, action);
+
+  const int tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+  action->SetIcon(tab_id, CreateSolidExtensionIcon(color));
+  extensions::ExtensionActionDispatcher::Get(profile)->NotifyChange(
+      action, web_contents, profile);
 }
 
 std::string CallAgentNativeField(content::WebContents* agent_contents,
@@ -3316,6 +3399,50 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   popup->ShowMainPanel();
   EXPECT_FALSE(qr_view->GetVisible());
   EXPECT_FALSE(more_menu->GetVisible());
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       ExtensionActionIconUpdatesPinnedAndPopupButtons) {
+  extensions::TestExtensionDir extension_dir;
+  scoped_refptr<const extensions::Extension> extension =
+      LoadActionExtension(browser()->profile(), &extension_dir);
+  ASSERT_TRUE(extension);
+
+  auto* model = ToolbarActionsModel::Get(browser()->profile());
+  ASSERT_NE(nullptr, model);
+  model->SetActionVisibility(extension->id(), true);
+  ASSERT_TRUE(model->IsActionPinned(extension->id()));
+
+  const std::u16string extension_name =
+      base::UTF8ToUTF16(extension->name());
+  SetActionIconForActiveTab(browser(), *extension, SK_ColorRED);
+
+  auto* pinned_container =
+      FindDescendantViewOfClass<DaoPinnedExtensionsContainer>(
+          GetBrowserView(browser()));
+  ASSERT_NE(nullptr, pinned_container);
+  auto* pinned_button =
+      FindImageButtonWithAccessibleName(pinned_container, extension_name);
+  ASSERT_NE(nullptr, pinned_button);
+  EXPECT_EQ(SK_ColorRED,
+            GetCenterPixelColor(
+                pinned_button->GetImage(views::Button::STATE_NORMAL)));
+
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+
+  auto* extensions_section =
+      FindDescendantViewOfClass<DaoControlCenterExtensionsSection>(popup);
+  ASSERT_NE(nullptr, extensions_section);
+  auto* popup_button =
+      FindImageButtonWithAccessibleName(extensions_section, extension_name);
+  ASSERT_NE(nullptr, popup_button);
+  EXPECT_EQ(SK_ColorRED,
+            GetCenterPixelColor(
+                popup_button->GetImage(views::Button::STATE_NORMAL)));
 
   popup->Hide();
 }

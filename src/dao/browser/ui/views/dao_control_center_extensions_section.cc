@@ -4,41 +4,38 @@
 
 #include "dao/browser/ui/views/dao_control_center_extensions_section.h"
 
-
 #include "base/strings/utf_string_conversions.h"
-#include "dao/browser/strings/grit/dao_strings.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
-#include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/extensions/extension_view_host_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/extensions/extension_popup_types.h"
 #include "chrome/browser/ui/extensions/extension_side_panel_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
-#include "chrome/browser/ui/extensions/extension_popup_types.h"
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/manifest_handlers/icons_handler.h"
-#include "extensions/grit/extensions_browser_resources.h"
-#include "dao/browser/ui/views/dao_lucide_icons.h"
-#include "ui/base/resource/resource_bundle.h"
-#include "ui/gfx/canvas.h"
-#include "ui/gfx/geometry/rect_f.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
@@ -65,8 +62,7 @@ constexpr int kExtBtnRadius = 8;
 // An ImageButton that shows a rounded-rect hover highlight.
 class ExtIconButton : public views::ImageButton {
  public:
-  ExtIconButton(PressedCallback callback)
-      : ImageButton(std::move(callback)) {}
+  ExtIconButton(PressedCallback callback) : ImageButton(std::move(callback)) {}
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
     ImageButton::OnMouseEntered(event);
@@ -108,8 +104,7 @@ class GridActionButton : public views::Button {
     float icon_size = static_cast<float>(kExtIconSize);
     float ox = (width() - icon_size) / 2.0f;
     float oy = (height() - icon_size) / 2.0f;
-    DrawLucideIcon(canvas, icon_,
-                   gfx::RectF(ox, oy, icon_size, icon_size),
+    DrawLucideIcon(canvas, icon_, gfx::RectF(ox, oy, icon_size, icon_size),
                    ControlCenterIconMuted());
   }
 
@@ -158,7 +153,9 @@ DaoControlCenterExtensionsSection::~DaoControlCenterExtensionsSection() =
 void DaoControlCenterExtensionsSection::Refresh() {
   if (grid_dirty_) {
     RebuildGrid();
+    return;
   }
+  UpdateAllButtonIcons();
 }
 
 void DaoControlCenterExtensionsSection::OnToolbarActionAdded(
@@ -173,7 +170,9 @@ void DaoControlCenterExtensionsSection::OnToolbarActionRemoved(
 
 void DaoControlCenterExtensionsSection::OnToolbarActionUpdated(
     const ToolbarActionsModel::ActionId& id) {
-  grid_dirty_ = true;
+  if (!UpdateButtonIcon(id)) {
+    grid_dirty_ = true;
+  }
 }
 
 void DaoControlCenterExtensionsSection::OnToolbarModelInitialized() {
@@ -188,6 +187,7 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
   grid_->RemoveAllChildViews();
   button_to_extension_id_.clear();
   id_to_button_.clear();
+  icon_factories_.clear();
   grid_dirty_ = false;
 
   if (!model_ || !browser_) {
@@ -200,11 +200,6 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
     return;
   }
 
-  // Default icon to use while async loading is pending.
-  gfx::ImageSkia default_icon =
-      *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-          IDR_EXTENSIONS_FAVICON);
-
   const auto& action_ids = model_->action_ids();
   for (const auto& id : action_ids) {
     const auto* extension = registry->enabled_extensions().GetByID(id);
@@ -212,25 +207,14 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
       continue;
     }
 
-    // Get or create a cached IconImage for this extension.
-    auto& icon_image = icon_images_[id];
-    if (!icon_image) {
-      const auto& icon_set =
-          extensions::IconsInfo::GetIcons(extension);
-      icon_image = std::make_unique<extensions::IconImage>(
-          profile, extension, icon_set, kExtIconSize, default_icon, this);
-    }
-
-    // Use the current image (may be default if still loading).
-    const gfx::ImageSkia& icon = icon_image->image_skia();
+    gfx::ImageSkia icon = GetIconForExtension(id, *extension);
 
     std::u16string name = base::UTF8ToUTF16(extension->name());
     std::string ext_id = id;
 
-    auto btn = std::make_unique<ExtIconButton>(
-        base::BindRepeating(
-            &DaoControlCenterExtensionsSection::OnExtensionClicked,
-            base::Unretained(this), ext_id));
+    auto btn = std::make_unique<ExtIconButton>(base::BindRepeating(
+        &DaoControlCenterExtensionsSection::OnExtensionClicked,
+        base::Unretained(this), ext_id));
     btn->SetImageModel(views::Button::STATE_NORMAL,
                        ui::ImageModel::FromImageSkia(icon));
     btn->SetImageHorizontalAlignment(views::ImageButton::ALIGN_CENTER);
@@ -248,18 +232,11 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
     id_to_button_[ext_id] = btn_ptr;
   }
 
-  // Remove cached icons for extensions that are no longer present.
-  std::erase_if(icon_images_, [&action_ids](const auto& pair) {
-    return std::find(action_ids.begin(), action_ids.end(), pair.first) ==
-           action_ids.end();
-  });
-
   // "Add" action button — appended after extension icons.
   auto add_btn = std::make_unique<GridActionButton>(
       LucideIcon::kPlus,
-      base::BindRepeating(
-          &DaoControlCenterExtensionsSection::OnAddClicked,
-          base::Unretained(this)));
+      base::BindRepeating(&DaoControlCenterExtensionsSection::OnAddClicked,
+                          base::Unretained(this)));
   std::u16string add_label =
       l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_ADD_EXTENSION);
   add_btn->SetAccessibleName(add_label);
@@ -269,9 +246,8 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
   // "Manage" action button.
   auto manage_btn = std::make_unique<GridActionButton>(
       LucideIcon::kSettings,
-      base::BindRepeating(
-          &DaoControlCenterExtensionsSection::OnManageClicked,
-          base::Unretained(this)));
+      base::BindRepeating(&DaoControlCenterExtensionsSection::OnManageClicked,
+                          base::Unretained(this)));
   std::u16string manage_label =
       l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MANAGE_EXTENSIONS);
   manage_btn->SetAccessibleName(manage_label);
@@ -281,20 +257,71 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
   InvalidateLayout();
 }
 
-void DaoControlCenterExtensionsSection::OnExtensionIconImageChanged(
-    extensions::IconImage* image) {
-  // Find which extension this icon belongs to and update its button.
-  for (const auto& [ext_id, cached_image] : icon_images_) {
-    if (cached_image.get() == image) {
-      auto it = id_to_button_.find(ext_id);
-      if (it != id_to_button_.end() && it->second) {
-        it->second->SetImageModel(
-            views::Button::STATE_NORMAL,
-            ui::ImageModel::FromImageSkia(image->image_skia()));
-      }
-      break;
+gfx::ImageSkia DaoControlCenterExtensionsSection::GetIconForExtension(
+    const std::string& extension_id,
+    const extensions::Extension& extension) {
+  if (!browser_) {
+    return gfx::ImageSkia();
+  }
+
+  auto* action_manager =
+      extensions::ExtensionActionManager::Get(browser_->profile());
+  if (!action_manager) {
+    return gfx::ImageSkia();
+  }
+  auto* action = action_manager->GetExtensionAction(extension);
+  if (!action) {
+    return gfx::ImageSkia();
+  }
+
+  auto& icon_factory = icon_factories_[extension_id];
+  if (!icon_factory) {
+    icon_factory = std::make_unique<extensions::ExtensionActionIconFactory>(
+        &extension, action, this);
+  }
+
+  int tab_id = extensions::ExtensionAction::kDefaultTabId;
+  if (auto* tab_strip_model = browser_->tab_strip_model()) {
+    if (auto* web_contents = tab_strip_model->GetActiveWebContents()) {
+      tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
     }
   }
+
+  gfx::Image icon = icon_factory->GetIcon(tab_id);
+  return icon.AsImageSkia();
+}
+
+bool DaoControlCenterExtensionsSection::UpdateButtonIcon(
+    const std::string& extension_id) {
+  auto button_it = id_to_button_.find(extension_id);
+  if (button_it == id_to_button_.end() || !button_it->second || !browser_) {
+    return false;
+  }
+
+  auto* registry = extensions::ExtensionRegistry::Get(browser_->profile());
+  if (!registry) {
+    return false;
+  }
+  const auto* extension = registry->enabled_extensions().GetByID(extension_id);
+  if (!extension) {
+    return false;
+  }
+
+  button_it->second->SetImageModel(
+      views::Button::STATE_NORMAL,
+      ui::ImageModel::FromImageSkia(
+          GetIconForExtension(extension_id, *extension)));
+  return true;
+}
+
+void DaoControlCenterExtensionsSection::UpdateAllButtonIcons() {
+  for (const auto& entry : id_to_button_) {
+    UpdateButtonIcon(entry.first);
+  }
+}
+
+void DaoControlCenterExtensionsSection::OnIconUpdated() {
+  UpdateAllButtonIcons();
 }
 
 void DaoControlCenterExtensionsSection::OnExtensionClicked(
@@ -303,8 +330,7 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
     return;
   }
 
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(browser_);
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
 
   // Close the control center popup first (unblocks web content events).
   if (browser_view) {
@@ -314,8 +340,7 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
     }
   }
 
-  auto* web_contents =
-      browser_->tab_strip_model()->GetActiveWebContents();
+  auto* web_contents = browser_->tab_strip_model()->GetActiveWebContents();
   if (!web_contents) {
     return;
   }
@@ -325,8 +350,7 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
   if (!registry) {
     return;
   }
-  const auto* extension =
-      registry->enabled_extensions().GetByID(extension_id);
+  const auto* extension = registry->enabled_extensions().GetByID(extension_id);
   if (!extension) {
     return;
   }
@@ -343,8 +367,7 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
 
   if (result == extensions::ExtensionAction::ShowAction::kShowPopup) {
     // Show popup anchored to the CC button in the address bar.
-    auto* action_manager =
-        extensions::ExtensionActionManager::Get(profile);
+    auto* action_manager = extensions::ExtensionActionManager::Get(profile);
     auto* action = action_manager->GetExtensionAction(*extension);
     if (!action) {
       return;
@@ -375,18 +398,16 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
 
     ExtensionPopup::ShowPopup(browser_, std::move(host), anchor,
                               views::BubbleBorder::BOTTOM_RIGHT,
-                              PopupShowAction::kShow,
-                              base::DoNothing());
+                              PopupShowAction::kShow, base::DoNothing());
   } else if (result ==
              extensions::ExtensionAction::ShowAction::kToggleSidePanel) {
-    extensions::side_panel_util::ToggleExtensionSidePanel(
-        browser_, extension->id());
+    extensions::side_panel_util::ToggleExtensionSidePanel(browser_,
+                                                          extension->id());
   }
 }
 
 void DaoControlCenterExtensionsSection::OnAddClicked() {
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(browser_);
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (browser_view) {
     auto* cc_popup = browser_view->dao_control_center_popup();
     if (cc_popup) {
@@ -400,8 +421,7 @@ void DaoControlCenterExtensionsSection::OnAddClicked() {
 }
 
 void DaoControlCenterExtensionsSection::OnManageClicked() {
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(browser_);
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (browser_view) {
     auto* cc_popup = browser_view->dao_control_center_popup();
     if (cc_popup) {
@@ -437,19 +457,16 @@ void DaoControlCenterExtensionsSection::ShowContextMenuForViewImpl(
   if (!registry) {
     return;
   }
-  const auto* extension =
-      registry->enabled_extensions().GetByID(extension_id);
+  const auto* extension = registry->enabled_extensions().GetByID(extension_id);
   if (!extension) {
     return;
   }
 
   bool is_pinned = model_ && model_->IsActionPinned(extension_id);
-  context_menu_model_ =
-      std::make_unique<extensions::ExtensionContextMenuModel>(
-          extension, browser_, is_pinned, /*delegate=*/nullptr,
-          /*can_show_icon_in_toolbar=*/true,
-          extensions::ExtensionContextMenuModel::ContextMenuSource::
-              kToolbarAction);
+  context_menu_model_ = std::make_unique<extensions::ExtensionContextMenuModel>(
+      extension, browser_, is_pinned, /*delegate=*/nullptr,
+      /*can_show_icon_in_toolbar=*/true,
+      extensions::ExtensionContextMenuModel::ContextMenuSource::kToolbarAction);
 
   context_menu_adapter_ = std::make_unique<views::MenuModelAdapter>(
       context_menu_model_.get(),
