@@ -65,10 +65,10 @@ class LittleDaoBrowserTracker : public BrowserListObserver {
 }  // namespace
 
 // static
-void DaoLittleDaoController::OpenInLittleDao(Profile* profile,
-                                             const GURL& url) {
+Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
+                                                 const GURL& url) {
   if (!profile)
-    return;
+    return nullptr;
 
   Browser::CreateParams params(Browser::TYPE_POPUP, profile,
                                /*user_gesture=*/true);
@@ -89,6 +89,7 @@ void DaoLittleDaoController::OpenInLittleDao(Profile* profile,
   nav_params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   nav_params.window_action = NavigateParams::WindowAction::kShowWindow;
   ::Navigate(&nav_params);
+  return browser;
 }
 
 // static

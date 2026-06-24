@@ -18,8 +18,9 @@ namespace dao {
 // the main browser.
 class DaoLittleDaoController {
  public:
-  // Creates a Little Dao popup window and navigates to |url|.
-  static void OpenInLittleDao(Profile* profile, const GURL& url);
+  // Creates a Little Dao popup window, navigates to |url|, and returns the
+  // created Browser. Returns nullptr when no suitable profile is available.
+  static Browser* OpenInLittleDao(Profile* profile, const GURL& url);
 
   // Returns true if |browser| is a Little Dao window.
   static bool IsLittleDaoWindow(const Browser* browser);

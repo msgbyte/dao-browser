@@ -20,6 +20,8 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_list_observer.h"
 #include "content/public/browser/page_navigator.h"
 #include "base/command_line.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
@@ -156,6 +158,29 @@ namespace {
 BrowserView* GetBrowserView(Browser* browser) {
   return BrowserView::GetBrowserViewForBrowser(browser);
 }
+
+class BrowserAddedRecorder : public BrowserListObserver {
+ public:
+  BrowserAddedRecorder() { BrowserList::AddObserver(this); }
+
+  BrowserAddedRecorder(const BrowserAddedRecorder&) = delete;
+  BrowserAddedRecorder& operator=(const BrowserAddedRecorder&) = delete;
+
+  ~BrowserAddedRecorder() override { BrowserList::RemoveObserver(this); }
+
+  size_t added_count() const { return added_browsers_.size(); }
+
+  Browser* added_browser_at(size_t index) const {
+    return added_browsers_.at(index);
+  }
+
+  void OnBrowserAdded(Browser* browser) override {
+    added_browsers_.push_back(browser);
+  }
+
+ private:
+  std::vector<raw_ptr<Browser, VectorExperimental>> added_browsers_;
+};
 
 bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
   if (!root) {
@@ -2116,38 +2141,48 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateTabsGetDistinctSidebarTabIds)
 }
 
 // External URL entry points (macOS application:openURLs:, Universal Links,
-// other apps invoking "open in browser") all funnel through
+// other apps invoking "open in browser") funnel through
 // StartupBrowserCreatorImpl::OpenURLsInBrowser with process_startup == kNo.
-// Without an explicit tabstrip_index, AddTab normalizes -1 to count() and
-// appends the tab to the end of the strip — the *bottom* of the vertical
-// sidebar — which contradicts the command-bar new-tab UX where new tabs land
-// at the top. Patches in src/patches/chrome/browser/ui/startup/ force top
-// insertion; these tests guard that behavior.
-IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, ExternalUrlOpensAtTopOfStrip) {
+// Dao handles those already-running requests in Little Dao so opening a link
+// from Terminal or another app does not steal focus into the full browser.
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       ExternalUrlOpensInLittleDaoWhenAlreadyRunning) {
   TabStripModel* model = browser()->tab_strip_model();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   const int initial_count = model->count();
   ASSERT_GE(initial_count, 3);
+  const GURL url("data:text/plain,external");
 
+  BrowserAddedRecorder added_recorder;
   base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
   StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
                                    chrome::startup::IsFirstRun::kNo);
-  launch.OpenURLsInBrowser(browser(),
-                           chrome::startup::IsProcessStartup::kNo,
-                           {GURL("data:text/plain,external")});
+  Browser* opened_browser = launch.OpenURLsInBrowser(
+      browser(), chrome::startup::IsProcessStartup::kNo, {url});
 
-  EXPECT_EQ(initial_count + 1, model->count());
-  EXPECT_EQ(0, model->active_index());
+  EXPECT_EQ(initial_count, model->count());
+  ASSERT_EQ(1u, added_recorder.added_count());
+  ASSERT_NE(nullptr, opened_browser);
+  EXPECT_EQ(added_recorder.added_browser_at(0), opened_browser);
+  EXPECT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(opened_browser));
+  EXPECT_EQ(Browser::TYPE_POPUP, opened_browser->type());
+  EXPECT_NE(nullptr, GetBrowserView(opened_browser)->dao_little_dao_view());
+  ASSERT_EQ(1, opened_browser->tab_strip_model()->count());
+  content::WebContents* contents =
+      opened_browser->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  EXPECT_EQ(url, contents->GetVisibleURL());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
-                       ExternalUrlsPreserveInputOrderAtTop) {
+                       ExternalUrlsOpenSeparateLittleDaoWindows) {
   TabStripModel* model = browser()->tab_strip_model();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   const int initial_count = model->count();
   ASSERT_GE(initial_count, 2);
 
+  BrowserAddedRecorder added_recorder;
   base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
   StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
                                    chrome::startup::IsFirstRun::kNo);
@@ -2156,14 +2191,23 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
       GURL("data:text/plain,b"),
       GURL("data:text/plain,c"),
   };
-  launch.OpenURLsInBrowser(browser(),
-                           chrome::startup::IsProcessStartup::kNo, urls);
+  Browser* opened_browser = launch.OpenURLsInBrowser(
+      browser(), chrome::startup::IsProcessStartup::kNo, urls);
 
-  ASSERT_EQ(initial_count + 3, model->count());
-  EXPECT_EQ(0, model->active_index());
-  EXPECT_EQ(urls[0], model->GetWebContentsAt(0)->GetVisibleURL());
-  EXPECT_EQ(urls[1], model->GetWebContentsAt(1)->GetVisibleURL());
-  EXPECT_EQ(urls[2], model->GetWebContentsAt(2)->GetVisibleURL());
+  EXPECT_EQ(initial_count, model->count());
+  ASSERT_EQ(urls.size(), added_recorder.added_count());
+  EXPECT_EQ(added_recorder.added_browser_at(urls.size() - 1), opened_browser);
+
+  for (size_t i = 0; i < urls.size(); ++i) {
+    Browser* little_dao_browser = added_recorder.added_browser_at(i);
+    EXPECT_TRUE(
+        dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+    ASSERT_EQ(1, little_dao_browser->tab_strip_model()->count());
+    content::WebContents* contents =
+        little_dao_browser->tab_strip_model()->GetActiveWebContents();
+    ASSERT_NE(nullptr, contents);
+    EXPECT_EQ(urls[i], contents->GetVisibleURL());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, AutoTopLevelBrowserOpenUrlOpensAtTop) {

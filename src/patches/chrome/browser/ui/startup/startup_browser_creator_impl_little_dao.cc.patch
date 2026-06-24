@@ -1,0 +1,48 @@
+diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+index 89e244b960..c5f2f6a5d2 100644
+--- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+@@ -74,6 +74,7 @@
+ #if BUILDFLAG(IS_MAC)
+ #include "base/mac/mac_util.h"
+ #include "chrome/browser/app_controller_mac.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if BUILDFLAG(ENABLE_RLZ)
+@@ -282,6 +283,35 @@ Browser* StartupBrowserCreatorImpl::OpenURLsInBrowser(
+     Browser* browser,
+     chrome::startup::IsProcessStartup process_startup,
+     const std::vector<GURL>& urls) {
++#if BUILDFLAG(IS_MAC)
++  // Dao: when an already-running Dao process receives external URLs via
++  // ProcessSingleton, open them in Little Dao instead of mutating the main
++  // browser's tab strip.
++  if (process_startup == chrome::startup::IsProcessStartup::kNo) {
++    Profile* profile = profile_;
++    if (!profile && browser) {
++      profile = browser->profile();
++    }
++
++    if (profile) {
++      custom_handlers::ProtocolHandlerRegistry* registry =
++          ProtocolHandlerRegistryFactory::GetForBrowserContext(profile);
++      Browser* last_little_dao_browser = nullptr;
++      for (const GURL& url : urls) {
++        const bool handled_by_chrome =
++            ProfileIOData::IsHandledURL(url) ||
++            (registry && registry->IsHandledProtocol(url.GetScheme()));
++        if (!handled_by_chrome) {
++          continue;
++        }
++        last_little_dao_browser =
++            dao::DaoLittleDaoController::OpenInLittleDao(profile, url);
++      }
++      return last_little_dao_browser ? last_little_dao_browser : browser;
++    }
++  }
++#endif  // BUILDFLAG(IS_MAC)
++
+   StartupTabs tabs;
+   UrlsToTabs(urls, &tabs);
+   return OpenTabsInBrowser(browser, process_startup, tabs, TabOverWrite::kNo);
