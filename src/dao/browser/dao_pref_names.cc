@@ -12,6 +12,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoAgentMemoryEnabled, false);
   registry->RegisterDictionaryPref(kDaoSplitLayout);
   registry->RegisterBooleanPref(kDaoWelcomeShown, false);
+  registry->RegisterBooleanPref(kDaoLittleDaoEnabled, true);
   registry->RegisterBooleanPref(kDaoDreamEnabled, false);
   registry->RegisterBooleanPref(kDaoDreamDebug, false);
 }

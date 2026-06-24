@@ -1,0 +1,63 @@
+diff --git a/chrome/browser/resources/settings/dao_page/dao_page.ts b/chrome/browser/resources/settings/dao_page/dao_page.ts
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
+@@ -0,0 +1,57 @@
++// Copyright 2026 Dao Browser Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++/**
++ * @fileoverview
++ * 'settings-dao-page' contains Dao-specific browser settings.
++ */
++import '../controls/settings_toggle_button.js';
++import '../settings_page/settings_section.js';
++import '../settings_shared.css.js';
++
++import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
++
++import {getSearchManager} from '../search_settings.js';
++import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
++
++import {getTemplate} from './dao_page.html.js';
++
++export interface SettingsDaoPageElement {
++  prefs: {[key: string]: any};
++}
++
++export class SettingsDaoPageElement extends PolymerElement implements
++    SettingsPlugin {
++  static get is() {
++    return 'settings-dao-page';
++  }
++
++  static get template() {
++    return getTemplate();
++  }
++
++  static get properties() {
++    return {
++      prefs: {
++        type: Object,
++        notify: true,
++      },
++    };
++  }
++
++  declare prefs: {[key: string]: any};
++
++  async searchContents(query: string) {
++    const searchRequest = await getSearchManager().search(query, this);
++    return searchRequest.getSearchResult();
++  }
++}
++
++declare global {
++  interface HTMLElementTagNameMap {
++    'settings-dao-page': SettingsDaoPageElement;
++  }
++}
++
++customElements.define(SettingsDaoPageElement.is, SettingsDaoPageElement);

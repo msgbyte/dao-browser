@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html b/chrome/browser/resources/settings/settings_main/settings_main.html
+index c6fe484fcf..0000000001 100644
+--- a/chrome/browser/resources/settings/settings_main/settings_main.html
++++ b/chrome/browser/resources/settings/settings_main/settings_main.html
+@@ -52,6 +52,16 @@
+     </div>
+   </template>
+-
++
++  <template is="dom-if" if="[[showPage_(pageVisibility_.dao)]]">
++    <div slot="view" id="dao">
++      <template is="dom-if" if="[[renderPlugin_(
++          routes_.DAO, lastRoute_, inSearchMode_)]]">
++        <settings-dao-page prefs="{{prefs}}">
++        </settings-dao-page>
++      </template>
++    </div>
++  </template>
++
+   <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
+     <div slot="view" id="privacy">
+       <template is="dom-if" if="[[renderPlugin_(

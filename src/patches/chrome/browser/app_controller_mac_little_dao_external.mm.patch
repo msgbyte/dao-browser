@@ -26,7 +26,7 @@ index e011866f4a..5d2c53b11f 100644
  #include "components/sessions/core/tab_restore_service.h"
  #include "content/public/browser/download_manager.h"
  #include "extensions/browser/extension_registry.h"
-@@ -2484,6 +2487,27 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
+@@ -2484,6 +2487,29 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
      profile = ProfileManager::MaybeForceOffTheRecordMode(
          profile->GetOriginalProfile());
    }
@@ -34,21 +34,23 @@ index e011866f4a..5d2c53b11f 100644
 +  // Dao: native macOS external URL events arrive here when the app is already
 +  // running. Open those URLs in Little Dao and return before the normal-browser
 +  // NTP replacement cleanup below can close an existing main-window tab.
-+  custom_handlers::ProtocolHandlerRegistry* registry =
-+      ProtocolHandlerRegistryFactory::GetForBrowserContext(profile);
-+  bool opened_little_dao = false;
-+  for (const GURL& url : urls) {
-+    const bool handled_by_chrome =
-+        ProfileIOData::IsHandledURL(url) ||
-+        (registry && registry->IsHandledProtocol(url.GetScheme()));
-+    if (!handled_by_chrome) {
-+      continue;
++  if (profile->GetPrefs()->GetBoolean(dao::prefs::kDaoLittleDaoEnabled)) {
++    custom_handlers::ProtocolHandlerRegistry* registry =
++        ProtocolHandlerRegistryFactory::GetForBrowserContext(profile);
++    bool opened_little_dao = false;
++    for (const GURL& url : urls) {
++      const bool handled_by_chrome =
++          ProfileIOData::IsHandledURL(url) ||
++          (registry && registry->IsHandledProtocol(url.GetScheme()));
++      if (!handled_by_chrome) {
++        continue;
++      }
++      dao::DaoLittleDaoController::OpenInLittleDao(profile, url);
++      opened_little_dao = true;
 +    }
-+    dao::DaoLittleDaoController::OpenInLittleDao(profile, url);
-+    opened_little_dao = true;
-+  }
-+  if (opened_little_dao) {
-+    return;
++    if (opened_little_dao) {
++      return;
++    }
 +  }
 +
    // Use FindTabbedBrowser to ensure URLs open in a normal tabbed browser

@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/resources/settings/page_visibility.ts b/chrome/browser/resources/settings/page_visibility.ts
+index fb50ff51c0..0000000001 100644
+--- a/chrome/browser/resources/settings/page_visibility.ts
++++ b/chrome/browser/resources/settings/page_visibility.ts
+@@ -13,6 +13,7 @@ export interface PageVisibility {
+   appearance?: boolean|AppearancePageVisibility;
+   autofill?: boolean;
+   defaultBrowser?: boolean;
++  dao?: boolean;
+   downloads?: boolean;
+   extensions?: boolean;
+   languages?: boolean;
+@@ -45,6 +46,7 @@ function createPageVisibility(): PageVisibility|undefined {
+     appearance: false,
+     autofill: false,
+     defaultBrowser: false,
++    dao: false,
+     downloads: false,
+     extensions: false,
+     languages: false,

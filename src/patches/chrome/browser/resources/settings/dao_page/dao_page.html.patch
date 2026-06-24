@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/resources/settings/dao_page/dao_page.html b/chrome/browser/resources/settings/dao_page/dao_page.html
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/browser/resources/settings/dao_page/dao_page.html
+@@ -0,0 +1,10 @@
++<style include="settings-shared"></style>
++
++<settings-section page-title="$i18n{daoPageTitle}"
++    class="cr-centered-card-container">
++  <settings-toggle-button id="littleDaoEnabled"
++      pref="{{prefs.dao.little_dao_enabled}}"
++      label="$i18n{littleDaoEnabledLabel}"
++      sub-label="$i18n{littleDaoEnabledSubLabel}">
++  </settings-toggle-button>
++</settings-section>

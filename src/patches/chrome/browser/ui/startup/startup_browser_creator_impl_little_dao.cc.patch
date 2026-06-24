@@ -2,15 +2,16 @@ diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/
 index 89e244b960..c5f2f6a5d2 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-@@ -74,6 +74,7 @@
+@@ -74,6 +74,8 @@
  #if BUILDFLAG(IS_MAC)
  #include "base/mac/mac_util.h"
  #include "chrome/browser/app_controller_mac.h"
++#include "dao/browser/dao_pref_names.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
  #endif  // BUILDFLAG(IS_MAC)
  
  #if BUILDFLAG(ENABLE_RLZ)
-@@ -282,6 +283,35 @@ Browser* StartupBrowserCreatorImpl::OpenURLsInBrowser(
+@@ -282,6 +284,36 @@ Browser* StartupBrowserCreatorImpl::OpenURLsInBrowser(
      Browser* browser,
      chrome::startup::IsProcessStartup process_startup,
      const std::vector<GURL>& urls) {
@@ -24,7 +25,8 @@ index 89e244b960..c5f2f6a5d2 100644
 +      profile = browser->profile();
 +    }
 +
-+    if (profile) {
++    if (profile &&
++        profile->GetPrefs()->GetBoolean(dao::prefs::kDaoLittleDaoEnabled)) {
 +      custom_handlers::ProtocolHandlerRegistry* registry =
 +          ProtocolHandlerRegistryFactory::GetForBrowserContext(profile);
 +      Browser* last_little_dao_browser = nullptr;

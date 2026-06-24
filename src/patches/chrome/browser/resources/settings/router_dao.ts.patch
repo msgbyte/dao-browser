@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/resources/settings/router.ts b/chrome/browser/resources/settings/router.ts
+index 2977bf7cb1..0000000002 100644
+--- a/chrome/browser/resources/settings/router.ts
++++ b/chrome/browser/resources/settings/router.ts
+@@ -20,6 +20,7 @@ export interface SettingsRoutes {
+   COMPARE: Route;
+   COOKIES: Route;
+   DEFAULT_BROWSER: Route;
++  DAO: Route;
+   DOWNLOADS: Route;
+   EDIT_DICTIONARY: Route;
+   FONTS: Route;

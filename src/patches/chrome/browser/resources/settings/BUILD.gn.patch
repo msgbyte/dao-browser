@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/resources/settings/BUILD.gn b/chrome/browser/resources/settings/BUILD.gn
+index 3f28b46831..0000000001 100644
+--- a/chrome/browser/resources/settings/BUILD.gn
++++ b/chrome/browser/resources/settings/BUILD.gn
+@@ -91,6 +91,7 @@ build_webui("build") {
+     "controls/settings_radio_group.ts",
+     "controls/settings_slider.ts",
+     "controls/settings_toggle_button.ts",
++    "dao_page/dao_page.ts",
+     "downloads_page/downloads_page.ts",
+     "glic_page/glic_page.ts",
+     "glic_page/glic_subpage.ts",

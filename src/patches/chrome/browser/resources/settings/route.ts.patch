@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/resources/settings/route.ts b/chrome/browser/resources/settings/route.ts
+index f3473b12d1..0000000001 100644
+--- a/chrome/browser/resources/settings/route.ts
++++ b/chrome/browser/resources/settings/route.ts
+@@ -200,6 +200,11 @@ function createRoutes(): SettingsRoutes {
+     r.SYNC_ADVANCED = r.SYNC.createChild('/syncSetup/advanced');
+   }
+-
++
++  if (visibility.dao !== false) {
++    r.DAO = r.BASIC.createSection(
++        '/dao', 'dao', loadTimeData.getString('daoPageTitle'));
++  }
++
+   if (visibility.ai !== false && loadTimeData.getBoolean('showAiPage')) {
+     r.AI = r.BASIC.createSection(
+         '/ai', 'ai', loadTimeData.getString('aiInnovationsPageTitle'));

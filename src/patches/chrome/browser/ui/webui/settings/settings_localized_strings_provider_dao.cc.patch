@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+index 6f70406bc5..0000000002 100644
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -4098,7 +4098,17 @@ void AddExtensionsStrings(content::WebUIDataSource* html_source) {
+   html_source->AddLocalizedString("extensionsPageTitle",
+                                   IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
+ }
+-
++
++void AddDaoStrings(content::WebUIDataSource* html_source) {
++  static constexpr webui::LocalizedString kLocalizedStrings[] = {
++      {"daoPageTitle", IDS_SETTINGS_DAO_PAGE_TITLE},
++      {"littleDaoEnabledLabel", IDS_SETTINGS_LITTLE_DAO_ENABLED_LABEL},
++      {"littleDaoEnabledSubLabel",
++       IDS_SETTINGS_LITTLE_DAO_ENABLED_SUB_LABEL},
++  };
++  html_source->AddLocalizedStrings(kLocalizedStrings);
++}
++
+ void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
+   static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
+       {"securityBundleResetToDefaultsButtonLabel",
+@@ -4241,6 +4252,7 @@ void AddSettingsLocalizedStrings(content::WebUIDataSource* html_source,
+   AddClearBrowsingDataStrings(html_source, profile);
+   AddCommonStrings(html_source, profile);
+   AddDownloadsStrings(html_source);
++  AddDaoStrings(html_source);
+   AddExtensionsStrings(html_source);
+   AddGlicStrings(html_source, profile);
+   AddPerformanceStrings(html_source);

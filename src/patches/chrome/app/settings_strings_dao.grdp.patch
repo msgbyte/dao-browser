@@ -1,0 +1,20 @@
+diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
+index d9e3f457c1..0000000002 100644
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -3824,6 +3824,15 @@
+   <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
+     You and Google
+   </message>
++  <message name="IDS_SETTINGS_DAO_PAGE_TITLE" desc="Name of the settings page for Dao-specific browser settings.">
++    You and Dao
++  </message>
++  <message name="IDS_SETTINGS_LITTLE_DAO_ENABLED_LABEL" desc="Label for the setting that enables or disables opening external links in Little Dao mini-browser windows.">
++    Enable Little Dao
++  </message>
++  <message name="IDS_SETTINGS_LITTLE_DAO_ENABLED_SUB_LABEL" desc="Description for the setting that opens links from other apps in Little Dao when enabled, or in a regular full browser window when disabled.">
++    Open links from other apps in a compact Little Dao window
++  </message>
+   <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
+     Google Profile photo
+   </message>

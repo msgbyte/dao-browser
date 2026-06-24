@@ -2,10 +2,11 @@ diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controlle
 index 50ceb7af41..e011866f4a 100644
 --- a/chrome/browser/app_controller_mac.mm
 +++ b/chrome/browser/app_controller_mac.mm
-@@ -67,7 +67,10 @@
+@@ -67,7 +67,11 @@
  #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
  #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
  #include "chrome/browser/ui/browser.h"
++#include "dao/browser/dao_pref_names.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/updater/dao_updater_service.h"
  #include "chrome/browser/ui/browser_command_controller.h"

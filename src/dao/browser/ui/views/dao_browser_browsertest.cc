@@ -2210,6 +2210,32 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   }
 }
 
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       ExternalUrlUsesFullWindowWhenLittleDaoDisabled) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoLittleDaoEnabled, false);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  const int initial_count = model->count();
+  ASSERT_GE(initial_count, 3);
+  const GURL url("data:text/plain,external-disabled");
+
+  BrowserAddedRecorder added_recorder;
+  base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
+  StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
+                                   chrome::startup::IsFirstRun::kNo);
+  Browser* opened_browser = launch.OpenURLsInBrowser(
+      browser(), chrome::startup::IsProcessStartup::kNo, {url});
+
+  EXPECT_EQ(browser(), opened_browser);
+  EXPECT_EQ(0u, added_recorder.added_count());
+  EXPECT_EQ(initial_count + 1, model->count());
+  EXPECT_EQ(0, model->active_index());
+  EXPECT_EQ(url, model->GetWebContentsAt(0)->GetVisibleURL());
+}
+
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, AutoTopLevelBrowserOpenUrlOpensAtTop) {
   TabStripModel* model = browser()->tab_strip_model();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);

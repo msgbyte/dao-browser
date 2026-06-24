@@ -26,6 +26,10 @@ inline constexpr char kDaoSplitLayout[] = "dao.split_layout";
 // When false (the default), dao://welcome is opened on first launch.
 inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";
 
+// Boolean pref that controls whether external links open in Little Dao.
+// When false, external links use the regular full browser window.
+inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";
+
 // Boolean pref that controls the Dream Analysis system. When false (the
 // default), the dream scheduler never fires and no browsing data is sent
 // to the LLM provider. Requires kDaoAgentMemoryEnabled to also be true.

@@ -1,0 +1,18 @@
+diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
+index cddbd3b798..0000000001 100644
+--- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
++++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
+@@ -59,6 +59,13 @@
+           $i18n{peoplePageTitle}
+           <cr-ripple></cr-ripple>
+         </a>
++        <a role="menuitem" id="dao" href="/dao"
++            hidden="[[!pageVisibility_.dao]]"
++            class="cr-nav-menu-item">
++          <cr-icon icon="settings:person"></cr-icon>
++          $i18n{daoPageTitle}
++          <cr-ripple></cr-ripple>
++        </a>
+         <a role="menuitem" id="autofill" href="/autofill"
+             on-click="onAutofillClick_"
+             class="cr-nav-menu-item"

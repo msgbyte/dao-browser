@@ -1,0 +1,56 @@
+diff --git a/chrome/test/data/webui/settings/dao_page_test.ts b/chrome/test/data/webui/settings/dao_page_test.ts
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/test/data/webui/settings/dao_page_test.ts
+@@ -0,0 +1,50 @@
++// Copyright 2026 Dao Browser Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++import 'chrome://settings/settings.js';
++
++import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
++import type {SettingsDaoPageElement, SettingsToggleButtonElement} from 'chrome://settings/settings.js';
++import {Router, routes} from 'chrome://settings/settings.js';
++import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
++
++suite('DaoPage', function() {
++  let page: SettingsDaoPageElement;
++
++  setup(function() {
++    document.body.innerHTML = window.trustedTypes!.emptyHTML;
++    page = document.createElement('settings-dao-page');
++    page.prefs = {
++      dao: {
++        little_dao_enabled: {
++          key: 'dao.little_dao_enabled',
++          type: chrome.settingsPrivate.PrefType.BOOLEAN,
++          value: true,
++        },
++      },
++    };
++    document.body.appendChild(page);
++    flush();
++  });
++
++  test('littleDaoToggleBindsToDaoPref', function() {
++    const toggle =
++        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++            '#littleDaoEnabled');
++    assertTrue(!!toggle);
++    assertEquals('dao.little_dao_enabled', toggle.pref!.key);
++    assertTrue(toggle.checked);
++  });
++
++  test('routeIsIndependentDaoSection', function() {
++    assertEquals('/dao', routes.DAO.path);
++    assertEquals('dao', routes.DAO.section);
++    assertEquals('daoPageTitle', routes.DAO.title);
++  });
++
++  test('navigatesToDaoRoute', function() {
++    Router.getInstance().navigateTo(routes.DAO);
++    assertEquals(routes.DAO, Router.getInstance().getCurrentRoute());
++  });
++});
