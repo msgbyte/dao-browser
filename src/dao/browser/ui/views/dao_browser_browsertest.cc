@@ -1109,6 +1109,46 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       CloseDuplicateTabsKeepsMostRecentlyActiveTab) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL duplicate_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL unique_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), duplicate_url));
+  content::WebContents* older_duplicate =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, older_duplicate);
+
+  base::PlatformThread::Sleep(base::Milliseconds(2));
+  chrome::AddTabAt(browser(), unique_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  base::PlatformThread::Sleep(base::Milliseconds(2));
+  chrome::AddTabAt(browser(), duplicate_url, 2, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  content::WebContents* recent_duplicate =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, recent_duplicate);
+  ASSERT_NE(older_duplicate, recent_duplicate);
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+
+  EXPECT_EQ(1, handler.CloseDuplicateTabsForTesting());
+
+  TabStripModel* model = browser()->tab_strip_model();
+  EXPECT_EQ(2, model->count());
+  EXPECT_EQ(TabStripModel::kNoTab,
+            model->GetIndexOfWebContents(older_duplicate));
+  ASSERT_NE(TabStripModel::kNoTab,
+            model->GetIndexOfWebContents(recent_duplicate));
+  EXPECT_EQ(duplicate_url, recent_duplicate->GetLastCommittedURL());
+  EXPECT_NE(TabStripModel::kNoTab, FindTabIndexByUrl(browser(), unique_url));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        PinNormalTabAddsPinnedItemAndExcludesFromUnpinnedTabs) {
   ASSERT_TRUE(embedded_test_server()->Start());
 

@@ -527,6 +527,11 @@ describe('dao-sidebar-app', () => {
       ],
       ['kCloseTab', 'IDS_DAO_TAB_CONTEXT_CLOSE_TAB', '3551320343578183772'],
       [
+        'kCloseDuplicateTabs',
+        'IDS_DAO_TAB_CONTEXT_CLOSE_DUPLICATE_TABS',
+        '2703180365855369896',
+      ],
+      [
         'kCloseOtherTabs',
         'IDS_DAO_TAB_CONTEXT_CLOSE_OTHER_TABS',
         '4322394346347055525',

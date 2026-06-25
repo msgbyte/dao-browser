@@ -2748,7 +2748,7 @@ export class DaoChatView extends CrLitElement {
     let host = '';
     try {
       const info = await fetchCurrentPageInfo();
-      if (info.url) {
+      if (info?.url) {
         host = new URL(info.url).hostname;
       }
     } catch (_) {

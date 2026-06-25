@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -109,6 +110,32 @@ double GetLastActiveTimeMs(content::WebContents* contents) {
     last_active_time = base::Time::Now();
   }
   return last_active_time.InMillisecondsFSinceUnixEpoch();
+}
+
+base::Time GetLastActiveTimeForDuplicateSelection(
+    content::WebContents* contents) {
+  base::Time last_active_time = contents->GetLastActiveTime();
+  return last_active_time.is_null() ? base::Time() : last_active_time;
+}
+
+bool ShouldPreferDuplicateTab(content::WebContents* candidate,
+                              int candidate_index,
+                              content::WebContents* incumbent,
+                              int incumbent_index,
+                              int active_index) {
+  const base::Time candidate_last_active_time =
+      GetLastActiveTimeForDuplicateSelection(candidate);
+  const base::Time incumbent_last_active_time =
+      GetLastActiveTimeForDuplicateSelection(incumbent);
+  if (candidate_last_active_time != incumbent_last_active_time) {
+    return candidate_last_active_time > incumbent_last_active_time;
+  }
+
+  if (candidate_index == active_index || incumbent_index == active_index) {
+    return candidate_index == active_index;
+  }
+
+  return candidate_index > incumbent_index;
 }
 
 std::string ImageSkiaToDataUrl(const gfx::ImageSkia& image) {
@@ -463,6 +490,10 @@ void DaoSidebarUIHandler::ActivateOrOpenPinnedItemForTesting(
 
 void DaoSidebarUIHandler::ClosePinnedItemTabForTesting(const std::string& id) {
   ClosePinnedItemTab(id);
+}
+
+int DaoSidebarUIHandler::CloseDuplicateTabsForTesting() {
+  return CloseDuplicateTabs();
 }
 
 void DaoSidebarUIHandler::RegisterMessages() {
@@ -1797,6 +1828,10 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
   tab_context_menu_model_->AddItem(
       kCloseTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TAB));
   tab_context_menu_model_->AddItem(
+      kCloseDuplicateTabs,
+      l10n_util::GetStringUTF16(
+          IDS_DAO_TAB_CONTEXT_CLOSE_DUPLICATE_TABS));
+  tab_context_menu_model_->AddItem(
       kCloseOtherTabs,
       l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_OTHER_TABS));
   tab_context_menu_model_->AddItem(
@@ -2277,6 +2312,10 @@ void DaoSidebarUIHandler::HandleShowSidebarContextMenu(
 
   tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
   tab_context_menu_model_->AddItem(
+      kCloseDuplicateTabs,
+      l10n_util::GetStringUTF16(
+          IDS_DAO_TAB_CONTEXT_CLOSE_DUPLICATE_TABS));
+  tab_context_menu_model_->AddItem(
       kMoveStaleTabsToFolder,
       l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
 #if DCHECK_IS_ON()
@@ -2334,6 +2373,86 @@ void DaoSidebarUIHandler::CloseTabsInVisualRange(int from, int to) {
   }
 }
 
+int DaoSidebarUIHandler::CountDuplicateTabsToClose() const {
+  if (!browser_) {
+    return 0;
+  }
+
+  TabStripModel* model = browser_->tab_strip_model();
+  std::map<std::string, int> kept_index_by_url;
+  int duplicate_count = 0;
+  for (int i = 0; i < model->count(); ++i) {
+    content::WebContents* contents = model->GetWebContentsAt(i);
+    if (!contents) {
+      continue;
+    }
+
+    const std::string url = contents->GetVisibleURL().spec();
+    if (url.empty()) {
+      continue;
+    }
+
+    auto [it, inserted] = kept_index_by_url.emplace(url, i);
+    if (inserted) {
+      continue;
+    }
+
+    content::WebContents* kept_contents =
+        model->GetWebContentsAt(it->second);
+    if (ShouldPreferDuplicateTab(contents, i, kept_contents, it->second,
+                                 model->active_index())) {
+      it->second = i;
+    }
+    ++duplicate_count;
+  }
+  return duplicate_count;
+}
+
+int DaoSidebarUIHandler::CloseDuplicateTabs() {
+  if (!browser_) {
+    return 0;
+  }
+
+  TabStripModel* model = browser_->tab_strip_model();
+  std::map<std::string, int> kept_index_by_url;
+  std::set<int> duplicate_indices;
+  for (int i = 0; i < model->count(); ++i) {
+    content::WebContents* contents = model->GetWebContentsAt(i);
+    if (!contents) {
+      continue;
+    }
+
+    const std::string url = contents->GetVisibleURL().spec();
+    if (url.empty()) {
+      continue;
+    }
+
+    auto [it, inserted] = kept_index_by_url.emplace(url, i);
+    if (inserted) {
+      continue;
+    }
+
+    content::WebContents* kept_contents =
+        model->GetWebContentsAt(it->second);
+    if (ShouldPreferDuplicateTab(contents, i, kept_contents, it->second,
+                                 model->active_index())) {
+      duplicate_indices.insert(it->second);
+      it->second = i;
+    } else {
+      duplicate_indices.insert(i);
+    }
+  }
+
+  std::vector<int> to_close(duplicate_indices.begin(),
+                            duplicate_indices.end());
+  std::sort(to_close.begin(), to_close.end(), std::greater<int>());
+  for (int index : to_close) {
+    model->CloseWebContentsAt(index, TabCloseTypes::CLOSE_USER_GESTURE);
+  }
+
+  return static_cast<int>(to_close.size());
+}
+
 void DaoSidebarUIHandler::ClearContextMenuState() {
   context_menu_tab_index_ = -1;
   context_menu_pinned_item_id_.clear();
@@ -2351,6 +2470,9 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   }
   if (command_id == kMoveStaleTabsToFolder) {
     return true;
+  }
+  if (command_id == kCloseDuplicateTabs) {
+    return CountDuplicateTabsToClose() > 0;
   }
   if (command_id == kFolderRename || command_id == kFolderDelete) {
     return !context_menu_folder_id_.empty();
@@ -2411,6 +2533,8 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
     case kToggleMute:
     case kCloseTab:
       return true;
+    case kCloseDuplicateTabs:
+      return CountDuplicateTabsToClose() > 0;
     case kCloseOtherTabs:
       return countClosable(0, total) > 0;
     case kCloseTabsAbove:
@@ -2431,6 +2555,12 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
     if (IsJavascriptAllowed()) {
       FireWebUIListener("moveStaleTabsRequested");
     }
+    ClearContextMenuState();
+    return;
+  }
+
+  if (command_id == kCloseDuplicateTabs) {
+    CloseDuplicateTabs();
     ClearContextMenuState();
     return;
   }

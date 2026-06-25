@@ -129,6 +129,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
                                  int target_index = -1);
   void ActivateOrOpenPinnedItemForTesting(const std::string& id);
   void ClosePinnedItemTabForTesting(const std::string& id);
+  int CloseDuplicateTabsForTesting();
 
  private:
   // Returns the split view for this browser, or nullptr.
@@ -220,6 +221,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   // Context menu helpers.
   int FindVisualPosition(int tab_index) const;
   void CloseTabsInVisualRange(int from, int to);
+  int CountDuplicateTabsToClose() const;
+  int CloseDuplicateTabs();
   void ClearContextMenuState();
 
   void OnScanResultReady(base::ListValue file_entries,
@@ -238,6 +241,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kInspectSidebar,
     kPinTab,
     kMoveStaleTabsToFolder,
+    kCloseDuplicateTabs,
     kPinnedOpen,
     kPinnedUnpin,
     kPinnedCloseTab,
