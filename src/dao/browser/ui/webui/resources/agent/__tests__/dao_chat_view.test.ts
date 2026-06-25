@@ -17,6 +17,22 @@ const pickerMocks = vi.hoisted(() => ({
       Record<string, Array<(...args: unknown[]) => void>>,
 }));
 
+const skillMocks = vi.hoisted(() => ({
+  skills: [] as Array<{
+    id: string;
+    name: string;
+    description: string;
+    source: string;
+    hosts: string[];
+    requiresPageContent: boolean;
+    disabled: boolean;
+  }>,
+  initSkillRegistry: vi.fn(),
+  loadSkillInstructions: vi.fn(async () => null),
+  refreshSkillRegistry: vi.fn(async () => undefined),
+  refreshSkillRegistryIfStale: vi.fn(async () => false),
+}));
+
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('../../sidebar/__tests__/lit_test_shim.js');
 });
@@ -104,13 +120,23 @@ vi.mock('../pi_app_storage.js', () => ({
   syncActiveKeyToPiStorage: vi.fn(),
 }));
 
-vi.mock('../skill_registry.js', () => ({
-  getAllSkills: () => [],
-  initSkillRegistry: vi.fn(),
-  loadSkillInstructions: vi.fn(async () => null),
-  refreshSkillRegistry: vi.fn(async () => undefined),
-  refreshSkillRegistryIfStale: vi.fn(async () => false),
-}));
+vi.mock('../skill_registry.js', async () => {
+  const actual =
+      await vi.importActual<typeof import('../skill_registry.js')>(
+          '../skill_registry.js');
+  return {
+    ...actual,
+    getAllSkills: () => skillMocks.skills,
+    initSkillRegistry: (...args: unknown[]) =>
+        skillMocks.initSkillRegistry(...args),
+    loadSkillInstructions: (...args: unknown[]) =>
+        skillMocks.loadSkillInstructions(...args),
+    refreshSkillRegistry: (...args: unknown[]) =>
+        skillMocks.refreshSkillRegistry(...args),
+    refreshSkillRegistryIfStale: (...args: unknown[]) =>
+        skillMocks.refreshSkillRegistryIfStale(...args),
+  };
+});
 
 vi.mock('../tool_catalog.js', () => ({
   toolConfigChannel: {
@@ -874,6 +900,14 @@ describe('dao-chat-view element picker', () => {
     pickerMocks.callNative.mockResolvedValue({success: true});
     pickerMocks.callNativeArgs.mockResolvedValue({success: true});
     pickerMocks.webUiListeners = {};
+    skillMocks.skills = [];
+    skillMocks.initSkillRegistry.mockReset();
+    skillMocks.loadSkillInstructions.mockReset();
+    skillMocks.loadSkillInstructions.mockResolvedValue(null);
+    skillMocks.refreshSkillRegistry.mockReset();
+    skillMocks.refreshSkillRegistry.mockResolvedValue(undefined);
+    skillMocks.refreshSkillRegistryIfStale.mockReset();
+    skillMocks.refreshSkillRegistryIfStale.mockResolvedValue(false);
     localStorage.clear();
   });
 
@@ -911,10 +945,13 @@ describe('dao-chat-view element picker', () => {
 
       expect(result).toBe('sent');
       expect(originalSend).toHaveBeenCalledWith('hello', []);
-      expect(pickerMocks.callNative.mock.calls.map(call => call[0])).toEqual([
-        'beginAgentTurn',
-        'endAgentTurn',
-      ]);
+      expect(pickerMocks.callNative.mock.calls.map(call => call[0])
+                 .filter(method => method === 'beginAgentTurn' ||
+                     method === 'endAgentTurn'))
+          .toEqual([
+            'beginAgentTurn',
+            'endAgentTurn',
+          ]);
     } finally {
       clearTabWatchTimer(view);
     }
@@ -929,10 +966,13 @@ describe('dao-chat-view element picker', () => {
     try {
       await expect(iface.sendMessage('hello', [])).rejects.toThrow(
           'send failed');
-      expect(pickerMocks.callNative.mock.calls.map(call => call[0])).toEqual([
-        'beginAgentTurn',
-        'endAgentTurn',
-      ]);
+      expect(pickerMocks.callNative.mock.calls.map(call => call[0])
+                 .filter(method => method === 'beginAgentTurn' ||
+                     method === 'endAgentTurn'))
+          .toEqual([
+            'beginAgentTurn',
+            'endAgentTurn',
+          ]);
     } finally {
       clearTabWatchTimer(view);
     }
@@ -952,9 +992,12 @@ describe('dao-chat-view element picker', () => {
     try {
       await expect(iface.sendMessage('hello', [])).resolves.toBe('sent');
       expect(originalSend).toHaveBeenCalledWith('hello', []);
-      expect(pickerMocks.callNative.mock.calls.map(call => call[0])).toEqual([
-        'beginAgentTurn',
-      ]);
+      expect(pickerMocks.callNative.mock.calls.map(call => call[0])
+                 .filter(method => method === 'beginAgentTurn' ||
+                     method === 'endAgentTurn'))
+          .toEqual([
+            'beginAgentTurn',
+          ]);
     } finally {
       warnSpy.mockRestore();
       clearTabWatchTimer(view);
@@ -978,6 +1021,141 @@ describe('dao-chat-view element picker', () => {
       clearTabWatchTimer(view);
     }
   });
+
+  it('declares the skill catalog prompt as Lit state', () => {
+    const properties = (customElements.get('dao-chat-view') as unknown as {
+      properties: Record<string, {state?: boolean}>;
+    }).properties;
+
+    expect(properties.skillCatalogPrompt_).toEqual({state: true});
+  });
+
+  it('injects enabled available skills into the next system prompt', async () => {
+    const summarySkill = {
+      id: 'summary',
+      name: 'summary',
+      description: 'Summarize the current page',
+      source: 'builtin',
+      hosts: ['*'],
+      requiresPageContent: true,
+      disabled: false,
+    };
+    skillMocks.refreshSkillRegistry.mockImplementation(async () => {
+      skillMocks.skills = [summarySkill];
+    });
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'getPageInfo') {
+        return {url: 'https://example.com/article', title: 'Article'};
+      }
+      return {success: true};
+    });
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+
+    try {
+      await iface.sendMessage('summarize this', []);
+      const systemPrompt = (view as unknown as {
+        agent_: {state: {systemPrompt: string}};
+      }).agent_.state.systemPrompt;
+
+      expect(systemPrompt).toContain('<available_skills>');
+      expect(systemPrompt).toContain('id="summary"');
+      expect(systemPrompt).toContain('Summarize the current page');
+      expect(skillMocks.refreshSkillRegistry).toHaveBeenCalledTimes(1);
+      expect(skillMocks.refreshSkillRegistryIfStale).not.toHaveBeenCalled();
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('instructs the agent how to activate matching available skills',
+     async () => {
+       skillMocks.skills = [{
+         id: 'summary',
+         name: 'summary',
+         description: 'Summarize the current page',
+         source: 'builtin',
+         hosts: ['*'],
+         requiresPageContent: true,
+         disabled: false,
+       }];
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {url: 'https://example.com/article', title: 'Article'};
+         }
+         return {success: true};
+       });
+       const originalSend = vi.fn(async () => 'sent');
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+
+       try {
+         await iface.sendMessage('summarize this', []);
+         const systemPrompt = (view as unknown as {
+           agent_: {state: {systemPrompt: string}};
+         }).agent_.state.systemPrompt;
+
+         expect(systemPrompt).toContain('<available_skills>');
+         expect(systemPrompt).toContain('activate_skill');
+         expect(systemPrompt).toContain('Do not invent skill ids');
+         expect(systemPrompt).toContain('Skill instructions guide the task');
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('filters disabled and host-unavailable skills from the system prompt',
+     async () => {
+       skillMocks.skills = [
+         {
+           id: 'global-skill',
+           name: 'global-skill',
+           description: 'Works anywhere',
+           source: 'user',
+           hosts: ['*'],
+           requiresPageContent: false,
+           disabled: false,
+         },
+         {
+           id: 'disabled-skill',
+           name: 'disabled-skill',
+           description: 'Disabled',
+           source: 'user',
+           hosts: ['*'],
+           requiresPageContent: false,
+           disabled: true,
+         },
+         {
+           id: 'github-skill',
+           name: 'github-skill',
+           description: 'GitHub only',
+           source: 'user',
+           hosts: ['github.com'],
+           requiresPageContent: false,
+           disabled: false,
+         },
+       ];
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {url: 'https://example.com/app', title: 'Example'};
+         }
+         return {success: true};
+       });
+       const originalSend = vi.fn(async () => 'sent');
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+
+       try {
+         await iface.sendMessage('help me', []);
+         const systemPrompt = (view as unknown as {
+           agent_: {state: {systemPrompt: string}};
+         }).agent_.state.systemPrompt;
+
+         expect(systemPrompt).toContain('id="global-skill"');
+         expect(systemPrompt).not.toContain('id="disabled-skill"');
+         expect(systemPrompt).not.toContain('id="github-skill"');
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
 
   it('keeps memory context hidden from visible attachments while sending it to LLM', async () => {
     let viewRef: HTMLElement | null = null;

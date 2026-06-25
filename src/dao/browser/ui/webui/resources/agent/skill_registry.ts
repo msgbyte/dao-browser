@@ -21,6 +21,8 @@ export interface SkillContent {
   instructions: string;
 }
 
+const MAX_SKILL_CATALOG_ENTRIES = 40;
+
 // ---- Cached Registry ----
 //
 // The registry is module-local and therefore per-WebUI: dao://agent and
@@ -82,17 +84,73 @@ export function getAllSkills(): SkillRegistryEntry[] {
 
 export function getAvailableSkills(currentHost: string): SkillRegistryEntry[] {
   return cachedRegistry.filter(
-      skill => !skill.disabled && isSkillAvailableForHost(skill, currentHost));
+      skill => isSkillAvailableForHost(skill, currentHost));
 }
 
-function isSkillAvailableForHost(
+export function isSkillAvailableForHost(
     skill: SkillRegistryEntry, host: string): boolean {
+  if (skill.disabled) {
+    return false;
+  }
   if (!skill.hosts || skill.hosts.length === 0 ||
       skill.hosts.includes('*')) {
     return true;
   }
+  const normalizedHost = host.toLowerCase();
   return skill.hosts.some(
-      h => host === h || host.endsWith('.' + h));
+      h => {
+        const normalizedSkillHost = h.toLowerCase();
+        return normalizedHost === normalizedSkillHost ||
+            normalizedHost.endsWith('.' + normalizedSkillHost);
+      });
+}
+
+function escapeSkillXml(value: string): string {
+  return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+}
+
+export function buildAvailableSkillsPrompt(
+    skills: SkillRegistryEntry[], currentHost: string): string {
+  const allAvailable =
+      skills.filter(skill => isSkillAvailableForHost(skill, currentHost));
+  const available = allAvailable.slice(0, MAX_SKILL_CATALOG_ENTRIES);
+  if (available.length === 0) {
+    return '';
+  }
+
+  const rows = available.map((skill) => {
+    const requiresPageContent =
+        skill.requiresPageContent ? 'true' : 'false';
+    return [
+      `<skill id="${escapeSkillXml(skill.id)}" source="${
+          escapeSkillXml(skill.source)}" requires_page_content="${
+          requiresPageContent}">`,
+      `  <name>${escapeSkillXml(skill.name)}</name>`,
+      `  <description>${escapeSkillXml(skill.description)}</description>`,
+      '</skill>',
+    ].join('\n');
+  });
+  const omittedCount = allAvailable.length - available.length;
+  const omittedLine = omittedCount > 0 ?
+      `\n<!-- ${omittedCount} additional skills omitted from this turn. -->` :
+      '';
+
+  return [
+    '## Available Skills',
+    '',
+    'You may activate one of these Dao Agent skills when the user request ' +
+        'clearly matches its description. Call `activate_skill` before ' +
+        'answering or acting. Do not invent skill ids, and do not activate ' +
+        'a skill when none is relevant.',
+    '',
+    '<available_skills>',
+    rows.join('\n'),
+    `${omittedLine}\n</available_skills>`,
+  ].join('\n');
 }
 
 export async function loadSkillInstructions(

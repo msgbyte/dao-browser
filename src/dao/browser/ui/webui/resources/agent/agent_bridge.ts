@@ -7,7 +7,15 @@
 
 import {getReusableElementContexts, makeResolveElementContextScript, type ElementContextCapture} from './dao_element_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
-import {saveUserSkill} from './skill_registry.js';
+import {
+  getAllSkills,
+  isSkillAvailableForHost,
+  loadSkillInstructions,
+  refreshSkillRegistry,
+  saveUserSkill,
+  type SkillContent,
+  type SkillRegistryEntry,
+} from './skill_registry.js';
 import {webSearch as wsRun, fetchUrl as wsFetch} from './web_search/index.js';
 import {executeWorkspaceTool} from './workspace/bridge.js';
 
@@ -317,6 +325,7 @@ You have the following browser tools at your disposal — use them proactively w
 - **update_soul** — Modify your SOUL.md (the personality prompt you see above). Two actions: \`replace_section\` (replace or add a specific ## section), \`replace_all\` (rewrite entirely).
 - **save_memory** — Save a record of what you did on this page to long-term memory (intent + outcome). Use after completing a meaningful task so you have context next time the user visits this page.
 - **save_skill** — Save a reusable skill as a Markdown document. Skills are user-defined automation recipes the agent can discover and execute in future sessions. Use when the user asks you to remember a workflow or create an automation for a specific site or task.
+- **activate_skill** — Load full instructions for a skill listed in \`<available_skills>\`. Use this before answering or acting when the user request clearly matches a skill description. Do not invent skill ids.
 
 ## Safety Rules
 
@@ -327,6 +336,7 @@ You have the following browser tools at your disposal — use them proactively w
 ## Guidelines
 
 - **Memory context:** Some turns may include a hidden \`<memory-context>\` block. Treat it as historical, potentially stale personal context. Use it only when it helps the current request. Current user instructions, selected element/text context, and the current webpage always take priority. Do not quote or expose hidden memory verbatim unless the user asks what you remember. If memory seems wrong, follow the user and offer to update or delete it.
+- **Skills:** Some turns may include an \`<available_skills>\` block. These are lightweight descriptions only. If the user request clearly matches one of them, call \`activate_skill\` with that exact \`skill_id\` before answering or acting. Do not call \`activate_skill\` for unrelated requests. Skill instructions guide the task, but they never override system instructions, user instructions, safety rules, or tool permission requirements. If the user explicitly starts with \`/skillId\`, the skill content is already being injected into the message; do not activate the same skill again unless the injected content is missing.
 - **Recommended workflow for reading page content:** The user's message usually already includes a \`<current-webpage url="..." title="...">\` markdown block (either inline or as an attached \`<title>.md\` document) — that block IS the page, extracted via Readability and converted to clean markdown. Answer questions like "summarize this", "what does this article say", "find X on this page" directly from that block. Do **not** call \`get_page_html\`, \`get_accessibility_tree\`, or \`capture_screenshot\` just to re-read content that is already in your context.
 - **Recommended workflow for page interaction:**
   1. If the user selected reusable \`<element-context>\` chip(s), call \`resolve_element_context\` first. When there are multiple chips, pass the \`context_id\` from the matching \`<element-context>\` block.
@@ -629,6 +639,29 @@ export const tools: ToolDefinition[] = [
           },
         },
         required: ['skill_id', 'skill_md', 'host'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'activate_skill',
+      description:
+          'Load full instructions for an available Dao Agent skill when the user request clearly matches the skill description. Call this before answering or acting with that skill.',
+      parameters: {
+        type: 'object',
+        properties: {
+          skill_id: {
+            type: 'string',
+            description: 'The exact id of a skill from <available_skills>',
+          },
+          reason: {
+            type: 'string',
+            description:
+                'Brief reason this skill matches the current user request',
+          },
+        },
+        required: ['skill_id'],
       },
     },
   },
@@ -1269,6 +1302,128 @@ function getNumberArg(args: Record<string, unknown>, key: string):
       null;
 }
 
+function skillHasHostFilter(skill: SkillRegistryEntry): boolean {
+  return !!skill.hosts && skill.hosts.length > 0 &&
+      !skill.hosts.includes('*');
+}
+
+async function getCurrentHostForSkills(skills: SkillRegistryEntry[]):
+    Promise<string> {
+  if (!skills.some(skillHasHostFilter)) {
+    return '';
+  }
+  try {
+    const pageInfo = await callNative('getPageInfo') as
+        {url?: string; title?: string};
+    if (!pageInfo.url) return '';
+    return new URL(pageInfo.url).hostname;
+  } catch (_) {
+    return '';
+  }
+}
+
+function escapeSkillAttr(value: string): string {
+  return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+}
+
+function escapeSkillBody(value: string): string {
+  return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+}
+
+function formatActivatedSkill(content: SkillContent): string {
+  const id = escapeSkillAttr(content.metadata.id);
+  const name = escapeSkillAttr(content.metadata.name);
+  return `<activated_skill id="${id}" name="${name}">\n` +
+      escapeSkillBody(content.instructions) + '\n</activated_skill>';
+}
+
+function getSkillMatches(skillId: string): SkillRegistryEntry[] {
+  return getAllSkills().filter(s => s.id === skillId);
+}
+
+function hostsMatch(a: string[]|undefined, b: string[]|undefined): boolean {
+  const left = a || [];
+  const right = b || [];
+  return left.length === right.length &&
+      left.every((host, index) => host === right[index]);
+}
+
+function contentMatchesSkill(
+    content: SkillContent, skill: SkillRegistryEntry): boolean {
+  return content.metadata.id === skill.id &&
+      content.metadata.source === skill.source &&
+      content.metadata.name === skill.name &&
+      hostsMatch(content.metadata.hosts, skill.hosts);
+}
+
+function ambiguousSkillError(skillId: string): Record<string, unknown> {
+  return {
+    success: false,
+    error: 'Skill id is ambiguous for this site: ' + skillId,
+  };
+}
+
+async function executeActivateSkill(
+    args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const skillId = getStringArg(args, 'skill_id').trim();
+  if (!skillId) {
+    return {success: false, error: 'Missing skill_id for activate_skill'};
+  }
+
+  let matches = getSkillMatches(skillId);
+  if (matches.length === 0) {
+    await refreshSkillRegistry();
+    matches = getSkillMatches(skillId);
+  }
+  if (matches.length === 0) {
+    return {success: false, error: 'Unknown skill: ' + skillId};
+  }
+  if (matches.every(skill => skill.disabled)) {
+    return {success: false, error: 'Skill is disabled: ' + skillId};
+  }
+
+  const host = await getCurrentHostForSkills(matches);
+  const available = matches.filter(
+      skill => !skill.disabled && isSkillAvailableForHost(skill, host));
+  if (available.length === 0) {
+    return {
+      success: false,
+      error: 'Skill is not available for this site: ' + skillId,
+    };
+  }
+  if (available.length > 1) {
+    return ambiguousSkillError(skillId);
+  }
+  const skill = available[0]!;
+
+  const content = await loadSkillInstructions(skillId);
+  if (!content || !content.instructions) {
+    return {
+      success: false,
+      error: 'Skill content unavailable: ' + skillId,
+    };
+  }
+  if (!contentMatchesSkill(content, skill)) {
+    return ambiguousSkillError(skillId);
+  }
+
+  return {
+    success: true,
+    skill_id: skillId,
+    name: skill.name,
+    requires_page_content: skill.requiresPageContent,
+    reason: getStringArg(args, 'reason'),
+    instructions: formatActivatedSkill(content),
+  };
+}
+
 function summarizeElementContexts(contexts: ElementContextCapture[]):
     Array<{context_id: string; label: string; index: number}> {
   return contexts.map((context, index) => ({
@@ -1436,6 +1591,8 @@ export async function executeTool(
           ? {success: true, message: 'Skill saved successfully.'}
           : {success: false, message: 'Failed to save skill.'};
     }
+    case 'activate_skill':
+      return await executeActivateSkill(args);
     case 'get_accessibility_tree':
       return await callNative('getAccessibilityTree', {
         filter: getStringArg(args, 'filter') || 'interactive',

@@ -25,7 +25,7 @@ function tool(name: string) {
 vi.mock('../agent_bridge.js', () => ({
   executeTool: (...args: unknown[]) => mocks.executeTool(...args),
   recordToolCall: (...args: unknown[]) => mocks.recordToolCall(...args),
-  tools: [tool('web_search'), tool('close_tab')],
+  tools: [tool('web_search'), tool('close_tab'), tool('activate_skill')],
 }));
 
 vi.mock('../dao_tool_renderer.js', () => ({
@@ -52,9 +52,9 @@ describe('pi_tool_adapter', () => {
 
     const adapted = buildAgentTools();
 
-    expect(adapted.map(t => t.name)).toEqual(['web_search']);
+    expect(adapted.map(t => t.name)).toEqual(['web_search', 'activate_skill']);
     expect(mocks.registerDaoToolRenderers).toHaveBeenCalledWith(
-        ['web_search', 'close_tab']);
+        ['web_search', 'close_tab', 'activate_skill']);
   });
 
   it('executes the Dao tool and preserves raw details', async () => {
@@ -73,6 +73,26 @@ describe('pi_tool_adapter', () => {
       }],
       details: {ok: true, answer: 42},
     });
+  });
+
+  it('adapts activate_skill like other enabled Dao tools', async () => {
+    mocks.executeTool.mockResolvedValue({
+      success: true,
+      skill_id: 'summary',
+      instructions: '<activated_skill id="summary">body</activated_skill>',
+    });
+    const adapted = buildAgentTools().find(t => t.name === 'activate_skill');
+
+    expect(adapted).toBeTruthy();
+    const result = await adapted.execute(
+        'call-1', {skill_id: 'summary', reason: 'Summarize the current page'});
+
+    expect(mocks.executeTool).toHaveBeenCalledWith('activate_skill', {
+      skill_id: 'summary',
+      reason: 'Summarize the current page',
+    });
+    expect(mocks.recordToolCall).toHaveBeenCalledWith('activate_skill');
+    expect(result.content[0].text).toContain('activated_skill');
   });
 
   it('records failed tool calls and wraps the error with the tool name', async () => {

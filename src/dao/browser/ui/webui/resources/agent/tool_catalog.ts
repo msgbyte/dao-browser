@@ -65,7 +65,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     id: 'memory-skills',
     label: 'Memory & Skills',
-    toolNames: ['update_soul', 'save_memory', 'save_skill'],
+    toolNames: ['update_soul', 'save_memory', 'save_skill', 'activate_skill'],
   },
   {
     id: 'web',

@@ -39,7 +39,7 @@ import {buildAgentTools} from './pi_tool_adapter.js';
 import {toolConfigChannel} from './tool_catalog.js';
 import './dao_chat_history_panel.js';
 import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
-import {getAllSkills, initSkillRegistry, loadSkillInstructions, refreshSkillRegistry, refreshSkillRegistryIfStale, type SkillRegistryEntry} from './skill_registry.js';
+import {buildAvailableSkillsPrompt, getAllSkills, initSkillRegistry, loadSkillInstructions, refreshSkillRegistry, refreshSkillRegistryIfStale, type SkillRegistryEntry} from './skill_registry.js';
 import {t} from './i18n/i18n.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as pi from './vendor/pi_runtime_bundle.js';
@@ -259,6 +259,7 @@ export class DaoChatView extends CrLitElement {
       skillPickerSkills_: {state: true},
       skillPickerIndex_: {state: true},
       skillPickerAnchor_: {state: true},
+      skillCatalogPrompt_: {state: true},
       historyOpen_: {state: true},
       currentSessionId_: {state: true},
       dreamReport_: {state: true},
@@ -294,6 +295,7 @@ export class DaoChatView extends CrLitElement {
     this.skillPickerVisible_ = false;
     this.skillPickerSkills_ = [];
     this.skillPickerIndex_ = 0;
+    this.skillCatalogPrompt_ = '';
     this.historyOpen_ = false;
     this.currentSessionId_ = '';
     this.messageCount_ = 0;
@@ -427,6 +429,7 @@ export class DaoChatView extends CrLitElement {
       {left: number, top: number, width: number} | null = null;
   private skillPickerQuery_ = '';
   private skillInstructionsCache_ = new Map<string, string>();
+  declare private skillCatalogPrompt_: string;
   private composerTextarea_: HTMLTextAreaElement | null = null;
   private onComposerInput_: ((e: Event) => void) | null = null;
   private onComposerKeyDown_: ((e: KeyboardEvent) => void) | null = null;
@@ -1192,6 +1195,7 @@ export class DaoChatView extends CrLitElement {
             // Pull latest soul into the live systemPrompt before the turn is
             // packed into the LLM request. Handles the same-tab update_soul
             // path (BroadcastChannel doesn't echo to its own document).
+            await this.refreshSkillCatalogPrompt_();
             this.refreshSystemPrompt_();
             // Keep the user's typed `/skill rest` visible in the bubble;
             // load the SKILL.md body into the session cache so convertToLlm
@@ -2728,13 +2732,30 @@ export class DaoChatView extends CrLitElement {
     void syncActiveKeyToPiStorage();
   }
 
-  // BASE_SYSTEM_PROMPT + current SOUL.md, with the soul wrapped in <soul>
-  // tags so the LLM can clearly delineate personality from base instructions
-  // (and so downstream tooling can find/replace the soul block). Rebuilt
-  // fresh on each call so callers get the latest saved soul.
+  // BASE_SYSTEM_PROMPT + current skill catalog + current SOUL.md, with the
+  // soul wrapped in <soul> tags so the LLM can clearly delineate personality
+  // from base instructions (and so downstream tooling can find/replace the
+  // soul block). Rebuilt fresh on each call so callers get the latest saved
+  // soul.
   private buildSystemPrompt_(): string {
-    return BASE_SYSTEM_PROMPT + '\n\n<soul>\n' + currentSoulContent +
-        '\n</soul>';
+    const skills = this.skillCatalogPrompt_.trim();
+    return BASE_SYSTEM_PROMPT + (skills ? '\n\n' + skills : '') +
+        '\n\n<soul>\n' + currentSoulContent + '\n</soul>';
+  }
+
+  private async refreshSkillCatalogPrompt_(): Promise<void> {
+    await refreshSkillRegistry();
+    let host = '';
+    try {
+      const info = await fetchCurrentPageInfo();
+      if (info.url) {
+        host = new URL(info.url).hostname;
+      }
+    } catch (_) {
+      host = '';
+    }
+    this.skillCatalogPrompt_ =
+        buildAvailableSkillsPrompt(getAllSkills(), host);
   }
 
   // Rebuild the concatenated prompt from the latest soul and push it into

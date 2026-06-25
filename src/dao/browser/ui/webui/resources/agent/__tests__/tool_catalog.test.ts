@@ -57,6 +57,12 @@ describe('tool_catalog: enable/disable semantics', () => {
 });
 
 describe('tool_catalog: group state', () => {
+  it('includes activate_skill in the memory-skills group', () => {
+    const group = TOOL_GROUPS.find(g => g.id === 'memory-skills');
+    expect(group?.toolNames).toContain('activate_skill');
+    expect(isToolEnabled('activate_skill')).toBe(true);
+  });
+
   it('reports "all" when nothing is disabled', () => {
     expect(getGroupState('web')).toBe('all');
   });
