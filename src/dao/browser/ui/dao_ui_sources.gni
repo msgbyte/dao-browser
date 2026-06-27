@@ -105,6 +105,8 @@ dao_browser_ui_sources = [
   "//dao/browser/ui/views/dao_suggestion_item_view.h",
   "//dao/browser/ui/views/dao_system_dialog.cc",
   "//dao/browser/ui/views/dao_system_dialog.h",
+  "//dao/browser/ui/views/dao_tab_identity.cc",
+  "//dao/browser/ui/views/dao_tab_identity.h",
   "//dao/browser/ui/views/dao_toast_view.cc",
   "//dao/browser/ui/views/dao_toast_view.h",
   "//dao/browser/ui/views/little_dao/dao_little_dao_controller.cc",

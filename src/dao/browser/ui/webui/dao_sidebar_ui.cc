@@ -828,10 +828,14 @@ base::ListValue DaoSidebarUIHandler::BuildPinnedItems() {
     const std::string title = base::UTF16ToUTF8(contents->GetTitle());
     const std::string url = contents->GetVisibleURL().spec();
     const std::string favicon_url = FaviconToDataUrl(contents);
-    const DaoPinnedTabItem* existing = pinned_tab_model_.FindByUrl(url);
-    if (!existing || existing->title != title ||
-        existing->favicon_url != favicon_url) {
-      pinned_tab_model_.AddOrUpdate(title, url, favicon_url);
+    const std::string tab_id = GetSidebarTabId(contents);
+    const DaoPinnedTabItem* existing = pinned_tab_model_.FindByTabId(tab_id);
+    if (!existing) {
+      existing = pinned_tab_model_.FindByUrl(url);
+    }
+    if (!existing || existing->title != title || existing->url != url ||
+        existing->favicon_url != favicon_url || existing->tab_id != tab_id) {
+      pinned_tab_model_.AddOrUpdate(title, url, favicon_url, tab_id);
       changed = true;
     }
   }
@@ -879,7 +883,13 @@ int DaoSidebarUIHandler::FindOpenPinnedTabIndexForItem(
     }
 
     content::WebContents* contents = model->GetWebContentsAt(i);
-    if (contents && contents->GetVisibleURL().spec() == item.url) {
+    if (!contents) {
+      continue;
+    }
+    if (!item.tab_id.empty() && GetSidebarTabId(contents) == item.tab_id) {
+      return i;
+    }
+    if (contents->GetVisibleURL().spec() == item.url) {
       return i;
     }
   }
@@ -964,7 +974,8 @@ void DaoSidebarUIHandler::PinTabAtIndex(int index, int pinned_target_index) {
   DaoPinnedTabItem& pinned_item =
       pinned_tab_model_.AddOrUpdate(base::UTF16ToUTF8(contents->GetTitle()),
                                     contents->GetVisibleURL().spec(),
-                                    FaviconToDataUrl(contents));
+                                    FaviconToDataUrl(contents),
+                                    GetSidebarTabId(contents));
   if (pinned_target_index >= 0) {
     pinned_tab_model_.Move(pinned_item.id,
                            static_cast<size_t>(pinned_target_index));

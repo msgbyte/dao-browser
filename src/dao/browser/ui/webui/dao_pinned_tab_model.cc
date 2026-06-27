@@ -166,6 +166,30 @@ const DaoPinnedTabItem* DaoPinnedTabModel::FindById(
   return it == items_.end() ? nullptr : &*it;
 }
 
+DaoPinnedTabItem* DaoPinnedTabModel::FindByTabId(
+    const std::string& tab_id) {
+  if (tab_id.empty()) {
+    return nullptr;
+  }
+  auto it = std::find_if(items_.begin(), items_.end(),
+                         [&tab_id](const DaoPinnedTabItem& item) {
+                           return item.tab_id == tab_id;
+                         });
+  return it == items_.end() ? nullptr : &*it;
+}
+
+const DaoPinnedTabItem* DaoPinnedTabModel::FindByTabId(
+    const std::string& tab_id) const {
+  if (tab_id.empty()) {
+    return nullptr;
+  }
+  auto it = std::find_if(items_.begin(), items_.end(),
+                         [&tab_id](const DaoPinnedTabItem& item) {
+                           return item.tab_id == tab_id;
+                         });
+  return it == items_.end() ? nullptr : &*it;
+}
+
 DaoPinnedTabItem* DaoPinnedTabModel::FindByUrl(const std::string& url) {
   auto it = std::find_if(items_.begin(), items_.end(),
                          [&url](const DaoPinnedTabItem& item) {
@@ -186,25 +210,35 @@ const DaoPinnedTabItem* DaoPinnedTabModel::FindByUrl(
 DaoPinnedTabItem& DaoPinnedTabModel::AddOrUpdate(
     const std::string& title,
     const std::string& url,
-    const std::string& favicon_url) {
+    const std::string& favicon_url,
+    const std::string& tab_id) {
   const base::Time now = base::Time::Now();
 
-  if (DaoPinnedTabItem* item = FindByUrl(url)) {
+  DaoPinnedTabItem* item = FindByTabId(tab_id);
+  if (!item) {
+    item = FindByUrl(url);
+  }
+  if (item) {
     item->title = title;
+    item->url = url;
     item->favicon_url = favicon_url;
+    if (!tab_id.empty()) {
+      item->tab_id = tab_id;
+    }
     item->updated_at = now;
     return *item;
   }
 
-  DaoPinnedTabItem item;
-  item.id = base::Uuid::GenerateRandomV4().AsLowercaseString();
-  item.title = title;
-  item.url = url;
-  item.favicon_url = favicon_url;
-  item.created_at = now;
-  item.updated_at = now;
+  DaoPinnedTabItem new_item;
+  new_item.id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  new_item.title = title;
+  new_item.url = url;
+  new_item.favicon_url = favicon_url;
+  new_item.tab_id = tab_id;
+  new_item.created_at = now;
+  new_item.updated_at = now;
 
-  items_.push_back(std::move(item));
+  items_.push_back(std::move(new_item));
   return items_.back();
 }
 

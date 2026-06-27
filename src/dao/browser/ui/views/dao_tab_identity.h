@@ -7,14 +7,13 @@
 
 #include <string>
 
-#include "base/strings/stringprintf.h"
-#include "content/public/browser/web_contents.h"
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace dao {
 
-inline std::string GetSidebarTabId(content::WebContents* contents) {
-  return base::StringPrintf("%p", static_cast<void*>(contents));
-}
+std::string GetSidebarTabId(content::WebContents* contents);
 
 }  // namespace dao
 
