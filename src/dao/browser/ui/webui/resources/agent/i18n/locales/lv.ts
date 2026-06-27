@@ -170,7 +170,7 @@ const dict: Dictionary = {
   'settings.memory.conversation_desc': 'Saglabāt tērzēšanas vēsturi starp sesijām',
   'settings.memory.usage_title': 'Atmiņas izmantošana',
   'settings.memory.conversations': 'Sarunas',
-  'settings.memory.preferences': 'Preferences',
+  'settings.memory.preferences': 'Iestatījumi',
   'settings.memory.episodes': 'Epizodes',
   'settings.memory.total_format': 'Kopā: {kb} KB',
   'settings.memory.clear_button': 'Notīrīt visu atmiņu',

@@ -2,7 +2,15 @@ diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/co
 index b0dcd2691b..d105f8847b 100644
 --- a/chrome/browser/ui/cocoa/main_menu_builder.mm
 +++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
-@@ -112,6 +112,24 @@ + (instancetype)imageWithPrivateSystemSymbolName:(NSString*)name
+@@ -9,6 +9,7 @@
+ #include "base/mac/mac_util.h"
+ #include "build/branding_buildflags.h"
+ #include "chrome/app/chrome_command_ids.h"
++#include "dao/browser/strings/grit/dao_strings.h"
+ #include "chrome/browser/browser_features.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/feedback/report_unsafe_site_dialog.h"
+@@ -112,6 +113,24 @@ + (instancetype)imageWithPrivateSystemSymbolName:(NSString*)name
  
    nsapp.servicesMenu = services_item.submenu;
  
@@ -15,7 +23,7 @@ index b0dcd2691b..d105f8847b 100644
 +  NSInteger about_index = [app_submenu indexOfItemWithTag:IDC_ABOUT];
 +  if (about_index != -1) {
 +    NSMenuItem* check_updates_item = [[NSMenuItem alloc]
-+        initWithTitle:@"Check for Updates..."
++        initWithTitle:l10n_util::GetNSString(IDS_DAO_CHECK_FOR_UPDATES_MENU)
 +               action:@selector(commandDispatch:)
 +        keyEquivalent:@""];
 +    check_updates_item.tag = IDC_DAO_CHECK_FOR_UPDATES;

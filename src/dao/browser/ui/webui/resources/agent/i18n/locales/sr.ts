@@ -101,7 +101,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'Филтрирај ({count})',
   'memory.filter_panel_title': 'Филтери колона',
   'memory.clear_filters': 'Очисти',
-  'memory.null': 'NULL',
+  'memory.null': 'НИШТА',
   'memory.copy_sql': 'Копирај SQL',
   'memory.copied': 'Копирано',
   'index.loading': 'Учитавање страница…',

@@ -4473,6 +4473,10 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, EnglishStringsResolve) {
                 IDS_DAO_CONTROL_CENTER_BUTTON_ACCESSIBLE_NAME));
   EXPECT_EQ(u"QR Code Result",
             l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_DIALOG_TITLE));
+  EXPECT_EQ(u"Check for Updates…",
+            l10n_util::GetStringUTF16(IDS_DAO_CHECK_FOR_UPDATES_MENU));
+  EXPECT_EQ(u"Check for updates",
+            l10n_util::GetStringUTF16(IDS_DAO_CHECK_FOR_UPDATES_BUTTON));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, PlaceholderSubstitutionWorks) {

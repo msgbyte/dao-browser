@@ -222,6 +222,12 @@
       <message name="IDS_DAO_UPDATE_APPLYING_ACTION" desc="Transient label for the sidebar update button after the user clicks it and Dao starts applying the update.">
         Applying
       </message>
+      <message name="IDS_DAO_CHECK_FOR_UPDATES_MENU" desc="Menu item in the macOS application menu that opens Dao Browser's Sparkle update checker. Uses title case to match neighboring macOS app menu commands.">
+        Check for Updates...
+      </message>
+      <message name="IDS_DAO_CHECK_FOR_UPDATES_BUTTON" desc="Button on the macOS settings About page that opens Dao Browser's Sparkle update checker. Uses sentence case to match settings page button style.">
+        Check for updates
+      </message>
       <message name="IDS_DAO_ADDRESS_BAR_STOP_LOADING_ACCESSIBLE_NAME" desc="Accessible name for the button in the address bar that stops the current page from loading.">
         Stop Loading
       </message>

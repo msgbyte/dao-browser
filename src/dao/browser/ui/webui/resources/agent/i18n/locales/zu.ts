@@ -101,7 +101,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'Hlunga ({count})',
   'memory.filter_panel_title': 'Izihlungi zekholomu',
   'memory.clear_filters': 'Susa',
-  'memory.null': 'NULL',
+  'memory.null': 'AKUKHO',
   'memory.copy_sql': 'Kopisha i-SQL',
   'memory.copied': 'Ikhopishiwe',
   'index.loading': 'Kulayishwa amakhasi…',

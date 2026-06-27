@@ -10,19 +10,22 @@ index 6f70406bc5..24763f18b2 100644
  #include "base/strings/utf_string_conversions.h"
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
-@@ -321,6 +322,12 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
+@@ -62,6 +63,7 @@
+ #include "chrome/common/url_constants.h"
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/grit/generated_resources.h"
++#include "dao/browser/strings/grit/dao_strings.h"
+ #include "components/autofill/content/browser/content_autofill_client.h"
+ #include "components/autofill/content/browser/content_autofill_driver.h"
+ #include "components/autofill/content/browser/content_autofill_driver_factory.h"
+@@ -318,6 +320,7 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
+        IDS_SETTINGS_ABOUT_PAGE_LEARN_MORE_SYSTEM_REQUIREMENTS},
+ #if BUILDFLAG(IS_MAC)
+       {"aboutLearnMoreUpdating", IDS_SETTINGS_ABOUT_PAGE_LEARN_MORE_UPDATING},
++      {"aboutDaoCheckForUpdates", IDS_DAO_CHECK_FOR_UPDATES_BUTTON},
+ #endif
    };
    html_source->AddLocalizedStrings(kLocalizedStrings);
- 
-+#if BUILDFLAG(IS_MAC)
-+  // Dao: the settings "Check for updates" button is wired to Sparkle and is
-+  // independent of the Chromium updater path (which is disabled in our build).
-+  html_source->AddString("aboutDaoCheckForUpdates", u"Check for updates");
-+#endif
-+
-   html_source->AddString("managementPage",
-                          GetDeviceManagedUiHelpLabel(profile));
-   html_source->AddString(
 @@ -334,11 +341,16 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
    std::u16string browser_version = VersionUI::GetAnnotatedVersionStringForUi();
  

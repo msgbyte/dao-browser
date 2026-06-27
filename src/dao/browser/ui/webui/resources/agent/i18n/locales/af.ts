@@ -101,7 +101,7 @@ const dict: Dictionary = {
   'memory.filter_button_count': 'Filter ({count})',
   'memory.filter_panel_title': 'Kolomfilters',
   'memory.clear_filters': 'Vee uit',
-  'memory.null': 'NULL',
+  'memory.null': 'NUL',
   'memory.copy_sql': 'Kopieer SQL',
   'memory.copied': 'Gekopieer',
   'index.loading': 'Laai bladsye…',
