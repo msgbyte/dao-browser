@@ -117,7 +117,7 @@ const dict: Dictionary = {
   'index.page.dream.desc': 'Laporan pembelajaran perilaku malam.',
   'index.page.memory.title': 'Memori',
   'index.page.memory.desc': 'Penjelajah SQLite hanya-baca untuk memori Agen lokal.',
-  'index.page.sidebar.title': 'Sidebar',
+  'index.page.sidebar.title': 'Bilah Sisi',
   'index.page.sidebar.desc': 'Shell WebUI sidebar vertikal Dao.',
   'index.page.welcome.title': 'Selamat Datang',
   'index.page.welcome.desc': 'Halaman onboarding pertama kali dijalankan.',

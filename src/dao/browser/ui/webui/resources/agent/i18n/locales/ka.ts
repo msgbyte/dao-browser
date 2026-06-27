@@ -137,7 +137,7 @@ const dict: Dictionary = {
   'settings.general.display_title': 'ჩვენება',
   'settings.general.show_tool_details_name': 'აჩვენეთ ინსტრუმენტის დეტალები',
   'settings.general.show_tool_details_desc': 'გაფართოვეთ ყველა ინსტრუმენტის შეყვანა / გამომავალი ნაგულისხმევად',
-  'settings.general.debug_mode_name': 'Debug Mode',
+  'settings.general.debug_mode_name': 'დაბაგვის რეჟიმი',
   'settings.general.debug_mode_desc': 'მომხმარებლის მესიჯებზე კონტექსტის ინსპექტორის ჩვენება ლოკალური გამართვისთვის',
   'settings.general.session_title': 'სესია',
   'settings.general.resume_session_name': 'ბოლო სესიის გაგრძელება',

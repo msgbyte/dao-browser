@@ -243,7 +243,7 @@ const dict: Dictionary = {
   'settings.tools.search_duckduckgo_only': 'Само DuckDuckGo',
   'settings.tools.group.page': 'Страница',
   'settings.tools.group.tabs': 'Картице',
-  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.devtools': 'Алатке за програмере',
   'settings.tools.group.memory-skills': 'Меморија и вештине',
   'settings.tools.group.web': 'Веб',
   'settings.tools.group.workspace': 'Радни простор',
