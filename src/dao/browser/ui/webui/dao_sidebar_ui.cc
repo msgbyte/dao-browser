@@ -39,6 +39,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/dao_sidebar_resources.h"
 #include "chrome/grit/dao_sidebar_resources_map.h"
+#include "dao/browser/ui/views/dao_tab_commands.h"
 #include "components/download/public/common/download_item.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/download_manager.h"
@@ -682,6 +683,14 @@ void DaoSidebarUIHandler::OnTabChangedAt(tabs::TabInterface* tab,
     return;
   }
   PushTabUpdate(index);
+}
+
+void DaoSidebarUIHandler::OnTabPinnedStateChanged(tabs::TabInterface* tab,
+                                                  int index) {
+  if (!IsJavascriptAllowed()) {
+    return;
+  }
+  PushFullState();
 }
 
 void DaoSidebarUIHandler::OnSplitStateChanged() {
@@ -2638,7 +2647,7 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
 
   switch (command_id) {
     case kDuplicateTab:
-      chrome::DuplicateTabAt(browser_, context_menu_tab_index_);
+      dao::DuplicateTabAt(browser_, context_menu_tab_index_);
       break;
 
     case kPinTab:

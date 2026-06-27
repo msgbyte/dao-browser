@@ -1192,6 +1192,53 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       DuplicatePinnedActiveTabCreatesUnpinnedSidebarTab) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(0);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(1, model->count());
+  ASSERT_TRUE(model->IsTabPinned(0));
+  content::WebContents* original = model->GetWebContentsAt(0);
+  ASSERT_NE(nullptr, original);
+
+  ASSERT_TRUE(DuplicateActiveTab(browser()));
+
+  ASSERT_EQ(2, model->count());
+  content::WebContents* duplicate = model->GetActiveWebContents();
+  ASSERT_NE(nullptr, duplicate);
+  ASSERT_NE(original, duplicate);
+  ASSERT_TRUE(content::WaitForLoadStop(duplicate));
+  EXPECT_EQ(pinned_url, duplicate->GetLastCommittedURL());
+
+  const int duplicate_index = model->GetIndexOfWebContents(duplicate);
+  ASSERT_NE(TabStripModel::kNoTab, duplicate_index);
+  EXPECT_FALSE(model->IsTabPinned(duplicate_index));
+
+  base::DictValue state = handler.GetSidebarStateForTesting();
+  const base::ListValue* pinned_tabs = state.FindList("pinnedTabs");
+  ASSERT_NE(nullptr, pinned_tabs);
+  ASSERT_EQ(1u, pinned_tabs->size());
+  EXPECT_NE(nullptr,
+            FindDictByStringField(*pinned_tabs, "url", pinned_url.spec()));
+
+  const base::ListValue* unpinned_tabs = state.FindList("unpinnedTabs");
+  ASSERT_NE(nullptr, unpinned_tabs);
+  ASSERT_EQ(1u, unpinned_tabs->size());
+  const base::DictValue* unpinned_duplicate =
+      FindDictByStringField(*unpinned_tabs, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, unpinned_duplicate);
+  EXPECT_FALSE(GetBoolField(*unpinned_duplicate, "isPinned"));
+  EXPECT_EQ(duplicate_index, GetIntField(*unpinned_duplicate, "index"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        PinNormalTabCanInsertPinnedItemAtTargetIndex) {
   ASSERT_TRUE(embedded_test_server()->Start());
 

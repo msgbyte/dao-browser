@@ -88,6 +88,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void OnTabChangedAt(tabs::TabInterface* tab,
                       int index,
                       TabChangeType change_type) override;
+  void OnTabPinnedStateChanged(tabs::TabInterface* tab, int index) override;
 
   // download::AllDownloadItemNotifier::Observer:
   void OnDownloadCreated(content::DownloadManager* manager,
