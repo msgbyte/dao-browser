@@ -1,0 +1,27 @@
+diff --git a/chrome/app/resources/generated_resources_zh-CN.xtb b/chrome/app/resources/generated_resources_zh-CN.xtb
+index 0000000001..0000000002 100644
+--- a/chrome/app/resources/generated_resources_zh-CN.xtb
++++ b/chrome/app/resources/generated_resources_zh-CN.xtb
+@@ -2957,6 +2957,7 @@
+ <translation id="2975845084271617886">加入并打开</translation>
+ <translation id="2976547701881428815">工具和操作</translation>
+ <translation id="2976639738101799892">每次浏览时都可畅享 Google 搜索功能和 Google 智能工具</translation>
++<translation id="2977203776743842399">在紧凑的 Little Dao 窗口中打开来自其他应用的链接</translation>
+ <translation id="2977480621796371840">从分组中移除</translation>
+ <translation id="2978697251742938065">与他人协作</translation>
+ <translation id="2979493931538961252">当 Chromebook 处于离线状态且热点可用时</translation>
+@@ -5690,6 +5691,7 @@
+ <translation id="4830502475412647084">正在安装操作系统更新</translation>
+ <translation id="4831226137013573603">麦克风静音</translation>
+ <translation id="483262387981411190">暂停或恢复面部控制</translation>
++<translation id="4833302064619809816">您与 Dao</translation>
+ <translation id="4833683849865011483">通过打印服务器找到了 1 台打印机</translation>
+ <translation id="4835598628985424375">撅起嘴唇</translation>
+ <translation id="4835677468087803981">隐藏 PIN 码</translation>
+@@ -9191,5 +9191,6 @@
+ <translation id="7260186537988033909">自助服务终端和数字标牌设备注册已完成</translation>
+ <translation id="7260206782629605806">如果您降低阈值，就可以做出轻微的动作。如果您提高阈值，可能需要做出更夸张的动作。</translation>
++<translation id="7260333196265292710">启用 Little Dao</translation>
+ <translation id="7260802376010589729">按下“c”键表示松开鼠标按键</translation>
+ <translation id="7261217796641151584">共享分组</translation>
+ <translation id="7261612856573623172">系统默认文字转语音声音</translation>
