@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,15 @@
 +<style include="settings-shared"></style>
 +
 +<settings-section page-title="$i18n{daoPageTitle}"
@@ -12,5 +12,10 @@ index 0000000000..0000000001
 +      pref="{{prefs.dao.little_dao_enabled}}"
 +      label="$i18n{littleDaoEnabledLabel}"
 +      sub-label="$i18n{littleDaoEnabledSubLabel}">
++  </settings-toggle-button>
++  <settings-toggle-button id="enhancedCommandBarSuggestionsEnabled"
++      pref="{{prefs.dao.enhanced_command_bar_suggestions_enabled}}"
++      label="$i18n{enhancedCommandBarSuggestionsEnabledLabel}"
++      sub-label="$i18n{enhancedCommandBarSuggestionsEnabledSubLabel}">
 +  </settings-toggle-button>
 +</settings-section>

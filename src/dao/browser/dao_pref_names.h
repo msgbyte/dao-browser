@@ -35,6 +35,11 @@ inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";
 // When false, external links use the regular full browser window.
 inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";
 
+// Boolean pref that enables the richer Arc-style command bar suggestion
+// pipeline. Kept off by default while the ranking model is still maturing.
+inline constexpr char kDaoEnhancedCommandBarSuggestionsEnabled[] =
+    "dao.enhanced_command_bar_suggestions_enabled";
+
 // Dictionary pref storing the most recent Little Dao outer window size.
 inline constexpr char kDaoLittleDaoWindowSize[] =
     "dao.little_dao_window_size";

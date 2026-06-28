@@ -16,6 +16,14 @@ const daoSettingsTranslations = [
     id: '2977203776743842399',
     translation: '在紧凑的 Little Dao 窗口中打开来自其他应用的链接',
   },
+  {
+    id: '9088288809489009615',
+    translation: '增强命令栏建议',
+  },
+  {
+    id: '3815248333120566849',
+    translation: '在命令栏中使用更丰富的标签页、命令、搜索和 Dao 建议',
+  },
 ];
 
 describe('settings i18n patches', () => {

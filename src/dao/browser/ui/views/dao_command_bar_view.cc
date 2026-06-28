@@ -4,11 +4,16 @@
 
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 
+#include <string_view>
+
 #include "base/strings/utf_string_conversions.h"
 #include "base/strings/escape.h"
+#include "base/strings/string_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "components/omnibox/browser/autocomplete_classifier.h"
 #include "dao/browser/strings/grit/dao_strings.h"
+#include "dao/browser/dao_pref_names.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
 #include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
@@ -37,6 +42,7 @@
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/web_contents.h"
 #include "components/omnibox/browser/vector_icons.h"
+#include "components/prefs/pref_service.h"
 #include "components/vector_icons/vector_icons.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
@@ -46,6 +52,7 @@
 #include "dao/browser/ui/views/dao_suggestion_item_view.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
+#include "third_party/metrics_proto/omnibox_focus_type.pb.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/shadow_value.h"
 #include "ui/gfx/skia_paint_util.h"
@@ -70,6 +77,49 @@ namespace dao {
 namespace {
 
 constexpr int kCommandBarTextFontSize = 17;
+
+bool LooksLikeNaturalLanguagePrompt(const std::u16string& text) {
+  std::u16string trimmed;
+  base::TrimWhitespace(text, base::TRIM_ALL, &trimmed);
+  if (trimmed.size() < 3) {
+    return false;
+  }
+
+  const char16_t last_char = trimmed.back();
+  if (last_char == u'\x003F' || last_char == u'\xFF1F') {
+    return true;
+  }
+
+  std::string lower = base::ToLowerASCII(base::UTF16ToUTF8(trimmed));
+  const auto starts_with_word = [&lower](std::string_view word) {
+    return lower == word || base::StartsWith(lower, std::string(word) + " ");
+  };
+  if (starts_with_word("what") || starts_with_word("why") ||
+      starts_with_word("how") || starts_with_word("who") ||
+      starts_with_word("when") || starts_with_word("where") ||
+      base::StartsWith(lower, "summarize") ||
+      base::StartsWith(lower, "translate") ||
+      base::StartsWith(lower, "explain") ||
+      base::StartsWith(lower, "compare") ||
+      base::StartsWith(lower, "write")) {
+    return true;
+  }
+
+  int word_count = 0;
+  bool in_word = false;
+  for (char16_t ch : trimmed) {
+    if (ch == u' ' || ch == u'\t' || ch == u'\n' || ch == u'\r') {
+      in_word = false;
+      continue;
+    }
+    if (!in_word) {
+      ++word_count;
+      in_word = true;
+    }
+  }
+
+  return word_count >= 4;
+}
 
 }  // namespace
 
@@ -329,9 +379,49 @@ DaoCommandBarView::~DaoCommandBarView() {
   }
 }
 
+bool DaoCommandBarView::EnhancedSuggestionsEnabled() const {
+  return browser_ && browser_->profile() &&
+         browser_->profile()->GetPrefs()->GetBoolean(
+             dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled);
+}
+
+bool DaoCommandBarView::ShouldShowAskAiSuggestion() const {
+  if (user_input_text_.empty() || LooksLikeURL(user_input_text_)) {
+    return false;
+  }
+
+  if (!EnhancedSuggestionsEnabled()) {
+    return true;
+  }
+
+  return LooksLikeNaturalLanguagePrompt(user_input_text_);
+}
+
+int DaoCommandBarView::GetAutocompleteProviderTypesForCurrentMode() const {
+  if (EnhancedSuggestionsEnabled()) {
+    return AutocompleteClassifier::DefaultOmniboxProviders();
+  }
+
+  return AutocompleteProvider::TYPE_HISTORY_QUICK |
+         AutocompleteProvider::TYPE_HISTORY_URL |
+         AutocompleteProvider::TYPE_BOOKMARK |
+         AutocompleteProvider::TYPE_SEARCH |
+         AutocompleteProvider::TYPE_SHORTCUTS |
+         AutocompleteProvider::TYPE_OPEN_TAB;
+}
+
 void DaoCommandBarView::InitAutocompleteController() {
-  if (autocomplete_controller_) {
+  const bool enhanced_suggestions_enabled = EnhancedSuggestionsEnabled();
+  if (autocomplete_controller_ &&
+      autocomplete_controller_uses_enhanced_suggestions_ ==
+          enhanced_suggestions_enabled) {
     return;
+  }
+
+  if (autocomplete_controller_) {
+    autocomplete_controller_->RemoveObserver(this);
+    autocomplete_controller_.reset();
+    scheme_classifier_.reset();
   }
 
   Profile* profile = browser_->profile();
@@ -339,16 +429,13 @@ void DaoCommandBarView::InitAutocompleteController() {
       std::make_unique<ChromeAutocompleteSchemeClassifier>(profile);
 
   AutocompleteControllerConfig config;
-  config.provider_types = AutocompleteProvider::TYPE_HISTORY_QUICK |
-                          AutocompleteProvider::TYPE_HISTORY_URL |
-                          AutocompleteProvider::TYPE_BOOKMARK |
-                          AutocompleteProvider::TYPE_SEARCH |
-                          AutocompleteProvider::TYPE_SHORTCUTS |
-                          AutocompleteProvider::TYPE_OPEN_TAB;
+  config.provider_types = GetAutocompleteProviderTypesForCurrentMode();
 
   autocomplete_controller_ = std::make_unique<AutocompleteController>(
       std::make_unique<ChromeAutocompleteProviderClient>(profile), config);
   autocomplete_controller_->AddObserver(this);
+  autocomplete_controller_uses_enhanced_suggestions_ =
+      enhanced_suggestions_enabled;
 }
 
 void DaoCommandBarView::Show() {
@@ -432,11 +519,17 @@ void DaoCommandBarView::Show() {
       textfield_->SetText(u"");
       user_input_text_.clear();
       UpdateInputIcon();
+      if (EnhancedSuggestionsEnabled()) {
+        StartAutocomplete(u"");
+      }
     }
   } else {
     textfield_->SetText(u"");
     user_input_text_.clear();
     UpdateInputIcon();
+    if (EnhancedSuggestionsEnabled()) {
+      StartAutocomplete(u"");
+    }
   }
 
   // Defer focus request to avoid being overridden by Chromium's focus
@@ -503,6 +596,9 @@ void DaoCommandBarView::ShowForNewTab() {
 
   // Show search icon for new tab mode (empty input)
   UpdateInputIcon();
+  if (EnhancedSuggestionsEnabled()) {
+    StartAutocomplete(u"");
+  }
 
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&DaoCommandBarView::DeferredRequestFocus,
@@ -685,6 +781,10 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
   UpdateInputIcon();
 
   if (new_contents.empty()) {
+    if (EnhancedSuggestionsEnabled()) {
+      StartAutocomplete(new_contents);
+      return;
+    }
     StopAutocomplete();
     dropdown_container_->SetVisible(false);
     visible_suggestion_count_ = 0;
@@ -796,6 +896,7 @@ void DaoCommandBarView::OnResultChanged(AutocompleteController* controller,
 }
 
 void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
+  InitAutocompleteController();
   if (!autocomplete_controller_ || !scheme_classifier_) {
     return;
   }
@@ -808,6 +909,15 @@ void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
       text, /*cursor_position=*/text.length(),
       metrics::OmniboxEventProto::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
       *scheme_classifier_);
+  if (EnhancedSuggestionsEnabled()) {
+    if (auto* contents = browser_->tab_strip_model()->GetActiveWebContents()) {
+      input.set_current_url(contents->GetVisibleURL());
+      input.set_current_title(contents->GetTitle());
+    }
+    if (text.empty()) {
+      input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
+    }
+  }
 
   // Deletion queries must also tell Chromium not to compute
   // inline_autocompletion; without this, providers can still publish
@@ -835,20 +945,21 @@ void DaoCommandBarView::UpdateSuggestions() {
     return;
   }
 
+  const bool enhanced_suggestions_enabled = EnhancedSuggestionsEnabled();
   const AutocompleteResult& result = autocomplete_controller_->result();
   int match_count = std::min(static_cast<int>(result.size()), kMaxSuggestions);
 
-  // Reserve the SECOND slot (index 1) for the synthetic Ask-AI row when the
-  // input looks like a natural-language question rather than a URL.  If the
-  // input has no real matches, Ask-AI falls to slot 0 as the only row.
+  // Default mode preserves the original slot-1 Ask-AI insertion. Enhanced
+  // mode only shows Ask Dao for natural-language prompts and ranks it first
+  // because the user intent is likely agentic rather than navigational.
   // When real matches already fill all kMaxSuggestions slots, the last one
   // is evicted to make room — it tends to be the lowest-relevance entry.
-  const bool show_ask_ai =
-      !user_input_text_.empty() && !LooksLikeURL(user_input_text_);
+  const bool show_ask_ai = ShouldShowAskAiSuggestion();
   ask_ai_row_index_ = -1;
   int match_slots = match_count;
   if (show_ask_ai) {
-    ask_ai_row_index_ = std::min(1, match_count);
+    ask_ai_row_index_ =
+        enhanced_suggestions_enabled ? 0 : std::min(1, match_count);
     if (match_slots + 1 > kMaxSuggestions) {
       match_slots = kMaxSuggestions - 1;
     }
@@ -869,7 +980,11 @@ void DaoCommandBarView::UpdateSuggestions() {
     }
 
     if (is_ask_ai_slot) {
-      suggestion_views_[i]->SetAskAiPrompt(user_input_text_);
+      suggestion_views_[i]->SetAskAiPrompt(
+          user_input_text_,
+          enhanced_suggestions_enabled
+              ? l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_INTENT_ASK_DAO)
+              : std::u16string());
       suggestion_views_[i]->SetVisible(true);
       suggestion_views_[i]->SetSelected(i == selected_index_);
     } else if (match_index < match_slots) {
@@ -877,7 +992,10 @@ void DaoCommandBarView::UpdateSuggestions() {
       bool is_bookmark =
           bookmark_model &&
           bookmark_model->IsBookmarked(match.destination_url);
-      suggestion_views_[i]->SetMatch(match, is_bookmark);
+      suggestion_views_[i]->SetMatch(
+          match, is_bookmark,
+          enhanced_suggestions_enabled ? GetIntentLabelForMatch(match)
+                                       : std::u16string());
       suggestion_views_[i]->SetVisible(true);
       suggestion_views_[i]->SetSelected(i == selected_index_);
     } else {
@@ -904,6 +1022,19 @@ void DaoCommandBarView::UpdateSuggestions() {
   }
 
   InvalidateLayout();
+}
+
+std::u16string DaoCommandBarView::GetIntentLabelForMatch(
+    const AutocompleteMatch& match) const {
+  if (match.has_tab_match.value_or(false)) {
+    return l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_INTENT_SWITCH_TAB);
+  }
+
+  if (AutocompleteMatch::IsSearchType(match.type)) {
+    return l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_INTENT_SEARCH);
+  }
+
+  return l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_INTENT_OPEN);
 }
 
 std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
@@ -980,6 +1111,26 @@ DaoCommandBarView::GetVisibleInlineAutocompletionMatch() const {
   if (!default_match->inline_autocompletion.empty() &&
       default_match->inline_autocompletion == inline_autocompletion_) {
     return default_match;
+  }
+
+  return nullptr;
+}
+
+const AutocompleteMatch*
+DaoCommandBarView::GetSelectedVisibleAutocompleteMatch() const {
+  if (!autocomplete_controller_ || selected_index_ < 0 ||
+      selected_index_ == ask_ai_row_index_) {
+    return nullptr;
+  }
+
+  const AutocompleteResult& result = autocomplete_controller_->result();
+  int match_index = selected_index_;
+  if (ask_ai_row_index_ >= 0 && selected_index_ > ask_ai_row_index_) {
+    match_index = selected_index_ - 1;
+  }
+
+  if (match_index >= 0 && match_index < static_cast<int>(result.size())) {
+    return &result.match_at(match_index);
   }
 
   return nullptr;
@@ -1233,6 +1384,19 @@ void DaoCommandBarView::SetSelectedIndex(int index, bool user_initiated) {
 }
 
 void DaoCommandBarView::ApplySelectedSuggestion() {
+  if (EnhancedSuggestionsEnabled() && selected_index_ >= 0) {
+    if (selected_index_ == ask_ai_row_index_ && !user_input_text_.empty()) {
+      SubmitAskAi(user_input_text_);
+      return;
+    }
+
+    if (const AutocompleteMatch* selected_match =
+            GetSelectedVisibleAutocompleteMatch()) {
+      NavigateToMatch(*selected_match);
+      return;
+    }
+  }
+
   if (!selection_explicitly_changed_) {
     if (HasSubmittableInlineAutocompletion()) {
       if (const AutocompleteMatch* inline_match =

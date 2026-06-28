@@ -55,6 +55,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/omnibox/browser/autocomplete_match.h"
+#include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
@@ -2338,6 +2339,59 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsPrefDefaultsOff) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  ASSERT_NE(nullptr, prefs->FindPreference(
+                         dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
+  EXPECT_FALSE(prefs->GetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsUseBroaderOmniboxProviders) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  int provider_types = command_bar->GetAutocompleteProviderTypesForTesting();
+  EXPECT_EQ(0, provider_types & AutocompleteProvider::TYPE_KEYWORD);
+  EXPECT_EQ(0, provider_types & AutocompleteProvider::TYPE_ZERO_SUGGEST);
+  command_bar->Hide();
+
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  command_bar->ShowForNewTab();
+  provider_types = command_bar->GetAutocompleteProviderTypesForTesting();
+  EXPECT_NE(0, provider_types & AutocompleteProvider::TYPE_KEYWORD);
+  EXPECT_NE(0, provider_types & AutocompleteProvider::TYPE_ZERO_SUGGEST);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsReturnMatchesForTypedInput) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  TemplateURLService* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_NE(nullptr, template_url_service);
+  search_test_utils::WaitForTemplateURLServiceToLoad(template_url_service);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->ContentsChanged(nullptr, u"dao");
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return command_bar->GetVisibleSuggestionCountForTesting() > 0 &&
+           HasDescendantLabelText(command_bar, u"dao");
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnterSubmitsVisibleInlineAutocompletion) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -2386,6 +2440,8 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   default_match.allowed_to_be_default_match = true;
   default_match.fill_into_edit = base::UTF8ToUTF16(suggestion_url.spec());
   default_match.contents = base::UTF8ToUTF16(suggestion_url.spec());
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
   default_match.destination_url = suggestion_url;
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
@@ -2398,6 +2454,211 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_TRUE(content::WaitForLoadStop(contents));
 
   EXPECT_EQ(typed_url, contents->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsEnterSubmitsAutoSelectedMatch) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL typed_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL suggestion_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_NE(typed_url, suggestion_url);
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(
+      base::UTF8ToUTF16(typed_url.spec()), u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = base::UTF8ToUTF16(suggestion_url.spec());
+  default_match.contents = base::UTF8ToUTF16(suggestion_url.spec());
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  default_match.destination_url = suggestion_url;
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+  ASSERT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+
+  ui_test_utils::TabAddedWaiter tab_waiter(browser());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  content::WebContents* contents = tab_waiter.Wait();
+  ASSERT_NE(nullptr, contents);
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+
+  EXPECT_EQ(suggestion_url, contents->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsHideAskAiForShortNavigationInput) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"github", u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = u"github.com";
+  default_match.contents = u"github.com";
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  default_match.destination_url = GURL("https://github.com/");
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+
+  EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
+  EXPECT_FALSE(
+      HasDescendantLabelText(command_bar, u"Ask AI: github"));
+  EXPECT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsHideAskAiForShortSearchPhrase) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  const std::u16string query = u"new york";
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(query, u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = query;
+  default_match.contents = query;
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::NONE}};
+  default_match.destination_url =
+      GURL("https://www.google.com/search?q=new+york");
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+
+  EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
+  EXPECT_FALSE(HasDescendantLabelText(
+      command_bar, std::u16string(u"Ask AI: ") + query));
+  EXPECT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsRankAskAiFirstForQuestion) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  const std::u16string question = u"how do I compare these tabs";
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(question, u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = question;
+  default_match.contents = question;
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::NONE}};
+  default_match.destination_url =
+      GURL("https://www.google.com/search?q=how+do+I+compare+these+tabs");
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+
+  EXPECT_EQ(0, command_bar->GetAskAiRowIndexForTesting());
+  EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_TRUE(HasDescendantLabelText(
+      command_bar, std::u16string(u"Ask AI: ") + question));
+  EXPECT_EQ(2, command_bar->GetVisibleSuggestionCountForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       DefaultSuggestionsDoNotShowEnhancedIntentLabels) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"github", u"");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = u"github.com";
+  default_match.contents = u"github.com";
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  default_match.destination_url = GURL("https://github.com/");
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+
+  EXPECT_FALSE(HasDescendantLabelText(command_bar, u"Open"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsShowIntentLabels) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  const std::u16string question = u"how do I compare these tabs";
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(question, u"");
+
+  AutocompleteMatch search_match(nullptr, 1000, false,
+                                 AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED);
+  search_match.allowed_to_be_default_match = true;
+  search_match.fill_into_edit = question;
+  search_match.contents = question;
+  search_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::NONE}};
+  search_match.destination_url =
+      GURL("https://www.google.com/search?q=how+do+I+compare+these+tabs");
+
+  AutocompleteMatch url_match(nullptr, 900, false,
+                              AutocompleteMatchType::HISTORY_URL);
+  url_match.allowed_to_be_default_match = false;
+  url_match.fill_into_edit = u"docs.dao.browser";
+  url_match.contents = u"docs.dao.browser";
+  url_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  url_match.destination_url = GURL("https://docs.dao.browser/");
+
+  AutocompleteMatch tab_match(nullptr, 800, false,
+                              AutocompleteMatchType::HISTORY_URL);
+  tab_match.allowed_to_be_default_match = false;
+  tab_match.fill_into_edit = u"dao://settings/dao";
+  tab_match.contents = u"Dao Settings";
+  tab_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::NONE}};
+  tab_match.destination_url = GURL("dao://settings/dao");
+  tab_match.has_tab_match = true;
+
+  command_bar->SetAutocompleteMatchesForTesting(
+      ACMatches{search_match, url_match, tab_match});
+
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Ask Dao"));
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Search"));
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Open"));
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Switch Tab"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,

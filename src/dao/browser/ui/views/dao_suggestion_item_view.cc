@@ -79,12 +79,24 @@ DaoSuggestionItemView::DaoSuggestionItemView(int index,
   desc->SetBackgroundColor(SK_ColorTRANSPARENT);
   description_label_ = text_container->AddChildView(std::move(desc));
   text_layout->SetFlexForView(description_label_, 1);
+
+  auto intent = std::make_unique<views::Label>();
+  intent->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 10,
+                                    gfx::Font::Weight::MEDIUM));
+  intent->SetEnabledColor(TextMuted());
+  intent->SetHorizontalAlignment(gfx::ALIGN_RIGHT);
+  intent->SetElideBehavior(gfx::ELIDE_TAIL);
+  intent->SetSubpixelRenderingEnabled(false);
+  intent->SetBackgroundColor(SK_ColorTRANSPARENT);
+  intent->SetVisible(false);
+  intent_label_ = AddChildView(std::move(intent));
 }
 
 DaoSuggestionItemView::~DaoSuggestionItemView() = default;
 
 void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
-                                      bool is_bookmark) {
+                                     bool is_bookmark,
+                                     const std::u16string& intent_label) {
   // Async autocomplete ticks frequently re-emit the same match for the
   // same row. Bail out early when the visible content is unchanged to
   // avoid redundant text relayout, vector icon rasterization, and
@@ -92,6 +104,7 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
   if (!last_was_ask_ai_ && last_match_url_ == match.destination_url &&
       last_match_contents_ == match.contents &&
       last_match_description_ == match.description &&
+      last_match_intent_label_ == intent_label &&
       last_match_is_bookmark_ == is_bookmark) {
     return;
   }
@@ -99,8 +112,10 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
   last_match_url_ = match.destination_url;
   last_match_contents_ = match.contents;
   last_match_description_ = match.description;
+  last_match_intent_label_ = intent_label;
   last_match_is_bookmark_ = is_bookmark;
   last_ask_ai_prompt_.clear();
+  last_ask_ai_intent_label_.clear();
 
   // Always set the vector icon first as immediate fallback
   const gfx::VectorIcon& vector_icon = match.GetVectorIcon(is_bookmark);
@@ -140,18 +155,25 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
     description_label_->SetVisible(true);
     description_label_->SetText(match.description);
   }
+  intent_label_->SetText(intent_label);
+  intent_label_->SetVisible(!intent_label.empty());
 }
 
-void DaoSuggestionItemView::SetAskAiPrompt(const std::u16string& prompt) {
+void DaoSuggestionItemView::SetAskAiPrompt(
+    const std::u16string& prompt,
+    const std::u16string& intent_label) {
   // Cheap no-op when the rendered Ask-AI prompt is unchanged across ticks.
-  if (last_was_ask_ai_ && last_ask_ai_prompt_ == prompt) {
+  if (last_was_ask_ai_ && last_ask_ai_prompt_ == prompt &&
+      last_ask_ai_intent_label_ == intent_label) {
     return;
   }
   last_was_ask_ai_ = true;
   last_ask_ai_prompt_ = prompt;
+  last_ask_ai_intent_label_ = intent_label;
   last_match_url_ = GURL();
   last_match_contents_.clear();
   last_match_description_.clear();
+  last_match_intent_label_.clear();
   last_match_is_bookmark_ = false;
 
   favicon_tracker_.TryCancelAll();
@@ -166,6 +188,8 @@ void DaoSuggestionItemView::SetAskAiPrompt(const std::u16string& prompt) {
   title_label_->SetText(
       l10n_util::GetStringFUTF16(IDS_DAO_SUGGESTION_ASK_AI, prompt));
   description_label_->SetVisible(false);
+  intent_label_->SetText(intent_label);
+  intent_label_->SetVisible(!intent_label.empty());
 }
 
 void DaoSuggestionItemView::OnFaviconFetched(
@@ -198,6 +222,9 @@ void DaoSuggestionItemView::RefreshTheme() {
   }
   if (description_label_) {
     description_label_->SetEnabledColor(TextMuted());
+  }
+  if (intent_label_) {
+    intent_label_->SetEnabledColor(TextMuted());
   }
 
   // Vector icons are rasterized at SetMatch / SetAskAiPrompt time with the

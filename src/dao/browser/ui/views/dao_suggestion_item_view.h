@@ -43,12 +43,16 @@ class DaoSuggestionItemView : public views::View {
   DaoSuggestionItemView& operator=(const DaoSuggestionItemView&) = delete;
   ~DaoSuggestionItemView() override;
 
-  void SetMatch(const AutocompleteMatch& match, bool is_bookmark);
+  void SetMatch(const AutocompleteMatch& match,
+                bool is_bookmark,
+                const std::u16string& intent_label = std::u16string());
 
   // Render this row as an "Ask AI" entry for |prompt| instead of a normal
   // autocomplete match. Cancels any pending favicon load and paints a
   // sparkle icon on the left.
-  void SetAskAiPrompt(const std::u16string& prompt);
+  void SetAskAiPrompt(
+      const std::u16string& prompt,
+      const std::u16string& intent_label = std::u16string());
 
   void SetSelected(bool selected);
 
@@ -82,6 +86,7 @@ class DaoSuggestionItemView : public views::View {
   raw_ptr<views::ImageView> icon_view_ = nullptr;
   raw_ptr<views::Label> title_label_ = nullptr;
   raw_ptr<views::Label> description_label_ = nullptr;
+  raw_ptr<views::Label> intent_label_ = nullptr;
 
   // State needed to re-rasterize the leading icon on theme change.
   IconMode icon_mode_ = IconMode::kNone;
@@ -94,8 +99,10 @@ class DaoSuggestionItemView : public views::View {
   GURL last_match_url_;
   std::u16string last_match_contents_;
   std::u16string last_match_description_;
+  std::u16string last_match_intent_label_;
   bool last_match_is_bookmark_ = false;
   std::u16string last_ask_ai_prompt_;
+  std::u16string last_ask_ai_intent_label_;
   bool last_was_ask_ai_ = false;
 
   // Tracks the URL for the current favicon request so stale callbacks are

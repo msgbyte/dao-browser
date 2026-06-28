@@ -10,6 +10,14 @@ index 0000000001..0000000002 100644
  <translation id="2977480621796371840">从分组中移除</translation>
  <translation id="2978697251742938065">与他人协作</translation>
  <translation id="2979493931538961252">当 Chromebook 处于离线状态且热点可用时</translation>
+@@ -4216,6 +4217,7 @@
+ <translation id="3813358687923336574">翻译页面和快速解答时使用的语言</translation>
+ <translation id="3813458570141926987">主题列表，这些主题是 Chrome 根据您近期的浏览记录推测的</translation>
+ <translation id="3814529970604306954">学校账号</translation>
++<translation id="3815248333120566849">在命令栏中使用更丰富的标签页、命令、搜索和 Dao 建议</translation>
+ <translation id="3815668647912194650">您可以保留此分组，以便日后添加标签页；如果不再想访问它，也可以退出分组。</translation>
+ <translation id="3816118180265633665">Chrome 颜色</translation>
+ <translation id="3817524650114746564">打开您计算机的代理设置</translation>
 @@ -5690,6 +5691,7 @@
  <translation id="4830502475412647084">正在安装操作系统更新</translation>
  <translation id="4831226137013573603">麦克风静音</translation>
@@ -25,3 +33,11 @@ index 0000000001..0000000002 100644
  <translation id="7260802376010589729">按下“c”键表示松开鼠标按键</translation>
  <translation id="7261217796641151584">共享分组</translation>
  <translation id="7261612856573623172">系统默认文字转语音声音</translation>
+@@ -11957,6 +11959,7 @@
+ <translation id="9085776959277692427">未选择“<ph name="LANGUAGE" />”。按搜索键 + 空格键即可选择。</translation>
+ <translation id="9087949559523851360">添加受限用户</translation>
+ <translation id="9088234649737575428">系统已根据企业政策屏蔽 <ph name="PLUGIN_NAME" /></translation>
++<translation id="9088288809489009615">增强命令栏建议</translation>
+ <translation id="90885733430013283">Wi-Fi SSID</translation>
+ <translation id="9088858349441302494">由 <ph name="VALUE" /> 管理</translation>
+ <translation id="9089416786594320554">输入法</translation>

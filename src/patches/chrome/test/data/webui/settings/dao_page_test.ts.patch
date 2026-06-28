@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,65 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -23,6 +23,11 @@ index 0000000000..0000000001
 +    page = document.createElement('settings-dao-page');
 +    page.prefs = {
 +      dao: {
++        enhanced_command_bar_suggestions_enabled: {
++          key: 'dao.enhanced_command_bar_suggestions_enabled',
++          type: chrome.settingsPrivate.PrefType.BOOLEAN,
++          value: false,
++        },
 +        little_dao_enabled: {
 +          key: 'dao.little_dao_enabled',
 +          type: chrome.settingsPrivate.PrefType.BOOLEAN,
@@ -41,6 +46,16 @@ index 0000000000..0000000001
 +    assertTrue(!!toggle);
 +    assertEquals('dao.little_dao_enabled', toggle.pref!.key);
 +    assertTrue(toggle.checked);
++  });
++
++  test('enhancedCommandBarSuggestionsToggleBindsToDaoPref', function() {
++    const toggle =
++        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++            '#enhancedCommandBarSuggestionsEnabled');
++    assertTrue(!!toggle);
++    assertEquals(
++        'dao.enhanced_command_bar_suggestions_enabled', toggle.pref!.key);
++    assertTrue(!toggle.checked);
 +  });
 +
 +  test('routeIsIndependentDaoSection', function() {

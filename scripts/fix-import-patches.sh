@@ -50,12 +50,34 @@ for input_path in "$@"; do
   esac
 
   case "$patch_rel" in
-    *.patch) target_rel=${patch_rel%.patch} ;;
+    *.patch) ;;
     *)
       echo "error: patch path must end with .patch: $input_path" >&2
       exit 1
       ;;
   esac
+
+  target_rel=$(
+    awk '
+      /^\+\+\+ b\// {
+        print substr($0, 7)
+        found = 1
+        exit
+      }
+      /^\-\-\- a\// {
+        old = substr($0, 7)
+      }
+      END {
+        if (!found && old != "") {
+          print old
+        }
+      }
+    ' "$patch_abs"
+  )
+  if [ -z "$target_rel" ]; then
+    echo "error: could not determine patch target: $input_path" >&2
+    exit 1
+  fi
 
   if git -C "$ENGINE_SRC" apply --check --reverse "$patch_abs" >/dev/null 2>&1; then
     echo "already current: $patch_rel"
@@ -63,7 +85,11 @@ for input_path in "$@"; do
   fi
 
   echo "repairing: $patch_rel -> engine/src/$target_rel"
-  git -C "$ENGINE_SRC" checkout -- "$target_rel"
+  if git -C "$ENGINE_SRC" ls-files --error-unmatch "$target_rel" >/dev/null 2>&1; then
+    git -C "$ENGINE_SRC" checkout -- "$target_rel"
+  else
+    rm -f "$ENGINE_SRC/$target_rel"
+  fi
   git -C "$ENGINE_SRC" apply "$patch_abs"
 done
 

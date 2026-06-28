@@ -301,6 +301,18 @@
       <message name="IDS_DAO_SUGGESTION_ASK_AI" desc="Title of a suggestion row that, when clicked, sends the user's typed text to the AI assistant. The PROMPT placeholder is the user's typed query, e.g. 'Ask AI: how do I bake bread?'.">
         Ask AI: <ph name="PROMPT">$1<ex>how do I bake bread?</ex></ph>
       </message>
+      <message name="IDS_DAO_SUGGESTION_INTENT_SEARCH" desc="Short right-side intent label for a command bar suggestion that will run a web search.">
+        Search
+      </message>
+      <message name="IDS_DAO_SUGGESTION_INTENT_OPEN" desc="Short right-side intent label for a command bar suggestion that will open a URL.">
+        Open
+      </message>
+      <message name="IDS_DAO_SUGGESTION_INTENT_SWITCH_TAB" desc="Short right-side intent label for a command bar suggestion that will switch to an already-open tab.">
+        Switch Tab
+      </message>
+      <message name="IDS_DAO_SUGGESTION_INTENT_ASK_DAO" desc="Short right-side intent label for a command bar suggestion that will send the typed prompt to the Dao assistant.">
+        Ask Dao
+      </message>
 
       <!-- Control Center -->
       <message name="IDS_DAO_CONTROL_CENTER_BUTTON_ACCESSIBLE_NAME" desc="Accessible name for the Control Center button (the gear/sliders icon in the sidebar that opens the settings popup).">

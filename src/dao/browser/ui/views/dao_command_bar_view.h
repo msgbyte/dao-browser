@@ -97,6 +97,14 @@ class DaoCommandBarView : public views::View,
   const std::u16string& GetInlineAutocompletionForTesting() const {
     return inline_autocompletion_;
   }
+  int GetAutocompleteProviderTypesForTesting() const {
+    return GetAutocompleteProviderTypesForCurrentMode();
+  }
+  int GetAskAiRowIndexForTesting() const { return ask_ai_row_index_; }
+  int GetSelectedIndexForTesting() const { return selected_index_; }
+  int GetVisibleSuggestionCountForTesting() const {
+    return visible_suggestion_count_;
+  }
 
  private:
   static constexpr int kMaxSuggestions = 5;
@@ -138,6 +146,11 @@ class DaoCommandBarView : public views::View,
   void ApplySelectedSuggestion();
   void SetSelectedIndex(int index, bool user_initiated);
   void OnSuggestionClicked(int index);
+  bool EnhancedSuggestionsEnabled() const;
+  bool ShouldShowAskAiSuggestion() const;
+  int GetAutocompleteProviderTypesForCurrentMode() const;
+  const AutocompleteMatch* GetSelectedVisibleAutocompleteMatch() const;
+  std::u16string GetIntentLabelForMatch(const AutocompleteMatch& match) const;
 
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> shadow_view_ = nullptr;
@@ -152,11 +165,13 @@ class DaoCommandBarView : public views::View,
 
   std::unique_ptr<AutocompleteController> autocomplete_controller_;
   std::unique_ptr<ChromeAutocompleteSchemeClassifier> scheme_classifier_;
+  bool autocomplete_controller_uses_enhanced_suggestions_ = false;
 
   int selected_index_ = -1;
-  // Auto-selection keeps this false so Enter follows visible inline
-  // completion or the typed input; arrow keys and clicks flip it so explicit
-  // suggestions win.
+  // In default mode, auto-selection keeps this false so Enter follows visible
+  // inline completion or typed input; arrow keys and clicks flip it so explicit
+  // suggestions win. Enhanced suggestions always submit the selected visible
+  // row first, matching the visual default action.
   bool selection_explicitly_changed_ = false;
   std::u16string user_input_text_;
   std::u16string inline_autocompletion_;

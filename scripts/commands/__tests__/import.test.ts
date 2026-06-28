@@ -1,5 +1,14 @@
 import path from 'node:path';
-import {existsSync, readFileSync} from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import os from 'node:os';
+import {execFileSync} from 'node:child_process';
 
 import {describe, expect, it} from 'vitest';
 
@@ -51,6 +60,144 @@ describe('import helpers', () => {
       "sh scripts/fix-import-patches.sh 'src/patches/chrome/browser/ui/BUILD.gn.patch'",
       'Then re-run: npm run import',
     ].join('\n'));
+  });
+
+  it('repairs patch files whose names do not match the target path', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    mkdirSync(path.join(tempRoot, 'scripts'), {recursive: true});
+    mkdirSync(path.join(tempRoot, 'src/patches/chrome/app'), {
+      recursive: true,
+    });
+    mkdirSync(path.join(tempRoot, 'engine/src/chrome/app'), {recursive: true});
+
+    copyFileSync(
+        path.join(process.cwd(), 'scripts/fix-import-patches.sh'),
+        path.join(tempRoot, 'scripts/fix-import-patches.sh'));
+
+    const targetPath =
+        path.join(tempRoot, 'engine/src/chrome/app/settings_strings.grdp');
+    writeFileSync(targetPath, 'line 1\nold value\nline 3\n');
+
+    execFileSync('git', ['init'], {
+      cwd: path.join(tempRoot, 'engine/src'),
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['add', 'chrome/app/settings_strings.grdp'], {
+      cwd: path.join(tempRoot, 'engine/src'),
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {
+          cwd: path.join(tempRoot, 'engine/src'),
+          stdio: 'ignore',
+        });
+
+    writeFileSync(
+        path.join(
+            tempRoot, 'src/patches/chrome/app/settings_strings_dao.grdp.patch'),
+        [
+          'diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp',
+          '--- a/chrome/app/settings_strings.grdp',
+          '+++ b/chrome/app/settings_strings.grdp',
+          '@@ -1,3 +1,3 @@',
+          ' line 1',
+          '-old value',
+          '+new value',
+          ' line 3',
+          '',
+        ].join('\n'));
+
+    execFileSync(
+        'sh',
+        [
+          'scripts/fix-import-patches.sh',
+          'src/patches/chrome/app/settings_strings_dao.grdp.patch',
+        ],
+        {
+          cwd: tempRoot,
+          stdio: 'pipe',
+        });
+
+    expect(readFileSync(targetPath, 'utf-8')).toBe(
+        'line 1\nnew value\nline 3\n');
+  });
+
+  it('repairs new-file patches when an older untracked target exists', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    mkdirSync(path.join(tempRoot, 'scripts'), {recursive: true});
+    mkdirSync(path.join(tempRoot, 'src/patches/chrome/test'), {
+      recursive: true,
+    });
+    mkdirSync(path.join(tempRoot, 'engine/src/chrome/test'), {recursive: true});
+
+    copyFileSync(
+        path.join(process.cwd(), 'scripts/fix-import-patches.sh'),
+        path.join(tempRoot, 'scripts/fix-import-patches.sh'));
+
+    execFileSync('git', ['init'], {
+      cwd: path.join(tempRoot, 'engine/src'),
+      stdio: 'ignore',
+    });
+    writeFileSync(path.join(tempRoot, 'engine/src/.gitkeep'), '');
+    execFileSync('git', ['add', '.gitkeep'], {
+      cwd: path.join(tempRoot, 'engine/src'),
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {
+          cwd: path.join(tempRoot, 'engine/src'),
+          stdio: 'ignore',
+        });
+
+    const targetPath =
+        path.join(tempRoot, 'engine/src/chrome/test/dao_page_test.ts');
+    writeFileSync(targetPath, 'old test\n');
+
+    writeFileSync(
+        path.join(tempRoot, 'src/patches/chrome/test/dao_page_test.ts.patch'),
+        [
+          'diff --git a/chrome/test/dao_page_test.ts b/chrome/test/dao_page_test.ts',
+          'new file mode 100644',
+          'index 0000000000..0000000001',
+          '--- /dev/null',
+          '+++ b/chrome/test/dao_page_test.ts',
+          '@@ -0,0 +1 @@',
+          '+new test',
+          '',
+        ].join('\n'));
+
+    execFileSync(
+        'sh',
+        [
+          'scripts/fix-import-patches.sh',
+          'src/patches/chrome/test/dao_page_test.ts.patch',
+        ],
+        {
+          cwd: tempRoot,
+          stdio: 'pipe',
+        });
+
+    expect(readFileSync(targetPath, 'utf-8')).toBe('new test\n');
   });
 
   it('rewrites chrome scheme text and reports replacements', () => {
