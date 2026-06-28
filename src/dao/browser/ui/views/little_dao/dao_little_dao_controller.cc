@@ -4,8 +4,12 @@
 
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 
+#include <optional>
+
 #include "base/containers/flat_set.h"
 #include "base/no_destructor.h"
+#include "base/values.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -15,14 +19,99 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/dao_pref_names.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace dao {
 
 namespace {
 
+constexpr int kDefaultLittleDaoWindowWidth = 900;
+constexpr int kDefaultLittleDaoWindowHeight = 640;
+constexpr char kWidthKey[] = "width";
+constexpr char kHeightKey[] = "height";
+
 bool g_creating_little_dao = false;
+
+PrefService* GetValidLittleDaoPrefs(Profile* profile) {
+  if (!profile || profile->IsOffTheRecord()) {
+    return nullptr;
+  }
+
+  PrefService* prefs = profile->GetPrefs();
+  if (!prefs ||
+      !prefs->FindPreference(dao::prefs::kDaoLittleDaoWindowSize)) {
+    return nullptr;
+  }
+
+  return prefs;
+}
+
+std::optional<gfx::Size> GetPersistedLittleDaoWindowSize(Profile* profile) {
+  PrefService* prefs = GetValidLittleDaoPrefs(profile);
+  if (!prefs) {
+    return std::nullopt;
+  }
+
+  const base::DictValue& size_pref =
+      prefs->GetDict(dao::prefs::kDaoLittleDaoWindowSize);
+  const std::optional<int> width = size_pref.FindInt(kWidthKey);
+  const std::optional<int> height = size_pref.FindInt(kHeightKey);
+  if (!width || !height || *width <= 0 || *height <= 0) {
+    return std::nullopt;
+  }
+
+  return gfx::Size(*width, *height);
+}
+
+gfx::Rect GetInitialLittleDaoBounds(Profile* profile) {
+  gfx::Size size(kDefaultLittleDaoWindowWidth, kDefaultLittleDaoWindowHeight);
+  if (std::optional<gfx::Size> persisted_size =
+          GetPersistedLittleDaoWindowSize(profile)) {
+    size = *persisted_size;
+  }
+
+  return gfx::Rect(gfx::Point(), size);
+}
+
+void RestoreLittleDaoWindowSize(Browser* browser,
+                                const gfx::Size& persisted_size) {
+  if (!browser || !browser->window() || persisted_size.IsEmpty()) {
+    return;
+  }
+
+  gfx::Rect bounds = browser->window()->GetBounds();
+  if (bounds.IsEmpty()) {
+    bounds = gfx::Rect(gfx::Point(), persisted_size);
+  } else {
+    bounds.set_size(persisted_size);
+  }
+  browser->window()->SetBounds(bounds);
+}
+
+void UpdatePersistedLittleDaoWindowSize(Browser* browser) {
+  if (!browser || !browser->window()) {
+    return;
+  }
+
+  PrefService* prefs = GetValidLittleDaoPrefs(browser->profile());
+  if (!prefs) {
+    return;
+  }
+
+  const gfx::Rect bounds = browser->window()->GetBounds();
+  if (bounds.width() <= 0 || bounds.height() <= 0) {
+    return;
+  }
+
+  ScopedDictPrefUpdate update(prefs, dao::prefs::kDaoLittleDaoWindowSize);
+  update->Set(kWidthKey, bounds.width());
+  update->Set(kHeightKey, bounds.height());
+}
 
 // Observer that evicts Little Dao browsers from the tracking set when they
 // are destroyed. Without this, raw Browser* pointers in the set would
@@ -49,6 +138,9 @@ class LittleDaoBrowserTracker : public BrowserListObserver {
     // Called when a Browser window is closed and about to be destroyed.
     // Erase even if it's not a Little Dao browser — the set operation is
     // cheap and this keeps the invariant simple.
+    if (browsers_.contains(browser)) {
+      UpdatePersistedLittleDaoWindowSize(browser);
+    }
     browsers_.erase(browser);
   }
 
@@ -72,7 +164,9 @@ Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
 
   Browser::CreateParams params(Browser::TYPE_POPUP, profile,
                                /*user_gesture=*/true);
-  params.initial_bounds = gfx::Rect(0, 0, 900, 640);
+  const std::optional<gfx::Size> persisted_window_size =
+      GetPersistedLittleDaoWindowSize(profile);
+  params.initial_bounds = GetInitialLittleDaoBounds(profile);
   params.can_resize = true;
   params.omit_from_session_restore = true;
 
@@ -83,6 +177,9 @@ Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
   g_creating_little_dao = false;
 
   LittleDaoBrowserTracker::Get().Insert(browser);
+  if (persisted_window_size) {
+    RestoreLittleDaoWindowSize(browser, *persisted_window_size);
+  }
 
   // Navigate to the URL in the popup's single tab.
   NavigateParams nav_params(browser, url, ui::PAGE_TRANSITION_LINK);

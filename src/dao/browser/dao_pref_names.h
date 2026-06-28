@@ -35,6 +35,10 @@ inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";
 // When false, external links use the regular full browser window.
 inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";
 
+// Dictionary pref storing the most recent Little Dao outer window size.
+inline constexpr char kDaoLittleDaoWindowSize[] =
+    "dao.little_dao_window_size";
+
 // Boolean pref that controls the Dream Analysis system. When false (the
 // default), the dream scheduler never fires and no browsing data is sent
 // to the LLM provider. Requires kDaoAgentMemoryEnabled to also be true.

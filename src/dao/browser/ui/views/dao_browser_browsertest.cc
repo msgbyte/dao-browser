@@ -191,6 +191,30 @@ class BrowserAddedRecorder : public BrowserListObserver {
   std::vector<raw_ptr<Browser, VectorExperimental>> added_browsers_;
 };
 
+class BrowserRemovedWaiter : public BrowserListObserver {
+ public:
+  explicit BrowserRemovedWaiter(Browser* browser) : browser_(browser) {
+    BrowserList::AddObserver(this);
+  }
+
+  BrowserRemovedWaiter(const BrowserRemovedWaiter&) = delete;
+  BrowserRemovedWaiter& operator=(const BrowserRemovedWaiter&) = delete;
+
+  ~BrowserRemovedWaiter() override { BrowserList::RemoveObserver(this); }
+
+  void Wait() { run_loop_.Run(); }
+
+  void OnBrowserRemoved(Browser* browser) override {
+    if (browser == browser_) {
+      run_loop_.Quit();
+    }
+  }
+
+ private:
+  raw_ptr<Browser> browser_;
+  base::RunLoop run_loop_;
+};
+
 bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
   if (!root) {
     return false;
@@ -4748,6 +4772,44 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
   // otherwise every BrowserView constructor would take the Little Dao
   // branch and never render the sidebar.
   EXPECT_FALSE(dao::DaoLittleDaoController::IsCreatingLittleDao());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
+                       RestoresUserResizedWindowSize) {
+  const gfx::Rect custom_bounds(120, 130, 760, 520);
+
+  Browser* first_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/plain,first"));
+  ASSERT_NE(nullptr, first_browser);
+  ASSERT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(first_browser));
+
+  BrowserView* first_browser_view = GetBrowserView(first_browser);
+  ASSERT_NE(nullptr, first_browser_view);
+  views::Widget* first_widget = first_browser_view->GetWidget();
+  ASSERT_NE(nullptr, first_widget);
+  first_widget->SetBounds(custom_bounds);
+  EXPECT_EQ(custom_bounds.size(),
+            first_widget->GetWindowBoundsInScreen().size());
+
+  BrowserRemovedWaiter first_removed(first_browser);
+  first_browser->window()->Close();
+  first_removed.Wait();
+
+  Browser* second_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/plain,second"));
+  ASSERT_NE(nullptr, second_browser);
+  ASSERT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(second_browser));
+
+  BrowserView* second_browser_view = GetBrowserView(second_browser);
+  ASSERT_NE(nullptr, second_browser_view);
+  views::Widget* second_widget = second_browser_view->GetWidget();
+  ASSERT_NE(nullptr, second_widget);
+  EXPECT_EQ(custom_bounds.size(),
+            second_widget->GetWindowBoundsInScreen().size());
+
+  BrowserRemovedWaiter second_removed(second_browser);
+  second_browser->window()->Close();
+  second_removed.Wait();
 }
 
 // =============================================================================

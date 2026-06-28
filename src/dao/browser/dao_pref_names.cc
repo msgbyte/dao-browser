@@ -14,6 +14,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterDictionaryPref(kDaoPipWindowBoundsByOrigin);
   registry->RegisterBooleanPref(kDaoWelcomeShown, false);
   registry->RegisterBooleanPref(kDaoLittleDaoEnabled, true);
+  registry->RegisterDictionaryPref(kDaoLittleDaoWindowSize);
   registry->RegisterBooleanPref(kDaoDreamEnabled, false);
   registry->RegisterBooleanPref(kDaoDreamDebug, false);
 }
