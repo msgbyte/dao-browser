@@ -2,7 +2,108 @@ diff --git a/chrome/browser/picture_in_picture/picture_in_picture_window_manager
 index cccf164d97..344f2056a4 100644
 --- a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
 +++ b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
-@@ -676,49 +676,8 @@ std::unique_ptr<AutoPipSettingOverlayView>
+@@ -7,13 +7,15 @@
+ #include "base/memory/raw_ptr.h"
+ #include "base/numerics/safe_conversions.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_bounds_cache.h"
++#include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/browser_navigator_params.h"
+ #include "content/public/browser/document_picture_in_picture_window_controller.h"
+ #include "content/public/browser/navigation_handle.h"
+ #include "content/public/browser/picture_in_picture_window_controller.h"
+ #include "content/public/browser/video_picture_in_picture_window_controller.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_contents_delegate.h"
+ #include "content/public/browser/web_contents_observer.h"
+ #include "content/public/common/url_constants.h"
++#include "dao/browser/pip/dao_pip_bounds_prefs.h"
+ #include "extensions/buildflags/buildflags.h"
+@@ -66,3 +68,13 @@ constexpr gfx::Size kMinWindowSize(220, 220);
+ constexpr double kMaxWindowSizeRatio = 0.8;
+-
++
++std::optional<gfx::Size> GetRequestedContentSize(
++    const blink::mojom::PictureInPictureWindowOptions& pip_options) {
++  if (pip_options.width > 0 && pip_options.height > 0) {
++    return gfx::Size(base::saturated_cast<int>(pip_options.width),
++                     base::saturated_cast<int>(pip_options.height));
++  }
++
++  return std::nullopt;
++}
++
+ #if !BUILDFLAG(IS_ANDROID)
+@@ -419,4 +431,7 @@ gfx::Rect PictureInPictureWindowManager::CalculateOuterWindowBounds(
+   CHECK(opener_display_);
+   auto opener_display = opener_display_.value();
+-
++  std::optional<gfx::Size> requested_content_bounds =
++      GetRequestedContentSize(pip_options);
++  last_document_pip_requested_content_size_ = requested_content_bounds;
++
+   // TODO(crbug.com/40841415): This copies a bunch of logic from
+@@ -435,15 +450,22 @@ gfx::Rect PictureInPictureWindowManager::CalculateOuterWindowBounds(
+     auto* const web_contents = pip_window_controller_->GetWebContents();
+-    std::optional<gfx::Size> requested_content_bounds;
+-    if (pip_options.width > 0 && pip_options.height > 0) {
+-      requested_content_bounds.emplace(pip_options.width, pip_options.height);
+-    }
+     auto cached_window_bounds =
+         PictureInPictureBoundsCache::GetBoundsForNewWindow(
+             web_contents, opener_display, requested_content_bounds);
+     // Ignore the result if we're asked to do so.  Note that we still have to
+     // ask the cache, so that it's set up to accept position updates later for
+     // this request.
+-    if (cached_window_bounds && !pip_options.prefer_initial_window_placement) {
+-      // Cache hit!  Just return it as the window bounds.
+-      return *cached_window_bounds;
++    if (!pip_options.prefer_initial_window_placement) {
++      if (cached_window_bounds) {
++        // Cache hit!  Just return it as the window bounds.
++        return *cached_window_bounds;
++      }
++
++      Profile* profile =
++          Profile::FromBrowserContext(web_contents->GetBrowserContext());
++      std::optional<gfx::Rect> persisted_window_bounds =
++          dao::GetPersistedPipBoundsForSite(
++              profile, web_contents, opener_display, requested_content_bounds);
++      if (persisted_window_bounds) {
++        return *persisted_window_bounds;
++      }
+     }
+@@ -452,8 +474,6 @@ gfx::Rect PictureInPictureWindowManager::CalculateOuterWindowBounds(
+-  if (pip_options.width > 0 && pip_options.height > 0) {
++  if (requested_content_bounds) {
+     // Use width and height if we have them both, and ensure that the size isn't
+     // too large.
+-    gfx::Size requested_window_size(
+-        base::saturated_cast<int>(pip_options.width),
+-        base::saturated_cast<int>(pip_options.height));
++    gfx::Size requested_window_size = requested_content_bounds.value();
+     gfx::Size window_size =
+         AdjustRequestedSizeIfNecessary(requested_window_size, opener_display);
+@@ -549,4 +569,9 @@ void PictureInPictureWindowManager::UpdateCachedBounds(
+   CHECK(opener_display_);
+   PictureInPictureBoundsCache::UpdateCachedBounds(
+       web_contents, most_recent_bounds, opener_display_.value(), pip_display);
++  Profile* profile =
++      Profile::FromBrowserContext(web_contents->GetBrowserContext());
++  dao::UpdatePersistedPipBoundsForSite(
++      profile, web_contents, most_recent_bounds, opener_display_.value(),
++      pip_display, last_document_pip_requested_content_size_);
+ }
+@@ -642,6 +667,7 @@ void PictureInPictureWindowManager::CloseWindowInternal() {
+   }
+-
++
+   opener_display_.reset();
++  last_document_pip_requested_content_size_.reset();
+-
++
+ #if !BUILDFLAG(IS_ANDROID)
+   MaybeRecordPictureInPictureChanged(false);
+@@ -676,49 +702,8 @@ std::unique_ptr<AutoPipSettingOverlayView>
  PictureInPictureWindowManager::GetOverlayView(
      views::View* anchor_view,
      views::BubbleBorder::Arrow arrow) {
@@ -49,7 +150,7 @@ index cccf164d97..344f2056a4 100644
 -  }
 -
 -  return overlay_view;
-+  // Dao: Skip the auto-PiP permission overlay entirely — always allow.
++  // Dao: Skip the auto-PiP permission overlay entirely. Always allow.
 +  return nullptr;
  }
  

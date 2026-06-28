@@ -22,6 +22,11 @@ inline constexpr char kDaoAgentMemoryEnabled[] = "dao.agent_memory_enabled";
 // Keyed by window session ID, each entry holds a serialized tree.
 inline constexpr char kDaoSplitLayout[] = "dao.split_layout";
 
+// Dictionary pref storing the most recent Document PiP outer window bounds
+// per origin.
+inline constexpr char kDaoPipWindowBoundsByOrigin[] =
+    "dao.pip_window_bounds_by_origin";
+
 // Boolean pref that tracks whether the welcome page has been shown.
 // When false (the default), dao://welcome is opened on first launch.
 inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";

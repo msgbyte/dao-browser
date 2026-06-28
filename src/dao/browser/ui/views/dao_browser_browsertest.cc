@@ -8,6 +8,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -19,6 +20,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_list_observer.h"
@@ -27,6 +29,7 @@
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -84,6 +87,7 @@
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/dao_webstore_branding_tab_helper.h"
+#include "dao/browser/pip/dao_pip_bounds_prefs.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
 #include "dao/browser/pip/dao_pip_resize_utils.h"
 #include "dao/browser/pip/dao_pip_site_rules.h"
@@ -132,6 +136,10 @@
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/display/display.h"
+#include "ui/display/display_list.h"
+#include "ui/display/screen.h"
+#include "ui/display/test/test_screen.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/image/image.h"
@@ -150,6 +158,7 @@
 #include "ui/views/window/dialog_delegate.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
+#include "url/origin.h"
 #include "url/url_constants.h"
 
 namespace dao {
@@ -622,6 +631,393 @@ TEST(DaoPipOverlayResizeTest, TopCornerResizeClampsToMinimumSize) {
   EXPECT_EQ(150, top_left.height());
   EXPECT_EQ(start_bounds.right(), top_left.right());
   EXPECT_EQ(start_bounds.bottom(), top_left.bottom());
+}
+
+class DaoPipBoundsPrefsBrowserTest : public InProcessBrowserTest {
+ public:
+  void SetUp() override {
+    ConfigureTestScreen();
+    display::Screen::SetScreenInstance(&test_screen_);
+    InProcessBrowserTest::SetUp();
+  }
+
+  void TearDown() override {
+    InProcessBrowserTest::TearDown();
+    display::Screen::SetScreenInstance(nullptr);
+  }
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+ protected:
+  void RemoveSecondaryDisplayForTesting() {
+    test_screen_.display_list().RemoveDisplay(kSecondaryDisplayId);
+  }
+
+ private:
+  static constexpr int64_t kPrimaryDisplayId = 1001;
+  static constexpr int64_t kSecondaryDisplayId = 2002;
+
+  static display::Display CreateDisplay(int64_t id, const gfx::Rect& bounds) {
+    display::Display display(id, bounds);
+    display.set_work_area(bounds);
+    return display;
+  }
+
+  void ConfigureTestScreen() {
+    const display::Display default_display = test_screen_.GetPrimaryDisplay();
+    test_screen_.display_list().RemoveDisplay(default_display.id());
+    test_screen_.display_list().AddDisplay(
+        CreateDisplay(kPrimaryDisplayId, gfx::Rect(0, 0, 1440, 900)),
+        display::DisplayList::Type::PRIMARY);
+    test_screen_.display_list().AddDisplay(
+        CreateDisplay(kSecondaryDisplayId, gfx::Rect(1440, 0, 1440, 900)),
+        display::DisplayList::Type::NOT_PRIMARY);
+  }
+
+  display::test::TestScreen test_screen_;
+};
+
+class TestPictureInPictureWindowController
+    : public content::PictureInPictureWindowController {
+ public:
+  explicit TestPictureInPictureWindowController(
+      content::WebContents* web_contents)
+      : web_contents_(web_contents) {}
+
+  void Show() override {}
+  void FocusInitiator() override {}
+  void Close(bool should_pause_video) override {}
+  void CloseAndFocusInitiator() override {}
+  void OnWindowDestroyed(bool should_pause_video) override {}
+  content::WebContents* GetWebContents() override { return web_contents_; }
+  std::optional<gfx::Rect> GetWindowBoundsInScreen() override {
+    return std::nullopt;
+  }
+  content::WebContents* GetChildWebContents() override { return nullptr; }
+  std::optional<url::Origin> GetOrigin() override { return std::nullopt; }
+
+ private:
+  raw_ptr<content::WebContents> web_contents_;
+};
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest, RegistersDictionaryPref) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  ASSERT_TRUE(prefs->FindPreference(dao::prefs::kDaoPipWindowBoundsByOrigin));
+  EXPECT_TRUE(
+      prefs->GetDict(dao::prefs::kDaoPipWindowBoundsByOrigin).empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       StoresAndRestoresBoundsForSameOriginAndRequestedSize) {
+  const GURL url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  ASSERT_FALSE(browser()->profile()->IsOffTheRecord());
+  ASSERT_TRUE(browser()->profile()->GetPrefs()->FindPreference(
+      dao::prefs::kDaoPipWindowBoundsByOrigin));
+  const url::Origin current_origin =
+      contents->GetPrimaryMainFrame()->GetLastCommittedOrigin();
+  ASSERT_TRUE(current_origin.GetTupleOrPrecursorTupleIfOpaque().IsValid());
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  display::Display pip_display(1001);
+  pip_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  pip_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  const gfx::Rect stored_bounds(700, 420, 640, 360);
+  const gfx::Size requested_size(800, 450);
+  ASSERT_TRUE(stored_bounds.Intersects(pip_display.work_area()));
+  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+                                       stored_bounds, opener_display,
+                                       pip_display, requested_size);
+
+  const std::string origin_key = url::Origin::Create(url).Serialize();
+  ASSERT_EQ(origin_key,
+            current_origin.GetTupleOrPrecursorTupleIfOpaque().Serialize());
+  EXPECT_FALSE(browser()
+                   ->profile()
+                   ->GetPrefs()
+                   ->GetDict(dao::prefs::kDaoPipWindowBoundsByOrigin)
+                   .empty());
+  const base::DictValue* entry =
+      browser()
+          ->profile()
+          ->GetPrefs()
+          ->GetDict(dao::prefs::kDaoPipWindowBoundsByOrigin)
+          .FindDict(origin_key);
+  ASSERT_NE(nullptr, entry);
+  EXPECT_EQ(stored_bounds.x(), entry->FindInt("x"));
+  EXPECT_EQ(stored_bounds.y(), entry->FindInt("y"));
+  EXPECT_EQ(stored_bounds.width(), entry->FindInt("width"));
+  EXPECT_EQ(stored_bounds.height(), entry->FindInt("height"));
+
+  std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
+      browser()->profile(), contents, opener_display, requested_size);
+
+  ASSERT_TRUE(restored.has_value());
+  EXPECT_EQ(stored_bounds, restored.value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       RestoresStoredRequestedSizeWhenCurrentRequestHasNoSize) {
+  const GURL url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  const gfx::Rect stored_bounds(700, 420, 640, 360);
+  dao::UpdatePersistedPipBoundsForSite(
+      browser()->profile(), contents, stored_bounds, opener_display,
+      opener_display, gfx::Size(800, 450));
+
+  std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
+      browser()->profile(), contents, opener_display, std::nullopt);
+
+  ASSERT_TRUE(restored.has_value());
+  EXPECT_EQ(stored_bounds, restored.value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       RestoresBoundsOnStoredPipDisplay) {
+  const GURL url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  display::Display pip_display(2002);
+  pip_display.set_bounds(gfx::Rect(1440, 0, 1440, 900));
+  pip_display.set_work_area(gfx::Rect(1440, 0, 1440, 900));
+
+  const gfx::Rect stored_bounds(1500, 420, 640, 360);
+  const gfx::Size requested_size(800, 450);
+  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+                                       stored_bounds, opener_display,
+                                       pip_display, requested_size);
+
+  std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
+      browser()->profile(), contents, opener_display, requested_size);
+
+  ASSERT_TRUE(restored.has_value());
+  EXPECT_EQ(stored_bounds, restored.value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       DoesNotRestoreBoundsWhenStoredPipDisplayIsUnavailable) {
+  const GURL url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  display::Display pip_display(2002);
+  pip_display.set_bounds(gfx::Rect(1440, 0, 1440, 900));
+  pip_display.set_work_area(gfx::Rect(1440, 0, 1440, 900));
+
+  const gfx::Rect stored_bounds(1500, 420, 640, 360);
+  const gfx::Size requested_size(800, 450);
+  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+                                       stored_bounds, opener_display,
+                                       pip_display, requested_size);
+  RemoveSecondaryDisplayForTesting();
+
+  std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
+      browser()->profile(), contents, opener_display, requested_size);
+
+  EXPECT_FALSE(restored.has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       WindowManagerRestoresProfileBoundsOnCacheMiss) {
+  const GURL url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  const gfx::Rect stored_bounds(700, 420, 640, 360);
+  const gfx::Size requested_size(800, 450);
+  dao::UpdatePersistedPipBoundsForSite(
+      browser()->profile(), contents, stored_bounds, opener_display,
+      opener_display, requested_size);
+
+  TestPictureInPictureWindowController controller(contents);
+  PictureInPictureWindowManager* manager =
+      PictureInPictureWindowManager::GetInstance();
+  manager->EnterPictureInPictureWithController(&controller);
+
+  blink::mojom::PictureInPictureWindowOptions pip_options;
+  pip_options.width = requested_size.width();
+  pip_options.height = requested_size.height();
+  EXPECT_EQ(stored_bounds,
+            manager->CalculateInitialPictureInPictureWindowBounds(
+                pip_options, opener_display));
+
+  manager->ExitPictureInPicture();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       WindowManagerHonorsPreferInitialWindowPlacement) {
+  const GURL url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  const gfx::Rect stored_bounds(700, 420, 640, 360);
+  const gfx::Size requested_size(800, 450);
+  dao::UpdatePersistedPipBoundsForSite(
+      browser()->profile(), contents, stored_bounds, opener_display,
+      opener_display, requested_size);
+
+  TestPictureInPictureWindowController controller(contents);
+  PictureInPictureWindowManager* manager =
+      PictureInPictureWindowManager::GetInstance();
+  manager->EnterPictureInPictureWithController(&controller);
+
+  blink::mojom::PictureInPictureWindowOptions pip_options;
+  pip_options.width = requested_size.width();
+  pip_options.height = requested_size.height();
+  pip_options.prefer_initial_window_placement = true;
+  EXPECT_NE(stored_bounds,
+            manager->CalculateInitialPictureInPictureWindowBounds(
+                pip_options, opener_display));
+
+  manager->ExitPictureInPicture();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       DoesNotRestoreBoundsForDifferentOrigin) {
+  const GURL bilibili_url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), bilibili_url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  const gfx::Size requested_size(800, 450);
+  dao::UpdatePersistedPipBoundsForSite(
+      browser()->profile(), contents, gfx::Rect(700, 420, 640, 360),
+      opener_display, opener_display, requested_size);
+
+  const GURL example_url =
+      embedded_test_server()->GetURL("example.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), example_url));
+
+  std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
+      browser()->profile(), contents, opener_display, requested_size);
+
+  EXPECT_FALSE(restored.has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       DoesNotRestoreBoundsForRequestedSizeMismatch) {
+  const GURL url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  dao::UpdatePersistedPipBoundsForSite(
+      browser()->profile(), contents, gfx::Rect(700, 420, 640, 360),
+      opener_display, opener_display, gfx::Size(800, 450));
+
+  std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
+      browser()->profile(), contents, opener_display, gfx::Size(1024, 576));
+
+  EXPECT_FALSE(restored.has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
+                       DoesNotRestoreFullyOffscreenBounds) {
+  const GURL url =
+      embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  display::Display opener_display(1001);
+  opener_display.set_bounds(gfx::Rect(0, 0, 1440, 900));
+  opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
+
+  const gfx::Size requested_size(800, 450);
+  base::DictValue stored_bounds;
+  stored_bounds.Set("x", 5000);
+  stored_bounds.Set("y", 5000);
+  stored_bounds.Set("width", 640);
+  stored_bounds.Set("height", 360);
+  stored_bounds.Set("opener_display_id",
+                    base::NumberToString(opener_display.id()));
+  stored_bounds.Set("pip_display_id",
+                    base::NumberToString(opener_display.id()));
+  stored_bounds.Set("requested_width", requested_size.width());
+  stored_bounds.Set("requested_height", requested_size.height());
+
+  base::DictValue bounds_by_origin;
+  bounds_by_origin.Set(url::Origin::Create(url).Serialize(),
+                       std::move(stored_bounds));
+  browser()->profile()->GetPrefs()->SetDict(
+      dao::prefs::kDaoPipWindowBoundsByOrigin, std::move(bounds_by_origin));
+
+  std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
+      browser()->profile(), contents, opener_display, requested_size);
+
+  EXPECT_FALSE(restored.has_value());
 }
 
 class ReenteringUpdateObserver : public dao::DaoUpdaterServiceObserver {

@@ -55,6 +55,8 @@ dao_browser_ui_sources = [
   "//dao/browser/dao_pref_names.h",
   "//dao/browser/dao_webstore_branding_tab_helper.cc",
   "//dao/browser/dao_webstore_branding_tab_helper.h",
+  "//dao/browser/pip/dao_pip_bounds_prefs.cc",
+  "//dao/browser/pip/dao_pip_bounds_prefs.h",
   "//dao/browser/pip/dao_pip_interceptor.cc",
   "//dao/browser/pip/dao_pip_interceptor.h",
   "//dao/browser/pip/dao_pip_site_rules.cc",

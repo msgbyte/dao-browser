@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.h b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.h
+index 7f043eaa1b..bfa3707c03 100644
+--- a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.h
++++ b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.h
+@@ -402,6 +402,11 @@
+   // The display of the opener window, cached during
+   // `CalculateInitialPictureInPictureWindowBounds`.
+   std::optional<display::Display> opener_display_;
++
++  // The site-requested inner size for the active Document PiP window, if any.
++  // Dao uses this to persist user-resized outer bounds against the same
++  // requested content size that Chromium's in-memory bounds cache keys on.
++  std::optional<gfx::Size> last_document_pip_requested_content_size_;
+ 
+   raw_ptr<content::PictureInPictureWindowController, DanglingUntriaged>
+       pip_window_controller_ = nullptr;
