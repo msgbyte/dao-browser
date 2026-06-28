@@ -67,6 +67,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "net/base/filename_util.h"
 #include "sql/database.h"
 #include "sql/meta_table.h"
 #include "sql/statement.h"
@@ -2454,6 +2455,35 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_TRUE(content::WaitForLoadStop(contents));
 
   EXPECT_EQ(typed_url, contents->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnterOpensLocalFilePathAsFileUrl) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath local_file =
+      temp_dir.GetPath().AppendASCII("local-document.md");
+  ASSERT_TRUE(base::WriteFile(local_file, "# Local file fixture\n"));
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(
+      base::UTF8ToUTF16(local_file.AsUTF8Unsafe()), u"");
+
+  content::TestNavigationObserver navigation_observer(nullptr);
+  navigation_observer.StartWatchingNewWebContents();
+  ui_test_utils::TabAddedWaiter tab_waiter(browser());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  content::WebContents* contents = tab_waiter.Wait();
+  ASSERT_NE(nullptr, contents);
+  navigation_observer.Wait();
+
+  EXPECT_EQ(net::FilePathToFileURL(local_file),
+            contents->GetLastCommittedURL());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,

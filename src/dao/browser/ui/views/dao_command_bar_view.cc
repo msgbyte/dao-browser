@@ -40,6 +40,7 @@
 #include "components/omnibox/browser/shortcuts_backend.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/url_formatter/url_fixer.h"
 #include "content/public/browser/web_contents.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/prefs/pref_service.h"
@@ -77,6 +78,10 @@ namespace dao {
 namespace {
 
 constexpr int kCommandBarTextFontSize = 17;
+
+bool LooksLikeLocalFilePath(const std::string& text) {
+  return !text.empty() && (text[0] == '/' || text[0] == '~');
+}
 
 bool LooksLikeNaturalLanguagePrompt(const std::u16string& text) {
   std::u16string trimmed;
@@ -1576,7 +1581,9 @@ void DaoCommandBarView::Navigate(const std::u16string& text) {
   }
 
   GURL url;
-  if (LooksLikeURL(text)) {
+  if (LooksLikeLocalFilePath(input)) {
+    url = url_formatter::FixupURL(input, std::string());
+  } else if (LooksLikeURL(text)) {
     // Prepend https:// if no scheme
     if (input.find("://") == std::string::npos) {
       input = "https://" + input;
@@ -1694,7 +1701,12 @@ bool DaoCommandBarView::LooksLikeURL(const std::u16string& text) {
 
   // Dao WebUI pages are entered through the Dao command bar, not Chromium's
   // native omnibox, so the local URL heuristic must recognize them directly.
-  if (s.find("dao://") == 0 || s.find("chrome://") == 0) {
+  if (s.find("dao://") == 0 || s.find("chrome://") == 0 ||
+      s.find("file://") == 0) {
+    return true;
+  }
+
+  if (LooksLikeLocalFilePath(s)) {
     return true;
   }
 
