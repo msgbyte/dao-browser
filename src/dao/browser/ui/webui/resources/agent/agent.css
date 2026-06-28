@@ -454,6 +454,10 @@ dao-agent-app message-editor:focus-within > div {
   box-shadow: none;
 }
 
+dao-agent-app message-editor button > div[style*="rotate(-45deg)"] {
+  transform: none !important;
+}
+
 /* mini-lit's <Select> portals its dropdown into a `.select-portal-container`
  * appended to document.body. That's OUTSIDE our `dao-chat-view, pi-chat-panel`
  * CSS-variable scope, so Tailwind `bg-popover / text-popover-foreground /

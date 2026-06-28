@@ -468,6 +468,14 @@ describe('dao-chat-view message metadata helpers', () => {
         /\.dao-user-message-line\s*>\s*\.dao-user-actions\s*{[^}]*align-self:\s*center;/s);
   });
 
+  it('keeps the composer send icon in the standard Lucide send orientation',
+     () => {
+       const cssText = readFileSync(
+           'src/dao/browser/ui/webui/resources/agent/agent.css', 'utf8');
+       expect(cssText).toMatch(
+           /dao-agent-app\s+message-editor\s+button\s*>\s*div\[style\*="rotate\(-45deg\)"\]\s*{[^}]*transform:\s*none\s*!important;/s);
+     });
+
   it('keeps the user action menu anchored to the button and flips upward near the bottom',
      () => {
        const innerHeightDesc =
