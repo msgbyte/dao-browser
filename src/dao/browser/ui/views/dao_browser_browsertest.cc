@@ -5073,6 +5073,128 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
   second_removed.Wait();
 }
 
+class DaoLittleDaoBoundsBrowserTest : public InProcessBrowserTest {
+ public:
+  void SetUp() override {
+    ConfigureTestScreen();
+    display::Screen::SetScreenInstance(&test_screen_);
+    InProcessBrowserTest::SetUp();
+  }
+
+  void TearDown() override {
+    InProcessBrowserTest::TearDown();
+    display::Screen::SetScreenInstance(nullptr);
+  }
+
+ protected:
+  static constexpr gfx::Rect kWorkArea = gfx::Rect(0, 0, 1440, 900);
+  static constexpr gfx::Size kDefaultLittleDaoSize = gfx::Size(900, 640);
+
+  static gfx::Rect CenteredBounds(const gfx::Size& size) {
+    gfx::Rect bounds(kWorkArea);
+    bounds.ClampToCenteredSize(size);
+    return bounds;
+  }
+
+  static gfx::Rect GetLittleDaoWindowBounds(Browser* browser) {
+    BrowserView* browser_view = GetBrowserView(browser);
+    CHECK(browser_view);
+    views::Widget* widget = browser_view->GetWidget();
+    CHECK(widget);
+    return widget->GetWindowBoundsInScreen();
+  }
+
+ private:
+  static display::Display CreateDisplay(int64_t id, const gfx::Rect& bounds) {
+    display::Display display(id, bounds);
+    display.set_work_area(bounds);
+    return display;
+  }
+
+  void ConfigureTestScreen() {
+    const display::Display default_display = test_screen_.GetPrimaryDisplay();
+    test_screen_.display_list().RemoveDisplay(default_display.id());
+    test_screen_.display_list().AddDisplay(
+        CreateDisplay(/*id=*/1001, kWorkArea),
+        display::DisplayList::Type::PRIMARY);
+  }
+
+  display::test::TestScreen test_screen_;
+};
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
+                       OpensDefaultWindowCenteredInWorkArea) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/plain,centered"));
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+
+  EXPECT_EQ(CenteredBounds(kDefaultLittleDaoSize),
+            GetLittleDaoWindowBounds(little_dao_browser));
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
+                       RestoresUserMovedWindowBounds) {
+  const gfx::Rect custom_bounds(120, 130, 760, 520);
+
+  Browser* first_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/plain,first-bounds"));
+  ASSERT_NE(nullptr, first_browser);
+  ASSERT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(first_browser));
+  BrowserView* first_browser_view = GetBrowserView(first_browser);
+  ASSERT_NE(nullptr, first_browser_view);
+  views::Widget* first_widget = first_browser_view->GetWidget();
+  ASSERT_NE(nullptr, first_widget);
+  first_widget->SetBounds(custom_bounds);
+  EXPECT_EQ(custom_bounds, first_widget->GetWindowBoundsInScreen());
+
+  BrowserRemovedWaiter first_removed(first_browser);
+  first_browser->window()->Close();
+  first_removed.Wait();
+
+  Browser* second_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/plain,second-bounds"));
+  ASSERT_NE(nullptr, second_browser);
+  ASSERT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(second_browser));
+  EXPECT_EQ(custom_bounds, GetLittleDaoWindowBounds(second_browser));
+
+  BrowserRemovedWaiter second_removed(second_browser);
+  second_browser->window()->Close();
+  second_removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
+                       RestoredBoundsAreAdjustedIntoWorkArea) {
+  base::DictValue stored_bounds;
+  stored_bounds.Set("x", -1200);
+  stored_bounds.Set("y", 40);
+  stored_bounds.Set("width", 760);
+  stored_bounds.Set("height", 520);
+  browser()->profile()->GetPrefs()->SetDict(
+      dao::prefs::kDaoLittleDaoWindowSize, std::move(stored_bounds));
+  const gfx::Rect expected_adjusted_bounds(0, 40, 760, 520);
+
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/plain,adjusted"));
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+
+  EXPECT_EQ(expected_adjusted_bounds,
+            GetLittleDaoWindowBounds(little_dao_browser));
+  EXPECT_TRUE(kWorkArea.Contains(GetLittleDaoWindowBounds(little_dao_browser)
+                                     .origin()));
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
 // =============================================================================
 // DaoCrossWindowDragBrowserTest
 //

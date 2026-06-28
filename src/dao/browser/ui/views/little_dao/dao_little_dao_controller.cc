@@ -23,6 +23,8 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/dao_pref_names.h"
+#include "ui/display/display.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -32,6 +34,8 @@ namespace {
 
 constexpr int kDefaultLittleDaoWindowWidth = 900;
 constexpr int kDefaultLittleDaoWindowHeight = 640;
+constexpr char kXKey[] = "x";
+constexpr char kYKey[] = "y";
 constexpr char kWidthKey[] = "width";
 constexpr char kHeightKey[] = "height";
 
@@ -68,32 +72,85 @@ std::optional<gfx::Size> GetPersistedLittleDaoWindowSize(Profile* profile) {
   return gfx::Size(*width, *height);
 }
 
+std::optional<gfx::Rect> GetPersistedLittleDaoWindowBounds(Profile* profile) {
+  PrefService* prefs = GetValidLittleDaoPrefs(profile);
+  if (!prefs) {
+    return std::nullopt;
+  }
+
+  const base::DictValue& bounds_pref =
+      prefs->GetDict(dao::prefs::kDaoLittleDaoWindowSize);
+  const std::optional<int> x = bounds_pref.FindInt(kXKey);
+  const std::optional<int> y = bounds_pref.FindInt(kYKey);
+  const std::optional<int> width = bounds_pref.FindInt(kWidthKey);
+  const std::optional<int> height = bounds_pref.FindInt(kHeightKey);
+  if (!x || !y || !width || !height || *width <= 0 || *height <= 0) {
+    return std::nullopt;
+  }
+
+  return gfx::Rect(*x, *y, *width, *height);
+}
+
+gfx::Rect AdjustLittleDaoBoundsToWorkArea(const gfx::Rect& bounds) {
+  display::Screen* screen = display::Screen::Get();
+  if (!screen || bounds.IsEmpty()) {
+    return bounds;
+  }
+
+  gfx::Rect adjusted_bounds = bounds;
+  const gfx::Rect work_area = screen->GetDisplayMatching(bounds).work_area();
+  if (!work_area.IsEmpty()) {
+    adjusted_bounds.AdjustToFit(work_area);
+  }
+  return adjusted_bounds;
+}
+
+gfx::Rect CenterLittleDaoBoundsInTargetDisplay(Profile* profile,
+                                               const gfx::Size& size) {
+  display::Screen* screen = display::Screen::Get();
+  if (!screen || size.IsEmpty()) {
+    return gfx::Rect(gfx::Point(), size);
+  }
+
+  display::Display display = screen->GetPrimaryDisplay();
+  if (Browser* last_active_browser = chrome::FindLastActiveWithProfile(profile);
+      last_active_browser && last_active_browser->window()) {
+    display = screen->GetDisplayNearestWindow(
+        last_active_browser->window()->GetNativeWindow());
+  }
+
+  gfx::Rect bounds = display.work_area();
+  if (bounds.IsEmpty()) {
+    return gfx::Rect(gfx::Point(), size);
+  }
+  bounds.ClampToCenteredSize(size);
+  return bounds;
+}
+
 gfx::Rect GetInitialLittleDaoBounds(Profile* profile) {
+  if (std::optional<gfx::Rect> persisted_bounds =
+          GetPersistedLittleDaoWindowBounds(profile)) {
+    return AdjustLittleDaoBoundsToWorkArea(*persisted_bounds);
+  }
+
   gfx::Size size(kDefaultLittleDaoWindowWidth, kDefaultLittleDaoWindowHeight);
   if (std::optional<gfx::Size> persisted_size =
           GetPersistedLittleDaoWindowSize(profile)) {
     size = *persisted_size;
   }
 
-  return gfx::Rect(gfx::Point(), size);
+  return CenterLittleDaoBoundsInTargetDisplay(profile, size);
 }
 
-void RestoreLittleDaoWindowSize(Browser* browser,
-                                const gfx::Size& persisted_size) {
-  if (!browser || !browser->window() || persisted_size.IsEmpty()) {
+void RestoreLittleDaoWindowBounds(Browser* browser, const gfx::Rect& bounds) {
+  if (!browser || !browser->window() || bounds.IsEmpty()) {
     return;
   }
 
-  gfx::Rect bounds = browser->window()->GetBounds();
-  if (bounds.IsEmpty()) {
-    bounds = gfx::Rect(gfx::Point(), persisted_size);
-  } else {
-    bounds.set_size(persisted_size);
-  }
   browser->window()->SetBounds(bounds);
 }
 
-void UpdatePersistedLittleDaoWindowSize(Browser* browser) {
+void UpdatePersistedLittleDaoWindowBounds(Browser* browser) {
   if (!browser || !browser->window()) {
     return;
   }
@@ -109,6 +166,8 @@ void UpdatePersistedLittleDaoWindowSize(Browser* browser) {
   }
 
   ScopedDictPrefUpdate update(prefs, dao::prefs::kDaoLittleDaoWindowSize);
+  update->Set(kXKey, bounds.x());
+  update->Set(kYKey, bounds.y());
   update->Set(kWidthKey, bounds.width());
   update->Set(kHeightKey, bounds.height());
 }
@@ -139,7 +198,7 @@ class LittleDaoBrowserTracker : public BrowserListObserver {
     // Erase even if it's not a Little Dao browser — the set operation is
     // cheap and this keeps the invariant simple.
     if (browsers_.contains(browser)) {
-      UpdatePersistedLittleDaoWindowSize(browser);
+      UpdatePersistedLittleDaoWindowBounds(browser);
     }
     browsers_.erase(browser);
   }
@@ -164,9 +223,8 @@ Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
 
   Browser::CreateParams params(Browser::TYPE_POPUP, profile,
                                /*user_gesture=*/true);
-  const std::optional<gfx::Size> persisted_window_size =
-      GetPersistedLittleDaoWindowSize(profile);
-  params.initial_bounds = GetInitialLittleDaoBounds(profile);
+  const gfx::Rect initial_bounds = GetInitialLittleDaoBounds(profile);
+  params.initial_bounds = initial_bounds;
   params.can_resize = true;
   params.omit_from_session_restore = true;
 
@@ -177,9 +235,7 @@ Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
   g_creating_little_dao = false;
 
   LittleDaoBrowserTracker::Get().Insert(browser);
-  if (persisted_window_size) {
-    RestoreLittleDaoWindowSize(browser, *persisted_window_size);
-  }
+  RestoreLittleDaoWindowBounds(browser, initial_bounds);
 
   // Navigate to the URL in the popup's single tab.
   NavigateParams nav_params(browser, url, ui::PAGE_TRANSITION_LINK);

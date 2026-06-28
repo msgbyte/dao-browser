@@ -40,7 +40,9 @@ inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";
 inline constexpr char kDaoEnhancedCommandBarSuggestionsEnabled[] =
     "dao.enhanced_command_bar_suggestions_enabled";
 
-// Dictionary pref storing the most recent Little Dao outer window size.
+// Dictionary pref storing the most recent Little Dao outer window bounds.
+// The key keeps its historical "window_size" name for compatibility with
+// profiles that only stored width and height.
 inline constexpr char kDaoLittleDaoWindowSize[] =
     "dao.little_dao_window_size";
 
