@@ -20,6 +20,7 @@ import {
   rewriteWebUiBaseHref,
 } from '../../chromium-rewrites.js';
 import {
+  applyPatchWithAlreadyAppliedFallback,
   buildFixImportPatchesCommand,
   buildFixImportPatchesMessage,
 } from '../import.js';
@@ -60,6 +61,58 @@ describe('import helpers', () => {
       "sh scripts/fix-import-patches.sh 'src/patches/chrome/browser/ui/BUILD.gn.patch'",
       'Then re-run: npm run import',
     ].join('\n'));
+  });
+
+  it('treats fallback apply failures as already applied when reverse-check passes', async () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const repoDir = path.join(tempRoot, 'engine/src');
+    mkdirSync(repoDir, {recursive: true});
+
+    execFileSync('git', ['init'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    writeFileSync(path.join(repoDir, 'example.txt'), 'old value\n');
+    execFileSync('git', ['add', 'example.txt'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {
+          cwd: repoDir,
+          stdio: 'ignore',
+        });
+
+    const patchPath = path.join(tempRoot, 'example.patch');
+    writeFileSync(
+        patchPath,
+        [
+          'diff --git a/example.txt b/example.txt',
+          '--- a/example.txt',
+          '+++ b/example.txt',
+          '@@ -1 +1 @@',
+          '-old value',
+          '+new value',
+          '',
+        ].join('\n'));
+
+    execFileSync('git', ['apply', patchPath], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+
+    await expect(applyPatchWithAlreadyAppliedFallback(repoDir, patchPath))
+        .resolves.toBe('already-applied');
   });
 
   it('repairs patch files whose names do not match the target path', () => {

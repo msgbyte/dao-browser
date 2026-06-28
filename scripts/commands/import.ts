@@ -58,6 +58,39 @@ export function buildFixImportPatchesMessage(patchFiles: string[]): string {
   ].join("\n");
 }
 
+export type PatchApplyResult = "applied" | "already-applied" | "failed";
+
+async function isPatchAlreadyApplied(
+  srcDir: string,
+  patchPath: string
+): Promise<boolean> {
+  try {
+    await execFileAsync(
+      "git",
+      ["apply", "--check", "--reverse", patchPath],
+      { cwd: srcDir }
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function applyPatchWithAlreadyAppliedFallback(
+  srcDir: string,
+  patchPath: string
+): Promise<PatchApplyResult> {
+  try {
+    await execFileAsync("git", ["apply", patchPath], { cwd: srcDir });
+    return "applied";
+  } catch {
+    if (await isPatchAlreadyApplied(srcDir, patchPath)) {
+      return "already-applied";
+    }
+    return "failed";
+  }
+}
+
 export const importCommand = new Command("import")
   .description("Apply patches and copy Dao code into the Chromium tree")
   .option("--patches-only", "Only apply patches, skip copying Dao source")
@@ -145,11 +178,17 @@ export const importCommand = new Command("import")
         // Batch failed — fallback to individual apply for precise error reporting
         for (const patchFile of unapplied) {
           const fullPatchPath = path.join(PATCHES_DIR, patchFile);
-          try {
-            run(`git apply "${fullPatchPath}"`, { cwd: srcDir, silent: true });
+          const result = await applyPatchWithAlreadyAppliedFallback(
+            srcDir,
+            fullPatchPath
+          );
+          if (result === "applied") {
             success(`Applied: ${patchFile}`);
             applied++;
-          } catch {
+          } else if (result === "already-applied") {
+            warn(`Already applied: ${patchFile}`);
+            skipped++;
+          } else {
             error(`Failed to apply: ${patchFile}`);
             failedPatchFiles.push(patchFile);
             failed++;
