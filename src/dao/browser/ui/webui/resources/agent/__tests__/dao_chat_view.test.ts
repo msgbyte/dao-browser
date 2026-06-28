@@ -17,6 +17,12 @@ const pickerMocks = vi.hoisted(() => ({
       Record<string, Array<(...args: unknown[]) => void>>,
 }));
 
+const storageMocks = vi.hoisted(() => ({
+  getAllMetadata: vi.fn(async () => []),
+  getMetadata: vi.fn(async () => ({title: 'Existing session'})),
+  saveSession: vi.fn(async () => undefined),
+}));
+
 const skillMocks = vi.hoisted(() => ({
   skills: [] as Array<{
     id: string;
@@ -115,7 +121,11 @@ vi.mock('../dao_chat_history_panel.js', () => ({}));
 
 vi.mock('../pi_app_storage.js', () => ({
   ensurePiAppStorage: vi.fn(async () => ({
-    getAllMetadata: vi.fn(async () => []),
+    sessions: {
+      getAllMetadata: storageMocks.getAllMetadata,
+      getMetadata: storageMocks.getMetadata,
+      saveSession: storageMocks.saveSession,
+    },
   })),
   syncActiveKeyToPiStorage: vi.fn(),
 }));
@@ -289,6 +299,9 @@ describe('dao-chat-view message metadata helpers', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
+    storageMocks.getAllMetadata.mockClear();
+    storageMocks.getMetadata.mockClear();
+    storageMocks.saveSession.mockClear();
   });
 
   afterEach(() => {
@@ -303,6 +316,7 @@ describe('dao-chat-view message metadata helpers', () => {
         abort: ReturnType<typeof vi.fn>;
         continue: ReturnType<typeof vi.fn>;
       };
+      currentSessionId_: string;
       panel_: HTMLElement | null;
       _daoTestEnsureMessageIds: () => void;
       _daoTestFindMessageIndexByDaoId: (id: string) => number;
@@ -317,6 +331,7 @@ describe('dao-chat-view message metadata helpers', () => {
       _daoTestApplyUserMessageEdit:
           (messageId: string, content: string) => Promise<void>;
       _daoTestRefreshAssistantActions: () => void;
+      _daoTestRewindAssistantById: (assistantId: string) => Promise<void>;
     };
     view.agent_ = {
       state: {messages, isStreaming: false},
@@ -324,6 +339,7 @@ describe('dao-chat-view message metadata helpers', () => {
       continue: vi.fn(async () => undefined),
     };
     view.panel_ = null;
+    view.currentSessionId_ = 'sess-existing';
     return view;
   }
 
@@ -334,6 +350,37 @@ describe('dao-chat-view message metadata helpers', () => {
       {role: 'user', content: 'latest user prompt'},
       {role: 'assistant', content: 'latest assistant answer'},
     ];
+  }
+
+  function attachMessageHosts(view: ReturnType<typeof viewWithMessages>) {
+    const panel = document.createElement('div');
+    const iface = document.createElement('agent-interface') as HTMLElement & {
+      requestUpdate: ReturnType<typeof vi.fn>;
+    };
+    iface.requestUpdate = vi.fn();
+    panel.appendChild(iface);
+
+    for (const msg of view.agent_.state.messages) {
+      if (msg.role === 'user' || msg.role === 'user-with-attachments') {
+        const user = document.createElement('user-message');
+        const flex = document.createElement('div');
+        flex.className = 'flex justify-start mx-4';
+        const bubble = document.createElement('div');
+        bubble.className = 'user-message-container';
+        const markdown = document.createElement('markdown-block');
+        bubble.appendChild(markdown);
+        flex.appendChild(bubble);
+        user.appendChild(flex);
+        panel.appendChild(user);
+        continue;
+      }
+      if (msg.role === 'assistant') {
+        panel.appendChild(document.createElement('assistant-message'));
+      }
+    }
+
+    view.panel_ = panel;
+    return {panel, iface};
   }
 
   it('adds dao ids without replacing existing ids', () => {
@@ -452,12 +499,33 @@ describe('dao-chat-view message metadata helpers', () => {
 
     const openRow =
         panel.querySelector('.dao-user-actions') as HTMLElement|null;
+    const openMore =
+        openRow?.querySelector('.dao-user-more-btn') as HTMLButtonElement|null;
     const menu = openRow?.querySelector('.dao-user-action-menu');
+    expect(openRow?.classList.contains('dao-user-actions-open')).toBe(true);
+    expect(openMore?.classList.contains('is-selected')).toBe(true);
+    expect(openMore?.getAttribute('aria-expanded')).toBe('true');
     expect(menu).toBeTruthy();
     expect(menu?.querySelector('.dao-edit-menu-item')?.textContent).toContain(
         'chat.message_actions.edit');
     expect(menu?.querySelector('.dao-history-menu-item')).toBeNull();
   });
+
+  it('shows user message actions only on row hover focus or menu open',
+     () => {
+       const cssText = readFileSync(
+           'src/dao/browser/ui/webui/resources/agent/agent.css', 'utf8');
+       expect(cssText).toMatch(
+           /\.dao-user-message-line\s*>\s*\.dao-user-actions\s*{[^}]*opacity:\s*0;/s);
+       expect(cssText).toMatch(
+           /\.dao-user-message-line\s*>\s*\.dao-user-actions\s*{[^}]*pointer-events:\s*none;/s);
+       expect(cssText).toMatch(
+           /\.dao-user-message-line:hover\s*>\s*\.dao-user-actions,\s*\.dao-user-message-line:focus-within\s*>\s*\.dao-user-actions,\s*\.dao-user-message-line\s*>\s*\.dao-user-actions\.dao-user-actions-open\s*{[^}]*opacity:\s*1;/s);
+       expect(cssText).toMatch(
+           /\.dao-user-message-line:hover\s*>\s*\.dao-user-actions,\s*\.dao-user-message-line:focus-within\s*>\s*\.dao-user-actions,\s*\.dao-user-message-line\s*>\s*\.dao-user-actions\.dao-user-actions-open\s*{[^}]*pointer-events:\s*auto;/s);
+       expect(cssText).not.toMatch(
+           /\.dao-user-message-line\s*>\s*\.dao-user-actions\s*{[^}]*display:\s*none;/s);
+     });
 
   it('bottom-aligns user message actions with the visible bubble', () => {
     const cssText = readFileSync(
@@ -615,6 +683,32 @@ describe('dao-chat-view message metadata helpers', () => {
     document.body.dispatchEvent(new Event('pointerdown', {bubbles: true}));
 
     expect(panel.querySelector('.dao-user-action-menu')).toBeNull();
+  });
+
+  it('shows rewind only on non-latest assistant messages', () => {
+    const view = viewWithMessages([
+      {role: 'user', content: 'first prompt', dao: {id: 'u1'}},
+      {role: 'assistant', content: 'first answer', dao: {id: 'a1'}},
+      {role: 'user', content: 'second prompt', dao: {id: 'u2'}},
+      {role: 'assistant', content: 'second answer', dao: {id: 'a2'}},
+    ]);
+    const {panel} = attachMessageHosts(view);
+
+    view._daoTestRefreshAssistantActions();
+
+    const rows = panel.querySelectorAll('.dao-assistant-actions');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.querySelector('.dao-rewind-btn')).toBeTruthy();
+    expect(rows[1]?.querySelector('.dao-rewind-btn')).toBeNull();
+    const rewind = rows[0]?.querySelector(
+        '.dao-rewind-btn') as HTMLButtonElement|null;
+    expect(rewind?.title).toBe('chat.message_actions.rewind_tooltip');
+    const paths = Array.from(rewind?.querySelectorAll('svg path') ?? [])
+                      .map(path => path.getAttribute('d'));
+    expect(paths).toEqual([
+      'm15 14 5-5-5-5',
+      'M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13',
+    ]);
   });
 
   it('shows full user context from the debug-only message menu', () => {
@@ -795,6 +889,49 @@ describe('dao-chat-view message metadata helpers', () => {
        expect(iface.requestUpdate).toHaveBeenCalled();
        expect(view.agent_.continue).toHaveBeenCalled();
      });
+
+  it('rewinds to the selected assistant without regenerating', async () => {
+    const view = viewWithMessages([
+      {role: 'user', content: 'first prompt', dao: {id: 'u1'}},
+      {role: 'assistant', content: 'first answer', dao: {id: 'a1'}},
+      {role: 'toolResult', content: 'tool after first answer', dao: {id: 't1'}},
+      {role: 'user', content: 'second prompt', dao: {id: 'u2'}},
+      {role: 'assistant', content: 'second answer', dao: {id: 'a2'}},
+    ]);
+    const {iface} = attachMessageHosts(view);
+
+    await view._daoTestRewindAssistantById('a1');
+
+    expect(view.agent_.state.messages.map(({role, content}) => ({
+      role,
+      content,
+    }))).toEqual([
+      {role: 'user', content: 'first prompt'},
+      {role: 'assistant', content: 'first answer'},
+    ]);
+    expect(view.agent_.continue).not.toHaveBeenCalled();
+    expect(iface.requestUpdate).toHaveBeenCalled();
+    expect(storageMocks.saveSession).toHaveBeenCalledTimes(1);
+    expect(storageMocks.saveSession.mock.calls[0]?.[0]).toBe('sess-existing');
+    expect(storageMocks.saveSession.mock.calls[0]?.[1].messages).toHaveLength(2);
+  });
+
+  it('does not rewind the latest assistant message', async () => {
+    const view = viewWithMessages([
+      {role: 'user', content: 'first prompt', dao: {id: 'u1'}},
+      {role: 'assistant', content: 'first answer', dao: {id: 'a1'}},
+    ]);
+    attachMessageHosts(view);
+
+    await view._daoTestRewindAssistantById('a1');
+
+    expect(view.agent_.state.messages.map(({content}) => content)).toEqual([
+      'first prompt',
+      'first answer',
+    ]);
+    expect(view.agent_.continue).not.toHaveBeenCalled();
+    expect(storageMocks.saveSession).not.toHaveBeenCalled();
+  });
 
   it('rejects an empty user edit without truncating messages', async () => {
     const messages = [

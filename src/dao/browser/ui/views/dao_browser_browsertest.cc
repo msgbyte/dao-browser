@@ -4800,12 +4800,20 @@ IN_PROC_BROWSER_TEST_F(DaoAgentAssistantActionsTest,
       if (userAlign1 !== 'flex-end' || userAlign2 !== 'flex-end') {
         return 'user-row-not-bottom-aligned:' + userAlign1 + ':' + userAlign2;
       }
-      for (const row of assistantRows) {
+      for (let i = 0; i < assistantRows.length; i++) {
+        const row = assistantRows[i];
         const haveCopy = !!row.querySelector('.dao-copy-btn');
         const haveShare = !!row.querySelector('.dao-share-btn');
         const haveRetry = !!row.querySelector('.dao-retry-btn');
+        const haveRewind = !!row.querySelector('.dao-rewind-btn');
         if (!haveCopy || !haveShare || !haveRetry) {
           return 'missing-assistant-btn';
+        }
+        if (i === 0 && !haveRewind) {
+          return 'missing-rewind-on-older-assistant';
+        }
+        if (i === assistantRows.length - 1 && haveRewind) {
+          return 'unexpected-rewind-on-latest-assistant';
         }
       }
       for (const row of userRows) {

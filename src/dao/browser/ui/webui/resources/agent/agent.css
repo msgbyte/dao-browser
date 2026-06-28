@@ -658,9 +658,25 @@ attachment-tile[data-dao-decorated="1"] {
   align-self: flex-end;
   margin: 0;
 }
+@media (hover: hover) and (pointer: fine) {
+  .dao-user-message-line > .dao-user-actions {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(2px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+  }
+  .dao-user-message-line:hover > .dao-user-actions,
+  .dao-user-message-line:focus-within > .dao-user-actions,
+  .dao-user-message-line > .dao-user-actions.dao-user-actions-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+}
 .dao-retry-btn,
 .dao-copy-btn,
-.dao-share-btn {
+.dao-share-btn,
+.dao-rewind-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -677,19 +693,28 @@ attachment-tile[data-dao-decorated="1"] {
 }
 .dao-retry-btn:hover,
 .dao-copy-btn:hover,
-.dao-share-btn:hover {
+.dao-share-btn:hover,
+.dao-rewind-btn:hover {
   background: rgba(70, 120, 190, 0.16);
   border-color: rgba(70, 120, 190, 0.32);
   color: rgba(30, 20, 40, 0.92);
 }
 .dao-retry-btn:active,
 .dao-copy-btn:active,
-.dao-share-btn:active {
+.dao-share-btn:active,
+.dao-rewind-btn:active {
   background: rgba(70, 120, 190, 0.24);
+}
+.dao-user-more-btn.is-selected,
+.dao-user-more-btn[aria-expanded="true"] {
+  background: rgba(70, 120, 190, 0.18);
+  border-color: rgba(70, 120, 190, 0.36);
+  color: rgba(30, 20, 40, 0.92);
 }
 .dao-retry-btn svg,
 .dao-copy-btn svg,
-.dao-share-btn svg {
+.dao-share-btn svg,
+.dao-rewind-btn svg {
   width: 12px;
   height: 12px;
 }
@@ -752,7 +777,8 @@ attachment-tile[data-dao-decorated="1"] {
 }
 .dao-retry-btn:disabled,
 .dao-copy-btn:disabled,
-.dao-share-btn:disabled {
+.dao-share-btn:disabled,
+.dao-rewind-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -1295,25 +1321,34 @@ body {
     color: rgba(255, 255, 255, 0.55);
   }
 
-  /* Assistant action row (retry / copy / share). */
+  /* Assistant action row (retry / copy / share / rewind). */
   .dao-retry-btn,
   .dao-copy-btn,
-  .dao-share-btn {
+  .dao-share-btn,
+  .dao-rewind-btn {
     border-color: rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.04);
     color: rgba(255, 255, 255, 0.65);
   }
   .dao-retry-btn:hover,
   .dao-copy-btn:hover,
-  .dao-share-btn:hover {
+  .dao-share-btn:hover,
+  .dao-rewind-btn:hover {
     background: rgba(70, 120, 190, 0.24);
     border-color: rgba(70, 120, 190, 0.45);
     color: rgba(245, 245, 245, 0.92);
   }
   .dao-retry-btn:active,
   .dao-copy-btn:active,
-  .dao-share-btn:active {
+  .dao-share-btn:active,
+  .dao-rewind-btn:active {
     background: rgba(70, 120, 190, 0.36);
+  }
+  .dao-user-more-btn.is-selected,
+  .dao-user-more-btn[aria-expanded="true"] {
+    background: rgba(70, 120, 190, 0.32);
+    border-color: rgba(70, 120, 190, 0.55);
+    color: rgba(245, 245, 245, 0.94);
   }
   .dao-copy-btn.is-flashing,
   .dao-share-btn.is-flashing {

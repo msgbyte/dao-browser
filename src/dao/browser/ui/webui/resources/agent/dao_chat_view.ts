@@ -1622,7 +1622,7 @@ export class DaoChatView extends CrLitElement {
   }
 
   private buildAssistantActionRow_(
-      msg: DaoChatMessage, disabled: boolean): HTMLElement {
+      msg: DaoChatMessage, disabled: boolean, canRewind: boolean): HTMLElement {
     const row = document.createElement('div');
     row.className = 'dao-message-actions dao-assistant-actions';
     row.dataset['daoMessageId'] = msg.dao?.id || '';
@@ -1648,6 +1648,13 @@ export class DaoChatView extends CrLitElement {
         '<path d="M3 12a9 9 0 1 0 3-6.7"></path>' +
         '<path d="M3 4v5h5"></path>' +
         '</svg>';
+    const rewindSvg =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<path d="m15 14 5-5-5-5"></path>' +
+        '<path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"></path>' +
+        '</svg>';
     const id = msg.dao?.id || '';
     const copy = this.buildActionButton_(
         'dao-copy-btn', 'chat.message_actions.copy_tooltip', copySvg,
@@ -1658,19 +1665,28 @@ export class DaoChatView extends CrLitElement {
     const regen = this.buildActionButton_(
         'dao-retry-btn', 'chat.message_actions.regenerate_tooltip', regenSvg,
         () => void this.regenerateAssistantById_(id));
+    const rewind = this.buildActionButton_(
+        'dao-rewind-btn', 'chat.message_actions.rewind_tooltip', rewindSvg,
+        () => void this.rewindToAssistantById_(id));
     copy.disabled = disabled;
     image.disabled = disabled;
     regen.disabled = disabled;
+    rewind.disabled = disabled;
     row.append(copy, image, regen);
+    if (canRewind) {
+      row.appendChild(rewind);
+    }
     return row;
   }
 
   private buildUserActionRow_(
       msg: DaoChatMessage, disabled: boolean): HTMLElement {
     const row = document.createElement('div');
-    row.className = 'dao-message-actions dao-user-actions';
     row.dataset['daoMessageId'] = msg.dao?.id || '';
     const id = msg.dao?.id || '';
+    const isOpen = this.userActionMenuMessageId_ === id;
+    row.className = 'dao-message-actions dao-user-actions' +
+        (isOpen ? ' dao-user-actions-open' : '');
     // Lucide ellipsis, copied from lucide-icons/lucide main.
     const moreSvg =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
@@ -1681,13 +1697,15 @@ export class DaoChatView extends CrLitElement {
         '<circle cx="5" cy="12" r="1"></circle>' +
         '</svg>';
     const more = this.buildActionButton_(
-        'dao-retry-btn dao-user-more-btn',
+        'dao-retry-btn dao-user-more-btn' + (isOpen ? ' is-selected' : ''),
         'chat.message_actions.more_tooltip',
         moreSvg,
         btn => this.toggleUserActionMenu_(id, btn));
     more.disabled = disabled;
+    more.setAttribute('aria-haspopup', 'menu');
+    more.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     row.appendChild(more);
-    if (this.userActionMenuMessageId_ === id) {
+    if (isOpen) {
       row.appendChild(this.buildUserActionMenu_(id));
     }
     return row;
@@ -2017,6 +2035,7 @@ export class DaoChatView extends CrLitElement {
     this.ensureMessageIds_();
     const disabled = !!this.agent_?.state.isStreaming;
     const msgs = this.currentMessages_();
+    const latestAssistantIdx = this.findLatestAssistantIndex_();
     const userEls = Array.from(panel.querySelectorAll('user-message'));
     const assistantEls = Array.from(panel.querySelectorAll('assistant-message'));
     let userCursor = 0;
@@ -2033,8 +2052,11 @@ export class DaoChatView extends CrLitElement {
       } else if (role === 'assistant') {
         const el = assistantEls[assistantCursor++] as HTMLElement | undefined;
         if (el && msg.dao?.id && this.isAssistantMessage_(msg)) {
+          const idx = msgs.indexOf(msg);
+          const canRewind = idx >= 0 && idx !== latestAssistantIdx;
           el.insertAdjacentElement(
-              'afterend', this.buildAssistantActionRow_(msg, disabled));
+              'afterend',
+              this.buildAssistantActionRow_(msg, disabled, canRewind));
         }
       }
     }
@@ -2236,6 +2258,32 @@ export class DaoChatView extends CrLitElement {
     const assistantIdx = this.findMessageIndexByDaoId_(assistantId);
     const userIdx = this.findUserIndexForAssistantIndex_(assistantIdx);
     await this.retryFromUserIndex_(userIdx);
+  }
+
+  private async rewindToAssistantById_(assistantId: string): Promise<void> {
+    const agent = this.agent_;
+    if (!agent || agent.state.isStreaming || this.isStreaming_) return;
+
+    const assistantIdx = this.findMessageIndexByDaoId_(assistantId);
+    const msg = agent.state.messages[assistantIdx] as
+        DaoChatMessage | undefined;
+    if (assistantIdx < 0 || !this.isAssistantMessage_(msg)) return;
+    if (assistantIdx === this.findLatestAssistantIndex_()) return;
+
+    agent.state.messages = agent.state.messages.slice(0, assistantIdx + 1);
+    this.editingMessageId_ = '';
+    this.editingDraft_ = '';
+    this.editingError_ = '';
+    this.debugContextMessageId_ = '';
+    this.closeUserActionMenu_(false);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iface = this.panel_?.querySelector('agent-interface') as any;
+    iface?.requestUpdate?.();
+    this.syncMeta_();
+    this.refreshMessageActions_();
+    await this.saveCurrentSession_();
+    this.focusInput();
   }
 
   private toggleUserActionMenu_(
@@ -2821,6 +2869,14 @@ export class DaoChatView extends CrLitElement {
     const msgs = this.currentMessages_();
     for (let i = 0; i < msgs.length; i++) {
       if (msgs[i]?.dao?.id === id) return i;
+    }
+    return -1;
+  }
+
+  private findLatestAssistantIndex_(): number {
+    const msgs = this.currentMessages_();
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (this.isAssistantMessage_(msgs[i])) return i;
     }
     return -1;
   }
@@ -3836,6 +3892,10 @@ export class DaoChatView extends CrLitElement {
     return this.regenerateAssistantById_(assistantId);
   }
 
+  _daoTestRewindAssistantById(assistantId: string): Promise<void> {
+    return this.rewindToAssistantById_(assistantId);
+  }
+
   _daoTestApplyUserMessageEdit(id: string, text: string): Promise<void> {
     return this.applyUserMessageEdit_(id, text);
   }
@@ -3881,7 +3941,7 @@ export class DaoChatView extends CrLitElement {
 
   focusInput() {
     this.focusInputDom_();
-    void callNative('focusAgentSidebar')
+    void Promise.resolve(callNative('focusAgentSidebar'))
         .catch(() => null)
         .then(() => this.focusInputDom_());
   }

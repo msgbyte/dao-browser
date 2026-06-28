@@ -44,6 +44,7 @@ const dict: Dictionary = {
   'chat.message_actions.copy_tooltip': '复制回答文本',
   'chat.message_actions.share_tooltip': '复制为图片',
   'chat.message_actions.regenerate_tooltip': '重新生成回答',
+  'chat.message_actions.rewind_tooltip': '回到这条回答',
   'chat.message_actions.more_tooltip': '更多操作',
   'chat.message_actions.edit': '编辑',
   'chat.message_actions.edit_tooltip': '编辑消息',

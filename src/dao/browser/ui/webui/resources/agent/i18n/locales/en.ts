@@ -66,6 +66,7 @@ const dict: Dictionary = {
   'chat.message_actions.copy_tooltip': 'Copy answer text',
   'chat.message_actions.share_tooltip': 'Copy as image',
   'chat.message_actions.regenerate_tooltip': 'Regenerate response',
+  'chat.message_actions.rewind_tooltip': 'Rewind to this response',
   'chat.message_actions.more_tooltip': 'More actions',
   'chat.message_actions.edit': 'Edit',
   'chat.message_actions.edit_tooltip': 'Edit message',
