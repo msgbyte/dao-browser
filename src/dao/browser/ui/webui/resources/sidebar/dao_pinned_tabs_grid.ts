@@ -36,24 +36,22 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
         gap: 6px;
         padding: 4px 10px;
       }
 
       .tile {
         min-width: 0;
-        height: 56px;
+        height: 36px;
         border: none;
         border-radius: var(--radius-tab, 12px);
         background: transparent;
         color: var(--text-primary);
         cursor: default;
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 5px;
         padding: 6px;
         transition: background 0.12s ease, box-shadow 0.12s ease,
             opacity 0.12s ease;
@@ -100,27 +98,11 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
       .drag-placeholder {
         min-width: 0;
-        height: 56px;
+        height: 36px;
         border: 1px dashed rgba(70, 120, 190, 0.48);
         border-radius: var(--radius-tab, 12px);
         background: rgba(70, 120, 190, 0.12);
         box-sizing: border-box;
-      }
-
-      .title {
-        max-width: 100%;
-        min-width: 0;
-        color: var(--text-primary);
-        font-size: 11px;
-        line-height: 14px;
-        overflow: hidden;
-        text-align: center;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .tile.active .title {
-        font-weight: 500;
       }
 
       @media (prefers-color-scheme: dark) {
@@ -275,7 +257,6 @@ export class DaoPinnedTabsGrid extends CrLitElement {
             ? html`<img class="favicon ${item.isFaviconLight ? 'light-icon' : ''}"
                         src=${item.faviconUrl} alt="" draggable="false">`
             : html`<div class="placeholder"></div>`}
-        <div class="title">${displayTitle}</div>
       </button>
     `;
   }

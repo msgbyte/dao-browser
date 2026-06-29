@@ -113,7 +113,7 @@ function renderedTileOrder(el: HTMLElement): string[] {
         if (element.classList.contains('drag-placeholder')) {
           return 'placeholder';
         }
-        return element.textContent?.trim() || '';
+        return element.getAttribute('aria-label') || '';
       });
 }
 
@@ -354,6 +354,17 @@ describe('dao-pinned-tabs-grid', () => {
 
     const favicon = el.shadowRoot!.querySelector('.favicon') as HTMLImageElement;
     expect(favicon.draggable).toBe(false);
+  });
+
+  it('renders pinned tiles as icons without visible labels', async () => {
+    const {el} = await loadGrid();
+    el.items = [item({id: 'pin-icon-only', title: 'GitHub'})];
+    await el.updateComplete;
+
+    const tile = el.shadowRoot!.querySelector('.tile') as HTMLElement;
+    expect(tile.querySelector('.title')).toBeNull();
+    expect(tile.textContent?.trim()).toBe('');
+    expect(tile.getAttribute('aria-label')).toBe('GitHub');
   });
 
   it('shows the full tab tooltip after hovering a pinned item', async () => {
