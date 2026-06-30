@@ -142,6 +142,7 @@
 #include "ui/display/display_list.h"
 #include "ui/display/screen.h"
 #include "ui/display/test/test_screen.h"
+#include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/image/image.h"
@@ -279,6 +280,24 @@ views::ImageButton* FindImageButtonWithAccessibleName(
   for (views::View* child : root->children()) {
     if (auto* button =
             FindImageButtonWithAccessibleName(child, accessible_name)) {
+      return button;
+    }
+  }
+  return nullptr;
+}
+
+views::Button* FindButtonWithAccessibleName(
+    views::View* root,
+    std::u16string_view accessible_name) {
+  if (!root) {
+    return nullptr;
+  }
+  if (auto* button = views::AsViewClass<views::Button>(root);
+      button && button->GetAccessibleName() == accessible_name) {
+    return button;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* button = FindButtonWithAccessibleName(child, accessible_name)) {
       return button;
     }
   }
@@ -4258,6 +4277,64 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest, PopupExists) {
   EXPECT_EQ(browser(), popup->browser());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       MiniDaoButtonExistsInMainUtilityRow) {
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  popup->ShowAt(gfx::Point(100, 100));
+  views::Button* mini_dao_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO));
+  ASSERT_NE(nullptr, mini_dao_button);
+  EXPECT_TRUE(mini_dao_button->GetVisible());
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       MiniDaoButtonExtractsActiveTabAndHidesPopup) {
+  TabStripModel* source_model = browser()->tab_strip_model();
+  ASSERT_NE(nullptr, source_model);
+  chrome::AddTabAt(browser(), GURL("data:text/html,control-center-mini-dao"),
+                   -1, true);
+  content::WebContents* original_contents =
+      source_model->GetActiveWebContents();
+  ASSERT_NE(nullptr, original_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(original_contents));
+  const int source_count_before = source_model->count();
+
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+  ASSERT_TRUE(popup->GetVisible());
+  views::Button* mini_dao_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO));
+  ASSERT_NE(nullptr, mini_dao_button);
+
+  BrowserAddedRecorder added_recorder;
+  views::test::ButtonTestApi(mini_dao_button)
+      .NotifyClick(ui::MouseEvent(
+          ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+          ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+          ui::EF_LEFT_MOUSE_BUTTON));
+
+  EXPECT_FALSE(popup->GetVisible());
+  ASSERT_EQ(1u, added_recorder.added_count());
+  Browser* little_dao_browser = added_recorder.added_browser_at(0);
+  ASSERT_NE(nullptr, little_dao_browser);
+  EXPECT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+  EXPECT_EQ(original_contents,
+            little_dao_browser->tab_strip_model()->GetActiveWebContents());
+  EXPECT_EQ(source_count_before - 1, source_model->count());
+  EXPECT_EQ(TabStripModel::kNoTab,
+            source_model->GetIndexOfWebContents(original_contents));
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest, ShowAtAndHide) {
   auto* popup = GetBrowserView(browser())->dao_control_center_popup();
   ASSERT_NE(nullptr, popup);
@@ -5109,6 +5186,110 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
   BrowserRemovedWaiter second_removed(second_browser);
   second_browser->window()->Close();
   second_removed.Wait();
+}
+
+// =============================================================================
+// DaoLittleDaoExtractionBrowserTest
+//
+// Verifies that extracting a tab to Mini Dao moves the live WebContents into a
+// Little Dao popup instead of opening a fresh URL copy.
+// =============================================================================
+
+using DaoLittleDaoExtractionBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
+                       ExtractActiveTabMovesLiveWebContentsToLittleDao) {
+  TabStripModel* source_model = browser()->tab_strip_model();
+  ASSERT_NE(nullptr, source_model);
+
+  const GURL original_url("data:text/plain,extract");
+  chrome::AddTabAt(browser(), original_url, -1, true);
+  content::WebContents* original_contents =
+      source_model->GetActiveWebContents();
+  ASSERT_NE(nullptr, original_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(original_contents));
+  const int source_count_before = source_model->count();
+  ASSERT_GT(source_count_before, 1);
+
+  BrowserAddedRecorder added_recorder;
+  Browser* little_dao_browser =
+      dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(browser());
+
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_EQ(1u, added_recorder.added_count());
+  EXPECT_EQ(little_dao_browser, added_recorder.added_browser_at(0));
+  EXPECT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+  EXPECT_EQ(Browser::TYPE_POPUP, little_dao_browser->type());
+  EXPECT_NE(nullptr,
+            GetBrowserView(little_dao_browser)->dao_little_dao_view());
+
+  EXPECT_EQ(source_count_before - 1, source_model->count());
+  EXPECT_EQ(TabStripModel::kNoTab,
+            source_model->GetIndexOfWebContents(original_contents));
+  ASSERT_EQ(1, little_dao_browser->tab_strip_model()->count());
+  EXPECT_EQ(original_contents,
+            little_dao_browser->tab_strip_model()->GetActiveWebContents());
+  EXPECT_EQ(original_url, original_contents->GetVisibleURL());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
+                       ExtractOnlyTabLeavesReplacementTabInSourceWindow) {
+  TabStripModel* source_model = browser()->tab_strip_model();
+  ASSERT_NE(nullptr, source_model);
+  ASSERT_EQ(1, source_model->count());
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>only</title>")));
+  content::WebContents* original_contents =
+      source_model->GetActiveWebContents();
+  ASSERT_NE(nullptr, original_contents);
+
+  BrowserAddedRecorder added_recorder;
+  Browser* little_dao_browser =
+      dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(browser());
+
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_EQ(1u, added_recorder.added_count());
+  EXPECT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+
+  ASSERT_EQ(1, source_model->count());
+  EXPECT_NE(original_contents, source_model->GetActiveWebContents());
+  EXPECT_EQ(TabStripModel::kNoTab,
+            source_model->GetIndexOfWebContents(original_contents));
+  ASSERT_EQ(1, little_dao_browser->tab_strip_model()->count());
+  EXPECT_EQ(original_contents,
+            little_dao_browser->tab_strip_model()->GetActiveWebContents());
+  EXPECT_TRUE(browser()->window()->IsVisible());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
+                       ExtractFromLittleDaoWindowIsRejected) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,little"));
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+
+  BrowserAddedRecorder added_recorder;
+  EXPECT_EQ(nullptr,
+            dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(
+                little_dao_browser));
+  EXPECT_EQ(0u, added_recorder.added_count());
+  EXPECT_EQ(1, little_dao_browser->tab_strip_model()->count());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
 }
 
 class DaoLittleDaoBoundsBrowserTest : public InProcessBrowserTest {

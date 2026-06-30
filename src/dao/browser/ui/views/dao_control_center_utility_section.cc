@@ -8,17 +8,19 @@
 #include "base/functional/callback_helpers.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/bubble_anchor_util.h"
-#include "chrome/browser/ui/page_info/page_info_dialog.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
+#include "dao/browser/ui/views/dao_toast_view.h"
+#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -136,6 +138,15 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
+          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO),
+          LucideIcon::kExternalLink,
+          base::BindRepeating(
+              &DaoControlCenterUtilitySection::OnMiniDaoClicked,
+              base::Unretained(this)))
+          .release()));
+
+  AddChildView(static_cast<views::View*>(
+      std::make_unique<UtilityButton>(
           u"Security", LucideIcon::kShieldCheck,
           base::BindRepeating(
               &DaoControlCenterUtilitySection::OnLockClicked,
@@ -183,6 +194,29 @@ void DaoControlCenterUtilitySection::OnQrClicked() {
   if (popup_) {
     popup_->ShowQrView();
   }
+}
+
+void DaoControlCenterUtilitySection::OnMiniDaoClicked() {
+  if (!popup_) {
+    return;
+  }
+
+  Browser* browser = popup_->browser();
+  popup_->Hide();
+
+  Browser* little_dao_browser =
+      DaoLittleDaoController::ExtractActiveTabToLittleDao(browser);
+  if (little_dao_browser || !browser) {
+    return;
+  }
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+  if (!browser_view || !browser_view->dao_toast()) {
+    return;
+  }
+
+  browser_view->dao_toast()->ShowToast(l10n_util::GetStringUTF16(
+      IDS_DAO_CONTROL_CENTER_MINI_DAO_FAILED_TOAST));
 }
 
 void DaoControlCenterUtilitySection::OnLockClicked() {

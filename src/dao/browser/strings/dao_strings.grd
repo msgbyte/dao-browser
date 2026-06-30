@@ -324,6 +324,12 @@
       <message name="IDS_DAO_CONTROL_CENTER_MANAGE_EXTENSIONS" desc="Tooltip and accessible name for the button that opens the extensions management page from the Control Center.">
         Manage extensions
       </message>
+      <message name="IDS_DAO_CONTROL_CENTER_MINI_DAO" desc="Label and accessible name for the Control Center utility button that moves the current tab into a Mini Dao independent window.">
+        Mini Dao
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_MINI_DAO_FAILED_TOAST" desc="Toast shown when the user clicks the Control Center Mini Dao button but the current tab cannot be moved into a Mini Dao window.">
+        Could not open this tab in Mini Dao
+      </message>
       <message name="IDS_DAO_CONTROL_CENTER_BACK_BUTTON_LABEL" desc="Label on the back button in the Control Center 'More' submenu. Includes a left-pointing arrow before the word 'Back'.">
         <ph name="ARROW">←</ph> Back
       </message>

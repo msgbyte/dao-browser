@@ -12,7 +12,7 @@ namespace dao {
 
 class DaoControlCenterPopup;
 
-// A row of utility buttons: Share, QR Code, Lock (Page Info), More.
+// A row of utility buttons: Share, QR Code, Mini Dao, Lock (Page Info), More.
 class DaoControlCenterUtilitySection : public views::View {
   METADATA_HEADER(DaoControlCenterUtilitySection, views::View)
 
@@ -27,6 +27,7 @@ class DaoControlCenterUtilitySection : public views::View {
  private:
   void OnShareClicked();
   void OnQrClicked();
+  void OnMiniDaoClicked();
   void OnLockClicked();
   void OnMoreClicked();
 

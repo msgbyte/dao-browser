@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "base/auto_reset.h"
 #include "base/containers/flat_set.h"
 #include "base/no_destructor.h"
 #include "base/values.h"
@@ -18,6 +19,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -213,11 +215,7 @@ class LittleDaoBrowserTracker : public BrowserListObserver {
   base::flat_set<const Browser*> browsers_;
 };
 
-}  // namespace
-
-// static
-Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
-                                                 const GURL& url) {
+Browser* CreateLittleDaoBrowser(Profile* profile) {
   if (!profile)
     return nullptr;
 
@@ -230,12 +228,24 @@ Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
 
   // Set flag before Browser::Create so BrowserView can detect Little Dao
   // during construction.
-  g_creating_little_dao = true;
+  base::AutoReset<bool> creating_little_dao(&g_creating_little_dao, true);
   Browser* browser = Browser::Create(params);
-  g_creating_little_dao = false;
+  if (!browser)
+    return nullptr;
 
   LittleDaoBrowserTracker::Get().Insert(browser);
   RestoreLittleDaoWindowBounds(browser, initial_bounds);
+  return browser;
+}
+
+}  // namespace
+
+// static
+Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
+                                                 const GURL& url) {
+  Browser* browser = CreateLittleDaoBrowser(profile);
+  if (!browser)
+    return nullptr;
 
   // Navigate to the URL in the popup's single tab.
   NavigateParams nav_params(browser, url, ui::PAGE_TRANSITION_LINK);
@@ -243,6 +253,72 @@ Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
   nav_params.window_action = NavigateParams::WindowAction::kShowWindow;
   ::Navigate(&nav_params);
   return browser;
+}
+
+// static
+Browser* DaoLittleDaoController::ExtractActiveTabToLittleDao(
+    Browser* source_browser) {
+  if (!source_browser || IsLittleDaoWindow(source_browser))
+    return nullptr;
+
+  TabStripModel* source_model = source_browser->tab_strip_model();
+  if (!source_model || source_model->empty())
+    return nullptr;
+
+  content::WebContents* original_contents =
+      source_model->GetActiveWebContents();
+  if (!original_contents)
+    return nullptr;
+
+  Profile* profile = source_browser->profile();
+  if (!profile)
+    return nullptr;
+
+  Browser* little_dao_browser = CreateLittleDaoBrowser(profile);
+  if (!little_dao_browser)
+    return nullptr;
+
+  content::WebContents* replacement_contents = nullptr;
+  if (source_model->count() == 1) {
+    chrome::AddTabAt(source_browser, GURL("about:blank"), -1, true);
+    replacement_contents = source_model->GetActiveWebContents();
+    if (replacement_contents == original_contents)
+      replacement_contents = nullptr;
+  }
+
+  auto close_replacement = [&]() {
+    if (!replacement_contents)
+      return;
+
+    const int replacement_index =
+        source_model->GetIndexOfWebContents(replacement_contents);
+    if (replacement_index != TabStripModel::kNoTab) {
+      source_model->CloseWebContentsAt(replacement_index,
+                                       TabCloseTypes::CLOSE_NONE);
+    }
+  };
+
+  const int source_index =
+      source_model->GetIndexOfWebContents(original_contents);
+  if (source_index == TabStripModel::kNoTab) {
+    close_replacement();
+    little_dao_browser->window()->Close();
+    return nullptr;
+  }
+
+  std::unique_ptr<content::WebContents> contents =
+      source_model->DetachWebContentsAtForInsertion(source_index);
+  if (!contents) {
+    close_replacement();
+    little_dao_browser->window()->Close();
+    return nullptr;
+  }
+
+  little_dao_browser->tab_strip_model()->InsertWebContentsAt(
+      -1, std::move(contents), AddTabTypes::ADD_ACTIVE);
+  little_dao_browser->window()->Show();
+  little_dao_browser->window()->Activate();
+  return little_dao_browser;
 }
 
 // static

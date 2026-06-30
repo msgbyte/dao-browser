@@ -22,6 +22,12 @@ class DaoLittleDaoController {
   // created Browser. Returns nullptr when no suitable profile is available.
   static Browser* OpenInLittleDao(Profile* profile, const GURL& url);
 
+  // Moves the active tab from |source_browser| into a new Little Dao popup.
+  // The moved WebContents keeps its live page state. If |source_browser| only
+  // has one tab, a replacement blank tab is left behind so the source browser
+  // stays open. Returns the created Little Dao browser, or nullptr on failure.
+  static Browser* ExtractActiveTabToLittleDao(Browser* source_browser);
+
   // Returns true if |browser| is a Little Dao window.
   static bool IsLittleDaoWindow(const Browser* browser);
 
