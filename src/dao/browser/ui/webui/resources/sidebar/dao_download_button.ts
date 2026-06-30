@@ -132,9 +132,9 @@ export class DaoDownloadButton extends CrLitElement {
         position: absolute;
         bottom: 100%;
         left: -6px;
-        width: calc(100vw - 12px);
-        padding: 0 6px 6px;
-        box-sizing: content-box;
+        width: 100vw;
+        padding: 0 0 6px;
+        box-sizing: border-box;
         pointer-events: none;
       }
 
