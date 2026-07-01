@@ -32,6 +32,7 @@ Treat `src/dao/` and `src/patches/` as canonical. If `engine/` and tracked files
 - Never run `autoninja`, `ninja`, `siso`, or direct Chromium build tools.
 - Never run `gn gen` directly.
 - For compile confirmation, use only `npm run rebuild`. Do not use `npm run build`, `npm run build:debug`, `npm run test:build`, direct Chromium build tools, or any other compile path as a substitute. Other compile paths can lose or corrupt the warm Chromium build cache.
+- Do not use `npm run import -- --force` unless it is necessary. If force import is needed, ask the user for explicit confirmation first and explain why normal `npm run import` is insufficient.
 - Never run bare `npm run export`; always scope it with `npm run export -- <file>`.
 - Never hand-edit generated vendor files under `src/dao/browser/ui/webui/resources/agent/vendor/`.
 - Never invoke `i18n.sh` automatically; it uses paid translation and overwrites files.
@@ -63,6 +64,7 @@ Chromium builds are expensive. Batch related C++, header, BUILD.gn patch, resour
 - Add Dao-owned files under `src/dao/`.
 - Update Chromium integration through `src/patches/**/*.patch`.
 - Run `npm run import` to apply patches into `engine/src/`.
+- Prefer plain `npm run import`. Use `npm run import -- --force` only when the existing `engine/src` patch state must be reset and reapplied, and only after the user explicitly confirms that force import is allowed.
 - Do not hand-edit `engine/src/` to sync patch changes. Update the canonical tracked file first, then run `npm run import`.
 - If the user explicitly asks you to iterate inside `engine/src/` during debugging, export only the file you intentionally changed with `npm run export -- <file>`.
 - After reverting a patch file, also ensure the corresponding `engine/src/` file is reverted and the intended patch state is reapplied.

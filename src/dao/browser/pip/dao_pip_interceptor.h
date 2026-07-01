@@ -5,6 +5,9 @@
 #ifndef DAO_BROWSER_PIP_DAO_PIP_INTERCEPTOR_H_
 #define DAO_BROWSER_PIP_DAO_PIP_INTERCEPTOR_H_
 
+#include <cstdint>
+#include <string>
+
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -34,16 +37,27 @@ class DaoPipInterceptor
 
   // content::WebContentsObserver:
   void DocumentOnLoadCompletedInPrimaryMainFrame() override;
+  void MediaPictureInPictureChanged(bool is_picture_in_picture) override;
 
  private:
   friend class content::WebContentsUserData<DaoPipInterceptor>;
   explicit DaoPipInterceptor(content::WebContents* web_contents);
 
+  bool ClearDocumentPipState();
   void MaybeInjectPipOverride();
-  void OnTriggerResult(base::OnceCallback<void(bool)> callback,
-                       base::Value result);
+  void OnTriggerScriptInjected(base::OnceCallback<void(bool)> callback,
+                               std::string trigger_id,
+                               base::Value result);
+  void PollTriggerResult(base::OnceCallback<void(bool)> callback,
+                         std::string trigger_id,
+                         int attempts_remaining);
+  void OnTriggerResultPoll(base::OnceCallback<void(bool)> callback,
+                           std::string trigger_id,
+                           int attempts_remaining,
+                           base::Value result);
 
   bool document_pip_active_ = false;
+  uint64_t next_trigger_id_ = 0;
 
   // Prevents the opener tab from being throttled while Document PiP is active.
   base::ScopedClosureRunner capturer_guard_;
