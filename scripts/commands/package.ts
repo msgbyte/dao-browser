@@ -162,6 +162,12 @@ export const packageCommand = new Command("package")
 
     const arch = config.build.target_cpu;
     const baseName = `dao-browser-${version}-mac-${arch}`;
+    const dsymCopies = preserveDsymsForLocalDebugging(outDir, baseName);
+    if (dsymCopies.length > 0) {
+      success(`Preserved dSYMs: ${path.dirname(dsymCopies[0])}`);
+    } else {
+      warn(`No dSYM files found in ${outDir}; skipping /tmp dSYM copy`);
+    }
 
     let artifactPath: string;
     if (opts.zip) {
@@ -195,6 +201,30 @@ export const packageCommand = new Command("package")
       printAppcastNextStep(artifactPath);
     }
   });
+
+export function preserveDsymsForLocalDebugging(
+  outDir: string,
+  baseName: string,
+  tmpDir = "/tmp"
+): string[] {
+  if (!existsSync(outDir)) return [];
+
+  const dsymNames = readdirSync(outDir)
+    .filter((name) => name.endsWith(".dSYM") || name.endsWith(".dSYM.tar.bz2"))
+    .sort();
+  if (dsymNames.length === 0) return [];
+
+  const destDir = path.join(tmpDir, `${baseName}-dsyms`);
+  rmSync(destDir, { recursive: true, force: true });
+  mkdirSync(destDir, { recursive: true });
+
+  return dsymNames.map((name) => {
+    const src = path.join(outDir, name);
+    const dest = path.join(destDir, name);
+    cpSync(src, dest, { recursive: true, verbatimSymlinks: true });
+    return dest;
+  });
+}
 
 async function createZip(
   appBundle: string,
