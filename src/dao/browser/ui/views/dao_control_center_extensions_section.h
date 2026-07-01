@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
@@ -18,6 +19,7 @@
 #include "ui/views/view.h"
 
 class Browser;
+class BrowserView;
 
 namespace gfx {
 class ImageSkia;
@@ -50,7 +52,11 @@ class DaoControlCenterExtensionsSection
   METADATA_HEADER(DaoControlCenterExtensionsSection, views::View)
 
  public:
-  explicit DaoControlCenterExtensionsSection(Browser* browser);
+  explicit DaoControlCenterExtensionsSection(
+      Browser* browser,
+      base::RepeatingClosure close_host_callback = base::RepeatingClosure(),
+      base::RepeatingCallback<views::View*()> anchor_view_callback =
+          base::RepeatingCallback<views::View*()>());
   DaoControlCenterExtensionsSection(const DaoControlCenterExtensionsSection&) =
       delete;
   DaoControlCenterExtensionsSection& operator=(
@@ -85,6 +91,8 @@ class DaoControlCenterExtensionsSection
   void OnExtensionClicked(const std::string& extension_id);
   void OnAddClicked();
   void OnManageClicked();
+  void CloseHostSurface();
+  views::View* GetExtensionPopupAnchor(BrowserView* browser_view) const;
   void OnContextMenuClosed();
 
   // Returns the extension_id associated with a button view, or empty string.
@@ -94,6 +102,8 @@ class DaoControlCenterExtensionsSection
   raw_ptr<views::View> grid_ = nullptr;
   raw_ptr<ToolbarActionsModel> model_ = nullptr;
   bool grid_dirty_ = true;
+  base::RepeatingClosure close_host_callback_;
+  base::RepeatingCallback<views::View*()> anchor_view_callback_;
 
   // Maps icon button pointers to extension IDs for context menu lookup.
   std::map<views::View*, std::string> button_to_extension_id_;

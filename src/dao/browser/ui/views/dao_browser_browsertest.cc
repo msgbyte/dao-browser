@@ -114,6 +114,7 @@
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
+#include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
 #include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/updater/dao_sparkle_update_session_state.h"
@@ -249,6 +250,21 @@ views::Label* FindDescendantLabelWithText(views::View* root,
     }
   }
   return nullptr;
+}
+
+int CountVisibleLabelsWithoutSubpixelOpacityCheck(views::View* root) {
+  if (!root || !root->GetVisible()) {
+    return 0;
+  }
+  int count = 0;
+  if (auto* label = views::AsViewClass<views::Label>(root);
+      label && !label->GetSkipSubpixelRenderingOpacityCheck()) {
+    ++count;
+  }
+  for (views::View* child : root->children()) {
+    count += CountVisibleLabelsWithoutSubpixelOpacityCheck(child);
+  }
+  return count;
 }
 
 template <typename T>
@@ -4457,6 +4473,164 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        RegularBrowserIsNotLittleDaoWindow) {
   EXPECT_FALSE(dao::DaoLittleDaoController::IsLittleDaoWindow(browser()));
   EXPECT_FALSE(dao::DaoLittleDaoController::IsCreatingLittleDao());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       MiniDaoCreatesSiteCenterPopupButNotNormalControlCenter) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,mini-site-center"));
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  EXPECT_NE(nullptr, little_browser_view->dao_little_dao_view());
+  EXPECT_NE(nullptr, little_browser_view->dao_mini_dao_site_center_popup());
+  EXPECT_EQ(nullptr, little_browser_view->dao_control_center_popup());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterButtonIsHitTestable) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,hit-test"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  const gfx::Rect site_bounds = little_view->site_center_button_bounds();
+  ASSERT_FALSE(site_bounds.IsEmpty());
+  EXPECT_EQ(HTCLIENT,
+            little_browser_view->NonClientHitTest(site_bounds.CenterPoint()));
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterButtonKeepsPillInset) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,pill-inset"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  const gfx::Rect pill_bounds = little_view->url_display_bounds();
+  const gfx::Rect button_bounds = little_view->site_center_button_bounds();
+  ASSERT_FALSE(pill_bounds.IsEmpty());
+  ASSERT_FALSE(button_bounds.IsEmpty());
+
+  constexpr int kExpectedVerticalInset = 4;
+  constexpr int kExpectedRightInset = 6;
+  EXPECT_GE(button_bounds.y() - pill_bounds.y(), kExpectedVerticalInset);
+  EXPECT_GE(pill_bounds.bottom() - button_bounds.bottom(),
+            kExpectedVerticalInset);
+  EXPECT_GE(pill_bounds.right() - button_bounds.right(), kExpectedRightInset);
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterPopupShowsWithoutMiniDaoExtractionButton) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,site-center-popup"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  auto* popup = little_browser_view->dao_mini_dao_site_center_popup();
+  ASSERT_NE(nullptr, popup);
+  EXPECT_FALSE(popup->GetVisible());
+
+  little_view->ShowMiniDaoSiteCenterForTesting();
+  EXPECT_TRUE(popup->GetVisible());
+  EXPECT_EQ(nullptr, FindButtonWithAccessibleName(
+                         popup, l10n_util::GetStringUTF16(
+                                    IDS_DAO_CONTROL_CENTER_MINI_DAO)));
+  EXPECT_NE(nullptr, FindButtonWithAccessibleName(
+                         popup, l10n_util::GetStringUTF16(
+                                    IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO)));
+
+  popup->Hide();
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterLabelsSkipSubpixelOpacityCheck) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,site-center-labels"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  auto* popup = little_browser_view->dao_mini_dao_site_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  little_view->ShowMiniDaoSiteCenterForTesting();
+  EXPECT_EQ(0, CountVisibleLabelsWithoutSubpixelOpacityCheck(popup));
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterActionButtonKeepsRowInset) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,site-center-button-inset"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  auto* popup = little_browser_view->dao_mini_dao_site_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  little_view->ShowMiniDaoSiteCenterForTesting();
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  auto* page_info_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(
+                 IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO));
+  ASSERT_NE(nullptr, page_info_button);
+  ASSERT_NE(nullptr, page_info_button->parent());
+
+  constexpr int kExpectedInset = 6;
+  EXPECT_GE(page_info_button->x(), kExpectedInset);
+  EXPECT_LE(page_info_button->bounds().right(),
+            page_info_button->parent()->width() - kExpectedInset);
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
 }
 
 // =============================================================================

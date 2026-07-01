@@ -115,6 +115,8 @@ dao_browser_ui_sources = [
   "//dao/browser/ui/views/little_dao/dao_little_dao_controller.h",
   "//dao/browser/ui/views/little_dao/dao_little_dao_view.cc",
   "//dao/browser/ui/views/little_dao/dao_little_dao_view.h",
+  "//dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.cc",
+  "//dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h",
   "//dao/browser/ui/views/sidebar/dao_download_flyout_view.cc",
   "//dao/browser/ui/views/sidebar/dao_download_flyout_view.h",
   "//dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h",

@@ -15,6 +15,7 @@ class Browser;
 class TabStripModel;
 
 namespace views {
+class Button;
 class Label;
 class LabelButton;
 }  // namespace views
@@ -48,6 +49,12 @@ class DaoLittleDaoView : public views::View,
   // Returns the bounds of the URL display button in parent coordinates.
   gfx::Rect url_display_bounds() const;
 
+  // Returns the bounds of the site center button in parent coordinates.
+  gfx::Rect site_center_button_bounds() const;
+
+  views::View* site_center_button_for_testing() const;
+  void ShowMiniDaoSiteCenterForTesting();
+
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
@@ -72,11 +79,14 @@ class DaoLittleDaoView : public views::View,
   void UpdateBackgroundColor();
   void ObserveActiveWebContents();
   void ShowCommandBar();
+  void ShowMiniDaoSiteCenter();
   void OpenInDao();
 
   raw_ptr<Browser> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
-  raw_ptr<views::LabelButton> url_display_ = nullptr;
+  raw_ptr<views::View> url_container_ = nullptr;
+  raw_ptr<views::LabelButton> url_text_button_ = nullptr;
+  raw_ptr<views::Button> site_center_button_ = nullptr;
   raw_ptr<views::LabelButton> open_button_ = nullptr;
   raw_ptr<views::Label> shortcut_label_ = nullptr;
 };

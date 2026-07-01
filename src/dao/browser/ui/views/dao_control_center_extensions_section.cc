@@ -118,8 +118,12 @@ BEGIN_METADATA(DaoControlCenterExtensionsSection)
 END_METADATA
 
 DaoControlCenterExtensionsSection::DaoControlCenterExtensionsSection(
-    Browser* browser)
-    : browser_(browser) {
+    Browser* browser,
+    base::RepeatingClosure close_host_callback,
+    base::RepeatingCallback<views::View*()> anchor_view_callback)
+    : browser_(browser),
+      close_host_callback_(std::move(close_host_callback)),
+      anchor_view_callback_(std::move(anchor_view_callback)) {
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical, gfx::Insets::VH(4, 0), 4));
   layout->set_cross_axis_alignment(
@@ -324,6 +328,39 @@ void DaoControlCenterExtensionsSection::OnIconUpdated() {
   UpdateAllButtonIcons();
 }
 
+void DaoControlCenterExtensionsSection::CloseHostSurface() {
+  if (close_host_callback_) {
+    close_host_callback_.Run();
+    return;
+  }
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view) {
+    return;
+  }
+  auto* cc_popup = browser_view->dao_control_center_popup();
+  if (cc_popup) {
+    cc_popup->Hide();
+  }
+}
+
+views::View* DaoControlCenterExtensionsSection::GetExtensionPopupAnchor(
+    BrowserView* browser_view) const {
+  if (anchor_view_callback_) {
+    if (views::View* anchor = anchor_view_callback_.Run()) {
+      return anchor;
+    }
+  }
+  if (browser_view && browser_view->dao_address_bar()) {
+    if (views::View* anchor =
+            browser_view->dao_address_bar()->control_center_button()) {
+      return anchor;
+    }
+    return browser_view->dao_address_bar();
+  }
+  return nullptr;
+}
+
 void DaoControlCenterExtensionsSection::OnExtensionClicked(
     const std::string& extension_id) {
   if (!browser_) {
@@ -331,14 +368,7 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
   }
 
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
-
-  // Close the control center popup first (unblocks web content events).
-  if (browser_view) {
-    auto* cc_popup = browser_view->dao_control_center_popup();
-    if (cc_popup) {
-      cc_popup->Hide();
-    }
-  }
+  CloseHostSurface();
 
   auto* web_contents = browser_->tab_strip_model()->GetActiveWebContents();
   if (!web_contents) {
@@ -384,14 +414,7 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
       return;
     }
 
-    // Find a visible anchor: prefer the CC button in the address bar.
-    views::View* anchor = nullptr;
-    if (browser_view && browser_view->dao_address_bar()) {
-      anchor = browser_view->dao_address_bar()->control_center_button();
-    }
-    if (!anchor && browser_view) {
-      anchor = browser_view->dao_address_bar();
-    }
+    views::View* anchor = GetExtensionPopupAnchor(browser_view);
     if (!anchor) {
       return;
     }
@@ -407,13 +430,7 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
 }
 
 void DaoControlCenterExtensionsSection::OnAddClicked() {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
-  if (browser_view) {
-    auto* cc_popup = browser_view->dao_control_center_popup();
-    if (cc_popup) {
-      cc_popup->Hide();
-    }
-  }
+  CloseHostSurface();
   NavigateParams params(browser_, GURL("https://chromewebstore.google.com/"),
                         ui::PAGE_TRANSITION_LINK);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
@@ -421,13 +438,7 @@ void DaoControlCenterExtensionsSection::OnAddClicked() {
 }
 
 void DaoControlCenterExtensionsSection::OnManageClicked() {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
-  if (browser_view) {
-    auto* cc_popup = browser_view->dao_control_center_popup();
-    if (cc_popup) {
-      cc_popup->Hide();
-    }
-  }
+  CloseHostSurface();
   NavigateParams params(browser_, GURL("dao://extensions/"),
                         ui::PAGE_TRANSITION_LINK);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;

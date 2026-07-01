@@ -370,6 +370,30 @@
       <message name="IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME" desc="Accessible name for the button that promotes the current Little Dao mini-browser tab into a full Dao Browser tab.">
         Open in Dao
       </message>
+      <message name="IDS_DAO_MINI_DAO_SITE_CENTER_ACCESSIBLE_NAME" desc="Accessible name for the site center button inside the Mini Dao URL pill.">
+        Site center
+      </message>
+      <message name="IDS_DAO_MINI_DAO_SITE_CENTER_EXTENSIONS_LABEL" desc="Section heading for extension actions inside the Mini Dao site center.">
+        Extensions on this site
+      </message>
+      <message name="IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO" desc="Button label for opening Page Info from the Mini Dao site center.">
+        Site settings
+      </message>
+      <message name="IDS_DAO_MINI_DAO_SITE_CENTER_SHARE" desc="Button label for sharing the current page from the Mini Dao site center.">
+        Share
+      </message>
+      <message name="IDS_DAO_MINI_DAO_SITE_CENTER_QR_CODE" desc="Button label for showing a QR code for the current page from the Mini Dao site center.">
+        QR Code
+      </message>
+      <message name="IDS_DAO_MINI_DAO_SITE_CENTER_MORE" desc="Button label for additional current-site actions inside the Mini Dao site center.">
+        More
+      </message>
+      <message name="IDS_DAO_MINI_DAO_SITE_CENTER_BACK_BUTTON_LABEL" desc="Label for returning from a Mini Dao site center sub-panel to the main site center panel. Includes a left-pointing arrow before the word Back.">
+        <ph name="ARROW">←</ph> Back
+      </message>
+      <message name="IDS_DAO_MINI_DAO_SITE_CENTER_BACK_BUTTON_ACCESSIBLE_NAME" desc="Accessible name for returning from a Mini Dao site center sub-panel to the main site center panel.">
+        Back
+      </message>
       <!-- Install dialog notice -->
       <message name="IDS_DAO_INSTALL_PROMPT_LEGACY_MV2_NOTICE" desc="One-line notice shown above the permission list in the extension install dialog when the extension being installed is a legacy Manifest V2 extension. Tells the user that Dao still supports MV2 but most other browsers do not. Plain text, no link.">
         This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.

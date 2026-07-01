@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl
 index 206b3e83c1..0c8b612396 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.cc
-@@ -4,8 +4,11 @@
+@@ -4,8 +4,12 @@
  
  #include "chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.h"
  
@@ -11,6 +11,7 @@ index 206b3e83c1..0c8b612396 100644
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
++#include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
  #include "ui/views/controls/separator.h"
  
  BrowserViewPopupLayoutImpl::BrowserViewPopupLayoutImpl(
@@ -63,7 +64,7 @@ index 206b3e83c1..0c8b612396 100644
    }
  
    // Lay out infobar container if present.
-@@ -97,6 +115,23 @@ BrowserViewPopupLayoutImpl::CalculateProposedLayout(
+@@ -97,6 +115,27 @@ BrowserViewPopupLayoutImpl::CalculateProposedLayout(
      layout.AddChild(views().infobar_container, infobar_bounds, infobar_visible);
    }
  
@@ -81,6 +82,10 @@ index 206b3e83c1..0c8b612396 100644
 +    // / URL pill click to open the Spotlight-style input.
 +    if (auto* const cmd_bar = dao_bv->dao_command_bar()) {
 +      layout.AddChild(cmd_bar, browser_params.visual_client_area);
++    }
++    if (auto* const site_center =
++            dao_bv->dao_mini_dao_site_center_popup()) {
++      layout.AddChild(site_center, browser_params.visual_client_area);
 +    }
 +  }
 +

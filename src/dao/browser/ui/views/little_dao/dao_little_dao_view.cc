@@ -4,6 +4,8 @@
 
 #include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 
+#include <utility>
+
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -12,14 +14,17 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+#include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/animation/ink_drop.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
@@ -36,6 +41,45 @@ constexpr int kVerticalPadding = 8;   // Top/bottom padding inside 48px header
 constexpr int kButtonCornerRadius = 8;
 constexpr int kDisplayCornerRadius = 8;   // Rounded rectangle
 constexpr int kElementSpacing = 8;
+constexpr int kSiteCenterButtonWidth = 32;
+constexpr int kSiteCenterButtonVerticalInset = 4;
+constexpr int kSiteCenterButtonRightInset = 6;
+
+class MiniDaoSiteCenterButton : public views::Button {
+  METADATA_HEADER(MiniDaoSiteCenterButton, views::Button)
+
+ public:
+  explicit MiniDaoSiteCenterButton(PressedCallback callback)
+      : Button(std::move(callback)) {
+    SetPreferredSize(gfx::Size(kSiteCenterButtonWidth, 0));
+    SetInstallFocusRingOnFocus(false);
+  }
+
+  void OnMouseEntered(const ui::MouseEvent& event) override {
+    Button::OnMouseEntered(event);
+    SetBackground(views::CreateRoundedRectBackground(
+        ControlCenterHoverBg(), kDisplayCornerRadius));
+    SchedulePaint();
+  }
+
+  void OnMouseExited(const ui::MouseEvent& event) override {
+    Button::OnMouseExited(event);
+    SetBackground(nullptr);
+    SchedulePaint();
+  }
+
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    const float icon_size = 16.0f;
+    const float x = (width() - icon_size) / 2.0f;
+    const float y = (height() - icon_size) / 2.0f;
+    DrawLucideIcon(canvas, LucideIcon::kSlidersHorizontal,
+                   gfx::RectF(x, y, icon_size, icon_size),
+                   ControlCenterIconMuted());
+  }
+};
+
+BEGIN_METADATA(MiniDaoSiteCenterButton)
+END_METADATA
 }  // namespace
 
 BEGIN_METADATA(DaoLittleDaoView)
@@ -54,32 +98,65 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   layout->SetDefault(views::kMarginsKey,
                      gfx::Insets::TLBR(0, 0, 0, kElementSpacing));
 
-  // URL display button — pill-shaped, shows hostname, click opens command bar
-  url_display_ = AddChildView(std::make_unique<views::LabelButton>(
-      base::BindRepeating(&DaoLittleDaoView::ShowCommandBar,
-                          base::Unretained(this)),
-      u""));
-  url_display_->SetEnabledTextColors(TextSecondary());
-  url_display_->SetBackground(views::CreateRoundedRectBackground(
+  // URL pill: hostname area opens command bar; right icon opens site center.
+  url_container_ = AddChildView(std::make_unique<views::View>());
+  url_container_->SetBackground(views::CreateRoundedRectBackground(
       SuggestionHover(), kDisplayCornerRadius));
-  url_display_->SetBorder(
-      views::CreateEmptyBorder(gfx::Insets::TLBR(0, 12, 0, 12)));
-  url_display_->SetPreferredSize(gfx::Size(0, 0));
-  url_display_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  url_display_->SetAccessibleName(l10n_util::GetStringUTF16(
-      IDS_DAO_LITTLE_DAO_ADDRESS_ACCESSIBLE_NAME));
-  url_display_->SetFocusBehavior(views::View::FocusBehavior::NEVER);
-  url_display_->SetProperty(
+  url_container_->SetBorder(views::CreateEmptyBorder(gfx::Insets()));
+  url_container_->SetPreferredSize(gfx::Size(0, 0));
+  url_container_->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
                                views::MaximumFlexSizeRule::kUnbounded));
-  // Install rounded-rect highlight path and enable InkDrop hover effect
+  auto* url_layout =
+      url_container_->SetLayoutManager(std::make_unique<views::FlexLayout>());
+  url_layout->SetOrientation(views::LayoutOrientation::kHorizontal);
+  url_layout->SetCrossAxisAlignment(views::LayoutAlignment::kStretch);
+  url_layout->SetDefault(views::kMarginsKey, gfx::Insets());
+
+  url_text_button_ = url_container_->AddChildView(
+      std::make_unique<views::LabelButton>(
+          base::BindRepeating(&DaoLittleDaoView::ShowCommandBar,
+                              base::Unretained(this)),
+          u""));
+  url_text_button_->SetEnabledTextColors(TextSecondary());
+  url_text_button_->SetBorder(
+      views::CreateEmptyBorder(gfx::Insets::TLBR(0, 12, 0, 8)));
+  url_text_button_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  url_text_button_->SetAccessibleName(l10n_util::GetStringUTF16(
+      IDS_DAO_LITTLE_DAO_ADDRESS_ACCESSIBLE_NAME));
+  url_text_button_->SetFocusBehavior(views::View::FocusBehavior::NEVER);
+  url_text_button_->SetProperty(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
+                               views::MaximumFlexSizeRule::kUnbounded));
+
+  site_center_button_ = url_container_->AddChildView(
+      std::make_unique<MiniDaoSiteCenterButton>(base::BindRepeating(
+          &DaoLittleDaoView::ShowMiniDaoSiteCenter,
+          base::Unretained(this))));
+  std::u16string site_center_label = l10n_util::GetStringUTF16(
+      IDS_DAO_MINI_DAO_SITE_CENTER_ACCESSIBLE_NAME);
+  site_center_button_->SetAccessibleName(site_center_label);
+  site_center_button_->SetTooltipText(site_center_label);
+  site_center_button_->SetFocusBehavior(views::View::FocusBehavior::NEVER);
+  site_center_button_->SetProperty(
+      views::kMarginsKey,
+      gfx::Insets::TLBR(kSiteCenterButtonVerticalInset, 0,
+                        kSiteCenterButtonVerticalInset,
+                        kSiteCenterButtonRightInset));
+
+  // Install rounded-rect highlight path and enable InkDrop hover effect.
   views::InstallRoundRectHighlightPathGenerator(
-      url_display_, gfx::Insets(), kDisplayCornerRadius);
-  views::InkDrop::Get(url_display_)->SetMode(
+      url_container_, gfx::Insets(), kDisplayCornerRadius);
+  views::InstallRoundRectHighlightPathGenerator(
+      url_text_button_, gfx::Insets(), kDisplayCornerRadius);
+  views::InstallRoundRectHighlightPathGenerator(
+      site_center_button_, gfx::Insets(), kDisplayCornerRadius);
+  views::InkDrop::Get(url_text_button_)->SetMode(
       views::InkDropHost::InkDropMode::ON_NO_GESTURE_HANDLER);
-  views::InkDrop::Get(url_display_)->SetBaseColor(SK_ColorBLACK);
-  views::InkDrop::Get(url_display_)->SetVisibleOpacity(0.04f);
+  views::InkDrop::Get(url_text_button_)->SetBaseColor(SK_ColorBLACK);
+  views::InkDrop::Get(url_text_button_)->SetVisibleOpacity(0.04f);
 
   // "Open in Dao ⌘O" button
   std::u16string open_in_dao_label = l10n_util::GetStringUTF16(
@@ -142,13 +219,31 @@ gfx::Rect DaoLittleDaoView::open_in_dao_button_bounds() const {
 }
 
 gfx::Rect DaoLittleDaoView::url_display_bounds() const {
-  if (!url_display_)
+  if (!url_container_)
     return gfx::Rect();
-  gfx::Rect display_bounds = url_display_->bounds();
+  gfx::Rect display_bounds = url_container_->bounds();
   gfx::Point origin = display_bounds.origin();
   views::View::ConvertPointToTarget(this, parent(), &origin);
   display_bounds.set_origin(origin);
   return display_bounds;
+}
+
+gfx::Rect DaoLittleDaoView::site_center_button_bounds() const {
+  if (!site_center_button_)
+    return gfx::Rect();
+  gfx::Rect button_bounds = site_center_button_->bounds();
+  gfx::Point origin = button_bounds.origin();
+  views::View::ConvertPointToTarget(url_container_, parent(), &origin);
+  button_bounds.set_origin(origin);
+  return button_bounds;
+}
+
+views::View* DaoLittleDaoView::site_center_button_for_testing() const {
+  return site_center_button_;
+}
+
+void DaoLittleDaoView::ShowMiniDaoSiteCenterForTesting() {
+  ShowMiniDaoSiteCenter();
 }
 
 void DaoLittleDaoView::OnTabStripModelChanged(
@@ -205,27 +300,27 @@ void DaoLittleDaoView::Layout(PassKey) {
 }
 
 void DaoLittleDaoView::UpdateURLDisplay() {
-  if (!tab_strip_model_ || !url_display_)
+  if (!tab_strip_model_ || !url_text_button_)
     return;
 
   auto* web_contents = tab_strip_model_->GetActiveWebContents();
   if (!web_contents) {
-    url_display_->SetText(u"");
+    url_text_button_->SetText(u"");
     return;
   }
 
   GURL url = web_contents->GetVisibleURL();
   if (!url.is_valid() || url.IsAboutBlank()) {
-    url_display_->SetText(u"");
+    url_text_button_->SetText(u"");
     return;
   }
 
   // Show just the hostname for a cleaner look
   std::string host(url.host());
   if (host.empty()) {
-    url_display_->SetText(base::UTF8ToUTF16(url.spec()));
+    url_text_button_->SetText(base::UTF8ToUTF16(url.spec()));
   } else {
-    url_display_->SetText(base::UTF8ToUTF16(host));
+    url_text_button_->SetText(base::UTF8ToUTF16(host));
   }
 }
 
@@ -255,6 +350,15 @@ void DaoLittleDaoView::ShowCommandBar() {
   if (command_bar) {
     command_bar->Show();
   }
+}
+
+void DaoLittleDaoView::ShowMiniDaoSiteCenter() {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view || !browser_view->dao_mini_dao_site_center_popup())
+    return;
+
+  browser_view->dao_mini_dao_site_center_popup()->ShowAt(
+      site_center_button_bounds().bottom_right());
 }
 
 void DaoLittleDaoView::OpenInDao() {
