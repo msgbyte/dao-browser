@@ -48,6 +48,7 @@
 #include "content/public/common/url_constants.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/dao_pref_names.h"
+#include "dao/browser/pip/dao_pip_interceptor.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/updater/dao_updater_service.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
@@ -111,6 +112,24 @@ double GetLastActiveTimeMs(content::WebContents* contents) {
     last_active_time = base::Time::Now();
   }
   return last_active_time.InMillisecondsFSinceUnixEpoch();
+}
+
+content::WebContents* GetWebContentsAt(Browser* browser, int tab_index) {
+  if (!browser || tab_index < 0) {
+    return nullptr;
+  }
+  TabStripModel* model = browser->tab_strip_model();
+  if (tab_index >= model->count()) {
+    return nullptr;
+  }
+  return model->GetWebContentsAt(tab_index);
+}
+
+void EnterMediaPictureInPicture(content::WebContents* contents) {
+  if (!contents) {
+    return;
+  }
+  content::MediaSession::Get(contents)->EnterPictureInPicture();
 }
 
 base::Time GetLastActiveTimeForDuplicateSelection(
@@ -629,6 +648,11 @@ void DaoSidebarUIHandler::RegisterMessages() {
       "mediaDismiss",
       base::BindRepeating(&DaoSidebarUIHandler::HandleMediaDismiss,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "mediaPictureInPicture",
+      base::BindRepeating(
+          &DaoSidebarUIHandler::HandleMediaPictureInPicture,
+          base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "mediaActivateTab",
       base::BindRepeating(&DaoSidebarUIHandler::HandleMediaActivateTab,
@@ -2305,6 +2329,37 @@ void DaoSidebarUIHandler::HandleMediaDismiss(const base::ListValue& args) {
   base::DictValue state;
   state.Set("isPlaying", false);
   FireWebUIListener("mediaPlaybackChanged", state);
+}
+
+void DaoSidebarUIHandler::HandleMediaPictureInPicture(
+    const base::ListValue& args) {
+  content::WebContents* contents =
+      GetWebContentsAt(browser_, media_widget_tab_index_);
+  if (!contents) {
+    return;
+  }
+
+  if (DaoPipInterceptor::ShouldIntercept(contents)) {
+    auto* pip_interceptor = DaoPipInterceptor::FromWebContents(contents);
+    if (pip_interceptor) {
+      pip_interceptor->TriggerDocumentPip(
+          base::BindOnce(&DaoSidebarUIHandler::OnMediaDocumentPipResult,
+                         weak_factory_.GetWeakPtr(),
+                         media_widget_tab_index_));
+      return;
+    }
+  }
+
+  EnterMediaPictureInPicture(contents);
+}
+
+void DaoSidebarUIHandler::OnMediaDocumentPipResult(int tab_index,
+                                                   bool success) {
+  if (success) {
+    return;
+  }
+
+  EnterMediaPictureInPicture(GetWebContentsAt(browser_, tab_index));
 }
 
 void DaoSidebarUIHandler::HandleMediaActivateTab(const base::ListValue& args) {

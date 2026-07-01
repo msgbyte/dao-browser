@@ -67,7 +67,14 @@ export class DaoMediaControl extends CrLitElement {
         text-decoration: underline;
       }
 
-      .dismiss-btn {
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        flex-shrink: 0;
+      }
+
+      .header-btn {
         width: 18px;
         height: 18px;
         border: none;
@@ -83,7 +90,7 @@ export class DaoMediaControl extends CrLitElement {
         transition: color 0.1s ease;
       }
 
-      .dismiss-btn:hover {
+      .header-btn:hover {
         color: var(--text-primary);
       }
 
@@ -189,14 +196,25 @@ export class DaoMediaControl extends CrLitElement {
         <div class="media-header">
           <span class="source-title"
                 @click=${this.onActivateTab_}>${s.title}</span>
-          <button class="dismiss-btn" @click=${this.onDismiss_}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 6 6 18"></path>
-              <path d="m6 6 12 12"></path>
-            </svg>
-          </button>
+          <div class="header-actions">
+            <button class="header-btn pip-btn"
+                    @click=${this.onPictureInPicture_}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"></path>
+                <rect width="10" height="7" x="12" y="13" rx="2"></rect>
+              </svg>
+            </button>
+            <button class="header-btn dismiss-btn" @click=${this.onDismiss_}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="media-body">
           <button class="ctrl-btn" @click=${this.onActivateTab_}>
@@ -278,6 +296,11 @@ export class DaoMediaControl extends CrLitElement {
   private onDismiss_(e: Event) {
     e.stopPropagation();
     sendNative('mediaDismiss');
+  }
+
+  private onPictureInPicture_(e: Event) {
+    e.stopPropagation();
+    sendNative('mediaPictureInPicture');
   }
 
   private onActivateTab_() {

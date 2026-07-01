@@ -214,7 +214,9 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleMediaPrevious(const base::ListValue& args);
   void HandleMediaNext(const base::ListValue& args);
   void HandleMediaDismiss(const base::ListValue& args);
+  void HandleMediaPictureInPicture(const base::ListValue& args);
   void HandleMediaActivateTab(const base::ListValue& args);
+  void OnMediaDocumentPipResult(int tab_index, bool success);
 
   // Sidebar context menu handler.
   void HandleShowSidebarContextMenu(const base::ListValue& args);
