@@ -54,6 +54,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/download/public/common/download_item.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/prefs/pref_service.h"
@@ -62,10 +63,13 @@
 #include "components/search_engines/template_url_service.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
+#include "content/public/browser/download_manager.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/download_test_observer.h"
+#include "content/public/test/slow_download_http_response.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "net/base/filename_util.h"
 #include "sql/database.h"
@@ -114,6 +118,7 @@
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
+#include "dao/browser/ui/views/little_dao/dao_mini_dao_download_card_view.h"
 #include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
 #include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
@@ -4616,6 +4621,82 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   // The default browser in this test is TYPE_NORMAL, so Little Dao view
   // should NOT be created.
   EXPECT_EQ(nullptr, GetBrowserView(browser())->dao_little_dao_view());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       RegularBrowserHasNoMiniDaoDownloadCard) {
+  EXPECT_EQ(nullptr, GetBrowserView(browser())->dao_mini_dao_download_card());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       MiniDaoCreatesDownloadCard) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,mini-download-card"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  EXPECT_NE(nullptr, little_browser_view->dao_mini_dao_download_card());
+  EXPECT_FALSE(little_browser_view->dao_mini_dao_download_card()->GetVisible());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       MiniDaoShowsDownloadCardForInProgressDownload) {
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      &content::SlowDownloadHttpResponse::HandleSlowDownloadRequest));
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  content::DownloadManager* manager =
+      browser()->profile()->GetDownloadManager();
+  content::DownloadTestObserverInProgress observer(manager, 1);
+  const GURL download_url = embedded_test_server()->GetURL(
+      content::SlowDownloadHttpResponse::kKnownSizeUrl);
+
+  Browser* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(browser()->profile(),
+                                                  download_url);
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  auto* card =
+      GetBrowserView(little_dao_browser)->dao_mini_dao_download_card();
+  ASSERT_NE(nullptr, card);
+  observer.WaitForFinished();
+  EXPECT_EQ(1u, observer.NumDownloadsSeenInState(
+                    download::DownloadItem::IN_PROGRESS));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return card->GetVisible() && card->HasActiveDownloadsForTesting();
+  }));
+  EXPECT_LE(card->GetPreferredSize().height(), 72);
+  views::Button* cancel_button = FindButtonWithAccessibleName(
+      card, l10n_util::GetStringUTF16(
+                IDS_DAO_MINI_DAO_DOWNLOAD_CARD_CANCEL));
+  ASSERT_NE(nullptr, cancel_button);
+  constexpr int kStableCancelButtonId = 19763;
+  cancel_button->SetID(kStableCancelButtonId);
+
+  content::DownloadManager::DownloadVector items;
+  manager->GetAllDownloads(&items);
+  ASSERT_EQ(1u, items.size());
+  ASSERT_EQ(download::DownloadItem::IN_PROGRESS, items[0]->GetState());
+  card->OnDownloadUpdated(manager, items[0]);
+  views::Button* updated_cancel_button = FindButtonWithAccessibleName(
+      card, l10n_util::GetStringUTF16(
+                IDS_DAO_MINI_DAO_DOWNLOAD_CARD_CANCEL));
+  ASSERT_NE(nullptr, updated_cancel_button);
+  EXPECT_EQ(kStableCancelButtonId, updated_cancel_button->GetID());
+
+  for (download::DownloadItem* item : items) {
+    item->Cancel(/*user_cancel=*/true);
+  }
+  EXPECT_TRUE(base::test::RunUntil([&] { return !card->GetVisible(); }));
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest, BarHeightIsPositive) {

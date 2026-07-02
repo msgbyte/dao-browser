@@ -394,6 +394,12 @@
       <message name="IDS_DAO_MINI_DAO_SITE_CENTER_BACK_BUTTON_ACCESSIBLE_NAME" desc="Accessible name for returning from a Mini Dao site center sub-panel to the main site center panel.">
         Back
       </message>
+      <message name="IDS_DAO_MINI_DAO_DOWNLOAD_CARD_CANCEL" desc="Accessible name and tooltip for the button that cancels one active download in the Mini Dao download progress card.">
+        Cancel download
+      </message>
+      <message name="IDS_DAO_MINI_DAO_DOWNLOAD_CARD_OVERFLOW" desc="Summary line in the Mini Dao download progress card when more active downloads exist than can be shown. COUNT is the number of additional active downloads hidden behind the summary.">
+        <ph name="COUNT">$1<ex>3</ex></ph> more
+      </message>
       <!-- Install dialog notice -->
       <message name="IDS_DAO_INSTALL_PROMPT_LEGACY_MV2_NOTICE" desc="One-line notice shown above the permission list in the extension install dialog when the extension being installed is a legacy Manifest V2 extension. Tells the user that Dao still supports MV2 but most other browsers do not. Plain text, no link.">
         This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.

@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 index e4d4e62095..055a20963c 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4,6 +4,26 @@
+@@ -4,6 +4,27 @@
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
  
@@ -20,6 +20,7 @@ index e4d4e62095..055a20963c 100644
 +#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
++#include "dao/browser/ui/views/little_dao/dao_mini_dao_download_card_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
 +#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
@@ -29,7 +30,7 @@ index e4d4e62095..055a20963c 100644
  #include <stdint.h>
  
  #include <algorithm>
-@@ -754,6 +773,14 @@ class BrowserView::ExclusiveAccessContextImpl
+@@ -754,6 +774,14 @@ class BrowserView::ExclusiveAccessContextImpl
        // ...TYPE_NONE indicates deleting the bubble, except when used with
        // download.
        should_close_bubble |= params.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE;
@@ -44,7 +45,7 @@ index e4d4e62095..055a20963c 100644
  #if BUILDFLAG(IS_CHROMEOS)
        // Immersive mode allows the toolbar to be shown, so do not show the
        // bubble. However, do show the bubble in a managed guest session (see
-@@ -963,6 +982,97 @@ BrowserView::BrowserView(Browser* browser)
+@@ -963,6 +983,100 @@ BrowserView::BrowserView(Browser* browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -123,6 +124,9 @@ index e4d4e62095..055a20963c 100644
 +    // Dao: Little Dao window — simplified popup for external URLs (no frame)
 +    dao_little_dao_view_ = AddChildView(
 +        std::make_unique<dao::DaoLittleDaoView>(browser_.get()));
++    // Dao: Mini Dao-scoped download progress card.
++    dao_mini_dao_download_card_ = AddChildView(
++        std::make_unique<dao::DaoMiniDaoDownloadCardView>(browser_.get()));
 +    // Dao: Page-scoped site center opened from the Little Dao URL pill.
 +    dao_mini_dao_site_center_popup_ = AddChildView(
 +        std::make_unique<dao::DaoMiniDaoSiteCenterPopup>(
@@ -142,7 +146,7 @@ index e4d4e62095..055a20963c 100644
    contents_height_side_panel_ = AddChildView(std::make_unique<SidePanel>(
        this, SidePanelEntry::PanelType::kContent, /*has_border=*/true));
  
-@@ -1278,12 +1379,21 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
+@@ -1278,12 +1383,21 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -164,7 +168,7 @@ index e4d4e62095..055a20963c 100644
    const bool is_pwa = GetIsWebAppType();
    const bool is_tabbed_window = GetSupportsTabStrip();
    return is_tabbed_window && !is_pwa;
-@@ -1387,6 +1497,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
+@@ -1387,6 +1501,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -176,7 +180,7 @@ index e4d4e62095..055a20963c 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(
-@@ -1977,9 +2092,14 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1977,9 +2096,14 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
      if (loading_bar_) {
        loading_bar_->SetWebContents(nullptr);
      }
@@ -193,7 +197,7 @@ index e4d4e62095..055a20963c 100644
    }
 
    // Do this before updating InfoBarContainer as the InfoBarContainer may
-@@ -2041,8 +2161,11 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -2041,8 +2165,11 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
          if (multi_contents_view_->IsInSplitView()) {
            HideSplitView();
          }
@@ -207,7 +211,7 @@ index e4d4e62095..055a20963c 100644
        }
 
      SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
-@@ -2084,6 +2207,21 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -2084,6 +2211,21 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
    if (AppUsesUnframedMode() && !old_contents) {
      SetWindowManagementPermissionSubscriptionForUnframedMode(new_contents);
    }
@@ -229,7 +233,7 @@ index e4d4e62095..055a20963c 100644
  }
  
  void BrowserView::OnTabDetached(content::WebContents* contents,
-@@ -2334,6 +2472,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2334,6 +2476,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -248,7 +252,7 @@ index e4d4e62095..055a20963c 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3663,6 +3813,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
+@@ -3663,6 +3817,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
                                   TabChangeType change_type) {
    content::WebContents* contents = tab->GetContents();
  
@@ -270,7 +274,7 @@ index e4d4e62095..055a20963c 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
-@@ -4870,6 +5035,82 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4870,6 +5039,82 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -353,7 +357,7 @@ index e4d4e62095..055a20963c 100644
    // Determine if the TabStrip exists and is capable of being clicked on. We
    // might be a popup window without a TabStrip. Use `GetTabStripVisible` as the
    // tabstrip might have been hidden in immersive mode.
-@@ -5491,6 +5720,17 @@ void BrowserView::OnThemeChanged() {
+@@ -5491,6 +5724,17 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();
