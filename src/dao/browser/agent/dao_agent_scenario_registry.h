@@ -36,6 +36,11 @@ class DaoAgentScenarioRegistry {
   // checking seeds first (by specificity), then personal scenarios.
   std::optional<ScenarioDefinition> Match(const std::string& url) const;
 
+  // Returns every matching scenario with seed matches first and personal
+  // matches ordered by learned acceptance rate.
+  std::vector<ScenarioDefinition> GetMatchingScenarios(
+      const std::string& url) const;
+
   // Get all scenarios (seeds + personal).
   const std::vector<ScenarioDefinition>& seed_scenarios() const {
     return seed_scenarios_;

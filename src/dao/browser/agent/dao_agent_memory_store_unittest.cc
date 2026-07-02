@@ -6,15 +6,44 @@
 
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/threading/scoped_blocking_call.h"
+#include "base/threading/thread_restrictions.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao {
 namespace {
+
+ActionFeedback MakeActionFeedback(std::string outcome, base::Time timestamp) {
+  ActionFeedback feedback;
+  feedback.scenario_id = "seed_review_code";
+  feedback.action_label = "review_code";
+  feedback.domain = "example.com";
+  feedback.url = "https://example.com/review";
+  feedback.trigger_confidence = 0.9;
+  feedback.outcome = std::move(outcome);
+  feedback.timestamp = timestamp;
+  return feedback;
+}
+
+Episode MakeEpisode(std::string title,
+                    std::string outcome,
+                    std::string action_result) {
+  Episode episode;
+  episode.domain = "example.com";
+  episode.url = "https://example.com/task";
+  episode.title = std::move(title);
+  episode.intent = "review this page";
+  episode.outcome = std::move(outcome);
+  episode.action_result = std::move(action_result);
+  episode.timestamp = base::Time::Now();
+  episode.confidence = 0.95;
+  return episode;
+}
 
 class DaoAgentMemoryStoreTest : public ::testing::Test {
  protected:
@@ -91,13 +120,138 @@ TEST_F(DaoAgentMemoryStoreTest, ReadOnlySqlRejectsAttachDatabase) {
 }
 
 TEST_F(DaoAgentMemoryStoreTest, ReadOnlySqlAppliesRowLimit) {
-  MemorySqlQueryResult result =
-      RunSql("SELECT key FROM preferences UNION ALL SELECT key FROM preferences",
-             1);
+  MemorySqlQueryResult result = RunSql(
+      "SELECT key FROM preferences UNION ALL SELECT key FROM preferences", 1);
 
   ASSERT_TRUE(result.ok) << result.error;
   ASSERT_EQ(1u, result.rows.size());
   EXPECT_TRUE(result.truncated);
+}
+
+TEST_F(DaoAgentMemoryStoreTest, CooldownTreatsRecentNotNowAsTemporaryBlock) {
+  const base::Time now = base::Time::Now();
+  ASSERT_TRUE(store_->RecordActionFeedback(
+      MakeActionFeedback("not_now", now - base::Hours(2))));
+
+  EXPECT_GE(store_->GetCooldownScore("example.com", "seed_review_code"), 3.0);
+
+  ActionFeedback older_feedback =
+      MakeActionFeedback("not_now", now - base::Days(2));
+  older_feedback.domain = "old.example.com";
+  ASSERT_TRUE(store_->RecordActionFeedback(older_feedback));
+
+  EXPECT_DOUBLE_EQ(
+      1.0, store_->GetCooldownScore("old.example.com", "seed_review_code"));
+}
+
+TEST_F(DaoAgentMemoryStoreTest, CooldownTreatsRecentFailureAsTemporaryBlock) {
+  const base::Time now = base::Time::Now();
+  ASSERT_TRUE(store_->RecordActionFeedback(
+      MakeActionFeedback("failed", now - base::Minutes(30))));
+
+  EXPECT_GE(store_->GetCooldownScore("example.com", "seed_review_code"), 3.0);
+
+  ActionFeedback older_feedback =
+      MakeActionFeedback("failed", now - base::Hours(2));
+  older_feedback.domain = "old.example.com";
+  ASSERT_TRUE(store_->RecordActionFeedback(older_feedback));
+
+  EXPECT_DOUBLE_EQ(
+      0.25, store_->GetCooldownScore("old.example.com", "seed_review_code"));
+}
+
+TEST_F(DaoAgentMemoryStoreTest, EpisodesByDomainSkipsNegativeActionResults) {
+  ASSERT_TRUE(store_->SaveEpisode(
+      MakeEpisode("Bad repeat", "completed", "not_helpful")));
+  ASSERT_TRUE(store_->SaveEpisode(MakeEpisode("Failed repeat", "failed", "")));
+  ASSERT_TRUE(store_->SaveEpisode(
+      MakeEpisode("Useful repeat", "completed", "helpful")));
+
+  std::vector<Episode> episodes =
+      store_->GetEpisodesByDomain("example.com", /*limit=*/10);
+
+  ASSERT_EQ(1u, episodes.size());
+  EXPECT_EQ("Useful repeat", episodes[0].title);
+}
+
+TEST_F(DaoAgentMemoryStoreTest, EpisodesByDomainMatchesSavedSubdomains) {
+  Episode episode = MakeEpisode("Docs workflow", "completed", "helpful");
+  episode.domain = "docs.google.com";
+  ASSERT_TRUE(store_->SaveEpisode(episode));
+
+  std::vector<Episode> episodes =
+      store_->GetEpisodesByDomain("google.com", /*limit=*/10);
+
+  ASSERT_EQ(1u, episodes.size());
+  EXPECT_EQ("Docs workflow", episodes[0].title);
+  EXPECT_EQ("docs.google.com", episodes[0].domain);
+}
+
+TEST_F(DaoAgentMemoryStoreTest,
+       EpisodesByDomainTreatsLikeWildcardsAsLiteralDomainCharacters) {
+  Episode matching_episode =
+      MakeEpisode("Matching internal workflow", "completed", "helpful");
+  matching_episode.domain = "docs.foo_bar.example.com";
+  ASSERT_TRUE(store_->SaveEpisode(matching_episode));
+
+  Episode wildcard_episode =
+      MakeEpisode("Wildcard internal workflow", "completed", "helpful");
+  wildcard_episode.domain = "docs.fooXbar.example.com";
+  ASSERT_TRUE(store_->SaveEpisode(wildcard_episode));
+
+  std::vector<Episode> episodes =
+      store_->GetEpisodesByDomain("foo_bar.example.com", /*limit=*/10);
+
+  ASSERT_EQ(1u, episodes.size());
+  EXPECT_EQ("Matching internal workflow", episodes[0].title);
+  EXPECT_EQ("docs.foo_bar.example.com", episodes[0].domain);
+}
+
+TEST_F(DaoAgentMemoryStoreTest, SearchEpisodesSkipsNegativeActionResults) {
+  ASSERT_TRUE(store_->SaveEpisode(
+      MakeEpisode("Bad search", "completed", "not_helpful")));
+  ASSERT_TRUE(store_->SaveEpisode(MakeEpisode("Failed search", "failed", "")));
+  ASSERT_TRUE(store_->SaveEpisode(
+      MakeEpisode("Useful search", "completed", "helpful")));
+
+  std::vector<Episode> episodes =
+      store_->SearchEpisodes("review", "example.com", /*limit=*/10);
+
+  ASSERT_EQ(1u, episodes.size());
+  EXPECT_EQ("Useful search", episodes[0].title);
+}
+
+TEST_F(DaoAgentMemoryStoreTest, SearchEpisodesMatchesSavedSubdomains) {
+  Episode episode = MakeEpisode("Docs workflow", "completed", "helpful");
+  episode.domain = "docs.google.com";
+  ASSERT_TRUE(store_->SaveEpisode(episode));
+
+  std::vector<Episode> episodes =
+      store_->SearchEpisodes("review", "google.com", /*limit=*/10);
+
+  ASSERT_EQ(1u, episodes.size());
+  EXPECT_EQ("Docs workflow", episodes[0].title);
+  EXPECT_EQ("docs.google.com", episodes[0].domain);
+}
+
+TEST_F(DaoAgentMemoryStoreTest,
+       SearchEpisodesTreatsLikeWildcardsAsLiteralDomainCharacters) {
+  Episode matching_episode =
+      MakeEpisode("Matching internal search", "completed", "helpful");
+  matching_episode.domain = "docs.foo_bar.example.com";
+  ASSERT_TRUE(store_->SaveEpisode(matching_episode));
+
+  Episode wildcard_episode =
+      MakeEpisode("Wildcard internal search", "completed", "helpful");
+  wildcard_episode.domain = "docs.fooXbar.example.com";
+  ASSERT_TRUE(store_->SaveEpisode(wildcard_episode));
+
+  std::vector<Episode> episodes =
+      store_->SearchEpisodes("review", "foo_bar.example.com", /*limit=*/10);
+
+  ASSERT_EQ(1u, episodes.size());
+  EXPECT_EQ("Matching internal search", episodes[0].title);
+  EXPECT_EQ("docs.foo_bar.example.com", episodes[0].domain);
 }
 
 }  // namespace

@@ -48,6 +48,9 @@ class DaoAgentWorkspaceService;
 base::DictValue SerializeMemoryContextForAgentUi(
     const MemoryContext& context);
 
+bool ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+    const std::string& outcome);
+
 // WebUI config for dao://index
 class DaoIndexUIConfig : public content::WebUIConfig {
  public:
@@ -397,6 +400,7 @@ class DaoAgentMemoryHandler : public content::WebUIMessageHandler,
 
  private:
   DaoAgentMemoryService* GetMemoryService();
+  void RefreshPersonalScenarios();
 
   void HandleGetMemoryContext(const base::ListValue& args);
   void HandleEndSession(const base::ListValue& args);

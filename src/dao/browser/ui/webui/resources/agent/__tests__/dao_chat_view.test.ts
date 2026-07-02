@@ -20,6 +20,7 @@ const pickerMocks = vi.hoisted(() => ({
 const storageMocks = vi.hoisted(() => ({
   getAllMetadata: vi.fn(async () => []),
   getMetadata: vi.fn(async () => ({title: 'Existing session'})),
+  loadSession: vi.fn(async () => ({messages: []})),
   saveSession: vi.fn(async () => undefined),
 }));
 
@@ -40,7 +41,12 @@ const skillMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
-  return await import('../../sidebar/__tests__/lit_test_shim.js');
+  const lit = await import('../../sidebar/__tests__/lit_test_shim.js');
+  Object.defineProperty(lit.CrLitElement.prototype, 'disconnectedCallback', {
+    configurable: true,
+    value() {},
+  });
+  return lit;
 });
 
 vi.mock('../agent_bridge.js', async () => {
@@ -124,6 +130,7 @@ vi.mock('../pi_app_storage.js', () => ({
     sessions: {
       getAllMetadata: storageMocks.getAllMetadata,
       getMetadata: storageMocks.getMetadata,
+      loadSession: storageMocks.loadSession,
       saveSession: storageMocks.saveSession,
     },
   })),
@@ -301,6 +308,7 @@ describe('dao-chat-view message metadata helpers', () => {
     vi.restoreAllMocks();
     storageMocks.getAllMetadata.mockClear();
     storageMocks.getMetadata.mockClear();
+    storageMocks.loadSession.mockClear();
     storageMocks.saveSession.mockClear();
   });
 
@@ -846,6 +854,166 @@ describe('dao-chat-view message metadata helpers', () => {
         expect.objectContaining({content: 'latest user prompt'}));
   });
 
+  it('clears a proactive suggestion when regenerating an assistant answer',
+     async () => {
+       const messages = selectedAssistantHistory();
+       const view = viewWithMessages(messages) as ReturnType<
+           typeof viewWithMessages> & {
+             onProactiveSuggestion_: (raw: unknown) => void;
+             proactiveSuggestion_: {scenarioId: string; text: string} | null;
+             renderProactiveCard_: () => unknown;
+             clearProactiveIgnoredTimer_: () => void;
+           };
+       view._daoTestEnsureMessageIds();
+       const oldAssistantId = messages[1].dao.id;
+       pickerMocks.callNativeArgs.mockClear();
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           reason: 'You are on an open pull request',
+           expectedOutcome: 'Catch risky changes before merge',
+           contextDisclosure:
+               'Dao will attach the current PR page after you run it.',
+           actionPrompt: 'Review:\n{page_content}',
+           requiresPageContent: true,
+           tabId: 42,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.93,
+         });
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view._daoTestRegenerateAssistantById(oldAssistantId);
+
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(templateText(view.renderProactiveCard_()))
+             .not.toContain('chat.proactive.title.review_code');
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+         expect(view.agent_.continue).toHaveBeenCalledTimes(1);
+       } finally {
+         localStorage.removeItem('dao_proactive_not_now_snoozes');
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('clears a proactive suggestion when starting a new session', async () => {
+    const view = viewWithMessages([
+      {role: 'user', content: 'existing prompt', dao: {id: 'u1'}},
+      {role: 'assistant', content: 'existing answer', dao: {id: 'a1'}},
+    ]) as ReturnType<typeof viewWithMessages> & {
+      onProactiveSuggestion_: (raw: unknown) => void;
+      proactiveSuggestion_: {scenarioId: string; text: string} | null;
+      renderProactiveCard_: () => unknown;
+      clearProactiveIgnoredTimer_: () => void;
+      startNewSession: () => void;
+    };
+    pickerMocks.callNativeArgs.mockClear();
+
+    try {
+      view.onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        reason: 'You are on an open pull request',
+        expectedOutcome: 'Catch risky changes before merge',
+        contextDisclosure:
+            'Dao will attach the current PR page after you run it.',
+        actionPrompt: 'Review:\n{page_content}',
+        requiresPageContent: true,
+        tabId: 42,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+        confidence: 0.93,
+      });
+      await Promise.resolve();
+      expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+      pickerMocks.callNativeArgs.mockClear();
+
+      view.startNewSession();
+      await Promise.resolve();
+
+      expect(view.proactiveSuggestion_).toBeNull();
+      expect(templateText(view.renderProactiveCard_()))
+          .not.toContain('chat.proactive.title.review_code');
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'ignored',
+          }));
+    } finally {
+      view.clearProactiveIgnoredTimer_();
+    }
+  });
+
+  it('clears a proactive suggestion when loading a history session',
+     async () => {
+       const view = viewWithMessages([
+         {role: 'user', content: 'current prompt', dao: {id: 'u1'}},
+         {role: 'assistant', content: 'current answer', dao: {id: 'a1'}},
+       ]) as ReturnType<typeof viewWithMessages> & {
+         onHistorySelect_: (e: CustomEvent<{id: string}>) => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string; text: string} | null;
+         renderProactiveCard_: () => unknown;
+         clearProactiveIgnoredTimer_: () => void;
+       };
+       storageMocks.loadSession.mockResolvedValueOnce({
+         messages: [
+           {role: 'user', content: 'restored prompt', dao: {id: 'u2'}},
+           {role: 'assistant', content: 'restored answer', dao: {id: 'a2'}},
+         ],
+       });
+       pickerMocks.callNativeArgs.mockClear();
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           reason: 'You are on an open pull request',
+           expectedOutcome: 'Catch risky changes before merge',
+           contextDisclosure:
+               'Dao will attach the current PR page after you run it.',
+           actionPrompt: 'Review:\n{page_content}',
+           requiresPageContent: true,
+           tabId: 42,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.93,
+         });
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.onHistorySelect_(
+             new CustomEvent('history-select', {detail: {id: 'sess-2'}}));
+
+         expect(view.currentSessionId_).toBe('sess-2');
+         expect(view.agent_.state.messages.map(({content}) => content))
+             .toEqual(['restored prompt', 'restored answer']);
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(templateText(view.renderProactiveCard_()))
+             .not.toContain('chat.proactive.title.review_code');
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+       } finally {
+         localStorage.removeItem('dao_proactive_not_now_snoozes');
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
   it('edits a user message without edit history, truncates later messages, and regenerates',
      async () => {
        const isoLikeTimestamp =
@@ -890,6 +1058,65 @@ describe('dao-chat-view message metadata helpers', () => {
        expect(view.agent_.continue).toHaveBeenCalled();
      });
 
+  it('clears a deferred proactive suggestion when applying a user edit',
+     async () => {
+       const messages = [
+         {role: 'user', content: 'old prompt', dao: {id: 'u1'}},
+         {role: 'assistant', content: 'old answer', dao: {id: 'a1'}},
+       ];
+       const view = viewWithMessages(messages) as ReturnType<
+           typeof viewWithMessages> & {
+             editingMessageId_: string;
+             onProactiveSuggestion_: (raw: unknown) => void;
+             proactiveIgnoredTimer_: number | null;
+             proactiveSuggestion_: {scenarioId: string; text: string} | null;
+             renderProactiveCard_: () => unknown;
+             clearProactiveIgnoredTimer_: () => void;
+           };
+       const panel = document.createElement('div');
+       const iface = document.createElement('agent-interface') as HTMLElement & {
+         requestUpdate: ReturnType<typeof vi.fn>;
+       };
+       iface.requestUpdate = vi.fn();
+       panel.appendChild(iface);
+       view.panel_ = panel;
+       view.editingMessageId_ = 'u1';
+       pickerMocks.callNativeArgs.mockClear();
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           reason: 'You are on an open pull request',
+           expectedOutcome: 'Catch risky changes before merge',
+           contextDisclosure:
+               'Dao will attach the current PR page after you run it.',
+           actionPrompt: 'Review:\n{page_content}',
+           requiresPageContent: true,
+           tabId: 42,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.93,
+         });
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view._daoTestApplyUserMessageEdit('u1', 'new prompt');
+
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(templateText(view.renderProactiveCard_()))
+             .not.toContain('chat.proactive.title.review_code');
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback', expect.anything());
+         expect(view.agent_.continue).toHaveBeenCalled();
+       } finally {
+         localStorage.removeItem('dao_proactive_not_now_snoozes');
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
   it('rewinds to the selected assistant without regenerating', async () => {
     const view = viewWithMessages([
       {role: 'user', content: 'first prompt', dao: {id: 'u1'}},
@@ -915,6 +1142,59 @@ describe('dao-chat-view message metadata helpers', () => {
     expect(storageMocks.saveSession.mock.calls[0]?.[0]).toBe('sess-existing');
     expect(storageMocks.saveSession.mock.calls[0]?.[1].messages).toHaveLength(2);
   });
+
+  it('clears a proactive suggestion when rewinding to an earlier answer',
+     async () => {
+       const view = viewWithMessages([
+         {role: 'user', content: 'first prompt', dao: {id: 'u1'}},
+         {role: 'assistant', content: 'first answer', dao: {id: 'a1'}},
+         {role: 'user', content: 'second prompt', dao: {id: 'u2'}},
+         {role: 'assistant', content: 'second answer', dao: {id: 'a2'}},
+       ]) as ReturnType<typeof viewWithMessages> & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string; text: string} | null;
+         renderProactiveCard_: () => unknown;
+         clearProactiveIgnoredTimer_: () => void;
+       };
+       attachMessageHosts(view);
+       pickerMocks.callNativeArgs.mockClear();
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           reason: 'You are on an open pull request',
+           expectedOutcome: 'Catch risky changes before merge',
+           contextDisclosure:
+               'Dao will attach the current PR page after you run it.',
+           actionPrompt: 'Review:\n{page_content}',
+           requiresPageContent: true,
+           tabId: 42,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.93,
+         });
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view._daoTestRewindAssistantById('a1');
+
+         expect(view.agent_.state.messages.map(({content}) => content))
+             .toEqual(['first prompt', 'first answer']);
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(templateText(view.renderProactiveCard_()))
+             .not.toContain('chat.proactive.title.review_code');
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
 
   it('does not rewind the latest assistant message', async () => {
     const view = viewWithMessages([
@@ -1102,6 +1382,222 @@ describe('dao-chat-view element picker', () => {
     }
   });
 
+  it('clears a visible proactive suggestion when the user sends a manual message',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+       Object.assign(view, {suppressChipAttachOnce_: true});
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_).not.toBeNull();
+         expect(typedView.proactiveIgnoredTimer_).not.toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         await expect(iface.sendMessage('I have a different question', []))
+             .resolves.toBe('sent');
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(typedView.proactiveIgnoredTimer_).toBeNull();
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+         expect(originalSend).toHaveBeenCalledWith(
+             'I have a different question', []);
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('snoozes a visible proactive suggestion after manual send clears it',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+       Object.assign(view, {suppressChipAttachOnce_: true});
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: unknown;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'You are on a pull request page.',
+         expectedOutcome: 'Catch risky changes before merge.',
+         contextDisclosure: 'Dao will attach the page after you run this.',
+         confidence: 0.97,
+         url: 'https://github.com/acme/repo/pull/123',
+         domain: 'github.com',
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_).not.toBeNull();
+
+         await expect(iface.sendMessage('I have a different question', []))
+             .resolves.toBe('sent');
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('silently clears an unshown proactive suggestion when the user sends manually',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+       Object.assign(view, {suppressChipAttachOnce_: true});
+       const textarea = document.createElement('textarea');
+       textarea.value = 'I already started typing';
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         composerTextarea_: HTMLTextAreaElement|null;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+       };
+       typedView.composerTextarea_ = textarea;
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_).not.toBeNull();
+         expect(typedView.proactiveIgnoredTimer_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         await expect(iface.sendMessage('I already started typing', []))
+             .resolves.toBe('sent');
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+         expect(originalSend).toHaveBeenCalledWith(
+             'I already started typing', []);
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('snoozes an unshown proactive suggestion after manual send clears it',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+       Object.assign(view, {suppressChipAttachOnce_: true});
+       const textarea = document.createElement('textarea');
+       textarea.value = 'I already started typing';
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         composerTextarea_: HTMLTextAreaElement|null;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: unknown;
+       };
+       typedView.composerTextarea_ = textarea;
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'You are on a pull request page.',
+         expectedOutcome: 'Catch risky changes before merge.',
+         contextDisclosure: 'Dao will attach the page after you run this.',
+         confidence: 0.97,
+         url: 'https://github.com/acme/repo/pull/123',
+         domain: 'github.com',
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_).not.toBeNull();
+
+         await expect(iface.sendMessage('I already started typing', []))
+             .resolves.toBe('sent');
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         textarea.value = '';
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
   it('ends the agent turn when the original send rejects', async () => {
     const originalSend = vi.fn(async () => {
       throw new Error('send failed');
@@ -1122,6 +1618,55 @@ describe('dao-chat-view element picker', () => {
       clearTabWatchTimer(view);
     }
   });
+
+  it('keeps proactive suggestion feedback untouched when manual send fails',
+     async () => {
+       const originalSend = vi.fn(async () => {
+         throw new Error('send failed');
+       });
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+       Object.assign(view, {suppressChipAttachOnce_: true});
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_).not.toBeNull();
+         expect(typedView.proactiveIgnoredTimer_).not.toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         await expect(iface.sendMessage('I have a different question', []))
+             .rejects.toThrow('send failed');
+
+         expect(typedView.proactiveSuggestion_).not.toBeNull();
+         expect(typedView.proactiveIgnoredTimer_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
 
   it('does not end an agent turn that failed to start', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -1543,24 +2088,516 @@ describe('dao-chat-view element picker', () => {
     }
   });
 
-  it('stores a proactive suggestion without running native page capture', () => {
+  it('stores a proactive suggestion without running native page capture', async () => {
     const view = document.createElement('dao-chat-view') as HTMLElement & {
-      proactiveSuggestion_: {scenarioId: string; text: string} | null;
+      proactiveSuggestion_: {
+        scenarioId: string;
+        text: string;
+        reason: string;
+        expectedOutcome: string;
+        contextDisclosure: string;
+      } | null;
       onProactiveSuggestion_: (raw: unknown) => void;
     };
 
     view.onProactiveSuggestion_({
       text: 'Review this PR',
       scenarioId: 'seed_github_pr',
+      reason: 'You are on an open pull request',
+      expectedOutcome: 'Catch risky changes before merge',
+      contextDisclosure: 'Dao will attach the current PR page after you run it.',
       actionPrompt: 'Review:\n{page_content}',
       requiresPageContent: true,
       tabId: 42,
+      url: 'https://github.com/acme/repo/pull/123',
+      domain: 'github.com',
+      confidence: 0.93,
     });
+    await Promise.resolve();
 
     expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
     expect(view.proactiveSuggestion_?.text).toBe('Review this PR');
+    expect(view.proactiveSuggestion_?.reason)
+        .toBe('You are on an open pull request');
+    expect(view.proactiveSuggestion_?.expectedOutcome)
+        .toBe('Catch risky changes before merge');
+    expect(view.proactiveSuggestion_?.contextDisclosure)
+        .toBe('Dao will attach the current PR page after you run it.');
     expect(pickerMocks.callNative).not.toHaveBeenCalled();
-    expect(pickerMocks.callNativeArgs).not.toHaveBeenCalled();
+    expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+        'getPageContentForScenario', 42);
+    expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+        'recordActionFeedback',
+        expect.objectContaining({
+          scenarioId: 'seed_github_pr',
+          domain: 'github.com',
+          url: 'https://github.com/acme/repo/pull/123',
+          confidence: 0.93,
+          outcome: 'shown',
+        }));
+  });
+
+  it('ignores a suppressed proactive scenario from native', async () => {
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      proactiveSuggestion_: unknown;
+      onProactiveSuggestion_: (raw: unknown) => void;
+    };
+
+    view.onProactiveSuggestion_({
+      text: 'Review this PR',
+      scenarioId: 'seed_github_pr',
+      actionLabel: 'review_code',
+      reason: 'missing_action_evidence',
+      expectedOutcome: 'review_code',
+      contextDisclosure: 'captures_after_run',
+      suppressionReason: 'missing_action_evidence',
+      url: 'https://github.com/acme/repo/pull/123',
+      domain: 'github.com',
+      confidence: 0.96,
+    });
+    await Promise.resolve();
+
+    expect(view.proactiveSuggestion_).toBeNull();
+    expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+        'recordActionFeedback',
+        expect.objectContaining({
+          scenarioId: 'seed_github_pr',
+          outcome: 'shown',
+        }));
+  });
+
+  it('ignores a low-confidence proactive scenario from native', async () => {
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      proactiveSuggestion_: unknown;
+      onProactiveSuggestion_: (raw: unknown) => void;
+    };
+
+    view.onProactiveSuggestion_({
+      text: 'Summarize this page',
+      scenarioId: 'seed_docs_summary',
+      actionLabel: 'summarize_doc',
+      reason: 'matched_structure',
+      expectedOutcome: 'summarize_doc',
+      contextDisclosure: 'captures_after_run',
+      url: 'https://docs.example.com/guide',
+      domain: 'docs.example.com',
+      confidence: 0.2,
+    });
+    await Promise.resolve();
+
+    expect(view.proactiveSuggestion_).toBeNull();
+    expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+        'recordActionFeedback',
+        expect.objectContaining({
+          scenarioId: 'seed_docs_summary',
+          outcome: 'shown',
+        }));
+  });
+
+  it('keeps a stronger proactive suggestion when a weaker one arrives',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: {scenarioId: string; text: string} | null;
+         onProactiveSuggestion_: (raw: unknown) => void;
+       };
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'structured_content',
+           expectedOutcome: 'review_code',
+           contextDisclosure: 'captures_after_run',
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.92,
+         });
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_github_pr');
+         pickerMocks.callNativeArgs.mockClear();
+
+         view.onProactiveSuggestion_({
+           text: 'Summarize this page',
+           scenarioId: 'seed_docs_summary',
+           actionLabel: 'summarize_doc',
+           reason: 'matched_structure',
+           expectedOutcome: 'summarize_doc',
+           contextDisclosure: 'captures_after_run',
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.41,
+         });
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_github_pr');
+         expect(view.proactiveSuggestion_?.text).toBe('Review this PR');
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_docs_summary',
+               outcome: 'shown',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('keeps the current proactive suggestion when a same-page candidate is only slightly weaker',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: {scenarioId: string; text: string} | null;
+         onProactiveSuggestion_: (raw: unknown) => void;
+       };
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'structured_content',
+           expectedOutcome: 'review_code',
+           contextDisclosure: 'captures_after_run',
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.92,
+         });
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_github_pr');
+         pickerMocks.callNativeArgs.mockClear();
+
+         view.onProactiveSuggestion_({
+           text: 'Summarize this page',
+           scenarioId: 'seed_docs_summary',
+           actionLabel: 'summarize_doc',
+           reason: 'matched_structure',
+           expectedOutcome: 'summarize_doc',
+           contextDisclosure: 'captures_after_run',
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.90,
+         });
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_github_pr');
+         expect(view.proactiveSuggestion_?.text).toBe('Review this PR');
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_docs_summary',
+               outcome: 'shown',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('ignores duplicate proactive suggestion events after showing once',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: unknown;
+         onProactiveSuggestion_: (raw: unknown) => void;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'structured_content',
+         expectedOutcome: 'review_code',
+         contextDisclosure: 'captures_after_run',
+         actionPrompt: 'Review:\n{page_content}',
+         requiresPageContent: true,
+         tabId: 42,
+         url: 'https://github.com/acme/repo/pull/123?utm_source=email#files',
+         domain: 'github.com',
+         confidence: 0.93,
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         const firstSuggestion = view.proactiveSuggestion_;
+         expect(firstSuggestion).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+         pickerMocks.callNativeArgs.mockClear();
+
+         view.onProactiveSuggestion_({...rawSuggestion});
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_).toBe(firstSuggestion);
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('defers shown feedback while the user is composing a message', async () => {
+    const textarea = document.createElement('textarea');
+    textarea.value = 'I am already writing a question';
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      composerTextarea_: HTMLTextAreaElement | null;
+      proactiveIgnoredTimer_: number | null;
+      proactiveSuggestion_: {scenarioId: string; text: string} | null;
+      onProactiveSuggestion_: (raw: unknown) => void;
+      renderProactiveCard_: () => unknown;
+      clearProactiveIgnoredTimer_: () => void;
+    };
+    view.composerTextarea_ = textarea;
+    pickerMocks.callNativeArgs.mockClear();
+
+    try {
+      view.onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        reason: 'You are on an open pull request',
+        expectedOutcome: 'Catch risky changes before merge',
+        contextDisclosure:
+            'Dao will attach the current PR page after you run it.',
+        actionPrompt: 'Review:\n{page_content}',
+        requiresPageContent: true,
+        tabId: 42,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+        confidence: 0.93,
+      });
+      await Promise.resolve();
+
+      expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+      expect(templateText(view.renderProactiveCard_()))
+          .not.toContain('Review this PR');
+      expect(view.proactiveIgnoredTimer_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback', expect.anything());
+    } finally {
+      view.clearProactiveIgnoredTimer_();
+    }
+  });
+
+  it('defers shown feedback while the user edits an earlier message',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         editingMessageId_: string;
+         proactiveIgnoredTimer_: number | null;
+         proactiveSuggestion_: {scenarioId: string; text: string} | null;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         renderProactiveCard_: () => unknown;
+         clearProactiveIgnoredTimer_: () => void;
+       };
+       view.editingMessageId_ = 'message-1';
+       pickerMocks.callNativeArgs.mockClear();
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           reason: 'You are on an open pull request',
+           expectedOutcome: 'Catch risky changes before merge',
+           contextDisclosure:
+               'Dao will attach the current PR page after you run it.',
+           actionPrompt: 'Review:\n{page_content}',
+           requiresPageContent: true,
+           tabId: 42,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 0.93,
+         });
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+         expect(templateText(view.renderProactiveCard_()))
+             .not.toContain('Review this PR');
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback', expect.anything());
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('defers shown feedback while the history panel is open', async () => {
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      openHistory: () => void;
+      onHistoryClose_: () => void;
+      proactiveIgnoredTimer_: number | null;
+      proactiveSuggestion_: {scenarioId: string; text: string} | null;
+      onProactiveSuggestion_: (raw: unknown) => void;
+      renderProactiveCard_: () => unknown;
+      clearProactiveIgnoredTimer_: () => void;
+    };
+    view.openHistory();
+    pickerMocks.callNativeArgs.mockClear();
+
+    try {
+      view.onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        reason: 'You are on an open pull request',
+        expectedOutcome: 'Catch risky changes before merge',
+        contextDisclosure:
+            'Dao will attach the current PR page after you run it.',
+        actionPrompt: 'Review:\n{page_content}',
+        requiresPageContent: true,
+        tabId: 42,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+        confidence: 0.93,
+      });
+      await Promise.resolve();
+
+      expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+      expect(templateText(view.renderProactiveCard_()))
+          .not.toContain('chat.proactive.title.review_code');
+      expect(view.proactiveIgnoredTimer_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback', expect.anything());
+
+      view.onHistoryClose_();
+      await Promise.resolve();
+
+      expect(templateText(view.renderProactiveCard_()))
+          .toContain('chat.proactive.title.review_code');
+      expect(view.proactiveIgnoredTimer_).not.toBeNull();
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'shown',
+          }));
+    } finally {
+      view.clearProactiveIgnoredTimer_();
+    }
+  });
+
+  it('defers shown feedback while the agent is streaming', async () => {
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      isStreaming_: boolean;
+      proactiveIgnoredTimer_: number | null;
+      proactiveSuggestion_: {scenarioId: string; text: string} | null;
+      onProactiveSuggestion_: (raw: unknown) => void;
+      renderProactiveCard_: () => unknown;
+      activateProactiveSuggestionIfVisible_: () => void;
+      clearProactiveIgnoredTimer_: () => void;
+    };
+    view.isStreaming_ = true;
+    pickerMocks.callNativeArgs.mockClear();
+
+    try {
+      view.onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        reason: 'You are on an open pull request',
+        expectedOutcome: 'Catch risky changes before merge',
+        contextDisclosure:
+            'Dao will attach the current PR page after you run it.',
+        actionPrompt: 'Review:\n{page_content}',
+        requiresPageContent: true,
+        tabId: 42,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+        confidence: 0.93,
+      });
+      await Promise.resolve();
+
+      expect(view.proactiveSuggestion_?.scenarioId).toBe('seed_github_pr');
+      expect(templateText(view.renderProactiveCard_()))
+          .not.toContain('Review this PR');
+      expect(view.proactiveIgnoredTimer_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback', expect.anything());
+
+      view.isStreaming_ = false;
+      view.activateProactiveSuggestionIfVisible_();
+      await Promise.resolve();
+
+      expect(templateText(view.renderProactiveCard_()))
+          .toContain('chat.proactive.title.review_code');
+      expect(view.proactiveIgnoredTimer_).not.toBeNull();
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'shown',
+          }));
+    } finally {
+      view.clearProactiveIgnoredTimer_();
+    }
+  });
+
+  it('renders proactive reason outcome context and three actions', () => {
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      onProactiveSuggestion_: (raw: unknown) => void;
+      renderProactiveCard_: () => unknown;
+    };
+
+    view.onProactiveSuggestion_({
+      text: 'Review this PR',
+      scenarioId: 'seed_github_pr',
+      reason: 'structured_content',
+      expectedOutcome: 'review_code',
+      contextDisclosure: 'captures_after_run',
+      actionPrompt: 'Review:\n{page_content}',
+      requiresPageContent: true,
+      tabId: 42,
+      url: 'https://github.com/acme/repo/pull/123',
+      domain: 'github.com',
+      confidence: 0.93,
+    });
+
+    const cardText = templateText(view.renderProactiveCard_());
+    expect(cardText).toContain('chat.proactive.title.review_code');
+    expect(cardText).toContain('chat.proactive.reason_label');
+    expect(cardText)
+        .toContain('chat.proactive.reason.structured_content');
+    expect(cardText).toContain('chat.proactive.expected_outcome_label');
+    expect(cardText)
+        .toContain('chat.proactive.expected.review_code');
+    expect(cardText).toContain('chat.proactive.context_label');
+    expect(cardText)
+        .toContain('chat.proactive.context.captures_after_run');
+    expect(cardText).toContain('chat.proactive.cost_hint');
+    expect(cardText).toContain('chat.proactive.run');
+    expect(cardText).toContain('chat.proactive.not_now');
+    expect(cardText).toContain('chat.proactive.never_here');
+  });
+
+  it('localizes seed scenario titles instead of trusting native names', () => {
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      onProactiveSuggestion_: (raw: unknown) => void;
+      renderProactiveCard_: () => unknown;
+    };
+
+    view.onProactiveSuggestion_({
+      text: 'Review this PR',
+      scenarioId: 'seed_github_pr',
+      scenarioName: 'Review this PR',
+      actionLabel: 'review_code',
+      reason: 'structured_content',
+      expectedOutcome: 'review_code',
+      contextDisclosure: 'captures_after_run',
+      confidence: 0.93,
+    });
+
+    const cardText = templateText(view.renderProactiveCard_());
+    expect(cardText).toContain('chat.proactive.title.review_code');
+    expect(cardText).not.toContain('Review this PR');
   });
 
   it('renders a localized repeat-action title when native text is omitted',
@@ -1619,6 +2656,61 @@ describe('dao-chat-view element picker', () => {
        }
      });
 
+  it('uses the transparent visible prompt when a scenario omits actionPrompt',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+           return {success: true};
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         (view as unknown as {
+           onProactiveSuggestion_: (raw: unknown) => void;
+           runProactiveSuggestion_: () => Promise<void>;
+           clearProactiveIgnoredTimer_: () => void;
+         }).onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           scenarioName: 'Review this PR',
+           reason: 'structured_content',
+           expectedOutcome: 'review_code',
+           contextDisclosure: 'captures_after_run',
+           requiresPageContent: false,
+           tabId: 42,
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+
+         await (view as unknown as {
+           runProactiveSuggestion_: () => Promise<void>;
+         }).runProactiveSuggestion_();
+
+         expect(originalSend).toHaveBeenCalledTimes(1);
+         expect(originalSend.mock.calls[0][0]).toContain(
+             'chat.proactive.title.review_code.');
+         expect(originalSend.mock.calls[0][0]).toContain(
+             'chat.proactive.visible_prompt_reason_header');
+         expect(originalSend.mock.calls[0][0]).toContain(
+             'chat.proactive.reason.structured_content');
+         expect(originalSend.mock.calls[0][0]).toContain(
+             'chat.proactive.visible_prompt_expected_header');
+         expect(originalSend.mock.calls[0][0]).toContain(
+             'chat.proactive.expected.review_code');
+         expect(originalSend.mock.calls[0][1]).toEqual([]);
+       } finally {
+         (view as unknown as {
+           clearProactiveIgnoredTimer_: () => void;
+         }).clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
   it('wraps a continue-conversation intent in a localized model prompt',
      async () => {
        const originalSend = vi.fn(async () => 'sent');
@@ -1656,6 +2748,81 @@ describe('dao-chat-view element picker', () => {
        }
      });
 
+  it('does not record action feedback for legacy proactive episodes',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+           return {success: true};
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         (view as unknown as {
+           onProactiveSuggestion_: (raw: unknown) => void;
+           runProactiveSuggestion_: () => Promise<void>;
+         }).onProactiveSuggestion_({
+           episodeId: 7,
+           type: 'repeat_action',
+           text: 'You usually interact with this page. Want me to help again?',
+           confidence: 0.8,
+         });
+         pickerMocks.callNativeArgs.mockClear();
+
+         await (view as unknown as {
+           runProactiveSuggestion_: () => Promise<void>;
+         }).runProactiveSuggestion_();
+
+         expect(originalSend).toHaveBeenCalledTimes(1);
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'acceptSuggestion', 7);
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback', expect.anything());
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('keeps the proactive ignored timer when Run is blocked by streaming',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         isStreaming_: boolean;
+         proactiveIgnoredTimer_: number|null;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         runProactiveSuggestion_: () => Promise<void>;
+         clearProactiveIgnoredTimer_: () => void;
+       };
+
+       try {
+         typedView.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           scenarioName: 'Review this PR',
+           reason: 'structured_content',
+           expectedOutcome: 'review_code',
+           contextDisclosure: 'captures_after_run',
+           requiresPageContent: false,
+           tabId: 42,
+           confidence: 0.97,
+         });
+         const timerBefore = typedView.proactiveIgnoredTimer_;
+         typedView.isStreaming_ = true;
+
+         await typedView.runProactiveSuggestion_();
+
+         expect(originalSend).not.toHaveBeenCalled();
+         expect(typedView.proactiveIgnoredTimer_).toBe(timerBefore);
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
   it('uses dark-mode-aware tokens for proactive suggestion styling',
      () => {
        const view = document.createElement('dao-chat-view') as HTMLElement & {
@@ -1689,6 +2856,790 @@ describe('dao-chat-view element picker', () => {
     expect(pickerMocks.callNativeArgs).not.toHaveBeenCalled();
   });
 
+  it('clears the active proactive suggestion when the setting is disabled',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         clearProactiveIgnoredTimer_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+       };
+       document.body.appendChild(view);
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(view.proactiveIgnoredTimer_).not.toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         window.dispatchEvent(new CustomEvent(
+             'dao-proactive-enabled-changed',
+             {detail: {enabled: false}}));
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback', expect.anything());
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+         view.remove();
+       }
+     });
+
+  it('not now records timing feedback without sending a message', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+    try {
+      (view as unknown as {
+        onProactiveSuggestion_: (raw: unknown) => void;
+        notNowProactiveSuggestion_: () => Promise<void>;
+        proactiveSuggestion_: unknown;
+      }).onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        actionLabel: 'review_code',
+        reason: 'You are on a pull request page',
+        expectedOutcome: 'Catch issues before merge',
+        contextDisclosure: 'Dao will attach the page only after you run this.',
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+        confidence: 0.91,
+      });
+      pickerMocks.callNativeArgs.mockClear();
+
+      await (view as unknown as {
+        notNowProactiveSuggestion_: () => Promise<void>;
+      }).notNowProactiveSuggestion_();
+
+      expect(originalSend).not.toHaveBeenCalled();
+      expect((view as unknown as {
+        proactiveSuggestion_: unknown;
+      }).proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            actionLabel: 'review_code',
+            domain: 'github.com',
+            url: 'https://github.com/acme/repo/pull/123',
+            outcome: 'not_now',
+          }));
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'dismissSuggestion', expect.anything());
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('snoozes the same proactive scenario after not-now', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    const typedView = view as unknown as {
+      clearProactiveIgnoredTimer_: () => void;
+      notNowProactiveSuggestion_: () => Promise<void>;
+      onProactiveSuggestion_: (raw: unknown) => void;
+      proactiveSuggestion_: {scenarioId: string} | null;
+    };
+    const rawSuggestion = {
+      text: 'Review this PR',
+      scenarioId: 'seed_github_pr',
+      actionLabel: 'review_code',
+      reason: 'structured_content',
+      expectedOutcome: 'review_code',
+      contextDisclosure: 'captures_after_run',
+      url: 'https://github.com/acme/repo/pull/123?utm_source=email#files',
+      domain: 'github.com',
+      confidence: 0.91,
+    };
+    pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+    try {
+      typedView.onProactiveSuggestion_(rawSuggestion);
+      await Promise.resolve();
+      expect(typedView.proactiveSuggestion_?.scenarioId)
+          .toBe('seed_github_pr');
+
+      await typedView.notNowProactiveSuggestion_();
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      pickerMocks.callNativeArgs.mockClear();
+
+      typedView.onProactiveSuggestion_({
+        ...rawSuggestion,
+        url: 'https://github.com/acme/repo/pull/123#discussion',
+        confidence: 1,
+      });
+      await Promise.resolve();
+
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'shown',
+          }));
+    } finally {
+      typedView.clearProactiveIgnoredTimer_();
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('keeps a not-now proactive scenario suppressed across trailing slashes',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         notNowProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'structured_content',
+         expectedOutcome: 'review_code',
+         contextDisclosure: 'captures_after_run',
+         url: 'https://github.com/acme/repo/pull/123',
+         domain: 'github.com',
+         confidence: 0.91,
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_github_pr');
+
+         await typedView.notNowProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://github.com/acme/repo/pull/123/',
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('keeps a not-now proactive scenario suppressed across www and apex urls',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         notNowProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {domain: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Analyze project progress',
+         scenarioId: 'seed_linear_project',
+         actionLabel: 'analyze_progress',
+         reason: 'matched_structure',
+         expectedOutcome: 'analyze_progress',
+         contextDisclosure: 'captures_after_run',
+         url: 'https://www.linear.app/acme/project/dao',
+         domain: 'www.linear.app',
+         confidence: 0.91,
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.domain)
+             .toBe('www.linear.app');
+
+         await typedView.notNowProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://linear.app/acme/project/dao',
+           domain: 'linear.app',
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_linear_project',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('snoozes the same proactive episode after not-now', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    const typedView = view as unknown as {
+      clearProactiveIgnoredTimer_: () => void;
+      notNowProactiveSuggestion_: () => Promise<void>;
+      onProactiveSuggestion_: (raw: unknown) => void;
+      proactiveSuggestion_: {episodeId: number} | null;
+    };
+    const rawSuggestion = {
+      episodeId: 19,
+      type: 'continue_conversation',
+      text: 'pricing comparison',
+      url: 'https://example.com/pricing?utm_source=email#section',
+      domain: 'example.com',
+      confidence: 0.91,
+    };
+    pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+    try {
+      typedView.onProactiveSuggestion_(rawSuggestion);
+      await Promise.resolve();
+      expect(typedView.proactiveSuggestion_?.episodeId).toBe(19);
+
+      await typedView.notNowProactiveSuggestion_();
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      pickerMocks.callNativeArgs.mockClear();
+
+      typedView.onProactiveSuggestion_({
+        ...rawSuggestion,
+        url: 'https://example.com/pricing#details',
+        confidence: 1,
+      });
+      await Promise.resolve();
+
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'acceptSuggestion', 19);
+    } finally {
+      typedView.clearProactiveIgnoredTimer_();
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('ignores a proactive episode with non-finite confidence', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    const typedView = view as unknown as {
+      clearProactiveIgnoredTimer_: () => void;
+      onProactiveSuggestion_: (raw: unknown) => void;
+      proactiveSuggestion_: {episodeId: number} | null;
+    };
+    pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+    try {
+      typedView.onProactiveSuggestion_({
+        episodeId: 19,
+        type: 'continue_conversation',
+        text: 'pricing comparison',
+        url: 'https://example.com/pricing',
+        domain: 'example.com',
+        confidence: Number.NaN,
+      });
+      await Promise.resolve();
+
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({outcome: 'shown'}));
+    } finally {
+      typedView.clearProactiveIgnoredTimer_();
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('ignores a legacy proactive suggestion without an episode or text',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {type: string} | null;
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_({
+           type: 'continue_conversation',
+           url: 'https://example.com/pricing',
+           domain: 'example.com',
+           confidence: 0.91,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({outcome: 'shown'}));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('ignores a continue-conversation episode without an intent',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {episodeId: number} | null;
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_({
+           episodeId: 19,
+           type: 'continue_conversation',
+           url: 'https://example.com/pricing',
+           domain: 'example.com',
+           confidence: 0.91,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({outcome: 'shown'}));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('keeps proactive episode not-now snoozed after the chat view reloads',
+       async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view: firstView} = await mountChatViewWithSend(originalSend);
+       let secondView: HTMLElement | null = null;
+       const first = firstView as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         notNowProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {episodeId: number} | null;
+       };
+       const rawSuggestion = {
+         episodeId: 19,
+         type: 'continue_conversation',
+         text: 'pricing comparison',
+         url: 'https://example.com/pricing?utm_source=email#section',
+         domain: 'example.com',
+         confidence: 0.91,
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         first.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(first.proactiveSuggestion_?.episodeId).toBe(19);
+
+         await first.notNowProactiveSuggestion_();
+         expect(first.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         const mounted = await mountChatViewWithSend(originalSend);
+         secondView = mounted.view;
+         const second = secondView as unknown as {
+           clearProactiveIgnoredTimer_: () => void;
+           onProactiveSuggestion_: (raw: unknown) => void;
+           proactiveSuggestion_: {episodeId: number} | null;
+         };
+         second.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://example.com/pricing#details',
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(second.proactiveSuggestion_).toBeNull();
+       } finally {
+         first.clearProactiveIgnoredTimer_();
+         (secondView as unknown as {
+           clearProactiveIgnoredTimer_?: () => void;
+         } | null)?.clearProactiveIgnoredTimer_?.();
+         clearTabWatchTimer(firstView);
+         if (secondView) {
+           clearTabWatchTimer(secondView);
+         }
+       }
+     });
+
+  it('keeps legacy www not-now storage suppressed after restore',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       localStorage.setItem(
+           'dao_proactive_not_now_snoozes',
+           JSON.stringify({
+             [
+               'scenario:seed_linear_project\n' +
+               'https://www.linear.app/acme/project/dao'
+             ]: Date.now() + 600000,
+           }));
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+
+       try {
+         typedView.onProactiveSuggestion_({
+           text: 'Analyze project progress',
+           scenarioId: 'seed_linear_project',
+           actionLabel: 'analyze_progress',
+           reason: 'matched_structure',
+           expectedOutcome: 'analyze_progress',
+           contextDisclosure: 'captures_after_run',
+           confidence: 0.99,
+           url: 'https://linear.app/acme/project/dao',
+           domain: 'linear.app',
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_linear_project',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('snoozes not-now suggestions using current page when native omits url',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         notNowProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'structured_content',
+         expectedOutcome: 'review_code',
+         contextDisclosure: 'captures_after_run',
+         domain: 'github.com',
+         confidence: 0.91,
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/pull/123?utm_source=email#files',
+             title: 'Pull request',
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_github_pr');
+
+         await typedView.notNowProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://github.com/acme/repo/pull/123#discussion',
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('snoozes repeated not-now suggestions when native keeps omitting url',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         notNowProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'structured_content',
+         expectedOutcome: 'review_code',
+         contextDisclosure: 'captures_after_run',
+         domain: 'github.com',
+         confidence: 0.91,
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/pull/123?utm_source=email#files',
+             title: 'Pull request',
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_github_pr');
+
+         await typedView.notNowProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('snoozes not-now suggestions by identity when page context is unavailable',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         notNowProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'structured_content',
+         expectedOutcome: 'review_code',
+         contextDisclosure: 'captures_after_run',
+         confidence: 0.91,
+       };
+       pickerMocks.callNative.mockRejectedValue(new Error('page unavailable'));
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_github_pr');
+
+         await typedView.notNowProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('does not snooze a different page on the same domain when not-now had a url',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         notNowProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string; url: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'structured_content',
+         expectedOutcome: 'review_code',
+         contextDisclosure: 'captures_after_run',
+         url: 'https://github.com/acme/repo/pull/123',
+         domain: 'github.com',
+         confidence: 0.91,
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.url)
+             .toBe('https://github.com/acme/repo/pull/123');
+
+         await typedView.notNowProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://github.com/acme/repo/pull/456',
+           confidence: 0.99,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_?.url)
+             .toBe('https://github.com/acme/repo/pull/456');
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('does not suppress a different page after never-here had a url',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         dismissProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string; url: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'structured_content',
+         expectedOutcome: 'review_code',
+         contextDisclosure: 'captures_after_run',
+         url: 'https://github.com/acme/repo/pull/123',
+         domain: 'github.com',
+         confidence: 0.91,
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.url)
+             .toBe('https://github.com/acme/repo/pull/123');
+
+         await typedView.dismissProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://github.com/acme/repo/pull/456',
+           confidence: 0.99,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_?.url)
+             .toBe('https://github.com/acme/repo/pull/456');
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
   it('runs a proactive scenario only after click and truncates page text', async () => {
     const originalSend = vi.fn(async () => 'sent');
     const {view, iface} = await mountChatViewWithSend(originalSend);
@@ -1711,16 +3662,22 @@ describe('dao-chat-view element picker', () => {
     try {
       (view as unknown as {
         onProactiveSuggestion_: (raw: unknown) => void;
+        proactiveSuggestion_: {scenarioId: string} | null;
         runProactiveSuggestion_: () => Promise<void>;
       }).onProactiveSuggestion_({
         text: 'Review this PR',
         scenarioId: 'seed_github_pr',
         scenarioName: 'Review this PR',
         actionLabel: 'review_code',
+        reason: 'You are looking at an open pull request.',
+        expectedOutcome: 'Catch risky changes before merge.',
+        contextDisclosure: 'Dao will attach the current page after you run this.',
         actionPrompt: 'Review this page:\n{page_content}',
         requiresPageContent: true,
         tabId: 42,
         confidence: 1,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
       });
 
       expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
@@ -1741,8 +3698,16 @@ describe('dao-chat-view element picker', () => {
             url: 'https://github.com/acme/repo/pull/123',
           }));
       expect(originalSend).toHaveBeenCalledTimes(1);
-      expect(originalSend.mock.calls[0][0]).toBe(
-          'chat.proactive.user_prompt:Review this PR');
+      expect(originalSend.mock.calls[0][0])
+          .toContain('chat.proactive.title.review_code.');
+      expect(originalSend.mock.calls[0][0]).toContain(
+          'chat.proactive.visible_prompt_reason_header');
+      expect(originalSend.mock.calls[0][0]).toContain(
+          'You are looking at an open pull request.');
+      expect(originalSend.mock.calls[0][0]).toContain(
+          'chat.proactive.visible_prompt_expected_header');
+      expect(originalSend.mock.calls[0][0]).toContain(
+          'Catch risky changes before merge.');
       const attachments = originalSend.mock.calls[0][1] || [];
       expect(attachments).toHaveLength(1);
       const extracted = attachments[0].extractedText as string;
@@ -1750,6 +3715,12 @@ describe('dao-chat-view element picker', () => {
       expect(extracted).toContain(
           'Page content truncated to 12000 characters');
       expect((extracted.match(/x/g) || []).length).toBe(12000);
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'completed',
+          }));
       expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
           'getMemoryContext',
           expect.anything(),
@@ -1761,7 +3732,76 @@ describe('dao-chat-view element picker', () => {
     }
   });
 
-  it('dismisses a proactive scenario without sending a message', async () => {
+  it('snoozes an accepted proactive scenario after run', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      return {success: true};
+    });
+    pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+    const typedView = view as unknown as {
+      clearProactiveIgnoredTimer_: () => void;
+      onProactiveSuggestion_: (raw: unknown) => void;
+      proactiveSuggestion_: {scenarioId: string} | null;
+      runProactiveSuggestion_: () => Promise<void>;
+    };
+    const rawSuggestion = {
+      text: 'Review this PR',
+      scenarioId: 'seed_github_pr',
+      scenarioName: 'Review this PR',
+      actionLabel: 'review_code',
+      reason: 'structured_content',
+      expectedOutcome: 'review_code',
+      contextDisclosure: 'captures_after_run',
+      actionPrompt: 'Review without page capture',
+      requiresPageContent: false,
+      tabId: 42,
+      confidence: 0.97,
+      url: 'https://github.com/acme/repo/pull/123',
+      domain: 'github.com',
+    };
+
+    try {
+      typedView.onProactiveSuggestion_(rawSuggestion);
+      await Promise.resolve();
+      expect(typedView.proactiveSuggestion_?.scenarioId)
+          .toBe('seed_github_pr');
+
+      await typedView.runProactiveSuggestion_();
+      expect(originalSend).toHaveBeenCalledTimes(1);
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'acceptSuggestion',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            actionLabel: 'review_code',
+          }));
+
+      pickerMocks.callNativeArgs.mockClear();
+      typedView.onProactiveSuggestion_({
+        ...rawSuggestion,
+        confidence: 1,
+      });
+      await Promise.resolve();
+
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'shown',
+          }));
+    } finally {
+      typedView.clearProactiveIgnoredTimer_();
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('dismisses a proactive scenario as strong suppression', async () => {
     const originalSend = vi.fn(async () => 'sent');
     const {view} = await mountChatViewWithSend(originalSend);
     pickerMocks.callNative.mockImplementation(async (method: string) => {
@@ -1783,6 +3823,9 @@ describe('dao-chat-view element picker', () => {
         text: 'Analyze project progress',
         scenarioId: 'seed_linear_project',
         actionLabel: 'analyze_progress',
+        reason: 'You are viewing a project overview.',
+        expectedOutcome: 'Summarize project health and blockers.',
+        contextDisclosure: 'Dao will use the current page only after you run it.',
         confidence: 0.9,
       });
       await (view as unknown as {
@@ -1797,7 +3840,1400 @@ describe('dao-chat-view element picker', () => {
             actionLabel: 'analyze_progress',
             domain: 'linear.app',
             url: 'https://linear.app/acme/project/dao',
+            outcome: 'never_here',
           }));
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('does not show the same proactive scenario again after never-here',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         dismissProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Analyze project progress',
+         scenarioId: 'seed_linear_project',
+         actionLabel: 'analyze_progress',
+         reason: 'matched_structure',
+         expectedOutcome: 'analyze_progress',
+         contextDisclosure: 'captures_after_run',
+         confidence: 0.9,
+         url: 'https://linear.app/acme/project/dao?utm_source=mail#updates',
+         domain: 'linear.app',
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.scenarioId)
+             .toBe('seed_linear_project');
+
+         await typedView.dismissProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://linear.app/acme/project/dao#overview',
+           confidence: 0.99,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_linear_project',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('keeps never-here suppression across www and apex domains', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    const typedView = view as unknown as {
+      clearProactiveIgnoredTimer_: () => void;
+      dismissProactiveSuggestion_: () => Promise<void>;
+      onProactiveSuggestion_: (raw: unknown) => void;
+      proactiveSuggestion_: {domain: string} | null;
+    };
+    const rawSuggestion = {
+      text: 'Analyze project progress',
+      scenarioId: 'seed_linear_project',
+      actionLabel: 'analyze_progress',
+      reason: 'matched_structure',
+      expectedOutcome: 'analyze_progress',
+      contextDisclosure: 'captures_after_run',
+      confidence: 0.9,
+      url: 'https://www.linear.app/acme/project/dao',
+      domain: 'www.linear.app',
+    };
+    pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+    try {
+      typedView.onProactiveSuggestion_(rawSuggestion);
+      await Promise.resolve();
+      expect(typedView.proactiveSuggestion_?.domain)
+          .toBe('www.linear.app');
+
+      await typedView.dismissProactiveSuggestion_();
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      pickerMocks.callNativeArgs.mockClear();
+
+      typedView.onProactiveSuggestion_({
+        ...rawSuggestion,
+        url: 'https://linear.app/acme/project/dao',
+        domain: 'linear.app',
+        confidence: 0.99,
+      });
+      await Promise.resolve();
+
+      expect(typedView.proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_linear_project',
+            outcome: 'shown',
+          }));
+    } finally {
+      typedView.clearProactiveIgnoredTimer_();
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('keeps legacy www never-here storage suppressed after restore',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       localStorage.setItem(
+           'dao_proactive_never_here_keys',
+           JSON.stringify([
+             'scenario:seed_linear_project\ndomain:www.linear.app',
+           ]));
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+
+       try {
+         typedView.onProactiveSuggestion_({
+           text: 'Analyze project progress',
+           scenarioId: 'seed_linear_project',
+           actionLabel: 'analyze_progress',
+           reason: 'matched_structure',
+           expectedOutcome: 'analyze_progress',
+           contextDisclosure: 'captures_after_run',
+           confidence: 0.99,
+           url: 'https://linear.app/acme/project/dao',
+           domain: 'linear.app',
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_linear_project',
+               outcome: 'shown',
+             }));
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('does not show the same proactive episode again after never-here',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         dismissProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {episodeId: number} | null;
+       };
+       const rawSuggestion = {
+         episodeId: 19,
+         type: 'continue_conversation',
+         text: 'pricing comparison',
+         confidence: 0.91,
+         url: 'https://example.com/pricing?utm_source=email#section',
+         domain: 'example.com',
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         typedView.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(typedView.proactiveSuggestion_?.episodeId).toBe(19);
+
+         await typedView.dismissProactiveSuggestion_();
+         expect(typedView.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'dismissSuggestion', 19);
+         pickerMocks.callNativeArgs.mockClear();
+
+         typedView.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://example.com/pricing#details',
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(typedView.proactiveSuggestion_).toBeNull();
+       } finally {
+         typedView.clearProactiveIgnoredTimer_();
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('keeps proactive episode never-here suppressed after the chat view reloads',
+     async () => {
+       const originalSend = vi.fn(async () => 'sent');
+       const {view: firstView} = await mountChatViewWithSend(originalSend);
+       let secondView: HTMLElement | null = null;
+       const first = firstView as unknown as {
+         clearProactiveIgnoredTimer_: () => void;
+         dismissProactiveSuggestion_: () => Promise<void>;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveSuggestion_: {episodeId: number} | null;
+       };
+       const rawSuggestion = {
+         episodeId: 19,
+         type: 'continue_conversation',
+         text: 'pricing comparison',
+         confidence: 0.91,
+         url: 'https://example.com/pricing?utm_source=email#section',
+         domain: 'example.com',
+       };
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         first.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(first.proactiveSuggestion_?.episodeId).toBe(19);
+
+         await first.dismissProactiveSuggestion_();
+         expect(first.proactiveSuggestion_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         const mounted = await mountChatViewWithSend(originalSend);
+         secondView = mounted.view;
+         const second = secondView as unknown as {
+           clearProactiveIgnoredTimer_: () => void;
+           onProactiveSuggestion_: (raw: unknown) => void;
+           proactiveSuggestion_: {episodeId: number} | null;
+         };
+         second.onProactiveSuggestion_({
+           ...rawSuggestion,
+           url: 'https://example.com/pricing#details',
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(second.proactiveSuggestion_).toBeNull();
+       } finally {
+         first.clearProactiveIgnoredTimer_();
+         (secondView as unknown as {
+           clearProactiveIgnoredTimer_?: () => void;
+         } | null)?.clearProactiveIgnoredTimer_?.();
+         clearTabWatchTimer(firstView);
+         if (secondView) {
+           clearTabWatchTimer(secondView);
+         }
+       }
+     });
+
+  it('records failed when page capture fails', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    let captureFails = true;
+    pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
+      if (method === 'getPageContentForScenario') {
+        if (!captureFails) {
+          return {text: 'retry page content'};
+        }
+        return {error: 'capture failed'};
+      }
+      return true;
+    });
+
+    try {
+      (view as unknown as {
+        onProactiveSuggestion_: (raw: unknown) => void;
+        runProactiveSuggestion_: () => Promise<void>;
+      }).onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        scenarioName: 'Review this PR',
+        actionLabel: 'review_code',
+        reason: 'You are on a pull request page.',
+        expectedOutcome: 'Catch risky changes before merge.',
+        contextDisclosure: 'Dao will attach the page after you run this.',
+        actionPrompt: 'Review:\n{page_content}',
+        requiresPageContent: true,
+        tabId: 42,
+        confidence: 0.97,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+      });
+      pickerMocks.callNativeArgs.mockClear();
+
+      await (view as unknown as {
+        runProactiveSuggestion_: () => Promise<void>;
+      }).runProactiveSuggestion_();
+
+      expect((view as unknown as {
+        proactiveSuggestion_: unknown;
+      }).proactiveSuggestion_).not.toBeNull();
+      expect(originalSend).not.toHaveBeenCalled();
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'getPageContentForScenario', 42);
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'failed',
+          }));
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'acceptSuggestion', expect.anything());
+      pickerMocks.callNativeArgs.mockClear();
+      captureFails = false;
+
+      await (view as unknown as {
+        runProactiveSuggestion_: () => Promise<void>;
+      }).runProactiveSuggestion_();
+
+      expect(originalSend).toHaveBeenCalledTimes(1);
+      expect(originalSend.mock.calls[0][1]).toHaveLength(1);
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'acceptSuggestion',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            actionLabel: 'review_code',
+          }));
+      expect((view as unknown as {
+        proactiveSuggestion_: unknown;
+      }).proactiveSuggestion_).toBeNull();
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('does not accept a proactive scenario when sending fails', async () => {
+    const originalSend =
+        vi.fn()
+            .mockRejectedValueOnce(new Error('send failed'))
+            .mockResolvedValue('sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      return {success: true};
+    });
+    pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+    try {
+      const typedView = view as unknown as {
+        onProactiveSuggestion_: (raw: unknown) => void;
+        proactiveSuggestion_: unknown;
+        runProactiveSuggestion_: () => Promise<void>;
+        suppressChipAttachOnce_: boolean;
+      };
+      typedView.suppressChipAttachOnce_ = false;
+      typedView.onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        scenarioName: 'Review this PR',
+        actionLabel: 'review_code',
+        reason: 'You are on a pull request page.',
+        expectedOutcome: 'Catch risky changes before merge.',
+        contextDisclosure: 'Dao will attach the page after you run this.',
+        actionPrompt: 'Review without page capture',
+        requiresPageContent: false,
+        tabId: 42,
+        confidence: 0.97,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+      });
+      pickerMocks.callNativeArgs.mockClear();
+
+      await typedView.runProactiveSuggestion_();
+
+      expect(originalSend).toHaveBeenCalledTimes(1);
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'failed',
+          }));
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'acceptSuggestion', expect.anything());
+      expect(typedView.suppressChipAttachOnce_).toBe(false);
+      expect(typedView.proactiveSuggestion_).not.toBeNull();
+
+      pickerMocks.callNativeArgs.mockClear();
+      await typedView.runProactiveSuggestion_();
+
+      expect(originalSend).toHaveBeenCalledTimes(2);
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'acceptSuggestion',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            actionLabel: 'review_code',
+          }));
+      expect(typedView.proactiveSuggestion_).toBeNull();
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('records ignored when the card expires', async () => {
+    vi.useFakeTimers();
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      onProactiveSuggestion_: (raw: unknown) => void;
+      proactiveSuggestion_: unknown;
+    };
+    try {
+      pickerMocks.callNativeArgs.mockResolvedValue(true);
+      view.onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        actionLabel: 'review_code',
+        reason: 'You are on a pull request page.',
+        expectedOutcome: 'Catch risky changes before merge.',
+        contextDisclosure: 'Dao will attach the page after you run this.',
+        confidence: 0.97,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+      });
+      pickerMocks.callNativeArgs.mockClear();
+
+      await vi.advanceTimersByTimeAsync(120000);
+
+      expect(view.proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'ignored',
+          }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('snoozes an expired proactive card before it can reappear', async () => {
+    vi.useFakeTimers();
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      onProactiveSuggestion_: (raw: unknown) => void;
+      proactiveSuggestion_: unknown;
+    };
+    const rawSuggestion = {
+      text: 'Review this PR',
+      scenarioId: 'seed_github_pr',
+      actionLabel: 'review_code',
+      reason: 'You are on a pull request page.',
+      expectedOutcome: 'Catch risky changes before merge.',
+      contextDisclosure: 'Dao will attach the page after you run this.',
+      confidence: 0.97,
+      url: 'https://github.com/acme/repo/pull/123',
+      domain: 'github.com',
+    };
+
+    try {
+      pickerMocks.callNativeArgs.mockResolvedValue(true);
+      view.onProactiveSuggestion_(rawSuggestion);
+      await Promise.resolve();
+      expect(view.proactiveSuggestion_).not.toBeNull();
+      pickerMocks.callNativeArgs.mockClear();
+
+      await vi.advanceTimersByTimeAsync(120000);
+      expect(view.proactiveSuggestion_).toBeNull();
+
+      view.onProactiveSuggestion_({
+        ...rawSuggestion,
+        confidence: 1,
+      });
+      await Promise.resolve();
+
+      expect(view.proactiveSuggestion_).toBeNull();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'shown',
+          }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not record proactive shown or ignored while the panel is hidden',
+     async () => {
+       vi.useFakeTimers();
+       const visibilityDesc =
+           Object.getOwnPropertyDescriptor(document, 'visibilityState');
+       Object.defineProperty(document, 'visibilityState', {
+         configurable: true,
+         value: 'hidden',
+       });
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+       };
+       try {
+         pickerMocks.callNativeArgs.mockResolvedValue(true);
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({outcome: 'shown'}));
+
+         await vi.advanceTimersByTimeAsync(120000);
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({outcome: 'ignored'}));
+       } finally {
+         restorePropertyDescriptor(document, 'visibilityState', visibilityDesc);
+         vi.useRealTimers();
+       }
+     });
+
+  it('does not record ignored after a visible card is hidden by user typing',
+     async () => {
+       vi.useFakeTimers();
+       const textarea = document.createElement('textarea');
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         activateProactiveSuggestionIfVisible_: () => void;
+         composerTextarea_: HTMLTextAreaElement|null;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+         renderProactiveCard_: () => unknown;
+       };
+       view.composerTextarea_ = textarea;
+
+       try {
+         pickerMocks.callNativeArgs.mockResolvedValue(true);
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(view.proactiveIgnoredTimer_).not.toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         textarea.value = 'I am already asking something else';
+         view.activateProactiveSuggestionIfVisible_();
+         await Promise.resolve();
+
+         expect(templateText(view.renderProactiveCard_()))
+             .not.toContain('Review this PR');
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+
+         await vi.advanceTimersByTimeAsync(120000);
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+       } finally {
+         vi.useRealTimers();
+       }
+     });
+
+  it('does not record ignored after a visible card is hidden by page typing',
+     async () => {
+       vi.useFakeTimers();
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         activateProactiveSuggestionIfVisible_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         panel_: HTMLElement|null;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+         refreshChips_: () => Promise<void>;
+         renderProactiveCard_: () => unknown;
+       };
+       view.panel_ = document.createElement('div');
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/pull/123',
+             title: 'Pull Request',
+           };
+         }
+         if (method === 'executeScript') {
+           return {
+             result: JSON.stringify({
+               url: 'https://github.com/acme/repo/pull/123',
+               title: 'Pull Request',
+               text: '',
+               hasFocusedInput: true,
+             }),
+           };
+         }
+         return {success: true};
+       });
+
+       try {
+         pickerMocks.callNativeArgs.mockResolvedValue(true);
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(view.proactiveIgnoredTimer_).not.toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.refreshChips_();
+         await Promise.resolve();
+
+         expect(templateText(view.renderProactiveCard_()))
+             .not.toContain('Review this PR');
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+
+         await vi.advanceTimersByTimeAsync(120000);
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+       } finally {
+         vi.useRealTimers();
+       }
+     });
+
+  it('does not record ignored after a visible card is hidden by panel visibility',
+     async () => {
+       vi.useFakeTimers();
+       const visibilityDesc =
+           Object.getOwnPropertyDescriptor(document, 'visibilityState');
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         activateProactiveSuggestionIfVisible_: () => void;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+       };
+
+       try {
+         pickerMocks.callNativeArgs.mockResolvedValue(true);
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(view.proactiveIgnoredTimer_).not.toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         Object.defineProperty(document, 'visibilityState', {
+           configurable: true,
+           value: 'hidden',
+         });
+         view.activateProactiveSuggestionIfVisible_();
+         await Promise.resolve();
+
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+
+         await vi.advanceTimersByTimeAsync(120000);
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+       } finally {
+         restorePropertyDescriptor(document, 'visibilityState', visibilityDesc);
+         vi.useRealTimers();
+       }
+     });
+
+  it('drops an old visible card that was paused while the user typed',
+     async () => {
+       vi.useFakeTimers();
+       const textarea = document.createElement('textarea');
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         activateProactiveSuggestionIfVisible_: () => void;
+         composerTextarea_: HTMLTextAreaElement|null;
+         onProactiveSuggestion_: (raw: unknown) => void;
+         proactiveIgnoredTimer_: number|null;
+         proactiveSuggestion_: unknown;
+       };
+       view.composerTextarea_ = textarea;
+
+       try {
+         pickerMocks.callNativeArgs.mockResolvedValue(true);
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(view.proactiveIgnoredTimer_).not.toBeNull();
+
+         textarea.value = 'I am already asking something else';
+         view.activateProactiveSuggestionIfVisible_();
+         await Promise.resolve();
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         await vi.advanceTimersByTimeAsync(300001);
+         textarea.value = '';
+         view.activateProactiveSuggestionIfVisible_();
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(view.proactiveIgnoredTimer_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         vi.useRealTimers();
+       }
+     });
+
+  it('drops a deferred proactive suggestion after it gets stale',
+     async () => {
+       vi.useFakeTimers();
+       const visibilityDesc =
+           Object.getOwnPropertyDescriptor(document, 'visibilityState');
+       Object.defineProperty(document, 'visibilityState', {
+         configurable: true,
+         value: 'hidden',
+       });
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         activateProactiveSuggestionIfVisible_: () => void;
+         proactiveSuggestion_: unknown;
+       };
+       try {
+         pickerMocks.callNativeArgs.mockResolvedValue(true);
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         await vi.advanceTimersByTimeAsync(300001);
+         Object.defineProperty(document, 'visibilityState', {
+           configurable: true,
+           value: 'visible',
+         });
+         view.activateProactiveSuggestionIfVisible_();
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback', expect.anything());
+       } finally {
+         restorePropertyDescriptor(document, 'visibilityState', visibilityDesc);
+         vi.useRealTimers();
+       }
+     });
+
+  it('starts proactive shown feedback when a hidden card becomes visible',
+     async () => {
+       const visibilityDesc =
+           Object.getOwnPropertyDescriptor(document, 'visibilityState');
+       Object.defineProperty(document, 'visibilityState', {
+         configurable: true,
+         value: 'hidden',
+       });
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         activateProactiveSuggestionIfVisible_: () => void;
+         proactiveIgnoredTimer_: number|null;
+       };
+       try {
+         pickerMocks.callNativeArgs.mockResolvedValue(true);
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         pickerMocks.callNativeArgs.mockClear();
+
+         Object.defineProperty(document, 'visibilityState', {
+           configurable: true,
+           value: 'visible',
+         });
+         view.activateProactiveSuggestionIfVisible_();
+         await Promise.resolve();
+
+         expect(view.proactiveIgnoredTimer_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         (view as unknown as {
+           clearProactiveIgnoredTimer_: () => void;
+         }).clearProactiveIgnoredTimer_();
+         restorePropertyDescriptor(document, 'visibilityState', visibilityDesc);
+       }
+     });
+
+  it('clears stale proactive scenarios when the active page changes',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         refreshChips_: () => Promise<void>;
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: unknown;
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/issues/9',
+             title: 'Issue',
+           };
+         }
+         if (method === 'executeScript') {
+           return {
+             result: JSON.stringify({
+               url: 'https://github.com/acme/repo/issues/9',
+               title: 'Issue',
+               text: '',
+               hasFocusedInput: false,
+             }),
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.refreshChips_();
+
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+               url: 'https://github.com/acme/repo/pull/123',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('does not snooze a stale proactive scenario after the user leaves its page',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         refreshChips_: () => Promise<void>;
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: unknown;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'You are on a pull request page.',
+         expectedOutcome: 'Catch risky changes before merge.',
+         contextDisclosure: 'Dao will attach the page after you run this.',
+         confidence: 0.97,
+         url: 'https://github.com/acme/repo/pull/123',
+         domain: 'github.com',
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/issues/9',
+             title: 'Issue',
+           };
+         }
+         if (method === 'executeScript') {
+           return {
+             result: JSON.stringify({
+               url: 'https://github.com/acme/repo/issues/9',
+               title: 'Issue',
+               text: '',
+               hasFocusedInput: false,
+             }),
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_(rawSuggestion);
+         await Promise.resolve();
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.refreshChips_();
+         expect(view.proactiveSuggestion_).toBeNull();
+
+         view.onProactiveSuggestion_({
+           ...rawSuggestion,
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('clears stale hidden proactive scenarios without recording ignored',
+     async () => {
+       const visibilityDesc =
+           Object.getOwnPropertyDescriptor(document, 'visibilityState');
+       Object.defineProperty(document, 'visibilityState', {
+         configurable: true,
+         value: 'hidden',
+       });
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         refreshChips_: () => Promise<void>;
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: unknown;
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/issues/9',
+             title: 'Issue',
+           };
+         }
+         if (method === 'executeScript') {
+           return {
+             result: JSON.stringify({
+               url: 'https://github.com/acme/repo/issues/9',
+               title: 'Issue',
+               text: '',
+               hasFocusedInput: false,
+             }),
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123',
+           domain: 'github.com',
+         });
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.refreshChips_();
+
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({outcome: 'ignored'}));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+         restorePropertyDescriptor(document, 'visibilityState', visibilityDesc);
+       }
+     });
+
+  it('clears stale proactive episodes when the active page changes',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         refreshChips_: () => Promise<void>;
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: unknown;
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://example.com/new-page',
+             title: 'New page',
+           };
+         }
+         if (method === 'executeScript') {
+           return {
+             result: JSON.stringify({
+               url: 'https://example.com/new-page',
+               title: 'New page',
+               text: '',
+               hasFocusedInput: false,
+             }),
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_({
+           episodeId: 19,
+           type: 'continue_conversation',
+           text: 'pricing comparison',
+           confidence: 0.91,
+           url: 'https://example.com/old-page',
+           domain: 'example.com',
+         });
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.refreshChips_();
+
+         expect(view.proactiveSuggestion_).toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback', expect.anything());
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('keeps proactive scenarios across fragment and tracking param changes',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         refreshChips_: () => Promise<void>;
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: unknown;
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/pull/123?utm_medium=slack#files',
+             title: 'Pull request',
+           };
+         }
+         if (method === 'executeScript') {
+           return {
+             result: JSON.stringify({
+               url: 'https://github.com/acme/repo/pull/123?utm_medium=slack#files',
+               title: 'Pull request',
+               text: '',
+               hasFocusedInput: false,
+             }),
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_({
+           text: 'Review this PR',
+           scenarioId: 'seed_github_pr',
+           actionLabel: 'review_code',
+           reason: 'You are on a pull request page.',
+           expectedOutcome: 'Catch risky changes before merge.',
+           contextDisclosure: 'Dao will attach the page after you run this.',
+           confidence: 0.97,
+           url: 'https://github.com/acme/repo/pull/123?utm_source=email#discussion',
+           domain: 'github.com',
+         });
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.refreshChips_();
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('does not run a stale proactive scenario after navigation', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      if (method === 'getPageInfo') {
+        return {
+          url: 'https://github.com/acme/repo/issues/9',
+          title: 'Issue',
+        };
+      }
+      return {success: true};
+    });
+    pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
+      if (method === 'getPageContentForScenario') {
+        return {text: 'issue content from the new page'};
+      }
+      return true;
+    });
+
+    try {
+      (view as unknown as {
+        onProactiveSuggestion_: (raw: unknown) => void;
+        runProactiveSuggestion_: () => Promise<void>;
+      }).onProactiveSuggestion_({
+        text: 'Review this PR',
+        scenarioId: 'seed_github_pr',
+        actionLabel: 'review_code',
+        reason: 'You are on a pull request page.',
+        expectedOutcome: 'Catch risky changes before merge.',
+        contextDisclosure: 'Dao will attach the page after you run this.',
+        actionPrompt: 'Review:\n{page_content}',
+        requiresPageContent: true,
+        tabId: 42,
+        confidence: 0.97,
+        url: 'https://github.com/acme/repo/pull/123',
+        domain: 'github.com',
+      });
+      pickerMocks.callNativeArgs.mockClear();
+
+      await (view as unknown as {
+        runProactiveSuggestion_: () => Promise<void>;
+      }).runProactiveSuggestion_();
+
+      expect(originalSend).not.toHaveBeenCalled();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'getPageContentForScenario', 42);
+      expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+          'recordActionFeedback',
+          expect.objectContaining({
+            scenarioId: 'seed_github_pr',
+            outcome: 'ignored',
+            url: 'https://github.com/acme/repo/pull/123',
+          }));
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('does not record not-now feedback for a stale proactive scenario',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         notNowProactiveSuggestion_: () => Promise<void>;
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'You are on a pull request page.',
+         expectedOutcome: 'Catch risky changes before merge.',
+         contextDisclosure: 'Dao will attach the page after you run this.',
+         confidence: 0.97,
+         url: 'https://github.com/acme/repo/pull/123',
+         domain: 'github.com',
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/issues/9',
+             title: 'Issue',
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_(rawSuggestion);
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.notNowProactiveSuggestion_();
+         expect(view.proactiveSuggestion_).toBeNull();
+
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'not_now',
+             }));
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+               url: 'https://github.com/acme/repo/pull/123',
+             }));
+         pickerMocks.callNativeArgs.mockClear();
+
+         view.onProactiveSuggestion_({
+           ...rawSuggestion,
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('does not record never-here feedback for a stale proactive scenario',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         onProactiveSuggestion_: (raw: unknown) => void;
+         dismissProactiveSuggestion_: () => Promise<void>;
+         clearProactiveIgnoredTimer_: () => void;
+         proactiveSuggestion_: {scenarioId: string} | null;
+       };
+       const rawSuggestion = {
+         text: 'Review this PR',
+         scenarioId: 'seed_github_pr',
+         actionLabel: 'review_code',
+         reason: 'You are on a pull request page.',
+         expectedOutcome: 'Catch risky changes before merge.',
+         contextDisclosure: 'Dao will attach the page after you run this.',
+         confidence: 0.97,
+         url: 'https://github.com/acme/repo/pull/123',
+         domain: 'github.com',
+       };
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getPageInfo') {
+           return {
+             url: 'https://github.com/acme/repo/issues/9',
+             title: 'Issue',
+           };
+         }
+         return {success: true};
+       });
+       pickerMocks.callNativeArgs.mockResolvedValue(true);
+
+       try {
+         view.onProactiveSuggestion_(rawSuggestion);
+         pickerMocks.callNativeArgs.mockClear();
+
+         await view.dismissProactiveSuggestion_();
+         expect(view.proactiveSuggestion_).toBeNull();
+
+         expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+             'dismissSuggestion',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'never_here',
+             }));
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'ignored',
+               url: 'https://github.com/acme/repo/pull/123',
+             }));
+         pickerMocks.callNativeArgs.mockClear();
+
+         view.onProactiveSuggestion_({
+           ...rawSuggestion,
+           confidence: 1,
+         });
+         await Promise.resolve();
+
+         expect(view.proactiveSuggestion_).not.toBeNull();
+         expect(pickerMocks.callNativeArgs).toHaveBeenCalledWith(
+             'recordActionFeedback',
+             expect.objectContaining({
+               scenarioId: 'seed_github_pr',
+               outcome: 'shown',
+             }));
+       } finally {
+         view.clearProactiveIgnoredTimer_();
+       }
+     });
+
+  it('does not run a stale proactive episode after navigation', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view} = await mountChatViewWithSend(originalSend);
+    pickerMocks.callNative.mockImplementation(async (method: string) => {
+      if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
+        return {success: true};
+      }
+      if (method === 'getPageInfo') {
+        return {
+          url: 'https://example.com/new-page',
+          title: 'New page',
+        };
+      }
+      return {success: true};
+    });
+
+    try {
+      (view as unknown as {
+        onProactiveSuggestion_: (raw: unknown) => void;
+        runProactiveSuggestion_: () => Promise<void>;
+      }).onProactiveSuggestion_({
+        episodeId: 19,
+        type: 'continue_conversation',
+        text: 'pricing comparison',
+        confidence: 0.91,
+        url: 'https://example.com/old-page',
+        domain: 'example.com',
+      });
+
+      await (view as unknown as {
+        runProactiveSuggestion_: () => Promise<void>;
+      }).runProactiveSuggestion_();
+
+      expect(originalSend).not.toHaveBeenCalled();
+      expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
+          'acceptSuggestion', 19);
     } finally {
       clearTabWatchTimer(view);
     }

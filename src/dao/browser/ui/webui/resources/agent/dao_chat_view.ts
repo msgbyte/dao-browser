@@ -205,9 +205,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const MAX_PROACTIVE_PAGE_CONTENT_CHARS = 12000;
+const PROACTIVE_IGNORED_TIMEOUT_MS = 120000;
+const PROACTIVE_DEFERRED_MAX_AGE_MS = 300000;
+const PROACTIVE_NOT_NOW_SNOOZE_MS = 600000;
+const PROACTIVE_REPLACEMENT_CONFIDENCE_MARGIN = 0.05;
+const PROACTIVE_SCENARIO_MIN_CONFIDENCE = 0.75;
+const PROACTIVE_TRACKING_PARAM_NAMES = new Set([
+  'fbclid',
+  'gclid',
+  'igshid',
+  'mc_cid',
+  'mc_eid',
+  'msclkid',
+  'vero_id',
+]);
 const DISMISSED_DREAM_REPORT_IDS_KEY = 'dao_dismissed_dream_report_ids';
 const DAO_AGENT_DEBUG_MODE_KEY = 'dao_agent_debug_mode';
 const DAO_AGENT_DEBUG_MODE_CHANGED_EVENT = 'dao-agent-debug-mode-changed';
+const DAO_PROACTIVE_ENABLED_KEY = 'dao_proactive_enabled';
+const DAO_PROACTIVE_ENABLED_CHANGED_EVENT =
+    'dao-proactive-enabled-changed';
+const DAO_PROACTIVE_NOT_NOW_SNOOZES_KEY =
+    'dao_proactive_not_now_snoozes';
+const DAO_PROACTIVE_NEVER_HERE_KEYS_KEY =
+    'dao_proactive_never_here_keys';
 
 function yesterdayLocalYmd(now = new Date()): string {
   const yesterday = new Date(now);
@@ -302,7 +323,10 @@ export class DaoChatView extends CrLitElement {
     this.dreamReport_ = null;
     this.dreamExpanded_ = false;
     this.proactiveSuggestion_ = null;
+    this.proactiveSuggestionReceivedAtMs_ = 0;
     this.proactiveRunning_ = false;
+    this.restoreProactiveNeverHereKeys_();
+    this.restoreProactiveNotNowSnoozes_();
   }
   override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -322,11 +346,16 @@ export class DaoChatView extends CrLitElement {
         (event: Event) => this.onDebugModeChanged_(event);
     window.addEventListener(
         DAO_AGENT_DEBUG_MODE_CHANGED_EVENT, this.boundOnDebugModeChanged_);
+    this.boundOnProactiveEnabledChanged_ =
+        (event: Event) => this.onProactiveEnabledChanged_(event);
+    window.addEventListener(
+        DAO_PROACTIVE_ENABLED_CHANGED_EVENT,
+        this.boundOnProactiveEnabledChanged_);
     this.boundOnStorageChanged_ =
         (event: StorageEvent) => this.onStorageChanged_(event);
     window.addEventListener('storage', this.boundOnStorageChanged_);
-    if (localStorage.getItem('dao_proactive_enabled') === 'false') {
-      callNativeArgs('setProactiveEnabled', false).catch(() => {});
+    if (localStorage.getItem(DAO_PROACTIVE_ENABLED_KEY) === 'false') {
+      this.syncProactiveEnabled_(false);
     }
   }
 
@@ -358,6 +387,8 @@ export class DaoChatView extends CrLitElement {
   private boundOnProactiveSuggestion_:
       ((raw: unknown) => void) | null = null;
   private boundOnDebugModeChanged_: ((event: Event) => void) | null = null;
+  private boundOnProactiveEnabledChanged_:
+      ((event: Event) => void) | null = null;
   private boundOnStorageChanged_: ((event: StorageEvent) => void) | null =
       null;
   private boundOnUserActionMenuOutsidePointerDown_:
@@ -458,6 +489,12 @@ export class DaoChatView extends CrLitElement {
   private onDreamReportUpdated_: (() => void)|null = null;
   declare protected proactiveSuggestion_: ProactiveSuggestionData|null;
   declare protected proactiveRunning_: boolean;
+  private proactiveIgnoredTimer_: number|null = null;
+  private proactiveShownSuggestion_: ProactiveSuggestionData|null = null;
+  private proactiveSuggestionReceivedAtMs_ = 0;
+  private proactiveNeverHereKeys_ = new Set<string>();
+  private proactiveNotNowSnoozeUntilByKey_ = new Map<string, number>();
+  private pageHasFocusedInput_ = false;
 
   override disconnectedCallback() {
     super.disconnectedCallback();
@@ -478,10 +515,17 @@ export class DaoChatView extends CrLitElement {
           this.boundOnDebugModeChanged_);
       this.boundOnDebugModeChanged_ = null;
     }
+    if (this.boundOnProactiveEnabledChanged_) {
+      window.removeEventListener(
+          DAO_PROACTIVE_ENABLED_CHANGED_EVENT,
+          this.boundOnProactiveEnabledChanged_);
+      this.boundOnProactiveEnabledChanged_ = null;
+    }
     if (this.boundOnStorageChanged_) {
       window.removeEventListener('storage', this.boundOnStorageChanged_);
       this.boundOnStorageChanged_ = null;
     }
+    this.clearProactiveIgnoredTimer_();
     this.detachUserActionMenuOutsideListener_();
     // Unblock anything awaiting mount; safe to call when already resolved.
     this.mountReadyResolve_();
@@ -743,7 +787,7 @@ export class DaoChatView extends CrLitElement {
         }
         .dao-proactive-head {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: 8px;
           min-width: 0;
         }
@@ -756,26 +800,38 @@ export class DaoChatView extends CrLitElement {
         .dao-proactive-copy {
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 6px;
           min-width: 0;
           flex: 1 1 auto;
         }
         .dao-proactive-title {
           font-size: 13px;
           font-weight: 600;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+        }
+        .dao-proactive-details {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--text-secondary, rgba(30, 20, 40, 0.72));
+          line-height: 1.45;
+        }
+        .dao-proactive-detail {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .dao-proactive-detail-label {
+          font-weight: 600;
+          color: var(--text, rgba(30, 20, 40, 0.88));
         }
         .dao-proactive-hint {
           font-size: 11px;
           color: var(--text-secondary, rgba(30, 20, 40, 0.58));
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
         }
         .dao-proactive-actions {
           display: flex;
+          flex-wrap: wrap;
           gap: 6px;
           margin-top: 10px;
         }
@@ -1017,9 +1073,34 @@ export class DaoChatView extends CrLitElement {
     this.setDebugModeState_(enabled);
   }
 
+  private syncProactiveEnabled_(enabled: boolean) {
+    callNativeArgs('setProactiveEnabled', enabled).catch(() => {});
+    if (enabled) {
+      return;
+    }
+    this.clearProactiveIgnoredTimer_();
+    this.proactiveShownSuggestion_ = null;
+    this.proactiveSuggestion_ = null;
+    this.proactiveSuggestionReceivedAtMs_ = 0;
+    this.proactiveRunning_ = false;
+  }
+
+  private onProactiveEnabledChanged_(event: Event) {
+    const enabled = event instanceof CustomEvent &&
+        typeof event.detail?.enabled === 'boolean' ?
+        event.detail.enabled :
+        localStorage.getItem(DAO_PROACTIVE_ENABLED_KEY) !== 'false';
+    this.syncProactiveEnabled_(enabled);
+  }
+
   private onStorageChanged_(event: StorageEvent) {
-    if (event.key !== DAO_AGENT_DEBUG_MODE_KEY) return;
-    this.setDebugModeState_(event.newValue === 'true');
+    if (event.key === DAO_AGENT_DEBUG_MODE_KEY) {
+      this.setDebugModeState_(event.newValue === 'true');
+      return;
+    }
+    if (event.key === DAO_PROACTIVE_ENABLED_KEY) {
+      this.syncProactiveEnabled_(event.newValue !== 'false');
+    }
   }
 
   private async mount_() {
@@ -1216,7 +1297,9 @@ export class DaoChatView extends CrLitElement {
               this.pendingMemoryContextText_ =
                   await this.maybeBuildMemoryContextText_();
             }
-            return await this.origSendMessage_!(text, merged);
+            const result = await this.origSendMessage_!(text, merged);
+            await this.clearProactiveSuggestionForManualSend_();
+            return result;
           } finally {
             this.pendingMemoryContextText_ = null;
             if (turnTargetStarted) {
@@ -1311,6 +1394,7 @@ export class DaoChatView extends CrLitElement {
       }
       if (ev?.type === 'agent_start' || ev?.type === 'agent_end') {
         this.isStreaming_ = !!this.agent_?.state.isStreaming;
+        this.activateProactiveSuggestionIfVisible_();
       }
       if (ev?.type === 'message_end') {
         this.scheduleDecorate_();
@@ -1326,6 +1410,7 @@ export class DaoChatView extends CrLitElement {
           this.isStreaming_ = !!this.agent_?.state.isStreaming;
           this.refreshMessageActions_();
           this.decoratePageAttachments_();
+          this.activateProactiveSuggestionIfVisible_();
         });
       }
     });
@@ -1358,8 +1443,12 @@ export class DaoChatView extends CrLitElement {
     // paint lines up with the first frame after the animation.
     this.boundOnVisibilityHint_ = () => {
       if (document.visibilityState === 'visible') {
-        void this.refreshChips_();
+        void this.refreshChips_().then(() => {
+          this.activateProactiveSuggestionIfVisible_();
+        });
         void this.maybeResumeLastSession_();
+      } else {
+        this.activateProactiveSuggestionIfVisible_();
       }
     };
     document.addEventListener(
@@ -1896,6 +1985,7 @@ export class DaoChatView extends CrLitElement {
     this.editingError_ = '';
     this.closeUserActionMenu_(false);
     this.refreshMessageActions_();
+    this.activateProactiveSuggestionIfVisible_();
     window.setTimeout(() => {
       (this.querySelector(
           '.dao-user-context-close') as HTMLButtonElement|null)?.focus();
@@ -1905,6 +1995,7 @@ export class DaoChatView extends CrLitElement {
   private hideUserContextDebug_(): void {
     this.debugContextMessageId_ = '';
     this.refreshMessageActions_();
+    this.activateProactiveSuggestionIfVisible_();
   }
 
   private buildUserContextDebugPayload_(id: string): Record<string, unknown> {
@@ -2271,6 +2362,7 @@ export class DaoChatView extends CrLitElement {
     if (assistantIdx === this.findLatestAssistantIndex_()) return;
 
     agent.state.messages = agent.state.messages.slice(0, assistantIdx + 1);
+    this.clearProactiveSuggestionState_();
     this.editingMessageId_ = '';
     this.editingDraft_ = '';
     this.editingError_ = '';
@@ -2304,15 +2396,20 @@ export class DaoChatView extends CrLitElement {
         false;
     this.attachUserActionMenuOutsideListener_();
     this.refreshMessageActions_();
+    this.activateProactiveSuggestionIfVisible_();
   }
 
-  private closeUserActionMenu_(refresh = true): void {
+  private closeUserActionMenu_(
+      refresh = true, reactivateProactive = true): void {
     this.userActionMenuMessageId_ = '';
     this.userActionMenuOpenAbove_ = false;
     this.userActionMenuAlignStart_ = false;
     this.detachUserActionMenuOutsideListener_();
     if (refresh) {
       this.refreshMessageActions_();
+    }
+    if (reactivateProactive) {
+      this.activateProactiveSuggestionIfVisible_();
     }
   }
 
@@ -2382,12 +2479,15 @@ export class DaoChatView extends CrLitElement {
     this.refreshMessageActions_();
   }
 
-  private cancelEditUserMessage_(): void {
+  private cancelEditUserMessage_(reactivateProactive = true): void {
     this.editingMessageId_ = '';
     this.editingDraft_ = '';
     this.editingError_ = '';
-    this.closeUserActionMenu_(false);
+    this.closeUserActionMenu_(false, reactivateProactive);
     this.refreshMessageActions_();
+    if (reactivateProactive) {
+      this.activateProactiveSuggestionIfVisible_();
+    }
   }
 
   private onEditDraftInput_(e: Event): void {
@@ -2470,7 +2570,8 @@ export class DaoChatView extends CrLitElement {
     const iface = this.panel_?.querySelector('agent-interface') as any;
     iface?.requestUpdate?.();
     this.syncMeta_();
-    this.cancelEditUserMessage_();
+    await this.clearProactiveSuggestionForManualSend_();
+    this.cancelEditUserMessage_(false);
     await this.saveCurrentSession_();
     try {
       await agent.continue();
@@ -2496,6 +2597,7 @@ export class DaoChatView extends CrLitElement {
     const iface = this.panel_?.querySelector('agent-interface') as any;
     iface?.requestUpdate?.();
     this.syncMeta_();
+    await this.clearProactiveSuggestionForManualSend_();
     try {
       await agent.continue();
     } catch (e) {
@@ -2520,6 +2622,7 @@ export class DaoChatView extends CrLitElement {
     this.refreshChipsRunning_ = true;
     try {
       const info = await fetchCurrentPageInfo();
+      await this.clearStaleProactiveSuggestionForPage_(info);
       if (!info || !isCapturablePageUrl(info.url)) {
         if (this.pendingPageAttachment_ !== null) {
           this.pendingPageAttachment_ = null;
@@ -2528,7 +2631,7 @@ export class DaoChatView extends CrLitElement {
           this.pendingSelection_ = null;
         }
         // Non-capturable page → no focused-input gate either.
-        this.panel_?.classList.remove('dao-has-focused-input');
+        this.setPageFocusedInputState_(false);
         return;
       }
       // Page chip: suppress when URL is already in sent / dismissed sets.
@@ -2561,17 +2664,375 @@ export class DaoChatView extends CrLitElement {
       // panel root because it is the closest ancestor of every
       // <code-block> rendered in the message list; scoping the CSS rule
       // there keeps the blast radius minimal.
-      this.panel_?.classList.toggle(
-          'dao-has-focused-input', probe.hasFocusedInput);
+      this.setPageFocusedInputState_(probe.hasFocusedInput);
     } finally {
       this.refreshChipsRunning_ = false;
     }
+  }
+
+  private setPageFocusedInputState_(hasFocusedInput: boolean): void {
+    this.panel_?.classList.toggle(
+        'dao-has-focused-input', hasFocusedInput);
+    if (this.pageHasFocusedInput_ === hasFocusedInput) {
+      return;
+    }
+    this.pageHasFocusedInput_ = hasFocusedInput;
+    this.activateProactiveSuggestionIfVisible_();
+    this.requestUpdate();
   }
 
   // Back-compat wrappers used by startNewSession / the page-chip send flow.
   // Both chips share one probe now, so these just delegate.
   private refreshPageChip_() { return this.refreshChips_(); }
   private refreshSelectionChip_() { return this.refreshChips_(); }
+
+  private canonicalProactiveDomain_(domain: string): string {
+    const normalizedDomain = domain.trim().toLowerCase();
+    return normalizedDomain.startsWith('www.') ?
+        normalizedDomain.slice('www.'.length) :
+        normalizedDomain;
+  }
+
+  private canonicalProactivePageUrl_(rawUrl: string): string {
+    const url = new URL(rawUrl);
+    url.hash = '';
+    url.hostname = this.canonicalProactiveDomain_(url.hostname);
+    if (url.pathname.length > 1) {
+      url.pathname = url.pathname.replace(/\/+$/, '');
+    }
+    for (const key of Array.from(url.searchParams.keys())) {
+      const normalized = key.toLowerCase();
+      if (normalized.startsWith('utm_') ||
+          PROACTIVE_TRACKING_PARAM_NAMES.has(normalized)) {
+        url.searchParams.delete(key);
+      }
+    }
+    url.searchParams.sort();
+    return url.href;
+  }
+
+  private sameProactivePageUrl_(suggestionUrl: string, pageUrl: string):
+      boolean {
+    if (!suggestionUrl || !pageUrl) return true;
+    try {
+      return this.canonicalProactivePageUrl_(suggestionUrl) ===
+          this.canonicalProactivePageUrl_(pageUrl);
+    } catch (_) {
+      return suggestionUrl === pageUrl;
+    }
+  }
+
+  private proactiveSuggestionSuppressionIdentity_(
+      suggestion: ProactiveSuggestionData): string {
+    const scenarioId = suggestion.scenarioId.trim();
+    if (scenarioId) return `scenario:${scenarioId}`;
+    if (suggestion.episodeId > 0) return `episode:${suggestion.episodeId}`;
+    return '';
+  }
+
+  private proactiveSuppressionKey_(identity: string, rawUrl: string):
+      string {
+    const id = identity.trim();
+    const url = rawUrl.trim();
+    if (!id || !url) return '';
+    try {
+      return `${id}\n${this.canonicalProactivePageUrl_(url)}`;
+    } catch (_) {
+      return `${id}\n${url}`;
+    }
+  }
+
+  private proactiveDomainSuppressionKey_(identity: string, domain: string):
+      string {
+    const id = identity.trim();
+    const normalizedDomain = this.canonicalProactiveDomain_(domain);
+    if (!id || !normalizedDomain) return '';
+    return `${id}\ndomain:${normalizedDomain}`;
+  }
+
+  private proactiveIdentitySuppressionKey_(identity: string): string {
+    const id = identity.trim();
+    return id ? `${id}\ncontext:any` : '';
+  }
+
+  private canonicalStoredProactiveSuppressionKey_(rawKey: string): string {
+    const key = rawKey.trim();
+    const separator = key.indexOf('\n');
+    if (separator <= 0 || separator === key.length - 1) {
+      return key;
+    }
+    const identity = key.slice(0, separator);
+    const context = key.slice(separator + 1);
+    if (context.startsWith('domain:')) {
+      return `${identity}\ndomain:${
+          this.canonicalProactiveDomain_(context.slice('domain:'.length))}`;
+    }
+    try {
+      return `${identity}\n${this.canonicalProactivePageUrl_(context)}`;
+    } catch (_) {
+      return key;
+    }
+  }
+
+  private domainFromProactiveUrl_(rawUrl: string): string {
+    try {
+      return new URL(rawUrl).hostname;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  private proactiveSuppressionKeysForSuggestion_(
+      suggestion: ProactiveSuggestionData,
+      feedback?: Record<string, unknown>,
+      options?: {
+        includeDomainFallback?: boolean,
+        includeIdentityFallback?: boolean,
+      }): string[] {
+    const feedbackUrl =
+        typeof feedback?.['url'] === 'string' ? feedback['url'] : '';
+    const feedbackDomain =
+        typeof feedback?.['domain'] === 'string' ? feedback['domain'] : '';
+    const suggestionUrl = suggestion.url.trim();
+    const url = suggestionUrl || feedbackUrl;
+    const identity = this.proactiveSuggestionSuppressionIdentity_(suggestion);
+    const urlKey = this.proactiveSuppressionKey_(identity, url);
+    if (url && urlKey && !options?.includeDomainFallback &&
+        !options?.includeIdentityFallback) {
+      return [urlKey];
+    }
+    const domain = suggestion.domain.trim() || feedbackDomain ||
+        this.domainFromProactiveUrl_(url);
+    const keys = [
+      urlKey,
+      this.proactiveDomainSuppressionKey_(identity, domain),
+    ].filter(Boolean);
+    if (keys.length === 0 || options?.includeIdentityFallback) {
+      const identityKey = this.proactiveIdentitySuppressionKey_(identity);
+      if (identityKey) {
+        keys.push(identityKey);
+      }
+    }
+    return Array.from(new Set(keys));
+  }
+
+  private persistProactiveNotNowSnoozes_() {
+    try {
+      if (this.proactiveNotNowSnoozeUntilByKey_.size === 0) {
+        localStorage.removeItem(DAO_PROACTIVE_NOT_NOW_SNOOZES_KEY);
+        return;
+      }
+      localStorage.setItem(
+          DAO_PROACTIVE_NOT_NOW_SNOOZES_KEY,
+          JSON.stringify(
+              Object.fromEntries(this.proactiveNotNowSnoozeUntilByKey_)));
+    } catch (_) {
+      // Best effort only; in-memory snooze still protects this session.
+    }
+  }
+
+  private restoreProactiveNotNowSnoozes_() {
+    let changed = false;
+    try {
+      const raw = localStorage.getItem(DAO_PROACTIVE_NOT_NOW_SNOOZES_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as unknown;
+      if (typeof parsed !== 'object' || parsed === null ||
+          Array.isArray(parsed)) {
+        localStorage.removeItem(DAO_PROACTIVE_NOT_NOW_SNOOZES_KEY);
+        return;
+      }
+      const now = Date.now();
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value !== 'number' || !Number.isFinite(value)) {
+          changed = true;
+          continue;
+        }
+        if (value <= now) {
+          changed = true;
+          continue;
+        }
+        const storedKey = key.trim();
+        const canonicalKey =
+            this.canonicalStoredProactiveSuppressionKey_(storedKey);
+        for (const candidate of Array.from(new Set([
+               storedKey,
+               canonicalKey,
+             ]))) {
+          const existing =
+              this.proactiveNotNowSnoozeUntilByKey_.get(candidate);
+          if (!existing || existing < value) {
+            this.proactiveNotNowSnoozeUntilByKey_.set(candidate, value);
+          }
+        }
+        if (canonicalKey !== storedKey) {
+          changed = true;
+        }
+      }
+    } catch (_) {
+      localStorage.removeItem(DAO_PROACTIVE_NOT_NOW_SNOOZES_KEY);
+      return;
+    }
+    if (changed) {
+      this.persistProactiveNotNowSnoozes_();
+    }
+  }
+
+  private persistProactiveNeverHereKeys_() {
+    try {
+      if (this.proactiveNeverHereKeys_.size === 0) {
+        localStorage.removeItem(DAO_PROACTIVE_NEVER_HERE_KEYS_KEY);
+        return;
+      }
+      localStorage.setItem(
+          DAO_PROACTIVE_NEVER_HERE_KEYS_KEY,
+          JSON.stringify(Array.from(this.proactiveNeverHereKeys_)));
+    } catch (_) {
+      // Best effort only; in-memory suppression still protects this session.
+    }
+  }
+
+  private restoreProactiveNeverHereKeys_() {
+    let changed = false;
+    try {
+      const raw = localStorage.getItem(DAO_PROACTIVE_NEVER_HERE_KEYS_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        localStorage.removeItem(DAO_PROACTIVE_NEVER_HERE_KEYS_KEY);
+        return;
+      }
+      for (const key of parsed) {
+        if (typeof key !== 'string') {
+          continue;
+        }
+        const storedKey = key.trim();
+        if (storedKey) {
+          const canonicalKey =
+              this.canonicalStoredProactiveSuppressionKey_(storedKey);
+          this.proactiveNeverHereKeys_.add(storedKey);
+          this.proactiveNeverHereKeys_.add(canonicalKey);
+          if (canonicalKey !== storedKey) {
+            changed = true;
+          }
+        }
+      }
+    } catch (_) {
+      localStorage.removeItem(DAO_PROACTIVE_NEVER_HERE_KEYS_KEY);
+    }
+    if (changed) {
+      this.persistProactiveNeverHereKeys_();
+    }
+  }
+
+  private rememberNeverHereProactiveSuggestion_(
+      suggestion: ProactiveSuggestionData,
+      feedback: Record<string, unknown>) {
+    for (const key of this.proactiveSuppressionKeysForSuggestion_(
+             suggestion, feedback,
+             {includeDomainFallback: !suggestion.url.trim()})) {
+      this.proactiveNeverHereKeys_.add(key);
+    }
+    this.persistProactiveNeverHereKeys_();
+  }
+
+  private rememberNotNowProactiveSuggestion_(
+      suggestion: ProactiveSuggestionData,
+      feedback: Record<string, unknown>) {
+    const snoozeUntil = Date.now() + PROACTIVE_NOT_NOW_SNOOZE_MS;
+    for (const key of this.proactiveSuppressionKeysForSuggestion_(
+             suggestion, feedback,
+             {includeDomainFallback: !suggestion.url.trim()})) {
+      this.proactiveNotNowSnoozeUntilByKey_.set(
+          key, snoozeUntil);
+    }
+    this.persistProactiveNotNowSnoozes_();
+  }
+
+  private isProactiveSuggestionSnoozed_(
+      suggestion: ProactiveSuggestionData): boolean {
+    let changed = false;
+    for (const key of this.proactiveSuppressionKeysForSuggestion_(
+             suggestion, undefined, {includeIdentityFallback: true})) {
+      const snoozeUntil = this.proactiveNotNowSnoozeUntilByKey_.get(key);
+      if (!snoozeUntil) continue;
+      if (Date.now() >= snoozeUntil) {
+        this.proactiveNotNowSnoozeUntilByKey_.delete(key);
+        changed = true;
+        continue;
+      }
+      if (changed) {
+        this.persistProactiveNotNowSnoozes_();
+      }
+      return true;
+    }
+    if (changed) {
+      this.persistProactiveNotNowSnoozes_();
+    }
+    return false;
+  }
+
+  private async clearStaleProactiveSuggestionForPage_(info: PageInfo|null) {
+    const suggestion = this.proactiveSuggestion_;
+    if (!suggestion || this.proactiveRunning_) return;
+    if (!suggestion.url.trim()) return;
+    if (!info?.url) return;
+    if (this.sameProactivePageUrl_(suggestion.url, info.url)) return;
+
+    const wasShown = this.proactiveShownSuggestion_ === suggestion;
+    this.clearProactiveIgnoredTimer_();
+    this.proactiveShownSuggestion_ = null;
+    this.proactiveSuggestion_ = null;
+    this.proactiveSuggestionReceivedAtMs_ = 0;
+    if (wasShown && suggestion.scenarioId.trim()) {
+      const feedback = await this.buildProactiveFeedback_(suggestion);
+      await this.recordProactiveFeedback_(suggestion, 'ignored', feedback);
+    }
+  }
+
+  private async ensureProactiveSuggestionCurrent_(
+      suggestion: ProactiveSuggestionData): Promise<boolean> {
+    if (!suggestion.url.trim()) {
+      return true;
+    }
+    const info = await fetchCurrentPageInfo();
+    await this.clearStaleProactiveSuggestionForPage_(info);
+    return this.proactiveSuggestion_ === suggestion;
+  }
+
+  private clearProactiveSuggestionState_() {
+    this.clearProactiveIgnoredTimer_();
+    this.proactiveShownSuggestion_ = null;
+    this.proactiveSuggestion_ = null;
+    this.proactiveSuggestionReceivedAtMs_ = 0;
+    this.proactiveRunning_ = false;
+  }
+
+  private async clearProactiveSuggestionForManualSend_() {
+    const suggestion = this.proactiveSuggestion_;
+    if (!suggestion || this.proactiveRunning_) {
+      return;
+    }
+    const wasShown = this.proactiveShownSuggestion_ === suggestion;
+    this.clearProactiveIgnoredTimer_();
+    this.proactiveShownSuggestion_ = null;
+    this.proactiveSuggestion_ = null;
+    this.proactiveSuggestionReceivedAtMs_ = 0;
+    if (!suggestion.scenarioId.trim()) {
+      return;
+    }
+    if (wasShown) {
+      const feedback = await this.buildProactiveFeedback_(suggestion);
+      this.rememberNotNowProactiveSuggestion_(suggestion, feedback);
+      await this.recordProactiveFeedback_(suggestion, 'ignored', feedback);
+      return;
+    }
+    this.rememberNotNowProactiveSuggestion_(suggestion, {});
+  }
 
   private onPageChipDismiss_() {
     const pending = this.pendingPageAttachment_;
@@ -3065,7 +3526,11 @@ export class DaoChatView extends CrLitElement {
     }
     this.composerResizeObserver_?.disconnect();
     this.composerTextarea_ = ta;
-    this.onComposerInput_ = () => this.updateSkillPicker_();
+    this.onComposerInput_ = () => {
+      this.updateSkillPicker_();
+      this.requestUpdate();
+      this.activateProactiveSuggestionIfVisible_();
+    };
     this.onComposerKeyDown_ = (e) => this.onSkillPickerKeyDown_(e);
     ta.addEventListener('input', this.onComposerInput_);
     // Capture phase so we beat pi-web-ui's own keydown handling (Enter=send).
@@ -3412,14 +3877,20 @@ export class DaoChatView extends CrLitElement {
   private normalizeProactiveSuggestion_(
       raw: unknown): ProactiveSuggestionData|null {
     if (!isRecord(raw)) return null;
+    const episodeId = typeof raw['episodeId'] === 'number' ? raw['episodeId'] : 0;
     const text = typeof raw['text'] === 'string' ? raw['text'] : '';
     const scenarioName =
         typeof raw['scenarioName'] === 'string' ? raw['scenarioName'] : '';
     const type = typeof raw['type'] === 'string' ? raw['type'] : '';
     const label = (scenarioName || text).trim();
-    if (!label && type !== 'repeat_action') return null;
+    const isLegacyType =
+        type === 'repeat_action' || type === 'continue_conversation';
+    const isLegacyEpisode =
+        type === 'continue_conversation' ? !!label :
+        episodeId > 0 || (isLegacyType && !!label);
+    if (!label && !isLegacyEpisode) return null;
     return {
-      episodeId: typeof raw['episodeId'] === 'number' ? raw['episodeId'] : 0,
+      episodeId,
       text: text || label,
       confidence:
           typeof raw['confidence'] === 'number' ? raw['confidence'] : 0,
@@ -3435,11 +3906,33 @@ export class DaoChatView extends CrLitElement {
           typeof raw['actionPrompt'] === 'string' ? raw['actionPrompt'] : '',
       requiresPageContent: raw['requiresPageContent'] === true,
       tabId: typeof raw['tabId'] === 'number' ? raw['tabId'] : -1,
+      reason: typeof raw['reason'] === 'string' ? raw['reason'] : '',
+      expectedOutcome:
+          typeof raw['expectedOutcome'] === 'string' ?
+          raw['expectedOutcome'] :
+          '',
+      contextDisclosure:
+          typeof raw['contextDisclosure'] === 'string' ?
+          raw['contextDisclosure'] :
+          '',
+      suppressionReason:
+          typeof raw['suppressionReason'] === 'string' ?
+          raw['suppressionReason'] :
+          '',
+      scoreDebugJson:
+          typeof raw['scoreDebugJson'] === 'string' ? raw['scoreDebugJson'] :
+                                                      '',
+      url: typeof raw['url'] === 'string' ? raw['url'] : '',
+      domain: typeof raw['domain'] === 'string' ? raw['domain'] : '',
     };
   }
 
   private proactiveSuggestionTitle_(suggestion: ProactiveSuggestionData):
       string {
+    const seedTitle = this.proactiveSeedScenarioTitle_(suggestion);
+    if (seedTitle) {
+      return seedTitle;
+    }
     if (suggestion.scenarioName) {
       return suggestion.scenarioName;
     }
@@ -3453,6 +3946,33 @@ export class DaoChatView extends CrLitElement {
           t('chat.proactive.continue_conversation_title_fallback');
     }
     return suggestion.text;
+  }
+
+  private proactiveSeedScenarioTitle_(suggestion: ProactiveSuggestionData):
+      string {
+    if (!suggestion.scenarioId.trim().startsWith('seed_')) {
+      return '';
+    }
+    const actionLabel = suggestion.actionLabel.trim();
+    switch (actionLabel || suggestion.scenarioId.trim()) {
+      case 'review_code':
+      case 'seed_github_pr':
+        return t('chat.proactive.title.review_code');
+      case 'analyze_issue':
+      case 'seed_github_issue':
+        return t('chat.proactive.title.analyze_issue');
+      case 'analyze_progress':
+      case 'seed_linear_project':
+        return t('chat.proactive.title.analyze_progress');
+      case 'summarize_doc':
+      case 'seed_docs_summary':
+        return t('chat.proactive.title.summarize_doc');
+      case 'extract_answer':
+      case 'seed_stackoverflow':
+        return t('chat.proactive.title.extract_answer');
+      default:
+        return '';
+    }
   }
 
   private proactiveSuggestionPrompt_(suggestion: ProactiveSuggestionData):
@@ -3469,21 +3989,271 @@ export class DaoChatView extends CrLitElement {
     return suggestion.text || t('chat.proactive.default_user_prompt');
   }
 
+  private proactiveSuggestionContextDisclosure_(
+      suggestion: ProactiveSuggestionData): string {
+    switch (suggestion.contextDisclosure.trim()) {
+      case 'captures_after_run':
+        return t('chat.proactive.context.captures_after_run');
+      case 'no_capture_before_run':
+        return t('chat.proactive.context.no_capture_before_run');
+      default:
+        return suggestion.contextDisclosure.trim() ||
+            t('chat.proactive.default_context_disclosure');
+    }
+  }
+
+  private proactiveSuggestionExpectedOutcome_(
+      suggestion: ProactiveSuggestionData): string {
+    switch (suggestion.expectedOutcome.trim()) {
+      case 'review_code':
+        return t('chat.proactive.expected.review_code');
+      case 'analyze_issue':
+        return t('chat.proactive.expected.analyze_issue');
+      case 'analyze_progress':
+        return t('chat.proactive.expected.analyze_progress');
+      case 'summarize_doc':
+        return t('chat.proactive.expected.summarize_doc');
+      case 'extract_answer':
+        return t('chat.proactive.expected.extract_answer');
+      case 'default':
+        return t('chat.proactive.expected.default');
+      default:
+        return suggestion.expectedOutcome.trim() ||
+            t('chat.proactive.default_expected_outcome');
+    }
+  }
+
+  private proactiveSuggestionReason_(suggestion: ProactiveSuggestionData):
+      string {
+    switch (suggestion.reason.trim()) {
+      case 'sensitive_page':
+        return t('chat.proactive.reason.sensitive_page');
+      case 'fatigue':
+        return t('chat.proactive.reason.fatigue');
+      case 'typing':
+        return t('chat.proactive.reason.typing');
+      case 'missing_action_evidence':
+        return t('chat.proactive.reason.missing_action_evidence');
+      case 'poor_personal_fit':
+        return t('chat.proactive.reason.poor_personal_fit');
+      case 'insufficient_content':
+        return t('chat.proactive.reason.insufficient_content');
+      case 'structured_content':
+        return t('chat.proactive.reason.structured_content');
+      case 'matched_structure':
+        return t('chat.proactive.reason.matched_structure');
+      default:
+        return suggestion.reason.trim();
+    }
+  }
+
+  private proactiveSuggestionVisiblePrompt_(
+      suggestion: ProactiveSuggestionData): string {
+    const title = this.proactiveSuggestionTitle_(suggestion);
+    const reason = this.proactiveSuggestionReason_(suggestion) ||
+        this.proactiveSuggestionContextDisclosure_(suggestion);
+    const expectedOutcome =
+        this.proactiveSuggestionExpectedOutcome_(suggestion);
+    return `${title}.\n\n${
+        t('chat.proactive.visible_prompt_reason_header')}\n- ${reason}\n\n${
+        t('chat.proactive.visible_prompt_expected_header')}\n- ${
+        expectedOutcome}`;
+  }
+
+  private clearProactiveIgnoredTimer_() {
+    if (this.proactiveIgnoredTimer_ !== null) {
+      window.clearTimeout(this.proactiveIgnoredTimer_);
+      this.proactiveIgnoredTimer_ = null;
+    }
+  }
+
+  private scheduleProactiveIgnoredTimer_(suggestion: ProactiveSuggestionData) {
+    this.clearProactiveIgnoredTimer_();
+    this.proactiveIgnoredTimer_ = window.setTimeout(() => {
+      if (this.proactiveSuggestion_ !== suggestion) {
+        return;
+      }
+      this.proactiveSuggestion_ = null;
+      this.proactiveIgnoredTimer_ = null;
+      this.proactiveShownSuggestion_ = null;
+      this.proactiveSuggestionReceivedAtMs_ = 0;
+      void (async () => {
+        const feedback = await this.buildProactiveFeedback_(suggestion);
+        this.rememberNotNowProactiveSuggestion_(suggestion, feedback);
+        await this.recordProactiveFeedback_(suggestion, 'ignored', feedback);
+      })();
+    }, PROACTIVE_IGNORED_TIMEOUT_MS);
+  }
+
+  private isComposerDraftActive_(): boolean {
+    return !!this.composerTextarea_?.value.trim();
+  }
+
+  private canActivateProactiveSuggestion_(): boolean {
+    return document.visibilityState === 'visible' &&
+        !this.isStreaming_ &&
+        !this.historyOpen_ &&
+        !this.userActionMenuMessageId_.trim() &&
+        !this.debugContextMessageId_.trim() &&
+        !this.editingMessageId_.trim() &&
+        !this.pageHasFocusedInput_ &&
+        !this.isComposerDraftActive_();
+  }
+
+  private activateProactiveSuggestionIfVisible_() {
+    if (this.clearExpiredDeferredProactiveSuggestion_()) {
+      return;
+    }
+    const suggestion = this.proactiveSuggestion_;
+    if (!suggestion) {
+      return;
+    }
+    if (!this.canActivateProactiveSuggestion_()) {
+      if (this.proactiveShownSuggestion_ === suggestion) {
+        this.clearProactiveIgnoredTimer_();
+      }
+      return;
+    }
+    if (this.proactiveShownSuggestion_ === suggestion) {
+      if (this.proactiveIgnoredTimer_ === null) {
+        this.scheduleProactiveIgnoredTimer_(suggestion);
+      }
+      return;
+    }
+    this.proactiveShownSuggestion_ = suggestion;
+    this.scheduleProactiveIgnoredTimer_(suggestion);
+    void this.recordProactiveFeedback_(suggestion, 'shown');
+  }
+
+  private clearExpiredDeferredProactiveSuggestion_(): boolean {
+    const suggestion = this.proactiveSuggestion_;
+    if (!suggestion) {
+      return false;
+    }
+    const isDeferred = this.proactiveShownSuggestion_ !== suggestion;
+    const isPausedAfterShown =
+        this.proactiveShownSuggestion_ === suggestion &&
+        this.proactiveIgnoredTimer_ === null;
+    if (!isDeferred && !isPausedAfterShown) {
+      return false;
+    }
+    if (this.proactiveSuggestionReceivedAtMs_ <= 0 ||
+        Date.now() - this.proactiveSuggestionReceivedAtMs_ <=
+            PROACTIVE_DEFERRED_MAX_AGE_MS) {
+      return false;
+    }
+    this.clearProactiveIgnoredTimer_();
+    this.proactiveShownSuggestion_ = null;
+    this.proactiveSuggestion_ = null;
+    this.proactiveSuggestionReceivedAtMs_ = 0;
+    this.proactiveRunning_ = false;
+    return true;
+  }
+
+  private shouldReplaceProactiveSuggestion_(
+      incoming: ProactiveSuggestionData): boolean {
+    if (this.clearExpiredDeferredProactiveSuggestion_()) {
+      return true;
+    }
+    const current = this.proactiveSuggestion_;
+    if (!current) return true;
+    if (this.proactiveRunning_) return false;
+    if (current.url.trim() && incoming.url.trim() &&
+        !this.sameProactivePageUrl_(current.url, incoming.url)) {
+      return true;
+    }
+    return incoming.confidence >=
+        current.confidence + PROACTIVE_REPLACEMENT_CONFIDENCE_MARGIN;
+  }
+
+  private sameOptionalProactiveUrl_(lhs: string, rhs: string): boolean {
+    const left = lhs.trim();
+    const right = rhs.trim();
+    if (!left && !right) return true;
+    if (!left || !right) return false;
+    return this.sameProactivePageUrl_(left, right);
+  }
+
+  private isDuplicateProactiveSuggestion_(
+      incoming: ProactiveSuggestionData): boolean {
+    const current = this.proactiveSuggestion_;
+    if (!current || this.proactiveRunning_) return false;
+    return current.episodeId === incoming.episodeId &&
+        current.text === incoming.text &&
+        current.confidence === incoming.confidence &&
+        current.type === incoming.type &&
+        current.actionType === incoming.actionType &&
+        current.scenarioId === incoming.scenarioId &&
+        current.scenarioName === incoming.scenarioName &&
+        current.actionLabel === incoming.actionLabel &&
+        current.actionPrompt === incoming.actionPrompt &&
+        current.requiresPageContent === incoming.requiresPageContent &&
+        current.tabId === incoming.tabId &&
+        current.reason === incoming.reason &&
+        current.expectedOutcome === incoming.expectedOutcome &&
+        current.contextDisclosure === incoming.contextDisclosure &&
+        current.suppressionReason === incoming.suppressionReason &&
+        current.scoreDebugJson === incoming.scoreDebugJson &&
+        current.domain === incoming.domain &&
+        this.sameOptionalProactiveUrl_(current.url, incoming.url);
+  }
+
+  private shouldDropProactiveSuggestion_(
+      suggestion: ProactiveSuggestionData): boolean {
+    if (!Number.isFinite(suggestion.confidence)) {
+      return true;
+    }
+    if (!suggestion.scenarioId.trim()) return false;
+    if (suggestion.suppressionReason.trim()) {
+      return true;
+    }
+    return suggestion.confidence < PROACTIVE_SCENARIO_MIN_CONFIDENCE;
+  }
+
   private onProactiveSuggestion_(raw: unknown) {
-    if (localStorage.getItem('dao_proactive_enabled') === 'false') {
+    if (localStorage.getItem(DAO_PROACTIVE_ENABLED_KEY) === 'false') {
       return;
     }
     const suggestion = this.normalizeProactiveSuggestion_(raw);
     if (!suggestion) return;
+    if (this.shouldDropProactiveSuggestion_(suggestion)) {
+      return;
+    }
+    const suppressionKeys = this.proactiveSuppressionKeysForSuggestion_(
+        suggestion, undefined, {includeIdentityFallback: true});
+    if (suppressionKeys.some(key => this.proactiveNeverHereKeys_.has(key))) {
+      return;
+    }
+    if (this.isProactiveSuggestionSnoozed_(suggestion)) {
+      return;
+    }
+    if (this.clearExpiredDeferredProactiveSuggestion_()) {
+      // The new suggestion can now compete against an empty slot.
+    } else if (this.isDuplicateProactiveSuggestion_(suggestion)) {
+      return;
+    }
+    if (!this.shouldReplaceProactiveSuggestion_(suggestion)) {
+      return;
+    }
+    this.clearProactiveIgnoredTimer_();
+    this.proactiveShownSuggestion_ = null;
     this.proactiveSuggestion_ = suggestion;
+    this.proactiveSuggestionReceivedAtMs_ = Date.now();
     this.proactiveRunning_ = false;
+    this.activateProactiveSuggestionIfVisible_();
   }
 
   private renderProactiveCard_() {
+    if (this.clearExpiredDeferredProactiveSuggestion_()) {
+      return nothing;
+    }
     const s = this.proactiveSuggestion_;
-    if (!s) return nothing;
+    if (!s || !this.canActivateProactiveSuggestion_()) return nothing;
     const title = this.proactiveSuggestionTitle_(s);
     const running = this.proactiveRunning_ || this.isStreaming_;
+    const reason = this.proactiveSuggestionReason_(s);
+    const expectedOutcome = this.proactiveSuggestionExpectedOutcome_(s);
+    const contextDisclosure = this.proactiveSuggestionContextDisclosure_(s);
     return html`
       <div class="dao-proactive-card">
         <div class="dao-proactive-head">
@@ -3497,6 +4267,28 @@ export class DaoChatView extends CrLitElement {
           </svg>
           <div class="dao-proactive-copy">
             <div class="dao-proactive-title">${title}</div>
+            <div class="dao-proactive-details">
+              ${reason.trim() ? html`
+                <div class="dao-proactive-detail">
+                  <div class="dao-proactive-detail-label">
+                    ${t('chat.proactive.reason_label')}
+                  </div>
+                  <div>${reason}</div>
+                </div>` : nothing}
+              ${expectedOutcome.trim() ? html`
+                <div class="dao-proactive-detail">
+                  <div class="dao-proactive-detail-label">
+                    ${t('chat.proactive.expected_outcome_label')}
+                  </div>
+                  <div>${expectedOutcome}</div>
+                </div>` : nothing}
+              <div class="dao-proactive-detail">
+                <div class="dao-proactive-detail-label">
+                  ${t('chat.proactive.context_label')}
+                </div>
+                <div>${contextDisclosure}</div>
+              </div>
+            </div>
             <div class="dao-proactive-hint">
               ${t('chat.proactive.cost_hint')}
             </div>
@@ -3513,9 +4305,15 @@ export class DaoChatView extends CrLitElement {
           </button>
           <button class="dao-proactive-btn"
               ?disabled=${this.proactiveRunning_}
+              @click=${this.notNowProactiveSuggestion_}
+              aria-label=${t('chat.proactive.not_now_aria', {title})}>
+            ${t('chat.proactive.not_now')}
+          </button>
+          <button class="dao-proactive-btn"
+              ?disabled=${this.proactiveRunning_}
               @click=${this.dismissProactiveSuggestion_}
-              aria-label=${t('chat.proactive.dismiss_aria', {title})}>
-            ${t('chat.proactive.dismiss')}
+              aria-label=${t('chat.proactive.never_here_aria', {title})}>
+            ${t('chat.proactive.never_here')}
           </button>
         </div>
       </div>`;
@@ -3523,13 +4321,19 @@ export class DaoChatView extends CrLitElement {
 
   private async buildProactiveFeedback_(
       suggestion: ProactiveSuggestionData): Promise<Record<string, unknown>> {
-    let url = '';
-    let domain = '';
-    try {
-      const info = await fetchCurrentPageInfo();
-      url = info?.url || '';
-      domain = url ? new URL(url).hostname : '';
-    } catch (_) { /* best effort */ }
+    let url = suggestion.url.trim();
+    let domain = suggestion.domain.trim();
+    if (!url || !domain) {
+      try {
+        const info = await fetchCurrentPageInfo();
+        url = url || info?.url || '';
+      } catch (_) { /* best effort */ }
+    }
+    if (!domain && url) {
+      try {
+        domain = new URL(url).hostname;
+      } catch (_) { /* best effort */ }
+    }
     return {
       scenarioId: suggestion.scenarioId,
       actionLabel: suggestion.actionLabel || suggestion.text,
@@ -3537,6 +4341,23 @@ export class DaoChatView extends CrLitElement {
       url,
       confidence: suggestion.confidence,
     };
+  }
+
+  private async recordProactiveFeedback_(
+      suggestion: ProactiveSuggestionData,
+      outcome: 'shown'|'not_now'|'ignored'|'failed',
+      feedback?: Record<string, unknown>) {
+    if (!suggestion.scenarioId.trim()) {
+      return;
+    }
+    try {
+      await callNativeArgs('recordActionFeedback', {
+        ...(feedback || await this.buildProactiveFeedback_(suggestion)),
+        outcome,
+      });
+    } catch (e) {
+      console.warn('[dao-agent] record proactive feedback failed', e);
+    }
   }
 
   private truncateProactivePageContent_(text: string):
@@ -3581,10 +4402,16 @@ export class DaoChatView extends CrLitElement {
   private async buildProactivePayload_(
       suggestion: ProactiveSuggestionData):
       Promise<{text: string, attachments: PiAttachment[]}> {
-    const title = this.proactiveSuggestionTitle_(suggestion);
-    if (!suggestion.actionPrompt) {
+    if (!suggestion.scenarioId.trim()) {
       return {
         text: this.proactiveSuggestionPrompt_(suggestion),
+        attachments: [],
+      };
+    }
+
+    if (!suggestion.actionPrompt) {
+      return {
+        text: this.proactiveSuggestionVisiblePrompt_(suggestion),
         attachments: [],
       };
     }
@@ -3604,20 +4431,46 @@ export class DaoChatView extends CrLitElement {
     }
 
     return {
-      text: t('chat.proactive.user_prompt', {title}),
+      text: this.proactiveSuggestionVisiblePrompt_(suggestion),
       attachments: [this.buildProactivePromptAttachment_(suggestion, prompt)],
     };
+  }
+
+  private async notNowProactiveSuggestion_() {
+    const suggestion = this.proactiveSuggestion_;
+    if (!suggestion) return;
+    this.clearProactiveIgnoredTimer_();
+    if (!await this.ensureProactiveSuggestionCurrent_(suggestion)) {
+      return;
+    }
+    this.proactiveShownSuggestion_ = null;
+    this.proactiveSuggestion_ = null;
+    this.proactiveSuggestionReceivedAtMs_ = 0;
+    const feedback = await this.buildProactiveFeedback_(suggestion);
+    this.rememberNotNowProactiveSuggestion_(suggestion, feedback);
+    await this.recordProactiveFeedback_(suggestion, 'not_now', feedback);
   }
 
   private async dismissProactiveSuggestion_() {
     const suggestion = this.proactiveSuggestion_;
     if (!suggestion) return;
+    this.clearProactiveIgnoredTimer_();
+    if (!await this.ensureProactiveSuggestionCurrent_(suggestion)) {
+      return;
+    }
+    this.proactiveShownSuggestion_ = null;
     this.proactiveSuggestion_ = null;
+    this.proactiveSuggestionReceivedAtMs_ = 0;
     try {
+      const feedback = await this.buildProactiveFeedback_(suggestion);
+      this.rememberNeverHereProactiveSuggestion_(suggestion, feedback);
       if (suggestion.scenarioId) {
         await callNativeArgs(
             'dismissSuggestion',
-            await this.buildProactiveFeedback_(suggestion));
+            {
+              ...feedback,
+              outcome: 'never_here',
+            });
       } else if (suggestion.episodeId) {
         await callNativeArgs('dismissSuggestion', suggestion.episodeId);
       }
@@ -3639,24 +4492,49 @@ export class DaoChatView extends CrLitElement {
       return;
     }
 
+    if (!await this.ensureProactiveSuggestionCurrent_(suggestion)) {
+      return;
+    }
+
+    this.clearProactiveIgnoredTimer_();
     this.proactiveRunning_ = true;
     try {
       const payload = await this.buildProactivePayload_(suggestion);
-      if (suggestion.scenarioId) {
-        await callNativeArgs(
-            'acceptSuggestion',
-            await this.buildProactiveFeedback_(suggestion));
-      } else if (suggestion.episodeId) {
-        await callNativeArgs('acceptSuggestion', suggestion.episodeId);
-      }
-      this.proactiveSuggestion_ = null;
       // The proactive payload already carries its deliberate context. Skip
       // automatic page / selection / memory attachment for this turn so a
       // click never sends duplicate page text.
       this.suppressChipAttachOnce_ = true;
       await iface.sendMessage(payload.text, payload.attachments);
+      let feedback: Record<string, unknown>|null = null;
+      try {
+        if (suggestion.scenarioId) {
+          feedback = await this.buildProactiveFeedback_(suggestion);
+          await callNativeArgs(
+              'acceptSuggestion', feedback);
+        } else if (suggestion.episodeId) {
+          await callNativeArgs('acceptSuggestion', suggestion.episodeId);
+        }
+      } catch (e) {
+        console.warn('[dao-agent] accept proactive suggestion failed', e);
+      }
+      if (suggestion.scenarioId.trim()) {
+        feedback = feedback || await this.buildProactiveFeedback_(suggestion);
+        this.rememberNotNowProactiveSuggestion_(
+            suggestion, feedback);
+      }
+      this.proactiveSuggestion_ = null;
+      this.proactiveShownSuggestion_ = null;
+      this.proactiveSuggestionReceivedAtMs_ = 0;
     } catch (e) {
       console.warn('[dao-agent] proactive suggestion failed', e);
+      let feedback: Record<string, unknown> = {};
+      try {
+        feedback = await this.buildProactiveFeedback_(suggestion);
+      } catch (_) {
+        // Keep failure cleanup reliable even if page metadata is unavailable.
+      }
+      this.clearProactiveIgnoredTimer_();
+      await this.recordProactiveFeedback_(suggestion, 'failed', feedback);
       this.showToast_(t('chat.proactive.failed'));
     } finally {
       this.proactiveRunning_ = false;
@@ -3783,10 +4661,12 @@ export class DaoChatView extends CrLitElement {
   // Public entry used by the app shell's history button.
   openHistory() {
     this.historyOpen_ = true;
+    this.activateProactiveSuggestionIfVisible_();
   }
 
   private onHistoryClose_() {
     this.historyOpen_ = false;
+    this.activateProactiveSuggestionIfVisible_();
   }
 
   private async onHistorySelect_(e: CustomEvent<{id: string}>) {
@@ -3831,6 +4711,7 @@ export class DaoChatView extends CrLitElement {
       this.isStreaming_ = false;
       this.sentPageUrls_.clear();
       this.dismissedUrls_.clear();
+      this.clearProactiveSuggestionState_();
       this.pendingPageAttachment_ = null;
       this.pendingSelection_ = null;
       this.pendingElementContexts_ = getReusableElementContexts();
@@ -3975,6 +4856,7 @@ export class DaoChatView extends CrLitElement {
     // current active tab gets a new chip offered to the user.
     this.sentPageUrls_.clear();
     this.dismissedUrls_.clear();
+    this.clearProactiveSuggestionState_();
     this.pendingPageAttachment_ = null;
     this.pendingSelection_ = null;
     this.pendingElementContexts_ = getReusableElementContexts();

@@ -47,12 +47,63 @@ const dict: Dictionary = {
   'chat.proactive.run': 'Run',
   'chat.proactive.running': 'Starting…',
   'chat.proactive.dismiss': 'Dismiss',
+  'chat.proactive.not_now': 'Not now',
+  'chat.proactive.not_now_aria': 'Ignore suggestion for now: {title}',
+  'chat.proactive.never_here': "Don't suggest on this page",
+  'chat.proactive.never_here_aria':
+      "Don't suggest on this page again: {title}",
   'chat.proactive.run_aria': 'Run suggestion: {title}',
   'chat.proactive.dismiss_aria': 'Dismiss suggestion: {title}',
   'chat.proactive.failed': 'Could not start this suggestion',
   'chat.proactive.user_prompt': 'Run suggestion: {title}',
   'chat.proactive.default_user_prompt': 'Help me with this page.',
+  'chat.proactive.reason_label': 'Why Dao suggested this',
+  'chat.proactive.expected_outcome_label': 'Expected outcome',
+  'chat.proactive.context_label': 'Context disclosure',
+  'chat.proactive.visible_prompt_reason_header': 'Why Dao suggested this:',
+  'chat.proactive.visible_prompt_expected_header': 'Expected outcome:',
+  'chat.proactive.default_context_disclosure':
+      'Dao will only attach the current page after you click Run.',
+  'chat.proactive.default_expected_outcome':
+      'Help you make progress on this page.',
+  'chat.proactive.context.captures_after_run':
+      'Dao will only attach visible page text after you click Run.',
+  'chat.proactive.context.no_capture_before_run':
+      'No page text is captured before Run.',
+  'chat.proactive.reason.sensitive_page':
+      'This page looks sensitive, so proactive help stays off until you ask.',
+  'chat.proactive.reason.fatigue':
+      'Recent dismissals on this domain suggest staying quiet for now.',
+  'chat.proactive.reason.typing':
+      'You are actively typing, so Dao will wait until the page is less interruptible.',
+  'chat.proactive.reason.missing_action_evidence':
+      'The page matches this action, but Dao cannot see enough evidence for a useful result yet.',
+  'chat.proactive.reason.poor_personal_fit':
+      'You have skipped this personalized suggestion often, so Dao will stay quiet here.',
+  'chat.proactive.reason.insufficient_content':
+      'The page matches this scenario, but there is not enough visible content yet.',
+  'chat.proactive.reason.structured_content':
+      'The page matches this scenario and shows structured content that should produce a useful result.',
+  'chat.proactive.reason.matched_structure':
+      'The page matches this scenario and has enough visible structure for a useful result.',
+  'chat.proactive.expected.review_code':
+      'Produces a concise review with issues, suggestions, and an overall assessment.',
+  'chat.proactive.expected.analyze_issue':
+      'Produces a short issue summary with key discussion points and next steps.',
+  'chat.proactive.expected.analyze_progress':
+      'Produces a status readout with blockers, risks, and priority recommendations.',
+  'chat.proactive.expected.summarize_doc':
+      'Produces a quick summary of the page with key concepts and caveats.',
+  'chat.proactive.expected.extract_answer':
+      'Produces the likely answer with important caveats pulled into one place.',
+  'chat.proactive.expected.default':
+      'Produces a focused result for this page.',
   'chat.proactive.attachment_title': 'Proactive suggestion',
+  'chat.proactive.title.review_code': 'Review this PR',
+  'chat.proactive.title.analyze_issue': 'Analyze this issue',
+  'chat.proactive.title.analyze_progress': 'Analyze project progress',
+  'chat.proactive.title.summarize_doc': 'Summarize this doc',
+  'chat.proactive.title.extract_answer': 'Extract the answer',
   'chat.proactive.repeat_action_title':
       'You usually interact with this page. Want me to help again?',
   'chat.proactive.continue_conversation_title':

@@ -66,6 +66,9 @@ import type {SearchSourceOverride} from './web_search/index.js';
 
 const DAO_AGENT_DEBUG_MODE_KEY = 'dao_agent_debug_mode';
 const DAO_AGENT_DEBUG_MODE_CHANGED_EVENT = 'dao-agent-debug-mode-changed';
+const DAO_PROACTIVE_ENABLED_KEY = 'dao_proactive_enabled';
+const DAO_PROACTIVE_ENABLED_CHANGED_EVENT =
+    'dao-proactive-enabled-changed';
 
 export class DaoSettingsView extends CrLitElement {
   static override get properties() {
@@ -710,6 +713,15 @@ export class DaoSettingsView extends CrLitElement {
         {detail: {enabled}}));
   }
 
+  private setProactiveEnabled_(enabled: boolean) {
+    this.proactiveEnabled_ = enabled;
+    localStorage.setItem(DAO_PROACTIVE_ENABLED_KEY, String(enabled));
+    window.dispatchEvent(new CustomEvent(
+        DAO_PROACTIVE_ENABLED_CHANGED_EVENT,
+        {detail: {enabled}}));
+    callNativeArgs('setProactiveEnabled', enabled).catch(() => {});
+  }
+
   private getProviderSpec_(id: string): ProviderSpec {
     return LLM_PROVIDERS.find(p => p.id === id) ?? LLM_PROVIDERS[0]!;
   }
@@ -792,10 +804,7 @@ export class DaoSettingsView extends CrLitElement {
             t('settings.memory.proactive_name'),
             t('settings.memory.proactive_desc'),
             this.proactiveEnabled_, (v) => {
-              this.proactiveEnabled_ = v;
-              localStorage.setItem(
-                  'dao_proactive_enabled', String(v));
-              callNativeArgs('setProactiveEnabled', v).catch(() => {});
+              this.setProactiveEnabled_(v);
             })}
 
         <div class="setting-group">
@@ -1247,7 +1256,7 @@ export class DaoSettingsView extends CrLitElement {
   private loadMemorySettings_() {
     this.memoryEnabled_ = false;
     this.proactiveEnabled_ =
-        localStorage.getItem('dao_proactive_enabled') !== 'false';
+        localStorage.getItem(DAO_PROACTIVE_ENABLED_KEY) !== 'false';
     this.pageContextEnabled_ =
         localStorage.getItem('dao_page_context_enabled') !== 'false';
     this.conversationEnabled_ =

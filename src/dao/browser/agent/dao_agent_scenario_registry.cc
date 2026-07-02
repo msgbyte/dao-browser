@@ -17,6 +17,14 @@ bool MatchesUrlPattern(const std::string& url, const std::string& pattern) {
   return RE2::PartialMatch(url, pattern);
 }
 
+double AcceptanceRate(const ScenarioDefinition& scenario) {
+  if (scenario.times_triggered <= 0) {
+    return 0.5;
+  }
+  return static_cast<double>(scenario.times_accepted) /
+         static_cast<double>(scenario.times_triggered);
+}
+
 }  // namespace
 
 DaoAgentScenarioRegistry::DaoAgentScenarioRegistry() {
@@ -48,69 +56,77 @@ void DaoAgentScenarioRegistry::RemovePersonalScenario(const std::string& id) {
 
 std::optional<ScenarioDefinition> DaoAgentScenarioRegistry::Match(
     const std::string& url) const {
-  // Priority 1: Seed scenarios — most specific URL pattern wins.
-  const ScenarioDefinition* best_seed = nullptr;
-  size_t best_pattern_len = 0;
-
-  for (const auto& s : seed_scenarios_) {
-    if (MatchesUrlPattern(url, s.url_pattern)) {
-      if (s.url_pattern.size() > best_pattern_len) {
-        best_seed = &s;
-        best_pattern_len = s.url_pattern.size();
-      }
-    }
+  std::vector<ScenarioDefinition> matches = GetMatchingScenarios(url);
+  if (!matches.empty()) {
+    return matches.front();
   }
-  if (best_seed) {
-    return *best_seed;
-  }
-
-  // Priority 2: Personal scenarios — highest acceptance rate wins.
-  const ScenarioDefinition* best_personal = nullptr;
-  double best_rate = -1.0;
-
-  for (const auto& s : personal_scenarios_) {
-    if (MatchesUrlPattern(url, s.url_pattern)) {
-      double rate = s.times_triggered > 0
-                        ? static_cast<double>(s.times_accepted) /
-                              s.times_triggered
-                        : 0.5;  // Neutral default for new scenarios.
-      if (rate > best_rate) {
-        best_personal = &s;
-        best_rate = rate;
-      }
-    }
-  }
-  if (best_personal) {
-    return *best_personal;
-  }
-
   return std::nullopt;
 }
 
+std::vector<ScenarioDefinition> DaoAgentScenarioRegistry::GetMatchingScenarios(
+    const std::string& url) const {
+  std::vector<ScenarioDefinition> seed_matches;
+  std::vector<ScenarioDefinition> personal_matches;
+
+  for (const auto& scenario : seed_scenarios_) {
+    if (MatchesUrlPattern(url, scenario.url_pattern)) {
+      seed_matches.push_back(scenario);
+    }
+  }
+  for (const auto& scenario : personal_scenarios_) {
+    if (MatchesUrlPattern(url, scenario.url_pattern)) {
+      personal_matches.push_back(scenario);
+    }
+  }
+
+  std::stable_sort(seed_matches.begin(), seed_matches.end(),
+                   [](const ScenarioDefinition& lhs,
+                      const ScenarioDefinition& rhs) {
+                     return lhs.url_pattern.size() > rhs.url_pattern.size();
+                   });
+  std::stable_sort(personal_matches.begin(), personal_matches.end(),
+                   [](const ScenarioDefinition& lhs,
+                      const ScenarioDefinition& rhs) {
+                     return AcceptanceRate(lhs) > AcceptanceRate(rhs);
+                   });
+
+  std::vector<ScenarioDefinition> matches;
+  matches.reserve(seed_matches.size() + personal_matches.size());
+  matches.insert(matches.end(), seed_matches.begin(), seed_matches.end());
+  matches.insert(matches.end(), personal_matches.begin(),
+                 personal_matches.end());
+  return matches;
+}
+
 void DaoAgentScenarioRegistry::InitSeedScenarios() {
-  // Seed 1: GitHub PR Review
+  // Seed 1: Pull Request / Merge Request Review
   {
     ScenarioDefinition s;
     s.id = "seed_github_pr";
     s.type = "seed";
-    s.name = "Review this PR";
-    s.description = "Read the PR diff and provide a code review with suggestions";
-    s.url_pattern = R"(^https://github\.com/[^/]+/[^/]+/pull/\d+)";
+    s.name = "Review this change";
+    s.description =
+        "Read the PR or MR diff and provide a code review with suggestions";
+    s.url_pattern =
+        R"((^https://github\.com/[^/]+/[^/]+/pull/\d+|/-/merge_requests/\d+))";
+    s.page_hints =
+        R"(["pull request","pull requests","merge request","merge requests","code review","diff"])";
     s.action_prompt =
-        "You are a code reviewer. Review the following pull request changes.\n"
+        "You are a code reviewer. Review the following pull request or merge "
+        "request changes.\n"
         "Provide:\n"
-        "1. A brief summary of what this PR does\n"
+        "1. A brief summary of what this change does\n"
         "2. Potential issues or bugs (if any)\n"
         "3. Suggestions for improvement\n"
         "4. Overall assessment (approve / request changes / needs discussion)\n"
         "\n"
-        "PR content:\n{page_content}";
+        "Change content:\n{page_content}";
     s.action_label = "review_code";
     s.requires_page_content = true;
     seed_scenarios_.push_back(std::move(s));
   }
 
-  // Seed 2: GitHub Issue Analysis
+  // Seed 2: Issue Analysis
   {
     ScenarioDefinition s;
     s.id = "seed_github_issue";
@@ -118,9 +134,11 @@ void DaoAgentScenarioRegistry::InitSeedScenarios() {
     s.name = "Analyze this issue";
     s.description =
         "Summarize the issue, identify key points, and suggest next steps";
-    s.url_pattern = R"(^https://github\.com/[^/]+/[^/]+/issues/\d+)";
+    s.url_pattern =
+        R"((^https://github\.com/[^/]+/[^/]+/issues/\d+|/-/issues/\d+))";
+    s.page_hints = R"(["issue","bug","blocked","blocker"])";
     s.action_prompt =
-        "Analyze this GitHub issue. Provide:\n"
+        "Analyze this issue. Provide:\n"
         "1. Issue summary (1-2 sentences)\n"
         "2. Key discussion points from comments\n"
         "3. Current status and blockers\n"
@@ -162,8 +180,9 @@ void DaoAgentScenarioRegistry::InitSeedScenarios() {
     s.name = "Summarize this doc";
     s.description =
         "Extract key points from documentation for quick understanding";
-    s.url_pattern = R"((docs\.|documentation|readme|wiki|\.md))";
-    s.page_hints = R"(["documentation","API","guide","reference"])";
+    s.url_pattern =
+        R"((docs\.|documentation|readme|wiki|\.md|/(docs|api|reference|guide)(/|$|[?#])))";
+    s.page_hints = R"(["docs","documentation","API","guide","reference"])";
     s.action_prompt =
         "Summarize this documentation page. Provide:\n"
         "1. What this page is about (1 sentence)\n"
@@ -184,7 +203,8 @@ void DaoAgentScenarioRegistry::InitSeedScenarios() {
     s.type = "seed";
     s.name = "Extract the answer";
     s.description = "Find the best answer and summarize the solution";
-    s.url_pattern = R"((stackoverflow\.com/questions|stackexchange\.com|discuss\.))";
+    s.url_pattern =
+        R"(^https://(([^/]+\.)?stackoverflow\.com/questions/|[^/]+\.stackexchange\.com/questions/|discuss\.[^/]+/t/))";
     s.action_prompt =
         "This is a Q&A page. Extract:\n"
         "1. The question (1 sentence)\n"

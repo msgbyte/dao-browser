@@ -31,12 +31,59 @@ const dict: Dictionary = {
   'chat.proactive.run': '运行',
   'chat.proactive.running': '启动中…',
   'chat.proactive.dismiss': '忽略',
+  'chat.proactive.not_now': '暂时不要',
+  'chat.proactive.not_now_aria': '暂时忽略建议:{title}',
+  'chat.proactive.never_here': '不要在此页建议',
+  'chat.proactive.never_here_aria': '不要再在此页建议:{title}',
   'chat.proactive.run_aria': '运行建议:{title}',
   'chat.proactive.dismiss_aria': '忽略建议:{title}',
   'chat.proactive.failed': '无法启动此建议',
   'chat.proactive.user_prompt': '运行建议:{title}',
   'chat.proactive.default_user_prompt': '帮我处理当前页面。',
+  'chat.proactive.reason_label': 'Dao 为什么建议这个',
+  'chat.proactive.expected_outcome_label': '预期结果',
+  'chat.proactive.context_label': '上下文说明',
+  'chat.proactive.visible_prompt_reason_header': 'Dao 为什么建议这个:',
+  'chat.proactive.visible_prompt_expected_header': '预期结果:',
+  'chat.proactive.default_context_disclosure':
+      '只有在你点击“运行”后,Dao 才会附带当前页面内容。',
+  'chat.proactive.default_expected_outcome': '帮助你在当前页面上继续推进。',
+  'chat.proactive.context.captures_after_run':
+      '只有在你点击“运行”后,Dao 才会附带可见页面文本。',
+  'chat.proactive.context.no_capture_before_run': '运行前不会读取页面文本。',
+  'chat.proactive.reason.sensitive_page':
+      '这个页面看起来比较敏感,Dao 会保持安静,除非你主动询问。',
+  'chat.proactive.reason.fatigue':
+      '你最近在这个站点多次略过类似建议,所以先保持安静。',
+  'chat.proactive.reason.typing':
+      '你正在输入内容,Dao 会等到不那么容易打断你的时机。',
+  'chat.proactive.reason.missing_action_evidence':
+      '页面匹配这个动作,但 Dao 还看不到足够证据来生成有用结果。',
+  'chat.proactive.reason.poor_personal_fit':
+      '你已经多次跳过这个个性化建议,所以 Dao 会先保持安静。',
+  'chat.proactive.reason.insufficient_content':
+      '页面匹配这个场景,但目前可见内容还不够多。',
+  'chat.proactive.reason.structured_content':
+      '页面匹配这个场景,并且包含适合处理的结构化内容。',
+  'chat.proactive.reason.matched_structure':
+      '页面匹配这个场景,且已有足够结构可以得到有用结果。',
+  'chat.proactive.expected.review_code':
+      '生成一份简洁的代码审查,包含问题、建议和整体判断。',
+  'chat.proactive.expected.analyze_issue':
+      '生成简短的问题总结,整理关键讨论点和下一步。',
+  'chat.proactive.expected.analyze_progress':
+      '生成进度概览,指出阻塞、风险和优先级建议。',
+  'chat.proactive.expected.summarize_doc':
+      '快速总结页面重点,提炼关键概念和注意事项。',
+  'chat.proactive.expected.extract_answer':
+      '整理出可能答案,并把重要限制条件放在一起。',
+  'chat.proactive.expected.default': '为当前页面生成聚焦的处理结果。',
   'chat.proactive.attachment_title': '主动建议',
+  'chat.proactive.title.review_code': '审阅这个 PR',
+  'chat.proactive.title.analyze_issue': '分析这个 issue',
+  'chat.proactive.title.analyze_progress': '分析项目进展',
+  'chat.proactive.title.summarize_doc': '总结这篇文档',
+  'chat.proactive.title.extract_answer': '提炼答案',
   'chat.proactive.repeat_action_title': '你经常和这个页面互动,要我再帮一次吗?',
   'chat.proactive.continue_conversation_title': '上次在这里,你讨论了:{intent}',
   'chat.proactive.continue_conversation_title_fallback': '继续上次的进度?',

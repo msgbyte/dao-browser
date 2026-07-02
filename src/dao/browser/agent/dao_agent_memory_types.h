@@ -61,7 +61,9 @@ struct ActionFeedback {
   std::string domain;
   std::string url;
   double trigger_confidence = 0.0;
-  std::string outcome;  // "shown","clicked","dismissed","ignored","completed","error"
+  // "shown","accepted","clicked","dismissed","never_here","not_now",
+  // "ignored","completed","failed","helpful","not_helpful"
+  std::string outcome;
   base::Time timestamp;
   std::string session_id;
 };
@@ -215,6 +217,13 @@ struct ProactiveSuggestion {
   std::string scenario_name;
   std::string action_label;
   std::string action_prompt;
+  std::string reason;              // Stable WebUI i18n code.
+  std::string expected_outcome;    // Stable WebUI i18n code.
+  std::string context_disclosure;  // Stable WebUI i18n code.
+  std::string suppression_reason;
+  std::string score_debug_json;
+  std::string url;
+  std::string domain;
   bool requires_page_content = false;
   int tab_id = -1;
 };

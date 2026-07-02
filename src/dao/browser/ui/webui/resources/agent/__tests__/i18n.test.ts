@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { currentLocale, t } from '../i18n/i18n.js';
+import zhCN from '../i18n/locales/zh-CN.js';
 
 describe('i18n.t()', () => {
   it('returns the English string for a known key without init', () => {
@@ -38,5 +39,15 @@ describe('i18n.t()', () => {
     // Without initI18n() being awaited in the test environment,
     // the active locale should be the synchronous default.
     expect(currentLocale()).toBe('en');
+  });
+
+  it('describes proactive never-here as page-scoped', () => {
+    expect(t('chat.proactive.never_here'))
+        .toBe("Don't suggest on this page");
+    expect(t('chat.proactive.never_here_aria', {title: 'Review this PR'}))
+        .toBe("Don't suggest on this page again: Review this PR");
+    expect(zhCN['chat.proactive.never_here']).toBe('不要在此页建议');
+    expect(zhCN['chat.proactive.never_here_aria'])
+        .toBe('不要再在此页建议:{title}');
   });
 });

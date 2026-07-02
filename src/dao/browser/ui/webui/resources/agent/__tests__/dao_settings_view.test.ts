@@ -29,7 +29,7 @@ vi.mock('../agent_bridge.js', () => ({
   callNative: (...args: unknown[]) => settingsMocks.callNative(...args),
   callNativeArgs: (...args: unknown[]) =>
       settingsMocks.callNativeArgs(...args),
-  CONFIDENCE_THRESHOLD_MAP: {quiet: 0.4, balanced: 0.7, active: 0.9},
+  CONFIDENCE_THRESHOLD_MAP: {quiet: 0.85, balanced: 0.75, active: 0.6},
   currentSoulContent: 'soul',
   DEFAULT_SOUL: 'default soul',
   getAgentStats: () => ({
@@ -189,4 +189,29 @@ describe('dao-settings-view dream controls', () => {
     });
     window.removeEventListener('dao-agent-debug-mode-changed', listener);
   });
+
+  it('broadcasts proactive setting changes to the current agent view',
+     async () => {
+       const listener = vi.fn();
+       window.addEventListener('dao-proactive-enabled-changed', listener);
+       const view = await mountMemorySettings();
+       const input = view.shadowRoot!.querySelector(
+           'label[aria-label="settings.memory.proactive_name"] input',
+       ) as HTMLInputElement|null;
+       expect(input).toBeTruthy();
+       settingsMocks.callNativeArgs.mockClear();
+
+       input!.checked = false;
+       input!.dispatchEvent(new Event('change'));
+       await view.updateComplete;
+
+       expect(localStorage.getItem('dao_proactive_enabled')).toBe('false');
+       expect(settingsMocks.callNativeArgs).toHaveBeenCalledWith(
+           'setProactiveEnabled', false);
+       expect(listener).toHaveBeenCalledTimes(1);
+       expect(listener.mock.calls[0][0]).toMatchObject({
+         detail: {enabled: false},
+       });
+       window.removeEventListener('dao-proactive-enabled-changed', listener);
+     });
 });

@@ -90,6 +90,13 @@ export interface ProactiveSuggestionData {
   actionPrompt: string;
   requiresPageContent: boolean;
   tabId: number;
+  reason: string;
+  expectedOutcome: string;
+  contextDisclosure: string;
+  suppressionReason: string;
+  scoreDebugJson: string;
+  url: string;
+  domain: string;
 }
 
 // ---- UI Message (for rendering) ----
@@ -323,7 +330,7 @@ You have the following browser tools at your disposal — use them proactively w
 - **get_network_body** — Fetch the response body of a network request by \`request_id\` (from \`get_network_requests\`). Use this to inspect XHR / fetch payloads that \`list_page_resources\` doesn't cover. Requires \`enable_network_tracking\` to have run first.
 - **search_in_resources** — Regex-search across all loaded text resources (scripts / stylesheets / documents). Returns the first N matches with URL, line number, and a short excerpt. Useful for locating a function, API endpoint, or string in a minified bundle without downloading each file.
 - **update_soul** — Modify your SOUL.md (the personality prompt you see above). Two actions: \`replace_section\` (replace or add a specific ## section), \`replace_all\` (rewrite entirely).
-- **save_memory** — Save a record of what you did on this page to long-term memory (intent + outcome). Use after completing a meaningful task so you have context next time the user visits this page.
+- **save_memory** — Save a durable record of a successful, reusable page workflow. Use only when the user explicitly asks you to remember it, or when the same action is likely to help again on this page/domain. Do not use for one-off summaries, simple extraction, casual Q&A, failed attempts, or routine browsing context.
 - **save_skill** — Save a reusable skill as a Markdown document. Skills are user-defined automation recipes the agent can discover and execute in future sessions. Use when the user asks you to remember a workflow or create an automation for a specific site or task.
 - **activate_skill** — Load full instructions for a skill listed in \`<available_skills>\`. Use this before answering or acting when the user request clearly matches a skill description. Do not invent skill ids.
 
@@ -349,7 +356,7 @@ You have the following browser tools at your disposal — use them proactively w
 - For \`execute_script\`, return serializable values (strings, numbers, plain objects). Avoid returning DOM nodes directly.
 - When \`execute_script\` will click, type, submit, scroll, or otherwise manipulate the page, set \`lock_tab\` to true. Leave it false for read-only extraction scripts.
 - Always tell the user what you did after using a tool.
-- After completing a significant task (e.g. summarizing a page, extracting data, helping with a form), use \`save_memory\` to record what you did so you have context next time the user visits this page.
+- Do not automatically save memory after routine tasks. Use \`save_memory\` only when the work was successful and reusable: the user explicitly asked you to remember it, or the same page/domain workflow is likely to be useful again. Skip it for one-off summaries, simple extraction, casual Q&A, failed attempts, and anything privacy-sensitive.
 
 ## Soul Self-Update
 
@@ -392,8 +399,8 @@ Be the assistant you'd actually want to talk to. Concise when needed, thorough w
 
 export const CONFIDENCE_THRESHOLD_MAP: Record<string, number> = {
   'quiet': 0.85,
-  'balanced': 0.7,
-  'active': 0.5,
+  'balanced': 0.75,
+  'active': 0.60,
 };
 
 // ---- Soul Management ----
@@ -595,22 +602,31 @@ export const tools: ToolDefinition[] = [
     function: {
       name: 'save_memory',
       description:
-          'Save a record of what you did on this page to long-term memory. Use after completing a meaningful task so you have context next time the user visits this page.',
+          'Save a durable record of a successful, reusable page workflow. Use only when the user asked you to remember it or when repeating this action on the same page/domain would likely help later. Do not use for one-off summaries, simple extraction, casual Q&A, failed attempts, or sensitive pages.',
       parameters: {
         type: 'object',
         properties: {
           intent: {
             type: 'string',
-            description:
-                'What the user wanted to do on this page',
+            description: 'The reusable task or workflow the user wanted',
           },
           outcome: {
             type: 'string',
             description:
-                'What happened / the result of the interaction',
+                'The successful result worth remembering for future visits',
+          },
+          reusable: {
+            type: 'boolean',
+            description:
+                'Set true only when this memory should help future same-page or same-domain work, or when the user explicitly asked you to remember it.',
+          },
+          save_reason: {
+            type: 'string',
+            description:
+                'Brief reason this is reusable enough to save; leave empty only when the user explicitly asked you to remember it.',
           },
         },
-        required: ['intent', 'outcome'],
+        required: ['intent', 'outcome', 'reusable'],
       },
     },
   },
@@ -1550,6 +1566,18 @@ export async function executeTool(
       if (!intent) {
         return {error: 'Missing intent for save_memory'};
       }
+      if (!outcome) {
+        return {error: 'Missing outcome for save_memory'};
+      }
+      if (!getBooleanArg(args, 'reusable')) {
+        return {
+          success: true,
+          saved: false,
+          reason: 'not_reusable',
+          message:
+              'Memory was not saved because reusable was not explicitly true.',
+        };
+      }
       let pageInfo: {url?: string; title?: string} = {};
       try {
         pageInfo = await callNative('getPageInfo') as
@@ -1564,6 +1592,14 @@ export async function executeTool(
           pathTemplate = u.pathname;
         } catch (_) { /* ignore */ }
       }
+      if (!domain) {
+        return {
+          success: true,
+          saved: false,
+          reason: 'missing_page_domain',
+          message: 'Memory was not saved because the current page domain is unavailable.',
+        };
+      }
       try {
         await callNative('saveEpisode', {
           domain,
@@ -1573,12 +1609,12 @@ export async function executeTool(
           intent,
           outcome,
           entities: '[]',
-          toolsUsed: '[]',
-          confidence: 0.7,
+          toolsUsed: '["save_memory"]',
+          confidence: 0.8,
           userAction: intent,
-          actionResult: '',
+          actionResult: 'helpful',
         });
-        return {success: true, message: 'Memory saved for ' + domain};
+        return {success: true, saved: true, message: 'Memory saved for ' + domain};
       } catch (e) {
         return {error: 'Failed to save memory: ' + (e as Error).message};
       }

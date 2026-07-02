@@ -16,6 +16,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/time/time.h"
 #include "sql/database.h"
 #include "sql/meta_table.h"
 #include "sql/statement.h"
@@ -255,6 +256,30 @@ bool IsSafePragma(const std::vector<std::string>& tokens) {
       "table_xinfo",
   });
   return kAllowedPragmas->contains(tokens[1]);
+}
+
+double NotNowCooldownContribution(base::Time now, base::Time timestamp) {
+  return now - timestamp < base::Days(1) ? 3.0 : 1.0;
+}
+
+double FailedCooldownContribution(base::Time now, base::Time timestamp) {
+  return now - timestamp < base::Hours(1) ? 3.0 : 0.25;
+}
+
+std::string EscapeSqlLikePattern(std::string_view value) {
+  std::string escaped;
+  escaped.reserve(value.size());
+  for (char c : value) {
+    if (c == '%' || c == '_' || c == '\\') {
+      escaped.push_back('\\');
+    }
+    escaped.push_back(c);
+  }
+  return escaped;
+}
+
+std::string SubdomainSqlLikePattern(const std::string& domain) {
+  return base::StrCat({"%.", EscapeSqlLikePattern(domain)});
 }
 
 std::optional<std::string> ValidateDebugReadOnlySql(std::string* sql) {
@@ -996,10 +1021,13 @@ std::vector<Episode> DaoAgentMemoryStore::GetEpisodesByDomain(
       SQL_FROM_HERE,
       "SELECT id, domain, path_template, url, title, intent, entities, "
       "tools_used, outcome, timestamp, confidence, user_action, action_result "
-      "FROM episodes WHERE domain=? "
+      "FROM episodes WHERE (domain=? OR domain LIKE ? ESCAPE '\\') "
+      "AND COALESCE(action_result, '')!='not_helpful' "
+      "AND COALESCE(outcome, '') NOT IN ('failed', 'not_helpful') "
       "ORDER BY timestamp DESC LIMIT ?"));
   stmt.BindString(0, domain);
-  stmt.BindInt(1, limit);
+  stmt.BindString(1, SubdomainSqlLikePattern(domain));
+  stmt.BindInt(2, limit);
 
   while (stmt.Step()) {
     Episode e;
@@ -1035,11 +1063,15 @@ std::vector<Episode> DaoAgentMemoryStore::SearchEpisodes(
       "e.confidence, e.user_action, e.action_result "
       "FROM episodes e "
       "JOIN episodes_fts f ON e.id = f.rowid "
-      "WHERE episodes_fts MATCH ? AND e.domain=? "
+      "WHERE episodes_fts MATCH ? "
+      "AND (e.domain=? OR e.domain LIKE ? ESCAPE '\\') "
+      "AND COALESCE(e.action_result, '')!='not_helpful' "
+      "AND COALESCE(e.outcome, '') NOT IN ('failed', 'not_helpful') "
       "ORDER BY rank LIMIT ?"));
   stmt.BindString(0, query);
   stmt.BindString(1, domain);
-  stmt.BindInt(2, limit);
+  stmt.BindString(2, SubdomainSqlLikePattern(domain));
+  stmt.BindInt(3, limit);
 
   while (stmt.Step()) {
     Episode e;
@@ -1404,24 +1436,25 @@ bool DaoAgentMemoryStore::RecordActionFeedback(const ActionFeedback& feedback) {
 }
 
 double DaoAgentMemoryStore::GetCooldownScore(const std::string& domain,
-                                              const std::string& scenario_id) {
+                                             const std::string& scenario_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // Find the last "clicked" timestamp for this domain+scenario.
-  int64_t last_click_ts = 0;
+  // Find the last positive timestamp for this domain+scenario.
+  int64_t last_positive_ts = 0;
   {
     sql::Statement stmt(db_->GetCachedStatement(
         SQL_FROM_HERE,
         "SELECT MAX(timestamp) FROM action_feedback "
-        "WHERE scenario_id=? AND domain=? AND outcome='clicked'"));
+        "WHERE scenario_id=? AND domain=? AND outcome IN "
+        "('accepted','clicked','completed','helpful')"));
     stmt.BindString(0, scenario_id);
     stmt.BindString(1, domain);
     if (stmt.Step() && stmt.GetColumnType(0) != sql::ColumnType::kNull) {
-      last_click_ts = stmt.ColumnInt64(0);
+      last_positive_ts = stmt.ColumnInt64(0);
     }
   }
 
-  // Sum cooldown contributions since the last click.
+  // Sum cooldown contributions since the last positive outcome.
   double score = 0.0;
   {
     sql::Statement stmt(db_->GetCachedStatement(
@@ -1431,22 +1464,30 @@ double DaoAgentMemoryStore::GetCooldownScore(const std::string& domain,
         "ORDER BY timestamp ASC"));
     stmt.BindString(0, scenario_id);
     stmt.BindString(1, domain);
-    stmt.BindInt64(2, last_click_ts);
+    stmt.BindInt64(2, last_positive_ts);
 
     base::Time now = base::Time::Now();
     while (stmt.Step()) {
       std::string outcome = stmt.ColumnString(0);
       base::Time ts = TimeFromInt(stmt.ColumnInt64(1));
       // Apply 7-day decay: subtract weeks elapsed.
-      int weeks_elapsed =
-          (now - ts).InDays() / 7;
+      int weeks_elapsed = (now - ts).InDays() / 7;
       double decay = static_cast<double>(weeks_elapsed);
 
       double contribution = 0.0;
-      if (outcome == "dismissed") {
-        contribution = 1.0;
+      if (outcome == "never_here") {
+        contribution = 3.0;
+        decay = 0.0;
+      } else if (outcome == "dismissed") {
+        contribution = 1.5;
+      } else if (outcome == "not_now") {
+        contribution = NotNowCooldownContribution(now, ts);
       } else if (outcome == "ignored") {
         contribution = 0.5;
+      } else if (outcome == "not_helpful") {
+        contribution = 1.0;
+      } else if (outcome == "failed") {
+        contribution = FailedCooldownContribution(now, ts);
       }
       score += std::max(0.0, contribution - decay);
     }
@@ -1458,7 +1499,8 @@ bool DaoAgentMemoryStore::ClearDismissedFeedback() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   sql::Statement stmt(db_->GetCachedStatement(
       SQL_FROM_HERE,
-      "DELETE FROM action_feedback WHERE outcome='dismissed'"));
+      "DELETE FROM action_feedback WHERE outcome IN ('dismissed',"
+      "'never_here')"));
   return stmt.Run();
 }
 

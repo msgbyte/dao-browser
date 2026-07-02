@@ -90,6 +90,7 @@
 #include "dao/browser/agent/dao_agent_workspace_types.h"
 #include "dao/browser/dao_auto_pip_visibility_helper.h"
 #include "dao/browser/dao_pref_names.h"
+#include "dao/browser/ui/webui/dao_agent_ui.h"
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/dao_webstore_branding_tab_helper.h"
@@ -4057,22 +4058,88 @@ IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest, AddAndRemovePersonal) {
   EXPECT_FALSE(registry.Match("https://example.com/app/home").has_value());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest, SeedBeatsPersonalOnConflict) {
+IN_PROC_BROWSER_TEST_F(
+    DaoAgentScenarioRegistryTest,
+    GetMatchingScenariosIncludesSeedAndPersonalOnConflict) {
   dao::DaoAgentScenarioRegistry registry;
 
-  // A personal scenario that would match a GitHub PR URL.
   dao::ScenarioDefinition s;
   s.id = "p_pr";
   s.type = "personal";
   s.url_pattern = R"(github\.com)";
   s.times_triggered = 10;
-  s.times_accepted = 10;  // 100% acceptance
+  s.times_accepted = 10;
   registry.AddPersonalScenario(s);
 
-  // Seed must still win because seed scenarios take priority.
-  auto match = registry.Match("https://github.com/foo/bar/pull/1");
-  ASSERT_TRUE(match.has_value());
-  EXPECT_EQ("seed_github_pr", match->id);
+  std::vector<dao::ScenarioDefinition> matches =
+      registry.GetMatchingScenarios("https://github.com/foo/bar/pull/1");
+  ASSERT_EQ(2u, matches.size());
+  EXPECT_EQ("seed_github_pr", matches[0].id);
+  EXPECT_EQ("p_pr", matches[1].id);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoAgentScenarioRegistryTest,
+    GetMatchingScenariosOrdersPersonalByAcceptanceRate) {
+  dao::DaoAgentScenarioRegistry registry;
+
+  dao::ScenarioDefinition high;
+  high.id = "p_high";
+  high.type = "personal";
+  high.url_pattern = R"(^https://example\.com/app)";
+  high.times_triggered = 10;
+  high.times_accepted = 7;
+  registry.AddPersonalScenario(high);
+
+  dao::ScenarioDefinition neutral;
+  neutral.id = "p_neutral";
+  neutral.type = "personal";
+  neutral.url_pattern = R"(^https://example\.com/app)";
+  registry.AddPersonalScenario(neutral);
+
+  dao::ScenarioDefinition low;
+  low.id = "p_low";
+  low.type = "personal";
+  low.url_pattern = R"(^https://example\.com/app)";
+  low.times_triggered = 10;
+  low.times_accepted = 2;
+  low.times_dismissed = 5;
+  registry.AddPersonalScenario(low);
+
+  std::vector<dao::ScenarioDefinition> matches =
+      registry.GetMatchingScenarios("https://example.com/app/home");
+  ASSERT_EQ(3u, matches.size());
+  EXPECT_EQ("p_high", matches[0].id);
+  EXPECT_EQ("p_neutral", matches[1].id);
+  EXPECT_EQ("p_low", matches[2].id);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoAgentScenarioRegistryTest,
+    GetMatchingScenariosOrdersOverlappingSeedMatchesByPatternLength) {
+  dao::DaoAgentScenarioRegistry registry;
+
+  auto& seeds = const_cast<std::vector<dao::ScenarioDefinition>&>(
+      registry.seed_scenarios());
+  seeds.clear();
+
+  dao::ScenarioDefinition short_seed;
+  short_seed.id = "seed_short";
+  short_seed.type = "seed";
+  short_seed.url_pattern = R"(docs)";
+  seeds.push_back(short_seed);
+
+  dao::ScenarioDefinition long_seed;
+  long_seed.id = "seed_long";
+  long_seed.type = "seed";
+  long_seed.url_pattern = R"(docs/reference)";
+  seeds.push_back(long_seed);
+
+  std::vector<dao::ScenarioDefinition> matches =
+      registry.GetMatchingScenarios("https://example.com/docs/reference/guide");
+  ASSERT_EQ(2u, matches.size());
+  EXPECT_EQ("seed_long", matches[0].id);
+  EXPECT_EQ("seed_short", matches[1].id);
 }
 
 // =============================================================================
@@ -4101,6 +4168,18 @@ bool HasEpisodeActionColumns(const base::FilePath& db_path) {
   sql::Statement stmt(db.GetUniqueStatement(
       "SELECT user_action, action_result FROM episodes LIMIT 0"));
   return stmt.is_valid();
+}
+
+dao::ActionFeedback MakeActionFeedback(std::string outcome,
+                                       base::Time timestamp) {
+  dao::ActionFeedback feedback;
+  feedback.scenario_id = "seed_review_code";
+  feedback.action_label = "review_code";
+  feedback.domain = "example.com";
+  feedback.url = "https://example.com/pull/123";
+  feedback.outcome = std::move(outcome);
+  feedback.timestamp = timestamp;
+  return feedback;
 }
 
 class DaoAgentMemoryStoreTest : public InProcessBrowserTest {
@@ -4190,6 +4269,87 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
   }
 
   EXPECT_TRUE(HasEpisodeActionColumns(db_path));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
+                       CooldownTreatsAcceptedAsPositiveReset) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  dao::DaoAgentMemoryStore store(
+      temp_dir.GetPath().AppendASCII("DaoAgentMemory.db"));
+  ASSERT_TRUE(store.Init());
+
+  const base::Time now = base::Time::Now();
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("dismissed", now - base::Days(3))));
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("accepted", now - base::Days(2))));
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("ignored", now - base::Days(1))));
+
+  EXPECT_DOUBLE_EQ(0.5,
+                   store.GetCooldownScore("example.com", "seed_review_code"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
+                       CooldownAppliesConfiguredOutcomeWeights) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  dao::DaoAgentMemoryStore store(
+      temp_dir.GetPath().AppendASCII("DaoAgentMemory.db"));
+  ASSERT_TRUE(store.Init());
+
+  const base::Time now = base::Time::Now();
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("not_now", now - base::Hours(4))));
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("dismissed", now - base::Hours(3))));
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("ignored", now - base::Hours(2))));
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("failed", now - base::Hours(1))));
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("not_helpful", now - base::Minutes(30))));
+
+  EXPECT_DOUBLE_EQ(6.25,
+                   store.GetCooldownScore("example.com", "seed_review_code"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
+                       CooldownTreatsNeverHereAsStrongSuppression) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  dao::DaoAgentMemoryStore store(
+      temp_dir.GetPath().AppendASCII("DaoAgentMemory.db"));
+  ASSERT_TRUE(store.Init());
+
+  ASSERT_TRUE(store.RecordActionFeedback(
+      MakeActionFeedback("never_here", base::Time::Now())));
+
+  EXPECT_GE(store.GetCooldownScore("example.com", "seed_review_code"), 3.0);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoAgentMemoryStoreTest,
+    ProactiveOutcomeDismissStatsClassifyUserNegativeFeedbackOnly) {
+  EXPECT_TRUE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+      "not_now"));
+  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+      "ignored"));
+  EXPECT_TRUE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+      "not_helpful"));
+  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+      "failed"));
+
+  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+      "shown"));
+  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+      "accepted"));
+  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+      "completed"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_PreferenceRoundTrip) {

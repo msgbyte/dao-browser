@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -38,6 +39,7 @@
 #include "chrome/grit/dao_agent_resources.h"
 #include "chrome/grit/dao_agent_resources_map.h"
 #include "components/pdf/browser/pdf_document_helper.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "components/prefs/pref_service.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
@@ -70,7 +72,7 @@ namespace dao {
 
 namespace {
 
-// Populate an ActionFeedback from a JS dict. Caller sets outcome separately.
+// Populate an ActionFeedback from a JS dict. Callers may normalize outcome.
 ActionFeedback ParseActionFeedbackFromDict(const base::DictValue& d) {
   ActionFeedback feedback;
   if (auto* sid = d.FindString("scenarioId")) {
@@ -411,6 +413,11 @@ constexpr char kAccessibilityTreeScript[] = R"js(
 )js";
 
 }  // namespace
+
+bool ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+    const std::string& outcome) {
+  return outcome == "not_now" || outcome == "not_helpful";
+}
 
 base::DictValue SerializeMemoryContextForAgentUi(
     const MemoryContext& context) {
@@ -3150,6 +3157,7 @@ void DaoAgentMemoryHandler::OnJavascriptAllowed() {
   proactive_engine_ =
       std::make_unique<DaoAgentProactiveEngine>(service, profile);
   proactive_engine_->SetDelegate(this);
+  RefreshPersonalScenarios();
   proactive_engine_->Start();
 }
 
@@ -3174,10 +3182,39 @@ void DaoAgentMemoryHandler::OnProactiveSuggestion(
   dict.Set("scenarioName", suggestion.scenario_name);
   dict.Set("actionLabel", suggestion.action_label);
   dict.Set("actionPrompt", suggestion.action_prompt);
+  dict.Set("reason", suggestion.reason);
+  dict.Set("expectedOutcome", suggestion.expected_outcome);
+  dict.Set("contextDisclosure", suggestion.context_disclosure);
+  dict.Set("suppressionReason", suggestion.suppression_reason);
+  dict.Set("scoreDebugJson", suggestion.score_debug_json);
+  dict.Set("url", suggestion.url);
+  dict.Set("domain", suggestion.domain);
   dict.Set("requiresPageContent", suggestion.requires_page_content);
   dict.Set("tabId", suggestion.tab_id);
 
   FireWebUIListener("proactiveSuggestion", dict);
+}
+
+void DaoAgentMemoryHandler::RefreshPersonalScenarios() {
+  if (!proactive_engine_) {
+    return;
+  }
+
+  auto* service = GetMemoryService();
+  if (!service) {
+    return;
+  }
+
+  service->GetPersonalScenarios(base::BindOnce(
+      [](base::WeakPtr<DaoAgentMemoryHandler> handler,
+         std::vector<ScenarioDefinition> scenarios) {
+        if (!handler || !handler->proactive_engine_) {
+          return;
+        }
+        handler->proactive_engine_->scenario_registry().SetPersonalScenarios(
+            std::move(scenarios));
+      },
+      weak_factory_.GetWeakPtr()));
 }
 
 void DaoAgentMemoryHandler::HandleGetMemoryContext(
@@ -3561,13 +3598,20 @@ void DaoAgentMemoryHandler::HandleDismissSuggestion(
   // If the arg is a dict, it's a structured scenario dismissal.
   if (args[1].is_dict()) {
     auto feedback = ParseActionFeedbackFromDict(args[1].GetDict());
-    feedback.outcome = "dismissed";
+    feedback.outcome =
+        feedback.outcome == "never_here" ? "never_here" : "dismissed";
 
     // Also bump scenario dismiss stats.
-    if (!feedback.scenario_id.empty() && proactive_engine_) {
+    if (!feedback.scenario_id.empty()) {
       service->UpdateScenarioStats(
           feedback.scenario_id, "times_dismissed",
-          base::DoNothing());
+          base::BindOnce(
+              [](base::WeakPtr<DaoAgentMemoryHandler> handler, bool success) {
+                if (success && handler) {
+                  handler->RefreshPersonalScenarios();
+                }
+              },
+              weak_factory_.GetWeakPtr()));
     }
 
     service->RecordActionFeedback(
@@ -3622,13 +3666,19 @@ void DaoAgentMemoryHandler::HandleAcceptSuggestion(
   // If the arg is a dict, it's a structured scenario acceptance.
   if (args[1].is_dict()) {
     auto feedback = ParseActionFeedbackFromDict(args[1].GetDict());
-    feedback.outcome = "clicked";
+    feedback.outcome = "accepted";
 
     // Bump scenario accepted stats.
-    if (!feedback.scenario_id.empty() && proactive_engine_) {
+    if (!feedback.scenario_id.empty()) {
       service->UpdateScenarioStats(
           feedback.scenario_id, "times_accepted",
-          base::DoNothing());
+          base::BindOnce(
+              [](base::WeakPtr<DaoAgentMemoryHandler> handler, bool success) {
+                if (success && handler) {
+                  handler->RefreshPersonalScenarios();
+                }
+              },
+              weak_factory_.GetWeakPtr()));
     }
 
     service->RecordActionFeedback(
@@ -3721,7 +3771,7 @@ void DaoAgentMemoryHandler::HandleSetConfidenceThreshold(
   double threshold = args[1].is_double()
                          ? args[1].GetDouble()
                          : (args[1].is_int() ? static_cast<double>(args[1].GetInt())
-                                             : 0.7);
+                                             : 0.75);
 
   if (proactive_engine_) {
     proactive_engine_->SetConfidenceThreshold(threshold);
@@ -3746,6 +3796,35 @@ void DaoAgentMemoryHandler::HandleRecordActionFeedback(
   }
 
   auto feedback = ParseActionFeedbackFromDict(d);
+  if (feedback.outcome == "shown" && !feedback.scenario_id.empty()) {
+    if (proactive_engine_) {
+      proactive_engine_->RecordShownScenarioForFeedback(
+          feedback.url, feedback.domain, feedback.action_label,
+          feedback.scenario_id, feedback.timestamp);
+    }
+    service->UpdateScenarioStats(
+        feedback.scenario_id, "times_triggered",
+        base::BindOnce(
+            [](base::WeakPtr<DaoAgentMemoryHandler> handler, bool success) {
+              if (success && handler) {
+                handler->RefreshPersonalScenarios();
+              }
+            },
+            weak_factory_.GetWeakPtr()));
+  }
+  if (ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
+          feedback.outcome) &&
+      !feedback.scenario_id.empty()) {
+    service->UpdateScenarioStats(
+        feedback.scenario_id, "times_dismissed",
+        base::BindOnce(
+            [](base::WeakPtr<DaoAgentMemoryHandler> handler, bool success) {
+              if (success && handler) {
+                handler->RefreshPersonalScenarios();
+              }
+            },
+            weak_factory_.GetWeakPtr()));
+  }
 
   service->RecordActionFeedback(
       std::move(feedback),
@@ -3857,7 +3936,7 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
     TabStripModel* model = browser->tab_strip_model();
     for (int i = 0; i < model->count(); ++i) {
       content::WebContents* wc = model->GetWebContentsAt(i);
-      if (wc && wc->GetPrimaryMainFrame()->GetRoutingID() == tab_id) {
+      if (wc && sessions::SessionTabHelper::IdForTab(wc).id() == tab_id) {
         target = wc;
         break;
       }
