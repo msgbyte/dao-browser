@@ -4805,6 +4805,31 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       MiniDaoCreatesToastAndLaysItOut) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,mini-toast"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+
+  auto* toast = little_browser_view->dao_toast();
+  ASSERT_NE(nullptr, toast);
+  EXPECT_FALSE(toast->GetVisible());
+
+  toast->ShowToast(u"Copied Current Url");
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  EXPECT_TRUE(toast->GetVisible());
+  EXPECT_FALSE(toast->bounds().IsEmpty());
+  EXPECT_GE(toast->bounds().y(), dao::DaoLittleDaoView::kBarHeight);
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        MiniDaoShowsDownloadCardForInProgressDownload) {
   embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
       &content::SlowDownloadHttpResponse::HandleSlowDownloadRequest));

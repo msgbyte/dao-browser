@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl
 index 206b3e83c1..0c8b612396 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.cc
-@@ -4,8 +4,13 @@
+@@ -4,8 +4,14 @@
  
  #include "chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.h"
  
@@ -10,13 +10,14 @@ index 206b3e83c1..0c8b612396 100644
  #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
  #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_mini_dao_download_card_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
  #include "ui/views/controls/separator.h"
  
  BrowserViewPopupLayoutImpl::BrowserViewPopupLayoutImpl(
-@@ -62,21 +66,36 @@ BrowserViewPopupLayoutImpl::CalculateProposedLayout(
+@@ -62,21 +67,36 @@ BrowserViewPopupLayoutImpl::CalculateProposedLayout(
  
    BrowserLayoutParams params = browser_params;
  
@@ -65,7 +66,7 @@ index 206b3e83c1..0c8b612396 100644
    }
  
    // Lay out infobar container if present.
-@@ -97,6 +116,48 @@ BrowserViewPopupLayoutImpl::CalculateProposedLayout(
+@@ -97,6 +117,61 @@ BrowserViewPopupLayoutImpl::CalculateProposedLayout(
      layout.AddChild(views().infobar_container, infobar_bounds, infobar_visible);
    }
  
@@ -78,6 +79,19 @@ index 206b3e83c1..0c8b612396 100644
 +                  params.visual_client_area.width(), bar_height),
 +        true);
 +    params.SetTop(params.visual_client_area.y() + bar_height);
++
++    // Toast in the top-right of the Little Dao content area.
++    if (auto* const toast = dao_bv->dao_toast();
++        toast && toast->GetVisible()) {
++      constexpr int kToastMargin = 12;
++      const gfx::Size toast_size = toast->GetPreferredSize();
++      layout.AddChild(
++          toast,
++          gfx::Rect(params.visual_client_area.right() - toast_size.width() -
++                        kToastMargin,
++                    params.visual_client_area.y() + 4, toast_size.width(),
++                    toast_size.height()));
++    }
 +
 +    // Command bar overlay covers the entire browser view. Needed for Cmd+L
 +    // / URL pill click to open the Spotlight-style input.
