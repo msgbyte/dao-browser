@@ -8,6 +8,7 @@ import infoJson from '../public/info.json' with { type: 'json' };
 const InfoConfigSchema = z.object({
   version: z.string().min(1, 'must be non-empty'), // Product version, e.g. "0.5.0"
   chromiumVersion: z.string().min(1, 'must be non-empty'), // Chromium version, e.g. "147.0.7727.135"
+  releasedAt: z.string().min(1, 'must be non-empty'), // Release date, e.g. "2026-07-03"
   platforms: z.record(
     z.string(),
     z.object({
@@ -34,6 +35,9 @@ export const PRODUCT_VERSION = parsed.data.version;
 
 /** Chromium version, e.g. "147.0.7727.135" — sourced from public/info.json `chromiumVersion`. */
 export const CHROMIUM_VERSION = parsed.data.chromiumVersion;
+
+/** Release date, e.g. "2026-07-03" — sourced from public/info.json `releasedAt`. */
+export const PRODUCT_RELEASED_AT = parsed.data.releasedAt;
 
 export const GITHUB_URL = 'https://github.com/msgbyte/dao-browser';
 export const SITE_URL = 'https://dao.msgbyte.com';

@@ -9,13 +9,35 @@ import {
   formatPubDate,
   type AppcastItem,
 } from '@/lib/appcast';
+import {
+  buildWebPageJsonLd,
+  createMetadata,
+  jsonLdScriptProps,
+} from '@/lib/seo';
 import styles from './history.module.css';
 
-export const metadata: Metadata = {
-  title: 'Version History · Dao Browser',
-  description:
-    'Every shipped release of Dao Browser, with direct download links for the macOS Apple Silicon build.',
-};
+const HISTORY_TITLE = 'Version History - Dao Browser';
+const HISTORY_DESCRIPTION =
+  'Every shipped Dao Browser release, with direct download links for the macOS Apple Silicon Chromium browser build.';
+
+export const metadata: Metadata = createMetadata({
+  title: HISTORY_TITLE,
+  description: HISTORY_DESCRIPTION,
+  path: '/history',
+  keywords: [
+    'Dao Browser download',
+    'Dao Browser releases',
+    'Chromium browser releases',
+    'macOS browser download',
+  ],
+});
+
+const HISTORY_PAGE_JSON_LD = buildWebPageJsonLd({
+  title: HISTORY_TITLE,
+  description: HISTORY_DESCRIPTION,
+  path: '/history',
+  type: 'CollectionPage',
+});
 
 // Resolve at request time so a redeployed appcast.xml is picked up
 // without rebuilding the page.
@@ -52,6 +74,7 @@ export default async function HistoryPage() {
         )}
       </main>
       <Footer />
+      <script {...jsonLdScriptProps(HISTORY_PAGE_JSON_LD)} />
     </>
   );
 }

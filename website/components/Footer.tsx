@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { GITHUB_URL, DOWNLOAD_URL } from '@/lib/version';
 import styles from './Footer.module.css';
 
@@ -16,9 +17,14 @@ export function Footer() {
           <h3 className={styles.colTitle}>Product</h3>
           <ul className={styles.list}>
             <li>
-              <a className={styles.link} href="#features">
+              <Link className={styles.link} href="/#features">
                 Features
-              </a>
+              </Link>
+            </li>
+            <li>
+              <Link className={styles.link} href="/agent">
+                AI Agent
+              </Link>
             </li>
             <li>
               <a className={styles.link} href={DOWNLOAD_URL}>
@@ -36,9 +42,9 @@ export function Footer() {
               </a>
             </li>
             <li>
-              <a className={styles.link} href="/history">
+              <Link className={styles.link} href="/history">
                 Version history
-              </a>
+              </Link>
             </li>
           </ul>
         </div>

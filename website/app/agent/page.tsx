@@ -14,25 +14,39 @@ import {
   WorkspaceVisual,
   ModelSwapVisual,
 } from '@/components/ui/agent/AgentVisuals';
-import { GITHUB_URL, SITE_URL } from '@/lib/version';
+import { GITHUB_URL } from '@/lib/version';
+import {
+  buildWebPageJsonLd,
+  createMetadata,
+  jsonLdScriptProps,
+} from '@/lib/seo';
 import styles from './page.module.css';
 
-export const metadata: Metadata = {
-  title: 'Dao Agent — A browser-native AI that lives next to your tabs.',
-  description:
-    'Dao Agent is the AI built into Dao Browser. Focus-aware context, explicit-run proactive suggestions, long-term memory, switchable souls, host-based skills, sandboxed workspace, self-evolution, and no vendor lock-in.',
-  alternates: {
-    canonical: `${SITE_URL}/agent`,
-  },
-  openGraph: {
-    title: 'Dao Agent — AI built into the browser.',
-    description:
-      'Focus-aware context, explicit-run proactive suggestions, long-term memory, switchable souls, host-based skills, sandboxed workspace, self-evolution. Bring your own model.',
-    url: `${SITE_URL}/agent`,
-    siteName: 'Dao Browser',
-    type: 'website',
-  },
-};
+const AGENT_TITLE =
+  'Dao Agent - Browser-Native AI Built into Dao Browser';
+const AGENT_DESCRIPTION =
+  'Dao Agent is the AI built into Dao Browser, with focus-aware page context, explicit-run suggestions, local memory, host-based skills, workspace tools, and model choice.';
+
+export const metadata: Metadata = createMetadata({
+  title: AGENT_TITLE,
+  description: AGENT_DESCRIPTION,
+  path: '/agent',
+  keywords: [
+    'browser-native AI',
+    'AI agent browser',
+    'browser automation agent',
+    'local AI memory',
+    'OpenAI-compatible browser agent',
+  ],
+  imageAlt: 'Dao Agent - browser-native AI inside Dao Browser',
+});
+
+const AGENT_PAGE_JSON_LD = buildWebPageJsonLd({
+  title: AGENT_TITLE,
+  description: AGENT_DESCRIPTION,
+  path: '/agent',
+  type: 'AboutPage',
+});
 
 export default function AgentPage() {
   return (
@@ -233,6 +247,7 @@ export default function AgentPage() {
         </section>
       </main>
       <Footer />
+      <script {...jsonLdScriptProps(AGENT_PAGE_JSON_LD)} />
     </>
   );
 }

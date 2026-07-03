@@ -3,21 +3,24 @@ import Script from 'next/script';
 import './globals.css';
 import { SITE_URL } from '@/lib/version';
 import { TIANJI_WEBSITE_ID } from '@/lib/analytics';
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
+  ORGANIZATION_JSON_LD,
+  SOFTWARE_APPLICATION_JSON_LD,
+  WEBSITE_JSON_LD,
+  createMetadata,
+  jsonLdScriptProps,
+} from '@/lib/seo';
 
 export const metadata: Metadata = {
+  ...createMetadata({
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    path: '/',
+  }),
   metadataBase: new URL(SITE_URL),
-  title: 'Dao Browser — An opinionated browser.',
-  description:
-    'An opinionated browser, built on Chromium. Vertical tabs, soft corners, content first.',
-  openGraph: {
-    title: 'Dao Browser',
-    description: 'An opinionated browser, built on Chromium.',
-    url: SITE_URL,
-    siteName: 'Dao Browser',
-    // Image is generated at build time by app/opengraph-image.tsx
-    // and auto-injected by Next.js, no need to declare it here.
-    type: 'website',
-  },
+  manifest: '/manifest.webmanifest',
   icons: {
     // Two-theme favicons. Browsers that support `media` pick the one matching
     // the system color-scheme; older browsers fall back to the first entry.
@@ -55,12 +58,21 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
-      <Script
-        src="https://app.tianji.dev/tracker.js"
-        data-website-id={TIANJI_WEBSITE_ID}
-        strategy="afterInteractive"
-      />
+      <body>
+        {children}
+        <script
+          {...jsonLdScriptProps([
+            ORGANIZATION_JSON_LD,
+            WEBSITE_JSON_LD,
+            SOFTWARE_APPLICATION_JSON_LD,
+          ])}
+        />
+        <Script
+          src="https://app.tianji.dev/tracker.js"
+          data-website-id={TIANJI_WEBSITE_ID}
+          strategy="afterInteractive"
+        />
+      </body>
     </html>
   );
 }
