@@ -156,6 +156,7 @@
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/controls/button/image_button.h"
+#include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
@@ -320,6 +321,23 @@ views::Button* FindButtonWithAccessibleName(
   }
   for (views::View* child : root->children()) {
     if (auto* button = FindButtonWithAccessibleName(child, accessible_name)) {
+      return button;
+    }
+  }
+  return nullptr;
+}
+
+views::LabelButton* FindLabelButtonExceptText(views::View* root,
+                                              std::u16string_view text) {
+  if (!root) {
+    return nullptr;
+  }
+  if (auto* button = views::AsViewClass<views::LabelButton>(root);
+      button && button->GetText() != text) {
+    return button;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* button = FindLabelButtonExceptText(child, text)) {
       return button;
     }
   }
@@ -4894,6 +4912,49 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        RegularBrowserIsNotLittleDaoWindow) {
   EXPECT_FALSE(dao::DaoLittleDaoController::IsLittleDaoWindow(browser()));
   EXPECT_FALSE(dao::DaoLittleDaoController::IsCreatingLittleDao());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       MiniDaoAddressShowsHostPathQueryAndFragment) {
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.relative_url != "/mini-address/path?foo=bar") {
+          return nullptr;
+        }
+        auto response =
+            std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_code(net::HTTP_OK);
+        response->set_content_type("text/html");
+        response->set_content("<html><body>mini address</body></html>");
+        return response;
+      }));
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL url =
+      embedded_test_server()->GetURL("/mini-address/path?foo=bar#section");
+  Browser* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(browser()->profile(), url);
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      little_dao_browser->tab_strip_model()->GetActiveWebContents()));
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  auto* label_button = FindLabelButtonExceptText(
+      little_view,
+      l10n_util::GetStringUTF16(
+          IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME));
+  ASSERT_NE(nullptr, label_button);
+  EXPECT_EQ(base::StrCat({ExpectedAddressBarHostText(url),
+                          u"/mini-address/path?foo=bar#section"}),
+            label_button->GetText());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,

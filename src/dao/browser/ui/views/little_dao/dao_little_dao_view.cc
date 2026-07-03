@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
@@ -44,6 +45,37 @@ constexpr int kElementSpacing = 8;
 constexpr int kSiteCenterButtonWidth = 32;
 constexpr int kSiteCenterButtonVerticalInset = 4;
 constexpr int kSiteCenterButtonRightInset = 6;
+
+std::string GetMiniDaoAddressText(const GURL& url) {
+  if (!url.is_valid() || url.IsAboutBlank()) {
+    return std::string();
+  }
+
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return url.spec();
+  }
+
+  std::string text(url.host());
+  if (url.has_port()) {
+    text += ":";
+    text += url.port();
+  }
+
+  std::string path_and_query(url.path());
+  if (url.has_query()) {
+    path_and_query += "?";
+    path_and_query += url.query();
+  }
+  if (url.has_ref()) {
+    path_and_query += "#";
+    path_and_query += url.ref();
+  }
+  if (path_and_query == "/") {
+    path_and_query.clear();
+  }
+
+  return text + path_and_query;
+}
 
 class MiniDaoSiteCenterButton : public views::Button {
   METADATA_HEADER(MiniDaoSiteCenterButton, views::Button)
@@ -98,7 +130,7 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   layout->SetDefault(views::kMarginsKey,
                      gfx::Insets::TLBR(0, 0, 0, kElementSpacing));
 
-  // URL pill: hostname area opens command bar; right icon opens site center.
+  // URL pill: address text opens command bar; right icon opens site center.
   url_container_ = AddChildView(std::make_unique<views::View>());
   url_container_->SetBackground(views::CreateRoundedRectBackground(
       SuggestionHover(), kDisplayCornerRadius));
@@ -268,6 +300,15 @@ void DaoLittleDaoView::OnBackgroundColorChanged() {
   UpdateBackgroundColor();
 }
 
+void DaoLittleDaoView::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame() &&
+      navigation_handle->HasCommitted()) {
+    UpdateURLDisplay();
+    UpdateBackgroundColor();
+  }
+}
+
 void DaoLittleDaoView::AddedToWidget() {}
 
 gfx::Size DaoLittleDaoView::CalculatePreferredSize(
@@ -310,18 +351,7 @@ void DaoLittleDaoView::UpdateURLDisplay() {
   }
 
   GURL url = web_contents->GetVisibleURL();
-  if (!url.is_valid() || url.IsAboutBlank()) {
-    url_text_button_->SetText(u"");
-    return;
-  }
-
-  // Show just the hostname for a cleaner look
-  std::string host(url.host());
-  if (host.empty()) {
-    url_text_button_->SetText(base::UTF8ToUTF16(url.spec()));
-  } else {
-    url_text_button_->SetText(base::UTF8ToUTF16(host));
-  }
+  url_text_button_->SetText(base::UTF8ToUTF16(GetMiniDaoAddressText(url)));
 }
 
 void DaoLittleDaoView::UpdateBackgroundColor() {

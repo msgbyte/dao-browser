@@ -14,6 +14,10 @@
 class Browser;
 class TabStripModel;
 
+namespace content {
+class NavigationHandle;
+}  // namespace content
+
 namespace views {
 class Button;
 class Label;
@@ -26,8 +30,8 @@ class TabInterface;
 
 namespace dao {
 
-// Top bar for Little Dao windows. Shows a hostname display (clickable to open
-// the command bar) and an "Open in Dao" button. The hostname display tracks
+// Top bar for Little Dao windows. Shows an address display (clickable to open
+// the command bar) and an "Open in Dao" button. The address display tracks
 // the current page URL and clicking it opens the full command bar overlay.
 class DaoLittleDaoView : public views::View,
                           public TabStripModelObserver,
@@ -66,6 +70,8 @@ class DaoLittleDaoView : public views::View,
 
   // content::WebContentsObserver:
   void OnBackgroundColorChanged() override;
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
 
   // views::View:
   gfx::Size CalculatePreferredSize(
