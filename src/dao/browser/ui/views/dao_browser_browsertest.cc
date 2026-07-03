@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -51,6 +53,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
+#include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/constrained_window/constrained_window_views.h"
@@ -65,6 +68,7 @@
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -3841,6 +3845,21 @@ class DaoPipInterceptorTest : public InProcessBrowserTest {
   }
 };
 
+base::Value EvalJsInDaoIsolatedWorld(content::WebContents* contents,
+                                     std::string_view script) {
+  base::test::TestFuture<base::Value> result;
+  contents->GetPrimaryMainFrame()->ExecuteJavaScriptInIsolatedWorld(
+      base::UTF8ToUTF16(std::string(script)), result.GetCallback(),
+      ISOLATED_WORLD_ID_CHROME_INTERNAL);
+  return result.Take();
+}
+
+bool ExecJsInDaoIsolatedWorld(content::WebContents* contents,
+                              std::string_view script) {
+  base::Value result = EvalJsInDaoIsolatedWorld(contents, script);
+  return result.is_bool() && result.GetBool();
+}
+
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldInterceptNullIsFalse) {
   EXPECT_FALSE(dao::DaoPipInterceptor::ShouldIntercept(nullptr));
 }
@@ -3896,6 +3915,9 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
             <video id="dao-video"></video>
           </div>
         </div>`;
+      true;
+    )js"));
+  ASSERT_TRUE(ExecJsInDaoIsolatedWorld(contents, R"js(
       const fakeDocumentPictureInPicture = {
         window: null,
         requestWindow: async () => {
@@ -3934,6 +3956,89 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
   interceptor->MediaPictureInPictureChanged(false);
 
   EXPECT_FALSE(contents->IsBeingCaptured());
+  EXPECT_EQ(nullptr, manager->GetWebContents());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       TriggerUsesVideoContainerWhenRuleSelectorIsMissing) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="modern-bilibili-player" class="bili-player-shell">
+          <div class="bili-video-stage">
+            <video id="dao-video" style="width:640px;height:360px"></video>
+          </div>
+        </div>`;
+      true;
+    )js"));
+  ASSERT_TRUE(ExecJsInDaoIsolatedWorld(contents, R"js(
+      const fakeDocumentPictureInPicture = {
+        movedTargetId: '',
+        window: null,
+        requestWindow: async () => {
+          const pipDocument = document.implementation.createHTMLDocument('');
+          const originalAppendChild = pipDocument.body.appendChild.bind(
+              pipDocument.body);
+          pipDocument.body.appendChild = (node) => {
+            fakeDocumentPictureInPicture.movedTargetId = node.id;
+            document.documentElement.setAttribute(
+                'data-dao-test-moved-target-id', node.id);
+            return originalAppendChild(node);
+          };
+          const pipWindow = {
+            document: pipDocument,
+            addEventListener() {},
+          };
+          fakeDocumentPictureInPicture.window = pipWindow;
+          return pipWindow;
+        },
+      };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: fakeDocumentPictureInPicture,
+      });
+      !!window.__daoPipOverrideInstalled;
+    )js"));
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+
+  base::test::TestFuture<bool> result;
+  interceptor->TriggerDocumentPip(result.GetCallback());
+
+  ASSERT_TRUE(result.Get());
+  EXPECT_EQ("modern-bilibili-player",
+            content::EvalJs(contents,
+                            "document.documentElement.getAttribute("
+                            "'data-dao-test-moved-target-id')"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       CloseExitsStalePipWindowWithoutDaoActiveState) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+
+  TestPictureInPictureWindowController controller(contents);
+  PictureInPictureWindowManager* manager =
+      PictureInPictureWindowManager::GetInstance();
+  ASSERT_EQ(nullptr, manager->GetWebContents());
+  manager->EnterPictureInPictureWithController(&controller);
+  ASSERT_EQ(contents, manager->GetWebContents());
+
+  interceptor->CloseDocumentPip();
+
   EXPECT_EQ(nullptr, manager->GetWebContents());
 }
 

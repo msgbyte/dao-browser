@@ -35,6 +35,7 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
 
   var DAO_PIP_SELECTOR = %s;
   var DAO_PIP_CUSTOM_STYLES = %s;
+  var DAO_PIP_TARGET_ATTR = 'data-dao-pip-target';
   var origRequestPiP = HTMLVideoElement.prototype.requestPictureInPicture;
 
   function dispatchVideoPipEvent(video, type, pipWindow) {
@@ -70,13 +71,102 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
     video.dispatchEvent(event);
   }
 
+  function getElementName(el) {
+    if (!el) return '';
+    var className = '';
+    try {
+      className = typeof el.className === 'string' ? el.className : '';
+    } catch(e) {}
+    return ((el.id || '') + ' ' + className).toLowerCase();
+  }
+
+  function getRect(el) {
+    try {
+      return el.getBoundingClientRect();
+    } catch(e) {
+      return null;
+    }
+  }
+
+  function getRectArea(el) {
+    var rect = getRect(el);
+    if (!rect) return 0;
+    return Math.max(0, rect.width) * Math.max(0, rect.height);
+  }
+
+  function isUsableVideo(video) {
+    if (!video) return false;
+    var rect = getRect(video);
+    if (!rect) return true;
+    return rect.width > 0 && rect.height > 0;
+  }
+
+  function findFallbackVideo() {
+    var videos = Array.from(document.querySelectorAll('video'))
+        .filter(isUsableVideo);
+    videos.sort(function(a, b) {
+      var bScore = (b.videoWidth || 0) * (b.videoHeight || 0) ||
+          getRectArea(b);
+      var aScore = (a.videoWidth || 0) * (a.videoHeight || 0) ||
+          getRectArea(a);
+      return bScore - aScore;
+    });
+    return videos[0] || null;
+  }
+
+  function isReasonablePipTarget(el, videoRect) {
+    if (!el || el === document.body || el === document.documentElement) {
+      return false;
+    }
+    var rect = getRect(el);
+    if (!rect || rect.width < 120 || rect.height < 80) {
+      return false;
+    }
+    if (videoRect &&
+        (rect.width < videoRect.width * 0.5 ||
+         rect.height < videoRect.height * 0.5)) {
+      return false;
+    }
+    return true;
+  }
+
+  function findFallbackTarget(video) {
+    if (!video) return null;
+    var videoRect = getRect(video);
+    var best = null;
+    for (var el = video.parentElement;
+         el && el !== document.body && el !== document.documentElement;
+         el = el.parentElement) {
+      if (!isReasonablePipTarget(el, videoRect)) {
+        continue;
+      }
+      if (!best) {
+        best = el;
+      }
+      if (/player|bpx|bili|video/.test(getElementName(el))) {
+        best = el;
+      }
+    }
+    return best || video;
+  }
+
   async function daoDocumentPip(videoEl) {
-    var target = document.querySelector(DAO_PIP_SELECTOR);
-    if (!target || !window.documentPictureInPicture) {
+    if (!window.documentPictureInPicture) {
       return null;
     }
 
-    var video = videoEl || target.querySelector('video');
+    var target = document.querySelector(DAO_PIP_SELECTOR);
+    var video = videoEl ||
+        (target && target.matches('video') ? target :
+         target && target.querySelector('video')) ||
+        findFallbackVideo();
+    if (!target) {
+      target = findFallbackTarget(video);
+    }
+    if (!target) {
+      return null;
+    }
+
     var vw = video ? video.videoWidth : 800;
     var vh = video ? video.videoHeight : 600;
     var aspect = vw / vh || 16 / 9;
@@ -108,9 +198,12 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
     var pipStyle = document.createElement('style');
     pipStyle.textContent =
       'body{margin:0;overflow:hidden;background:#000}' +
-      DAO_PIP_SELECTOR.split(' ').pop() +
+      '[' + DAO_PIP_TARGET_ATTR + '="true"]' +
       '{width:100vw!important;height:100vh!important;' +
-      'position:fixed!important;top:0!important;left:0!important}';
+      'position:fixed!important;top:0!important;left:0!important}' +
+      '[' + DAO_PIP_TARGET_ATTR + '="true"] video' +
+      '{width:100%%!important;height:100%%!important;' +
+      'object-fit:contain!important}';
     pipWindow.document.head.appendChild(pipStyle);
 
     if (DAO_PIP_CUSTOM_STYLES.length) {
@@ -121,6 +214,9 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
 
     var originalParent = target.parentElement;
     var originalNextSibling = target.nextSibling;
+    var hadTargetAttr = target.hasAttribute(DAO_PIP_TARGET_ATTR);
+    var originalTargetAttr = target.getAttribute(DAO_PIP_TARGET_ATTR);
+    target.setAttribute(DAO_PIP_TARGET_ATTR, 'true');
     pipWindow.document.body.appendChild(target);
     dispatchVideoPipEvent(video, 'enterpictureinpicture', pipWindow);
 
@@ -147,6 +243,11 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
       } else {
         originalParent.appendChild(target);
       }
+      if (hadTargetAttr) {
+        target.setAttribute(DAO_PIP_TARGET_ATTR, originalTargetAttr);
+      } else {
+        target.removeAttribute(DAO_PIP_TARGET_ATTR);
+      }
       dispatchVideoPipEvent(video, 'leavepictureinpicture', pipWindow);
     }, {once: true});
 
@@ -165,6 +266,10 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
 
   window.__daoTriggerDocumentPip = async function() {
     try {
+      if (window.documentPictureInPicture &&
+          window.documentPictureInPicture.window) {
+        window.documentPictureInPicture.window.close();
+      }
       var result = await daoDocumentPip(null);
       return !!result;
     } catch(e) {
@@ -195,8 +300,7 @@ constexpr char kTriggerScriptTemplate[] = R"js(
     root.setAttribute('data-dao-pip-trigger-id', triggerId);
     root.removeAttribute('data-dao-pip-trigger-result');
   }
-  var s = document.createElement('script');
-  s.textContent = '(' + (async function(triggerId) {
+  (async function(triggerId) {
     var ok = false;
     try {
       ok = !!(window.__daoTriggerDocumentPip &&
@@ -210,9 +314,7 @@ constexpr char kTriggerScriptTemplate[] = R"js(
       root.setAttribute('data-dao-pip-trigger-result',
                         ok ? 'true' : 'false');
     }
-  }).toString() + ')(' + JSON.stringify(triggerId) + ')';
-  document.documentElement.appendChild(s);
-  s.remove();
+  })(triggerId);
   return triggerId;
 })();
 )js";
@@ -233,10 +335,7 @@ constexpr char kTriggerResultScriptTemplate[] = R"js(
 
 constexpr char kCloseScript[] = R"js(
 (function() {
-  var s = document.createElement('script');
-  s.textContent = 'window.__daoCloseDocumentPip && window.__daoCloseDocumentPip()';
-  document.documentElement.appendChild(s);
-  s.remove();
+  return !!(window.__daoCloseDocumentPip && window.__daoCloseDocumentPip());
 })();
 )js";
 
@@ -272,13 +371,17 @@ std::string BuildCustomStylesArrayLiteral(
   return literal;
 }
 
-std::string BuildInjectionScript(const PipSiteRule& rule) {
+std::string BuildPipOverrideScript(const PipSiteRule& rule) {
   std::string selector_literal = EscapeForTemplateLiteral(rule.target_selector);
   std::string custom_styles_literal =
       BuildCustomStylesArrayLiteral(rule.custom_styles);
-  std::string main_world_js = base::StringPrintf(
+  return base::StringPrintf(
       kPipOverrideMainWorldTemplate, selector_literal.c_str(),
       custom_styles_literal.c_str());
+}
+
+std::string BuildInjectionScript(const PipSiteRule& rule) {
+  std::string main_world_js = BuildPipOverrideScript(rule);
   std::string escaped = EscapeForTemplateLiteral(main_world_js);
   return base::StringPrintf(
       R"js(
@@ -373,6 +476,11 @@ void DaoPipInterceptor::MaybeInjectPipOverride() {
     return;
   }
 
+  std::string isolated_script = BuildPipOverrideScript(*rule);
+  frame->ExecuteJavaScriptInIsolatedWorld(
+      base::UTF8ToUTF16(isolated_script), base::DoNothing(),
+      ISOLATED_WORLD_ID_CHROME_INTERNAL);
+
   std::string script = BuildInjectionScript(*rule);
   frame->ExecuteJavaScriptInIsolatedWorld(
       base::UTF8ToUTF16(script), base::DoNothing(),
@@ -389,6 +497,8 @@ void DaoPipInterceptor::TriggerDocumentPip(
   }
 
   MaybeInjectPipOverride();
+  ClearDocumentPipState();
+  PictureInPictureWindowManager::GetInstance()->ExitPictureInPicture();
 
   frame->NotifyUserActivation(
       blink::mojom::UserActivationNotificationType::kInteraction);
@@ -459,9 +569,7 @@ void DaoPipInterceptor::OnTriggerResultPoll(
 }
 
 void DaoPipInterceptor::CloseDocumentPip() {
-  if (!ClearDocumentPipState()) {
-    return;
-  }
+  ClearDocumentPipState();
 
   content::RenderFrameHost* frame =
       web_contents()->GetPrimaryMainFrame();
