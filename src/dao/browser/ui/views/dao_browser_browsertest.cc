@@ -24,6 +24,7 @@
 #include "base/timer/timer.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "content/public/browser/page_navigator.h"
@@ -5992,6 +5993,37 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   EXPECT_EQ(original_contents,
             little_dao_browser->tab_strip_model()->GetActiveWebContents());
   EXPECT_EQ(original_url, original_contents->GetVisibleURL());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
+                       ExtractedMiniDaoDisablesBrowserFullscreen) {
+  TabStripModel* source_model = browser()->tab_strip_model();
+  ASSERT_NE(nullptr, source_model);
+
+  const GURL original_url("data:text/plain,no-fullscreen");
+  chrome::AddTabAt(browser(), original_url, -1, true);
+  content::WebContents* original_contents =
+      source_model->GetActiveWebContents();
+  ASSERT_NE(nullptr, original_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(original_contents));
+
+  Browser* little_dao_browser =
+      dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(browser());
+
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+  ASSERT_EQ(original_contents,
+            little_dao_browser->tab_strip_model()->GetActiveWebContents());
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  EXPECT_FALSE(little_browser_view->CanFullscreen());
+  EXPECT_FALSE(chrome::IsCommandEnabled(little_dao_browser, IDC_FULLSCREEN));
 
   BrowserRemovedWaiter removed(little_dao_browser);
   little_dao_browser->window()->Close();

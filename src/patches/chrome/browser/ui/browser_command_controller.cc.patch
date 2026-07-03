@@ -2,10 +2,18 @@ diff --git a/chrome/browser/ui/browser_command_controller.cc b/chrome/browser/ui
 index 2ab2f2caa8..df8d373e38 100644
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
+@@ -81,6 +81,7 @@
+ #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
+ #include "chrome/browser/web_applications/web_app_install_params.h"
+ #include "chrome/browser/web_applications/web_app_utils.h"
++#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/content_restriction.h"
+ #include "chrome/common/pref_names.h"
 @@ -210,20 +210,7 @@ void AppInfoDialogClosedCallback(SessionID session_id,
    }
  }
- 
+
 -bool CanOpenFile(Browser* browser) {
 -  if (browser->is_type_devtools() || browser->is_type_app() ||
 -      browser->is_type_app_popup()) {
@@ -21,7 +29,7 @@ index 2ab2f2caa8..df8d373e38 100644
 -  return true;
 -}
 +// Dao: CanOpenFile removed — IDC_OPEN_FILE is permanently disabled.
- 
+
  void InvokeAction(actions::ActionId id, actions::ActionItem* scope) {
    actions::ActionManager::Get().FindAction(id, scope)->InvokeAction();
 @@ -1592,7 +1579,7 @@ void BrowserCommandController::InitCommandState() {
@@ -51,3 +59,20 @@ index 2ab2f2caa8..df8d373e38 100644
  }
  
  void BrowserCommandController::UpdateCommandsForFullscreenMode() {
+@@ -2135,8 +2123,13 @@ void BrowserCommandController::UpdateCommandsForFullscreenMode() {
+ #if !BUILDFLAG(IS_MAC)
+   // Disable toggling into fullscreen mode if disallowed by pref.
+   const bool fullscreen_enabled =
+-      is_fullscreen ||
+-      profile()->GetPrefs()->GetBoolean(prefs::kFullscreenAllowed);
++      is_fullscreen ||
++      (!dao::DaoLittleDaoController::IsCreatingLittleDao() &&
++       !dao::DaoLittleDaoController::IsLittleDaoWindow(browser_) &&
++       profile()->GetPrefs()->GetBoolean(prefs::kFullscreenAllowed));
+ #else
+-  const bool fullscreen_enabled = true;
++  const bool fullscreen_enabled =
++      is_fullscreen ||
++      (!dao::DaoLittleDaoController::IsCreatingLittleDao() &&
++       !dao::DaoLittleDaoController::IsLittleDaoWindow(browser_));
+ #endif
