@@ -1,19 +1,17 @@
 diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-index fa96596943..da60bbe4f0 100644
+index fa96596943..ea82e4e2e8 100644
 --- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
 +++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-@@ -4,6 +4,8 @@
- 
- #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
+@@ -6,2 +6,4 @@
  
 +#include <optional>
 +#include "dao/browser/pip/dao_pip_interceptor.h"
  #include "base/feature_list.h"
- #include "base/metrics/histogram_functions.h"
- #include "base/metrics/histogram_macros.h"
-@@ -488,7 +490,21 @@ void AutoPictureInPictureTabHelper::MaybeEnterAutoPictureInPicture() {
-   auto_picture_in_picture_activation_time_ =
-       base::TimeTicks::Now() + blink::kActivationLifespan;
+@@ -327,2 +329,3 @@ void AutoPictureInPictureTabHelper::MediaPictureInPictureChanged(
+     is_in_auto_picture_in_picture_ = false;
++    dao_ignore_next_auto_pip_activation_ = false;
+     MaybeRecordPictureInPictureChanged(false);
+@@ -490,3 +493,18 @@ void AutoPictureInPictureTabHelper::MaybeEnterAutoPictureInPicture() {
    auto_pip_trigger_reason_ = GetAutoPipReason();
 -  content::MediaSession::Get(web_contents())->EnterAutoPictureInPicture();
 +  // Dao: Intercept configured sites for Document PiP with DOM element.
@@ -21,6 +19,7 @@ index fa96596943..da60bbe4f0 100644
 +    auto* pip_interceptor =
 +        dao::DaoPipInterceptor::FromWebContents(web_contents());
 +    if (pip_interceptor) {
++      dao_ignore_next_auto_pip_activation_ = true;
 +      pip_interceptor->TriggerDocumentPip(base::DoNothing());
 +      MaybeRecordPictureInPictureChanged(true);
 +      return;
@@ -32,21 +31,26 @@ index fa96596943..da60bbe4f0 100644
 +  // RequestEnterPictureInPicture via Mojo on the media player.
 +  content::MediaSession::Get(web_contents())->EnterPictureInPicture();
  }
- 
- void AutoPictureInPictureTabHelper::MaybeScheduleAsyncTasks() {
-@@ -558,7 +574,8 @@ void AutoPictureInPictureTabHelper::MaybeExitAutoPictureInPicture() {
- 
- void AutoPictureInPictureTabHelper::MaybeStartOrStopObservingTabStrip() {
+@@ -544,2 +562,12 @@ void AutoPictureInPictureTabHelper::StopAndResetAsyncTasks() {
+ void AutoPictureInPictureTabHelper::MaybeExitAutoPictureInPicture() {
++  if (dao_ignore_next_auto_pip_activation_ &&
++      dao::DaoPipInterceptor::ShouldIntercept(web_contents()) &&
++      is_in_auto_picture_in_picture_) {
++    dao_ignore_next_auto_pip_activation_ = false;
++    // Dao: Document PiP can transiently reactivate its opener while the
++    // PiP window is being created. Ignore that first auto-PiP exit so the
++    // just-opened window is not closed immediately.
++    return;
++  }
++
+   blocked_due_to_content_setting_ = false;
+@@ -560,3 +588,4 @@ void AutoPictureInPictureTabHelper::MaybeStartOrStopObservingTabStrip() {
    if (is_enter_auto_picture_in_picture_available_ ||
 -      is_in_auto_picture_in_picture_) {
 +      is_in_auto_picture_in_picture_ ||
 +      is_playing_) {
      tab_observer_helper_->StartObserving();
-   } else {
-     tab_observer_helper_->StopObserving();
-@@ -584,10 +601,8 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
-     return false;
-   }
+@@ -586,6 +615,4 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
  
 -  // The website must have registered for autopip.
 -  if (!is_enter_auto_picture_in_picture_available_) {
@@ -55,16 +59,10 @@ index fa96596943..da60bbe4f0 100644
 +  // Dao: Skip website handler registration check — allow auto-PiP for any
 +  // site with video playback.
  
-   // Do not replace any PiP with autopip.  In the special case where the
-   // incoming active tab owns a pip window that will close as a result of the
-@@ -637,8 +652,8 @@ bool AutoPictureInPictureTabHelper::MeetsVideoPlaybackConditions() const {
-     return false;
-   }
+@@ -639,4 +666,4 @@ bool AutoPictureInPictureTabHelper::MeetsVideoPlaybackConditions() const {
  
 -  return has_audio_focus_ && is_playing_ && WasRecentlyAudible() &&
 -         has_safe_url_ && MeetsMediaEngagementConditions();
 +  // Dao: Relaxed conditions — skip media engagement and safe browsing checks.
 +  return has_audio_focus_ && is_playing_ && WasRecentlyAudible();
  }
- 
- bool AutoPictureInPictureTabHelper::IsUsingCameraOrMicrophone() const {

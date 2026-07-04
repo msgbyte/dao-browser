@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
+index 846efbb1bc..a83e97dbb1 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
+@@ -361,4 +361,9 @@ class AutoPictureInPictureTabHelper
+   // to autopip.
+   bool is_in_auto_picture_in_picture_ = false;
+ 
++  // Dao: Document PiP can transiently activate its opener while the PiP
++  // window is being created. Ignore the first activation after a Dao
++  // Document PiP auto-trigger so the window is not closed immediately.
++  bool dao_ignore_next_auto_pip_activation_ = false;
++
+   // This is used to determine whether the website has used an
