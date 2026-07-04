@@ -1,7 +1,9 @@
 import {describe, expect, it} from 'vitest';
 
 import {
+  getAssociatedDeltaIndexes,
   getCleanupCandidates,
+  getSelectableCleanupIndexes,
   parseR2ListOutput,
   uploadCommand,
 } from '../upload.js';
@@ -79,6 +81,49 @@ describe('upload cleanup helpers', () => {
       'dao-browser-1.0.44-mac-arm64.dmg',
       'Dao13.0-12.0.delta',
     ]);
+  });
+
+  it('associates deleted DMGs with deltas by release order', () => {
+    const candidates = getCleanupCandidates([
+      {key: 'dao-browser-1.0.44-mac-arm64.dmg', size: 100},
+      {key: 'dao-browser-1.0.45-mac-arm64.dmg', size: 100},
+      {key: 'dao-browser-1.0.46-mac-arm64.dmg', size: 100},
+      {key: 'Dao13.0-12.0.delta', size: 10},
+      {key: 'Dao14.0-13.0.delta', size: 10},
+      {key: 'Dao15.0-14.0.delta', size: 10},
+    ], 1);
+
+    expect(candidates.map((c) => c.key)).toEqual([
+      'dao-browser-1.0.45-mac-arm64.dmg',
+      'dao-browser-1.0.44-mac-arm64.dmg',
+      'Dao14.0-13.0.delta',
+      'Dao13.0-12.0.delta',
+    ]);
+
+    const associations = getAssociatedDeltaIndexes(candidates);
+    expect((associations.get(0) || []).map((i) => candidates[i].key)).toEqual([
+      'Dao14.0-13.0.delta',
+    ]);
+    expect((associations.get(1) || []).map((i) => candidates[i].key)).toEqual([
+      'Dao13.0-12.0.delta',
+    ]);
+  });
+
+  it('hides automatically associated deltas from the interactive picker', () => {
+    const candidates = getCleanupCandidates([
+      {key: 'dao-browser-1.0.44-mac-arm64.dmg', size: 100},
+      {key: 'dao-browser-1.0.45-mac-arm64.dmg', size: 100},
+      {key: 'dao-browser-1.0.46-mac-arm64.dmg', size: 100},
+      {key: 'Dao13.0-12.0.delta', size: 10},
+      {key: 'Dao14.0-13.0.delta', size: 10},
+      {key: 'Dao15.0-14.0.delta', size: 10},
+    ], 1);
+
+    expect(getSelectableCleanupIndexes(candidates).map((i) => candidates[i].key))
+        .toEqual([
+          'dao-browser-1.0.45-mac-arm64.dmg',
+          'dao-browser-1.0.44-mac-arm64.dmg',
+        ]);
   });
 
   it('does not expose a non-interactive cleanup delete option', () => {

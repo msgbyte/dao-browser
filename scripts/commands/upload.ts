@@ -632,6 +632,75 @@ function releaseKindRank(key: string): number {
   return 2;
 }
 
+function isDmgCandidate(candidate: CleanupCandidate): boolean {
+  return candidate.key.endsWith(".dmg");
+}
+
+function isDeltaCandidate(candidate: CleanupCandidate): boolean {
+  return candidate.key.endsWith(".delta");
+}
+
+export function getAssociatedDeltaIndexes(
+  candidates: CleanupCandidate[]
+): Map<number, number[]> {
+  const dmgVersions = Array.from(
+    new Set(candidates.filter(isDmgCandidate).map((item) => item.version))
+  ).sort(compareVersionsDesc);
+  const deltaVersions = Array.from(
+    new Set(candidates.filter(isDeltaCandidate).map((item) => item.version))
+  ).sort(compareVersionsDesc);
+  const deltaVersionByDmgVersion = new Map<string, string>();
+  for (
+    let i = 0;
+    i < Math.min(dmgVersions.length, deltaVersions.length);
+    i += 1
+  ) {
+    deltaVersionByDmgVersion.set(dmgVersions[i], deltaVersions[i]);
+  }
+
+  const indexByDeltaVersion = new Map<string, number[]>();
+  candidates.forEach((item, index) => {
+    if (!isDeltaCandidate(item)) return;
+    const indexes = indexByDeltaVersion.get(item.version) || [];
+    indexes.push(index);
+    indexByDeltaVersion.set(item.version, indexes);
+  });
+
+  const associations = new Map<number, number[]>();
+  candidates.forEach((item, index) => {
+    if (!isDmgCandidate(item)) return;
+    const deltaVersion = deltaVersionByDmgVersion.get(item.version);
+    if (!deltaVersion) return;
+    const deltaIndexes = indexByDeltaVersion.get(deltaVersion);
+    if (deltaIndexes && deltaIndexes.length > 0) {
+      associations.set(index, deltaIndexes);
+    }
+  });
+  return associations;
+}
+
+function addAssociatedDeltas(
+  selected: Set<number>,
+  associations: Map<number, number[]>
+): void {
+  for (const [dmgIndex, deltaIndexes] of associations) {
+    if (!selected.has(dmgIndex)) continue;
+    for (const deltaIndex of deltaIndexes) selected.add(deltaIndex);
+  }
+}
+
+export function getSelectableCleanupIndexes(
+  candidates: CleanupCandidate[]
+): number[] {
+  const associatedDeltaIndexes = getAssociatedDeltaIndexes(candidates);
+  const autoDeltaIndexes = new Set(
+    Array.from(associatedDeltaIndexes.values()).flat()
+  );
+  return candidates.flatMap((_item, index) =>
+    autoDeltaIndexes.has(index) ? [] : [index]
+  );
+}
+
 function parseKeepCount(value: string | undefined): number {
   const n = Number.parseInt(value || "2", 10);
   if (!Number.isInteger(n) || n < 0) {
@@ -667,26 +736,65 @@ async function selectCleanupCandidates(
   process.stdin.setRawMode(true);
 
   let cursor = 0;
+  let scrollOffset = 0;
   const selected = new Set<number>();
+  const associatedDeltaIndexes = getAssociatedDeltaIndexes(candidates);
+  const selectableIndexes = getSelectableCleanupIndexes(candidates);
+  const terminalRows = () => process.stdout.rows || 24;
+  const visibleRows = () => Math.max(5, terminalRows() - 7);
+  const updateScrollOffset = () => {
+    const rows = visibleRows();
+    if (cursor < scrollOffset) {
+      scrollOffset = cursor;
+    } else if (cursor >= scrollOffset + rows) {
+      scrollOffset = cursor - rows + 1;
+    }
+  };
+  const toggleSelection = (index: number) => {
+    const candidateIndex = selectableIndexes[index];
+    if (selected.has(candidateIndex)) {
+      selected.delete(candidateIndex);
+      const deltaIndexes = associatedDeltaIndexes.get(candidateIndex) || [];
+      for (const deltaIndex of deltaIndexes) selected.delete(deltaIndex);
+    } else {
+      selected.add(candidateIndex);
+      const deltaIndexes = associatedDeltaIndexes.get(candidateIndex) || [];
+      for (const deltaIndex of deltaIndexes) selected.add(deltaIndex);
+    }
+    addAssociatedDeltas(selected, associatedDeltaIndexes);
+  };
   const render = () => {
-    process.stdout.write("\x1Bc");
+    updateScrollOffset();
+    process.stdout.write("\x1B[2J\x1B[H");
     console.log(chalk.blue("dao") + " R2 cleanup");
     console.log(
       chalk.dim(
         `Old Dao release artifacts found. Latest ${keep} version(s) are protected.`
       )
     );
-    console.log(chalk.dim("Space select  a all  i invert  Enter confirm  q cancel\n"));
-    candidates.forEach((item, index) => {
-      const pointer = index === cursor ? chalk.cyan("›") : " ";
-      const mark = selected.has(index) ? chalk.green("●") : "○";
-      console.log(
-        `${pointer} ${mark} ${item.version.padEnd(8)} ` +
-          `${formatBytes(item.size).padStart(9)}  ${item.key}`
-      );
-    });
     console.log(
-      chalk.dim(`\nSelected ${selected.size}/${candidates.length} object(s)`)
+      chalk.dim(
+        "Up/Down move  Space select  a all  i invert  Enter confirm  q cancel\n"
+      )
+    );
+    const end = Math.min(scrollOffset + visibleRows(), selectableIndexes.length);
+    selectableIndexes
+      .slice(scrollOffset, end)
+      .forEach((candidateIndex, relativeIndex) => {
+        const index = scrollOffset + relativeIndex;
+        const item = candidates[candidateIndex];
+        const pointer = index === cursor ? chalk.cyan("›") : " ";
+        const mark = selected.has(candidateIndex) ? chalk.green("●") : "○";
+        console.log(
+          `${pointer} ${mark} ${item.version.padEnd(8)} ` +
+            `${formatBytes(item.size).padStart(9)}  ${item.key}`
+        );
+      });
+    console.log(
+      chalk.dim(
+        `\nShowing ${scrollOffset + 1}-${end}/${selectableIndexes.length}. ` +
+          `Selected ${selected.size}/${candidates.length} object(s)`
+      )
     );
   };
 
@@ -694,33 +802,48 @@ async function selectCleanupCandidates(
   const result = await new Promise<CleanupCandidate[]>((resolve) => {
     const onKeypress = (_str: string, key: readline.Key) => {
       if (key.name === "down" || key.name === "j") {
-        cursor = Math.min(cursor + 1, candidates.length - 1);
+        cursor = Math.min(cursor + 1, selectableIndexes.length - 1);
         render();
       } else if (key.name === "up" || key.name === "k") {
         cursor = Math.max(cursor - 1, 0);
         render();
+      } else if (key.name === "pagedown") {
+        cursor = Math.min(cursor + visibleRows(), selectableIndexes.length - 1);
+        render();
+      } else if (key.name === "pageup") {
+        cursor = Math.max(cursor - visibleRows(), 0);
+        render();
+      } else if (key.name === "home") {
+        cursor = 0;
+        render();
+      } else if (key.name === "end") {
+        cursor = selectableIndexes.length - 1;
+        render();
       } else if (key.name === "space") {
-        if (selected.has(cursor)) {
-          selected.delete(cursor);
-        } else {
-          selected.add(cursor);
-        }
+        toggleSelection(cursor);
         render();
       } else if (key.name === "a") {
-        candidates.forEach((_item, index) => selected.add(index));
+        selectableIndexes.forEach((index) => selected.add(index));
+        addAssociatedDeltas(selected, associatedDeltaIndexes);
         render();
       } else if (key.name === "i") {
-        candidates.forEach((_item, index) => {
+        selectableIndexes.forEach((index) => {
           if (selected.has(index)) {
             selected.delete(index);
           } else {
             selected.add(index);
           }
         });
+        addAssociatedDeltas(selected, associatedDeltaIndexes);
         render();
       } else if (key.name === "return" || key.name === "enter") {
+        addAssociatedDeltas(selected, associatedDeltaIndexes);
         cleanup();
-        resolve(Array.from(selected).sort((a, b) => a - b).map((i) => candidates[i]));
+        resolve(
+          Array.from(selected)
+            .sort((a, b) => a - b)
+            .map((i) => candidates[i])
+        );
       } else if (key.name === "q" || (key.ctrl && key.name === "c")) {
         cleanup();
         resolve([]);
@@ -754,10 +877,11 @@ function confirmDeletion(count: number): Promise<boolean> {
   });
   return new Promise((resolve) => {
     rl.question(
-      chalk.red(`Delete ${count} object(s) permanently? Type "delete" to confirm: `),
+      chalk.red(`Delete ${count} object(s) permanently? [Y/n] `),
       (answer) => {
         rl.close();
-        resolve(answer.trim() === "delete");
+        const normalized = answer.trim().toLowerCase();
+        resolve(normalized === "" || normalized === "y" || normalized === "yes");
       }
     );
   });
