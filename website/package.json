@@ -1,6 +1,7 @@
 {
   "name": "dao-website",
   "private": true,
+  "license": "BSD-3-Clause",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

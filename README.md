@@ -40,4 +40,4 @@ Dao Browser is an open-source project. Bug reports and feature requests are welc
 
 ### License
 
-[MIT](LICENSE) — Dao Browser is built on top of [Chromium](https://www.chromium.org/), which is licensed under the [3-Clause BSD License](https://chromium.googlesource.com/chromium/src/+/main/LICENSE).
+[BSD-3-Clause](LICENSE) — Dao-owned source code is licensed under the 3-Clause BSD License. Dao Browser is built on top of [Chromium](https://www.chromium.org/), which is licensed under the [3-Clause BSD License](https://chromium.googlesource.com/chromium/src/+/main/LICENSE). Chromium and third-party dependencies retain their original licenses.
