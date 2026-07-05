@@ -51,6 +51,14 @@ describe('package scripts', () => {
         .toBe('npm run worktree:archive --');
   });
 
+  it('ignores both engine directories and worktree engine symlinks', () => {
+    const gitignore = readFileSync(path.join(process.cwd(), '.gitignore'), 'utf-8')
+        .split(/\r?\n/);
+
+    expect(gitignore).toContain('engine');
+    expect(gitignore).toContain('engine/');
+  });
+
   it('rejects a signed helper with no embedded entitlements', () => {
     expect(() => assertRequiredEntitlementsPresent(
         'Dao Helper (Renderer).app',

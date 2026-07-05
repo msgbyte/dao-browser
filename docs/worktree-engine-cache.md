@@ -4,9 +4,12 @@ This document explains how to create Git worktrees for parallel agent work witho
 copying a full Chromium `engine/` checkout for every worker.
 
 Dao Browser keeps Chromium in `engine/`, which is very large and gitignored. The
-worktree helper creates a local engine cache under `.dao/engine/`, then gives each
-Git worktree its own private `engine` symlink backed by a copy-on-write clone of
-that cache.
+worktree helper supports two engine modes:
+
+- `shared`: the worktree's `engine` symlink points at the primary checkout's
+  `engine/`, so rebuilds reuse the exact existing `out/dao-debug` state.
+- `private`: the worktree gets its own writable `engine` symlink backed by a
+  copy-on-write clone of the warm cache under `.dao/engine/`.
 
 ## When To Use This
 
@@ -19,8 +22,9 @@ dao-browser-feature-a/        # git worktree for agent A
 dao-browser-feature-b/        # git worktree for agent B
 ```
 
-Each worktree gets its own writable Chromium tree, so `npm run import` and
-`npm run rebuild` do not stomp on another agent's `engine/src` or
+Use `shared` mode when one agent needs fast local iteration from the primary
+checkout's hot build cache. Use `private` mode when multiple agents need to
+import or rebuild at the same time without touching the same `engine/src` or
 `engine/src/out/dao-debug` state.
 
 ## Quick Start
@@ -51,6 +55,9 @@ npm run setup:worktree
 npm run rebuild
 ```
 
+`setup:worktree` uses shared engine mode by default. That is the fastest path
+when the primary checkout already has a complete warm build.
+
 ## What The Commands Do
 
 ### `npm run engine:cache:refresh`
@@ -67,12 +74,16 @@ The cache key includes:
 
 - Chromium version from `dao.json`
 - build flavor, default `dao-debug`
-- contents of `dao.json`
 - contents of `configs/`
-- contents of `src/patches/`
-- contents of `src/dao/`
-- contents of `branding/`
-- contents of `third_party/sparkle/`, when present
+
+Dao-owned source files, patch files, and branding assets are intentionally not
+part of the warm cache key. A worker worktree reuses a compatible Chromium build
+cache first, then `npm run import` applies that worktree's current Dao-owned
+sources and patches into its private `engine/`.
+
+If the exact cache key is missing, the helper reuses the primary checkout's
+recorded `lastWarmCacheKey` when it matches the same Chromium version and build
+flavor. This keeps agent worktrees warm across ordinary Dao source changes.
 
 Run `npm run rebuild` before refreshing the cache if you want workers to inherit
 hot `out/dao-debug` build state.
@@ -129,7 +140,14 @@ branch already exists, Git will fail before the engine is attached.
 
 ### `npm run setup:worktree`
 
-Initializes a Git worktree that was created outside the Dao helper.
+Initializes a Git worktree that was created outside the Dao helper. This package
+script uses shared engine mode:
+
+```bash
+npm install
+npm run worktree:setup
+npm run import
+```
 
 Run it from inside the new worktree:
 
@@ -138,22 +156,24 @@ cd ../dao-browser-feature-from-agent
 npm run setup:worktree
 ```
 
-This script runs:
-
-```bash
-npm install
-npm run worktree:setup
-npm run import
-```
-
 `npm run worktree:setup` auto-detects the primary checkout with:
 
 ```bash
 git worktree list --porcelain
 ```
 
-It then reuses the primary checkout's `.dao/engine` warm cache and attaches a
-private engine to the current worktree:
+It then attaches the primary checkout engine to the current worktree:
+
+```text
+engine -> ../dao-browser/engine
+```
+
+This keeps the engine path and `out/dao-debug` build state unchanged, so
+Chromium rebuilds can reuse the primary checkout's existing cache.
+
+If you need isolation for parallel agent builds, run the lower-level setup with
+`--private-engine`. That reuses the primary checkout's `.dao/engine` warm cache
+and attaches a private engine to the current worktree:
 
 ```text
 engine -> ../dao-browser/.dao/engine/worktrees/<worktree-id>/engine
@@ -174,6 +194,20 @@ npm install
 npm run worktree:setup -- --primary /Users/moonrailgun/Develop/dao-browser
 npm run import
 ```
+
+To reattach an existing worktree to a specific warm cache, pass its cache key
+and explicitly recreate that worktree's private engine:
+
+```bash
+npm run worktree:setup -- \
+  --private-engine \
+  --cache-key 147.0.7727.135-dao-debug-<cache-id> \
+  --recreate-engine
+npm run import
+```
+
+`--recreate-engine` replaces only the private engine for the current worktree.
+It does not delete the warm cache.
 
 ### `npm run archive:worktree`
 
@@ -248,6 +282,12 @@ That asks APFS to create a copy-on-write clone. The clone has independent paths
 and can be written safely, but unchanged file data still points at the same
 physical disk blocks. Only blocks changed by a worker consume new space.
 
+Copy-on-write clones save disk. They do not guarantee perfect Chromium build
+cache reuse after the engine path changes. Siso and Ninja keep path-sensitive
+state in `out/dao-debug`, so a private clone can still need broad revalidation.
+Use shared engine mode when avoiding that revalidation matters more than
+parallel build isolation.
+
 On Linux, the helper uses:
 
 ```bash
@@ -308,7 +348,10 @@ need that warm build state.
 
 ## Safety Notes
 
-- Do not share one writable `engine/` between multiple agents.
+- Do not share one writable `engine/` between multiple agents that may run
+  `npm run import` or `npm run rebuild` concurrently.
+- `setup:worktree` intentionally shares the primary checkout engine for one
+  active local agent, because it reuses the exact hot build cache.
 - Do not symlink every worktree to the same engine cache.
 - Do not pass `--allow-full-copy` unless you intentionally want a full disk copy.
 - Run Chromium compile confirmation through `npm run rebuild`, not direct

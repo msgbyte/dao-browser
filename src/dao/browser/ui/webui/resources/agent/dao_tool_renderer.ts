@@ -124,9 +124,9 @@ function renderToolShell(state: string, summaryLabel: string,
                   .join(' ');
   return html`
     <details class=${cls} ?open=${open}>
-      <summary class="dao-tool-call-summary">
+      <summary class="dao-tool-call-summary" title="${summaryLabel}">
         <span class="dao-tool-call-dot" aria-hidden="true"></span>
-        <span class="dao-tool-call-name">${summaryLabel}</span>
+        <span class="dao-tool-call-name" title="${summaryLabel}">${summaryLabel}</span>
         <svg class="dao-tool-call-chevron" aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -238,9 +238,9 @@ function renderDao(this: unknown, toolName: string, params: string, result: any,
   return {
     content: html`
       <details class=${statusClass} ?open=${open}>
-        <summary class="dao-tool-call-summary">
+        <summary class="dao-tool-call-summary" title="${summaryLabel}">
           <span class="dao-tool-call-dot" aria-hidden="true"></span>
-          <span class="dao-tool-call-name">${summaryLabel}</span>
+          <span class="dao-tool-call-name" title="${summaryLabel}">${summaryLabel}</span>
           <svg class="dao-tool-call-chevron" aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
               width="14" height="14" viewBox="0 0 24 24" fill="none"

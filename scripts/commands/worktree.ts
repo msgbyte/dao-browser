@@ -38,6 +38,8 @@ export type CommandOutputRunner = (
 
 export type EngineCloner = (source: string, dest: string) => void;
 
+export type EngineMode = "private" | "shared";
+
 export interface EngineStorePaths {
   rootDir: string;
   engineRoot: string;
@@ -73,6 +75,7 @@ export interface CreateDaoWorktreeResult {
 export interface RefreshWarmEngineCacheOptions {
   rootDir: string;
   flavor?: string;
+  cacheKey?: string;
   sourceEnginePath?: string;
   force?: boolean;
   allowFullCopy?: boolean;
@@ -90,7 +93,10 @@ export interface SetupDaoWorktreeOptions {
   name?: string;
   primaryRootDir?: string;
   flavor?: string;
+  cacheKey?: string;
+  engineMode?: EngineMode;
   forceRefreshCache?: boolean;
+  recreateEngine?: boolean;
   allowFullCopy?: boolean;
   outputRunner?: CommandOutputRunner;
   cloneEngine?: EngineCloner;
@@ -105,6 +111,7 @@ export interface SetupDaoWorktreeResult {
   engineLinkPath: string;
   manifestPath: string;
   reusedEngine: boolean;
+  engineMode: EngineMode;
 }
 
 export interface WorktreeEngineArchiveEntry {
@@ -145,14 +152,30 @@ export const worktreeCommand = new Command("worktree")
   .description("Manage git worktrees that reuse Dao's local .dao/engine cache")
   .addCommand(
     new Command("setup")
-      .description("Attach a private cached engine to the current git worktree")
+      .description("Attach a cached engine to the current git worktree")
       .option("--name <name>", "Engine/worktree id (defaults to current branch)")
       .option(
         "--primary <path>",
         "Primary checkout that owns .dao/engine (auto-detected from git worktree list)"
       )
       .option("--flavor <flavor>", "Warm engine cache flavor", DEFAULT_FLAVOR)
+      .option(
+        "--cache-key <key>",
+        "Use a specific compatible warm engine cache"
+      )
       .option("--refresh-cache", "Refresh the warm cache before cloning")
+      .option(
+        "--recreate-engine",
+        "Replace the existing private engine from the selected warm cache"
+      )
+      .option(
+        "--shared-engine",
+        "Point this worktree at the primary checkout engine for exact build cache reuse (default)"
+      )
+      .option(
+        "--private-engine",
+        "Attach a private CoW-cloned engine instead of the shared primary engine"
+      )
       .option(
         "--allow-full-copy",
         "Allow slow full-copy fallback when CoW clone is unavailable"
@@ -161,16 +184,26 @@ export const worktreeCommand = new Command("worktree")
         name?: string;
         primary?: string;
         flavor?: string;
+        cacheKey?: string;
         refreshCache?: boolean;
+        recreateEngine?: boolean;
+        sharedEngine?: boolean;
+        privateEngine?: boolean;
         allowFullCopy?: boolean;
       }) => {
         try {
+          if (opts.sharedEngine && opts.privateEngine) {
+            throw new Error("Use only one of --shared-engine or --private-engine.");
+          }
           const result = setupDaoWorktree({
             rootDir: ROOT_DIR,
             name: opts.name,
             primaryRootDir: opts.primary ? path.resolve(opts.primary) : undefined,
             flavor: opts.flavor,
+            cacheKey: opts.cacheKey,
+            engineMode: opts.privateEngine ? "private" : "shared",
             forceRefreshCache: opts.refreshCache,
+            recreateEngine: opts.recreateEngine,
             allowFullCopy: opts.allowFullCopy,
           });
           success(`Worktree engine ready: ${result.engineLinkPath}`);
@@ -346,12 +379,11 @@ export function computeWarmCacheKey(
   rootDir: string,
   flavor: string = DEFAULT_FLAVOR
 ): string {
-  const daoJsonPath = path.join(rootDir, "dao.json");
-  const daoJson = JSON.parse(readFileSync(daoJsonPath, "utf-8"));
-  const chromiumVersion = daoJson.version?.version ?? "unknown";
+  const chromiumVersion = readChromiumVersion(rootDir);
   const hash = createHash("sha256");
 
   hash.update(`flavor\0${flavor}\0`);
+  hash.update(`chromiumVersion\0${chromiumVersion}\0`);
   for (const rel of collectCacheInputFiles(rootDir)) {
     hash.update(`path\0${rel}\0`);
     hash.update(readFileSync(path.join(rootDir, rel)));
@@ -367,6 +399,7 @@ export function refreshWarmEngineCache(
   const flavor = opts.flavor ?? DEFAULT_FLAVOR;
   const paths = getEngineStorePaths(opts.rootDir);
   const cacheKey = computeWarmCacheKey(opts.rootDir, flavor);
+  const cachePrefix = `${readChromiumVersion(opts.rootDir)}-${flavor}-`;
   const cacheRoot = path.join(paths.warmCacheDir, cacheKey);
   const enginePath = path.join(cacheRoot, "engine");
   const sourceEnginePath = opts.sourceEnginePath ?? path.join(opts.rootDir, "engine");
@@ -374,9 +407,21 @@ export function refreshWarmEngineCache(
   mkdirSync(paths.warmCacheDir, { recursive: true });
   mkdirSync(paths.locksDir, { recursive: true });
 
+  if (opts.cacheKey) {
+    const requested = resolveWarmCacheByKey(paths, opts.cacheKey, cachePrefix);
+    writeStoreManifest(paths, { lastWarmCacheKey: requested.cacheKey });
+    return { ...requested, reused: true };
+  }
+
   if (existsSync(enginePath) && !opts.force) {
     writeStoreManifest(paths, { lastWarmCacheKey: cacheKey });
     return { cacheKey, enginePath, reused: true };
+  }
+
+  const reusable = opts.force ? null : findReusableWarmCache(paths, cachePrefix);
+  if (reusable) {
+    writeStoreManifest(paths, { lastWarmCacheKey: reusable.cacheKey });
+    return { cacheKey: reusable.cacheKey, enginePath: reusable.enginePath, reused: true };
   }
 
   if (!existsSync(sourceEnginePath)) {
@@ -483,10 +528,22 @@ export function setupDaoWorktree(
   const engineId = sanitizeWorktreeId(name);
   const flavor = opts.flavor ?? DEFAULT_FLAVOR;
   const paths = getEngineStorePaths(primaryRootDir);
+  const engineMode = opts.engineMode ?? "shared";
+
+  if (engineMode === "shared") {
+    return setupSharedPrimaryEngineWorktree({
+      rootDir: opts.rootDir,
+      name,
+      primaryRootDir,
+      engineId,
+      paths,
+    });
+  }
 
   const warm = refreshWarmEngineCache({
     rootDir: primaryRootDir,
     flavor,
+    cacheKey: opts.cacheKey,
     force: opts.forceRefreshCache,
     allowFullCopy: opts.allowFullCopy,
     cloneEngine: opts.cloneEngine,
@@ -494,10 +551,23 @@ export function setupDaoWorktree(
 
   const engineRoot = path.join(paths.worktreeEnginesDir, engineId);
   const enginePath = path.join(engineRoot, "engine");
+  const manifestPath = path.join(engineRoot, "manifest.json");
   let reusedEngine = false;
   if (existsSync(enginePath)) {
-    reusedEngine = true;
-  } else {
+    if (opts.recreateEngine) {
+      rmSync(engineRoot, { recursive: true, force: true });
+    } else {
+      validateExistingWorktreeEngine({
+        manifestPath,
+        cacheKey: warm.cacheKey,
+        primaryRootDir,
+        worktreePath: opts.rootDir,
+        enginePath,
+      });
+      reusedEngine = true;
+    }
+  }
+  if (!existsSync(enginePath)) {
     const cloner = opts.cloneEngine ??
       ((source, dest) => cloneEngineCopyOnWrite(source, dest, {
         allowFullCopy: opts.allowFullCopy,
@@ -511,7 +581,6 @@ export function setupDaoWorktree(
   });
 
   mkdirSync(engineRoot, { recursive: true });
-  const manifestPath = path.join(engineRoot, "manifest.json");
   writeFileSync(manifestPath, `${JSON.stringify({
     id: engineId,
     name,
@@ -520,6 +589,7 @@ export function setupDaoWorktree(
     enginePath,
     engineLinkPath,
     cacheKey: warm.cacheKey,
+    engineMode,
     reusedEngine,
     updatedAt: new Date().toISOString(),
   }, null, 2)}\n`);
@@ -533,6 +603,62 @@ export function setupDaoWorktree(
     engineLinkPath,
     manifestPath,
     reusedEngine,
+    engineMode,
+  };
+}
+
+function setupSharedPrimaryEngineWorktree(opts: {
+  rootDir: string;
+  name: string;
+  primaryRootDir: string;
+  engineId: string;
+  paths: EngineStorePaths;
+}): SetupDaoWorktreeResult {
+  if (path.resolve(opts.rootDir) === path.resolve(opts.primaryRootDir)) {
+    throw new Error(
+      "--shared-engine is only for linked worktrees; the primary checkout already owns engine/."
+    );
+  }
+
+  const enginePath = path.join(opts.primaryRootDir, "engine");
+  if (!existsSync(enginePath)) {
+    throw new Error(
+      `Primary checkout engine not found at ${enginePath}. Run npm run setup in the primary checkout first.`
+    );
+  }
+
+  const engineRoot = path.join(opts.paths.worktreeEnginesDir, opts.engineId);
+  const manifestPath = path.join(engineRoot, "manifest.json");
+  const engineLinkPath = attachEngineToWorktree({
+    worktreePath: opts.rootDir,
+    enginePath,
+    replaceExistingLink: true,
+  });
+
+  mkdirSync(engineRoot, { recursive: true });
+  writeFileSync(manifestPath, `${JSON.stringify({
+    id: opts.engineId,
+    name: opts.name,
+    primaryRootDir: opts.primaryRootDir,
+    worktreePath: opts.rootDir,
+    enginePath,
+    engineLinkPath,
+    cacheKey: "shared-primary-engine",
+    engineMode: "shared",
+    reusedEngine: true,
+    updatedAt: new Date().toISOString(),
+  }, null, 2)}\n`);
+
+  return {
+    engineId: opts.engineId,
+    cacheKey: "shared-primary-engine",
+    primaryRootDir: opts.primaryRootDir,
+    worktreePath: opts.rootDir,
+    enginePath,
+    engineLinkPath,
+    manifestPath,
+    reusedEngine: true,
+    engineMode: "shared",
   };
 }
 
@@ -712,11 +838,12 @@ function archiveCurrentDaoWorktreeEngine(opts: {
 export function attachEngineToWorktree(opts: {
   worktreePath: string;
   enginePath: string;
+  replaceExistingLink?: boolean;
 }): string {
   const linkPath = path.join(opts.worktreePath, "engine");
   mkdirSync(opts.worktreePath, { recursive: true });
 
-  if (existsSync(linkPath)) {
+  try {
     const stat = lstatSync(linkPath);
     if (!stat.isSymbolicLink()) {
       throw new Error(`Cannot attach engine: ${linkPath} already exists`);
@@ -726,8 +853,22 @@ export function attachEngineToWorktree(opts: {
     if (resolved === opts.enginePath) {
       return linkPath;
     }
+    if (opts.replaceExistingLink) {
+      rmSync(linkPath, { force: true });
+    } else {
+      throw new Error(
+        `Cannot attach engine: ${linkPath} already points to ${currentTarget}`
+      );
+    }
+  } catch (e) {
+    if ((e as { code?: string }).code !== "ENOENT") {
+      throw e;
+    }
+  }
+
+  if (existsSync(linkPath)) {
     throw new Error(
-      `Cannot attach engine: ${linkPath} already points to ${currentTarget}`
+      `Cannot attach engine: ${linkPath} already exists`
     );
   }
 
@@ -788,15 +929,95 @@ function detectPrimaryCheckoutRoot(
     cwd: currentRoot,
   });
   const worktrees = parseGitWorktreeList(output);
+  const candidates = worktrees.length > 0 ? worktrees : [currentRoot];
   const current = path.resolve(currentRoot);
-  const otherWorktrees = worktrees.filter((p) => path.resolve(p) !== current);
-  const withDaoCache = otherWorktrees.find((p) =>
-    existsSync(path.join(p, ".dao", "engine")) || existsSync(path.join(p, "engine"))
+  const withDaoCache = candidates.find((p) =>
+    existsSync(path.join(p, ".dao", "engine"))
   );
   if (withDaoCache) {
     return withDaoCache;
   }
-  return otherWorktrees[0] ?? worktrees[0] ?? currentRoot;
+  const otherWorktrees = candidates.filter((p) => path.resolve(p) !== current);
+  return otherWorktrees[0] ?? candidates[0] ?? currentRoot;
+}
+
+function validateExistingWorktreeEngine(opts: {
+  manifestPath: string;
+  cacheKey: string;
+  primaryRootDir: string;
+  worktreePath: string;
+  enginePath: string;
+}): void {
+  if (!existsSync(opts.manifestPath)) {
+    throw new Error(
+      `Existing worktree engine has no manifest at ${opts.manifestPath}; remove ${path.dirname(opts.manifestPath)} and rerun worktree setup.`
+    );
+  }
+
+  const manifest = JSON.parse(readFileSync(opts.manifestPath, "utf-8")) as
+    Record<string, unknown>;
+  assertManifestString(
+    manifest,
+    "cacheKey",
+    opts.cacheKey,
+    "cache key mismatch",
+    opts.manifestPath
+  );
+  assertManifestPath(
+    manifest,
+    "primaryRootDir",
+    opts.primaryRootDir,
+    "primary checkout mismatch",
+    opts.manifestPath
+  );
+  assertManifestPath(
+    manifest,
+    "worktreePath",
+    opts.worktreePath,
+    "worktree path mismatch",
+    opts.manifestPath
+  );
+  assertManifestPath(
+    manifest,
+    "enginePath",
+    opts.enginePath,
+    "engine path mismatch",
+    opts.manifestPath
+  );
+}
+
+function assertManifestString(
+  manifest: Record<string, unknown>,
+  key: string,
+  expected: string,
+  label: string,
+  manifestPath: string
+): void {
+  const actual = manifest[key];
+  if (actual !== expected) {
+    throw new Error(
+      `Existing worktree engine manifest ${label}: expected ${expected}, found ${formatManifestValue(actual)} in ${manifestPath}.`
+    );
+  }
+}
+
+function assertManifestPath(
+  manifest: Record<string, unknown>,
+  key: string,
+  expected: string,
+  label: string,
+  manifestPath: string
+): void {
+  const actual = manifest[key];
+  if (typeof actual !== "string" || path.resolve(actual) !== path.resolve(expected)) {
+    throw new Error(
+      `Existing worktree engine manifest ${label}: expected ${path.resolve(expected)}, found ${formatManifestValue(actual)} in ${manifestPath}.`
+    );
+  }
+}
+
+function formatManifestValue(value: unknown): string {
+  return typeof value === "string" ? value : "<missing>";
 }
 
 function detectCurrentWorktreeName(
@@ -872,14 +1093,7 @@ function isPathInside(child: string, parent: string): boolean {
 }
 
 function collectCacheInputFiles(rootDir: string): string[] {
-  const inputs = [
-    "dao.json",
-    "configs",
-    "src/patches",
-    "src/dao",
-    "branding",
-    "third_party/sparkle",
-  ];
+  const inputs = ["configs"];
   const files: string[] = [];
   for (const input of inputs) {
     const fullPath = path.join(rootDir, input);
@@ -905,14 +1119,82 @@ function collectFiles(dir: string, rootDir: string, out: string[]): void {
   }
 }
 
+function readChromiumVersion(rootDir: string): string {
+  const daoJsonPath = path.join(rootDir, "dao.json");
+  const daoJson = JSON.parse(readFileSync(daoJsonPath, "utf-8"));
+  return daoJson.version?.version ?? "unknown";
+}
+
+function findReusableWarmCache(
+  paths: EngineStorePaths,
+  cachePrefix: string
+): { cacheKey: string; enginePath: string } | null {
+  const manifest = readJsonObject(paths.manifestPath);
+  const lastWarmCacheKey = manifest.lastWarmCacheKey;
+  if (typeof lastWarmCacheKey === "string") {
+    const enginePath = path.join(paths.warmCacheDir, lastWarmCacheKey, "engine");
+    if (lastWarmCacheKey.startsWith(cachePrefix) && existsSync(enginePath)) {
+      return { cacheKey: lastWarmCacheKey, enginePath };
+    }
+  }
+
+  if (!existsSync(paths.warmCacheDir)) {
+    return null;
+  }
+
+  const candidates: Array<{ cacheKey: string; enginePath: string; mtimeMs: number }> = [];
+  for (const entry of readdirSync(paths.warmCacheDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.startsWith(cachePrefix)) continue;
+    const enginePath = path.join(paths.warmCacheDir, entry.name, "engine");
+    if (!existsSync(enginePath)) continue;
+    candidates.push({
+      cacheKey: entry.name,
+      enginePath,
+      mtimeMs: lstatSync(enginePath).mtimeMs,
+    });
+  }
+
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return candidates[0] ?? null;
+}
+
+function resolveWarmCacheByKey(
+  paths: EngineStorePaths,
+  cacheKey: string,
+  cachePrefix: string
+): { cacheKey: string; enginePath: string } {
+  if (path.basename(cacheKey) !== cacheKey || cacheKey.includes(path.sep)) {
+    throw new Error(`Invalid warm cache key: ${cacheKey}`);
+  }
+  if (!cacheKey.startsWith(cachePrefix)) {
+    throw new Error(
+      `Warm cache key ${cacheKey} does not match ${cachePrefix}*`
+    );
+  }
+  const enginePath = path.join(paths.warmCacheDir, cacheKey, "engine");
+  if (!existsSync(enginePath)) {
+    throw new Error(`Warm cache not found: ${enginePath}`);
+  }
+  return { cacheKey, enginePath };
+}
+
+function readJsonObject(filePath: string): Record<string, unknown> {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8")) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
 function writeStoreManifest(
   paths: EngineStorePaths,
   patch: Record<string, unknown>
 ): void {
   mkdirSync(paths.engineRoot, { recursive: true });
-  const current = existsSync(paths.manifestPath)
-    ? JSON.parse(readFileSync(paths.manifestPath, "utf-8"))
-    : {};
+  const current = readJsonObject(paths.manifestPath);
   writeFileSync(paths.manifestPath, `${JSON.stringify({
     ...current,
     ...patch,
