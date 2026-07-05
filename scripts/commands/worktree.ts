@@ -107,6 +107,40 @@ export interface SetupDaoWorktreeResult {
   reusedEngine: boolean;
 }
 
+export interface WorktreeEngineArchiveEntry {
+  id: string;
+  rootPath: string;
+  enginePath: string;
+  manifestPath: string;
+  worktreePath?: string;
+  reason: string;
+}
+
+export interface ArchiveStaleDaoWorktreeEnginesOptions {
+  rootDir: string;
+  deleteStale?: boolean;
+  outputRunner?: CommandOutputRunner;
+}
+
+export interface ArchiveStaleDaoWorktreeEnginesResult {
+  activeWorktreePaths: string[];
+  kept: WorktreeEngineArchiveEntry[];
+  stale: WorktreeEngineArchiveEntry[];
+  deleted: WorktreeEngineArchiveEntry[];
+}
+
+export interface ArchiveDaoWorktreeEnginesOptions
+    extends ArchiveStaleDaoWorktreeEnginesOptions {
+  primaryRootDir?: string;
+}
+
+export interface ArchiveDaoWorktreeEnginesResult
+    extends ArchiveStaleDaoWorktreeEnginesResult {
+  mode: "current-worktree" | "primary-dry-run" | "primary-delete";
+  primaryRootDir: string;
+  currentRootDir: string;
+}
+
 export const worktreeCommand = new Command("worktree")
   .description("Manage git worktrees that reuse Dao's local .dao/engine cache")
   .addCommand(
@@ -181,6 +215,62 @@ export const worktreeCommand = new Command("worktree")
           });
           success(`Created worktree: ${result.worktreePath}`);
           success(`Engine: ${result.engineLinkPath} -> ${result.enginePath}`);
+        } catch (e) {
+          error((e as Error).message);
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command("archive")
+      .description("Archive .dao/engine worktree copies")
+      .option(
+        "--primary <path>",
+        "Primary checkout that owns .dao/engine (defaults to current checkout when available)"
+      )
+      .option(
+        "--delete",
+        "Delete stale worktree engine copies instead of only reporting them"
+      )
+      .action((opts: {
+        primary?: string;
+        delete?: boolean;
+      }) => {
+        try {
+          const result = archiveDaoWorktreeEngines({
+            rootDir: ROOT_DIR,
+            primaryRootDir: opts.primary ? path.resolve(opts.primary) : undefined,
+            deleteStale: opts.delete,
+          });
+
+          if (result.mode === "current-worktree") {
+            const entry = result.deleted[0];
+            success(`Deleted current worktree engine: ${entry.rootPath}`);
+            return;
+          }
+
+          if (result.stale.length === 0) {
+            success("No stale worktree engines found.");
+            return;
+          }
+
+          warn(opts.delete
+            ? "Deleted stale worktree engines:"
+            : "Stale worktree engines (dry run):");
+          for (const entry of result.stale) {
+            log(`- ${entry.id}`);
+            log(`  engine: ${entry.rootPath}`);
+            if (entry.worktreePath) {
+              log(`  worktree: ${entry.worktreePath}`);
+            }
+            log(`  reason: ${entry.reason}`);
+          }
+
+          if (opts.delete) {
+            success(`Deleted ${result.deleted.length} stale worktree engine(s).`);
+          } else {
+            warn("Run npm run archive:worktree -- --delete to remove these directories.");
+          }
         } catch (e) {
           error((e as Error).message);
           process.exit(1);
@@ -446,6 +536,179 @@ export function setupDaoWorktree(
   };
 }
 
+export function archiveDaoWorktreeEngines(
+  opts: ArchiveDaoWorktreeEnginesOptions
+): ArchiveDaoWorktreeEnginesResult {
+  const outputRunner = opts.outputRunner ?? defaultCommandOutputRunner;
+  const currentRootDir = path.resolve(opts.rootDir);
+  const primaryRootDir = path.resolve(opts.primaryRootDir ??
+    detectEngineStoreRoot(currentRootDir, outputRunner));
+
+  if (normalizePath(currentRootDir) !== normalizePath(primaryRootDir)) {
+    const current = archiveCurrentDaoWorktreeEngine({
+      currentRootDir,
+      primaryRootDir,
+    });
+    return {
+      ...current,
+      mode: "current-worktree",
+      primaryRootDir,
+      currentRootDir,
+    };
+  }
+
+  const primary = archiveStaleDaoWorktreeEngines({
+    rootDir: primaryRootDir,
+    deleteStale: opts.deleteStale,
+    outputRunner,
+  });
+  return {
+    ...primary,
+    mode: opts.deleteStale ? "primary-delete" : "primary-dry-run",
+    primaryRootDir,
+    currentRootDir,
+  };
+}
+
+export function archiveStaleDaoWorktreeEngines(
+  opts: ArchiveStaleDaoWorktreeEnginesOptions
+): ArchiveStaleDaoWorktreeEnginesResult {
+  const paths = getEngineStorePaths(opts.rootDir);
+  const outputRunner = opts.outputRunner ?? defaultCommandOutputRunner;
+  const activeWorktreePaths = parseGitWorktreeList(
+    outputRunner("git", ["worktree", "list", "--porcelain"], {
+      cwd: opts.rootDir,
+    })
+  );
+  const activeWorktreePathSet = new Set(
+    activeWorktreePaths.map((p) => normalizePath(p))
+  );
+  const activeEnginePathSet = collectActiveEngineSymlinkTargets(activeWorktreePaths);
+  const kept: WorktreeEngineArchiveEntry[] = [];
+  const stale: WorktreeEngineArchiveEntry[] = [];
+
+  if (!existsSync(paths.worktreeEnginesDir)) {
+    return { activeWorktreePaths, kept, stale, deleted: [] };
+  }
+
+  for (const entry of readdirSync(paths.worktreeEnginesDir, {
+    withFileTypes: true,
+  })) {
+    if (!entry.isDirectory()) continue;
+
+    const rootPath = path.join(paths.worktreeEnginesDir, entry.name);
+    const manifestPath = path.join(rootPath, "manifest.json");
+    const fallbackEnginePath = path.join(rootPath, "engine");
+    const manifest = readWorktreeEngineManifest(manifestPath);
+    const id = typeof manifest.id === "string" && manifest.id
+      ? manifest.id
+      : entry.name;
+    const worktreePath = typeof manifest.worktreePath === "string"
+      ? path.resolve(manifest.worktreePath)
+      : undefined;
+    const enginePath = typeof manifest.enginePath === "string"
+      ? path.resolve(manifest.enginePath)
+      : fallbackEnginePath;
+    const archiveEntry: WorktreeEngineArchiveEntry = {
+      id,
+      rootPath,
+      enginePath,
+      manifestPath,
+      worktreePath,
+      reason: "",
+    };
+
+    if (worktreePath && activeWorktreePathSet.has(normalizePath(worktreePath))) {
+      kept.push({
+        ...archiveEntry,
+        reason: "worktree is still listed by git",
+      });
+      continue;
+    }
+
+    if (activeEnginePathSet.has(normalizePath(enginePath)) ||
+        activeEnginePathSet.has(normalizePath(fallbackEnginePath))) {
+      kept.push({
+        ...archiveEntry,
+        reason: "active worktree engine symlink still points here",
+      });
+      continue;
+    }
+
+    stale.push({
+      ...archiveEntry,
+      reason: worktreePath
+        ? "worktree is no longer listed by git"
+        : "manifest is missing a worktreePath",
+    });
+  }
+
+  const deleted: WorktreeEngineArchiveEntry[] = [];
+  if (opts.deleteStale) {
+    for (const entry of stale) {
+      rmSync(entry.rootPath, { recursive: true, force: true });
+      deleted.push(entry);
+    }
+  }
+
+  return { activeWorktreePaths, kept, stale, deleted };
+}
+
+function archiveCurrentDaoWorktreeEngine(opts: {
+  currentRootDir: string;
+  primaryRootDir: string;
+}): ArchiveStaleDaoWorktreeEnginesResult {
+  const linkPath = path.join(opts.currentRootDir, "engine");
+  let enginePath: string;
+  try {
+    const stat = lstatSync(linkPath);
+    if (!stat.isSymbolicLink()) {
+      throw new Error(`${linkPath} is not a symlink`);
+    }
+    enginePath = path.resolve(opts.currentRootDir, readlinkSync(linkPath));
+  } catch (e) {
+    throw new Error(
+      `Cannot clean current worktree engine: expected engine symlink at ${linkPath}: ${(e as Error).message}`
+    );
+  }
+
+  const paths = getEngineStorePaths(opts.primaryRootDir);
+  if (path.basename(enginePath) !== "engine" ||
+      !isPathInside(enginePath, paths.worktreeEnginesDir)) {
+    throw new Error(
+      `Cannot clean current worktree engine: ${linkPath} points outside ${paths.worktreeEnginesDir}`
+    );
+  }
+
+  const rootPath = path.dirname(enginePath);
+  const manifestPath = path.join(rootPath, "manifest.json");
+  const manifest = readWorktreeEngineManifest(manifestPath);
+  const id = typeof manifest.id === "string" && manifest.id
+    ? manifest.id
+    : path.basename(rootPath);
+  const worktreePath = typeof manifest.worktreePath === "string"
+    ? path.resolve(manifest.worktreePath)
+    : opts.currentRootDir;
+  const entry: WorktreeEngineArchiveEntry = {
+    id,
+    rootPath,
+    enginePath,
+    manifestPath,
+    worktreePath,
+    reason: "current linked worktree requested cleanup",
+  };
+
+  rmSync(linkPath, { force: true });
+  rmSync(rootPath, { recursive: true, force: true });
+
+  return {
+    activeWorktreePaths: [],
+    kept: [],
+    stale: [entry],
+    deleted: [entry],
+  };
+}
+
 export function attachEngineToWorktree(opts: {
   worktreePath: string;
   enginePath: string;
@@ -553,6 +816,16 @@ function detectCurrentWorktreeName(
   return path.basename(currentRoot);
 }
 
+function detectEngineStoreRoot(
+  currentRoot: string,
+  outputRunner: CommandOutputRunner
+): string {
+  if (existsSync(path.join(currentRoot, ".dao", "engine"))) {
+    return currentRoot;
+  }
+  return detectPrimaryCheckoutRoot(currentRoot, outputRunner);
+}
+
 function parseGitWorktreeList(output: string): string[] {
   const worktrees: string[] = [];
   for (const line of output.split(/\r?\n/)) {
@@ -561,6 +834,41 @@ function parseGitWorktreeList(output: string): string[] {
     }
   }
   return worktrees;
+}
+
+function readWorktreeEngineManifest(manifestPath: string): Record<string, unknown> {
+  if (!existsSync(manifestPath)) {
+    return {};
+  }
+  try {
+    return JSON.parse(readFileSync(manifestPath, "utf-8")) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function collectActiveEngineSymlinkTargets(worktreePaths: string[]): Set<string> {
+  const targets = new Set<string>();
+  for (const worktreePath of worktreePaths) {
+    const linkPath = path.join(worktreePath, "engine");
+    try {
+      const stat = lstatSync(linkPath);
+      if (!stat.isSymbolicLink()) continue;
+      targets.add(normalizePath(path.resolve(worktreePath, readlinkSync(linkPath))));
+    } catch {
+      // Missing worktree paths are ignored; git's worktree list is authoritative.
+    }
+  }
+  return targets;
+}
+
+function normalizePath(value: string): string {
+  return path.resolve(value);
+}
+
+function isPathInside(child: string, parent: string): boolean {
+  const relative = path.relative(path.resolve(parent), path.resolve(child));
+  return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 function collectCacheInputFiles(rootDir: string): string[] {

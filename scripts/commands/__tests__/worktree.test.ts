@@ -12,7 +12,9 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 
 import {
+  archiveDaoWorktreeEngines,
   attachEngineToWorktree,
+  archiveStaleDaoWorktreeEngines,
   computeWarmCacheKey,
   createDaoWorktree,
   getEngineStorePaths,
@@ -189,5 +191,173 @@ describe('worktree engine helpers', () => {
     }]);
     expect(path.resolve(workerRoot, readlinkSync(path.join(workerRoot, 'engine'))))
         .toBe(result.enginePath);
+  });
+
+  it('finds stale private worktree engines without deleting them by default', () => {
+    const root = makeProjectRoot();
+    const activeRoot = path.join(root, 'dao-browser-active');
+    const staleRoot = path.join(root, 'dao-browser-stale');
+    const paths = getEngineStorePaths(root);
+    const activeEngineRoot = path.join(paths.worktreeEnginesDir, 'feature-active');
+    const staleEngineRoot = path.join(paths.worktreeEnginesDir, 'feature-stale');
+
+    mkdirSync(path.join(activeEngineRoot, 'engine'), {recursive: true});
+    mkdirSync(path.join(staleEngineRoot, 'engine'), {recursive: true});
+    writeFileSync(path.join(activeEngineRoot, 'manifest.json'), JSON.stringify({
+      id: 'feature-active',
+      worktreePath: activeRoot,
+      enginePath: path.join(activeEngineRoot, 'engine'),
+    }));
+    writeFileSync(path.join(staleEngineRoot, 'manifest.json'), JSON.stringify({
+      id: 'feature-stale',
+      worktreePath: staleRoot,
+      enginePath: path.join(staleEngineRoot, 'engine'),
+    }));
+
+    const outputRunner: CommandOutputRunner = (cmd, args, opts) => {
+      expect(cmd).toBe('git');
+      expect(args).toEqual(['worktree', 'list', '--porcelain']);
+      expect(opts.cwd).toBe(root);
+      return [
+        `worktree ${root}`,
+        'HEAD abc123',
+        'branch refs/heads/main',
+        '',
+        `worktree ${activeRoot}`,
+        'HEAD def456',
+        'branch refs/heads/feature/active',
+        '',
+      ].join('\n');
+    };
+
+    const result = archiveStaleDaoWorktreeEngines({
+      rootDir: root,
+      outputRunner,
+    });
+
+    expect(result.stale.map((entry) => entry.id)).toEqual(['feature-stale']);
+    expect(result.deleted).toEqual([]);
+    expect(existsSync(activeEngineRoot)).toBe(true);
+    expect(existsSync(staleEngineRoot)).toBe(true);
+  });
+
+  it('deletes only stale private worktree engines when requested', () => {
+    const root = makeProjectRoot();
+    const activeRoot = path.join(root, 'dao-browser-active');
+    const staleRoot = path.join(root, 'dao-browser-stale');
+    const paths = getEngineStorePaths(root);
+    const activeEngineRoot = path.join(paths.worktreeEnginesDir, 'feature-active');
+    const staleEngineRoot = path.join(paths.worktreeEnginesDir, 'feature-stale');
+
+    mkdirSync(path.join(activeEngineRoot, 'engine'), {recursive: true});
+    mkdirSync(path.join(staleEngineRoot, 'engine'), {recursive: true});
+    writeFileSync(path.join(activeEngineRoot, 'manifest.json'), JSON.stringify({
+      id: 'feature-active',
+      worktreePath: activeRoot,
+      enginePath: path.join(activeEngineRoot, 'engine'),
+    }));
+    writeFileSync(path.join(staleEngineRoot, 'manifest.json'), JSON.stringify({
+      id: 'feature-stale',
+      worktreePath: staleRoot,
+      enginePath: path.join(staleEngineRoot, 'engine'),
+    }));
+
+    const outputRunner: CommandOutputRunner = () => [
+      `worktree ${root}`,
+      'HEAD abc123',
+      'branch refs/heads/main',
+      '',
+      `worktree ${activeRoot}`,
+      'HEAD def456',
+      'branch refs/heads/feature/active',
+      '',
+    ].join('\n');
+
+    const result = archiveStaleDaoWorktreeEngines({
+      rootDir: root,
+      deleteStale: true,
+      outputRunner,
+    });
+
+    expect(result.deleted.map((entry) => entry.id)).toEqual(['feature-stale']);
+    expect(existsSync(activeEngineRoot)).toBe(true);
+    expect(existsSync(staleEngineRoot)).toBe(false);
+  });
+
+  it('deletes the current private engine when run from a linked worktree', () => {
+    const primaryRoot = makeProjectRoot();
+    const workerRoot = makeProjectRoot();
+    const paths = getEngineStorePaths(primaryRoot);
+    const engineRoot = path.join(paths.worktreeEnginesDir, 'feature-current');
+    const enginePath = path.join(engineRoot, 'engine');
+
+    mkdirSync(enginePath, {recursive: true});
+    writeFileSync(path.join(engineRoot, 'manifest.json'), JSON.stringify({
+      id: 'feature-current',
+      worktreePath: workerRoot,
+      enginePath,
+    }));
+    symlinkSync(
+        path.relative(workerRoot, enginePath),
+        path.join(workerRoot, 'engine'),
+        'dir',
+    );
+
+    const outputRunner: CommandOutputRunner = (cmd, args, opts) => {
+      expect(cmd).toBe('git');
+      expect(args).toEqual(['worktree', 'list', '--porcelain']);
+      expect(opts.cwd).toBe(workerRoot);
+      return [
+        `worktree ${primaryRoot}`,
+        'HEAD abc123',
+        'branch refs/heads/main',
+        '',
+        `worktree ${workerRoot}`,
+        'HEAD def456',
+        'branch refs/heads/feature/current',
+        '',
+      ].join('\n');
+    };
+
+    const result = archiveDaoWorktreeEngines({
+      rootDir: workerRoot,
+      outputRunner,
+    });
+
+    expect(result.mode).toBe('current-worktree');
+    expect(result.deleted.map((entry) => entry.id)).toEqual(['feature-current']);
+    expect(existsSync(engineRoot)).toBe(false);
+    expect(existsSync(path.join(workerRoot, 'engine'))).toBe(false);
+  });
+
+  it('keeps primary checkout archive runs as dry runs by default', () => {
+    const root = makeProjectRoot();
+    const staleRoot = path.join(root, 'dao-browser-stale');
+    const paths = getEngineStorePaths(root);
+    const staleEngineRoot = path.join(paths.worktreeEnginesDir, 'feature-stale');
+
+    mkdirSync(path.join(staleEngineRoot, 'engine'), {recursive: true});
+    writeFileSync(path.join(staleEngineRoot, 'manifest.json'), JSON.stringify({
+      id: 'feature-stale',
+      worktreePath: staleRoot,
+      enginePath: path.join(staleEngineRoot, 'engine'),
+    }));
+
+    const outputRunner: CommandOutputRunner = () => [
+      `worktree ${root}`,
+      'HEAD abc123',
+      'branch refs/heads/main',
+      '',
+    ].join('\n');
+
+    const result = archiveDaoWorktreeEngines({
+      rootDir: root,
+      outputRunner,
+    });
+
+    expect(result.mode).toBe('primary-dry-run');
+    expect(result.stale.map((entry) => entry.id)).toEqual(['feature-stale']);
+    expect(result.deleted).toEqual([]);
+    expect(existsSync(staleEngineRoot)).toBe(true);
   });
 });

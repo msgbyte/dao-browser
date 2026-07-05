@@ -51,6 +51,7 @@ npm run build     # build Dao Browser
 | `npm run rebuild` | import + build (iterative development) |
 | `npm run engine:cache:refresh` | Refresh the local `.dao/engine` warm cache for Git worktree workers |
 | `npm run setup:worktree` | Initialize an externally-created Git worktree for agent work |
+| `npm run archive:worktree` | Archive current worktree engine or dry-run stale primary copies |
 | `npm run worktree:create -- <name>` | Create a Git worktree with a private copy-on-write cloned `engine/` |
 
 ## Development Workflow

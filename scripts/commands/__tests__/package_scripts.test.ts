@@ -39,6 +39,18 @@ describe('package scripts', () => {
     expect(packageJson.scripts?.['setup-worktree']).toBeUndefined();
   });
 
+  it('exposes the agent worktree archive command', () => {
+    const packageJsonPath = path.join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.['worktree:archive'])
+        .toBe('tsx scripts/cli.ts worktree archive');
+    expect(packageJson.scripts?.['archive:worktree'])
+        .toBe('npm run worktree:archive --');
+  });
+
   it('rejects a signed helper with no embedded entitlements', () => {
     expect(() => assertRequiredEntitlementsPresent(
         'Dao Helper (Renderer).app',

@@ -175,6 +175,42 @@ npm run worktree:setup -- --primary /Users/moonrailgun/Develop/dao-browser
 npm run import
 ```
 
+### `npm run archive:worktree`
+
+Archives private worktree engine copies. The default behavior depends on where
+the command is run:
+
+- from a linked worktree, it deletes that worktree's private engine copy and
+  local `engine` symlink
+- from the primary checkout, it dry-runs stale `.dao/engine/worktrees/*`
+  directories
+
+The command compares:
+
+- active worktrees from `git worktree list --porcelain`
+- each `.dao/engine/worktrees/<worktree-id>/manifest.json`
+- active worktree `engine` symlink targets
+
+From a linked worktree, run:
+
+```bash
+npm run archive:worktree
+```
+
+From the primary checkout, the same command is a dry run. After reviewing the
+output, pass `--delete` to remove the stale private engine directories:
+
+```bash
+npm run archive:worktree -- --delete
+```
+
+From a non-primary worktree, pass the primary checkout explicitly if
+auto-detection cannot find it:
+
+```bash
+npm run archive:worktree -- --primary /Users/moonrailgun/Develop/dao-browser
+```
+
 ## Directory Layout
 
 The helper keeps all cache state inside the primary checkout:
@@ -251,17 +287,20 @@ Remove the Git worktree first:
 git worktree remove ../dao-browser-feature-sidebar-cleanup
 ```
 
-Then remove its private engine cache:
+Then list stale private engine copies:
 
 ```bash
-rm -rf .dao/engine/worktrees/feature-sidebar-cleanup
+npm run archive:worktree
 ```
 
-Use the sanitized worktree id shown in:
+If you are in the primary checkout and the output looks correct, delete them:
 
-```text
-.dao/engine/worktrees/<worktree-id>/manifest.json
+```bash
+npm run archive:worktree -- --delete
 ```
+
+If you are inside the linked worktree being retired, `npm run archive:worktree`
+deletes that worktree's private engine copy immediately.
 
 Warm caches live under `.dao/engine/cache/warm/`. Remove old cache-key
 directories only when no active worker was cloned from them and you no longer
