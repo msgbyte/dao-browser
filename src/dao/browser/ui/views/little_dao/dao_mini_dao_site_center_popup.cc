@@ -41,10 +41,12 @@
 #include "ui/views/border.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_utils.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -64,6 +66,21 @@ constexpr int kQrSize = 200;
 
 void PrepareGlassLabel(views::Label* label) {
   label->SetSkipSubpixelRenderingOpacityCheck(true);
+}
+
+void ClearButtonHoverState(views::View* root) {
+  if (!root) {
+    return;
+  }
+  if (auto* button = views::AsViewClass<views::Button>(root)) {
+    button->SetBackground(nullptr);
+    if (button->GetState() != views::Button::STATE_DISABLED) {
+      button->SetState(views::Button::STATE_NORMAL);
+    }
+  }
+  for (views::View* child : root->children()) {
+    ClearButtonHoverState(child);
+  }
 }
 
 class MiniSiteActionButton : public views::LabelButton {
@@ -326,11 +343,13 @@ void DaoMiniDaoSiteCenterPopup::ShowAt(
 }
 
 void DaoMiniDaoSiteCenterPopup::Hide() {
+  ClearButtonHoverState(card_);
   SetVisible(false);
   content::WebContentsObserver::Observe(nullptr);
 }
 
 void DaoMiniDaoSiteCenterPopup::ShowMainPanel() {
+  ClearButtonHoverState(card_);
   main_panel_->SetVisible(true);
   qr_panel_->SetVisible(false);
   InvalidateLayout();
@@ -338,6 +357,7 @@ void DaoMiniDaoSiteCenterPopup::ShowMainPanel() {
 }
 
 void DaoMiniDaoSiteCenterPopup::ShowQrPanel() {
+  ClearButtonHoverState(card_);
   main_panel_->SetVisible(false);
   qr_panel_->SetVisible(true);
 

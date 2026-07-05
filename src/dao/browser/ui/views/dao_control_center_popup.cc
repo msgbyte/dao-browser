@@ -21,7 +21,9 @@
 #include "ui/gfx/shadow_value.h"
 #include "ui/gfx/skia_paint_util.h"
 #include "ui/views/background.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_utils.h"
 
 namespace dao {
 
@@ -43,6 +45,21 @@ void PaintCardShadow(gfx::Canvas* canvas,
   flags.setStyle(cc::PaintFlags::kFill_Style);
   flags.setLooper(gfx::CreateShadowDrawLooper(shadows));
   canvas->DrawRoundRect(gfx::RectF(card_bounds), corner_radius, flags);
+}
+
+void ClearButtonHoverState(views::View* root) {
+  if (!root) {
+    return;
+  }
+  if (auto* button = views::AsViewClass<views::Button>(root)) {
+    button->SetBackground(nullptr);
+    if (button->GetState() != views::Button::STATE_DISABLED) {
+      button->SetState(views::Button::STATE_NORMAL);
+    }
+  }
+  for (views::View* child : root->children()) {
+    ClearButtonHoverState(child);
+  }
 }
 
 }  // namespace
@@ -175,6 +192,7 @@ void DaoControlCenterPopup::ShowAt(const gfx::Point& anchor_bottom_right) {
 }
 
 void DaoControlCenterPopup::Hide() {
+  ClearButtonHoverState(card_);
   SetVisible(false);
   content::WebContentsObserver::Observe(nullptr);
 
@@ -187,6 +205,7 @@ void DaoControlCenterPopup::Hide() {
 }
 
 void DaoControlCenterPopup::ShowQrView() {
+  ClearButtonHoverState(card_);
   if (extensions_section_) extensions_section_->SetVisible(false);
   if (utility_section_) utility_section_->SetVisible(false);
   if (more_menu_) more_menu_->SetVisible(false);
@@ -202,6 +221,7 @@ void DaoControlCenterPopup::ShowQrView() {
 }
 
 void DaoControlCenterPopup::ShowMoreMenu() {
+  ClearButtonHoverState(card_);
   if (extensions_section_) extensions_section_->SetVisible(false);
   if (utility_section_) utility_section_->SetVisible(false);
   if (qr_view_) qr_view_->SetVisible(false);
@@ -214,6 +234,7 @@ void DaoControlCenterPopup::ShowMoreMenu() {
 }
 
 void DaoControlCenterPopup::ShowMainPanel() {
+  ClearButtonHoverState(card_);
   if (extensions_section_) extensions_section_->SetVisible(true);
   if (utility_section_) utility_section_->SetVisible(true);
   if (qr_view_) qr_view_->SetVisible(false);

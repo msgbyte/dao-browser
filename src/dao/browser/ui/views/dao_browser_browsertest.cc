@@ -279,6 +279,14 @@ int CountVisibleLabelsWithoutSubpixelOpacityCheck(views::View* root) {
   return count;
 }
 
+void SimulateMouseEnter(views::View* view) {
+  ASSERT_NE(nullptr, view);
+  ui::MouseEvent event(ui::EventType::kMouseEntered, gfx::Point(1, 1),
+                       gfx::Point(1, 1), ui::EventTimeForNow(), ui::EF_NONE,
+                       ui::EF_NONE);
+  view->OnMouseEntered(event);
+}
+
 template <typename T>
 T* FindDescendantViewOfClass(views::View* root) {
   if (!root) {
@@ -4752,6 +4760,28 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       HideClearsHoveredUtilityButtonBackground) {
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  popup->ShowAt(gfx::Point(100, 100));
+  views::Button* mini_dao_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO));
+  ASSERT_NE(nullptr, mini_dao_button);
+
+  SimulateMouseEnter(mini_dao_button);
+  ASSERT_NE(nullptr, mini_dao_button->background());
+
+  popup->Hide();
+  EXPECT_EQ(nullptr, mini_dao_button->background());
+
+  popup->ShowAt(gfx::Point(100, 100));
+  EXPECT_EQ(nullptr, mini_dao_button->background());
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        MiniDaoButtonExtractsActiveTabAndHidesPopup) {
   TabStripModel* source_model = browser()->tab_strip_model();
   ASSERT_NE(nullptr, source_model);
@@ -5159,6 +5189,41 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                                     IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO)));
 
   popup->Hide();
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterHideClearsHoveredActionBackground) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,site-center-hover"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  auto* popup = little_browser_view->dao_mini_dao_site_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  little_view->ShowMiniDaoSiteCenterForTesting();
+  views::Button* page_info_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(
+                 IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO));
+  ASSERT_NE(nullptr, page_info_button);
+
+  SimulateMouseEnter(page_info_button);
+  ASSERT_NE(nullptr, page_info_button->background());
+
+  popup->Hide();
+  EXPECT_EQ(nullptr, page_info_button->background());
+
+  little_view->ShowMiniDaoSiteCenterForTesting();
+  EXPECT_EQ(nullptr, page_info_button->background());
+
   BrowserRemovedWaiter removed(little_dao_browser);
   little_dao_browser->window()->Close();
   removed.Wait();
