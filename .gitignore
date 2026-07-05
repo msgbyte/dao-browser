@@ -6,6 +6,7 @@ dist/
 .DS_Store
 .gstack/
 .superpowers/
+.dao/
 
 docs/superpowers
 

@@ -49,6 +49,9 @@ npm run build     # build Dao Browser
 | `npm run package:zip` | Package into a `.zip` for distribution |
 | `npm run setup` | download + import (first-time setup) |
 | `npm run rebuild` | import + build (iterative development) |
+| `npm run engine:cache:refresh` | Refresh the local `.dao/engine` warm cache for Git worktree workers |
+| `npm run setup:worktree` | Initialize an externally-created Git worktree for agent work |
+| `npm run worktree:create -- <name>` | Create a Git worktree with a private copy-on-write cloned `engine/` |
 
 ## Development Workflow
 
@@ -56,6 +59,10 @@ npm run build     # build Dao Browser
 2. Make changes directly in `engine/` for rapid iteration
 3. Run `npm run export -- <filepath>` to capture changes as patch files
 4. Run `npm run rebuild` to verify patches apply cleanly and build succeeds
+
+For parallel agent work, use the `.dao/engine` worktree cache flow instead of
+copying `engine/` for every Git worktree. See
+[Worktree Engine Cache](./worktree-engine-cache.md).
 
 ## Project Structure
 

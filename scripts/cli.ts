@@ -8,6 +8,7 @@ import { vendorCommand } from "./commands/vendor.js";
 import { sparkleCommand } from "./commands/sparkle.js";
 import { uploadCommand } from "./commands/upload.js";
 import { releaseCommand } from "./commands/release.js";
+import { worktreeCommand } from "./commands/worktree.js";
 
 const program = new Command();
 
@@ -25,5 +26,6 @@ program.addCommand(vendorCommand);
 program.addCommand(sparkleCommand);
 program.addCommand(uploadCommand);
 program.addCommand(releaseCommand);
+program.addCommand(worktreeCommand);
 
 program.parse();

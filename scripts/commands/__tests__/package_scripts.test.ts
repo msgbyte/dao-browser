@@ -26,6 +26,19 @@ describe('package scripts', () => {
         .toBe('tsx scripts/cli.ts upload cleanup');
   });
 
+  it('exposes the agent worktree setup command', () => {
+    const packageJsonPath = path.join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.['worktree:setup'])
+        .toBe('tsx scripts/cli.ts worktree setup');
+    expect(packageJson.scripts?.['setup:worktree'])
+        .toBe('npm install && npm run worktree:setup && npm run import');
+    expect(packageJson.scripts?.['setup-worktree']).toBeUndefined();
+  });
+
   it('rejects a signed helper with no embedded entitlements', () => {
     expect(() => assertRequiredEntitlementsPresent(
         'Dao Helper (Renderer).app',
