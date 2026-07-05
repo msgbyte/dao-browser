@@ -32,6 +32,7 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
 (function() {
   if (window.__daoPipOverrideInstalled) return;
   window.__daoPipOverrideInstalled = true;
+  window.__daoDocumentPipOpenPromise = null;
 
   var DAO_PIP_SELECTOR = %s;
   var DAO_PIP_CUSTOM_STYLES = %s;
@@ -216,9 +217,12 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
     var originalNextSibling = target.nextSibling;
     var hadTargetAttr = target.hasAttribute(DAO_PIP_TARGET_ATTR);
     var originalTargetAttr = target.getAttribute(DAO_PIP_TARGET_ATTR);
+    var shouldDispatchVideoPipEvents = !!videoEl;
     target.setAttribute(DAO_PIP_TARGET_ATTR, 'true');
     pipWindow.document.body.appendChild(target);
-    dispatchVideoPipEvent(video, 'enterpictureinpicture', pipWindow);
+    if (shouldDispatchVideoPipEvents) {
+      dispatchVideoPipEvent(video, 'enterpictureinpicture', pipWindow);
+    }
 
     var eventsToForward = [
       'mousemove', 'mouseup', 'mousedown',
@@ -248,7 +252,9 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
       } else {
         target.removeAttribute(DAO_PIP_TARGET_ATTR);
       }
-      dispatchVideoPipEvent(video, 'leavepictureinpicture', pipWindow);
+      if (shouldDispatchVideoPipEvents) {
+        dispatchVideoPipEvent(video, 'leavepictureinpicture', pipWindow);
+      }
     }, {once: true});
 
     return pipWindow;
@@ -268,11 +274,21 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
     try {
       if (window.documentPictureInPicture &&
           window.documentPictureInPicture.window) {
-        window.documentPictureInPicture.window.close();
+        return true;
       }
-      var result = await daoDocumentPip(null);
-      return !!result;
+      if (window.__daoDocumentPipOpenPromise) {
+        return !!await window.__daoDocumentPipOpenPromise;
+      }
+      window.__daoDocumentPipOpenPromise = daoDocumentPip(null)
+          .then(function(result) {
+            return !!result;
+          })
+          .finally(function() {
+            window.__daoDocumentPipOpenPromise = null;
+          });
+      return !!await window.__daoDocumentPipOpenPromise;
     } catch(e) {
+      window.__daoDocumentPipOpenPromise = null;
       console.warn('[Dao] Document PiP trigger failed:', e);
       return false;
     }
@@ -300,7 +316,46 @@ constexpr char kTriggerScriptTemplate[] = R"js(
     root.setAttribute('data-dao-pip-trigger-id', triggerId);
     root.removeAttribute('data-dao-pip-trigger-result');
   }
-  (async function(triggerId) {
+
+  var setResult = function(ok) {
+    var root = document.documentElement;
+    if (root && root.getAttribute('data-dao-pip-trigger-id') === triggerId) {
+      root.setAttribute('data-dao-pip-trigger-result',
+                        ok ? 'true' : 'false');
+    }
+  };
+
+  var script = document.createElement('script');
+  script.textContent = '(' + (async function(triggerId) {
+    if (!window.__daoTriggerDocumentPip) {
+      return;
+    }
+    var ok = false;
+    try {
+      ok = !!await window.__daoTriggerDocumentPip();
+    } catch(e) {
+      ok = false;
+    }
+    if (ok) {
+      var root = document.documentElement;
+      if (root && root.getAttribute('data-dao-pip-trigger-id') === triggerId) {
+        root.setAttribute('data-dao-pip-trigger-id', triggerId);
+        root.setAttribute('data-dao-pip-trigger-result', 'true');
+      }
+    }
+  }).toString() + ')(' + JSON.stringify(triggerId) + ')';
+  try {
+    (document.documentElement || document.head || document.body)
+        .appendChild(script);
+    script.remove();
+  } catch(e) {}
+
+  setTimeout(async function() {
+    var root = document.documentElement;
+    if (!root || root.getAttribute('data-dao-pip-trigger-id') !== triggerId ||
+        root.getAttribute('data-dao-pip-trigger-result')) {
+      return;
+    }
     var ok = false;
     try {
       ok = !!(window.__daoTriggerDocumentPip &&
@@ -308,13 +363,9 @@ constexpr char kTriggerScriptTemplate[] = R"js(
     } catch(e) {
       ok = false;
     }
-    var root = document.documentElement;
-    if (root) {
-      root.setAttribute('data-dao-pip-trigger-id', triggerId);
-      root.setAttribute('data-dao-pip-trigger-result',
-                        ok ? 'true' : 'false');
-    }
-  })(triggerId);
+    setResult(ok);
+  }, 100);
+
   return triggerId;
 })();
 )js";
@@ -335,7 +386,23 @@ constexpr char kTriggerResultScriptTemplate[] = R"js(
 
 constexpr char kCloseScript[] = R"js(
 (function() {
-  return !!(window.__daoCloseDocumentPip && window.__daoCloseDocumentPip());
+  var closed = false;
+  try {
+    closed = !!(window.__daoCloseDocumentPip &&
+                window.__daoCloseDocumentPip());
+  } catch(e) {}
+
+  var script = document.createElement('script');
+  script.textContent =
+      '(function(){try{window.__daoCloseDocumentPip&&' +
+      'window.__daoCloseDocumentPip();}catch(e){}})();';
+  try {
+    (document.documentElement || document.head || document.body)
+        .appendChild(script);
+    script.remove();
+  } catch(e) {}
+
+  return closed;
 })();
 )js";
 

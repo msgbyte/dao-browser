@@ -4029,6 +4029,152 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       TriggerUsesMainWorldDocumentPipApi) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="bilibili-player">
+          <div class="bpx-player-container">
+            <video id="dao-video" style="width:640px;height:360px"></video>
+          </div>
+        </div>`;
+      window.__daoMainWorldRequestWindowCount = 0;
+      window.__daoMainWorldCloseCount = 0;
+      const fakeDocumentPictureInPicture = {
+        window: null,
+        requestWindow: async () => {
+          window.__daoMainWorldRequestWindowCount++;
+          const pipDocument = document.implementation.createHTMLDocument('');
+          const pipWindow = {
+            document: pipDocument,
+            pagehideHandlers: [],
+            addEventListener(type, handler) {
+              if (type === 'pagehide') {
+                this.pagehideHandlers.push(handler);
+              }
+            },
+            close() {
+              window.__daoMainWorldCloseCount++;
+              const event = new Event('pagehide');
+              const handlers = this.pagehideHandlers.splice(0);
+              handlers.forEach((handler) => handler.call(this, event));
+              fakeDocumentPictureInPicture.window = null;
+            },
+          };
+          fakeDocumentPictureInPicture.window = pipWindow;
+          return pipWindow;
+        },
+      };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: fakeDocumentPictureInPicture,
+      });
+      !!window.__daoTriggerDocumentPip;
+    )js"));
+
+  EXPECT_EQ("undefined",
+            EvalJsInDaoIsolatedWorld(
+                contents, "typeof window.documentPictureInPicture"));
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+
+  base::test::TestFuture<bool> result;
+  interceptor->TriggerDocumentPip(result.GetCallback());
+
+  ASSERT_TRUE(result.Get());
+  EXPECT_EQ(1, content::EvalJs(
+                   contents, "window.__daoMainWorldRequestWindowCount"));
+
+  interceptor->CloseDocumentPip();
+  EXPECT_EQ(1, content::EvalJs(contents, "window.__daoMainWorldCloseCount"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       TriggerIsIdempotentAndDoesNotDispatchVideoPipEvents) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="bilibili-player">
+          <div class="bpx-player-container">
+            <video id="dao-video" style="width:640px;height:360px"></video>
+          </div>
+        </div>`;
+      window.__daoRequestWindowCount = 0;
+      window.__daoCloseCount = 0;
+      window.__daoPipEvents = {enter: 0, leave: 0};
+      const video = document.getElementById('dao-video');
+      video.addEventListener('enterpictureinpicture', () => {
+        window.__daoPipEvents.enter++;
+      });
+      video.addEventListener('leavepictureinpicture', () => {
+        window.__daoPipEvents.leave++;
+      });
+      const fakeDocumentPictureInPicture = {
+        window: null,
+        requestWindow: async () => {
+          window.__daoRequestWindowCount++;
+          const pipDocument = document.implementation.createHTMLDocument('');
+          const pipWindow = {
+            document: pipDocument,
+            pagehideHandlers: [],
+            addEventListener(type, handler) {
+              if (type === 'pagehide') {
+                this.pagehideHandlers.push(handler);
+              }
+            },
+            close() {
+              window.__daoCloseCount++;
+              const event = new Event('pagehide');
+              const handlers = this.pagehideHandlers.splice(0);
+              handlers.forEach((handler) => handler.call(this, event));
+              fakeDocumentPictureInPicture.window = null;
+            },
+          };
+          fakeDocumentPictureInPicture.window = pipWindow;
+          return pipWindow;
+        },
+      };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: fakeDocumentPictureInPicture,
+      });
+      !!window.__daoTriggerDocumentPip;
+    )js"));
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+
+  base::test::TestFuture<bool> first_result;
+  interceptor->TriggerDocumentPip(first_result.GetCallback());
+  ASSERT_TRUE(first_result.Get());
+
+  base::test::TestFuture<bool> second_result;
+  interceptor->TriggerDocumentPip(second_result.GetCallback());
+  ASSERT_TRUE(second_result.Get());
+
+  EXPECT_EQ(1, content::EvalJs(contents, "window.__daoRequestWindowCount"));
+  EXPECT_EQ(0, content::EvalJs(contents, "window.__daoCloseCount"));
+  EXPECT_EQ(0, content::EvalJs(contents, "window.__daoPipEvents.enter"));
+
+  interceptor->CloseDocumentPip();
+  EXPECT_EQ(1, content::EvalJs(contents, "window.__daoCloseCount"));
+  EXPECT_EQ(0, content::EvalJs(contents, "window.__daoPipEvents.leave"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
                        CloseExitsStalePipWindowWithoutDaoActiveState) {
   GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
