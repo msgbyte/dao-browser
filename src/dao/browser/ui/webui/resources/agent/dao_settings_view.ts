@@ -86,6 +86,8 @@ export class DaoSettingsView extends CrLitElement {
       dreamEnabled_: {type: Boolean, state: true},
       dreamDebug_: {type: Boolean, state: true},
       dreamRunning_: {type: Boolean, state: true},
+      dreamExcludedDomains_: {type: Array, state: true},
+      dreamExcludedDomainInput_: {type: String, state: true},
       pageContextEnabled_: {type: Boolean, state: true},
       conversationEnabled_: {type: Boolean, state: true},
       threshold_: {type: String, state: true},
@@ -118,6 +120,8 @@ export class DaoSettingsView extends CrLitElement {
   declare private dreamEnabled_: boolean;
   declare private dreamDebug_: boolean;
   declare private dreamRunning_: boolean;
+  declare private dreamExcludedDomains_: string[];
+  declare private dreamExcludedDomainInput_: string;
   declare private pageContextEnabled_: boolean;
   declare private conversationEnabled_: boolean;
   declare private threshold_: string;
@@ -251,6 +255,57 @@ export class DaoSettingsView extends CrLitElement {
       .soul-editor::placeholder { color: var(--text-tertiary); }
       .soul-actions {
         display: flex; align-items: center; gap: 8px; margin-top: 10px;
+      }
+      .dream-exclusions {
+        margin: 12px 0 4px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .dream-exclusion-input-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+      .dream-exclusion-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .dream-exclusion-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        max-width: 100%;
+        padding: 4px 6px 4px 9px;
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
+        background: var(--glass);
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+      .dream-exclusion-chip span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dream-exclusion-chip button {
+        width: 18px;
+        height: 18px;
+        padding: 0;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--text-tertiary);
+        cursor: pointer;
+        font: inherit;
+        line-height: 18px;
+      }
+      .dream-exclusion-chip button:hover {
+        background: var(--glass-strong);
+        color: var(--text);
       }
       .btn-primary {
         padding: 7px 18px; background: var(--accent); border: none;
@@ -526,6 +581,8 @@ export class DaoSettingsView extends CrLitElement {
     this.dreamEnabled_ = false;
     this.dreamDebug_ = false;
     this.dreamRunning_ = false;
+    this.dreamExcludedDomains_ = [];
+    this.dreamExcludedDomainInput_ = '';
     this.pageContextEnabled_ = true;
     this.conversationEnabled_ = true;
     this.threshold_ = 'balanced';
@@ -885,6 +942,45 @@ export class DaoSettingsView extends CrLitElement {
               this.dreamEnabled_ = v;
               callNativeArgs('setDreamEnabled', v).catch(() => {});
             })}
+        <div class="dream-exclusions">
+          <label for="dream-excluded-domain-input">
+            ${t('settings.dream.excluded_domains_label')}
+          </label>
+          <div class="dream-exclusion-input-row">
+            <input id="dream-excluded-domain-input"
+                data-testid="dream-excluded-domain-input"
+                .value=${this.dreamExcludedDomainInput_}
+                placeholder=${t('settings.dream.excluded_domains_placeholder')}
+                @input=${(e: Event) => {
+                  this.dreamExcludedDomainInput_ =
+                      (e.target as HTMLInputElement).value;
+                }}
+                @keydown=${(e: KeyboardEvent) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void this.addDreamExcludedDomain_();
+                  }
+                }}>
+            <button class="btn-secondary"
+                ?disabled=${!this.dreamExcludedDomainInput_.trim()}
+                @click=${() => void this.addDreamExcludedDomain_()}>
+              ${t('settings.dream.excluded_domains_add')}
+            </button>
+          </div>
+          <div class="dream-exclusion-list">
+            ${this.dreamExcludedDomains_.map(domain => html`
+              <span class="dream-exclusion-chip">
+                <span>${domain}</span>
+                <button data-domain=${domain}
+                    aria-label=${t(
+                        'settings.dream.excluded_domains_remove', {domain})}
+                    @click=${() =>
+                        void this.removeDreamExcludedDomain_(domain)}>
+                  x
+                </button>
+              </span>`)}
+          </div>
+        </div>
         ${this.renderToggle_(
             t('settings.dream.debug_name'),
             t('settings.dream.debug_desc'),
@@ -905,6 +1001,38 @@ export class DaoSettingsView extends CrLitElement {
           </button>
         </div>
       </div>`;
+  }
+
+  private async addDreamExcludedDomain_() {
+    const input = this.dreamExcludedDomainInput_.trim();
+    if (!input) {
+      return;
+    }
+    try {
+      const result = await callNativeArgs('addDreamExcludedDomain', input) as
+          {domain?: string};
+      const domain = result?.domain;
+      if (typeof domain === 'string' && domain) {
+        this.dreamExcludedDomains_ =
+            [...new Set([...this.dreamExcludedDomains_, domain])].sort();
+        this.dreamExcludedDomainInput_ = '';
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.fireToast_(t('settings.dream.excluded_add_failed', {error: msg}));
+    }
+  }
+
+  private async removeDreamExcludedDomain_(domain: string) {
+    try {
+      await callNativeArgs('removeDreamExcludedDomain', domain);
+      this.dreamExcludedDomains_ =
+          this.dreamExcludedDomains_.filter(item => item !== domain);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.fireToast_(
+          t('settings.dream.excluded_remove_failed', {error: msg}));
+    }
   }
 
   private openDreamHistory_() {
@@ -1273,6 +1401,12 @@ export class DaoSettingsView extends CrLitElement {
     }).catch(() => {});
     callNativeArgs('getDreamDebug').then(enabled => {
       this.dreamDebug_ = !!enabled;
+    }).catch(() => {});
+    callNativeArgs('getDreamExcludedDomains').then(domains => {
+      this.dreamExcludedDomains_ = Array.isArray(domains) ?
+          domains.filter(
+              (domain): domain is string => typeof domain === 'string') :
+          [];
     }).catch(() => {});
 
     callNativeArgs(

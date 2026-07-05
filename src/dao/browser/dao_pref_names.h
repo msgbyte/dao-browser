@@ -56,6 +56,11 @@ inline constexpr char kDaoDreamEnabled[] = "dao.dream_enabled";
 // so the user can inspect what was summarized.
 inline constexpr char kDaoDreamDebug[] = "dao.dream_debug";
 
+// List pref storing normalized domains excluded from Dream Analysis material
+// collection. A value excludes the domain and its subdomains.
+inline constexpr char kDaoDreamExcludedDomains[] =
+    "dao.dream_excluded_domains";
+
 }  // namespace dao::prefs
 
 #endif  // DAO_BROWSER_DAO_PREF_NAMES_H_

@@ -25,6 +25,7 @@ interface DreamReportData {
   dreamDate: string;
   reportMarkdown: string;
   habits: DreamHabit[];
+  materialStats: string;
   debugMaterialJson: string;
   triggerKind: string;
   createdAt?: number;
@@ -34,6 +35,7 @@ type HabitState = 'confirmed'|'rejected';
 type ShareStatus = 'idle'|'copying'|'copied'|'failed';
 
 const DREAM_HABIT_FEEDBACK_STORAGE_KEY = 'dao.dream.habitFeedback.v1';
+const DREAM_RUN_NATIVE_TIMEOUT_MS = 6 * 60 * 1000;
 
 export class DaoDreamApp extends CrLitElement {
   static get is() {
@@ -48,6 +50,11 @@ export class DaoDreamApp extends CrLitElement {
       error_: {type: String, state: true},
       habitStates_: {state: true},
       shareStatus_: {type: String, state: true},
+      rerunRunning_: {type: Boolean, state: true},
+      rerunError_: {type: String, state: true},
+      dreamExcludedDomains_: {type: Array, state: true},
+      dreamExclusionAdding_: {type: Boolean, state: true},
+      dreamExclusionError_: {type: String, state: true},
     };
   }
 
@@ -57,6 +64,11 @@ export class DaoDreamApp extends CrLitElement {
   declare private error_: string;
   declare private habitStates_: Record<number, HabitState>;
   declare private shareStatus_: ShareStatus;
+  declare private rerunRunning_: boolean;
+  declare private rerunError_: string;
+  declare private dreamExcludedDomains_: string[];
+  declare private dreamExclusionAdding_: boolean;
+  declare private dreamExclusionError_: string;
 
   constructor() {
     super();
@@ -66,6 +78,11 @@ export class DaoDreamApp extends CrLitElement {
     this.error_ = '';
     this.habitStates_ = {};
     this.shareStatus_ = 'idle';
+    this.rerunRunning_ = false;
+    this.rerunError_ = '';
+    this.dreamExcludedDomains_ = [];
+    this.dreamExclusionAdding_ = false;
+    this.dreamExclusionError_ = '';
   }
 
   static override get styles() {
@@ -124,7 +141,8 @@ export class DaoDreamApp extends CrLitElement {
         flex-wrap: wrap;
       }
 
-      .copy-image-button {
+      .copy-image-button,
+      .rerun-report-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -139,17 +157,20 @@ export class DaoDreamApp extends CrLitElement {
         cursor: pointer;
       }
 
-      .copy-image-button:hover:not(:disabled) {
+      .copy-image-button:hover:not(:disabled),
+      .rerun-report-button:hover:not(:disabled) {
         background: rgba(255, 255, 255, 0.92);
         border-color: rgba(70, 120, 190, 0.42);
       }
 
-      .copy-image-button:disabled {
+      .copy-image-button:disabled,
+      .rerun-report-button:disabled {
         cursor: default;
         opacity: 0.68;
       }
 
-      .copy-image-button svg {
+      .copy-image-button svg,
+      .rerun-report-button svg {
         width: 14px;
         height: 14px;
         flex: 0 0 14px;
@@ -199,6 +220,75 @@ export class DaoDreamApp extends CrLitElement {
         color: rgba(30, 20, 40, 0.56);
         font-size: 12px;
         font-weight: 650;
+      }
+
+      .history-rerun-error {
+        margin: -4px 0 10px;
+        color: rgb(160, 48, 48);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .report-domain-picker {
+        border-top: 1px solid rgba(70, 120, 190, 0.16);
+        padding-top: 18px;
+      }
+
+      .report-domain-picker h2 {
+        margin-bottom: 10px;
+      }
+
+      .report-domain-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .report-domain-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        min-width: 0;
+        max-width: 100%;
+        min-height: 34px;
+        padding: 6px 10px;
+        border: 1px solid rgba(70, 120, 190, 0.18);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.62);
+        color: rgba(30, 20, 40, 0.72);
+        font-size: 12px;
+      }
+
+      .report-domain-option.excluded {
+        background: rgba(70, 120, 190, 0.08);
+        color: rgba(30, 20, 40, 0.46);
+      }
+
+      .report-domain-option span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .report-domain-add-button {
+        flex: 0 0 auto;
+      }
+
+      .report-domain-status {
+        flex: 0 0 auto;
+        color: rgba(30, 20, 40, 0.46);
+        font-size: 12px;
+      }
+
+      .report-domain-empty {
+        margin: 12px 0 0;
+        color: rgba(30, 20, 40, 0.52);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .report-body {
+        min-width: 0;
       }
 
       .history-item {
@@ -426,6 +516,7 @@ export class DaoDreamApp extends CrLitElement {
     this.loading_ = true;
     this.error_ = '';
     await initI18n();
+    void this.loadDreamExcludedDomains_();
     if (this.currentRoute_() === 'today') {
       await this.loadTodayReport_();
     } else {
@@ -476,6 +567,7 @@ export class DaoDreamApp extends CrLitElement {
       reportMarkdown?: string;
       habitCandidates?: string;
       debugMaterialJson?: string;
+      materialStats?: string;
       triggerKind?: string;
       createdAt?: number;
     } | null;
@@ -499,6 +591,7 @@ export class DaoDreamApp extends CrLitElement {
       dreamDate: r.dreamDate || '',
       reportMarkdown: r.reportMarkdown || '',
       habits,
+      materialStats: r.materialStats || '',
       debugMaterialJson: r.debugMaterialJson || '',
       triggerKind: r.triggerKind || '',
       createdAt:
@@ -523,7 +616,98 @@ export class DaoDreamApp extends CrLitElement {
   private selectHistoryReport_(report: DreamReportData) {
     this.report_ = report;
     this.habitStates_ = this.loadPersistedHabitStates_(report);
+    this.dreamExclusionError_ = '';
     this.markReportViewed_(report);
+  }
+
+  private async rerunDreamDate_(date: string) {
+    const dreamDate = date.trim();
+    if (!dreamDate || this.rerunRunning_) {
+      return;
+    }
+    this.rerunRunning_ = true;
+    this.rerunError_ = '';
+    const previousReport = this.report_;
+    try {
+      await callNative('startManualDream', {date: dreamDate}, {
+        timeoutMs: DREAM_RUN_NATIVE_TIMEOUT_MS,
+      });
+      await this.loadHistory_();
+      const match = this.reports_.find(report => report.dreamDate === dreamDate);
+      if (match) {
+        this.selectHistoryReport_(match);
+      }
+    } catch (e) {
+      this.report_ = previousReport;
+      this.rerunError_ = e instanceof Error ? e.message : String(e);
+    } finally {
+      this.rerunRunning_ = false;
+    }
+  }
+
+  private async loadDreamExcludedDomains_() {
+    try {
+      const domains = await callNativeArgs('getDreamExcludedDomains');
+      this.dreamExcludedDomains_ = Array.isArray(domains) ?
+          domains.filter(
+              (domain): domain is string => typeof domain === 'string') :
+          [];
+    } catch {
+      this.dreamExcludedDomains_ = [];
+    }
+  }
+
+  private sourceDomainsForReport_(report: DreamReportData): string[] {
+    try {
+      const stats = JSON.parse(report.materialStats || '{}') as {
+        source_domains?: unknown;
+      };
+      if (!Array.isArray(stats.source_domains)) {
+        return [];
+      }
+      const seen = new Set<string>();
+      const domains: string[] = [];
+      for (const item of stats.source_domains) {
+        if (typeof item !== 'string') {
+          continue;
+        }
+        const domain = item.trim();
+        if (!domain || seen.has(domain)) {
+          continue;
+        }
+        seen.add(domain);
+        domains.push(domain);
+      }
+      return domains;
+    } catch {
+      return [];
+    }
+  }
+
+  private isDreamExcludedDomain_(domain: string) {
+    return this.dreamExcludedDomains_.includes(domain);
+  }
+
+  private async addDreamExcludedDomain_(domain: string) {
+    if (this.isDreamExcludedDomain_(domain) || this.dreamExclusionAdding_) {
+      return;
+    }
+    this.dreamExclusionAdding_ = true;
+    this.dreamExclusionError_ = '';
+    try {
+      const result = await callNativeArgs('addDreamExcludedDomain', domain) as
+          {domain?: string};
+      if (typeof result?.domain === 'string' && result.domain) {
+        this.dreamExcludedDomains_ =
+            [...new Set([...this.dreamExcludedDomains_, result.domain])].sort();
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.dreamExclusionError_ =
+          t('dream.page.excluded_add_failed', {error: msg});
+    } finally {
+      this.dreamExclusionAdding_ = false;
+    }
   }
 
   private confirmHabit_(habit: DreamHabit, index: number) {
@@ -658,6 +842,77 @@ export class DaoDreamApp extends CrLitElement {
       </nav>`;
   }
 
+  private renderDreamExclusionShortcut_(report: DreamReportData) {
+    const domains = this.sourceDomainsForReport_(report);
+    return html`
+      <section class="report-domain-picker">
+        <h2>${t('dream.page.source_domains_title')}</h2>
+        ${domains.length === 0 ? html`
+          <p class="report-domain-empty">
+            ${t('dream.page.source_domains_empty')}
+          </p>` : html`
+          <div class="report-domain-list">
+            ${domains.map(domain => this.renderSourceDomainRow_(domain))}
+          </div>
+          ${this.dreamExclusionError_ ? html`
+            <div class="history-rerun-error">
+              ${this.dreamExclusionError_}
+            </div>` : nothing}`}
+      </section>`;
+  }
+
+  private renderSourceDomainRow_(domain: string) {
+    const excluded = this.isDreamExcludedDomain_(domain);
+    return html`
+      <div class="${'report-domain-option ' + (excluded ? 'excluded' : '')}">
+        <span data-domain-label="${domain}">${domain}</span>
+        ${excluded ? html`
+          <span class="report-domain-status">
+            ${t('dream.page.source_domains_excluded')}
+          </span>` : this.dreamExclusionAdding_ ? html`
+          <button class="report-domain-add-button"
+              data-testid="dream-add-domain-button"
+              data-domain="${domain}"
+              disabled>
+            ${t('dream.page.excluded_domains_adding')}
+          </button>` : html`
+          <button class="report-domain-add-button"
+              data-testid="dream-add-domain-button"
+              data-domain="${domain}"
+              @click=${() => void this.addDreamExcludedDomain_(domain)}>
+            ${t('dream.page.source_domains_add')}
+          </button>`}
+      </div>`;
+  }
+
+  private renderRerunReportButton_(report: DreamReportData) {
+    const label = t('dream.page.rerun_report');
+    const icon = html`
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+        <path d="M3 21v-5h5"></path>
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+        <path d="M21 3v5h-5"></path>
+      </svg>`;
+    return this.rerunRunning_ ? html`
+      <button class="rerun-report-button"
+          data-testid="dream-rerun-current-button"
+          title="${label}"
+          aria-label="${label}"
+          disabled>
+        ${icon}
+      </button>` : html`
+      <button class="rerun-report-button"
+          data-testid="dream-rerun-current-button"
+          title="${label}"
+          aria-label="${label}"
+          @click=${() => void this.rerunDreamDate_(report.dreamDate)}>
+        ${icon}
+      </button>`;
+  }
+
   private triggerKindLabel_(triggerKind: string) {
     switch (triggerKind) {
       case 'nightly':
@@ -785,8 +1040,11 @@ export class DaoDreamApp extends CrLitElement {
     const generatedAt = this.formatGeneratedAt_(report.createdAt);
     return html`
       <article>
-        ${this.renderMarkdown_(report.reportMarkdown)}
+        <div class="report-body">
+          ${this.renderMarkdown_(report.reportMarkdown)}
+        </div>
         ${this.renderHabits_(report)}
+        ${this.renderDreamExclusionShortcut_(report)}
         ${report.debugMaterialJson ? html`
           <details>
             <summary>${t('chat.dream.debug_title')}</summary>
@@ -814,6 +1072,7 @@ export class DaoDreamApp extends CrLitElement {
               <div class="date">
                 ${t('chat.dream.card_date', {date: report.dreamDate})}
               </div>
+              ${this.renderRerunReportButton_(report)}
               ${this.renderCopyImageButton_()}
             </div>` : nothing}
         </header>
@@ -830,6 +1089,10 @@ export class DaoDreamApp extends CrLitElement {
               </span>
             </div>` :
           html`
+            ${this.rerunError_ ? html`
+              <div class="history-rerun-error">
+                ${t('dream.page.rerun_failed', {error: this.rerunError_})}
+              </div>` : nothing}
             ${isHistory ? html`
               <div class="history-layout">
                 ${this.renderHistoryList_()}

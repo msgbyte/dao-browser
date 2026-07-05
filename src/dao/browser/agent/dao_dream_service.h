@@ -79,6 +79,9 @@ class DaoDreamService : public KeyedService,
   // carries the runner/service reason when one is available.
   void StartManualDream(
       base::OnceCallback<void(bool success, const std::string& error)> callback);
+  void StartManualDreamForDate(
+      const std::string& dream_date,
+      base::OnceCallback<void(bool success, const std::string& error)> callback);
 
   // Result entry points called by the WebUI handler.
   void OnDreamResult(const std::string& dream_date, base::DictValue result);
@@ -136,6 +139,7 @@ class DaoDreamService : public KeyedService,
   TriggerKind active_kind_ = TriggerKind::kNightly;
   std::string pending_debug_material_json_;
   base::DictValue pending_material_stats_;
+  bool preserve_completed_report_on_failure_ = false;
   base::OnceCallback<void(bool success, const std::string& error)>
       manual_callback_;
 

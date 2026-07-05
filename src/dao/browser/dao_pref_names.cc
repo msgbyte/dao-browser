@@ -19,6 +19,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterDictionaryPref(kDaoLittleDaoWindowSize);
   registry->RegisterBooleanPref(kDaoDreamEnabled, false);
   registry->RegisterBooleanPref(kDaoDreamDebug, false);
+  registry->RegisterListPref(kDaoDreamExcludedDomains);
 }
 
 }  // namespace dao::prefs

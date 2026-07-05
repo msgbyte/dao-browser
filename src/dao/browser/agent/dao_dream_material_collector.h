@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_AGENT_DAO_DREAM_MATERIAL_COLLECTOR_H_
 #define DAO_BROWSER_AGENT_DAO_DREAM_MATERIAL_COLLECTOR_H_
 
+#include <set>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -67,6 +68,11 @@ class DreamMaterialCollector {
   // empty string when `url_spec` is not a recognized search URL. Public
   // and static for testing.
   static std::string ExtractSearchQuery(const std::string& url_spec);
+  static std::string NormalizeExcludedDomainForTesting(
+      const std::string& input);
+  static bool IsDomainExcludedForTesting(
+      const std::string& host,
+      const std::set<std::string>& excluded_domains);
 
  private:
   void OnHistoryResults(base::ListValue domains, base::ListValue queries);
@@ -88,6 +94,8 @@ class DreamMaterialCollector {
   base::ListValue conversations_part_;
   base::ListValue preferences_part_;
   base::ListValue feedback_part_;
+  std::set<std::string> excluded_domains_;
+  int excluded_history_visits_ = 0;
 
   base::CancelableTaskTracker history_tracker_;
   base::WeakPtrFactory<DreamMaterialCollector> weak_factory_{this};

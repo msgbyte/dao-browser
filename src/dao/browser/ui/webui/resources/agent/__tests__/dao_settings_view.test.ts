@@ -165,6 +165,68 @@ describe('dao-settings-view dream controls', () => {
         'openTab', {url: 'dao://dream/'});
   });
 
+  it('loads adds and removes dream excluded domains', async () => {
+    settingsMocks.callNativeArgs.mockImplementation(async (method: string,
+        value?: unknown) => {
+      switch (method) {
+        case 'getMemoryEnabled':
+        case 'getDreamEnabled':
+          return true;
+        case 'getDreamDebug':
+          return false;
+        case 'getDreamExcludedDomains':
+          return ['github.com'];
+        case 'addDreamExcludedDomain':
+          expect(value).toBe('https://Example.com/private');
+          return {domain: 'example.com'};
+        case 'removeDreamExcludedDomain':
+          expect(value).toBe('github.com');
+          return true;
+        case 'getStorageStats':
+          return {
+            totalSize: 0,
+            conversationCount: 0,
+            episodeCount: 0,
+            preferenceCount: 0,
+          };
+        default:
+          return true;
+      }
+    });
+
+    const view = await mountMemorySettings();
+    await Promise.resolve();
+    await view.updateComplete;
+    expect(view.shadowRoot!.textContent).toContain('github.com');
+
+    const input = view.shadowRoot!.querySelector<HTMLInputElement>(
+        'input[data-testid="dream-excluded-domain-input"]');
+    expect(input).toBeTruthy();
+    input!.value = 'https://Example.com/private';
+    input!.dispatchEvent(new Event('input', {bubbles: true}));
+    input!.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+    }));
+    await Promise.resolve();
+    await view.updateComplete;
+
+    expect(settingsMocks.callNativeArgs).toHaveBeenCalledWith(
+        'addDreamExcludedDomain', 'https://Example.com/private');
+    expect(view.shadowRoot!.textContent).toContain('example.com');
+
+    const removeButton = view.shadowRoot!.querySelector<HTMLButtonElement>(
+        'button[data-domain="github.com"]');
+    expect(removeButton).toBeTruthy();
+    removeButton!.click();
+    await Promise.resolve();
+    await view.updateComplete;
+
+    expect(settingsMocks.callNativeArgs).toHaveBeenCalledWith(
+        'removeDreamExcludedDomain', 'github.com');
+    expect(view.shadowRoot!.textContent).not.toContain('github.com');
+  });
+
   it('persists the General debug mode toggle', async () => {
     const listener = vi.fn();
     window.addEventListener('dao-agent-debug-mode-changed', listener);

@@ -36,10 +36,21 @@ vi.mock('../i18n/i18n.js', () => ({
   t: (key: string, vars?: Record<string, string | number>) => {
     const templates: Record<string, string> = {
       'chat.dream.card_date': 'About {date}',
+      'chat.dream.habits_title': 'I think I noticed...',
       'dream.page.copy_image': 'Copy image',
       'dream.page.copy_image_copied': 'Copied image',
       'dream.page.copy_image_failed': 'Copy failed',
+      'dream.page.rerun_report': 'Rerun report',
+      'dream.page.rerun_running': 'Dreaming...',
+      'dream.page.rerun_failed': 'Rerun failed: {error}',
       'dream.page.title': 'Dream Report',
+      'dream.page.source_domains_title': 'Domains used in this report',
+      'dream.page.source_domains_add': 'Add to blacklist',
+      'dream.page.source_domains_excluded': 'Already blacklisted',
+      'dream.page.excluded_domains_adding': 'Adding...',
+      'dream.page.excluded_add_failed': 'Add failed: {error}',
+      'dream.page.source_domains_empty':
+          'No domains were captured for this report. Rerun it to refresh choices.',
       'dream.debug.generated_at': 'Generated at: {time}',
       'dream.share.footer': 'Dreamed by Dao Browser',
     };
@@ -64,12 +75,16 @@ import '../dao_dream_app.js';
 
 type TestDreamApp = HTMLElement & {updateComplete: Promise<boolean>};
 
-function report(dreamDate: string, habitCandidates = '[]') {
+function report(
+    dreamDate: string,
+    habitCandidates = '[]',
+    materialStats = '{}') {
   return {
     id: Number(dreamDate.slice(-2)),
     dreamDate,
     reportMarkdown: `# ${dreamDate}`,
     habitCandidates,
+    materialStats,
     debugMaterialJson: '',
     triggerKind: 'manual',
   };
@@ -171,6 +186,126 @@ describe('dao-dream-app routing', () => {
     expect(bridgeMocks.callNative).not.toHaveBeenCalledWith(
         'getDreamReports', {limit: 30});
     expect(el.shadowRoot!.textContent).toContain('2026-06-13');
+  });
+
+  it('reruns the current report from the header action', async () => {
+    bridgeMocks.callNative.mockImplementation(async (method: string,
+        params?: unknown) => {
+      if (method === 'getDreamReports') {
+        return [report('2026-06-19'), report('2026-06-18')];
+      }
+      if (method === 'startManualDream') {
+        expect(params).toEqual({date: '2026-06-19'});
+        return true;
+      }
+      return undefined;
+    });
+
+    const el = await mountDreamApp('/');
+    expect(el.shadowRoot!.querySelector(
+        'input[data-testid="dream-rerun-date-input"]')).toBeNull();
+    expect(el.shadowRoot!.querySelector('button[data-rerun-date]')).toBeNull();
+
+    const rerunButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+        'button[data-testid="dream-rerun-current-button"]');
+    expect(rerunButton).toBeTruthy();
+    expect(rerunButton!.getAttribute('aria-label')).toBe('Rerun report');
+    rerunButton!.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await el.updateComplete;
+
+    expect(bridgeMocks.callNative).toHaveBeenCalledWith(
+        'startManualDream', {date: '2026-06-19'}, {timeoutMs: 360000});
+    expect(bridgeMocks.callNative).toHaveBeenCalledWith(
+        'getDreamReports', {limit: 30});
+  });
+
+  it('lists report source domains and adds one to exclusions', async () => {
+    bridgeMocks.callNative.mockResolvedValueOnce([
+      report('2026-06-19', habitCandidates(), JSON.stringify({
+        source_domains: ['docs.example', 'private.example'],
+      })),
+    ]);
+    bridgeMocks.callNativeArgs.mockImplementation(async (method: string,
+        ...args: unknown[]) => {
+      if (method === 'getDreamExcludedDomains') {
+        return ['private.example'];
+      }
+      if (method === 'addDreamExcludedDomain') {
+        expect(args).toEqual(['docs.example']);
+        return {domain: 'docs.example'};
+      }
+      return {success: true};
+    });
+
+    const el = await mountDreamApp('/');
+    await Promise.resolve();
+    await el.updateComplete;
+    await Promise.resolve();
+    await el.updateComplete;
+
+    const picker = el.shadowRoot!.querySelector('.report-domain-picker');
+    expect(picker).toBeTruthy();
+    expect(picker!.textContent).toContain('Domains used in this report');
+    expect(picker!.textContent).toContain('docs.example');
+    expect(picker!.textContent).toContain('private.example');
+    expect(picker!.textContent).toContain('Already blacklisted');
+    expect(picker!.querySelector('input[data-domain]')).toBeNull();
+    const markdown = el.shadowRoot!.querySelector('.report-body');
+    expect(markdown).toBeTruthy();
+    expect(Boolean(
+        markdown!.compareDocumentPosition(picker!) &
+        Node.DOCUMENT_POSITION_FOLLOWING))
+        .toBe(true);
+    const habitHeading = Array.from(el.shadowRoot!.querySelectorAll('h2'))
+                             .find(node => node.textContent?.includes(
+                                 'I think I noticed'));
+    expect(habitHeading).toBeTruthy();
+    expect(Boolean(
+        habitHeading!.compareDocumentPosition(picker!) &
+        Node.DOCUMENT_POSITION_FOLLOWING))
+        .toBe(true);
+
+    const addButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+        'button[data-testid="dream-add-domain-button"][data-domain="docs.example"]');
+    expect(addButton).toBeTruthy();
+    expect(addButton!.disabled).toBe(false);
+    expect(addButton!.textContent).toContain('Add to blacklist');
+    addButton!.dispatchEvent(
+        new MouseEvent('click', {bubbles: true, composed: true}));
+    await Promise.resolve();
+    await Promise.resolve();
+    await el.updateComplete;
+
+    expect(bridgeMocks.callNativeArgs).toHaveBeenCalledWith(
+        'addDreamExcludedDomain', 'docs.example');
+    for (let i = 0; i < 5 &&
+         !el.shadowRoot!.querySelector(
+             '.report-domain-option.excluded [data-domain-label="docs.example"]');
+         i++) {
+      await Promise.resolve();
+      await el.updateComplete;
+    }
+    expect(el.shadowRoot!.querySelector(
+        '.report-domain-option.excluded [data-domain-label="docs.example"]'))
+        .toBeTruthy();
+  });
+
+  it('shows the exclusion shortcut even when an older report has no domains',
+      async () => {
+    bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-20')]);
+
+    const el = await mountDreamApp('/');
+    await Promise.resolve();
+    await el.updateComplete;
+
+    const picker = el.shadowRoot!.querySelector('.report-domain-picker');
+    expect(picker).toBeTruthy();
+    expect(picker!.textContent).toContain('Domains used in this report');
+    expect(picker!.textContent).toContain(
+        'No domains were captured for this report');
+    expect(picker!.querySelector('input[data-domain]')).toBeNull();
   });
 
   it('keeps habit feedback selected when the same report is reopened', async () => {

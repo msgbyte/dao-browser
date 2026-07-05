@@ -319,7 +319,14 @@ const dict: Dictionary = {
   'settings.dream.enable_desc':
       'Each night, the domains you visited, page titles and search ' +
       'keywords from your day are sent to your configured AI provider ' +
-      'for analysis.',
+      'for analysis. Excluded domains are omitted before analysis.',
+  'settings.dream.excluded_domains_label': 'Excluded domains',
+  'settings.dream.excluded_domains_placeholder': 'example.com',
+  'settings.dream.excluded_domains_add': 'Add',
+  'settings.dream.excluded_domains_remove': 'Remove {domain}',
+  'settings.dream.excluded_add_failed': 'Could not add domain: {error}',
+  'settings.dream.excluded_remove_failed':
+      'Could not remove domain: {error}',
   'settings.dream.debug_name': 'Debug mode',
   'settings.dream.debug_desc':
       'Store the exact input sent to the AI for each dream run and show ' +
@@ -356,6 +363,16 @@ const dict: Dictionary = {
   'dream.page.copy_image': 'Copy image',
   'dream.page.copy_image_copied': 'Copied image',
   'dream.page.copy_image_failed': 'Copy failed',
+  'dream.page.rerun_report': 'Rerun report',
+  'dream.page.rerun_running': 'Dreaming…',
+  'dream.page.rerun_failed': 'Rerun failed: {error}',
+  'dream.page.source_domains_title': 'Domains used in this report',
+  'dream.page.source_domains_add': 'Add to blacklist',
+  'dream.page.source_domains_excluded': 'Already blacklisted',
+  'dream.page.excluded_domains_adding': 'Adding...',
+  'dream.page.excluded_add_failed': 'Add failed: {error}',
+  'dream.page.source_domains_empty':
+      'No domains were captured for this report. Rerun it to refresh choices.',
   'dream.debug.generated_at': 'Generated at: {time}',
   'dream.share.footer': 'Dreamed by Dao Browser',
   'dream.trigger.nightly': 'Nightly',

@@ -50,6 +50,16 @@ bool ParseYmd(const std::string& ymd, base::Time* out) {
   return base::Time::FromLocalExploded(e, out);
 }
 
+bool IsFutureYmd(const std::string& ymd, base::Time now) {
+  base::Time date_midnight;
+  base::Time today_midnight;
+  if (!ParseYmd(ymd, &date_midnight) ||
+      !ParseYmd(FormatYmd(now), &today_midnight)) {
+    return true;
+  }
+  return date_midnight > today_midnight;
+}
+
 }  // namespace
 
 DaoDreamService::DaoDreamService(Profile* profile,
@@ -286,6 +296,11 @@ void DaoDreamService::MarkFailed(const std::string& dream_date,
             if (existing) {
               report = std::move(*existing);
             }
+            if (self->preserve_completed_report_on_failure_ &&
+                report.status == "completed") {
+              self->FinishRun(false, error);
+              return;
+            }
             report.dream_date = date;
             report.status = "failed";
             report.attempt_count += 1;
@@ -360,6 +375,21 @@ void DaoDreamService::PersistResult(const std::string& dream_date,
 
 void DaoDreamService::StartManualDream(
     base::OnceCallback<void(bool success, const std::string& error)> callback) {
+  StartManualDreamForDate(DreamDateFor(clock_->Now()), std::move(callback));
+}
+
+void DaoDreamService::StartManualDreamForDate(
+    const std::string& dream_date,
+    base::OnceCallback<void(bool success, const std::string& error)> callback) {
+  base::Time parsed;
+  if (!ParseYmd(dream_date, &parsed)) {
+    std::move(callback).Run(false, "invalid dream date");
+    return;
+  }
+  if (IsFutureYmd(dream_date, clock_->Now())) {
+    std::move(callback).Run(false, "dream date cannot be in the future");
+    return;
+  }
   if (state_ != State::kIdle) {
     std::move(callback).Run(false, "dream already running");
     return;
@@ -368,8 +398,9 @@ void DaoDreamService::StartManualDream(
     std::move(callback).Run(false, "agent webui unavailable");
     return;
   }
+  preserve_completed_report_on_failure_ = true;
   manual_callback_ = std::move(callback);
-  StartDream(DreamDateFor(clock_->Now()), TriggerKind::kManual);
+  StartDream(dream_date, TriggerKind::kManual);
 }
 
 void DaoDreamService::FinishRun(bool success, const std::string& error) {
@@ -377,6 +408,7 @@ void DaoDreamService::FinishRun(bool success, const std::string& error) {
   active_dream_date_.clear();
   pending_debug_material_json_.clear();
   pending_material_stats_.clear();
+  preserve_completed_report_on_failure_ = false;
   if (manual_callback_) {
     std::move(manual_callback_).Run(success, error);
   }

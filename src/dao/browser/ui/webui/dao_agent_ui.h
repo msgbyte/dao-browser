@@ -464,14 +464,13 @@ class DaoMemoryBrowserHandler : public content::WebUIMessageHandler {
   base::WeakPtrFactory<DaoMemoryBrowserHandler> weak_factory_{this};
 };
 
-// WebUI message handler for the Dream Analysis system. Registers itself
-// as the DaoDreamService runner so the resident agent WebUI executes the
-// LLM summarization for nightly dream runs.
-class DaoAgentDreamHandler : public content::WebUIMessageHandler,
-                             public DaoDreamService::Runner {
+// Shared Dream runner bridge. Registers itself as the DaoDreamService runner
+// so a resident WebUI can execute the LLM summarization for dream runs.
+class DaoDreamRunnerHandler : public content::WebUIMessageHandler,
+                              public DaoDreamService::Runner {
  public:
-  DaoAgentDreamHandler();
-  ~DaoAgentDreamHandler() override;
+  DaoDreamRunnerHandler();
+  ~DaoDreamRunnerHandler() override;
 
   // content::WebUIMessageHandler:
   void RegisterMessages() override;
@@ -482,16 +481,34 @@ class DaoAgentDreamHandler : public content::WebUIMessageHandler,
   void RunDream(const std::string& dream_date,
                 const base::DictValue& material) override;
 
- private:
+ protected:
   DaoDreamService* GetDreamService();
 
+ private:
   void HandleDreamComplete(const base::ListValue& args);
   void HandleDreamFailed(const base::ListValue& args);
+  void HandleGetDreamExcludedDomains(const base::ListValue& args);
+  void HandleAddDreamExcludedDomain(const base::ListValue& args);
+  void HandleRemoveDreamExcludedDomain(const base::ListValue& args);
+  void HandleStartManualDream(const base::ListValue& args);
+
+  base::WeakPtrFactory<DaoDreamRunnerHandler> weak_factory_{this};
+};
+
+// Agent-page Dream settings and report-card handler.
+class DaoAgentDreamHandler : public DaoDreamRunnerHandler {
+ public:
+  DaoAgentDreamHandler();
+  ~DaoAgentDreamHandler() override;
+
+  // content::WebUIMessageHandler:
+  void RegisterMessages() override;
+
+ private:
   void HandleGetDreamEnabled(const base::ListValue& args);
   void HandleSetDreamEnabled(const base::ListValue& args);
   void HandleGetDreamDebug(const base::ListValue& args);
   void HandleSetDreamDebug(const base::ListValue& args);
-  void HandleStartManualDream(const base::ListValue& args);
   void HandleGetUnviewedDreamReport(const base::ListValue& args);
   void HandleMarkDreamReportViewed(const base::ListValue& args);
 

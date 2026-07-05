@@ -20,6 +20,7 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
+#include "dao/browser/agent/dao_dream_domain_utils.h"
 #include "net/base/url_util.h"
 #include "url/gurl.h"
 
@@ -160,6 +161,19 @@ std::string DreamMaterialCollector::ExtractSearchQuery(
   return std::string();
 }
 
+// static
+std::string DreamMaterialCollector::NormalizeExcludedDomainForTesting(
+    const std::string& input) {
+  return NormalizeDreamExcludedDomain(input);
+}
+
+// static
+bool DreamMaterialCollector::IsDomainExcludedForTesting(
+    const std::string& host,
+    const std::set<std::string>& excluded_domains) {
+  return IsDreamDomainExcluded(host, excluded_domains);
+}
+
 void DreamMaterialCollector::Collect(base::Time window_start,
                                      base::Time window_end,
                                      CollectCallback callback) {
@@ -172,6 +186,8 @@ void DreamMaterialCollector::Collect(base::Time window_start,
   conversations_part_.clear();
   preferences_part_.clear();
   feedback_part_.clear();
+  excluded_domains_ = LoadDreamExcludedDomains(profile_);
+  excluded_history_visits_ = 0;
 
   // 4 parts: history (+search, same query), conversations, preferences,
   // feedback.
@@ -204,6 +220,11 @@ void DreamMaterialCollector::Collect(base::Time window_start,
               std::set<std::string> seen_queries;
               for (const auto& visit : visits) {
                 const GURL& url = visit.url_row.url();
+                const std::string domain(url.host());
+                if (IsDreamDomainExcluded(domain, self->excluded_domains_)) {
+                  self->excluded_history_visits_++;
+                  continue;
+                }
                 // Search-query extraction first (uses URL, then drops it).
                 std::string q = ExtractSearchQuery(url.spec());
                 if (!q.empty() && seen_queries.insert(q).second &&
@@ -212,7 +233,6 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                   queries.push_back(TruncateMaterialText(q));
                 }
                 // Domain aggregation — only domain + title survive.
-                const std::string domain(url.host());
                 if (domain.empty()) {
                   continue;
                 }
@@ -424,6 +444,19 @@ void DreamMaterialCollector::OnPartDone() {
             static_cast<int>(conversations_part_.size()));
   stats.Set("preferences", static_cast<int>(preferences_part_.size()));
   stats.Set("feedback_scenarios", static_cast<int>(feedback_part_.size()));
+  stats.Set("excluded_history_visits", excluded_history_visits_);
+  base::ListValue source_domains;
+  for (const base::Value& entry : history_part_) {
+    const base::DictValue* domain_entry = entry.GetIfDict();
+    if (!domain_entry) {
+      continue;
+    }
+    const std::string* domain = domain_entry->FindString("domain");
+    if (domain && !domain->empty()) {
+      source_domains.Append(*domain);
+    }
+  }
+  stats.Set("source_domains", std::move(source_domains));
   pack.Set("stats", std::move(stats));
   pack.Set("history", std::move(history_part_));
   pack.Set("search_queries", std::move(search_part_));

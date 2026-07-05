@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -130,6 +131,37 @@ IN_PROC_BROWSER_TEST_F(DaoDreamStaticTest, SearchQueryExtraction) {
                     "https://www.google.com/maps"));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoDreamStaticTest, DreamDomainExclusionNormalization) {
+  EXPECT_EQ("example.com",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting(
+                " HTTPS://Example.COM:443/path?q=1 "));
+  EXPECT_EQ("app.example.com",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting(
+                "app.example.com."));
+  EXPECT_EQ("",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting(""));
+  EXPECT_EQ("",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting(
+                "localhost"));
+  EXPECT_EQ("",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting("com"));
+  EXPECT_EQ("",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting(
+                "127.0.0.1"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamStaticTest, DreamDomainExclusionMatching) {
+  std::set<std::string> excluded = {"example.com"};
+  EXPECT_TRUE(DreamMaterialCollector::IsDomainExcludedForTesting(
+      "example.com", excluded));
+  EXPECT_TRUE(DreamMaterialCollector::IsDomainExcludedForTesting(
+      "app.example.com", excluded));
+  EXPECT_FALSE(DreamMaterialCollector::IsDomainExcludedForTesting(
+      "notexample.com", excluded));
+  EXPECT_FALSE(DreamMaterialCollector::IsDomainExcludedForTesting(
+      "example.co", excluded));
+}
+
 // --- Fixture with memory + dream enabled ---
 
 class DaoDreamBrowserTest : public InProcessBrowserTest {
@@ -204,11 +236,114 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   }
   EXPECT_TRUE(found_github);
 
+  const base::DictValue* stats = pack.FindDict("stats");
+  ASSERT_TRUE(stats);
+  const base::ListValue* source_domains = stats->FindList("source_domains");
+  ASSERT_TRUE(source_domains);
+  bool source_has_github = false;
+  bool source_has_google = false;
+  for (const base::Value& domain : *source_domains) {
+    if (!domain.is_string()) {
+      continue;
+    }
+    source_has_github |= domain.GetString() == "github.com";
+    source_has_google |= domain.GetString() == "www.google.com";
+  }
+  EXPECT_TRUE(source_has_github);
+  EXPECT_TRUE(source_has_google);
+
   // Search extraction.
   const base::ListValue* queries = pack.FindList("search_queries");
   ASSERT_TRUE(queries);
   ASSERT_EQ(1u, queries->size());
   EXPECT_EQ("hello world", (*queries)[0].GetString());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       CollectorExcludesConfiguredDomainsBeforeAggregation) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  base::ListValue excluded;
+  excluded.Append("github.com");
+  prefs->SetList(prefs::kDaoDreamExcludedDomains, std::move(excluded));
+
+  history::HistoryService* history = HistoryServiceFactory::GetForProfile(
+      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  ASSERT_TRUE(history);
+  const base::Time now = base::Time::Now();
+  history->AddPageWithDetails(
+      GURL("https://github.com/foo/bar?token=SECRET123"),
+      u"Sensitive GitHub title", 1, 0, now - base::Hours(1), false,
+      history::SOURCE_BROWSED);
+  history->AddPageWithDetails(GURL("https://gist.github.com/private/snippet"),
+                              u"Sensitive Gist title", 1, 0,
+                              now - base::Hours(2), false,
+                              history::SOURCE_BROWSED);
+  history->AddPageWithDetails(GURL("https://notgithub.com/public"),
+                              u"Public title", 1, 0, now - base::Hours(3),
+                              false, history::SOURCE_BROWSED);
+
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+  DreamMaterialCollector collector(browser()->profile(), memory);
+
+  base::DictValue pack;
+  base::RunLoop loop;
+  collector.Collect(now - base::Hours(6), now,
+                    base::BindLambdaForTesting([&](base::DictValue p) {
+                      pack = std::move(p);
+                      loop.Quit();
+                    }));
+  loop.Run();
+
+  std::string json;
+  base::JSONWriter::Write(pack, &json);
+  EXPECT_EQ(std::string::npos, json.find("github.com"));
+  EXPECT_EQ(std::string::npos, json.find("gist.github.com"));
+  EXPECT_EQ(std::string::npos, json.find("Sensitive GitHub title"));
+  EXPECT_EQ(std::string::npos, json.find("Sensitive Gist title"));
+  EXPECT_EQ(std::string::npos, json.find("SECRET123"));
+  EXPECT_NE(std::string::npos, json.find("notgithub.com"));
+
+  const base::DictValue* stats = pack.FindDict("stats");
+  ASSERT_TRUE(stats);
+  EXPECT_EQ(2, stats->FindInt("excluded_history_visits").value_or(0));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       CollectorDoesNotExtractQueriesFromExcludedDomains) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  base::ListValue excluded;
+  excluded.Append("google.com");
+  prefs->SetList(prefs::kDaoDreamExcludedDomains, std::move(excluded));
+
+  history::HistoryService* history = HistoryServiceFactory::GetForProfile(
+      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  ASSERT_TRUE(history);
+  const base::Time now = base::Time::Now();
+  history->AddPage(GURL("https://www.google.com/search?q=private+query"),
+                   now - base::Hours(1), history::SOURCE_BROWSED);
+  history->AddPage(GURL("https://www.bing.com/search?q=public+query"),
+                   now - base::Hours(2), history::SOURCE_BROWSED);
+
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+  DreamMaterialCollector collector(browser()->profile(), memory);
+
+  base::DictValue pack;
+  base::RunLoop loop;
+  collector.Collect(now - base::Hours(6), now,
+                    base::BindLambdaForTesting([&](base::DictValue p) {
+                      pack = std::move(p);
+                      loop.Quit();
+                    }));
+  loop.Run();
+
+  std::string json;
+  base::JSONWriter::Write(pack, &json);
+  EXPECT_EQ(std::string::npos, json.find("private query"));
+  EXPECT_NE(std::string::npos, json.find("public query"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
@@ -806,6 +941,134 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
   EXPECT_FALSE(callback_success);
   EXPECT_EQ("API Error: invalid key", callback_error);
+  service->ClearRunner(&runner);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, ManualDreamRunsSpecifiedDate) {
+  history::HistoryService* history = HistoryServiceFactory::GetForProfile(
+      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  ASSERT_TRUE(history);
+  history->AddPage(GURL("https://example.com/june-10"),
+                   LocalTime(2026, 6, 10, 12, 0), history::SOURCE_BROWSED);
+
+  DaoDreamService* service = dream_service();
+  ASSERT_TRUE(service);
+  base::SimpleTestClock clock;
+  clock.SetNow(LocalTime(2026, 6, 12, 12, 0));
+  service->SetClockForTesting(&clock);
+
+  FakeRunner runner;
+  service->SetRunner(&runner);
+  base::RunLoop runner_loop;
+  runner.quit_closure = runner_loop.QuitClosure();
+  base::RunLoop callback_loop;
+  bool callback_success = true;
+  std::string callback_error;
+
+  service->StartManualDreamForDate(
+      "2026-06-10",
+      base::BindLambdaForTesting([&](bool ok, const std::string& error) {
+        callback_success = ok;
+        callback_error = error;
+        callback_loop.Quit();
+      }));
+  runner_loop.Run();
+
+  EXPECT_TRUE(runner.ran);
+  EXPECT_EQ("2026-06-10", runner.last_dream_date);
+
+  service->OnDreamFailed("2026-06-10", "stop test run");
+  callback_loop.Run();
+  EXPECT_FALSE(callback_success);
+  EXPECT_EQ("stop test run", callback_error);
+  service->ClearRunner(&runner);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, ManualDreamRejectsFutureDate) {
+  DaoDreamService* service = dream_service();
+  ASSERT_TRUE(service);
+  base::SimpleTestClock clock;
+  clock.SetNow(LocalTime(2026, 6, 12, 12, 0));
+  service->SetClockForTesting(&clock);
+
+  bool callback_success = true;
+  std::string callback_error;
+  service->StartManualDreamForDate(
+      "2026-06-13",
+      base::BindLambdaForTesting([&](bool ok, const std::string& error) {
+        callback_success = ok;
+        callback_error = error;
+      }));
+
+  EXPECT_FALSE(callback_success);
+  EXPECT_EQ("dream date cannot be in the future", callback_error);
+  EXPECT_EQ(DaoDreamService::State::kIdle, service->state());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       FailedManualRerunPreservesCompletedReport) {
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+
+  DreamReport existing;
+  existing.dream_date = "2026-06-10";
+  existing.report_markdown = "# old report";
+  existing.habit_candidates = "[]";
+  existing.material_stats = "{}";
+  existing.status = "completed";
+  existing.trigger_kind = "nightly";
+  {
+    base::RunLoop loop;
+    memory->SaveDreamReport(
+        existing, base::BindLambdaForTesting([&](bool ok) {
+          ASSERT_TRUE(ok);
+          loop.Quit();
+        }));
+    loop.Run();
+  }
+
+  history::HistoryService* history = HistoryServiceFactory::GetForProfile(
+      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  ASSERT_TRUE(history);
+  history->AddPage(GURL("https://example.com/june-10"),
+                   LocalTime(2026, 6, 10, 12, 0), history::SOURCE_BROWSED);
+
+  DaoDreamService* service = dream_service();
+  ASSERT_TRUE(service);
+  base::SimpleTestClock clock;
+  clock.SetNow(LocalTime(2026, 6, 12, 12, 0));
+  service->SetClockForTesting(&clock);
+
+  FakeRunner runner;
+  service->SetRunner(&runner);
+  base::RunLoop runner_loop;
+  runner.quit_closure = runner_loop.QuitClosure();
+  base::RunLoop callback_loop;
+
+  service->StartManualDreamForDate(
+      "2026-06-10",
+      base::BindLambdaForTesting([&](bool ok, const std::string& error) {
+        EXPECT_FALSE(ok);
+        EXPECT_EQ("rerun failed", error);
+        callback_loop.Quit();
+      }));
+  runner_loop.Run();
+  service->OnDreamFailed("2026-06-10", "rerun failed");
+  callback_loop.Run();
+
+  std::optional<DreamReport> got;
+  base::RunLoop verify_loop;
+  memory->GetDreamReportByDate(
+      "2026-06-10",
+      base::BindLambdaForTesting([&](std::optional<DreamReport> r) {
+        got = std::move(r);
+        verify_loop.Quit();
+      }));
+  verify_loop.Run();
+  ASSERT_TRUE(got.has_value());
+  EXPECT_EQ("completed", got->status);
+  EXPECT_EQ("# old report", got->report_markdown);
   service->ClearRunner(&runner);
 }
 

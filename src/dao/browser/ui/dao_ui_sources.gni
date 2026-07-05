@@ -32,6 +32,8 @@ dao_browser_ui_sources = [
   "//dao/browser/agent/dao_agent_workspace_service_factory.h",
   "//dao/browser/agent/dao_agent_workspace_types.cc",
   "//dao/browser/agent/dao_agent_workspace_types.h",
+  "//dao/browser/agent/dao_dream_domain_utils.cc",
+  "//dao/browser/agent/dao_dream_domain_utils.h",
   "//dao/browser/agent/dao_dream_material_collector.cc",
   "//dao/browser/agent/dao_dream_material_collector.h",
   "//dao/browser/agent/dao_dream_service.cc",
