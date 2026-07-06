@@ -223,6 +223,9 @@ export class DaoChatHistoryPanel extends CrLitElement {
           display: flex;
           align-items: stretch;
           justify-content: stretch;
+          min-width: 0;
+          min-height: 0;
+          overflow: hidden;
         }
         @media (prefers-color-scheme: dark) {
           dao-chat-history-panel {
@@ -244,9 +247,15 @@ export class DaoChatHistoryPanel extends CrLitElement {
         .dao-history-scrim {
           position: absolute;
           inset: 0;
+          display: flex;
+          align-items: stretch;
+          justify-content: stretch;
+          min-width: 0;
+          min-height: 0;
           background: rgba(0, 0, 0, 0.45);
           backdrop-filter: blur(3px);
           animation: daoHistoryFadeIn 120ms ease-out;
+          overflow: hidden;
         }
         @keyframes daoHistoryFadeIn {
           from { opacity: 0; }
@@ -258,7 +267,9 @@ export class DaoChatHistoryPanel extends CrLitElement {
           flex: 1 1 auto;
           display: flex;
           flex-direction: column;
+          min-width: 0;
           min-height: 0;
+          max-height: calc(100% - 24px);
           background: var(--dao-hist-panel-bg);
           color: var(--dao-hist-text);
           border: 1px solid var(--dao-hist-border);
@@ -336,6 +347,7 @@ export class DaoChatHistoryPanel extends CrLitElement {
         }
         .dao-history-list {
           flex: 1 1 auto;
+          min-height: 0;
           overflow-y: auto;
           padding: 8px;
         }
