@@ -11,10 +11,13 @@ vi.mock('../agent_bridge.js', () => ({
 }));
 
 import {
+  buildElementScreenshotAttachment,
   buildPageAttachment,
   buildSelectionAttachment,
   cancelElementPicker,
   captureCurrentPageMarkdown,
+  captureElementScreenshotFromPage,
+  clampScreenshotClip,
   fetchCurrentSelection,
   fetchPageProbeState,
   isCapturablePageUrl,
@@ -96,6 +99,53 @@ describe('dao_page_capture attachments', () => {
     expect(atob(attachment.content)).toContain('"data-testid": "login-submit"');
   });
 
+  it('builds element screenshot attachments as jpeg images without DOM context', () => {
+    const attachment = buildElementScreenshotAttachment(
+        {
+          url: 'https://example.com/login',
+          title: 'Login',
+          label: 'Sign in button',
+          text: 'Sign in',
+          locator: {
+            role: 'button',
+            name: 'Sign in',
+            tag: 'button',
+            text: 'Sign in',
+            attributes: {'data-testid': 'login-submit'},
+            css: '[data-testid="login-submit"]',
+            fallbackPath: 'body > form > button:nth-of-type(1)',
+            nearText: ['Email'],
+            bounds: {x: 12, y: 34, width: 80, height: 32},
+          },
+        },
+        'base64-jpeg',
+        'jpeg');
+
+    expect(attachment.type).toBe('image');
+    expect(attachment.mimeType).toBe('image/jpeg');
+    expect(attachment.content).toBe('base64-jpeg');
+    expect(attachment.preview).toBe('base64-jpeg');
+    expect(attachment.fileName).toBe('Sign in button.jpg');
+    expect(attachment.extractedText).toBeUndefined();
+    expect(JSON.stringify(attachment)).not.toContain('<element-context');
+    expect(JSON.stringify(attachment)).not.toContain('data-testid');
+  });
+
+  it('clamps element screenshot bounds to the visible viewport', () => {
+    expect(clampScreenshotClip(
+        {x: -10, y: 20, width: 50, height: 40},
+        {width: 100, height: 100}))
+        .toEqual({x: 0, y: 20, width: 40, height: 40, scale: 1});
+  });
+
+  it('rejects invalid and fully offscreen screenshot bounds', () => {
+    expect(clampScreenshotClip(
+        {x: 10, y: 10, width: 0, height: 40},
+        {width: 100, height: 100})).toBeNull();
+    expect(clampScreenshotClip(
+        {x: 120, y: 10, width: 20, height: 40},
+        {width: 100, height: 100})).toBeNull();
+  });
 
   it('rejects browser-internal and empty URLs for page capture', () => {
     expect(isCapturablePageUrl('https://example.com')).toBe(true);
@@ -251,6 +301,49 @@ describe('dao_page_capture native probes', () => {
         expect.objectContaining({lockTab: false}));
     vi.useRealTimers();
   });
+
+  it('uses the default crosshair cursor while picking an element context',
+     async () => {
+    callNativeMock.mockResolvedValueOnce({
+      result: JSON.stringify({error: 'blocked'}),
+    });
+
+    await expect(startElementPicker()).resolves.toBeNull();
+
+    const startCall =
+        callNativeMock.mock.calls.find(call => call[0] === 'executeScript');
+    expect(startCall?.[1]).toEqual(expect.objectContaining({
+      code: expect.stringContaining('var useCameraCursor = false;'),
+    }));
+    expect(startCall?.[1]).toEqual(expect.objectContaining({
+      code: expect.not.stringContaining(
+          'document.documentElement.style.cursor = cameraCursor'),
+    }));
+    expect(startCall?.[1]).toEqual(expect.objectContaining({
+      code: expect.stringContaining('crosshair'),
+    }));
+  });
+
+  it('uses a camera cursor with crosshair fallback while taking an element screenshot',
+     async () => {
+       callNativeMock.mockResolvedValueOnce({
+         result: JSON.stringify({error: 'blocked'}),
+       });
+
+       await expect(captureElementScreenshotFromPage()).resolves.toBeNull();
+
+       const startCall =
+           callNativeMock.mock.calls.find(call => call[0] === 'executeScript');
+       expect(startCall?.[1]).toEqual(expect.objectContaining({
+         code: expect.stringContaining('var useCameraCursor = true;'),
+       }));
+       expect(startCall?.[1]).toEqual(expect.objectContaining({
+         code: expect.stringContaining('url("data:image/svg+xml'),
+       }));
+       expect(startCall?.[1]).toEqual(expect.objectContaining({
+         code: expect.stringContaining('crosshair'),
+       }));
+     });
 
   it('cancels the injected element picker without throwing', async () => {
     callNativeMock.mockResolvedValueOnce({result: JSON.stringify({ok: true})});

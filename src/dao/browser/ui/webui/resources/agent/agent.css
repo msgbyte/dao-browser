@@ -458,6 +458,33 @@ dao-agent-app message-editor button > div[style*="rotate(-45deg)"] {
   transform: none !important;
 }
 
+dao-agent-app message-editor .dao-element-screenshot-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: rgba(30, 20, 40, 0.62);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
+}
+
+dao-agent-app message-editor .dao-element-screenshot-button:hover,
+dao-agent-app message-editor .dao-element-screenshot-button.active {
+  color: rgba(70, 120, 190, 0.98);
+  background: rgba(70, 120, 190, 0.12);
+}
+
+dao-agent-app message-editor .dao-element-screenshot-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* mini-lit's <Select> portals its dropdown into a `.select-portal-container`
  * appended to document.body. That's OUTSIDE our `dao-chat-view, pi-chat-panel`
  * CSS-variable scope, so Tailwind `bg-popover / text-popover-foreground /
@@ -1481,6 +1508,14 @@ body {
     background: rgba(255, 255, 255, 0.14);
     border-color: rgba(70, 120, 190, 0.55);
     color: rgba(245, 245, 245, 0.92);
+  }
+  dao-agent-app message-editor .dao-element-screenshot-button {
+    color: rgba(245, 245, 245, 0.62);
+  }
+  dao-agent-app message-editor .dao-element-screenshot-button:hover,
+  dao-agent-app message-editor .dao-element-screenshot-button.active {
+    color: rgba(170, 200, 240, 0.98);
+    background: rgba(70, 120, 190, 0.28);
   }
 
   /* Composer bubble — dark glass. Light mode rule paints a bright white

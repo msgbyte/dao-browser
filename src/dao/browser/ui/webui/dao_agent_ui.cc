@@ -5,6 +5,7 @@
 #include "dao/browser/ui/webui/dao_agent_ui.h"
 
 #include <algorithm>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -1893,6 +1894,31 @@ void DaoAgentUIHandler::HandleCaptureScreenshot(
   base::DictValue params;
   params.Set("format", "jpeg");
   params.Set("quality", 60);
+  if (args.size() >= 2 && args[1].is_dict()) {
+    const base::DictValue& request = args[1].GetDict();
+    const base::DictValue* clip = request.FindDict("clip");
+    if (clip) {
+      const std::optional<double> x = clip->FindDouble("x");
+      const std::optional<double> y = clip->FindDouble("y");
+      const std::optional<double> width = clip->FindDouble("width");
+      const std::optional<double> height = clip->FindDouble("height");
+      const double scale = clip->FindDouble("scale").value_or(1.0);
+      if (!x || !y || !width || !height || *width <= 0 || *height <= 0 ||
+          scale <= 0) {
+        base::DictValue response;
+        response.Set("error", "Invalid screenshot clip");
+        ResolveJavascriptCallback(base::Value(callback_id), response);
+        return;
+      }
+      base::DictValue cdp_clip;
+      cdp_clip.Set("x", *x);
+      cdp_clip.Set("y", *y);
+      cdp_clip.Set("width", *width);
+      cdp_clip.Set("height", *height);
+      cdp_clip.Set("scale", scale);
+      params.Set("clip", std::move(cdp_clip));
+    }
+  }
 
   devtools_client_->SendCommand(
       "Page.captureScreenshot", std::move(params),
