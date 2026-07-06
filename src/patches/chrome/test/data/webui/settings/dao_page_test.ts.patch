@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,97 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -27,6 +27,11 @@ index 0000000000..0000000001
 +          key: 'dao.enhanced_command_bar_suggestions_enabled',
 +          type: chrome.settingsPrivate.PrefType.BOOLEAN,
 +          value: false,
++        },
++        enhanced_pip_enabled: {
++          key: 'dao.enhanced_pip_enabled',
++          type: chrome.settingsPrivate.PrefType.BOOLEAN,
++          value: true,
 +        },
 +        little_dao_enabled: {
 +          key: 'dao.little_dao_enabled',
@@ -56,6 +61,33 @@ index 0000000000..0000000001
 +    assertEquals(
 +        'dao.enhanced_command_bar_suggestions_enabled', toggle.pref!.key);
 +    assertTrue(!toggle.checked);
++  });
++
++  test('enhancedPipToggleBindsToDaoPref', function() {
++    const toggle =
++        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++            '#enhancedPipEnabled');
++    assertTrue(!!toggle);
++    assertEquals('dao.enhanced_pip_enabled', toggle.pref!.key);
++    assertTrue(toggle.checked);
++  });
++
++  test('enhancedPipPreviewShowsSelectedModeOnly', function() {
++    const preview = page.shadowRoot!.querySelector('#enhancedPipPreview');
++    assertTrue(!!preview);
++    assertTrue(!!preview.querySelector('#enhancedPipPreviewOn'));
++    assertTrue(!preview.querySelector('#enhancedPipPreviewOff'));
++    assertTrue(!!preview.querySelector('#enhancedPipPreviewSubtitles'));
++    assertTrue(!preview.querySelector('#enhancedPipPreviewOriginalWindow'));
++    assertTrue(!preview.querySelector('#enhancedPipPreviewOriginalVideo'));
++
++    page.set('prefs.dao.enhanced_pip_enabled.value', false);
++    flush();
++    assertTrue(!preview.querySelector('#enhancedPipPreviewOn'));
++    assertTrue(!preview.querySelector('#enhancedPipPreviewSubtitles'));
++    assertTrue(!!preview.querySelector('#enhancedPipPreviewOff'));
++    assertTrue(!!preview.querySelector('#enhancedPipPreviewOriginalWindow'));
++    assertTrue(!!preview.querySelector('#enhancedPipPreviewOriginalVideo'));
 +  });
 +
 +  test('routeIsIndependentDaoSection', function() {

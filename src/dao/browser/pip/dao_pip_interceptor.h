@@ -10,6 +10,7 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 
@@ -45,6 +46,8 @@ class DaoPipInterceptor
 
   bool ClearDocumentPipState();
   void MaybeInjectPipOverride();
+  void SetPipOverrideEnabled(bool enabled);
+  void OnEnhancedPipPrefChanged();
   void OnTriggerScriptInjected(base::OnceCallback<void(bool)> callback,
                                std::string trigger_id,
                                base::Value result);
@@ -61,6 +64,8 @@ class DaoPipInterceptor
 
   // Prevents the opener tab from being throttled while Document PiP is active.
   base::ScopedClosureRunner capturer_guard_;
+
+  PrefChangeRegistrar pref_change_registrar_;
 
   base::WeakPtrFactory<DaoPipInterceptor> weak_factory_{this};
 

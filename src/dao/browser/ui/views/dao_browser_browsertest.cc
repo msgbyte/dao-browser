@@ -3873,6 +3873,14 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldInterceptNullIsFalse) {
   EXPECT_FALSE(dao::DaoPipInterceptor::ShouldIntercept(nullptr));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, EnhancedPipPrefDefaultsOn) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  const PrefService::Preference* pref =
+      prefs->FindPreference(dao::prefs::kDaoEnhancedPipEnabled);
+  ASSERT_NE(nullptr, pref);
+  EXPECT_TRUE(prefs->GetBoolean(pref->name()));
+}
+
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldInterceptMatchingHost) {
   GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -3882,6 +3890,22 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldInterceptMatchingHost) {
   EXPECT_TRUE(dao::DaoPipInterceptor::ShouldIntercept(contents));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       ShouldNotInterceptWhenEnhancedPipPrefDisabled) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  const PrefService::Preference* pref =
+      prefs->FindPreference(dao::prefs::kDaoEnhancedPipEnabled);
+  ASSERT_NE(nullptr, pref);
+  prefs->SetBoolean(pref->name(), false);
+
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  EXPECT_FALSE(dao::DaoPipInterceptor::ShouldIntercept(contents));
+}
+
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldNotInterceptNonMatchingHost) {
   GURL url = embedded_test_server()->GetURL("example.com", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -3889,6 +3913,107 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldNotInterceptNonMatchingHost)
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
   EXPECT_FALSE(dao::DaoPipInterceptor::ShouldIntercept(contents));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       ManualRequestUsesOriginalPipWhenPrefDisabled) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  const PrefService::Preference* pref =
+      prefs->FindPreference(dao::prefs::kDaoEnhancedPipEnabled);
+  ASSERT_NE(nullptr, pref);
+  prefs->SetBoolean(pref->name(), false);
+
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  EXPECT_FALSE(dao::DaoPipInterceptor::ShouldIntercept(contents));
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="bilibili-player">
+          <div class="bpx-player-container">
+            <video id="dao-video" style="width:640px;height:360px"></video>
+          </div>
+        </div>`;
+      window.__daoOriginalPipCalls = 0;
+      window.__daoOriginalPipThisId = '';
+      window.__daoDocumentPipCalls = 0;
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: {
+          requestWindow: async () => {
+            window.__daoDocumentPipCalls++;
+            return {
+              document: document.implementation.createHTMLDocument(''),
+              addEventListener() {},
+            };
+          },
+        },
+      });
+      HTMLVideoElement.prototype.requestPictureInPicture = function() {
+        window.__daoOriginalPipCalls++;
+        window.__daoOriginalPipThisId = this.id;
+        return Promise.resolve({daoOriginal: true});
+      };
+      true;
+    )js"));
+
+  prefs->SetBoolean(pref->name(), true);
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(contents, R"js(
+      !!window.__daoPipOverrideInstalled &&
+          document.documentElement.getAttribute(
+              'data-dao-enhanced-pip-enabled') === 'true'
+    )js") == true;
+  }));
+
+  prefs->SetBoolean(pref->name(), false);
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(contents,
+                           "document.documentElement.getAttribute("
+                           "'data-dao-enhanced-pip-enabled') === 'false'") ==
+           true;
+  }));
+  EXPECT_EQ("false",
+            content::EvalJs(contents,
+                            "document.documentElement.getAttribute("
+                            "'data-dao-enhanced-pip-enabled')"));
+  ASSERT_EQ(true, content::EvalJs(contents,
+                                  "window.__daoEnhancedPipEnabled = true; true"));
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.getElementById('dao-video')
+          .requestPictureInPicture()
+          .then((result) => !!result && result.daoOriginal === true)
+    )js"));
+  EXPECT_EQ(1, content::EvalJs(contents, "window.__daoOriginalPipCalls"));
+  EXPECT_EQ(0, content::EvalJs(contents, "window.__daoDocumentPipCalls"));
+  EXPECT_EQ("dao-video",
+            content::EvalJs(contents, "window.__daoOriginalPipThisId"));
+
+  prefs->SetBoolean(pref->name(), true);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(contents,
+                           "document.documentElement.getAttribute("
+                           "'data-dao-enhanced-pip-enabled') === 'true'") ==
+           true;
+  }));
+  ASSERT_EQ(true, content::EvalJs(contents,
+                                  "window.__daoEnhancedPipEnabled = false; true"));
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.getElementById('dao-video')
+          .requestPictureInPicture()
+          .then((result) => !!result && !result.daoOriginal)
+    )js"));
+  EXPECT_EQ(1, content::EvalJs(contents, "window.__daoOriginalPipCalls"));
+  EXPECT_EQ(1, content::EvalJs(contents, "window.__daoDocumentPipCalls"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,

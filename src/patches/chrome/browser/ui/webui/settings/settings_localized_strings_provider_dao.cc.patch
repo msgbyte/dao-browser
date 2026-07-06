@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 index 6f70406bc5..0000000002 100644
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -4098,7 +4098,21 @@ void AddExtensionsStrings(content::WebUIDataSource* html_source) {
+@@ -4098,7 +4098,45 @@ void AddExtensionsStrings(content::WebUIDataSource* html_source) {
    html_source->AddLocalizedString("extensionsPageTitle",
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
@@ -18,6 +18,30 @@ index 6f70406bc5..0000000002 100644
 +       IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_LABEL},
 +      {"enhancedCommandBarSuggestionsEnabledSubLabel",
 +       IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_SUB_LABEL},
++      {"enhancedPipEnabledLabel", IDS_SETTINGS_ENHANCED_PIP_ENABLED_LABEL},
++      {"enhancedPipEnabledSubLabel",
++       IDS_SETTINGS_ENHANCED_PIP_ENABLED_SUB_LABEL},
++      {"enhancedPipPreviewTitle", IDS_SETTINGS_ENHANCED_PIP_PREVIEW_TITLE},
++      {"enhancedPipPreviewCommentPrimary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_PRIMARY},
++      {"enhancedPipPreviewCommentSecondary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_SECONDARY},
++      {"enhancedPipPreviewCommentTertiary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_TERTIARY},
++      {"enhancedPipPreviewCommentQuaternary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_QUATERNARY},
++      {"enhancedPipPreviewCommentQuinary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_QUINARY},
++      {"enhancedPipPreviewCommentSenary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_SENARY},
++      {"enhancedPipPreviewOnLabel",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_ON_LABEL},
++      {"enhancedPipPreviewOnDescription",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_ON_DESCRIPTION},
++      {"enhancedPipPreviewOffLabel",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_OFF_LABEL},
++      {"enhancedPipPreviewOffDescription",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_OFF_DESCRIPTION},
 +  };
 +  html_source->AddLocalizedStrings(kLocalizedStrings);
 +}
@@ -25,7 +49,7 @@ index 6f70406bc5..0000000002 100644
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4241,6 +4256,7 @@ void AddSettingsLocalizedStrings(content::WebUIDataSource* html_source,
+@@ -4241,6 +4268,7 @@ void AddSettingsLocalizedStrings(content::WebUIDataSource* html_source,
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

@@ -27,6 +27,11 @@ inline constexpr char kDaoSplitLayout[] = "dao.split_layout";
 inline constexpr char kDaoPipWindowBoundsByOrigin[] =
     "dao.pip_window_bounds_by_origin";
 
+// Boolean pref that controls whether configured sites use Dao's custom
+// Document Picture-in-Picture window. When false, supported sites use the
+// original browser Picture-in-Picture path.
+inline constexpr char kDaoEnhancedPipEnabled[] = "dao.enhanced_pip_enabled";
+
 // Boolean pref that tracks whether the welcome page has been shown.
 // When false (the default), dao://welcome is opened on first launch.
 inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";
