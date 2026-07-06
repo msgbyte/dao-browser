@@ -22,13 +22,13 @@
 
 import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {addWebUIListener, BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, removeWebUIListener, soulChannel, type ProactiveSuggestionData} from './agent_bridge.js';
+import {addWebUIListener, BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, removeWebUIListener, soulChannel, type ContentPart, type ProactiveSuggestionData} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {addReusableElementContext, buildElementContextAttachment, consumeReusableElementContexts, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
 import {buildMemoryContextText, hasMemoryContextPayload, type NativeMemoryContext} from './dao_memory_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
-import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type PiAttachment, type SelectionCapture} from './dao_page_capture.js';
+import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, captureElementScreenshotFromPage, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type PiAttachment, type SelectionCapture} from './dao_page_capture.js';
 import {
   copyPngBlobToClipboard,
   renderShareImage,
@@ -113,6 +113,11 @@ interface PiChatPanel extends HTMLElement {
   }): Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   agentInterface?: any;
+}
+
+interface PiMessageEditor extends HTMLElement {
+  attachments?: PiAttachment[];
+  requestUpdate?: () => void;
 }
 
 function buildOpenAICompatModel(modelId: string, baseUrl: string) {
@@ -276,6 +281,7 @@ export class DaoChatView extends CrLitElement {
       pendingSelection_: {state: true},
       pendingElementContexts_: {state: true},
       elementPicking_: {type: Boolean, state: true},
+      elementPickMode_: {state: true},
       skillPickerVisible_: {state: true},
       skillPickerSkills_: {state: true},
       skillPickerIndex_: {state: true},
@@ -313,6 +319,7 @@ export class DaoChatView extends CrLitElement {
     this.pendingSelection_ = null;
     this.pendingElementContexts_ = getReusableElementContexts();
     this.elementPicking_ = false;
+    this.elementPickMode_ = '';
     this.skillPickerVisible_ = false;
     this.skillPickerSkills_ = [];
     this.skillPickerIndex_ = 0;
@@ -423,6 +430,7 @@ export class DaoChatView extends CrLitElement {
   // text selection semantics: once attached to a send, the chips are cleared.
   declare protected pendingElementContexts_: ElementContextCapture[];
   declare protected elementPicking_: boolean;
+  declare protected elementPickMode_: '' | 'context' | 'screenshot';
 
   // URLs we've already injected as a <current-webpage> block in this
   // session — the chip hides for them so the same page isn't re-attached
@@ -938,12 +946,12 @@ export class DaoChatView extends CrLitElement {
       ${this.renderUserContextModal_()}
       <div class="dao-page-chip-row">
         <button class=${'dao-element-pick-button' +
-            (this.elementPicking_ ? ' active' : '')}
+            (this.elementPickMode_ === 'context' ? ' active' : '')}
             @click=${this.onElementPickClick_}
-            title=${this.elementPicking_ ?
+            title=${this.elementPickMode_ === 'context' ?
               t('chat.attach.element.pick_active_tooltip') :
               t('chat.attach.element.pick_tooltip')}
-            aria-label=${this.elementPicking_ ?
+            aria-label=${this.elementPickMode_ === 'context' ?
               t('chat.attach.element.pick_active_tooltip') :
               t('chat.attach.element.pick_tooltip')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1103,6 +1111,29 @@ export class DaoChatView extends CrLitElement {
     }
   }
 
+  private imageAttachmentContentParts_(attachments: any[]): ContentPart[] {
+    const parts: ContentPart[] = [];
+    for (const attachment of attachments) {
+      if (!attachment || attachment.type !== 'image' ||
+          typeof attachment.content !== 'string' ||
+          attachment.content.length === 0) {
+        continue;
+      }
+      const mimeType = typeof attachment.mimeType === 'string' &&
+              attachment.mimeType.startsWith('image/') ?
+          attachment.mimeType :
+          'image/jpeg';
+      const url = attachment.content.startsWith('data:') ?
+          attachment.content :
+          `data:${mimeType};base64,${attachment.content}`;
+      parts.push({
+        type: 'image_url',
+        image_url: {url, detail: 'auto'},
+      });
+    }
+    return parts;
+  }
+
   private async mount_() {
     if (this.mounted_ || !this.panel_) return;
     this.mounted_ = true;
@@ -1199,6 +1230,7 @@ export class DaoChatView extends CrLitElement {
                 pieces.push(a.extractedText);
               }
             }
+            const imageParts = this.imageAttachmentContentParts_(atts);
             if (pendingMemory && i === pendingMemoryUserIndex) {
               pieces.push(pendingMemory);
             }
@@ -1209,6 +1241,19 @@ export class DaoChatView extends CrLitElement {
                 (trimmed ? `${pieces.join('\n\n')}\n\n${expandedOrig}` :
                            pieces.join('\n\n')) :
                 expandedOrig;
+            if (imageParts.length > 0) {
+              const content: ContentPart[] = [];
+              if (merged.trim()) {
+                content.push({type: 'text', text: merged});
+              }
+              content.push(...imageParts);
+              out.push({
+                role: 'user',
+                content,
+                timestamp: m.timestamp,
+              });
+              continue;
+            }
             out.push({
               role: 'user',
               content: merged,
@@ -1323,12 +1368,14 @@ export class DaoChatView extends CrLitElement {
     // the checker off is the right move for a chat composer anyway.
     this.hardenComposerTextarea_(panel);
     this.attachSkillPicker_(panel);
+    this.attachElementScreenshotButton_(panel);
     this.attachComposerHeightObserver_(panel);
     const editor = panel.querySelector('message-editor');
     if (editor) {
       const mo = new MutationObserver(() => {
         this.hardenComposerTextarea_(panel);
         this.attachSkillPicker_(panel);
+        this.attachElementScreenshotButton_(panel);
         this.attachComposerHeightObserver_(panel);
       });
       mo.observe(editor, {subtree: true, childList: true});
@@ -3067,11 +3114,14 @@ export class DaoChatView extends CrLitElement {
     if (this.elementPicking_) {
       await cancelElementPicker();
       this.elementPicking_ = false;
+      this.elementPickMode_ = '';
+      this.syncElementScreenshotButton_();
       this.showToast_(t('chat.attach.element.pick_cancelled'));
       return;
     }
 
     this.elementPicking_ = true;
+    this.elementPickMode_ = 'context';
     try {
       const capture = await startElementPicker();
       if (capture) {
@@ -3089,6 +3139,43 @@ export class DaoChatView extends CrLitElement {
       this.showToast_(t('chat.attach.element.pick_failed'));
     } finally {
       this.elementPicking_ = false;
+      this.elementPickMode_ = '';
+      this.syncElementScreenshotButton_();
+    }
+  }
+
+  private async onElementScreenshotClick_() {
+    if (this.elementPicking_) {
+      await cancelElementPicker();
+      this.elementPicking_ = false;
+      this.elementPickMode_ = '';
+      this.syncElementScreenshotButton_();
+      this.showToast_(t('chat.attach.element_screenshot.pick_cancelled'));
+      return;
+    }
+
+    this.elementPicking_ = true;
+    this.elementPickMode_ = 'screenshot';
+    this.syncElementScreenshotButton_();
+    try {
+      const attachment = await captureElementScreenshotFromPage();
+      if (attachment) {
+        if (this.appendElementScreenshotAttachment_(attachment)) {
+          this.showToast_(t('chat.attach.element_screenshot.pick_selected'));
+          this.focusInput();
+        } else {
+          this.showToast_(t('chat.attach.element_screenshot.pick_failed'));
+        }
+      } else {
+        this.showToast_(t('chat.attach.element_screenshot.pick_cancelled'));
+      }
+    } catch (e) {
+      console.warn('[dao] element screenshot failed', e);
+      this.showToast_(t('chat.attach.element_screenshot.pick_failed'));
+    } finally {
+      this.elementPicking_ = false;
+      this.elementPickMode_ = '';
+      this.syncElementScreenshotButton_();
     }
   }
 
@@ -3475,6 +3562,81 @@ export class DaoChatView extends CrLitElement {
       this.compacting_ = false;
       this.compactAbort_ = null;
     }
+  }
+
+  private composerEditor_(panel: PiChatPanel | null = this.panel_):
+      PiMessageEditor | null {
+    return panel?.querySelector('message-editor') as PiMessageEditor | null;
+  }
+
+  private syncElementScreenshotButton_(button?: HTMLButtonElement | null) {
+    const target = button ||
+        this.composerEditor_()?.querySelector<HTMLButtonElement>(
+            '.dao-element-screenshot-button');
+    if (!target) return;
+    const active = this.elementPickMode_ === 'screenshot';
+    const label = active ?
+        t('chat.attach.element_screenshot.pick_active_tooltip') :
+        t('chat.attach.element_screenshot.pick_tooltip');
+    target.classList.toggle('active', active);
+    target.title = label;
+    target.setAttribute('aria-label', label);
+  }
+
+  private findComposerSendButton_(
+      editor: PiMessageEditor): HTMLButtonElement | null {
+    const buttons = Array.from(editor.querySelectorAll('button'))
+        .filter((button): button is HTMLButtonElement => {
+          return button instanceof HTMLButtonElement &&
+              !button.classList.contains('dao-element-screenshot-button');
+        });
+    return buttons.length > 0 ? buttons[buttons.length - 1]! : null;
+  }
+
+  private attachElementScreenshotButton_(panel: PiChatPanel) {
+    const editor = this.composerEditor_(panel);
+    if (!editor) return;
+    let button = editor.querySelector<HTMLButtonElement>(
+        '.dao-element-screenshot-button');
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'dao-element-screenshot-button';
+      button.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            aria-hidden="true">
+          <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"></path>
+          <circle cx="12" cy="13" r="3"></circle>
+        </svg>`;
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void this.onElementScreenshotClick_();
+      });
+    }
+
+    const sendButton = this.findComposerSendButton_(editor);
+    if (sendButton?.parentElement) {
+      if (button.parentElement !== sendButton.parentElement ||
+          button.nextElementSibling !== sendButton) {
+        sendButton.parentElement.insertBefore(button, sendButton);
+      }
+    } else if (!button.isConnected) {
+      editor.appendChild(button);
+    }
+    this.syncElementScreenshotButton_(button);
+  }
+
+  private appendElementScreenshotAttachment_(attachment: PiAttachment): boolean {
+    const editor = this.composerEditor_();
+    if (!editor) return false;
+    const attachments = Array.isArray(editor.attachments) ?
+        editor.attachments :
+        [];
+    editor.attachments = [...attachments, attachment];
+    editor.requestUpdate?.();
+    return true;
   }
 
   private hardenComposerTextarea_(panel: PiChatPanel) {
@@ -4716,6 +4878,8 @@ export class DaoChatView extends CrLitElement {
       this.pendingSelection_ = null;
       this.pendingElementContexts_ = getReusableElementContexts();
       this.elementPicking_ = false;
+      this.elementPickMode_ = '';
+      this.syncElementScreenshotButton_();
       this.syncMeta_();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const iface = this.panel_?.querySelector('agent-interface') as any;
@@ -4861,6 +5025,8 @@ export class DaoChatView extends CrLitElement {
     this.pendingSelection_ = null;
     this.pendingElementContexts_ = getReusableElementContexts();
     this.elementPicking_ = false;
+    this.elementPickMode_ = '';
+    this.syncElementScreenshotButton_();
     this.syncMeta_();
     void this.refreshPageChip_();
     void this.refreshSelectionChip_();

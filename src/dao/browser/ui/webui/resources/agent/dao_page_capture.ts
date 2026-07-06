@@ -48,6 +48,28 @@ export interface PiAttachment {
   daoPageTitle?: string;
 }
 
+export interface ScreenshotClip {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+}
+
+const CAMERA_CURSOR_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" ' +
+    'viewBox="0 0 24 24" fill="none" stroke="rgb(70,120,190)" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />' +
+    '<circle cx="12" cy="13" r="3" />' +
+    '</svg>';
+
+function svgDataUri(svg: string): string {
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
+const CAMERA_CURSOR_DATA_URI = svgDataUri(CAMERA_CURSOR_SVG);
+
 // Encodes a UTF-8 string to base64 without choking on multi-byte chars.
 // `btoa` alone blows up on any codepoint > 0xFF.
 function utf8ToBase64(s: string): string {
@@ -94,6 +116,47 @@ export function buildPageAttachment(capture: PageCapture): PiAttachment {
   };
 }
 
+export function clampScreenshotClip(
+    bounds: {x: number; y: number; width: number; height: number},
+    viewport: {width: number; height: number}): ScreenshotClip | null {
+  const left = Math.max(0, bounds.x);
+  const top = Math.max(0, bounds.y);
+  const right = Math.min(viewport.width, bounds.x + bounds.width);
+  const bottom = Math.min(viewport.height, bounds.y + bounds.height);
+  const width = right - left;
+  const height = bottom - top;
+  if (!Number.isFinite(width) || !Number.isFinite(height) ||
+      width <= 0 || height <= 0) {
+    return null;
+  }
+  return {x: left, y: top, width, height, scale: 1};
+}
+
+export function buildElementScreenshotAttachment(
+    capture: ElementContextCapture, data: string, format: string):
+    PiAttachment {
+  const rawName =
+      (capture.label || capture.locator.name || capture.locator.role ||
+       'element')
+          .trim();
+  const safeFileName =
+      rawName.replace(/[\\/\n\r\t\x00-\x1f]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .slice(0, 60) + '.jpg';
+  return {
+    id: `dao-element-shot-${Date.now()}-${
+        Math.random().toString(36).slice(2)}`,
+    type: 'image',
+    fileName: safeFileName,
+    mimeType: format === 'png' ? 'image/png' : 'image/jpeg',
+    size: Math.ceil(data.length * 3 / 4),
+    content: data,
+    preview: data,
+    daoPageUrl: capture.url,
+    daoPageTitle: capture.title,
+  };
+}
+
 function hostFromUrl(url: string): string {
   try {
     return new URL(url).hostname;
@@ -134,7 +197,16 @@ const ELEMENT_PICKER_START_SCRIPT = `(function() {
     var existing = window.__dao_element_picker__;
     if (existing && existing.cancel) existing.cancel();
 
+    var useCameraCursor = __DAO_ELEMENT_PICKER_USE_CAMERA_CURSOR__;
     var previousCursor = document.documentElement.style.cursor;
+    var cameraCursor = 'url("${CAMERA_CURSOR_DATA_URI}") 12 12, crosshair';
+    var pickerCursor = useCameraCursor ? cameraCursor : 'crosshair';
+    var cursorStyle = null;
+    if (useCameraCursor) {
+      cursorStyle = document.createElement('style');
+      cursorStyle.setAttribute('data-dao-element-picker-cursor', '1');
+      cursorStyle.textContent = '* { cursor: ' + cameraCursor + ' !important; }';
+    }
     var state = {active: true, result: null};
     var overlay = document.createElement('div');
     overlay.setAttribute('data-dao-element-picker-overlay', '1');
@@ -150,8 +222,9 @@ const ELEMENT_PICKER_START_SCRIPT = `(function() {
     overlay.style.pointerEvents = 'none';
     overlay.style.zIndex = '2147483647';
     overlay.style.display = 'none';
+    if (cursorStyle) document.documentElement.appendChild(cursorStyle);
     document.documentElement.appendChild(overlay);
-    document.documentElement.style.cursor = 'crosshair';
+    document.documentElement.style.cursor = pickerCursor;
 
     function cleanText(value, max) {
       var text = String(value || '').replace(/\\s+/g, ' ').trim();
@@ -339,7 +412,13 @@ const ELEMENT_PICKER_START_SCRIPT = `(function() {
         title: document.title || '',
         label: name || text || role,
         text: text,
-        locator: locator
+        locator: locator,
+        viewport: {
+          width: Math.round(window.innerWidth ||
+              document.documentElement.clientWidth || 0),
+          height: Math.round(window.innerHeight ||
+              document.documentElement.clientHeight || 0)
+        }
       };
     }
 
@@ -375,6 +454,9 @@ const ELEMENT_PICKER_START_SCRIPT = `(function() {
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('keydown', onKeyDown, true);
       document.documentElement.style.cursor = previousCursor;
+      if (cursorStyle && cursorStyle.parentNode) {
+        cursorStyle.parentNode.removeChild(cursorStyle);
+      }
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       state.active = false;
       if (result) state.result = result;
@@ -444,6 +526,7 @@ const ELEMENT_PICKER_CANCEL_SCRIPT = `(function() {
 interface ElementPickerOptions {
   pollIntervalMs?: number;
   timeoutMs?: number;
+  cameraCursor?: boolean;
 }
 
 function delay(ms: number): Promise<void> {
@@ -490,8 +573,11 @@ export async function startElementPicker(
     options: ElementPickerOptions = {}): Promise<ElementContextCapture | null> {
   const pollIntervalMs = options.pollIntervalMs ?? 150;
   const timeoutMs = options.timeoutMs ?? 30000;
+  const startScript = ELEMENT_PICKER_START_SCRIPT.replace(
+      '__DAO_ELEMENT_PICKER_USE_CAMERA_CURSOR__',
+      options.cameraCursor ? 'true' : 'false');
   const started = parseNativeJson(await callNative('executeScript', {
-    code: ELEMENT_PICKER_START_SCRIPT,
+    code: startScript,
     lockTab: false,
   }));
   if (!started || started['error']) return null;
@@ -505,13 +591,15 @@ export async function startElementPicker(
     }));
     if (!payload) continue;
     if (isElementContextCapture(payload)) {
-      return {
+      const capture: ElementContextCapture = {
         url: payload.url,
         title: payload.title,
         label: payload.label,
         text: payload.text,
         locator: payload.locator,
       };
+      if (payload.viewport) capture.viewport = payload.viewport;
+      return capture;
     }
     if (payload['status'] === 'cancelled' || payload['status'] === 'missing' ||
         payload['error']) {
@@ -521,6 +609,21 @@ export async function startElementPicker(
 
   await cancelElementPicker();
   return null;
+}
+
+export async function captureElementScreenshotFromPage():
+    Promise<PiAttachment | null> {
+  const capture = await startElementPicker({cameraCursor: true});
+  if (!capture) return null;
+  const viewport = capture.viewport;
+  if (!viewport) return null;
+  const clip = clampScreenshotClip(capture.locator.bounds, viewport);
+  if (!clip) return null;
+  const result = await callNative('captureScreenshot', {clip}) as
+      {data?: string; format?: string; error?: string};
+  if (result.error || !result.data) return null;
+  return buildElementScreenshotAttachment(
+      capture, result.data, result.format || 'jpeg');
 }
 
 // Combined injection script. Runs Readability on a clone of the page,

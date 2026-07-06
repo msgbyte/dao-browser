@@ -16,11 +16,17 @@ export interface ElementLocator {
   bounds: {x: number; y: number; width: number; height: number};
 }
 
+export interface ElementViewport {
+  width: number;
+  height: number;
+}
+
 export interface ElementContextCapture extends PageInfo {
   contextId?: string;
   label: string;
   text: string;
   locator: ElementLocator;
+  viewport?: ElementViewport;
 }
 
 export const REUSABLE_ELEMENT_CONTEXT_STORAGE_KEY =
@@ -40,6 +46,12 @@ function isBounds(value: unknown):
   return isRecord(value) &&
       typeof value['x'] === 'number' &&
       typeof value['y'] === 'number' &&
+      typeof value['width'] === 'number' &&
+      typeof value['height'] === 'number';
+}
+
+function isElementViewport(value: unknown): value is ElementViewport {
+  return isRecord(value) &&
       typeof value['width'] === 'number' &&
       typeof value['height'] === 'number';
 }
@@ -67,7 +79,9 @@ function isElementContextCapture(value: unknown):
       typeof value['title'] === 'string' &&
       typeof value['label'] === 'string' &&
       typeof value['text'] === 'string' &&
-      isElementLocator(value['locator']);
+      isElementLocator(value['locator']) &&
+      (value['viewport'] === undefined ||
+       isElementViewport(value['viewport']));
 }
 
 function getStorage(): Storage | null {

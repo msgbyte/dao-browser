@@ -41,6 +41,17 @@ const dict: Dictionary = {
   'chat.attach.element.pick_selected': 'Added element: {label}',
   'chat.attach.element.pick_cancelled': 'Element picking cancelled',
   'chat.attach.element.pick_failed': 'Element picking failed',
+  'chat.attach.element_screenshot.label': 'element screenshot',
+  'chat.attach.element_screenshot.dismiss_title':
+      "Don't attach this screenshot",
+  'chat.attach.element_screenshot.pick_tooltip':
+      'Screenshot an element from the page',
+  'chat.attach.element_screenshot.pick_active_tooltip':
+      'Cancel element screenshot',
+  'chat.attach.element_screenshot.pick_selected': 'Added element screenshot',
+  'chat.attach.element_screenshot.pick_cancelled':
+      'Element screenshot cancelled',
+  'chat.attach.element_screenshot.pick_failed': 'Element screenshot failed',
 
   // Proactive suggestion card. Detection is local; AI runs only after Run.
   'chat.proactive.cost_hint': 'No AI is used until you click Run.',

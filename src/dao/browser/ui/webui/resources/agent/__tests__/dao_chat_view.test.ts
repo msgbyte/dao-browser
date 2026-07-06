@@ -11,6 +11,7 @@ import type {ElementContextCapture} from '../dao_element_context.js';
 const pickerMocks = vi.hoisted(() => ({
   startElementPicker: vi.fn(),
   cancelElementPicker: vi.fn(),
+  captureElementScreenshotFromPage: vi.fn(),
   callNative: vi.fn(),
   callNativeArgs: vi.fn(),
   webUiListeners: {} as
@@ -105,6 +106,8 @@ vi.mock('../dao_page_capture.js', async () => {
     ...actual,
     cancelElementPicker: (...args: unknown[]) =>
         pickerMocks.cancelElementPicker(...args),
+    captureElementScreenshotFromPage: (...args: unknown[]) =>
+        pickerMocks.captureElementScreenshotFromPage(...args),
     startElementPicker: (...args: unknown[]) =>
         pickerMocks.startElementPicker(...args),
   };
@@ -1320,6 +1323,7 @@ describe('dao-chat-view element picker', () => {
     clearReusableElementContext();
     pickerMocks.startElementPicker.mockReset();
     pickerMocks.cancelElementPicker.mockReset();
+    pickerMocks.captureElementScreenshotFromPage.mockReset();
     pickerMocks.callNative.mockReset();
     pickerMocks.callNativeArgs.mockReset();
     pickerMocks.callNative.mockResolvedValue({success: true});
@@ -1360,6 +1364,151 @@ describe('dao-chat-view element picker', () => {
     expect(pickerMocks.callNative).toHaveBeenCalledWith('focusAgentSidebar');
     expect(focusSpy).toHaveBeenCalled();
   });
+
+  it('adds an element screenshot as an image attachment in the composer',
+     async () => {
+    const imageAttachment = {
+      id: 'dao-element-shot-1',
+      type: 'image',
+      fileName: 'Sign in button.jpg',
+      mimeType: 'image/jpeg',
+      size: 12,
+      content: 'base64-jpeg',
+      preview: 'base64-jpeg',
+    };
+    pickerMocks.captureElementScreenshotFromPage.mockResolvedValue(
+        imageAttachment);
+
+    const view = document.createElement('dao-chat-view') as HTMLElement;
+    const panel = document.createElement('div');
+    const editor = document.createElement('message-editor') as HTMLElement & {
+      attachments?: unknown[];
+      requestUpdate: ReturnType<typeof vi.fn>;
+    };
+    editor.attachments = [];
+    editor.requestUpdate = vi.fn();
+    const textarea = document.createElement('textarea');
+    editor.appendChild(textarea);
+    panel.appendChild(editor);
+    (view as unknown as {panel_: HTMLElement}).panel_ = panel;
+
+    await (view as unknown as {onElementScreenshotClick_: () => Promise<void>})
+        .onElementScreenshotClick_();
+
+    expect(editor.attachments).toEqual([
+      imageAttachment,
+    ]);
+    expect(editor.requestUpdate).toHaveBeenCalled();
+    expect((view as any).pendingElementContexts_ || []).toEqual([]);
+  });
+
+  it('places the element screenshot button before the composer send button',
+     () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement;
+       const panel = document.createElement('div');
+       const editor = document.createElement('message-editor');
+       const row = document.createElement('div');
+       const modelButton = document.createElement('button');
+       const sendButton = document.createElement('button');
+       row.append(modelButton, sendButton);
+       editor.appendChild(row);
+       panel.appendChild(editor);
+
+       (view as unknown as {
+         attachElementScreenshotButton_: (panel: HTMLElement) => void;
+       }).attachElementScreenshotButton_(panel);
+
+       const screenshotButton =
+           row.querySelector('.dao-element-screenshot-button');
+       expect(screenshotButton).toBeTruthy();
+       expect(screenshotButton?.nextElementSibling).toBe(sendButton);
+     });
+
+  it('sends only the element screenshot image attachment', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    const imageAttachment = {
+      id: 'dao-element-shot-1',
+      type: 'image',
+      fileName: 'Sign in button.jpg',
+      mimeType: 'image/jpeg',
+      size: 12,
+      content: 'base64-jpeg',
+      preview: 'base64-jpeg',
+    };
+    Object.assign(view, {
+      suppressChipAttachOnce_: false,
+      pendingPageAttachment_: null,
+      pendingSelection_: null,
+      pendingElementContexts_: [],
+    });
+
+    try {
+      await iface.sendMessage('what is this?', [imageAttachment]);
+
+      const attachments = originalSend.mock.calls[0][1];
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].type).toBe('image');
+      expect(JSON.stringify(attachments)).not.toContain('<element-context');
+      expect(JSON.stringify(attachments)).not.toContain('.element.json');
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('sends element screenshots to the LLM as image_url content parts',
+     async () => {
+       let viewRef: HTMLElement | null = null;
+       let llmMessages: any[] = [];
+       const originalSend = vi.fn(async (text: string, attachments: any[]) => {
+         const agent = (viewRef as unknown as {agent_: {
+           convertToLlm: (msgs: any[]) => any[];
+         }}).agent_;
+         llmMessages = agent.convertToLlm([{
+           role: 'user-with-attachments',
+           content: text,
+           attachments,
+           timestamp: Date.now(),
+         }]);
+         return 'sent';
+       });
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+       viewRef = view;
+       const imageAttachment = {
+         id: 'dao-element-shot-1',
+         type: 'image',
+         fileName: 'Sign in button.jpg',
+         mimeType: 'image/jpeg',
+         size: 12,
+         content: 'base64-jpeg',
+         preview: 'base64-jpeg',
+       };
+       Object.assign(view, {
+         suppressChipAttachOnce_: false,
+         pendingPageAttachment_: null,
+         pendingSelection_: null,
+         pendingElementContexts_: [],
+       });
+
+       try {
+         await iface.sendMessage('what is this?', [imageAttachment]);
+
+         expect(llmMessages).toHaveLength(1);
+         expect(llmMessages[0].role).toBe('user');
+         expect(llmMessages[0].content).toEqual([
+           {type: 'text', text: 'what is this?'},
+           {
+             type: 'image_url',
+             image_url: {
+               url: 'data:image/jpeg;base64,base64-jpeg',
+               detail: 'auto',
+             },
+           },
+         ]);
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
 
   it('brackets a user send with an agent turn tab target', async () => {
     const originalSend = vi.fn(async () => 'sent');
