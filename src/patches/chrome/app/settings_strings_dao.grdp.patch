@@ -2,7 +2,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 index d9e3f457c1..0000000002 100644
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -3824,6 +3824,21 @@
+@@ -3824,6 +3824,60 @@
    <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
      You and Google
    </message>
@@ -20,6 +20,45 @@ index d9e3f457c1..0000000002 100644
 +  </message>
 +  <message name="IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_SUB_LABEL" desc="Description for the setting that enables richer tab, command, search, and Dao suggestions in the command bar.">
 +    Use richer tab, command, search, and Dao suggestions in the command bar
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_ENABLED_LABEL" desc="Label for the setting that enables or disables Dao's custom Document Picture-in-Picture behavior on supported video sites.">
++    Enhanced Picture-in-Picture (PIP)
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_ENABLED_SUB_LABEL" desc="Description for the setting that uses custom Document Picture-in-Picture windows on supported sites when enabled, or original browser Picture-in-Picture when disabled.">
++    Use the custom Document Picture-in-Picture window on supported sites
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_TITLE" desc="Heading for a static preview that compares enhanced Picture-in-Picture with original browser Picture-in-Picture.">
++    Picture-in-Picture preview
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_PRIMARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++    Great scene!
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_SECONDARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++    Nice shot
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_TERTIARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++    So smooth
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_QUATERNARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++    Love this
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_QUINARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++    Nice sync
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_SENARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++    Perfect timing
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_ON_LABEL" desc="Label for the enabled state in the enhanced Picture-in-Picture preview.">
++    Enhanced mode
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_ON_DESCRIPTION" desc="Description of the enabled state in the enhanced Picture-in-Picture preview, where supported sites open as a full player window.">
++    Supported sites open as a full player window with controls, subtitles, comments, and Dao styling preserved.
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_OFF_LABEL" desc="Label for the disabled state in the enhanced Picture-in-Picture preview.">
++    Original mode
++  </message>
++  <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_OFF_DESCRIPTION" desc="Description of the disabled state in the enhanced Picture-in-Picture preview, where supported sites use original browser Picture-in-Picture.">
++    Supported sites use the original browser Picture-in-Picture window with only the video surface.
 +  </message>
    <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
      Google Profile photo

@@ -10,10 +10,12 @@ index 7ef1c895e0..0000000001 100644
  #include "chrome/browser/extensions/api/settings_private/generated_prefs_factory.h"
  #include "chrome/browser/extensions/settings_api_helpers.h"
  #include "chrome/browser/glic/glic_pref_names.h"
-@@ -236,5 +237,9 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
+@@ -236,5 +237,11 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
    (*s_allowlist)[payments::kCanMakePaymentEnabled] =
        settings_api::PrefType::kBoolean;
 +  (*s_allowlist)[dao::prefs::kDaoLittleDaoEnabled] =
++      settings_api::PrefType::kBoolean;
++  (*s_allowlist)[dao::prefs::kDaoEnhancedPipEnabled] =
 +      settings_api::PrefType::kBoolean;
 +  (*s_allowlist)[dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled] =
 +      settings_api::PrefType::kBoolean;

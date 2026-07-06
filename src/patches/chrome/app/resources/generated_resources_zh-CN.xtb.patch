@@ -2,6 +2,49 @@ diff --git a/chrome/app/resources/generated_resources_zh-CN.xtb b/chrome/app/res
 index 0000000001..0000000002 100644
 --- a/chrome/app/resources/generated_resources_zh-CN.xtb
 +++ b/chrome/app/resources/generated_resources_zh-CN.xtb
+@@ -1,6 +1,7 @@
+ <?xml version="1.0" ?>
+ <!DOCTYPE translationbundle>
+ <translationbundle lang="zh-CN">
++<translation id="42079359526797400">增强的画中画 (PIP)</translation>
+ <translation id="1001033507375626788">已与您共享该网络</translation>
+ <translation id="1001360573085135660">点击即可切换权限。</translation>
+ <translation id="1002085272681738789">标签页重新变为活动状态</translation>
+@@ -910,7 +911,8 @@
+ <translation id="1607139524282324606">清除此条目</translation>
+ <translation id="1607499585984539560">此用户未与网域关联</translation>
+ <translation id="1607540893439314147"><ph name="BEGIN_PARAGRAPH1" />与 Gemini 聊天，在 Google AI 的帮助下撰写内容、制定规划、学习新知识等等。<ph name="END_PARAGRAPH1" />
+     <ph name="BEGIN_PARAGRAPH2" />设置完成后，选择屏幕底部任务栏上的 Gemini 应用，即可开始使用 Gemini。<ph name="END_PARAGRAPH2" /></translation>
++<translation id="1607811381030986058">增强模式</translation>
+ <translation id="1608668830839595724">可对所选项执行的更多操作</translation>
+ <translation id="1610272688494140697">应用设置</translation>
+ <translation id="161042844686301425">青色</translation>
+@@ -1146,6 +1148,7 @@
+ <translation id="1763046204212875858">创建应用快捷方式</translation>
+ <translation id="1763808908432309942">在新标签页中打开</translation>
+ <translation id="1764226536771329714">Beta 版</translation>
++<translation id="1765568289540142383">Love this</translation>
+ <translation id="176587472219019965">打开新的窗口(&amp;N)</translation>
+ <translation id="1766575458646819543">已退出全屏模式</translation>
+ <translation id="1766957085594317166">将密码安全地保存到您的 Google 账号中，彻底为您免除再次输入的麻烦</translation>
+@@ -1393,6 +1396,7 @@
+ <translation id="1927075772688962338">固定阅读模式</translation>
+ <translation id="1927632033341042996">指纹 <ph name="NEW_FINGER_NUMBER" /></translation>
+ <translation id="192817607445937251">屏幕锁定 PIN 码</translation>
+ <translation id="192858925209436740">将 OneDrive 连接到“文件”应用即可从 Chromebook 中管理您存储的文档。您需要使用自己的 Microsoft 账号登录。</translation>
++<translation id="1928676582356902292">Perfect timing</translation>
+ <translation id="1928696683969751773">更新</translation>
+ <translation id="1929343511231420085">任意串行端口</translation>
+@@ -2763,7 +2767,9 @@
+ <translation id="283669119850230892">要使用网络“<ph name="NETWORK_ID" />”，请先在下方连接互联网。</translation>
+ <translation id="2837436785711770027">{NUM_GROUPS,plural, =1{删除分组}other{删除分组}}</translation>
++<translation id="2837712785763321439">So smooth</translation>
+ <translation id="2838379631617906747">正在安装</translation>
+ <translation id="2838586216723890961">开启</translation>
+ <translation id="2839032553903800133">已阻止显示通知</translation>
+ <translation id="2841013758207633010">时间</translation>
++<translation id="2841236032449409747">Nice sync</translation>
+ <translation id="2841837950101800123">提供方</translation>
 @@ -2957,6 +2957,7 @@
  <translation id="2975845084271617886">加入并打开</translation>
  <translation id="2976547701881428815">工具和操作</translation>
@@ -26,6 +69,24 @@ index 0000000001..0000000002 100644
  <translation id="4833683849865011483">通过打印服务器找到了 1 台打印机</translation>
  <translation id="4835598628985424375">撅起嘴唇</translation>
  <translation id="4835677468087803981">隐藏 PIN 码</translation>
+@@ -6061,6 +6063,8 @@
++<translation id="5069578397898592708">在部分网站使用定制 Document Picture-in-Picture 窗口</translation>
+ <translation id="5088427648965532275">Passpoint 来源</translation>
+ <translation id="5088534251099454936">PKCS #1，带有 RSA 加密的 SHA-512</translation>
+ <translation id="5090637338841444533">不允许跟踪您的摄像头位置</translation>
+ <translation id="5091636240353511739">显示 PIN 码</translation>
++<translation id="5091799886440513284">画中画预览</translation>
+ <translation id="5093447877601682598">发送关于标签栏的反馈</translation>
+ <translation id="5093477827231450397">网站列表，这些网站已被您屏蔽，因为您不想让它们向其他网站建议广告</translation>
+@@ -8415,6 +8418,8 @@
++<translation id="666789743951309643">部分网站会以完整播放器窗口打开，保留控制条、字幕、弹幕和 Dao 样式。</translation>
+ <translation id="6725206449694821596">互联网打印协议 (IPP)</translation>
+ <translation id="6725970970008349185">每页显示的候选字词数</translation>
+ <translation id="672609503628871915">了解一下新变化</translation>
+ <translation id="6726800386221816228">特殊字符</translation>
++<translation id="6726927422842854671">原版模式</translation>
+ <translation id="6728528977475057549">尾号为 <ph name="LAST_FOUR_DIGITS" /> 的 IBAN</translation>
+ <translation id="6729192290958770680">请输入用户名</translation>
 @@ -9191,5 +9191,6 @@
  <translation id="7260186537988033909">自助服务终端和数字标牌设备注册已完成</translation>
  <translation id="7260206782629605806">如果您降低阈值，就可以做出轻微的动作。如果您提高阈值，可能需要做出更夸张的动作。</translation>
@@ -33,6 +94,30 @@ index 0000000001..0000000002 100644
  <translation id="7260802376010589729">按下“c”键表示松开鼠标按键</translation>
  <translation id="7261217796641151584">共享分组</translation>
  <translation id="7261612856573623172">系统默认文字转语音声音</translation>
+@@ -9328,6 +9338,7 @@
+ <translation id="7348920948593871738">已在 Mac 系统设置中关闭摄像头</translation>
+ <translation id="7349010927677336670">视频流畅性</translation>
+ <translation id="7350327333026851413">{COUNT,plural, =1{有 {COUNT} 个密码仅保存在此设备上}other{有 {COUNT} 个密码仅保存在此设备上}}</translation>
+ <translation id="7352651011704765696">出了点问题</translation>
++<translation id="7352912906049883152">Nice shot</translation>
+ <translation id="7353261921908507769">附近的所有联系人都可与您分享内容。仅当您接受后，系统才会开始传输内容。</translation>
+ <translation id="7353432112255316844">请验证是您本人在操作</translation>
+@@ -11537,6 +11548,7 @@
+ <translation id="8811862054141704416">Crostini 麦克风使用权限</translation>
+ <translation id="8812180570908649670">{PASSWORD_COUNT,plural, =1{有 1 个密码只保存到此设备上。若要在其他设备上使用它，请将它保存到您的 Google 账号中。此操作还会清理所有重复项。}other{有 {PASSWORD_COUNT} 个密码只保存到此设备上。若要在其他设备上使用它们，请将它们保存到您的 Google 账号中。此操作还会清理所有重复项。}}</translation>
+ <translation id="8813199641941291474">已被禁止对 MIDI 设备进行控制和重新编程</translation>
++<translation id="8813598646318262401">Great scene!</translation>
+ <translation id="8813698869395535039">无法登录 <ph name="USERNAME" /></translation>
+ <translation id="8813872945700551674">请让家长批准安装“<ph name="EXTENSION_NAME" />”</translation>
+ <translation id="8813937837706331325">节省适量内存</translation>
+@@ -11890,6 +11896,7 @@
+ <translation id="9037054491984310631">已连接到名为“<ph name="DEVICE" />”的蓝牙设备</translation>
+ <translation id="9037640663275993951">不允许此设备运行虚拟机</translation>
+ <translation id="9037818663270399707">您的连接在部分网络流量中不是私密连接</translation>
+ <translation id="9037965129289936994">显示原始网页</translation>
++<translation id="9038265565356311756">支持的网站使用浏览器原版画中画窗口，只显示视频画面。</translation>
+ <translation id="9038489124413477075">未命名的文件夹</translation>
+ <translation id="9039014462651733343">{NUM_ATTEMPTS,plural, =1{您还剩 1 次尝试机会。}other{您还剩 # 次尝试机会。}}</translation>
 @@ -11957,6 +11959,7 @@
  <translation id="9085776959277692427">未选择“<ph name="LANGUAGE" />”。按搜索键 + 空格键即可选择。</translation>
  <translation id="9087949559523851360">添加受限用户</translation>

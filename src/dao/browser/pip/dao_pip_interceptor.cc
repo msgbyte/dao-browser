@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -14,7 +15,10 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
+#include "components/prefs/pref_service.h"
+#include "dao/browser/dao_pref_names.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/pip/dao_pip_site_rules.h"
@@ -26,10 +30,17 @@ namespace dao {
 
 namespace {
 
-// Main-world PiP override template. The first %s is the CSS selector JS string
-// literal, and the second %s is the custom styles JS array literal.
+// Main-world PiP override template. The first %s is the enabled boolean
+// literal, the second %s is the CSS selector JS string literal, and the third
+// %s is the custom styles JS array literal.
 constexpr char kPipOverrideMainWorldTemplate[] = R"js(
 (function() {
+  var DAO_PIP_ENABLED_ATTR = 'data-dao-enhanced-pip-enabled';
+  window.__daoEnhancedPipEnabled = %s;
+  if (document.documentElement) {
+    document.documentElement.setAttribute(
+        DAO_PIP_ENABLED_ATTR, window.__daoEnhancedPipEnabled ? 'true' : 'false');
+  }
   if (window.__daoPipOverrideInstalled) return;
   window.__daoPipOverrideInstalled = true;
   window.__daoDocumentPipOpenPromise = null;
@@ -38,6 +49,14 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
   var DAO_PIP_CUSTOM_STYLES = %s;
   var DAO_PIP_TARGET_ATTR = 'data-dao-pip-target';
   var origRequestPiP = HTMLVideoElement.prototype.requestPictureInPicture;
+
+  function isEnhancedPipEnabled() {
+    var root = document.documentElement;
+    var attr = root ? root.getAttribute(DAO_PIP_ENABLED_ATTR) : null;
+    if (attr === 'false') return false;
+    if (attr === 'true') return true;
+    return window.__daoEnhancedPipEnabled !== false;
+  }
 
   function dispatchVideoPipEvent(video, type, pipWindow) {
     if (!video) return;
@@ -261,6 +280,9 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
   }
 
   HTMLVideoElement.prototype.requestPictureInPicture = async function() {
+    if (!isEnhancedPipEnabled()) {
+      return origRequestPiP.call(this);
+    }
     try {
       var result = await daoDocumentPip(this);
       if (result) return result;
@@ -271,6 +293,9 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
   };
 
   window.__daoTriggerDocumentPip = async function() {
+    if (!isEnhancedPipEnabled()) {
+      return false;
+    }
     try {
       if (window.documentPictureInPicture &&
           window.documentPictureInPicture.window) {
@@ -325,26 +350,26 @@ constexpr char kTriggerScriptTemplate[] = R"js(
     }
   };
 
-  var script = document.createElement('script');
-  script.textContent = '(' + (async function(triggerId) {
-    if (!window.__daoTriggerDocumentPip) {
-      return;
-    }
-    var ok = false;
-    try {
-      ok = !!await window.__daoTriggerDocumentPip();
-    } catch(e) {
-      ok = false;
-    }
-    if (ok) {
-      var root = document.documentElement;
-      if (root && root.getAttribute('data-dao-pip-trigger-id') === triggerId) {
-        root.setAttribute('data-dao-pip-trigger-id', triggerId);
-        root.setAttribute('data-dao-pip-trigger-result', 'true');
-      }
-    }
-  }).toString() + ')(' + JSON.stringify(triggerId) + ')';
   try {
+    var script = document.createElement('script');
+    script.textContent = '(' + (async function(triggerId) {
+      if (!window.__daoTriggerDocumentPip) {
+        return;
+      }
+      var ok = false;
+      try {
+        ok = !!await window.__daoTriggerDocumentPip();
+      } catch(e) {
+        ok = false;
+      }
+      if (ok) {
+        var root = document.documentElement;
+        if (root && root.getAttribute('data-dao-pip-trigger-id') === triggerId) {
+          root.setAttribute('data-dao-pip-trigger-id', triggerId);
+          root.setAttribute('data-dao-pip-trigger-result', 'true');
+        }
+      }
+    }).toString() + ')(' + JSON.stringify(triggerId) + ')';
     (document.documentElement || document.head || document.body)
         .appendChild(script);
     script.remove();
@@ -392,11 +417,11 @@ constexpr char kCloseScript[] = R"js(
                 window.__daoCloseDocumentPip());
   } catch(e) {}
 
-  var script = document.createElement('script');
-  script.textContent =
-      '(function(){try{window.__daoCloseDocumentPip&&' +
-      'window.__daoCloseDocumentPip();}catch(e){}})();';
   try {
+    var script = document.createElement('script');
+    script.textContent =
+        '(function(){try{window.__daoCloseDocumentPip&&' +
+        'window.__daoCloseDocumentPip();}catch(e){}})();';
     (document.documentElement || document.head || document.body)
         .appendChild(script);
     script.remove();
@@ -438,30 +463,58 @@ std::string BuildCustomStylesArrayLiteral(
   return literal;
 }
 
-std::string BuildPipOverrideScript(const PipSiteRule& rule) {
+std::string BuildPipOverrideScript(const PipSiteRule& rule, bool enabled) {
   std::string selector_literal = EscapeForTemplateLiteral(rule.target_selector);
   std::string custom_styles_literal =
       BuildCustomStylesArrayLiteral(rule.custom_styles);
+  const char* enabled_literal = enabled ? "true" : "false";
   return base::StringPrintf(
-      kPipOverrideMainWorldTemplate, selector_literal.c_str(),
+      kPipOverrideMainWorldTemplate, enabled_literal, selector_literal.c_str(),
       custom_styles_literal.c_str());
 }
 
-std::string BuildInjectionScript(const PipSiteRule& rule) {
-  std::string main_world_js = BuildPipOverrideScript(rule);
+std::string BuildInjectionScript(const PipSiteRule& rule, bool enabled) {
+  std::string main_world_js = BuildPipOverrideScript(rule, enabled);
   std::string escaped = EscapeForTemplateLiteral(main_world_js);
   return base::StringPrintf(
       R"js(
 (function() {
   if (document.querySelector('#__dao-pip-override')) return;
-  var s = document.createElement('script');
-  s.id = '__dao-pip-override';
-  s.textContent = %s;
-  document.documentElement.appendChild(s);
-  s.remove();
+  try {
+    var s = document.createElement('script');
+    s.id = '__dao-pip-override';
+    s.textContent = %s;
+    document.documentElement.appendChild(s);
+    s.remove();
+  } catch(e) {}
 })();
 )js",
       escaped.c_str());
+}
+
+std::string BuildSetPipOverrideEnabledScript(bool enabled) {
+  const char* enabled_literal = enabled ? "true" : "false";
+  std::string main_world_js = base::StringPrintf(
+      "window.__daoEnhancedPipEnabled = %s;", enabled_literal);
+  std::string escaped = EscapeForTemplateLiteral(main_world_js);
+  return base::StringPrintf(
+      R"js(
+(function() {
+  window.__daoEnhancedPipEnabled = %s;
+  if (document.documentElement) {
+    document.documentElement.setAttribute(
+        'data-dao-enhanced-pip-enabled', %s ? 'true' : 'false');
+  }
+  try {
+    var s = document.createElement('script');
+    s.textContent = %s;
+    (document.documentElement || document.head || document.body)
+        .appendChild(s);
+    s.remove();
+  } catch(e) {}
+})();
+)js",
+      enabled_literal, enabled_literal, escaped.c_str());
 }
 
 std::string BuildTriggerScript(const std::string& trigger_id) {
@@ -492,17 +545,49 @@ std::optional<bool> ParseTriggerResult(const base::Value& result) {
   return std::nullopt;
 }
 
+bool IsEnhancedPipEnabled(content::WebContents* web_contents) {
+  if (!web_contents) {
+    return false;
+  }
+  auto* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
+  if (!profile) {
+    return true;
+  }
+  PrefService* prefs = profile->GetPrefs();
+  if (!prefs || !prefs->FindPreference(prefs::kDaoEnhancedPipEnabled)) {
+    return true;
+  }
+  return prefs->GetBoolean(prefs::kDaoEnhancedPipEnabled);
+}
+
 }  // namespace
 
 DaoPipInterceptor::DaoPipInterceptor(content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents),
-      content::WebContentsUserData<DaoPipInterceptor>(*web_contents) {}
+      content::WebContentsUserData<DaoPipInterceptor>(*web_contents) {
+  auto* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
+  if (!profile || !profile->GetPrefs() ||
+      !profile->GetPrefs()->FindPreference(prefs::kDaoEnhancedPipEnabled)) {
+    return;
+  }
+
+  pref_change_registrar_.Init(profile->GetPrefs());
+  pref_change_registrar_.Add(
+      prefs::kDaoEnhancedPipEnabled,
+      base::BindRepeating(&DaoPipInterceptor::OnEnhancedPipPrefChanged,
+                          base::Unretained(this)));
+}
 
 DaoPipInterceptor::~DaoPipInterceptor() = default;
 
 // static
 bool DaoPipInterceptor::ShouldIntercept(content::WebContents* web_contents) {
   if (!web_contents) {
+    return false;
+  }
+  if (!IsEnhancedPipEnabled(web_contents)) {
     return false;
   }
   return GetPipSiteRule(web_contents->GetLastCommittedURL()).has_value();
@@ -537,25 +622,60 @@ void DaoPipInterceptor::MaybeInjectPipOverride() {
     return;
   }
 
+  if (!IsEnhancedPipEnabled(web_contents())) {
+    SetPipOverrideEnabled(false);
+    return;
+  }
+
   content::RenderFrameHost* frame =
       web_contents()->GetPrimaryMainFrame();
   if (!frame) {
     return;
   }
 
-  std::string isolated_script = BuildPipOverrideScript(*rule);
+  std::string isolated_script = BuildPipOverrideScript(*rule, true);
   frame->ExecuteJavaScriptInIsolatedWorld(
       base::UTF8ToUTF16(isolated_script), base::DoNothing(),
       ISOLATED_WORLD_ID_CHROME_INTERNAL);
 
-  std::string script = BuildInjectionScript(*rule);
+  std::string script = BuildInjectionScript(*rule, true);
   frame->ExecuteJavaScriptInIsolatedWorld(
       base::UTF8ToUTF16(script), base::DoNothing(),
       ISOLATED_WORLD_ID_CHROME_INTERNAL);
 }
 
+void DaoPipInterceptor::SetPipOverrideEnabled(bool enabled) {
+  content::RenderFrameHost* frame =
+      web_contents()->GetPrimaryMainFrame();
+  if (!frame) {
+    return;
+  }
+
+  frame->ExecuteJavaScriptInIsolatedWorld(
+      base::UTF8ToUTF16(BuildSetPipOverrideEnabledScript(enabled)),
+      base::DoNothing(), ISOLATED_WORLD_ID_CHROME_INTERNAL);
+}
+
+void DaoPipInterceptor::OnEnhancedPipPrefChanged() {
+  if (IsEnhancedPipEnabled(web_contents())) {
+    MaybeInjectPipOverride();
+    return;
+  }
+
+  SetPipOverrideEnabled(false);
+  if (document_pip_active_) {
+    CloseDocumentPip();
+  }
+}
+
 void DaoPipInterceptor::TriggerDocumentPip(
     base::OnceCallback<void(bool)> callback) {
+  if (!ShouldIntercept(web_contents())) {
+    SetPipOverrideEnabled(false);
+    std::move(callback).Run(false);
+    return;
+  }
+
   content::RenderFrameHost* frame =
       web_contents()->GetPrimaryMainFrame();
   if (!frame) {

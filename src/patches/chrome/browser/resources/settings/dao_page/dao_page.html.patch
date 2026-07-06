@@ -3,8 +3,258 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,15 @@
-+<style include="settings-shared"></style>
+@@ -0,0 +1,341 @@
++<style include="settings-shared">
++  .dao-pip-preview {
++    border-top: var(--cr-separator-line);
++    padding: 16px 20px 20px;
++  }
++
++  .dao-pip-preview-title {
++    color: var(--cr-primary-text-color);
++    font-size: 13px;
++    font-weight: 500;
++    line-height: 20px;
++    margin-bottom: 12px;
++  }
++
++  .dao-pip-preview-body {
++    max-width: 360px;
++  }
++
++  .dao-pip-preview-pane {
++    border: 1px solid var(--cr-separator-color);
++    border-radius: 8px;
++    min-width: 0;
++    padding: 12px;
++  }
++
++  .dao-pip-preview-window {
++    aspect-ratio: 16 / 9;
++    background: #111827;
++    border-radius: 8px;
++    box-shadow: 0 8px 20px rgba(0, 0, 0, .2);
++    height: auto;
++    min-height: 160px;
++    overflow: hidden;
++    position: relative;
++  }
++
++  .dao-pip-preview-toolbar {
++    align-items: center;
++    background: linear-gradient(180deg, #1d2735, #172231);
++    display: flex;
++    gap: 4px;
++    height: 18px;
++    padding-inline: 10px;
++  }
++
++  .dao-pip-preview-dot {
++    background: #6b7280;
++    border-radius: 50%;
++    height: 4px;
++    width: 4px;
++  }
++
++  .dao-pip-preview-player {
++    background:
++        radial-gradient(circle at 24% 32%, rgba(79, 118, 170, .28), transparent 34%),
++        linear-gradient(135deg, #15243a, #28466d);
++    bottom: 0;
++    left: 0;
++    position: absolute;
++    right: 0;
++    top: 18px;
++  }
++
++  .dao-pip-preview-controls {
++    background: rgba(255, 255, 255, .74);
++    border-radius: 999px;
++    bottom: 14px;
++    height: 7px;
++    left: 22px;
++    position: absolute;
++    right: 22px;
++  }
++
++  .dao-pip-preview-comment {
++    background: rgba(15, 23, 42, .42);
++    border-radius: 3px;
++    color: rgba(255, 255, 255, .86);
++    font-size: 8px;
++    font-weight: 500;
++    line-height: 12px;
++    max-width: 48%;
++    overflow: hidden;
++    padding: 0 4px;
++    position: absolute;
++    right: 24px;
++    text-overflow: ellipsis;
++    top: 28px;
++    white-space: nowrap;
++  }
++
++  .dao-pip-preview-comment.secondary {
++    left: 26px;
++    right: auto;
++    top: 50px;
++  }
++
++  .dao-pip-preview-comment.tertiary {
++    left: 42%;
++    right: auto;
++    top: 20px;
++  }
++
++  .dao-pip-preview-comment.quaternary {
++    left: 58px;
++    right: auto;
++    top: 68px;
++  }
++
++  .dao-pip-preview-comment.quinary {
++    right: 42px;
++    top: 82px;
++  }
++
++  .dao-pip-preview-comment.senary {
++    left: 118px;
++    right: auto;
++    top: 36px;
++  }
++
++  .dao-pip-preview-subtitles {
++    align-items: center;
++    bottom: 34px;
++    display: flex;
++    flex-direction: column;
++    gap: 4px;
++    left: 26px;
++    position: absolute;
++    right: 26px;
++  }
++
++  .dao-pip-preview-subtitle-line {
++    background: rgba(15, 23, 42, .82);
++    border-radius: 3px;
++    height: 8px;
++    box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
++  }
++
++  .dao-pip-preview-subtitle-line.primary {
++    width: 62%;
++  }
++
++  .dao-pip-preview-subtitle-line.secondary {
++    width: 42%;
++  }
++
++  .dao-pip-preview-video {
++    align-items: center;
++    background: #020617;
++    bottom: 0;
++    display: flex;
++    justify-content: center;
++    left: 0;
++    position: absolute;
++    right: 0;
++    top: 0;
++  }
++
++  .dao-pip-preview-video-shape {
++    aspect-ratio: 16 / 9;
++    background: linear-gradient(135deg, #1e293b, #475569);
++    border-radius: 4px;
++    width: 72%;
++  }
++
++  .dao-pip-preview-original-shell {
++    align-items: center;
++    background: transparent;
++    display: flex;
++    justify-content: center;
++  }
++
++  .dao-pip-preview-original-window {
++    background: #020617;
++    border: 0;
++    border-radius: inherit;
++    box-shadow: none;
++    aspect-ratio: 16 / 9;
++    height: 100%;
++    overflow: hidden;
++    position: relative;
++    width: 100%;
++  }
++
++  .dao-pip-preview-original-video {
++    background:
++        linear-gradient(135deg, rgba(96, 165, 250, .3), transparent 52%),
++        linear-gradient(160deg, #111827, #334155);
++    bottom: 0;
++    left: 0;
++    position: absolute;
++    right: 0;
++    top: 0;
++  }
++
++  .dao-pip-preview-original-video::before {
++    background: rgba(255, 255, 255, .16);
++    border-radius: 50%;
++    content: '';
++    height: 18px;
++    left: 50%;
++    position: absolute;
++    top: 50%;
++    transform: translate(-50%, -50%);
++    width: 18px;
++  }
++
++  .dao-pip-preview-original-video::after {
++    border-bottom: 5px solid transparent;
++    border-left: 7px solid rgba(255, 255, 255, .72);
++    border-top: 5px solid transparent;
++    content: '';
++    left: calc(50% - 2px);
++    position: absolute;
++    top: calc(50% - 5px);
++  }
++
++  .dao-pip-preview-original-caption {
++    background: rgba(15, 23, 42, .82);
++    border-radius: 3px;
++    bottom: 15px;
++    height: 6px;
++    left: 24px;
++    position: absolute;
++    right: 24px;
++  }
++
++  .dao-pip-preview-original-controls {
++    background: rgba(255, 255, 255, .5);
++    border-radius: 999px;
++    bottom: 7px;
++    height: 4px;
++    left: 24px;
++    position: absolute;
++    right: 24px;
++  }
++
++  .dao-pip-preview-label {
++    color: var(--cr-primary-text-color);
++    font-size: 12px;
++    font-weight: 500;
++    line-height: 18px;
++    margin-top: 10px;
++  }
++
++  .dao-pip-preview-description {
++    color: var(--cr-secondary-text-color);
++    font-size: 12px;
++    line-height: 18px;
++    margin-top: 2px;
++  }
++</style>
 +
 +<settings-section page-title="$i18n{daoPageTitle}"
 +    class="cr-centered-card-container">
@@ -18,4 +268,80 @@ index 0000000000..0000000001
 +      label="$i18n{enhancedCommandBarSuggestionsEnabledLabel}"
 +      sub-label="$i18n{enhancedCommandBarSuggestionsEnabledSubLabel}">
 +  </settings-toggle-button>
++  <settings-toggle-button id="enhancedPipEnabled"
++      pref="{{prefs.dao.enhanced_pip_enabled}}"
++      label="$i18n{enhancedPipEnabledLabel}"
++      sub-label="$i18n{enhancedPipEnabledSubLabel}">
++  </settings-toggle-button>
++  <div id="enhancedPipPreview" class="dao-pip-preview" role="group"
++      aria-label="$i18n{enhancedPipPreviewTitle}">
++    <div class="dao-pip-preview-title">$i18n{enhancedPipPreviewTitle}</div>
++    <div class="dao-pip-preview-body">
++      <template is="dom-if" if="[[prefs.dao.enhanced_pip_enabled.value]]"
++          restamp>
++        <div id="enhancedPipPreviewOn" class="dao-pip-preview-pane">
++          <div class="dao-pip-preview-window" aria-hidden="true">
++            <div class="dao-pip-preview-toolbar">
++              <div class="dao-pip-preview-dot"></div>
++              <div class="dao-pip-preview-dot"></div>
++              <div class="dao-pip-preview-dot"></div>
++            </div>
++            <div class="dao-pip-preview-player">
++              <div class="dao-pip-preview-comment">
++                $i18n{enhancedPipPreviewCommentPrimary}
++              </div>
++              <div class="dao-pip-preview-comment secondary">
++                $i18n{enhancedPipPreviewCommentSecondary}
++              </div>
++              <div class="dao-pip-preview-comment tertiary">
++                $i18n{enhancedPipPreviewCommentTertiary}
++              </div>
++              <div class="dao-pip-preview-comment quaternary">
++                $i18n{enhancedPipPreviewCommentQuaternary}
++              </div>
++              <div class="dao-pip-preview-comment quinary">
++                $i18n{enhancedPipPreviewCommentQuinary}
++              </div>
++              <div class="dao-pip-preview-comment senary">
++                $i18n{enhancedPipPreviewCommentSenary}
++              </div>
++              <div id="enhancedPipPreviewSubtitles"
++                  class="dao-pip-preview-subtitles">
++                <div class="dao-pip-preview-subtitle-line primary"></div>
++                <div class="dao-pip-preview-subtitle-line secondary"></div>
++              </div>
++              <div class="dao-pip-preview-controls"></div>
++            </div>
++          </div>
++          <div class="dao-pip-preview-label">
++            $i18n{enhancedPipPreviewOnLabel}
++          </div>
++          <div class="dao-pip-preview-description">
++            $i18n{enhancedPipPreviewOnDescription}
++          </div>
++        </div>
++      </template>
++      <template is="dom-if" if="[[!prefs.dao.enhanced_pip_enabled.value]]"
++          restamp>
++        <div id="enhancedPipPreviewOff" class="dao-pip-preview-pane">
++          <div class="dao-pip-preview-window dao-pip-preview-original-shell"
++              aria-hidden="true">
++            <div id="enhancedPipPreviewOriginalWindow"
++                class="dao-pip-preview-original-window">
++              <div id="enhancedPipPreviewOriginalVideo"
++                  class="dao-pip-preview-original-video"></div>
++              <div class="dao-pip-preview-original-caption"></div>
++              <div class="dao-pip-preview-original-controls"></div>
++            </div>
++          </div>
++          <div class="dao-pip-preview-label">
++            $i18n{enhancedPipPreviewOffLabel}
++          </div>
++          <div class="dao-pip-preview-description">
++            $i18n{enhancedPipPreviewOffDescription}
++          </div>
++        </div>
++      </template>
++    </div>
++  </div>
 +</settings-section>
