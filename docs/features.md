@@ -209,7 +209,7 @@ Lightweight window form factor for popups / mini-tools.
 - **`chrome://` → `dao://`** — Internal URL schemes rewritten via `content/common/url_schemes.cc.patch`
 - **`chrome_color_mixer.cc.patch`** — Threads `dao_colors` tokens into the global color pipeline
 - **Custom scrollbar** — `third_party/blink/renderer/core/css/css_default_style_sheets.cc.patch` + `html.css.patch` for globally restyled scrollbars
-- **Chromium string rebranding** — ~40 `*_strings.grd[p]` + `terms_*.html` patches across `chrome/app/` and `components/`
+- **Chromium string rebranding** — `*_strings.grd[p]` patch files plus import-time rewrites for generated / terms resources
 
 ## 11. Shortcuts and Menus
 
@@ -220,9 +220,10 @@ Lightweight window form factor for popups / mini-tools.
 - **Command handling** — `browser_command_controller.cc.patch` + `browser_commands.cc.patch`
 - Note: adding a new IDC_* requires three edit sites (see `MEMORY.md`)
 
-## 12. Chromium Core Integration Patches (174 total)
+## 12. Chromium Core Integration Patches (166 total)
 
-Roughly **97 functional** patches and **77 string-localization** patches.
+Roughly **166 patch files** across functional Chromium integration and
+string-localization/rebranding changes.
 
 ### 12.1 URLs and Schemes
 - `content/common/url_schemes.cc.patch` — Register `dao://`
@@ -291,10 +292,11 @@ Roughly **97 functional** patches and **77 string-localization** patches.
 - `chrome/browser/accessibility/soda_installer_impl.cc.patch`
 - `components/performance_manager/user_tuning/prefs.cc.patch`
 
-### 12.10 String Localization (~77 patches)
+### 12.10 String Localization and Rebranding
 - `chrome/app/*_strings.grd[p]` and `chromium_strings.grd` / `google_chrome_strings.grd` — Branded strings
 - `components/*_strings.grdp` — Component strings (autofill, crash, error, history clusters, management, omnibox, policy, privacy sandbox, security interstitials, site settings, version, etc.)
-- `components/resources/terms/terms_*.html` — Terms-of-service rebranding across ~40 locales
+- Settings localized-string provider patches — Dao settings page strings
+- `components/resources/terms/terms_*.html` rebranding is handled by import-time rewrites, not patch files
 
 ## 13. Testing
 
@@ -316,4 +318,4 @@ Roughly **97 functional** patches and **77 string-localization** patches.
 
 - **Version**: 0.3.0 (based on Chromium 147.0.7727.135)
 - **Target platform**: macOS arm64
-- **Source footprint**: ~45 C++ component pairs under `src/dao/` + 174 patches under `src/patches/` (~97 functional + ~77 localization)
+- **Source footprint**: ~45 C++ component pairs under `src/dao/` + 166 patches under `src/patches/`
