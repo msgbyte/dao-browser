@@ -25,6 +25,7 @@ export type IconName =
   | 'sliders-horizontal'
   | 'square'
   | 'palette'
+  | 'moon'
   | 'globe'
   | 'menu'
   | 'x'
@@ -149,6 +150,11 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
       <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
       <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
       <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+    </>
+  ),
+  moon: (
+    <>
+      <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
     </>
   ),
   globe: (

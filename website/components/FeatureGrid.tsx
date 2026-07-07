@@ -5,9 +5,16 @@ interface GridItem {
   icon: IconName;
   title: string;
   body: string;
+  highlight?: boolean;
 }
 
 const ITEMS: GridItem[] = [
+  {
+    icon: 'moon',
+    title: 'Force Dark Mode',
+    body: 'Darken bright sites with Chromium Auto Dark Mode, only when your system is already dark.',
+    highlight: true,
+  },
   {
     icon: 'picture-in-picture-2',
     title: 'Picture-in-Picture',
@@ -46,7 +53,7 @@ export function FeatureGrid() {
       <h2 className={styles.heading}>And there&apos;s more.</h2>
       <ul className={styles.grid} role="list">
         {ITEMS.map((it) => (
-          <li key={it.title} className={styles.card}>
+          <li key={it.title} className={`${styles.card} ${it.highlight ? styles.highlight : ''}`}>
             <LucideIcon name={it.icon} size={22} className={styles.icon} />
             <h3 className={styles.cardTitle}>{it.title}</h3>
             <p className={styles.cardBody}>{it.body}</p>

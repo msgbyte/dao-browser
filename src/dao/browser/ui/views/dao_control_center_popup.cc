@@ -4,7 +4,7 @@
 
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 
-#include "third_party/blink/public/common/input/web_input_event.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/web_contents.h"
@@ -24,6 +24,15 @@
 #include "ui/views/controls/button/button.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_utils.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "dao/browser/ui/views/dao_native_share_mac.h"
+#include "ui/views/widget/widget.h"
+#endif
+
+#include "third_party/blink/public/common/input/web_input_event.h"
 
 namespace dao {
 
@@ -147,6 +156,9 @@ void DaoControlCenterPopup::ApplyTheme() {
     separator_->SetBackground(
         views::CreateSolidBackground(SeparatorColor()));
   }
+  if (utility_section_) {
+    utility_section_->Refresh();
+  }
 }
 
 void DaoControlCenterPopup::OnNativeThemeUpdated(
@@ -242,8 +254,38 @@ void DaoControlCenterPopup::ShowMainPanel() {
   if (card_->children().size() > 1) {
     card_->children()[1]->SetVisible(true);
   }
+  if (utility_section_) {
+    utility_section_->Refresh();
+  }
   InvalidateLayout();
   SchedulePaint();
+}
+
+void DaoControlCenterPopup::ShareCurrentPage(const gfx::Rect& anchor_rect) {
+#if BUILDFLAG(IS_MAC)
+  if (!browser_) {
+    return;
+  }
+  auto* web_contents = browser_->tab_strip_model()->GetActiveWebContents();
+  if (!web_contents) {
+    return;
+  }
+
+  std::string url = web_contents->GetVisibleURL().spec();
+  std::string title = web_contents->GetTitle().empty()
+                          ? url
+                          : base::UTF16ToUTF8(web_contents->GetTitle());
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view || !browser_view->GetWidget()) {
+    return;
+  }
+
+  dao::ShowNativeShareMac(url, title, browser_view->GetWidget()->GetNativeView(),
+                          anchor_rect);
+#else
+  (void)anchor_rect;
+#endif
 }
 
 void DaoControlCenterPopup::OnTabStripModelChanged(

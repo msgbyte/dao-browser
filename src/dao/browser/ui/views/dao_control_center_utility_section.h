@@ -8,11 +8,15 @@
 #include "base/memory/raw_ptr.h"
 #include "ui/views/view.h"
 
+namespace views {
+class Button;
+}  // namespace views
+
 namespace dao {
 
 class DaoControlCenterPopup;
 
-// A row of utility buttons: Share, QR Code, Mini Dao, Lock (Page Info), More.
+// A row of utility buttons: QR Code, Mini Dao, Security, dark mode, More.
 class DaoControlCenterUtilitySection : public views::View {
   METADATA_HEADER(DaoControlCenterUtilitySection, views::View)
 
@@ -24,14 +28,18 @@ class DaoControlCenterUtilitySection : public views::View {
       const DaoControlCenterUtilitySection&) = delete;
   ~DaoControlCenterUtilitySection() override;
 
+  void Refresh();
+
  private:
-  void OnShareClicked();
   void OnQrClicked();
   void OnMiniDaoClicked();
+  void OnForceDarkModeClicked();
+  void RefreshForceDarkModeState();
   void OnLockClicked();
   void OnMoreClicked();
 
   raw_ptr<DaoControlCenterPopup> popup_;
+  raw_ptr<views::Button> force_dark_mode_button_ = nullptr;
 };
 
 }  // namespace dao

@@ -348,6 +348,20 @@ void DrawSparkles(gfx::Canvas* canvas,
   canvas->DrawCircle(gfx::PointF(ox + 4 * s, oy + 20 * s), 2.0f * s, flags);
 }
 
+// Lucide "moon"
+void DrawMoon(gfx::Canvas* canvas,
+              float s,
+              float ox,
+              float oy,
+              const cc::PaintFlags& flags) {
+  DrawSvgPath(
+      canvas,
+      "M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46."
+      "402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803."
+      "401",
+      s, ox, oy, flags);
+}
+
 }  // namespace
 
 void DrawLucideIcon(gfx::Canvas* canvas,
@@ -445,6 +459,12 @@ void DrawLucideIcon(gfx::Canvas* canvas,
     case LucideIcon::kSparkles:
       DrawSparkles(canvas, s, ox, oy, flags);
       break;
+    case LucideIcon::kMoon: {
+      cc::PaintFlags moon_flags = flags;
+      moon_flags.setStrokeWidth(2.0f * s);
+      DrawMoon(canvas, s, ox, oy, moon_flags);
+      break;
+    }
   }
 }
 

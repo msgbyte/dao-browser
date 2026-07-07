@@ -6,6 +6,8 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "cc/paint/paint_flags.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -14,6 +16,7 @@
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/dao_pref_names.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
@@ -24,6 +27,9 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
+#include "third_party/skia/include/core/SkMatrix.h"
+#include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/utils/SkParsePath.h"
 #include "ui/views/background.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
@@ -33,18 +39,36 @@
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "dao/browser/ui/views/dao_native_share_mac.h"
-#endif
-
 namespace dao {
 
 namespace {
 
-constexpr int kUtilButtonSize = 56;
+constexpr int kUtilButtonSize = 48;
 constexpr int kUtilIconSize = 18;
 constexpr int kUtilCornerRadius = 10;
 constexpr int kUtilFontSize = 10;
+
+void DrawFilledMoonIcon(gfx::Canvas* canvas,
+                        const gfx::RectF& rect,
+                        SkColor color) {
+  const float scale = rect.width() / 24.0f;
+  SkPath path;
+  SkParsePath::FromSVGString(
+      "M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46."
+      "402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803."
+      "401",
+      &path);
+  SkMatrix matrix;
+  matrix.setScale(scale, scale);
+  matrix.postTranslate(rect.x(), rect.y());
+  path = path.makeTransform(matrix);
+
+  cc::PaintFlags flags;
+  flags.setAntiAlias(true);
+  flags.setStyle(cc::PaintFlags::kFill_Style);
+  flags.setColor(color);
+  canvas->DrawPath(path, flags);
+}
 
 // A utility button with a Lucide icon and a text label.
 class UtilityButton : public views::Button {
@@ -66,29 +90,49 @@ class UtilityButton : public views::Button {
     icon_spacer->SetCanProcessEventsWithinSubtree(false);
     AddChildView(icon_spacer.release());
 
-    auto* label =
-        AddChildView(std::make_unique<views::Label>(label_text));
-    label->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL,
-                                      kUtilFontSize,
-                                      gfx::Font::Weight::NORMAL));
-    label->SetEnabledColor(ControlCenterLabelColor());
-    label->SetCanProcessEventsWithinSubtree(false);
+    label_ = AddChildView(std::make_unique<views::Label>(label_text));
+    label_->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL,
+                                       kUtilFontSize,
+                                       gfx::Font::Weight::NORMAL));
+    label_->SetEnabledColor(ControlCenterLabelColor());
+    label_->SetCanProcessEventsWithinSubtree(false);
 
     SetPreferredSize(gfx::Size(kUtilButtonSize, kUtilButtonSize));
     SetInstallFocusRingOnFocus(false);
     SetAccessibleName(label_text);
   }
 
+  void SetSelected(bool selected) {
+    if (selected_ == selected) {
+      return;
+    }
+    selected_ = selected;
+    RefreshBackground();
+    SchedulePaint();
+  }
+
+  void SetVisualEnabled(bool enabled) {
+    SetEnabled(enabled);
+    label_->SetEnabled(enabled);
+    label_->SetEnabledColor(enabled ? ControlCenterLabelColor()
+                                    : ControlCenterSecondaryTextColor());
+    RefreshBackground();
+    SchedulePaint();
+  }
+
   void OnMouseEntered(const ui::MouseEvent& event) override {
     Button::OnMouseEntered(event);
-    SetBackground(views::CreateRoundedRectBackground(
-        SuggestionHover(), kUtilCornerRadius));
-    SchedulePaint();
+    if (GetEnabled()) {
+      hovered_ = true;
+      RefreshBackground();
+      SchedulePaint();
+    }
   }
 
   void OnMouseExited(const ui::MouseEvent& event) override {
     Button::OnMouseExited(event);
-    SetBackground(nullptr);
+    hovered_ = false;
+    RefreshBackground();
     SchedulePaint();
   }
 
@@ -96,15 +140,43 @@ class UtilityButton : public views::Button {
     // Draw the icon centered in the spacer area (first child).
     if (!children().empty()) {
       gfx::Rect icon_bounds = children().front()->bounds();
-      DrawLucideIcon(canvas, icon_,
-                     gfx::RectF(icon_bounds.x(), icon_bounds.y(),
-                                kUtilIconSize, kUtilIconSize),
-                     ControlCenterIconMuted());
+      const gfx::RectF icon_rect(icon_bounds.x(), icon_bounds.y(),
+                                 kUtilIconSize, kUtilIconSize);
+      const SkColor icon_color =
+          GetEnabled() ? (selected_ ? ControlCenterIconDefault()
+                                    : ControlCenterIconMuted())
+                       : ControlCenterSecondaryTextColor();
+      if (selected_ && icon_ == LucideIcon::kMoon) {
+        DrawFilledMoonIcon(canvas, icon_rect, icon_color);
+      } else {
+        DrawLucideIcon(canvas, icon_, icon_rect, icon_color);
+      }
     }
   }
 
  private:
+  void RefreshBackground() {
+    if (!GetEnabled()) {
+      SetBackground(nullptr);
+      return;
+    }
+    if (hovered_) {
+      SetBackground(views::CreateRoundedRectBackground(
+          SuggestionHover(), kUtilCornerRadius));
+      return;
+    }
+    if (selected_) {
+      SetBackground(views::CreateRoundedRectBackground(
+          ControlCenterActiveBg(), kUtilCornerRadius));
+      return;
+    }
+    SetBackground(nullptr);
+  }
+
   LucideIcon icon_;
+  raw_ptr<views::Label> label_ = nullptr;
+  bool selected_ = false;
+  bool hovered_ = false;
 };
 
 }  // namespace
@@ -119,14 +191,6 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
       views::BoxLayout::Orientation::kHorizontal, gfx::Insets::VH(8, 0), 0));
   layout->set_main_axis_alignment(
       views::BoxLayout::MainAxisAlignment::kCenter);
-
-  AddChildView(static_cast<views::View*>(
-      std::make_unique<UtilityButton>(
-          u"Share", LucideIcon::kShare,
-          base::BindRepeating(
-              &DaoControlCenterUtilitySection::OnShareClicked,
-              base::Unretained(this)))
-          .release()));
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
@@ -153,6 +217,19 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
               base::Unretained(this)))
           .release()));
 
+  {
+    auto button = std::make_unique<UtilityButton>(
+        l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL),
+        LucideIcon::kMoon,
+        base::BindRepeating(
+            &DaoControlCenterUtilitySection::OnForceDarkModeClicked,
+            base::Unretained(this)));
+    button->SetAccessibleName(
+        l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_LABEL));
+    force_dark_mode_button_ = button.get();
+    AddChildView(static_cast<views::View*>(button.release()));
+  }
+
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
           u"More", LucideIcon::kEllipsis,
@@ -160,34 +237,14 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
               &DaoControlCenterUtilitySection::OnMoreClicked,
               base::Unretained(this)))
           .release()));
+
+  RefreshForceDarkModeState();
 }
 
 DaoControlCenterUtilitySection::~DaoControlCenterUtilitySection() = default;
 
-void DaoControlCenterUtilitySection::OnShareClicked() {
-#if BUILDFLAG(IS_MAC)
-  if (!popup_ || !popup_->browser()) {
-    return;
-  }
-  auto* web_contents =
-      popup_->browser()->tab_strip_model()->GetActiveWebContents();
-  if (!web_contents) {
-    return;
-  }
-  std::string url = web_contents->GetVisibleURL().spec();
-  std::string title = web_contents->GetTitle().empty()
-                          ? url
-                          : base::UTF16ToUTF8(web_contents->GetTitle());
-
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(popup_->browser());
-  if (!browser_view || !browser_view->GetWidget()) {
-    return;
-  }
-  gfx::NativeView native_view = browser_view->GetWidget()->GetNativeView();
-  gfx::Rect anchor_rect = GetBoundsInScreen();
-  dao::ShowNativeShareMac(url, title, native_view, anchor_rect);
-#endif
+void DaoControlCenterUtilitySection::Refresh() {
+  RefreshForceDarkModeState();
 }
 
 void DaoControlCenterUtilitySection::OnQrClicked() {
@@ -217,6 +274,33 @@ void DaoControlCenterUtilitySection::OnMiniDaoClicked() {
 
   browser_view->dao_toast()->ShowToast(l10n_util::GetStringUTF16(
       IDS_DAO_CONTROL_CENTER_MINI_DAO_FAILED_TOAST));
+}
+
+void DaoControlCenterUtilitySection::OnForceDarkModeClicked() {
+  if (!popup_ || !popup_->browser() || !IsForceDarkModeAvailable()) {
+    RefreshForceDarkModeState();
+    return;
+  }
+
+  Profile* profile = popup_->browser()->profile();
+  SetForceDarkModeUserEnabled(profile, !IsForceDarkModeUserEnabled(profile));
+  RefreshForceDarkModeState();
+}
+
+void DaoControlCenterUtilitySection::RefreshForceDarkModeState() {
+  if (!force_dark_mode_button_) {
+    return;
+  }
+
+  auto* button = static_cast<UtilityButton*>(force_dark_mode_button_.get());
+  Profile* profile =
+      popup_ && popup_->browser() ? popup_->browser()->profile() : nullptr;
+  const bool available = IsForceDarkModeAvailable();
+  button->SetSelected(IsForceDarkModeUserEnabled(profile));
+  button->SetVisualEnabled(available);
+  button->SetTooltipText(l10n_util::GetStringUTF16(
+      available ? IDS_DAO_FORCE_DARK_MODE_TOOLTIP
+                : IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP));
 }
 
 void DaoControlCenterUtilitySection::OnLockClicked() {

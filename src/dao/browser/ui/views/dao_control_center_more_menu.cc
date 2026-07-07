@@ -80,6 +80,16 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
   back_btn->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 12)));
   AddChildView(std::move(back_btn));
 
+  // Share button
+  {
+    auto btn = std::make_unique<MenuItemButton>(
+        l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SHARE),
+        base::BindRepeating(&DaoControlCenterMoreMenu::OnShareClicked,
+                            base::Unretained(this)));
+    share_button_ = btn.get();
+    AddChildView(static_cast<views::View*>(btn.release()));
+  }
+
   // Clear Cache button
   {
     auto btn = std::make_unique<MenuItemButton>(
@@ -106,6 +116,13 @@ DaoControlCenterMoreMenu::~DaoControlCenterMoreMenu() = default;
 void DaoControlCenterMoreMenu::OnBackClicked() {
   if (popup_) {
     popup_->ShowMainPanel();
+  }
+}
+
+void DaoControlCenterMoreMenu::OnShareClicked() {
+  if (popup_) {
+    popup_->ShareCurrentPage(share_button_ ? share_button_->GetBoundsInScreen()
+                                           : GetBoundsInScreen());
   }
 }
 

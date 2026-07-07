@@ -16,6 +16,10 @@
 
 class Browser;
 
+namespace gfx {
+class Rect;
+}
+
 namespace dao {
 
 class DaoControlCenterExtensionsSection;
@@ -47,6 +51,8 @@ class DaoControlCenterPopup : public views::View,
   void ShowMoreMenu();
   // Return to the main panel from a sub-panel.
   void ShowMainPanel();
+  // Show the native share picker for the active page.
+  void ShareCurrentPage(const gfx::Rect& anchor_rect);
 
   Browser* browser() const { return browser_; }
 

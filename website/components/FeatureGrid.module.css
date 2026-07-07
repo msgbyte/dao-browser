@@ -48,6 +48,16 @@
   background: var(--surface-hover);
 }
 
+.highlight {
+  background: var(--accent-subtle);
+  border-color: var(--accent-dim);
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
+}
+
+.highlight:hover {
+  background: var(--accent-subtle);
+}
+
 .icon {
   color: var(--accent);
 }
@@ -64,4 +74,16 @@
   font-size: 14px;
   color: var(--text-secondary);
   margin: 0;
+}
+
+@media (min-width: 641px) {
+  .highlight {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .highlight {
+    grid-column: auto;
+  }
 }
