@@ -169,11 +169,19 @@ void DaoControlCenterExtensionsSection::OnToolbarActionAdded(
 
 void DaoControlCenterExtensionsSection::OnToolbarActionRemoved(
     const ToolbarActionsModel::ActionId& id) {
+  // Drop the cached icon factory: it holds raw pointers to the Extension and
+  // ExtensionAction, which are about to be destroyed.
+  icon_factories_.erase(id);
   grid_dirty_ = true;
 }
 
 void DaoControlCenterExtensionsSection::OnToolbarActionUpdated(
     const ToolbarActionsModel::ActionId& id) {
+  // The Extension/ExtensionAction backing the cached factory may have been
+  // replaced (e.g. extension reload or permission change). Drop the stale
+  // factory so GetIconForExtension rebuilds it against the current action,
+  // avoiding a use-after-free on the old raw pointers.
+  icon_factories_.erase(id);
   if (!UpdateButtonIcon(id)) {
     grid_dirty_ = true;
   }
