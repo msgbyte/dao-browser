@@ -14,6 +14,12 @@ Dao Browser is a Chromium-based browser with an Arc-style vertical sidebar, curr
 
 Read `docs/features.md` first when asked what Dao Browser does, when locating the owner of a behavior, or before adding a feature that may overlap with existing work.
 
+## Feature Documentation
+
+- When adding or materially changing a Dao Browser feature, update `docs/features.md` in the same change to keep the feature catalog current.
+- When adding or materially changing a Dao Browser feature, update `docs/feature-checklist.md` in the same change so Chromium upgrade and regression checks cover the new behavior.
+- If a feature change does not require updates to either document, explicitly mention why in the final response.
+
 ## Source Of Truth
 
 - `src/dao/` contains Dao-owned C++ / WebUI / assets copied into Chromium during import.
