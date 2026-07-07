@@ -106,6 +106,8 @@ dao_browser_ui_sources = [
   "//dao/browser/ui/views/dao_native_util_mac.mm",
   "//dao/browser/ui/views/dao_pinned_extensions_container.cc",
   "//dao/browser/ui/views/dao_pinned_extensions_container.h",
+  "//dao/browser/ui/views/dao_qr_code_image.cc",
+  "//dao/browser/ui/views/dao_qr_code_image.h",
   "//dao/browser/ui/views/dao_qr_code_result_dialog_view.cc",
   "//dao/browser/ui/views/dao_qr_code_result_dialog_view.h",
   "//dao/browser/ui/views/dao_suggestion_item_view.cc",
@@ -151,6 +153,7 @@ dao_browser_ui_sources = [
 ]
 
 dao_browser_ui_deps = [
+  "//components/favicon/content",
   "//components/pdf/browser",
   "//components/qr_code_generator",
   "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
@@ -172,5 +175,6 @@ dao_browser_ui_mac_test_sources = [
 ]
 
 dao_browser_ui_test_deps = [
+  "//components/qr_code_generator",
   "//dao/browser/updater:dao_updater",
 ]
