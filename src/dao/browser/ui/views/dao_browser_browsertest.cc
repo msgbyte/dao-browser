@@ -166,6 +166,7 @@
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/button/label_button_label.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -6172,6 +6173,54 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, AccentUnchanged) {
 
   EXPECT_EQ(light_accent, dark_accent);
   EXPECT_EQ(light_accent, SkColorSetRGB(70, 120, 190));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
+                       ControlCenterMoreMenuTextFollowsThemeChange) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+
+  auto* clear_cache_button = views::AsViewClass<views::LabelButton>(
+      FindButtonWithAccessibleName(
+          popup, l10n_util::GetStringUTF16(
+                     IDS_DAO_CONTROL_CENTER_CLEAR_CACHE)));
+  auto* clear_cookies_button = views::AsViewClass<views::LabelButton>(
+      FindButtonWithAccessibleName(
+          popup, l10n_util::GetStringUTF16(
+                     IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
+  ASSERT_NE(nullptr, clear_cache_button);
+  ASSERT_NE(nullptr, clear_cookies_button);
+
+  auto expect_control_center_text_colors = [](views::LabelButton* button) {
+    auto* label =
+        FindDescendantViewOfClass<views::internal::LabelButtonLabel>(button);
+    ASSERT_NE(nullptr, label);
+    ASSERT_TRUE(label->GetEnabledColor().has_value());
+    ASSERT_TRUE(label->GetDisabledColor().has_value());
+    EXPECT_EQ(dao::ControlCenterLabelColor(),
+              label->GetEnabledColor()->ResolveToSkColor(nullptr));
+    EXPECT_EQ(dao::ControlCenterSecondaryTextColor(),
+              label->GetDisabledColor()->ResolveToSkColor(nullptr));
+  };
+
+  expect_control_center_text_colors(clear_cache_button);
+  expect_control_center_text_colors(clear_cookies_button);
+
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+  theme->NotifyOnNativeThemeUpdated();
+
+  expect_control_center_text_colors(clear_cache_button);
+  expect_control_center_text_colors(clear_cookies_button);
+
+  popup->Hide();
 }
 
 // =============================================================================

@@ -28,6 +28,8 @@ class DaoControlCenterMoreMenu : public views::View {
       delete;
   ~DaoControlCenterMoreMenu() override;
 
+  void ApplyTheme();
+
  private:
   void OnBackClicked();
   void OnClearCacheClicked();
