@@ -4,6 +4,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
@@ -117,6 +118,7 @@
 #include "dao/browser/ui/views/dao_control_center_more_menu.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_control_center_qr_view.h"
+#include "dao/browser/ui/views/dao_control_center_utility_section.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
@@ -146,6 +148,8 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -164,6 +168,7 @@
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/native_theme/native_theme.h"
+#include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/label_button_label.h"
@@ -359,6 +364,36 @@ views::Button* FindButtonWithAccessibleName(
   }
   for (views::View* child : root->children()) {
     if (auto* button = FindButtonWithAccessibleName(child, accessible_name)) {
+      return button;
+    }
+  }
+  return nullptr;
+}
+
+std::vector<std::u16string> GetDirectButtonAccessibleNames(views::View* root) {
+  std::vector<std::u16string> names;
+  if (!root) {
+    return names;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* button = views::AsViewClass<views::Button>(child)) {
+      names.push_back(button->GetAccessibleName());
+    }
+  }
+  return names;
+}
+
+views::LabelButton* FindLabelButtonWithText(views::View* root,
+                                            std::u16string_view text) {
+  if (!root) {
+    return nullptr;
+  }
+  if (auto* button = views::AsViewClass<views::LabelButton>(root);
+      button && button->GetText() == text) {
+    return button;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* button = FindLabelButtonWithText(child, text)) {
       return button;
     }
   }
@@ -5247,6 +5282,147 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest, ShowToastMakesVisible) {
 
 using DaoControlCenterPopupBrowserTest = InProcessBrowserTest;
 
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       ForceDarkModeDefaultsOffAndRequiresSystemDark) {
+  Profile* profile = browser()->profile();
+  PrefService* prefs = profile->GetPrefs();
+  ASSERT_TRUE(prefs);
+  EXPECT_FALSE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
+
+  ui::NativeTheme* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  ASSERT_TRUE(theme);
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+  EXPECT_FALSE(IsForceDarkModeEffective(profile));
+  blink::web_pref::WebPreferences web_preferences;
+  web_preferences.force_dark_mode_enabled = true;
+  ApplyForceDarkModePreferences(profile, &web_preferences);
+  EXPECT_FALSE(web_preferences.force_dark_mode_enabled);
+
+  prefs->SetBoolean(prefs::kDaoForceDarkModeEnabled, true);
+  EXPECT_TRUE(IsForceDarkModeEffective(profile));
+  ApplyForceDarkModePreferences(profile, &web_preferences);
+  EXPECT_TRUE(web_preferences.force_dark_mode_enabled);
+  EXPECT_EQ(blink::mojom::PreferredColorScheme::kDark,
+            web_preferences.preferred_color_scheme);
+  EXPECT_EQ(blink::mojom::PreferredColorScheme::kDark,
+            web_preferences.preferred_root_scrollbar_color_scheme);
+
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  EXPECT_FALSE(IsForceDarkModeEffective(profile));
+  ApplyForceDarkModePreferences(profile, &web_preferences);
+  EXPECT_FALSE(web_preferences.force_dark_mode_enabled);
+  EXPECT_TRUE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
+  theme->NotifyOnNativeThemeUpdated();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       ForceDarkModeButtonLivesInMainUtilityRow) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+
+  const std::u16string label =
+      l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_LABEL);
+  auto* utility_section =
+      FindDescendantViewOfClass<DaoControlCenterUtilitySection>(popup);
+  ASSERT_NE(nullptr, utility_section);
+  EXPECT_EQ((std::vector<std::u16string>{
+                u"QR Code",
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO),
+                u"Security",
+                label,
+                u"More",
+            }),
+            GetDirectButtonAccessibleNames(utility_section));
+  views::Button* button = FindButtonWithAccessibleName(popup, label);
+  ASSERT_NE(nullptr, button);
+  EXPECT_TRUE(button->IsDrawn());
+  EXPECT_FALSE(button->GetEnabled());
+  EXPECT_EQ(views::Button::STATE_DISABLED, button->GetState());
+  EXPECT_EQ(l10n_util::GetStringUTF16(
+                IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP),
+            button->GetTooltipText());
+  auto* button_label = FindDescendantLabelWithText(
+      button, l10n_util::GetStringUTF16(
+                  IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL));
+  ASSERT_NE(nullptr, button_label);
+  const SkColor disabled_label_color = button_label->GetEnabledColor();
+  const int disabled_label_red = static_cast<int>(
+      SkColorGetR(disabled_label_color));
+  EXPECT_NE(ControlCenterLabelColor(), disabled_label_color);
+  EXPECT_NEAR(SkColorGetR(disabled_label_color),
+              SkColorGetG(disabled_label_color), 2);
+  EXPECT_NEAR(SkColorGetG(disabled_label_color),
+              SkColorGetB(disabled_label_color), 2);
+  EXPECT_GT(disabled_label_red,
+            static_cast<int>(SkColorGetR(ControlCenterLabelColor())));
+  EXPECT_LT(disabled_label_red, 200);
+  EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       MoreMenuContainsShareAction) {
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+
+  auto* more_menu = FindDescendantViewOfClass<DaoControlCenterMoreMenu>(popup);
+  ASSERT_NE(nullptr, more_menu);
+  ASSERT_TRUE(more_menu->GetVisible());
+  views::LabelButton* share_button = FindLabelButtonWithText(
+      more_menu, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SHARE));
+  ASSERT_NE(nullptr, share_button);
+  EXPECT_TRUE(share_button->IsDrawn());
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       ForceDarkModeUtilityButtonTogglesPreference) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+  theme->NotifyOnNativeThemeUpdated();
+
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  ASSERT_TRUE(prefs);
+  prefs->SetBoolean(prefs::kDaoForceDarkModeEnabled, false);
+
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+
+  views::Button* button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_LABEL));
+  ASSERT_NE(nullptr, button);
+  ASSERT_TRUE(button->GetEnabled());
+
+  views::test::ButtonTestApi(button).NotifyClick(ui::MouseEvent(
+      ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+      ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
+  EXPECT_TRUE(IsForceDarkModeEffective(browser()->profile()));
+
+  views::test::ButtonTestApi(button).NotifyClick(ui::MouseEvent(
+      ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+      ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_FALSE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
+
+  popup->Hide();
+}
+
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest, PopupExists) {
   auto* popup = GetBrowserView(browser())->dao_control_center_popup();
   ASSERT_NE(nullptr, popup);
@@ -5746,6 +5922,37 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                                     IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO)));
 
   popup->Hide();
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterDoesNotContainForceDarkModeControl) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,site-center-force-dark"));
+  ASSERT_NE(nullptr, little_dao_browser);
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  little_browser_view->DeprecatedLayoutImmediately();
+
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  auto* popup = little_browser_view->dao_mini_dao_site_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  little_view->ShowMiniDaoSiteCenterForTesting();
+  EXPECT_EQ(nullptr, FindButtonWithAccessibleName(
+                         popup, l10n_util::GetStringUTF16(
+                                    IDS_DAO_FORCE_DARK_MODE_LABEL)));
+  EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
+
   BrowserRemovedWaiter removed(little_dao_browser);
   little_dao_browser->window()->Close();
   removed.Wait();

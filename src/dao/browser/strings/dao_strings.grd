@@ -336,6 +336,9 @@
       <message name="IDS_DAO_CONTROL_CENTER_BACK_BUTTON_ACCESSIBLE_NAME" desc="Accessible name for the back button in the Control Center 'More' submenu (no arrow, screen reader friendly).">
         Back
       </message>
+      <message name="IDS_DAO_CONTROL_CENTER_SHARE" desc="Label on the button in the Control Center 'More' submenu that opens the native share sheet for the current page.">
+        Share
+      </message>
       <message name="IDS_DAO_CONTROL_CENTER_CLEAR_CACHE" desc="Label on the button in the Control Center 'More' submenu that clears the browser cache. Idle state.">
         Clear Cache
       </message>
@@ -344,6 +347,18 @@
       </message>
       <message name="IDS_DAO_CONTROL_CENTER_CLEARING" desc="Transient label shown on a Clear Cache or Clear Cookies button while the operation is in progress.">
         Clearing...
+      </message>
+      <message name="IDS_DAO_FORCE_DARK_MODE_LABEL" desc="Accessible label for a toggle button that remembers whether Dao should force websites into dark mode while the system appearance is dark.">
+        Force dark mode
+      </message>
+      <message name="IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL" desc="Short label shown under the Control Center utility button for the force dark mode toggle.">
+        Dark
+      </message>
+      <message name="IDS_DAO_FORCE_DARK_MODE_TOOLTIP" desc="Tooltip for the Force dark mode toggle when it can be changed because the system appearance is dark.">
+        Darken websites with Auto Dark Mode while the system is in dark mode.
+      </message>
+      <message name="IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP" desc="Tooltip for the Force dark mode toggle when it is disabled because the system appearance is light.">
+        Available when the system is in dark mode.
       </message>
 
       <!-- QR code dialog (after scanning a QR via right-click on an image) -->

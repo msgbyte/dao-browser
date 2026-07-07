@@ -17,7 +17,7 @@ namespace dao {
 
 class DaoControlCenterPopup;
 
-// Sub-panel with additional actions: clear cache, clear cookies.
+// Sub-panel with additional actions: share, clear cache, clear cookies.
 class DaoControlCenterMoreMenu : public views::View {
   METADATA_HEADER(DaoControlCenterMoreMenu, views::View)
 
@@ -32,10 +32,12 @@ class DaoControlCenterMoreMenu : public views::View {
 
  private:
   void OnBackClicked();
+  void OnShareClicked();
   void OnClearCacheClicked();
   void OnClearCookiesClicked();
 
   raw_ptr<DaoControlCenterPopup> popup_;
+  raw_ptr<views::LabelButton> share_button_ = nullptr;
   raw_ptr<views::LabelButton> clear_cache_button_ = nullptr;
   raw_ptr<views::LabelButton> clear_cookies_button_ = nullptr;
 

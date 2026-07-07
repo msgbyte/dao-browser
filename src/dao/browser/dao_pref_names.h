@@ -5,6 +5,12 @@
 #ifndef DAO_BROWSER_DAO_PREF_NAMES_H_
 #define DAO_BROWSER_DAO_PREF_NAMES_H_
 
+class Profile;
+
+namespace blink::web_pref {
+struct WebPreferences;
+}
+
 namespace user_prefs {
 class PrefRegistrySyncable;
 }
@@ -40,6 +46,12 @@ inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";
 // When false, external links use the regular full browser window.
 inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";
 
+// Boolean pref that remembers whether Dao should use Chromium's Auto Dark Mode
+// pipeline for web contents. It only takes effect while the system appearance
+// is dark.
+inline constexpr char kDaoForceDarkModeEnabled[] =
+    "dao.force_dark_mode_enabled";
+
 // Boolean pref that enables the richer Arc-style command bar suggestion
 // pipeline. Kept off by default while the ranking model is still maturing.
 inline constexpr char kDaoEnhancedCommandBarSuggestionsEnabled[] =
@@ -67,5 +79,20 @@ inline constexpr char kDaoDreamExcludedDomains[] =
     "dao.dream_excluded_domains";
 
 }  // namespace dao::prefs
+
+namespace dao {
+
+bool IsSystemDarkMode();
+bool IsForceDarkModeUserEnabled(Profile* profile);
+bool IsForceDarkModeAvailable();
+bool IsForceDarkModeEffective(Profile* profile);
+
+void SetForceDarkModeUserEnabled(Profile* profile, bool enabled);
+void ApplyForceDarkModePreferences(
+    Profile* profile,
+    blink::web_pref::WebPreferences* web_preferences);
+void NotifyForceDarkModeChanged(Profile* profile);
+
+}  // namespace dao
 
 #endif  // DAO_BROWSER_DAO_PREF_NAMES_H_

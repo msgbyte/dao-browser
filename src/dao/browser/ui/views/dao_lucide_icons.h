@@ -43,6 +43,7 @@ enum class LucideIcon {
   kSquareArrowDownLeft,
   kBot,
   kSparkles,
+  kMoon,
 };
 
 // Draw a Lucide icon into |rect| on |canvas| using |color|.
