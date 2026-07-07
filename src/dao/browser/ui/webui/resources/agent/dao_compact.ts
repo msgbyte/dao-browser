@@ -163,8 +163,8 @@ function isUserLikeMessage(m: PiMessage): boolean {
 }
 
 function isLocalDaoMessage(m: PiMessage): boolean {
-  return isRecord(m) && isRecord(m.dao) &&
-      m.dao.autoCompactNotice === true;
+  return isRecord(m) && isRecord(m['dao']) &&
+      m['dao']['autoCompactNotice'] === true;
 }
 
 function estimateTextTokens(text: string): number {
@@ -212,16 +212,18 @@ function textFromContent(content: unknown): string {
   const out: string[] = [];
   for (const part of content) {
     if (!isRecord(part)) continue;
-    if (part.type === 'text') {
-      out.push(typeof part.text === 'string' ? part.text : '');
-    } else if (part.type === 'image') {
-      const mime = typeof part.mimeType === 'string' ? part.mimeType : 'image';
-      const data = typeof part.data === 'string' ? part.data : '';
+    if (part['type'] === 'text') {
+      out.push(typeof part['text'] === 'string' ? part['text'] : '');
+    } else if (part['type'] === 'image') {
+      const mime =
+          typeof part['mimeType'] === 'string' ? part['mimeType'] : 'image';
+      const data = typeof part['data'] === 'string' ? part['data'] : '';
       out.push(`[image: ${mime}, ${data.length} base64 chars]`);
-    } else if (part.type === 'toolCall') {
-      const name = typeof part.name === 'string' ? part.name : 'unknown_tool';
-      const id = typeof part.id === 'string' ? ` id=${part.id}` : '';
-      out.push(`[tool call: ${name}${id} ${safeJson(part.arguments)}]`);
+    } else if (part['type'] === 'toolCall') {
+      const name =
+          typeof part['name'] === 'string' ? part['name'] : 'unknown_tool';
+      const id = typeof part['id'] === 'string' ? ` id=${part['id']}` : '';
+      out.push(`[tool call: ${name}${id} ${safeJson(part['arguments'])}]`);
     }
   }
   return out.filter(Boolean).join('\n');
@@ -229,17 +231,17 @@ function textFromContent(content: unknown): string {
 
 function attachmentSummaryText(attachment: unknown, index: number): string {
   if (!isRecord(attachment)) return '';
-  const name = typeof attachment.fileName === 'string' ?
-      attachment.fileName :
+  const name = typeof attachment['fileName'] === 'string' ?
+      attachment['fileName'] :
       `attachment ${index + 1}`;
-  const extracted = typeof attachment.extractedText === 'string' ?
-      attachment.extractedText :
+  const extracted = typeof attachment['extractedText'] === 'string' ?
+      attachment['extractedText'] :
       '';
-  const mime = typeof attachment.mimeType === 'string' ?
-      attachment.mimeType :
+  const mime = typeof attachment['mimeType'] === 'string' ?
+      attachment['mimeType'] :
       '';
-  const content = typeof attachment.content === 'string' ?
-      attachment.content :
+  const content = typeof attachment['content'] === 'string' ?
+      attachment['content'] :
       '';
   const details: string[] = [];
   if (mime) details.push(mime);
