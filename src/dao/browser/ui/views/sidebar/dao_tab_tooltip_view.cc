@@ -44,12 +44,29 @@ DaoTabTooltipView::DaoTabTooltipView() {
   title_label_->SetBackgroundColor(SK_ColorTRANSPARENT);
   title_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   title_label_->SetMaximumWidthSingleLine(kMaxWidth - 2 * kTooltipPaddingH);
+
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
+  ApplyTheme();
 }
 
 DaoTabTooltipView::~DaoTabTooltipView() = default;
 
+void DaoTabTooltipView::ApplyTheme() {
+  background_color_ = SkColorSetA(ToastBackground(), 242);
+  if (title_label_) {
+    title_label_->SetEnabledColor(ToastTextColor());
+  }
+}
+
+void DaoTabTooltipView::OnNativeThemeUpdated(
+    ui::NativeTheme* observed_theme) {
+  ApplyTheme();
+  SchedulePaint();
+}
+
 void DaoTabTooltipView::ShowTooltip(const std::u16string& title,
                                      const gfx::Point& anchor) {
+  ApplyTheme();
   title_label_->SetText(title);
   anchor_point_ = anchor;
 
@@ -109,7 +126,7 @@ void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
 
   // Draw background.
   cc::PaintFlags bg_flags;
-  bg_flags.setColor(SkColorSetA(ToastBackground(), 242));
+  bg_flags.setColor(background_color_);
   bg_flags.setAntiAlias(true);
   bg_flags.setStyle(cc::PaintFlags::kFill_Style);
   canvas->DrawPath(make_path(bounds, kCornerRadius), bg_flags);

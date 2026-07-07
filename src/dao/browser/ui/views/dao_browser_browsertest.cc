@@ -6862,7 +6862,16 @@ IN_PROC_BROWSER_TEST_F(DaoCornerOverlayPaintBrowserTest, SurvivesThemeUpdate) {
 // trip and anchor-point capture.
 // =============================================================================
 
-using DaoTabTooltipViewBrowserTest = InProcessBrowserTest;
+class DaoTabTooltipViewBrowserTest : public InProcessBrowserTest {
+ public:
+  void TearDownOnMainThread() override {
+    auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+    theme->set_preferred_color_scheme(
+        ui::NativeTheme::PreferredColorScheme::kLight);
+    theme->NotifyOnNativeThemeUpdated();
+    InProcessBrowserTest::TearDownOnMainThread();
+  }
+};
 
 IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, ShowSetsAnchor) {
   DaoTabTooltipView tooltip;
@@ -6878,6 +6887,29 @@ IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, HideMakesInvisible) {
   ASSERT_TRUE(tooltip.GetVisible());
   tooltip.HideTooltip();
   EXPECT_FALSE(tooltip.GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       RefreshesTextColorWhenShownAfterThemeChange) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+  theme->NotifyOnNativeThemeUpdated();
+
+  DaoTabTooltipView tooltip;
+  tooltip.ShowTooltip(u"Dark Tab", gfx::Point(120, 30));
+
+  ASSERT_FALSE(tooltip.children().empty());
+  auto* label = static_cast<views::Label*>(tooltip.children()[0]);
+  EXPECT_EQ(dao::ToastTextColor(), label->GetEnabledColor());
+
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+  tooltip.ShowTooltip(u"Light Tab", gfx::Point(120, 30));
+
+  EXPECT_EQ(dao::ToastTextColor(), label->GetEnabledColor());
+  EXPECT_EQ(SkColorSetRGB(35, 35, 40), label->GetEnabledColor());
 }
 
 // =============================================================================
