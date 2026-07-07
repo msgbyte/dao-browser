@@ -63,6 +63,7 @@ interface DreamReportData {
 interface DaoMessageMetadata {
   id: string;
   editedAt?: string;
+  autoCompactNotice?: boolean;
 }
 
 type DaoChatMessage = {
@@ -71,6 +72,14 @@ type DaoChatMessage = {
   attachments?: unknown[];
   timestamp?: unknown;
   dao?: DaoMessageMetadata;
+  // Assistant-only metadata mirrored from pi-ai's message shape. Present so a
+  // synthesized assistant bubble (e.g. the auto-compaction notice) can carry
+  // the fields the vendor renderer expects.
+  api?: string;
+  provider?: string;
+  model?: string;
+  usage?: {input: number; output: number; cacheRead: number; cacheWrite: number};
+  stopReason?: string;
 };
 
 interface DaoAssistantPair {
@@ -606,6 +615,11 @@ export class DaoChatView extends CrLitElement {
   // visual noise. While a compaction is in-flight we keep the bar mounted so
   // the spinner / cancel affordance stays visible regardless of ratio.
   private static readonly COMPACT_BAR_VISIBLE_RATIO = 0.4;
+  // Post-turn auto-compaction runs later than the visible warning bar. Open
+  // source coding agents commonly trigger around 75% or "nearly full"; 80%
+  // keeps Dao from compacting early while still leaving enough room for the
+  // compaction request itself.
+  private static readonly AUTO_COMPACT_AFTER_TURN_RATIO = 0.8;
 
   override render() {
     const ctx = this.agent_?.state.model?.contextWindow ?? 0;
@@ -1195,6 +1209,7 @@ export class DaoChatView extends CrLitElement {
         for (let i = 0; i < msgs.length; i++) {
           const m = msgs[i];
           if (!m) continue;
+          if (this.isDaoLocalMessage_(m)) continue;
           if (m.role === 'assistant' || m.role === 'toolResult') {
             out.push(m);
           } else if (m.role === 'user') {
@@ -1458,6 +1473,7 @@ export class DaoChatView extends CrLitElement {
           this.refreshMessageActions_();
           this.decoratePageAttachments_();
           this.activateProactiveSuggestionIfVisible_();
+          void this.maybeAutoCompactAfterTurn_();
         });
       }
     });
@@ -2094,6 +2110,7 @@ export class DaoChatView extends CrLitElement {
     const out: Array<Record<string, unknown>> = [];
     for (const msg of messages) {
       if (!msg) continue;
+      if (this.isDaoLocalMessage_(msg)) continue;
       if (msg.role === 'assistant' || msg.role === 'toolResult') {
         out.push({
           role: msg.role,
@@ -3383,6 +3400,11 @@ export class DaoChatView extends CrLitElement {
     return Array.isArray(msgs) ? msgs as DaoChatMessage[] : [];
   }
 
+  private isDaoLocalMessage_(msg: unknown): boolean {
+    return isRecord(msg) && isRecord(msg['dao']) &&
+        msg['dao']['autoCompactNotice'] === true;
+  }
+
   private newDaoMessageId_(): string {
     const uuid = globalThis.crypto?.randomUUID?.();
     if (typeof uuid === 'string' && uuid.length > 0) {
@@ -3437,6 +3459,7 @@ export class DaoChatView extends CrLitElement {
 
   private isAssistantMessage_(msg: unknown): msg is DaoChatMessage {
     if (!isRecord(msg)) return false;
+    if (this.isDaoLocalMessage_(msg)) return false;
     return msg['role'] === 'assistant' &&
         !!this.extractVisibleText_(msg as DaoChatMessage);
   }
@@ -3561,6 +3584,80 @@ export class DaoChatView extends CrLitElement {
     } finally {
       this.compacting_ = false;
       this.compactAbort_ = null;
+    }
+  }
+
+  private async maybeAutoCompactAfterTurn_(): Promise<void> {
+    if (!this.agent_) return;
+    if (this.compacting_) return;
+    if (this.agent_.state.isStreaming || this.isStreaming_) return;
+    const ctx = Number(this.agent_.state.model?.contextWindow) || 0;
+    if (ctx <= 0) return;
+    const msgs = this.currentMessages_().filter(
+        msg => !this.isDaoLocalMessage_(msg));
+    if (msgs.length < 2) return;
+    const tokens = estimateMessagesTokens(
+        msgs as unknown as Parameters<typeof estimateMessagesTokens>[0]);
+    const ratio = tokens / ctx;
+    if (ratio < DaoChatView.AUTO_COMPACT_AFTER_TURN_RATIO) return;
+
+    this.compacting_ = true;
+    const controller = new AbortController();
+    this.compactAbort_ = controller;
+    try {
+      const result = await compactAgentMessages(this.agent_, {
+        signal: controller.signal,
+        keepTailUserTurns: 1,
+      });
+      const percent = Math.min(100, Math.round(ratio * 100));
+      const notice: DaoChatMessage = {
+        // Rendered as an assistant bubble but never sent to the LLM (filtered
+        // everywhere via isDaoLocalMessage_). Carry the same metadata fields a
+        // real assistant message has so the vendor <message-list> renderer
+        // never dereferences an undefined `usage` / `provider`.
+        role: 'assistant',
+        content: [{
+          type: 'text',
+          text: t('chat.compact.auto_notice', {
+            percent,
+            count: result.collapsedCount,
+          }),
+        }],
+        api: '',
+        provider: '',
+        model: '',
+        usage: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
+        stopReason: 'stop',
+        timestamp: Date.now(),
+        dao: {
+          id: this.newDaoMessageId_(),
+          autoCompactNotice: true,
+        },
+      };
+      this.agent_.state.messages = [
+        ...this.agent_.state.messages,
+        notice,
+      ];
+      this.ensureMessageIds_();
+      this.syncMeta_();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const iface = this.panel_?.querySelector('agent-interface') as any;
+      iface?.requestUpdate?.();
+      this.refreshMessageActions_();
+      this.scheduleSaveSession_();
+    } catch (e) {
+      // Auto-compaction is a silent background operation the user never
+      // triggered, so its failures (network errors, or benign guards like
+      // "History is already compacted" / "Conversation changed during
+      // compaction") must not surface a toast. Log for diagnostics only.
+      if ((e as Error).name !== 'AbortError') {
+        console.warn('[dao-agent] auto-compaction skipped', e);
+      }
+    } finally {
+      this.compacting_ = false;
+      if (this.compactAbort_ === controller) {
+        this.compactAbort_ = null;
+      }
     }
   }
 
@@ -4959,6 +5056,10 @@ export class DaoChatView extends CrLitElement {
   // API; the underscore-prefixed name keeps it out of accidental use.
   _daoTestRefreshAssistantActions(): void {
     this.refreshAssistantActions_();
+  }
+
+  _daoTestMaybeAutoCompactAfterTurn(): Promise<void> {
+    return this.maybeAutoCompactAfterTurn_();
   }
 
   // Testing hook: exposes the same Markdown→HTML renderer that

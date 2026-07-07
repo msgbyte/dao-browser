@@ -15,6 +15,8 @@ const dict: Dictionary = {
   'chat.compact.cancelled': '已取消压缩',
   'chat.compact.success': '已压缩 {count} 条消息 → 1 条摘要',
   'chat.compact.failed': '压缩失败:{error}',
+  'chat.compact.auto_notice':
+      'Dao 已在上下文达到 {percent}% 时自动压缩 · 已摘要 {count} 条消息',
   'chat.empty_guide.title': '需要帮你做什么?',
   'chat.empty_guide.hint': '询问当前页面、总结选中文本,或运行一个技能。',
   'chat.attach.page.dismiss_title': '不附带当前页面',
