@@ -210,6 +210,10 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
 
 import {clearReusableElementContext} from '../dao_element_context.js';
 import {
+  compactAgentMessages,
+  estimateMessagesTokens,
+} from '../dao_compact.js';
+import {
   copyPngBlobToClipboard,
   renderShareImage,
 } from '../dao_share_image.js';
@@ -309,6 +313,9 @@ describe('dao-chat-view message metadata helpers', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
+    vi.mocked(compactAgentMessages).mockReset();
+    vi.mocked(estimateMessagesTokens).mockReset();
+    vi.mocked(estimateMessagesTokens).mockReturnValue(0);
     storageMocks.getAllMetadata.mockClear();
     storageMocks.getMetadata.mockClear();
     storageMocks.loadSession.mockClear();
@@ -343,9 +350,14 @@ describe('dao-chat-view message metadata helpers', () => {
           (messageId: string, content: string) => Promise<void>;
       _daoTestRefreshAssistantActions: () => void;
       _daoTestRewindAssistantById: (assistantId: string) => Promise<void>;
+      _daoTestMaybeAutoCompactAfterTurn: () => Promise<void>;
     };
     view.agent_ = {
-      state: {messages, isStreaming: false},
+      state: {
+        messages,
+        isStreaming: false,
+        model: {contextWindow: 128000},
+      },
       abort: vi.fn(),
       continue: vi.fn(async () => undefined),
     };
@@ -443,6 +455,73 @@ describe('dao-chat-view message metadata helpers', () => {
       answer: 'selected answer',
       source: {title: 'Example Docs', domain: 'example.com'},
     });
+  });
+
+  it('auto-compacts after a turn when context crosses the hot threshold',
+     async () => {
+    vi.mocked(estimateMessagesTokens).mockReturnValue(810);
+    vi.mocked(compactAgentMessages).mockImplementation(async (agent: any) => {
+      agent.state.messages = [{role: 'user', content: 'summary'}];
+      return {summary: 'summary', collapsedCount: 2, keptCount: 0};
+    });
+    const view = viewWithMessages([
+      {role: 'user', content: 'prompt'},
+      {role: 'assistant', content: 'answer'},
+    ]);
+    view.agent_.state.model = {contextWindow: 1000};
+    const {iface} = attachMessageHosts(view);
+
+    await view._daoTestMaybeAutoCompactAfterTurn();
+
+    expect(compactAgentMessages).toHaveBeenCalledWith(
+        view.agent_,
+        expect.objectContaining({keepTailUserTurns: 1}));
+    expect(view.agent_.state.messages).toHaveLength(2);
+    expect(view.agent_.state.messages[1]).toMatchObject({
+      role: 'assistant',
+      dao: {autoCompactNotice: true},
+      // Carries the assistant metadata the vendor renderer dereferences so a
+      // synthesized bubble never crashes on undefined usage/provider.
+      usage: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
+      stopReason: 'stop',
+    });
+    expect(view.agent_.state.messages[1].content[0].text).toContain(
+        'chat.compact.auto_notice');
+    expect(iface.requestUpdate).toHaveBeenCalled();
+  });
+
+  it('stays silent when background auto-compaction fails', async () => {
+    vi.mocked(estimateMessagesTokens).mockReturnValue(810);
+    vi.mocked(compactAgentMessages).mockRejectedValue(
+        new Error('History is already compacted'));
+    const view = viewWithMessages([
+      {role: 'user', content: 'prompt'},
+      {role: 'assistant', content: 'answer'},
+    ]);
+    view.agent_.state.model = {contextWindow: 1000};
+    const toast = vi.fn();
+    view.addEventListener('show-toast', toast);
+
+    await view._daoTestMaybeAutoCompactAfterTurn();
+
+    expect(compactAgentMessages).toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+    // No notice appended on failure; history is left untouched.
+    expect(view.agent_.state.messages).toHaveLength(2);
+  });
+
+  it('does not auto-compact below the hot threshold', async () => {
+    vi.mocked(estimateMessagesTokens).mockReturnValue(790);
+    const view = viewWithMessages([
+      {role: 'user', content: 'prompt'},
+      {role: 'assistant', content: 'answer'},
+    ]);
+    view.agent_.state.model = {contextWindow: 1000};
+
+    await view._daoTestMaybeAutoCompactAfterTurn();
+
+    expect(compactAgentMessages).not.toHaveBeenCalled();
+    expect(view.agent_.state.messages).toHaveLength(2);
   });
 
   it('renders user actions in a more menu to the left of the bubble', () => {

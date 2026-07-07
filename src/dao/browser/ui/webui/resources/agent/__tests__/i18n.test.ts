@@ -35,6 +35,13 @@ describe('i18n.t()', () => {
       .toBe('Compacted 0 messages → 1 summary');
   });
 
+  it('formats the auto-compaction notice', () => {
+    expect(t('chat.compact.auto_notice', {percent: 80, count: 6}))
+        .toBe('Dao auto-compacted this chat at 80% context · 6 messages summarized');
+    expect(zhCN['chat.compact.auto_notice'])
+        .toBe('Dao 已在上下文达到 {percent}% 时自动压缩 · 已摘要 {count} 条消息');
+  });
+
   it('exposes the active locale (default "en")', () => {
     // Without initI18n() being awaited in the test environment,
     // the active locale should be the synchronous default.

@@ -24,6 +24,8 @@ const dict: Dictionary = {
   'chat.compact.cancelled': 'Compaction cancelled',
   'chat.compact.success': 'Compacted {count} messages → 1 summary',
   'chat.compact.failed': 'Compact failed: {error}',
+  'chat.compact.auto_notice':
+      'Dao auto-compacted this chat at {percent}% context · {count} messages summarized',
 
   // Empty state shown before the first turn.
   'chat.empty_guide.title': 'How can I help?',
