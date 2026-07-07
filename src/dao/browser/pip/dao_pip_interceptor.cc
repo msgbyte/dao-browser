@@ -243,7 +243,49 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
       dispatchVideoPipEvent(video, 'enterpictureinpicture', pipWindow);
     }
 
+    function preserveKeyboardEventValue(event, name, value) {
+      try {
+        Object.defineProperty(event, name, {
+          configurable: true,
+          enumerable: true,
+          get: function() {
+            return value;
+          },
+        });
+      } catch(e) {}
+    }
+
+    function cloneForwardedEvent(e) {
+      if (e.type === 'keydown' || e.type === 'keyup' ||
+          e.type === 'keypress') {
+        var init = {
+          bubbles: e.bubbles,
+          cancelable: e.cancelable,
+          composed: e.composed,
+          key: e.key,
+          code: e.code,
+          location: e.location,
+          repeat: e.repeat,
+          isComposing: e.isComposing,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+          metaKey: e.metaKey,
+          keyCode: e.keyCode,
+          charCode: e.charCode,
+          which: e.which,
+        };
+        var keyboardEvent = new KeyboardEvent(e.type, init);
+        preserveKeyboardEventValue(keyboardEvent, 'keyCode', e.keyCode);
+        preserveKeyboardEventValue(keyboardEvent, 'charCode', e.charCode);
+        preserveKeyboardEventValue(keyboardEvent, 'which', e.which);
+        return keyboardEvent;
+      }
+      return new e.constructor(e.type, e);
+    }
+
     var eventsToForward = [
+      'keydown', 'keyup', 'keypress',
       'mousemove', 'mouseup', 'mousedown',
       'pointermove', 'pointerup', 'pointerdown',
       'click'
@@ -251,7 +293,7 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
     eventsToForward.forEach(function(type) {
       pipWindow.document.addEventListener(type, function(e) {
         if (e.__daoForwarded) return;
-        var cloned = new e.constructor(e.type, e);
+        var cloned = cloneForwardedEvent(e);
         cloned.__daoForwarded = true;
         document.dispatchEvent(cloned);
       }, true);
