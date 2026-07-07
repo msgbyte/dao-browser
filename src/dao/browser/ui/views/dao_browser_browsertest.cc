@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
 #include <string_view>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -62,6 +64,7 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/prefs/pref_service.h"
+#include "components/qr_code_generator/qr_code_generator.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_service.h"
@@ -117,6 +120,7 @@
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
+#include "dao/browser/ui/views/dao_qr_code_image.h"
 #include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
@@ -163,6 +167,7 @@
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/md_text_button.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/webview/webview.h"
@@ -303,6 +308,25 @@ T* FindDescendantViewOfClass(views::View* root) {
   return nullptr;
 }
 
+views::ImageView* FindDescendantImageViewWithPreferredSize(
+    views::View* root,
+    const gfx::Size& preferred_size) {
+  if (!root) {
+    return nullptr;
+  }
+  auto* image_view = views::AsViewClass<views::ImageView>(root);
+  if (image_view && image_view->GetPreferredSize() == preferred_size) {
+    return image_view;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* matching_image =
+            FindDescendantImageViewWithPreferredSize(child, preferred_size)) {
+      return matching_image;
+    }
+  }
+  return nullptr;
+}
+
 views::ImageButton* FindImageButtonWithAccessibleName(
     views::View* root,
     std::u16string_view accessible_name) {
@@ -372,6 +396,16 @@ SkColor GetCenterPixelColor(const gfx::ImageSkia& image) {
   }
   return SkColorSetA(bitmap.getColor(bitmap.width() / 2, bitmap.height() / 2),
                      SK_AlphaOPAQUE);
+}
+
+SkColor GetImagePixelColor(const gfx::ImageSkia& image, int x, int y) {
+  const gfx::ImageSkiaRep& image_rep = image.GetRepresentation(1.0f);
+  const SkBitmap& bitmap = image_rep.GetBitmap();
+  if (bitmap.drawsNothing() || x < 0 || y < 0 || x >= bitmap.width() ||
+      y >= bitmap.height()) {
+    return SK_ColorTRANSPARENT;
+  }
+  return SkColorSetA(bitmap.getColor(x, y), SK_AlphaOPAQUE);
 }
 
 scoped_refptr<const extensions::Extension> LoadActionExtension(
@@ -5020,6 +5054,54 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_FALSE(more_menu->GetVisible());
 
   popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       QrImageUsesQuietZoneAndDaoLocatorColor) {
+  constexpr char kPayload[] = "data:text/html,qr";
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kPayload)));
+
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowQrView();
+
+  auto* qr_view = FindDescendantViewOfClass<DaoControlCenterQrView>(popup);
+  ASSERT_NE(nullptr, qr_view);
+  auto* image_view =
+      FindDescendantImageViewWithPreferredSize(qr_view, gfx::Size(240, 240));
+  ASSERT_NE(nullptr, image_view);
+
+  ASSERT_NE(nullptr, image_view->parent());
+  EXPECT_EQ(gfx::Size(252, 252), image_view->parent()->GetPreferredSize());
+
+  auto result = qr_code_generator::GenerateCode(base::as_byte_span(kPayload));
+  ASSERT_TRUE(result.has_value());
+  const gfx::ImageSkia image = RenderDaoQrCode(result.value(), 200);
+  ASSERT_FALSE(image.isNull());
+  EXPECT_EQ(SK_ColorWHITE, GetImagePixelColor(image, 0, 0));
+  // The short data URL fits a version-1 QR code, placing this sample inside
+  // the top-left locator's inner square after the quiet zone.
+  EXPECT_EQ(SkColorSetRGB(31, 65, 115),
+            GetImagePixelColor(image, 46, 46));
+  EXPECT_EQ(SkColorSetRGB(31, 65, 115),
+            GetImagePixelColor(image, 24, 46));
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       QrRendererCentersFavicon) {
+  const std::string payload = "https://dao.test";
+  auto result = qr_code_generator::GenerateCode(base::as_byte_span(payload));
+  ASSERT_TRUE(result.has_value());
+
+  gfx::ImageSkia image = RenderDaoQrCode(
+      result.value(), 200, CreateSolidExtensionIcon(SK_ColorRED));
+
+  ASSERT_FALSE(image.isNull());
+  EXPECT_EQ(SK_ColorRED, GetCenterPixelColor(image));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,

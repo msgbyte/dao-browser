@@ -7,17 +7,18 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/favicon/content/content_favicon_driver.h"
 #include "components/qr_code_generator/qr_code_generator.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_qr_code_image.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
-#include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
@@ -29,14 +30,14 @@
 namespace dao {
 
 namespace {
-constexpr int kQrSize = 200;
+constexpr int kQrSize = 240;
 constexpr int kQrPadding = 12;
 constexpr int kQrCornerRadius = 10;
 constexpr int kBackButtonCornerRadius = 8;
 constexpr int kBackButtonInsetH = 8;
 constexpr int kBackButtonInsetV = 6;
 constexpr int kQrCardInsetH = 14;
-constexpr int kQrCardInsetV = 14;
+constexpr int kQrImageCardInset = 6;
 
 // Back button styled like the More-menu items: full-width, left-aligned,
 // hover-highlight. Avoids the previous "centered, no feedback" look.
@@ -76,39 +77,18 @@ class QrBackButton : public views::LabelButton {
 BEGIN_METADATA(QrBackButton)
 END_METADATA
 
-// Render QR code data to an ImageSkia.
-gfx::ImageSkia RenderQrCode(const qr_code_generator::GeneratedCode& code,
-                             int size) {
-  const int data_size = code.data.size();
-  const int qr_size = code.qr_size;
-  if (qr_size <= 0) {
-    return gfx::ImageSkia();
+gfx::Image GetFaviconForWebContents(content::WebContents* web_contents) {
+  if (!web_contents) {
+    return gfx::Image();
   }
-
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(size, size);
-  bitmap.eraseColor(SK_ColorWHITE);
-
-  float module_size = static_cast<float>(size) / qr_size;
-  for (int y = 0; y < qr_size; ++y) {
-    for (int x = 0; x < qr_size; ++x) {
-      int idx = y * qr_size + x;
-      if (idx < data_size && code.data[idx] != 0) {
-        int px = static_cast<int>(x * module_size);
-        int py = static_cast<int>(y * module_size);
-        int pw = static_cast<int>((x + 1) * module_size) - px;
-        int ph = static_cast<int>((y + 1) * module_size) - py;
-        for (int dy = 0; dy < ph && (py + dy) < size; ++dy) {
-          for (int dx = 0; dx < pw && (px + dx) < size; ++dx) {
-            *bitmap.getAddr32(px + dx, py + dy) = SK_ColorBLACK;
-          }
-        }
-      }
-    }
+  auto* favicon_driver =
+      favicon::ContentFaviconDriver::FromWebContents(web_contents);
+  if (!favicon_driver || !favicon_driver->FaviconIsValid()) {
+    return gfx::Image();
   }
-
-  return gfx::ImageSkia::CreateFromBitmap(bitmap, 1.0f);
+  return favicon_driver->GetFavicon();
 }
+
 }  // namespace
 
 BEGIN_METADATA(DaoControlCenterQrView)
@@ -157,7 +137,7 @@ DaoControlCenterQrView::DaoControlCenterQrView(
   qr_card->SetBackground(
       views::CreateRoundedRectBackground(SK_ColorWHITE, kQrCornerRadius));
   qr_card->SetBorder(views::CreateEmptyBorder(
-      gfx::Insets::VH(kQrCardInsetV, kQrCardInsetV)));
+      gfx::Insets(kQrImageCardInset)));
   auto* qr_card_layout =
       qr_card->SetLayoutManager(std::make_unique<views::BoxLayout>(
           views::BoxLayout::Orientation::kVertical, gfx::Insets(), 0));
@@ -205,7 +185,8 @@ void DaoControlCenterQrView::GenerateQrCode() {
   auto result = qr_code_generator::GenerateCode(
       base::as_byte_span(url));
   if (result.has_value()) {
-    gfx::ImageSkia qr_image = RenderQrCode(result.value(), kQrSize);
+    gfx::ImageSkia qr_image = RenderDaoQrCode(
+        result.value(), kQrSize, GetFaviconForWebContents(web_contents));
     qr_image_->SetImage(ui::ImageModel::FromImageSkia(qr_image));
   }
 }

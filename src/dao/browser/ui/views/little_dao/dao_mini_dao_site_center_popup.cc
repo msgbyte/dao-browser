@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+#include "components/favicon/content/content_favicon_driver.h"
 #include "components/qr_code_generator/qr_code_generator.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
@@ -26,14 +27,15 @@
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_extensions_section.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
+#include "dao/browser/ui/views/dao_qr_code_image.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
-#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/shadow_value.h"
 #include "ui/gfx/skia_paint_util.h"
@@ -62,7 +64,9 @@ constexpr int kActionCornerRadius = 8;
 constexpr int kActionRowInsetH = 6;
 constexpr int kHeaderInsetH = 2;
 constexpr int kHeaderInsetV = 4;
-constexpr int kQrSize = 200;
+constexpr int kQrCardCornerRadius = 10;
+constexpr int kQrCardInset = 6;
+constexpr int kQrSize = 240;
 
 void PrepareGlassLabel(views::Label* label) {
   label->SetSkipSubpixelRenderingOpacityCheck(true);
@@ -140,38 +144,16 @@ std::unique_ptr<views::View> CreateActionButtonRow(
   return row;
 }
 
-gfx::ImageSkia RenderQrCode(const qr_code_generator::GeneratedCode& code,
-                            int size) {
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(size, size);
-  bitmap.eraseColor(SK_ColorWHITE);
-
-  const int qr_size = code.qr_size;
-  if (qr_size <= 0) {
-    return gfx::ImageSkia();
+gfx::Image GetFaviconForWebContents(content::WebContents* web_contents) {
+  if (!web_contents) {
+    return gfx::Image();
   }
-
-  const int data_size = code.data.size();
-  const float module_size = static_cast<float>(size) / qr_size;
-  for (int y = 0; y < qr_size; ++y) {
-    for (int x = 0; x < qr_size; ++x) {
-      const int idx = y * qr_size + x;
-      if (idx >= data_size || code.data[idx] == 0) {
-        continue;
-      }
-      const int px = static_cast<int>(x * module_size);
-      const int py = static_cast<int>(y * module_size);
-      const int pw = static_cast<int>((x + 1) * module_size) - px;
-      const int ph = static_cast<int>((y + 1) * module_size) - py;
-      for (int dy = 0; dy < ph && py + dy < size; ++dy) {
-        for (int dx = 0; dx < pw && px + dx < size; ++dx) {
-          *bitmap.getAddr32(px + dx, py + dy) = SK_ColorBLACK;
-        }
-      }
-    }
+  auto* favicon_driver =
+      favicon::ContentFaviconDriver::FromWebContents(web_contents);
+  if (!favicon_driver || !favicon_driver->FaviconIsValid()) {
+    return gfx::Image();
   }
-
-  return gfx::ImageSkia::CreateFromBitmap(bitmap, 1.0f);
+  return favicon_driver->GetFavicon();
 }
 
 }  // namespace
@@ -315,14 +297,29 @@ void DaoMiniDaoSiteCenterPopup::BuildQrPanel() {
       LucideIcon::kChevronLeft,
       base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnBackClicked,
                           base::Unretained(this))));
-  qr_image_ = qr_panel_->AddChildView(std::make_unique<views::ImageView>());
+
+  auto qr_card = std::make_unique<views::View>();
+  qr_card->SetBackground(views::CreateRoundedRectBackground(
+      SK_ColorWHITE, kQrCardCornerRadius));
+  qr_card->SetBorder(views::CreateEmptyBorder(gfx::Insets(kQrCardInset)));
+  auto* qr_card_layout =
+      qr_card->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kVertical, gfx::Insets(), 0));
+  qr_card_layout->set_main_axis_alignment(
+      views::BoxLayout::MainAxisAlignment::kCenter);
+  qr_card_layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kCenter);
+
+  qr_image_ = qr_card->AddChildView(std::make_unique<views::ImageView>());
   qr_image_->SetPreferredSize(gfx::Size(kQrSize, kQrSize));
+  qr_panel_->AddChildView(std::move(qr_card));
+
   qr_url_label_ = qr_panel_->AddChildView(std::make_unique<views::Label>());
   PrepareGlassLabel(qr_url_label_);
   qr_url_label_->SetEnabledColor(ControlCenterSecondaryTextColor());
   qr_url_label_->SetMultiLine(true);
   qr_url_label_->SetMaxLines(2);
-  qr_url_label_->SetMaximumWidth(kQrSize);
+  qr_url_label_->SetMaximumWidth(kQrSize + 2 * kQrCardInset);
   qr_url_label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
 }
 
@@ -365,8 +362,10 @@ void DaoMiniDaoSiteCenterPopup::ShowQrPanel() {
   qr_url_label_->SetText(base::UTF8ToUTF16(url));
   auto result = qr_code_generator::GenerateCode(base::as_byte_span(url));
   if (result.has_value()) {
-    qr_image_->SetImage(
-        ui::ImageModel::FromImageSkia(RenderQrCode(result.value(), kQrSize)));
+    auto* web_contents = browser_->tab_strip_model()->GetActiveWebContents();
+    qr_image_->SetImage(ui::ImageModel::FromImageSkia(
+        RenderDaoQrCode(result.value(), kQrSize,
+                        GetFaviconForWebContents(web_contents))));
   }
 
   InvalidateLayout();
