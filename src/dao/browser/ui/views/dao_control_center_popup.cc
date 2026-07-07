@@ -159,6 +159,9 @@ void DaoControlCenterPopup::ApplyTheme() {
   if (utility_section_) {
     utility_section_->Refresh();
   }
+  if (more_menu_) {
+    more_menu_->ApplyTheme();
+  }
 }
 
 void DaoControlCenterPopup::OnNativeThemeUpdated(

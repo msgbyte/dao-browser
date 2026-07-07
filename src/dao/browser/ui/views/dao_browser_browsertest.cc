@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
 #include <string_view>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -63,6 +65,7 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/prefs/pref_service.h"
+#include "components/qr_code_generator/qr_code_generator.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_service.h"
@@ -119,6 +122,7 @@
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
+#include "dao/browser/ui/views/dao_qr_code_image.h"
 #include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
@@ -167,7 +171,9 @@
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/button/label_button_label.h"
 #include "ui/views/controls/button/md_text_button.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/webview/webview.h"
@@ -308,6 +314,25 @@ T* FindDescendantViewOfClass(views::View* root) {
   return nullptr;
 }
 
+views::ImageView* FindDescendantImageViewWithPreferredSize(
+    views::View* root,
+    const gfx::Size& preferred_size) {
+  if (!root) {
+    return nullptr;
+  }
+  auto* image_view = views::AsViewClass<views::ImageView>(root);
+  if (image_view && image_view->GetPreferredSize() == preferred_size) {
+    return image_view;
+  }
+  for (views::View* child : root->children()) {
+    if (auto* matching_image =
+            FindDescendantImageViewWithPreferredSize(child, preferred_size)) {
+      return matching_image;
+    }
+  }
+  return nullptr;
+}
+
 views::ImageButton* FindImageButtonWithAccessibleName(
     views::View* root,
     std::u16string_view accessible_name) {
@@ -407,6 +432,16 @@ SkColor GetCenterPixelColor(const gfx::ImageSkia& image) {
   }
   return SkColorSetA(bitmap.getColor(bitmap.width() / 2, bitmap.height() / 2),
                      SK_AlphaOPAQUE);
+}
+
+SkColor GetImagePixelColor(const gfx::ImageSkia& image, int x, int y) {
+  const gfx::ImageSkiaRep& image_rep = image.GetRepresentation(1.0f);
+  const SkBitmap& bitmap = image_rep.GetBitmap();
+  if (bitmap.drawsNothing() || x < 0 || y < 0 || x >= bitmap.width() ||
+      y >= bitmap.height()) {
+    return SK_ColorTRANSPARENT;
+  }
+  return SkColorSetA(bitmap.getColor(x, y), SK_AlphaOPAQUE);
 }
 
 scoped_refptr<const extensions::Extension> LoadActionExtension(
@@ -4335,6 +4370,209 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       DocumentPipForwardsKeyboardEventsToOpenerDocument) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="bilibili-player">
+          <div class="bpx-player-container">
+            <video id="dao-video" style="width:640px;height:360px"></video>
+          </div>
+        </div>`;
+      window.__daoForwardedKeys = [];
+      document.addEventListener('keydown', (event) => {
+        window.__daoForwardedKeys.push({
+          type: event.type,
+          key: event.key,
+          code: event.code,
+          keyCode: event.keyCode,
+          which: event.which,
+          location: event.location,
+          repeat: event.repeat,
+          shiftKey: event.shiftKey,
+          altKey: event.altKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+        });
+      });
+      const fakeDocumentPictureInPicture = {
+        window: null,
+        requestWindow: async () => {
+          const pipDocument = document.implementation.createHTMLDocument('');
+          const pipWindow = {
+            document: pipDocument,
+            pagehideHandlers: [],
+            addEventListener(type, handler) {
+              if (type === 'pagehide') {
+                this.pagehideHandlers.push(handler);
+              }
+            },
+            close() {
+              const event = new Event('pagehide');
+              const handlers = this.pagehideHandlers.splice(0);
+              handlers.forEach((handler) => handler.call(this, event));
+              fakeDocumentPictureInPicture.window = null;
+            },
+          };
+          fakeDocumentPictureInPicture.window = pipWindow;
+          return pipWindow;
+        },
+      };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: fakeDocumentPictureInPicture,
+      });
+      !!window.__daoTriggerDocumentPip;
+    )js"));
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+
+  base::test::TestFuture<bool> result;
+  interceptor->TriggerDocumentPip(result.GetCallback());
+  ASSERT_TRUE(result.Get());
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      const pipWindow = window.documentPictureInPicture.window;
+      const sourceEvent = new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        code: 'ArrowRight',
+        location: KeyboardEvent.DOM_KEY_LOCATION_STANDARD,
+        repeat: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(sourceEvent, 'keyCode', {
+        configurable: true,
+        get: () => 39,
+      });
+      Object.defineProperty(sourceEvent, 'which', {
+        configurable: true,
+        get: () => 39,
+      });
+      pipWindow.document.dispatchEvent(sourceEvent);
+      const event = window.__daoForwardedKeys[0];
+      !!event &&
+          event.type === 'keydown' &&
+          event.key === 'ArrowRight' &&
+          event.code === 'ArrowRight' &&
+          event.keyCode === 39 &&
+          event.which === 39 &&
+          event.location === KeyboardEvent.DOM_KEY_LOCATION_STANDARD &&
+          event.repeat === true &&
+          event.shiftKey === true &&
+          event.altKey === false &&
+          event.ctrlKey === false &&
+          event.metaKey === false
+    )js"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       DocumentPipAdjustsBilibiliVolumeWithArrowKeys) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="bilibili-player">
+          <div class="bpx-player-container">
+            <video id="dao-video" style="width:640px;height:360px"></video>
+          </div>
+        </div>`;
+      window.player = {
+        volume: 0.5,
+        getVolume() {
+          return this.volume;
+        },
+        setVolume(value) {
+          this.volume = value;
+        },
+      };
+      window.addEventListener('keydown', (event) => {
+        if (!event.isTrusted) {
+          return;
+        }
+        if (event.key === 'ArrowUp') {
+          window.player.setVolume(window.player.getVolume() + 0.1);
+        } else if (event.key === 'ArrowDown') {
+          window.player.setVolume(window.player.getVolume() - 0.1);
+        }
+      });
+      const fakeDocumentPictureInPicture = {
+        window: null,
+        requestWindow: async () => {
+          const pipDocument = document.implementation.createHTMLDocument('');
+          const pipWindow = {
+            document: pipDocument,
+            pagehideHandlers: [],
+            addEventListener(type, handler) {
+              if (type === 'pagehide') {
+                this.pagehideHandlers.push(handler);
+              }
+            },
+            close() {
+              const event = new Event('pagehide');
+              const handlers = this.pagehideHandlers.splice(0);
+              handlers.forEach((handler) => handler.call(this, event));
+              fakeDocumentPictureInPicture.window = null;
+            },
+          };
+          fakeDocumentPictureInPicture.window = pipWindow;
+          return pipWindow;
+        },
+      };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: fakeDocumentPictureInPicture,
+      });
+      !!window.__daoTriggerDocumentPip;
+    )js"));
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+
+  base::test::TestFuture<bool> result;
+  interceptor->TriggerDocumentPip(result.GetCallback());
+  ASSERT_TRUE(result.Get());
+
+  EXPECT_EQ(true,
+            content::EvalJs(contents, R"js(
+      const pipWindow = window.documentPictureInPicture.window;
+      pipWindow.document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowUp',
+        code: 'ArrowUp',
+        bubbles: true,
+        cancelable: true,
+      }));
+      Math.abs(window.player.getVolume() - 0.6) < 0.0001
+    )js"));
+
+  EXPECT_EQ(true,
+            content::EvalJs(contents, R"js(
+      const pipWindow = window.documentPictureInPicture.window;
+      pipWindow.document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        code: 'ArrowDown',
+        bubbles: true,
+        cancelable: true,
+      }));
+      Math.abs(window.player.getVolume() - 0.5) < 0.0001
+    )js"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
                        CloseExitsStalePipWindowWithoutDaoActiveState) {
   GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -5324,6 +5562,54 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       QrImageUsesQuietZoneAndDaoLocatorColor) {
+  constexpr char kPayload[] = "data:text/html,qr";
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kPayload)));
+
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowQrView();
+
+  auto* qr_view = FindDescendantViewOfClass<DaoControlCenterQrView>(popup);
+  ASSERT_NE(nullptr, qr_view);
+  auto* image_view =
+      FindDescendantImageViewWithPreferredSize(qr_view, gfx::Size(240, 240));
+  ASSERT_NE(nullptr, image_view);
+
+  ASSERT_NE(nullptr, image_view->parent());
+  EXPECT_EQ(gfx::Size(252, 252), image_view->parent()->GetPreferredSize());
+
+  auto result = qr_code_generator::GenerateCode(base::as_byte_span(kPayload));
+  ASSERT_TRUE(result.has_value());
+  const gfx::ImageSkia image = RenderDaoQrCode(result.value(), 200);
+  ASSERT_FALSE(image.isNull());
+  EXPECT_EQ(SK_ColorWHITE, GetImagePixelColor(image, 0, 0));
+  // The short data URL fits a version-1 QR code, placing this sample inside
+  // the top-left locator's inner square after the quiet zone.
+  EXPECT_EQ(SkColorSetRGB(31, 65, 115),
+            GetImagePixelColor(image, 46, 46));
+  EXPECT_EQ(SkColorSetRGB(31, 65, 115),
+            GetImagePixelColor(image, 24, 46));
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       QrRendererCentersFavicon) {
+  const std::string payload = "https://dao.test";
+  auto result = qr_code_generator::GenerateCode(base::as_byte_span(payload));
+  ASSERT_TRUE(result.has_value());
+
+  gfx::ImageSkia image = RenderDaoQrCode(
+      result.value(), 200, CreateSolidExtensionIcon(SK_ColorRED));
+
+  ASSERT_FALSE(image.isNull());
+  EXPECT_EQ(SK_ColorRED, GetCenterPixelColor(image));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        ExtensionActionIconUpdatesPinnedAndPopupButtons) {
   extensions::TestExtensionDir extension_dir;
   scoped_refptr<const extensions::Extension> extension =
@@ -6299,6 +6585,54 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, AccentUnchanged) {
   EXPECT_EQ(light_accent, SkColorSetRGB(70, 120, 190));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
+                       ControlCenterMoreMenuTextFollowsThemeChange) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+
+  auto* clear_cache_button = views::AsViewClass<views::LabelButton>(
+      FindButtonWithAccessibleName(
+          popup, l10n_util::GetStringUTF16(
+                     IDS_DAO_CONTROL_CENTER_CLEAR_CACHE)));
+  auto* clear_cookies_button = views::AsViewClass<views::LabelButton>(
+      FindButtonWithAccessibleName(
+          popup, l10n_util::GetStringUTF16(
+                     IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
+  ASSERT_NE(nullptr, clear_cache_button);
+  ASSERT_NE(nullptr, clear_cookies_button);
+
+  auto expect_control_center_text_colors = [](views::LabelButton* button) {
+    auto* label =
+        FindDescendantViewOfClass<views::internal::LabelButtonLabel>(button);
+    ASSERT_NE(nullptr, label);
+    ASSERT_TRUE(label->GetEnabledColor().has_value());
+    ASSERT_TRUE(label->GetDisabledColor().has_value());
+    EXPECT_EQ(dao::ControlCenterLabelColor(),
+              label->GetEnabledColor()->ResolveToSkColor(nullptr));
+    EXPECT_EQ(dao::ControlCenterSecondaryTextColor(),
+              label->GetDisabledColor()->ResolveToSkColor(nullptr));
+  };
+
+  expect_control_center_text_colors(clear_cache_button);
+  expect_control_center_text_colors(clear_cookies_button);
+
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+  theme->NotifyOnNativeThemeUpdated();
+
+  expect_control_center_text_colors(clear_cache_button);
+  expect_control_center_text_colors(clear_cookies_button);
+
+  popup->Hide();
+}
+
 // =============================================================================
 // DaoSessionStartupBrowserTest
 //
@@ -7069,7 +7403,16 @@ IN_PROC_BROWSER_TEST_F(DaoCornerOverlayPaintBrowserTest, SurvivesThemeUpdate) {
 // trip and anchor-point capture.
 // =============================================================================
 
-using DaoTabTooltipViewBrowserTest = InProcessBrowserTest;
+class DaoTabTooltipViewBrowserTest : public InProcessBrowserTest {
+ public:
+  void TearDownOnMainThread() override {
+    auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+    theme->set_preferred_color_scheme(
+        ui::NativeTheme::PreferredColorScheme::kLight);
+    theme->NotifyOnNativeThemeUpdated();
+    InProcessBrowserTest::TearDownOnMainThread();
+  }
+};
 
 IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, ShowSetsAnchor) {
   DaoTabTooltipView tooltip;
@@ -7085,6 +7428,29 @@ IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, HideMakesInvisible) {
   ASSERT_TRUE(tooltip.GetVisible());
   tooltip.HideTooltip();
   EXPECT_FALSE(tooltip.GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       RefreshesTextColorWhenShownAfterThemeChange) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+  theme->NotifyOnNativeThemeUpdated();
+
+  DaoTabTooltipView tooltip;
+  tooltip.ShowTooltip(u"Dark Tab", gfx::Point(120, 30));
+
+  ASSERT_FALSE(tooltip.children().empty());
+  auto* label = static_cast<views::Label*>(tooltip.children()[0]);
+  EXPECT_EQ(dao::ToastTextColor(), label->GetEnabledColor());
+
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+  tooltip.ShowTooltip(u"Light Tab", gfx::Point(120, 30));
+
+  EXPECT_EQ(dao::ToastTextColor(), label->GetEnabledColor());
+  EXPECT_EQ(SkColorSetRGB(35, 35, 40), label->GetEnabledColor());
 }
 
 // =============================================================================

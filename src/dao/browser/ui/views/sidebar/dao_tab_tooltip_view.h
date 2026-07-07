@@ -8,8 +8,12 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/native_theme/native_theme.h"
+#include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/view.h"
 
 namespace views {
@@ -20,7 +24,8 @@ namespace dao {
 
 // A lightweight tooltip that appears next to the sidebar when hovering a tab.
 // Rendered as a BrowserView child so it can extend beyond the sidebar WebView.
-class DaoTabTooltipView : public views::View {
+class DaoTabTooltipView : public views::View,
+                          public ui::NativeThemeObserver {
   METADATA_HEADER(DaoTabTooltipView, views::View)
 
  public:
@@ -42,9 +47,18 @@ class DaoTabTooltipView : public views::View {
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
 
+  // ui::NativeThemeObserver:
+  void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+
  private:
+  void ApplyTheme();
+
   raw_ptr<views::Label> title_label_ = nullptr;
   gfx::Point anchor_point_;
+  SkColor background_color_ = SK_ColorTRANSPARENT;
+
+  base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
+      native_theme_observation_{this};
 };
 
 }  // namespace dao

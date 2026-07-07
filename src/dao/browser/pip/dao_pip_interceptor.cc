@@ -243,7 +243,103 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
       dispatchVideoPipEvent(video, 'enterpictureinpicture', pipWindow);
     }
 
+    function preserveKeyboardEventValue(event, name, value) {
+      try {
+        Object.defineProperty(event, name, {
+          configurable: true,
+          enumerable: true,
+          get: function() {
+            return value;
+          },
+        });
+      } catch(e) {}
+    }
+
+    function cloneForwardedEvent(e) {
+      if (e.type === 'keydown' || e.type === 'keyup' ||
+          e.type === 'keypress') {
+        var init = {
+          bubbles: e.bubbles,
+          cancelable: e.cancelable,
+          composed: e.composed,
+          key: e.key,
+          code: e.code,
+          location: e.location,
+          repeat: e.repeat,
+          isComposing: e.isComposing,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+          metaKey: e.metaKey,
+          keyCode: e.keyCode,
+          charCode: e.charCode,
+          which: e.which,
+        };
+        var keyboardEvent = new KeyboardEvent(e.type, init);
+        preserveKeyboardEventValue(keyboardEvent, 'keyCode', e.keyCode);
+        preserveKeyboardEventValue(keyboardEvent, 'charCode', e.charCode);
+        preserveKeyboardEventValue(keyboardEvent, 'which', e.which);
+        return keyboardEvent;
+      }
+      return new e.constructor(e.type, e);
+    }
+
+    function isBilibiliPipRule() {
+      return DAO_PIP_SELECTOR === '#bilibili-player .bpx-player-container';
+    }
+
+    function adjustBilibiliVolumeKey(e) {
+      if (!isBilibiliPipRule() || e.type !== 'keydown' ||
+          (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) {
+        return false;
+      }
+
+      var media = video || (target && target.querySelector &&
+          target.querySelector('video'));
+      var player = window.player;
+      var hasPlayerVolume = player &&
+          typeof player.getVolume === 'function' &&
+          typeof player.setVolume === 'function';
+      var volume = Number(hasPlayerVolume ? player.getVolume() :
+          (media ? media.volume : NaN));
+      if (Number.isFinite(volume)) {
+        volume = Math.max(0, Math.min(1, volume +
+            (e.key === 'ArrowUp' ? 0.1 : -0.1)));
+        if (hasPlayerVolume) {
+          player.setVolume(volume);
+        } else if (media) {
+          media.volume = volume;
+        }
+        if (e.key === 'ArrowUp' && media && media.muted && volume > 0) {
+          media.muted = false;
+        }
+        return true;
+      }
+
+      try {
+        // Bilibili exposes player APIs in the page main world.
+        var script = document.createElement('script');
+        var delta = e.key === 'ArrowUp' ? '0.1' : '-0.1';
+        script.textContent =
+            '(function(){try{' +
+            'var player=window.player;' +
+            'if(!player||typeof player.getVolume!=="function"||' +
+            'typeof player.setVolume!=="function")return;' +
+            'var volume=Number(player.getVolume());' +
+            'if(!Number.isFinite(volume))return;' +
+            'player.setVolume(Math.max(0,Math.min(1,volume+' + delta + ')));' +
+            '}catch(e){}})();';
+        (document.documentElement || document.head || document.body)
+            .appendChild(script);
+        script.remove();
+        return true;
+      } catch(e) {
+        return false;
+      }
+    }
+
     var eventsToForward = [
+      'keydown', 'keyup', 'keypress',
       'mousemove', 'mouseup', 'mousedown',
       'pointermove', 'pointerup', 'pointerdown',
       'click'
@@ -251,9 +347,12 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
     eventsToForward.forEach(function(type) {
       pipWindow.document.addEventListener(type, function(e) {
         if (e.__daoForwarded) return;
-        var cloned = new e.constructor(e.type, e);
+        var cloned = cloneForwardedEvent(e);
         cloned.__daoForwarded = true;
         document.dispatchEvent(cloned);
+        if (adjustBilibiliVolumeKey(e) && e.cancelable) {
+          e.preventDefault();
+        }
       }, true);
     });
 
