@@ -14,12 +14,14 @@
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/color/color_variant.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_utils.h"
 
 namespace dao {
 
@@ -36,9 +38,18 @@ class MenuItemButton : public views::LabelButton {
     SetAccessibleName(text);
     label()->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL, 13,
                                         gfx::Font::Weight::NORMAL));
-    SetEnabledTextColors(TextPrimary());
+    ApplyTheme();
     SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(8, 12)));
     SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  }
+
+  void ApplyTheme() {
+    const SkColor text_color = ControlCenterLabelColor();
+    SetTextColor(views::Button::STATE_NORMAL, ui::ColorVariant(text_color));
+    SetTextColor(views::Button::STATE_HOVERED, ui::ColorVariant(text_color));
+    SetTextColor(views::Button::STATE_PRESSED, ui::ColorVariant(text_color));
+    SetTextColor(views::Button::STATE_DISABLED,
+                 ui::ColorVariant(ControlCenterSecondaryTextColor()));
   }
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
@@ -102,6 +113,17 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
 }
 
 DaoControlCenterMoreMenu::~DaoControlCenterMoreMenu() = default;
+
+void DaoControlCenterMoreMenu::ApplyTheme() {
+  for (views::View* child : children()) {
+    if (auto* button = views::AsViewClass<views::LabelButton>(child)) {
+      button->SetEnabledTextColors(ControlCenterLabelColor());
+      button->SetTextColor(
+          views::Button::STATE_DISABLED,
+          ui::ColorVariant(ControlCenterSecondaryTextColor()));
+    }
+  }
+}
 
 void DaoControlCenterMoreMenu::OnBackClicked() {
   if (popup_) {

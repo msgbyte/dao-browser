@@ -147,6 +147,9 @@ void DaoControlCenterPopup::ApplyTheme() {
     separator_->SetBackground(
         views::CreateSolidBackground(SeparatorColor()));
   }
+  if (more_menu_) {
+    more_menu_->ApplyTheme();
+  }
 }
 
 void DaoControlCenterPopup::OnNativeThemeUpdated(
