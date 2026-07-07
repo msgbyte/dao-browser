@@ -284,6 +284,60 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
       return new e.constructor(e.type, e);
     }
 
+    function isBilibiliPipRule() {
+      return DAO_PIP_SELECTOR === '#bilibili-player .bpx-player-container';
+    }
+
+    function adjustBilibiliVolumeKey(e) {
+      if (!isBilibiliPipRule() || e.type !== 'keydown' ||
+          (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) {
+        return false;
+      }
+
+      var media = video || (target && target.querySelector &&
+          target.querySelector('video'));
+      var player = window.player;
+      var hasPlayerVolume = player &&
+          typeof player.getVolume === 'function' &&
+          typeof player.setVolume === 'function';
+      var volume = Number(hasPlayerVolume ? player.getVolume() :
+          (media ? media.volume : NaN));
+      if (Number.isFinite(volume)) {
+        volume = Math.max(0, Math.min(1, volume +
+            (e.key === 'ArrowUp' ? 0.1 : -0.1)));
+        if (hasPlayerVolume) {
+          player.setVolume(volume);
+        } else if (media) {
+          media.volume = volume;
+        }
+        if (e.key === 'ArrowUp' && media && media.muted && volume > 0) {
+          media.muted = false;
+        }
+        return true;
+      }
+
+      try {
+        // Bilibili exposes player APIs in the page main world.
+        var script = document.createElement('script');
+        var delta = e.key === 'ArrowUp' ? '0.1' : '-0.1';
+        script.textContent =
+            '(function(){try{' +
+            'var player=window.player;' +
+            'if(!player||typeof player.getVolume!=="function"||' +
+            'typeof player.setVolume!=="function")return;' +
+            'var volume=Number(player.getVolume());' +
+            'if(!Number.isFinite(volume))return;' +
+            'player.setVolume(Math.max(0,Math.min(1,volume+' + delta + ')));' +
+            '}catch(e){}})();';
+        (document.documentElement || document.head || document.body)
+            .appendChild(script);
+        script.remove();
+        return true;
+      } catch(e) {
+        return false;
+      }
+    }
+
     var eventsToForward = [
       'keydown', 'keyup', 'keypress',
       'mousemove', 'mouseup', 'mousedown',
@@ -296,6 +350,9 @@ constexpr char kPipOverrideMainWorldTemplate[] = R"js(
         var cloned = cloneForwardedEvent(e);
         cloned.__daoForwarded = true;
         document.dispatchEvent(cloned);
+        if (adjustBilibiliVolumeKey(e) && e.cancelable) {
+          e.preventDefault();
+        }
       }, true);
     });
 

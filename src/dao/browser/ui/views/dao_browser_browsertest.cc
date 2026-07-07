@@ -4406,6 +4406,103 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       DocumentPipAdjustsBilibiliVolumeWithArrowKeys) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="bilibili-player">
+          <div class="bpx-player-container">
+            <video id="dao-video" style="width:640px;height:360px"></video>
+          </div>
+        </div>`;
+      window.player = {
+        volume: 0.5,
+        getVolume() {
+          return this.volume;
+        },
+        setVolume(value) {
+          this.volume = value;
+        },
+      };
+      window.addEventListener('keydown', (event) => {
+        if (!event.isTrusted) {
+          return;
+        }
+        if (event.key === 'ArrowUp') {
+          window.player.setVolume(window.player.getVolume() + 0.1);
+        } else if (event.key === 'ArrowDown') {
+          window.player.setVolume(window.player.getVolume() - 0.1);
+        }
+      });
+      const fakeDocumentPictureInPicture = {
+        window: null,
+        requestWindow: async () => {
+          const pipDocument = document.implementation.createHTMLDocument('');
+          const pipWindow = {
+            document: pipDocument,
+            pagehideHandlers: [],
+            addEventListener(type, handler) {
+              if (type === 'pagehide') {
+                this.pagehideHandlers.push(handler);
+              }
+            },
+            close() {
+              const event = new Event('pagehide');
+              const handlers = this.pagehideHandlers.splice(0);
+              handlers.forEach((handler) => handler.call(this, event));
+              fakeDocumentPictureInPicture.window = null;
+            },
+          };
+          fakeDocumentPictureInPicture.window = pipWindow;
+          return pipWindow;
+        },
+      };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: fakeDocumentPictureInPicture,
+      });
+      !!window.__daoTriggerDocumentPip;
+    )js"));
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+
+  base::test::TestFuture<bool> result;
+  interceptor->TriggerDocumentPip(result.GetCallback());
+  ASSERT_TRUE(result.Get());
+
+  EXPECT_EQ(true,
+            content::EvalJs(contents, R"js(
+      const pipWindow = window.documentPictureInPicture.window;
+      pipWindow.document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowUp',
+        code: 'ArrowUp',
+        bubbles: true,
+        cancelable: true,
+      }));
+      Math.abs(window.player.getVolume() - 0.6) < 0.0001
+    )js"));
+
+  EXPECT_EQ(true,
+            content::EvalJs(contents, R"js(
+      const pipWindow = window.documentPictureInPicture.window;
+      pipWindow.document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        code: 'ArrowDown',
+        bubbles: true,
+        cancelable: true,
+      }));
+      Math.abs(window.player.getVolume() - 0.5) < 0.0001
+    )js"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
                        CloseExitsStalePipWindowWithoutDaoActiveState) {
   GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
