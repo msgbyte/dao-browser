@@ -116,6 +116,11 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - Page interaction: `click_element`, fill, scroll, etc.
 - Accessibility tree generation and interaction
 - Resource inspection (reverse-engineering helpers)
+- Web access: `web_search` uses provider built-in search when available,
+  optional Jina Search with a user-supplied API key as the local fallback,
+  and DuckDuckGo HTML as a best-effort final tier with explicit anomaly
+  verification-page reporting; `fetch_url` uses Jina Reader before browser
+  fetch.
 
 ### 2.4 Vendor Pipeline (Generated, never hand-edit)
 - **`npm run vendor`** — Compiles pi-mono / pi-web-ui and related deps from `vendor.config.ts` + `vendor/entries/*`
