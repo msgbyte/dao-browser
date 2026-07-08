@@ -113,9 +113,8 @@ class UtilityButton : public views::Button {
 
   void SetVisualEnabled(bool enabled) {
     SetEnabled(enabled);
-    label_->SetEnabled(enabled);
-    label_->SetEnabledColor(enabled ? ControlCenterLabelColor()
-                                    : ControlCenterSecondaryTextColor());
+    label_->SetEnabled(true);
+    label_->SetEnabledColor(ControlCenterLabelColor());
     RefreshBackground();
     SchedulePaint();
   }
@@ -143,9 +142,8 @@ class UtilityButton : public views::Button {
       const gfx::RectF icon_rect(icon_bounds.x(), icon_bounds.y(),
                                  kUtilIconSize, kUtilIconSize);
       const SkColor icon_color =
-          GetEnabled() ? (selected_ ? ControlCenterIconDefault()
-                                    : ControlCenterIconMuted())
-                       : ControlCenterSecondaryTextColor();
+          selected_ && GetEnabled() ? ControlCenterIconDefault()
+                                    : ControlCenterIconMuted();
       if (selected_ && icon_ == LucideIcon::kMoon) {
         DrawFilledMoonIcon(canvas, icon_rect, icon_color);
       } else {

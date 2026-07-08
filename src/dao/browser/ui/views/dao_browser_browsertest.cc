@@ -5353,17 +5353,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       button, l10n_util::GetStringUTF16(
                   IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL));
   ASSERT_NE(nullptr, button_label);
-  const SkColor disabled_label_color = button_label->GetEnabledColor();
-  const int disabled_label_red = static_cast<int>(
-      SkColorGetR(disabled_label_color));
-  EXPECT_NE(ControlCenterLabelColor(), disabled_label_color);
-  EXPECT_NEAR(SkColorGetR(disabled_label_color),
-              SkColorGetG(disabled_label_color), 2);
-  EXPECT_NEAR(SkColorGetG(disabled_label_color),
-              SkColorGetB(disabled_label_color), 2);
-  EXPECT_GT(disabled_label_red,
-            static_cast<int>(SkColorGetR(ControlCenterLabelColor())));
-  EXPECT_LT(disabled_label_red, 200);
+  EXPECT_EQ(ControlCenterLabelColor(), button_label->GetEnabledColor());
   EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
 
   popup->Hide();
