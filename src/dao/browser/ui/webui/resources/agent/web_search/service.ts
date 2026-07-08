@@ -4,10 +4,10 @@
 
 // Orchestrator for the search/fetch fallback chain.
 //
-// Search:    Tier 1 (provider built-in) -> Tier 3 (DuckDuckGo HTML)
-//            Jina's search endpoint requires an API key, so it is not
-//            on the search chain. Provider built-in is the preferred
-//            path; DuckDuckGo is the universal zero-config fallback.
+// Search:    Tier 1 (provider built-in) -> Tier 2 (Jina Search with a
+//            configured API key) -> Tier 3 (DuckDuckGo HTML). Provider
+//            built-in is preferred; Jina is the reliable local fallback;
+//            DuckDuckGo is the zero-config best-effort final tier.
 //
 // fetch_url: Tier 2 (Jina Reader, no key required) -> browser fetch.
 //            Jina Reader stays free, so it remains the primary path
@@ -19,7 +19,7 @@ import type {SearchResponse, FetchResponse, SearchSourceOverride}
     from './types.js';
 import {isJinaAvailable} from './circuit_breaker.js';
 import {isProviderSearchAvailable} from './provider_capabilities.js';
-import {fetchUrlViaJina} from './tier_jina.js';
+import {fetchUrlViaJina, searchViaJina} from './tier_jina.js';
 import {
   searchViaDuckDuckGo, fetchUrlViaBrowser,
 } from './tier_duckduckgo.js';
@@ -87,6 +87,10 @@ export async function webSearch(
           'Search source is locked to "provider" but the active model ' +
           'does not support built-in web search.',
     };
+  }
+  if (override !== 'duckduckgo') {
+    const jina = await searchViaJina(query, max);
+    if (jina) return jina;
   }
   return searchViaDuckDuckGo(query, max);
 }

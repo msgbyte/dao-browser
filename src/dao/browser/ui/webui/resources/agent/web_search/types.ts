@@ -10,10 +10,9 @@ export type SearchSource = 'provider' | 'jina' | 'duckduckgo' | 'failed';
 
 export type FetchSource = 'jina' | 'browser' | 'failed';
 
-// Note: 'jina' is intentionally absent here. Jina's search endpoint
-// now requires an API key; we no longer offer it as a search tier.
-// Jina Reader is still used for fetch_url, but that's not a search
-// override surface.
+// Note: 'jina' is intentionally absent here because it is an optional
+// Auto-mode fallback when a Jina API key is configured, not a separate
+// source override surface. Jina Reader is still used for fetch_url.
 export type SearchSourceOverride = 'auto' | 'provider' | 'duckduckgo';
 
 export interface SearchResult {

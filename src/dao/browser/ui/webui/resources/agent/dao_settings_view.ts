@@ -60,7 +60,12 @@ import {
   TOOL_GROUPS,
   toolConfigChannel,
 } from './tool_catalog.js';
-import {getSearchSourceOverride, setSearchSourceOverride}
+import {
+  getJinaApiKey,
+  getSearchSourceOverride,
+  setJinaApiKey,
+  setSearchSourceOverride,
+}
     from './web_search/index.js';
 import type {SearchSourceOverride} from './web_search/index.js';
 
@@ -76,6 +81,7 @@ export class DaoSettingsView extends CrLitElement {
       activeSubTab_: {type: String, state: true},
       provider_: {type: String, state: true},
       apiKey_: {type: String, state: true},
+      jinaApiKey_: {type: String, state: true},
       baseUrl_: {type: String, state: true},
       model_: {type: String, state: true},
       soulText_: {type: String, state: true},
@@ -110,6 +116,7 @@ export class DaoSettingsView extends CrLitElement {
   declare private activeSubTab_: string;
   declare private provider_: string;
   declare private apiKey_: string;
+  declare private jinaApiKey_: string;
   declare private baseUrl_: string;
   declare private model_: string;
   declare private soulText_: string;
@@ -571,6 +578,7 @@ export class DaoSettingsView extends CrLitElement {
     this.activeSubTab_ = 'general';
     this.provider_ = 'openai-compatible';
     this.apiKey_ = '';
+    this.jinaApiKey_ = '';
     this.baseUrl_ = 'https://api.openai.com/v1';
     this.model_ = 'gpt-5';
     this.soulText_ = '';
@@ -1365,6 +1373,7 @@ export class DaoSettingsView extends CrLitElement {
     this.provider_ = getActiveProvider();
     const cfg = getProviderConfig(this.provider_);
     this.apiKey_ = cfg.apiKey;
+    this.jinaApiKey_ = getJinaApiKey();
     this.baseUrl_ = cfg.baseUrl;
     this.model_ = cfg.model;
     this.soulText_ = currentSoulContent;
@@ -1502,6 +1511,11 @@ export class DaoSettingsView extends CrLitElement {
     this.requestUpdate();
   }
 
+  private onJinaApiKeyChange_(value: string) {
+    this.jinaApiKey_ = value;
+    setJinaApiKey(value);
+  }
+
   private renderToolGroup_(groupId: string) {
     const group = TOOL_GROUPS.find(g => g.id === groupId);
     if (!group) return nothing;
@@ -1568,6 +1582,22 @@ export class DaoSettingsView extends CrLitElement {
                   </select>
                 </div>`;
             })() : nothing}
+            ${groupId === 'web' ? html`
+              <div class="tool-row">
+                <div class="tool-meta">
+                  <span class="tool-name">
+                    ${t('settings.tools.jina_api_key_label')}
+                  </span>
+                  <span class="tool-desc">
+                    ${t('settings.tools.jina_api_key_desc')}
+                  </span>
+                  <input type="password" .value=${this.jinaApiKey_}
+                      placeholder=${t(
+                          'settings.tools.jina_api_key_placeholder')}
+                      @change=${(e: Event) => this.onJinaApiKeyChange_(
+                          (e.target as HTMLInputElement).value)}>
+                </div>
+              </div>` : nothing}
             ${group.toolNames.map(name => this.renderToolRow_(name))}
           </div>` : nothing}
       </div>`;

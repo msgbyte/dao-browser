@@ -429,6 +429,11 @@ const dict: Dictionary = {
   'settings.tools.search_auto': 'Auto',
   'settings.tools.search_provider_only': 'Provider only',
   'settings.tools.search_duckduckgo_only': 'DuckDuckGo only',
+  'settings.tools.jina_api_key_label': 'Jina API key',
+  'settings.tools.jina_api_key_desc':
+      'Optional. In Auto mode, Dao uses Jina Search before DuckDuckGo HTML '
+      + 'when this key is set.',
+  'settings.tools.jina_api_key_placeholder': 'jina_...',
   // Tool group display names (TOOL_GROUPS in tool_catalog.ts owns the ids;
   // the labels are translated here so we don't have to fan i18n into the
   // catalog itself).

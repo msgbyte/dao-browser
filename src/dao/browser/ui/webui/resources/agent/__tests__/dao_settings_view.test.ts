@@ -95,7 +95,9 @@ vi.mock('../tool_catalog.js', () => ({
 }));
 
 vi.mock('../web_search/index.js', () => ({
+  getJinaApiKey: () => '',
   getSearchSourceOverride: () => 'auto',
+  setJinaApiKey: vi.fn(),
   setSearchSourceOverride: settingsMocks.setSearchSourceOverride,
 }));
 

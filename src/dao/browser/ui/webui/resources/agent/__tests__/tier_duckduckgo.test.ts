@@ -12,6 +12,7 @@ import {callNativeFetch} from '../agent_bridge.js';
 import {
   fetchUrlViaBrowser,
   parseDuckDuckGoHtml,
+  searchViaDuckDuckGo,
 } from '../web_search/tier_duckduckgo.js';
 
 const mockedFetch = callNativeFetch as unknown as ReturnType<typeof vi.fn>;
@@ -246,5 +247,34 @@ describe('fetchUrlViaBrowser', () => {
       .toMatchObject({credentials: 'include_if_same_origin_active_tab'});
     expect((mockedFetch.mock.calls[1] as unknown[])[1])
       .toMatchObject({credentials: 'omit'});
+  });
+});
+
+describe('searchViaDuckDuckGo', () => {
+  beforeEach(() => {
+    mockedFetch.mockReset();
+  });
+
+  it('reports an anomaly page separately from HTML structure changes',
+     async () => {
+    mockedFetch.mockResolvedValue({
+      ok: true,
+      status: 202,
+      body: `
+        <html>
+          <body>
+            <div class="anomaly-modal__title">Please verify</div>
+          </body>
+        </html>`,
+    });
+
+    const out = await searchViaDuckDuckGo('tokio rust async runtime', 5);
+
+    expect(out).toMatchObject({
+      source: 'failed',
+      query: 'tokio rust async runtime',
+      results: [],
+      error: 'DuckDuckGo returned an anomaly verification page',
+    });
   });
 });

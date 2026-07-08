@@ -82,6 +82,90 @@ describe('webSearch', () => {
     expect(r.results).toHaveLength(1);
   });
 
+  it('uses configured Jina search before DuckDuckGo in auto mode', async () => {
+    localStorage.setItem('dao_jina_api_key', 'jina_test_key');
+    mockedFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: JSON.stringify({
+        data: [{
+          title: 'Tokio - asynchronous Rust runtime',
+          url: 'https://tokio.rs/',
+          content: 'Tokio is an asynchronous runtime for Rust.',
+        }],
+      }),
+    });
+
+    const r = await webSearch('tokio rust async runtime', 5, {
+      provider: 'openai-compatible',
+      model: 'something',
+    });
+
+    expect(r.source).toBe('jina');
+    expect(r.results).toEqual([{
+      title: 'Tokio - asynchronous Rust runtime',
+      url: 'https://tokio.rs/',
+      snippet: 'Tokio is an asynchronous runtime for Rust.',
+    }]);
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+    expect((mockedFetch.mock.calls[0] as unknown[])[0])
+      .toBe('https://s.jina.ai/?q=tokio+rust+async+runtime');
+    expect((mockedFetch.mock.calls[0] as unknown[])[1])
+      .toMatchObject({
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Bearer jina_test_key',
+        },
+      });
+  });
+
+  it('falls back to DuckDuckGo when configured Jina search is unavailable',
+     async () => {
+    localStorage.setItem('dao_jina_api_key', 'jina_test_key');
+    mockedFetch
+      .mockResolvedValueOnce({ok: false, status: 401, body: ''})
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        body: `<div class="result">
+          <a class="result__a" href="https://e.com">t</a>
+          <span class="result__snippet">s</span>
+        </div>`,
+      });
+
+    const r = await webSearch('q', 3, {
+      provider: 'openai-compatible',
+      model: 'something',
+    });
+
+    expect(r.source).toBe('duckduckgo');
+    expect(r.results).toHaveLength(1);
+    expect(mockedFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips configured Jina search when override is "duckduckgo"', async () => {
+    localStorage.setItem('dao_jina_api_key', 'jina_test_key');
+    setSearchSourceOverride('duckduckgo');
+    mockedFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: `<div class="result">
+        <a class="result__a" href="https://e.com">t</a>
+        <span class="result__snippet">s</span>
+      </div>`,
+    });
+
+    const r = await webSearch('q', 3, {
+      provider: 'openai-compatible',
+      model: 'something',
+    });
+
+    expect(r.source).toBe('duckduckgo');
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+    expect((mockedFetch.mock.calls[0] as unknown[])[0])
+      .toBe('https://html.duckduckgo.com/html/');
+  });
+
   it('clamps maxResults to HARD_MAX_RESULTS = 10', async () => {
     // Build 15 result rows; webSearch should clamp to 10.
     const rows = Array.from({ length: 15 }, (_, i) => `

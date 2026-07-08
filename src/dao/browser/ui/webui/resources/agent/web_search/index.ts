@@ -10,5 +10,6 @@ export {webSearch, fetchUrl, getSearchSourceOverride,
         setSearchSourceOverride} from './service.js';
 export {isProviderSearchAvailable, getProviderToolSpecKind}
     from './provider_capabilities.js';
+export {getJinaApiKey, setJinaApiKey} from './tier_jina.js';
 export type {SearchResponse, FetchResponse, FetchSource, SearchResult,
              SearchSource, SearchSourceOverride} from './types.js';

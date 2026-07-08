@@ -23,6 +23,15 @@ import {callNativeFetch} from '../agent_bridge.js';
 import type {FetchResponse, SearchResponse, SearchResult} from './types.js';
 
 const SEARCH_ENDPOINT = 'https://html.duckduckgo.com/html/';
+const DDG_ANOMALY_ERROR = 'DuckDuckGo returned an anomaly verification page';
+
+function isDuckDuckGoAnomalyPage(html: string, status: number): boolean {
+  const lower = html.toLowerCase();
+  return lower.includes('anomaly-modal') ||
+      lower.includes('duckduckgo anomaly') ||
+      (status === 202 && lower.includes('please verify') &&
+       lower.includes('duckduckgo'));
+}
 
 export function parseDuckDuckGoHtml(
     html: string, maxResults = Infinity): SearchResult[] {
@@ -78,6 +87,14 @@ export async function searchViaDuckDuckGo(
     return {
       source: 'failed', query, results: [],
       error: r.error ?? ('http ' + r.status),
+    };
+  }
+
+  if (isDuckDuckGoAnomalyPage(r.body, r.status)) {
+    console.warn('[web_search] DuckDuckGo returned anomaly verification');
+    return {
+      source: 'failed', query, results: [],
+      error: DDG_ANOMALY_ERROR,
     };
   }
 
