@@ -339,10 +339,10 @@
       <message name="IDS_DAO_CONTROL_CENTER_SHARE" desc="Label on the button in the Control Center 'More' submenu that opens the native share sheet for the current page.">
         Share
       </message>
-      <message name="IDS_DAO_CONTROL_CENTER_CLEAR_CACHE" desc="Label on the button in the Control Center 'More' submenu that clears the browser cache. Idle state.">
+      <message name="IDS_DAO_CONTROL_CENTER_CLEAR_CACHE" desc="Label on the button in the Control Center 'More' submenu that clears the current site's browser cache. Idle state.">
         Clear Cache
       </message>
-      <message name="IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES" desc="Label on the button in the Control Center 'More' submenu that clears the browser cookies. Idle state.">
+      <message name="IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES" desc="Label on the button in the Control Center 'More' submenu that clears the current site's browser cookies. Idle state.">
         Clear Cookies
       </message>
       <message name="IDS_DAO_CONTROL_CENTER_CLEARING" desc="Transient label shown on a Clear Cache or Clear Cookies button while the operation is in progress.">
