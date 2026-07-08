@@ -179,7 +179,7 @@ macOS-style floating control center panel bundling extensions and utilities.
 - **DaoControlCenterExtensionsSection** — Extensions grid
 - **DaoControlCenterUtilitySection** — Utility buttons (share, QR, lock, more)
 - **DaoControlCenterQrView** — QR code generation
-- **DaoControlCenterMoreMenu** — More menu
+- **DaoControlCenterMoreMenu** — More menu, including cache and cookie cleanup scoped to the active page's current site with completion toast feedback
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container
 - **DaoNativeShareMac** (`dao_native_share_mac.{h,mm}`) — Native macOS share sheet
 - **DaoNativeUtilMac** (`dao_native_util_mac.{h,mm}`) — Misc native helpers (incl. cross-window-drag drop side)

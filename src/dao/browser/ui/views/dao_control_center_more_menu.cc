@@ -4,14 +4,25 @@
 
 #include "dao/browser/ui/views/dao_control_center_more_menu.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_toast_view.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_variant.h"
@@ -22,11 +33,75 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_utils.h"
+#include "url/gurl.h"
 
 namespace dao {
 
 namespace {
 constexpr int kMenuCornerRadius = 8;
+
+class BrowsingDataRemovalObserver
+    : public content::BrowsingDataRemover::Observer {
+ public:
+  static content::BrowsingDataRemover::Observer* Create(
+      content::BrowsingDataRemover* remover,
+      base::OnceClosure completion_callback) {
+    return new BrowsingDataRemovalObserver(remover,
+                                           std::move(completion_callback));
+  }
+
+  void OnBrowsingDataRemoverDone(uint64_t failed_data_types) override {
+    remover_observation_.Reset();
+    if (completion_callback_) {
+      std::move(completion_callback_).Run();
+    }
+    delete this;
+  }
+
+ private:
+  BrowsingDataRemovalObserver(content::BrowsingDataRemover* remover,
+                              base::OnceClosure completion_callback)
+      : completion_callback_(std::move(completion_callback)) {
+    remover_observation_.Observe(remover);
+  }
+
+  base::OnceClosure completion_callback_;
+  base::ScopedObservation<content::BrowsingDataRemover,
+                          content::BrowsingDataRemover::Observer>
+      remover_observation_{this};
+};
+
+std::unique_ptr<content::BrowsingDataFilterBuilder>
+CreateActiveSiteBrowsingDataFilter(Browser* browser) {
+  if (!browser || !browser->tab_strip_model()) {
+    return nullptr;
+  }
+  content::WebContents* web_contents =
+      browser->tab_strip_model()->GetActiveWebContents();
+  if (!web_contents) {
+    return nullptr;
+  }
+
+  const GURL url = web_contents->GetVisibleURL();
+  if (!url.has_host()) {
+    return nullptr;
+  }
+
+  std::string domain =
+      net::registry_controlled_domains::GetDomainAndRegistry(
+          url, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+  if (domain.empty()) {
+    domain = url.host();
+  }
+  if (domain.empty()) {
+    return nullptr;
+  }
+
+  auto filter_builder = content::BrowsingDataFilterBuilder::Create(
+      content::BrowsingDataFilterBuilder::Mode::kDelete);
+  filter_builder->AddRegisterableDomain(domain);
+  return filter_builder;
+}
 
 // A menu-style button with hover effect.
 class MenuItemButton : public views::LabelButton {
@@ -149,45 +224,30 @@ void DaoControlCenterMoreMenu::OnShareClicked() {
 }
 
 void DaoControlCenterMoreMenu::OnClearCacheClicked() {
-  if (!popup_ || !popup_->browser()) {
-    return;
-  }
-
-  auto* profile = popup_->browser()->profile();
-  auto* remover = profile->GetBrowsingDataRemover();
-  if (!remover) {
-    return;
-  }
-
-  // Disable button during operation
-  clear_cache_button_->SetEnabled(false);
-  clear_cache_button_->SetText(
-      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEARING));
-
-  remover->RemoveAndReply(
-      base::Time(), base::Time::Max(),
+  ClearActiveSiteBrowsingData(
       content::BrowsingDataRemover::DATA_TYPE_CACHE,
-      content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
-      nullptr);
-
-  // Re-enable after a short delay (remover is async but we don't need
-  // precise completion tracking for this simple UI)
-  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](base::WeakPtr<DaoControlCenterMoreMenu> self) {
-            if (self && self->clear_cache_button_) {
-              self->clear_cache_button_->SetEnabled(true);
-              self->clear_cache_button_->SetText(l10n_util::GetStringUTF16(
-                  IDS_DAO_CONTROL_CENTER_CLEAR_CACHE));
-            }
-          },
-          weak_factory_.GetWeakPtr()),
-      base::Seconds(2));
+      clear_cache_button_, IDS_DAO_CONTROL_CENTER_CLEAR_CACHE,
+      IDS_DAO_CONTROL_CENTER_CACHE_CLEARED_TOAST);
 }
 
 void DaoControlCenterMoreMenu::OnClearCookiesClicked() {
-  if (!popup_ || !popup_->browser()) {
+  ClearActiveSiteBrowsingData(
+      content::BrowsingDataRemover::DATA_TYPE_COOKIES,
+      clear_cookies_button_, IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES,
+      IDS_DAO_CONTROL_CENTER_COOKIES_CLEARED_TOAST);
+}
+
+void DaoControlCenterMoreMenu::ClearActiveSiteBrowsingData(
+    uint64_t remove_mask,
+    views::LabelButton* button,
+    int idle_string_id,
+    int toast_string_id) {
+  if (!popup_ || !popup_->browser() || !button || !button->GetEnabled()) {
+    return;
+  }
+
+  auto filter_builder = CreateActiveSiteBrowsingDataFilter(popup_->browser());
+  if (!filter_builder) {
     return;
   }
 
@@ -197,30 +257,46 @@ void DaoControlCenterMoreMenu::OnClearCookiesClicked() {
     return;
   }
 
-  // Disable button during operation
-  clear_cookies_button_->SetEnabled(false);
-  clear_cookies_button_->SetText(
+  button->SetEnabled(false);
+  button->SetText(
       l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEARING));
 
-  remover->RemoveAndReply(
+  auto* observer = BrowsingDataRemovalObserver::Create(
+      remover, base::BindOnce(
+                   &DaoControlCenterMoreMenu::OnClearButtonOperationFinished,
+                   weak_factory_.GetWeakPtr(), button, idle_string_id,
+                   toast_string_id));
+  remover->RemoveWithFilterAndReply(
       base::Time(), base::Time::Max(),
-      content::BrowsingDataRemover::DATA_TYPE_COOKIES,
+      remove_mask,
       content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
-      nullptr);
+      std::move(filter_builder), observer);
+}
 
-  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](base::WeakPtr<DaoControlCenterMoreMenu> self) {
-            if (self && self->clear_cookies_button_) {
-              self->clear_cookies_button_->SetEnabled(true);
-              self->clear_cookies_button_->SetText(
-                  l10n_util::GetStringUTF16(
-                      IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES));
-            }
-          },
-          weak_factory_.GetWeakPtr()),
-      base::Seconds(2));
+void DaoControlCenterMoreMenu::OnClearButtonOperationFinished(
+    views::LabelButton* button,
+    int idle_string_id,
+    int toast_string_id) {
+  if (button) {
+    button->SetEnabled(true);
+    button->SetText(l10n_util::GetStringUTF16(idle_string_id));
+  }
+
+  if (!popup_ || !popup_->browser()) {
+    return;
+  }
+
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(popup_->browser());
+  popup_->Hide();
+
+  if (!browser_view || !browser_view->dao_toast()) {
+    return;
+  }
+
+  browser_view->dao_toast()->ShowToast(
+      l10n_util::GetStringUTF16(toast_string_id));
+  browser_view->InvalidateLayout();
 }
 
 }  // namespace dao
