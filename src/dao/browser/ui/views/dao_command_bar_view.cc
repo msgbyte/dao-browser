@@ -4,11 +4,8 @@
 
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 
-#include <string_view>
-
 #include "base/strings/utf_string_conversions.h"
 #include "base/strings/escape.h"
-#include "base/strings/string_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
@@ -81,49 +78,6 @@ constexpr int kCommandBarTextFontSize = 17;
 
 bool LooksLikeLocalFilePath(const std::string& text) {
   return !text.empty() && (text[0] == '/' || text[0] == '~');
-}
-
-bool LooksLikeNaturalLanguagePrompt(const std::u16string& text) {
-  std::u16string trimmed;
-  base::TrimWhitespace(text, base::TRIM_ALL, &trimmed);
-  if (trimmed.size() < 3) {
-    return false;
-  }
-
-  const char16_t last_char = trimmed.back();
-  if (last_char == u'\x003F' || last_char == u'\xFF1F') {
-    return true;
-  }
-
-  std::string lower = base::ToLowerASCII(base::UTF16ToUTF8(trimmed));
-  const auto starts_with_word = [&lower](std::string_view word) {
-    return lower == word || base::StartsWith(lower, std::string(word) + " ");
-  };
-  if (starts_with_word("what") || starts_with_word("why") ||
-      starts_with_word("how") || starts_with_word("who") ||
-      starts_with_word("when") || starts_with_word("where") ||
-      base::StartsWith(lower, "summarize") ||
-      base::StartsWith(lower, "translate") ||
-      base::StartsWith(lower, "explain") ||
-      base::StartsWith(lower, "compare") ||
-      base::StartsWith(lower, "write")) {
-    return true;
-  }
-
-  int word_count = 0;
-  bool in_word = false;
-  for (char16_t ch : trimmed) {
-    if (ch == u' ' || ch == u'\t' || ch == u'\n' || ch == u'\r') {
-      in_word = false;
-      continue;
-    }
-    if (!in_word) {
-      ++word_count;
-      in_word = true;
-    }
-  }
-
-  return word_count >= 4;
 }
 
 }  // namespace
@@ -390,16 +344,15 @@ bool DaoCommandBarView::EnhancedSuggestionsEnabled() const {
              dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled);
 }
 
+bool DaoCommandBarView::AskAiEnabled() const {
+  return browser_ && browser_->profile() &&
+         browser_->profile()->GetPrefs()->GetBoolean(
+             dao::prefs::kDaoAskAiEnabled);
+}
+
 bool DaoCommandBarView::ShouldShowAskAiSuggestion() const {
-  if (user_input_text_.empty() || LooksLikeURL(user_input_text_)) {
-    return false;
-  }
-
-  if (!EnhancedSuggestionsEnabled()) {
-    return true;
-  }
-
-  return LooksLikeNaturalLanguagePrompt(user_input_text_);
+  return AskAiEnabled() && !user_input_text_.empty() &&
+         !LooksLikeURL(user_input_text_);
 }
 
 int DaoCommandBarView::GetAutocompleteProviderTypesForCurrentMode() const {
@@ -954,17 +907,15 @@ void DaoCommandBarView::UpdateSuggestions() {
   const AutocompleteResult& result = autocomplete_controller_->result();
   int match_count = std::min(static_cast<int>(result.size()), kMaxSuggestions);
 
-  // Default mode preserves the original slot-1 Ask-AI insertion. Enhanced
-  // mode only shows Ask Dao for natural-language prompts and ranks it first
-  // because the user intent is likely agentic rather than navigational.
+  // Keep Ask AI in the same slot across default and enhanced modes: after the
+  // top autocomplete match when one exists, otherwise as the first row.
   // When real matches already fill all kMaxSuggestions slots, the last one
   // is evicted to make room — it tends to be the lowest-relevance entry.
   const bool show_ask_ai = ShouldShowAskAiSuggestion();
   ask_ai_row_index_ = -1;
   int match_slots = match_count;
   if (show_ask_ai) {
-    ask_ai_row_index_ =
-        enhanced_suggestions_enabled ? 0 : std::min(1, match_count);
+    ask_ai_row_index_ = std::min(1, match_count);
     if (match_slots + 1 > kMaxSuggestions) {
       match_slots = kMaxSuggestions - 1;
     }

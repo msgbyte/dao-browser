@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,341 @@
+@@ -0,0 +1,346 @@
 +<style include="settings-shared">
 +  .dao-pip-preview {
 +    border-top: var(--cr-separator-line);
@@ -267,6 +267,11 @@ index 0000000000..0000000001
 +      pref="{{prefs.dao.enhanced_command_bar_suggestions_enabled}}"
 +      label="$i18n{enhancedCommandBarSuggestionsEnabledLabel}"
 +      sub-label="$i18n{enhancedCommandBarSuggestionsEnabledSubLabel}">
++  </settings-toggle-button>
++  <settings-toggle-button id="askAiEnabled"
++      pref="{{prefs.dao.ask_ai_enabled}}"
++      label="$i18n{askAiEnabledLabel}"
++      sub-label="$i18n{askAiEnabledSubLabel}">
 +  </settings-toggle-button>
 +  <settings-toggle-button id="enhancedPipEnabled"
 +      pref="{{prefs.dao.enhanced_pip_enabled}}"
