@@ -2490,6 +2490,49 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, AskAiPrefDefaultsOn) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  ASSERT_NE(nullptr, prefs->FindPreference(dao::prefs::kDaoAskAiEnabled));
+  EXPECT_TRUE(prefs->GetBoolean(dao::prefs::kDaoAskAiEnabled));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       AskAiDisabledHidesAskAiInBothModes) {
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = u"new york";
+  default_match.contents = u"new york";
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::NONE}};
+  default_match.destination_url =
+      GURL("https://www.google.com/search?q=new+york");
+
+  // Default suggestion mode: Ask AI must be absent.
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"new york", u"");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+  EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
+  EXPECT_FALSE(HasDescendantLabelText(command_bar, u"Ask AI: new york"));
+  command_bar->Hide();
+
+  // Enhanced suggestion mode: Ask AI must still be absent.
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"new york", u"");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
+  EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
+  EXPECT_FALSE(HasDescendantLabelText(command_bar, u"Ask AI: new york"));
+}
+
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsUseBroaderOmniboxProviders) {
   DaoCommandBarView* command_bar =
@@ -2668,7 +2711,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       EnhancedSuggestionsHideAskAiForShortNavigationInput) {
+                       EnhancedSuggestionsShowAskAiSecondForShortInput) {
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
@@ -2690,14 +2733,14 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
 
-  EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
-  EXPECT_FALSE(
-      HasDescendantLabelText(command_bar, u"Ask AI: github"));
-  EXPECT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_EQ(1, command_bar->GetAskAiRowIndexForTesting());
+  EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Ask AI: github"));
+  EXPECT_EQ(2, command_bar->GetVisibleSuggestionCountForTesting());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       EnhancedSuggestionsHideAskAiForShortSearchPhrase) {
+                       EnhancedSuggestionsShowAskAiSecondForSearchPhrase) {
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
@@ -2721,14 +2764,15 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
 
-  EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
-  EXPECT_FALSE(HasDescendantLabelText(
+  EXPECT_EQ(1, command_bar->GetAskAiRowIndexForTesting());
+  EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_TRUE(HasDescendantLabelText(
       command_bar, std::u16string(u"Ask AI: ") + query));
-  EXPECT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_EQ(2, command_bar->GetVisibleSuggestionCountForTesting());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       EnhancedSuggestionsRankAskAiFirstForQuestion) {
+                       EnhancedSuggestionsShowAskAiSecondForQuestion) {
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
@@ -2752,7 +2796,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
 
-  EXPECT_EQ(0, command_bar->GetAskAiRowIndexForTesting());
+  EXPECT_EQ(1, command_bar->GetAskAiRowIndexForTesting());
   EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
   EXPECT_TRUE(HasDescendantLabelText(
       command_bar, std::u16string(u"Ask AI: ") + question));

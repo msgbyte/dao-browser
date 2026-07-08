@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,111 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -27,6 +27,11 @@ index 0000000000..0000000001
 +          key: 'dao.enhanced_command_bar_suggestions_enabled',
 +          type: chrome.settingsPrivate.PrefType.BOOLEAN,
 +          value: false,
++        },
++        ask_ai_enabled: {
++          key: 'dao.ask_ai_enabled',
++          type: chrome.settingsPrivate.PrefType.BOOLEAN,
++          value: true,
 +        },
 +        enhanced_pip_enabled: {
 +          key: 'dao.enhanced_pip_enabled',
@@ -61,6 +66,15 @@ index 0000000000..0000000001
 +    assertEquals(
 +        'dao.enhanced_command_bar_suggestions_enabled', toggle.pref!.key);
 +    assertTrue(!toggle.checked);
++  });
++
++  test('askAiToggleBindsToDaoPref', function() {
++    const toggle =
++        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++            '#askAiEnabled');
++    assertTrue(!!toggle);
++    assertEquals('dao.ask_ai_enabled', toggle.pref!.key);
++    assertTrue(toggle.checked);
 +  });
 +
 +  test('enhancedPipToggleBindsToDaoPref', function() {

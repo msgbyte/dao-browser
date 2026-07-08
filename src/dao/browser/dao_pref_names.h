@@ -57,6 +57,11 @@ inline constexpr char kDaoForceDarkModeEnabled[] =
 inline constexpr char kDaoEnhancedCommandBarSuggestionsEnabled[] =
     "dao.enhanced_command_bar_suggestions_enabled";
 
+// Boolean pref that controls whether the command bar surfaces the "Ask AI"
+// suggestion. When true (the default), Ask AI is offered in both default and
+// enhanced suggestion modes; when false it is never shown.
+inline constexpr char kDaoAskAiEnabled[] = "dao.ask_ai_enabled";
+
 // Dictionary pref storing the most recent Little Dao outer window bounds.
 // The key keeps its historical "window_size" name for compatibility with
 // profiles that only stored width and height.

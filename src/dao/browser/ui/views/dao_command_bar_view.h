@@ -147,6 +147,7 @@ class DaoCommandBarView : public views::View,
   void SetSelectedIndex(int index, bool user_initiated);
   void OnSuggestionClicked(int index);
   bool EnhancedSuggestionsEnabled() const;
+  bool AskAiEnabled() const;
   bool ShouldShowAskAiSuggestion() const;
   int GetAutocompleteProviderTypesForCurrentMode() const;
   const AutocompleteMatch* GetSelectedVisibleAutocompleteMatch() const;
