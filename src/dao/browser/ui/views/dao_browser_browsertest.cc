@@ -5437,6 +5437,48 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       ClearCookiesHidesPopupAndShowsCopyUrlToast) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  Profile* profile = browser()->profile();
+  const GURL current_url =
+      embedded_test_server()->GetURL("example.com", "/title1.html");
+  ASSERT_TRUE(content::SetCookie(profile, current_url, "current=value"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), current_url));
+
+  BrowserView* browser_view = GetBrowserView(browser());
+  auto* popup = browser_view->dao_control_center_popup();
+  auto* toast = browser_view->dao_toast();
+  ASSERT_NE(nullptr, popup);
+  ASSERT_NE(nullptr, toast);
+  ASSERT_FALSE(toast->GetVisible());
+
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+  ASSERT_TRUE(popup->GetVisible());
+
+  auto* clear_cookies_button = views::AsViewClass<views::LabelButton>(
+      FindButtonWithAccessibleName(
+          popup, l10n_util::GetStringUTF16(
+                     IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
+  ASSERT_NE(nullptr, clear_cookies_button);
+
+  views::test::ButtonTestApi(clear_cookies_button)
+      .NotifyClick(ui::MouseEvent(
+          ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+          ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+          ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return clear_cookies_button->GetEnabled(); }));
+
+  EXPECT_FALSE(popup->GetVisible());
+  EXPECT_TRUE(toast->GetVisible());
+  EXPECT_TRUE(HasDescendantLabelText(
+      toast, l10n_util::GetStringUTF16(
+                 IDS_DAO_CONTROL_CENTER_COOKIES_CLEARED_TOAST)));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        ClearCacheOnlyRemovesCurrentDomain) {
   struct CacheRequestCounts {
     std::atomic<int> current_domain = 0;
@@ -5502,8 +5544,11 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
             content::EvalJs(web_contents, fetch_text(other_url)));
   EXPECT_EQ(other_requests_before_clear, request_counts.other_domain.load());
 
-  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  BrowserView* browser_view = GetBrowserView(browser());
+  auto* popup = browser_view->dao_control_center_popup();
+  auto* toast = browser_view->dao_toast();
   ASSERT_NE(nullptr, popup);
+  ASSERT_NE(nullptr, toast);
   popup->ShowAt(gfx::Point(100, 100));
   popup->ShowMoreMenu();
 
@@ -5520,6 +5565,11 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
           ui::EF_LEFT_MOUSE_BUTTON));
   EXPECT_TRUE(base::test::RunUntil(
       [&] { return clear_cache_button->GetEnabled(); }));
+
+  EXPECT_FALSE(popup->GetVisible());
+  EXPECT_TRUE(HasDescendantLabelText(
+      toast, l10n_util::GetStringUTF16(
+                 IDS_DAO_CONTROL_CENTER_CACHE_CLEARED_TOAST)));
 
   EXPECT_EQ("dao cacheable response",
             content::EvalJs(web_contents, fetch_text(current_url)));

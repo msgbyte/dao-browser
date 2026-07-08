@@ -3,6 +3,7 @@
 <translationbundle lang="zh-CN">
 <translation id="1173894706177603556">重命名</translation>
 <translation id="1293177648337752319">取消网站静音</translation>
+<translation id="1602287703039480507">已清除此网站缓存</translation>
 <translation id="1653598257495639807">二维码扫描结果</translation>
 <translation id="1809939268435598390">删除文件夹</translation>
 <translation id="21133533946938348">固定标签页</translation>
@@ -40,6 +41,7 @@
 <translation id="6736243959894955139">地址</translation>
 <translation id="6829876854799051628">清除 Cookie</translation>
 <translation id="6896758677409633944">复制</translation>
+<translation id="7401173814860935855">已清除此网站 Cookie</translation>
 <translation id="7532108947552493901">检查更新...</translation>
 <translation id="7604253494819481181">再次按<ph name="SHORTCUT" />切换侧边栏</translation>
 <translation id="7717845620320228976">检查更新</translation>

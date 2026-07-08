@@ -14,12 +14,14 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_toast_view.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -224,19 +226,22 @@ void DaoControlCenterMoreMenu::OnShareClicked() {
 void DaoControlCenterMoreMenu::OnClearCacheClicked() {
   ClearActiveSiteBrowsingData(
       content::BrowsingDataRemover::DATA_TYPE_CACHE,
-      clear_cache_button_, IDS_DAO_CONTROL_CENTER_CLEAR_CACHE);
+      clear_cache_button_, IDS_DAO_CONTROL_CENTER_CLEAR_CACHE,
+      IDS_DAO_CONTROL_CENTER_CACHE_CLEARED_TOAST);
 }
 
 void DaoControlCenterMoreMenu::OnClearCookiesClicked() {
   ClearActiveSiteBrowsingData(
       content::BrowsingDataRemover::DATA_TYPE_COOKIES,
-      clear_cookies_button_, IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES);
+      clear_cookies_button_, IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES,
+      IDS_DAO_CONTROL_CENTER_COOKIES_CLEARED_TOAST);
 }
 
 void DaoControlCenterMoreMenu::ClearActiveSiteBrowsingData(
     uint64_t remove_mask,
     views::LabelButton* button,
-    int idle_string_id) {
+    int idle_string_id,
+    int toast_string_id) {
   if (!popup_ || !popup_->browser() || !button || !button->GetEnabled()) {
     return;
   }
@@ -259,7 +264,8 @@ void DaoControlCenterMoreMenu::ClearActiveSiteBrowsingData(
   auto* observer = BrowsingDataRemovalObserver::Create(
       remover, base::BindOnce(
                    &DaoControlCenterMoreMenu::OnClearButtonOperationFinished,
-                   weak_factory_.GetWeakPtr(), button, idle_string_id));
+                   weak_factory_.GetWeakPtr(), button, idle_string_id,
+                   toast_string_id));
   remover->RemoveWithFilterAndReply(
       base::Time(), base::Time::Max(),
       remove_mask,
@@ -269,12 +275,28 @@ void DaoControlCenterMoreMenu::ClearActiveSiteBrowsingData(
 
 void DaoControlCenterMoreMenu::OnClearButtonOperationFinished(
     views::LabelButton* button,
-    int idle_string_id) {
-  if (!button) {
+    int idle_string_id,
+    int toast_string_id) {
+  if (button) {
+    button->SetEnabled(true);
+    button->SetText(l10n_util::GetStringUTF16(idle_string_id));
+  }
+
+  if (!popup_ || !popup_->browser()) {
     return;
   }
-  button->SetEnabled(true);
-  button->SetText(l10n_util::GetStringUTF16(idle_string_id));
+
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(popup_->browser());
+  popup_->Hide();
+
+  if (!browser_view || !browser_view->dao_toast()) {
+    return;
+  }
+
+  browser_view->dao_toast()->ShowToast(
+      l10n_util::GetStringUTF16(toast_string_id));
+  browser_view->InvalidateLayout();
 }
 
 }  // namespace dao

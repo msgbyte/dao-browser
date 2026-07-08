@@ -37,9 +37,11 @@ class DaoControlCenterMoreMenu : public views::View {
   void OnClearCookiesClicked();
   void ClearActiveSiteBrowsingData(uint64_t remove_mask,
                                    views::LabelButton* button,
-                                   int idle_string_id);
+                                   int idle_string_id,
+                                   int toast_string_id);
   void OnClearButtonOperationFinished(views::LabelButton* button,
-                                      int idle_string_id);
+                                      int idle_string_id,
+                                      int toast_string_id);
 
   raw_ptr<DaoControlCenterPopup> popup_;
   raw_ptr<views::LabelButton> share_button_ = nullptr;
