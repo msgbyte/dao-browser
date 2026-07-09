@@ -45,6 +45,11 @@ const ITEMS: GridItem[] = [
     title: 'Native Chromium',
     body: 'Built on real Chromium 147 — not a wrapper.',
   },
+  {
+    icon: 'shield-check',
+    title: 'MV2 Extension Compatibility',
+    body: 'Keep legacy Manifest V2 extensions running on a real Chromium base.',
+  },
 ];
 
 export function FeatureGrid() {

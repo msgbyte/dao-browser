@@ -15,4 +15,10 @@ describe('homepage feature grid', () => {
     expect(featureGridSource).toContain('Chromium Auto Dark Mode');
     expect(featureGridSource).toContain("icon: 'moon'");
   });
+
+  it('includes MV2 extension compatibility as a feature', () => {
+    expect(featureGridSource).toContain('MV2 Extension Compatibility');
+    expect(featureGridSource).toContain('Manifest V2 extensions');
+    expect(featureGridSource).toContain("icon: 'shield-check'");
+  });
 });
