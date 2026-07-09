@@ -752,8 +752,13 @@ export function archiveStaleDaoWorktreeEngines(
       continue;
     }
 
-    if (activeEnginePathSet.has(normalizePath(enginePath)) ||
-        activeEnginePathSet.has(normalizePath(fallbackEnginePath))) {
+    const ownedEnginePaths = [fallbackEnginePath];
+    if (isPathInside(enginePath, rootPath)) {
+      ownedEnginePaths.push(enginePath);
+    }
+    if (ownedEnginePaths.some((ownedEnginePath) =>
+      activeEnginePathSet.has(normalizePath(ownedEnginePath))
+    )) {
       kept.push({
         ...archiveEntry,
         reason: "active worktree engine symlink still points here",

@@ -290,6 +290,53 @@ describe('worktree engine helpers', () => {
     expect(existsSync(staleEngineRoot)).toBe(false);
   });
 
+  it('deletes stale shared-engine manifests with leftover private engine directories', () => {
+    const root = makeProjectRoot();
+    const activeRoot = path.join(root, 'dao-browser-active');
+    const staleRoot = path.join(root, 'dao-browser-stale-shared');
+    const paths = getEngineStorePaths(root);
+    const primaryEnginePath = path.join(root, 'engine');
+    const staleEngineRoot = path.join(paths.worktreeEnginesDir, 'feature-stale-shared');
+
+    mkdirSync(primaryEnginePath, {recursive: true});
+    mkdirSync(activeRoot, {recursive: true});
+    mkdirSync(path.join(staleEngineRoot, 'engine'), {recursive: true});
+    symlinkSync(
+        path.relative(activeRoot, primaryEnginePath),
+        path.join(activeRoot, 'engine'),
+        'dir',
+    );
+    writeFileSync(path.join(staleEngineRoot, 'manifest.json'), JSON.stringify({
+      id: 'feature-stale-shared',
+      worktreePath: staleRoot,
+      enginePath: primaryEnginePath,
+      engineMode: 'shared',
+      cacheKey: 'shared-primary-engine',
+    }));
+
+    const outputRunner: CommandOutputRunner = () => [
+      `worktree ${root}`,
+      'HEAD abc123',
+      'branch refs/heads/main',
+      '',
+      `worktree ${activeRoot}`,
+      'HEAD def456',
+      'branch refs/heads/feature/active',
+      '',
+    ].join('\n');
+
+    const result = archiveStaleDaoWorktreeEngines({
+      rootDir: root,
+      deleteStale: true,
+      outputRunner,
+    });
+
+    expect(result.deleted.map((entry) => entry.id)).toEqual([
+      'feature-stale-shared',
+    ]);
+    expect(existsSync(staleEngineRoot)).toBe(false);
+  });
+
   it('deletes the current private engine when run from a linked worktree', () => {
     const primaryRoot = makeProjectRoot();
     const workerRoot = makeProjectRoot();
