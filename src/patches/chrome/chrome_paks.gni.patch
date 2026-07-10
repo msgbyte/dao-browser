@@ -1,18 +1,18 @@
 diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
-index cac128df9a..7f42d9a77e 100644
+index ffc4930414..7992f0caaa 100644
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
-@@ -212,6 +212,9 @@ template("chrome_extra_paks") {
+@@ -213,6 +213,9 @@ template("chrome_extra_paks") {
+         "$root_gen_dir/chrome/browser/actor/resources/actor_common_resources.pak",
          "$root_gen_dir/chrome/certificate_manager_resources.pak",
          "$root_gen_dir/chrome/content_annotator_internals_resources.pak",
-         "$root_gen_dir/chrome/contextual_tasks_resources.pak",
 +        "$root_gen_dir/chrome/dao_agent_resources.pak",
 +        "$root_gen_dir/chrome/dao_sidebar_resources.pak",
 +        "$root_gen_dir/chrome/dao_welcome_resources.pak",
          "$root_gen_dir/chrome/data_sharing_resources.pak",
          "$root_gen_dir/chrome/dev_ui_resources.pak",
          "$root_gen_dir/chrome/downloads_resources.pak",
-@@ -262,6 +265,9 @@ template("chrome_extra_paks") {
+@@ -263,6 +266,9 @@ template("chrome_extra_paks") {
        deps += [
          "//chrome/browser/actor/resources:browser_resources",
          "//chrome/browser/resources:dev_ui_paks",
@@ -21,4 +21,4 @@ index cac128df9a..7f42d9a77e 100644
 +        "//dao/browser/ui/webui/resources/welcome:resources",
          "//chrome/browser/resources/actor_overlay:resources",
          "//chrome/browser/resources/autofill_ml_internals:resources",
-         "//chrome/browser/resources/contextual_tasks:resources",
+         "//chrome/browser/resources/data_sharing:resources",

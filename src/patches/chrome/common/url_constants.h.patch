@@ -1,8 +1,8 @@
 diff --git a/chrome/common/url_constants.h b/chrome/common/url_constants.h
-index a2915a3868..5deb6f8dc9 100644
+index 012f27fbd5..ea7fae12c7 100644
 --- a/chrome/common/url_constants.h
 +++ b/chrome/common/url_constants.h
-@@ -470,11 +470,11 @@ inline constexpr char kPrivacyLearnMoreURL[] =
+@@ -476,11 +476,11 @@ inline constexpr char kPrivacyLearnMoreURL[] =
  
  // "Chrome Settings" URL for Ad Topics page
  inline constexpr char kPrivacySandboxAdTopicsURL[] =
@@ -16,12 +16,3 @@ index a2915a3868..5deb6f8dc9 100644
  
  #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
  // The Privacy Sandbox homepage.
-@@ -721,7 +721,7 @@ inline constexpr char kChromeOSCreditsCompressedPath[] =
- 
- // The URL for the help center article about redeeming Chromebook offers.
- inline constexpr char kEchoLearnMoreURL[] =
--    "chrome://help-app/help/sub/3399709/id/2703646";
-+    "dao://help-app/help/sub/3399709/id/2703646";
- 
- // The URL for the Learn More page about enterprise enrolled devices.
- inline constexpr char kLearnMoreEnterpriseURL[] =

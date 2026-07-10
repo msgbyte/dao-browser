@@ -47,11 +47,11 @@ export class DaoChatHistoryPanel extends CrLitElement {
     return {
       open: {type: Boolean, reflect: true},
       currentSessionId: {type: String},
-      sessions_: {state: true},
-      loading_: {state: true},
-      query_: {state: true},
-      renameId_: {state: true},
-      renameDraft_: {state: true},
+      sessions_: {type: Array, state: true},
+      loading_: {type: Boolean, state: true},
+      query_: {type: String, state: true},
+      renameId_: {type: String, state: true},
+      renameDraft_: {type: String, state: true},
     };
   }
 

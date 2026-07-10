@@ -1,5 +1,4 @@
 diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-index 6f70406bc5..24763f18b2 100644
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 @@ -12,6 +12,7 @@
@@ -15,10 +14,10 @@ index 6f70406bc5..24763f18b2 100644
  #include "chrome/grit/branded_strings.h"
  #include "chrome/grit/generated_resources.h"
 +#include "dao/browser/strings/grit/dao_strings.h"
+ #include "components/accessibility_annotator/core/url_constants.h"
  #include "components/autofill/content/browser/content_autofill_client.h"
  #include "components/autofill/content/browser/content_autofill_driver.h"
- #include "components/autofill/content/browser/content_autofill_driver_factory.h"
-@@ -318,6 +320,7 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
+@@ -320,6 +322,7 @@
         IDS_SETTINGS_ABOUT_PAGE_LEARN_MORE_SYSTEM_REQUIREMENTS},
  #if BUILDFLAG(IS_MAC)
        {"aboutLearnMoreUpdating", IDS_SETTINGS_ABOUT_PAGE_LEARN_MORE_UPDATING},
@@ -26,7 +25,7 @@ index 6f70406bc5..24763f18b2 100644
  #endif
    };
    html_source->AddLocalizedStrings(kLocalizedStrings);
-@@ -334,11 +341,16 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
+@@ -337,11 +340,16 @@
    std::u16string browser_version = VersionUI::GetAnnotatedVersionStringForUi();
  
    html_source->AddString("aboutBrowserVersion", browser_version);

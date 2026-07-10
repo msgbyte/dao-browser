@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/extensions/extension_management.cc b/chrome/browser/extensions/extension_management.cc
-index 2c809ad239..6b2cbb5c5e 100644
+index bea1864156..285ba39610 100644
 --- a/chrome/browser/extensions/extension_management.cc
 +++ b/chrome/browser/extensions/extension_management.cc
 @@ -46,6 +46,7 @@
@@ -8,9 +8,9 @@ index 2c809ad239..6b2cbb5c5e 100644
  #include "content/public/common/content_switches.h"
 +#include "dao/browser/extensions/legacy_mv2/dao_mv2_pref_defaults.h"
  #include "extensions/browser/blocklist_extension_prefs.h"
+ #include "extensions/browser/cws_info_service.h"
  #include "extensions/browser/extension_prefs.h"
- #include "extensions/browser/forced_extensions/install_stage_tracker.h"
-@@ -806,11 +807,18 @@ void ExtensionManagement::Refresh() {
+@@ -807,11 +808,18 @@ void ExtensionManagement::Refresh() {
      }
    }
  

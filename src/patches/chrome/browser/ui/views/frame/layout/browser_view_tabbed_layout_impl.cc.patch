@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index eb2876bca5..2de7945de1 100644
+index c6c9977ab6..47fb30b80b 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -17,7 +17,26 @@
- #include "chrome/browser/ui/layout_constants.h"
+@@ -19,7 +19,26 @@
  #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
  #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/ui/views/frame/custom_corners_background.h"
@@ -29,7 +29,7 @@ index eb2876bca5..2de7945de1 100644
  #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
  #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-@@ -967,11 +986,190 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1084,11 +1103,190 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      content_right =
          std::min(content_right, browser_params.visual_client_area.right());
    }
@@ -224,7 +224,7 @@ index eb2876bca5..2de7945de1 100644
  
    // Maybe expand and clip the web contents to avoid issues during animation.
    if (features::UseSidePanelFlyoverAnimation()) {
-@@ -1101,24 +1300,45 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayout(
+@@ -1232,24 +1430,45 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayout(
    // Lay out toolbar. If tabstrip is completely absent (or vertical), this can
    // go in the top exclusion area.
    const bool toolbar_visible = delegate().IsToolbarVisible();

@@ -45,10 +45,10 @@ export class DaoDreamApp extends CrLitElement {
   static override get properties() {
     return {
       loading_: {type: Boolean, state: true},
-      report_: {state: true},
-      reports_: {state: true},
+      report_: {type: Object, state: true},
+      reports_: {type: Array, state: true},
       error_: {type: String, state: true},
-      habitStates_: {state: true},
+      habitStates_: {type: Object, state: true},
       shareStatus_: {type: String, state: true},
       rerunRunning_: {type: Boolean, state: true},
       rerunError_: {type: String, state: true},

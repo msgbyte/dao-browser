@@ -11,6 +11,15 @@ dist/
 
 docs/superpowers
 
+# Patch paths mirror Chromium and can legitimately contain otherwise ignored
+# directory names. Keep these canonical patch files visible to Git.
+!src/patches/google_apis/gcm/engine/
+!src/patches/google_apis/gcm/engine/*.patch
+!src/patches/third_party/node/node_modules/
+!src/patches/third_party/node/node_modules/@types/
+!src/patches/third_party/node/node_modules/@types/esquery/
+!src/patches/third_party/node/node_modules/@types/esquery/*.patch
+
 # Sparkle framework is fetched on demand and not version-controlled.
 third_party/sparkle/
 

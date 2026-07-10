@@ -1,5 +1,5 @@
 diff --git a/chrome/app/settings_chromium_strings.grdp b/chrome/app/settings_chromium_strings.grdp
-index b154e2b8ad..5a8be49ec6 100644
+index 9acda3acb3..bf9521014b 100644
 --- a/chrome/app/settings_chromium_strings.grdp
 +++ b/chrome/app/settings_chromium_strings.grdp
 @@ -18,11 +18,11 @@
@@ -18,7 +18,7 @@ index b154e2b8ad..5a8be49ec6 100644
        </message>
      </else>
    </if>
-@@ -90,23 +90,23 @@
+@@ -90,26 +90,26 @@
    </message>
    <!-- Default Browser Page -->
    <if expr="not is_chromeos">
@@ -46,6 +46,11 @@ index b154e2b8ad..5a8be49ec6 100644
 +    <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN" desc="The text of the button to make Dao the default browser and pin it to the taskbar.">
 +      Make Dao the default browser and pin to the taskbar
      </message>
+-    <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN_USER_VALUE" desc="The text of the button to make Chromium the default browser and pin it to the taskbar.">
+-      You can use Chromium anytime you click links in messages, documents, and other apps. It will also be pinned to your taskbar.
++    <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN_USER_VALUE" desc="The text of the button to make Dao the default browser and pin it to the taskbar.">
++      You can use Dao anytime you click links in messages, documents, and other apps. It will also be pinned to your taskbar.
+     </message>
 -    <message name="IDS_SETTINGS_DEFAULT_BROWSER_ERROR" desc="The text displayed when Chrome cannot determine or set the default browser">
 -      Chromium cannot determine or set the default browser
 +    <message name="IDS_SETTINGS_DEFAULT_BROWSER_ERROR" desc="The text displayed when Dao cannot determine or set the default browser">
@@ -53,7 +58,7 @@ index b154e2b8ad..5a8be49ec6 100644
      </message>
      <if expr="_is_chrome_for_testing_branded">
        <then>
-@@ -115,8 +115,8 @@
+@@ -118,8 +118,8 @@
          </message>
        </then>
        <else>
@@ -64,7 +69,7 @@ index b154e2b8ad..5a8be49ec6 100644
          </message>
        </else>
      </if>
-@@ -386,16 +386,16 @@
+@@ -389,16 +389,16 @@
    <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_NOTHING_TO_DO" desc="This text describes what Safety Hub does (regularly checking whether Chromium settings are safe) and indicates whether the user should take action. This text is shown when Safety Hub has not identified any issues at this time. There is nothing to do for the user. As future checks of Safety Hub may identify issues, this state may change. This text is shown on a card in privacy settings next to a button that leads to Safety Hub.">
      Chromium regularly checks to make sure your browser has the safest settings. We'll let you know if anything needs your review.
    </message>
@@ -84,7 +89,7 @@ index b154e2b8ad..5a8be49ec6 100644
      Chromium update
    </message>
    <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS" desc="This text explains that passwords saved in Chrome are automatically checked for issues (e.g. password is leaked or weak) by SafetyHub. However the user does not have any passwords stored in Chrome, therefore the feature does not operate. This text is shown as a subtitle of the passwords card of SafetyHub. It sits below the title 'No saved passwords'.">
-@@ -417,17 +417,17 @@
+@@ -420,17 +420,17 @@
      <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Chromium warns you<ph name="END_LINK">&lt;/a&gt;</ph> about unsafe sites and downloads
    </message>
    <if expr="not is_chromeos">

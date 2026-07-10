@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index e4d4e62095..055a20963c 100644
+index f9b658f1b2..e411e13000 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -4,6 +4,27 @@
@@ -30,7 +30,7 @@ index e4d4e62095..055a20963c 100644
  #include <stdint.h>
  
  #include <algorithm>
-@@ -754,6 +774,14 @@ class BrowserView::ExclusiveAccessContextImpl
+@@ -757,6 +778,14 @@ class BrowserView::ExclusiveAccessContextImpl
        // ...TYPE_NONE indicates deleting the bubble, except when used with
        // download.
        should_close_bubble |= params.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE;
@@ -45,7 +45,7 @@ index e4d4e62095..055a20963c 100644
  #if BUILDFLAG(IS_CHROMEOS)
        // Immersive mode allows the toolbar to be shown, so do not show the
        // bubble. However, do show the bubble in a managed guest session (see
-@@ -963,6 +983,104 @@ BrowserView::BrowserView(Browser* browser)
+@@ -962,6 +991,104 @@ BrowserView::BrowserView(Browser* browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -150,7 +150,7 @@ index e4d4e62095..055a20963c 100644
    contents_height_side_panel_ = AddChildView(std::make_unique<SidePanel>(
        this, SidePanelEntry::PanelType::kContent, /*has_border=*/true));
  
-@@ -1278,12 +1387,21 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
+@@ -1283,12 +1410,21 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -172,7 +172,7 @@ index e4d4e62095..055a20963c 100644
    const bool is_pwa = GetIsWebAppType();
    const bool is_tabbed_window = GetSupportsTabStrip();
    return is_tabbed_window && !is_pwa;
-@@ -1387,6 +1505,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
+@@ -1392,6 +1528,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -184,11 +184,10 @@ index e4d4e62095..055a20963c 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(
-@@ -1977,9 +2100,14 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
-     if (loading_bar_) {
+@@ -1993,8 +2134,13 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
        loading_bar_->SetWebContents(nullptr);
      }
-
+ 
 -    multi_contents_view_->GetInactiveContentsView()->SetWebContents(nullptr);
 -    active_contents_view->SetWebContents(nullptr);
 +    // Dao: When our split view owns the contents, skip the multi_contents_view
@@ -199,9 +198,9 @@ index e4d4e62095..055a20963c 100644
 +      active_contents_view->SetWebContents(nullptr);
 +    }
    }
-
+ 
    // Do this before updating InfoBarContainer as the InfoBarContainer may
-@@ -2041,8 +2169,11 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -2056,8 +2202,11 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
          if (multi_contents_view_->IsInSplitView()) {
            HideSplitView();
          }
@@ -213,9 +212,9 @@ index e4d4e62095..055a20963c 100644
 +              new_contents);
 +        }
        }
-
+ 
      SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
-@@ -2084,6 +2215,21 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -2099,6 +2248,21 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
    if (AppUsesUnframedMode() && !old_contents) {
      SetWindowManagementPermissionSubscriptionForUnframedMode(new_contents);
    }
@@ -237,7 +236,7 @@ index e4d4e62095..055a20963c 100644
  }
  
  void BrowserView::OnTabDetached(content::WebContents* contents,
-@@ -2334,6 +2480,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2350,6 +2514,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -256,7 +255,7 @@ index e4d4e62095..055a20963c 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3663,6 +3821,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
+@@ -3677,6 +3853,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
                                   TabChangeType change_type) {
    content::WebContents* contents = tab->GetContents();
  
@@ -278,7 +277,7 @@ index e4d4e62095..055a20963c 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
-@@ -4870,6 +5043,82 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4895,6 +5086,82 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -358,10 +357,10 @@ index e4d4e62095..055a20963c 100644
 +    }
 +  }
 +
-   // Determine if the TabStrip exists and is capable of being clicked on. We
-   // might be a popup window without a TabStrip. Use `GetTabStripVisible` as the
-   // tabstrip might have been hidden in immersive mode.
-@@ -5491,6 +5728,17 @@ void BrowserView::OnThemeChanged() {
+   if (vertical_tab_strip_region_view_ &&
+       vertical_tab_strip_region_view_->GetVisible()) {
+     // See if the mouse pointer is within the bounds of the
+@@ -5302,6 +5569,17 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();

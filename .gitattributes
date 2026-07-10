@@ -1,0 +1,3 @@
+# Unified diff context uses a single leading space for blank lines. Do not
+# report that required marker as trailing whitespace in tracked patch files.
+*.patch whitespace=-blank-at-eol

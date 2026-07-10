@@ -120,14 +120,14 @@ export class DaoMemoryApp extends CrLitElement {
       maxRows_: {type: Number, state: true},
       running_: {type: Boolean, state: true},
       copied_: {type: Boolean, state: true},
-      tablesResult_: {state: true},
-      tableCounts_: {state: true},
-      result_: {state: true},
+      tablesResult_: {type: Object, state: true},
+      tableCounts_: {type: Object, state: true},
+      result_: {type: Object, state: true},
       selectedTable_: {type: String, state: true},
-      columnFilters_: {state: true},
-      columnWidths_: {state: true},
+      columnFilters_: {type: Object, state: true},
+      columnWidths_: {type: Object, state: true},
       filtersOpen_: {type: Boolean, state: true},
-      sort_: {state: true},
+      sort_: {type: Object, state: true},
     };
   }
 

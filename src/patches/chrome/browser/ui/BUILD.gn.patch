@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 00b9254990..f2c4b0664c 100644
+index 5907498d01..fd7e3d3ded 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -25,6 +25,7 @@
+@@ -25,6 +25,7 @@ import("//rlz/buildflags/buildflags.gni")
  import("//services/screen_ai/buildflags/features.gni")
  import("//third_party/protobuf/proto_library.gni")
  import("//tools/metrics/generate_allowlist_from_histograms_file.gni")
@@ -10,7 +10,7 @@ index 00b9254990..f2c4b0664c 100644
  import("//ui/base/ui_features.gni")
  import("//ui/views/features.gni")
  
-@@ -46,7 +47,7 @@
+@@ -46,7 +47,7 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
  # The two are already semantically a part of the same target as they allow
  # circular includes from each other.
  static_library("ui") {
@@ -19,7 +19,7 @@ index 00b9254990..f2c4b0664c 100644
      "accelerator_utils.h",
      "browser_navigator.h",
      "browser_navigator_params.cc",
-@@ -253,7 +254,7 @@
+@@ -250,7 +251,7 @@ static_library("ui") {
      "//chrome/browser/ui/webui/omnibox/logging:mojo_bindings",
    ]
  
@@ -28,24 +28,7 @@ index 00b9254990..f2c4b0664c 100644
      ":browser_element_identifiers",
      ":ui_features",
      ":url_identity",
-@@ -5547,7 +5548,7 @@
- # //chrome/browser. These are semantically a part of
- # //chrome/browser:browser_public_dependencies since //chrome/browser and
- # //chrome/browser/ui allow circular dependencies.
--static_library("ui_public_dependencies") {
-+group("ui_public_dependencies") {
-   visibility = [ "//chrome/browser:browser_public_dependencies" ]
-   public_deps = [
-     "//components/cross_device/logging",
-@@ -5586,7 +5587,6 @@
-     public_deps += [ "//chromeos/ash/services/multidevice_setup/public/mojom" ]
-   }
-   if (is_win) {
--    arflags = [ "/llvmlibempty" ]
-     public_deps += [
-       "//build:branding_buildflags",
-       "//ui/views",
-@@ -5913,3 +5913,26 @@
+@@ -5984,3 +5985,26 @@ if (use_aura) {
      ]
    }
  }

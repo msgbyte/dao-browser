@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/user_education/browser_user_education_service.cc b/chrome/browser/ui/views/user_education/browser_user_education_service.cc
-index b7ec475c86..50cc2d6f42 100644
+index 865c12b3e5..8d805c8eff 100644
 --- a/chrome/browser/ui/views/user_education/browser_user_education_service.cc
 +++ b/chrome/browser/ui/views/user_education/browser_user_education_service.cc
-@@ -155,12 +155,15 @@
+@@ -152,12 +152,15 @@
  namespace {
  
  using Platforms = user_education::Metadata::Platforms;
@@ -22,7 +22,7 @@ index b7ec475c86..50cc2d6f42 100644
  
  class IfView : public user_education::TutorialDescription::If {
   public:
-@@ -232,7 +235,8 @@ class ConditionalStep : public IfView {
+@@ -229,7 +232,8 @@ class ConditionalStep : public IfView {
    }
  };
  
@@ -32,7 +32,7 @@ index b7ec475c86..50cc2d6f42 100644
    return !browser_view->browser()
                ->tab_strip_model()
                ->group_model()
-@@ -240,7 +244,8 @@ bool HasTabGroups(const BrowserView* browser_view) {
+@@ -237,7 +241,8 @@ bool HasTabGroups(const BrowserView* browser_view) {
                .empty();
  }
  
@@ -42,7 +42,7 @@ index b7ec475c86..50cc2d6f42 100644
    return browser_view->ShouldDrawVerticalTabStrip();
  }
  
-@@ -259,7 +264,8 @@ Browser* GetBrowser(ContextPtr context) {
+@@ -256,7 +261,8 @@ Browser* GetBrowser(ContextPtr context) {
  }
  
  // Returns a `CustomActionCallback` that navigates to `target` in a new tab.
@@ -52,7 +52,7 @@ index b7ec475c86..50cc2d6f42 100644
  CreateNavigationAction(GURL target) {
    return base::BindRepeating(
        [](GURL url, ContextPtr ctx,
-@@ -307,6 +313,12 @@ void RegisterChromeHelpBubbleFactories(
+@@ -304,6 +310,12 @@ void RegisterChromeHelpBubbleFactories(
  void MaybeRegisterChromeFeaturePromos(
      user_education::FeaturePromoRegistry& registry,
      Profile* profile) {
@@ -65,15 +65,15 @@ index b7ec475c86..50cc2d6f42 100644
    using user_education::FeaturePromoSpecification;
    using user_education::HelpBubbleArrow;
    using user_education::Metadata;
-@@ -1809,6 +1821,7 @@ void MaybeRegisterChromeFeaturePromos(
-               "Triggered when there are enough tabs in the tabstrip and"
-               "the size of the tabs are shrunk significantly compared to their "
-               "ideal width.")));
+@@ -1829,6 +1841,7 @@ void MaybeRegisterChromeFeaturePromos(
+           .SetMetadata(148, "charlesmeng@chromium.org",
+                        "Triggered when the vertical tabs is enabled and the "
+                        "user has not enabled expand on hover before.")));
 +#endif  // Dao: upstream IPH registrations disabled.
  }
  
  void MaybeRegisterChromeFeaturePromos(
-@@ -1818,6 +1831,10 @@ void MaybeRegisterChromeFeaturePromos(
+@@ -1838,6 +1851,10 @@ void MaybeRegisterChromeFeaturePromos(
  
  void MaybeRegisterChromeTutorials(
      user_education::TutorialRegistry& tutorial_registry) {
@@ -84,7 +84,7 @@ index b7ec475c86..50cc2d6f42 100644
    using user_education::HelpBubbleArrow;
    using user_education::TutorialDescription;
    using BubbleStep = user_education::TutorialDescription::BubbleStep;
-@@ -2159,6 +2176,7 @@ void MaybeRegisterChromeTutorials(
+@@ -2179,6 +2196,7 @@ void MaybeRegisterChromeTutorials(
      tutorial_registry.AddTutorial(kVerticalTabsTutorialId,
                                    std::move(vertical_tabs_tutorial));
    }

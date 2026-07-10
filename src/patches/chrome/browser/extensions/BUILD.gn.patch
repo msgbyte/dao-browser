@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/extensions/BUILD.gn b/chrome/browser/extensions/BUILD.gn
-index c7c960abd7..1d252fe7fc 100644
+index 43fd1559ee..e1cd4fa08a 100644
 --- a/chrome/browser/extensions/BUILD.gn
 +++ b/chrome/browser/extensions/BUILD.gn
-@@ -592,6 +592,8 @@ source_set("extensions") {
+@@ -585,6 +585,8 @@ source_set("extensions") {
      "//components/user_prefs",
      "//components/vector_icons",
      "//content/public/browser",
@@ -10,4 +10,4 @@ index c7c960abd7..1d252fe7fc 100644
 +    "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
      "//extensions/browser",
      "//extensions/browser:crx_installer",
-     "//extensions/browser:keepalive",
+     "//extensions/browser:cws_item_service_proto",

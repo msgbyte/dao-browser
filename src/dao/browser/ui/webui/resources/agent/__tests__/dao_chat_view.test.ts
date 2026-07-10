@@ -1942,10 +1942,13 @@ describe('dao-chat-view element picker', () => {
 
   it('declares the skill catalog prompt as Lit state', () => {
     const properties = (customElements.get('dao-chat-view') as unknown as {
-      properties: Record<string, {state?: boolean}>;
+      properties: Record<string, {state?: boolean, type?: unknown}>;
     }).properties;
 
-    expect(properties.skillCatalogPrompt_).toEqual({state: true});
+    expect(properties.skillCatalogPrompt_).toEqual({
+      type: String,
+      state: true,
+    });
   });
 
   it('injects enabled available skills into the next system prompt', async () => {

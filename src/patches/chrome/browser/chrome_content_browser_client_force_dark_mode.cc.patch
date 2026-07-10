@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
-index 0000000000..0000000000 100644
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
-@@ -355,6 +355,7 @@
+@@ -366,6 +366,7 @@
  #include "content/public/common/content_switches.h"
  #include "content/public/common/origin_util.h"
  #include "content/public/common/url_utils.h"
@@ -10,7 +9,7 @@ index 0000000000..0000000000 100644
  #include "content/public/common/window_container_type.mojom-shared.h"
  #include "device/vr/buildflags/buildflags.h"
  #include "extensions/browser/browser_frame_context_data.h"
-@@ -4851,6 +4852,8 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
+@@ -4890,6 +4891,8 @@
    web_prefs->root_scrollbar_theme_color =
        GetRootScrollbarThemeColor(web_contents);
  
@@ -19,9 +18,9 @@ index 0000000000..0000000000 100644
    web_prefs->translate_service_available = TranslateService::IsAvailable(prefs);
  
    std::optional<ui::CaptionStyle> style =
-@@ -4977,6 +4980,21 @@ bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(
-   }
- #endif
+@@ -5000,6 +5003,21 @@
+       web_prefs->preferred_root_scrollbar_color_scheme !=
+           old_preferred_root_scrollbar_color_scheme;
  
 +  const bool old_force_dark_mode_enabled =
 +      web_prefs->force_dark_mode_enabled;
@@ -38,11 +37,10 @@ index 0000000000..0000000000 100644
 +      web_prefs->preferred_root_scrollbar_color_scheme !=
 +          old_dao_preferred_root_scrollbar_color_scheme;
 +
- #if BUILDFLAG(IS_CHROMEOS)
-   const bool subapps_apis_require_user_gesture_and_authorization =
-       SubAppsAPIsRequireUserGestureAndAuthorization(web_contents);
-@@ -5006,6 +5024,9 @@ bool ChromeContentBrowserClient::
-          GetPreferredColorScheme(prefs, main_frame_site.GetSiteURL(),
+ #if BUILDFLAG(IS_ANDROID)
+   auto* delegate = TabAndroid::FromWebContents(web_contents)
+                        ? static_cast<android::TabWebContentsDelegateAndroid*>(
+@@ -5048,6 +5066,9 @@
                                   &web_contents) !=
               std::tie(prefs.preferred_color_scheme,
                        prefs.preferred_root_scrollbar_color_scheme) ||

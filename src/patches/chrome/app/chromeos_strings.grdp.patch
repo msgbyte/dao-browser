@@ -1,9 +1,9 @@
 diff --git a/chrome/app/chromeos_strings.grdp b/chrome/app/chromeos_strings.grdp
-index 333665dba0..026c0665ed 100644
+index 2a14aae9b5..5c47230f4d 100644
 --- a/chrome/app/chromeos_strings.grdp
 +++ b/chrome/app/chromeos_strings.grdp
-@@ -3120,7 +3120,7 @@
-     Browse faster and use less data with Lite mode. Click to learn more.
+@@ -2818,7 +2818,7 @@
+     Google Chrome will use mobile data if you're not connected to another network.
    </message>
  
 -  <!-- chrome://mobilesetup strings -->
@@ -11,7 +11,7 @@ index 333665dba0..026c0665ed 100644
    <message name="IDS_MOBILE_SETUP_TITLE" desc="ChromeOS mobile device activation page title">
      Mobile data service management
    </message>
-@@ -3473,7 +3473,7 @@
+@@ -3177,7 +3177,7 @@
      Learn more.
    </message>
  
@@ -20,7 +20,7 @@ index 333665dba0..026c0665ed 100644
         debugging) -->
    <message name="IDS_NETWORK_UI_TITLE" desc="Title of the page">
      Network
-@@ -3503,7 +3503,7 @@
+@@ -3207,7 +3207,7 @@
      WiFi Direct
    </message>
    <message name="IDS_NETWORK_UI_AUTO_REFRESH" desc="Instructions for how to auto-refresh the page">
@@ -29,7 +29,7 @@ index 333665dba0..026c0665ed 100644
    </message>
    <message name="IDS_NETWORK_UI_REFRESH" desc="Button label for refreshing networks">
      Refresh Networks
-@@ -3526,7 +3526,7 @@
+@@ -3230,7 +3230,7 @@
    <message name="IDS_NETWORK_UI_FORMAT_SHILL" desc="Label in network property format dropdown for Shill properties">
      Shill
    </message>
@@ -38,7 +38,7 @@ index 333665dba0..026c0665ed 100644
      DHCP Hostname
    </message>
    <message name="IDS_NETWORK_UI_GLOBAL_POLICY" desc="Label for global policy properties">
-@@ -3589,7 +3589,7 @@
+@@ -3293,7 +3293,7 @@
    <message name="IDS_NETWORK_UI_IMPORT_ONC_BUTTON_TEXT" desc="Text for button which, when pressed, selects and imports an ONC file for network configuration.">
      Import ONC File
    </message>
@@ -47,7 +47,7 @@ index 333665dba0..026c0665ed 100644
      Store system logs to the Downloads directory.
    </message>
    <message name="IDS_NETWORK_UI_NETWORK_LOGS_SYSTEM_LOGS" desc="Text describing the checkbox option for storing the system logs file sent in feedback reports.">
-@@ -3701,8 +3701,8 @@
+@@ -3405,8 +3405,8 @@
      Refresh WiFi Direct Clients Info
    </message>
  
@@ -58,7 +58,7 @@ index 333665dba0..026c0665ed 100644
    </message>
  
    <!-- Device health display strings-->
-@@ -4284,7 +4284,7 @@
+@@ -3685,7 +3685,7 @@
    </message>
    <message name="IDS_HW_DATA_COLLECTION_CONTENT" desc="Content of the hardware data collection notice screen.">
      <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>To provide the best experience, <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> collects hardware data about devices and shares it with Google to determine which updates should be delivered. Optionally, you can allow Google to use this data for additional purposes like support and improvements to the <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> experience and service.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
@@ -67,7 +67,7 @@ index 333665dba0..026c0665ed 100644
      <ph name="BEGIN_PARAGRAPH3">&lt;p&gt;</ph>For more details on data <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> may share with Google, and how it is used visit g.co/flex/HWDataCollection.<ph name="END_PARAGRAPH3">&lt;/p&gt;</ph>
    </message>
    <message name="IDS_HW_DATA_COLLECTION_USAGE_INFO" desc="Checkbox description for additional hardware data usage. This message is followed by a 'Learn more' link.">
-@@ -5367,7 +5367,7 @@
+@@ -4566,7 +4566,7 @@
      Looking for file shares
    </message>
  
@@ -76,16 +76,3 @@ index 333665dba0..026c0665ed 100644
    <message name="IDS_VM_STATUS_INDEX_PAGE_TITLE" desc="The title for the VM (virtual machine) status index page. This string is used both for the heading and the page title.">
      VM status
    </message>
-@@ -5832,10 +5832,10 @@ Permissions you've already given to apps may apply to this account. You can cont
-   <message name="IDS_BOREALIS_DISALLOWED_ADMIN" desc="Message shown to the user when 'Steam for Chromebook' is blocked by their admin. The placeholders are the names of policy settings.">
-     Steam for Chromebook (Beta) is blocked by your administrator. Your administrator needs to turn on these policies:
-   </message>
--  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when 'Steam for Chromebook' doesn't have the correct chrome://flags setting enabled">
-+  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when 'Steam for Chromebook' doesn't have the correct dao://flags setting enabled">
-     You need to turn on the “Borealis Enabled” flag
-   </message>
--  <message name="IDS_BOREALIS_DISALLOWED_FLAG_BUTTON" desc="Button label used to bring up the user's chrome://flags settings. Shown when users try to install borealis but are unable to due to their flags.">
-+  <message name="IDS_BOREALIS_DISALLOWED_FLAG_BUTTON" desc="Button label used to bring up the user's dao://flags settings. Shown when users try to install borealis but are unable to due to their flags.">
-     ChromeOS flags
-   </message>
-   <message name="IDS_BOREALIS_INSTALLER_APP_NAME" desc="Name of a utility which is used to install the Steam application (Steam is a video game distribution service)">

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/browser_commands.cc b/chrome/browser/ui/browser_commands.cc
-index 657cd294df..99e73e2ac0 100644
+index cd7f650386..97bc475c4b 100644
 --- a/chrome/browser/ui/browser_commands.cc
 +++ b/chrome/browser/ui/browser_commands.cc
-@@ -116,7 +116,10 @@
+@@ -114,7 +114,10 @@
  #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
  #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
  #include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
@@ -13,9 +13,9 @@ index 657cd294df..99e73e2ac0 100644
  #include "chrome/browser/web_applications/web_app_constants.h"
  #include "chrome/browser/web_applications/web_app_helpers.h"
  #include "chrome/browser/web_applications/web_app_provider.h"
-@@ -1134,8 +1137,34 @@ content::WebContents& NewTab(Browser* browser, NewTabTypes context) {
+@@ -1152,8 +1155,34 @@ content::WebContents& NewTab(BrowserWindowInterface* browser,
  
-   if (browser->SupportsWindowFeature(
+   if (browser->GetBrowserForMigrationOnly()->SupportsWindowFeature(
            Browser::WindowFeature::kFeatureTabStrip)) {
 -    std::optional<tab_groups::TabGroupId> group_id = std::nullopt;
 +    // Dao: For a sidebar window driven by a user gesture (Cmd+T, "File > New
@@ -38,7 +38,7 @@ index 657cd294df..99e73e2ac0 100644
 +        // call sites in production are chrome::ExecuteCommand for IDC_NEW_TAB
 +        // and the new-tab button, neither of which uses the return value.
 +        content::WebContents* active =
-+            browser->tab_strip_model()->GetActiveWebContents();
++            browser->GetTabStripModel()->GetActiveWebContents();
 +        if (active) {
 +          return *active;
 +        }
@@ -47,5 +47,5 @@ index 657cd294df..99e73e2ac0 100644
  
 +    std::optional<tab_groups::TabGroupId> group_id = std::nullopt;
      if (features::IsNewTabAddsToActiveGroupEnabled()) {
-       const int index = browser->tab_strip_model()->active_index();
-       group_id = browser->tab_strip_model()->GetTabGroupForTab(index);
+       const int index = browser->GetTabStripModel()->active_index();
+       group_id = browser->GetTabStripModel()->GetTabGroupForTab(index);

@@ -429,7 +429,7 @@ Browser* GetBrowserForSidebarWebContents(content::WebContents* web_contents) {
 
 void DaoSidebarView::StartFileDrag(const base::FilePath& path) {
   // Post to the message loop so chrome.send() returns first.
-  // RunShellDrag blocks (enters a nested run loop on macOS) and would
+  // RunDragDropLoop blocks (enters a nested run loop on macOS) and would
   // otherwise freeze the WebUI if called synchronously from a message handler.
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
@@ -455,9 +455,9 @@ void DaoSidebarView::DoStartFileDrag(const base::FilePath& path) {
   views::View* source_view =
       sidebar_web_view_ ? static_cast<views::View*>(sidebar_web_view_.get())
                         : static_cast<views::View*>(this);
-  widget->RunShellDrag(source_view, std::move(data), gfx::Point(),
-                       ui::DragDropTypes::DRAG_COPY,
-                       ui::mojom::DragEventSource::kMouse);
+  widget->RunDragDropLoop(source_view, std::move(data), gfx::Point(),
+                          ui::DragDropTypes::DRAG_COPY,
+                          ui::mojom::DragEventSource::kMouse);
 }
 
 gfx::Rect DaoSidebarView::header_bounds_in_sidebar() const {

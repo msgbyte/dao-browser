@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-index b183333a16..ca8474c41d 100644
+index 1569acc6c6..15cde4cf22 100644
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-@@ -602,6 +602,11 @@
+@@ -608,6 +608,11 @@
  #include "chrome/browser/net/nss_service_factory.h"
  #endif
  
@@ -14,8 +14,8 @@ index b183333a16..ca8474c41d 100644
  void AddProfilesExtraParts(ChromeBrowserMainParts* main_parts) {
    main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsProfiles>());
  }
-@@ -871,6 +876,10 @@ void ChromeBrowserMainExtraPartsProfiles::
-   CookieSettingsFactory::GetInstance();
+@@ -882,6 +887,10 @@ void ChromeBrowserMainExtraPartsProfiles::
+ #endif  // BUILDFLAG(!IS_ANDROID)
    CrossDevicePrefTrackerFactory::GetInstance();
    DataTypeStoreServiceFactory::GetInstance();
 +  dao::DaoAgentMemoryServiceFactory::GetInstance();

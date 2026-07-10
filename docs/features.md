@@ -1,6 +1,6 @@
 # Dao Browser Feature Inventory
 
-> This document catalogs all features Dao Browser adds on top of Chromium 147.0.7727.135. Dao-owned code lives in `src/dao/`; Chromium integration patches live in `src/patches/`.
+> This document catalogs all features Dao Browser adds on top of Chromium 148.0.7778.217. Dao-owned code lives in `src/dao/`; Chromium integration patches live in `src/patches/`.
 
 ## 1. Vertical Sidebar
 
@@ -321,6 +321,6 @@ string-localization/rebranding changes.
 
 ## Current Status
 
-- **Version**: 0.3.0 (based on Chromium 147.0.7727.135)
+- **Version**: 1.0.70 (based on Chromium 148.0.7778.217)
 - **Target platform**: macOS arm64
-- **Source footprint**: ~45 C++ component pairs under `src/dao/` + 166 patches under `src/patches/`
+- **Source footprint**: ~45 C++ component pairs under `src/dao/` + 170 patches under `src/patches/`
