@@ -281,6 +281,8 @@ const dict: Dictionary = {
   'dream.page.rerun_failed': '重新生成失败:{error}',
   'dream.page.source_domains_title': '本次报告用到的域名',
   'dream.page.source_domains_add': '加入黑名单',
+  'dream.page.source_domains_confirm':
+      '确定将 {domain} 加入黑名单吗？后续梦境分析会忽略该域名。',
   'dream.page.source_domains_excluded': '已在黑名单',
   'dream.page.excluded_domains_adding': '正在添加…',
   'dream.page.excluded_add_failed': '添加失败:{error}',

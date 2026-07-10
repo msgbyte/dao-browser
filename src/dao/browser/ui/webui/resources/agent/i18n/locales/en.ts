@@ -381,6 +381,8 @@ const dict: Dictionary = {
   'dream.page.rerun_failed': 'Rerun failed: {error}',
   'dream.page.source_domains_title': 'Domains used in this report',
   'dream.page.source_domains_add': 'Add to blacklist',
+  'dream.page.source_domains_confirm':
+      'Add {domain} to the blacklist? Future Dream analysis will ignore it.',
   'dream.page.source_domains_excluded': 'Already blacklisted',
   'dream.page.excluded_domains_adding': 'Adding...',
   'dream.page.excluded_add_failed': 'Add failed: {error}',
