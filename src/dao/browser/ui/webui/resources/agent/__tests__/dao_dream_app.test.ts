@@ -46,6 +46,8 @@ vi.mock('../i18n/i18n.js', () => ({
       'dream.page.title': 'Dream Report',
       'dream.page.source_domains_title': 'Domains used in this report',
       'dream.page.source_domains_add': 'Add to blacklist',
+      'dream.page.source_domains_confirm':
+          'Add {domain} to the blacklist? Future Dream analysis will ignore it.',
       'dream.page.source_domains_excluded': 'Already blacklisted',
       'dream.page.excluded_domains_adding': 'Adding...',
       'dream.page.excluded_add_failed': 'Add failed: {error}',
@@ -222,6 +224,7 @@ describe('dao-dream-app routing', () => {
   });
 
   it('lists report source domains and adds one to exclusions', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     bridgeMocks.callNative.mockResolvedValueOnce([
       report('2026-06-19', habitCandidates(), JSON.stringify({
         source_domains: ['docs.example', 'private.example'],
@@ -245,9 +248,18 @@ describe('dao-dream-app routing', () => {
     await Promise.resolve();
     await el.updateComplete;
 
-    const picker = el.shadowRoot!.querySelector('.report-domain-picker');
+    const picker = el.shadowRoot!.querySelector<HTMLDetailsElement>(
+        'details.report-domain-picker');
     expect(picker).toBeTruthy();
+    expect(picker!.open).toBe(false);
     expect(picker!.textContent).toContain('Domains used in this report');
+
+    const summary = picker!.querySelector<HTMLElement>(
+        'summary.report-domain-summary');
+    expect(summary).toBeTruthy();
+    summary!.click();
+    expect(picker!.open).toBe(true);
+
     expect(picker!.textContent).toContain('docs.example');
     expect(picker!.textContent).toContain('private.example');
     expect(picker!.textContent).toContain('Already blacklisted');
@@ -271,13 +283,26 @@ describe('dao-dream-app routing', () => {
         'button[data-testid="dream-add-domain-button"][data-domain="docs.example"]');
     expect(addButton).toBeTruthy();
     expect(addButton!.disabled).toBe(false);
-    expect(addButton!.textContent).toContain('Add to blacklist');
+    expect(addButton!.title).toBe('Add to blacklist');
+    expect(addButton!.getAttribute('aria-label')).toBe('Add to blacklist');
+    expect(addButton!.textContent?.trim()).toBe('');
+    const exclusionIcon =
+        addButton!.querySelector('svg[aria-hidden="true"]');
+    expect(exclusionIcon).toBeTruthy();
+    expect(exclusionIcon!.querySelector(
+        'circle[cx="12"][cy="12"][r="10"]'))
+        .toBeTruthy();
+    expect(exclusionIcon!.querySelector(
+        'path[d="M4.929 4.929 19.07 19.071"]'))
+        .toBeTruthy();
     addButton!.dispatchEvent(
         new MouseEvent('click', {bubbles: true, composed: true}));
     await Promise.resolve();
     await Promise.resolve();
     await el.updateComplete;
 
+    expect(confirmSpy).toHaveBeenCalledWith(
+        'Add docs.example to the blacklist? Future Dream analysis will ignore it.');
     expect(bridgeMocks.callNativeArgs).toHaveBeenCalledWith(
         'addDreamExcludedDomain', 'docs.example');
     for (let i = 0; i < 5 &&
@@ -290,6 +315,38 @@ describe('dao-dream-app routing', () => {
     expect(el.shadowRoot!.querySelector(
         '.report-domain-option.excluded [data-domain-label="docs.example"]'))
         .toBeTruthy();
+  });
+
+  it('does not exclude a report domain when confirmation is canceled',
+      async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    bridgeMocks.callNative.mockResolvedValueOnce([
+      report('2026-06-19', habitCandidates(), JSON.stringify({
+        source_domains: ['docs.example'],
+      })),
+    ]);
+
+    const el = await mountDreamApp('/');
+    await Promise.resolve();
+    await el.updateComplete;
+    await Promise.resolve();
+    await el.updateComplete;
+
+    const picker = el.shadowRoot!.querySelector<HTMLDetailsElement>(
+        'details.report-domain-picker');
+    expect(picker).toBeTruthy();
+    picker!.open = true;
+    const addButton = picker!.querySelector<HTMLButtonElement>(
+        'button[data-domain="docs.example"]');
+    expect(addButton).toBeTruthy();
+    addButton!.click();
+    await Promise.resolve();
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+        'Add docs.example to the blacklist? Future Dream analysis will ignore it.');
+    expect(bridgeMocks.callNativeArgs).not.toHaveBeenCalledWith(
+        'addDreamExcludedDomain', 'docs.example');
+    expect(addButton!.disabled).toBe(false);
   });
 
   it('shows the exclusion shortcut even when an older report has no domains',

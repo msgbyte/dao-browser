@@ -234,7 +234,14 @@ export class DaoDreamApp extends CrLitElement {
         padding-top: 18px;
       }
 
-      .report-domain-picker h2 {
+      .report-domain-summary {
+        color: rgba(30, 20, 40, 0.88);
+        font-size: 16px;
+        font-weight: 650;
+        line-height: 1.3;
+      }
+
+      .report-domain-picker[open] > .report-domain-summary {
         margin-bottom: 10px;
       }
 
@@ -271,7 +278,17 @@ export class DaoDreamApp extends CrLitElement {
       }
 
       .report-domain-add-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         flex: 0 0 auto;
+        width: 30px;
+        padding: 0;
+      }
+
+      .report-domain-add-button svg {
+        width: 14px;
+        height: 14px;
       }
 
       .report-domain-status {
@@ -692,6 +709,9 @@ export class DaoDreamApp extends CrLitElement {
     if (this.isDreamExcludedDomain_(domain) || this.dreamExclusionAdding_) {
       return;
     }
+    if (!confirm(t('dream.page.source_domains_confirm', {domain}))) {
+      return;
+    }
     this.dreamExclusionAdding_ = true;
     this.dreamExclusionError_ = '';
     try {
@@ -845,8 +865,10 @@ export class DaoDreamApp extends CrLitElement {
   private renderDreamExclusionShortcut_(report: DreamReportData) {
     const domains = this.sourceDomainsForReport_(report);
     return html`
-      <section class="report-domain-picker">
-        <h2>${t('dream.page.source_domains_title')}</h2>
+      <details class="report-domain-picker">
+        <summary class="report-domain-summary">
+          ${t('dream.page.source_domains_title')}
+        </summary>
         ${domains.length === 0 ? html`
           <p class="report-domain-empty">
             ${t('dream.page.source_domains_empty')}
@@ -858,11 +880,13 @@ export class DaoDreamApp extends CrLitElement {
             <div class="history-rerun-error">
               ${this.dreamExclusionError_}
             </div>` : nothing}`}
-      </section>`;
+      </details>`;
   }
 
   private renderSourceDomainRow_(domain: string) {
     const excluded = this.isDreamExcludedDomain_(domain);
+    const addLabel = t('dream.page.source_domains_add');
+    const addingLabel = t('dream.page.excluded_domains_adding');
     return html`
       <div class="${'report-domain-option ' + (excluded ? 'excluded' : '')}">
         <span data-domain-label="${domain}">${domain}</span>
@@ -873,16 +897,30 @@ export class DaoDreamApp extends CrLitElement {
           <button class="report-domain-add-button"
               data-testid="dream-add-domain-button"
               data-domain="${domain}"
+              title="${addingLabel}"
+              aria-label="${addingLabel}"
               disabled>
-            ${t('dream.page.excluded_domains_adding')}
+            ${this.renderDomainExclusionIcon_()}
           </button>` : html`
           <button class="report-domain-add-button"
               data-testid="dream-add-domain-button"
               data-domain="${domain}"
+              title="${addLabel}"
+              aria-label="${addLabel}"
               @click=${() => void this.addDreamExcludedDomain_(domain)}>
-            ${t('dream.page.source_domains_add')}
+            ${this.renderDomainExclusionIcon_()}
           </button>`}
       </div>`;
+  }
+
+  private renderDomainExclusionIcon_() {
+    return html`
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M4.929 4.929 19.07 19.071"></path>
+      </svg>`;
   }
 
   private renderRerunReportButton_(report: DreamReportData) {
