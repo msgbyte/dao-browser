@@ -293,6 +293,7 @@ actively removing MV2 infrastructure, so these flags/enums may vanish entirely o
 |---|---------|-----------|------|--------|
 | ☐ | Rounded buttons + keycap shortcut badges | `ui/views/window/dialog_client_view.cc.patch` | 🔴 | Dao dialogs show rounded buttons + keycaps; Enter/Esc/shortcuts fire; non-Dao dialogs unchanged |
 | ☐ | Opt-in API + surface color + button-shortcut model | `ui/views/window/dialog_delegate.{cc,h}.patch` | 🟡 | `SetUseDaoSystemDialogStyle(true)` yields Dao surface + rounded frame |
+| ☐ | Web `alert()` / `confirm()` / `prompt()` Dao styling | `chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.{cc,h}.patch`, `components/constrained_window/constrained_window_views.cc.patch`, `ui/views/window/dialog_delegate.h.patch` | 🟡 | All three dialogs are centered within active web contents; alert has prominent OK + Enter; confirm/prompt add tonal Cancel + Esc; prompt input is rounded and theme-aware; origin/accessibility behavior remains intact |
 
 ## 14. Branding & Visuals
 

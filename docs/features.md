@@ -208,7 +208,12 @@ Lightweight window form factor for popups / mini-tools.
 - **DaoPrefNames** (`browser/dao_pref_names.{h,cc}`) — Single source of truth for Dao-owned pref keys (welcome shown, sidebar width, folder file path, etc.)
 - Patches: `prefs/browser_prefs.cc.patch`, `prefs/session_startup_pref.cc.patch`
 
-## 10. Branding and Visuals
+## 10. Web JavaScript Dialogs
+
+- **Dao-styled `alert()`, `confirm()`, and `prompt()`** — Keeps Chromium's tab-modal JavaScript dialog lifecycle, origin title, accessibility behavior, and callbacks while centering the dialog within the active web contents and applying Dao's rounded surface, primary/secondary actions, Enter/Esc keycaps, and themed prompt input
+- Patches: `chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.{cc,h}.patch`, `components/constrained_window/constrained_window_views.cc.patch`, `ui/views/window/dialog_delegate.h.patch`
+
+## 11. Branding and Visuals
 
 - **Dao brand assets** — Logos / SVGs; product name globally rebranded ("Chromium" → "Dao")
 - **`chrome://` → `dao://`** — Internal URL schemes rewritten via `content/common/url_schemes.cc.patch`
@@ -216,7 +221,7 @@ Lightweight window form factor for popups / mini-tools.
 - **Custom scrollbar** — `third_party/blink/renderer/core/css/css_default_style_sheets.cc.patch` + `html.css.patch` for globally restyled scrollbars
 - **Chromium string rebranding** — `*_strings.grd[p]` patch files plus import-time rewrites for generated / terms resources
 
-## 11. Shortcuts and Menus
+## 12. Shortcuts and Menus
 
 - **macOS global shortcuts** — `chrome/browser/global_keyboard_shortcuts_mac.mm.patch`
 - **macOS main menu** — `cocoa/main_menu_builder.mm.patch` + `cocoa/accelerators_cocoa.mm.patch`
@@ -225,12 +230,12 @@ Lightweight window form factor for popups / mini-tools.
 - **Command handling** — `browser_command_controller.cc.patch` + `browser_commands.cc.patch`
 - Note: adding a new IDC_* requires three edit sites (see `MEMORY.md`)
 
-## 12. Chromium Core Integration Patches (166 total)
+## 13. Chromium Core Integration Patches (173 total)
 
-Roughly **166 patch files** across functional Chromium integration and
+Roughly **173 patch files** across functional Chromium integration and
 string-localization/rebranding changes.
 
-### 12.1 URLs and Schemes
+### 13.1 URLs and Schemes
 - `content/common/url_schemes.cc.patch` — Register `dao://`
 - `chrome/common/url_constants.h.patch`, `chrome/common/webui_url_constants.h.patch`, `content/public/common/url_constants.h.patch` — Constant tables
 - `content/browser/webui/{url_data_manager_backend,web_ui_data_source_impl,web_ui_url_loader_factory}.cc.patch` + `content/public/browser/url_data_source.cc.patch` — Data source / loader factory hooks
@@ -239,7 +244,7 @@ string-localization/rebranding changes.
 - `chrome/browser/browser_about_handler.cc.patch` — `dao://` about-page routing
 - `third_party/blink/public/common/chrome_debug_urls.h.patch` — Debug URL alias
 
-### 12.2 BrowserView Integration
+### 13.2 BrowserView Integration
 - `views/frame/browser_view.{h,cc}.patch` — Inject `DaoSidebarView` and `DaoCornerOverlayView`; toolbar kept alive but parked at `y=-height` (NOT `IsToolbarVisible() = false`, see `MEMORY.md`)
 - `views/frame/browser_view_layout` (implicit via patches) — Layout adjustments
 - `views/frame/{browser_native_widget_mac,browser_frame_mac,immersive_mode_controller_mac}.mm.patch` — macOS frame integrations
@@ -247,29 +252,29 @@ string-localization/rebranding changes.
 - `views/frame/layout/browser_view_{popup,tabbed}_layout_impl.cc.patch` — Per-mode layout impls
 - `views/bubble_anchor_util_views.cc.patch` — Bubble anchoring near the sidebar
 
-### 12.3 Tab Strip and Tab Helpers
+### 13.3 Tab Strip and Tab Helpers
 - `chrome/browser/ui/tabs/tab_strip_model.cc.patch` — Tab model hooks (incl. cross-window drag)
 - `chrome/browser/ui/tab_helpers.cc.patch` — Attach Dao tab helpers (`DaoAgentLockTabHelper`, `DaoWebstoreBrandingTabHelper`, `DaoAutoPipVisibilityHelper`)
 - `content/browser/web_contents/web_contents_view_mac.mm.patch` — Native drag-drop integration
 - `content/browser/renderer_host/render_frame_host_impl.cc.patch` — Frame-host hook
 
-### 12.4 Startup Flow
+### 13.4 Startup Flow
 - `ui/startup/startup_browser_creator.cc.patch` + `startup_browser_creator_impl.cc.patch` — Startup behavior
 - `ui/startup/infobar_utils.cc.patch` — Infobar suppression
 - `signin/account_consistency_mode_manager.cc.patch` — Account consistency mode
 - `profiles/chrome_browser_main_extra_parts_profiles.cc.patch` — Profile init hook
 
-### 12.5 Extensions
+### 13.5 Extensions
 - `views/extensions/extension_popup.cc.patch` — Popup layout
 - `extensions/browser/api/web_request/extension_web_request_event_router.cc.patch` — Event router hook
 - `extensions/common/features/simple_feature.cc.patch` + `extensions/common/api/_api_features.json.patch` + `chrome/common/extensions/api/_api_features.json.patch` — Feature allowlists
 
-### 12.6 WebUI Pages (HTML rebranding / customization)
+### 13.6 WebUI Pages (HTML rebranding / customization)
 - `app_home`, `bookmarks`, `certificate_manager`, `downloads`, `extensions`, `history`, `password_manager`, `print_preview`, `settings/people_page`, `settings/settings`, `signin/profile_picker` — HTML patches
 - `settings/reset_page/reset_profile_dialog.{html,ts}.patch` — Reset profile dialog customization
 - `chrome/browser/ui/webui/settings/settings_ui.cc.patch`
 
-### 12.7 macOS Platform
+### 13.7 macOS Platform
 - `skia/ext/skia_utils_mac.mm.patch`
 - `third_party/blink/renderer/platform/mac/graphics_context_canvas.mm.patch`
 - `ui/display/mac/screen_utils_mac.mm.patch`
@@ -280,14 +285,14 @@ string-localization/rebranding changes.
 - `chrome/app/app-Info.plist.patch`
 - `build/toolchain/apple/filter_libtool.py.patch`
 
-### 12.8 Blink and Rendering
+### 13.8 Blink and Rendering
 - `third_party/blink/renderer/core/css/css_default_style_sheets.cc.patch` — Default stylesheets
 - `third_party/blink/renderer/core/html/resources/html.css.patch` — Default HTML CSS
 - `third_party/blink/renderer/platform/graphics/paint/paint_controller.cc.patch` — Paint hook
 - `components/global_media_controls/public/views/media_progress_view.cc.patch` — Media progress UI
 - `media/base/media_switches.cc.patch` — Media switches
 
-### 12.9 Build / WebUI Toolchain
+### 13.9 Build / WebUI Toolchain
 - `chrome/browser/BUILD.gn.patch`, `chrome/browser/ui/BUILD.gn.patch`, `chrome/test/BUILD.gn.patch`, `chrome/chrome_paks.gni.patch`, `chrome/app/theme/chromium/BRANDING.patch` — Build graph
 - `third_party/lit/v3_0/BUILD.gn.patch` — Lit framework integration
 - `ui/webui/resources/tools/build_webui.gni.patch` + `ui/webui/webui_util.cc.patch` — WebUI build helpers
@@ -297,19 +302,19 @@ string-localization/rebranding changes.
 - `chrome/browser/accessibility/soda_installer_impl.cc.patch`
 - `components/performance_manager/user_tuning/prefs.cc.patch`
 
-### 12.10 String Localization and Rebranding
+### 13.10 String Localization and Rebranding
 - `chrome/app/*_strings.grd[p]` and `chromium_strings.grd` / `google_chrome_strings.grd` — Branded strings
 - `components/*_strings.grdp` — Component strings (autofill, crash, error, history clusters, management, omnibox, policy, privacy sandbox, security interstitials, site settings, version, etc.)
 - Settings localized-string provider patches — Dao settings page strings
 - `components/resources/terms/terms_*.html` rebranding is handled by import-time rewrites, not patch files
 
-## 13. Testing
+## 14. Testing
 
 - **browser_tests** (`dao_browser_browsertest.cc`) — Integration test framework
 - **Coverage**: sidebar presence / default width / collapse-expand, drag resize, address bar, command bar show/hide & idempotency, tab CRUD, SplitView, CornerOverlay, folder persistence, URL detection heuristics, PiP site rules / interception / top bar overlay
 - **Known disabled**: 5 `DaoAgentMemoryStore` tests `DISABLED_` due to FTS5 `RazeAndPoison` under direct `Init()` (see `MEMORY.md`)
 
-## 14. Build and Packaging
+## 15. Build and Packaging
 
 - **`scripts/cli.ts`** — Unified CLI (download / import / export / build / rebuild / test / start) — the single entrypoint; **never run `autoninja` / `ninja` / `siso` directly**
 - **`appdmg` integration** — DMG packaging
@@ -323,4 +328,4 @@ string-localization/rebranding changes.
 
 - **Version**: 1.0.70 (based on Chromium 148.0.7778.217)
 - **Target platform**: macOS arm64
-- **Source footprint**: ~45 C++ component pairs under `src/dao/` + 170 patches under `src/patches/`
+- **Source footprint**: ~45 C++ component pairs under `src/dao/` + 173 patches under `src/patches/`

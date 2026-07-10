@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h b/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h
+--- a/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h
++++ b/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h
+@@ -54,6 +54,12 @@ class JavaScriptTabModalDialogViewViews
+       Browser* browser,
+       std::u16string title,
+       std::u16string message);
++  static JavaScriptTabModalDialogViewViews* CreateDialogForTesting(
++      Browser* browser,
++      std::u16string title,
++      content::JavaScriptDialogType dialog_type,
++      std::u16string message,
++      std::u16string default_prompt);
+ 
+  private:
+   friend class JavaScriptDialog;
