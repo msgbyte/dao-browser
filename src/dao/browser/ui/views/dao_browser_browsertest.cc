@@ -58,6 +58,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
+#include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -176,6 +177,7 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/focus/focus_manager.h"
@@ -8526,6 +8528,99 @@ IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest,
 }
 
 // =============================================================================
+// DaoJavaScriptDialogBrowserTest
+// =============================================================================
+
+class DaoJavaScriptDialogBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
+                       AlertUsesDaoSystemDialogStyle) {
+  auto* dialog = JavaScriptTabModalDialogViewViews::CreateDialogForTesting(
+      browser(), u"example.com says", content::JAVASCRIPT_DIALOG_TYPE_ALERT,
+      u"Alert message", std::u16string());
+  ScopedWidgetCloser close_widget(dialog->GetWidget());
+
+  EXPECT_TRUE(dialog->use_dao_system_dialog_style());
+  EXPECT_TRUE(dialog->center_in_web_contents());
+  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kOk),
+            dialog->buttons());
+  EXPECT_EQ(ui::ButtonStyle::kProminent,
+            dialog->GetDialogButtonStyle(ui::mojom::DialogButton::kOk));
+  auto ok_shortcut =
+      dialog->GetButtonShortcut(ui::mojom::DialogButton::kOk);
+  ASSERT_TRUE(ok_shortcut.has_value());
+  EXPECT_EQ(u"Enter", ok_shortcut->keycap);
+  EXPECT_FALSE(dialog->GetButtonShortcut(
+      ui::mojom::DialogButton::kCancel).has_value());
+  auto* message_scroll_view =
+      FindDescendantViewOfClass<views::ScrollView>(dialog);
+  ASSERT_NE(nullptr, message_scroll_view);
+  const auto message_background = message_scroll_view->GetBackgroundColor();
+  ASSERT_TRUE(message_background.has_value());
+  EXPECT_EQ(dao::IsDarkMode() ? SkColorSetRGB(47, 53, 60) : SK_ColorWHITE,
+            message_background->ResolveToSkColor(
+                message_scroll_view->GetColorProvider()));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
+                       AlertIsCenteredInWebContents) {
+  auto* dialog = JavaScriptTabModalDialogViewViews::CreateDialogForTesting(
+      browser(), u"example.com says", content::JAVASCRIPT_DIALOG_TYPE_ALERT,
+      u"Alert message", std::u16string());
+  ScopedWidgetCloser close_widget(dialog->GetWidget());
+
+  const gfx::Rect content_bounds =
+      GetBrowserView(browser())->contents_container()->GetBoundsInScreen();
+  const gfx::Rect dialog_bounds =
+      dialog->GetWidget()->GetWindowBoundsInScreen();
+  EXPECT_NEAR(content_bounds.CenterPoint().x(),
+              dialog_bounds.CenterPoint().x(), 2);
+  EXPECT_NEAR(content_bounds.CenterPoint().y(),
+              dialog_bounds.CenterPoint().y(), 2);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
+                       ConfirmUsesDaoPrimaryAndSecondaryActions) {
+  auto* dialog = JavaScriptTabModalDialogViewViews::CreateDialogForTesting(
+      browser(), u"example.com says", content::JAVASCRIPT_DIALOG_TYPE_CONFIRM,
+      u"Confirm message", std::u16string());
+  ScopedWidgetCloser close_widget(dialog->GetWidget());
+
+  EXPECT_TRUE(dialog->use_dao_system_dialog_style());
+  EXPECT_EQ(ui::ButtonStyle::kProminent,
+            dialog->GetDialogButtonStyle(ui::mojom::DialogButton::kOk));
+  EXPECT_EQ(ui::ButtonStyle::kTonal,
+            dialog->GetDialogButtonStyle(ui::mojom::DialogButton::kCancel));
+  auto ok_shortcut =
+      dialog->GetButtonShortcut(ui::mojom::DialogButton::kOk);
+  auto cancel_shortcut =
+      dialog->GetButtonShortcut(ui::mojom::DialogButton::kCancel);
+  ASSERT_TRUE(ok_shortcut.has_value());
+  ASSERT_TRUE(cancel_shortcut.has_value());
+  EXPECT_EQ(u"Enter", ok_shortcut->keycap);
+  EXPECT_EQ(u"Esc", cancel_shortcut->keycap);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
+                       PromptUsesDaoTextfieldStyle) {
+  auto* dialog = JavaScriptTabModalDialogViewViews::CreateDialogForTesting(
+      browser(), u"example.com says", content::JAVASCRIPT_DIALOG_TYPE_PROMPT,
+      u"Prompt message", u"Default value");
+  ScopedWidgetCloser close_widget(dialog->GetWidget());
+  auto* prompt = views::AsViewClass<views::Textfield>(
+      dialog->GetInitiallyFocusedView());
+
+  ASSERT_NE(nullptr, prompt);
+  EXPECT_TRUE(dialog->use_dao_system_dialog_style());
+  EXPECT_EQ(u"Default value", prompt->GetText());
+  EXPECT_EQ(gfx::Insets::VH(8, 12), prompt->GetInsets());
+  EXPECT_EQ(dao::TextPrimary(), prompt->GetTextColor());
+  EXPECT_EQ(dao::IsDarkMode() ? SkColorSetRGB(63, 69, 76)
+                              : SkColorSetRGB(246, 248, 251),
+            prompt->GetBackgroundColor());
+}
+
+// =============================================================================
 // DaoSystemDialogBrowserTest
 // =============================================================================
 
@@ -8690,6 +8785,7 @@ IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
 
   EXPECT_TRUE(dialog.use_dao_system_dialog_style());
+  EXPECT_FALSE(dialog.center_in_web_contents());
   EXPECT_TRUE(HasDescendantLabelText(dialog.GetContentsView(),
                                      dao::PlatformShortcutKeycap(u"C", false)));
   EXPECT_FALSE(HasDescendantLabelText(

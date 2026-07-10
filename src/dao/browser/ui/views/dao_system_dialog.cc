@@ -282,6 +282,7 @@ void ConfigureDaoSystemDialog(views::DialogDelegate* delegate,
   }
 
   delegate->SetUseDaoSystemDialogStyle(true);
+  delegate->set_center_in_web_contents(options.center_in_web_contents);
   delegate->set_corner_radius(kDaoDialogCornerRadius);
   delegate->set_frame_margins({
       .contents = kDaoDialogContentMargins,

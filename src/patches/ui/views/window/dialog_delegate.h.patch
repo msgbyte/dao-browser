@@ -31,13 +31,17 @@ index fbfbc2da5d..6e6171014b 100644
    struct Params {
      Params();
      ~Params();
-@@ -288,6 +303,16 @@ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
+@@ -288,6 +303,20 @@ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
                 static_cast<size_t>(ui::mojom::DialogButton::kCancel) + 1>
          button_styles;
  
 +    // Dao system dialog opt-in. Defaults off so upstream Chromium dialogs keep
 +    // their existing appearance and behavior unless explicitly enabled.
 +    bool use_dao_system_dialog_style = false;
++
++    // Centers an opted-in child modal within its WebContents host. Browser
++    // and window modal dialogs ignore this setting.
++    bool center_in_web_contents = false;
 +
 +    // Optional visual and keyboard shortcut metadata for opt-in Dao system
 +    // dialog buttons.
@@ -48,13 +52,20 @@ index fbfbc2da5d..6e6171014b 100644
      // A bitmask of buttons (from ui::mojom::DialogButton) that are enabled in
      // this dialog. It's legal for a button to be marked enabled that isn't
      // present in |buttons| (see above).
-@@ -343,6 +368,18 @@ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
+@@ -343,6 +372,25 @@ class VIEWS_EXPORT DialogDelegate : public WidgetDelegate {
    // Returns the style of the specific dialog button.
    ui::ButtonStyle GetDialogButtonStyle(ui::mojom::DialogButton button) const;
  
 +  void SetUseDaoSystemDialogStyle(bool use_style);
 +  bool use_dao_system_dialog_style() const {
 +    return params_.use_dao_system_dialog_style;
++  }
++
++  void set_center_in_web_contents(bool center_in_web_contents) {
++    params_.center_in_web_contents = center_in_web_contents;
++  }
++  bool center_in_web_contents() const {
++    return params_.center_in_web_contents;
 +  }
 +
 +  void SetButtonShortcut(ui::mojom::DialogButton button,

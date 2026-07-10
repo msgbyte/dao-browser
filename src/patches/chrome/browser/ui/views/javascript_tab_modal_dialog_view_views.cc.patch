@@ -1,0 +1,134 @@
+diff --git a/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc b/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
+index e0c7c6df6f..db97367c4b 100644
+--- a/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
++++ b/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
+@@ -9,6 +9,12 @@
+ #include "chrome/browser/ui/views/title_origin_label.h"
+ #include "components/constrained_window/constrained_window_views.h"
+ #include "content/public/browser/javascript_dialog_manager.h"
++#include "dao/browser/ui/views/dao_colors.h"
++#include "dao/browser/ui/views/dao_system_dialog.h"
++#include "third_party/skia/include/core/SkColor.h"
++#include "ui/color/color_variant.h"
++#include "ui/gfx/geometry/insets.h"
++#include "ui/views/border.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/mojom/dialog_button.mojom.h"
+@@ -18,8 +24,61 @@
+ #include "ui/views/bubble/bubble_frame_view.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/message_box_view.h"
++#include "ui/views/controls/scroll_view.h"
+ #include "ui/views/controls/textfield/textfield.h"
+ #include "ui/views/layout/fill_layout.h"
++#include "ui/views/view_utils.h"
++
++namespace {
++
++constexpr float kDaoPromptCornerRadius = 10.0f;
++constexpr gfx::Insets kDaoPromptPadding = gfx::Insets::TLBR(7, 11, 7, 11);
++
++SkColor DaoPromptBackground() {
++  return dao::IsDarkMode() ? SkColorSetRGB(63, 69, 76)
++                           : SkColorSetRGB(246, 248, 251);
++}
++
++SkColor DaoPromptBorder() {
++  return dao::IsDarkMode() ? SkColorSetARGB(72, 255, 255, 255)
++                           : SkColorSetARGB(36, 32, 44, 58);
++}
++
++SkColor DaoDialogContentBackground() {
++  return dao::IsDarkMode() ? SkColorSetRGB(47, 53, 60) : SK_ColorWHITE;
++}
++
++void ConfigureDaoPromptTextfield(views::Textfield* textfield) {
++  if (!textfield) {
++    return;
++  }
++
++  textfield->SetBackgroundColor(DaoPromptBackground());
++  textfield->SetTextColor(dao::TextPrimary());
++  textfield->SetBorder(views::CreatePaddedBorder(
++      views::CreateRoundedRectBorder(
++          1, kDaoPromptCornerRadius, ui::ColorVariant(DaoPromptBorder())),
++      kDaoPromptPadding));
++}
++
++views::ScrollView* FindDescendantScrollView(views::View* root) {
++  if (!root) {
++    return nullptr;
++  }
++
++  if (auto* scroll_view = views::AsViewClass<views::ScrollView>(root)) {
++    return scroll_view;
++  }
++
++  for (views::View* child : root->children()) {
++    if (auto* scroll_view = FindDescendantScrollView(child)) {
++      return scroll_view;
++    }
++  }
++  return nullptr;
++}
++
++}  // namespace
+ 
+ JavaScriptTabModalDialogViewViews::~JavaScriptTabModalDialogViewViews() =
+     default;
+@@ -93,6 +152,13 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
+       is_alert ? static_cast<int>(ui::mojom::DialogButton::kOk)
+                : static_cast<int>(ui::mojom::DialogButton::kOk) |
+                      static_cast<int>(ui::mojom::DialogButton::kCancel));
++  dao::ConfigureDaoSystemDialog(
++      this, dao::DaoSystemDialogOptions{.center_in_web_contents = true});
++  SetButtonStyle(ui::mojom::DialogButton::kOk, ui::ButtonStyle::kProminent);
++  if (!is_alert) {
++    SetButtonStyle(ui::mojom::DialogButton::kCancel,
++                   ui::ButtonStyle::kTonal);
++  }
+ 
+   SetAcceptCallback(base::BindOnce(
+       [](JavaScriptTabModalDialogViewViews* dialog) {
+@@ -135,8 +200,14 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
+ 
+   message_box_view_ = new views::MessageBoxView(
+       message_text, /* detect_directionality = */ true);
++  if (auto* message_scroll_view =
++          FindDescendantScrollView(message_box_view_)) {
++    message_scroll_view->SetBackgroundColor(
++        ui::ColorVariant(DaoDialogContentBackground()));
++  }
+   if (dialog_type == content::JAVASCRIPT_DIALOG_TYPE_PROMPT) {
+     message_box_view_->SetPromptField(default_prompt_text);
++    ConfigureDaoPromptTextfield(message_box_view_->GetVisiblePromptField());
+   }
+ 
+   SetLayoutManager(std::make_unique<views::FillLayout>());
+@@ -151,10 +222,23 @@ JavaScriptTabModalDialogViewViews::CreateAlertDialogForTesting(
+     Browser* browser,
+     std::u16string title,
+     std::u16string message) {
++  return CreateDialogForTesting(
++      browser, std::move(title), content::JAVASCRIPT_DIALOG_TYPE_ALERT,
++      std::move(message), std::u16string());
++}
++
++// static
++JavaScriptTabModalDialogViewViews*
++JavaScriptTabModalDialogViewViews::CreateDialogForTesting(
++    Browser* browser,
++    std::u16string title,
++    content::JavaScriptDialogType dialog_type,
++    std::u16string message,
++    std::u16string default_prompt) {
+   return new JavaScriptTabModalDialogViewViews(
+       browser->tab_strip_model()->GetActiveWebContents(),
+-      browser->tab_strip_model()->GetActiveWebContents(), title,
+-      content::JAVASCRIPT_DIALOG_TYPE_ALERT, message, std::u16string(),
++      browser->tab_strip_model()->GetActiveWebContents(), title, dialog_type,
++      message, default_prompt,
+       base::NullCallback(), base::NullCallback());
+ }
+ 

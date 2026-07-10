@@ -29,6 +29,7 @@ struct DaoDialogShortcut {
 struct DaoSystemDialogOptions {
   bool show_enter_for_default = true;
   bool show_esc_for_cancel = true;
+  bool center_in_web_contents = false;
 };
 
 std::u16string PlatformShortcutKeycap(std::u16string_view key,
