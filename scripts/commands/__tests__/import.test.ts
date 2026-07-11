@@ -23,9 +23,55 @@ import {
   applyPatchWithAlreadyAppliedFallback,
   buildFixImportPatchesCommand,
   buildFixImportPatchesMessage,
+  readChromiumVersion,
+  validateChromiumVersion,
 } from '../import.js';
 
 describe('import helpers', () => {
+  it('reads a complete Chromium version file', () => {
+    const tempRoot = mkdtempSync(
+        path.join(os.tmpdir(), 'dao-import-version-'));
+    const versionPath = path.join(tempRoot, 'VERSION');
+    writeFileSync(versionPath, [
+      'MAJOR=148',
+      'MINOR=0',
+      'BUILD=7778',
+      'PATCH=217',
+      '',
+    ].join('\n'));
+
+    expect(readChromiumVersion(versionPath)).toBe('148.0.7778.217');
+  });
+
+  it('rejects a Chromium version that differs from dao.json', () => {
+    const tempRoot = mkdtempSync(
+        path.join(os.tmpdir(), 'dao-import-version-'));
+    const versionPath = path.join(tempRoot, 'VERSION');
+    writeFileSync(versionPath, [
+      'MAJOR=147',
+      'MINOR=0',
+      'BUILD=7727',
+      'PATCH=135',
+      '',
+    ].join('\n'));
+
+    expect(() => validateChromiumVersion(
+        versionPath, '148.0.7778.217')).toThrow(
+        'Chromium version mismatch: dao.json expects 148.0.7778.217, ' +
+        'but engine/src/chrome/VERSION is 147.0.7727.135.');
+  });
+
+  it('rejects a malformed Chromium version file', () => {
+    const tempRoot = mkdtempSync(
+        path.join(os.tmpdir(), 'dao-import-version-'));
+    const versionPath = path.join(tempRoot, 'VERSION');
+    writeFileSync(versionPath, 'MAJOR=148\nMINOR=0\nBUILD=7778\n');
+
+    expect(() => readChromiumVersion(versionPath)).toThrow(
+        'Invalid Chromium version file: expected numeric MAJOR, MINOR, ' +
+        'BUILD, and PATCH fields.');
+  });
+
   it('prints a copyable repair command for failed patch paths', () => {
     expect(buildFixImportPatchesCommand([
       'chrome/browser/ui/BUILD.gn.patch',

@@ -91,6 +91,51 @@ export async function applyPatchWithAlreadyAppliedFallback(
   }
 }
 
+const CHROMIUM_VERSION_FIELDS = ["MAJOR", "MINOR", "BUILD", "PATCH"] as const;
+
+export function readChromiumVersion(versionFilePath: string): string {
+  if (!existsSync(versionFilePath)) {
+    throw new Error(`Chromium version file not found: ${versionFilePath}`);
+  }
+
+  const fields = new Map<string, string>();
+  for (const line of readFileSync(versionFilePath, "utf-8").split(/\r?\n/)) {
+    const match = line.match(/^([A-Z]+)=(.*)$/);
+    if (match) {
+      fields.set(match[1], match[2]);
+    }
+  }
+
+  const values = CHROMIUM_VERSION_FIELDS.map((field) => fields.get(field));
+  if (
+    values.some(
+      (value) => value === undefined || !/^\d+$/.test(value)
+    )
+  ) {
+    throw new Error(
+      "Invalid Chromium version file: expected numeric MAJOR, MINOR, " +
+        "BUILD, and PATCH fields."
+    );
+  }
+
+  return values.join(".");
+}
+
+export function validateChromiumVersion(
+  versionFilePath: string,
+  expectedVersion: string
+): string {
+  const actualVersion = readChromiumVersion(versionFilePath);
+  if (actualVersion !== expectedVersion) {
+    throw new Error(
+      `Chromium version mismatch: dao.json expects ${expectedVersion}, ` +
+        `but engine/src/chrome/VERSION is ${actualVersion}.`
+    );
+  }
+
+  return actualVersion;
+}
+
 export const importCommand = new Command("import")
   .description("Apply patches and copy Dao code into the Chromium tree")
   .option("--patches-only", "Only apply patches, skip copying Dao source")
@@ -103,6 +148,23 @@ export const importCommand = new Command("import")
 
     if (!existsSync(srcDir)) {
       error("engine/src not found. Run 'npm run download' first.");
+      process.exit(1);
+    }
+
+    const config = loadConfig();
+    log(
+      `Validating Chromium version against dao.json ` +
+        `(${config.version.version})...`
+    );
+    try {
+      const chromiumVersion = validateChromiumVersion(
+        path.join(srcDir, "chrome", "VERSION"),
+        config.version.version
+      );
+      success(`Chromium version verified: ${chromiumVersion}`);
+    } catch (e) {
+      error((e as Error).message);
+      log("Run 'npm run download' to sync engine/src with dao.json.");
       process.exit(1);
     }
 
@@ -224,7 +286,6 @@ export const importCommand = new Command("import")
     }
 
     // Step 1.5: Inject Dao version into version_ui.cc
-    const config = loadConfig();
     const daoVersion = config.version.display;
     const versionUiPath = path.join(
       srcDir,
