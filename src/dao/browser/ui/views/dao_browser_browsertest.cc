@@ -753,6 +753,12 @@ TEST(DaoPipOverlayResizeTest, TopCornersAreOnlyResizeTargets) {
             dao::GetPipOverlayResizeTarget(gfx::Point(399, 16), overlay_size));
 }
 
+TEST(DaoPipMaximumWindowSizeTest, UsesFullDisplayWorkArea) {
+  const gfx::Rect work_area(0, 24, 1512, 958);
+
+  EXPECT_EQ(work_area.size(), dao::GetMaximumPipWindowSize(work_area));
+}
+
 TEST(DaoPipOverlayResizeTest, TopCornerResizeKeepsOppositeEdgesAnchored) {
   const gfx::Rect start_bounds(100, 100, 400, 300);
   const gfx::Point drag_start(500, 100);

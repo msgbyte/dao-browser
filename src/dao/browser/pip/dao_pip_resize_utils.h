@@ -22,6 +22,10 @@ enum class PipOverlayResizeTarget {
 
 inline constexpr int kPipOverlayCornerResizeSize = 16;
 
+inline gfx::Size GetMaximumPipWindowSize(const gfx::Rect& work_area) {
+  return work_area.size();
+}
+
 inline PipOverlayResizeTarget GetPipOverlayResizeTarget(
     const gfx::Point& point,
     const gfx::Size& overlay_size) {
