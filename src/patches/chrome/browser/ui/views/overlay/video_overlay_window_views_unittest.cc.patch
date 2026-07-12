@@ -1,0 +1,36 @@
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -434,25 +434,25 @@ TEST_F(VideoOverlayWindowViewsTest, UpdateMaximumSize) {
+   // The initial size is determined by the work area and the video natural size
+   // (aspect ratio).
+   EXPECT_EQ(gfx::Size(1200, 800), overlay_window().GetBounds().size());
+-  // The initial maximum size is 80% of the work area.
+-  EXPECT_EQ(gfx::Size(3200, 3200), overlay_window().GetMaximumSize());
++  // The initial maximum size uses the complete work area.
++  EXPECT_EQ(gfx::Size(4000, 4000), overlay_window().GetMaximumSize());
+ 
+   // If the maximum size increases then we should keep the existing window size.
+   SetDisplayWorkArea({0, 0, 8000, 8000});
+   EXPECT_EQ(gfx::Size(1200, 800), overlay_window().GetBounds().size());
+-  EXPECT_EQ(gfx::Size(6400, 6400), overlay_window().GetMaximumSize());
++  EXPECT_EQ(gfx::Size(8000, 8000), overlay_window().GetMaximumSize());
+ 
+   // If the maximum size decreases then we should shrink to fit.
+   SetDisplayWorkArea({0, 0, 1000, 2000});
+-  EXPECT_EQ(gfx::Size(800, 800), overlay_window().GetBounds().size());
+-  EXPECT_EQ(gfx::Size(800, 1600), overlay_window().GetMaximumSize());
++  EXPECT_EQ(gfx::Size(1000, 800), overlay_window().GetBounds().size());
++  EXPECT_EQ(gfx::Size(1000, 2000), overlay_window().GetMaximumSize());
+ }
+ 
+ TEST_F(VideoOverlayWindowViewsTest, IgnoreInvalidMaximumSize) {
+-  ASSERT_EQ(gfx::Size(800, 800), overlay_window().GetMaximumSize());
++  ASSERT_EQ(gfx::Size(1000, 1000), overlay_window().GetMaximumSize());
+ 
+   SetDisplayWorkArea({0, 0, 0, 0});
+-  EXPECT_EQ(gfx::Size(800, 800), overlay_window().GetMaximumSize());
++  EXPECT_EQ(gfx::Size(1000, 1000), overlay_window().GetMaximumSize());
+ }
+ 
+ TEST_F(VideoOverlayWindowViewsTest, UpdateNaturalSizeDoesNotMoveWindow) {

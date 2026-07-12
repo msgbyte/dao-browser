@@ -162,6 +162,7 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 - Patches: `back_to_tab_button.cc.patch`, `minimize_button.cc.patch`, `video_overlay_window_views.cc.patch` — Overlay button restyling
 - Patches: `video_picture_in_picture_window_controller_impl.cc.patch` — Capturer guard preventing tab throttling
 - User-interaction event forwarding via `chrome_render_widget_host_view_mac_delegate.mm.patch`
+- **Full-work-area manual resize** — Document PiP and video PiP windows can be enlarged to the display's complete usable work area; initial sizing and site-request limits remain unchanged
 
 ## 4. Split View
 

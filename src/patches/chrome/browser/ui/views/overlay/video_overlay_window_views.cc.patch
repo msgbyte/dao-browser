@@ -1,8 +1,16 @@
 diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
-index 69b2fbfbcb..d4b1761287 100644
+index 4fb1404d16..0eeca8c562 100644
 --- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 +++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
-@@ -372,6 +372,9 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
+@@ -48,6 +48,7 @@
+ #include "content/public/browser/picture_in_picture_window_controller.h"
+ #include "content/public/browser/render_frame_host.h"
+ #include "content/public/browser/web_contents.h"
++#include "dao/browser/pip/dao_pip_resize_utils.h"
+ #include "media/base/media_switches.h"
+ #include "media/base/video_util.h"
+ #include "services/media_session/public/cpp/media_image_manager.h"
+@@ -372,6 +373,9 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
    params.remove_standard_frame = true;
    params.name = "PictureInPictureWindow";
    params.layer_type = ui::LAYER_NOT_DRAWN;
@@ -12,7 +20,17 @@ index 69b2fbfbcb..d4b1761287 100644
    params.delegate = new OverlayWindowWidgetDelegate();
  
  // Fade in animation is disabled for Document and Video Picture-in-Picture on
-@@ -1409,6 +1412,9 @@ void VideoOverlayWindowViews::OnRootViewReady() {
+@@ -993,8 +997,7 @@ void VideoOverlayWindowViews::UpdateMaxSize(const gfx::Rect& work_area) {
+     return;
+   }
+ 
+-  auto new_max_size =
+-      gfx::Size(work_area.width() * 0.8, work_area.height() * 0.8);
++  auto new_max_size = dao::GetMaximumPipWindowSize(work_area);
+ 
+   // Ensure |new_max_size| is not smaller than |min_size_|, or else we will
+   // crash.
+@@ -1426,6 +1429,9 @@ void VideoOverlayWindowViews::OnRootViewReady() {
    GetRootView()->SetPaintToLayer(ui::LAYER_TEXTURED);
    GetRootView()->layer()->SetName("RootView");
    GetRootView()->layer()->SetMasksToBounds(true);
