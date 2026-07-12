@@ -1,26 +1,33 @@
 import { Command } from "commander";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync, type SpawnOptions } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
   readFileSync,
   readdirSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
 import chalk from "chalk";
 import {
   ROOT_DIR,
-  loadConfig,
+  type DaoConfig,
   log,
   success,
   warn,
   error,
   runStreaming,
+  createAbortError,
+  ProcessTerminationError,
+  waitForSpawnedProcess,
 } from "../utils.js";
+import {
+  ReleaseTransaction,
+  type ReleaseFileRestoreFailure,
+  type ReleaseTagCleanupFailure,
+} from "./release-transaction.js";
 
-interface ReleaseOptions {
+export interface ReleaseOptions {
   bump?: "patch" | "minor" | "major";
   bucket?: string;
   prefix?: string;
@@ -36,6 +43,60 @@ interface ReleaseOptions {
   // we just need to finish appcast + copy + upload.
   resumeFromStaple?: boolean;
   dryRun?: boolean;
+}
+
+export type ReleasePhase =
+  | "preflight"
+  | "version"
+  | "import"
+  | "build"
+  | "package"
+  | "notarize"
+  | "staple"
+  | "appcast"
+  | "metadata"
+  | "upload"
+  | "tag"
+  | "rollback";
+
+export class ReleaseError extends Error {
+  recovery?: ReleaseRecoveryState;
+  terminationUncertain?: ReleaseTerminationUncertain;
+  notarizationRecovery?: ReleaseNotarizationRecovery;
+
+  constructor(
+    readonly phase: ReleasePhase,
+    message: string,
+    options?: ErrorOptions
+  ) {
+    super(message, options);
+    this.name = "ReleaseError";
+  }
+}
+
+export interface ReleaseRecoveryState {
+  failedPhase: ReleasePhase;
+  oldVersion: string;
+  newVersion: string;
+  restored: string[];
+  conflicts: string[];
+  restoreFailures: ReleaseFileRestoreFailure[];
+  tagCleanupFailure: ReleaseTagCleanupFailure | null;
+  notarizationRecovery?: ReleaseNotarizationRecovery;
+  terminationUncertain?: ReleaseTerminationUncertain;
+  rollbackFailure?: string;
+  retryCommand?: string;
+}
+
+export interface ReleaseNotarizationRecovery {
+  command: string;
+  detail: string;
+}
+
+export interface ReleaseTerminationUncertain {
+  processId: number;
+  processGroupId: number;
+  detail: string;
 }
 
 const REQUIRED_UPLOAD_ENV = [
@@ -92,504 +153,934 @@ export const releaseCommand = new Command("release")
       "failure. Continues from generate_appcast onward."
   )
   .option("--dry-run", "Print steps without executing them")
-  .action(async (opts: ReleaseOptions) => {
-    // ------------------------------------------------------------------
-    // Pre-flight: fail fast on every missing piece BEFORE the hour-long
-    // build, so the operator doesn't discover a broken env at packaging
-    // time. Collect all problems first and report together — fixing one
-    // env var, restarting, then hitting the next one is the worst UX.
-    // ------------------------------------------------------------------
-    const willUpload = !opts.skipUpload;
-    const willBuild = !opts.skipBuild;
-    const bucket = opts.bucket || process.env.R2_BUCKET;
-    const problems: string[] = [];
-
-    if (willBuild) {
-      // package:release requires a Developer ID identity for codesign.
-      if (!process.env[SIGN_IDENTITY_ENV]) {
-        problems.push(
-          `Missing ${SIGN_IDENTITY_ENV} (required by package:release).\n` +
-            '  Example: export DAO_SIGN_IDENTITY="Developer ID Application: Foo Bar (TEAMID1234)"\n' +
-            "  List installed identities: security find-identity -v -p codesigning"
-        );
-      }
-      // Notarization auth: either a keychain profile, or all three of
-      // apple-id/team-id/password. Anything in between is a misconfig.
-      const hasProfile = !!process.env[NOTARIZE_PROFILE_ENV];
-      const tripleSet = NOTARIZE_TRIPLE_ENV.filter((k) => !!process.env[k]);
-      if (!hasProfile && tripleSet.length === 0) {
-        problems.push(
-          "Missing notarization credentials (required by package:release).\n" +
-            "  Set EITHER:\n" +
-            `    ${NOTARIZE_PROFILE_ENV}=<profile-name>\n` +
-            "    (created via: xcrun notarytool store-credentials <profile> ...)\n" +
-            "  OR all three of:\n" +
-            `    ${NOTARIZE_TRIPLE_ENV.join(", ")}`
-        );
-      } else if (
-        !hasProfile &&
-        tripleSet.length > 0 &&
-        tripleSet.length < NOTARIZE_TRIPLE_ENV.length
-      ) {
-        const missingTriple = NOTARIZE_TRIPLE_ENV.filter(
-          (k) => !process.env[k]
-        );
-        problems.push(
-          `Incomplete notarization credentials: missing ${missingTriple.join(
-            ", "
-          )}.\n` +
-            "  Either set all three apple-id/team-id/password vars, or use " +
-            `${NOTARIZE_PROFILE_ENV} instead.`
-        );
-      }
-      // Sparkle EdDSA signing key — generate_appcast reads this from the
-      // login keychain, but we can at least verify the binary exists now.
-      const generateAppcast = path.join(
-        ROOT_DIR,
-        "third_party",
-        "sparkle",
-        "bin",
-        "generate_appcast"
-      );
-      if (!existsSync(generateAppcast)) {
-        problems.push(
-          "third_party/sparkle/bin/generate_appcast not found.\n" +
-            "  Run `npm run sparkle:fetch` first."
-        );
-      }
+  .action(async (options: ReleaseOptions) => {
+    try {
+      const result = await runReleaseWithSignals(options);
+      printReleaseSuccess(result.newVersion);
+    } catch (cause) {
+      const failure = cause instanceof ReleaseError
+        ? cause
+        : new ReleaseError("preflight", String(cause), { cause });
+      error(formatReleaseFailure(failure));
+      process.exitCode = 1;
     }
-
-    if (willUpload) {
-      const missing = REQUIRED_UPLOAD_ENV.filter((k) => !process.env[k]);
-      if (missing.length > 0) {
-        problems.push(
-          `Missing env var(s) required for R2 upload: ${missing.join(", ")}.\n` +
-            "  Set them, or pass --skip-upload to produce artifacts only."
-        );
-      }
-      if (!bucket) {
-        problems.push(
-          "R2 bucket not specified.\n" +
-            "  Pass --bucket or set R2_BUCKET, or use --skip-upload."
-        );
-      }
-    }
-
-    if (problems.length > 0) {
-      error(
-        `Pre-flight check failed (${problems.length} issue(s)):\n\n` +
-          problems.map((p, i) => `[${i + 1}] ${p}`).join("\n\n")
-      );
-      process.exit(1);
-    }
-    success("Pre-flight check passed");
-
-    // ------------------------------------------------------------------
-    // Step 1 — bump version in dao.json (or reuse the current one when
-    // resuming a release that failed mid-way, so dao.json doesn't get
-    // double-bumped on retry).
-    // ------------------------------------------------------------------
-    const config = loadConfig();
-    const oldVersion = config.version.display;
-    let newVersion: string;
-    if (opts.skipBump) {
-      newVersion = oldVersion;
-      log(`Reusing version from dao.json: ${newVersion} (--skip-bump)`);
-    } else {
-      newVersion = bumpVersion(oldVersion, opts.bump || "patch");
-      log(`Bumping version: ${oldVersion} → ${newVersion}`);
-      if (!opts.dryRun) {
-        writeDaoVersion(newVersion);
-      }
-    }
-
-    // ------------------------------------------------------------------
-    // Step 1b — tag current HEAD as v${newVersion}, so the released
-    // artifact maps back to a specific source revision. Skipped when
-    // --skip-bump is set: that flag means we're resuming a previously
-    // failed run, where the first attempt already tagged HEAD. Re-tagging
-    // is at best a no-op (if HEAD hasn't moved) and at worst a hard
-    // error (if HEAD moved meanwhile) — neither is useful during a resume.
-    // Pushing the tag is left to the operator (see end-of-run hints).
-    // ------------------------------------------------------------------
-    if (opts.skipBump) {
-      log(`Skipping tag step (--skip-bump assumes v${newVersion} already exists)`);
-    } else {
-      const tagName = `v${newVersion}`;
-      log(`Tagging current HEAD as ${tagName}`);
-      if (opts.dryRun) {
-        console.log(`  [dry-run] git tag -a ${tagName} -m "Release ${tagName}" HEAD`);
-      } else {
-        tagCurrentCommit(tagName);
-      }
-    }
-
-    const arch = config.build.target_cpu;
-    const baseName = `dao-browser-${newVersion}-mac-${arch}`;
-    const dmgName = `${baseName}.dmg`;
-    const dmgPath = path.join(ROOT_DIR, "dist", dmgName);
-
-    // Seed dist/appcast.xml from the authoritative source before
-    // generate_appcast appends to it. dist/ is treated as ephemeral
-    // (may be wiped between runs), so we always re-seed from
-    // website/public/appcast.xml — that's the canonical history of
-    // shipped releases. Falls back to branding/appcast.template.xml
-    // only on the very first release when neither exists yet.
-    const appcastDest = path.join(ROOT_DIR, "dist", "appcast.xml");
-    const appcastPublic = path.join(
-      ROOT_DIR,
-      "website",
-      "public",
-      "appcast.xml"
-    );
-    const appcastTemplate = path.join(
-      ROOT_DIR,
-      "branding",
-      "appcast.template.xml"
-    );
-    if (existsSync(appcastPublic)) {
-      log(
-        `Seeding dist/appcast.xml from ${path.relative(
-          ROOT_DIR,
-          appcastPublic
-        )}`
-      );
-      if (!opts.dryRun) {
-        copyFileSync(appcastPublic, appcastDest);
-      }
-    } else if (existsSync(appcastTemplate)) {
-      warn(
-        `${path.relative(ROOT_DIR, appcastPublic)} not found — ` +
-          "seeding from template (first release?)."
-      );
-      if (!opts.dryRun) {
-        copyFileSync(appcastTemplate, appcastDest);
-      }
-    } else {
-      error(
-        "Cannot seed dist/appcast.xml — neither\n" +
-          `  ${path.relative(ROOT_DIR, appcastPublic)}\n` +
-          "nor\n" +
-          `  ${path.relative(ROOT_DIR, appcastTemplate)}\n` +
-          "exists. Restore one of them and rerun."
-      );
-      process.exit(1);
-    }
-
-    // ------------------------------------------------------------------
-    // Steps 2-4 — import + build + package (sign + notarize + staple)
-    //
-    // We intentionally DON'T pass --notarize/--staple to the package
-    // subcommand. notarize is run by release itself below so that on
-    // failure we can stop cleanly and print recovery instructions for
-    // the operator, rather than getting trapped inside the package
-    // subcommand's exit path. (Background: macOS occasionally rejects
-    // `xcrun notarytool submit` from a long-running process with the
-    // misleading error "No Keychain password item found". The recovery
-    // is to run that one command from your interactive shell — see
-    // printNotarizeRecoveryGuide() for the exact steps.)
-    // ------------------------------------------------------------------
-    const skipBuildPhase = opts.skipBuild || opts.resumeFromStaple;
-    if (!skipBuildPhase) {
-      const forceImport = opts.forceImport !== false;
-      const importArgs = ["tsx", "scripts/cli.ts", "import"];
-      if (forceImport) importArgs.push("--force");
-      await runStep(
-        opts.dryRun,
-        forceImport ? "Importing patches (force)" : "Importing patches",
-        "npx",
-        importArgs
-      );
-
-      await runStep(opts.dryRun, "Building (release)", "npx", [
-        "tsx",
-        "scripts/cli.ts",
-        "build",
-      ]);
-
-      // Package WITHOUT notarize/staple — release handles those itself
-      // so we can intercept notarize failures and print a recovery guide.
-      await runStep(
-        opts.dryRun,
-        "Packaging (sign only — notarize handled separately)",
-        "npx",
-        ["tsx", "scripts/cli.ts", "package", "--sign-id"]
-      );
-
-      // ----------------------------------------------------------------
-      // Step 4b — notarize the .dmg (release-controlled so we can give
-      // a useful recovery path if it fails)
-      // ----------------------------------------------------------------
-      if (!opts.dryRun) {
-        await notarizeOrGuide(dmgPath, dmgName);
-        await stapleOrGuide(dmgPath, dmgName);
-      } else {
-        log("Submitting to Apple notary service");
-        console.log(
-          `  [dry-run] xcrun notarytool submit ${dmgPath} ` +
-            `--keychain-profile $DAO_NOTARIZE_KEYCHAIN_PROFILE --wait`
-        );
-        log("Stapling notarization ticket");
-        console.log(`  [dry-run] xcrun stapler staple ${dmgPath}`);
-      }
-    } else if (opts.resumeFromStaple) {
-      // Operator already notarized + stapled the dmg manually after a
-      // failed run. Verify they actually did the staple before we keep
-      // going — otherwise generate_appcast emits a feed that points at
-      // an unnotarized dmg and Gatekeeper will block users.
-      log("Resuming from staple (verifying dmg has notarization ticket)");
-      if (!opts.dryRun) {
-        await assertStapled(dmgPath);
-      }
-    } else {
-      warn("Skipping build/package (--skip-build)");
-    }
-
-    // Sanity-check that the .dmg we expect actually exists before generating
-    // the appcast (otherwise generate_appcast walks an empty dist/ and we
-    // ship a feed without our new release).
-    if (!opts.dryRun && !existsSync(dmgPath)) {
-      error(
-        `Expected artifact not found: ${path.relative(ROOT_DIR, dmgPath)}\n` +
-          "package:release should have produced this. Inspect dist/ and rerun."
-      );
-      process.exit(1);
-    }
-
-    // ------------------------------------------------------------------
-    // Snapshot pre-existing .delta files in dist/ BEFORE generate_appcast
-    // runs, so we can distinguish "delta this run produced (or refreshed)"
-    // from "delta that's been sitting in dist/ since a previous release".
-    // Only the former needs to ship to R2 — the latter is already up there.
-    // Captures filename → mtime; we compare both presence and mtime after
-    // regen, because generate_appcast may overwrite an existing .delta if
-    // the source dmg changed.
-    // ------------------------------------------------------------------
-    const distDir = path.join(ROOT_DIR, "dist");
-    const preExistingDeltas = !opts.dryRun
-      ? snapshotDeltaMtimes(distDir)
-      : new Map<string, number>();
-
-    // ------------------------------------------------------------------
-    // Step 5 — generate_appcast dist/  (Sparkle EdDSA-signs each enclosure)
-    // ------------------------------------------------------------------
-    const generateAppcast = path.join(
-      ROOT_DIR,
-      "third_party",
-      "sparkle",
-      "bin",
-      "generate_appcast"
-    );
-    // --download-url-prefix pins the host used in every <enclosure url=...>
-    // generate_appcast writes (for both the full .dmg and every .delta it
-    // synthesizes). Without this, generate_appcast inherits the prefix
-    // from the previous enclosure in the seeded appcast, which means a
-    // single bad legacy entry (or a host migration) silently propagates
-    // forward. Artifacts ship from dao-release.msgbyte.com — keep this
-    // in sync with website/public/appcast.xml and the R2 bucket's
-    // custom-domain binding.
-    //
-    // --maximum-versions 0 preserves every <item> in the seeded appcast.
-    // Default is 3, which silently prunes older releases out of the feed
-    // each time we ship. The website's /history page reads this file to
-    // list every shipped version, so we need the full history retained.
-    await runStep(
-      opts.dryRun,
-      "Generating Sparkle appcast",
-      generateAppcast,
-      [
-        "--download-url-prefix",
-        "https://dao-release.msgbyte.com/",
-        "--maximum-versions",
-        "0",
-        path.join(ROOT_DIR, "dist"),
-      ]
-    );
-
-    // ------------------------------------------------------------------
-    // Step 5a — stamp the new <item> with the git commit this build was
-    // cut from, so anyone reading the appcast can map a shipped release
-    // back to the exact source revision. generate_appcast preserves
-    // unknown child elements on subsequent runs, so this stays put for
-    // historical items.
-    // ------------------------------------------------------------------
-    log("Stamping git commit into the new appcast <item>");
-    if (!opts.dryRun) {
-      const gitCommit = readGitHead();
-      if (gitCommit) {
-        injectGitCommitIntoAppcast(appcastDest, dmgName, gitCommit);
-      } else {
-        warn(
-          "Could not resolve git HEAD — skipping git commit stamp in appcast."
-        );
-      }
-    }
-
-    // ------------------------------------------------------------------
-    // Step 5b — copy regenerated appcast to website/public/ so the
-    // public feed (https://dao.msgbyte.com/appcast.xml) reflects the
-    // new release the next time the website deploys.
-    // ------------------------------------------------------------------
-    const websiteAppcast = path.join(
-      ROOT_DIR,
-      "website",
-      "public",
-      "appcast.xml"
-    );
-    log(
-      `Copying appcast → ${path.relative(ROOT_DIR, websiteAppcast)}`
-    );
-    if (!opts.dryRun) {
-      copyFileSync(appcastDest, websiteAppcast);
-    }
-
-    // ------------------------------------------------------------------
-    // Step 5c — update website/public/info.json so the /download route
-    // points at the new artifact. Pulled in here (not as a manual step)
-    // because forgetting it leaves the website handing out the old .dmg.
-    // ------------------------------------------------------------------
-    const infoJsonPath = path.join(
-      ROOT_DIR,
-      "website",
-      "public",
-      "info.json"
-    );
-    log(`Updating ${path.relative(ROOT_DIR, infoJsonPath)}`);
-    if (!opts.dryRun) {
-      updateInfoJson(infoJsonPath, {
-        version: newVersion,
-        chromiumVersion: config.version.version,
-        releasedAt: today(),
-      });
-    }
-
-    // ------------------------------------------------------------------
-    // Step 6 — upload .dmg + new/changed .delta files in dist/ to R2
-    //
-    // generate_appcast writes signed <enclosure> entries for delta
-    // patches alongside the full dmg; the appcast advertises both. If
-    // we don't upload the .delta files, clients fetch the appcast,
-    // pick a delta matching their current version, and hit a 404 — at
-    // which point Sparkle reports "Update Error" instead of silently
-    // falling back to the full dmg. So delta upload is not optional.
-    //
-    // Incremental upload: a .delta file ships only if it's both
-    //   (a) referenced by the freshly regenerated appcast, AND
-    //   (b) newly created by this run, OR its mtime changed (meaning
-    //       generate_appcast re-synthesized it because its source dmg
-    //       was rebuilt).
-    // Deltas that already existed before this run with unchanged mtime
-    // are assumed to be already on R2 from a previous release — they're
-    // still listed in the appcast (so the feed stays valid for older
-    // clients), but we don't re-PUT them. This makes a typical release
-    // upload one .dmg + one .delta (vs current N-version, the most
-    // common case for active users) instead of all historical deltas.
-    // ------------------------------------------------------------------
-    if (willUpload) {
-      // Whitelist delta uploads against the freshly-regenerated appcast.
-      // generate_appcast does prune unreferenced delta files into
-      // dist/old_updates/, but a resumed/partial release can leave stray
-      // .delta files in dist/ root from a previous run. Without this
-      // filter we'd silently re-upload those orphans to R2. Parse the
-      // appcast we just wrote and only ship delta filenames it actually
-      // references.
-      const referencedDeltas = !opts.dryRun
-        ? collectReferencedDeltaBasenames(appcastDest)
-        : new Set<string>();
-      const postRunDeltas = existsSync(distDir)
-        ? snapshotDeltaMtimes(distDir)
-        : new Map<string, number>();
-      const deltaPaths: string[] = [];
-      const skippedUnreferenced: string[] = [];
-      const skippedUnchanged: string[] = [];
-      for (const [name, mtime] of postRunDeltas) {
-        if (opts.dryRun) {
-          deltaPaths.push(path.join(distDir, name));
-          continue;
-        }
-        if (!referencedDeltas.has(name)) {
-          skippedUnreferenced.push(name);
-          continue;
-        }
-        const previous = preExistingDeltas.get(name);
-        const isNewOrChanged = previous === undefined || previous !== mtime;
-        if (isNewOrChanged) {
-          deltaPaths.push(path.join(distDir, name));
-        } else {
-          skippedUnchanged.push(name);
-        }
-      }
-      if (skippedUnreferenced.length > 0) {
-        warn(
-          `Skipping ${skippedUnreferenced.length} unreferenced delta file(s) ` +
-            `in dist/ (not present in appcast): ${skippedUnreferenced.join(
-              ", "
-            )}`
-        );
-      }
-      if (skippedUnchanged.length > 0) {
-        log(
-          `Skipping ${skippedUnchanged.length} unchanged delta file(s) ` +
-            `(already on R2 from a previous release): ` +
-            skippedUnchanged.join(", ")
-        );
-      }
-
-      const uploadArgs = [
-        "tsx",
-        "scripts/cli.ts",
-        "upload",
-        dmgPath,
-        ...deltaPaths,
-      ];
-      if (opts.bucket) uploadArgs.push("--bucket", opts.bucket);
-      if (opts.prefix) uploadArgs.push("--prefix", opts.prefix);
-
-      const deltaSummary =
-        deltaPaths.length > 0
-          ? ` + ${deltaPaths.length} new/changed delta(s)`
-          : " (no new delta files to upload)";
-      await runStep(
-        opts.dryRun,
-        `Uploading ${dmgName}${deltaSummary} to R2`,
-        "npx",
-        uploadArgs
-      );
-    } else {
-      warn("Skipping R2 upload (--skip-upload)");
-    }
-
-    success(`Release ${newVersion} ready.`);
-    log("Next manual steps (not done by this script):");
-    log("  - Commit + push (one-liner):");
-    log(
-      `      git add . && git commit -m "chore: dump to version v${newVersion}" && git push --follow-tags`
-    );
-    log("  - Deploy the website so dao.msgbyte.com/appcast.xml updates.");
-    log(
-      "  - (Optional) Create a GitHub Release with the .dmg from dist/."
-    );
   });
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function runStep(
+export interface ReleaseDependencies {
+  rootDir: string;
+  env: NodeJS.ProcessEnv;
+  now: () => Date;
+  head: () => string;
+  tagState: (tagName: string) => ReleaseTagState;
+  createTag: (tagName: string, commit: string) => string | Promise<string>;
+  deleteTag: (tagName: string, expectedObjectId: string) => void;
+  createTransaction?: (paths: string[]) => ReleaseTransaction;
+  runPhase: (
+    phase: ReleasePhase,
+    context: ReleasePhaseContext
+  ) => Promise<void>;
+  signal?: AbortSignal;
+}
+
+export interface ReleasePhaseContext {
+  options: ReleaseOptions;
+  oldVersion: string;
+  newVersion: string;
+  releaseHead: string;
+  dmgPath: string;
+  appcastPath: string;
+  signal?: AbortSignal;
+}
+
+export interface ReleaseResult {
+  oldVersion: string;
+  newVersion: string;
+}
+
+export type ReleaseCommandRunner = (
+  cmd: string,
+  args: string[],
+  opts?: { signal?: AbortSignal }
+) => Promise<number>;
+
+function buildReleasePhaseContext(
+  rootDir: string,
+  options: ReleaseOptions,
+  oldVersion: string,
+  newVersion: string,
+  releaseHead: string,
+  config: DaoConfig,
+  signal?: AbortSignal
+): ReleasePhaseContext {
+  const baseName =
+    "dao-browser-" + newVersion + "-mac-" + config.build.target_cpu;
+  return {
+    options,
+    oldVersion,
+    newVersion,
+    releaseHead,
+    dmgPath: path.join(rootDir, "dist", baseName + ".dmg"),
+    appcastPath: path.join(rootDir, "dist", "appcast.xml"),
+    signal,
+  };
+}
+
+function throwIfReleaseAborted(
+  signal: AbortSignal | undefined,
+  phase: ReleasePhase
+): void {
+  if (!signal?.aborted) return;
+  const reason = signal.reason;
+  const message = reason instanceof Error
+    ? reason.message
+    : String(reason || "Release interrupted.");
+  throw new ReleaseError(phase, message, { cause: reason });
+}
+
+function normalizeReleaseFailure(
+  cause: unknown,
+  phase: ReleasePhase,
+  signal?: AbortSignal
+): ReleaseError {
+  if (cause instanceof ReleaseError) return cause;
+  if (cause instanceof ProcessTerminationError) {
+    const failure = new ReleaseError(phase, cause.message, { cause });
+    failure.terminationUncertain = {
+      processId: cause.processId,
+      processGroupId: cause.processGroupId,
+      detail: cause.message,
+    };
+    return failure;
+  }
+  if (signal?.aborted) {
+    const reason = signal.reason;
+    const message = reason instanceof Error
+      ? reason.message
+      : String(reason || "Release interrupted.");
+    return new ReleaseError(phase, message, { cause });
+  }
+  return new ReleaseError(phase, String(cause), { cause });
+}
+
+function yieldToPendingSignals(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+export function plannedReleasePhases(
+  options: ReleaseOptions
+): ReleasePhase[] {
+  const phases: ReleasePhase[] = [];
+  if (!options.skipBuild && !options.resumeFromStaple) {
+    phases.push("import", "build", "package", "notarize", "staple");
+  } else if (options.resumeFromStaple) {
+    phases.push("staple");
+  }
+  phases.push("appcast", "metadata");
+  if (!options.skipUpload) phases.push("upload");
+  phases.push("tag");
+  return phases;
+}
+
+function collectReleasePreflightProblems(
+  options: ReleaseOptions,
+  rootDir: string,
+  env: NodeJS.ProcessEnv,
+  config: DaoConfig
+): string[] {
+  const willUpload = !options.skipUpload;
+  const willBuild = !options.skipBuild;
+  const bucket = options.bucket || env.R2_BUCKET;
+  const problems: string[] = [];
+  void config;
+
+  if (willBuild) {
+    if (!env[SIGN_IDENTITY_ENV]) {
+      problems.push(
+        `Missing ${SIGN_IDENTITY_ENV} (required by package:release).\n` +
+          '  Example: export DAO_SIGN_IDENTITY="Developer ID Application: Foo Bar (TEAMID1234)"\n' +
+          "  List installed identities: security find-identity -v -p codesigning"
+      );
+    }
+    const hasProfile = !!env[NOTARIZE_PROFILE_ENV];
+    const tripleSet = NOTARIZE_TRIPLE_ENV.filter((key) => !!env[key]);
+    if (!hasProfile && tripleSet.length === 0) {
+      problems.push(
+        "Missing notarization credentials (required by package:release).\n" +
+          "  Set EITHER:\n" +
+          `    ${NOTARIZE_PROFILE_ENV}=<profile-name>\n` +
+          "    (created via: xcrun notarytool store-credentials <profile> ...)\n" +
+          "  OR all three of:\n" +
+          `    ${NOTARIZE_TRIPLE_ENV.join(", ")}`
+      );
+    } else if (
+      !hasProfile &&
+      tripleSet.length > 0 &&
+      tripleSet.length < NOTARIZE_TRIPLE_ENV.length
+    ) {
+      const missingTriple = NOTARIZE_TRIPLE_ENV.filter((key) => !env[key]);
+      problems.push(
+        `Incomplete notarization credentials: missing ${missingTriple.join(
+          ", "
+        )}.\n` +
+          "  Either set all three apple-id/team-id/password vars, or use " +
+          `${NOTARIZE_PROFILE_ENV} instead.`
+      );
+    }
+  }
+
+  const generateAppcast = path.join(
+    rootDir,
+    "third_party",
+    "sparkle",
+    "bin",
+    "generate_appcast"
+  );
+  if (!existsSync(generateAppcast)) {
+    problems.push(
+      "third_party/sparkle/bin/generate_appcast not found.\n" +
+        "  Run `npm run sparkle:fetch` first."
+    );
+  }
+
+  if (willUpload) {
+    const missing = REQUIRED_UPLOAD_ENV.filter((key) => !env[key]);
+    if (missing.length > 0) {
+      problems.push(
+        `Missing env var(s) required for R2 upload: ${missing.join(", ")}.\n` +
+          "  Set them, or pass --skip-upload to produce artifacts only."
+      );
+    }
+    if (!bucket) {
+      problems.push(
+        "R2 bucket not specified.\n" +
+          "  Pass --bucket or set R2_BUCKET, or use --skip-upload."
+      );
+    }
+  }
+
+  const publicAppcast = path.join(rootDir, "website/public/appcast.xml");
+  const appcastTemplate = path.join(rootDir, "branding/appcast.template.xml");
+  if (!existsSync(publicAppcast) && !existsSync(appcastTemplate)) {
+    problems.push(
+      "Cannot seed dist/appcast.xml — neither\n" +
+        `  ${path.relative(rootDir, publicAppcast)}\n` +
+        "nor\n" +
+        `  ${path.relative(rootDir, appcastTemplate)}\n` +
+        "exists. Restore one of them and rerun."
+    );
+  }
+  return problems;
+}
+
+function runReleasePreflight(
+  options: ReleaseOptions,
+  dependencies: ReleaseDependencies,
+  config: DaoConfig,
+  tagName: string,
+  releaseHead: string,
+  tag: ReleaseTagState
+): void {
+  const problems = collectReleasePreflightProblems(
+    options,
+    dependencies.rootDir,
+    dependencies.env,
+    config
+  );
+  if (!/^[0-9a-f]{40}$/i.test(releaseHead)) {
+    problems.push("Could not resolve a valid git HEAD — refusing to release.");
+  }
+  if (tag.exists && tag.commit !== releaseHead) {
+    problems.push(
+      "Tag " +
+        tagName +
+        " points at " +
+        tag.commit +
+        ", not HEAD (" +
+        releaseHead +
+        ")."
+    );
+  }
+  if (problems.length) {
+    throw new ReleaseError("preflight", problems.join("\n\n"));
+  }
+}
+
+function readReleaseConfig(
+  rootDir: string,
+  snapshot: Buffer | null
+): DaoConfig {
+  const configPath = path.join(rootDir, "dao.json");
+  try {
+    if (!snapshot) throw new Error("file does not exist");
+    const config = JSON.parse(snapshot.toString("utf-8")) as DaoConfig;
+    if (
+      !config?.version?.display ||
+      !config.version.version ||
+      !config?.build?.target_cpu
+    ) {
+      throw new Error("required release fields are missing");
+    }
+    return config;
+  } catch (cause) {
+    throw new ReleaseError(
+      "preflight",
+      `Failed to read ${path.relative(rootDir, configPath)}: ${String(cause)}`,
+      { cause }
+    );
+  }
+}
+
+function readReleaseProvenance(
+  dependencies: ReleaseDependencies,
+  tagName: string
+): { releaseHead: string; tag: ReleaseTagState } {
+  try {
+    return {
+      releaseHead: dependencies.head(),
+      tag: { ...dependencies.tagState(tagName) },
+    };
+  } catch (cause) {
+    throw new ReleaseError(
+      "preflight",
+      "Failed to inspect release provenance: " + String(cause),
+      { cause }
+    );
+  }
+}
+
+function equalTagState(
+  left: ReleaseTagState,
+  right: ReleaseTagState
+): boolean {
+  return (
+    left.exists === right.exists &&
+    (!left.exists || (
+      left.commit === right.commit && left.objectId === right.objectId
+    ))
+  );
+}
+
+function revalidateReleaseProvenance(
+  dependencies: ReleaseDependencies,
+  tagName: string,
+  releaseHead: string,
+  initialTag: ReleaseTagState
+): void {
+  let currentHead: string;
+  let currentTag: ReleaseTagState;
+  try {
+    currentHead = dependencies.head();
+    currentTag = { ...dependencies.tagState(tagName) };
+  } catch (cause) {
+    throw new ReleaseError(
+      "tag",
+      "Failed to revalidate release provenance: " + String(cause),
+      { cause }
+    );
+  }
+  if (currentHead !== releaseHead) {
+    throw new ReleaseError(
+      "tag",
+      `HEAD moved from ${releaseHead} to ${currentHead} during release.`
+    );
+  }
+  if (!equalTagState(initialTag, currentTag)) {
+    throw new ReleaseError(
+      "tag",
+      `Tag ${tagName} changed during release.`
+    );
+  }
+}
+
+function createReleaseTransaction(
+  paths: string[],
+  dependencies: ReleaseDependencies
+): ReleaseTransaction {
+  try {
+    return dependencies.createTransaction
+      ? dependencies.createTransaction(paths)
+      : new ReleaseTransaction(paths);
+  } catch (cause) {
+    throw new ReleaseError(
+      "preflight",
+      "Failed to initialize release transaction: " + String(cause),
+      { cause }
+    );
+  }
+}
+
+function applyCanonicalPhaseMutation(
+  phase: ReleasePhase,
+  context: ReleasePhaseContext,
+  transaction: ReleaseTransaction,
+  publicAppcast: string,
+  infoPath: string,
+  chromiumVersion: string,
+  now: Date
+): void {
+  if (context.options.dryRun) return;
+  if (phase === "appcast") {
+    transaction.writeFile(publicAppcast, readFileSync(context.appcastPath));
+  }
+  if (phase === "metadata") {
+    const originalInfo = transaction.originalFileContents(infoPath);
+    if (!originalInfo) {
+      throw new ReleaseError("metadata", `info.json not found: ${infoPath}`);
+    }
+    transaction.writeFile(infoPath, updateInfoJsonContents(
+      originalInfo,
+      {
+        version: context.newVersion,
+        chromiumVersion,
+        releasedAt: formatReleaseDate(now),
+      }
+    ));
+    success(
+      `info.json → version ${context.newVersion}, ` +
+        `releasedAt ${formatReleaseDate(now)}`
+    );
+  }
+}
+
+export async function runRelease(
+  options: ReleaseOptions,
+  dependencies: ReleaseDependencies = defaultReleaseDependencies
+): Promise<ReleaseResult> {
+  const daoPath = path.join(dependencies.rootDir, "dao.json");
+  const publicAppcast = path.join(
+    dependencies.rootDir,
+    "website/public/appcast.xml"
+  );
+  const infoPath = path.join(dependencies.rootDir, "website/public/info.json");
+  const transaction = createReleaseTransaction(
+    [daoPath, publicAppcast, infoPath],
+    dependencies
+  );
+  const config = readReleaseConfig(
+    dependencies.rootDir,
+    transaction.originalFileContents(daoPath)
+  );
+  const oldVersion = config.version.display;
+  const newVersion = options.skipBump
+    ? oldVersion
+    : bumpVersion(oldVersion, options.bump || "patch");
+  const tagName = "v" + newVersion;
+  const provenance = readReleaseProvenance(dependencies, tagName);
+
+  runReleasePreflight(
+    options,
+    dependencies,
+    config,
+    tagName,
+    provenance.releaseHead,
+    provenance.tag
+  );
+  success("Pre-flight check passed");
+  let currentPhase: ReleasePhase = "version";
+
+  try {
+    throwIfReleaseAborted(dependencies.signal, currentPhase);
+    if (options.skipBump) {
+      log(`Reusing version from dao.json: ${newVersion} (--skip-bump)`);
+    } else {
+      log(`Bumping version: ${oldVersion} → ${newVersion}`);
+      if (!options.dryRun) {
+        const originalDao = transaction.originalFileContents(daoPath);
+        if (!originalDao) {
+          throw new ReleaseError("version", "dao.json does not exist");
+        }
+        transaction.writeFile(
+          daoPath,
+          writeDaoVersionContents(originalDao, newVersion)
+        );
+        success(`dao.json version.display → ${newVersion}`);
+      }
+    }
+    const context = buildReleasePhaseContext(
+      dependencies.rootDir,
+      options,
+      oldVersion,
+      newVersion,
+      provenance.releaseHead,
+      config,
+      dependencies.signal
+    );
+    if (options.skipBuild && !options.resumeFromStaple) {
+      warn("Skipping build/package (--skip-build)");
+    }
+    if (options.skipUpload) {
+      warn("Skipping R2 upload (--skip-upload)");
+    }
+    for (const phase of plannedReleasePhases(options)) {
+      currentPhase = phase;
+      throwIfReleaseAborted(dependencies.signal, currentPhase);
+      await dependencies.runPhase(phase, context);
+      throwIfReleaseAborted(dependencies.signal, currentPhase);
+      applyCanonicalPhaseMutation(
+        phase,
+        context,
+        transaction,
+        publicAppcast,
+        infoPath,
+        config.version.version,
+        dependencies.now()
+      );
+    }
+    currentPhase = "tag";
+    await yieldToPendingSignals();
+    throwIfReleaseAborted(dependencies.signal, currentPhase);
+    revalidateReleaseProvenance(
+      dependencies,
+      tagName,
+      provenance.releaseHead,
+      provenance.tag
+    );
+    if (!options.skipBump && !provenance.tag.exists) {
+      if (options.dryRun) {
+        console.log(
+          `  [dry-run] git tag -a ${tagName} -m "Release ${tagName}" ${provenance.releaseHead}`
+        );
+      } else {
+        const tagObjectId = await dependencies.createTag(
+          tagName,
+          provenance.releaseHead
+        );
+        if (!/^[0-9a-f]{40}$/i.test(tagObjectId)) {
+          throw new ReleaseError(
+            "tag",
+            `Tag creation returned an invalid object ID: ${tagObjectId}`
+          );
+        }
+        transaction.markTagCreated(tagName, tagObjectId);
+      }
+    }
+    await yieldToPendingSignals();
+    throwIfReleaseAborted(dependencies.signal, currentPhase);
+    transaction.commit();
+    return { oldVersion, newVersion };
+  } catch (cause) {
+    const failure = normalizeReleaseFailure(
+      cause,
+      currentPhase,
+      dependencies.signal
+    );
+    let rollback: ReturnType<ReleaseTransaction["rollback"]>;
+    try {
+      rollback = transaction.rollback(dependencies.deleteTag);
+    } catch (rollbackCause) {
+      const rollbackFailure = rollbackCause instanceof Error
+        ? rollbackCause
+        : new Error(String(rollbackCause));
+      const rollbackError = new ReleaseError(
+        "rollback",
+        `Release failed during ${failure.phase}; rollback failed: ` +
+          rollbackFailure.message,
+        {
+          cause: new AggregateError(
+            [failure, rollbackFailure],
+            "Release and rollback both failed"
+          ),
+        }
+      );
+      rollbackError.recovery = {
+        failedPhase: failure.phase,
+        oldVersion,
+        newVersion,
+        restored: [],
+        conflicts: [],
+        restoreFailures: [],
+        tagCleanupFailure: null,
+        notarizationRecovery: failure.notarizationRecovery,
+        terminationUncertain: failure.terminationUncertain,
+        rollbackFailure: rollbackFailure.message,
+        retryCommand: formatReleaseRetryCommand(options),
+      };
+      throw rollbackError;
+    }
+    if (
+      rollback.conflicts.length ||
+      rollback.restoreFailures.length ||
+      rollback.tagCleanupFailure
+    ) {
+      const rollbackError = new ReleaseError(
+        "rollback",
+        `Rollback incomplete after release failed during ${failure.phase}.`,
+        { cause: failure }
+      );
+      rollbackError.recovery = {
+        failedPhase: failure.phase,
+        oldVersion,
+        newVersion,
+        restored: rollback.restored,
+        conflicts: rollback.conflicts,
+        restoreFailures: rollback.restoreFailures,
+        tagCleanupFailure: rollback.tagCleanupFailure,
+        notarizationRecovery: failure.notarizationRecovery,
+        terminationUncertain: failure.terminationUncertain,
+        retryCommand: formatReleaseRetryCommand(options),
+      };
+      throw rollbackError;
+    }
+    failure.recovery = {
+      failedPhase: failure.phase,
+      oldVersion,
+      newVersion,
+      restored: rollback.restored,
+      conflicts: [],
+      restoreFailures: [],
+      tagCleanupFailure: null,
+      notarizationRecovery: failure.notarizationRecovery,
+      terminationUncertain: failure.terminationUncertain,
+      retryCommand: formatReleaseRetryCommand(options),
+    };
+    throw failure;
+  }
+}
+
+export async function runReleaseWithSignals(
+  options: ReleaseOptions,
+  dependencies: ReleaseDependencies = defaultReleaseDependencies
+): Promise<ReleaseResult> {
+  const controller = new AbortController();
+  const onSigint = () => {
+    controller.abort(new Error("Release interrupted by SIGINT."));
+  };
+  const onSigterm = () => {
+    controller.abort(new Error("Release interrupted by SIGTERM."));
+  };
+  process.once("SIGINT", onSigint);
+  process.once("SIGTERM", onSigterm);
+  try {
+    const signal = dependencies.signal
+      ? AbortSignal.any([controller.signal, dependencies.signal])
+      : controller.signal;
+    return await runRelease(options, {
+      ...dependencies,
+      signal,
+    });
+  } finally {
+    process.off("SIGINT", onSigint);
+    process.off("SIGTERM", onSigterm);
+  }
+}
+
+export function formatReleaseFailure(failure: ReleaseError): string {
+  const recovery = failure.recovery;
+  if (!recovery) {
+    return `Release failed during ${failure.phase}: ${failure.message}`;
+  }
+  let releaseCause: unknown = failure;
+  if (failure.phase === "rollback") {
+    if (failure.cause instanceof ReleaseError) {
+      releaseCause = failure.cause;
+    } else if (failure.cause instanceof AggregateError) {
+      releaseCause = failure.cause.errors.find(
+        (cause) => cause instanceof ReleaseError
+      ) || failure;
+    }
+  }
+  const releaseMessage = releaseCause instanceof Error
+    ? releaseCause.message
+    : String(releaseCause);
+  const lines = [
+    `Release failed during ${recovery.failedPhase}: ${releaseMessage}`,
+  ];
+  const terminationUncertain = recovery.terminationUncertain;
+  const metadataIncomplete = !!(
+    recovery.rollbackFailure ||
+    recovery.conflicts.length ||
+    recovery.restoreFailures.length
+  );
+  const rollbackIncomplete = metadataIncomplete || !!recovery.tagCleanupFailure;
+  const retryCommand = recovery.retryCommand || "npm run release";
+  if (recovery.rollbackFailure) {
+    lines.push(
+      "Automatic rollback failed unexpectedly; canonical release metadata " +
+        "may not be fully restored: " +
+        `rollback failed: ${recovery.rollbackFailure}`
+    );
+  }
+  if (metadataIncomplete) {
+    lines.push("Canonical release metadata was not fully restored.");
+    if (recovery.restored.length > 0) {
+      lines.push("Successfully restored paths:");
+      lines.push(...recovery.restored.map((filePath) => `  - ${filePath}`));
+    }
+  }
+  if (recovery.conflicts.length > 0) {
+    lines.push("Rollback conflicts:");
+    lines.push(...recovery.conflicts.map((filePath) => `  - ${filePath}`));
+  }
+  if (recovery.restoreFailures.length > 0) {
+    lines.push("File restore failures:");
+    lines.push(...recovery.restoreFailures.map(
+      (restoreFailure) =>
+        `  - Failed to restore ${restoreFailure.path}: ` +
+        restoreFailure.message
+    ));
+  }
+  if (recovery.tagCleanupFailure) {
+    lines.push(
+      `Tag cleanup failed for ${recovery.tagCleanupFailure.tagName}: ` +
+        recovery.tagCleanupFailure.message
+    );
+    lines.push(
+      `Manually inspect release tag ${recovery.tagCleanupFailure.tagName} ` +
+      "before retrying."
+    );
+  }
+  if (rollbackIncomplete && recovery.notarizationRecovery) {
+    lines.push(
+      "Inspect every listed file and tag before attempting manual recovery."
+    );
+  }
+  if (!metadataIncomplete) {
+    if (terminationUncertain) {
+      lines.push(
+        "Canonical metadata rollback completed, but the old process may " +
+          "write again; the restored version at rollback time was " +
+          `${recovery.oldVersion}.`
+      );
+    } else {
+      lines.push(
+        `Restored canonical release metadata to ${recovery.oldVersion}.`
+      );
+    }
+  }
+  lines.push(
+    "Any generated files in dist/ and any Apple notarization or R2 side " +
+      "effects were left in place and were not rolled back."
+  );
+  if (terminationUncertain) {
+    lines.push(
+      "The active release subprocess or process group may still be running " +
+        `(PID ${terminationUncertain.processId}, ` +
+        `PGID ${terminationUncertain.processGroupId}).`
+    );
+    lines.push(`Termination detail: ${terminationUncertain.detail}`);
+    lines.push(
+      "Confirm and terminate the old release process group before retrying."
+    );
+    return lines.join("\n");
+  }
+  if (recovery.notarizationRecovery && !rollbackIncomplete) {
+    lines.push(recovery.notarizationRecovery.detail);
+    lines.push("Recovery command (safe after the clean rollback above):");
+    lines.push(recovery.notarizationRecovery.command);
+    return lines.join("\n");
+  }
+  if (rollbackIncomplete) {
+    if (retryCommand === "npm run release") {
+      lines.push(
+        "After resolving the rollback problem, a normal npm run release " +
+          `retries candidate ${recovery.newVersion}.`
+      );
+    } else {
+      lines.push(
+        `After resolving the rollback problem, retry candidate ${recovery.newVersion} with:`
+      );
+      lines.push(retryCommand);
+    }
+  } else {
+    if (retryCommand === "npm run release") {
+      lines.push(
+        `Run npm run release normally to retry candidate ${recovery.newVersion}.`
+      );
+    } else {
+      lines.push(`Retry candidate ${recovery.newVersion} with:`);
+      lines.push(retryCommand);
+    }
+  }
+  return lines.join("\n");
+}
+
+function shellQuoteReleaseArgument(value: string): string {
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+export function formatReleaseRetryCommand(
+  options: ReleaseOptions,
+  overrides: {resumeFromStaple?: boolean} = {}
+): string {
+  const args: string[] = [];
+  if (options.bump && options.bump !== "patch") {
+    args.push("--bump", options.bump);
+  }
+  if (options.bucket) args.push("--bucket", options.bucket);
+  if (options.prefix) args.push("--prefix", options.prefix);
+  if (options.skipUpload) args.push("--skip-upload");
+  if (options.skipBuild) args.push("--skip-build");
+  if (options.forceImport === false) args.push("--no-force-import");
+  if (options.skipBump) args.push("--skip-bump");
+  if (overrides.resumeFromStaple ?? options.resumeFromStaple) {
+    args.push("--resume-from-staple");
+  }
+  if (options.dryRun) args.push("--dry-run");
+  return args.length > 0
+    ? "npm run release -- " + args.map(shellQuoteReleaseArgument).join(" ")
+    : "npm run release";
+}
+
+function printReleaseSuccess(newVersion: string): void {
+  success(`Release ${newVersion} ready.`);
+  log("Next manual steps (not done by this script):");
+  log("  - Commit + push (one-liner):");
+  log(
+    `      git add . && git commit -m "chore: dump to version v${newVersion}" && git push --follow-tags`
+  );
+  log("  - Deploy the website so dao.msgbyte.com/appcast.xml updates.");
+  log("  - (Optional) Create a GitHub Release with the .dmg from dist/.");
+}
+
+export function importReleaseSources(
+  context: ReleasePhaseContext,
+  runner: ReleaseCommandRunner = runStreaming
+): Promise<void> {
+  const forceImport = context.options.forceImport !== false;
+  const args = ["tsx", "scripts/cli.ts", "import"];
+  if (forceImport) args.push("--force");
+  return runReleaseStep(
+    "import",
+    context.options.dryRun,
+    forceImport ? "Importing patches (force)" : "Importing patches",
+    "npx",
+    args,
+    runner,
+    context.signal
+  );
+}
+
+export function buildReleaseApplication(
+  context: ReleasePhaseContext,
+  runner: ReleaseCommandRunner = runStreaming
+): Promise<void> {
+  return runReleaseStep(
+    "build",
+    context.options.dryRun,
+    "Building (release)",
+    "npx",
+    ["tsx", "scripts/cli.ts", "build"],
+    runner,
+    context.signal
+  );
+}
+
+export function packageReleaseArtifact(
+  context: ReleasePhaseContext,
+  runner: ReleaseCommandRunner = runStreaming
+): Promise<void> {
+  return runReleaseStep(
+    "package",
+    context.options.dryRun,
+    "Packaging (sign only — notarize handled separately)",
+    "npx",
+    ["tsx", "scripts/cli.ts", "package", "--sign-id"],
+    runner,
+    context.signal
+  );
+}
+
+const defaultReleaseDependencies: ReleaseDependencies = {
+  rootDir: ROOT_DIR,
+  env: process.env,
+  now: () => new Date(),
+  head: () => readGitHead(ROOT_DIR) || "",
+  tagState: (tagName) => inspectReleaseTag(ROOT_DIR, tagName),
+  createTag: (tagName, commit) => createReleaseTag(ROOT_DIR, tagName, commit),
+  deleteTag: (tagName, expectedObjectId) =>
+    deleteReleaseTag(ROOT_DIR, tagName, expectedObjectId),
+  runPhase: async (phase, context) => {
+    switch (phase) {
+      case "import":
+        await importReleaseSources(context);
+        return;
+      case "build":
+        await buildReleaseApplication(context);
+        return;
+      case "package":
+        await packageReleaseArtifact(context);
+        return;
+      case "notarize":
+        if (!context.options.dryRun) {
+          await notarizeOrGuide(
+            context.dmgPath,
+            path.basename(context.dmgPath),
+            context.options,
+            context.signal
+          );
+        } else {
+          log("Submitting to Apple notary service");
+          console.log(
+            `  [dry-run] xcrun notarytool submit ${context.dmgPath} ` +
+              "--keychain-profile $DAO_NOTARIZE_KEYCHAIN_PROFILE --wait"
+          );
+        }
+        return;
+      case "staple":
+        if (context.options.resumeFromStaple) {
+          log("Resuming from staple (verifying dmg has notarization ticket)");
+          if (!context.options.dryRun) {
+            await assertStapled(
+              context.dmgPath,
+              context.options,
+              context.signal
+            );
+          }
+        } else if (!context.options.dryRun) {
+          await stapleOrGuide(
+            context.dmgPath,
+            path.basename(context.dmgPath),
+            context.options,
+            context.signal
+          );
+        } else {
+          log("Stapling notarization ticket");
+          console.log(`  [dry-run] xcrun stapler staple ${context.dmgPath}`);
+        }
+        return;
+      case "appcast":
+        await generateReleaseAppcast(context, defaultReleaseDependencies);
+        return;
+      case "upload":
+        await uploadReleaseArtifacts(context, defaultReleaseDependencies);
+        return;
+      case "metadata":
+      case "tag":
+        return;
+      default:
+        throw new ReleaseError(
+          phase,
+          "Unsupported release phase: " + phase
+        );
+    }
+  },
+};
+
+export async function runReleaseStep(
+  phase: ReleasePhase,
   dryRun: boolean | undefined,
   description: string,
   cmd: string,
-  args: string[]
+  args: string[],
+  runner: ReleaseCommandRunner = runStreaming,
+  signal?: AbortSignal
 ): Promise<void> {
   log(description);
   if (dryRun) {
     console.log(`  [dry-run] ${cmd} ${args.join(" ")}`);
     return;
   }
-  const code = await runStreaming(cmd, args);
+  const code = await runner(cmd, args, { signal });
   if (code !== 0) {
-    error(`Step failed (${description}): ${cmd} exited with code ${code}`);
-    process.exit(1);
+    throw new ReleaseError(
+      phase,
+      `Step failed (${description}): ${cmd} exited with code ${code}`
+    );
   }
 }
 
@@ -599,10 +1090,10 @@ function bumpVersion(
 ): string {
   const m = current.match(/^(\d+)\.(\d+)\.(\d+)(.*)$/);
   if (!m) {
-    error(
+    throw new ReleaseError(
+      "version",
       `Cannot parse version "${current}" — expected MAJOR.MINOR.PATCH form.`
     );
-    process.exit(1);
   }
   let major = parseInt(m[1], 10);
   let minor = parseInt(m[2], 10);
@@ -620,9 +1111,11 @@ function bumpVersion(
   return `${major}.${minor}.${patch}`;
 }
 
-function writeDaoVersion(newVersion: string): void {
-  const configPath = path.join(ROOT_DIR, "dao.json");
-  const raw = readFileSync(configPath, "utf-8");
+function writeDaoVersionContents(
+  snapshot: Buffer,
+  newVersion: string
+): Buffer {
+  const raw = snapshot.toString("utf-8");
   // Preserve formatting by doing a targeted regex replacement on the
   // version.display field rather than reserializing JSON.
   const updated = raw.replace(
@@ -630,11 +1123,12 @@ function writeDaoVersion(newVersion: string): void {
     `$1${newVersion}$2`
   );
   if (updated === raw) {
-    error("Failed to update version.display in dao.json");
-    process.exit(1);
+    throw new ReleaseError(
+      "version",
+      "Failed to update version.display in dao.json"
+    );
   }
-  writeFileSync(configPath, updated);
-  success(`dao.json version.display → ${newVersion}`);
+  return Buffer.from(updated);
 }
 
 interface InfoJsonUpdate {
@@ -650,10 +1144,20 @@ interface InfoJsonUpdate {
 // the leading $schema description, and any future fields we don't recognize.
 export function updateInfoJson(filePath: string, update: InfoJsonUpdate): void {
   if (!existsSync(filePath)) {
-    error(`info.json not found: ${filePath}`);
-    process.exit(1);
+    throw new ReleaseError("metadata", `info.json not found: ${filePath}`);
   }
-  const raw = readFileSync(filePath, "utf-8");
+  const updated = updateInfoJsonContents(readFileSync(filePath), update);
+  writeFileSync(filePath, updated);
+  success(
+    `info.json → version ${update.version}, releasedAt ${update.releasedAt}`
+  );
+}
+
+function updateInfoJsonContents(
+  snapshot: Buffer,
+  update: InfoJsonUpdate
+): Buffer {
+  const raw = snapshot.toString("utf-8");
   const parsed = JSON.parse(raw) as {
     version: string;
     chromiumVersion?: string;
@@ -662,8 +1166,7 @@ export function updateInfoJson(filePath: string, update: InfoJsonUpdate): void {
   };
   const oldVersion = parsed.version;
   if (!oldVersion) {
-    error("info.json has no `version` field");
-    process.exit(1);
+    throw new ReleaseError("metadata", "info.json has no `version` field");
   }
 
   let next = raw;
@@ -684,12 +1187,9 @@ export function updateInfoJson(filePath: string, update: InfoJsonUpdate): void {
 
   if (next === raw) {
     warn("info.json unchanged (already up-to-date?)");
-    return;
+    return Buffer.from(snapshot);
   }
-  writeFileSync(filePath, next);
-  success(
-    `info.json → version ${update.version}, releasedAt ${update.releasedAt}`
-  );
+  return Buffer.from(next);
 }
 
 function replaceField(raw: string, key: string, value: string): string {
@@ -703,11 +1203,10 @@ function jsonStringLiteral(s: string): string {
   return JSON.stringify(s);
 }
 
-function today(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
+function formatReleaseDate(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -715,9 +1214,9 @@ function today(): string {
 // Stamp the build's git commit into the freshly generated appcast <item>
 // ---------------------------------------------------------------------------
 
-function readGitHead(): string | null {
+function readGitHead(rootDir: string): string | null {
   const r = spawnSync("git", ["rev-parse", "HEAD"], {
-    cwd: ROOT_DIR,
+    cwd: rootDir,
     encoding: "utf-8",
   });
   if (r.status !== 0) return null;
@@ -725,50 +1224,126 @@ function readGitHead(): string | null {
   return /^[0-9a-f]{40}$/i.test(hash) ? hash : null;
 }
 
-// Create an annotated tag on HEAD. Idempotent: if the tag already exists
-// and points at HEAD, no-op; if it points elsewhere, error out so we
-// don't silently retag a different commit (which would orphan the
-// previously released artifact from the tag that used to identify it).
-function tagCurrentCommit(tagName: string): void {
-  const head = readGitHead();
-  if (!head) {
-    error("Could not resolve git HEAD — refusing to tag.");
-    process.exit(1);
-  }
+export interface ReleaseTagState {
+  exists: boolean;
+  commit?: string;
+  objectId?: string;
+}
 
-  const existing = spawnSync(
+export function inspectReleaseTag(
+  rootDir: string,
+  tagName: string
+): ReleaseTagState {
+  const object = spawnSync(
     "git",
     ["rev-parse", "--verify", `refs/tags/${tagName}`],
-    { cwd: ROOT_DIR, encoding: "utf-8" }
+    { cwd: rootDir, encoding: "utf-8" }
   );
-  if (existing.status === 0) {
-    const tagged = (existing.stdout || "").trim();
-    if (tagged === head) {
-      log(`Tag ${tagName} already points at HEAD — skipping.`);
-      return;
-    }
-    error(
-      `Tag ${tagName} already exists but points at ${tagged.slice(0, 7)}, ` +
-        `not HEAD (${head.slice(0, 7)}).\n` +
-        `  Either move HEAD back to ${tagged.slice(0, 7)}, or delete the tag ` +
-        `with: git tag -d ${tagName}`
-    );
-    process.exit(1);
-  }
+  if (object.status !== 0) return { exists: false };
+  const peeled = spawnSync(
+    "git",
+    ["rev-parse", "--verify", `refs/tags/${tagName}^{}`],
+    { cwd: rootDir, encoding: "utf-8" }
+  );
+  if (peeled.status !== 0) return { exists: false };
+  return {
+    exists: true,
+    commit: (peeled.stdout || "").trim(),
+    objectId: (object.stdout || "").trim(),
+  };
+}
 
+function createReleaseTag(
+  rootDir: string,
+  tagName: string,
+  commit: string
+): string {
+  const identity = spawnSync("git", ["var", "GIT_COMMITTER_IDENT"], {
+    cwd: rootDir,
+    encoding: "utf-8",
+  });
+  if (identity.status !== 0) {
+    throw new ReleaseError(
+      "tag",
+      `git var GIT_COMMITTER_IDENT failed (exit ${identity.status}):\n` +
+        (identity.stderr || identity.stdout || "").trim()
+    );
+  }
+  const tagContents = [
+    `object ${commit}`,
+    "type commit",
+    `tag ${tagName}`,
+    `tagger ${(identity.stdout || "").trim()}`,
+    "",
+    `Release ${tagName}`,
+    "",
+  ].join("\n");
+  const object = spawnSync("git", ["mktag"], {
+    cwd: rootDir,
+    encoding: "utf-8",
+    input: tagContents,
+  });
+  const objectId = (object.stdout || "").trim();
+  if (object.status !== 0 || !/^[0-9a-f]{40}$/i.test(objectId)) {
+    throw new ReleaseError(
+      "tag",
+      `git mktag failed (exit ${object.status}):\n` +
+        (object.stderr || object.stdout || "").trim()
+    );
+  }
   const created = spawnSync(
     "git",
-    ["tag", "-a", tagName, "-m", `Release ${tagName}`, "HEAD"],
-    { cwd: ROOT_DIR, encoding: "utf-8" }
+    [
+      "update-ref",
+      `refs/tags/${tagName}`,
+      objectId,
+      "0".repeat(40),
+    ],
+    { cwd: rootDir, encoding: "utf-8" }
   );
   if (created.status !== 0) {
-    error(
-      `git tag failed (exit ${created.status}):\n` +
+    throw new ReleaseError(
+      "tag",
+      `git update-ref failed (exit ${created.status}):\n` +
         (created.stderr || created.stdout || "").trim()
     );
-    process.exit(1);
   }
-  success(`Tagged ${head.slice(0, 7)} as ${tagName}`);
+  success(`Tagged ${commit.slice(0, 7)} as ${tagName}`);
+  return objectId;
+}
+
+export function releaseTagDeleteArguments(
+  tagName: string,
+  expectedObjectId: string
+): string[] {
+  return [
+    "update-ref",
+    "-d",
+    `refs/tags/${tagName}`,
+    expectedObjectId,
+  ];
+}
+
+function deleteReleaseTag(
+  rootDir: string,
+  tagName: string,
+  expectedObjectId: string
+): void {
+  const deleted = spawnSync(
+    "git",
+    releaseTagDeleteArguments(tagName, expectedObjectId),
+    {
+    cwd: rootDir,
+    encoding: "utf-8",
+    }
+  );
+  if (deleted.status !== 0) {
+    throw new ReleaseError(
+      "rollback",
+      `git update-ref -d failed (exit ${deleted.status}):\n` +
+        (deleted.stderr || deleted.stdout || "").trim()
+    );
+  }
 }
 
 // Find the <item> whose <enclosure url="..."> ends with dmgName and add
@@ -882,25 +1457,168 @@ export function collectReferencedDeltaBasenames(appcastPath: string): Set<string
   return referenced;
 }
 
-// Snapshot the .delta files currently in dist/ along with their mtime in
-// milliseconds. Used by the release flow to diff before/after
-// generate_appcast so we only re-upload deltas that this run created or
-// refreshed — preexisting deltas with unchanged mtime are assumed to be
-// already in R2 from a previous release.
-function snapshotDeltaMtimes(distDir: string): Map<string, number> {
-  const snapshot = new Map<string, number>();
-  if (!existsSync(distDir)) return snapshot;
-  for (const name of readdirSync(distDir)) {
-    if (!name.endsWith(".delta")) continue;
-    const full = path.join(distDir, name);
-    try {
-      const st = statSync(full);
-      snapshot.set(name, st.mtimeMs);
-    } catch {
-      // File vanished between readdir and stat — ignore.
+export function collectCandidateDeltaBasenames(
+  appcastPath: string,
+  dmgName: string
+): Set<string> {
+  const referenced = new Set<string>();
+  if (!existsSync(appcastPath)) return referenced;
+  const xml = readFileSync(appcastPath, "utf-8");
+  for (const item of xml.matchAll(/<item\b[^>]*>[\s\S]*?<\/item>/g)) {
+    const body = item[0];
+    const urls = Array.from(
+      body.matchAll(/<enclosure\b[^>]*\burl="([^"]+)"/g),
+      (match) => match[1]
+    );
+    const belongsToCandidate = urls.some((url) => {
+      return (url.split("/").pop() || "") === dmgName;
+    });
+    if (!belongsToCandidate) continue;
+    for (const url of urls) {
+      const basename = url.split("/").pop() || "";
+      if (basename.endsWith(".delta")) referenced.add(basename);
+    }
+    break;
+  }
+  return referenced;
+}
+
+export async function generateReleaseAppcast(
+  context: ReleasePhaseContext,
+  dependencies: ReleaseDependencies,
+  runner: ReleaseCommandRunner = runStreaming
+): Promise<void> {
+  const rootDir = dependencies.rootDir;
+  const publicAppcast = path.join(rootDir, "website/public/appcast.xml");
+  const appcastTemplate = path.join(rootDir, "branding/appcast.template.xml");
+  const distDir = path.join(rootDir, "dist");
+
+  if (existsSync(publicAppcast)) {
+    log(
+      `Seeding dist/appcast.xml from ${path.relative(rootDir, publicAppcast)}`
+    );
+    if (!context.options.dryRun) {
+      copyFileSync(publicAppcast, context.appcastPath);
+    }
+  } else if (existsSync(appcastTemplate)) {
+    warn(
+      `${path.relative(rootDir, publicAppcast)} not found — ` +
+        "seeding from template (first release?)."
+    );
+    if (!context.options.dryRun) {
+      copyFileSync(appcastTemplate, context.appcastPath);
+    }
+  } else {
+    throw new ReleaseError(
+      "appcast",
+      "Cannot seed dist/appcast.xml — neither\n" +
+        `  ${path.relative(rootDir, publicAppcast)}\n` +
+        "nor\n" +
+        `  ${path.relative(rootDir, appcastTemplate)}\n` +
+        "exists. Restore one of them and rerun."
+    );
+  }
+
+  if (!context.options.dryRun && !existsSync(context.dmgPath)) {
+    throw new ReleaseError(
+      "appcast",
+      `Expected artifact not found: ${path.relative(rootDir, context.dmgPath)}\n` +
+        "package:release should have produced this. Inspect dist/ and rerun."
+    );
+  }
+
+  const generateAppcast = path.join(
+    rootDir,
+    "third_party",
+    "sparkle",
+    "bin",
+    "generate_appcast"
+  );
+  await runReleaseStep(
+    "appcast",
+    context.options.dryRun,
+    "Generating Sparkle appcast",
+    generateAppcast,
+    [
+      "--download-url-prefix",
+      "https://dao-release.msgbyte.com/",
+      "--maximum-versions",
+      "0",
+      distDir,
+    ],
+    runner,
+    context.signal
+  );
+
+  log("Stamping git commit into the new appcast <item>");
+  if (!context.options.dryRun) {
+    injectGitCommitIntoAppcast(
+      context.appcastPath,
+      path.basename(context.dmgPath),
+      context.releaseHead
+    );
+  }
+}
+
+export async function uploadReleaseArtifacts(
+  context: ReleasePhaseContext,
+  dependencies: ReleaseDependencies,
+  runner: ReleaseCommandRunner = runStreaming
+): Promise<void> {
+  const distDir = path.join(dependencies.rootDir, "dist");
+  const referencedDeltas = !context.options.dryRun
+    ? collectCandidateDeltaBasenames(
+      context.appcastPath,
+      path.basename(context.dmgPath)
+    )
+    : new Set<string>();
+  const availableDeltas = existsSync(distDir)
+    ? readdirSync(distDir).filter((name) => name.endsWith(".delta"))
+    : [];
+  const deltaPaths = Array.from(referencedDeltas)
+    .filter((name) => availableDeltas.includes(name))
+    .sort()
+    .map((name) => path.join(distDir, name));
+  const skippedUnreferenced: string[] = [];
+  for (const name of availableDeltas) {
+    if (!referencedDeltas.has(name)) {
+      skippedUnreferenced.push(name);
     }
   }
-  return snapshot;
+  if (skippedUnreferenced.length > 0) {
+    warn(
+      `Skipping ${skippedUnreferenced.length} unreferenced delta file(s) ` +
+        "in dist/ (not present in the current candidate appcast item): " +
+        skippedUnreferenced.sort().join(", ")
+    );
+  }
+
+  const uploadArgs = [
+    "tsx",
+    "scripts/cli.ts",
+    "upload",
+    context.dmgPath,
+    ...deltaPaths,
+  ];
+  if (context.options.bucket) {
+    uploadArgs.push("--bucket", context.options.bucket);
+  }
+  if (context.options.prefix) {
+    uploadArgs.push("--prefix", context.options.prefix);
+  }
+  const deltaSummary =
+    deltaPaths.length > 0
+      ? ` + ${deltaPaths.length} current-candidate delta(s)`
+      : " (no current-candidate delta files to upload)";
+  await runReleaseStep(
+    "upload",
+    context.options.dryRun,
+    `Uploading ${path.basename(context.dmgPath)}${deltaSummary} to R2`,
+    "npx",
+    uploadArgs,
+    runner,
+    context.signal
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -917,33 +1635,62 @@ interface SpawnInheritResult {
 // so we can scan for known failure patterns (e.g. notarytool's keychain bug).
 function spawnInheritCapture(
   cmd: string,
-  args: string[]
+  args: string[],
+  signal?: AbortSignal
 ): Promise<SpawnInheritResult> {
   console.log(chalk.dim(`$ ${cmd} ${args.join(" ")}`));
-  return new Promise((resolve) => {
-    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout?.on("data", (chunk: Buffer) => {
-      const s = chunk.toString();
-      stdout += s;
-      process.stdout.write(s);
-    });
-    child.stderr?.on("data", (chunk: Buffer) => {
-      const s = chunk.toString();
-      stderr += s;
-      process.stderr.write(s);
-    });
-    child.on("error", (err) =>
-      resolve({ code: null, stdout, stderr: stderr + String(err) })
-    );
-    child.on("close", (code) => resolve({ code, stdout, stderr }));
-  });
+  if (signal?.aborted) {
+    return Promise.reject(createAbortError(signal.reason));
+  }
+  const spawnOptions: SpawnOptions = {
+    stdio: ["ignore", "pipe", "pipe"],
+  };
+  if (signal && process.platform !== "win32") {
+    spawnOptions.detached = true;
+  }
+  const child = spawn(cmd, args, spawnOptions);
+  let stdout = "";
+  let stderr = "";
+  const onStdout = (chunk: Buffer) => {
+    const s = chunk.toString();
+    stdout += s;
+    process.stdout.write(s);
+  };
+  const onStderr = (chunk: Buffer) => {
+    const s = chunk.toString();
+    stderr += s;
+    process.stderr.write(s);
+  };
+  child.stdout?.on("data", onStdout);
+  child.stderr?.on("data", onStderr);
+  const removePipeListeners = () => {
+    child.stdout?.off("data", onStdout);
+    child.stderr?.off("data", onStderr);
+  };
+  const abandonPipes = () => {
+    removePipeListeners();
+    for (const stream of [child.stdout, child.stderr]) {
+      if (!stream) continue;
+      stream.destroy();
+      (stream as typeof stream & { unref?: () => void }).unref?.();
+    }
+  };
+  return waitForSpawnedProcess(child, signal, {
+    onAbandon: abandonPipes,
+  }).then((result) => {
+    return {
+      code: result.code,
+      stdout,
+      stderr: result.error ? stderr + String(result.error) : stderr,
+    };
+  }).finally(removePipeListeners);
 }
 
 async function notarizeOrGuide(
   dmgPath: string,
-  dmgName: string
+  dmgName: string,
+  options: ReleaseOptions,
+  signal?: AbortSignal
 ): Promise<void> {
   log(`Submitting ${dmgName} to Apple notary service ...`);
   const profile = process.env.DAO_NOTARIZE_KEYCHAIN_PROFILE;
@@ -964,7 +1711,9 @@ async function notarizeOrGuide(
     dmgPath,
     ...authArgs,
     "--wait",
-  ]);
+  ], signal);
+
+  throwIfReleaseAborted(signal, "notarize");
 
   // notarytool exits 0 on success AND on Rejected/Invalid; only the
   // final "status:" line tells the truth.
@@ -979,125 +1728,112 @@ async function notarizeOrGuide(
     const submissionId = (
       result.stdout.match(/id:\s*([0-9a-f-]{8,})/i) || []
     )[1];
-    error(
+    throw new ReleaseError(
+      "notarize",
       `Notarization finished with status: ${finalStatus || "<unknown>"}.\n` +
         (submissionId
           ? `Inspect the failure log via:\n  xcrun notarytool log ${submissionId} --keychain-profile ${profile || "<your-profile>"}`
           : "")
     );
-    process.exit(1);
   }
 
-  // Non-zero exit. The failure most operators hit here is the macOS
-  // keychain bug: "No Keychain password item found for profile: ..."
-  // even though that profile works fine when you call notarytool from
-  // your interactive shell. Print the full recovery guide.
-  printNotarizeRecoveryGuide(dmgPath, dmgName, result.stderr);
-  process.exit(1);
+  const failure = new ReleaseError(
+    "notarize",
+    `notarytool exited with code ${result.code}.`
+  );
+  const profileName = profile || "<your-profile>";
+  const knownKeychainBug = /No Keychain password item found/i.test(
+    result.stderr
+  );
+  failure.notarizationRecovery = {
+    command: formatNotarizeRecoveryCommand(
+      path.relative(ROOT_DIR, dmgPath),
+      profileName,
+      options
+    ),
+    detail: knownKeychainBug
+      ? "notarytool reported the known keychain-profile lookup failure."
+      : `Manual notarization recovery is available for ${dmgName}.`,
+  };
+  throw failure;
 }
 
 async function stapleOrGuide(
   dmgPath: string,
-  dmgName: string
+  dmgName: string,
+  options: ReleaseOptions,
+  signal?: AbortSignal
 ): Promise<void> {
   log(`Stapling notarization ticket onto ${dmgName} ...`);
   const result = await spawnInheritCapture("xcrun", [
     "stapler",
     "staple",
     dmgPath,
-  ]);
+  ], signal);
+  throwIfReleaseAborted(signal, "staple");
   if (result.code === 0) {
     success("Stapled");
     return;
   }
-  error(
-    `stapler exited with code ${result.code}.\n` +
-      "If notarization succeeded but staple failed, run manually then resume:\n" +
-      `  xcrun stapler staple ${path.relative(ROOT_DIR, dmgPath)}\n` +
-      "  npm run release -- --skip-bump --resume-from-staple"
+  const failure = new ReleaseError(
+    "staple",
+    `stapler exited with code ${result.code}.`
   );
-  process.exit(1);
+  const relativeDmgPath = path.relative(ROOT_DIR, dmgPath);
+  failure.notarizationRecovery = {
+    command: [
+      `xcrun stapler staple ${relativeDmgPath} \\`,
+      "  && " + formatReleaseRetryCommand(options, {
+        resumeFromStaple: true,
+      }),
+    ].join("\n"),
+    detail: "Notarization succeeded, but stapling needs manual recovery.",
+  };
+  throw failure;
 }
 
 // Verify the dmg has a stapled notarization ticket. Used by --resume-from-staple
 // to fail fast if the operator forgot to actually run `xcrun stapler staple`
 // before resuming.
-async function assertStapled(dmgPath: string): Promise<void> {
+async function assertStapled(
+  dmgPath: string,
+  options: ReleaseOptions,
+  signal?: AbortSignal
+): Promise<void> {
   const result = await spawnInheritCapture("xcrun", [
     "stapler",
     "validate",
     dmgPath,
-  ]);
+  ], signal);
+  throwIfReleaseAborted(signal, "staple");
   if (result.code === 0) {
     success("dmg has a valid notarization ticket");
     return;
   }
-  error(
-    "--resume-from-staple was passed but the dmg is NOT stapled.\n" +
-      "Before resuming, you need to:\n" +
-      "  1. Notarize the dmg (see recovery guide below)\n" +
-      "  2. Staple it: xcrun stapler staple " +
-      path.relative(ROOT_DIR, dmgPath) +
-      "\n" +
-      "  3. Then rerun: npm run release -- --skip-bump --resume-from-staple\n\n" +
-      "Recovery guide:"
+  const failure = new ReleaseError(
+    "staple",
+    "--resume-from-staple was passed but the dmg is NOT stapled."
   );
-  printNotarizeRecoveryGuide(
-    dmgPath,
-    path.basename(dmgPath),
-    /*stderrFromFailedRun*/ ""
-  );
-  process.exit(1);
+  failure.notarizationRecovery = {
+    command: formatNotarizeRecoveryCommand(
+      path.relative(ROOT_DIR, dmgPath),
+      process.env.DAO_NOTARIZE_KEYCHAIN_PROFILE || "<your-profile>",
+      options
+    ),
+    detail: "The retained dmg must be notarized and stapled before resuming.",
+  };
+  throw failure;
 }
 
-// Print exactly what to do when notarytool fails with the keychain error.
-// This is THE escape hatch — every step here can be copy-pasted into the
-// operator's interactive shell, where notarytool consistently works.
-function printNotarizeRecoveryGuide(
+export function formatNotarizeRecoveryCommand(
   dmgPath: string,
-  dmgName: string,
-  stderr: string
-): void {
-  const profile = process.env.DAO_NOTARIZE_KEYCHAIN_PROFILE || "<your-profile>";
-  const dmgRel = path.relative(ROOT_DIR, dmgPath);
-  const isKnownKeychainBug = /No Keychain password item found/i.test(stderr);
-
-  console.log("");
-  console.log(chalk.yellow("━".repeat(72)));
-  console.log(chalk.yellow.bold("  Notarization step failed."));
-  if (isKnownKeychainBug) {
-    console.log(
-      chalk.yellow(
-        "  This is the known macOS keychain bug — notarytool can't see\n" +
-          "  the keychain profile from a long-running script process,\n" +
-          "  even though it works fine from your interactive shell."
-      )
-    );
-  }
-  console.log(chalk.yellow("━".repeat(72)));
-  console.log("");
-  console.log(chalk.bold("Recovery — run this single command in your terminal:"));
-  console.log("");
-  console.log(
-    `  xcrun notarytool submit ${dmgRel} --keychain-profile ${profile} --wait \\\n` +
-      `    && xcrun stapler staple ${dmgRel} \\\n` +
-      `    && npm run release -- --skip-bump --resume-from-staple`
-  );
-  console.log("");
-  console.log(
-    chalk.dim(
-      "  # If notarytool submit ALSO fails in your shell, the keychain profile is\n" +
-        "  # genuinely broken — recreate it with:\n" +
-        `  #   xcrun notarytool store-credentials ${profile} \\\n` +
-        "  #     --apple-id <you@example.com> --team-id <TEAMID> --password <app-specific-pw>"
-    )
-  );
-  console.log("");
-  console.log(chalk.yellow("━".repeat(72)));
-  console.log("");
-  log("dao.json is already at " + dmgName.match(/\d+\.\d+\.\d+/)?.[0] + ".");
-  log(
-    "After step 3 finishes, you'll have appcast.xml regenerated, " +
-      "info.json updated, and the dmg uploaded to R2."
-  );
+  profile: string,
+  options: ReleaseOptions = {}
+): string {
+  return [
+    "xcrun notarytool submit " + dmgPath +
+      " --keychain-profile " + profile + " --wait \\",
+    "  && xcrun stapler staple " + dmgPath + " \\",
+    "  && " + formatReleaseRetryCommand(options, {resumeFromStaple: true}),
+  ].join("\n");
 }

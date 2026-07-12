@@ -125,6 +125,37 @@ Assume we're shipping `0.5.1`. Replace the version number throughout.
    See [End-to-end verification](#end-to-end-verification) for diagnostics
    when this step fails.
 
+### Failed release behavior
+
+For controlled failures and normal terminal interrupts, `npm run release`
+attempts to restore `dao.json`, `website/public/appcast.xml`, and
+`website/public/info.json` to their exact pre-release contents. Exact
+restoration is guaranteed only when the final output confirms a clean
+rollback. If it reports conflicts or restore failures, inspect and resolve
+every listed path before retrying. If tag cleanup fails, inspect the named tag
+as well.
+
+Any generated files under `dist/` and any Apple notarization or R2 side
+effects are left in place and are not rolled back; those side effects may or
+may not exist depending on the phase that failed.
+
+Use the retry command printed by the failed release so non-default bump,
+artifact, and upload options are preserved. For a default release this is
+simply `npm run release`. If the candidate DMG was notarized and stapled
+manually, the printed command adds `--resume-from-staple`, for example:
+
+```bash
+npm run release -- --resume-from-staple
+```
+
+Do not add `--skip-bump` after automatic rollback. It is reserved for manual
+recovery when `dao.json` already contains the candidate version.
+
+This same-version retry is only for an uncommitted, undeployed candidate whose
+canonical metadata was restored by the automatic rollback. Never reuse a
+version that was published, deployed, or otherwise exposed to update clients;
+increment the version for every replacement of an exposed release.
+
 ### Silent-update path (what users actually experience)
 
 After a release ships, the user does **nothing**. Because we configure
@@ -147,9 +178,11 @@ clicked "Check for Updates…".
 
 ### Pitfalls (read once, internalize forever)
 
-- **Never re-use a version number.** Sparkle clients cache `appcast.xml`
-  for several minutes. If you delete a Release and republish the same
-  version, some users see stale state. Always increment.
+- **Never re-use a published or deployed version number.** Sparkle clients
+  cache `appcast.xml` for several minutes. If a version was exposed to update
+  clients, always increment it before publishing a replacement. Retrying an
+  uncommitted, undeployed candidate after a clean automatic rollback is the
+  intentional exception because clients never saw that candidate.
 - **Never modify a `.app` after signing.** Any post-codesign edit
   (touching `Info.plist`, adding files, changing perms) invalidates the
   signature and Gatekeeper rejects on the spot. Rebuild from scratch.
