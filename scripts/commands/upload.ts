@@ -227,7 +227,7 @@ uploadCommand
     }
 
     printDeletionSummary(selected);
-    const confirmed = await confirmDeletion(selected.length);
+    const confirmed = await confirmDeletion(selected);
     if (!confirmed) {
       warn("Cleanup cancelled. Nothing deleted.");
       return;
@@ -722,6 +722,58 @@ function formatBytes(size: number | undefined): string {
   return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
+export interface CleanupSpaceEstimate {
+  knownBytes: number;
+  unknownSizeCount: number;
+}
+
+export function getCleanupSpaceEstimate(
+  objects: R2Object[]
+): CleanupSpaceEstimate {
+  return objects.reduce<CleanupSpaceEstimate>(
+    (estimate, object) => {
+      if (object.size === undefined) {
+        estimate.unknownSizeCount += 1;
+      } else {
+        estimate.knownBytes += object.size;
+      }
+      return estimate;
+    },
+    { knownBytes: 0, unknownSizeCount: 0 }
+  );
+}
+
+export function formatCleanupSpaceEstimate(objects: R2Object[]): string {
+  const { knownBytes, unknownSizeCount } = getCleanupSpaceEstimate(objects);
+  if (unknownSizeCount === 0) {
+    return `Estimated space to free: ${formatBytes(knownBytes)}`;
+  }
+  const objectLabel = unknownSizeCount === 1 ? "object size" : "object sizes";
+  return (
+    `Estimated space to free: at least ${formatBytes(knownBytes)} ` +
+    `(${unknownSizeCount} ${objectLabel} unknown)`
+  );
+}
+
+export function formatCleanupSelectionStatus(
+  selected: CleanupCandidate[],
+  candidateCount: number
+): string {
+  return (
+    `Selected ${selected.length}/${candidateCount} objects · ` +
+    formatCleanupSpaceEstimate(selected)
+  );
+}
+
+export function formatCleanupConfirmation(
+  selected: CleanupCandidate[]
+): string {
+  return (
+    `Delete ${selected.length} object(s) permanently? ` +
+    `${formatCleanupSpaceEstimate(selected)} [Y/n] `
+  );
+}
+
 async function selectCleanupCandidates(
   candidates: CleanupCandidate[],
   keep: number
@@ -764,6 +816,7 @@ async function selectCleanupCandidates(
     addAssociatedDeltas(selected, associatedDeltaIndexes);
   };
   const render = () => {
+    addAssociatedDeltas(selected, associatedDeltaIndexes);
     updateScrollOffset();
     process.stdout.write("\x1B[2J\x1B[H");
     console.log(chalk.blue("dao") + " R2 cleanup");
@@ -793,7 +846,10 @@ async function selectCleanupCandidates(
     console.log(
       chalk.dim(
         `\nShowing ${scrollOffset + 1}-${end}/${selectableIndexes.length}. ` +
-          `Selected ${selected.size}/${candidates.length} object(s)`
+          formatCleanupSelectionStatus(
+            Array.from(selected).map((index) => candidates[index]),
+            candidates.length
+          )
       )
     );
   };
@@ -861,7 +917,10 @@ async function selectCleanupCandidates(
 }
 
 function printDeletionSummary(selected: CleanupCandidate[]): void {
-  log(`Selected ${selected.length} object(s) for deletion:`);
+  log(
+    `Selected ${selected.length} object(s) for deletion. ` +
+      formatCleanupSpaceEstimate(selected)
+  );
   for (const obj of selected) {
     console.log(
       `  ${chalk.red("delete")} ${obj.key} ` +
@@ -870,20 +929,17 @@ function printDeletionSummary(selected: CleanupCandidate[]): void {
   }
 }
 
-function confirmDeletion(count: number): Promise<boolean> {
+function confirmDeletion(selected: CleanupCandidate[]): Promise<boolean> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
   return new Promise((resolve) => {
-    rl.question(
-      chalk.red(`Delete ${count} object(s) permanently? [Y/n] `),
-      (answer) => {
-        rl.close();
-        const normalized = answer.trim().toLowerCase();
-        resolve(normalized === "" || normalized === "y" || normalized === "yes");
-      }
-    );
+    rl.question(chalk.red(formatCleanupConfirmation(selected)), (answer) => {
+      rl.close();
+      const normalized = answer.trim().toLowerCase();
+      resolve(normalized === "" || normalized === "y" || normalized === "yes");
+    });
   });
 }
 

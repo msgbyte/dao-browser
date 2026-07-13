@@ -1,14 +1,79 @@
 import {describe, expect, it} from 'vitest';
 
 import {
+  formatCleanupConfirmation,
+  formatCleanupSelectionStatus,
+  formatCleanupSpaceEstimate,
   getAssociatedDeltaIndexes,
   getCleanupCandidates,
+  getCleanupSpaceEstimate,
   getSelectableCleanupIndexes,
   parseR2ListOutput,
   uploadCommand,
 } from '../upload.js';
 
 describe('upload cleanup helpers', () => {
+  it('sums known cleanup sizes and reports unknown object sizes', () => {
+    expect(getCleanupSpaceEstimate([])).toEqual({
+      knownBytes: 0,
+      unknownSizeCount: 0,
+    });
+    expect(getCleanupSpaceEstimate([
+      {key: 'one.dmg', size: 1024},
+      {key: 'two.delta', size: 512},
+      {key: 'unknown.dmg'},
+    ])).toEqual({
+      knownBytes: 1536,
+      unknownSizeCount: 1,
+    });
+  });
+
+  it('formats complete and partial cleanup space estimates', () => {
+    expect(formatCleanupSpaceEstimate([]))
+        .toBe('Estimated space to free: 0 B');
+    expect(formatCleanupSpaceEstimate([
+      {key: 'one.dmg', size: 1024 * 1024},
+      {key: 'two.delta', size: 512 * 1024},
+    ])).toBe('Estimated space to free: 1.5 MB');
+    expect(formatCleanupSpaceEstimate([
+      {key: 'one.dmg', size: 1024 * 1024},
+      {key: 'unknown.delta'},
+    ])).toBe(
+        'Estimated space to free: at least 1.0 MB (1 object size unknown)');
+    expect(formatCleanupSpaceEstimate([
+      {key: 'unknown-one.dmg'},
+      {key: 'unknown-two.delta'},
+    ])).toBe(
+        'Estimated space to free: at least 0 B (2 object sizes unknown)');
+  });
+
+  it('formats cleanup selection count with its space estimate', () => {
+    const selected = [
+      {
+        key: 'dao-browser-1.0.1-mac-arm64.dmg',
+        version: '1.0.1',
+        size: 1024,
+      },
+      {key: 'Dao2.0-1.0.delta', version: '2.0', size: 512},
+    ];
+
+    expect(formatCleanupSelectionStatus(selected, 5)).toBe(
+        'Selected 2/5 objects · Estimated space to free: 1.5 KB');
+  });
+
+  it('formats cleanup confirmation with the selected space estimate', () => {
+    expect(formatCleanupConfirmation([
+      {
+        key: 'dao-browser-1.0.1-mac-arm64.dmg',
+        version: '1.0.1',
+        size: 1024,
+      },
+      {key: 'Dao2.0-1.0.delta', version: '2.0', size: 512},
+    ])).toBe(
+        'Delete 2 object(s) permanently? ' +
+        'Estimated space to free: 1.5 KB [Y/n] ');
+  });
+
   it('parses wrangler R2 list JSON object arrays and result wrappers', () => {
     expect(parseR2ListOutput(JSON.stringify([
       {
