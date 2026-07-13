@@ -557,6 +557,27 @@ describe('dao-sidebar-app', () => {
     }
   });
 
+  it('maps native tab context menu items to registered accelerators', () => {
+    const handlerText = readFileSync(
+        'src/dao/browser/ui/webui/dao_sidebar_ui.cc', 'utf8');
+
+    const acceleratorMappings = [
+      ['kDuplicateTab', 'IDC_DAO_DUPLICATE_TAB'],
+      ['kCopyLink', 'IDC_DAO_COPY_URL'],
+      ['kCloseTab', 'IDC_CLOSE_TAB'],
+    ];
+
+    for (const [menuCommand, browserCommand] of acceleratorMappings) {
+      expect(handlerText).toMatch(new RegExp(
+          `case ${menuCommand}:[\\s\\S]*?browser_command = ` +
+          `${browserCommand};`));
+    }
+    expect(handlerText).toContain('AcceleratorProviderForBrowser(browser_)');
+    expect(handlerText).toMatch(
+        /for \(int command_id : \{kDuplicateTab, kCopyLink, kCloseTab\}\)/);
+    expect(handlerText).toContain('SetForceShowAcceleratorForItemAt');
+  });
+
   it('localizes folder context menu labels in the native handler', () => {
     const handlerText = readFileSync(
         'src/dao/browser/ui/webui/dao_sidebar_ui.cc', 'utf8');

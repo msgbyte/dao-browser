@@ -20,11 +20,13 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/accelerator_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -59,6 +61,7 @@
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/menu_source_type.mojom-shared.h"
@@ -1885,6 +1888,14 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
       kCloseTabsBelow,
       l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TABS_BELOW));
 
+  // Cocoa context menus hide accelerators unless each item explicitly opts in.
+  for (int command_id : {kDuplicateTab, kCopyLink, kCloseTab}) {
+    const std::optional<size_t> index =
+        tab_context_menu_model_->GetIndexOfCommandId(command_id);
+    CHECK(index.has_value());
+    tab_context_menu_model_->SetForceShowAcceleratorForItemAt(*index, true);
+  }
+
   // Get the Widget from the sidebar.
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (!browser_view || !browser_view->dao_sidebar()) {
@@ -2619,6 +2630,30 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
     default:
       return false;
   }
+}
+
+bool DaoSidebarUIHandler::GetAcceleratorForCommandId(
+    int command_id,
+    ui::Accelerator* accelerator) const {
+  int browser_command = 0;
+  switch (command_id) {
+    case kDuplicateTab:
+      browser_command = IDC_DAO_DUPLICATE_TAB;
+      break;
+    case kCopyLink:
+      browser_command = IDC_DAO_COPY_URL;
+      break;
+    case kCloseTab:
+      browser_command = IDC_CLOSE_TAB;
+      break;
+    default:
+      return false;
+  }
+
+  ui::AcceleratorProvider* provider =
+      AcceleratorProviderForBrowser(browser_);
+  return provider &&
+         provider->GetAcceleratorForCommandId(browser_command, accelerator);
 }
 
 void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
