@@ -10,7 +10,7 @@ Writes:
   - src/dao/browser/strings/translations/dao_strings_<lang>.xtb
   - src/dao/browser/ui/webui/resources/agent/i18n/locales/<lang>.ts
 
-Translation provider: OpenAI Chat Completions API, default model gpt-4o.
+Translation provider: OpenAI Chat Completions API, default model gpt-5.4.
 Uses OPENAI_API_KEY (and optional OPENAI_BASE_URL) from environment.
 
 Skips locales that already have translations unless --force is passed.
@@ -61,7 +61,7 @@ except ImportError:
 OPENAI_BASE_URL = os.environ.get(
     "OPENAI_BASE_URL", "https://api.openai.com/v1"
 ).rstrip("/")
-OPENAI_MODEL = os.environ.get("OPENAI_TRANSLATE_MODEL", "gpt-4o")
+OPENAI_MODEL = os.environ.get("OPENAI_TRANSLATE_MODEL", "gpt-5.4")
 
 
 # ---------- grd parsing ----------
