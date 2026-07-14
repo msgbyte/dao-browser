@@ -166,6 +166,74 @@ describe('FolderModel', () => {
     });
   });
 
+  it('does not rematch a closed runtime tab to a duplicate URL', () => {
+    const model = new FolderModel();
+    model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [
+        {
+          type: 'tab',
+          url: 'https://docs.example',
+          title: 'Docs',
+        },
+        {
+          type: 'tab',
+          url: 'https://middle.example',
+          title: 'Middle',
+        },
+        {
+          type: 'tab',
+          url: 'https://docs.example',
+          title: 'Docs',
+        },
+      ],
+    }));
+
+    model.reconcile([
+      tab('duplicate-a', 'https://docs.example', 'Docs'),
+      tab('duplicate-b', 'https://docs.example', 'Docs'),
+      tab('middle', 'https://middle.example', 'Middle'),
+    ]);
+
+    model.reconcile([
+      tab('duplicate-b', 'https://docs.example', 'Docs'),
+      tab('middle', 'https://middle.example', 'Middle'),
+    ]);
+
+    expect(model.getOrderedItems().map(item =>
+      item.type === 'tab' ? item.tabId : item.id))
+        .toEqual(['middle', 'duplicate-b']);
+  });
+
+  it('keeps a replaced WebContents in its folder', () => {
+    const model = new FolderModel();
+    model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [{
+        type: 'folder',
+        id: 'reading',
+        name: 'Reading',
+        collapsed: false,
+        children: [{
+          type: 'tab',
+          tabId: 'old-contents',
+          url: 'https://article.example',
+          title: 'Article',
+        }],
+      }],
+    }));
+
+    model.reconcile([
+      tab('new-contents', 'https://article.example', 'Article'),
+    ]);
+
+    expect(model.getOrderedItems()).toMatchObject([{
+      type: 'folder',
+      id: 'reading',
+      children: [{tabId: 'new-contents'}],
+    }]);
+  });
+
   it('keeps loose split siblings adjacent after reconcile', () => {
     const model = new FolderModel();
     model.loadFromJson(JSON.stringify({

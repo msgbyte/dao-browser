@@ -14,6 +14,7 @@ import {
   isPointOutsideViewport,
 } from './sidebar_bridge.js';
 import type {TabData, FolderData, FolderAction} from './sidebar_bridge.js';
+import {createTabRefMatchPool} from './dao_folder_model.js';
 import type {FolderModel} from './dao_folder_model.js';
 import {
   animateSurvivingFlipElements,
@@ -182,27 +183,12 @@ export class DaoTabList extends CrLitElement {
 
   /**
    * Render from the folder model's items tree.
-   * Matches stored tab refs to actual TabData by URL for each item.
+   * Reserves stable identities before falling back to URL so duplicate tabs
+   * cannot claim each other's visual positions.
    */
   private renderFromModel_() {
     const items = this.folderModel!.getOrderedItems();
-
-    const remaining = [...this.tabs];
-
-    const consume = (
-        ref: {tabId?: string; url: string; title: string}): TabData | null => {
-      let idx = ref.tabId ?
-          remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
-      if (idx === -1) {
-        idx = remaining.findIndex(
-            tab => tab.url === ref.url && tab.title === ref.title);
-      }
-      if (idx === -1) {
-        idx = remaining.findIndex(tab => tab.url === ref.url);
-      }
-      if (idx === -1) return null;
-      return remaining.splice(idx, 1)[0]!;
-    };
+    const {consume, remaining} = createTabRefMatchPool(items, this.tabs);
 
     const fragments: unknown[] = [];
     let splitRun: TabData[] = [];
@@ -852,26 +838,8 @@ export class DaoTabList extends CrLitElement {
       };
     }
 
-    const remaining = [...this.tabs];
-
-    const consume = (
-        ref: {tabId?: string; url: string; title: string}): TabData | null => {
-      let idx = ref.tabId ?
-          remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
-      if (idx === -1) {
-        idx = remaining.findIndex(
-            tab => tab.url === ref.url && tab.title === ref.title);
-      }
-      if (idx === -1) {
-        idx = remaining.findIndex(tab => tab.url === ref.url);
-      }
-      if (idx === -1) {
-        return null;
-      }
-      return remaining.splice(idx, 1)[0]!;
-    };
-
     const items = this.folderModel.getOrderedItems();
+    const {consume, remaining} = createTabRefMatchPool(items, this.tabs);
     const visualOrder: number[] = [];
     const folderTabIndices: number[] = [];
 
