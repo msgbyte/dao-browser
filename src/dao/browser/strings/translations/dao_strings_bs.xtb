@@ -2,14 +2,26 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="bs">
 <translation id="1173894706177603556">Preimenuj</translation>
+<translation id="1182228621215085947">Pitaj Dao</translation>
 <translation id="1293177648337752319">Uključi zvuk na stranici</translation>
+<translation id="1352298709666490484">Promijeni karticu</translation>
+<translation id="1383876407941801731">Pretraga</translation>
+<translation id="1602287703039480507">Keš očišćen za ovu stranicu</translation>
 <translation id="1653598257495639807">Rezultat QR koda</translation>
 <translation id="1809939268435598390">Izbriši folder</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Prikvači karticu</translation>
+<translation id="2175927920773552910">QR kod</translation>
+<translation id="2199413402821420360">Nije moguće otvoriti ovu karticu u Mini Dao</translation>
+<translation id="2414886740292270097">Tamno</translation>
+<translation id="243275146591958220">Otkaži preuzimanje</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> više</translation>
 <translation id="2703180365855369896">Zatvori duple kartice</translation>
 <translation id="2973324205039581528">Isključi zvuk na stranici</translation>
 <translation id="3007771295016901659">Dupliciraj karticu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3249579521706735875">Dostupno kada je sistem u tamnom režimu.</translation>
+<translation id="3427713535827228685">Ekstenzije na ovoj stranici</translation>
 <translation id="3450492919008172498">Nijedna nova kartica nije arhivirana</translation>
 <translation id="3551320343578183772">Zatvori karticu</translation>
 <translation id="3657099196021255130">Otvori u Dao</translation>
@@ -18,6 +30,7 @@
 <translation id="3891466792657071243">Zaustavi učitavanje</translation>
 <translation id="3901975710974642844">Premjesti zastarjele kartice u "zastarjelo"</translation>
 <translation id="3984237987235889323">Primjenjuje se</translation>
+<translation id="4165986682804962316">Postavke stranice</translation>
 <translation id="4201242995651540725">Arhivirane kartice neaktivne u posljednja 24 sata</translation>
 <translation id="4285498937028063278">Otkači</translation>
 <translation id="4322394346347055525">Zatvori druge kartice</translation>
@@ -33,16 +46,22 @@
 <translation id="5538307496474303926">Čišćenje...</translation>
 <translation id="5556459405103347317">Ponovo učitaj</translation>
 <translation id="5611474372949142946">Zatvori kartice ispod</translation>
+<translation id="5873058639175438941">Zatamni web stranice automatskim tamnim režimom dok je sistem u tamnom režimu.</translation>
 <translation id="5953452567010839148">Nije pronađen QR kod</translation>
+<translation id="6042308850641462728">Više</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6527303717912515753">Podijeli</translation>
 <translation id="6736243959894955139">Adresa</translation>
 <translation id="6829876854799051628">Očisti kolačiće</translation>
 <translation id="6896758677409633944">Kopiraj</translation>
+<translation id="7401173814860935855">Kolačići očišćeni za ovu stranicu</translation>
 <translation id="7532108947552493901">Provjeri ažuriranja...</translation>
 <translation id="7604253494819481181">Pritisnite <ph name="SHORTCUT" /> ponovo da prebacite bočnu traku</translation>
+<translation id="7636812263792427733">Forsiraj tamni režim</translation>
 <translation id="7717845620320228976">Provjeri ažuriranja</translation>
 <translation id="8137559199583651773">Upravljaj ekstenzijama</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Nazad</translation>
+<translation id="8684229942427488970">Centar stranice</translation>
 <translation id="8717864919010420084">Kopiraj link</translation>
 <translation id="9191338038518226120">Prebaci bočnu traku</translation>
 </translationbundle>

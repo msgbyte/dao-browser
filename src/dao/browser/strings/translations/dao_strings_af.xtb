@@ -2,14 +2,26 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="af">
 <translation id="1173894706177603556">Hernoem</translation>
+<translation id="1182228621215085947">Vra Dao</translation>
 <translation id="1293177648337752319">Ontdemper Webwerf</translation>
+<translation id="1352298709666490484">Wissel Tab</translation>
+<translation id="1383876407941801731">Soek</translation>
+<translation id="1602287703039480507">Kas vir hierdie webwerf skoongemaak</translation>
 <translation id="1653598257495639807">QR Kode Resultaat</translation>
 <translation id="1809939268435598390">Vee vouer uit</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Speld Tab aan</translation>
+<translation id="2175927920773552910">QR Kode</translation>
+<translation id="2199413402821420360">Kon nie hierdie tab in Mini Dao oopmaak nie</translation>
+<translation id="2414886740292270097">Donker</translation>
+<translation id="243275146591958220">Kanselleer aflaai</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> meer</translation>
 <translation id="2703180365855369896">Maak Duplikaat-oortjies toe</translation>
 <translation id="2973324205039581528">Demper Webwerf</translation>
 <translation id="3007771295016901659">Dupliseer Oortjie</translation>
 <translation id="3062877722240966678">Dao i18n pyplyn OK</translation>
+<translation id="3249579521706735875">Beskikbaar wanneer die stelsel in donker modus is.</translation>
+<translation id="3427713535827228685">Uitbreidings op hierdie webwerf</translation>
 <translation id="3450492919008172498">Geen nuwe oortjies is gearchiveer nie</translation>
 <translation id="3551320343578183772">Maak Tab toe</translation>
 <translation id="3657099196021255130">Maak oop in Dao</translation>
@@ -18,6 +30,7 @@
 <translation id="3891466792657071243">Stop Laai</translation>
 <translation id="3901975710974642844">Skuif Stale-oortjies na "stale"</translation>
 <translation id="3984237987235889323">Pas toe</translation>
+<translation id="4165986682804962316">Webwerf instellings</translation>
 <translation id="4201242995651540725">Gearchiveerde oortjies wat die afgelope 24 uur onaktief was</translation>
 <translation id="4285498937028063278">Ontspeld</translation>
 <translation id="4322394346347055525">Maak Ander Oortjies Toe</translation>
@@ -33,16 +46,22 @@
 <translation id="5538307496474303926">Maak skoon...</translation>
 <translation id="5556459405103347317">Herlaai</translation>
 <translation id="5611474372949142946">Maak Oortjies Onder Toe</translation>
+<translation id="5873058639175438941">Verduister webwerwe met Auto Donker Modus terwyl die stelsel in donker modus is.</translation>
 <translation id="5953452567010839148">Geen QR-kode gevind nie</translation>
+<translation id="6042308850641462728">Meer</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6527303717912515753">Deel</translation>
 <translation id="6736243959894955139">Adres</translation>
 <translation id="6829876854799051628">Maak Koekies skoon</translation>
 <translation id="6896758677409633944">Kopieer</translation>
+<translation id="7401173814860935855">Koekies vir hierdie webwerf skoongemaak</translation>
 <translation id="7532108947552493901">Kyk vir Opdaterings...</translation>
 <translation id="7604253494819481181">Druk <ph name="SHORTCUT" /> weer om sybalk te wissel</translation>
+<translation id="7636812263792427733">Dwing donker modus</translation>
 <translation id="7717845620320228976">Kyk vir opdaterings</translation>
 <translation id="8137559199583651773">Bestuur uitbreidings</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Terug</translation>
+<translation id="8684229942427488970">Webwerf sentrum</translation>
 <translation id="8717864919010420084">Kopieer Skakel</translation>
 <translation id="9191338038518226120">Wissel Kantbalk</translation>
 </translationbundle>

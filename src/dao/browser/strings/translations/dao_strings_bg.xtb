@@ -2,14 +2,26 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="bg">
 <translation id="1173894706177603556">Преименуване</translation>
+<translation id="1182228621215085947">Попитай Dao</translation>
 <translation id="1293177648337752319">Включване на звука на сайта</translation>
+<translation id="1352298709666490484">Смяна на таб</translation>
+<translation id="1383876407941801731">Търсене</translation>
+<translation id="1602287703039480507">Кешът за този сайт е изчистен</translation>
 <translation id="1653598257495639807">Резултат от QR код</translation>
 <translation id="1809939268435598390">Изтриване на папка</translation>
+<translation id="2109761659519935228">Мини Dao</translation>
 <translation id="21133533946938348">Закачи раздел</translation>
+<translation id="2175927920773552910">QR код</translation>
+<translation id="2199413402821420360">Не може да се отвори този таб в Мини Dao</translation>
+<translation id="2414886740292270097">Тъмен</translation>
+<translation id="243275146591958220">Отказ на изтеглянето</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> още</translation>
 <translation id="2703180365855369896">Затвори дублиращите се раздели</translation>
 <translation id="2973324205039581528">Изключване на звука на сайта</translation>
 <translation id="3007771295016901659">Дублиране на раздела</translation>
 <translation id="3062877722240966678">Dao i18n pipeline ОК</translation>
+<translation id="3249579521706735875">Налично, когато системата е в тъмен режим.</translation>
+<translation id="3427713535827228685">Разширения на този сайт</translation>
 <translation id="3450492919008172498">Няма нови архивирани раздели</translation>
 <translation id="3551320343578183772">Затвори раздел</translation>
 <translation id="3657099196021255130">Отваряне в Dao</translation>
@@ -18,6 +30,7 @@
 <translation id="3891466792657071243">Спиране на зареждането</translation>
 <translation id="3901975710974642844">Премести остарелите раздели в „остарели“</translation>
 <translation id="3984237987235889323">Прилагане</translation>
+<translation id="4165986682804962316">Настройки на сайта</translation>
 <translation id="4201242995651540725">Архивирани раздели, неактивни през последните 24 часа</translation>
 <translation id="4285498937028063278">Откачи</translation>
 <translation id="4322394346347055525">Затваряне на другите раздели</translation>
@@ -33,16 +46,22 @@
 <translation id="5538307496474303926">Изчистване...</translation>
 <translation id="5556459405103347317">Презареждане</translation>
 <translation id="5611474372949142946">Затваряне на разделите отдолу</translation>
+<translation id="5873058639175438941">Затъмняване на уебсайтове с Авто Тъмен Режим, когато системата е в тъмен режим.</translation>
 <translation id="5953452567010839148">Не е намерен QR код</translation>
+<translation id="6042308850641462728">Още</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6527303717912515753">Споделяне</translation>
 <translation id="6736243959894955139">Адрес</translation>
 <translation id="6829876854799051628">Изчистване на бисквитките</translation>
 <translation id="6896758677409633944">Копиране</translation>
+<translation id="7401173814860935855">Бисквитките за този сайт са изчистени</translation>
 <translation id="7532108947552493901">Проверка за актуализации...</translation>
 <translation id="7604253494819481181">Натиснете <ph name="SHORTCUT" /> отново, за да превключите страничната лента</translation>
+<translation id="7636812263792427733">Принудителен тъмен режим</translation>
 <translation id="7717845620320228976">Проверка за актуализации</translation>
 <translation id="8137559199583651773">Управление на разширенията</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← Назад</translation>
+<translation id="8684229942427488970">Център на сайта</translation>
 <translation id="8717864919010420084">Копирай връзка</translation>
 <translation id="9191338038518226120">Превключване на страничната лента</translation>
 </translationbundle>

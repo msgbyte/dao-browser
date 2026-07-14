@@ -2,14 +2,26 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="ar">
 <translation id="1173894706177603556">إعادة تسمية</translation>
+<translation id="1182228621215085947">اسأل Dao</translation>
 <translation id="1293177648337752319">إلغاء كتم الموقع</translation>
+<translation id="1352298709666490484">تبديل التبويب</translation>
+<translation id="1383876407941801731">بحث</translation>
+<translation id="1602287703039480507">تم مسح ذاكرة التخزين المؤقت لهذا الموقع</translation>
 <translation id="1653598257495639807">نتيجة رمز QR</translation>
 <translation id="1809939268435598390">حذف المجلد</translation>
+<translation id="2109761659519935228">ميني Dao</translation>
 <translation id="21133533946938348">تثبيت علامة التبويب</translation>
+<translation id="2175927920773552910">رمز QR</translation>
+<translation id="2199413402821420360">تعذر فتح هذا التبويب في ميني Dao</translation>
+<translation id="2414886740292270097">داكن</translation>
+<translation id="243275146591958220">إلغاء التنزيل</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> المزيد</translation>
 <translation id="2703180365855369896">إغلاق علامات التبويب المكررة</translation>
 <translation id="2973324205039581528">كتم الموقع</translation>
 <translation id="3007771295016901659">تكرار علامة التبويب</translation>
 <translation id="3062877722240966678">مسار Dao i18n موافق</translation>
+<translation id="3249579521706735875">متاح عندما يكون النظام في الوضع الداكن.</translation>
+<translation id="3427713535827228685">الملحقات على هذا الموقع</translation>
 <translation id="3450492919008172498">لم يتم أرشفة علامات تبويب جديدة</translation>
 <translation id="3551320343578183772">إغلاق علامة التبويب</translation>
 <translation id="3657099196021255130">فتح في Dao</translation>
@@ -18,6 +30,7 @@
 <translation id="3891466792657071243">إيقاف التحميل</translation>
 <translation id="3901975710974642844">نقل علامات التبويب القديمة إلى "قديمة"</translation>
 <translation id="3984237987235889323">جارٍ التطبيق</translation>
+<translation id="4165986682804962316">إعدادات الموقع</translation>
 <translation id="4201242995651540725">تم أرشفة علامات التبويب غير النشطة خلال الـ 24 ساعة الماضية</translation>
 <translation id="4285498937028063278">إلغاء التثبيت</translation>
 <translation id="4322394346347055525">إغلاق علامات التبويب الأخرى</translation>
@@ -33,16 +46,22 @@
 <translation id="5538307496474303926">جارٍ المسح...</translation>
 <translation id="5556459405103347317">إعادة التحميل</translation>
 <translation id="5611474372949142946">إغلاق العلامات أدناه</translation>
+<translation id="5873058639175438941">تعتيم المواقع باستخدام الوضع الداكن التلقائي عندما يكون النظام في الوضع الداكن.</translation>
 <translation id="5953452567010839148">لم يتم العثور على رمز QR</translation>
+<translation id="6042308850641462728">المزيد</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6527303717912515753">مشاركة</translation>
 <translation id="6736243959894955139">العنوان</translation>
 <translation id="6829876854799051628">مسح الكوكيز</translation>
 <translation id="6896758677409633944">نسخ</translation>
+<translation id="7401173814860935855">تم مسح ملفات تعريف الارتباط لهذا الموقع</translation>
 <translation id="7532108947552493901">التحقق من التحديثات...</translation>
 <translation id="7604253494819481181">اضغط <ph name="SHORTCUT" /> مرة أخرى لتبديل الشريط الجانبي</translation>
+<translation id="7636812263792427733">فرض الوضع الداكن</translation>
 <translation id="7717845620320228976">التحقق من التحديثات</translation>
 <translation id="8137559199583651773">إدارة الملحقات</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> رجوع</translation>
+<translation id="8684229942427488970">مركز الموقع</translation>
 <translation id="8717864919010420084">نسخ الرابط</translation>
 <translation id="9191338038518226120">تبديل الشريط الجانبي</translation>
 </translationbundle>

@@ -2,14 +2,26 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="as">
 <translation id="1173894706177603556">পুনৰ নামকৰণ কৰক</translation>
+<translation id="1182228621215085947">Daoক সোধক</translation>
 <translation id="1293177648337752319">ছাইট আনমিউট কৰক</translation>
+<translation id="1352298709666490484">টেব সলনি কৰক</translation>
+<translation id="1383876407941801731">সন্ধান কৰক</translation>
+<translation id="1602287703039480507">এই ছাইটৰ বাবে কেছ পৰিষ্কাৰ কৰা হ'ল</translation>
 <translation id="1653598257495639807">QR ক'ড ফলাফল</translation>
 <translation id="1809939268435598390">ফোল্ডাৰ মচক</translation>
+<translation id="2109761659519935228">মিনি Dao</translation>
 <translation id="21133533946938348">টেব পিন কৰক</translation>
+<translation id="2175927920773552910">QR ক'ড</translation>
+<translation id="2199413402821420360">মিনি Daoত এই টেব খোলিব পৰা নগ'ল</translation>
+<translation id="2414886740292270097">ডাৰ্ক</translation>
+<translation id="243275146591958220">ডাউনলোড বাতিল কৰক</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> অধিক</translation>
 <translation id="2703180365855369896">নকল টেবসমূহ বন্ধ কৰক</translation>
 <translation id="2973324205039581528">ছাইট মিউট কৰক</translation>
 <translation id="3007771295016901659">টেব নকল কৰক</translation>
 <translation id="3062877722240966678">Dao i18n পাইপলাইন ঠিক আছে</translation>
+<translation id="3249579521706735875">চিষ্টেম ডাৰ্ক ম'ডত থাকিলে উপলব্ধ।</translation>
+<translation id="3427713535827228685">এই ছাইটত এক্সটেনচনসমূহ</translation>
 <translation id="3450492919008172498">কোনো নতুন টাব সংৰক্ষিত হোৱা নাই</translation>
 <translation id="3551320343578183772">টেব বন্ধ কৰক</translation>
 <translation id="3657099196021255130">Dao ত খোলক</translation>
@@ -18,6 +30,7 @@
 <translation id="3891466792657071243">ল'ডিং ৰখাওক</translation>
 <translation id="3901975710974642844">অচল টাবসমূহক "অচল"লৈ সৰাওক</translation>
 <translation id="3984237987235889323">প্ৰয়োগ কৰি আছে</translation>
+<translation id="4165986682804962316">ছাইট ছেটিংছ</translation>
 <translation id="4201242995651540725">যোৱা 24 ঘণ্টাৰ পৰা নিষ্ক্ৰিয় টাবসমূহ সংৰক্ষিত</translation>
 <translation id="4285498937028063278">আনপিন কৰক</translation>
 <translation id="4322394346347055525">আন টেবসমূহ বন্ধ কৰক</translation>
@@ -33,16 +46,22 @@
 <translation id="5538307496474303926">পৰিষ্কাৰ কৰি আছে...</translation>
 <translation id="5556459405103347317">পুনৰ ল'ড কৰক</translation>
 <translation id="5611474372949142946">তলৰ টেবসমূহ বন্ধ কৰক</translation>
+<translation id="5873058639175438941">Auto Dark Modeৰ সহায়ত ৱেবছাইটসমূহ ডাৰ্ক কৰক যেতিয়া চিষ্টেম ডাৰ্ক ম'ডত থাকে।</translation>
 <translation id="5953452567010839148">QR কোড পোৱা নগ'ল</translation>
+<translation id="6042308850641462728">অধিক</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6527303717912515753">শ্বেয়াৰ কৰক</translation>
 <translation id="6736243959894955139">ঠিকনা</translation>
 <translation id="6829876854799051628">কুকিজ পৰিষ্কাৰ কৰক</translation>
 <translation id="6896758677409633944">কপি</translation>
+<translation id="7401173814860935855">এই ছাইটৰ বাবে কুকিজ পৰিষ্কাৰ কৰা হ'ল</translation>
 <translation id="7532108947552493901">আপডেটৰ বাবে পৰীক্ষা কৰক...</translation>
 <translation id="7604253494819481181">পুনৰ সাইডবাৰ টগল কৰিবলৈ <ph name="SHORTCUT" /> পুনৰ টিপক</translation>
+<translation id="7636812263792427733">ডাৰ্ক ম'ড জোৰ কৰি প্ৰয়োগ কৰক</translation>
 <translation id="7717845620320228976">আপডেটৰ বাবে পৰীক্ষা কৰক</translation>
 <translation id="8137559199583651773">এক্সটেনচনসমূহ ব্যৱস্থাপনা কৰক</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← পিছুৱাই লওক</translation>
+<translation id="8684229942427488970">ছাইট চেণ্টাৰ</translation>
 <translation id="8717864919010420084">লিংক কপি কৰক</translation>
 <translation id="9191338038518226120">সাইডবাৰ টগল কৰক</translation>
 </translationbundle>

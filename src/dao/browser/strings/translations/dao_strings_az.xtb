@@ -2,14 +2,26 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="az">
 <translation id="1173894706177603556">Adını dəyiş</translation>
+<translation id="1182228621215085947">Dao-dan soruş</translation>
 <translation id="1293177648337752319">Saytı səsli et</translation>
+<translation id="1352298709666490484">Sekməni dəyiş</translation>
+<translation id="1383876407941801731">Axtar</translation>
+<translation id="1602287703039480507">Bu sayt üçün keş təmizləndi</translation>
 <translation id="1653598257495639807">QR Kod Nəticəsi</translation>
 <translation id="1809939268435598390">Qovluğu sil</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Vərəqi sanc</translation>
+<translation id="2175927920773552910">QR Kodu</translation>
+<translation id="2199413402821420360">Bu sekməni Mini Dao-da açmaq mümkün olmadı</translation>
+<translation id="2414886740292270097">Qara</translation>
+<translation id="243275146591958220">Yükləməni ləğv et</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> daha çox</translation>
 <translation id="2703180365855369896">Təkrarlanan Vərəqləri Bağla</translation>
 <translation id="2973324205039581528">Saytı səssiz et</translation>
 <translation id="3007771295016901659">Sekməni təkrarla</translation>
 <translation id="3062877722240966678">Dao i18n boru xətti OK</translation>
+<translation id="3249579521706735875">Sistem qara rejimdə olduqda mövcuddur.</translation>
+<translation id="3427713535827228685">Bu saytda genişlənmələr</translation>
 <translation id="3450492919008172498">Yeni sekme arxivlənmədi</translation>
 <translation id="3551320343578183772">Vərəqi bağla</translation>
 <translation id="3657099196021255130">Dao-da aç</translation>
@@ -18,6 +30,7 @@
 <translation id="3891466792657071243">Yükləməni dayandır</translation>
 <translation id="3901975710974642844">"Köhnə" sekmelərə köçür</translation>
 <translation id="3984237987235889323">Tətbiq edilir</translation>
+<translation id="4165986682804962316">Sayt parametrləri</translation>
 <translation id="4201242995651540725">Son 24 saat ərzində qeyri-aktiv olan sekmelər arxivləndi</translation>
 <translation id="4285498937028063278">Sancağı çıxar</translation>
 <translation id="4322394346347055525">Digər sekmələri bağla</translation>
@@ -33,16 +46,22 @@
 <translation id="5538307496474303926">Təmizlənir...</translation>
 <translation id="5556459405103347317">Yenidən yüklə</translation>
 <translation id="5611474372949142946">Aşağıdakı sekmələri bağla</translation>
+<translation id="5873058639175438941">Sistem qara rejimdə olarkən Auto Dark Mode ilə veb saytları qaraldın.</translation>
 <translation id="5953452567010839148">QR kod tapılmadı</translation>
+<translation id="6042308850641462728">Daha çox</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6527303717912515753">Paylaş</translation>
 <translation id="6736243959894955139">Ünvan</translation>
 <translation id="6829876854799051628">Kukiləri təmizlə</translation>
 <translation id="6896758677409633944">Kopyala</translation>
+<translation id="7401173814860935855">Bu sayt üçün kukilər təmizləndi</translation>
 <translation id="7532108947552493901">Yeniləmələri yoxla...</translation>
 <translation id="7604253494819481181">Yan paneli dəyişmək üçün <ph name="SHORTCUT" /> düyməsini yenidən basın</translation>
+<translation id="7636812263792427733">Qara rejimi məcbur et</translation>
 <translation id="7717845620320228976">Yeniləmələri yoxla</translation>
 <translation id="8137559199583651773">Genişləmələri idarə et</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Geri</translation>
+<translation id="8684229942427488970">Sayt mərkəzi</translation>
 <translation id="8717864919010420084">Keçidi kopyala</translation>
 <translation id="9191338038518226120">Yan paneli dəyiş</translation>
 </translationbundle>

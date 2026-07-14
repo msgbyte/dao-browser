@@ -2,14 +2,26 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="ca">
 <translation id="1173894706177603556">Canvia el nom</translation>
+<translation id="1182228621215085947">Pregunta a Dao</translation>
 <translation id="1293177648337752319">Activar so del lloc</translation>
+<translation id="1352298709666490484">Canvia de pestanya</translation>
+<translation id="1383876407941801731">Cerca</translation>
+<translation id="1602287703039480507">La memòria cau s'ha esborrat per a aquest lloc</translation>
 <translation id="1653598257495639807">Resultat del codi QR</translation>
 <translation id="1809939268435598390">Suprimeix la carpeta</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Fixa la pestanya</translation>
+<translation id="2175927920773552910">Codi QR</translation>
+<translation id="2199413402821420360">No s'ha pogut obrir aquesta pestanya a Mini Dao</translation>
+<translation id="2414886740292270097">Fosc</translation>
+<translation id="243275146591958220">Cancel·la la descàrrega</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> més</translation>
 <translation id="2703180365855369896">Tanca les pestanyes duplicades</translation>
 <translation id="2973324205039581528">Silenciar lloc</translation>
 <translation id="3007771295016901659">Duplicar pestanya</translation>
 <translation id="3062877722240966678">Canalització i18n de Dao OK</translation>
+<translation id="3249579521706735875">Disponible quan el sistema estigui en mode fosc.</translation>
+<translation id="3427713535827228685">Extensions en aquest lloc</translation>
 <translation id="3450492919008172498">No s'han arxivat pestanyes noves</translation>
 <translation id="3551320343578183772">Tanca la pestanya</translation>
 <translation id="3657099196021255130">Obre a Dao</translation>
@@ -18,6 +30,7 @@
 <translation id="3891466792657071243">Atura la càrrega</translation>
 <translation id="3901975710974642844">Mou les pestanyes inactives a "stale"</translation>
 <translation id="3984237987235889323">Aplicant</translation>
+<translation id="4165986682804962316">Configuració del lloc</translation>
 <translation id="4201242995651540725">Pestanyes arxivades inactives durant les últimes 24 hores</translation>
 <translation id="4285498937028063278">Desfixa</translation>
 <translation id="4322394346347055525">Tancar altres pestanyes</translation>
@@ -33,16 +46,22 @@
 <translation id="5538307496474303926">Esborrant...</translation>
 <translation id="5556459405103347317">Torna a carregar</translation>
 <translation id="5611474372949142946">Tancar pestanyes de baix</translation>
+<translation id="5873058639175438941">Enfosqueix els llocs web amb el Mode Fosc Automàtic mentre el sistema estigui en mode fosc.</translation>
 <translation id="5953452567010839148">No s'ha trobat cap codi QR</translation>
+<translation id="6042308850641462728">Més</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6527303717912515753">Comparteix</translation>
 <translation id="6736243959894955139">Adreça</translation>
 <translation id="6829876854799051628">Esborra les galetes</translation>
 <translation id="6896758677409633944">Copia</translation>
+<translation id="7401173814860935855">Les galetes s'han esborrat per a aquest lloc</translation>
 <translation id="7532108947552493901">Cerca actualitzacions...</translation>
 <translation id="7604253494819481181">Premeu <ph name="SHORTCUT" /> de nou per alternar la barra lateral</translation>
+<translation id="7636812263792427733">Força el mode fosc</translation>
 <translation id="7717845620320228976">Cerca actualitzacions</translation>
 <translation id="8137559199583651773">Gestiona extensions</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Enrere</translation>
+<translation id="8684229942427488970">Centre del lloc</translation>
 <translation id="8717864919010420084">Copia l'enllaç</translation>
 <translation id="9191338038518226120">Commuta la barra lateral</translation>
 </translationbundle>

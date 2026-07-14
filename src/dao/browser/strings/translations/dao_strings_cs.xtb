@@ -2,14 +2,26 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="cs">
 <translation id="1173894706177603556">Přejmenovat</translation>
+<translation id="1182228621215085947">Zeptejte se Daou</translation>
 <translation id="1293177648337752319">Zapnout zvuk webu</translation>
+<translation id="1352298709666490484">Přepnout kartu</translation>
+<translation id="1383876407941801731">Hledat</translation>
+<translation id="1602287703039480507">Cache pro tento web byla vymazána</translation>
 <translation id="1653598257495639807">Výsledek QR kódu</translation>
 <translation id="1809939268435598390">Smazat složku</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Připnout kartu</translation>
+<translation id="2175927920773552910">QR kód</translation>
+<translation id="2199413402821420360">Nelze otevřít tuto kartu v Mini Dao</translation>
+<translation id="2414886740292270097">Tmavý</translation>
+<translation id="243275146591958220">Zrušit stahování</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> více</translation>
 <translation id="2703180365855369896">Zavřít duplicitní karty</translation>
 <translation id="2973324205039581528">Ztlumit web</translation>
 <translation id="3007771295016901659">Duplikovat kartu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3249579521706735875">Dostupné, když je systém v tmavém režimu.</translation>
+<translation id="3427713535827228685">Rozšíření na tomto webu</translation>
 <translation id="3450492919008172498">Žádné nové karty nebyly archivovány</translation>
 <translation id="3551320343578183772">Zavřít kartu</translation>
 <translation id="3657099196021255130">Otevřít v Dao</translation>
@@ -18,6 +30,7 @@
 <translation id="3891466792657071243">Zastavit načítání</translation>
 <translation id="3901975710974642844">Přesunout neaktivní karty do "neaktivní"</translation>
 <translation id="3984237987235889323">Používání</translation>
+<translation id="4165986682804962316">Nastavení webu</translation>
 <translation id="4201242995651540725">Archivované karty neaktivní za posledních 24 hodin</translation>
 <translation id="4285498937028063278">Odepnout</translation>
 <translation id="4322394346347055525">Zavřít ostatní karty</translation>
@@ -33,16 +46,22 @@
 <translation id="5538307496474303926">Vymazávání...</translation>
 <translation id="5556459405103347317">Znovu načíst</translation>
 <translation id="5611474372949142946">Zavřít karty dole</translation>
+<translation id="5873058639175438941">Ztmavit webové stránky pomocí automatického tmavého režimu, když je systém v tmavém režimu.</translation>
 <translation id="5953452567010839148">Nenalezen žádný QR kód</translation>
+<translation id="6042308850641462728">Více</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6527303717912515753">Sdílet</translation>
 <translation id="6736243959894955139">Adresa</translation>
 <translation id="6829876854799051628">Vymazat cookies</translation>
 <translation id="6896758677409633944">Kopírovat</translation>
+<translation id="7401173814860935855">Cookies pro tento web byly vymazány</translation>
 <translation id="7532108947552493901">Zkontrolovat aktualizace...</translation>
 <translation id="7604253494819481181">Stiskněte <ph name="SHORTCUT" /> znovu pro přepnutí postranního panelu</translation>
+<translation id="7636812263792427733">Vynutit tmavý režim</translation>
 <translation id="7717845620320228976">Zkontrolovat aktualizace</translation>
 <translation id="8137559199583651773">Spravovat rozšíření</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← Zpět</translation>
+<translation id="8684229942427488970">Centrum webu</translation>
 <translation id="8717864919010420084">Kopírovat odkaz</translation>
 <translation id="9191338038518226120">Přepnout postranní panel</translation>
 </translationbundle>
