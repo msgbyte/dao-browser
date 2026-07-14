@@ -28,6 +28,53 @@ function reorderArray<T>(arr: T[], fromIndex: number, toIndex: number): void {
 }
 
 /**
+ * Creates a shared match pool that protects every exact runtime identity from
+ * URL fallback while refs are consumed in visual order.
+ */
+export function createTabRefMatchPool(
+    items: SidebarItem[], actualTabs: TabData[]): {
+      consume: (ref: SidebarTabRef) => TabData | null,
+      remaining: TabData[],
+    } {
+  const remaining = [...actualTabs];
+  const reservedTabIds = new Set<string>();
+
+  for (const item of items) {
+    if (item.type === 'tab') {
+      if (item.tabId) {
+        reservedTabIds.add(item.tabId);
+      }
+      continue;
+    }
+    for (const child of item.children) {
+      if (child.tabId) {
+        reservedTabIds.add(child.tabId);
+      }
+    }
+  }
+
+  const consume = (ref: SidebarTabRef): TabData | null => {
+    let idx = ref.tabId ?
+        remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
+    if (idx === -1) {
+      idx = remaining.findIndex(
+          tab => !reservedTabIds.has(tab.tabId) &&
+              tab.url === ref.url && tab.title === ref.title);
+    }
+    if (idx === -1) {
+      idx = remaining.findIndex(
+          tab => !reservedTabIds.has(tab.tabId) && tab.url === ref.url);
+    }
+    if (idx === -1) {
+      return null;
+    }
+    return remaining.splice(idx, 1)[0]!;
+  };
+
+  return {consume, remaining};
+}
+
+/**
  * Pure data layer managing the sidebar items tree (folders + tab refs).
  * All folder logic lives here — components call methods and re-render
  * from getOrderedItems().
@@ -261,22 +308,15 @@ export class FolderModel {
 
   /**
    * Reconcile stored folder data with actual browser tabs after
-   * session restore. Matches stored tab refs to actual tabs by stable
-   * tabId first, then falls back to URL. Unmatched actual tabs become loose
-   * tabs appended at the end. Stored refs with no match are discarded.
+   * session restore. Stable tabId matches are reserved before URL fallback so
+   * a closed tab cannot claim a surviving duplicate. Unreserved tabs may still
+   * match by URL when session restore or WebContents replacement changes the
+   * runtime identity. Unmatched actual tabs become loose tabs appended at the
+   * end. Stored refs with no match are discarded.
    */
   reconcile(actualTabs: TabData[]): void {
-    const remaining = [...actualTabs];
-
-    const consume = (ref: SidebarTabRef): TabData | null => {
-      let idx = ref.tabId ?
-          remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
-      if (idx === -1) {
-        idx = remaining.findIndex(tab => tab.url === ref.url);
-      }
-      if (idx === -1) return null;
-      return remaining.splice(idx, 1)[0]!;
-    };
+    const {consume, remaining} =
+        createTabRefMatchPool(this.items_, actualTabs);
 
     // Walk the stored items tree, matching each tab ref to an actual tab.
     const newItems: SidebarItem[] = [];
