@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/ui/browser_tabrestore.cc b/chrome/browser/ui/browser_tabrestore.cc
+index a1136ed6da..f643e1caa6 100644
+--- a/chrome/browser/ui/browser_tabrestore.cc
++++ b/chrome/browser/ui/browser_tabrestore.cc
+@@ -29,6 +29,7 @@
+ #include "components/tabs/public/tab_group.h"
+ #include "components/tabs/public/tab_interface.h"
+ #include "content/public/browser/navigation_entry.h"
++#include "dao/browser/ui/views/dao_tab_identity.h"
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/restore_type.h"
+ #include "content/public/browser/session_storage_namespace.h"
+@@ -80,6 +81,7 @@ std::unique_ptr<WebContents> CreateRestoredTab(
+                                extension_app_id);
+ 
+   glic::RestoreGlicStateFromExtraData(web_contents.get(), extra_data);
++  dao::RestoreSidebarTabIdentityFromExtraData(web_contents.get(), extra_data);
+ 
+   std::vector<std::unique_ptr<NavigationEntry>> entries =
+       ContentSerializedNavigationBuilder::ToNavigationEntries(

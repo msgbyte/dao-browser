@@ -13,6 +13,14 @@
 
 namespace dao {
 
+enum class DaoPinnedTabState {
+  kOpen,
+  kDormant,
+  kReconciling,
+};
+
+const char* DaoPinnedTabStateToString(DaoPinnedTabState state);
+
 struct DaoPinnedTabItem {
   DaoPinnedTabItem();
   DaoPinnedTabItem(const DaoPinnedTabItem&);
@@ -23,7 +31,8 @@ struct DaoPinnedTabItem {
   std::string title;
   std::string url;
   std::string favicon_url;
-  std::string tab_id;
+  std::string backing_tab_id;
+  DaoPinnedTabState state = DaoPinnedTabState::kReconciling;
   base::Time created_at;
   base::Time updated_at;
 };
@@ -42,15 +51,19 @@ class DaoPinnedTabModel {
 
   DaoPinnedTabItem* FindById(const std::string& id);
   const DaoPinnedTabItem* FindById(const std::string& id) const;
-  DaoPinnedTabItem* FindByTabId(const std::string& tab_id);
-  const DaoPinnedTabItem* FindByTabId(const std::string& tab_id) const;
+  DaoPinnedTabItem* FindByBackingTabId(const std::string& backing_tab_id);
+  const DaoPinnedTabItem* FindByBackingTabId(
+      const std::string& backing_tab_id) const;
   DaoPinnedTabItem* FindByUrl(const std::string& url);
   const DaoPinnedTabItem* FindByUrl(const std::string& url) const;
 
   DaoPinnedTabItem& AddOrUpdate(const std::string& title,
                                 const std::string& url,
                                 const std::string& favicon_url,
-                                const std::string& tab_id = std::string());
+                                const std::string& backing_tab_id =
+                                    std::string());
+  bool Bind(const std::string& id, const std::string& backing_tab_id);
+  bool SetState(const std::string& id, DaoPinnedTabState state);
   bool RemoveById(const std::string& id);
   bool Move(const std::string& id, size_t to_index);
 

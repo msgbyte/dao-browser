@@ -146,6 +146,8 @@ dao_browser_ui_sources = [
   "//dao/browser/ui/webui/dao_agent_ui.h",
   "//dao/browser/ui/webui/dao_pinned_tab_model.cc",
   "//dao/browser/ui/webui/dao_pinned_tab_model.h",
+  "//dao/browser/ui/webui/dao_pinned_tab_storage.cc",
+  "//dao/browser/ui/webui/dao_pinned_tab_storage.h",
   "//dao/browser/ui/webui/dao_sidebar_ui.cc",
   "//dao/browser/ui/webui/dao_sidebar_ui.h",
   "//dao/browser/ui/webui/dao_welcome_ui.cc",
@@ -168,6 +170,7 @@ dao_browser_ui_deps = [
 dao_browser_ui_test_sources = [
   "//dao/browser/agent/dao_dream_browsertest.cc",
   "//dao/browser/ui/views/dao_browser_browsertest.cc",
+  "//dao/browser/ui/webui/dao_pinned_tab_model_unittest.cc",
 ]
 
 dao_browser_ui_mac_test_sources = [

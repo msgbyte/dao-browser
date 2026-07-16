@@ -85,8 +85,11 @@ export interface TabData {
   lastActiveTimeMs?: number;
 }
 
+export type PinnedItemState = 'open'|'dormant'|'reconciling';
+
 export interface PinnedItemData {
   id: string;
+  state: PinnedItemState;
   title: string;
   url: string;
   faviconUrl: string;

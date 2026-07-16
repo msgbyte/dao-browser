@@ -20,13 +20,20 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **dao_sidebar_section.ts** — Reusable collapsible section container
 - **dao_tab_list.ts** / **dao_tab_item.ts** — Vertical tab list, dual-line layout for the active tab (title + URL)
 - **dao_favorites_view.ts** — Pinned site icon row
+- **dao_pinned_tabs_grid.ts** + **DaoPinnedTabModel** — Persistent Pin grid
+  with stable logical backing identities across navigation, discard/WebContents
+  replacement, and session restore. URL remains display/reopen metadata and is
+  used for legacy migration only when exactly one candidate exists. Confirmed
+  dormant items reopen once; identity conflicts fail closed without increasing
+  the tab count. Pin state is serialized through a shared sequenced writer and
+  atomically replaces the previous profile file.
 - **dao_folder_item.ts** / **dao_folder_model.ts** — Folder grouping with profile-path persistence (load/save round-trip)
 - **dao_new_tab_button.ts** — New-tab button
 - **dao_download_button.ts** — Download flyout trigger
 - **dao_media_control.ts** — Per-tab media playback controls
 
 ### 1.3 Tab System Foundations
-- **DaoTabIdentity** (`dao_tab_identity.h`) — Stable cross-window tab IDs decoupled from `TabStripModel` indices
+- **DaoTabIdentity** (`dao_tab_identity.h`) — Stable cross-window tab IDs decoupled from `TabStripModel` indices, migrated across WebContents replacement and persisted in session extra data
 - **DaoTabCommands** (`dao_tab_commands.h`) — Tab action vocabulary (duplicate, pin, copy URL, close, etc.)
 - **DaoCrossWindowDrag** (`dao_cross_window_drag.{h,cc}`) — `dao-tab-drag:<session_id>:<tab_index>` pasteboard payload + parser, shared by `dao_tab_item.ts` and the macOS drop handler in `dao_native_util_mac.mm`
 - **Detach guards** — Prevents accidental reordering while dragging
