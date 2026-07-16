@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <atomic>
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -51,6 +52,7 @@
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
 #include "chrome/browser/ui/startup/startup_types.h"
+#include "chrome/browser/ui/tab_helpers.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
@@ -1975,6 +1977,208 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   EXPECT_EQ(0, GetIntField(*updated_item, "openTabIndex"));
 }
 
+IN_PROC_BROWSER_TEST_F(
+    DaoSidebarBrowserTest,
+    PinnedItemIdentitySurvivesWebContentsReplacement) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(0);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* original = model->GetWebContentsAt(0);
+  ASSERT_NE(nullptr, original);
+  const std::string original_identity = GetSidebarTabId(original);
+
+  auto replacement = content::WebContents::Create(
+      content::WebContents::CreateParams(browser()->profile()));
+  content::WebContents* replacement_ptr = replacement.get();
+  TabHelpers::AttachTabHelpers(replacement_ptr);
+  model->DiscardWebContentsAt(0, std::move(replacement));
+
+  ASSERT_EQ(replacement_ptr, model->GetWebContentsAt(0));
+  EXPECT_EQ(original_identity, GetSidebarTabId(replacement_ptr));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoSidebarBrowserTest,
+    PinnedItemActivatesAfterUrlAndWebContentsChangeWithoutOpeningTab) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL updated_url = embedded_test_server()->GetURL("/title2.html");
+  const GURL other_url = embedded_test_server()->GetURL("/title3.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(0);
+  base::ListValue pinned_items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, pinned_items.size());
+  const base::DictValue* pinned_item = pinned_items[0].GetIfDict();
+  ASSERT_NE(nullptr, pinned_item);
+  const std::string pinned_item_id = GetStringField(*pinned_item, "id");
+
+  TabStripModel* model = browser()->tab_strip_model();
+  auto replacement = content::WebContents::Create(
+      content::WebContents::CreateParams(browser()->profile()));
+  content::WebContents* replacement_ptr = replacement.get();
+  TabHelpers::AttachTabHelpers(replacement_ptr);
+  model->DiscardWebContentsAt(0, std::move(replacement));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), updated_url));
+
+  chrome::AddTabAt(browser(), other_url, -1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+  const int count_before = model->count();
+  handler.ActivateOrOpenPinnedItemForTesting(pinned_item_id);
+
+  EXPECT_EQ(count_before, model->count());
+  EXPECT_EQ(replacement_ptr, model->GetActiveWebContents());
+  EXPECT_EQ(updated_url, replacement_ptr->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       PinnedItemDoesNotClaimAnotherTabWithSameUrl) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL duplicate_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), duplicate_url));
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* original = model->GetActiveWebContents();
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(0);
+  base::ListValue first_items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, first_items.size());
+  const base::DictValue* first_item = first_items[0].GetIfDict();
+  ASSERT_NE(nullptr, first_item);
+  const std::string first_item_id = GetStringField(*first_item, "id");
+
+  chrome::AddTabAt(browser(), duplicate_url, -1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+  content::WebContents* duplicate = model->GetActiveWebContents();
+  ASSERT_NE(original, duplicate);
+  handler.PinTabForTesting(model->GetIndexOfWebContents(duplicate));
+
+  const int count_before = model->count();
+  handler.ActivateOrOpenPinnedItemForTesting(first_item_id);
+  EXPECT_EQ(count_before, model->count());
+  EXPECT_EQ(original, model->GetActiveWebContents());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       PinnedIdentityConflictDoesNotOpenTab) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL duplicate_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), duplicate_url));
+  chrome::AddTabAt(browser(), duplicate_url, -1, true);
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+  model->SetTabPinned(0, true);
+  model->SetTabPinned(1, true);
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  ASSERT_TRUE(handler.LoadPinnedItemsForTesting(
+      base::StrCat({
+          R"({"version":1,"items":[{"id":"legacy-pin","title":"Legacy","url":")",
+          duplicate_url.spec(), R"("}]})"})));
+  base::ListValue items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, items.size());
+  const base::DictValue* item = items[0].GetIfDict();
+  ASSERT_NE(nullptr, item);
+  EXPECT_EQ("reconciling", GetStringField(*item, "state"));
+
+  content::WebContents* active_before = model->GetActiveWebContents();
+  const int count_before = model->count();
+  handler.ActivateOrOpenPinnedItemForTesting("legacy-pin");
+  EXPECT_EQ(count_before, model->count());
+  EXPECT_EQ(active_before, model->GetActiveWebContents());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ReconcilingPinnedItemDragDoesNotOpenOrRemovePin) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL duplicate_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), duplicate_url));
+  chrome::AddTabAt(browser(), duplicate_url, -1, true);
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+  model->SetTabPinned(0, true);
+  model->SetTabPinned(1, true);
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  ASSERT_TRUE(handler.LoadPinnedItemsForTesting(
+      base::StrCat({
+          R"({"version":1,"items":[{"id":"legacy-pin","title":"Legacy","url":")",
+          duplicate_url.spec(), R"("}]})"}));
+
+  const int count_before = model->count();
+  handler.UnpinPinnedItemForTesting("legacy-pin", model->count());
+
+  EXPECT_EQ(count_before, model->count());
+  base::ListValue items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, items.size());
+  EXPECT_EQ("legacy-pin", GetStringField(items[0].GetDict(), "id"));
+  EXPECT_EQ("reconciling", GetStringField(items[0].GetDict(), "state"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       MissingPinnedItemWaitsForSessionRestoreCompletion) {
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.SetSessionRestoreCompletedForTesting(false);
+  ASSERT_TRUE(handler.LoadPinnedItemsForTesting(
+      R"({"version":2,"items":[{"id":"restoring-pin","title":"Restoring","url":"https://restore.example","backingTabId":"restored-tab","state":"dormant"}]})"));
+
+  base::ListValue reconciling_items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, reconciling_items.size());
+  EXPECT_EQ("reconciling",
+            GetStringField(reconciling_items[0].GetDict(), "state"));
+  const int count_during_restore = browser()->tab_strip_model()->count();
+  handler.ActivateOrOpenPinnedItemForTesting("restoring-pin");
+  EXPECT_EQ(count_during_restore, browser()->tab_strip_model()->count());
+
+  handler.SetSessionRestoreCompletedForTesting(true);
+  base::ListValue dormant_items = handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, dormant_items.size());
+  EXPECT_EQ("dormant", GetStringField(dormant_items[0].GetDict(), "state"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       DormantPinnedItemRepeatedActivationOpensOneTab) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL other_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+  chrome::AddTabAt(browser(), other_url, -1, true);
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.PinTabForTesting(FindTabIndexByUrl(browser(), pinned_url));
+  base::ListValue items = handler.GetPinnedItemsForTesting();
+  const base::DictValue* item =
+      FindDictByStringField(items, "url", pinned_url.spec());
+  ASSERT_NE(nullptr, item);
+  const std::string item_id = GetStringField(*item, "id");
+  handler.ClosePinnedItemTabForTesting(item_id);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(1, model->count());
+  handler.ActivateOrOpenPinnedItemForTesting(item_id);
+  handler.ActivateOrOpenPinnedItemForTesting(item_id);
+  EXPECT_EQ(2, model->count());
+}
+
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        UnpinRemovesPinnedItemAndUnpinsBackingTab) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -3169,6 +3373,21 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateTabsGetDistinctSidebarTabIds)
   model->MoveWebContentsAt(2, 1, false);
   EXPECT_EQ(original_id, GetSidebarTabId(original));
   EXPECT_EQ(duplicate_id, GetSidebarTabId(duplicate));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       SidebarTabIdentityRoundTripsThroughSessionExtraData) {
+  content::WebContents* original =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, original);
+  const std::string identity = GetSidebarTabId(original);
+  std::map<std::string, std::string> extra_data;
+  PopulateSidebarTabIdentityExtraData(original, &extra_data);
+
+  auto restored = content::WebContents::Create(
+      content::WebContents::CreateParams(browser()->profile()));
+  RestoreSidebarTabIdentityFromExtraData(restored.get(), extra_data);
+  EXPECT_EQ(identity, GetSidebarTabId(restored.get()));
 }
 
 // External URL entry points (macOS application:openURLs:, Universal Links,

@@ -22,6 +22,7 @@ const originalAnimateDescriptor =
 function item(extra: Partial<PinnedItemData> = {}): PinnedItemData {
   return {
     id: 'pin-1',
+    state: 'open',
     title: 'GitHub',
     url: 'https://github.com/',
     faviconUrl: '',
@@ -343,6 +344,26 @@ describe('dao-pinned-tabs-grid', () => {
     expect(send).toHaveBeenCalledWith(
         'activateOrOpenPinnedItem', ['pin-click']);
   });
+
+  it('accepts reconciling state without sending duplicate activation',
+      async () => {
+        const {el, send} = await loadGrid();
+        el.items = [item({
+          id: 'pin-reconciling',
+          state: 'reconciling',
+          isOpen: false,
+          openTabIndex: -1,
+        })];
+        await el.updateComplete;
+
+        const tile = el.shadowRoot!.querySelector('.tile') as HTMLElement;
+        tile.click();
+
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(send).toHaveBeenCalledWith(
+            'activateOrOpenPinnedItem', ['pin-reconciling']);
+        expect(el.shadowRoot!.querySelectorAll('.tile')).toHaveLength(1);
+      });
 
   it('prevents favicon images from becoming the drag source', async () => {
     const {el} = await loadGrid();
@@ -978,6 +999,7 @@ describe('dao-pinned-tabs-grid', () => {
     const state: SidebarState = {
       pinnedItems: [{
         id: 'dormant',
+        state: 'dormant',
         title: 'Docs',
         url: 'https://docs.example/',
         faviconUrl: '',

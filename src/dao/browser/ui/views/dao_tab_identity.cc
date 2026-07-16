@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/views/dao_tab_identity.h"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -46,6 +47,46 @@ std::string GetSidebarTabId(content::WebContents* contents) {
   }
 
   return identity->id();
+}
+
+void SetSidebarTabId(content::WebContents* contents, const std::string& id) {
+  if (!contents || id.empty()) {
+    return;
+  }
+  contents->SetUserData(
+      &kDaoSidebarTabIdentityKey,
+      std::make_unique<DaoSidebarTabIdentityData>(id));
+}
+
+void CopySidebarTabId(content::WebContents* old_contents,
+                      content::WebContents* new_contents) {
+  if (!old_contents || !new_contents) {
+    return;
+  }
+
+  auto* identity = static_cast<DaoSidebarTabIdentityData*>(
+      old_contents->GetUserData(&kDaoSidebarTabIdentityKey));
+  if (identity) {
+    SetSidebarTabId(new_contents, identity->id());
+  }
+}
+
+void PopulateSidebarTabIdentityExtraData(
+    content::WebContents* contents,
+    std::map<std::string, std::string>* extra_data) {
+  if (!contents || !extra_data) {
+    return;
+  }
+  (*extra_data)[kSidebarTabIdentitySessionKey] = GetSidebarTabId(contents);
+}
+
+void RestoreSidebarTabIdentityFromExtraData(
+    content::WebContents* contents,
+    const std::map<std::string, std::string>& extra_data) {
+  auto it = extra_data.find(kSidebarTabIdentitySessionKey);
+  if (it != extra_data.end()) {
+    SetSidebarTabId(contents, it->second);
+  }
 }
 
 }  // namespace dao

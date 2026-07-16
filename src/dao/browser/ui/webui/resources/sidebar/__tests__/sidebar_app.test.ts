@@ -34,6 +34,7 @@ vi.mock('../dao_media_control.js', () => {
 function pinnedItem(extra: Partial<PinnedItemData> = {}): PinnedItemData {
   return {
     id: 'pin-1',
+    state: 'open',
     title: 'Pinned',
     url: 'https://example.com/',
     faviconUrl: '',

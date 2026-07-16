@@ -21,7 +21,7 @@ namespace dao {
 
 namespace {
 
-constexpr int kPinnedTabModelVersion = 1;
+constexpr int kPinnedTabModelVersion = 2;
 
 base::Time TimeFromUnixSeconds(int64_t seconds) {
   return base::Time::FromTimeT(static_cast<time_t>(seconds));
@@ -72,6 +72,10 @@ std::optional<DaoPinnedTabItem> ParseItem(const base::Value& value) {
   item.title = *title;
   item.url = *url;
   item.favicon_url = favicon_url ? *favicon_url : std::string();
+  const std::string* backing_tab_id = dict->FindString("backingTabId");
+  item.backing_tab_id =
+      backing_tab_id ? *backing_tab_id : std::string();
+  item.state = DaoPinnedTabState::kReconciling;
   item.created_at = ParseTimeValue(*dict, "createdAt");
   item.updated_at = ParseTimeValue(*dict, "updatedAt");
   return item;
@@ -83,12 +87,28 @@ base::DictValue ItemToValue(const DaoPinnedTabItem& item) {
   dict.Set("title", item.title);
   dict.Set("url", item.url);
   dict.Set("faviconUrl", item.favicon_url);
+  if (!item.backing_tab_id.empty()) {
+    dict.Set("backingTabId", item.backing_tab_id);
+  }
+  dict.Set("state", DaoPinnedTabStateToString(item.state));
   dict.Set("createdAt", TimeToUnixSecondsString(item.created_at));
   dict.Set("updatedAt", TimeToUnixSecondsString(item.updated_at));
   return dict;
 }
 
 }  // namespace
+
+const char* DaoPinnedTabStateToString(DaoPinnedTabState state) {
+  switch (state) {
+    case DaoPinnedTabState::kOpen:
+      return "open";
+    case DaoPinnedTabState::kDormant:
+      return "dormant";
+    case DaoPinnedTabState::kReconciling:
+      return "reconciling";
+  }
+  return "reconciling";
+}
 
 DaoPinnedTabItem::DaoPinnedTabItem() = default;
 
@@ -119,15 +139,15 @@ bool DaoPinnedTabModel::LoadFromJson(const std::string& json) {
   const base::DictValue& dict = root->GetDict();
   const base::ListValue* items = dict.FindList("items");
   if (!items) {
-    items_ = std::move(parsed_items);
-    return true;
+    return false;
   }
 
   for (const base::Value& value : *items) {
     std::optional<DaoPinnedTabItem> item = ParseItem(value);
-    if (item) {
-      parsed_items.push_back(std::move(*item));
+    if (!item) {
+      return false;
     }
+    parsed_items.push_back(std::move(*item));
   }
 
   items_ = std::move(parsed_items);
@@ -166,26 +186,26 @@ const DaoPinnedTabItem* DaoPinnedTabModel::FindById(
   return it == items_.end() ? nullptr : &*it;
 }
 
-DaoPinnedTabItem* DaoPinnedTabModel::FindByTabId(
-    const std::string& tab_id) {
-  if (tab_id.empty()) {
+DaoPinnedTabItem* DaoPinnedTabModel::FindByBackingTabId(
+    const std::string& backing_tab_id) {
+  if (backing_tab_id.empty()) {
     return nullptr;
   }
   auto it = std::find_if(items_.begin(), items_.end(),
-                         [&tab_id](const DaoPinnedTabItem& item) {
-                           return item.tab_id == tab_id;
+                         [&backing_tab_id](const DaoPinnedTabItem& item) {
+                           return item.backing_tab_id == backing_tab_id;
                          });
   return it == items_.end() ? nullptr : &*it;
 }
 
-const DaoPinnedTabItem* DaoPinnedTabModel::FindByTabId(
-    const std::string& tab_id) const {
-  if (tab_id.empty()) {
+const DaoPinnedTabItem* DaoPinnedTabModel::FindByBackingTabId(
+    const std::string& backing_tab_id) const {
+  if (backing_tab_id.empty()) {
     return nullptr;
   }
   auto it = std::find_if(items_.begin(), items_.end(),
-                         [&tab_id](const DaoPinnedTabItem& item) {
-                           return item.tab_id == tab_id;
+                         [&backing_tab_id](const DaoPinnedTabItem& item) {
+                           return item.backing_tab_id == backing_tab_id;
                          });
   return it == items_.end() ? nullptr : &*it;
 }
@@ -211,20 +231,18 @@ DaoPinnedTabItem& DaoPinnedTabModel::AddOrUpdate(
     const std::string& title,
     const std::string& url,
     const std::string& favicon_url,
-    const std::string& tab_id) {
+    const std::string& backing_tab_id) {
   const base::Time now = base::Time::Now();
 
-  DaoPinnedTabItem* item = FindByTabId(tab_id);
-  if (!item) {
-    item = FindByUrl(url);
-  }
+  DaoPinnedTabItem* item = FindByBackingTabId(backing_tab_id);
   if (item) {
     item->title = title;
     item->url = url;
     item->favicon_url = favicon_url;
-    if (!tab_id.empty()) {
-      item->tab_id = tab_id;
+    if (!backing_tab_id.empty()) {
+      item->backing_tab_id = backing_tab_id;
     }
+    item->state = DaoPinnedTabState::kOpen;
     item->updated_at = now;
     return *item;
   }
@@ -234,12 +252,40 @@ DaoPinnedTabItem& DaoPinnedTabModel::AddOrUpdate(
   new_item.title = title;
   new_item.url = url;
   new_item.favicon_url = favicon_url;
-  new_item.tab_id = tab_id;
+  new_item.backing_tab_id = backing_tab_id;
+  new_item.state = backing_tab_id.empty() ? DaoPinnedTabState::kReconciling
+                                         : DaoPinnedTabState::kOpen;
   new_item.created_at = now;
   new_item.updated_at = now;
 
   items_.push_back(std::move(new_item));
   return items_.back();
+}
+
+bool DaoPinnedTabModel::Bind(const std::string& id,
+                             const std::string& backing_tab_id) {
+  if (backing_tab_id.empty()) {
+    return false;
+  }
+  DaoPinnedTabItem* item = FindById(id);
+  if (!item) {
+    return false;
+  }
+  item->backing_tab_id = backing_tab_id;
+  item->state = DaoPinnedTabState::kOpen;
+  item->updated_at = base::Time::Now();
+  return true;
+}
+
+bool DaoPinnedTabModel::SetState(const std::string& id,
+                                 DaoPinnedTabState state) {
+  DaoPinnedTabItem* item = FindById(id);
+  if (!item || item->state == state) {
+    return false;
+  }
+  item->state = state;
+  item->updated_at = base::Time::Now();
+  return true;
 }
 
 bool DaoPinnedTabModel::RemoveById(const std::string& id) {
