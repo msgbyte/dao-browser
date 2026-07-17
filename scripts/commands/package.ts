@@ -240,6 +240,27 @@ async function createZip(
   return zipPath;
 }
 
+export function cleanupCreateDmgTemporaryImages(dmgPath: string): string[] {
+  const directory = path.dirname(dmgPath);
+  const escapedDmgName = path.basename(dmgPath).replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
+  const temporaryImagePattern = new RegExp(
+    `^rw\\.\\d+\\.${escapedDmgName}$`
+  );
+  const removed: string[] = [];
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (!entry.isFile() || !temporaryImagePattern.test(entry.name)) continue;
+    const temporaryImagePath = path.join(directory, entry.name);
+    rmSync(temporaryImagePath);
+    removed.push(temporaryImagePath);
+  }
+
+  return removed;
+}
+
 async function createDmg(
   appBundle: string,
   appName: string,
@@ -279,8 +300,18 @@ async function createDmg(
       return a;
     };
 
+    const runCreateDmgAttempt = async (
+      skipFinderStyling: boolean
+    ): Promise<SpawnResult> => {
+      try {
+        return await spawnCapture(createDmgBin, buildArgs(skipFinderStyling));
+      } finally {
+        cleanupCreateDmgTemporaryImages(dmgPath);
+      }
+    };
+
     // First attempt: full visual styling (requires Finder Apple-event access).
-    let result = await spawnCapture(createDmgBin, buildArgs(false));
+    let result = await runCreateDmgAttempt(false);
 
     if (!result.ok && isFinderAccessDenied(result.stderr)) {
       warn(
@@ -291,7 +322,7 @@ async function createDmg(
       );
       // Clean up any partial DMG from the failed first pass before retrying.
       if (existsSync(dmgPath)) rmSync(dmgPath);
-      result = await spawnCapture(createDmgBin, buildArgs(true));
+      result = await runCreateDmgAttempt(true);
     }
 
     if (!result.ok) {

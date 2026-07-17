@@ -12,10 +12,38 @@ import {describe, expect, it} from 'vitest';
 
 import {
   assertRequiredEntitlementsPresent,
+  cleanupCreateDmgTemporaryImages,
   preserveDsymsForLocalDebugging,
 } from '../package.js';
 
 describe('package scripts', () => {
+  it('removes only create-dmg temporary images for the target artifact', () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'dao-package-test-'));
+    const dmgPath = path.join(root, 'dao-browser-1.0.78-mac-arm64.dmg');
+    const matchingTemporaryImages = [
+      path.join(root, 'rw.60269.dao-browser-1.0.78-mac-arm64.dmg'),
+      path.join(root, 'rw.60270.dao-browser-1.0.78-mac-arm64.dmg'),
+    ];
+    const preservedFiles = [
+      dmgPath,
+      path.join(root, 'rw.not-a-pid.dao-browser-1.0.78-mac-arm64.dmg'),
+      path.join(root, 'rw.60271.dao-browser-1.0.77-mac-arm64.dmg'),
+    ];
+    for (const filePath of [...matchingTemporaryImages, ...preservedFiles]) {
+      writeFileSync(filePath, 'disk image');
+    }
+
+    const removed = cleanupCreateDmgTemporaryImages(dmgPath);
+
+    expect(removed.sort()).toEqual(matchingTemporaryImages.sort());
+    for (const filePath of matchingTemporaryImages) {
+      expect(existsSync(filePath)).toBe(false);
+    }
+    for (const filePath of preservedFiles) {
+      expect(existsSync(filePath)).toBe(true);
+    }
+  });
+
   it('exposes the R2 cleanup command', () => {
     const packageJsonPath = path.join(process.cwd(), 'package.json');
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as {
