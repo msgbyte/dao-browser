@@ -39,7 +39,7 @@ vi.mock('../dao_chat_view.js', () => {
   return {};
 });
 
-vi.mock('../dao_dream_runner.js', () => ({}));
+vi.mock('../dao_dream_dispatcher.js', () => ({}));
 
 vi.mock('../dao_settings_view.js', () => {
   if (!customElements.get('dao-settings-view')) {

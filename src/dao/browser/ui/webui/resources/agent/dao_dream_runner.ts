@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Dream Analysis LLM runner. Listens for `dream-run` pushes from
-// DaoDreamService (via DaoAgentDreamHandler), executes a single-shot LLM
-// summarization over the material pack using the user's active provider,
-// validates the JSON output, and reports back via chrome.send.
-//
-// Loaded for side effects from dao_agent_app.ts so the resident
-// (preloaded, hidden) agent WebUI can dream without the panel open.
+// Daily Dream Analysis LLM runner. Executes a single-shot LLM summarization
+// over the material pack using the user's active provider and validates the
+// JSON output. Listener ownership lives in dao_dream_dispatcher.ts.
 
-import {addWebUIListener, recordApiCall} from './agent_bridge.js';
+import {recordApiCall} from './agent_bridge.js';
 import type {ChatMessage, UsageInfo} from './agent_bridge.js';
 import {currentLocale} from './i18n/i18n.js';
 import {getCostRatesForConfig} from './llm_cost.js';
@@ -34,7 +30,7 @@ interface RunDreamOptions {
   debug?: boolean;
 }
 
-interface DreamCallResult {
+export interface DreamCallResult {
   content: string;
   usage?: UsageInfo;
 }
@@ -166,7 +162,8 @@ export function extractJson(raw: string): string {
   return fence ? fence[1]! : trimmed;
 }
 
-async function callOnce(messages: ChatMessage[]): Promise<DreamCallResult> {
+export async function callDreamOnce(
+    messages: ChatMessage[]): Promise<DreamCallResult> {
   // Call the pi adapter directly with an EMPTY tool list — dream
   // summarization is a single-shot text task. Going through
   // agent_bridge.callLLMStreaming would attach the full browser tool
@@ -191,7 +188,7 @@ async function callOnce(messages: ChatMessage[]): Promise<DreamCallResult> {
   });
 }
 
-function recordDreamUsage(
+export function recordDreamUsage(
     usage: UsageInfo|undefined,
     cfg: ReturnType<typeof getActiveLLMConfig>) {
   if (!usage) {
@@ -241,7 +238,7 @@ export async function runDream(
 
   let lastError = '';
   for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await callOnce(
+    const response = await callDreamOnce(
         lastError ? [...messages, {
           role: 'user' as const,
           content: 'Your previous output was not valid JSON (' + lastError +
@@ -262,27 +259,3 @@ export async function runDream(
   }
   throw new Error('invalid JSON after retry: ' + lastError);
 }
-
-// ---- Wire up the listener (module side effect) ----
-
-let dreamInFlight = false;
-
-addWebUIListener('dream-run', (payload: unknown) => {
-  const p = payload as {dreamDate?: string; material?: unknown; debug?: boolean};
-  if (!p || typeof p.dreamDate !== 'string' || dreamInFlight) {
-    return;
-  }
-  dreamInFlight = true;
-  const date = p.dreamDate;
-  runDream(date, p.material, {debug: p.debug === true})
-      .then((result) => {
-        chrome.send('dreamComplete', [date, result]);
-      })
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        chrome.send('dreamFailed', [date, msg]);
-      })
-      .finally(() => {
-        dreamInFlight = false;
-      });
-});

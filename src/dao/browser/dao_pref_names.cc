@@ -31,6 +31,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoAskAiEnabled, true);
   registry->RegisterDictionaryPref(kDaoLittleDaoWindowSize);
   registry->RegisterBooleanPref(kDaoDreamEnabled, false);
+  registry->RegisterBooleanPref(kDaoDreamWeeklyEnabled, false);
   registry->RegisterBooleanPref(kDaoDreamDebug, false);
   registry->RegisterListPref(kDaoDreamExcludedDomains);
 }

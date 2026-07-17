@@ -4345,6 +4345,11 @@ void DaoDreamRunnerHandler::RegisterMessages() {
       "startManualDream",
       base::BindRepeating(&DaoDreamRunnerHandler::HandleStartManualDream,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "startManualWeeklyDream",
+      base::BindRepeating(
+          &DaoDreamRunnerHandler::HandleStartManualWeeklyDream,
+          base::Unretained(this)));
 }
 
 void DaoDreamRunnerHandler::OnJavascriptAllowed() {
@@ -4359,11 +4364,18 @@ void DaoDreamRunnerHandler::OnJavascriptDisallowed() {
   }
 }
 
-void DaoDreamRunnerHandler::RunDream(const std::string& dream_date,
-                                     const base::DictValue& material) {
+void DaoDreamRunnerHandler::RunDream(
+    const DaoDreamService::DreamRunRequest& request,
+    const base::DictValue& material) {
   Profile* profile = Profile::FromWebUI(web_ui());
   base::DictValue payload;
-  payload.Set("dreamDate", dream_date);
+  payload.Set("requestId", request.request_id);
+  payload.Set("reportKind",
+              request.report_kind == DaoDreamService::ReportKind::kWeekly
+                  ? "weekly"
+                  : "daily");
+  payload.Set("periodStart", request.period_start);
+  payload.Set("periodEnd", request.period_end);
   payload.Set("material", material.Clone());
   payload.Set("debug",
               profile->GetPrefs()->GetBoolean(prefs::kDaoDreamDebug));
@@ -4376,18 +4388,46 @@ void DaoDreamRunnerHandler::HandleDreamComplete(
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
     return;
   }
-  if (DaoDreamService* service = GetDreamService()) {
-    service->OnDreamResult(args[0].GetString(), args[1].GetDict().Clone());
+  const std::string& request_id = args[0].GetString();
+  if (request_id.empty()) {
+    return;
+  }
+  const base::DictValue& envelope = args[1].GetDict();
+  const std::string* status = envelope.FindString("status");
+  if (!status || status->empty()) {
+    return;
+  }
+  DaoDreamService* service = GetDreamService();
+  if (!service) {
+    return;
+  }
+  if (*status == "skipped" && !envelope.Find("result")) {
+    service->OnDreamSkipped(request_id);
+    return;
+  }
+  const base::DictValue* result = envelope.FindDict("result");
+  if (*status == "completed" && result) {
+    service->OnDreamResult(request_id, result->Clone());
   }
 }
 
 void DaoDreamRunnerHandler::HandleDreamFailed(const base::ListValue& args) {
   AllowJavascript();
-  if (args.size() < 2 || !args[0].is_string() || !args[1].is_string()) {
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string& request_id = args[0].GetString();
+  const base::DictValue& envelope = args[1].GetDict();
+  const std::string* code = envelope.FindString("code");
+  const std::string* message = envelope.FindString("message");
+  if (request_id.empty() || !code || code->empty() || !message ||
+      message->empty() ||
+      (*code != "configuration" && *code != "provider" &&
+       *code != "invalid_output")) {
     return;
   }
   if (DaoDreamService* service = GetDreamService()) {
-    service->OnDreamFailed(args[0].GetString(), args[1].GetString());
+    service->OnDreamFailed(request_id, {*code, *message});
   }
 }
 
@@ -4493,6 +4533,62 @@ void DaoDreamRunnerHandler::HandleStartManualDream(
   } else {
     service->StartManualDream(std::move(callback));
   }
+}
+
+void DaoDreamRunnerHandler::HandleStartManualWeeklyDream(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  if (args.size() >= 2 && !args[1].is_dict()) {
+    RejectJavascriptCallback(base::Value(callback_id),
+                             base::Value("weekly_invalid_week_start"));
+    return;
+  }
+
+  std::optional<std::string> week_start;
+  if (args.size() >= 2) {
+    const base::DictValue& params = args[1].GetDict();
+    if (const base::Value* value = params.Find("weekStart")) {
+      if (!value->is_string()) {
+        RejectJavascriptCallback(base::Value(callback_id),
+                                 base::Value("weekly_invalid_week_start"));
+        return;
+      }
+      week_start = value->GetString();
+    }
+  }
+
+  DaoDreamService* service = GetDreamService();
+  if (!service) {
+    RejectJavascriptCallback(base::Value(callback_id),
+                             base::Value("dream service unavailable"));
+    return;
+  }
+  service->SetRunner(this);
+  auto callback = base::BindOnce(
+      [](base::WeakPtr<DaoDreamRunnerHandler> self, std::string callback_id,
+         bool success, const std::string& error) {
+        if (!self) {
+          return;
+        }
+        if (success) {
+          self->ResolveJavascriptCallback(base::Value(callback_id),
+                                          base::Value(true));
+          return;
+        }
+        self->RejectJavascriptCallback(base::Value(callback_id),
+                                       base::Value(error));
+      },
+      weak_factory_.GetWeakPtr(), callback_id);
+  if (week_start) {
+    service->StartManualWeeklyDreamForWeekStart(*week_start,
+                                                std::move(callback));
+    return;
+  }
+  service->StartManualWeeklyDream(std::move(callback));
 }
 
 // ---- DaoAgentDreamHandler ----

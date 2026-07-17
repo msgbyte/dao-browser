@@ -44,10 +44,18 @@ class DaoAgentMemoryStore {
       const std::string& session_id,
       int limit);
   std::vector<ConversationMessage> LoadRecentMessages(int limit);
+  std::vector<ConversationMessage> LoadConversationMessagesInRange(
+      base::Time start,
+      base::Time end,
+      int limit);
 
   // Conversation summaries
   bool SaveConversationSummary(const ConversationSummary& summary);
   std::vector<ConversationSummary> LoadConversationSummaries(int limit);
+  std::vector<ConversationSummary> LoadConversationSummariesInRange(
+      base::Time start,
+      base::Time end,
+      int limit);
   std::optional<ConversationSummary> FindSummaryByDomain(
       const std::string& domain);
 
@@ -99,9 +107,30 @@ class DaoAgentMemoryStore {
   bool SaveDreamReport(const DreamReport& report);  // upsert by dream_date
   std::optional<DreamReport> GetDreamReportByDate(const std::string& date);
   std::vector<DreamReport> GetDreamReports(int limit);
+  std::vector<DreamReport> GetDreamReportsInDateRange(
+      const std::string& start_date,
+      const std::string& end_date,
+      int limit);
   std::optional<DreamReport> GetLatestDreamReport();
   std::optional<DreamReport> GetLatestUnviewedDreamReport();
   bool MarkDreamReportViewed(int64_t id);
+
+  // Weekly Dream reports and their local source locators.
+  bool SaveWeeklyDreamReport(
+      const WeeklyDreamReport& report,
+      const std::vector<WeeklyDreamSource>& sources);
+  std::optional<WeeklyDreamReport> GetWeeklyDreamReportByWeekStart(
+      const std::string& week_start);
+  std::vector<WeeklyDreamReport> GetWeeklyDreamReports(int limit);
+  std::optional<WeeklyDreamReport> GetLatestWeeklyDreamReportBefore(
+      const std::string& week_start);
+  std::optional<WeeklyDreamReport> GetLatestUnviewedWeeklyDreamReport();
+  std::vector<WeeklyDreamSource> GetWeeklyDreamSources(int64_t report_id);
+  std::optional<WeeklyDreamSource> GetWeeklyDreamSource(
+      int64_t report_id,
+      const std::string& ref_id);
+  bool MarkWeeklyDreamReportViewed(int64_t id);
+  bool DeleteWeeklyDreamReport(int64_t id);
 
   // Row limits
   bool EnforceRowLimits();
@@ -116,7 +145,7 @@ class DaoAgentMemoryStore {
                            base::cstring_view definition);
   void DatabaseErrorCallback(int error, sql::Statement* stmt);
 
-  static constexpr int kCurrentSchemaVersion = 3;
+  static constexpr int kCurrentSchemaVersion = 4;
   static constexpr int kMaxConversationRows = 10000;
   static constexpr int kMaxEpisodes = 500;
   static constexpr int kMaxPreferences = 100;

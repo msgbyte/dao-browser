@@ -16,6 +16,7 @@
 
 import {installDaoMarkdownPreprocess} from './dao_markdown.js';
 import {marked} from './vendor/pi_runtime_bundle.js';
+import './dao_dream_dispatcher.js';
 
 installDaoMarkdownPreprocess(marked);
 

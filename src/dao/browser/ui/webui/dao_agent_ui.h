@@ -478,7 +478,7 @@ class DaoDreamRunnerHandler : public content::WebUIMessageHandler,
   void OnJavascriptDisallowed() override;
 
   // DaoDreamService::Runner:
-  void RunDream(const std::string& dream_date,
+  void RunDream(const DaoDreamService::DreamRunRequest& request,
                 const base::DictValue& material) override;
 
  protected:
@@ -491,6 +491,7 @@ class DaoDreamRunnerHandler : public content::WebUIMessageHandler,
   void HandleAddDreamExcludedDomain(const base::ListValue& args);
   void HandleRemoveDreamExcludedDomain(const base::ListValue& args);
   void HandleStartManualDream(const base::ListValue& args);
+  void HandleStartManualWeeklyDream(const base::ListValue& args);
 
   base::WeakPtrFactory<DaoDreamRunnerHandler> weak_factory_{this};
 };

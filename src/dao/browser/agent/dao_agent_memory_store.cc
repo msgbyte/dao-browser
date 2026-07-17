@@ -57,6 +57,44 @@ DreamReport DreamReportFromStatement(sql::Statement& stmt) {
   return r;
 }
 
+constexpr char kWeeklyDreamReportColumns[] =
+    "id, week_start, week_end, content_json, material_stats, status, "
+    "attempt_count, trigger_kind, debug_material_json, viewed_at, created_at";
+
+WeeklyDreamReport WeeklyDreamReportFromStatement(sql::Statement& stmt) {
+  WeeklyDreamReport report;
+  report.id = stmt.ColumnInt64(0);
+  report.week_start = stmt.ColumnString(1);
+  report.week_end = stmt.ColumnString(2);
+  report.content_json = stmt.ColumnString(3);
+  report.material_stats = stmt.ColumnString(4);
+  report.status = stmt.ColumnString(5);
+  report.attempt_count = stmt.ColumnInt(6);
+  report.trigger_kind = stmt.ColumnString(7);
+  report.debug_material_json = stmt.ColumnString(8);
+  if (stmt.GetColumnType(9) != sql::ColumnType::kNull) {
+    report.viewed_at = TimeFromInt(stmt.ColumnInt64(9));
+  }
+  report.created_at = TimeFromInt(stmt.ColumnInt64(10));
+  return report;
+}
+
+constexpr char kWeeklyDreamSourceColumns[] =
+    "report_id, ref_id, source_kind, title, domain, local_locator, "
+    "last_seen_at";
+
+WeeklyDreamSource WeeklyDreamSourceFromStatement(sql::Statement& stmt) {
+  WeeklyDreamSource source;
+  source.report_id = stmt.ColumnInt64(0);
+  source.ref_id = stmt.ColumnString(1);
+  source.source_kind = stmt.ColumnString(2);
+  source.title = stmt.ColumnString(3);
+  source.domain = stmt.ColumnString(4);
+  source.local_locator = stmt.ColumnString(5);
+  source.last_seen_at = TimeFromInt(stmt.ColumnInt64(6));
+  return source;
+}
+
 MemorySqlQueryResult ErrorResult(std::string error) {
   MemorySqlQueryResult result;
   result.ok = false;
@@ -612,6 +650,39 @@ bool DaoAgentMemoryStore::CreateSchema() {
     return false;
   }
 
+  if (!db_->Execute(
+          "CREATE TABLE IF NOT EXISTS weekly_dream_reports ("
+          "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+          "  week_start TEXT NOT NULL UNIQUE,"
+          "  week_end TEXT NOT NULL,"
+          "  content_json TEXT NOT NULL DEFAULT '{}',"
+          "  material_stats TEXT NOT NULL DEFAULT '{}',"
+          "  status TEXT NOT NULL,"
+          "  attempt_count INTEGER NOT NULL DEFAULT 0,"
+          "  trigger_kind TEXT NOT NULL,"
+          "  debug_material_json TEXT NOT NULL DEFAULT '',"
+          "  viewed_at INTEGER,"
+          "  created_at INTEGER NOT NULL"
+          ")")) {
+    return false;
+  }
+
+  if (!db_->Execute(
+          "CREATE TABLE IF NOT EXISTS weekly_dream_sources ("
+          "  report_id INTEGER NOT NULL,"
+          "  ref_id TEXT NOT NULL,"
+          "  source_kind TEXT NOT NULL,"
+          "  title TEXT NOT NULL,"
+          "  domain TEXT NOT NULL DEFAULT '',"
+          "  local_locator TEXT NOT NULL,"
+          "  last_seen_at INTEGER NOT NULL,"
+          "  PRIMARY KEY (report_id, ref_id),"
+          "  FOREIGN KEY (report_id) REFERENCES weekly_dream_reports(id)"
+          "    ON DELETE CASCADE"
+          ")")) {
+    return false;
+  }
+
   // Indexes
   std::ignore = db_->Execute(
       "CREATE INDEX IF NOT EXISTS idx_conversations_session "
@@ -637,6 +708,12 @@ bool DaoAgentMemoryStore::CreateSchema() {
   std::ignore = db_->Execute(
       "CREATE INDEX IF NOT EXISTS idx_dream_reports_date "
       "ON dream_reports(dream_date)");
+  std::ignore = db_->Execute(
+      "CREATE INDEX IF NOT EXISTS idx_weekly_dream_reports_week_start "
+      "ON weekly_dream_reports(week_start)");
+  std::ignore = db_->Execute(
+      "CREATE INDEX IF NOT EXISTS idx_weekly_dream_sources_report_id "
+      "ON weekly_dream_sources(report_id)");
 
   return transaction.Commit();
 }
@@ -672,6 +749,14 @@ bool DaoAgentMemoryStore::MigrateIfNeeded() {
     std::ignore = meta_table_->SetVersionNumber(3);
     std::ignore = meta_table_->SetCompatibleVersionNumber(3);
     version = 3;
+  }
+
+  // v3 → v4: weekly Dream tables are created in CreateSchema via IF NOT
+  // EXISTS; only the version number needs to move.
+  if (version == 3) {
+    std::ignore = meta_table_->SetVersionNumber(4);
+    std::ignore = meta_table_->SetCompatibleVersionNumber(4);
+    version = 4;
   }
 
   return true;
@@ -820,6 +905,38 @@ std::vector<ConversationMessage> DaoAgentMemoryStore::LoadRecentMessages(
   return result;
 }
 
+std::vector<ConversationMessage>
+DaoAgentMemoryStore::LoadConversationMessagesInRange(base::Time start,
+                                                      base::Time end,
+                                                      int limit) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  limit = std::clamp(limit, 1, 1000);
+  std::vector<ConversationMessage> result;
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "SELECT id, session_id, role, content, timestamp, page_url, page_title "
+      "FROM conversations WHERE timestamp>=? AND timestamp<? "
+      "ORDER BY timestamp DESC LIMIT ?"));
+  stmt.BindInt64(0, TimeToInt(start));
+  stmt.BindInt64(1, TimeToInt(end));
+  stmt.BindInt(2, limit);
+
+  while (stmt.Step()) {
+    ConversationMessage message;
+    message.id = stmt.ColumnInt64(0);
+    message.session_id = stmt.ColumnString(1);
+    message.role = stmt.ColumnString(2);
+    message.content = stmt.ColumnString(3);
+    message.timestamp = TimeFromInt(stmt.ColumnInt64(4));
+    message.page_url = stmt.ColumnString(5);
+    message.page_title = stmt.ColumnString(6);
+    result.push_back(std::move(message));
+  }
+  std::reverse(result.begin(), result.end());
+  return result;
+}
+
 // --- Conversation Summaries ---
 
 bool DaoAgentMemoryStore::SaveConversationSummary(
@@ -862,6 +979,38 @@ DaoAgentMemoryStore::LoadConversationSummaries(int limit) {
     s.last_timestamp = TimeFromInt(stmt.ColumnInt64(5));
     s.primary_domain = stmt.ColumnString(6);
     result.push_back(std::move(s));
+  }
+  return result;
+}
+
+std::vector<ConversationSummary>
+DaoAgentMemoryStore::LoadConversationSummariesInRange(base::Time start,
+                                                       base::Time end,
+                                                       int limit) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  limit = std::clamp(limit, 1, 1000);
+  std::vector<ConversationSummary> result;
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "SELECT id, session_id, summary, message_count, first_timestamp, "
+      "last_timestamp, primary_domain FROM conversation_summaries "
+      "WHERE last_timestamp>=? AND last_timestamp<? "
+      "ORDER BY last_timestamp DESC LIMIT ?"));
+  stmt.BindInt64(0, TimeToInt(start));
+  stmt.BindInt64(1, TimeToInt(end));
+  stmt.BindInt(2, limit);
+
+  while (stmt.Step()) {
+    ConversationSummary summary;
+    summary.id = stmt.ColumnInt64(0);
+    summary.session_id = stmt.ColumnString(1);
+    summary.summary = stmt.ColumnString(2);
+    summary.message_count = stmt.ColumnInt(3);
+    summary.first_timestamp = TimeFromInt(stmt.ColumnInt64(4));
+    summary.last_timestamp = TimeFromInt(stmt.ColumnInt64(5));
+    summary.primary_domain = stmt.ColumnString(6);
+    result.push_back(std::move(summary));
   }
   return result;
 }
@@ -1139,6 +1288,15 @@ bool DaoAgentMemoryStore::DeleteConversation(const std::string& session_id) {
     return false;
   }
 
+  sql::Statement del_weekly_source(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "DELETE FROM weekly_dream_sources WHERE source_kind='conversation' "
+      "AND local_locator=?"));
+  del_weekly_source.BindString(0, session_id);
+  if (!del_weekly_source.Run()) {
+    return false;
+  }
+
   return transaction.Commit();
 }
 
@@ -1150,12 +1308,17 @@ bool DaoAgentMemoryStore::ClearAll() {
     return false;
   }
 
-  std::ignore = db_->Execute("DELETE FROM conversations");
-  std::ignore = db_->Execute("DELETE FROM conversation_summaries");
-  std::ignore = db_->Execute("DELETE FROM preferences");
-  std::ignore = db_->Execute("DELETE FROM episodes");
-  std::ignore = db_->Execute("DELETE FROM scenarios");
-  std::ignore = db_->Execute("DELETE FROM action_feedback");
+  if (!db_->Execute("DELETE FROM conversations") ||
+      !db_->Execute("DELETE FROM conversation_summaries") ||
+      !db_->Execute("DELETE FROM preferences") ||
+      !db_->Execute("DELETE FROM episodes") ||
+      !db_->Execute("DELETE FROM scenarios") ||
+      !db_->Execute("DELETE FROM action_feedback") ||
+      !db_->Execute("DELETE FROM dream_reports") ||
+      !db_->Execute("DELETE FROM weekly_dream_sources") ||
+      !db_->Execute("DELETE FROM weekly_dream_reports")) {
+    return false;
+  }
 
   return transaction.Commit();
 }
@@ -1558,6 +1721,26 @@ std::vector<DreamReport> DaoAgentMemoryStore::GetDreamReports(int limit) {
   return reports;
 }
 
+std::vector<DreamReport> DaoAgentMemoryStore::GetDreamReportsInDateRange(
+    const std::string& start_date,
+    const std::string& end_date,
+    int limit) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  limit = std::clamp(limit, 1, 100);
+  sql::Statement stmt(db_->GetUniqueStatement(base::StrCat(
+      {"SELECT ", kDreamReportColumns,
+       " FROM dream_reports WHERE dream_date>=? AND dream_date<? "
+       "AND status='completed' ORDER BY dream_date DESC LIMIT ?"})));
+  stmt.BindString(0, start_date);
+  stmt.BindString(1, end_date);
+  stmt.BindInt(2, limit);
+  std::vector<DreamReport> reports;
+  while (stmt.Step()) {
+    reports.push_back(DreamReportFromStatement(stmt));
+  }
+  return reports;
+}
+
 std::optional<DreamReport> DaoAgentMemoryStore::GetLatestDreamReport() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   sql::Statement stmt(db_->GetUniqueStatement(
@@ -1592,6 +1775,210 @@ bool DaoAgentMemoryStore::MarkDreamReportViewed(int64_t id) {
   stmt.BindInt64(0, TimeToInt(base::Time::Now()));
   stmt.BindInt64(1, id);
   return stmt.Run();
+}
+
+// --- Weekly Dream Reports ---
+
+bool DaoAgentMemoryStore::SaveWeeklyDreamReport(
+    const WeeklyDreamReport& report,
+    const std::vector<WeeklyDreamSource>& sources) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::set<std::string> source_ref_ids;
+  for (const WeeklyDreamSource& source : sources) {
+    if (!source_ref_ids.insert(source.ref_id).second) {
+      return false;
+    }
+  }
+
+  sql::Transaction transaction(db_.get());
+  if (!transaction.Begin()) {
+    return false;
+  }
+
+  sql::Statement delete_sources(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "DELETE FROM weekly_dream_sources WHERE report_id IN "
+      "(SELECT id FROM weekly_dream_reports WHERE week_start=?)"));
+  delete_sources.BindString(0, report.week_start);
+  if (!delete_sources.Run()) {
+    return false;
+  }
+
+  sql::Statement delete_report(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "DELETE FROM weekly_dream_reports WHERE week_start=?"));
+  delete_report.BindString(0, report.week_start);
+  if (!delete_report.Run()) {
+    return false;
+  }
+
+  sql::Statement insert_report(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "INSERT INTO weekly_dream_reports "
+      "(week_start, week_end, content_json, material_stats, status, "
+      "attempt_count, trigger_kind, debug_material_json, viewed_at, "
+      "created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)"));
+  insert_report.BindString(0, report.week_start);
+  insert_report.BindString(1, report.week_end);
+  insert_report.BindString(2, report.content_json);
+  insert_report.BindString(3, report.material_stats);
+  insert_report.BindString(4, report.status);
+  insert_report.BindInt(5, report.attempt_count);
+  insert_report.BindString(6, report.trigger_kind);
+  insert_report.BindString(7, report.debug_material_json);
+  insert_report.BindInt64(8, TimeToInt(base::Time::Now()));
+  if (!insert_report.Run()) {
+    return false;
+  }
+
+  const int64_t report_id = db_->GetLastInsertRowId();
+  sql::Statement insert_source(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "INSERT INTO weekly_dream_sources "
+      "(report_id, ref_id, source_kind, title, domain, local_locator, "
+      "last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)"));
+  for (const WeeklyDreamSource& source : sources) {
+    insert_source.Reset(true);
+    insert_source.BindInt64(0, report_id);
+    insert_source.BindString(1, source.ref_id);
+    insert_source.BindString(2, source.source_kind);
+    insert_source.BindString(3, source.title);
+    insert_source.BindString(4, source.domain);
+    insert_source.BindString(5, source.local_locator);
+    insert_source.BindInt64(6, TimeToInt(source.last_seen_at));
+    if (!insert_source.Run()) {
+      return false;
+    }
+  }
+
+  return transaction.Commit();
+}
+
+std::optional<WeeklyDreamReport>
+DaoAgentMemoryStore::GetWeeklyDreamReportByWeekStart(
+    const std::string& week_start) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetUniqueStatement(
+      base::StrCat({"SELECT ", kWeeklyDreamReportColumns,
+                    " FROM weekly_dream_reports WHERE week_start=?"})));
+  stmt.BindString(0, week_start);
+  if (!stmt.Step()) {
+    return std::nullopt;
+  }
+  return WeeklyDreamReportFromStatement(stmt);
+}
+
+std::vector<WeeklyDreamReport> DaoAgentMemoryStore::GetWeeklyDreamReports(
+    int limit) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  limit = std::clamp(limit, 1, 100);
+  sql::Statement stmt(db_->GetUniqueStatement(base::StrCat(
+      {"SELECT ", kWeeklyDreamReportColumns,
+       " FROM weekly_dream_reports WHERE status='completed' "
+       "ORDER BY week_start DESC LIMIT ?"})));
+  stmt.BindInt(0, limit);
+  std::vector<WeeklyDreamReport> reports;
+  while (stmt.Step()) {
+    reports.push_back(WeeklyDreamReportFromStatement(stmt));
+  }
+  return reports;
+}
+
+std::optional<WeeklyDreamReport>
+DaoAgentMemoryStore::GetLatestWeeklyDreamReportBefore(
+    const std::string& week_start) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetUniqueStatement(base::StrCat(
+      {"SELECT ", kWeeklyDreamReportColumns,
+       " FROM weekly_dream_reports WHERE week_start<? "
+       "AND status='completed' ORDER BY week_start DESC LIMIT 1"})));
+  stmt.BindString(0, week_start);
+  if (!stmt.Step()) {
+    return std::nullopt;
+  }
+  return WeeklyDreamReportFromStatement(stmt);
+}
+
+std::optional<WeeklyDreamReport>
+DaoAgentMemoryStore::GetLatestUnviewedWeeklyDreamReport() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetUniqueStatement(base::StrCat(
+      {"SELECT ", kWeeklyDreamReportColumns,
+       " FROM weekly_dream_reports WHERE viewed_at IS NULL "
+       "AND status='completed' ORDER BY week_start DESC LIMIT 1"})));
+  if (!stmt.Step()) {
+    return std::nullopt;
+  }
+  return WeeklyDreamReportFromStatement(stmt);
+}
+
+std::vector<WeeklyDreamSource> DaoAgentMemoryStore::GetWeeklyDreamSources(
+    int64_t report_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetUniqueStatement(
+      base::StrCat({"SELECT ", kWeeklyDreamSourceColumns,
+                    " FROM weekly_dream_sources WHERE report_id=? "
+                    "ORDER BY ref_id ASC"})));
+  stmt.BindInt64(0, report_id);
+  std::vector<WeeklyDreamSource> sources;
+  while (stmt.Step()) {
+    sources.push_back(WeeklyDreamSourceFromStatement(stmt));
+  }
+  return sources;
+}
+
+std::optional<WeeklyDreamSource> DaoAgentMemoryStore::GetWeeklyDreamSource(
+    int64_t report_id,
+    const std::string& ref_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetUniqueStatement(
+      base::StrCat({"SELECT ", kWeeklyDreamSourceColumns,
+                    " FROM weekly_dream_sources WHERE report_id=? "
+                    "AND ref_id=?"})));
+  stmt.BindInt64(0, report_id);
+  stmt.BindString(1, ref_id);
+  if (!stmt.Step()) {
+    return std::nullopt;
+  }
+  return WeeklyDreamSourceFromStatement(stmt);
+}
+
+bool DaoAgentMemoryStore::MarkWeeklyDreamReportViewed(int64_t id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "UPDATE weekly_dream_reports SET viewed_at=? WHERE id=?"));
+  stmt.BindInt64(0, TimeToInt(base::Time::Now()));
+  stmt.BindInt64(1, id);
+  return stmt.Run();
+}
+
+bool DaoAgentMemoryStore::DeleteWeeklyDreamReport(int64_t id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  sql::Transaction transaction(db_.get());
+  if (!transaction.Begin()) {
+    return false;
+  }
+
+  sql::Statement delete_sources(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "DELETE FROM weekly_dream_sources WHERE report_id=?"));
+  delete_sources.BindInt64(0, id);
+  if (!delete_sources.Run()) {
+    return false;
+  }
+
+  sql::Statement delete_report(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "DELETE FROM weekly_dream_reports WHERE id=?"));
+  delete_report.BindInt64(0, id);
+  if (!delete_report.Run()) {
+    return false;
+  }
+
+  return transaction.Commit();
 }
 
 }  // namespace dao

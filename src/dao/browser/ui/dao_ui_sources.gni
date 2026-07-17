@@ -40,6 +40,8 @@ dao_browser_ui_sources = [
   "//dao/browser/agent/dao_dream_service.h",
   "//dao/browser/agent/dao_dream_service_factory.cc",
   "//dao/browser/agent/dao_dream_service_factory.h",
+  "//dao/browser/agent/dao_weekly_dream_material_collector.cc",
+  "//dao/browser/agent/dao_weekly_dream_material_collector.h",
   "//dao/browser/agent/workspace/path_normalizer.cc",
   "//dao/browser/agent/workspace/path_normalizer.h",
   "//dao/browser/agent/workspace/text_only_filter.cc",
