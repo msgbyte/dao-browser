@@ -1340,7 +1340,23 @@ void DaoCommandBarView::SetSelectedIndex(int index, bool user_initiated) {
 }
 
 void DaoCommandBarView::ApplySelectedSuggestion() {
-  if (EnhancedSuggestionsEnabled() && selected_index_ >= 0) {
+  // Empty input: Enter only dismisses the bar. Enhanced mode still runs
+  // zero-prefix autocomplete on empty text and auto-selects the first row,
+  // so without this guard Enter would navigate to a suggestion the user
+  // never typed or picked.
+  if (user_input_text_.empty()) {
+    Navigate(std::u16string());
+    return;
+  }
+
+  // A deletion (Backspace that absorbed ghost text, or any shrink of the
+  // query) means the user rejected the inline suggestion for this query.
+  // Honor that rejection on Enter: skip the auto-selected default match and
+  // fall through to typed-text navigation below. Explicit row selection
+  // (arrow keys / click) after the deletion still wins via the
+  // selection_explicitly_changed_ path.
+  if (EnhancedSuggestionsEnabled() && !suppress_ghost_for_current_query_ &&
+      selected_index_ >= 0) {
     if (selected_index_ == ask_ai_row_index_ && !user_input_text_.empty()) {
       SubmitAskAi(user_input_text_);
       return;

@@ -185,7 +185,9 @@ class DaoCommandBarView : public views::View,
   // ContentsChanged when the textfield shrinks and on the first Backspace
   // that absorbs visible ghost text. Cleared on the next non-deletion query.
   // Blocks both Chromium's async inline-autocomplete output and Dao's local
-  // fallback derivation so deletion does not feel sticky.
+  // fallback derivation so deletion does not feel sticky. Also gates Enter:
+  // while set, ApplySelectedSuggestion ignores the auto-selected default
+  // match and navigates by the typed text instead.
   bool suppress_ghost_for_current_query_ = false;
 
   // Length of |user_input_text_| at the previous ContentsChanged tick. Used
