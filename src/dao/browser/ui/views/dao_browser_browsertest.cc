@@ -2924,6 +2924,94 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       EnhancedSuggestionsEnterWithEmptyInputDoesNotNavigate) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  // Simulate the state after the user deletes all input: the textfield is
+  // empty, but zero-prefix results still arrive and auto-select a row.
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"", u"");
+
+  AutocompleteMatch zero_prefix_match(nullptr, 1000, false,
+                                      AutocompleteMatchType::HISTORY_URL);
+  zero_prefix_match.allowed_to_be_default_match = true;
+  zero_prefix_match.fill_into_edit = u"github.com";
+  zero_prefix_match.contents = u"github.com";
+  zero_prefix_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  zero_prefix_match.destination_url = GURL("https://github.com/");
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{zero_prefix_match});
+  ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
+
+  const int tab_count = browser()->tab_strip_model()->count();
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+
+  // Enter on empty input must only dismiss the bar — never navigate to the
+  // auto-selected zero-prefix suggestion.
+  EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    EnhancedSuggestionsEnterAfterGhostRejectionUsesTypedInput) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL typed_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL suggestion_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_NE(typed_url, suggestion_url);
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+
+  DaoCommandBarView* command_bar =
+      GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  const std::u16string typed_text = base::UTF8ToUTF16(typed_url.spec());
+  constexpr std::u16string_view kGhost = u".extra";
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(
+      typed_text, std::u16string(kGhost));
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = typed_text + std::u16string(kGhost);
+  default_match.contents = base::UTF8ToUTF16(suggestion_url.spec());
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  default_match.destination_url = suggestion_url;
+  default_match.inline_autocompletion = std::u16string(kGhost);
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match},
+                                                /*autocomplete_done=*/true);
+  ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  ASSERT_EQ(std::u16string(kGhost),
+            command_bar->GetInlineAutocompletionForTesting());
+
+  // First Backspace absorbs the visible ghost text and marks the inline
+  // suggestion as rejected for this query; the typed text stays intact.
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_BACK);
+  ASSERT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+
+  ui_test_utils::TabAddedWaiter tab_waiter(browser());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  content::WebContents* contents = tab_waiter.Wait();
+  ASSERT_NE(nullptr, contents);
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+
+  // Enter must honor the rejection and navigate by the typed text, not the
+  // auto-selected match behind the rejected ghost text.
+  EXPECT_EQ(typed_url, contents->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsShowAskAiSecondForShortInput) {
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
