@@ -8059,7 +8059,99 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewSubcomponentBrowserTest,
 // the geometry/state invariants without driving the WebUI.
 // =============================================================================
 
-using DaoAgentSidebarViewBrowserTest = InProcessBrowserTest;
+class DaoAgentSidebarViewBrowserTest : public InProcessBrowserTest {
+ protected:
+  bool LoadAgentWebUI() {
+    sidebar_ = GetBrowserView(browser())->dao_agent_sidebar();
+    if (!sidebar_) {
+      ADD_FAILURE() << "Agent sidebar is unavailable";
+      return false;
+    }
+
+    auto* web_view = FindDescendantViewOfClass<views::WebView>(sidebar_);
+    if (!web_view) {
+      ADD_FAILURE() << "Agent WebView is unavailable";
+      return false;
+    }
+    agent_contents_ = web_view->GetWebContents();
+    if (!agent_contents_) {
+      ADD_FAILURE() << "Agent WebContents is unavailable";
+      return false;
+    }
+
+    const GURL agent_url("chrome://agent/");
+    if (agent_contents_->GetLastCommittedURL() != agent_url) {
+      content::TestNavigationObserver observer(agent_contents_);
+      sidebar_->Toggle();
+      observer.Wait();
+    } else if (!sidebar_->is_expanded()) {
+      sidebar_->Toggle();
+    }
+    if (!content::WaitForLoadStop(agent_contents_)) {
+      ADD_FAILURE() << "Agent WebUI did not finish loading";
+      return false;
+    }
+
+    constexpr char kWaitForAgentApp[] = R"(
+      (async () => {
+        await customElements.whenDefined('dao-agent-app');
+        return true;
+      })()
+    )";
+    return content::EvalJs(agent_contents_, kWaitForAgentApp).ExtractBool();
+  }
+
+  bool InstallExternalActionRecorder() {
+    if (!agent_contents_) {
+      return false;
+    }
+    return content::ExecJs(agent_contents_, R"(
+      (() => {
+        window.__daoExternalActions = [];
+        window.__daoExternalSubmit = (value, options) => {
+          window.__daoExternalActions.push({
+            kind: 'submit',
+            value,
+            includePageContext: options?.includePageContext,
+          });
+        };
+        window.__daoExternalPrefill = value => {
+          window.__daoExternalActions.push({kind: 'prefill', value});
+        };
+        window.__daoExternalOpenSession = value => {
+          window.__daoExternalActions.push({kind: 'open-session', value});
+        };
+        window.__daoWaitForExternalAction = () => new Promise(resolve => {
+          const deadline = Date.now() + 7000;
+          const poll = () => {
+            if (window.__daoExternalActions.length > 0) {
+              resolve(true);
+              return;
+            }
+            if (Date.now() >= deadline) {
+              resolve(false);
+              return;
+            }
+            setTimeout(poll, 10);
+          };
+          poll();
+        });
+      })();
+    )");
+  }
+
+  bool WaitForExternalAction() {
+    if (!agent_contents_) {
+      return false;
+    }
+    return content::EvalJs(agent_contents_,
+                           "window.__daoWaitForExternalAction()")
+        .ExtractBool();
+  }
+
+  raw_ptr<dao::DaoAgentSidebarView> sidebar_ = nullptr;
+  raw_ptr<content::WebContents> agent_contents_ = nullptr;
+};
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, ExistsOnBrowserView) {
   auto* view = GetBrowserView(browser());
@@ -8082,6 +8174,58 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, WidthClampedToBounds) {
   EXPECT_LE(V::kMinWidth, V::kDefaultWidth);
   EXPECT_LE(V::kDefaultWidth, V::kMaxWidth);
   EXPECT_GE(V::kResizeAreaWidth, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoAgentSidebarViewBrowserTest,
+    PrefillPromptInvokesOnlyPrefillHookWithJsonEscapedText) {
+  ASSERT_TRUE(LoadAgentWebUI());
+  ASSERT_TRUE(InstallExternalActionRecorder());
+
+  const std::u16string prompt =
+      u"Review \"week one\"\\draft\n"
+      u"\"); window.__daoExternalSubmit(\"injected\"); //";
+  sidebar_->ExpandAndPrefillPrompt(prompt);
+
+  ASSERT_TRUE(WaitForExternalAction());
+  EXPECT_EQ(1, content::EvalJs(agent_contents_,
+                               "window.__daoExternalActions.length"));
+  EXPECT_EQ("prefill",
+            content::EvalJs(agent_contents_,
+                            "window.__daoExternalActions[0].kind"));
+  EXPECT_EQ(base::UTF16ToUTF8(prompt),
+            content::EvalJs(agent_contents_,
+                            "window.__daoExternalActions[0].value"));
+  EXPECT_EQ(0, content::EvalJs(
+                   agent_contents_,
+                   "window.__daoExternalActions.filter("
+                   "action => action.kind === 'submit').length"));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoAgentSidebarViewBrowserTest,
+    OpenSessionInvokesOnlyOpenSessionHookWithJsonEscapedId) {
+  ASSERT_TRUE(LoadAgentWebUI());
+  ASSERT_TRUE(InstallExternalActionRecorder());
+
+  const std::string session_id =
+      "session-\"quoted\"\\branch\n"
+      "\"); window.__daoExternalSubmit(\"injected\"); //";
+  sidebar_->ExpandAndOpenSession(session_id);
+
+  ASSERT_TRUE(WaitForExternalAction());
+  EXPECT_EQ(1, content::EvalJs(agent_contents_,
+                               "window.__daoExternalActions.length"));
+  EXPECT_EQ("open-session",
+            content::EvalJs(agent_contents_,
+                            "window.__daoExternalActions[0].kind"));
+  EXPECT_EQ(session_id,
+            content::EvalJs(agent_contents_,
+                            "window.__daoExternalActions[0].value"));
+  EXPECT_EQ(0, content::EvalJs(
+                   agent_contents_,
+                   "window.__daoExternalActions.filter("
+                   "action => action.kind === 'submit').length"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,

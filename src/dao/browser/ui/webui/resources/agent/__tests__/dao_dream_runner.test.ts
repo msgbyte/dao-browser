@@ -6,9 +6,10 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const callLLMStreaming = vi.fn();
 const recordApiCall = vi.fn();
+const addWebUIListener = vi.fn();
 
 vi.mock('../agent_bridge.js', () => ({
-  addWebUIListener: vi.fn(),
+  addWebUIListener: (...args: unknown[]) => addWebUIListener(...args),
   recordApiCall: (...args: unknown[]) => recordApiCall(...args),
 }));
 vi.mock('../llm_cost.js', () => ({
@@ -68,6 +69,12 @@ describe('extractJson', () => {
   });
   it('strips ```json fences', () => {
     expect(extractJson('```json\n{"a":1}\n```')).toBe('{"a":1}');
+  });
+});
+
+describe('daily runner module', () => {
+  it('does not register the shared dream listener', () => {
+    expect(addWebUIListener).not.toHaveBeenCalled();
   });
 });
 

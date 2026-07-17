@@ -52,12 +52,22 @@ class DaoAgentMemoryService : public KeyedService {
   void LoadRecentMessages(
       int limit,
       base::OnceCallback<void(std::vector<ConversationMessage>)> callback);
+  void LoadConversationMessagesInRange(
+      base::Time start,
+      base::Time end,
+      int limit,
+      base::OnceCallback<void(std::vector<ConversationMessage>)> callback);
 
   // Conversation summaries
   void SaveConversationSummary(
       ConversationSummary summary,
       base::OnceCallback<void(bool)> callback);
   void LoadConversationSummaries(
+      int limit,
+      base::OnceCallback<void(std::vector<ConversationSummary>)> callback);
+  void LoadConversationSummariesInRange(
+      base::Time start,
+      base::Time end,
       int limit,
       base::OnceCallback<void(std::vector<ConversationSummary>)> callback);
   void FindSummaryByDomain(
@@ -138,12 +148,45 @@ class DaoAgentMemoryService : public KeyedService {
   void GetDreamReports(
       int limit,
       base::OnceCallback<void(std::vector<DreamReport>)> callback);
+  void GetDreamReportsInDateRange(
+      const std::string& start_date,
+      const std::string& end_date,
+      int limit,
+      base::OnceCallback<void(std::vector<DreamReport>)> callback);
   void GetLatestDreamReport(
       base::OnceCallback<void(std::optional<DreamReport>)> callback);
   void GetLatestUnviewedDreamReport(
       base::OnceCallback<void(std::optional<DreamReport>)> callback);
   void MarkDreamReportViewed(int64_t id,
                              base::OnceCallback<void(bool)> callback);
+
+  // Weekly Dream reports and their local source locators.
+  void SaveWeeklyDreamReport(
+      WeeklyDreamReport report,
+      std::vector<WeeklyDreamSource> sources,
+      base::OnceCallback<void(bool)> callback);
+  void GetWeeklyDreamReportByWeekStart(
+      const std::string& week_start,
+      base::OnceCallback<void(std::optional<WeeklyDreamReport>)> callback);
+  void GetWeeklyDreamReports(
+      int limit,
+      base::OnceCallback<void(std::vector<WeeklyDreamReport>)> callback);
+  void GetLatestWeeklyDreamReportBefore(
+      const std::string& week_start,
+      base::OnceCallback<void(std::optional<WeeklyDreamReport>)> callback);
+  void GetLatestUnviewedWeeklyDreamReport(
+      base::OnceCallback<void(std::optional<WeeklyDreamReport>)> callback);
+  void GetWeeklyDreamSources(
+      int64_t report_id,
+      base::OnceCallback<void(std::vector<WeeklyDreamSource>)> callback);
+  void GetWeeklyDreamSource(
+      int64_t report_id,
+      const std::string& ref_id,
+      base::OnceCallback<void(std::optional<WeeklyDreamSource>)> callback);
+  void MarkWeeklyDreamReportViewed(int64_t id,
+                                   base::OnceCallback<void(bool)> callback);
+  void DeleteWeeklyDreamReport(int64_t id,
+                               base::OnceCallback<void(bool)> callback);
 
   // Memory context (combined query for LLM injection)
   void GetMemoryContext(

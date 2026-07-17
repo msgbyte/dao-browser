@@ -94,4 +94,20 @@ DreamReport& DreamReport::operator=(const DreamReport&) = default;
 DreamReport::DreamReport(DreamReport&&) = default;
 DreamReport& DreamReport::operator=(DreamReport&&) = default;
 
+WeeklyDreamReport::WeeklyDreamReport() = default;
+WeeklyDreamReport::~WeeklyDreamReport() = default;
+WeeklyDreamReport::WeeklyDreamReport(const WeeklyDreamReport&) = default;
+WeeklyDreamReport& WeeklyDreamReport::operator=(const WeeklyDreamReport&) =
+    default;
+WeeklyDreamReport::WeeklyDreamReport(WeeklyDreamReport&&) = default;
+WeeklyDreamReport& WeeklyDreamReport::operator=(WeeklyDreamReport&&) = default;
+
+WeeklyDreamSource::WeeklyDreamSource() = default;
+WeeklyDreamSource::~WeeklyDreamSource() = default;
+WeeklyDreamSource::WeeklyDreamSource(const WeeklyDreamSource&) = default;
+WeeklyDreamSource& WeeklyDreamSource::operator=(const WeeklyDreamSource&) =
+    default;
+WeeklyDreamSource::WeeklyDreamSource(WeeklyDreamSource&&) = default;
+WeeklyDreamSource& WeeklyDreamSource::operator=(WeeklyDreamSource&&) = default;
+
 }  // namespace dao

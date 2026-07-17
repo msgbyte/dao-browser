@@ -96,6 +96,24 @@ void DaoAgentMemoryService::LoadRecentMessages(
       std::move(callback));
 }
 
+void DaoAgentMemoryService::LoadConversationMessagesInRange(
+    base::Time start,
+    base::Time end,
+    int limit,
+    base::OnceCallback<void(std::vector<ConversationMessage>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, base::Time start_time,
+             base::Time end_time, int lim) {
+            return store->LoadConversationMessagesInRange(start_time, end_time,
+                                                          lim);
+          },
+          store_.get(), start, end, limit),
+      std::move(callback));
+}
+
 // --- Conversation Summaries ---
 
 void DaoAgentMemoryService::SaveConversationSummary(
@@ -123,6 +141,24 @@ void DaoAgentMemoryService::LoadConversationSummaries(
             return store->LoadConversationSummaries(lim);
           },
           store_.get(), limit),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::LoadConversationSummariesInRange(
+    base::Time start,
+    base::Time end,
+    int limit,
+    base::OnceCallback<void(std::vector<ConversationSummary>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, base::Time start_time,
+             base::Time end_time, int lim) {
+            return store->LoadConversationSummariesInRange(start_time,
+                                                           end_time, lim);
+          },
+          store_.get(), start, end, limit),
       std::move(callback));
 }
 
@@ -503,6 +539,23 @@ void DaoAgentMemoryService::GetDreamReports(
       std::move(callback));
 }
 
+void DaoAgentMemoryService::GetDreamReportsInDateRange(
+    const std::string& start_date,
+    const std::string& end_date,
+    int limit,
+    base::OnceCallback<void(std::vector<DreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string start, std::string end,
+             int lim) {
+            return store->GetDreamReportsInDateRange(start, end, lim);
+          },
+          store_.get(), start_date, end_date, limit),
+      std::move(callback));
+}
+
 void DaoAgentMemoryService::GetLatestDreamReport(
     base::OnceCallback<void(std::optional<DreamReport>)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
@@ -538,6 +591,136 @@ void DaoAgentMemoryService::MarkDreamReportViewed(
       base::BindOnce(
           [](DaoAgentMemoryStore* store, int64_t report_id) {
             return store->MarkDreamReportViewed(report_id);
+          },
+          store_.get(), id),
+      std::move(callback));
+}
+
+// --- Weekly Dream Reports ---
+
+void DaoAgentMemoryService::SaveWeeklyDreamReport(
+    WeeklyDreamReport report,
+    std::vector<WeeklyDreamSource> sources,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, WeeklyDreamReport weekly_report,
+             std::vector<WeeklyDreamSource> weekly_sources) {
+            return store->SaveWeeklyDreamReport(weekly_report, weekly_sources);
+          },
+          store_.get(), std::move(report), std::move(sources)),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetWeeklyDreamReportByWeekStart(
+    const std::string& week_start,
+    base::OnceCallback<void(std::optional<WeeklyDreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string start) {
+            return store->GetWeeklyDreamReportByWeekStart(start);
+          },
+          store_.get(), week_start),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetWeeklyDreamReports(
+    int limit,
+    base::OnceCallback<void(std::vector<WeeklyDreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, int lim) {
+            return store->GetWeeklyDreamReports(lim);
+          },
+          store_.get(), limit),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetLatestWeeklyDreamReportBefore(
+    const std::string& week_start,
+    base::OnceCallback<void(std::optional<WeeklyDreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, std::string start) {
+            return store->GetLatestWeeklyDreamReportBefore(start);
+          },
+          store_.get(), week_start),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetLatestUnviewedWeeklyDreamReport(
+    base::OnceCallback<void(std::optional<WeeklyDreamReport>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store) {
+            return store->GetLatestUnviewedWeeklyDreamReport();
+          },
+          store_.get()),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetWeeklyDreamSources(
+    int64_t report_id,
+    base::OnceCallback<void(std::vector<WeeklyDreamSource>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, int64_t id) {
+            return store->GetWeeklyDreamSources(id);
+          },
+          store_.get(), report_id),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::GetWeeklyDreamSource(
+    int64_t report_id,
+    const std::string& ref_id,
+    base::OnceCallback<void(std::optional<WeeklyDreamSource>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, int64_t id, std::string ref) {
+            return store->GetWeeklyDreamSource(id, ref);
+          },
+          store_.get(), report_id, ref_id),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::MarkWeeklyDreamReportViewed(
+    int64_t id,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, int64_t report_id) {
+            return store->MarkWeeklyDreamReportViewed(report_id);
+          },
+          store_.get(), id),
+      std::move(callback));
+}
+
+void DaoAgentMemoryService::DeleteWeeklyDreamReport(
+    int64_t id,
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, int64_t report_id) {
+            return store->DeleteWeeklyDreamReport(report_id);
           },
           store_.get(), id),
       std::move(callback));

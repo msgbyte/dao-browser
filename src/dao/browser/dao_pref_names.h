@@ -73,6 +73,11 @@ inline constexpr char kDaoLittleDaoWindowSize[] =
 // to the LLM provider. Requires kDaoAgentMemoryEnabled to also be true.
 inline constexpr char kDaoDreamEnabled[] = "dao.dream_enabled";
 
+// Boolean pref that controls the additional weekly Dream report. It is
+// independently opt-in and requires both Agent memory and Dream Analysis.
+inline constexpr char kDaoDreamWeeklyEnabled[] =
+    "dao.dream_weekly_enabled";
+
 // Boolean pref for dream debug mode. When true, each dream run persists
 // the full material pack JSON (the exact LLM input) into the report row
 // so the user can inspect what was summarized.

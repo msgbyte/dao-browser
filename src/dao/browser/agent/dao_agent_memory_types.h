@@ -198,6 +198,44 @@ struct DreamReport {
   base::Time created_at;
 };
 
+struct WeeklyDreamReport {
+  WeeklyDreamReport();
+  ~WeeklyDreamReport();
+  WeeklyDreamReport(const WeeklyDreamReport&);
+  WeeklyDreamReport& operator=(const WeeklyDreamReport&);
+  WeeklyDreamReport(WeeklyDreamReport&&);
+  WeeklyDreamReport& operator=(WeeklyDreamReport&&);
+
+  int64_t id = 0;
+  std::string week_start;
+  std::string week_end;
+  std::string content_json;
+  std::string material_stats;
+  std::string status;
+  int attempt_count = 0;
+  std::string trigger_kind;
+  std::string debug_material_json;
+  base::Time viewed_at;
+  base::Time created_at;
+};
+
+struct WeeklyDreamSource {
+  WeeklyDreamSource();
+  ~WeeklyDreamSource();
+  WeeklyDreamSource(const WeeklyDreamSource&);
+  WeeklyDreamSource& operator=(const WeeklyDreamSource&);
+  WeeklyDreamSource(WeeklyDreamSource&&);
+  WeeklyDreamSource& operator=(WeeklyDreamSource&&);
+
+  int64_t report_id = 0;
+  std::string ref_id;
+  std::string source_kind;
+  std::string title;
+  std::string domain;
+  std::string local_locator;
+  base::Time last_seen_at;
+};
+
 struct ProactiveSuggestion {
   ProactiveSuggestion();
   ~ProactiveSuggestion();
