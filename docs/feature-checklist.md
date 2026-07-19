@@ -244,6 +244,7 @@ Not in `src/patches/`. Import mechanically rewrites `chrome://`→`dao://` in:
 | ☐ | macOS accelerators (Cmd+Shift+C=Copy URL, Cmd+D=Duplicate Tab) | `cocoa/accelerators_cocoa.mm.patch`, `global_keyboard_shortcuts_mac.mm.patch` | 🟡 | Cmd+D duplicates; Cmd+Shift+C copies URL |
 | ☐ | macOS command validate/execute (no-window + key-window paths) | `app_controller_mac.mm.patch`, `cocoa/browser_window_command_handler.mm.patch` | 🔴 | Each menu item enables + fires with/without key window |
 | ☐ | "Decode QR code" image context-menu item | `renderer_context_menu/render_view_context_menu.{cc,h}.patch` | 🔴 | Right-click QR image → decodes, shows dialog; **verify UMA sentinel (163→164) didn't clash with new upstream entries** |
+| ☐ | Webpage Copy Image uses Dao toast feedback | `renderer_context_menu/render_view_context_menu.{cc,h}.patch`, `renderer_context_menu/render_view_context_menu_browsertest.cc.patch` | 🟡 | Right-click image → Copy Image copies normally, shows localized Dao toast, and does not show Chromium toast |
 | ☐ | QR decoder + result dialog + zxing-cpp | `src/dao/browser/qrcode/`, `src/dao/third_party/zxing-cpp/` | — | QR decode returns result |
 
 ## 10. Startup, Session, Prefs

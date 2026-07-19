@@ -67,7 +67,26 @@ index 69da6a650e..1862c7a73d 100644
      case IDC_CONTENT_CONTEXT_SAVEVIDEOFRAMEAS:
        ExecSaveVideoFrameAs();
        break;
-@@ -5165,3 +5185,51 @@ bool RenderViewContextMenu::IsLinkToIsolatedWebApp() const {
+@@ -4526,16 +4546,9 @@ void RenderViewContextMenu::ExecCopyImageAt() {
+     return;
+   }
+ 
+   frame_host->CopyImageAt(params_.x, params_.y);
+-
+-#if !BUILDFLAG(IS_ANDROID)
+-  if (toast_features::IsEnabled(toast_features::kImageCopiedToast)) {
+-    auto* const toast_controller = GetToastController();
+-    if (toast_controller) {
+-      toast_controller->MaybeShowToast(ToastParams(ToastId::kImageCopied));
+-    }
+-  }
+-#endif
++  ShowDaoToast(
++      l10n_util::GetStringUTF16(IDS_IMAGE_COPIED_TOAST_BODY));
+ }
+ 
+ void RenderViewContextMenu::ExecSearchLensForImage(int event_flags) {
+@@ -5165,3 +5178,51 @@ bool RenderViewContextMenu::IsLinkToIsolatedWebApp() const {
  }
  #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
          // BUILDFLAG(IS_CHROMEOS)
@@ -75,7 +94,7 @@ index 69da6a650e..1862c7a73d 100644
 +void RenderViewContextMenu::ExecuteDecodeQrCode() {
 +  content::RenderFrameHost* rfh = GetRenderFrameHost();
 +  if (!rfh) {
-+    ShowQrToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
++    ShowDaoToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
 +    return;
 +  }
 +  mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame> chrome_render_frame;
@@ -91,7 +110,7 @@ index 69da6a650e..1862c7a73d 100644
 +        /*kept_alive*/,
 +    const SkBitmap& bitmap) {
 +  if (bitmap.drawsNothing()) {
-+    ShowQrToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
++    ShowDaoToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
 +    return;
 +  }
 +  dao::DaoQrCodeDecoder::DecodeBitmapAsync(
@@ -101,14 +120,14 @@ index 69da6a650e..1862c7a73d 100644
 +
 +void RenderViewContextMenu::OnQrDecoded(dao::DecodedQrCodes results) {
 +  if (results.empty()) {
-+    ShowQrToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
++    ShowDaoToast(l10n_util::GetStringUTF16(IDS_DAO_QR_NO_CODE_FOUND));
 +    return;
 +  }
 +  dao::DaoQrCodeResultDialogView::Show(source_web_contents_,
 +                                       std::move(results));
 +}
 +
-+void RenderViewContextMenu::ShowQrToast(const std::u16string& message) {
++void RenderViewContextMenu::ShowDaoToast(const std::u16string& message) {
 +  if (!source_web_contents_) {
 +    return;
 +  }

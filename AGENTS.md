@@ -131,6 +131,11 @@ Never hardcode user-facing copy in Dao-owned UI. All user-visible text must have
 - `zh-CN` is hand-authored and treated as the tone reference.
 - Other locales are generated manually by the user via `OPENAI_API_KEY=... sh ./i18n.sh`; do not run it automatically.
 
+## Native Toast Feedback
+
+- Use the shared `dao::DaoToastView` for lightweight feedback initiated by Dao-owned native browser surfaces or Dao-patched Chromium actions. Do not introduce a parallel Dao toast implementation or route those actions through Chromium's `ToastController`.
+- Keep toast messages action-specific and localized. Reusing `DaoToastView` does not imply reusing another action's message.
+
 ## Testing And Verification
 
 - For C++ / Chromium changes, compile confirmation must be `npm run rebuild` after edits are complete. Do not substitute any other command for compilation confirmation.
