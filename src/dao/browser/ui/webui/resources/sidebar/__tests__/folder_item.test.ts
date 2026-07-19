@@ -125,6 +125,17 @@ describe('dao-folder-item', () => {
     return el;
   }
 
+  it('suppresses active auto-scroll for children while collapsed', async () => {
+    const el = createFolderItem();
+    el.folder = folder({collapsed: true});
+    el.matchedTabs = [tab({tabId: 'tab-a', isActive: true})];
+    await el.updateComplete;
+
+    const child = el.shadowRoot!.querySelector('dao-tab-item')!;
+    // The test shim serializes Lit property bindings as attributes.
+    expect(child.getAttribute('.suppressactiveautoscroll')).toBe('true');
+  });
+
   it('animates surviving folder children when a child tab is removed',
       async () => {
         const animate = installAnimateMock();
