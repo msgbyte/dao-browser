@@ -21,7 +21,7 @@ index f9174e34ba..2ec0ce16cb 100644
 +          chrome_render_frame,
 +      const SkBitmap& bitmap);
 +  void OnQrDecoded(dao::DecodedQrCodes results);
-+  void ShowQrToast(const std::u16string& message);
++  void ShowDaoToast(const std::u16string& message);
 +
    base::WeakPtrFactory<RenderViewContextMenu> weak_pointer_factory_{this};
  };

@@ -1,0 +1,47 @@
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
+index 5577ac74d8..69d180e6c5 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
+@@ -76,6 +76,7 @@
+ #include "chrome/browser/ui/toasts/toast_controller.h"
+ #include "chrome/browser/ui/toasts/toast_features.h"
+ #include "chrome/browser/ui/ui_features.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
+ #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
+ #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
+@@ -128,6 +129,7 @@
+ #include "content/public/test/browser_test_utils.h"
+ #include "content/public/test/test_navigation_observer.h"
+ #include "content/public/test/test_utils.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
+ #include "extensions/browser/api/extensions_api_client.h"
+ #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+ #include "extensions/browser/guest_view/mime_handler_view/test_mime_handler_view_guest.h"
+@@ -1494,13 +1496,24 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, ShowsToastOnLinkCopied) {
+   EXPECT_TRUE(browser()->GetFeatures().toast_controller()->IsShowingToast());
+ }
+ 
+-IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, ShowsToastOnImageCopied) {
++IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
++                       ShowsDaoToastOnImageCopied) {
+   content::ContextMenuParams params;
+   params.media_type = blink::mojom::ContextMenuDataMediaType::kCanvas;
+ 
++  BrowserView* browser_view =
++      BrowserView::GetBrowserViewForBrowser(browser());
++  ASSERT_TRUE(browser_view);
++  dao::DaoToastView* dao_toast = browser_view->dao_toast();
++  ASSERT_TRUE(dao_toast);
++  EXPECT_FALSE(dao_toast->GetVisible());
++
+   auto menu = CreateContextMenuFromParams(params);
+   menu->ExecuteCommand(IDC_CONTENT_CONTEXT_COPYIMAGE, /*event_flags=*/0);
+-  EXPECT_TRUE(browser()->GetFeatures().toast_controller()->IsShowingToast());
++
++  EXPECT_TRUE(dao_toast->GetVisible());
++  EXPECT_FALSE(
++      browser()->GetFeatures().toast_controller()->IsShowingToast());
+ }
+ 
+ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, ShowsToastOnVideoFrameCopied) {
