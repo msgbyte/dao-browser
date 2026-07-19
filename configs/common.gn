@@ -9,7 +9,6 @@ chrome_pgo_phase = 0
 proprietary_codecs = true
 ffmpeg_branding = "Chrome"
 
-enable_nacl = false
 fatal_linker_warnings = false
 
 google_api_key = ""

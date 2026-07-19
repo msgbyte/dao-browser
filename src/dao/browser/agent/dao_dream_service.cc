@@ -5,8 +5,10 @@
 #include "dao/browser/agent/dao_dream_service.h"
 
 #include <algorithm>
+#include <array>
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_writer.h"
@@ -39,11 +41,13 @@ bool IsLeapYear(int year) {
 }
 
 int DaysInMonth(int year, int month) {
-  constexpr int kDaysPerMonth[] = {31, 28, 31, 30, 31, 30,
-                                    31, 31, 30, 31, 30, 31};
+  constexpr std::array<int, 12> kDaysPerMonth = {
+      31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
   if (month == 2 && IsLeapYear(year)) {
     return 29;
   }
+  CHECK_GE(month, 1);
+  CHECK_LE(month, 12);
   return kDaysPerMonth[month - 1];
 }
 
