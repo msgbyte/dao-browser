@@ -19,6 +19,8 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **sidebar_bridge.ts** — Mojo client wrapper
 - **dao_sidebar_section.ts** — Reusable collapsible section container
 - **dao_tab_list.ts** / **dao_tab_item.ts** — Vertical tab list, dual-line layout for the active tab (title + URL)
+- **Active-tab auto-scroll** — Smoothly keeps a newly active visible tab inside
+  the tab-list viewport without expanding collapsed folders
 - **dao_favorites_view.ts** — Pinned site icon row
 - **dao_pinned_tabs_grid.ts** + **DaoPinnedTabModel** — Persistent Pin grid
   with stable logical backing identities across navigation, discard/WebContents

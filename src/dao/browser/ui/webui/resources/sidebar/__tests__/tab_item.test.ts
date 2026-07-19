@@ -18,9 +18,9 @@ interface TestTabItem extends HTMLElement {
   tabData: TabData;
   active: boolean;
   autoScrollToken: number;
+  suppressActiveAutoScroll: boolean;
   sessionId: number;
   updateComplete: Promise<boolean>;
-  updated: (changedProperties: Map<PropertyKey, unknown>) => void;
 }
 
 interface FakeDataTransfer {
@@ -78,6 +78,11 @@ function dragEvent(type: string, dataTransfer?: FakeDataTransfer): DragEvent {
 describe('dao-tab-item', () => {
   beforeAll(async () => {
     await import('../dao_tab_item.js');
+    const ctor = customElements.get('dao-tab-item') as
+        CustomElementConstructor & {
+          invokeLifecycleCallbacksForTesting?: boolean;
+        };
+    ctor.invokeLifecycleCallbacksForTesting = true;
   });
 
   beforeEach(() => {
@@ -111,49 +116,113 @@ describe('dao-tab-item', () => {
     expect(dataTransfer.effectAllowed).toBe('move');
   });
 
-  it('does not scroll just because a tab becomes active', async () => {
+  it('smooth scrolls a tab when it becomes active', async () => {
     const el = document.createElement('dao-tab-item') as TestTabItem;
-    el.tabData = tab({isActive: true});
-    el.active = true;
-    el.scrollIntoView = vi.fn();
+    el.tabData = tab({isActive: false});
+    el.active = false;
+    const scrollIntoView = vi.fn();
+    el.scrollIntoView = scrollIntoView;
     document.body.appendChild(el);
     await el.updateComplete;
+    scrollIntoView.mockClear();
 
-    el.updated(new Map<PropertyKey, unknown>([['active', false]]));
-
-    expect(el.scrollIntoView).not.toHaveBeenCalled();
-  });
-
-  it('smooth scrolls active tab when an auto-scroll token arrives', async () => {
-    const el = document.createElement('dao-tab-item') as TestTabItem;
     el.tabData = tab({isActive: true});
     el.active = true;
-    el.autoScrollToken = 1;
-    el.scrollIntoView = vi.fn();
-    document.body.appendChild(el);
     await el.updateComplete;
 
-    el.updated(new Map<PropertyKey, unknown>([['autoScrollToken', 0]]));
-
-    expect(el.scrollIntoView).toHaveBeenCalledWith({
+    expect(scrollIntoView).toHaveBeenCalledWith({
       block: 'nearest',
       behavior: 'smooth',
     });
   });
+
+  it('does not scroll an initially active tab without a token', async () => {
+    const el = document.createElement('dao-tab-item') as TestTabItem;
+    el.tabData = tab({isActive: true});
+    el.active = true;
+    el.scrollIntoView = vi.fn();
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(el.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('does not scroll an active tab when active auto-scroll is suppressed',
+      async () => {
+        const el = document.createElement('dao-tab-item') as TestTabItem;
+        el.tabData = tab({isActive: false});
+        el.active = false;
+        el.suppressActiveAutoScroll = true;
+        const scrollIntoView = vi.fn();
+        el.scrollIntoView = scrollIntoView;
+        document.body.appendChild(el);
+        await el.updateComplete;
+        scrollIntoView.mockClear();
+
+        el.tabData = tab({isActive: true});
+        el.active = true;
+        await el.updateComplete;
+
+        expect(scrollIntoView).not.toHaveBeenCalled();
+      });
+
+  it('smooth scrolls active tab when an auto-scroll token arrives', async () => {
+    const el = document.createElement('dao-tab-item') as TestTabItem;
+    el.tabData = tab({isActive: false});
+    el.active = false;
+    const scrollIntoView = vi.fn();
+    el.scrollIntoView = scrollIntoView;
+    document.body.appendChild(el);
+    await el.updateComplete;
+    scrollIntoView.mockClear();
+
+    el.autoScrollToken = 1;
+    await el.updateComplete;
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+      behavior: 'smooth',
+    });
+  });
+
+  it('scrolls only once when active and token requests arrive together',
+      async () => {
+        const el = document.createElement('dao-tab-item') as TestTabItem;
+        el.tabData = tab({isActive: false});
+        el.active = false;
+        const scrollIntoView = vi.fn();
+        el.scrollIntoView = scrollIntoView;
+        document.body.appendChild(el);
+        await el.updateComplete;
+        scrollIntoView.mockClear();
+
+        el.tabData = tab({isActive: true});
+        el.active = true;
+        el.autoScrollToken = 1;
+        await el.updateComplete;
+
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+        expect(scrollIntoView).toHaveBeenCalledWith({
+          block: 'nearest',
+          behavior: 'smooth',
+        });
+      });
 
   it('smooth scrolls a target tab even when active styling is suppressed',
       async () => {
         const el = document.createElement('dao-tab-item') as TestTabItem;
         el.tabData = tab({isActive: true});
         el.active = false;
-        el.autoScrollToken = 1;
-        el.scrollIntoView = vi.fn();
+        const scrollIntoView = vi.fn();
+        el.scrollIntoView = scrollIntoView;
         document.body.appendChild(el);
         await el.updateComplete;
+        scrollIntoView.mockClear();
 
-        el.updated(new Map<PropertyKey, unknown>([['autoScrollToken', 0]]));
+        el.autoScrollToken = 1;
+        await el.updateComplete;
 
-        expect(el.scrollIntoView).toHaveBeenCalledWith({
+        expect(scrollIntoView).toHaveBeenCalledWith({
           block: 'nearest',
           behavior: 'smooth',
         });

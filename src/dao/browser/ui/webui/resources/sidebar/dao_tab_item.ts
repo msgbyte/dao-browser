@@ -191,6 +191,7 @@ export class DaoTabItem extends CrLitElement {
       active: {type: Boolean, reflect: true},
       sessionId: {type: Number},
       autoScrollToken: {type: Number},
+      suppressActiveAutoScroll: {type: Boolean},
       hoverSuppressed_: {
         type: Boolean,
         reflect: true,
@@ -203,6 +204,7 @@ export class DaoTabItem extends CrLitElement {
   declare active: boolean;
   declare sessionId: number;
   declare autoScrollToken: number;
+  declare suppressActiveAutoScroll: boolean;
   declare protected hoverSuppressed_: boolean;
 
   constructor() {
@@ -221,6 +223,7 @@ export class DaoTabItem extends CrLitElement {
     this.active = false;
     this.sessionId = 0;
     this.autoScrollToken = 0;
+    this.suppressActiveAutoScroll = false;
     this.hoverSuppressed_ = false;
   }
 
@@ -307,7 +310,12 @@ export class DaoTabItem extends CrLitElement {
   }
 
   override updated(changedProperties: Map<PropertyKey, unknown>) {
-    if (changedProperties.has('autoScrollToken') && this.autoScrollToken > 0) {
+    const activeScrollRequested =
+        changedProperties.get('active') === false && this.active &&
+        !this.suppressActiveAutoScroll;
+    const tokenScrollRequested =
+        changedProperties.has('autoScrollToken') && this.autoScrollToken > 0;
+    if (activeScrollRequested || tokenScrollRequested) {
       this.scrollIntoView({block: 'nearest', behavior: 'smooth'});
     }
   }

@@ -29,6 +29,8 @@ interface TestFolderItem extends HTMLElement {
 
 const originalAnimateDescriptor =
     Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
+const originalScrollIntoViewDescriptor =
+    Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
 
 function tab(extra: Partial<TabData> = {}): TabData {
   return {
@@ -100,6 +102,11 @@ function setTabItemBounds(el: HTMLElement, top: number, height: number) {
 describe('dao-folder-item', () => {
   beforeAll(async () => {
     await import('../dao_folder_item.js');
+    const ctor = customElements.get('dao-tab-item') as
+        CustomElementConstructor & {
+          invokeLifecycleCallbacksForTesting?: boolean;
+        };
+    ctor.invokeLifecycleCallbacksForTesting = true;
   });
 
   beforeEach(() => {
@@ -111,6 +118,9 @@ describe('dao-folder-item', () => {
     vi.restoreAllMocks();
     restoreDescriptor(
         HTMLElement.prototype, 'animate', originalAnimateDescriptor);
+    restoreDescriptor(
+        HTMLElement.prototype, 'scrollIntoView',
+        originalScrollIntoViewDescriptor);
   });
 
   function createFolderItem() {
@@ -124,6 +134,39 @@ describe('dao-folder-item', () => {
     document.body.appendChild(el);
     return el;
   }
+
+  it('suppresses active auto-scroll for children while collapsed', async () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const el = createFolderItem();
+    el.folder = folder({collapsed: true});
+    el.matchedTabs = [tab({tabId: 'tab-a', isActive: false})];
+    await el.updateComplete;
+
+    const child = el.shadowRoot!.querySelector('dao-tab-item') as HTMLElement & {
+      active: boolean;
+      autoScrollToken: number;
+      suppressActiveAutoScroll: boolean;
+      updateComplete: Promise<boolean>;
+    };
+    await child.updateComplete;
+    expect(child.suppressActiveAutoScroll).toBe(true);
+
+    scrollIntoView.mockClear();
+    child.active = true;
+    await child.updateComplete;
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    child.autoScrollToken = 1;
+    await child.updateComplete;
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+      behavior: 'smooth',
+    });
+  });
 
   it('animates surviving folder children when a child tab is removed',
       async () => {

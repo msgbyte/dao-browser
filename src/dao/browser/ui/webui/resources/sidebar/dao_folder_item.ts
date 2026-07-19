@@ -232,6 +232,7 @@ export class DaoFolderItem extends CrLitElement {
               .tabData=${tab}
               .sessionId=${this.sessionId}
               .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
+              .suppressActiveAutoScroll=${this.folder.collapsed}
               ?active=${tab.isActive}
               data-folder-id=${this.folder.id}>
             </dao-tab-item>
