@@ -15,6 +15,11 @@ interface EventBinding {
   handler: EventListener;
 }
 
+interface PropertyBinding {
+  propertyName: string;
+  value: TemplateValue;
+}
+
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
@@ -27,20 +32,24 @@ function isTemplateResult(value: TemplateValue): value is TemplateResult {
       'values' in value;
 }
 
-function valueToHtml(value: TemplateValue, events: EventBinding[]): string {
+function valueToHtml(
+    value: TemplateValue, events: EventBinding[],
+    properties: PropertyBinding[]): string {
   if (value === null || value === undefined || value === false) {
     return '';
   }
   if (Array.isArray(value)) {
-    return value.map(item => valueToHtml(item, events)).join('');
+    return value.map(item => valueToHtml(item, events, properties)).join('');
   }
   if (isTemplateResult(value)) {
-    return templateToHtml(value, events);
+    return templateToHtml(value, events, properties);
   }
   return escapeHtml(String(value));
 }
 
-function templateToHtml(result: TemplateResult, events: EventBinding[]): string {
+function templateToHtml(
+    result: TemplateResult, events: EventBinding[],
+    properties: PropertyBinding[]): string {
   let markup = '';
   for (let i = 0; i < result.values.length; i++) {
     const value = result.values[i]!;
@@ -54,8 +63,19 @@ function templateToHtml(result: TemplateResult, events: EventBinding[]): string 
       });
       continue;
     }
+    const propertyMatch =
+        result.strings[i]!.match(/\.([a-zA-Z_$][\w$]*)=$/);
+    if (propertyMatch) {
+      markup += result.strings[i]!.slice(0, -propertyMatch[0].length);
+      markup += `data-lit-property-${properties.length}=""`;
+      properties.push({
+        propertyName: propertyMatch[1]!,
+        value,
+      });
+      continue;
+    }
     markup += result.strings[i]!;
-    markup += valueToHtml(value, events);
+    markup += valueToHtml(value, events, properties);
   }
   markup += result.strings[result.strings.length - 1]!;
   return markup;
@@ -77,8 +97,12 @@ function installPropertyAccessors(ctor: typeof CrLitElement) {
         return this[`__${key}`];
       },
       set(value) {
+        const oldValue = this[`__${key}`];
+        if (Object.is(oldValue, value)) {
+          return;
+        }
         this[`__${key}`] = value;
-        this.requestUpdate();
+        this.requestUpdate(key, oldValue);
       },
     });
   }
@@ -92,6 +116,7 @@ export class CrLitElement extends HTMLElement {
 
   private updateComplete_: Promise<boolean> = Promise.resolve(true);
   private isUpdatePending_: boolean = false;
+  private changedProperties_: Map<PropertyKey, unknown> = new Map();
 
   constructor() {
     super();
@@ -109,7 +134,11 @@ export class CrLitElement extends HTMLElement {
     this.requestUpdate();
   }
 
-  requestUpdate() {
+  requestUpdate(propertyName?: PropertyKey, oldValue?: unknown) {
+    if (propertyName !== undefined &&
+        !this.changedProperties_.has(propertyName)) {
+      this.changedProperties_.set(propertyName, oldValue);
+    }
     if (this.isUpdatePending_) {
       return;
     }
@@ -125,9 +154,19 @@ export class CrLitElement extends HTMLElement {
     if (!this.shadowRoot) {
       return;
     }
+    const changedProperties = this.changedProperties_;
+    this.changedProperties_ = new Map();
+    const invokeLifecycleCallbacks =
+        (this.constructor as typeof CrLitElement & {
+          invokeLifecycleCallbacksForTesting?: boolean;
+        }).invokeLifecycleCallbacksForTesting === true;
+    if (invokeLifecycleCallbacks) {
+      this.willUpdate(changedProperties);
+    }
     const events: EventBinding[] = [];
+    const properties: PropertyBinding[] = [];
     this.shadowRoot.innerHTML =
-        templateToHtml(this.render() as TemplateResult, events);
+        templateToHtml(this.render() as TemplateResult, events, properties);
     for (let i = 0; i < events.length; i++) {
       const binding = events[i]!;
       const node =
@@ -135,7 +174,23 @@ export class CrLitElement extends HTMLElement {
       node?.removeAttribute(`data-lit-event-${i}`);
       node?.addEventListener(binding.eventName, binding.handler);
     }
+    for (let i = 0; i < properties.length; i++) {
+      const binding = properties[i]!;
+      const node = this.shadowRoot.querySelector(
+          `[data-lit-property-${i}]`);
+      node?.removeAttribute(`data-lit-property-${i}`);
+      if (node) {
+        Reflect.set(node, binding.propertyName, binding.value);
+      }
+    }
+    if (invokeLifecycleCallbacks) {
+      this.updated(changedProperties);
+    }
   }
+
+  willUpdate(_changedProperties: Map<PropertyKey, unknown>) {}
+
+  updated(_changedProperties: Map<PropertyKey, unknown>) {}
 
   render(): TemplateResult {
     return html``;

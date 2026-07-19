@@ -21,7 +21,6 @@ interface TestTabItem extends HTMLElement {
   suppressActiveAutoScroll: boolean;
   sessionId: number;
   updateComplete: Promise<boolean>;
-  updated: (changedProperties: Map<PropertyKey, unknown>) => void;
 }
 
 interface FakeDataTransfer {
@@ -79,6 +78,11 @@ function dragEvent(type: string, dataTransfer?: FakeDataTransfer): DragEvent {
 describe('dao-tab-item', () => {
   beforeAll(async () => {
     await import('../dao_tab_item.js');
+    const ctor = customElements.get('dao-tab-item') as
+        CustomElementConstructor & {
+          invokeLifecycleCallbacksForTesting?: boolean;
+        };
+    ctor.invokeLifecycleCallbacksForTesting = true;
   });
 
   beforeEach(() => {
@@ -116,15 +120,17 @@ describe('dao-tab-item', () => {
     const el = document.createElement('dao-tab-item') as TestTabItem;
     el.tabData = tab({isActive: false});
     el.active = false;
-    el.scrollIntoView = vi.fn();
+    const scrollIntoView = vi.fn();
+    el.scrollIntoView = scrollIntoView;
     document.body.appendChild(el);
     await el.updateComplete;
+    scrollIntoView.mockClear();
 
     el.tabData = tab({isActive: true});
     el.active = true;
-    el.updated(new Map<PropertyKey, unknown>([['active', false]]));
+    await el.updateComplete;
 
-    expect(el.scrollIntoView).toHaveBeenCalledWith({
+    expect(scrollIntoView).toHaveBeenCalledWith({
       block: 'nearest',
       behavior: 'smooth',
     });
@@ -138,38 +144,42 @@ describe('dao-tab-item', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    el.updated(new Map<PropertyKey, unknown>([['active', undefined]]));
-
     expect(el.scrollIntoView).not.toHaveBeenCalled();
   });
 
   it('does not scroll an active tab when active auto-scroll is suppressed',
       async () => {
         const el = document.createElement('dao-tab-item') as TestTabItem;
-        el.tabData = tab({isActive: true});
-        el.active = true;
+        el.tabData = tab({isActive: false});
+        el.active = false;
         el.suppressActiveAutoScroll = true;
-        el.scrollIntoView = vi.fn();
+        const scrollIntoView = vi.fn();
+        el.scrollIntoView = scrollIntoView;
         document.body.appendChild(el);
         await el.updateComplete;
+        scrollIntoView.mockClear();
 
-        el.updated(new Map<PropertyKey, unknown>([['active', false]]));
+        el.tabData = tab({isActive: true});
+        el.active = true;
+        await el.updateComplete;
 
-        expect(el.scrollIntoView).not.toHaveBeenCalled();
+        expect(scrollIntoView).not.toHaveBeenCalled();
       });
 
   it('smooth scrolls active tab when an auto-scroll token arrives', async () => {
     const el = document.createElement('dao-tab-item') as TestTabItem;
-    el.tabData = tab({isActive: true});
-    el.active = true;
-    el.autoScrollToken = 1;
-    el.scrollIntoView = vi.fn();
+    el.tabData = tab({isActive: false});
+    el.active = false;
+    const scrollIntoView = vi.fn();
+    el.scrollIntoView = scrollIntoView;
     document.body.appendChild(el);
     await el.updateComplete;
+    scrollIntoView.mockClear();
 
-    el.updated(new Map<PropertyKey, unknown>([['autoScrollToken', 0]]));
+    el.autoScrollToken = 1;
+    await el.updateComplete;
 
-    expect(el.scrollIntoView).toHaveBeenCalledWith({
+    expect(scrollIntoView).toHaveBeenCalledWith({
       block: 'nearest',
       behavior: 'smooth',
     });
@@ -180,20 +190,19 @@ describe('dao-tab-item', () => {
         const el = document.createElement('dao-tab-item') as TestTabItem;
         el.tabData = tab({isActive: false});
         el.active = false;
-        el.scrollIntoView = vi.fn();
+        const scrollIntoView = vi.fn();
+        el.scrollIntoView = scrollIntoView;
         document.body.appendChild(el);
         await el.updateComplete;
+        scrollIntoView.mockClear();
 
         el.tabData = tab({isActive: true});
         el.active = true;
         el.autoScrollToken = 1;
-        el.updated(new Map<PropertyKey, unknown>([
-          ['active', false],
-          ['autoScrollToken', 0],
-        ]));
+        await el.updateComplete;
 
-        expect(el.scrollIntoView).toHaveBeenCalledTimes(1);
-        expect(el.scrollIntoView).toHaveBeenCalledWith({
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+        expect(scrollIntoView).toHaveBeenCalledWith({
           block: 'nearest',
           behavior: 'smooth',
         });
@@ -204,14 +213,16 @@ describe('dao-tab-item', () => {
         const el = document.createElement('dao-tab-item') as TestTabItem;
         el.tabData = tab({isActive: true});
         el.active = false;
-        el.autoScrollToken = 1;
-        el.scrollIntoView = vi.fn();
+        const scrollIntoView = vi.fn();
+        el.scrollIntoView = scrollIntoView;
         document.body.appendChild(el);
         await el.updateComplete;
+        scrollIntoView.mockClear();
 
-        el.updated(new Map<PropertyKey, unknown>([['autoScrollToken', 0]]));
+        el.autoScrollToken = 1;
+        await el.updateComplete;
 
-        expect(el.scrollIntoView).toHaveBeenCalledWith({
+        expect(scrollIntoView).toHaveBeenCalledWith({
           block: 'nearest',
           behavior: 'smooth',
         });
