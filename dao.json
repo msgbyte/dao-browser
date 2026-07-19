@@ -4,7 +4,7 @@
   "version": {
     "product": "chromium",
     "version": "148.0.7778.217",
-    "display": "1.0.77"
+    "display": "1.0.78"
   },
   "build": {
     "target_os": "mac",
