@@ -354,8 +354,8 @@ void DaoControlCenterUtilitySection::OnLockClicked() {
   popup_->Hide();
 
   PageInfoBubbleSpecification::Builder builder(
-      /*anchor=*/nullptr, browser->window()->GetNativeWindow(), web_contents,
-      virtual_url);
+      views::BubbleAnchor(), browser->window()->GetNativeWindow(),
+      web_contents, virtual_url);
   builder.AddAnchorRect(anchor_rect)
       .AddInitializedCallback(base::DoNothing())
       .AddPageInfoClosingCallback(

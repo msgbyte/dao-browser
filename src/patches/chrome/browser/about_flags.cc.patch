@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/about_flags.cc b/chrome/browser/about_flags.cc
-index 016ba0e25f..678ea95e57 100644
+index 1995a1687fc8f..d337f23cd2334 100644
 --- a/chrome/browser/about_flags.cc
 +++ b/chrome/browser/about_flags.cc
-@@ -207,6 +207,7 @@
+@@ -217,6 +217,7 @@
  #include "content/common/features.h"
  #include "content/public/common/content_features.h"
  #include "content/public/common/content_switches.h"
@@ -10,17 +10,17 @@ index 016ba0e25f..678ea95e57 100644
  #include "device/base/features.h"
  #include "device/bluetooth/bluez/bluez_features.h"
  #include "device/bluetooth/chromeos_platform_features.h"
-@@ -9165,6 +9166,13 @@ const FeatureEntry kFeatureEntries[] = {
-      flag_descriptions::kExtensionManifestV2DeprecationUnsupportedDescription,
+@@ -9006,6 +9007,13 @@ const FeatureEntry kFeatureEntries[] = {
       kOsDesktop,
       FEATURE_VALUE_TYPE(extensions_features::kExtensionManifestV2Unsupported)},
-+
+ 
 +    // Dao MV2 Support: opt back into Chromium's standard MV2 deprecation.
 +    {"restore-manifest-v2-deprecation",
 +     flag_descriptions::kRestoreManifestV2DeprecationName,
 +     flag_descriptions::kRestoreManifestV2DeprecationDescription,
 +     kOsAll,
 +     FEATURE_VALUE_TYPE(dao::kRestoreManifestV2Deprecation)},
- #endif  // ENABLE_EXTENSIONS
- 
- #if !BUILDFLAG(IS_ANDROID)
++
+     {"extension-tab-context-menu",
+      flag_descriptions::kExtensionTabContextMenuName,
+      flag_descriptions::kExtensionTabContextMenuDescription, kOsDesktop,

@@ -33,14 +33,14 @@ describe('import helpers', () => {
         path.join(os.tmpdir(), 'dao-import-version-'));
     const versionPath = path.join(tempRoot, 'VERSION');
     writeFileSync(versionPath, [
-      'MAJOR=148',
+      'MAJOR=149',
       'MINOR=0',
-      'BUILD=7778',
-      'PATCH=217',
+      'BUILD=7827',
+      'PATCH=201',
       '',
     ].join('\n'));
 
-    expect(readChromiumVersion(versionPath)).toBe('148.0.7778.217');
+    expect(readChromiumVersion(versionPath)).toBe('149.0.7827.201');
   });
 
   it('rejects a Chromium version that differs from dao.json', () => {
@@ -56,8 +56,8 @@ describe('import helpers', () => {
     ].join('\n'));
 
     expect(() => validateChromiumVersion(
-        versionPath, '148.0.7778.217')).toThrow(
-        'Chromium version mismatch: dao.json expects 148.0.7778.217, ' +
+        versionPath, '149.0.7827.201')).toThrow(
+        'Chromium version mismatch: dao.json expects 149.0.7827.201, ' +
         'but engine/src/chrome/VERSION is 147.0.7727.135.');
   });
 
@@ -65,7 +65,7 @@ describe('import helpers', () => {
     const tempRoot = mkdtempSync(
         path.join(os.tmpdir(), 'dao-import-version-'));
     const versionPath = path.join(tempRoot, 'VERSION');
-    writeFileSync(versionPath, 'MAJOR=148\nMINOR=0\nBUILD=7778\n');
+    writeFileSync(versionPath, 'MAJOR=149\nMINOR=0\nBUILD=7827\n');
 
     expect(() => readChromiumVersion(versionPath)).toThrow(
         'Invalid Chromium version file: expected numeric MAJOR, MINOR, ' +

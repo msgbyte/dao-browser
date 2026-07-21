@@ -72,7 +72,7 @@ function releaseFixture(): ReleaseFixture {
     display_name: 'Dao',
     version: {
       product: 'chromium',
-      version: '148.0.7778.217',
+      version: '149.0.7827.201',
       display: '1.0.70',
     },
     build: {target_os: 'mac', target_cpu: 'arm64'},

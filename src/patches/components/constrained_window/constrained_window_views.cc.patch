@@ -1,17 +1,26 @@
 diff --git a/components/constrained_window/constrained_window_views.cc b/components/constrained_window/constrained_window_views.cc
 --- a/components/constrained_window/constrained_window_views.cc
 +++ b/components/constrained_window/constrained_window_views.cc
-@@ -103,7 +103,8 @@
+@@ -15,6 +15,7 @@
+ #include "build/build_config.h"
+ #include "components/constrained_window/constrained_window_views_client.h"
+ #include "components/guest_view/browser/guest_view_base.h"
++#include "content/public/browser/web_contents.h"
+ #include "components/web_modal/web_contents_modal_dialog_host.h"
+ #include "components/web_modal/web_contents_modal_dialog_manager.h"
+ #include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
+@@ -103,7 +104,9 @@
  
  gfx::Rect GetModalDialogBounds(views::Widget* widget,
                                 web_modal::ModalDialogHost* dialog_host,
 -                               const gfx::Size& size) {
 +                               const gfx::Size& size,
-+                               const gfx::Size* maximum_dialog_size) {
++                               const gfx::Size* maximum_dialog_size,
++                               content::WebContents* web_contents) {
    views::Widget* const host_widget =
        views::Widget::GetWidgetForNativeView(dialog_host->GetHostView());
    if (!host_widget) {
-@@ -111,10 +112,21 @@
+@@ -111,10 +114,31 @@
    }
  
    gfx::Point position = dialog_host->GetDialogPosition(size);
@@ -21,11 +30,21 @@ diff --git a/components/constrained_window/constrained_window_views.cc b/compone
 +      widget->widget_delegate()->AsDialogDelegate();
 +  if (maximum_dialog_size && dialog_delegate &&
 +      dialog_delegate->center_in_web_contents()) {
-+    const int vertical_offset = std::max(
-+        0, (maximum_dialog_size->height() - size.height()) / 2);
-+    // Include the frame inset here because it is removed below to align
-+    // normally top-anchored dialogs by their first content pixel.
-+    position.Offset(0, vertical_offset + frame_top_inset);
++    if (web_contents) {
++      const gfx::Point content_center =
++          web_contents->GetContainerBounds().CenterPoint();
++      const gfx::Point host_origin =
++          host_widget->GetWindowBoundsInScreen().origin();
++      position.set_x(content_center.x() - host_origin.x() - size.width() / 2);
++      position.set_y(content_center.y() - host_origin.y() -
++                     size.height() / 2 + frame_top_inset);
++    } else {
++      const int vertical_offset = std::max(
++          0, (maximum_dialog_size->height() - size.height()) / 2);
++      // Include the frame inset here because it is removed below to align
++      // normally top-anchored dialogs by their first content pixel.
++      position.Offset(0, vertical_offset + frame_top_inset);
++    }
 +  }
    // Align the first row of pixels inside the border. This is the apparent top
    // of the dialog.
@@ -35,57 +54,72 @@ diff --git a/components/constrained_window/constrained_window_views.cc b/compone
  
    gfx::Rect dialog_bounds(position, size);
  
-@@ -157,7 +169,8 @@
+@@ -157,7 +181,9 @@
  
  void UpdateModalDialogPosition(views::Widget* widget,
                                 web_modal::ModalDialogHost* dialog_host,
 -                               const gfx::Size& size) {
 +                               const gfx::Size& size,
-+                               const gfx::Size* maximum_dialog_size = nullptr) {
++                               const gfx::Size* maximum_dialog_size = nullptr,
++                               content::WebContents* web_contents = nullptr) {
    // Do not forcibly update the dialog widget position if it is being dragged.
    if (widget->HasCapture()) {
      return;
-@@ -175,7 +188,8 @@
+@@ -175,7 +201,8 @@
      return;
    }
  
 -  widget->SetBounds(GetModalDialogBounds(widget, dialog_host, size));
 +  widget->SetBounds(GetModalDialogBounds(widget, dialog_host, size,
-+                                         maximum_dialog_size));
++                                         maximum_dialog_size, web_contents));
  }
  
  void ConfigureDesiredBoundsDelegate(views::WidgetDelegate* dialog_delegate,
-@@ -187,7 +201,26 @@
+@@ -187,7 +214,32 @@
        [](views::Widget* widget,
           web_modal::ModalDialogHost* dialog_host) -> gfx::Rect {
          return GetModalDialogBounds(
 -            widget, dialog_host, widget->GetRootView()->GetPreferredSize({}));
 +            widget, dialog_host, widget->GetRootView()->GetPreferredSize({}),
-+            nullptr);
++            nullptr, nullptr);
 +      },
 +      widget, dialog_host));
 +}
 +
 +void ConfigureWebContentsDesiredBoundsDelegate(
 +    views::WidgetDelegate* dialog_delegate,
-+    web_modal::WebContentsModalDialogHost* dialog_host) {
++    web_modal::WebContentsModalDialogHost* dialog_host,
++    content::WebContents* web_contents) {
 +  views::Widget* widget = dialog_delegate->GetWidget();
 +  CHECK(widget)
 +      << "SetDesiredBoundsDelegate() must be called after creating the widget.";
 +  dialog_delegate->set_desired_bounds_delegate(base::BindRepeating(
 +      [](views::Widget* widget,
-+         web_modal::WebContentsModalDialogHost* dialog_host) -> gfx::Rect {
++         web_modal::WebContentsModalDialogHost* dialog_host,
++         content::WebContents* web_contents) -> gfx::Rect {
 +        const gfx::Size maximum_dialog_size =
 +            dialog_host->GetMaximumDialogSize();
-+        return GetModalDialogBounds(
-+            widget, dialog_host, widget->GetRootView()->GetPreferredSize({}),
-+            &maximum_dialog_size);
++        gfx::Size maximum_widget_size = maximum_dialog_size;
++        maximum_widget_size.Enlarge(
++            0, widget->non_client_view()->frame_view()->GetInsets().top());
++        gfx::Size size = widget->GetRootView()->GetPreferredSize({});
++        size.SetToMin(maximum_widget_size);
++        return GetModalDialogBounds(widget, dialog_host, size,
++                                    &maximum_dialog_size, web_contents);
        },
-       widget, dialog_host));
+-      widget, dialog_host));
++      widget, dialog_host, web_contents));
  }
-@@ -226,13 +259,16 @@
+@@ -226,13 +278,23 @@
      views::Widget* widget,
      web_modal::WebContentsModalDialogHost* dialog_host) {
++  views::DialogDelegate* const dialog_delegate =
++      widget->widget_delegate()->AsDialogDelegate();
++  if (dialog_delegate && dialog_delegate->center_in_web_contents() &&
++      dialog_delegate->has_desired_bounds_delegate()) {
++    widget->SetBounds(dialog_delegate->GetDesiredWidgetBounds());
++    return;
++  }
    gfx::Size size = widget->GetRootView()->GetPreferredSize({});
 -  gfx::Size max_size = dialog_host->GetMaximumDialogSize();
 +  const gfx::Size maximum_dialog_size =
@@ -98,11 +132,11 @@ diff --git a/components/constrained_window/constrained_window_views.cc b/compone
    size.SetToMin(max_size);
 -  UpdateModalDialogPosition(widget, dialog_host, size);
 +  UpdateModalDialogPosition(widget, dialog_host, size,
-+                            &maximum_dialog_size);
++                            &maximum_dialog_size, nullptr);
  }
  
  void UpdateWidgetModalDialogPosition(views::Widget* widget,
-@@ -283,7 +319,7 @@
+@@ -283,7 +345,7 @@
    DCHECK_EQ(ui::mojom::ModalType::kChild, dialog->GetModalType());
    web_modal::WebContentsModalDialogManager* manager =
        web_modal::WebContentsModalDialogManager::FromWebContents(web_contents);
@@ -111,12 +145,12 @@ diff --git a/components/constrained_window/constrained_window_views.cc b/compone
        manager->delegate()->GetWebContentsModalDialogHost(web_contents);
    CHECK(dialog_host);
  
-@@ -298,7 +334,7 @@
+@@ -298,7 +360,7 @@
        std::make_unique<ModalDialogHostObserverViews>(
            dialog_host, widget, /*auto_update_position=*/false);
    widget->SetProperty(kModalDialogHostObserverKey, std::move(observer));
 -  ConfigureDesiredBoundsDelegate(dialog, dialog_host);
-+  ConfigureWebContentsDesiredBoundsDelegate(dialog, dialog_host);
++  ConfigureWebContentsDesiredBoundsDelegate(dialog, dialog_host, web_contents);
    widget->SetNativeWindowProperty(
        views::kWidgetIdentifierKey,
        const_cast<void*>(kConstrainedWindowWidgetIdentifier));

@@ -131,6 +131,33 @@ export class DaoAgentApp extends CrLitElement {
       this.updateComplete.then(tryOnce);
     };
 
+    // Hooks for native surfaces that need to prepare a prompt without
+    // submitting it, or return to an existing conversation.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__daoExternalPrefill = (text: string) => {
+      if (typeof text !== 'string' || !text) return;
+      if (this.activeTab_ !== 'chat') {
+        this.activeTab_ = 'chat';
+        this.updateComplete.then(() => {
+          this.getChatView_()?.prefillExternalPrompt(text);
+        });
+      } else {
+        this.getChatView_()?.prefillExternalPrompt(text);
+      }
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__daoExternalOpenSession = (sessionId: string) => {
+      if (typeof sessionId !== 'string' || !sessionId) return;
+      if (this.activeTab_ !== 'chat') {
+        this.activeTab_ = 'chat';
+        this.updateComplete.then(() => {
+          void this.getChatView_()?.openExternalSession(sessionId);
+        });
+      } else {
+        void this.getChatView_()?.openExternalSession(sessionId);
+      }
+    };
+
     void i18nReady.then(() => {
       if (!this.isConnected) return;
       this.refreshLocalizedViews_();
@@ -351,11 +378,11 @@ export class DaoAgentApp extends CrLitElement {
   };
 
   private getChatView_(): DaoChatView|null {
-    return this.querySelector('dao-chat-view');
+    return (this.shadowRoot ?? this).querySelector('dao-chat-view');
   }
 
   private getSettingsView_(): DaoSettingsView|null {
-    return this.querySelector('dao-settings-view');
+    return (this.shadowRoot ?? this).querySelector('dao-settings-view');
   }
 
   private refreshLocalizedViews_() {

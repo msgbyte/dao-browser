@@ -21,7 +21,7 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/navigation_handle.h"
@@ -503,11 +503,19 @@ void DaoAgentProactiveEngine::Start() {
     return;
   }
   is_running_ = true;
-  BrowserList::AddObserver(this);
-
-  for (Browser* browser : chrome::FindAllBrowsersWithProfile(profile_)) {
-    browser->tab_strip_model()->AddObserver(this);
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile_);
+  if (!collection) {
+    is_running_ = false;
+    return;
   }
+  browser_collection_observation_.Observe(collection);
+  collection->ForEach([this](BrowserWindowInterface* browser_window) {
+    browser_window->GetBrowserForMigrationOnly()
+        ->tab_strip_model()
+        ->AddObserver(this);
+    return true;
+  });
 }
 
 void DaoAgentProactiveEngine::Stop() {
@@ -517,25 +525,32 @@ void DaoAgentProactiveEngine::Stop() {
   is_running_ = false;
   dwell_timer_.Stop();
   InvalidateActivePageEvaluations();
-  BrowserList::RemoveObserver(this);
+  browser_collection_observation_.Reset();
 
-  for (Browser* browser : chrome::FindAllBrowsersWithProfile(profile_)) {
-    browser->tab_strip_model()->RemoveObserver(this);
+  if (ProfileBrowserCollection* collection =
+          ProfileBrowserCollection::GetForProfile(profile_)) {
+    collection->ForEach([this](BrowserWindowInterface* browser_window) {
+      browser_window->GetBrowserForMigrationOnly()
+          ->tab_strip_model()
+          ->RemoveObserver(this);
+      return true;
+    });
   }
 
   active_tab_observer_.reset();
 }
 
-void DaoAgentProactiveEngine::OnBrowserAdded(Browser* browser) {
-  if (browser->profile() == profile_) {
-    browser->tab_strip_model()->AddObserver(this);
-  }
+void DaoAgentProactiveEngine::OnBrowserCreated(
+    BrowserWindowInterface* browser_window) {
+  browser_window->GetBrowserForMigrationOnly()->tab_strip_model()->AddObserver(
+      this);
 }
 
-void DaoAgentProactiveEngine::OnBrowserRemoved(Browser* browser) {
-  if (browser->profile() == profile_) {
-    browser->tab_strip_model()->RemoveObserver(this);
-  }
+void DaoAgentProactiveEngine::OnBrowserClosed(
+    BrowserWindowInterface* browser_window) {
+  browser_window->GetBrowserForMigrationOnly()
+      ->tab_strip_model()
+      ->RemoveObserver(this);
 }
 
 void DaoAgentProactiveEngine::OnTabStripModelChanged(

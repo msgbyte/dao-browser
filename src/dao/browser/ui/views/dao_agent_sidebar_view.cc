@@ -5,6 +5,7 @@
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/json/string_escape.h"
 #include "base/strings/strcat.h"
@@ -137,6 +138,108 @@ void DaoAgentSidebarView::ExpandAndSubmitPrompt(
       FROM_HERE,
       base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
                      weak_factory_.GetWeakPtr(), /*attempts_left=*/60));
+}
+
+void DaoAgentSidebarView::ExpandAndPrefillPrompt(
+    const std::u16string& prompt) {
+  if (prompt.empty()) {
+    return;
+  }
+  QueueExternalAction(PendingExternalAction::kPrefillPrompt,
+                      base::UTF16ToUTF8(prompt));
+}
+
+void DaoAgentSidebarView::ExpandAndOpenSession(
+    const std::string& session_id) {
+  if (session_id.empty()) {
+    return;
+  }
+  QueueExternalAction(PendingExternalAction::kOpenSession, session_id);
+}
+
+void DaoAgentSidebarView::QueueExternalAction(PendingExternalAction action,
+                                              std::string value) {
+  pending_external_action_ = action;
+  pending_external_value_ = std::move(value);
+
+  if (!expanded_) {
+    Toggle();
+  }
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DaoAgentSidebarView::TryFlushPendingExternalAction,
+                     weak_factory_.GetWeakPtr(), /*attempts_left=*/60));
+}
+
+void DaoAgentSidebarView::TryFlushPendingExternalAction(int attempts_left) {
+  if (pending_external_action_ == PendingExternalAction::kNone ||
+      pending_external_value_.empty() || !web_view_) {
+    return;
+  }
+
+  content::WebContents* web_contents = web_view_->GetWebContents();
+  content::RenderFrameHost* rfh =
+      web_contents ? web_contents->GetPrimaryMainFrame() : nullptr;
+  if (!rfh || !rfh->IsRenderFrameLive()) {
+    if (attempts_left > 0) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(
+              &DaoAgentSidebarView::TryFlushPendingExternalAction,
+              weak_factory_.GetWeakPtr(), attempts_left - 1),
+          base::Milliseconds(100));
+    } else {
+      pending_external_action_ = PendingExternalAction::kNone;
+      pending_external_value_.clear();
+    }
+    return;
+  }
+
+  const PendingExternalAction action = pending_external_action_;
+  const std::string value = pending_external_value_;
+  const char* hook = action == PendingExternalAction::kPrefillPrompt
+                         ? "__daoExternalPrefill"
+                         : "__daoExternalOpenSession";
+  std::string value_json;
+  base::EscapeJSONString(value, /*put_in_quotes=*/true, &value_json);
+  const std::u16string script = base::UTF8ToUTF16(base::StrCat({
+      "(function(){",
+      "  if (typeof window.", hook, " === 'function') {",
+      "    window.", hook, "(", value_json, ");",
+      "    return true;",
+      "  }",
+      "  return false;",
+      "})()"}));
+
+  rfh->ExecuteJavaScript(
+      script,
+      base::BindOnce(
+          [](base::WeakPtr<DaoAgentSidebarView> self,
+             PendingExternalAction action, std::string value,
+             int attempts_left, base::Value result) {
+            if (!self || self->pending_external_action_ != action ||
+                self->pending_external_value_ != value) {
+              return;
+            }
+            if (result.is_bool() && result.GetBool()) {
+              self->pending_external_action_ = PendingExternalAction::kNone;
+              self->pending_external_value_.clear();
+              return;
+            }
+            if (attempts_left <= 0) {
+              self->pending_external_action_ = PendingExternalAction::kNone;
+              self->pending_external_value_.clear();
+              return;
+            }
+            base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                FROM_HERE,
+                base::BindOnce(
+                    &DaoAgentSidebarView::TryFlushPendingExternalAction, self,
+                    attempts_left - 1),
+                base::Milliseconds(100));
+          },
+          weak_factory_.GetWeakPtr(), action, value, attempts_left));
 }
 
 void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {

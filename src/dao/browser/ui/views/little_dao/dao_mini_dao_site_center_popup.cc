@@ -408,8 +408,8 @@ void DaoMiniDaoSiteCenterPopup::OnPageInfoClicked() {
   Hide();
 
   PageInfoBubbleSpecification::Builder builder(
-      nullptr, browser_->window()->GetNativeWindow(), web_contents,
-      entry->GetVirtualURL());
+      views::BubbleAnchor(), browser_->window()->GetNativeWindow(),
+      web_contents, entry->GetVirtualURL());
   builder.AddAnchorRect(anchor_rect)
       .AddInitializedCallback(base::DoNothing())
       .AddPageInfoClosingCallback(

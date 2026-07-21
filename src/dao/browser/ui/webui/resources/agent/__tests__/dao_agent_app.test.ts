@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => {
   return {
     callNative: vi.fn(),
     chatRequestUpdate: vi.fn(),
+    prefillExternalPrompt: vi.fn(),
+    openExternalSession: vi.fn(),
     settingsRequestUpdate: vi.fn(),
     refreshSkillRegistryIfStale: vi.fn(async () => false),
     initI18n: vi.fn(() => i18nPromise),
@@ -34,6 +36,8 @@ vi.mock('../dao_chat_view.js', () => {
       focusInput() {}
       startNewSession() {}
       openHistory() {}
+      prefillExternalPrompt = mocks.prefillExternalPrompt;
+      openExternalSession = mocks.openExternalSession;
     });
   }
   return {};
@@ -79,6 +83,8 @@ describe('dao-agent-app i18n refresh', () => {
     document.body.innerHTML = '';
     mocks.callNative.mockReset();
     mocks.chatRequestUpdate.mockReset();
+    mocks.prefillExternalPrompt.mockReset();
+    mocks.openExternalSession.mockReset();
     mocks.settingsRequestUpdate.mockReset();
     mocks.refreshSkillRegistryIfStale.mockReset();
   });
@@ -87,6 +93,10 @@ describe('dao-agent-app i18n refresh', () => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
+    delete (window as unknown as {__daoExternalPrefill?: unknown})
+        .__daoExternalPrefill;
+    delete (window as unknown as {__daoExternalOpenSession?: unknown})
+        .__daoExternalOpenSession;
   });
 
   it('refreshes mounted child views when the async locale finishes loading', async () => {
@@ -98,5 +108,32 @@ describe('dao-agent-app i18n refresh', () => {
 
     expect(mocks.chatRequestUpdate).toHaveBeenCalled();
     expect(mocks.settingsRequestUpdate).toHaveBeenCalled();
+  });
+
+  it('routes external prefill requests to the chat view', async () => {
+    const {el} = await loadApp();
+    expect(el.shadowRoot?.querySelector('dao-chat-view')).not.toBeNull();
+
+    const prefill =
+        (window as unknown as {__daoExternalPrefill: (text: string) => void})
+            .__daoExternalPrefill;
+    prefill('Review this report');
+    await vi.waitFor(() => {
+      expect(mocks.prefillExternalPrompt).toHaveBeenCalledWith(
+          'Review this report');
+    });
+  });
+
+  it('routes external session requests to the chat view', async () => {
+    const {el} = await loadApp();
+    expect(el.shadowRoot?.querySelector('dao-chat-view')).not.toBeNull();
+
+    const openSession = (window as unknown as {
+      __daoExternalOpenSession: (sessionId: string) => void,
+    }).__daoExternalOpenSession;
+    openSession('session-42');
+    await vi.waitFor(() => {
+      expect(mocks.openExternalSession).toHaveBeenCalledWith('session-42');
+    });
   });
 });

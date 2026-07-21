@@ -1,15 +1,16 @@
 diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 30c653e9ca5ce..34636f37bafb0 100644
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
-@@ -366,6 +366,7 @@
+@@ -371,6 +371,7 @@
  #include "content/public/common/content_switches.h"
  #include "content/public/common/origin_util.h"
  #include "content/public/common/url_utils.h"
 +#include "dao/browser/dao_pref_names.h"
  #include "content/public/common/window_container_type.mojom-shared.h"
+ #include "device/fido/public/features.h"
  #include "device/vr/buildflags/buildflags.h"
- #include "extensions/browser/browser_frame_context_data.h"
-@@ -4890,6 +4891,8 @@
+@@ -4954,6 +4955,8 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
    web_prefs->root_scrollbar_theme_color =
        GetRootScrollbarThemeColor(web_contents);
  
@@ -18,7 +19,7 @@ diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/ch
    web_prefs->translate_service_available = TranslateService::IsAvailable(prefs);
  
    std::optional<ui::CaptionStyle> style =
-@@ -5000,6 +5003,21 @@
+@@ -5069,6 +5072,21 @@ bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(
        web_prefs->preferred_root_scrollbar_color_scheme !=
            old_preferred_root_scrollbar_color_scheme;
  
@@ -38,9 +39,9 @@ diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/ch
 +          old_dao_preferred_root_scrollbar_color_scheme;
 +
  #if BUILDFLAG(IS_ANDROID)
-   auto* delegate = TabAndroid::FromWebContents(web_contents)
-                        ? static_cast<android::TabWebContentsDelegateAndroid*>(
-@@ -5048,6 +5066,9 @@
+   if (auto* theme_client = night_mode::WebContentsThemeClient::FromWebContents(web_contents)) {
+     bool force_dark_mode_new_state = theme_client->IsForceDarkWebContentEnabled();
+@@ -5113,6 +5131,9 @@ bool ChromeContentBrowserClient::
                                   &web_contents) !=
               std::tie(prefs.preferred_color_scheme,
                        prefs.preferred_root_scrollbar_color_scheme) ||

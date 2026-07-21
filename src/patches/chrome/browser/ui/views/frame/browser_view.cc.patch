@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index f9b658f1b2..e411e13000 100644
+index bcb1930a86dd2..e58e57618447a 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -4,6 +4,27 @@
@@ -45,7 +45,7 @@ index f9b658f1b2..e411e13000 100644
  #if BUILDFLAG(IS_CHROMEOS)
        // Immersive mode allows the toolbar to be shown, so do not show the
        // bubble. However, do show the bubble in a managed guest session (see
-@@ -962,6 +991,104 @@ BrowserView::BrowserView(Browser* browser)
+@@ -929,6 +958,104 @@ BrowserView::BrowserView(Browser* browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -147,10 +147,10 @@ index f9b658f1b2..e411e13000 100644
 +        std::make_unique<dao::DaoCommandBarView>(browser_.get()));
 +  }
 +
-   contents_height_side_panel_ = AddChildView(std::make_unique<SidePanel>(
-       this, SidePanelEntry::PanelType::kContent, /*has_border=*/true));
- 
-@@ -1283,12 +1410,21 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
+   // InfoBarContainer needs to be added as a child here for drop-shadow, but
+   // needs to come after toolbar in focus order (see EnsureFocusOrder()).
+   infobar_container_ =
+@@ -1248,12 +1375,21 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
  
  #if BUILDFLAG(IS_MAC)
  bool BrowserView::UsesImmersiveFullscreenMode() const {
@@ -172,7 +172,7 @@ index f9b658f1b2..e411e13000 100644
    const bool is_pwa = GetIsWebAppType();
    const bool is_tabbed_window = GetSupportsTabStrip();
    return is_tabbed_window && !is_pwa;
-@@ -1392,6 +1528,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
+@@ -1357,6 +1493,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -184,7 +184,7 @@ index f9b658f1b2..e411e13000 100644
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!browser_->SupportsWindowFeature(
-@@ -1993,8 +2134,13 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -1934,8 +2075,13 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
        loading_bar_->SetWebContents(nullptr);
      }
  
@@ -200,24 +200,20 @@ index f9b658f1b2..e411e13000 100644
    }
  
    // Do this before updating InfoBarContainer as the InfoBarContainer may
-@@ -2056,8 +2202,11 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
-         if (multi_contents_view_->IsInSplitView()) {
-           HideSplitView();
-         }
--        multi_contents_view_->GetActiveContentsView()->SetWebContents(
--            new_contents);
-+        // Dao: Same rationale — pane owns the WC when our split is active.
-+        if (!dao_split_view_ || !dao_split_view_->IsSplitActive()) {
-+          multi_contents_view_->GetActiveContentsView()->SetWebContents(
-+              new_contents);
-+        }
+@@ -1997,6 +2143,9 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+       if (multi_contents_view_->IsInSplitView()) {
+         HideSplitView();
        }
++    }
++    // Dao: The split pane owns the WebContents while Dao Split is active.
++    if (!dao_split_view_ || !dao_split_view_->IsSplitActive()) {
+       multi_contents_view_->GetActiveContentsView()->SetWebContents(
+           new_contents);
+     }
+@@ -2034,6 +2183,21 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+   UpdateTitleBar();
  
-     SadTabHelper* sad_tab_helper = SadTabHelper::FromWebContents(new_contents);
-@@ -2099,6 +2248,21 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
-   if (AppUsesUnframedMode() && !old_contents) {
-     SetWindowManagementPermissionSubscriptionForUnframedMode(new_contents);
-   }
+   CHECK_DEREF(TranslateBubbleController::From(browser_.get())).CloseBubble();
 +
 +  // Dao: Update lock banner + cursor overlays for the newly-active tab.
 +  if (dao_agent_lock_banner_) {
@@ -236,7 +232,7 @@ index f9b658f1b2..e411e13000 100644
  }
  
  void BrowserView::OnTabDetached(content::WebContents* contents,
-@@ -2350,6 +2514,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2256,6 +2420,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -255,7 +251,7 @@ index f9b658f1b2..e411e13000 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3677,6 +3853,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
+@@ -3506,6 +3682,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
                                   TabChangeType change_type) {
    content::WebContents* contents = tab->GetContents();
  
@@ -277,7 +273,7 @@ index f9b658f1b2..e411e13000 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
-@@ -4895,6 +5086,82 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4706,6 +4897,82 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -360,7 +356,7 @@ index f9b658f1b2..e411e13000 100644
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -5302,6 +5569,17 @@ void BrowserView::OnThemeChanged() {
+@@ -5110,6 +5377,17 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();

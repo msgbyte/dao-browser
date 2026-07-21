@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index 79feee7f43..2e7c286cfa 100644
+index bb0e0958c9077..1b212594d423c 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
 @@ -124,6 +124,26 @@ enum class InstallableWebAppCheckResult;
@@ -29,7 +29,7 @@ index 79feee7f43..2e7c286cfa 100644
  class CustomFloatingCorner;
  
  ///////////////////////////////////////////////////////////////////////////////
-@@ -274,6 +293,23 @@ class BrowserView : public BrowserWindow,
+@@ -271,6 +291,23 @@ class BrowserView : public BrowserWindow,
  
    MultiContentsView* multi_contents_view() { return multi_contents_view_; }
  
@@ -53,9 +53,9 @@ index 79feee7f43..2e7c286cfa 100644
    // Returns either the Horizontal or Vertical TabStrip.
    TabStripRegionView* tab_strip_view() const;
  
-@@ -1317,6 +1352,26 @@ class BrowserView : public BrowserWindow,
-   // side_panel_coordinator is created.
-   raw_ptr<SidePanel> contents_height_side_panel_ = nullptr;
+@@ -1274,5 +1311,25 @@ class BrowserView : public BrowserWindow,
+   // should exist if and only if the side_panel_coordinator is created.
+   raw_ptr<SidePanel> side_panel_ = nullptr;
  
 +  // Dao left sidebar, corner overlay, address bar, command bar, and download flyout
 +  raw_ptr<dao::DaoAddressBarView> dao_address_bar_ = nullptr;
@@ -77,6 +77,5 @@ index 79feee7f43..2e7c286cfa 100644
 +  raw_ptr<dao::DaoTabTooltipView> dao_tab_tooltip_ = nullptr;
 +  raw_ptr<dao::DaoToastView> dao_toast_ = nullptr;
 +
-   // Provides access to the toolbar buttons this browser view uses. Buttons may
-   // appear in a hosted app frame or in a tabbed UI toolbar.
-   raw_ptr<ToolbarButtonProvider> toolbar_button_provider_ = nullptr;
+   // The handler responsible for showing autofill bubbles.
+   std::unique_ptr<autofill::AutofillBubbleHandler> autofill_bubble_handler_;

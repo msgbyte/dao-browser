@@ -245,13 +245,20 @@ bool HasSubstantiveMaterialText(std::string text) {
   });
 }
 
-std::string SanitizeMaterialText(
+std::string RedactMaterialText(
     const std::string& text,
     const std::set<std::string>& sensitive_values) {
   std::string sanitized = RedactLinks(text);
   for (const std::string& sensitive : sensitive_values) {
     RedactSensitiveValue(&sanitized, sensitive);
   }
+  return sanitized;
+}
+
+std::string SanitizeMaterialText(
+    const std::string& text,
+    const std::set<std::string>& sensitive_values) {
+  std::string sanitized = RedactMaterialText(text, sensitive_values);
   std::u16string utf16 = base::UTF8ToUTF16(sanitized);
   if (utf16.size() > static_cast<size_t>(
                          WeeklyDreamMaterialCollector::kMaxTextChars)) {
@@ -772,9 +779,14 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
         IsExcludedSourceDomain(domain, excluded_domains)) {
       continue;
     }
+    const std::string redacted_text =
+        RedactMaterialText(message.content, sensitive_session_ids);
+    if (!IsUserQuestion(redacted_text)) {
+      continue;
+    }
     const std::string text =
-        SanitizeMaterialText(message.content, sensitive_session_ids);
-    if (!IsUserQuestion(text) || !HasSubstantiveMaterialText(text)) {
+        SanitizeMaterialText(redacted_text, sensitive_session_ids);
+    if (!HasSubstantiveMaterialText(text)) {
       continue;
     }
     FallbackQuestion question;

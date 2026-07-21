@@ -1,9 +1,9 @@
 diff --git a/extensions/browser/api/web_request/extension_web_request_event_router.cc b/extensions/browser/api/web_request/extension_web_request_event_router.cc
-index e0298d214e..c512ec7249 100644
+index e2a4c79e4ff67..25a715dbbd760 100644
 --- a/extensions/browser/api/web_request/extension_web_request_event_router.cc
 +++ b/extensions/browser/api/web_request/extension_web_request_event_router.cc
-@@ -1965,7 +1965,10 @@ bool WebRequestEventRouter::AddEventListener(
-         });
+@@ -1974,7 +1974,10 @@ bool WebRequestEventRouter::AddEventListener(
+     size_t erased = std::erase_if(listeners, matches_sub_event);
      // Only a single listener should ever match. It's possible no listener will
      // match if this is a new listener in a worker context.
 -    DCHECK_LE(erased, 1u);
@@ -14,7 +14,7 @@ index e0298d214e..c512ec7249 100644
      is_reactivated = erased > 0u;
    }
  
-@@ -2123,8 +2126,11 @@ void WebRequestEventRouter::RemoveLazyListener(
+@@ -2138,8 +2141,11 @@ void WebRequestEventRouter::RemoveLazyListener(
    // We should only have a maximum of two listeners removed - one for the
    // on-the-record and one for the off-the-record profile - since each listener
    // must either be active *or* inactive.

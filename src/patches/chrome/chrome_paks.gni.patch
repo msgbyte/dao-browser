@@ -1,9 +1,9 @@
 diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
-index ffc4930414..7992f0caaa 100644
+index a6db77c7261e8..795f305ab0206 100644
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
-@@ -213,6 +213,9 @@ template("chrome_extra_paks") {
-         "$root_gen_dir/chrome/browser/actor/resources/actor_common_resources.pak",
+@@ -220,6 +220,9 @@ template("chrome_extra_paks") {
+         "$root_gen_dir/chrome/browser/indigo/resources/indigo_browser_resources.pak",
          "$root_gen_dir/chrome/certificate_manager_resources.pak",
          "$root_gen_dir/chrome/content_annotator_internals_resources.pak",
 +        "$root_gen_dir/chrome/dao_agent_resources.pak",
@@ -12,9 +12,9 @@ index ffc4930414..7992f0caaa 100644
          "$root_gen_dir/chrome/data_sharing_resources.pak",
          "$root_gen_dir/chrome/dev_ui_resources.pak",
          "$root_gen_dir/chrome/downloads_resources.pak",
-@@ -263,6 +266,9 @@ template("chrome_extra_paks") {
-       deps += [
+@@ -268,6 +271,9 @@ template("chrome_extra_paks") {
          "//chrome/browser/actor/resources:browser_resources",
+         "//chrome/browser/indigo/resources:browser_resources",
          "//chrome/browser/resources:dev_ui_paks",
 +        "//dao/browser/ui/webui/resources/agent:resources",
 +        "//dao/browser/ui/webui/resources/sidebar:resources",

@@ -1,8 +1,8 @@
 diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
-index 4b46e2174d..e0c090d194 100644
+index 5a75b2951940c..9cf27be087e8f 100644
 --- a/chrome/test/BUILD.gn
 +++ b/chrome/test/BUILD.gn
-@@ -2530,6 +2530,9 @@ if (!is_android) {
+@@ -2598,6 +2598,9 @@ if (!is_android) {
      deps = [
        ":browser_tests_runner",
        ":platform_browser_tests",
@@ -12,8 +12,8 @@ index 4b46e2174d..e0c090d194 100644
        ":test_support",
        ":test_support_ui",
        ":webrtc_browser_tests_base",
-@@ -7097,6 +7100,8 @@ test("unit_tests") {
-     "//chrome/browser/accessibility_annotator:unit_tests",
+@@ -7045,6 +7048,8 @@ test("unit_tests") {
+     "//chrome/browser/actor:test_support",
      "//chrome/browser/actor:unit_tests",
      "//chrome/browser/actor/ui:unit_tests",
 +    "//dao/browser/agent:unit_tests",

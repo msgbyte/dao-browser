@@ -68,6 +68,14 @@ class DaoAgentSidebarView : public views::View,
   void ExpandAndSubmitPrompt(const std::u16string& prompt,
                              bool include_page_context);
 
+  // Expands the sidebar and pre-fills the chat composer without submitting.
+  // The request is retried while the Agent WebUI installs its external hook.
+  void ExpandAndPrefillPrompt(const std::u16string& prompt);
+
+  // Expands the sidebar and opens an existing Agent conversation.
+  // The request is retried while the Agent WebUI installs its external hook.
+  void ExpandAndOpenSession(const std::string& session_id);
+
   // views::View:
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
@@ -90,6 +98,12 @@ class DaoAgentSidebarView : public views::View,
   void AnimationCanceled(const gfx::Animation* animation) override;
 
  private:
+  enum class PendingExternalAction {
+    kNone,
+    kPrefillPrompt,
+    kOpenSession,
+  };
+
   void EnsureLoaded();
   void ApplyTheme();
 
@@ -97,6 +111,9 @@ class DaoAgentSidebarView : public views::View,
   // alive across retries until the hook is installed or kSubmitTimeoutMs
   // elapses.
   void TryFlushPendingPrompt(int attempts_left);
+
+  void QueueExternalAction(PendingExternalAction action, std::string value);
+  void TryFlushPendingExternalAction(int attempts_left);
 
   // Starts an animation interpolating the panel's preferred width between
   // `from` and `to` over the standard duration. Each frame, the parent
@@ -124,6 +141,10 @@ class DaoAgentSidebarView : public views::View,
   // because the dispatch is deferred and the caller's intent (Cmd+L vs
   // Cmd+T) needs to survive the wait.
   bool pending_include_page_context_ = true;
+
+  PendingExternalAction pending_external_action_ =
+      PendingExternalAction::kNone;
+  std::string pending_external_value_;
 
   // Width-interpolation animation state. While `slide_animation_.is_animating()`
   // is true, CalculatePreferredSize returns the interpolated width and the

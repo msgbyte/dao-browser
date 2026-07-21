@@ -5,11 +5,13 @@
 #include "dao/browser/ui/webui/dao_agent_ui.h"
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <set>
 #include <string>
 #include <utility>
 
+#include "base/barrier_closure.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -19,6 +21,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
@@ -27,9 +30,10 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/render_frame_host.h"
@@ -42,6 +46,8 @@
 #include "chrome/grit/dao_agent_resources_map.h"
 #include "components/pdf/browser/pdf_document_helper.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/history/core/browser/history_service.h"
+#include "components/history/core/browser/history_types.h"
 #include "components/prefs/pref_service.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
@@ -74,6 +80,11 @@
 namespace dao {
 
 namespace {
+
+Browser* FindLastActiveBrowserForMigration() {
+  BrowserWindowInterface* browser = chrome::FindLastActive();
+  return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
+}
 
 // Populate an ActionFeedback from a JS dict. Callers may normalize outcome.
 ActionFeedback ParseActionFeedbackFromDict(const base::DictValue& d) {
@@ -128,6 +139,87 @@ base::ListValue DreamReportsToList(const std::vector<DreamReport>& reports) {
     list.Append(DreamReportToDict(report));
   }
   return list;
+}
+
+std::optional<int64_t> ReadPositiveInt64(const base::Value* value) {
+  if (!value) {
+    return std::nullopt;
+  }
+  if (value->is_int()) {
+    const int int_value = value->GetInt();
+    return int_value > 0 ? std::optional<int64_t>(int_value) : std::nullopt;
+  }
+  if (!value->is_double() || !std::isfinite(value->GetDouble())) {
+    return std::nullopt;
+  }
+  const double double_value = value->GetDouble();
+  constexpr double kInt64MaxExclusive = 9223372036854775808.0;
+  if (double_value < 1 || double_value >= kInt64MaxExclusive ||
+      std::trunc(double_value) != double_value) {
+    return std::nullopt;
+  }
+  return static_cast<int64_t>(double_value);
+}
+
+std::optional<int64_t> ReadInt64(const base::DictValue& dict,
+                                 std::string_view key) {
+  return ReadPositiveInt64(dict.Find(key));
+}
+
+std::optional<base::DictValue> WeeklyDreamReportToDict(
+    const WeeklyDreamReport& report) {
+  if (report.status != "completed") {
+    return std::nullopt;
+  }
+  std::optional<base::Value> content =
+      base::JSONReader::Read(report.content_json, base::JSON_PARSE_RFC);
+  if (!content || !content->is_dict()) {
+    return std::nullopt;
+  }
+
+  int source_count = 0;
+  std::optional<base::Value> stats =
+      base::JSONReader::Read(report.material_stats, base::JSON_PARSE_RFC);
+  if (stats && stats->is_dict()) {
+    source_count = stats->GetDict().FindInt("source_count").value_or(0);
+  }
+
+  base::DictValue dict;
+  dict.Set("reportKind", "weekly");
+  dict.Set("id", static_cast<double>(report.id));
+  dict.Set("weekStart", report.week_start);
+  dict.Set("weekEnd", report.week_end);
+  dict.Set("content", std::move(*content).TakeDict());
+  dict.Set("materialStats", report.material_stats);
+  dict.Set("triggerKind", report.trigger_kind);
+  dict.Set("sourceCount", source_count);
+  dict.Set("createdAt", static_cast<double>(
+                            report.created_at.InMillisecondsSinceUnixEpoch()));
+  return dict;
+}
+
+base::ListValue WeeklyDreamReportsToList(
+    const std::vector<WeeklyDreamReport>& reports) {
+  base::ListValue list;
+  for (const WeeklyDreamReport& report : reports) {
+    std::optional<base::DictValue> serialized =
+        WeeklyDreamReportToDict(report);
+    if (serialized) {
+      list.Append(std::move(*serialized));
+    }
+  }
+  return list;
+}
+
+base::DictValue WeeklyDreamSourceToDict(const WeeklyDreamSource& source,
+                                        bool available) {
+  base::DictValue dict;
+  dict.Set("refId", source.ref_id);
+  dict.Set("sourceKind", source.source_kind);
+  dict.Set("title", source.title);
+  dict.Set("domain", source.domain);
+  dict.Set("available", available);
+  return dict;
 }
 
 base::ListValue DreamExcludedDomainsToList(Profile* profile) {
@@ -793,7 +885,7 @@ void DaoAgentUIHandler::RegisterMessages() {
 }
 
 content::WebContents* DaoAgentUIHandler::GetActivePageContents() {
-  Browser* browser = chrome::FindLastActive();
+  Browser* browser = FindLastActiveBrowserForMigration();
   if (!browser) {
     return nullptr;
   }
@@ -2122,7 +2214,7 @@ void DaoAgentUIHandler::HandleListTabs(const base::ListValue& args) {
   Browser* browser =
       target_contents ? chrome::FindBrowserWithTab(target_contents) : nullptr;
   if (!browser) {
-    browser = chrome::FindLastActive();
+    browser = FindLastActiveBrowserForMigration();
   }
   base::ListValue tabs_list;
 
@@ -2161,7 +2253,7 @@ void DaoAgentUIHandler::HandleSwitchTab(const base::ListValue& args) {
   Browser* browser =
       target_contents ? chrome::FindBrowserWithTab(target_contents) : nullptr;
   if (!browser) {
-    browser = chrome::FindLastActive();
+    browser = FindLastActiveBrowserForMigration();
   }
   base::DictValue response;
 
@@ -2200,7 +2292,7 @@ void DaoAgentUIHandler::HandleOpenTab(const base::ListValue& args) {
   Browser* browser =
       target_contents ? chrome::FindBrowserWithTab(target_contents) : nullptr;
   if (!browser) {
-    browser = chrome::FindLastActive();
+    browser = FindLastActiveBrowserForMigration();
   }
   base::DictValue response;
 
@@ -2242,7 +2334,7 @@ void DaoAgentUIHandler::HandleCloseTab(const base::ListValue& args) {
   Browser* browser =
       target_contents ? chrome::FindBrowserWithTab(target_contents) : nullptr;
   if (!browser) {
-    browser = chrome::FindLastActive();
+    browser = FindLastActiveBrowserForMigration();
   }
   base::DictValue response;
 
@@ -3072,7 +3164,7 @@ void DaoAgentUIHandler::HandleGetNetworkBody(
 
 void DaoAgentUIHandler::HandleCloseSidebar(
     const base::ListValue& args) {
-  Browser* browser = chrome::FindLastActive();
+  Browser* browser = FindLastActiveBrowserForMigration();
   if (!browser) {
     return;
   }
@@ -3098,7 +3190,7 @@ void DaoAgentUIHandler::HandleFocusAgentSidebar(
   }
   const std::string callback_id = args[0].GetString();
 
-  Browser* browser = chrome::FindLastActive();
+  Browser* browser = FindLastActiveBrowserForMigration();
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   dao::DaoAgentSidebarView* sidebar =
@@ -3992,19 +4084,23 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
 
   // Find the tab by unique ID across all browsers.
   content::WebContents* target = nullptr;
-  for (Browser* browser : chrome::FindAllBrowsersWithProfile(
-           Profile::FromWebUI(web_ui()))) {
-    TabStripModel* model = browser->tab_strip_model();
-    for (int i = 0; i < model->count(); ++i) {
-      content::WebContents* wc = model->GetWebContentsAt(i);
-      if (wc && sessions::SessionTabHelper::IdForTab(wc).id() == tab_id) {
-        target = wc;
-        break;
-      }
-    }
-    if (target) {
-      break;
-    }
+  if (ProfileBrowserCollection* collection =
+          ProfileBrowserCollection::GetForProfile(
+              Profile::FromWebUI(web_ui()))) {
+    collection->ForEach(
+        [&target, tab_id](BrowserWindowInterface* browser_window) {
+          TabStripModel* model = browser_window->GetBrowserForMigrationOnly()
+                                     ->tab_strip_model();
+          for (int i = 0; i < model->count(); ++i) {
+            content::WebContents* wc = model->GetWebContentsAt(i);
+            if (wc &&
+                sessions::SessionTabHelper::IdForTab(wc).id() == tab_id) {
+              target = wc;
+              return false;
+            }
+          }
+          return true;
+        });
   }
 
   if (!target) {
@@ -4072,6 +4168,27 @@ void DaoDreamReportHandler::RegisterMessages() {
       "markDreamReportViewed",
       base::BindRepeating(&DaoDreamReportHandler::HandleMarkDreamReportViewed,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getWeeklyDreamReport",
+      base::BindRepeating(&DaoDreamReportHandler::HandleGetWeeklyDreamReport,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getWeeklyDreamReports",
+      base::BindRepeating(&DaoDreamReportHandler::HandleGetWeeklyDreamReports,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getWeeklyDreamSources",
+      base::BindRepeating(&DaoDreamReportHandler::HandleGetWeeklyDreamSources,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "openWeeklyDreamSource",
+      base::BindRepeating(&DaoDreamReportHandler::HandleOpenWeeklyDreamSource,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "markWeeklyDreamReportViewed",
+      base::BindRepeating(
+          &DaoDreamReportHandler::HandleMarkWeeklyDreamReportViewed,
+          base::Unretained(this)));
 }
 
 void DaoDreamReportHandler::HandleGetDreamReport(
@@ -4204,6 +4321,335 @@ void DaoDreamReportHandler::HandleMarkDreamReportViewed(
   }
   ResolveJavascriptCallback(base::Value(args[0].GetString()),
                             base::Value(true));
+}
+
+void DaoDreamReportHandler::HandleGetWeeklyDreamReport(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.empty() || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (!memory) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::Value());
+    return;
+  }
+
+  std::string week_start;
+  if (args.size() >= 2 && args[1].is_dict()) {
+    if (const std::string* value =
+            args[1].GetDict().FindString("weekStart")) {
+      week_start = *value;
+    }
+  }
+  if (week_start.empty()) {
+    memory->GetWeeklyDreamReports(
+        1, base::BindOnce(
+               [](base::WeakPtr<DaoDreamReportHandler> self,
+                  std::string callback_id,
+                  std::vector<WeeklyDreamReport> reports) {
+                 if (!self) {
+                   return;
+                 }
+                 std::optional<base::DictValue> serialized;
+                 if (!reports.empty()) {
+                   serialized = WeeklyDreamReportToDict(reports.front());
+                 }
+                 self->ResolveJavascriptCallback(
+                     base::Value(callback_id),
+                     serialized ? base::Value(std::move(*serialized))
+                                : base::Value());
+               },
+               weak_factory_.GetWeakPtr(), callback_id));
+    return;
+  }
+
+  memory->GetWeeklyDreamReportByWeekStart(
+      week_start,
+      base::BindOnce(
+          [](base::WeakPtr<DaoDreamReportHandler> self,
+             std::string callback_id,
+             std::optional<WeeklyDreamReport> report) {
+            if (!self) {
+              return;
+            }
+            std::optional<base::DictValue> serialized;
+            if (report) {
+              serialized = WeeklyDreamReportToDict(*report);
+            }
+            self->ResolveJavascriptCallback(
+                base::Value(callback_id),
+                serialized ? base::Value(std::move(*serialized))
+                           : base::Value());
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoDreamReportHandler::HandleGetWeeklyDreamReports(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.empty() || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (!memory) {
+    ResolveJavascriptCallback(base::Value(callback_id), base::ListValue());
+    return;
+  }
+  int limit = 30;
+  if (args.size() >= 2 && args[1].is_dict()) {
+    limit = args[1].GetDict().FindInt("limit").value_or(limit);
+  }
+  memory->GetWeeklyDreamReports(
+      limit,
+      base::BindOnce(
+          [](base::WeakPtr<DaoDreamReportHandler> self,
+             std::string callback_id,
+             std::vector<WeeklyDreamReport> reports) {
+            if (self) {
+              self->ResolveJavascriptCallback(
+                  base::Value(callback_id),
+                  WeeklyDreamReportsToList(reports));
+            }
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoDreamReportHandler::HandleGetWeeklyDreamSources(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const std::optional<int64_t> report_id =
+      ReadInt64(args[1].GetDict(), "reportId");
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (!report_id || !memory) {
+    RejectJavascriptCallback(base::Value(callback_id),
+                             base::Value("weekly_invalid_report"));
+    return;
+  }
+
+  memory->GetWeeklyDreamSources(
+      *report_id,
+      base::BindOnce(
+          [](base::WeakPtr<DaoDreamReportHandler> self,
+             std::string callback_id, Profile* profile,
+             std::vector<WeeklyDreamSource> sources) {
+            if (!self) {
+              return;
+            }
+            auto available =
+                std::make_shared<std::vector<bool>>(sources.size(), false);
+            size_t page_count = 0;
+            for (size_t i = 0; i < sources.size(); ++i) {
+              if (sources[i].source_kind == "conversation") {
+                (*available)[i] = !sources[i].local_locator.empty();
+              } else if (sources[i].source_kind == "page") {
+                ++page_count;
+              }
+            }
+
+            auto finish = base::BindOnce(
+                [](base::WeakPtr<DaoDreamReportHandler> self,
+                   std::string callback_id,
+                   std::vector<WeeklyDreamSource> sources,
+                   std::shared_ptr<std::vector<bool>> available) {
+                  if (!self) {
+                    return;
+                  }
+                  base::ListValue result;
+                  for (size_t i = 0; i < sources.size(); ++i) {
+                    result.Append(WeeklyDreamSourceToDict(
+                        sources[i], (*available)[i]));
+                  }
+                  self->ResolveJavascriptCallback(base::Value(callback_id),
+                                                  std::move(result));
+                },
+                self, callback_id, sources, available);
+            history::HistoryService* history =
+                HistoryServiceFactory::GetForProfile(
+                    profile, ServiceAccessType::EXPLICIT_ACCESS);
+            if (!history || page_count == 0) {
+              std::move(finish).Run();
+              return;
+            }
+
+            base::RepeatingClosure barrier =
+                base::BarrierClosure(page_count, std::move(finish));
+            for (size_t i = 0; i < sources.size(); ++i) {
+              if (sources[i].source_kind != "page") {
+                continue;
+              }
+              const GURL url(sources[i].local_locator);
+              if (!url.is_valid()) {
+                barrier.Run();
+                continue;
+              }
+              history->QueryURL(
+                  url,
+                  base::BindOnce(
+                      [](std::shared_ptr<std::vector<bool>> available,
+                         size_t index, base::RepeatingClosure barrier,
+                         history::QueryURLResult result) {
+                        (*available)[index] = result.success;
+                        barrier.Run();
+                      },
+                      available, i, barrier),
+                  &self->history_task_tracker_);
+            }
+          },
+          weak_factory_.GetWeakPtr(), callback_id, profile));
+}
+
+void DaoDreamReportHandler::HandleOpenWeeklyDreamSource(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const base::DictValue& params = args[1].GetDict();
+  const std::optional<int64_t> report_id = ReadInt64(params, "reportId");
+  const std::string* ref_id = params.FindString("refId");
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(profile);
+  if (!report_id || !ref_id || ref_id->empty() || !memory) {
+    RejectJavascriptCallback(base::Value(callback_id),
+                             base::Value("weekly_source_unavailable"));
+    return;
+  }
+
+  memory->GetWeeklyDreamSource(
+      *report_id, *ref_id,
+      base::BindOnce(
+          [](base::WeakPtr<DaoDreamReportHandler> self,
+             std::string callback_id, Profile* profile,
+             std::optional<WeeklyDreamSource> source) {
+            if (!self || !source) {
+              if (self) {
+                self->RejectJavascriptCallback(
+                    base::Value(callback_id),
+                    base::Value("weekly_source_unavailable"));
+              }
+              return;
+            }
+
+            Browser* browser =
+                chrome::FindBrowserWithTab(self->web_ui()->GetWebContents());
+            if (source->source_kind == "conversation") {
+              BrowserView* browser_view =
+                  browser ? BrowserView::GetBrowserViewForBrowser(browser)
+                          : nullptr;
+              if (!browser_view || !browser_view->dao_agent_sidebar() ||
+                  source->local_locator.empty()) {
+                self->RejectJavascriptCallback(
+                    base::Value(callback_id),
+                    base::Value("weekly_source_unavailable"));
+                return;
+              }
+              browser_view->dao_agent_sidebar()->ExpandAndOpenSession(
+                  source->local_locator);
+              self->ResolveJavascriptCallback(base::Value(callback_id),
+                                              base::Value(true));
+              return;
+            }
+
+            const GURL url(source->local_locator);
+            history::HistoryService* history =
+                HistoryServiceFactory::GetForProfile(
+                    profile, ServiceAccessType::EXPLICIT_ACCESS);
+            if (source->source_kind != "page" || !url.is_valid() ||
+                !browser || !history) {
+              self->RejectJavascriptCallback(
+                  base::Value(callback_id),
+                  base::Value("weekly_source_unavailable"));
+              return;
+            }
+            history->QueryURL(
+                url,
+                base::BindOnce(
+                    [](base::WeakPtr<DaoDreamReportHandler> self,
+                       std::string callback_id, GURL url,
+                       history::QueryURLResult result) {
+                      if (!self) {
+                        return;
+                      }
+                      if (!result.success) {
+                        self->RejectJavascriptCallback(
+                            base::Value(callback_id),
+                            base::Value("weekly_source_unavailable"));
+                        return;
+                      }
+                      Browser* browser = chrome::FindBrowserWithTab(
+                          self->web_ui()->GetWebContents());
+                      if (!browser) {
+                        self->RejectJavascriptCallback(
+                            base::Value(callback_id),
+                            base::Value("weekly_source_unavailable"));
+                        return;
+                      }
+                      NavigateParams navigate_params(
+                          browser, url, ui::PAGE_TRANSITION_TYPED);
+                      navigate_params.disposition =
+                          WindowOpenDisposition::NEW_FOREGROUND_TAB;
+                      Navigate(&navigate_params);
+                      self->ResolveJavascriptCallback(
+                          base::Value(callback_id), base::Value(true));
+                    },
+                    self, callback_id, url),
+                &self->history_task_tracker_);
+          },
+          weak_factory_.GetWeakPtr(), callback_id, profile));
+}
+
+void DaoDreamReportHandler::HandleMarkWeeklyDreamReportViewed(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const std::optional<int64_t> report_id =
+      args[1].is_dict()
+          ? ReadInt64(args[1].GetDict(), "reportId")
+          : ReadPositiveInt64(&args[1]);
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(
+          Profile::FromWebUI(web_ui()));
+  if (!report_id || !memory) {
+    RejectJavascriptCallback(base::Value(callback_id),
+                             base::Value("weekly_invalid_report"));
+    return;
+  }
+  memory->MarkWeeklyDreamReportViewed(
+      *report_id,
+      base::BindOnce(
+          [](base::WeakPtr<DaoDreamReportHandler> self,
+             std::string callback_id, bool success) {
+            if (!self) {
+              return;
+            }
+            if (success) {
+              self->ResolveJavascriptCallback(base::Value(callback_id),
+                                              base::Value(true));
+            } else {
+              self->RejectJavascriptCallback(
+                  base::Value(callback_id),
+                  base::Value("weekly_invalid_report"));
+            }
+          },
+          weak_factory_.GetWeakPtr(), callback_id));
 }
 
 // ---- DaoMemoryBrowserHandler ----
@@ -4979,7 +5425,7 @@ void DaoAgentSkillHandler::HandleSetSkillDisabled(
 
 void DaoAgentSkillHandler::HandleOpenSkillManager(
     const base::ListValue& args) {
-  Browser* browser = chrome::FindLastActive();
+  Browser* browser = FindLastActiveBrowserForMigration();
   if (!browser) {
     return;
   }

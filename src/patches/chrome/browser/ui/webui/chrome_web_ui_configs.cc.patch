@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-index c1d2e75f82..7afef4af13 100644
+index 9daef52054236..d4f6fc8bad782 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 +++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 @@ -4,6 +4,10 @@
@@ -13,9 +13,9 @@ index c1d2e75f82..7afef4af13 100644
  #include "build/android_buildflags.h"
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
-@@ -239,6 +243,15 @@ void RegisterChromeWebUIConfigs() {
-   auto& map = content::WebUIConfigMap::GetInstance();
-   map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
+@@ -246,6 +250,15 @@ void RegisterChromeWebUIConfigs() {
+   map.AddWebUIConfig(
+       std::make_unique<AccessibilityAnnotatorInternalsUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
 +
 +  // Dao: Register WebUI pages
@@ -29,7 +29,7 @@ index c1d2e75f82..7afef4af13 100644
    map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
    map.AddWebUIConfig(std::make_unique<BrowsingTopicsInternalsUIConfig>());
    map.AddWebUIConfig(
-@@ -466,7 +479,8 @@ void RegisterChromeWebUIConfigs() {
+@@ -483,7 +496,8 @@ void RegisterChromeWebUIConfigs() {
  
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
      BUILDFLAG(IS_CHROMEOS)

@@ -18,15 +18,16 @@
 #include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/sessions/core/session_id.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
@@ -101,6 +102,18 @@ void CollectLeafContents(DaoSplitNode* node,
 std::string SplitLayoutStorageKey(Browser* browser) {
   return browser ? base::NumberToString(browser->session_id().id())
                  : std::string();
+}
+
+Browser* FindBrowserBySessionId(Profile* profile, int session_id) {
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile);
+  if (!collection) {
+    return nullptr;
+  }
+
+  BrowserWindowInterface* browser = collection->FindBrowserWithID(
+      SessionID::FromSerializedValue(session_id));
+  return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
 }
 
 content::WebContents* FindTabBySessionId(
@@ -1261,14 +1274,8 @@ bool DaoSplitView::ProcessNativeTabDrop(const gfx::Point& location_in_view,
   bool is_cross_window = false;
   if (static_cast<int>(browser_->session_id().id()) != source_sid) {
     is_cross_window = true;
-    source_browser = nullptr;
-    for (Browser* b :
-         chrome::FindAllBrowsersWithProfile(browser_->profile())) {
-      if (static_cast<int>(b->session_id().id()) == source_sid) {
-        source_browser = b;
-        break;
-      }
-    }
+    source_browser =
+        FindBrowserBySessionId(browser_->profile(), source_sid);
     if (!source_browser) {
       return false;
     }
@@ -1406,14 +1413,8 @@ void DaoSplitView::OnDrop(
     if (static_cast<int>(browser_->session_id().id()) !=
         source_session_id) {
       is_cross_window = true;
-      source_browser = nullptr;
-      for (Browser* b :
-           chrome::FindAllBrowsersWithProfile(browser_->profile())) {
-        if (static_cast<int>(b->session_id().id()) == source_session_id) {
-          source_browser = b;
-          break;
-        }
-      }
+      source_browser = FindBrowserBySessionId(browser_->profile(),
+                                              source_session_id);
       if (!source_browser) {
         output_drag_op = ui::mojom::DragOperation::kNone;
         return;

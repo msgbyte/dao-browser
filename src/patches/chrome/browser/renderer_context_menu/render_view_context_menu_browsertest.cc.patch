@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
-index 5577ac74d8..69d180e6c5 100644
+index 0211258a2a8b0..a14849c48b9a0 100644
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
-@@ -76,6 +76,7 @@
+@@ -78,6 +78,7 @@
  #include "chrome/browser/ui/toasts/toast_controller.h"
  #include "chrome/browser/ui/toasts/toast_features.h"
  #include "chrome/browser/ui/ui_features.h"
@@ -10,7 +10,7 @@ index 5577ac74d8..69d180e6c5 100644
  #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
  #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
  #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
-@@ -128,6 +129,7 @@
+@@ -135,6 +136,7 @@
  #include "content/public/test/browser_test_utils.h"
  #include "content/public/test/test_navigation_observer.h"
  #include "content/public/test/test_utils.h"
@@ -18,18 +18,16 @@ index 5577ac74d8..69d180e6c5 100644
  #include "extensions/browser/api/extensions_api_client.h"
  #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
  #include "extensions/browser/guest_view/mime_handler_view/test_mime_handler_view_guest.h"
-@@ -1494,13 +1496,24 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, ShowsToastOnLinkCopied) {
+@@ -1450,13 +1452,22 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, ShowsToastOnLinkCopied) {
    EXPECT_TRUE(browser()->GetFeatures().toast_controller()->IsShowingToast());
  }
  
--IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, ShowsToastOnImageCopied) {
-+IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
-+                       ShowsDaoToastOnImageCopied) {
+-IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, ShowsToastOnImageCopied) {
++IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, ShowsDaoToastOnImageCopied) {
    content::ContextMenuParams params;
    params.media_type = blink::mojom::ContextMenuDataMediaType::kCanvas;
  
-+  BrowserView* browser_view =
-+      BrowserView::GetBrowserViewForBrowser(browser());
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
 +  ASSERT_TRUE(browser_view);
 +  dao::DaoToastView* dao_toast = browser_view->dao_toast();
 +  ASSERT_TRUE(dao_toast);
@@ -44,4 +42,33 @@ index 5577ac74d8..69d180e6c5 100644
 +      browser()->GetFeatures().toast_controller()->IsShowingToast());
  }
  
- IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, ShowsToastOnVideoFrameCopied) {
+ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, ShowsToastOnVideoFrameCopied) {
+@@ -1553,7 +1564,7 @@ IN_PROC_BROWSER_TEST_F(DataControlsContextMenuBrowserTest,
+ }
+ 
+ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest,
+-                       ShowToastOnSidePanelContextMenus) {
++                       ShowDaoToastOnSidePanelContextMenus) {
+   auto* const side_panel_ui = browser()->GetFeatures().side_panel_ui();
+   ASSERT_TRUE(side_panel_ui);
+   side_panel_ui->Show(SidePanelEntryId::kReadAnything);
+@@ -1566,8 +1577,18 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest,
+       GURL("http://www.google.com/"), u"Google",
+       blink::mojom::ContextMenuDataMediaType::kCanvas,
+       ui::mojom::MenuSourceType::kMouse);
++
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
++  ASSERT_TRUE(browser_view);
++  dao::DaoToastView* dao_toast = browser_view->dao_toast();
++  ASSERT_TRUE(dao_toast);
++  EXPECT_FALSE(dao_toast->GetVisible());
++
+   menu->ExecuteCommand(IDC_CONTENT_CONTEXT_COPYIMAGE, /*event_flags=*/0);
+-  EXPECT_TRUE(browser()->GetFeatures().toast_controller()->IsShowingToast());
++
++  EXPECT_TRUE(dao_toast->GetVisible());
++  EXPECT_FALSE(
++      browser()->GetFeatures().toast_controller()->IsShowingToast());
+ }
+ 
+ #if BUILDFLAG(IS_CHROMEOS)

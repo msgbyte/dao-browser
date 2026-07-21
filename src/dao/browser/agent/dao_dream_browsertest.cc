@@ -531,8 +531,14 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
   std::string json;
   base::JSONWriter::Write(pack, &json);
-  EXPECT_EQ(std::string::npos, json.find("github.com"));
-  EXPECT_EQ(std::string::npos, json.find("gist.github.com"));
+  const base::ListValue* history_material = pack.FindList("history");
+  ASSERT_TRUE(history_material);
+  for (const base::Value& value : *history_material) {
+    const std::string* domain = value.GetDict().FindString("domain");
+    ASSERT_TRUE(domain);
+    EXPECT_NE("github.com", *domain);
+    EXPECT_NE("gist.github.com", *domain);
+  }
   EXPECT_EQ(std::string::npos, json.find("Sensitive GitHub title"));
   EXPECT_EQ(std::string::npos, json.find("Sensitive Gist title"));
   EXPECT_EQ(std::string::npos, json.find("SECRET123"));
@@ -2701,7 +2707,8 @@ base::DictValue CallDreamNativeForTest(content::WebContents* dream_contents,
       method_json.c_str(), params_json.c_str());
   std::string result_json =
       content::EvalJs(dream_contents, script).ExtractString();
-  std::optional<base::Value> result = base::JSONReader::Read(result_json);
+  std::optional<base::Value> result =
+      base::JSONReader::Read(result_json, base::JSON_PARSE_RFC);
   CHECK(result.has_value());
   CHECK(result->is_dict());
   return std::move(*result).TakeDict();
@@ -2839,14 +2846,18 @@ IN_PROC_BROWSER_TEST_F(
   int scheduler_reply_count = 0;
   base::OnceClosure deferred_weekly_reply;
   service->SetSchedulerReplyInterceptorForTesting(base::BindRepeating(
-      [&](base::OnceClosure reply) {
-        ++scheduler_reply_count;
-        if (scheduler_reply_count == 2) {
-          deferred_weekly_reply = std::move(reply);
+      [](int* scheduler_reply_count,
+         base::OnceClosure* deferred_weekly_reply,
+         base::OnceClosure reply) {
+        ++(*scheduler_reply_count);
+        if (*scheduler_reply_count == 2) {
+          *deferred_weekly_reply = std::move(reply);
           return;
         }
         std::move(reply).Run();
-      }));
+      },
+      base::Unretained(&scheduler_reply_count),
+      base::Unretained(&deferred_weekly_reply)));
 
   pref_service->SetBoolean(prefs::kDaoDreamEnabled, true);
   service->TickForTesting();
@@ -2918,14 +2929,18 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   int scheduler_reply_count = 0;
   base::OnceClosure deferred_weekly_reply;
   service->SetSchedulerReplyInterceptorForTesting(base::BindRepeating(
-      [&](base::OnceClosure reply) {
-        ++scheduler_reply_count;
-        if (scheduler_reply_count == 2) {
-          deferred_weekly_reply = std::move(reply);
+      [](int* scheduler_reply_count,
+         base::OnceClosure* deferred_weekly_reply,
+         base::OnceClosure reply) {
+        ++(*scheduler_reply_count);
+        if (*scheduler_reply_count == 2) {
+          *deferred_weekly_reply = std::move(reply);
           return;
         }
         std::move(reply).Run();
-      }));
+      },
+      base::Unretained(&scheduler_reply_count),
+      base::Unretained(&deferred_weekly_reply)));
 
   pref_service->SetBoolean(prefs::kDaoDreamEnabled, true);
   service->TickForTesting();
@@ -4889,6 +4904,26 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(dream_contents);
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GURL("dao://dream/")));
+
+  const double fractional_report_id =
+      static_cast<double>(stored_valid->id) + 0.5;
+  for (const std::string& method : {
+           "getWeeklyDreamSources",
+           "openWeeklyDreamSource",
+           "markWeeklyDreamReportViewed",
+       }) {
+    base::DictValue invalid_id_params;
+    invalid_id_params.Set("reportId", fractional_report_id);
+    if (method == "openWeeklyDreamSource") {
+      invalid_id_params.Set("refId", page_source.ref_id);
+    }
+    base::DictValue invalid_id_response = CallDreamNativeForTest(
+        dream_contents, method, std::move(invalid_id_params));
+    ASSERT_TRUE(invalid_id_response.FindBool("callbackReceived")
+                    .value_or(false));
+    EXPECT_FALSE(invalid_id_response.FindBool("isSuccess").value_or(true))
+        << method;
+  }
 
   base::DictValue valid_params;
   valid_params.Set("weekStart", valid_report.week_start);

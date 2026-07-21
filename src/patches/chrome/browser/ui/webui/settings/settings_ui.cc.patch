@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/webui/settings/settings_ui.cc b/chrome/browser/ui/webui/settings/settings_ui.cc
-index b950ec193d..8dcafdfcf8 100644
+index ecb360f35259e..fdc235dbb4577 100644
 --- a/chrome/browser/ui/webui/settings/settings_ui.cc
 +++ b/chrome/browser/ui/webui/settings/settings_ui.cc
-@@ -294,9 +294,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+@@ -300,9 +300,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
    AddSettingsPageUIHandler(std::make_unique<MacSystemSettingsHandler>());
  #endif
  
@@ -10,6 +10,6 @@ index b950ec193d..8dcafdfcf8 100644
 -                                               profile->GetPrefs()->GetBoolean(
 -                                                   prefs::kSigninAllowed));
 +  html_source->AddBoolean("signinAllowed", false);
-   ProfileAttributesEntry* entry =
-       g_browser_process->profile_manager()
-           ->GetProfileAttributesStorage()
+ 
+   html_source->AddBoolean(
+       "shouldUseMetricsConsentRestructure",

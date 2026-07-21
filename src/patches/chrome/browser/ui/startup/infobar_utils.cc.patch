@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/startup/infobar_utils.cc b/chrome/browser/ui/startup/infobar_utils.cc
-index 57d73946aa..34af33e6f5 100644
+index 8f6bccf2a4b22..a870f31a0c234 100644
 --- a/chrome/browser/ui/startup/infobar_utils.cc
 +++ b/chrome/browser/ui/startup/infobar_utils.cc
-@@ -146,15 +146,10 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+@@ -144,15 +144,10 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
      return;
    }
  
--  // Web apps should not display the session restore bubble (crbug.com/1264121)
+-  // Web apps should not display the session restore bubble (crbug.com/40800614)
 -  const bool should_display_bubble =
 -      !is_web_app && HasPendingUncleanExit(browser->GetProfile());
 -  base::UmaHistogramBoolean("Startup.CrashBubbleShown", should_display_bubble);
@@ -22,7 +22,7 @@ index 57d73946aa..34af33e6f5 100644
  
    // These info bars are not shown when the browser is being controlled by
    // automated tests, so that they don't interfere with tests that assume no
-@@ -186,9 +181,11 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+@@ -184,9 +179,11 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
    infobars::ContentInfoBarManager* infobar_manager =
        infobars::ContentInfoBarManager::FromWebContents(web_contents);
  
@@ -37,7 +37,7 @@ index 57d73946aa..34af33e6f5 100644
  
    if (ObsoleteSystem::IsObsoleteNowOrSoon()) {
      PrefService* local_state = g_browser_process->local_state();
-@@ -215,6 +212,9 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+@@ -213,6 +210,9 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
  #endif
  
  #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
@@ -47,7 +47,7 @@ index 57d73946aa..34af33e6f5 100644
    if (is_web_app ||
        startup_command_line.HasSwitch(switches::kNoDefaultBrowserCheck) ||
        startup_command_line.HasSwitch(switches::kNoFirstRun)) {
-@@ -278,5 +278,6 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+@@ -270,5 +270,6 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
      ShowDefaultBrowserPrompt(profile, base::DoNothing());
  #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
    }

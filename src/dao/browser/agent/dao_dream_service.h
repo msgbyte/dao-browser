@@ -176,6 +176,11 @@ class DaoDreamService : public KeyedService,
   void InvalidatePendingSchedulerCheck();
   void DispatchSchedulerReply(base::OnceClosure reply);
   void StartDream(const std::string& dream_date, TriggerKind kind);
+  void StartDailyDream(DreamRunRequest request,
+                       std::optional<DreamReport> existing);
+  void OnManualExistingDailyReportChecked(
+      DreamRunRequest request,
+      std::optional<DreamReport> existing);
   void OnExistingReportLoaded(uint64_t scheduler_check_epoch,
                               const std::string& dream_date,
                               TriggerKind kind,
@@ -244,11 +249,11 @@ class DaoDreamService : public KeyedService,
   std::optional<DreamRunRequest> active_request_;
   std::string pending_debug_material_json_;
   base::DictValue pending_material_stats_;
-  bool preserve_completed_report_on_failure_ = false;
   bool scheduler_check_in_flight_ = false;
   uint64_t scheduler_check_epoch_ = 0;
   bool chain_weekly_after_run_ = false;
   base::Time weekly_defer_until_;
+  std::optional<DreamReport> active_existing_daily_report_;
   std::optional<WeeklyDreamReport> active_existing_weekly_report_;
   std::vector<WeeklyDreamSource> pending_weekly_sources_;
   base::OnceCallback<void(bool success, const std::string& error)>
