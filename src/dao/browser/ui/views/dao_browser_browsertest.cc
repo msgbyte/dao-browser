@@ -125,6 +125,7 @@
 #include "dao/browser/ui/views/dao_control_center_utility_section.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
+#include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/dao_qr_code_image.h"
 #include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
@@ -3602,6 +3603,38 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, SplitViewExistsButInactive) {
   DaoSplitView* split_view = GetBrowserView(browser())->dao_split_view();
   ASSERT_NE(nullptr, split_view);
   EXPECT_FALSE(split_view->IsSplitActive());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
+                       NativeTabDragEndRestoresHitTestingInEveryWindow) {
+  DaoSplitView* split_view = GetBrowserView(browser())->dao_split_view();
+  ASSERT_NE(nullptr, split_view);
+  ASSERT_FALSE(split_view->IsSplitActive());
+
+  Browser* second_browser = CreateBrowser(browser()->profile());
+  DaoSplitView* second_split_view =
+      GetBrowserView(second_browser)->dao_split_view();
+  ASSERT_NE(nullptr, second_split_view);
+  ASSERT_FALSE(second_split_view->IsSplitActive());
+
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  DaoSplitView* incognito_split_view =
+      GetBrowserView(incognito_browser)->dao_split_view();
+  ASSERT_NE(nullptr, incognito_split_view);
+  ASSERT_FALSE(incognito_split_view->IsSplitActive());
+
+  split_view->SetTabDragActive(true);
+  second_split_view->SetTabDragActive(true);
+  incognito_split_view->SetTabDragActive(true);
+  ASSERT_TRUE(split_view->GetCanProcessEventsWithinSubtree());
+  ASSERT_TRUE(second_split_view->GetCanProcessEventsWithinSubtree());
+  ASSERT_TRUE(incognito_split_view->GetCanProcessEventsWithinSubtree());
+
+  EndTabDragNativeEvents();
+
+  EXPECT_FALSE(split_view->GetCanProcessEventsWithinSubtree());
+  EXPECT_FALSE(second_split_view->GetCanProcessEventsWithinSubtree());
+  EXPECT_FALSE(incognito_split_view->GetCanProcessEventsWithinSubtree());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, SplitPaneCreatesTwo) {

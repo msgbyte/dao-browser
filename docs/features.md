@@ -179,6 +179,9 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 - **DaoSplitView** (`split/dao_split_view.{h,cc}`) — Split container
 - **DaoSplitNode** / **DaoSplitPaneView** — Split tree nodes and panes
 - **DaoSplitDividerView** — Draggable divider
+- **Native tab-drag cleanup** — Successful and cancelled macOS tab drags reset
+  drag-only Split View hit testing in every browser window, so WebContents
+  mouse interaction cannot remain blocked when WebUI `dragend` is skipped
 - Status: wired up but not enabled by default
 
 ## 5. Control Center

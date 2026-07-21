@@ -23,6 +23,11 @@ void BlockWebContentNativeEvents(content::WebContents* web_contents);
 // Remove the interceptor, restoring normal event flow to the web content.
 void UnblockWebContentNativeEvents(content::WebContents* web_contents);
 
+// Finish a native tab drag in every browser window. This removes native event
+// interceptors and resets DaoSplitView's drag-only hit-testing state even when
+// the WebUI dragend event was not delivered.
+void EndTabDragNativeEvents();
+
 // Move macOS traffic light buttons (close/minimize/zoom) to the given
 // origin within the window's content view. Call after the widget is shown.
 void SetTrafficLightsPosition(gfx::NativeWindow window, int x, int y);

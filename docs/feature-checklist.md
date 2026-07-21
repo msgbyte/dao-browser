@@ -143,6 +143,7 @@ Flagship feature. C++ services + `dao://dao-agent` WebUI + vendor runtime.
 | ✔ | Feature | Patch(es) / Source | Risk | Verify after upgrade |
 |---|---------|--------------------|------|----------------------|
 | ☐ | Split container / panes / divider | `src/dao/.../split/` + `contents_layout_manager.cc.patch` | 🟡 | Split creates two panes (wired but off by default) |
+| ☐ | Native tab-drag cleanup restores WebContents hit testing | `dao_native_util_mac.mm`, `split/dao_split_view.cc` | 🟡 | Cancel a tab drag over or outside the content area, then verify existing and newly opened tabs still receive mouse input in every window |
 | ☐ | No crash on pane reparent double-detach (macOS) | `content/.../web_contents_view_mac.mm.patch` (null-guard) | 🟡 | Reparenting panes doesn't crash |
 | ☐ | No fatal paint-chunk-duplicate during reparent | `blink/.../paint/paint_controller.cc.patch` (fatal→`LOG(ERROR)`) | 🟡 | Split deactivation doesn't crash debug build |
 

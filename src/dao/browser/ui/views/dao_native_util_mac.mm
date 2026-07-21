@@ -11,27 +11,25 @@
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+#include "dao/browser/ui/views/split/dao_split_view.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace {
 
-// Forward declaration — defined below the @implementation so the
-// interceptor methods can detach themselves after a successful native
-// drop. Without this, the transparent DaoEventInterceptor stays mounted
-// on every window's contentView after the first cross-window drag, which
-// blocks subsequent HTML5 drags in the sidebar WebUI (dragstart never
-// fires because the overlay sits in front of the sidebar WebView's
-// NSView). Symptom: "first drag works, then tabs can't be dragged at all".
+// Forward declaration — defined below the @implementation so the shared
+// native drag-end cleanup can detach every mounted interceptor. Without this,
+// the transparent DaoEventInterceptor can stay mounted on a window's
+// contentView after a cross-window drag and block later WebContents events.
 void ClearAllDaoEventInterceptors();
 
 // Drive DaoSplitView's drop-zone overlay from the native interceptor.
@@ -41,6 +39,7 @@ void ClearAllDaoEventInterceptors();
 // window is not a Dao browser window or the split view is missing.
 void UpdateNativeSplitIndicatorForWindow(NSWindow* window, NSPoint cocoa_loc);
 void HideNativeSplitIndicatorForWindow(NSWindow* window);
+Browser* BrowserForWindow(NSWindow* window);
 
 // Cross-window tab-drop fallback. Runs when BridgedContentView's drop
 // pipeline refuses our drag (which happens in v147 because the pasteboard
@@ -127,23 +126,7 @@ bool HandleDaoTabDrop(NSWindow* target_window,
   }
 
   // Find the target Browser — the one whose window matches target_window.
-  Browser* target_browser = nullptr;
-  Browser* last_active = chrome::FindLastActive();
-  if (!last_active) {
-    LOG(ERROR) << "[Dao-Xwin] HandleDaoTabDrop: no last-active browser";
-    return false;
-  }
-  for (Browser* b :
-       chrome::FindAllBrowsersWithProfile(last_active->profile())) {
-    if (!b->window()) {
-      continue;
-    }
-    gfx::NativeWindow nw = b->window()->GetNativeWindow();
-    if (nw.GetNativeNSWindow() == target_window) {
-      target_browser = b;
-      break;
-    }
-  }
+  Browser* target_browser = BrowserForWindow(target_window);
   if (!target_browser) {
     LOG(ERROR) << "[Dao-Xwin] HandleDaoTabDrop: no target browser for window";
     return false;
@@ -331,11 +314,10 @@ bool HandleDaoTabDrop(NSWindow* target_window,
                << ")";
     const BOOL ok = HandleDaoTabDrop([self window], loc, payload) ? YES : NO;
     // Dao-tab drops complete entirely in the native layer, so the WebUI
-    // dragend path that normally sends `tabDragActive(false)` may not
-    // fire (the source tab/window may be gone). Tear down every
-    // interceptor here so the next drag starts with the sidebar WebView
-    // unobstructed.
-    ClearAllDaoEventInterceptors();
+    // dragend path that normally sends `tabDragActive(false)` may not fire
+    // (the source tab/window may be gone). Reset every split view and tear
+    // down every interceptor here.
+    dao::EndTabDragNativeEvents();
     return ok;
   }
   NSView* cv = [[self window] contentView];
@@ -349,10 +331,10 @@ bool HandleDaoTabDrop(NSWindow* target_window,
 
 - (void)draggingEnded:(id<NSDraggingInfo>)sender {
   // Dao-tab drag is ending (either successful drop just processed in
-  // performDragOperation, or cancelled mid-air). Either way, clear all
-  // interceptors so we don't leave them mounted on every window.
+  // performDragOperation, or cancelled mid-air). Either way, reset all split
+  // views and remove all interceptors.
   if ([self isDaoTabDrag:sender]) {
-    ClearAllDaoEventInterceptors();
+    dao::EndTabDragNativeEvents();
     return;
   }
   NSView* cv = [[self window] contentView];
@@ -390,15 +372,13 @@ Browser* BrowserForWindow(NSWindow* window) {
   if (!window) {
     return nullptr;
   }
-  Browser* last_active = chrome::FindLastActive();
-  if (!last_active) {
-    return nullptr;
-  }
-  for (Browser* b :
-       chrome::FindAllBrowsersWithProfile(last_active->profile())) {
-    if (b->window() && b->window()->GetNativeWindow().GetNativeNSWindow() ==
-                           window) {
-      return b;
+  for (BrowserWindowInterface* browser_window :
+       GetAllBrowserWindowInterfaces()) {
+    Browser* browser =
+        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+    if (browser && browser->window() &&
+        browser->window()->GetNativeWindow().GetNativeNSWindow() == window) {
+      return browser;
     }
   }
   return nullptr;
@@ -539,6 +519,23 @@ void UnblockWebContentNativeEvents(content::WebContents* web_contents) {
     [interceptor removeFromSuperview];
   }
   [table removeObjectForKey:window];
+}
+
+void EndTabDragNativeEvents() {
+  // Native drag completion can bypass the sidebar WebUI's dragend event. In
+  // that case every DaoSplitView remains hit-testable and consumes mouse
+  // events above the WebContents even after its Cocoa interceptor is gone.
+  for (BrowserWindowInterface* browser_window :
+       GetAllBrowserWindowInterfaces()) {
+    Browser* browser =
+        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+    BrowserView* browser_view =
+        browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
+    if (browser_view && browser_view->dao_split_view()) {
+      browser_view->dao_split_view()->SetTabDragActive(false);
+    }
+  }
+  ClearAllDaoEventInterceptors();
 }
 
 void SetTrafficLightsPosition(gfx::NativeWindow native_window, int x, int y) {
