@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
-index 69da6a650e..1862c7a73d 100644
+index 556579d8e4cec..f40cdda7927f8 100644
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
-@@ -141,8 +141,14 @@
+@@ -146,8 +146,14 @@
  #include "chrome/common/pref_names.h"
  #include "chrome/common/url_constants.h"
  #include "chrome/common/webui_url_constants.h"
@@ -17,26 +17,26 @@ index 69da6a650e..1862c7a73d 100644
  #include "components/autofill/content/browser/content_autofill_client.h"
  #include "components/autofill/content/browser/content_autofill_driver.h"
  #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
-@@ -575,13 +581,17 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
-        {IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS, 160},
-        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY, 161},
+@@ -602,13 +608,17 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
         {IDC_CONTENT_CONTEXT_GLIC, 162},
+        {IDC_CONTENT_CONTEXT_VIDEO_FRAME, 163},
+        {IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE, 164},
 +       // Dao addition: registered here so ExecuteCommand's NOTREACHED guard
-+       // does not fire. UMA bucket 163 is local-only — Dao does not report
++       // does not fire. UMA bucket 165 is local-only — Dao does not report
 +       // RenderViewContextMenu UMA upstream.
-+       {IDC_DAO_DECODE_QR_CODE, 163},
++       {IDC_DAO_DECODE_QR_CODE, 165},
         // To add new items:
         //   - Add one more line above this comment block, using the UMA value
         //     from the line below this comment block.
         //   - Increment the UMA value in that latter line.
         //   - Add the new item to the RenderViewContextMenuItem enum in
         //     tools/metrics/histograms/metadata/ui/enums.xml.
--       {0, 163}});
-+       {0, 164}});
+-       {0, 165}});
++       {0, 166}});
    // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:RenderViewContextMenuItem)
  
    // LINT.IfChange(ContextMenuOptionDesktop)
-@@ -2085,6 +2095,9 @@ void RenderViewContextMenu::AppendImageItems() {
+@@ -2076,6 +2086,9 @@ void RenderViewContextMenu::AppendImageItems() {
    menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_COPYIMAGELOCATION,
                                    IDS_CONTENT_CONTEXT_COPYIMAGELOCATION);
  
@@ -46,7 +46,7 @@ index 69da6a650e..1862c7a73d 100644
    // Don't double-add for linked images, which also add the item.
    if (params_.link_url.is_empty()) {
      AppendQRCodeGeneratorItem(/*for_image=*/true, /*draw_icon=*/false,
-@@ -3020,6 +3033,9 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
+@@ -3036,6 +3049,9 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
      case IDC_CONTENT_CONTEXT_COPYIMAGE:
        return params_.has_image_contents;
  
@@ -56,7 +56,7 @@ index 69da6a650e..1862c7a73d 100644
      // Loop command should be disabled if the player is in an error state.
      case IDC_CONTENT_CONTEXT_LOOP:
        return (params_.media_flags & ContextMenuData::kMediaCanLoop) != 0 &&
-@@ -3380,6 +3396,10 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+@@ -3369,6 +3385,10 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
        ExecCopyImageAt();
        break;
  
@@ -67,8 +67,7 @@ index 69da6a650e..1862c7a73d 100644
      case IDC_CONTENT_CONTEXT_SAVEVIDEOFRAMEAS:
        ExecSaveVideoFrameAs();
        break;
-@@ -4526,16 +4546,9 @@ void RenderViewContextMenu::ExecCopyImageAt() {
-     return;
+@@ -4502,15 +4522,8 @@ void RenderViewContextMenu::ExecCopyImageAt() {
    }
  
    frame_host->CopyImageAt(params_.x, params_.y);
@@ -86,7 +85,7 @@ index 69da6a650e..1862c7a73d 100644
  }
  
  void RenderViewContextMenu::ExecSearchLensForImage(int event_flags) {
-@@ -5165,3 +5178,51 @@ bool RenderViewContextMenu::IsLinkToIsolatedWebApp() const {
+@@ -5177,3 +5190,51 @@ bool RenderViewContextMenu::IsLinkToIsolatedWebApp() const {
  }
  #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
          // BUILDFLAG(IS_CHROMEOS)

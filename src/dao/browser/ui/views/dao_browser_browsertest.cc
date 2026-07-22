@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -30,8 +31,9 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "content/public/browser/page_navigator.h"
 #include "base/command_line.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
@@ -52,7 +54,6 @@
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
 #include "chrome/browser/ui/startup/startup_types.h"
-#include "chrome/browser/ui/tab_helpers.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
@@ -201,14 +202,17 @@ BrowserView* GetBrowserView(Browser* browser) {
   return BrowserView::GetBrowserViewForBrowser(browser);
 }
 
-class BrowserAddedRecorder : public BrowserListObserver {
+class BrowserAddedRecorder : public BrowserCollectionObserver {
  public:
-  BrowserAddedRecorder() { BrowserList::AddObserver(this); }
+  BrowserAddedRecorder() {
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
+  }
 
   BrowserAddedRecorder(const BrowserAddedRecorder&) = delete;
   BrowserAddedRecorder& operator=(const BrowserAddedRecorder&) = delete;
 
-  ~BrowserAddedRecorder() override { BrowserList::RemoveObserver(this); }
+  ~BrowserAddedRecorder() override = default;
 
   size_t added_count() const { return added_browsers_.size(); }
 
@@ -216,29 +220,32 @@ class BrowserAddedRecorder : public BrowserListObserver {
     return added_browsers_.at(index);
   }
 
-  void OnBrowserAdded(Browser* browser) override {
-    added_browsers_.push_back(browser);
+  void OnBrowserCreated(BrowserWindowInterface* browser) override {
+    added_browsers_.push_back(browser->GetBrowserForMigrationOnly());
   }
 
  private:
   std::vector<raw_ptr<Browser, VectorExperimental>> added_browsers_;
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
-class BrowserRemovedWaiter : public BrowserListObserver {
+class BrowserRemovedWaiter : public BrowserCollectionObserver {
  public:
   explicit BrowserRemovedWaiter(Browser* browser) : browser_(browser) {
-    BrowserList::AddObserver(this);
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
   }
 
   BrowserRemovedWaiter(const BrowserRemovedWaiter&) = delete;
   BrowserRemovedWaiter& operator=(const BrowserRemovedWaiter&) = delete;
 
-  ~BrowserRemovedWaiter() override { BrowserList::RemoveObserver(this); }
+  ~BrowserRemovedWaiter() override = default;
 
   void Wait() { run_loop_.Run(); }
 
-  void OnBrowserRemoved(Browser* browser) override {
-    if (browser == browser_) {
+  void OnBrowserClosed(BrowserWindowInterface* browser) override {
+    if (browser->GetBrowserForMigrationOnly() == browser_) {
       run_loop_.Quit();
     }
   }
@@ -246,6 +253,8 @@ class BrowserRemovedWaiter : public BrowserListObserver {
  private:
   raw_ptr<Browser> browser_;
   base::RunLoop run_loop_;
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
 bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
@@ -1998,7 +2007,6 @@ IN_PROC_BROWSER_TEST_F(
   auto replacement = content::WebContents::Create(
       content::WebContents::CreateParams(browser()->profile()));
   content::WebContents* replacement_ptr = replacement.get();
-  TabHelpers::AttachTabHelpers(replacement_ptr);
   model->DiscardWebContentsAt(0, std::move(replacement));
 
   ASSERT_EQ(replacement_ptr, model->GetWebContentsAt(0));
@@ -2028,7 +2036,6 @@ IN_PROC_BROWSER_TEST_F(
   auto replacement = content::WebContents::Create(
       content::WebContents::CreateParams(browser()->profile()));
   content::WebContents* replacement_ptr = replacement.get();
-  TabHelpers::AttachTabHelpers(replacement_ptr);
   model->DiscardWebContentsAt(0, std::move(replacement));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), updated_url));
 
@@ -2120,7 +2127,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   ASSERT_TRUE(handler.LoadPinnedItemsForTesting(
       base::StrCat({
           R"({"version":1,"items":[{"id":"legacy-pin","title":"Legacy","url":")",
-          duplicate_url.spec(), R"("}]})"}));
+          duplicate_url.spec(), R"("}]})"})));
 
   const int count_before = model->count();
   handler.UnpinPinnedItemForTesting("legacy-pin", model->count());
@@ -3396,10 +3403,13 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, NewTabCreation) {
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, TabSwitching) {
   TabStripModel* model = browser()->tab_strip_model();
-  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  const int original_count = model->count();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, false);
+  ASSERT_EQ(original_count + 1, model->count());
 
-  // The newly added tab should be active.
-  EXPECT_EQ(1, model->active_index());
+  // Switch to the newly added tab.
+  model->ActivateTabAt(original_count);
+  EXPECT_EQ(original_count, model->active_index());
 
   // Switch back to the first tab.
   model->ActivateTabAt(0);
@@ -5733,11 +5743,11 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       FindDescendantViewOfClass<DaoControlCenterUtilitySection>(popup);
   ASSERT_NE(nullptr, utility_section);
   EXPECT_EQ((std::vector<std::u16string>{
-                u"QR Code",
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_CODE),
                 l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO),
-                u"Security",
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY),
                 label,
-                u"More",
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MORE),
             }),
             GetDirectButtonAccessibleNames(utility_section));
   views::Button* button = FindButtonWithAccessibleName(popup, label);
@@ -7336,8 +7346,8 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarHitTestBrowserTest,
 // DaoLittleDaoControllerTrackerBrowserTest
 //
 // DaoLittleDaoController tracks Little Dao windows in a set of raw Browser*
-// pointers. The tracker is backed by a BrowserListObserver that erases
-// entries on OnBrowserRemoved so pointers never dangle. If someone swapped
+// pointers. The tracker is backed by a BrowserCollectionObserver that erases
+// entries on OnBrowserClosed so pointers never dangle. If someone swapped
 // it back to a plain flat_set without the observer, IsLittleDaoWindow()
 // could return true for a FRESHLY-ALLOCATED Browser* that happened to reuse
 // an address of a closed Little Dao window — a dangerous false positive.
@@ -9060,7 +9070,7 @@ IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
   ScopedWidgetCloser close_widget(dialog->GetWidget());
 
   const gfx::Rect content_bounds =
-      GetBrowserView(browser())->contents_container()->GetBoundsInScreen();
+      GetBrowserView(browser())->GetActiveContentsWebView()->GetBoundsInScreen();
   const gfx::Rect dialog_bounds =
       dialog->GetWidget()->GetWindowBoundsInScreen();
   EXPECT_NEAR(content_bounds.CenterPoint().x(),

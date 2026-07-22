@@ -11,11 +11,13 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "components/sessions/core/session_id.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "ui/gfx/geometry/point.h"
@@ -111,14 +113,16 @@ bool ExecuteCrossWindowTabMove(Browser* target_browser,
     return false;
   }
 
-  Browser* source_browser = nullptr;
-  for (Browser* b :
-       chrome::FindAllBrowsersWithProfile(target_browser->profile())) {
-    if (static_cast<int>(b->session_id().id()) == source_session_id) {
-      source_browser = b;
-      break;
-    }
-  }
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(target_browser->profile());
+  BrowserWindowInterface* source_browser_window =
+      collection ? collection->FindBrowserWithID(
+                       SessionID::FromSerializedValue(source_session_id))
+                 : nullptr;
+  Browser* source_browser = source_browser_window
+                                ? source_browser_window
+                                      ->GetBrowserForMigrationOnly()
+                                : nullptr;
   if (!source_browser || source_browser == target_browser) {
     return false;
   }

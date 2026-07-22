@@ -9,16 +9,18 @@
 #include "base/auto_reset.h"
 #include "base/containers/flat_set.h"
 #include "base/no_destructor.h"
+#include "base/scoped_observation.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/prefs/pref_service.h"
@@ -115,10 +117,11 @@ gfx::Rect CenterLittleDaoBoundsInTargetDisplay(Profile* profile,
   }
 
   display::Display display = screen->GetPrimaryDisplay();
-  if (Browser* last_active_browser = chrome::FindLastActiveWithProfile(profile);
-      last_active_browser && last_active_browser->window()) {
+  if (BrowserWindowInterface* last_active_browser =
+          chrome::FindLastActiveWithProfile(profile);
+      last_active_browser && last_active_browser->GetWindow()) {
     display = screen->GetDisplayNearestWindow(
-        last_active_browser->window()->GetNativeWindow());
+        last_active_browser->GetWindow()->GetNativeWindow());
   }
 
   gfx::Rect bounds = display.work_area();
@@ -179,7 +182,7 @@ void UpdatePersistedLittleDaoWindowBounds(Browser* browser) {
 // dangle after the window closes and could match freshly-allocated Browser
 // objects at the same address, making IsLittleDaoWindow() return true for
 // unrelated windows.
-class LittleDaoBrowserTracker : public BrowserListObserver {
+class LittleDaoBrowserTracker : public BrowserCollectionObserver {
  public:
   static LittleDaoBrowserTracker& Get() {
     static base::NoDestructor<LittleDaoBrowserTracker> instance;
@@ -194,8 +197,9 @@ class LittleDaoBrowserTracker : public BrowserListObserver {
     return browsers_.contains(browser);
   }
 
-  // BrowserListObserver:
-  void OnBrowserRemoved(Browser* browser) override {
+  // BrowserCollectionObserver:
+  void OnBrowserClosed(BrowserWindowInterface* browser_window) override {
+    Browser* browser = browser_window->GetBrowserForMigrationOnly();
     // Called when a Browser window is closed and about to be destroyed.
     // Erase even if it's not a Little Dao browser — the set operation is
     // cheap and this keeps the invariant simple.
@@ -207,12 +211,15 @@ class LittleDaoBrowserTracker : public BrowserListObserver {
 
  private:
   friend class base::NoDestructor<LittleDaoBrowserTracker>;
-  LittleDaoBrowserTracker() { BrowserList::AddObserver(this); }
-  // BrowserList outlives this no-destructor singleton; destructor is never
-  // called in practice.
+  LittleDaoBrowserTracker() {
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
+  }
   ~LittleDaoBrowserTracker() override = default;
 
   base::flat_set<const Browser*> browsers_;
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
 Browser* CreateLittleDaoBrowser(Profile* profile) {

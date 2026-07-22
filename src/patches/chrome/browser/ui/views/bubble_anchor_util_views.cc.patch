@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/ui/views/bubble_anchor_util_views.cc b/chrome/browser/ui/views/bubble_anchor_util_views.cc
-index 9e7331a01f..da0379d2a3 100644
+index b7ef813bb1a1a..c135a33d9fe24 100644
 --- a/chrome/browser/ui/views/bubble_anchor_util_views.cc
 +++ b/chrome/browser/ui/views/bubble_anchor_util_views.cc
-@@ -13,6 +13,8 @@
- #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
- #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
+@@ -15,6 +15,8 @@
+ #include "chrome/browser/ui/views/permissions/chip/permission_dashboard_view.h"
+ #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
  #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 +#include "dao/browser/ui/views/dao_address_bar_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"

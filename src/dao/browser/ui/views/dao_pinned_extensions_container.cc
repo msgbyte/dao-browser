@@ -315,7 +315,8 @@ void DaoPinnedExtensionsContainer::OnExtensionClicked(
       anchor = this;
     }
 
-    ExtensionPopup::ShowPopup(browser_, std::move(host), anchor,
+    ExtensionPopup::ShowPopup(browser_, std::move(host),
+                              views::BubbleAnchor(anchor),
                               views::BubbleBorder::BOTTOM_RIGHT,
                               PopupShowAction::kShow, base::DoNothing());
   } else if (result ==

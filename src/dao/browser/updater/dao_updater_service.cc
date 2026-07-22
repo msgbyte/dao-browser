@@ -174,7 +174,10 @@ class DaoUpdaterService::Impl {
   bool initialized_ = false;
   DaoUpdateStatus update_status_;
   base::OnceClosure ready_install_callback_;
-  base::ObserverList<DaoUpdaterServiceObserver> observers_;
+  base::ObserverList<
+      DaoUpdaterServiceObserver,
+      false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancy> observers_;
   uint64_t update_status_generation_ = 0;
 
 #if BUILDFLAG(IS_MAC)

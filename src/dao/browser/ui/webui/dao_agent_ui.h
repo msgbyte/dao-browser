@@ -15,6 +15,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/cancelable_task_tracker.h"
 #include "base/values.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/devtools_agent_host_client.h"
@@ -442,7 +443,13 @@ class DaoDreamReportHandler : public content::WebUIMessageHandler {
   void HandleGetDreamReports(const base::ListValue& args);
   void HandleGetTodayDreamReport(const base::ListValue& args);
   void HandleMarkDreamReportViewed(const base::ListValue& args);
+  void HandleGetWeeklyDreamReport(const base::ListValue& args);
+  void HandleGetWeeklyDreamReports(const base::ListValue& args);
+  void HandleGetWeeklyDreamSources(const base::ListValue& args);
+  void HandleOpenWeeklyDreamSource(const base::ListValue& args);
+  void HandleMarkWeeklyDreamReportViewed(const base::ListValue& args);
 
+  base::CancelableTaskTracker history_task_tracker_;
   base::WeakPtrFactory<DaoDreamReportHandler> weak_factory_{this};
 };
 

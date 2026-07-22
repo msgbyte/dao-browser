@@ -9,9 +9,10 @@
 #include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "content/public/browser/web_contents.h"
@@ -417,14 +418,26 @@ Browser* GetBrowserForSidebarWebContents(content::WebContents* web_contents) {
   }
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
-  for (Browser* b : chrome::FindAllBrowsersWithProfile(profile)) {
-    BrowserView* bv = BrowserView::GetBrowserViewForBrowser(b);
-    if (bv && bv->dao_sidebar() &&
-        bv->dao_sidebar()->sidebar_web_contents() == web_contents) {
-      return b;
-    }
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile);
+  if (!collection) {
+    return nullptr;
   }
-  return nullptr;
+  Browser* found = nullptr;
+  collection->ForEach(
+      [&found, web_contents](BrowserWindowInterface* browser_window) {
+        Browser* browser = browser_window->GetBrowserForMigrationOnly();
+        BrowserView* browser_view =
+            BrowserView::GetBrowserViewForBrowser(browser);
+        if (browser_view && browser_view->dao_sidebar() &&
+            browser_view->dao_sidebar()->sidebar_web_contents() ==
+                web_contents) {
+          found = browser;
+          return false;
+        }
+        return true;
+      });
+  return found;
 }
 
 void DaoSidebarView::StartFileDrag(const base::FilePath& path) {

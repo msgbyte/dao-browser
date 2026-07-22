@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/chrome_browser_main_mac.mm b/chrome/browser/chrome_browser_main_mac.mm
-index f0ffab0667..6d337d7284 100644
+index b269f1610a55d..949633d454c21 100644
 --- a/chrome/browser/chrome_browser_main_mac.mm
 +++ b/chrome/browser/chrome_browser_main_mac.mm
 @@ -38,6 +38,8 @@
@@ -9,9 +9,9 @@ index f0ffab0667..6d337d7284 100644
 +#include "dao/browser/telemetry/dao_telemetry_service.h"
 +#include "dao/browser/updater/dao_updater_service.h"
  #include "components/metrics/metrics_service.h"
- #include "components/os_crypt/sync/os_crypt.h"
  #include "components/version_info/channel.h"
-@@ -180,6 +182,16 @@
+ #include "content/public/common/main_function_params.h"
+@@ -179,6 +181,16 @@
  void ChromeBrowserMainPartsMac::PostProfileInit(Profile* profile,
                                                  bool is_initial_profile) {
    ChromeBrowserMainPartsPosix::PostProfileInit(profile, is_initial_profile);

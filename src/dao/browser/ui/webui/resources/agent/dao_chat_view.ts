@@ -4923,6 +4923,21 @@ export class DaoChatView extends CrLitElement {
     this.activateProactiveSuggestionIfVisible_();
   }
 
+  async prefillExternalPrompt(text: string) {
+    if (!text) return;
+    await this.mountReady_;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iface = this.panel_?.querySelector('agent-interface') as any;
+    iface?.setInput?.(text, []);
+    setTimeout(() => this.focusInput(), 50);
+  }
+
+  async openExternalSession(id: string) {
+    if (!id) return;
+    await this.mountReady_;
+    await this.loadSession_(id);
+  }
+
   private onHistoryClose_() {
     this.historyOpen_ = false;
     this.activateProactiveSuggestionIfVisible_();

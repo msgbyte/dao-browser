@@ -12,8 +12,8 @@
 #include "chrome/browser/extensions/extension_view_host_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/extensions/extension_popup_types.h"
 #include "chrome/browser/ui/extensions/extension_side_panel_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -427,7 +427,8 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
       return;
     }
 
-    ExtensionPopup::ShowPopup(browser_, std::move(host), anchor,
+    ExtensionPopup::ShowPopup(browser_, std::move(host),
+                              views::BubbleAnchor(anchor),
                               views::BubbleBorder::BOTTOM_RIGHT,
                               PopupShowAction::kShow, base::DoNothing());
   } else if (result ==

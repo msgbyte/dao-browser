@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
-index 50ceb7af41..e011866f4a 100644
+index 33ac0c1324424..7a27f65133d0d 100644
 --- a/chrome/browser/app_controller_mac.mm
 +++ b/chrome/browser/app_controller_mac.mm
-@@ -67,7 +67,11 @@
+@@ -68,7 +68,11 @@
  #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
  #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
  #include "chrome/browser/ui/browser.h"
@@ -13,8 +13,8 @@ index 50ceb7af41..e011866f4a 100644
 +#include "chrome/browser/ui/singleton_tabs.h"
  #include "chrome/browser/ui/browser_commands.h"
  #include "chrome/browser/ui/browser_finder.h"
- #include "chrome/browser/ui/browser_list.h"
-@@ -1520,6 +1523,35 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
+ #include "chrome/browser/ui/browser_live_tab_context.h"
+@@ -1598,6 +1602,35 @@ - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
        }
      }
  
@@ -50,7 +50,7 @@ index 50ceb7af41..e011866f4a 100644
      // "Show as tab" should only appear when the current window is a popup.
      // Since |validateUserInterfaceItem:| is called only when there are no
      // key windows, we should just hide this.
-@@ -1634,6 +1666,15 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
+@@ -1712,6 +1745,15 @@ - (void)executeCommand:(id)sender withProfile:(Profile*)profile {
      case IDC_RESTORE_TAB:
        app_controller_mac::TabRestorer::RestoreMostRecent(profile);
        break;

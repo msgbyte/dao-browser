@@ -559,24 +559,47 @@ void DaoDreamService::StartWeeklyDream(
 
 void DaoDreamService::StartDream(const std::string& dream_date,
                                  TriggerKind kind) {
-  state_ = State::kCollecting;
   DreamRunRequest request;
   request.request_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
   request.report_kind = ReportKind::kDaily;
   request.period_start = dream_date;
   request.period_end = NextLocalDateLabel(dream_date);
   request.trigger_kind = kind;
+  StartDailyDream(std::move(request), std::nullopt);
+}
+
+void DaoDreamService::StartDailyDream(
+    DreamRunRequest request,
+    std::optional<DreamReport> existing) {
+  state_ = State::kCollecting;
   active_request_ = request;
+  active_existing_daily_report_ = std::move(existing);
   active_existing_weekly_report_.reset();
   pending_weekly_sources_.clear();
 
   base::Time start;
   base::Time end;
-  MaterialWindowFor(dream_date, clock_->Now(), &start, &end);
+  MaterialWindowFor(request.period_start, clock_->Now(), &start, &end);
   daily_collector_->Collect(
       start, end,
       base::BindOnce(&DaoDreamService::OnMaterialCollected,
                      weak_factory_.GetWeakPtr(), request.request_id));
+}
+
+void DaoDreamService::OnManualExistingDailyReportChecked(
+    DreamRunRequest request,
+    std::optional<DreamReport> existing) {
+  if (state_ != State::kCollecting || !active_request_ ||
+      active_request_->report_kind != ReportKind::kDaily ||
+      active_request_->trigger_kind != TriggerKind::kManual ||
+      active_request_->request_id != request.request_id) {
+    return;
+  }
+  if (!runner_) {
+    FinishRun(false, "agent webui unavailable");
+    return;
+  }
+  StartDailyDream(std::move(request), std::move(existing));
 }
 
 void DaoDreamService::OnMaterialCollected(const std::string& request_id,
@@ -843,15 +866,18 @@ void DaoDreamService::MarkFailed(DreamRunRequest request,
                                  const std::string& error) {
   LOG(ERROR) << "Dream run failed for " << request.period_start << ": "
              << error;
-  const bool preserve_completed_report =
-      preserve_completed_report_on_failure_;
+  if (request.trigger_kind == TriggerKind::kManual &&
+      active_existing_daily_report_ &&
+      active_existing_daily_report_->status == "completed") {
+    FinishRun(false, error);
+    return;
+  }
   // Read the existing attempt count, then write a failed row with +1.
   memory_service_->GetDreamReportByDate(
       request.period_start,
       base::BindOnce(
           [](base::WeakPtr<DaoDreamService> self, DreamRunRequest request,
-             std::string error, bool preserve_completed_report,
-             std::optional<DreamReport> existing) {
+             std::string error, std::optional<DreamReport> existing) {
             if (!self || self->state_ != State::kSaving ||
                 !self->active_request_ ||
                 self->active_request_->request_id != request.request_id) {
@@ -860,10 +886,6 @@ void DaoDreamService::MarkFailed(DreamRunRequest request,
             DreamReport report;
             if (existing) {
               report = std::move(*existing);
-            }
-            if (preserve_completed_report && report.status == "completed") {
-              self->FinishRun(false, error);
-              return;
             }
             report.dream_date = request.period_start;
             report.status = "failed";
@@ -883,8 +905,7 @@ void DaoDreamService::MarkFailed(DreamRunRequest request,
                     },
                     self, request.request_id, error));
           },
-          weak_factory_.GetWeakPtr(), std::move(request), error,
-          preserve_completed_report));
+          weak_factory_.GetWeakPtr(), std::move(request), error));
 }
 
 void DaoDreamService::PersistResult(const std::string& dream_date,
@@ -997,9 +1018,25 @@ void DaoDreamService::StartManualDreamForDate(
     return;
   }
   InvalidatePendingSchedulerCheck();
-  preserve_completed_report_on_failure_ = true;
+  DreamRunRequest request;
+  request.request_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  request.report_kind = ReportKind::kDaily;
+  request.period_start = dream_date;
+  request.period_end = NextLocalDateLabel(dream_date);
+  request.trigger_kind = TriggerKind::kManual;
+  state_ = State::kCollecting;
+  active_request_ = request;
+  active_existing_daily_report_.reset();
+  active_existing_weekly_report_.reset();
+  pending_weekly_sources_.clear();
+  pending_debug_material_json_.clear();
+  pending_material_stats_.clear();
+  chain_weekly_after_run_ = false;
   manual_callback_ = std::move(callback);
-  StartDream(dream_date, TriggerKind::kManual);
+  memory_service_->GetDreamReportByDate(
+      dream_date,
+      base::BindOnce(&DaoDreamService::OnManualExistingDailyReportChecked,
+                     weak_factory_.GetWeakPtr(), std::move(request)));
 }
 
 void DaoDreamService::StartManualWeeklyDream(
@@ -1079,11 +1116,11 @@ void DaoDreamService::FinishRun(bool success, const std::string& error) {
   const bool start_weekly = chain_weekly_after_run_;
   state_ = State::kIdle;
   active_request_.reset();
+  active_existing_daily_report_.reset();
   active_existing_weekly_report_.reset();
   pending_weekly_sources_.clear();
   pending_debug_material_json_.clear();
   pending_material_stats_.clear();
-  preserve_completed_report_on_failure_ = false;
   chain_weekly_after_run_ = false;
   if (manual_callback_) {
     std::move(manual_callback_).Run(success, error);

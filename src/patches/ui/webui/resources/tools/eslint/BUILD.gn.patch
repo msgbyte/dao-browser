@@ -1,0 +1,53 @@
+diff --git a/ui/webui/resources/tools/eslint/BUILD.gn b/ui/webui/resources/tools/eslint/BUILD.gn
+index d96b46026597b..80951d7236b52 100644
+--- a/ui/webui/resources/tools/eslint/BUILD.gn
++++ b/ui/webui/resources/tools/eslint/BUILD.gn
+@@ -24,6 +24,8 @@ ts_library("build_ts") {
+     "webui_eslint_plugin.ts",
+   ]
+ 
++  definitions = [ "eslint_plugin_lit.d.ts" ]
++
+   path_mappings = [
+     "/third_party/node/node_modules/typescript/lib/typescript.js|" +
+         rebase_path(
+@@ -36,8 +38,7 @@ ts_library("build_ts") {
+         rebase_path("//third_party/node/node_modules/@types/esquery/index.d.ts",
+                     target_gen_dir),
+     "/third_party/node/node_modules/eslint-plugin-lit/lib/index.js|" +
+-        rebase_path(
+-            "//third_party/node/node_modules/eslint-plugin-lit/lib/index.d.ts",
+-            target_gen_dir),
++        rebase_path("//ui/webui/resources/tools/eslint/eslint_plugin_lit.d.ts",
++                    target_gen_dir),
+   ]
+ }
+diff --git a/ui/webui/resources/tools/eslint/eslint_plugin_lit.d.ts b/ui/webui/resources/tools/eslint/eslint_plugin_lit.d.ts
+new file mode 100644
+index 0000000000000..c775eaee27ee7
+--- /dev/null
++++ b/ui/webui/resources/tools/eslint/eslint_plugin_lit.d.ts
+@@ -0,0 +1,11 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++// The Chromium node_modules archive omits transitive type-only dependencies
++// referenced by eslint-plugin-lit. Keep the build isolated from undeclared
++// packages while preserving the plugin's runtime shape used by this target.
++declare const plugin: {
++  rules: Record<string, any>;
++};
++export default plugin;
+diff --git a/ui/webui/resources/tools/eslint/tsconfig_base.json b/ui/webui/resources/tools/eslint/tsconfig_base.json
+index 88c6478cbcdb0..7c61ba2bd8a15 100644
+--- a/ui/webui/resources/tools/eslint/tsconfig_base.json
++++ b/ui/webui/resources/tools/eslint/tsconfig_base.json
+@@ -1,6 +1,7 @@
+ {
+   "extends": "../../../../../tools/typescript/tsconfig_base.json",
+   "compilerOptions": {
++    "skipLibCheck": true,
+     "types": ["node", "trusted-types"]
+   }
+ }

@@ -19,8 +19,8 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
@@ -53,7 +53,7 @@ bool DoesLegacyEpisodeMatchPageForProactiveSuggestion(
 // 3. Learning pipeline triggers
 //
 // Lifecycle: Owned by DaoAgentMemoryService (profile-scoped, always running).
-class DaoAgentProactiveEngine : public BrowserListObserver,
+class DaoAgentProactiveEngine : public BrowserCollectionObserver,
                                 public TabStripModelObserver {
  public:
   class Delegate {
@@ -94,9 +94,9 @@ class DaoAgentProactiveEngine : public BrowserListObserver,
       const std::string& domain,
       const std::string& action_label) const;
 
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) override;
-  void OnBrowserRemoved(Browser* browser) override;
+  // BrowserCollectionObserver:
+  void OnBrowserCreated(BrowserWindowInterface* browser) override;
+  void OnBrowserClosed(BrowserWindowInterface* browser) override;
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
@@ -170,6 +170,9 @@ class DaoAgentProactiveEngine : public BrowserListObserver,
   uint64_t active_navigation_generation_ = 0;
 
   std::unique_ptr<ActiveTabObserver> active_tab_observer_;
+
+  base::ScopedObservation<ProfileBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 
   base::WeakPtrFactory<DaoAgentProactiveEngine> weak_factory_{this};
 };

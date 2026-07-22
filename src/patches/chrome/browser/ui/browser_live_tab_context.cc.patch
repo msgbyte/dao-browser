@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/browser_live_tab_context.cc b/chrome/browser/ui/browser_live_tab_context.cc
-index 4e76e4664d..10ffab2626 100644
+index a669a623c4ae2..e1c08540a9019 100644
 --- a/chrome/browser/ui/browser_live_tab_context.cc
 +++ b/chrome/browser/ui/browser_live_tab_context.cc
-@@ -42,6 +42,7 @@
+@@ -51,6 +51,7 @@
  #include "components/tabs/public/tab_group.h"
  #include "content/public/browser/navigation_controller.h"
  #include "content/public/browser/session_storage_namespace.h"
@@ -10,8 +10,8 @@ index 4e76e4664d..10ffab2626 100644
  #include "content/public/browser/web_contents.h"
  #include "ui/base/mojom/window_show_state.mojom.h"
  #include "ui/base/window_open_disposition.h"
-@@ -156,6 +157,8 @@ std::map<std::string, std::string> BrowserLiveTabContext::GetExtraDataForTab(
-   glic::PopulateGlicExtraData(tab_strip_model_->GetWebContentsAt(index),
+@@ -158,6 +159,8 @@ std::map<std::string, std::string> BrowserLiveTabContext::GetExtraDataForTab(
+   glic::PopulateGlicExtraData(tab_strip_model_->GetTabAtIndex(index),
                                &extra_data);
  
 +  dao::PopulateSidebarTabIdentityExtraData(

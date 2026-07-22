@@ -1,8 +1,8 @@
 diff --git a/chrome/app/generated_resources.grd b/chrome/app/generated_resources.grd
-index c25aadab11..3df8006458 100644
+index b3263e1207486..98757c1a4e84a 100644
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -921,7 +921,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -903,7 +903,7 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD" desc="This is a context menu entry in the passwords submenu. It triggers the password selection bubble.">
              Select password
            </message>
@@ -11,7 +11,7 @@ index c25aadab11..3df8006458 100644
              Import passwords
            </message>
            <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD" desc="This is a context menu entry in the passwords submenu. It triggers password generation.">
-@@ -1259,7 +1259,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -1223,7 +1223,7 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD" desc="In Title Case: This is a context menu entry in the passwords submenu. It triggers the password selection bubble.">
              Select Password
            </message>
@@ -20,7 +20,7 @@ index c25aadab11..3df8006458 100644
              Import Passwords
            </message>
            <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD" desc="In Title Case: This is a context menu entry in the passwords submenu. It triggers password generation.">
-@@ -1811,7 +1811,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -1775,7 +1775,7 @@ are declared in tools/grit/grit_args.gni.
          <message name="IDS_EXTENSIONS_SUBMENU" desc="The extensions menu in the app menu (title case).">
            &amp;Extensions
          </message>
@@ -29,7 +29,7 @@ index c25aadab11..3df8006458 100644
            Manage Extensions
          </message>
          <message name="IDS_EXTENSIONS_SUBMENU_CHROME_WEBSTORE_ITEM" desc="The text for the link in the extensions menu, in the app menu, to visit the Chrome Web Store to get more extensions (title case).">
-@@ -1870,7 +1870,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -1834,7 +1834,7 @@ are declared in tools/grit/grit_args.gni.
          <message name="IDS_EXTENSIONS_SUBMENU" desc="In Title Case: The extensions menu in the app menu.">
            &amp;Extensions
          </message>
@@ -38,7 +38,7 @@ index c25aadab11..3df8006458 100644
            Manage Extensions
          </message>
          <message name="IDS_EXTENSIONS_SUBMENU_CHROME_WEBSTORE_ITEM" desc="In Title Case: The text for the link in the extensions menu, in the app menu, to visit the Chrome Web Store to get more extensions.">
-@@ -2482,7 +2482,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -2446,7 +2446,7 @@ are declared in tools/grit/grit_args.gni.
                 desc="Placeholder text/label for the search input in the download history page">
          Search download history
        </message>
@@ -47,7 +47,7 @@ index c25aadab11..3df8006458 100644
          Files you download appear here
        </message>
        <message name="IDS_DOWNLOAD_LINK_RESUME"
-@@ -5991,7 +5991,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -5890,7 +5890,7 @@ are declared in tools/grit/grit_args.gni.
          </message>
        </if>
  
@@ -56,7 +56,7 @@ index c25aadab11..3df8006458 100644
        <if expr="enable_extensions_core">
          <message name="IDS_EXTENSIONS_WANTS_ACCESS_TO_SITE" desc="The message shown on mouseover when an extension wants to run on a specific site.">
            Wants access to this site
-@@ -6025,7 +6025,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -5953,7 +5953,7 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES_V2" desc="The label in an extension's context menu to always allow the extension access on all sites (sentence case).">
              Always on all sites
            </message>
@@ -65,7 +65,7 @@ index c25aadab11..3df8006458 100644
              Manage site permissions
            </message>
            <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK" desc="The label in an extension's context menu to allow the extension access to the page only when the user clicks on the extension action (sentence case).">
-@@ -6099,7 +6099,7 @@ are declared in tools/grit/grit_args.gni.
+@@ -6027,7 +6027,7 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES_V2" desc="The label in an extension's context menu to always allow the extension access on all sites (title case).">
              Always on All Sites
            </message>
@@ -74,7 +74,7 @@ index c25aadab11..3df8006458 100644
              Manage Site Permissions
            </message>
            <message name="IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK" desc="The label in an extension's context menu to allow the extension access to the page only when the user clicks on the extension action (title case).">
-@@ -6135,13 +6135,13 @@ are declared in tools/grit/grit_args.gni.
+@@ -6063,13 +6063,13 @@ are declared in tools/grit/grit_args.gni.
            <message name="IDS_EXTENSIONS_PINNED_BY_ADMIN" desc="The text indicating that an extension has been 'pinned' to the toolbar by the controlling administrator (title case).">
              Pinned by your Administrator
            </message>
@@ -91,7 +91,7 @@ index c25aadab11..3df8006458 100644
              View Web Permissions
            </message>
            <message name="IDS_EXTENSION_ACTION_INSPECT_POPUP" desc="The text for the right-click menu of page and browser actions which shows the popup and opens the developer tools (title case).">
-@@ -6602,7 +6602,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -6481,7 +6481,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
        <message name="IDS_DEPRECATED_APPS_LEARN_MORE_AX_LABEL" desc="Accessibility label text for IDS_DEPRECATED_APPS_LEARN_MORE link">
          Learn more about unsupported Chrome apps
        </message>
@@ -100,7 +100,7 @@ index c25aadab11..3df8006458 100644
          {NUM_APPS, plural,
          =1 {Remove 1 unsupported app}
          other {Remove # unsupported apps}}
-@@ -7016,7 +7016,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -6907,7 +6907,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
            </message>
          </then>
          <else>
@@ -109,7 +109,7 @@ index c25aadab11..3df8006458 100644
              Settings
            </message>
            <message name="IDS_WEB_APP_SETTINGS_LINK_TOOLTIP" desc="The text of the tooltip on IDS_WEB_APP_SETTINGS_LINK.">
-@@ -7026,7 +7026,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -6917,7 +6917,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
        </if>
  
        <!-- Components -->
@@ -118,7 +118,7 @@ index c25aadab11..3df8006458 100644
          Components
        </message>
        <message name="IDS_COMPONENTS_VERSION" desc="The label in front of a component version number.">
-@@ -7273,52 +7273,52 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -7164,52 +7164,52 @@ Keep your key file in a safe place. You will need it to create new versions of y
        <!-- End of Sync Promo strings for Desktop Identity Consistency. -->
  
        <!-- WebRTC logs -->
@@ -186,7 +186,7 @@ index c25aadab11..3df8006458 100644
          You have no recently captured WebRTC event logs.
        </message>
  
-@@ -7445,7 +7445,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -7340,7 +7340,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
          </message>
        </if>
  
@@ -195,7 +195,7 @@ index c25aadab11..3df8006458 100644
        <if expr="toolkit_views and not is_chromeos">
          <message name="IDS_ABOUT_BROWSER_SWITCH_TITLE" desc="about:browser-switch page title">
            Legacy Browser Support
-@@ -7478,14 +7478,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -7373,14 +7373,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
            Only http, https and file protocols are supported for browser redirects.
          </message>
  
@@ -212,7 +212,7 @@ index c25aadab11..3df8006458 100644
            Nothing to show
          </message>
          <message name="IDS_ABOUT_BROWSER_SWITCH_INTERNALS_LBS_DISABLED" desc="about:browser-switch/internals text shown when the policy BrowserSwitcherEnabled is disabled">
-@@ -9279,13 +9279,13 @@ Keep your key file in a safe place. You will need it to create new versions of y
+@@ -9204,13 +9204,13 @@ Keep your key file in a safe place. You will need it to create new versions of y
  
        <!-- Extensions NTP Middle Slot Promo -->
        <message name="IDS_EXTENSIONS_PROMO_PERFORMANCE">
@@ -229,7 +229,7 @@ index c25aadab11..3df8006458 100644
        </message>
  
        <!-- New Tab Footer -->
-@@ -13812,7 +13812,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+@@ -13675,7 +13675,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
          Set later
        </message>
  
@@ -238,7 +238,7 @@ index c25aadab11..3df8006458 100644
        <if expr="not is_android">
          <if expr="not is_chromeos and use_titlecase">
            <message name="IDS_RELAUNCH_BUTTON" desc="Titlecase: The label for the relaunch button that relaunches the browser once update is complete">
-@@ -13850,7 +13850,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+@@ -13713,7 +13713,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
          </message>
        </if> <!-- is_chromeos -->
  
@@ -246,8 +246,8 @@ index c25aadab11..3df8006458 100644
 +      <!-- Settings related strings not specific to dao://settings.
             (Settings specific strings are in settings_strings.grdp).
             Not necessary on Android that uses native UI in settings unless extensions are enabled. -->
-       <if expr="not is_android or enable_extensions_core">
-@@ -13913,7 +13913,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+         <message name="IDS_CONTROLLED_SETTING_POLICY" desc="Text displayed in the controlled settings bubble when a setting's value is managed by policy.">
+@@ -13777,7 +13777,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
          </message>
  
          <!-- Enhanced Safe Browsing CRX allowlist warning -->
@@ -256,7 +256,7 @@ index c25aadab11..3df8006458 100644
             This extension is not trusted by Enhanced Safe Browsing.
          </message>
          <message name="IDS_EXTENSIONS_SAFE_BROWSING_CRX_ALLOWLIST_WARNING_LEARN_MORE" desc="Text read by screen readers for a link labeled 'Learn more' that links to a Help article about Enhanced Safe Browsing.">
-@@ -14580,7 +14580,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+@@ -14441,7 +14441,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
          Your account <ph name="EMAIL">$1<ex>john.doe@example.com</ex></ph> is no longer allowed as the primary account. Because this account is managed by <ph name="DOMAIN">$2<ex>example.com</ex></ph>, your bookmarks, history, passwords, and other settings will be cleared from this device.
        </message>
  
@@ -265,7 +265,7 @@ index c25aadab11..3df8006458 100644
        <if expr="not is_android">
          <if expr="is_chromeos">
            <message name="IDS_DEVICE_MANAGED_WITH_HYPERLINK" desc="Message to end users in Enterprise/EDU, with a link for more info (ChromeOS)">
-@@ -17305,14 +17305,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
+@@ -17112,14 +17112,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
        </message>
  
        <!-- About device logs UI display strings -->
@@ -283,7 +283,7 @@ index c25aadab11..3df8006458 100644
        </message>
        <message name="IDS_DEVICE_LOG_REFRESH" desc="Button to refresh device log entries">
          Refresh
-@@ -17392,7 +17392,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
+@@ -17199,7 +17199,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
        <message name="IDS_DEVICE_LOG_TIME_DETAIL" desc="Detailed timestamps checkbox in device event log">
          Detailed Timestamps
        </message>
@@ -292,7 +292,7 @@ index c25aadab11..3df8006458 100644
          [<ph name="TIMESTAMP">$1<ex>Timestamp</ex></ph>]
          <ph name="FILE_INFO">$2<ex>file:123</ex></ph>
          <ph name="EVENT_NAME">$3<ex>Event Description</ex></ph>
-@@ -19299,7 +19299,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
+@@ -19115,7 +19115,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
        <message name="IDS_MEMORY_SAVER_DIALOG_TITLE" desc="Title text for a dialog with information about Memory Saver mode.">
          Memory Saver
        </message>

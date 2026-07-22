@@ -72,7 +72,7 @@ function releaseFixture(): ReleaseFixture {
     display_name: 'Dao',
     version: {
       product: 'chromium',
-      version: '148.0.7778.217',
+      version: '149.0.7827.201',
       display: '1.0.70',
     },
     build: {target_os: 'mac', target_cpu: 'arm64'},
@@ -80,7 +80,7 @@ function releaseFixture(): ReleaseFixture {
   writeFileSync(appcastPath, '<rss><channel></channel></rss>\n');
   writeFileSync(infoPath, JSON.stringify({
     version: '1.0.70',
-    chromiumVersion: '148.0.7778.217',
+    chromiumVersion: '149.0.7827.201',
     releasedAt: '2026-07-11',
     platforms: {
       macArm64: {
