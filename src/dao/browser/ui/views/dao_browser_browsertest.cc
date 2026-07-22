@@ -7130,6 +7130,93 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, SidebarBackgroundDark) {
   EXPECT_TRUE(dao::IsDarkMode());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
+                       IncognitoSidebarUsesDarkPaletteOnLightSystem) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+
+  Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
+  ASSERT_TRUE(incognito_browser->profile()->IsOffTheRecord());
+  ASSERT_TRUE(incognito_browser->profile()->IsIncognitoProfile());
+
+  EXPECT_EQ(dao::SidebarBackground(browser()), SkColorSetRGB(231, 238, 245));
+  EXPECT_EQ(dao::SidebarBackground(incognito_browser),
+            SkColorSetRGB(54, 59, 64));
+  EXPECT_EQ(dao::TextSecondary(incognito_browser),
+            SkColorSetARGB(153, 255, 255, 255));
+  EXPECT_EQ(dao::ControlCenterHoverBg(incognito_browser),
+            SkColorSetARGB(20, 255, 255, 255));
+
+  BrowserView* incognito_view = GetBrowserView(incognito_browser);
+  ASSERT_NE(nullptr, incognito_view);
+  auto* incognito_sidebar = incognito_view->dao_sidebar();
+  ASSERT_NE(nullptr, incognito_sidebar);
+  ASSERT_FALSE(incognito_sidebar->children().empty());
+  views::View* inner = incognito_sidebar->children()[0];
+  ASSERT_NE(nullptr, inner->background());
+  EXPECT_EQ(SkColorSetRGB(54, 59, 64), inner->background()->color());
+
+  ASSERT_NE(nullptr, incognito_view->background());
+  EXPECT_EQ(SkColorSetRGB(54, 59, 64), incognito_view->background()->color());
+
+  incognito_browser->window()->Close();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
+                       IncognitoSidebarShowsPrivacyIndicator) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+
+  DaoSidebarView* normal_sidebar = GetBrowserView(browser())->dao_sidebar();
+  ASSERT_NE(nullptr, normal_sidebar);
+  EXPECT_EQ(nullptr, normal_sidebar->incognito_indicator_for_testing());
+
+  Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
+  DaoSidebarView* incognito_sidebar =
+      GetBrowserView(incognito_browser)->dao_sidebar();
+  ASSERT_NE(nullptr, incognito_sidebar);
+
+  views::View* indicator = incognito_sidebar->incognito_indicator_for_testing();
+  views::Button* toggle = incognito_sidebar->toggle_button_for_testing();
+  ASSERT_NE(nullptr, indicator);
+  ASSERT_NE(nullptr, toggle);
+  EXPECT_TRUE(indicator->GetVisible());
+  EXPECT_EQ(indicator->parent(), toggle->parent());
+  EXPECT_LE(indicator->bounds().right(), toggle->bounds().x());
+
+  const std::u16string message =
+      l10n_util::GetStringUTF16(IDS_DAO_INCOGNITO_SIDEBAR_INDICATOR);
+  EXPECT_EQ(message, indicator->GetTooltipText());
+  EXPECT_EQ(message, indicator->GetAccessibleName());
+
+  BrowserView* incognito_view = GetBrowserView(incognito_browser);
+  incognito_view->DeprecatedLayoutImmediately();
+  gfx::Rect indicator_bounds =
+      incognito_sidebar->incognito_indicator_bounds_in_sidebar();
+  ASSERT_FALSE(indicator_bounds.IsEmpty());
+  indicator_bounds.Offset(
+      incognito_sidebar->bounds().origin().OffsetFromOrigin());
+  EXPECT_EQ(HTCLIENT,
+            incognito_view->NonClientHitTest(indicator_bounds.CenterPoint()));
+
+  Browser* guest_browser = CreateGuestBrowser();
+  ASSERT_TRUE(guest_browser->profile()->IsGuestSession());
+  ASSERT_TRUE(guest_browser->profile()->IsOffTheRecord());
+  ASSERT_FALSE(guest_browser->profile()->IsIncognitoProfile());
+  DaoSidebarView* guest_sidebar = GetBrowserView(guest_browser)->dao_sidebar();
+  ASSERT_NE(nullptr, guest_sidebar);
+  EXPECT_EQ(nullptr, guest_sidebar->incognito_indicator_for_testing());
+  EXPECT_EQ(SkColorSetRGB(231, 238, 245),
+            dao::SidebarBackground(guest_browser));
+
+  incognito_browser->window()->Close();
+  guest_browser->window()->Close();
+}
+
 IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, SidebarRepaintsOnThemeChange) {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
   auto* view = BrowserView::GetBrowserViewForBrowser(browser());

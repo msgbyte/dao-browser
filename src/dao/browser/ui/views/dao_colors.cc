@@ -4,9 +4,20 @@
 
 #include "dao/browser/ui/views/dao_colors.h"
 
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "ui/native_theme/native_theme.h"
 
 namespace dao {
+
+namespace {
+
+bool ShouldUseDarkColors(const Browser* browser) {
+  return IsDarkMode() || (browser && browser->profile() &&
+                          browser->profile()->IsIncognitoProfile());
+}
+
+}  // namespace
 
 bool IsDarkMode() {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
@@ -15,8 +26,12 @@ bool IsDarkMode() {
 }
 
 SkColor SidebarBackground() {
-  return IsDarkMode() ? SkColorSetRGB(54, 59, 64)
-                      : SkColorSetRGB(231, 238, 245);
+  return SidebarBackground(nullptr);
+}
+
+SkColor SidebarBackground(const Browser* browser) {
+  return ShouldUseDarkColors(browser) ? SkColorSetRGB(54, 59, 64)
+                                      : SkColorSetRGB(231, 238, 245);
 }
 
 SkColor FrameColor() {
@@ -29,8 +44,12 @@ SkColor TextPrimary() {
 }
 
 SkColor TextSecondary() {
-  return IsDarkMode() ? SkColorSetARGB(153, 255, 255, 255)
-                      : SkColorSetARGB(153, 30, 20, 40);
+  return TextSecondary(nullptr);
+}
+
+SkColor TextSecondary(const Browser* browser) {
+  return ShouldUseDarkColors(browser) ? SkColorSetARGB(153, 255, 255, 255)
+                                      : SkColorSetARGB(153, 30, 20, 40);
 }
 
 SkColor TextMuted() {
@@ -177,8 +196,12 @@ SkColor ControlCenterIconMuted() {
 }
 
 SkColor ControlCenterHoverBg() {
-  return IsDarkMode() ? SkColorSetARGB(20, 255, 255, 255)
-                      : SkColorSetARGB(20, 0, 0, 0);
+  return ControlCenterHoverBg(nullptr);
+}
+
+SkColor ControlCenterHoverBg(const Browser* browser) {
+  return ShouldUseDarkColors(browser) ? SkColorSetARGB(20, 255, 255, 255)
+                                      : SkColorSetARGB(20, 0, 0, 0);
 }
 
 SkColor ControlCenterActiveBg() {

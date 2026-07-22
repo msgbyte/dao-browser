@@ -213,6 +213,7 @@
       <message name="IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME" desc="Accessible name (read aloud by screen readers) for the sidebar toggle button.">
         Toggle Sidebar
       </message>
+      <message name="IDS_DAO_INCOGNITO_SIDEBAR_INDICATOR" desc="Tooltip and accessible name for the shield icon shown in the sidebar header of an Incognito window.">You're browsing in Incognito mode. After you close all Incognito windows, Dao won't keep your browsing history, cookies, or site data. Downloads and bookmarks are kept.</message>
       <message name="IDS_DAO_SIDEBAR_TOGGLE_RETRY_TOAST" desc="Toast shown when a webpage handles the Command+S sidebar shortcut first. The keyboard shortcut symbol is the macOS Command key (⌘) followed by 'S'.">
         Press <ph name="SHORTCUT">⌘S</ph> again to toggle sidebar
       </message>

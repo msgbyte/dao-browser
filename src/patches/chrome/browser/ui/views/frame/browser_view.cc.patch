@@ -45,14 +45,15 @@ index bcb1930a86dd2..e58e57618447a 100644
  #if BUILDFLAG(IS_CHROMEOS)
        // Immersive mode allows the toolbar to be shown, so do not show the
        // bubble. However, do show the bubble in a managed guest session (see
-@@ -929,6 +958,104 @@ BrowserView::BrowserView(Browser* browser)
+@@ -962,6 +991,105 @@ BrowserView::BrowserView(Browser* browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
 +  // Dao: Only create sidebar UI for normal browser windows (not popups/devtools)
 +  if (browser_->SupportsWindowFeature(Browser::WindowFeature::kFeatureTabStrip)) {
 +    // Dao: Set frame background color (visible behind sidebar + content insets)
-+    SetBackground(views::CreateSolidBackground(dao::SidebarBackground()));
++    SetBackground(views::CreateSolidBackground(
++        dao::SidebarBackground(browser_.get())));
 +    contents_container_->SetPaintToLayer();
 +    contents_container_->layer()->SetFillsBoundsOpaquely(false);
 +    contents_container_->SetBackground(
@@ -273,7 +274,7 @@ index bcb1930a86dd2..e58e57618447a 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
-@@ -4706,6 +4897,82 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4895,6 +5086,89 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -300,7 +301,7 @@ index bcb1930a86dd2..e58e57618447a 100644
 +
 +  // Dao: When sidebar is active, turn the area above content into a drag
 +  // region. Agent sidebar is client (clickable); sidebar header is draggable
-+  // except for the toggle button which remains clickable.
++  // except for the privacy indicator and toggle button.
 +  if (dao_sidebar_ && dao_sidebar_->GetVisible()) {
 +    if (dao_agent_sidebar_ && dao_agent_sidebar_->GetVisible() &&
 +        dao_agent_sidebar_->bounds().Contains(point_in_browser_view_coords)) {
@@ -310,6 +311,13 @@ index bcb1930a86dd2..e58e57618447a 100644
 +    gfx::Rect header_bounds = dao_sidebar_->header_bounds_in_sidebar();
 +    header_bounds.Offset(dao_sidebar_->bounds().origin().OffsetFromOrigin());
 +    if (header_bounds.Contains(point_in_browser_view_coords)) {
++      gfx::Rect indicator_bounds =
++          dao_sidebar_->incognito_indicator_bounds_in_sidebar();
++      indicator_bounds.Offset(
++          dao_sidebar_->bounds().origin().OffsetFromOrigin());
++      if (indicator_bounds.Contains(point_in_browser_view_coords)) {
++        return HTCLIENT;
++      }
 +      gfx::Rect btn_bounds = dao_sidebar_->toggle_button_bounds_in_sidebar();
 +      btn_bounds.Offset(dao_sidebar_->bounds().origin().OffsetFromOrigin());
 +      if (btn_bounds.Contains(point_in_browser_view_coords)) {
@@ -356,7 +364,7 @@ index bcb1930a86dd2..e58e57618447a 100644
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -5110,6 +5377,17 @@ void BrowserView::OnThemeChanged() {
+@@ -5302,6 +5569,18 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();
@@ -368,7 +376,8 @@ index bcb1930a86dd2..e58e57618447a 100644
 +  // the original theme's color (mismatching DaoSidebarView, which already
 +  // re-applies via OnNativeThemeUpdated).
 +  if (dao_sidebar_) {
-+    SetBackground(views::CreateSolidBackground(dao::SidebarBackground()));
++    SetBackground(views::CreateSolidBackground(
++        dao::SidebarBackground(browser_.get())));
 +    SchedulePaint();
 +  }
  }
