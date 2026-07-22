@@ -1,6 +1,9 @@
 {
   "name": "dao-browser",
   "private": true,
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "description": "A Chromium-based browser with vertical tab sidebar",
   "type": "module",
   "scripts": {
