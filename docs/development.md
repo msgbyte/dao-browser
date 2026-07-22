@@ -7,7 +7,7 @@ This document describes how to build Dao Browser from source.
 - macOS (initial target platform)
 - Xcode and Command Line Tools
 - [depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up) installed and in `PATH`
-- Node.js >= 18
+- Node.js >= 22.19.0
 - ~100 GB free disk space for Chromium source + build
 
 ### Setting up depot_tools

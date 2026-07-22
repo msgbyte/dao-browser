@@ -1,3 +1,8 @@
 # Unified diff context uses a single leading space for blank lines. Do not
 # report that required marker as trailing whitespace in tracked patch files.
 *.patch whitespace=-blank-at-eol
+
+# Minified vendor bundles can contain significant spaces at the end of lines
+# inside JavaScript template literals. They are generated and must not be
+# normalized independently from their source packages.
+src/dao/browser/ui/webui/resources/agent/vendor/pi_runtime_bundle.ts whitespace=-blank-at-eol

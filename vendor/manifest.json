@@ -15,25 +15,25 @@
       "format": "esm",
       "outFile": "src/dao/browser/ui/webui/resources/agent/vendor/pi_runtime_bundle.ts",
       "pkgVersions": {
-        "@mariozechner/pi-ai": "^0.73.0",
-        "@mariozechner/pi-agent-core": "^0.73.0",
-        "@mariozechner/pi-web-ui": "^0.73.0",
+        "@earendil-works/pi-ai": "^0.81.1",
+        "@earendil-works/pi-agent-core": "^0.81.1",
+        "@earendil-works/pi-web-ui": "^0.75.3",
         "@mariozechner/mini-lit": "^0.2.1",
         "@sinclair/typebox": "^0.34.49",
         "lit": "^3.3.2"
       },
-      "sha256": "8c248e53a23d952d67918fac6312d402f50eb25380630fcd8d90d230c987823f",
-      "generatedAt": "2026-05-11T13:03:52.862Z"
+      "sha256": "99068503b24658b2c52c32d210f4c34294720c01ae8caecb0e45dd715d3714e3",
+      "generatedAt": "2026-07-22T11:42:40.418Z"
     },
     {
       "name": "pi-web-ui-css",
       "format": "customBuild",
       "outFile": "src/dao/browser/ui/webui/resources/agent/vendor/pi_web_ui.css",
       "pkgVersions": {
-        "@mariozechner/pi-web-ui": "^0.73.0"
+        "@earendil-works/pi-web-ui": "^0.75.3"
       },
-      "sha256": "436c5ed25cd0ba0541bab720b04b8c23b637e778231dd1402fed117b25ec4f77",
-      "generatedAt": "2026-05-07T14:42:30.850Z"
+      "sha256": "1f83c98e5a9f9daf4d694b6c63088d2819f87364d3f692532662d5b412fdd126",
+      "generatedAt": "2026-07-22T10:03:58.615Z"
     },
     {
       "name": "turndown",

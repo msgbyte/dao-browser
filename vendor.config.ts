@@ -79,19 +79,19 @@ const config: VendorConfig = {
     },
     {
       // Unified pi-mono runtime: pi-ai + pi-agent-core + pi-web-ui all in
-      // one ESM bundle so downstream consumers share a single JavaScript
-      // module instance (and we avoid the ~1.8 MB duplication that
-      // appeared when pi-web-ui's dep closure pulled its own copy of
-      // pi-ai/pi-agent-core/typebox).
+      // one ESM bundle so downstream consumers import a single JavaScript
+      // module. pi-web-ui currently trails the core SDK release line and
+      // therefore keeps a compatible nested pi-ai version until upstream
+      // publishes a matching Web UI release.
       //
       // Emits a `.ts` file (not `.js`) so it can flow through Chromium's
       // build_webui pipeline via `non_web_component_files`. The pipeline
       // prepends `@ts-nocheck` to skip type-checking the minified bundle.
       name: "pi-runtime",
       npm: [
-        "@mariozechner/pi-ai",
-        "@mariozechner/pi-agent-core",
-        "@mariozechner/pi-web-ui",
+        "@earendil-works/pi-ai",
+        "@earendil-works/pi-agent-core",
+        "@earendil-works/pi-web-ui",
         "@mariozechner/mini-lit",
         "@sinclair/typebox",
         "lit",
@@ -127,7 +127,7 @@ const config: VendorConfig = {
       // agent resource tree. No Tailwind JIT pass — the upstream package
       // already publishes the final stylesheet.
       name: "pi-web-ui-css",
-      npm: ["@mariozechner/pi-web-ui"],
+      npm: ["@earendil-works/pi-web-ui"],
       format: "customBuild",
       customBuild: "vendor/entries/pi-web-ui-css.build.mjs",
       outDir: "src/dao/browser/ui/webui/resources/agent/vendor",
