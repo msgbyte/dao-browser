@@ -309,6 +309,40 @@ function restorePropertyDescriptor(
   delete (target as any)[key];
 }
 
+describe('dao-chat-view external prompt prefill', () => {
+  it('waits for chat mounting before setting the prompt', async () => {
+    let resolveMount!: () => void;
+    const mountReady = new Promise<void>(resolve => {
+      resolveMount = resolve;
+    });
+    const setInput = vi.fn();
+    const panel = document.createElement('div');
+    const iface = document.createElement('agent-interface') as HTMLElement & {
+      setInput: ReturnType<typeof vi.fn>;
+    };
+    iface.setInput = setInput;
+    panel.appendChild(iface);
+
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      mountReady_: Promise<void>;
+      panel_: HTMLElement;
+      prefillExternalPrompt: (text: string) => Promise<void> | void;
+    };
+    view.mountReady_ = mountReady;
+    view.panel_ = panel;
+
+    const prefill = view.prefillExternalPrompt('Review this report');
+    await Promise.resolve();
+
+    expect(setInput).not.toHaveBeenCalled();
+
+    resolveMount();
+    await prefill;
+
+    expect(setInput).toHaveBeenCalledWith('Review this report', []);
+  });
+});
+
 describe('dao-chat-view message metadata helpers', () => {
   beforeEach(() => {
     document.body.innerHTML = '';

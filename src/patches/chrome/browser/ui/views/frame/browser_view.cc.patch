@@ -220,7 +220,7 @@ index bcb1930a86dd2..e58e57618447a 100644
 +    dao_agent_lock_banner_->SetLocked(
 +        dao::DaoAgentLockTabHelper::IsLocked(new_contents));
 +    InvalidateLayout();
-+    GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
++    GetWidget()->LayoutRootViewIfNecessary();
 +  }
 +  if (dao_agent_cursor_) {
 +    if (dao::DaoAgentLockTabHelper::IsLocked(new_contents)) {
@@ -260,7 +260,7 @@ index bcb1930a86dd2..e58e57618447a 100644
 +    dao_agent_lock_banner_->SetLocked(
 +        dao::DaoAgentLockTabHelper::IsLocked(contents));
 +    InvalidateLayout();
-+    GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
++    GetWidget()->LayoutRootViewIfNecessary();
 +  }
 +  if (contents == GetActiveWebContents() && dao_agent_cursor_) {
 +    if (dao::DaoAgentLockTabHelper::IsLocked(contents)) {

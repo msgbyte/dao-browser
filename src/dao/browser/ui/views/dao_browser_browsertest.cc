@@ -5743,11 +5743,11 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       FindDescendantViewOfClass<DaoControlCenterUtilitySection>(popup);
   ASSERT_NE(nullptr, utility_section);
   EXPECT_EQ((std::vector<std::u16string>{
-                u"QR Code",
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_CODE),
                 l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO),
-                u"Security",
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY),
                 label,
-                u"More",
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MORE),
             }),
             GetDirectButtonAccessibleNames(utility_section));
   views::Button* button = FindButtonWithAccessibleName(popup, label);

@@ -80,7 +80,7 @@ function releaseFixture(): ReleaseFixture {
   writeFileSync(appcastPath, '<rss><channel></channel></rss>\n');
   writeFileSync(infoPath, JSON.stringify({
     version: '1.0.70',
-    chromiumVersion: '148.0.7778.217',
+    chromiumVersion: '149.0.7827.201',
     releasedAt: '2026-07-11',
     platforms: {
       macArm64: {

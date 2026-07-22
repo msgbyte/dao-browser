@@ -327,6 +327,15 @@
       <message name="IDS_DAO_CONTROL_CENTER_MINI_DAO" desc="Label and accessible name for the Control Center utility button that moves the current tab into a Mini Dao independent window.">
         Mini Dao
       </message>
+      <message name="IDS_DAO_CONTROL_CENTER_QR_CODE" desc="Label and accessible name for the Control Center utility button that shows a QR code for the current page.">
+        QR Code
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_SECURITY" desc="Label and accessible name for the Control Center utility button that opens security and site information for the current page.">
+        Security
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_MORE" desc="Label and accessible name for the Control Center utility button that opens additional actions for the current page.">
+        More
+      </message>
       <message name="IDS_DAO_CONTROL_CENTER_MINI_DAO_FAILED_TOAST" desc="Toast shown when the user clicks the Control Center Mini Dao button but the current tab cannot be moved into a Mini Dao window.">
         Could not open this tab in Mini Dao
       </message>

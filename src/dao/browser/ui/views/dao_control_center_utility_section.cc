@@ -192,7 +192,8 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
-          u"QR Code", LucideIcon::kQrCode,
+          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_CODE),
+          LucideIcon::kQrCode,
           base::BindRepeating(
               &DaoControlCenterUtilitySection::OnQrClicked,
               base::Unretained(this)))
@@ -209,7 +210,8 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
-          u"Security", LucideIcon::kShieldCheck,
+          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY),
+          LucideIcon::kShieldCheck,
           base::BindRepeating(
               &DaoControlCenterUtilitySection::OnLockClicked,
               base::Unretained(this)))
@@ -230,7 +232,8 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
 
   AddChildView(static_cast<views::View*>(
       std::make_unique<UtilityButton>(
-          u"More", LucideIcon::kEllipsis,
+          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MORE),
+          LucideIcon::kEllipsis,
           base::BindRepeating(
               &DaoControlCenterUtilitySection::OnMoreClicked,
               base::Unretained(this)))

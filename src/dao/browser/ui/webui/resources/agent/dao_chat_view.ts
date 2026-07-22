@@ -4923,8 +4923,9 @@ export class DaoChatView extends CrLitElement {
     this.activateProactiveSuggestionIfVisible_();
   }
 
-  prefillExternalPrompt(text: string) {
+  async prefillExternalPrompt(text: string) {
     if (!text) return;
+    await this.mountReady_;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const iface = this.panel_?.querySelector('agent-interface') as any;
     iface?.setInput?.(text, []);
