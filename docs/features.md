@@ -10,6 +10,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **DaoSidebarView** (`sidebar/dao_sidebar_view.{h,cc}`) — Main container, 240px default, collapsible to 4px with animation
 - **Drag-to-resize** — Mouse drag, 150–400px range, ignored while collapsed; width preserved across collapse/expand cycles
 - **DaoSidebarUIHandler** — Mojo bridge between sidebar C++ and the WebUI (media state, folder persistence, tab commands)
+- **Incognito indicator** — Native shield-check status icon beside the sidebar collapse button in Incognito windows, with a localized privacy tooltip
 - **Sidebar context menu** — Native right-click menu support with registered
   shortcut labels for Duplicate Tab, Copy Link, and Close Tab
 - **DaoTabTooltipView** (`sidebar/dao_tab_tooltip_view.{h,cc}`) — Hover contextual info next to the sidebar

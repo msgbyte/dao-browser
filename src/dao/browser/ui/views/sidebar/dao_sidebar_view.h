@@ -77,6 +77,11 @@ class DaoSidebarView : public views::View,
   // coordinate space (caller adds sidebar->bounds().origin() for BrowserView).
   gfx::Rect header_bounds_in_sidebar() const;
   gfx::Rect toggle_button_bounds_in_sidebar() const;
+  gfx::Rect incognito_indicator_bounds_in_sidebar() const;
+  views::View* incognito_indicator_for_testing() const {
+    return incognito_indicator_;
+  }
+  views::Button* toggle_button_for_testing() const { return toggle_button_; }
 
   void ShowOmniboxPopup();
   void HideOmniboxPopup();
@@ -150,6 +155,7 @@ class DaoSidebarView : public views::View,
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> inner_container_ = nullptr;
   raw_ptr<views::View> header_row_ = nullptr;
+  raw_ptr<views::View> incognito_indicator_ = nullptr;
   raw_ptr<views::Button> toggle_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
   raw_ptr<views::View> drop_overlay_ = nullptr;

@@ -7,16 +7,20 @@
 
 #include "third_party/skia/include/core/SkColor.h"
 
+class Browser;
+
 namespace dao {
 
 // Returns true when the current system appearance is dark.
 bool IsDarkMode();
 
 SkColor SidebarBackground();
+SkColor SidebarBackground(const Browser* browser);
 SkColor FrameColor();
 
 SkColor TextPrimary();
 SkColor TextSecondary();
+SkColor TextSecondary(const Browser* browser);
 SkColor TextMuted();
 
 SkColor ActiveTabBackground();
@@ -85,6 +89,7 @@ SkColor ToastTextColor();
 SkColor ControlCenterIconDefault();
 SkColor ControlCenterIconMuted();
 SkColor ControlCenterHoverBg();
+SkColor ControlCenterHoverBg(const Browser* browser);
 SkColor ControlCenterActiveBg();
 SkColor ControlCenterLabelColor();
 SkColor ControlCenterSecondaryTextColor();

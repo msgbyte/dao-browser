@@ -37,6 +37,7 @@
 #include "dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h"
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "net/base/filename_util.h"
+#include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
@@ -48,6 +49,7 @@
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/webview/webview.h"
@@ -159,12 +161,41 @@ class DaoNonDropWebView : public views::WebView {
 BEGIN_METADATA(DaoNonDropWebView)
 END_METADATA
 
+class DaoIncognitoIndicatorView : public views::View {
+  METADATA_HEADER(DaoIncognitoIndicatorView, views::View)
+
+ public:
+  explicit DaoIncognitoIndicatorView(Browser* browser) : browser_(browser) {
+    SetPreferredSize(gfx::Size(32, 32));
+    const std::u16string message =
+        l10n_util::GetStringUTF16(IDS_DAO_INCOGNITO_SIDEBAR_INDICATOR);
+    SetTooltipText(message);
+    GetViewAccessibility().SetRole(ax::mojom::Role::kImage);
+    GetViewAccessibility().SetName(message);
+  }
+
+  void OnPaint(gfx::Canvas* canvas) override {
+    constexpr float kIconSize = 16.0f;
+    const float x = (width() - kIconSize) / 2.0f;
+    const float y = (height() - kIconSize) / 2.0f;
+    DrawLucideIcon(canvas, LucideIcon::kShieldCheck,
+                   gfx::RectF(x, y, kIconSize, kIconSize),
+                   dao::TextSecondary(browser_));
+  }
+
+ private:
+  raw_ptr<Browser> browser_;
+};
+
+BEGIN_METADATA(DaoIncognitoIndicatorView)
+END_METADATA
+
 class DaoToggleButton : public views::Button {
   METADATA_HEADER(DaoToggleButton, views::Button)
 
  public:
-  explicit DaoToggleButton(PressedCallback callback)
-      : Button(std::move(callback)) {
+  DaoToggleButton(Browser* browser, PressedCallback callback)
+      : Button(std::move(callback)), browser_(browser) {
     SetPreferredSize(gfx::Size(32, 32));
     SetInstallFocusRingOnFocus(false);
     SetTooltipText(l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP));
@@ -181,7 +212,7 @@ class DaoToggleButton : public views::Button {
       float hy = (height() - kHoverSize) / 2.0f;
       cc::PaintFlags flags;
       flags.setAntiAlias(true);
-      flags.setColor(dao::ControlCenterHoverBg());
+      flags.setColor(dao::ControlCenterHoverBg(browser_));
       canvas->DrawRoundRect(gfx::RectF(hx, hy, kHoverSize, kHoverSize),
                             kHoverRadius, flags);
     }
@@ -189,7 +220,7 @@ class DaoToggleButton : public views::Button {
     float y = (height() - kIconSize) / 2.0f;
     DrawLucideIcon(canvas, LucideIcon::kPanelLeftClose,
                    gfx::RectF(x, y, kIconSize, kIconSize),
-                   dao::TextSecondary());
+                   dao::TextSecondary(browser_));
   }
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
@@ -205,6 +236,7 @@ class DaoToggleButton : public views::Button {
   }
 
  private:
+  raw_ptr<Browser> browser_;
   bool hovered_ = false;
 };
 
@@ -245,10 +277,15 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
                                views::MaximumFlexSizeRule::kUnbounded));
   header_row->AddChildView(std::move(spacer));
 
+  if (browser_->profile()->IsIncognitoProfile()) {
+    incognito_indicator_ = header_row->AddChildView(
+        std::make_unique<DaoIncognitoIndicatorView>(browser_));
+  }
+
   // Toggle sidebar button
   auto toggle_btn = std::make_unique<DaoToggleButton>(
-      base::BindRepeating(&DaoSidebarView::ToggleCollapsed,
-                          base::Unretained(this)));
+      browser_, base::BindRepeating(&DaoSidebarView::ToggleCollapsed,
+                                    base::Unretained(this)));
   toggle_button_ = header_row->AddChildView(std::move(toggle_btn));
 
   header_row_ = inner_container_->AddChildView(std::move(header_row));
@@ -268,7 +305,7 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
 void DaoSidebarView::ApplyTheme() {
   if (inner_container_) {
     inner_container_->SetBackground(
-        views::CreateSolidBackground(dao::SidebarBackground()));
+        views::CreateSolidBackground(dao::SidebarBackground(browser_)));
   }
 }
 
@@ -492,6 +529,17 @@ gfx::Rect DaoSidebarView::toggle_button_bounds_in_sidebar() const {
     return gfx::Rect();
   }
   gfx::Rect r = toggle_button_->bounds();
+  r.Offset(header_row_->bounds().origin().OffsetFromOrigin());
+  r.Offset(inner_container_->bounds().origin().OffsetFromOrigin());
+  return r;
+}
+
+gfx::Rect DaoSidebarView::incognito_indicator_bounds_in_sidebar() const {
+  if (!incognito_indicator_ || !incognito_indicator_->GetVisible() ||
+      !header_row_ || !inner_container_) {
+    return gfx::Rect();
+  }
+  gfx::Rect r = incognito_indicator_->bounds();
   r.Offset(header_row_->bounds().origin().OffsetFromOrigin());
   r.Offset(inner_container_->bounds().origin().OffsetFromOrigin());
   return r;
