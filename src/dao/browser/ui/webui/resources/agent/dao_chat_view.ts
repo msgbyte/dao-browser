@@ -22,7 +22,7 @@
 
 import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {addWebUIListener, BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, removeWebUIListener, soulChannel, type ContentPart, type ProactiveSuggestionData} from './agent_bridge.js';
+import {addWebUIListener, BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, removeWebUIListener, soulChannel, type ProactiveSuggestionData} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {addReusableElementContext, buildElementContextAttachment, consumeReusableElementContexts, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
 import {buildMemoryContextText, hasMemoryContextPayload, type NativeMemoryContext} from './dao_memory_context.js';
@@ -65,6 +65,19 @@ interface DaoMessageMetadata {
   editedAt?: string;
   autoCompactNotice?: boolean;
 }
+
+interface PiTextContent {
+  type: 'text';
+  text: string;
+}
+
+interface PiImageContent {
+  type: 'image';
+  mimeType: string;
+  data: string;
+}
+
+type PiUserContentPart = PiTextContent | PiImageContent;
 
 type DaoChatMessage = {
   role?: string;
@@ -1125,8 +1138,8 @@ export class DaoChatView extends CrLitElement {
     }
   }
 
-  private imageAttachmentContentParts_(attachments: any[]): ContentPart[] {
-    const parts: ContentPart[] = [];
+  private imageAttachmentContentParts_(attachments: any[]): PiImageContent[] {
+    const parts: PiImageContent[] = [];
     for (const attachment of attachments) {
       if (!attachment || attachment.type !== 'image' ||
           typeof attachment.content !== 'string' ||
@@ -1137,12 +1150,10 @@ export class DaoChatView extends CrLitElement {
               attachment.mimeType.startsWith('image/') ?
           attachment.mimeType :
           'image/jpeg';
-      const url = attachment.content.startsWith('data:') ?
-          attachment.content :
-          `data:${mimeType};base64,${attachment.content}`;
       parts.push({
-        type: 'image_url',
-        image_url: {url, detail: 'auto'},
+        type: 'image',
+        mimeType,
+        data: attachment.content,
       });
     }
     return parts;
@@ -1257,7 +1268,7 @@ export class DaoChatView extends CrLitElement {
                            pieces.join('\n\n')) :
                 expandedOrig;
             if (imageParts.length > 0) {
-              const content: ContentPart[] = [];
+              const content: PiUserContentPart[] = [];
               if (merged.trim()) {
                 content.push({type: 'text', text: merged});
               }

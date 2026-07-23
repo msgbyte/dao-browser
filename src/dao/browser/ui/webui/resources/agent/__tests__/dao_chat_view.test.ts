@@ -1569,7 +1569,7 @@ describe('dao-chat-view element picker', () => {
     }
   });
 
-  it('sends element screenshots to the LLM as image_url content parts',
+  it('sends element screenshots to the LLM as Pi image content parts',
      async () => {
        let viewRef: HTMLElement | null = null;
        let llmMessages: any[] = [];
@@ -1611,11 +1611,9 @@ describe('dao-chat-view element picker', () => {
          expect(llmMessages[0].content).toEqual([
            {type: 'text', text: 'what is this?'},
            {
-             type: 'image_url',
-             image_url: {
-               url: 'data:image/jpeg;base64,base64-jpeg',
-               detail: 'auto',
-             },
+             type: 'image',
+             mimeType: 'image/jpeg',
+             data: 'base64-jpeg',
            },
          ]);
        } finally {
