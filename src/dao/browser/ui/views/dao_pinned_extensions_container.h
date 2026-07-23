@@ -93,7 +93,7 @@ class DaoPinnedExtensionsContainer
 
  private:
   static constexpr int kMaxVisiblePinned = 5;
-  static constexpr int kPinnedButtonSize = 24;
+  static constexpr int kPinnedButtonSize = 28;
   static constexpr int kPinnedButtonRadius = 6;
 
   void Rebuild();

@@ -195,6 +195,9 @@ macOS-style floating control center panel bundling extensions and utilities.
 - **DaoControlCenterQrView** — QR code generation
 - **DaoControlCenterMoreMenu** — More menu, including cache and cookie cleanup scoped to the active page's current site with completion toast feedback
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container
+- **Extension action badges** — Pinned and Control Center extension icons render
+  the active tab's badge text and extension-defined badge colors using Chromium's
+  native badge compositor
 - **DaoNativeShareMac** (`dao_native_share_mac.{h,mm}`) — Native macOS share sheet
 - **DaoNativeUtilMac** (`dao_native_util_mac.{h,mm}`) — Misc native helpers (incl. cross-window-drag drop side)
 
@@ -325,7 +328,7 @@ string-localization/rebranding changes.
 ## 14. Testing
 
 - **browser_tests** (`dao_browser_browsertest.cc`) — Integration test framework
-- **Coverage**: sidebar presence / default width / collapse-expand, drag resize, address bar, command bar show/hide & idempotency, tab CRUD, SplitView, CornerOverlay, folder persistence, URL detection heuristics, PiP site rules / interception / top bar overlay
+- **Coverage**: sidebar presence / default width / collapse-expand, drag resize, address bar, command bar show/hide & idempotency, tab CRUD, SplitView, CornerOverlay, folder persistence, URL detection heuristics, extension icon and badge updates, PiP site rules / interception / top bar overlay
 - **Known disabled**: 5 `DaoAgentMemoryStore` tests `DISABLED_` due to FTS5 `RazeAndPoison` under direct `Init()` (see `MEMORY.md`)
 
 ## 15. Build and Packaging

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <atomic>
 #include <map>
 #include <string>
@@ -459,6 +460,57 @@ SkColor GetImagePixelColor(const gfx::ImageSkia& image, int x, int y) {
   return SkColorSetA(bitmap.getColor(x, y), SK_AlphaOPAQUE);
 }
 
+bool ImageContainsApproximateColor(const gfx::ImageSkia& image,
+                                   SkColor expected_color) {
+  const gfx::ImageSkiaRep& image_rep = image.GetRepresentation(1.0f);
+  const SkBitmap& bitmap = image_rep.GetBitmap();
+  if (bitmap.drawsNothing()) {
+    return false;
+  }
+
+  auto channel_matches = [](int actual, int expected) {
+    constexpr int kChannelTolerance = 48;
+    return actual >= expected - kChannelTolerance &&
+           actual <= expected + kChannelTolerance;
+  };
+  for (int y = 0; y < bitmap.height(); ++y) {
+    for (int x = 0; x < bitmap.width(); ++x) {
+      const SkColor actual_color = bitmap.getColor(x, y);
+      if (channel_matches(SkColorGetR(actual_color),
+                          SkColorGetR(expected_color)) &&
+          channel_matches(SkColorGetG(actual_color),
+                          SkColorGetG(expected_color)) &&
+          channel_matches(SkColorGetB(actual_color),
+                          SkColorGetB(expected_color))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+gfx::Rect GetExactColorBounds(const gfx::ImageSkia& image, SkColor color) {
+  const gfx::ImageSkiaRep& image_rep = image.GetRepresentation(1.0f);
+  const SkBitmap& bitmap = image_rep.GetBitmap();
+  int left = bitmap.width();
+  int top = bitmap.height();
+  int right = -1;
+  int bottom = -1;
+  for (int y = 0; y < bitmap.height(); ++y) {
+    for (int x = 0; x < bitmap.width(); ++x) {
+      if (bitmap.getColor(x, y) == color) {
+        left = std::min(left, x);
+        top = std::min(top, y);
+        right = std::max(right, x);
+        bottom = std::max(bottom, y);
+      }
+    }
+  }
+  return right < left ? gfx::Rect()
+                      : gfx::Rect(left, top, right - left + 1,
+                                  bottom - top + 1);
+}
+
 scoped_refptr<const extensions::Extension> LoadActionExtension(
     Profile* profile,
     extensions::TestExtensionDir* extension_dir) {
@@ -488,6 +540,29 @@ void SetActionIconForActiveTab(Browser* browser,
 
   const int tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
   action->SetIcon(tab_id, CreateSolidExtensionIcon(color));
+  extensions::ExtensionActionDispatcher::Get(profile)->NotifyChange(
+      action, web_contents, profile);
+}
+
+void SetActionBadgeForActiveTab(Browser* browser,
+                                const extensions::Extension& extension,
+                                const std::string& text,
+                                SkColor text_color,
+                                SkColor background_color) {
+  content::WebContents* web_contents =
+      browser->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, web_contents);
+
+  Profile* profile = browser->profile();
+  auto* action =
+      extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(
+          extension);
+  ASSERT_NE(nullptr, action);
+
+  const int tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+  action->SetBadgeText(tab_id, text);
+  action->SetBadgeTextColor(tab_id, text_color);
+  action->SetBadgeBackgroundColor(tab_id, background_color);
   extensions::ExtensionActionDispatcher::Get(profile)->NotifyChange(
       action, web_contents, profile);
 }
@@ -6221,6 +6296,11 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_EQ(SK_ColorRED,
             GetCenterPixelColor(
                 pinned_button->GetImage(views::Button::STATE_NORMAL)));
+  EXPECT_EQ(gfx::Size(16, 16),
+            GetExactColorBounds(
+                pinned_button->GetImage(views::Button::STATE_NORMAL),
+                SK_ColorRED)
+                .size());
 
   auto* popup = GetBrowserView(browser())->dao_control_center_popup();
   ASSERT_NE(nullptr, popup);
@@ -6235,6 +6315,92 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_EQ(SK_ColorRED,
             GetCenterPixelColor(
                 popup_button->GetImage(views::Button::STATE_NORMAL)));
+  EXPECT_EQ(gfx::Size(16, 16),
+            GetExactColorBounds(
+                popup_button->GetImage(views::Button::STATE_NORMAL),
+                SK_ColorRED)
+                .size());
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       ExtensionActionBadgeUpdatesPinnedAndPopupButtons) {
+  extensions::TestExtensionDir extension_dir;
+  scoped_refptr<const extensions::Extension> extension =
+      LoadActionExtension(browser()->profile(), &extension_dir);
+  ASSERT_TRUE(extension);
+
+  auto* model = ToolbarActionsModel::Get(browser()->profile());
+  ASSERT_NE(nullptr, model);
+  model->SetActionVisibility(extension->id(), true);
+  ASSERT_TRUE(model->IsActionPinned(extension->id()));
+
+  constexpr SkColor kInitialBadgeColor = SK_ColorYELLOW;
+  constexpr SkColor kUpdatedBadgeColor = SK_ColorRED;
+  constexpr SkColor kUpdatedBadgeTextColor = SK_ColorGREEN;
+  SetActionIconForActiveTab(browser(), *extension, SK_ColorBLUE);
+  SetActionBadgeForActiveTab(browser(), *extension, "1", SK_ColorBLACK,
+                             kInitialBadgeColor);
+
+  const std::u16string extension_name =
+      base::UTF8ToUTF16(extension->name());
+  auto* pinned_container =
+      FindDescendantViewOfClass<DaoPinnedExtensionsContainer>(
+          GetBrowserView(browser()));
+  ASSERT_NE(nullptr, pinned_container);
+  auto* pinned_button =
+      FindImageButtonWithAccessibleName(pinned_container, extension_name);
+  ASSERT_NE(nullptr, pinned_button);
+  EXPECT_EQ(gfx::Size(28, 28), pinned_button->GetPreferredSize());
+  EXPECT_EQ(gfx::Size(28, 28),
+            pinned_button->GetImage(views::Button::STATE_NORMAL).size());
+  EXPECT_TRUE(ImageContainsApproximateColor(
+      pinned_button->GetImage(views::Button::STATE_NORMAL),
+      kInitialBadgeColor));
+
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+
+  auto* extensions_section =
+      FindDescendantViewOfClass<DaoControlCenterExtensionsSection>(popup);
+  ASSERT_NE(nullptr, extensions_section);
+  auto* popup_button =
+      FindImageButtonWithAccessibleName(extensions_section, extension_name);
+  ASSERT_NE(nullptr, popup_button);
+  EXPECT_TRUE(ImageContainsApproximateColor(
+      popup_button->GetImage(views::Button::STATE_NORMAL),
+      kInitialBadgeColor));
+
+  SetActionBadgeForActiveTab(browser(), *extension, "999+",
+                             kUpdatedBadgeTextColor, kUpdatedBadgeColor);
+
+  EXPECT_EQ(pinned_button,
+            FindImageButtonWithAccessibleName(pinned_container,
+                                              extension_name));
+  EXPECT_TRUE(ImageContainsApproximateColor(
+      pinned_button->GetImage(views::Button::STATE_NORMAL),
+      kUpdatedBadgeColor));
+  EXPECT_TRUE(ImageContainsApproximateColor(
+      pinned_button->GetImage(views::Button::STATE_NORMAL),
+      kUpdatedBadgeTextColor));
+  EXPECT_FALSE(ImageContainsApproximateColor(
+      pinned_button->GetImage(views::Button::STATE_NORMAL),
+      kInitialBadgeColor));
+
+  EXPECT_EQ(popup_button,
+            FindImageButtonWithAccessibleName(extensions_section,
+                                              extension_name));
+  EXPECT_TRUE(ImageContainsApproximateColor(
+      popup_button->GetImage(views::Button::STATE_NORMAL),
+      kUpdatedBadgeColor));
+  EXPECT_TRUE(ImageContainsApproximateColor(
+      popup_button->GetImage(views::Button::STATE_NORMAL),
+      kUpdatedBadgeTextColor));
+  EXPECT_FALSE(ImageContainsApproximateColor(
+      popup_button->GetImage(views::Button::STATE_NORMAL),
+      kInitialBadgeColor));
 
   popup->Hide();
 }

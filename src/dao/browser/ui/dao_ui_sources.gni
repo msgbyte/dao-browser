@@ -96,6 +96,8 @@ dao_browser_ui_sources = [
   "//dao/browser/ui/views/dao_corner_overlay_view.h",
   "//dao/browser/ui/views/dao_cross_window_drag.cc",
   "//dao/browser/ui/views/dao_cross_window_drag.h",
+  "//dao/browser/ui/views/dao_extension_action_icon.cc",
+  "//dao/browser/ui/views/dao_extension_action_icon.h",
   "//dao/browser/ui/views/dao_load_progress_controller.cc",
   "//dao/browser/ui/views/dao_load_progress_controller.h",
   "//dao/browser/ui/views/dao_load_progress_view.cc",
