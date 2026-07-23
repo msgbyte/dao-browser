@@ -288,7 +288,7 @@ actively removing MV2 infrastructure, so these flags/enums may vanish entirely o
 | ✔ | Feature | Patch(es) / Source | Risk | Verify |
 |---|---------|--------------------|------|--------|
 | ☐ | Control Center shell + utility actions | `src/dao/browser/ui/views/dao_control_center_*`, `dao_native_share_mac.*`, `widget_delegate.h.patch` (QR dialog friend) | 🟢 | Popup opens anchored to sidebar/control button, outside click closes it, Share/QR/Lock/More actions render and execute; More menu clears only the current site's cache/cookies, then closes with toast feedback |
-| ☐ | Control Center extension grid + pinned extension strip | `dao_control_center_extensions_section.*`, `dao_pinned_extensions_container.*`, `dao_extension_action_icon.*` | 🟢 | Installed extensions appear with correct enabled/pinned state; pinned icons stay visible in browser chrome and open extension popups; active-tab badge text and colors update in both surfaces; multi-character badges retain rounded ends without shrinking the 16px base icon |
+| ☐ | Control Center extension grid + pinned extension strip | `dao_control_center_extensions_section.*`, `dao_pinned_extensions_container.*`, `dao_extension_action_icon.*` | 🟢 | Installed extensions appear with correct enabled/pinned state; pinned icons stay visible in browser chrome and open extension popups; active-tab badge text and colors update in both surfaces without shrinking the 16px base icon or changing the 24px pinned hover target |
 | ☐ | Welcome page (`dao://dao-welcome`) | `src/dao/.../welcome/` + first-run pref | — | Auto-opens first launch; reopenable via menu |
 | ☐ | Webstore "Add to Chrome" → "Add to Dao" | `src/dao/.../dao_webstore_branding_tab_helper.*` + `tab_helpers.cc.patch` | 🟢 | CWS pages show "Add to Dao" |
 

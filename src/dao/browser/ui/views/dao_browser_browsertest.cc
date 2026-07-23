@@ -6352,8 +6352,8 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   auto* pinned_button =
       FindImageButtonWithAccessibleName(pinned_container, extension_name);
   ASSERT_NE(nullptr, pinned_button);
-  EXPECT_EQ(gfx::Size(28, 28), pinned_button->GetPreferredSize());
-  EXPECT_EQ(gfx::Size(28, 28),
+  EXPECT_EQ(gfx::Size(24, 24), pinned_button->GetPreferredSize());
+  EXPECT_EQ(gfx::Size(24, 24),
             pinned_button->GetImage(views::Button::STATE_NORMAL).size());
   EXPECT_TRUE(ImageContainsApproximateColor(
       pinned_button->GetImage(views::Button::STATE_NORMAL),
