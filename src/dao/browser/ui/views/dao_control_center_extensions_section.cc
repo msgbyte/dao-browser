@@ -25,6 +25,7 @@
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_extension_action_icon.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
@@ -35,7 +36,6 @@
 #include "ui/base/models/image_model.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
@@ -292,15 +292,11 @@ gfx::ImageSkia DaoControlCenterExtensionsSection::GetIconForExtension(
         &extension, action, this);
   }
 
-  int tab_id = extensions::ExtensionAction::kDefaultTabId;
-  if (auto* tab_strip_model = browser_->tab_strip_model()) {
-    if (auto* web_contents = tab_strip_model->GetActiveWebContents()) {
-      tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
-    }
-  }
-
-  gfx::Image icon = icon_factory->GetIcon(tab_id);
-  return icon.AsImageSkia();
+  content::WebContents* web_contents =
+      browser_->tab_strip_model()->GetActiveWebContents();
+  return CreateExtensionActionIconWithBadge(
+      *icon_factory, *action, web_contents,
+      gfx::Size(kExtGridItemSize, kExtGridItemSize));
 }
 
 bool DaoControlCenterExtensionsSection::UpdateButtonIcon(
