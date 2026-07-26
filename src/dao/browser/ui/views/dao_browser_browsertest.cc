@@ -9305,14 +9305,19 @@ IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
   EXPECT_EQ(u"Enter", ok_shortcut->keycap);
   EXPECT_FALSE(dialog->GetButtonShortcut(
       ui::mojom::DialogButton::kCancel).has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
+                       AlertMessageUsesDialogSurface) {
+  auto* dialog = JavaScriptTabModalDialogViewViews::CreateDialogForTesting(
+      browser(), u"example.com says", content::JAVASCRIPT_DIALOG_TYPE_ALERT,
+      u"Alert message", std::u16string());
+  ScopedWidgetCloser close_widget(dialog->GetWidget());
+
   auto* message_scroll_view =
       FindDescendantViewOfClass<views::ScrollView>(dialog);
   ASSERT_NE(nullptr, message_scroll_view);
-  const auto message_background = message_scroll_view->GetBackgroundColor();
-  ASSERT_TRUE(message_background.has_value());
-  EXPECT_EQ(dao::IsDarkMode() ? SkColorSetRGB(47, 53, 60) : SK_ColorWHITE,
-            message_background->ResolveToSkColor(
-                message_scroll_view->GetColorProvider()));
+  EXPECT_FALSE(message_scroll_view->GetBackgroundColor().has_value());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
