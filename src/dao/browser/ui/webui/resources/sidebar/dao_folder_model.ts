@@ -456,6 +456,28 @@ export class FolderModel {
   }
 
   /**
+   * Return the current runtime tabs belonging to a folder in stored order.
+   */
+  getMatchedTabs(folderId: string, tabs: TabData[]): TabData[] {
+    const target = this.findFolder_(folderId);
+    if (!target) return [];
+
+    const {consume} = createTabRefMatchPool(this.items_, tabs);
+    const matched: TabData[] = [];
+    for (const item of this.items_) {
+      if (item.type === 'tab') {
+        consume(item);
+        continue;
+      }
+      for (const child of item.children) {
+        const tab = consume(child);
+        if (item.id === target.id && tab) matched.push(tab);
+      }
+    }
+    return matched;
+  }
+
+  /**
    * Return all folders in the model.
    */
   getFolders(): FolderData[] {

@@ -41,6 +41,7 @@ class DownloadItem;
 
 namespace views {
 class MenuRunner;
+class Widget;
 }  // namespace views
 
 namespace tabs {
@@ -137,6 +138,9 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void ClosePinnedItemTabForTesting(const std::string& id);
   bool LoadPinnedItemsForTesting(const std::string& json);
   void SetSessionRestoreCompletedForTesting(bool completed);
+  int CloseTabsByIdForTesting(const base::ListValue& tab_ids);
+  views::Widget* ShowClearStaleTabsDialogForTesting(
+      const std::string& folder_id);
   int CloseDuplicateTabsForTesting();
 
  private:
@@ -197,6 +201,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleGetInitialState(const base::ListValue& args);
   void HandleActivateTab(const base::ListValue& args);
   void HandleCloseTab(const base::ListValue& args);
+  void HandleCloseTabsById(const base::ListValue& args);
   void HandleToggleMute(const base::ListValue& args);
   void HandleMoveTab(const base::ListValue& args);
   void HandleShowCommandBarForNewTab(const base::ListValue& args);
@@ -222,6 +227,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleMovePinnedItem(const base::ListValue& args);
   void HandleShowPinnedItemContextMenu(const base::ListValue& args);
   void HandleShowFolderContextMenu(const base::ListValue& args);
+  void HandleShowClearStaleTabsDialog(const base::ListValue& args);
   void HandleShowTabTooltip(const base::ListValue& args);
   void HandleHideTabTooltip(const base::ListValue& args);
 
@@ -240,6 +246,9 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   // Context menu helpers.
   int FindVisualPosition(int tab_index) const;
   void CloseTabsInVisualRange(int from, int to);
+  int CloseTabsById(const base::ListValue& tab_ids);
+  views::Widget* ShowClearStaleTabsDialog(const std::string& folder_id);
+  void OnClearStaleTabsDialogAccepted(std::string folder_id);
   int CountDuplicateTabsToClose() const;
   int CloseDuplicateTabs();
   void ClearContextMenuState();
@@ -267,6 +276,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kPinnedCopyLink,
     kFolderRename,
     kFolderDelete,
+    kFolderClearStaleTabs,
   };
 
   raw_ptr<Browser> browser_ = nullptr;

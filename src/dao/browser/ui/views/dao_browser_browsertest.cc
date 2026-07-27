@@ -1808,6 +1808,79 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   EXPECT_NE(TabStripModel::kNoTab, FindTabIndexByUrl(browser(), unique_url));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, CloseTabsByStableIdentity) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL first_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title2.html");
+  const GURL third_url = embedded_test_server()->GetURL("/title3.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  content::WebContents* first =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, first);
+
+  chrome::AddTabAt(browser(), second_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  content::WebContents* second =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, second);
+
+  chrome::AddTabAt(browser(), third_url, 2, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  content::WebContents* third =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, third);
+
+  const std::string first_id = GetSidebarTabId(first);
+  const std::string second_id = GetSidebarTabId(second);
+  const std::string third_id = GetSidebarTabId(third);
+
+  DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+
+  base::ListValue ids;
+  ids.Append(first_id);
+  ids.Append("missing-tab-id");
+  ids.Append(third_id);
+  EXPECT_EQ(2, handler.CloseTabsByIdForTesting(ids));
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  EXPECT_EQ(second_id,
+            GetSidebarTabId(
+                browser()->tab_strip_model()->GetWebContentsAt(0)));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ClearStaleTabsUsesDaoNativeDialog) {
+  DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+
+  views::Widget* widget =
+      handler.ShowClearStaleTabsDialogForTesting("stale-folder");
+  ScopedWidgetCloser close_widget(widget);
+  ASSERT_NE(nullptr, widget);
+  EXPECT_TRUE(widget->IsVisible());
+
+  views::DialogDelegate* dialog =
+      widget->widget_delegate()->AsDialogDelegate();
+  ASSERT_NE(nullptr, dialog);
+  EXPECT_TRUE(dialog->use_dao_system_dialog_style());
+  EXPECT_EQ(l10n_util::GetStringUTF16(
+                IDS_DAO_CLEAR_STALE_TABS_DIALOG_TITLE),
+            dialog->GetWindowTitle());
+  EXPECT_EQ(l10n_util::GetStringUTF16(
+                IDS_DAO_CLEAR_STALE_TABS_DIALOG_CONFIRM),
+            dialog->GetDialogButtonLabel(ui::mojom::DialogButton::kOk));
+  EXPECT_EQ(l10n_util::GetStringUTF16(
+                IDS_DAO_CLEAR_STALE_TABS_DIALOG_CANCEL),
+            dialog->GetDialogButtonLabel(ui::mojom::DialogButton::kCancel));
+  EXPECT_TRUE(HasDescendantLabelText(
+      dialog->GetContentsView(),
+      l10n_util::GetStringUTF16(
+          IDS_DAO_CLEAR_STALE_TABS_DIALOG_DESCRIPTION)));
+}
+
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        PinNormalTabAddsPinnedItemAndExcludesFromUnpinnedTabs) {
   ASSERT_TRUE(embedded_test_server()->Start());

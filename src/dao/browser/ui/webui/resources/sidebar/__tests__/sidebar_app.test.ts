@@ -19,10 +19,19 @@ import type {
 
 const ARCHIVED_TOAST_TEXT = 'Archived tabs inactive for the past 24 hours';
 const NO_NEW_TABS_TOAST_TEXT = 'No new tabs were archived';
+const {loadTimeDataGetString} = vi.hoisted(() => ({
+  loadTimeDataGetString: vi.fn(),
+}));
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
 });
+
+vi.mock('//resources/js/load_time_data.js', () => ({
+  loadTimeData: {
+    getString: loadTimeDataGetString,
+  },
+}));
 
 vi.mock('../dao_media_control.js', () => {
   if (!customElements.get('dao-media-control')) {
@@ -103,6 +112,10 @@ function fireFolderContextMenuCommand(folderId: string, command: string) {
   }).cr.webUIListenerCallback('folderContextMenuCommand', folderId, command);
 }
 
+function fireClearStaleTabsConfirmed(folderId: string) {
+  fireFolderContextMenuCommand(folderId, 'clearStaleTabsConfirmed');
+}
+
 function didSendNative(send: ReturnType<typeof vi.fn>, method: string): boolean {
   return send.mock.calls.some(call => call[0] === method);
 }
@@ -112,11 +125,12 @@ function installLoadTimeData() {
     daoSidebarStaleTabsArchivedToast: ARCHIVED_TOAST_TEXT,
     daoSidebarNoNewStaleTabsArchivedToast: NO_NEW_TABS_TOAST_TEXT,
   };
-  const getString = vi.fn((id: string) => strings[id] ?? id);
+  loadTimeDataGetString.mockImplementation(
+      (id: string) => strings[id] ?? id);
   (globalThis as unknown as {
     loadTimeData: {getString: (id: string) => string};
-  }).loadTimeData = {getString};
-  return getString;
+  }).loadTimeData = {getString: loadTimeDataGetString};
+  return loadTimeDataGetString;
 }
 
 async function loadApp() {
@@ -124,6 +138,10 @@ async function loadApp() {
   (globalThis as unknown as {chrome: {send: typeof send}}).chrome = {send};
   installLoadTimeData();
   await import('../dao_sidebar_app.js');
+  const appClass = customElements.get('dao-sidebar-app') as typeof HTMLElement & {
+    invokeLifecycleCallbacksForTesting?: boolean;
+  };
+  appClass.invokeLifecycleCallbacksForTesting = true;
   const el = document.createElement('dao-sidebar-app') as HTMLElement & {
     pinnedItems_: PinnedItemData[];
     autoScrollTabId_: string;
@@ -599,6 +617,11 @@ describe('dao-sidebar-app', () => {
         'IDS_DAO_FOLDER_CONTEXT_DELETE',
         '1809939268435598390',
       ],
+      [
+        'kFolderClearStaleTabs',
+        'IDS_DAO_FOLDER_CONTEXT_CLEAR_STALE_TABS',
+        '6007071648771993435',
+      ],
     ];
 
     for (const [commandId, messageId, translationId] of menuLabels) {
@@ -608,6 +631,25 @@ describe('dao-sidebar-app', () => {
           `${commandId}[\\s\\S]*?l10n_util::GetStringUTF16\\(\\s*` +
           `${messageId}\\s*\\)`));
     }
+
+    const dialogStrings = [
+      ['IDS_DAO_CLEAR_STALE_TABS_DIALOG_TITLE', '35564291038608079'],
+      ['IDS_DAO_CLEAR_STALE_TABS_DIALOG_DESCRIPTION', '4029402916766829056'],
+      ['IDS_DAO_CLEAR_STALE_TABS_DIALOG_CANCEL', '7658239707568436148'],
+      ['IDS_DAO_CLEAR_STALE_TABS_DIALOG_CONFIRM', '6643016212128521049'],
+    ];
+    for (const [messageId, translationId] of dialogStrings) {
+      expect(grdText).toContain(`<message name="${messageId}"`);
+      expect(zhCnText).toContain(`<translation id="${translationId}">`);
+      expect(handlerText).toContain(messageId);
+    }
+    expect(handlerText).toContain('"showClearStaleTabsDialog"');
+    expect(handlerText).toContain('ConfigureDaoSystemDialog');
+    expect(handlerText).toContain('CreateBrowserModalDialogViews');
+
+    expect(handlerText).toMatch(
+        /is_stale_folder[\s\S]*?kFolderClearStaleTabs[\s\S]*?IDS_DAO_FOLDER_CONTEXT_CLEAR_STALE_TABS/);
+    expect(handlerText).toContain('"clearStaleTabs"');
   });
 
   it('starts folder rename when native folder menu selects rename',
@@ -659,6 +701,226 @@ describe('dao-sidebar-app', () => {
     expect(send).toHaveBeenCalledWith(
         'saveFolders', [expect.not.stringContaining('"name": "Work"')]);
   });
+
+  it('keeps the stale folder when clear stale tabs is cancelled', async () => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    installFolderModel(app, JSON.stringify({
+      version: 1,
+      items: [{
+        type: 'folder',
+        id: 'stale-folder',
+        name: 'stale',
+        collapsed: false,
+        children: [{
+          type: 'tab',
+          tabId: 'stale-a',
+          url: 'https://stale-a.example/',
+          title: 'Stale A',
+        }],
+      }],
+    }));
+    app.unpinnedTabs_ = [tab({
+      tabId: 'stale-a',
+      url: 'https://stale-a.example/',
+      title: 'Stale A',
+    })];
+
+    fireFolderContextMenuCommand('stale-folder', 'clearStaleTabs');
+
+    expect(send).toHaveBeenCalledWith(
+        'showClearStaleTabsDialog', ['stale-folder']);
+    expect(didSendNative(send, 'closeTabsById')).toBe(false);
+    expect(didSendNative(send, 'saveFolders')).toBe(false);
+    expect(app.folderModel_.findFolderByName('stale')).not.toBeNull();
+  });
+
+  it('persists before closing every current tab on confirm',
+      async () => {
+        const {el, send} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app, JSON.stringify({
+          version: 1,
+          items: [{
+            type: 'folder',
+            id: 'stale-folder',
+            name: 'stale',
+            collapsed: false,
+            children: [
+              {
+                type: 'tab',
+                tabId: 'stale-a',
+                url: 'https://stale-a.example/',
+                title: 'Stale A',
+              },
+              {
+                type: 'tab',
+                tabId: 'stale-b',
+                url: 'https://stale-b.example/',
+                title: 'Stale B',
+              },
+            ],
+          }],
+        }));
+        app.unpinnedTabs_ = [
+          tab({
+            tabId: 'stale-a',
+            url: 'https://stale-a.example/',
+            title: 'Stale A',
+          }),
+          tab({
+            tabId: 'stale-b',
+            url: 'https://stale-b.example/',
+            title: 'Stale B',
+          }),
+        ];
+
+        fireFolderContextMenuCommand('stale-folder', 'clearStaleTabs');
+        fireClearStaleTabsConfirmed('stale-folder');
+
+        const persistenceAndCloseCalls = send.mock.calls.filter(
+            call => call[0] === 'saveFolders' ||
+                call[0] === 'closeTabsById');
+        expect(persistenceAndCloseCalls).toEqual([
+          [
+            'saveFolders',
+            [expect.not.stringContaining('"name": "stale"')],
+          ],
+          ['closeTabsById', [['stale-a', 'stale-b']]],
+        ]);
+        expect(send.mock.calls.filter(call => call[0] === 'saveFolders'))
+            .toHaveLength(1);
+        expect(app.folderModel_.findFolderByName('stale')).toBeNull();
+      });
+
+  it('persists before closing the last remaining stale tab', async () => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    installFolderModel(app, JSON.stringify({
+      version: 1,
+      items: [{
+        type: 'folder',
+        id: 'stale-folder',
+        name: 'stale',
+        collapsed: false,
+        children: [{
+          type: 'tab',
+          tabId: 'last-tab',
+          url: 'https://last.example/',
+          title: 'Last',
+        }],
+      }],
+    }));
+    app.unpinnedTabs_ = [tab({
+      tabId: 'last-tab',
+      url: 'https://last.example/',
+      title: 'Last',
+    })];
+
+    fireFolderContextMenuCommand('stale-folder', 'clearStaleTabs');
+    fireClearStaleTabsConfirmed('stale-folder');
+
+    expect(send.mock.calls.filter(
+        call => call[0] === 'saveFolders' ||
+            call[0] === 'closeTabsById')).toEqual([
+      [
+        'saveFolders',
+        [expect.not.stringContaining('"name": "stale"')],
+      ],
+      ['closeTabsById', [['last-tab']]],
+    ]);
+    expect(send.mock.calls.filter(call => call[0] === 'saveFolders'))
+        .toHaveLength(1);
+    expect(app.folderModel_.findFolderByName('stale')).toBeNull();
+  });
+
+  it('deletes an empty stale folder without closing tabs', async () => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    installFolderModel(app, JSON.stringify({
+      version: 1,
+      items: [{
+        type: 'folder',
+        id: 'stale-folder',
+        name: 'stale',
+        collapsed: false,
+        children: [],
+      }],
+    }));
+
+    fireFolderContextMenuCommand('stale-folder', 'clearStaleTabs');
+    fireClearStaleTabsConfirmed('stale-folder');
+
+    expect(didSendNative(send, 'closeTabsById')).toBe(false);
+    expect(app.folderModel_.findFolderByName('stale')).toBeNull();
+    expect(send.mock.calls.filter(call => call[0] === 'saveFolders')).toEqual([
+      [
+        'saveFolders',
+        [expect.not.stringContaining('"name": "stale"')],
+      ],
+    ]);
+  });
+
+  it('does nothing when clear stale tabs targets a missing folder', async () => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    installFolderModel(app);
+
+    fireFolderContextMenuCommand('missing-folder', 'clearStaleTabs');
+
+    expect(didSendNative(send, 'showClearStaleTabsDialog')).toBe(false);
+    expect(didSendNative(send, 'closeTabsById')).toBe(false);
+    expect(didSendNative(send, 'saveFolders')).toBe(false);
+    expect(app.folderModel_.findFolderByName('stale')).toBeNull();
+  });
+
+  it('does nothing when the stale folder disappears during confirmation',
+      async () => {
+        const {el, send} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app, JSON.stringify({
+          version: 1,
+          items: [{
+            type: 'folder',
+            id: 'stale-folder',
+            name: 'stale',
+            collapsed: false,
+            children: [],
+          }],
+        }));
+
+        fireFolderContextMenuCommand('stale-folder', 'clearStaleTabs');
+        app.folderModel_.deleteFolder('stale-folder');
+        fireClearStaleTabsConfirmed('stale-folder');
+
+        expect(didSendNative(send, 'closeTabsById')).toBe(false);
+        expect(didSendNative(send, 'saveFolders')).toBe(false);
+        expect(app.folderModel_.findFolderByName('stale')).toBeNull();
+      });
+
+  it('does nothing when the stale folder is renamed during confirmation',
+      async () => {
+        const {el, send} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app, JSON.stringify({
+          version: 1,
+          items: [{
+            type: 'folder',
+            id: 'stale-folder',
+            name: 'stale',
+            collapsed: false,
+            children: [],
+          }],
+        }));
+
+        fireFolderContextMenuCommand('stale-folder', 'clearStaleTabs');
+        app.folderModel_.renameFolder('stale-folder', 'Stale');
+        fireClearStaleTabsConfirmed('stale-folder');
+
+        expect(didSendNative(send, 'closeTabsById')).toBe(false);
+        expect(didSendNative(send, 'saveFolders')).toBe(false);
+        expect(app.folderModel_.findFolderByName('Stale')).not.toBeNull();
+      });
 
   it('reuses existing stale folder and moves stale tabs from other folders',
       async () => {

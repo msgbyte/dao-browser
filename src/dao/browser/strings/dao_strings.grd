@@ -292,6 +292,21 @@
       <message name="IDS_DAO_FOLDER_CONTEXT_DELETE" desc="Context menu item that deletes a folder in the Dao sidebar. Tabs inside the folder remain open.">
         Delete Folder
       </message>
+      <message name="IDS_DAO_FOLDER_CONTEXT_CLEAR_STALE_TABS" desc="Context menu item that starts clearing tabs from the stale folder in the Dao sidebar.">
+        Clear Stale Tabs
+      </message>
+      <message name="IDS_DAO_CLEAR_STALE_TABS_DIALOG_TITLE" desc="Title of the confirmation dialog shown before clearing every tab from the stale folder.">
+        Clear stale tabs?
+      </message>
+      <message name="IDS_DAO_CLEAR_STALE_TABS_DIALOG_DESCRIPTION" desc="Description in the confirmation dialog explaining that clearing stale tabs closes the tabs and deletes the stale folder.">
+        This will close all tabs in the stale folder and delete the folder.
+      </message>
+      <message name="IDS_DAO_CLEAR_STALE_TABS_DIALOG_CANCEL" desc="Label on the button that cancels clearing stale tabs.">
+        Cancel
+      </message>
+      <message name="IDS_DAO_CLEAR_STALE_TABS_DIALOG_CONFIRM" desc="Label on the destructive confirmation button that clears stale tabs.">
+        Clear
+      </message>
 
       <!-- Command bar -->
       <message name="IDS_DAO_COMMAND_BAR_PLACEHOLDER" desc="Placeholder text shown in the Spotlight-style command bar (Cmd+L) prompting the user to type either a URL or a search query.">

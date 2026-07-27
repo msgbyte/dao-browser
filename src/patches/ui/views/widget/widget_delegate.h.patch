@@ -2,21 +2,23 @@ diff --git a/ui/views/widget/widget_delegate.h b/ui/views/widget/widget_delegate
 index cb2d7b2f5c..b415451a48 100644
 --- a/ui/views/widget/widget_delegate.h
 +++ b/ui/views/widget/widget_delegate.h
-@@ -52,6 +52,9 @@ class SigninViewControllerDelegateViews;
+@@ -52,6 +52,10 @@ class SigninViewControllerDelegateViews;
  class SimpleWebViewDialog;
  class TabModalConfirmDialogViews;
  class TestBaseWidgetDelegate;
 +namespace dao {
++class ClearStaleTabsDialog;
 +class DaoQrCodeResultDialogView;
 +}  // namespace dao
  class UpdateRecommendedMessageBox;
  class ViewTracker;
  class WebDialogBrowserTest;
-@@ -392,6 +395,8 @@ class VIEWS_EXPORT WidgetDelegate {
+@@ -392,6 +396,9 @@ class VIEWS_EXPORT WidgetDelegate {
      friend class ::SearchEngineChoiceDialog;
      friend class ::TabModalConfirmDialogViews;
      friend class ::TestBaseWidgetDelegate;
 +    // Dao Browser additions.
++    friend class ::dao::ClearStaleTabsDialog;
 +    friend class ::dao::DaoQrCodeResultDialogView;
      friend class ::UpdateRecommendedMessageBox;
      friend class ::WebDialogBrowserTest;

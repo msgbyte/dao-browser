@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 
 import {
   SIDEBAR_POINTER_EXITED_EVENT,
@@ -11,6 +12,7 @@ import {
   removeListener,
   loadFolders,
   saveFolders,
+  saveFoldersImmediately,
   parseTabDragData,
 } from './sidebar_bridge.js';
 import type {
@@ -35,13 +37,8 @@ const NO_NEW_STALE_TABS_ARCHIVED_TOAST_KEY =
     'daoSidebarNoNewStaleTabsArchivedToast';
 const TOAST_VISIBLE_MS = 3000;
 
-interface LoadTimeDataLike {
-  getString(id: string): string;
-}
-
 function getLocalizedString(id: string): string {
-  return (globalThis as unknown as {loadTimeData: LoadTimeDataLike})
-      .loadTimeData.getString(id);
+  return loadTimeData.getString(id);
 }
 
 export class DaoSidebarApp extends CrLitElement {
@@ -651,6 +648,37 @@ export class DaoSidebarApp extends CrLitElement {
 
     if (command === 'delete') {
       this.handleFolderAction_({action: 'delete', folderId});
+      return;
+    }
+
+    if (command === 'clearStaleTabs') {
+      const folder = this.folderModel_.getFolders().find(
+          item => item.id === folderId);
+      if (folder?.name !== STALE_TABS_FOLDER_NAME) {
+        return;
+      }
+      sendNative('showClearStaleTabsDialog', folderId);
+      return;
+    }
+
+    if (command === 'clearStaleTabsConfirmed') {
+      this.clearStaleTabs_(folderId);
+    }
+  }
+
+  private clearStaleTabs_(folderId: string) {
+    const folder = this.folderModel_.getFolders().find(
+        item => item.id === folderId);
+    if (!folder || folder.name !== STALE_TABS_FOLDER_NAME) {
+      return;
+    }
+
+    const tabs = this.folderModel_.getMatchedTabs(folderId, this.unpinnedTabs_);
+    this.folderModel_.deleteFolder(folderId);
+    this.folderModelVersion_++;
+    saveFoldersImmediately(this.folderModel_.toJson());
+    if (tabs.length > 0) {
+      sendNative('closeTabsById', tabs.map(tab => tab.tabId));
     }
   }
 

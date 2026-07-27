@@ -276,11 +276,22 @@ export function loadFolders(): Promise<string> {
  */
 let saveFoldersTimer_: ReturnType<typeof setTimeout> | null = null;
 export function saveFolders(json: string): void {
-  if (saveFoldersTimer_) {
+  if (saveFoldersTimer_ !== null) {
     clearTimeout(saveFoldersTimer_);
   }
   saveFoldersTimer_ = setTimeout(() => {
     saveFoldersTimer_ = null;
     sendNative('saveFolders', json);
   }, 300);
+}
+
+/**
+ * Cancel any pending debounced folder save and persist this JSON now.
+ */
+export function saveFoldersImmediately(json: string): void {
+  if (saveFoldersTimer_ !== null) {
+    clearTimeout(saveFoldersTimer_);
+    saveFoldersTimer_ = null;
+  }
+  sendNative('saveFolders', json);
 }

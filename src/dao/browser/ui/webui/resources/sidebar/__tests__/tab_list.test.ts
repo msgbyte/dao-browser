@@ -624,22 +624,98 @@ describe('dao-tab-list', () => {
             'showTabContextMenu', [1, 20, 30, [0, 1], [0, 1, 2]]);
       });
 
-  it('forwards folder context menu requests to native handler', async () => {
-    const {el, send} = createList();
+  it('sends matched tab IDs for the exact stale folder menu', async () => {
+    const staleTab = tab({
+      tabId: 'stale-tab',
+      index: 0,
+      title: 'Stale',
+      url: 'https://stale.example/',
+    });
+    const otherTab = tab({
+      tabId: 'other-tab',
+      index: 1,
+      title: 'Other',
+      url: 'https://other.example/',
+    });
+    const model = createFolderModel([
+      {
+        type: 'folder',
+        id: 'stale-id',
+        name: 'stale',
+        collapsed: false,
+        children: [{
+          type: 'tab',
+          tabId: staleTab.tabId,
+          url: staleTab.url,
+          title: staleTab.title,
+        }],
+      },
+      {
+        type: 'folder',
+        id: 'other-id',
+        name: 'Other',
+        collapsed: false,
+        children: [{
+          type: 'tab',
+          tabId: otherTab.tabId,
+          url: otherTab.url,
+          title: otherTab.title,
+        }],
+      },
+    ]);
+    const {el, send} = createModelList(model, [otherTab, staleTab]);
     await el.updateComplete;
 
     el.dispatchEvent(new CustomEvent('folder-context-menu', {
       bubbles: true,
       composed: true,
       detail: {
-        folderId: 'folder-1',
+        folderId: 'stale-id',
         screenX: 20,
         screenY: 30,
       },
     }));
 
     expect(send).toHaveBeenCalledWith(
-        'showFolderContextMenu', ['folder-1', 20, 30]);
+        'showFolderContextMenu',
+        ['stale-id', true, ['stale-tab'], 20, 30]);
+  });
+
+  it('does not mark a differently cased Stale folder as stale', async () => {
+    const staleTab = tab({
+      tabId: 'stale-tab',
+      index: 0,
+      title: 'Stale',
+      url: 'https://stale.example/',
+    });
+    const model = createFolderModel([{
+      type: 'folder',
+      id: 'stale-id',
+      name: 'Stale',
+      collapsed: false,
+      children: [{
+        type: 'tab',
+        tabId: staleTab.tabId,
+        url: staleTab.url,
+        title: staleTab.title,
+      }],
+    }]);
+    const {el, send} = createModelList(model, [staleTab]);
+    await el.updateComplete;
+
+    el.dispatchEvent(new CustomEvent('folder-context-menu', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        folderId: 'stale-id',
+        screenX: 20,
+        screenY: 30,
+      },
+    }));
+
+    expect(send).toHaveBeenCalledWith(
+        'showFolderContextMenu',
+        ['stale-id', false, ['stale-tab'], 20, 30]);
   });
 
   it('activates native tab drag when leaving at the viewport edge', async () => {
