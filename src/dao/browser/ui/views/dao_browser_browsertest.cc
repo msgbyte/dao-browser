@@ -14,6 +14,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
@@ -6322,6 +6323,102 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                 .size());
 
   popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       PinnedExtensionHoverContrastsWithDarkPage) {
+  ui::NativeTheme* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  ASSERT_NE(nullptr, theme);
+  const auto original_color_scheme = theme->preferred_color_scheme();
+  base::ScopedClosureRunner restore_color_scheme(base::BindOnce(
+      [](ui::NativeTheme* theme,
+         ui::NativeTheme::PreferredColorScheme color_scheme) {
+        theme->set_preferred_color_scheme(color_scheme);
+        theme->NotifyOnNativeThemeUpdated();
+      },
+      theme, original_color_scheme));
+  theme->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  theme->NotifyOnNativeThemeUpdated();
+
+  const GURL dark_page(
+      "data:text/html,<style>html,body{margin:0;min-height:100%;"
+      "background-color:rgb(12,34,56);}</style><body>dark</body>");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), dark_page));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, web_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(web_contents));
+
+  auto* address_bar = GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  address_bar->OnBackgroundColorChanged();
+
+  extensions::TestExtensionDir extension_dir;
+  scoped_refptr<const extensions::Extension> extension =
+      LoadActionExtension(browser()->profile(), &extension_dir);
+  ASSERT_TRUE(extension);
+
+  auto* model = ToolbarActionsModel::Get(browser()->profile());
+  ASSERT_NE(nullptr, model);
+  model->SetActionVisibility(extension->id(), true);
+
+  auto* pinned_container =
+      FindDescendantViewOfClass<DaoPinnedExtensionsContainer>(
+          GetBrowserView(browser()));
+  ASSERT_NE(nullptr, pinned_container);
+  auto* pinned_button = FindImageButtonWithAccessibleName(
+      pinned_container, base::UTF8ToUTF16(extension->name()));
+  ASSERT_NE(nullptr, pinned_button);
+
+  SimulateMouseEnter(pinned_button);
+
+  ASSERT_NE(nullptr, pinned_button->background());
+  EXPECT_EQ(SkColorSetARGB(20, 255, 255, 255),
+            pinned_button->background()->color());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       UnpinnedExtensionChangesPreservePinnedHover) {
+  extensions::TestExtensionDir pinned_extension_dir;
+  scoped_refptr<const extensions::Extension> pinned_extension =
+      LoadActionExtension(browser()->profile(), &pinned_extension_dir);
+  ASSERT_TRUE(pinned_extension);
+
+  auto* model = ToolbarActionsModel::Get(browser()->profile());
+  ASSERT_NE(nullptr, model);
+  model->SetActionVisibility(pinned_extension->id(), true);
+
+  auto* pinned_container =
+      FindDescendantViewOfClass<DaoPinnedExtensionsContainer>(
+          GetBrowserView(browser()));
+  ASSERT_NE(nullptr, pinned_container);
+  auto* pinned_button = FindImageButtonWithAccessibleName(
+      pinned_container, base::UTF8ToUTF16(pinned_extension->name()));
+  ASSERT_NE(nullptr, pinned_button);
+  SimulateMouseEnter(pinned_button);
+  ASSERT_NE(nullptr, pinned_button->background());
+  const auto hover_color = pinned_button->background()->color();
+
+  extensions::TestExtensionDir unpinned_extension_dir;
+  scoped_refptr<const extensions::Extension> unpinned_extension =
+      LoadActionExtension(browser()->profile(), &unpinned_extension_dir);
+  ASSERT_TRUE(unpinned_extension);
+  ASSERT_FALSE(model->IsActionPinned(unpinned_extension->id()));
+
+  pinned_button = FindImageButtonWithAccessibleName(
+      pinned_container, base::UTF8ToUTF16(pinned_extension->name()));
+  ASSERT_NE(nullptr, pinned_button);
+  ASSERT_NE(nullptr, pinned_button->background());
+  EXPECT_EQ(hover_color, pinned_button->background()->color());
+
+  SetActionIconForActiveTab(browser(), *unpinned_extension, SK_ColorRED);
+
+  pinned_button = FindImageButtonWithAccessibleName(
+      pinned_container, base::UTF8ToUTF16(pinned_extension->name()));
+  ASSERT_NE(nullptr, pinned_button);
+  ASSERT_NE(nullptr, pinned_button->background());
+  EXPECT_EQ(hover_color, pinned_button->background()->color());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,

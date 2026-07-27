@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "extensions/browser/extension_action_icon_factory.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/view.h"
@@ -66,6 +67,9 @@ class DaoPinnedExtensionsContainer
   // Returns the button view for a given extension_id, or nullptr.
   views::View* GetButtonForExtension(const std::string& extension_id) const;
 
+  // Updates the hover highlight to contrast with the address bar background.
+  void SetHoverBackgroundColor(SkColor color);
+
   // ToolbarActionsModel::Observer:
   void OnToolbarActionAdded(const ToolbarActionsModel::ActionId& id) override;
   void OnToolbarActionRemoved(const ToolbarActionsModel::ActionId& id) override;
@@ -108,6 +112,8 @@ class DaoPinnedExtensionsContainer
   raw_ptr<Browser> browser_;
   raw_ptr<TabStripModel> tab_strip_model_ = nullptr;
   raw_ptr<ToolbarActionsModel> model_ = nullptr;
+  SkColor hover_background_color_;
+  std::vector<ToolbarActionsModel::ActionId> pinned_action_ids_;
 
   // Maps button pointers to extension IDs for context menu lookup.
   std::map<views::View*, std::string> button_to_extension_id_;
