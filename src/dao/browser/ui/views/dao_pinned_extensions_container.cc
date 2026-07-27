@@ -46,13 +46,22 @@ constexpr int kBtnRadius = 6;
 // extension icons in the address bar.
 class PinnedExtIconButton : public views::ImageButton {
  public:
-  explicit PinnedExtIconButton(PressedCallback callback)
-      : ImageButton(std::move(callback)) {}
+  PinnedExtIconButton(PressedCallback callback, SkColor hover_background_color)
+      : ImageButton(std::move(callback)),
+        hover_background_color_(hover_background_color) {}
+
+  void SetHoverBackgroundColor(SkColor color) {
+    hover_background_color_ = color;
+    if (background()) {
+      SetBackground(views::CreateRoundedRectBackground(color, kBtnRadius));
+      SchedulePaint();
+    }
+  }
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
     ImageButton::OnMouseEntered(event);
-    SetBackground(
-        views::CreateRoundedRectBackground(ControlCenterHoverBg(), kBtnRadius));
+    SetBackground(views::CreateRoundedRectBackground(hover_background_color_,
+                                                     kBtnRadius));
     SchedulePaint();
   }
 
@@ -61,6 +70,9 @@ class PinnedExtIconButton : public views::ImageButton {
     SetBackground(nullptr);
     SchedulePaint();
   }
+
+ private:
+  SkColor hover_background_color_;
 };
 
 }  // namespace
@@ -69,7 +81,7 @@ BEGIN_METADATA(DaoPinnedExtensionsContainer)
 END_METADATA
 
 DaoPinnedExtensionsContainer::DaoPinnedExtensionsContainer(Browser* browser)
-    : browser_(browser) {
+    : browser_(browser), hover_background_color_(ControlCenterHoverBg()) {
   auto* layout = SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal);
   layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
@@ -99,6 +111,9 @@ void DaoPinnedExtensionsContainer::Rebuild() {
   button_to_extension_id_.clear();
   id_to_button_.clear();
   icon_factories_.clear();
+  pinned_action_ids_ =
+      model_ ? model_->pinned_action_ids()
+             : std::vector<ToolbarActionsModel::ActionId>();
 
   if (!model_ || !browser_) {
     SetVisible(false);
@@ -130,7 +145,8 @@ void DaoPinnedExtensionsContainer::Rebuild() {
 
     auto btn = std::make_unique<PinnedExtIconButton>(
         base::BindRepeating(&DaoPinnedExtensionsContainer::OnExtensionClicked,
-                            base::Unretained(this), ext_id));
+                            base::Unretained(this), ext_id),
+        hover_background_color_);
     btn->SetImageModel(views::Button::STATE_NORMAL,
                        ui::ImageModel::FromImageSkia(icon));
     btn->SetImageHorizontalAlignment(views::ImageButton::ALIGN_CENTER);
@@ -151,6 +167,14 @@ void DaoPinnedExtensionsContainer::Rebuild() {
 
   SetVisible(count > 0);
   InvalidateLayout();
+}
+
+void DaoPinnedExtensionsContainer::SetHoverBackgroundColor(SkColor color) {
+  hover_background_color_ = color;
+  for (const auto& entry : id_to_button_) {
+    static_cast<PinnedExtIconButton*>(entry.second.get())
+        ->SetHoverBackgroundColor(color);
+  }
 }
 
 gfx::ImageSkia DaoPinnedExtensionsContainer::GetIconForExtension(
@@ -217,17 +241,22 @@ void DaoPinnedExtensionsContainer::OnIconUpdated() {
 }
 
 void DaoPinnedExtensionsContainer::OnToolbarActionAdded(
-    const ToolbarActionsModel::ActionId& id) {
-  Rebuild();
-}
+    const ToolbarActionsModel::ActionId&) {}
 
 void DaoPinnedExtensionsContainer::OnToolbarActionRemoved(
     const ToolbarActionsModel::ActionId& id) {
-  Rebuild();
+  if (id_to_button_.contains(id)) {
+    Rebuild();
+  }
 }
 
 void DaoPinnedExtensionsContainer::OnToolbarActionUpdated(
     const ToolbarActionsModel::ActionId& id) {
+  // Updates from unpinned actions are common (for example, badge and title
+  // changes) and must not replace every pinned button under the mouse.
+  if (!id_to_button_.contains(id)) {
+    return;
+  }
   if (!UpdateButtonIcon(id)) {
     Rebuild();
   }
@@ -238,7 +267,11 @@ void DaoPinnedExtensionsContainer::OnToolbarModelInitialized() {
 }
 
 void DaoPinnedExtensionsContainer::OnToolbarPinnedActionsChanged() {
-  Rebuild();
+  // ToolbarActionsModel may notify even when the filtered pinned IDs did not
+  // change. Avoid replacing the child views and dropping their hover state.
+  if (model_ && pinned_action_ids_ != model_->pinned_action_ids()) {
+    Rebuild();
+  }
 }
 
 void DaoPinnedExtensionsContainer::OnTabStripModelChanged(

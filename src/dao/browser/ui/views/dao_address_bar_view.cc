@@ -943,6 +943,9 @@ void DaoAddressBarView::UpdateNavButtonColors() {
   if (control_center_button_) {
     control_center_button_->SetIconColor(icon_color);
   }
+  if (pinned_extensions_) {
+    pinned_extensions_->SetHoverBackgroundColor(hover_bg);
+  }
 }
 
 gfx::Rect DaoAddressBarView::url_container_bounds() const {
