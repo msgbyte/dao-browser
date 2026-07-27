@@ -95,4 +95,18 @@ describe('sidebar_bridge', () => {
     expect(send).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledWith('saveFolders', ['second']);
   });
+
+  it('saves folders immediately and cancels a pending debounced save',
+      async () => {
+        const {bridge, send} = await loadBridge();
+
+        bridge.saveFolders('pending');
+        bridge.saveFoldersImmediately('latest');
+
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(send).toHaveBeenCalledWith('saveFolders', ['latest']);
+
+        vi.advanceTimersByTime(300);
+        expect(send).toHaveBeenCalledTimes(1);
+      });
 });

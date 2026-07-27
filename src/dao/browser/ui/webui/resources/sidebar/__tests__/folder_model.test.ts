@@ -234,6 +234,50 @@ describe('FolderModel', () => {
     }]);
   });
 
+  it('resolves only the current tabs belonging to a folder', () => {
+    const model = new FolderModel();
+    model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [
+        {
+          type: 'tab',
+          tabId: 'outside',
+          url: 'https://duplicate.example',
+          title: 'Duplicate',
+        },
+        {
+          type: 'folder',
+          id: 'stale-id',
+          name: 'stale',
+          collapsed: false,
+          children: [
+            {
+              type: 'tab',
+              tabId: 'stale-a',
+              url: 'https://duplicate.example',
+              title: 'Duplicate',
+            },
+            {
+              type: 'tab',
+              tabId: 'stale-b',
+              url: 'https://stale-b.example',
+              title: 'Stale B',
+            },
+          ],
+        },
+      ],
+    }));
+    const runtimeTabs = [
+      tab('outside', 'https://duplicate.example', 'Duplicate'),
+      tab('stale-a', 'https://duplicate.example', 'Duplicate'),
+      tab('stale-b', 'https://stale-b.example', 'Stale B'),
+    ];
+
+    expect(model.getMatchedTabs('stale-id', runtimeTabs).map(tab => tab.tabId))
+        .toEqual(['stale-a', 'stale-b']);
+    expect(model.getMatchedTabs('missing', runtimeTabs)).toEqual([]);
+  });
+
   it('keeps loose split siblings adjacent after reconcile', () => {
     const model = new FolderModel();
     model.loadFromJson(JSON.stringify({
