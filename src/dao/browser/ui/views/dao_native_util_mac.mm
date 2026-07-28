@@ -7,9 +7,11 @@
 #import <AppKit/AppKit.h>
 
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -519,6 +521,72 @@ void UnblockWebContentNativeEvents(content::WebContents* web_contents) {
     [interceptor removeFromSuperview];
   }
   [table removeObjectForKey:window];
+}
+
+namespace {
+
+// Single process-wide watchdog. All state lives here because the physical
+// signals are global: mouse button state is per-process, and the reset
+// (EndTabDragNativeEvents) already spans every window.
+base::RepeatingTimer& TabDragWatchdogTimer() {
+  static base::NoDestructor<base::RepeatingTimer> timer;
+  return *timer;
+}
+
+// Latch: only treat "no buttons pressed" as drag-end AFTER we have seen a
+// button pressed at least once. ArmTabDragWatchdog samples synchronously so a
+// quick release before the first delayed tick cannot lose the pressed state.
+bool g_tab_drag_pressed_observed = false;
+
+void TabDragWatchdogTick() {
+  const NSUInteger buttons = [NSEvent pressedMouseButtons];
+  if (buttons != 0) {
+    g_tab_drag_pressed_observed = true;
+    return;
+  }
+  if (!g_tab_drag_pressed_observed) {
+    // Buttons up but we never saw them down yet — wait for the latch.
+    return;
+  }
+  LOG(ERROR) << "[Dao-Xwin] tab-drag watchdog: mouse released, forcing "
+                "EndTabDragNativeEvents()";
+  // Resets every window's tab_drag_active_ and clears interceptors. Its
+  // SetTabDragActive(false) re-enters StopTabDragWatchdog(), stopping us.
+  EndTabDragNativeEvents();
+}
+
+}  // namespace
+
+void ArmTabDragWatchdog() {
+  if (TabDragWatchdogTimer().IsRunning()) {
+    return;  // Idempotent: already watching.
+  }
+  // SetTabDragActive(true) runs after the native drag has started. Capture the
+  // current state before scheduling the first tick; otherwise a release within
+  // the initial 100 ms interval leaves the latch false forever.
+  g_tab_drag_pressed_observed = [NSEvent pressedMouseButtons] != 0;
+  TabDragWatchdogTimer().Start(FROM_HERE, base::Milliseconds(100),
+                               base::BindRepeating(&TabDragWatchdogTick));
+}
+
+void StopTabDragWatchdog() {
+  // The timer is process-global but SetTabDragActive(false) fires per window.
+  // Only stop once NO window is still mid-drag; otherwise a cross-window drag
+  // where one window resets early would disarm the watchdog while another
+  // window is still stuck — re-opening the exact bug this guards against.
+  for (BrowserWindowInterface* browser_window :
+       GetAllBrowserWindowInterfaces()) {
+    Browser* browser =
+        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+    BrowserView* browser_view =
+        browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
+    if (browser_view && browser_view->dao_split_view() &&
+        browser_view->dao_split_view()->tab_drag_active()) {
+      return;  // A window is still dragging; keep watching.
+    }
+  }
+  TabDragWatchdogTimer().Stop();
+  g_tab_drag_pressed_observed = false;
 }
 
 void EndTabDragNativeEvents() {

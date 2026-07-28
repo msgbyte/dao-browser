@@ -173,6 +173,7 @@
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/events/test/event_generator.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/native_theme/native_theme.h"
@@ -3794,6 +3795,31 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   EXPECT_FALSE(split_view->GetCanProcessEventsWithinSubtree());
   EXPECT_FALSE(second_split_view->GetCanProcessEventsWithinSubtree());
   EXPECT_FALSE(incognito_split_view->GetCanProcessEventsWithinSubtree());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
+                       TabDragWatchdogCatchesReleaseBeforeFirstTick) {
+  DaoSplitView* split_view = GetBrowserView(browser())->dao_split_view();
+  ASSERT_NE(nullptr, split_view);
+  ASSERT_FALSE(split_view->IsSplitActive());
+
+  ui::test::EventGenerator event_generator(
+      browser()->window()->GetNativeWindow());
+  event_generator.PressLeftButton();
+  split_view->SetTabDragActive(true);
+  ASSERT_TRUE(split_view->GetCanProcessEventsWithinSubtree());
+
+  // Release immediately, before the watchdog's first delayed tick. The
+  // watchdog must remember that the button was down when it was armed.
+  event_generator.ReleaseLeftButton();
+  base::RunLoop run_loop;
+  base::OneShotTimer timeout;
+  timeout.Start(FROM_HERE, base::Milliseconds(250),
+                run_loop.QuitClosure());
+  run_loop.Run();
+
+  EXPECT_FALSE(split_view->GetCanProcessEventsWithinSubtree());
+  EndTabDragNativeEvents();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, SplitPaneCreatesTwo) {

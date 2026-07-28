@@ -28,6 +28,18 @@ void UnblockWebContentNativeEvents(content::WebContents* web_contents);
 // the WebUI dragend event was not delivered.
 void EndTabDragNativeEvents();
 
+// Arm a process-wide watchdog that force-finishes a native tab drag once the
+// mouse button is physically released. This is the last-resort reset for the
+// sticky DaoSplitView::tab_drag_active_ state: every logical drag-end path
+// (native drop, draggingEnded, WebUI dragend, cancel, source-window teardown)
+// shares one physical invariant — the mouse button comes up. Idempotent: arming
+// while already armed is a no-op, so fanning this out across all windows is safe.
+void ArmTabDragWatchdog();
+
+// Stop the tab-drag watchdog. Idempotent. Called from EndTabDragNativeEvents via
+// SetTabDragActive(false), and directly when a drag ends cleanly.
+void StopTabDragWatchdog();
+
 // Move macOS traffic light buttons (close/minimize/zoom) to the given
 // origin within the window's content view. Call after the widget is shown.
 void SetTrafficLightsPosition(gfx::NativeWindow window, int x, int y);
