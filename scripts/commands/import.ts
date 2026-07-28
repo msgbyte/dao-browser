@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import {
   existsSync,
+  lstatSync,
   readFileSync,
   writeFileSync,
   readdirSync,
@@ -10,7 +11,7 @@ import {
   copyFileSync,
   unlinkSync,
 } from "node:fs";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { glob } from "glob";
 import path from "node:path";
@@ -59,6 +60,155 @@ export function buildFixImportPatchesMessage(patchFiles: string[]): string {
 }
 
 export type PatchApplyResult = "applied" | "already-applied" | "failed";
+
+export interface PatchTarget {
+  path: string;
+  isNewFile: boolean;
+}
+
+function validatePatchTargetPath(targetPath: string): void {
+  const normalized = path.posix.normalize(targetPath);
+  if (
+    targetPath.length === 0 ||
+    targetPath.includes("\0") ||
+    path.posix.isAbsolute(targetPath) ||
+    targetPath.split("/").includes("..") ||
+    normalized !== targetPath ||
+    normalized === "."
+  ) {
+    throw new Error(`Unsafe patch target path: ${targetPath}`);
+  }
+}
+
+export function parsePatchTargets(content: string): PatchTarget[] {
+  const targets: PatchTarget[] = [];
+  let oldPath: string | undefined;
+  let oldIsNull = false;
+  let inFileHeader = false;
+
+  for (const line of content.split(/\r?\n/)) {
+    if (line.startsWith("diff --git ")) {
+      oldPath = undefined;
+      oldIsNull = false;
+      inFileHeader = true;
+    } else if (inFileHeader && line === "--- /dev/null") {
+      oldPath = undefined;
+      oldIsNull = true;
+    } else if (inFileHeader && line.startsWith("--- a/")) {
+      oldPath = line.slice("--- a/".length);
+      validatePatchTargetPath(oldPath);
+      oldIsNull = false;
+    } else if (inFileHeader && line.startsWith("+++ b/")) {
+      const targetPath = line.slice("+++ b/".length);
+      validatePatchTargetPath(targetPath);
+      targets.push({path: targetPath, isNewFile: oldIsNull});
+      inFileHeader = false;
+    } else if (
+      inFileHeader &&
+      line === "+++ /dev/null" &&
+      oldPath !== undefined
+    ) {
+      targets.push({path: oldPath, isNewFile: false});
+      inFileHeader = false;
+    }
+  }
+
+  return targets;
+}
+
+function isTrackedPath(srcDir: string, targetPath: string): boolean {
+  try {
+    execFileSync(
+      "git",
+      ["ls-files", "--error-unmatch", "--", targetPath],
+      {cwd: srcDir, stdio: "ignore"}
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  return error instanceof Error && "code" in error && error.code === code;
+}
+
+function validatePatchTargetParents(
+  srcDir: string,
+  targetPath: string
+): void {
+  let currentPath = path.resolve(srcDir);
+  const parentSegments = targetPath.split("/").slice(0, -1);
+  for (const segment of parentSegments) {
+    currentPath = path.join(currentPath, segment);
+    let stats: ReturnType<typeof lstatSync>;
+    try {
+      stats = lstatSync(currentPath);
+    } catch (error) {
+      if (hasErrorCode(error, "ENOENT")) {
+        continue;
+      }
+      throw error;
+    }
+    if (stats.isSymbolicLink()) {
+      throw new Error(`Patch target has a symlink parent: ${targetPath}`);
+    }
+    if (!stats.isDirectory()) {
+      throw new Error(`Patch target has a non-directory parent: ${targetPath}`);
+    }
+  }
+}
+
+export function cleanupPatchCreatedFiles(
+  srcDir: string,
+  patchPaths: string[]
+): void {
+  const newFileTargets = new Set<string>();
+  for (const patchPath of patchPaths) {
+    for (const target of parsePatchTargets(readFileSync(patchPath, "utf-8"))) {
+      if (target.isNewFile) {
+        newFileTargets.add(target.path);
+      }
+    }
+  }
+
+  for (const targetPath of newFileTargets) {
+    validatePatchTargetParents(srcDir, targetPath);
+    if (isTrackedPath(srcDir, targetPath)) {
+      throw new Error(`Patch new-file target is tracked: ${targetPath}`);
+    }
+
+    const absoluteTarget = path.resolve(srcDir, ...targetPath.split("/"));
+    const absoluteSrcDir = path.resolve(srcDir);
+    if (!absoluteTarget.startsWith(`${absoluteSrcDir}${path.sep}`)) {
+      throw new Error(`Unsafe patch target path: ${targetPath}`);
+    }
+    let targetStats: ReturnType<typeof lstatSync>;
+    try {
+      targetStats = lstatSync(absoluteTarget);
+    } catch (error) {
+      if (hasErrorCode(error, "ENOENT")) {
+        continue;
+      }
+      throw error;
+    }
+    if (targetStats.isDirectory()) {
+      throw new Error(`Patch new-file target is a directory: ${targetPath}`);
+    }
+    unlinkSync(absoluteTarget);
+  }
+}
+
+export function prepareForcedImport(
+  srcDir: string,
+  patchPaths: string[]
+): void {
+  execFileSync("git", ["checkout", "--", "."], {
+    cwd: srcDir,
+    stdio: "ignore",
+  });
+  cleanupPatchCreatedFiles(srcDir, patchPaths);
+}
 
 async function isPatchAlreadyApplied(
   srcDir: string,
@@ -141,7 +291,7 @@ export const importCommand = new Command("import")
   .option("--patches-only", "Only apply patches, skip copying Dao source")
   .option(
     "--force",
-    "Hard-reset engine/src to HEAD before importing (discards local edits to tracked files)"
+    "Reset tracked files and stale patch-created files before importing"
   )
   .action(async (opts: { patchesOnly?: boolean; force?: boolean }) => {
     const srcDir = path.join(ENGINE_DIR, "src");
@@ -168,14 +318,23 @@ export const importCommand = new Command("import")
       process.exit(1);
     }
 
+    const patchFiles = await glob("**/*.patch", { cwd: PATCHES_DIR });
+    const sortedPatches = patchFiles.sort();
+    const fullPatchPaths = sortedPatches.map(
+      (patchFile) => path.join(PATCHES_DIR, patchFile)
+    );
+
     // Step 0 (--force): reset any local modifications in engine/src so patches
-    // apply cleanly. Only touches tracked files — untracked artifacts like
-    // out/ and engine/src/dao/ are preserved.
+    // apply cleanly. Only tracked files and exact untracked paths declared as
+    // new files by current Dao patches are touched. Other untracked artifacts
+    // like out/ and engine/src/dao/ are preserved.
     if (opts.force) {
-      warn("Force mode: resetting engine/src tracked files to HEAD");
+      warn(
+        "Force mode: resetting tracked files and stale patch-created files"
+      );
       try {
-        run("git checkout -- .", { cwd: srcDir, silent: true });
-        success("engine/src reset to HEAD");
+        prepareForcedImport(srcDir, fullPatchPaths);
+        success("engine/src reset to a clean patch baseline");
       } catch (e) {
         error(`Failed to reset engine/src: ${(e as Error).message}`);
         process.exit(1);
@@ -191,7 +350,6 @@ export const importCommand = new Command("import")
 
     // Step 1: Apply patches
     log("Applying patches...");
-    const patchFiles = await glob("**/*.patch", { cwd: PATCHES_DIR });
 
     if (patchFiles.length === 0) {
       warn("No patch files found in src/patches/");
@@ -201,8 +359,6 @@ export const importCommand = new Command("import")
     let skipped = 0;
     let failed = 0;
     const failedPatchFiles: string[] = [];
-
-    const sortedPatches = patchFiles.sort();
 
     // Phase 1: parallel reverse-check to find already-applied patches
     const reverseResults = await Promise.allSettled(

@@ -2,9 +2,11 @@ import path from 'node:path';
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
@@ -23,11 +25,301 @@ import {
   applyPatchWithAlreadyAppliedFallback,
   buildFixImportPatchesCommand,
   buildFixImportPatchesMessage,
+  cleanupPatchCreatedFiles,
+  parsePatchTargets,
+  prepareForcedImport,
   readChromiumVersion,
   validateChromiumVersion,
 } from '../import.js';
 
 describe('import helpers', () => {
+  it('parses every target in a multi-file patch', () => {
+    const patchContent = [
+      'diff --git a/tracked.txt b/tracked.txt',
+      '--- a/tracked.txt',
+      '+++ b/tracked.txt',
+      '@@ -1 +1 @@',
+      '-old value',
+      '+new value',
+      'diff --git a/generated/new-file.d.ts b/generated/new-file.d.ts',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/generated/new-file.d.ts',
+      '@@ -0,0 +1 @@',
+      '+new definition',
+      '',
+    ].join('\n');
+
+    expect(parsePatchTargets(patchContent)).toEqual([
+      {path: 'tracked.txt', isNewFile: false},
+      {path: 'generated/new-file.d.ts', isNewFile: true},
+    ]);
+  });
+
+  it('rejects unsafe patch target paths', () => {
+    const patchContent = [
+      'diff --git a/../outside.txt b/../outside.txt',
+      '--- /dev/null',
+      '+++ b/../outside.txt',
+      '',
+    ].join('\n');
+
+    expect(() => parsePatchTargets(patchContent)).toThrow(
+        'Unsafe patch target path: ../outside.txt');
+  });
+
+  it('ignores target-like lines inside patch hunks', () => {
+    const patchContent = [
+      'diff --git a/generated/new-file.d.ts b/generated/new-file.d.ts',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/generated/new-file.d.ts',
+      '@@ -0,0 +1,2 @@',
+      '+new definition',
+      '+++ b/unrelated.txt',
+      '',
+    ].join('\n');
+
+    expect(parsePatchTargets(patchContent)).toEqual([
+      {path: 'generated/new-file.d.ts', isNewFile: true},
+    ]);
+  });
+
+  it('removes only patch-declared untracked files idempotently', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const repoDir = path.join(tempRoot, 'engine/src');
+    const generatedDir = path.join(repoDir, 'generated');
+    mkdirSync(generatedDir, {recursive: true});
+
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    writeFileSync(path.join(repoDir, '.gitkeep'), '');
+    execFileSync('git', ['add', '.gitkeep'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const generatedPath = path.join(generatedDir, 'new-file.d.ts');
+    const unrelatedPath = path.join(repoDir, 'notes.txt');
+    writeFileSync(generatedPath, 'stale definition\n');
+    writeFileSync(unrelatedPath, 'keep me\n');
+
+    const patchPath = path.join(tempRoot, 'new-file.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/generated/new-file.d.ts b/generated/new-file.d.ts',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/generated/new-file.d.ts',
+      '@@ -0,0 +1 @@',
+      '+new definition',
+      '',
+    ].join('\n'));
+
+    cleanupPatchCreatedFiles(repoDir, [patchPath]);
+    cleanupPatchCreatedFiles(repoDir, [patchPath]);
+
+    expect(existsSync(generatedPath)).toBe(false);
+    expect(readFileSync(unrelatedPath, 'utf-8')).toBe('keep me\n');
+  });
+
+  it('rejects a tracked collision for a patch-created file', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const repoDir = path.join(tempRoot, 'engine/src');
+    mkdirSync(repoDir, {recursive: true});
+
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    writeFileSync(path.join(repoDir, 'tracked.txt'), 'upstream file\n');
+    execFileSync('git', ['add', 'tracked.txt'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const patchPath = path.join(tempRoot, 'new-file.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/tracked.txt b/tracked.txt',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/tracked.txt',
+      '@@ -0,0 +1 @@',
+      '+Dao file',
+      '',
+    ].join('\n'));
+
+    expect(() => cleanupPatchCreatedFiles(repoDir, [patchPath])).toThrow(
+        'Patch new-file target is tracked: tracked.txt');
+  });
+
+  it('rejects patch targets beneath a symlink parent', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const repoDir = path.join(tempRoot, 'engine/src');
+    const outsideDir = path.join(tempRoot, 'outside');
+    mkdirSync(repoDir, {recursive: true});
+    mkdirSync(outsideDir, {recursive: true});
+
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    writeFileSync(path.join(repoDir, '.gitkeep'), '');
+    execFileSync('git', ['add', '.gitkeep'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const outsidePath = path.join(outsideDir, 'victim.txt');
+    writeFileSync(outsidePath, 'keep me\n');
+    symlinkSync(outsideDir, path.join(repoDir, 'linked'), 'dir');
+
+    const patchPath = path.join(tempRoot, 'new-file.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/linked/victim.txt b/linked/victim.txt',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/linked/victim.txt',
+      '@@ -0,0 +1 @@',
+      '+Dao file',
+      '',
+    ].join('\n'));
+
+    expect(() => cleanupPatchCreatedFiles(repoDir, [patchPath])).toThrow(
+        'Patch target has a symlink parent: linked/victim.txt');
+    expect(readFileSync(outsidePath, 'utf-8')).toBe('keep me\n');
+  });
+
+  it('removes a dangling symlink at an exact new-file target', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const repoDir = path.join(tempRoot, 'engine/src');
+    mkdirSync(repoDir, {recursive: true});
+
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    writeFileSync(path.join(repoDir, '.gitkeep'), '');
+    execFileSync('git', ['add', '.gitkeep'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const targetPath = path.join(repoDir, 'generated.d.ts');
+    symlinkSync(path.join(tempRoot, 'missing-target'), targetPath);
+    const patchPath = path.join(tempRoot, 'new-file.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/generated.d.ts b/generated.d.ts',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/generated.d.ts',
+      '@@ -0,0 +1 @@',
+      '+Dao file',
+      '',
+    ].join('\n'));
+
+    expect(lstatSync(targetPath).isSymbolicLink()).toBe(true);
+
+    cleanupPatchCreatedFiles(repoDir, [patchPath]);
+
+    expect(() => lstatSync(targetPath)).toThrow();
+  });
+
+  it('prepares an idempotent forced-import baseline', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const repoDir = path.join(tempRoot, 'engine/src');
+    const generatedDir = path.join(repoDir, 'generated');
+    mkdirSync(generatedDir, {recursive: true});
+
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    const trackedPath = path.join(repoDir, 'tracked.txt');
+    writeFileSync(trackedPath, 'upstream value\n');
+    execFileSync('git', ['add', 'tracked.txt'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const generatedPath = path.join(generatedDir, 'new-file.d.ts');
+    const unrelatedPath = path.join(repoDir, 'notes.txt');
+    const patchPath = path.join(tempRoot, 'multi-file.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/tracked.txt b/tracked.txt',
+      '--- a/tracked.txt',
+      '+++ b/tracked.txt',
+      '@@ -1 +1 @@',
+      '-upstream value',
+      '+Dao value',
+      'diff --git a/generated/new-file.d.ts b/generated/new-file.d.ts',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/generated/new-file.d.ts',
+      '@@ -0,0 +1 @@',
+      '+new definition',
+      '',
+    ].join('\n'));
+    writeFileSync(unrelatedPath, 'keep me\n');
+
+    for (let release = 0; release < 2; release++) {
+      writeFileSync(trackedPath, 'Dao value\n');
+      writeFileSync(generatedPath, 'new definition\n');
+
+      prepareForcedImport(repoDir, [patchPath]);
+
+      expect(readFileSync(trackedPath, 'utf-8')).toBe('upstream value\n');
+      expect(existsSync(generatedPath)).toBe(false);
+      expect(readFileSync(unrelatedPath, 'utf-8')).toBe('keep me\n');
+    }
+  });
+
   it('reads a complete Chromium version file', () => {
     const tempRoot = mkdtempSync(
         path.join(os.tmpdir(), 'dao-import-version-'));
@@ -297,6 +589,198 @@ describe('import helpers', () => {
         });
 
     expect(readFileSync(targetPath, 'utf-8')).toBe('new test\n');
+  });
+
+  it('repairs every target in a multi-file patch', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const scriptsDir = path.join(tempRoot, 'scripts');
+    const patchesDir = path.join(
+        tempRoot, 'src/patches/ui/webui/resources/tools/eslint');
+    const engineDir = path.join(
+        tempRoot, 'engine/src/ui/webui/resources/tools/eslint');
+    mkdirSync(scriptsDir, {recursive: true});
+    mkdirSync(patchesDir, {recursive: true});
+    mkdirSync(engineDir, {recursive: true});
+
+    copyFileSync(
+        path.join(process.cwd(), 'scripts/fix-import-patches.sh'),
+        path.join(scriptsDir, 'fix-import-patches.sh'));
+
+    const repoDir = path.join(tempRoot, 'engine/src');
+    const buildPath = path.join(engineDir, 'BUILD.gn');
+    const definitionPath = path.join(engineDir, 'eslint_plugin_lit.d.ts');
+    const unrelatedPath = path.join(engineDir, 'notes.txt');
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    writeFileSync(buildPath, 'sources = []\n');
+    execFileSync(
+        'git',
+        ['add', 'ui/webui/resources/tools/eslint/BUILD.gn'],
+        {cwd: repoDir, stdio: 'ignore'});
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    writeFileSync(buildPath, 'stale local value\n');
+    writeFileSync(definitionPath, 'stale definition\n');
+    writeFileSync(unrelatedPath, 'keep me\n');
+
+    const patchPath = path.join(patchesDir, 'BUILD.gn.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/ui/webui/resources/tools/eslint/BUILD.gn b/ui/webui/resources/tools/eslint/BUILD.gn',
+      '--- a/ui/webui/resources/tools/eslint/BUILD.gn',
+      '+++ b/ui/webui/resources/tools/eslint/BUILD.gn',
+      '@@ -1 +1,2 @@',
+      ' sources = []',
+      '+definitions = [\"eslint_plugin_lit.d.ts\"]',
+      'diff --git a/ui/webui/resources/tools/eslint/eslint_plugin_lit.d.ts b/ui/webui/resources/tools/eslint/eslint_plugin_lit.d.ts',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/ui/webui/resources/tools/eslint/eslint_plugin_lit.d.ts',
+      '@@ -0,0 +1,2 @@',
+      '+new definition',
+      '+++ b/ui/webui/resources/tools/eslint/notes.txt',
+      '',
+    ].join('\n'));
+
+    expect(() => execFileSync(
+        'sh',
+        [
+          'scripts/fix-import-patches.sh',
+          'src/patches/ui/webui/resources/tools/eslint/BUILD.gn.patch',
+        ],
+        {cwd: tempRoot, stdio: 'pipe'})).not.toThrow();
+
+    expect(readFileSync(buildPath, 'utf-8')).toContain(
+        'definitions = ["eslint_plugin_lit.d.ts"]');
+    expect(readFileSync(definitionPath, 'utf-8')).toBe([
+      'new definition',
+      '++ b/ui/webui/resources/tools/eslint/notes.txt',
+      '',
+    ].join('\n'));
+    expect(readFileSync(unrelatedPath, 'utf-8')).toBe('keep me\n');
+  });
+
+  it('rejects repair targets beneath a symlink parent', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const scriptsDir = path.join(tempRoot, 'scripts');
+    const patchesDir = path.join(tempRoot, 'src/patches/test');
+    const repoDir = path.join(tempRoot, 'engine/src');
+    const outsideDir = path.join(tempRoot, 'outside');
+    mkdirSync(scriptsDir, {recursive: true});
+    mkdirSync(patchesDir, {recursive: true});
+    mkdirSync(repoDir, {recursive: true});
+    mkdirSync(outsideDir, {recursive: true});
+
+    copyFileSync(
+        path.join(process.cwd(), 'scripts/fix-import-patches.sh'),
+        path.join(scriptsDir, 'fix-import-patches.sh'));
+
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    writeFileSync(path.join(repoDir, '.gitkeep'), '');
+    execFileSync('git', ['add', '.gitkeep'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const outsidePath = path.join(outsideDir, 'victim.txt');
+    writeFileSync(outsidePath, 'keep me\n');
+    symlinkSync(outsideDir, path.join(repoDir, 'linked'), 'dir');
+
+    writeFileSync(path.join(patchesDir, 'symlink.patch'), [
+      'diff --git a/linked/victim.txt b/linked/victim.txt',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/linked/victim.txt',
+      '@@ -0,0 +1 @@',
+      '+Dao file',
+      '',
+    ].join('\n'));
+
+    expect(() => execFileSync(
+        'sh',
+        [
+          'scripts/fix-import-patches.sh',
+          'src/patches/test/symlink.patch',
+        ],
+        {cwd: tempRoot, stdio: 'pipe'})).toThrow(
+        'patch target has a symlink parent: linked/victim.txt');
+    expect(readFileSync(outsidePath, 'utf-8')).toBe('keep me\n');
+  });
+
+  it('preserves untracked targets not declared as new files', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const scriptsDir = path.join(tempRoot, 'scripts');
+    const patchesDir = path.join(tempRoot, 'src/patches/test');
+    const repoDir = path.join(tempRoot, 'engine/src');
+    mkdirSync(scriptsDir, {recursive: true});
+    mkdirSync(patchesDir, {recursive: true});
+    mkdirSync(repoDir, {recursive: true});
+
+    copyFileSync(
+        path.join(process.cwd(), 'scripts/fix-import-patches.sh'),
+        path.join(scriptsDir, 'fix-import-patches.sh'));
+
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    writeFileSync(path.join(repoDir, '.gitkeep'), '');
+    execFileSync('git', ['add', '.gitkeep'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const targetPath = path.join(repoDir, 'untracked.txt');
+    writeFileSync(targetPath, 'old value\n');
+    writeFileSync(path.join(patchesDir, 'tracked.patch'), [
+      'diff --git a/untracked.txt b/untracked.txt',
+      '--- a/untracked.txt',
+      '+++ b/untracked.txt',
+      '@@ -1 +1 @@',
+      '-old value',
+      '+new value',
+      '',
+    ].join('\n'));
+
+    expect(() => execFileSync(
+        'sh',
+        [
+          'scripts/fix-import-patches.sh',
+          'src/patches/test/tracked.patch',
+        ],
+        {cwd: tempRoot, stdio: 'pipe'})).toThrow(
+        'patch target is not tracked: untracked.txt');
+    expect(readFileSync(targetPath, 'utf-8')).toBe('old value\n');
   });
 
   it('rewrites chrome scheme text and reports replacements', () => {
