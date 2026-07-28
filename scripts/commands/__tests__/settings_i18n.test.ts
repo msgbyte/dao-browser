@@ -25,6 +25,22 @@ const daoSettingsTranslations = [
     translation: '在命令栏中使用更丰富的标签页、命令、搜索和 Dao 建议',
   },
   {
+    id: '8653714013042599949',
+    translation: 'Stale 标签过期时间',
+  },
+  {
+    id: '1360400029259294658',
+    translation: '将超过此时间未活跃的标签移入 stale 文件夹',
+  },
+  {
+    id: '7673697353781729403',
+    translation: '小时',
+  },
+  {
+    id: '1683171364685569077',
+    translation: '请输入 1 到 720 之间的整数',
+  },
+  {
     id: '42079359526797400',
     translation: '增强的画中画 (PIP)',
   },
@@ -91,6 +107,19 @@ describe('settings i18n patches', () => {
       expect(patch).toContain(
           `+<translation id="${entry.id}">${entry.translation}</translation>`);
     }
+  });
+
+  it('provides Simplified Chinese configurable stale archive feedback', () => {
+    const patchPath = path.join(
+        process.cwd(),
+        'src/dao/browser/strings/translations/dao_strings_zh-CN.xtb');
+
+    expect(existsSync(patchPath)).toBe(true);
+
+    const translation = readFileSync(patchPath, 'utf-8');
+    expect(translation).toContain(
+        '<translation id="9144412711146411188">' +
+        '已归档不活跃的标签</translation>');
   });
 
   it('renders one enhanced PIP preview based on the selected pref value', () => {

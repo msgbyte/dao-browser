@@ -30,7 +30,10 @@ import './dao_download_button.js';
 import './dao_media_control.js';
 
 const TAB_SCROLLBAR_STALE_HOVER_MS = 600;
-const STALE_TAB_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_STALE_TAB_EXPIRATION_HOURS = 24;
+const MIN_STALE_TAB_EXPIRATION_HOURS = 1;
+const MAX_STALE_TAB_EXPIRATION_HOURS = 720;
+const HOUR_MS = 60 * 60 * 1000;
 const STALE_TABS_FOLDER_NAME = 'stale';
 const STALE_TABS_ARCHIVED_TOAST_KEY = 'daoSidebarStaleTabsArchivedToast';
 const NO_NEW_STALE_TABS_ARCHIVED_TOAST_KEY =
@@ -372,7 +375,9 @@ export class DaoSidebarApp extends CrLitElement {
         'sidebarPointerExited', () => this.clearPointerState_());
 
     this.addSidebarListener_(
-        'moveStaleTabsRequested', () => this.moveStaleTabsToFolder_());
+        'moveStaleTabsRequested', (...args: unknown[]) => {
+          this.moveStaleTabsToFolder_(args[0]);
+        });
 
     this.addSidebarListener_(
         'folderContextMenuCommand', (...args: unknown[]) => {
@@ -592,8 +597,9 @@ export class DaoSidebarApp extends CrLitElement {
     return this.unpinnedTabs_.find(t => t.tabId === tabId) || null;
   }
 
-  private getStaleTabs_(nowMs: number = Date.now()): TabData[] {
-    const threshold = nowMs - STALE_TAB_THRESHOLD_MS;
+  private getStaleTabs_(
+      expirationHours: number, nowMs: number = Date.now()): TabData[] {
+    const threshold = nowMs - expirationHours * HOUR_MS;
     return this.unpinnedTabs_.filter(tab =>
       !tab.isActive &&
       !tab.isPinned &&
@@ -604,12 +610,22 @@ export class DaoSidebarApp extends CrLitElement {
       tab.lastActiveTimeMs < threshold);
   }
 
-  private moveStaleTabsToFolder_() {
+  private normalizeStaleTabExpirationHours_(value: unknown): number {
+    return typeof value === 'number' && Number.isInteger(value) &&
+            value >= MIN_STALE_TAB_EXPIRATION_HOURS &&
+            value <= MAX_STALE_TAB_EXPIRATION_HOURS ?
+        value :
+        DEFAULT_STALE_TAB_EXPIRATION_HOURS;
+  }
+
+  private moveStaleTabsToFolder_(expirationHoursValue: unknown) {
     if (!this.foldersLoaded_) {
       return;
     }
 
-    const staleTabs = this.getStaleTabs_();
+    const expirationHours =
+        this.normalizeStaleTabExpirationHours_(expirationHoursValue);
+    const staleTabs = this.getStaleTabs_(expirationHours);
     if (staleTabs.length === 0) {
       this.showToast_(getLocalizedString(NO_NEW_STALE_TABS_ARCHIVED_TOAST_KEY));
       return;

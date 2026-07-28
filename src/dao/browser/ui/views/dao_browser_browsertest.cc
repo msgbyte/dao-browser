@@ -1365,6 +1365,62 @@ class ReentrantApplyObserver : public dao::DaoUpdaterServiceObserver {
 
 class DaoSidebarBrowserTest : public InProcessBrowserTest {};
 
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       StaleTabExpirationPrefDefaultsTo24Hours) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  const PrefService::Preference* preference =
+      prefs->FindPreference(dao::prefs::kDaoStaleTabExpirationHours);
+  ASSERT_TRUE(preference);
+  EXPECT_EQ(24,
+            prefs->GetInteger(dao::prefs::kDaoStaleTabExpirationHours));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       StaleTabExpirationUnitIsInlineInputSuffix) {
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("dao://settings/dao")));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  constexpr char kHasInlineUnitSuffixScript[] = R"(
+    (async () => {
+      await customElements.whenDefined('settings-dao-page');
+
+      const findInShadowTree = (root, selector) => {
+        const match = root.querySelector(selector);
+        if (match) {
+          return match;
+        }
+        for (const element of root.querySelectorAll('*')) {
+          if (element.shadowRoot) {
+            const shadowMatch = findInShadowTree(element.shadowRoot, selector);
+            if (shadowMatch) {
+              return shadowMatch;
+            }
+          }
+        }
+        return null;
+      };
+
+      const input =
+          findInShadowTree(document, '#staleTabExpirationHours');
+      const unit = input?.querySelector('[slot="inline-suffix"]');
+      const nativeInput = input?.shadowRoot?.querySelector('#input');
+      if (!unit || !nativeInput) {
+        return false;
+      }
+
+      const unitRect = unit.getBoundingClientRect();
+      const inputRect = nativeInput.getBoundingClientRect();
+      return unitRect.top < inputRect.bottom &&
+          unitRect.bottom > inputRect.top;
+    })()
+  )";
+  EXPECT_EQ(true,
+            content::EvalJs(web_contents, kHasInlineUnitSuffixScript));
+}
+
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, SidebarExistsOnStartup) {
   DaoSidebarView* sidebar = GetBrowserView(browser())->dao_sidebar();
   ASSERT_NE(nullptr, sidebar);

@@ -62,6 +62,11 @@ inline constexpr char kDaoEnhancedCommandBarSuggestionsEnabled[] =
 // enhanced suggestion modes; when false it is never shown.
 inline constexpr char kDaoAskAiEnabled[] = "dao.ask_ai_enabled";
 
+// Integer pref storing how many hours a tab may remain inactive before the
+// sidebar's stale-tab action moves it into the stale folder.
+inline constexpr char kDaoStaleTabExpirationHours[] =
+    "dao.stale_tab_expiration_hours";
+
 // Dictionary pref storing the most recent Little Dao outer window bounds.
 // The key keeps its historical "window_size" name for compatibility with
 // profiles that only stored width and height.
