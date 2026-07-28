@@ -138,6 +138,11 @@ class DaoSplitView : public views::View,
   // this view becomes hit-testable so it can receive drop events.
   void SetTabDragActive(bool active);
 
+  // Whether a sidebar tab drag currently makes this view hit-testable in
+  // single-pane mode. Read by the native watchdog to decide when the
+  // process-global timer may stop.
+  bool tab_drag_active() const { return tab_drag_active_; }
+
   // Native bypass entry points for the macOS DaoEventInterceptor. In v147
   // Chromium's BridgedContentView rejects renderer-initiated drags before
   // they reach Views-level CanDrop/OnDrop, so the interceptor has to drive

@@ -298,6 +298,7 @@ void DaoSplitView::SetTabDragActive(bool active) {
              << (browser_ ? browser_->session_id().id() : -1);
   if (active) {
     SyncSinglePaneRootWithActiveTab();
+    dao::ArmTabDragWatchdog();
   }
 
   if (tab_drag_active_ == active)
@@ -320,6 +321,7 @@ void DaoSplitView::SetTabDragActive(bool active) {
   }
 
   if (!active) {
+    dao::StopTabDragWatchdog();
     // Clean up drop state when drag ends.
     drop_target_leaf_ = nullptr;
     drop_zone_direction_.reset();
