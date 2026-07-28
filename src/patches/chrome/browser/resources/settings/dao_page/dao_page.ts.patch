@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,119 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -15,7 +15,12 @@ index 0000000000..0000000001
 +import '../controls/settings_toggle_button.js';
 +import '../settings_page/settings_section.js';
 +import '../settings_shared.css.js';
++import 'chrome://resources/cr_elements/cr_input/cr_input.js';
 +
++import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
++import type {
++  CrInputElement,
++} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 +import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 +
 +import {getSearchManager} from '../search_settings.js';
@@ -24,10 +29,15 @@ index 0000000000..0000000001
 +import {getTemplate} from './dao_page.html.js';
 +
 +export interface SettingsDaoPageElement {
++  $: {
++    staleTabExpirationHours: CrInputElement,
++  };
 +  prefs: {[key: string]: any};
 +}
 +
-+export class SettingsDaoPageElement extends PolymerElement implements
++const SettingsDaoPageElementBase = PrefsMixin(PolymerElement);
++
++export class SettingsDaoPageElement extends SettingsDaoPageElementBase implements
 +    SettingsPlugin {
 +  static get is() {
 +    return 'settings-dao-page';
@@ -43,10 +53,62 @@ index 0000000000..0000000001
 +        type: Object,
 +        notify: true,
 +      },
++      staleTabExpirationHoursInvalid_: {
++        type: Boolean,
++        value: false,
++      },
++      staleTabExpirationHoursValue_: {
++        type: String,
++        value: '24',
++      },
 +    };
 +  }
 +
++  static get observers() {
++    return [
++      'onStaleTabExpirationPrefChanged_(' +
++          'prefs.dao.stale_tab_expiration_hours.value)',
++    ];
++  }
++
 +  declare prefs: {[key: string]: any};
++  declare private staleTabExpirationHoursInvalid_: boolean;
++  declare private staleTabExpirationHoursValue_: string;
++
++  private onStaleTabExpirationPrefChanged_(value: number) {
++    if (Number.isInteger(value)) {
++      this.staleTabExpirationHoursValue_ = String(value);
++      this.staleTabExpirationHoursInvalid_ = false;
++    }
++  }
++
++  private isValidStaleTabExpirationHours_(value: string): boolean {
++    if (!/^\d+$/.test(value)) {
++      return false;
++    }
++
++    const hours = Number(value);
++    return Number.isInteger(hours) && hours >= 1 && hours <= 720;
++  }
++
++  private onStaleTabExpirationHoursInput_() {
++    this.staleTabExpirationHoursInvalid_ =
++        !this.isValidStaleTabExpirationHours_(
++            this.staleTabExpirationHoursValue_);
++  }
++
++  private onStaleTabExpirationHoursChange_() {
++    if (!this.isValidStaleTabExpirationHours_(
++            this.staleTabExpirationHoursValue_)) {
++      this.staleTabExpirationHoursInvalid_ = true;
++      return;
++    }
++
++    this.staleTabExpirationHoursInvalid_ = false;
++    this.setPrefValue(
++        'dao.stale_tab_expiration_hours',
++        Number(this.staleTabExpirationHoursValue_));
++  }
 +
 +  async searchContents(query: string) {
 +    const searchRequest = await getSearchManager().search(query, this);

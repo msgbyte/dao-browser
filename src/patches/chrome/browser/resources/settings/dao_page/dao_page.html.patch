@@ -3,8 +3,39 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,346 @@
+@@ -0,0 +1,401 @@
 +<style include="settings-shared">
++  .dao-stale-tab-expiration-row {
++    align-items: center;
++    gap: 24px;
++  }
++
++  .dao-stale-tab-expiration-text {
++    flex: 1;
++    min-width: 0;
++  }
++
++  .dao-stale-tab-expiration-label {
++    color: var(--cr-primary-text-color);
++    font-size: 13px;
++    line-height: 20px;
++  }
++
++  .dao-stale-tab-expiration-sub-label {
++    color: var(--cr-secondary-text-color);
++    font-size: 12px;
++    line-height: 18px;
++  }
++
++  #staleTabExpirationHours {
++    flex: 0 0 104px;
++    width: 104px;
++  }
++
++  .dao-stale-tab-expiration-unit {
++    white-space: nowrap;
++  }
++
 +  .dao-pip-preview {
 +    border-top: var(--cr-separator-line);
 +    padding: 16px 20px 20px;
@@ -273,6 +304,30 @@ index 0000000000..0000000001
 +      label="$i18n{askAiEnabledLabel}"
 +      sub-label="$i18n{askAiEnabledSubLabel}">
 +  </settings-toggle-button>
++  <div class="cr-row dao-stale-tab-expiration-row">
++    <div class="dao-stale-tab-expiration-text">
++      <div class="dao-stale-tab-expiration-label">
++        $i18n{staleTabExpirationHoursLabel}
++      </div>
++      <div class="dao-stale-tab-expiration-sub-label">
++        $i18n{staleTabExpirationHoursSubLabel}
++      </div>
++    </div>
++    <cr-input id="staleTabExpirationHours"
++        type="number"
++        min="1"
++        max="720"
++        step="1"
++        value="{{staleTabExpirationHoursValue_}}"
++        invalid="[[staleTabExpirationHoursInvalid_]]"
++        error-message="$i18n{staleTabExpirationHoursError}"
++        on-input="onStaleTabExpirationHoursInput_"
++        on-change="onStaleTabExpirationHoursChange_">
++      <span class="dao-stale-tab-expiration-unit" slot="inline-suffix">
++        $i18n{staleTabExpirationHoursUnit}
++      </span>
++    </cr-input>
++  </div>
 +  <settings-toggle-button id="enhancedPipEnabled"
 +      pref="{{prefs.dao.enhanced_pip_enabled}}"
 +      label="$i18n{enhancedPipEnabledLabel}"

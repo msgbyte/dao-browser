@@ -3136,7 +3136,10 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
 
   if (command_id == kMoveStaleTabsToFolder) {
     if (IsJavascriptAllowed()) {
-      FireWebUIListener("moveStaleTabsRequested");
+      const int expiration_hours = browser_->profile()->GetPrefs()->GetInteger(
+          prefs::kDaoStaleTabExpirationHours);
+      FireWebUIListener("moveStaleTabsRequested",
+                        base::Value(expiration_hours));
     }
     ClearContextMenuState();
     return;

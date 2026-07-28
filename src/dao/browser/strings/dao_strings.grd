@@ -268,8 +268,8 @@
       <message name="IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS" desc="Context menu item in the Dao sidebar that moves tabs inactive for more than 24 hours into a folder named stale.">
         Move Stale Tabs to "stale"
       </message>
-      <message name="IDS_DAO_SIDEBAR_STALE_TABS_ARCHIVED_TOAST" desc="Toast shown after the Dao sidebar moves tabs inactive for more than 24 hours into the stale folder.">
-        Archived tabs inactive for the past 24 hours
+      <message name="IDS_DAO_SIDEBAR_STALE_TABS_ARCHIVED_TOAST" desc="Toast shown after the Dao sidebar moves inactive tabs into the stale folder using the configured expiration.">
+        Archived inactive tabs
       </message>
       <message name="IDS_DAO_SIDEBAR_NO_NEW_STALE_TABS_ARCHIVED_TOAST" desc="Toast shown when the user asks the Dao sidebar to archive stale tabs, but no additional tabs need to be moved.">
         No new tabs were archived

@@ -3,17 +3,18 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,111 @@
+@@ -0,0 +1,153 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
 +
 +import 'chrome://settings/settings.js';
 +
++import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 +import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 +import type {SettingsDaoPageElement, SettingsToggleButtonElement} from 'chrome://settings/settings.js';
 +import {Router, routes} from 'chrome://settings/settings.js';
-+import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
++import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 +
 +suite('DaoPage', function() {
 +  let page: SettingsDaoPageElement;
@@ -32,6 +33,11 @@ index 0000000000..0000000001
 +          key: 'dao.ask_ai_enabled',
 +          type: chrome.settingsPrivate.PrefType.BOOLEAN,
 +          value: true,
++        },
++        stale_tab_expiration_hours: {
++          key: 'dao.stale_tab_expiration_hours',
++          type: chrome.settingsPrivate.PrefType.NUMBER,
++          value: 24,
 +        },
 +        enhanced_pip_enabled: {
 +          key: 'dao.enhanced_pip_enabled',
@@ -84,6 +90,42 @@ index 0000000000..0000000001
 +    assertTrue(!!toggle);
 +    assertEquals('dao.enhanced_pip_enabled', toggle.pref!.key);
 +    assertTrue(toggle.checked);
++  });
++
++  test('staleTabExpirationInputSavesValidInteger', function() {
++    const input = page.shadowRoot!.querySelector<CrInputElement>(
++        '#staleTabExpirationHours');
++    assertTrue(!!input);
++    assertEquals('24', input.value);
++
++    input.value = '48';
++    input.dispatchEvent(new Event('input', {bubbles: true, composed: true}));
++    input.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
++    flush();
++
++    assertFalse(input.invalid);
++    assertEquals(48, page.prefs['dao'].stale_tab_expiration_hours.value);
++  });
++
++  test('staleTabExpirationInputRejectsInvalidValue', function() {
++    const input = page.shadowRoot!.querySelector<CrInputElement>(
++        '#staleTabExpirationHours');
++    assertTrue(!!input);
++
++    input.value = '0';
++    input.dispatchEvent(new Event('input', {bubbles: true, composed: true}));
++    input.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
++    flush();
++
++    assertTrue(input.invalid);
++    assertEquals(24, page.prefs['dao'].stale_tab_expiration_hours.value);
++  });
++
++  test('staleTabExpirationUnitIsInlineInputSuffix', function() {
++    const input = page.shadowRoot!.querySelector<CrInputElement>(
++        '#staleTabExpirationHours');
++    assertTrue(!!input);
++    assertTrue(!!input.querySelector('[slot="inline-suffix"]'));
 +  });
 +
 +  test('enhancedPipPreviewShowsSelectedModeOnly', function() {

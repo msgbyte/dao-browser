@@ -17,7 +17,7 @@ import type {
   UpdateStateData,
 } from '../sidebar_bridge.js';
 
-const ARCHIVED_TOAST_TEXT = 'Archived tabs inactive for the past 24 hours';
+const ARCHIVED_TOAST_TEXT = 'Archived inactive tabs';
 const NO_NEW_TABS_TOAST_TEXT = 'No new tabs were archived';
 const {loadTimeDataGetString} = vi.hoisted(() => ({
   loadTimeDataGetString: vi.fn(),
@@ -97,10 +97,13 @@ function installFolderModel(
   return model;
 }
 
-function fireMoveStaleTabsRequested() {
+function fireMoveStaleTabsRequested(expirationHours?: unknown) {
   (window as unknown as {
-    cr: {webUIListenerCallback: (event: string) => void};
-  }).cr.webUIListenerCallback('moveStaleTabsRequested');
+    cr: {
+      webUIListenerCallback:
+          (event: string, expirationHours?: unknown) => void;
+    };
+  }).cr.webUIListenerCallback('moveStaleTabsRequested', expirationHours);
 }
 
 function fireFolderContextMenuCommand(folderId: string, command: string) {
@@ -377,6 +380,62 @@ describe('dao-sidebar-app', () => {
         const toast = el.shadowRoot!.querySelector('.dao-sidebar-toast');
         expect(toast).not.toBeNull();
         expect(toast!.textContent).toContain(NO_NEW_TABS_TOAST_TEXT);
+      });
+
+  it('uses the configured stale-tab expiration from the native event',
+      async () => {
+        vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+
+        const {el} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app);
+        app.unpinnedTabs_ = [
+          tab({
+            tabId: '25-hours-old',
+            lastActiveTimeMs: Date.now() - 25 * 60 * 60 * 1000,
+          }),
+          tab({
+            tabId: '49-hours-old',
+            lastActiveTimeMs: Date.now() - 49 * 60 * 60 * 1000,
+          }),
+        ];
+
+        fireMoveStaleTabsRequested(48);
+        await el.updateComplete;
+
+        expect(app.folderModel_.findFolderByName('stale')?.children
+            .map(child => child.tabId)).toEqual(['49-hours-old']);
+      });
+
+  it.each([
+    {payload: 0, ageHours: 1, shouldArchive: false},
+    {payload: 721, ageHours: 25, shouldArchive: true},
+    {payload: 1.5, ageHours: 2, shouldArchive: false},
+    {payload: '48', ageHours: 25, shouldArchive: true},
+    {payload: undefined, ageHours: 25, shouldArchive: true},
+  ])(
+      'falls back to 24 hours for invalid expiration payload $payload',
+      async ({payload, ageHours, shouldArchive}) => {
+        vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+
+        const {el} = await loadApp();
+        const app = el as SidebarAppInternals;
+        installFolderModel(app);
+        app.unpinnedTabs_ = [
+          tab({
+            tabId: 'candidate',
+            lastActiveTimeMs: Date.now() - ageHours * 60 * 60 * 1000,
+          }),
+        ];
+
+        fireMoveStaleTabsRequested(payload);
+        await el.updateComplete;
+
+        const archivedTabIds =
+            app.folderModel_.findFolderByName('stale')?.children
+                .map(child => child.tabId) ?? [];
+        expect(archivedTabIds).toEqual(
+            shouldArchive ? ['candidate'] : []);
       });
 
   it('shows no-new-tabs toast when stale tabs are already archived',

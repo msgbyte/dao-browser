@@ -2,7 +2,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 index aae688f787f30..d7ddfe3e08b71 100644
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -3837,6 +3837,66 @@
+@@ -3837,6 +3837,78 @@
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
      </message>
@@ -26,6 +26,18 @@ index aae688f787f30..d7ddfe3e08b71 100644
 +    </message>
 +    <message name="IDS_SETTINGS_ASK_AI_ENABLED_SUB_LABEL" desc="Description for the setting that shows an Ask AI suggestion in the command bar.">
 +      Show an "Ask AI" suggestion in the command bar
++    </message>
++    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_LABEL" desc="Label for the number of inactive hours after which the sidebar can move a tab into the stale folder.">
++      Stale tab expiration
++    </message>
++    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_SUB_LABEL" desc="Description for the stale tab expiration setting.">
++      Move tabs inactive longer than this into the stale folder
++    </message>
++    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_UNIT" desc="Unit label for the stale tab expiration input.">
++      Hours
++    </message>
++    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_ERROR" desc="Error shown when the stale tab expiration input is outside its supported integer range.">
++      Enter a whole number from 1 to 720
 +    </message>
 +    <message name="IDS_SETTINGS_ENHANCED_PIP_ENABLED_LABEL" desc="Label for the setting that enables or disables Dao's custom Document Picture-in-Picture behavior on supported video sites.">
 +      Enhanced Picture-in-Picture (PIP)
