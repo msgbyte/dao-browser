@@ -25,8 +25,14 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **dao_favorites_view.ts** — Pinned site icon row
 - **dao_pinned_tabs_grid.ts** + **DaoPinnedTabModel** — Persistent Pin grid
   with stable logical backing identities across navigation, discard/WebContents
-  replacement, and session restore. URL remains display/reopen metadata and is
-  used for legacy migration only when exactly one candidate exists. Confirmed
+  replacement, session restore, and Chromium session-command compaction.
+  Open backing tabs are resolved across every browser window in the same
+  profile, so activating a Pin focuses the existing tab instead of opening a
+  second copy. Pin mutations are propagated to every same-profile sidebar
+  handler before persistence, preventing a stale window from rewriting newer
+  state. Dragging a Pin into another window's ordinary tab list moves its
+  backing tab into that window. URL remains display/reopen metadata and is used
+  for legacy migration only when exactly one candidate exists. Confirmed
   dormant items reopen once; identity conflicts fail closed without increasing
   the tab count. Pin state is serialized through a shared sequenced writer and
   atomically replaces the previous profile file.

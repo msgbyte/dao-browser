@@ -44,6 +44,9 @@
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/sessions/session_service.h"
+#include "chrome/browser/sessions/session_service_factory.h"
+#include "chrome/browser/sessions/session_service_test_helper.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -76,6 +79,9 @@
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/sessions/content/session_tab_helper.h"
+#include "components/sessions/core/base_session_service_commands.h"
+#include "components/sessions/core/command_storage_manager.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/download_manager.h"
@@ -1980,6 +1986,184 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
             FindDictByStringField(*unpinned_tabs, "url", pinned_url.spec()));
   EXPECT_NE(nullptr,
             FindDictByStringField(*unpinned_tabs, "url", unpinned_url.spec()));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       PinnedIdentitySurvivesSessionCommandRebuild) {
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  constexpr char kIdentity[] = "persisted-pinned-tab-identity";
+  SetSidebarTabId(contents, kIdentity);
+
+  SessionService* session_service =
+      SessionServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_NE(nullptr, session_service);
+  session_service->ResetFromCurrentBrowsers();
+  SessionServiceTestHelper session_service_helper(session_service);
+
+  sessions::SessionTabHelper* session_tab_helper =
+      sessions::SessionTabHelper::FromWebContents(contents);
+  ASSERT_NE(nullptr, session_tab_helper);
+  std::unique_ptr<sessions::SessionCommand> expected_command =
+      sessions::CreateAddTabExtraDataCommand(
+          session_tab_helper->session_id(), kSidebarTabIdentitySessionKey,
+          kIdentity);
+
+  bool found_identity_command = false;
+  for (const auto& command :
+       session_service_helper.command_storage_manager()->pending_commands()) {
+    if (command->id() == expected_command->id() &&
+        command->contents() == expected_command->contents()) {
+      found_identity_command = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_identity_command);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ActivatingPinnedItemReusesTabFromAnotherWindow) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+
+  content::WebContents* pinned_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, pinned_contents);
+  const std::string backing_tab_id = GetSidebarTabId(pinned_contents);
+  const int pinned_index =
+      browser()->tab_strip_model()->GetIndexOfWebContents(pinned_contents);
+  ASSERT_NE(TabStripModel::kNoTab, pinned_index);
+  browser()->tab_strip_model()->SetTabPinned(pinned_index, true);
+  AddTabAtIndex(browser(), -1, GURL("about:blank"),
+                ui::PAGE_TRANSITION_TYPED);
+  ASSERT_NE(pinned_contents,
+            browser()->tab_strip_model()->GetActiveWebContents());
+
+  Browser* second_browser = CreateBrowser(browser()->profile());
+  ASSERT_NE(nullptr, second_browser);
+  DaoSidebarUIHandler second_handler;
+  AttachSidebarHandlerForTesting(second_browser, &second_handler);
+  second_handler.SetSessionRestoreCompletedForTesting(true);
+  ASSERT_TRUE(second_handler.LoadPinnedItemsForTesting(base::StrCat(
+      {R"({"version":2,"items":[{"id":"shared-pin","title":"Pinned","url":")",
+       pinned_url.spec(), R"(","backingTabId":")", backing_tab_id,
+       R"(","state":"open"}]})"})));
+
+  const int first_count_before = browser()->tab_strip_model()->count();
+  const int second_count_before = second_browser->tab_strip_model()->count();
+  second_handler.ActivateOrOpenPinnedItemForTesting("shared-pin");
+
+  EXPECT_EQ(first_count_before, browser()->tab_strip_model()->count());
+  EXPECT_EQ(second_count_before, second_browser->tab_strip_model()->count());
+  EXPECT_EQ(pinned_contents,
+            browser()->tab_strip_model()->GetActiveWebContents());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoSidebarBrowserTest,
+    ClosingPinnedItemFromAnotherWindowMakesItDormantAndReopenable) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+
+  content::WebContents* pinned_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, pinned_contents);
+  const std::string backing_tab_id = GetSidebarTabId(pinned_contents);
+  const int pinned_index =
+      browser()->tab_strip_model()->GetIndexOfWebContents(pinned_contents);
+  ASSERT_NE(TabStripModel::kNoTab, pinned_index);
+  browser()->tab_strip_model()->SetTabPinned(pinned_index, true);
+  AddTabAtIndex(browser(), -1, GURL("about:blank"),
+                ui::PAGE_TRANSITION_TYPED);
+
+  const std::string pinned_json = base::StrCat(
+      {R"({"version":2,"items":[{"id":"shared-pin","title":"Pinned","url":")",
+       pinned_url.spec(), R"(","backingTabId":")", backing_tab_id,
+       R"(","state":"open"}]})"});
+  DaoSidebarUIHandler first_handler;
+  AttachSidebarHandlerForTesting(browser(), &first_handler);
+  first_handler.SetSessionRestoreCompletedForTesting(true);
+  ASSERT_TRUE(first_handler.LoadPinnedItemsForTesting(pinned_json));
+
+  Browser* second_browser = CreateBrowser(browser()->profile());
+  ASSERT_NE(nullptr, second_browser);
+  DaoSidebarUIHandler second_handler;
+  AttachSidebarHandlerForTesting(second_browser, &second_handler);
+  second_handler.SetSessionRestoreCompletedForTesting(true);
+  ASSERT_TRUE(second_handler.LoadPinnedItemsForTesting(pinned_json));
+
+  // Complete the initial reconciliation in both windows. Without profile-wide
+  // state propagation, the initiating window would regress from open to
+  // reconciling after the remote tab closes.
+  ASSERT_EQ(1u, first_handler.GetPinnedItemsForTesting().size());
+  ASSERT_EQ(1u, second_handler.GetPinnedItemsForTesting().size());
+  second_handler.ClosePinnedItemTabForTesting("shared-pin");
+
+  EXPECT_EQ(TabStripModel::kNoTab,
+            browser()->tab_strip_model()->GetIndexOfWebContents(
+                pinned_contents));
+  base::ListValue second_items =
+      second_handler.GetPinnedItemsForTesting();
+  const base::DictValue* closed_item =
+      FindDictByStringField(second_items, "id", "shared-pin");
+  ASSERT_NE(nullptr, closed_item);
+  EXPECT_EQ("dormant", *closed_item->FindString("state"));
+
+  const int second_count_before = second_browser->tab_strip_model()->count();
+  second_handler.ActivateOrOpenPinnedItemForTesting("shared-pin");
+  EXPECT_EQ(second_count_before + 1,
+            second_browser->tab_strip_model()->count());
+  EXPECT_TRUE(second_browser->tab_strip_model()->IsTabPinned(
+      second_browser->tab_strip_model()->active_index()));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       UnpinningPinnedItemFromAnotherWindowMovesItHere) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), pinned_url));
+
+  content::WebContents* pinned_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, pinned_contents);
+  const std::string backing_tab_id = GetSidebarTabId(pinned_contents);
+  const int pinned_index =
+      browser()->tab_strip_model()->GetIndexOfWebContents(pinned_contents);
+  ASSERT_NE(TabStripModel::kNoTab, pinned_index);
+  browser()->tab_strip_model()->SetTabPinned(pinned_index, true);
+  AddTabAtIndex(browser(), -1, GURL("about:blank"),
+                ui::PAGE_TRANSITION_TYPED);
+
+  const std::string pinned_json = base::StrCat(
+      {R"({"version":2,"items":[{"id":"shared-pin","title":"Pinned","url":")",
+       pinned_url.spec(), R"(","backingTabId":")", backing_tab_id,
+       R"(","state":"open"}]})"});
+  DaoSidebarUIHandler first_handler;
+  AttachSidebarHandlerForTesting(browser(), &first_handler);
+  first_handler.SetSessionRestoreCompletedForTesting(true);
+  ASSERT_TRUE(first_handler.LoadPinnedItemsForTesting(pinned_json));
+
+  Browser* second_browser = CreateBrowser(browser()->profile());
+  ASSERT_NE(nullptr, second_browser);
+  DaoSidebarUIHandler second_handler;
+  AttachSidebarHandlerForTesting(second_browser, &second_handler);
+  second_handler.SetSessionRestoreCompletedForTesting(true);
+  ASSERT_TRUE(second_handler.LoadPinnedItemsForTesting(pinned_json));
+
+  second_handler.UnpinPinnedItemForTesting("shared-pin", 0);
+
+  EXPECT_EQ(TabStripModel::kNoTab,
+            browser()->tab_strip_model()->GetIndexOfWebContents(
+                pinned_contents));
+  EXPECT_EQ(0, second_browser->tab_strip_model()->GetIndexOfWebContents(
+                   pinned_contents));
+  EXPECT_FALSE(second_browser->tab_strip_model()->IsTabPinned(0));
+  EXPECT_EQ(nullptr, FindDictByStringField(
+                         second_handler.GetPinnedItemsForTesting(), "id",
+                         "shared-pin"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
