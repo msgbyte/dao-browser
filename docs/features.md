@@ -212,7 +212,8 @@ macOS-style floating control center panel bundling extensions and utilities.
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container
 - **Extension action badges** — Pinned and Control Center extension icons render
   the active tab's badge text and extension-defined badge colors using Chromium's
-  native badge compositor
+  native badge compositor, with compact text and background sized for Dao's
+  smaller icon surfaces
 - **DaoNativeShareMac** (`dao_native_share_mac.{h,mm}`) — Native macOS share sheet
 - **DaoNativeUtilMac** (`dao_native_util_mac.{h,mm}`) — Misc native helpers (incl. cross-window-drag drop side)
 

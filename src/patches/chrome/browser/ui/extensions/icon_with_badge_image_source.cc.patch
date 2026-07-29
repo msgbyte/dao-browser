@@ -1,0 +1,27 @@
+diff --git a/chrome/browser/ui/extensions/icon_with_badge_image_source.cc b/chrome/browser/ui/extensions/icon_with_badge_image_source.cc
+index e5bb67c..5a9be66 100644
+--- a/chrome/browser/ui/extensions/icon_with_badge_image_source.cc
++++ b/chrome/browser/ui/extensions/icon_with_badge_image_source.cc
+@@ -68,7 +68,11 @@ float GetBlockedActionBadgeRadius() {
+ IconWithBadgeImageSource::Badge::Badge(const std::string& text,
+                                        SkColor text_color,
+-                                       SkColor background_color)
+-    : text(text), text_color(text_color), background_color(background_color) {}
++                                       SkColor background_color,
++                                       int font_size_delta)
++    : text(text),
++      text_color(text_color),
++      background_color(background_color),
++      font_size_delta(font_size_delta) {}
+ 
+ IconWithBadgeImageSource::Badge::~Badge() = default;
+ 
+@@ -114,5 +118,8 @@ void IconWithBadgeImageSource::SetBadge(std::unique_ptr<Badge> badge) {
+   gfx::FontList base_font = views::TypographyProvider::Get().GetFont(
+       views::style::CONTEXT_BADGE, views::style::STYLE_SECONDARY);
+ #endif
++  if (badge_->font_size_delta != 0) {
++    base_font = base_font.DeriveWithSizeDelta(badge_->font_size_delta);
++  }
+ 
+   std::u16string utf16_text = base::UTF8ToUTF16(badge_->text);

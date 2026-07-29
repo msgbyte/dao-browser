@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -18,8 +19,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -33,29 +34,27 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
-#include "content/public/browser/page_navigator.h"
-#include "base/command_line.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/sessions/session_service.h"
 #include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/sessions/session_service_test_helper.h"
-#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
-#include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
 #include "chrome/browser/ui/startup/startup_types.h"
@@ -69,6 +68,7 @@
 #include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/download/public/common/download_item.h"
@@ -82,9 +82,9 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/base_session_service_commands.h"
 #include "components/sessions/core/command_storage_manager.h"
-#include "chrome/test/base/search_test_utils.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/download_manager.h"
+#include "content/public/browser/page_navigator.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -93,12 +93,6 @@
 #include "content/public/test/download_test_observer.h"
 #include "content/public/test/slow_download_http_response.h"
 #include "content/public/test/test_navigation_observer.h"
-#include "net/base/filename_util.h"
-#include "sql/database.h"
-#include "sql/meta_table.h"
-#include "sql/statement.h"
-#include "sql/test/test_helpers.h"
-#include "ui/base/hit_test.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_memory_store.h"
@@ -112,20 +106,18 @@
 #include "dao/browser/agent/dao_agent_workspace_types.h"
 #include "dao/browser/dao_auto_pip_visibility_helper.h"
 #include "dao/browser/dao_pref_names.h"
-#include "dao/browser/ui/webui/dao_agent_ui.h"
-#include "dao/browser/ui/webui/dao_sidebar_ui.h"
-#include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/dao_webstore_branding_tab_helper.h"
 #include "dao/browser/pip/dao_pip_bounds_prefs.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
 #include "dao/browser/pip/dao_pip_resize_utils.h"
 #include "dao/browser/pip/dao_pip_site_rules.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
-#include "dao/browser/ui/views/dao_colors.h"
-#include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "dao/browser/ui/views/dao_agent_lock_banner_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
+#include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_button.h"
 #include "dao/browser/ui/views/dao_control_center_extensions_section.h"
 #include "dao/browser/ui/views/dao_control_center_more_menu.h"
@@ -133,6 +125,7 @@
 #include "dao/browser/ui/views/dao_control_center_qr_view.h"
 #include "dao/browser/ui/views/dao_control_center_utility_section.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
+#include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
@@ -147,20 +140,25 @@
 #include "dao/browser/ui/views/little_dao/dao_mini_dao_download_card_view.h"
 #include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
 #include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
+#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
+#include "dao/browser/ui/views/split/dao_split_view.h"
+#include "dao/browser/ui/webui/dao_agent_ui.h"
+#include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "dao/browser/updater/dao_sparkle_update_session_state.h"
 #include "dao/browser/updater/dao_updater_service.h"
-#include "dao/browser/strings/grit/dao_strings.h"
-#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
-#include "dao/browser/ui/views/split/dao_split_view.h"
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/test/test_extension_dir.h"
-#include "ui/base/l10n/l10n_util.h"
+#include "net/base/filename_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "sql/database.h"
+#include "sql/meta_table.h"
+#include "sql/statement.h"
+#include "sql/test/test_helpers.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom.h"
@@ -168,10 +166,12 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/hit_test.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
-#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/display/display.h"
 #include "ui/display/display_list.h"
 #include "ui/display/screen.h"
@@ -198,9 +198,9 @@
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
-#include "ui/views/window/dialog_delegate.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
+#include "ui/views/window/dialog_delegate.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
 
@@ -497,6 +497,40 @@ bool ImageContainsApproximateColor(const gfx::ImageSkia& image,
   return false;
 }
 
+gfx::Rect GetApproximateColorBounds(const gfx::ImageSkia& image,
+                                    SkColor expected_color) {
+  const gfx::ImageSkiaRep& image_rep = image.GetRepresentation(1.0f);
+  const SkBitmap& bitmap = image_rep.GetBitmap();
+  int left = bitmap.width();
+  int top = bitmap.height();
+  int right = -1;
+  int bottom = -1;
+  auto channel_matches = [](int actual, int expected) {
+    constexpr int kChannelTolerance = 48;
+    return actual >= expected - kChannelTolerance &&
+           actual <= expected + kChannelTolerance;
+  };
+  for (int y = 0; y < bitmap.height(); ++y) {
+    for (int x = 0; x < bitmap.width(); ++x) {
+      const SkColor actual_color = bitmap.getColor(x, y);
+      if (channel_matches(SkColorGetR(actual_color),
+                          SkColorGetR(expected_color)) &&
+          channel_matches(SkColorGetG(actual_color),
+                          SkColorGetG(expected_color)) &&
+          channel_matches(SkColorGetB(actual_color),
+                          SkColorGetB(expected_color))) {
+        left = std::min(left, x);
+        top = std::min(top, y);
+        right = std::max(right, x);
+        bottom = std::max(bottom, y);
+      }
+    }
+  }
+  return right < left
+             ? gfx::Rect()
+             : gfx::Rect(left, top, right - left + 1, bottom - top + 1);
+}
+
 gfx::Rect GetExactColorBounds(const gfx::ImageSkia& image, SkColor color) {
   const gfx::ImageSkiaRep& image_rep = image.GetRepresentation(1.0f);
   const SkBitmap& bitmap = image_rep.GetBitmap();
@@ -514,9 +548,9 @@ gfx::Rect GetExactColorBounds(const gfx::ImageSkia& image, SkColor color) {
       }
     }
   }
-  return right < left ? gfx::Rect()
-                      : gfx::Rect(left, top, right - left + 1,
-                                  bottom - top + 1);
+  return right < left
+             ? gfx::Rect()
+             : gfx::Rect(left, top, right - left + 1, bottom - top + 1);
 }
 
 scoped_refptr<const extensions::Extension> LoadActionExtension(
@@ -979,8 +1013,7 @@ class TestPictureInPictureWindowController
 IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest, RegistersDictionaryPref) {
   PrefService* prefs = browser()->profile()->GetPrefs();
   ASSERT_TRUE(prefs->FindPreference(dao::prefs::kDaoPipWindowBoundsByOrigin));
-  EXPECT_TRUE(
-      prefs->GetDict(dao::prefs::kDaoPipWindowBoundsByOrigin).empty());
+  EXPECT_TRUE(prefs->GetDict(dao::prefs::kDaoPipWindowBoundsByOrigin).empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
@@ -1056,9 +1089,9 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
 
   const gfx::Rect stored_bounds(700, 420, 640, 360);
-  dao::UpdatePersistedPipBoundsForSite(
-      browser()->profile(), contents, stored_bounds, opener_display,
-      opener_display, gfx::Size(800, 450));
+  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+                                       stored_bounds, opener_display,
+                                       opener_display, gfx::Size(800, 450));
 
   std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
       browser()->profile(), contents, opener_display, std::nullopt);
@@ -1145,9 +1178,9 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
 
   const gfx::Rect stored_bounds(700, 420, 640, 360);
   const gfx::Size requested_size(800, 450);
-  dao::UpdatePersistedPipBoundsForSite(
-      browser()->profile(), contents, stored_bounds, opener_display,
-      opener_display, requested_size);
+  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+                                       stored_bounds, opener_display,
+                                       opener_display, requested_size);
 
   TestPictureInPictureWindowController controller(contents);
   PictureInPictureWindowManager* manager =
@@ -1180,9 +1213,9 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
 
   const gfx::Rect stored_bounds(700, 420, 640, 360);
   const gfx::Size requested_size(800, 450);
-  dao::UpdatePersistedPipBoundsForSite(
-      browser()->profile(), contents, stored_bounds, opener_display,
-      opener_display, requested_size);
+  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+                                       stored_bounds, opener_display,
+                                       opener_display, requested_size);
 
   TestPictureInPictureWindowController controller(contents);
   PictureInPictureWindowManager* manager =
@@ -1377,8 +1410,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   const PrefService::Preference* preference =
       prefs->FindPreference(dao::prefs::kDaoStaleTabExpirationHours);
   ASSERT_TRUE(preference);
-  EXPECT_EQ(24,
-            prefs->GetInteger(dao::prefs::kDaoStaleTabExpirationHours));
+  EXPECT_EQ(24, prefs->GetInteger(dao::prefs::kDaoStaleTabExpirationHours));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
@@ -1423,8 +1455,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
           unitRect.bottom > inputRect.top;
     })()
   )";
-  EXPECT_EQ(true,
-            content::EvalJs(web_contents, kHasInlineUnitSuffixScript));
+  EXPECT_EQ(true, content::EvalJs(web_contents, kHasInlineUnitSuffixScript));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, SidebarExistsOnStartup) {
@@ -1436,8 +1467,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, SidebarExistsOnStartup) {
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, SidebarDefaultWidth) {
   DaoSidebarView* sidebar = GetBrowserView(browser())->dao_sidebar();
   ASSERT_NE(nullptr, sidebar);
-  EXPECT_EQ(DaoSidebarView::kDefaultWidth,
-            sidebar->GetPreferredSize().width());
+  EXPECT_EQ(DaoSidebarView::kDefaultWidth, sidebar->GetPreferredSize().width());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, SidebarToggleCollapse) {
@@ -1648,12 +1678,12 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 
   int apply_count = 0;
   bool callback_saw_applying = false;
-  service->SetReadyUpdateForTesting(
-      "1.2.3", base::BindLambdaForTesting([&]() {
-        ++apply_count;
-        callback_saw_applying =
-            service->GetUpdateStatus().state == dao::DaoUpdateState::kApplying;
-      }));
+  service->SetReadyUpdateForTesting("1.2.3", base::BindLambdaForTesting([&]() {
+                                      ++apply_count;
+                                      callback_saw_applying =
+                                          service->GetUpdateStatus().state ==
+                                          dao::DaoUpdateState::kApplying;
+                                    }));
 
   EXPECT_TRUE(service->ApplyReadyUpdate());
   EXPECT_TRUE(observer.reentered());
@@ -1678,8 +1708,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   service->AddObserver(&reentering_observer);
   service->AddObserver(&recording_observer);
 
-  service->SetReadyUpdateForTesting(
-      "1.2.3", base::BindLambdaForTesting([]() {}));
+  service->SetReadyUpdateForTesting("1.2.3",
+                                    base::BindLambdaForTesting([]() {}));
 
   EXPECT_TRUE(reentering_observer.reentered());
   EXPECT_EQ(1, recording_observer.notification_count());
@@ -1911,8 +1941,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, CloseTabsByStableIdentity) {
   EXPECT_EQ(2, handler.CloseTabsByIdForTesting(ids));
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   EXPECT_EQ(second_id,
-            GetSidebarTabId(
-                browser()->tab_strip_model()->GetWebContentsAt(0)));
+            GetSidebarTabId(browser()->tab_strip_model()->GetWebContentsAt(0)));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
@@ -1926,23 +1955,18 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   ASSERT_NE(nullptr, widget);
   EXPECT_TRUE(widget->IsVisible());
 
-  views::DialogDelegate* dialog =
-      widget->widget_delegate()->AsDialogDelegate();
+  views::DialogDelegate* dialog = widget->widget_delegate()->AsDialogDelegate();
   ASSERT_NE(nullptr, dialog);
   EXPECT_TRUE(dialog->use_dao_system_dialog_style());
-  EXPECT_EQ(l10n_util::GetStringUTF16(
-                IDS_DAO_CLEAR_STALE_TABS_DIALOG_TITLE),
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_TITLE),
             dialog->GetWindowTitle());
-  EXPECT_EQ(l10n_util::GetStringUTF16(
-                IDS_DAO_CLEAR_STALE_TABS_DIALOG_CONFIRM),
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_CONFIRM),
             dialog->GetDialogButtonLabel(ui::mojom::DialogButton::kOk));
-  EXPECT_EQ(l10n_util::GetStringUTF16(
-                IDS_DAO_CLEAR_STALE_TABS_DIALOG_CANCEL),
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_CANCEL),
             dialog->GetDialogButtonLabel(ui::mojom::DialogButton::kCancel));
   EXPECT_TRUE(HasDescendantLabelText(
       dialog->GetContentsView(),
-      l10n_util::GetStringUTF16(
-          IDS_DAO_CLEAR_STALE_TABS_DIALOG_DESCRIPTION)));
+      l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_DESCRIPTION)));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
@@ -2377,9 +2401,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   EXPECT_EQ(0, GetIntField(*updated_item, "openTabIndex"));
 }
 
-IN_PROC_BROWSER_TEST_F(
-    DaoSidebarBrowserTest,
-    PinnedItemIdentitySurvivesWebContentsReplacement) {
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       PinnedItemIdentitySurvivesWebContentsReplacement) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
@@ -2483,10 +2506,9 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 
   dao::DaoSidebarUIHandler handler;
   AttachSidebarHandlerForTesting(browser(), &handler);
-  ASSERT_TRUE(handler.LoadPinnedItemsForTesting(
-      base::StrCat({
-          R"({"version":1,"items":[{"id":"legacy-pin","title":"Legacy","url":")",
-          duplicate_url.spec(), R"("}]})"})));
+  ASSERT_TRUE(handler.LoadPinnedItemsForTesting(base::StrCat(
+      {R"({"version":1,"items":[{"id":"legacy-pin","title":"Legacy","url":")",
+       duplicate_url.spec(), R"("}]})"})));
   base::ListValue items = handler.GetPinnedItemsForTesting();
   ASSERT_EQ(1u, items.size());
   const base::DictValue* item = items[0].GetIfDict();
@@ -2514,10 +2536,9 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 
   dao::DaoSidebarUIHandler handler;
   AttachSidebarHandlerForTesting(browser(), &handler);
-  ASSERT_TRUE(handler.LoadPinnedItemsForTesting(
-      base::StrCat({
-          R"({"version":1,"items":[{"id":"legacy-pin","title":"Legacy","url":")",
-          duplicate_url.spec(), R"("}]})"})));
+  ASSERT_TRUE(handler.LoadPinnedItemsForTesting(base::StrCat(
+      {R"({"version":1,"items":[{"id":"legacy-pin","title":"Legacy","url":")",
+       duplicate_url.spec(), R"("}]})"})));
 
   const int count_before = model->count();
   handler.UnpinPinnedItemForTesting("legacy-pin", model->count());
@@ -2742,7 +2763,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   TabStripModel* model = browser()->tab_strip_model();
   ASSERT_EQ(3, model->count());
   ASSERT_TRUE(model->IsTabPinned(0));
-  EXPECT_EQ(other_pinned_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_EQ(other_pinned_url,
+            model->GetWebContentsAt(0)->GetLastCommittedURL());
   EXPECT_EQ(first_url, model->GetWebContentsAt(1)->GetLastCommittedURL());
   EXPECT_EQ(second_url, model->GetWebContentsAt(2)->GetLastCommittedURL());
 
@@ -2753,7 +2775,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   EXPECT_TRUE(model->IsTabPinned(0));
   EXPECT_FALSE(model->IsTabPinned(1));
   EXPECT_FALSE(model->IsTabPinned(2));
-  EXPECT_EQ(other_pinned_url, model->GetWebContentsAt(0)->GetLastCommittedURL());
+  EXPECT_EQ(other_pinned_url,
+            model->GetWebContentsAt(0)->GetLastCommittedURL());
   EXPECT_EQ(first_url, model->GetWebContentsAt(1)->GetLastCommittedURL());
   EXPECT_EQ(dormant_url, model->GetWebContentsAt(2)->GetLastCommittedURL());
   EXPECT_EQ(second_url, model->GetWebContentsAt(3)->GetLastCommittedURL());
@@ -2766,8 +2789,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 class DaoAddressBarBrowserTest : public InProcessBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest, AddressBarExists) {
-  DaoAddressBarView* address_bar =
-      GetBrowserView(browser())->dao_address_bar();
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
   EXPECT_EQ(DaoAddressBarView::kBarHeight,
             address_bar->GetPreferredSize().height());
@@ -2780,8 +2802,7 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
   const GURL url = embedded_test_server()->GetURL("/hello/world?foo=bar");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
-  DaoAddressBarView* address_bar =
-      GetBrowserView(browser())->dao_address_bar();
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
 
   EXPECT_EQ(ExpectedAddressBarHostText(url),
@@ -2798,8 +2819,7 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest, AddressBarShowsFragment) {
       embedded_test_server()->GetURL("/hello/world?foo=bar#section");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
-  DaoAddressBarView* address_bar =
-      GetBrowserView(browser())->dao_address_bar();
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
 
   EXPECT_EQ(ExpectedAddressBarHostText(url),
@@ -2815,8 +2835,7 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
   const GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
-  DaoAddressBarView* address_bar =
-      GetBrowserView(browser())->dao_address_bar();
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
   EXPECT_EQ(base::UTF8ToUTF16(url.path()),
             address_bar->GetPathTextForTesting());
@@ -2845,13 +2864,11 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
   ASSERT_TRUE(web_contents);
   ASSERT_TRUE(content::WaitForLoadStop(web_contents));
   EXPECT_EQ("rgb(12, 34, 56)",
-            content::EvalJs(
-                web_contents,
-                "getComputedStyle(document.body).backgroundColor"));
+            content::EvalJs(web_contents,
+                            "getComputedStyle(document.body).backgroundColor"));
   ASSERT_EQ(expected_color, web_contents->GetBackgroundColor());
 
-  DaoAddressBarView* address_bar =
-      GetBrowserView(browser())->dao_address_bar();
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
   address_bar->OnBackgroundColorChanged();
 
@@ -2872,8 +2889,7 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), second_url));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), third_url));
 
-  DaoAddressBarView* address_bar =
-      GetBrowserView(browser())->dao_address_bar();
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
 
   const auto get_expected_menu_count =
@@ -2913,15 +2929,13 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
 class DaoCommandBarBrowserTest : public InProcessBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, CommandBarInitiallyHidden) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
   EXPECT_FALSE(command_bar->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, CommandBarShowAndHide) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->Show();
@@ -2933,8 +2947,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, CommandBarShowAndHide) {
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        InputAndInlineCompletionUseSeventeenPointText) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -2950,8 +2963,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowIsIdempotent) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->Show();
@@ -2966,8 +2978,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowIsIdempotent) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, HideIsIdempotent) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   // Hide when already hidden should be a no-op.
@@ -2986,8 +2997,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, HideIsIdempotent) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowForNewTabMode) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -2999,8 +3009,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowForNewTabMode) {
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        ShowForNewTabThenShowSwitchesMode) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   // Show in new-tab mode first.
@@ -3017,8 +3026,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowThenShowForNewTab) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   // Show in normal mode first.
@@ -3040,7 +3048,8 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLWithHTTPS) {
   EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"http://example.com"));
 }
 
-IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLWithInternalScheme) {
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       LooksLikeURLWithInternalScheme) {
   EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"dao://index"));
   EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"dao://memory"));
   EXPECT_TRUE(DaoCommandBarView::LooksLikeURL(u"chrome://version"));
@@ -3065,8 +3074,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, LooksLikeURLReturnsFalse) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, MultipleShowHideCycles) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   // Rapid show/hide cycles should not crash or leave stale state.
@@ -3078,10 +3086,8 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, MultipleShowHideCycles) {
   }
 }
 
-IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       ShowForNewTabMultipleCycles) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowForNewTabMultipleCycles) {
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   for (int i = 0; i < 3; ++i) {
@@ -3097,8 +3103,8 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   PrefService* prefs = browser()->profile()->GetPrefs();
   ASSERT_NE(nullptr, prefs->FindPreference(
                          dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
-  EXPECT_FALSE(prefs->GetBoolean(
-      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
+  EXPECT_FALSE(
+      prefs->GetBoolean(dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, AskAiPrefDefaultsOn) {
@@ -3109,8 +3115,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, AskAiPrefDefaultsOn) {
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        AskAiDisabledHidesAskAiInBothModes) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
@@ -3146,8 +3151,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsUseBroaderOmniboxProviders) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3175,8 +3179,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_NE(nullptr, template_url_service);
   search_test_utils::WaitForTemplateURLServiceToLoad(template_url_service);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3198,8 +3201,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_TRUE(base::StartsWith(target_text, kTypedPrefix,
                                base::CompareCase::SENSITIVE));
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3224,8 +3226,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   const GURL suggestion_url = embedded_test_server()->GetURL("/title2.html");
   ASSERT_NE(typed_url, suggestion_url);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3262,8 +3263,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
       temp_dir.GetPath().AppendASCII("local-document.md");
   ASSERT_TRUE(base::WriteFile(local_file, "# Local file fixture\n"));
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3292,8 +3292,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3326,8 +3325,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3367,8 +3365,7 @@ IN_PROC_BROWSER_TEST_F(
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3414,8 +3411,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3443,8 +3439,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   const std::u16string query = u"new york";
@@ -3465,8 +3460,8 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   EXPECT_EQ(1, command_bar->GetAskAiRowIndexForTesting());
   EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
-  EXPECT_TRUE(HasDescendantLabelText(
-      command_bar, std::u16string(u"Ask AI: ") + query));
+  EXPECT_TRUE(
+      HasDescendantLabelText(command_bar, std::u16string(u"Ask AI: ") + query));
   EXPECT_EQ(2, command_bar->GetVisibleSuggestionCountForTesting());
 }
 
@@ -3475,8 +3470,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   const std::u16string question = u"how do I compare these tabs";
@@ -3497,15 +3491,14 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   EXPECT_EQ(1, command_bar->GetAskAiRowIndexForTesting());
   EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
-  EXPECT_TRUE(HasDescendantLabelText(
-      command_bar, std::u16string(u"Ask AI: ") + question));
+  EXPECT_TRUE(HasDescendantLabelText(command_bar,
+                                     std::u16string(u"Ask AI: ") + question));
   EXPECT_EQ(2, command_bar->GetVisibleSuggestionCountForTesting());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        DefaultSuggestionsDoNotShowEnhancedIntentLabels) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3530,8 +3523,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   browser()->profile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   const std::u16string question = u"how do I compare these tabs";
@@ -3587,8 +3579,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                               base::CompareCase::SENSITIVE)) {
           return nullptr;
         }
-        auto response =
-            std::make_unique<net::test_server::BasicHttpResponse>();
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
         response->set_code(net::HTTP_OK);
         response->set_content_type("text/html");
         response->set_content("<html><body>results</body></html>");
@@ -3604,16 +3595,13 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   TemplateURLData data;
   data.SetShortName(u"Dao Test Search");
   data.SetKeyword(u"dao-test");
-  data.SetURL(embedded_test_server()
-                  ->GetURL("/search?q={searchTerms}")
-                  .spec());
+  data.SetURL(embedded_test_server()->GetURL("/search?q={searchTerms}").spec());
   TemplateURL* template_url =
       template_url_service->Add(std::make_unique<TemplateURL>(data));
   ASSERT_NE(nullptr, template_url);
   template_url_service->SetUserSelectedDefaultSearchProvider(template_url);
 
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3631,8 +3619,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        InlineAutocompletionUsesOnlyDefaultMatch) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3661,8 +3648,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        InlineAutocompletionRequiresDefaultMatchInlineText) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3682,8 +3668,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        InlineAutocompletionClearsForNewQuery) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3706,8 +3691,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        InlineAutocompletionWaitsForStableResult) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3731,8 +3715,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        InlineAutocompletionAllowsSearchLikeInput) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3755,8 +3738,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        InlineAutocompletionIgnoresDocPendingResult) {
-  DaoCommandBarView* command_bar =
-      GetBrowserView(browser())->dao_command_bar();
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   command_bar->ShowForNewTab();
@@ -3811,12 +3793,12 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, TabClose) {
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   int count_after_add = model->count();
 
-  model->CloseWebContentsAt(model->active_index(),
-                            TabCloseTypes::CLOSE_NONE);
+  model->CloseWebContentsAt(model->active_index(), TabCloseTypes::CLOSE_NONE);
   EXPECT_EQ(count_after_add - 1, model->count());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateActiveTabInsertsAfterOriginal) {
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       DuplicateActiveTabInsertsAfterOriginal) {
   TabStripModel* model = browser()->tab_strip_model();
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -3843,7 +3825,8 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateActiveTabInsertsAfterOriginal
   EXPECT_EQ(original->GetLastCommittedURL(), duplicate->GetLastCommittedURL());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, DuplicateTabsGetDistinctSidebarTabIds) {
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       DuplicateTabsGetDistinctSidebarTabIds) {
   TabStripModel* model = browser()->tab_strip_model();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   model->ActivateTabAt(1);
@@ -3951,8 +3934,8 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
                        ExternalUrlUsesFullWindowWhenLittleDaoDisabled) {
-  browser()->profile()->GetPrefs()->SetBoolean(
-      dao::prefs::kDaoLittleDaoEnabled, false);
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoLittleDaoEnabled,
+                                               false);
 
   TabStripModel* model = browser()->tab_strip_model();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
@@ -3975,17 +3958,18 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   EXPECT_EQ(url, model->GetWebContentsAt(0)->GetVisibleURL());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, AutoTopLevelBrowserOpenUrlOpensAtTop) {
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       AutoTopLevelBrowserOpenUrlOpensAtTop) {
   TabStripModel* model = browser()->tab_strip_model();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   const int initial_count = model->count();
   ASSERT_GE(initial_count, 3);
 
-  content::OpenURLParams params(
-      GURL("data:text/plain,direct-external"), content::Referrer(),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, false);
+  content::OpenURLParams params(GURL("data:text/plain,direct-external"),
+                                content::Referrer(),
+                                WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                                ui::PAGE_TRANSITION_AUTO_TOPLEVEL, false);
   browser()->OpenURL(params, /*navigation_handle_callback=*/{});
 
   EXPECT_EQ(initial_count + 1, model->count());
@@ -4054,8 +4038,7 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   event_generator.ReleaseLeftButton();
   base::RunLoop run_loop;
   base::OneShotTimer timeout;
-  timeout.Start(FROM_HERE, base::Milliseconds(250),
-                run_loop.QuitClosure());
+  timeout.Start(FROM_HERE, base::Milliseconds(250), run_loop.QuitClosure());
   run_loop.Run();
 
   EXPECT_FALSE(split_view->GetCanProcessEventsWithinSubtree());
@@ -4075,8 +4058,8 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, SplitPaneCreatesTwo) {
   // Activate the first tab so it's displayed.
   model->ActivateTabAt(0);
 
-  bool result = split_view->SplitPane(
-      first, SplitDirection::kHorizontal, false, second);
+  bool result =
+      split_view->SplitPane(first, SplitDirection::kHorizontal, false, second);
   EXPECT_TRUE(result);
   EXPECT_TRUE(split_view->IsSplitActive());
   EXPECT_EQ(2, split_view->PaneCount());
@@ -4096,8 +4079,8 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   content::WebContents* second = model->GetWebContentsAt(1);
   model->ActivateTabAt(0);
 
-  ASSERT_TRUE(split_view->SplitPane(
-      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(
+      split_view->SplitPane(first, SplitDirection::kHorizontal, false, second));
   ASSERT_TRUE(split_view->IsSplitActive());
 
   browser_view->dao_tab_tooltip()->ShowTooltip(u"Docs", gfx::Point(120, 30));
@@ -4125,8 +4108,8 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, UnsplitDoesNotCrash) {
   content::WebContents* second = model->GetWebContentsAt(1);
   model->ActivateTabAt(0);
 
-  ASSERT_TRUE(split_view->SplitPane(
-      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(
+      split_view->SplitPane(first, SplitDirection::kHorizontal, false, second));
   ASSERT_TRUE(split_view->IsSplitActive());
 
   // Switch the active tab to a third, non-split tab. This is the path that
@@ -4148,8 +4131,7 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, UnsplitDoesNotCrash) {
 // place and preserve the moved member in the model. Sidebar visual adjacency
 // is enforced separately at the JS layer (dao_folder_model.ts), so this test
 // only locks down the model-side invariants of SplitPane itself.
-IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
-                       SplitMembersSurviveCreation) {
+IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, SplitMembersSurviveCreation) {
   DaoSplitView* split_view = GetBrowserView(browser())->dao_split_view();
   ASSERT_NE(nullptr, split_view);
 
@@ -4162,13 +4144,12 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   content::WebContents* far_member = model->GetWebContentsAt(3);
   model->ActivateTabAt(0);
 
-  ASSERT_TRUE(split_view->SplitPane(
-      anchor, SplitDirection::kHorizontal, false, far_member));
+  ASSERT_TRUE(split_view->SplitPane(anchor, SplitDirection::kHorizontal, false,
+                                    far_member));
   ASSERT_TRUE(split_view->IsSplitActive());
 
   EXPECT_EQ(0, model->GetIndexOfWebContents(anchor));
-  EXPECT_NE(TabStripModel::kNoTab,
-            model->GetIndexOfWebContents(far_member));
+  EXPECT_NE(TabStripModel::kNoTab, model->GetIndexOfWebContents(far_member));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
@@ -4184,8 +4165,8 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   content::WebContents* second = model->GetWebContentsAt(1);
   model->ActivateTabAt(0);
 
-  ASSERT_TRUE(split_view->SplitPane(
-      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(
+      split_view->SplitPane(first, SplitDirection::kHorizontal, false, second));
   ASSERT_TRUE(split_view->IsSplitActive());
 
   chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
@@ -4223,8 +4204,8 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   content::WebContents* second = model->GetWebContentsAt(1);
   model->ActivateTabAt(0);
 
-  ASSERT_TRUE(split_view->SplitPane(
-      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(
+      split_view->SplitPane(first, SplitDirection::kHorizontal, false, second));
   ASSERT_TRUE(split_view->IsSplitActive());
 
   Browser* restored_browser = CreateBrowser(browser()->profile());
@@ -4278,8 +4259,8 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   content::WebContents* second = source_model->GetWebContentsAt(1);
   source_model->ActivateTabAt(0);
 
-  ASSERT_TRUE(source_split_view->SplitPane(
-      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(source_split_view->SplitPane(first, SplitDirection::kHorizontal,
+                                           false, second));
   ASSERT_FALSE(browser()
                    ->profile()
                    ->GetPrefs()
@@ -4359,8 +4340,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest,
   content::WebContents* second = model->GetWebContentsAt(1);
   model->ActivateTabAt(0);
 
-  ASSERT_TRUE(split_view->SplitPane(
-      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(
+      split_view->SplitPane(first, SplitDirection::kHorizontal, false, second));
   ASSERT_TRUE(split_view->IsSplitActive());
 
   browser_view->DeprecatedLayoutImmediately();
@@ -4399,8 +4380,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest,
   content::WebContents* second = model->GetWebContentsAt(1);
   model->ActivateTabAt(0);
 
-  ASSERT_TRUE(split_view->SplitPane(
-      first, SplitDirection::kHorizontal, false, second));
+  ASSERT_TRUE(
+      split_view->SplitPane(first, SplitDirection::kHorizontal, false, second));
   ASSERT_TRUE(split_view->IsSplitActive());
 
   sidebar->ToggleCollapsed();
@@ -4679,8 +4660,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest, SeedRulesPresent) {
   EXPECT_TRUE(has_bilibili);
 }
 
-IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest,
-                       BilibiliRuleIncludesCustomStyles) {
+IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest, BilibiliRuleIncludesCustomStyles) {
   auto rule = dao::GetPipSiteRule(GURL("https://www.bilibili.com/video/BV1xx"));
   ASSERT_TRUE(rule.has_value());
   ASSERT_EQ(1u, rule->custom_styles.size());
@@ -4692,8 +4672,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest,
                        BilibiliRuleTargetsPlayerContainer) {
   auto rule = dao::GetPipSiteRule(GURL("https://www.bilibili.com/video/BV1xx"));
   ASSERT_TRUE(rule.has_value());
-  EXPECT_EQ("#bilibili-player .bpx-player-container",
-            rule->target_selector);
+  EXPECT_EQ("#bilibili-player .bpx-player-container", rule->target_selector);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipSiteRulesTest, MatchesBareDomain) {
@@ -4794,7 +4773,8 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
   EXPECT_FALSE(dao::DaoPipInterceptor::ShouldIntercept(contents));
 }
 
-IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldNotInterceptNonMatchingHost) {
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       ShouldNotInterceptNonMatchingHost) {
   GURL url = embedded_test_server()->GetURL("example.com", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   content::WebContents* contents =
@@ -4818,8 +4798,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
   ASSERT_NE(nullptr, contents);
   EXPECT_FALSE(dao::DaoPipInterceptor::ShouldIntercept(contents));
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.body.innerHTML = `
         <div id="bilibili-player">
           <div class="bpx-player-container">
@@ -4867,15 +4846,13 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
                            "'data-dao-enhanced-pip-enabled') === 'false'") ==
            true;
   }));
-  EXPECT_EQ("false",
-            content::EvalJs(contents,
-                            "document.documentElement.getAttribute("
-                            "'data-dao-enhanced-pip-enabled')"));
-  ASSERT_EQ(true, content::EvalJs(contents,
-                                  "window.__daoEnhancedPipEnabled = true; true"));
+  EXPECT_EQ("false", content::EvalJs(contents,
+                                     "document.documentElement.getAttribute("
+                                     "'data-dao-enhanced-pip-enabled')"));
+  ASSERT_EQ(true, content::EvalJs(
+                      contents, "window.__daoEnhancedPipEnabled = true; true"));
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.getElementById('dao-video')
           .requestPictureInPicture()
           .then((result) => !!result && result.daoOriginal === true)
@@ -4892,10 +4869,10 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
                            "'data-dao-enhanced-pip-enabled') === 'true'") ==
            true;
   }));
-  ASSERT_EQ(true, content::EvalJs(contents,
-                                  "window.__daoEnhancedPipEnabled = false; true"));
   ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+            content::EvalJs(contents,
+                            "window.__daoEnhancedPipEnabled = false; true"));
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.getElementById('dao-video')
           .requestPictureInPicture()
           .then((result) => !!result && !result.daoOriginal)
@@ -4929,8 +4906,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.body.innerHTML = `
         <div id="bilibili-player">
           <div class="bpx-player-container">
@@ -4989,8 +4965,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.body.innerHTML = `
         <div id="modern-bilibili-player" class="bili-player-shell">
           <div class="bili-video-stage">
@@ -5049,8 +5024,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.body.innerHTML = `
         <div id="bilibili-player">
           <div class="bpx-player-container">
@@ -5092,8 +5066,8 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
     )js"));
 
   EXPECT_EQ("undefined",
-            EvalJsInDaoIsolatedWorld(
-                contents, "typeof window.documentPictureInPicture"));
+            EvalJsInDaoIsolatedWorld(contents,
+                                     "typeof window.documentPictureInPicture"));
 
   auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
   ASSERT_NE(nullptr, interceptor);
@@ -5102,8 +5076,8 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
   interceptor->TriggerDocumentPip(result.GetCallback());
 
   ASSERT_TRUE(result.Get());
-  EXPECT_EQ(1, content::EvalJs(
-                   contents, "window.__daoMainWorldRequestWindowCount"));
+  EXPECT_EQ(
+      1, content::EvalJs(contents, "window.__daoMainWorldRequestWindowCount"));
 
   interceptor->CloseDocumentPip();
   EXPECT_EQ(1, content::EvalJs(contents, "window.__daoMainWorldCloseCount"));
@@ -5117,8 +5091,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.body.innerHTML = `
         <div id="bilibili-player">
           <div class="bpx-player-container">
@@ -5195,8 +5168,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.body.innerHTML = `
         <div id="bilibili-player">
           <div class="bpx-player-container">
@@ -5256,8 +5228,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
   interceptor->TriggerDocumentPip(result.GetCallback());
   ASSERT_TRUE(result.Get());
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       const pipWindow = window.documentPictureInPicture.window;
       const sourceEvent = new KeyboardEvent('keydown', {
         key: 'ArrowRight',
@@ -5301,8 +5272,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.body.innerHTML = `
         <div id="bilibili-player">
           <div class="bpx-player-container">
@@ -5365,8 +5335,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
   interceptor->TriggerDocumentPip(result.GetCallback());
   ASSERT_TRUE(result.Get());
 
-  EXPECT_EQ(true,
-            content::EvalJs(contents, R"js(
+  EXPECT_EQ(true, content::EvalJs(contents, R"js(
       const pipWindow = window.documentPictureInPicture.window;
       pipWindow.document.dispatchEvent(new KeyboardEvent('keydown', {
         key: 'ArrowUp',
@@ -5377,8 +5346,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       Math.abs(window.player.getVolume() - 0.6) < 0.0001
     )js"));
 
-  EXPECT_EQ(true,
-            content::EvalJs(contents, R"js(
+  EXPECT_EQ(true, content::EvalJs(contents, R"js(
       const pipWindow = window.documentPictureInPicture.window;
       pipWindow.document.dispatchEvent(new KeyboardEvent('keydown', {
         key: 'ArrowDown',
@@ -5421,8 +5389,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.body.innerHTML = `
         <div id="bilibili-player">
           <div class="bpx-player-container">
@@ -5467,8 +5434,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
       !!window.__daoPipOverrideInstalled;
     )js"));
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       document.getElementById('dao-video')
           .requestPictureInPicture()
           .then((pipWindow) => !!pipWindow)
@@ -5476,8 +5442,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
 
   EXPECT_EQ(1, content::EvalJs(contents, "window.__daoPipEvents.enter"));
 
-  ASSERT_EQ(true,
-            content::EvalJs(contents, R"js(
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
       new Promise((resolve) => {
         const pipWindow = window.documentPictureInPicture.window;
         if (!pipWindow) {
@@ -5511,16 +5476,14 @@ IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest, HasSeedScenarios) {
 
 IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest, MatchesSeedPrPattern) {
   dao::DaoAgentScenarioRegistry registry;
-  auto match =
-      registry.Match("https://github.com/foo/bar/pull/42");
+  auto match = registry.Match("https://github.com/foo/bar/pull/42");
   ASSERT_TRUE(match.has_value());
   EXPECT_EQ("seed_github_pr", match->id);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest, MatchesSeedIssuePattern) {
   dao::DaoAgentScenarioRegistry registry;
-  auto match =
-      registry.Match("https://github.com/foo/bar/issues/7");
+  auto match = registry.Match("https://github.com/foo/bar/issues/7");
   ASSERT_TRUE(match.has_value());
   EXPECT_EQ("seed_github_issue", match->id);
 }
@@ -5552,9 +5515,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest, AddAndRemovePersonal) {
   EXPECT_FALSE(registry.Match("https://example.com/app/home").has_value());
 }
 
-IN_PROC_BROWSER_TEST_F(
-    DaoAgentScenarioRegistryTest,
-    GetMatchingScenariosIncludesSeedAndPersonalOnConflict) {
+IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest,
+                       GetMatchingScenariosIncludesSeedAndPersonalOnConflict) {
   dao::DaoAgentScenarioRegistry registry;
 
   dao::ScenarioDefinition s;
@@ -5572,9 +5534,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ("p_pr", matches[1].id);
 }
 
-IN_PROC_BROWSER_TEST_F(
-    DaoAgentScenarioRegistryTest,
-    GetMatchingScenariosOrdersPersonalByAcceptanceRate) {
+IN_PROC_BROWSER_TEST_F(DaoAgentScenarioRegistryTest,
+                       GetMatchingScenariosOrdersPersonalByAcceptanceRate) {
   dao::DaoAgentScenarioRegistry registry;
 
   dao::ScenarioDefinition high;
@@ -5741,20 +5702,20 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
     ASSERT_TRUE(db.Open(db_path));
     sql::MetaTable meta_table;
     ASSERT_TRUE(meta_table.Init(&db, /*version=*/3, /*compatible_version=*/3));
-    ASSERT_TRUE(db.Execute(
-        "CREATE TABLE episodes ("
-        "  id INTEGER PRIMARY KEY,"
-        "  domain TEXT NOT NULL,"
-        "  path_template TEXT,"
-        "  url TEXT NOT NULL,"
-        "  title TEXT,"
-        "  intent TEXT,"
-        "  entities TEXT,"
-        "  tools_used TEXT,"
-        "  outcome TEXT,"
-        "  timestamp INTEGER NOT NULL,"
-        "  confidence REAL DEFAULT 0.7"
-        ")"));
+    ASSERT_TRUE(
+        db.Execute("CREATE TABLE episodes ("
+                   "  id INTEGER PRIMARY KEY,"
+                   "  domain TEXT NOT NULL,"
+                   "  path_template TEXT,"
+                   "  url TEXT NOT NULL,"
+                   "  title TEXT,"
+                   "  intent TEXT,"
+                   "  entities TEXT,"
+                   "  tools_used TEXT,"
+                   "  outcome TEXT,"
+                   "  timestamp INTEGER NOT NULL,"
+                   "  confidence REAL DEFAULT 0.7"
+                   ")"));
   }
 
   {
@@ -5829,21 +5790,21 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
 IN_PROC_BROWSER_TEST_F(
     DaoAgentMemoryStoreTest,
     ProactiveOutcomeDismissStatsClassifyUserNegativeFeedbackOnly) {
-  EXPECT_TRUE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
-      "not_now"));
-  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
-      "ignored"));
+  EXPECT_TRUE(
+      dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats("not_now"));
+  EXPECT_FALSE(
+      dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats("ignored"));
   EXPECT_TRUE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
       "not_helpful"));
-  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
-      "failed"));
+  EXPECT_FALSE(
+      dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats("failed"));
 
-  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
-      "shown"));
-  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
-      "accepted"));
-  EXPECT_FALSE(dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
-      "completed"));
+  EXPECT_FALSE(
+      dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats("shown"));
+  EXPECT_FALSE(
+      dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats("accepted"));
+  EXPECT_FALSE(
+      dao::ShouldCountProactiveOutcomeAsDismissedForScenarioStats("completed"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_PreferenceRoundTrip) {
@@ -5867,7 +5828,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_PreferenceRoundTrip) {
   EXPECT_TRUE(found);
 }
 
-IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest, DISABLED_EpisodeSaveAndRetrieve) {
+IN_PROC_BROWSER_TEST_F(DaoAgentMemoryStoreTest,
+                       DISABLED_EpisodeSaveAndRetrieve) {
   dao::Episode ep;
   ep.domain = "example.com";
   ep.url = "https://example.com/path";
@@ -5991,7 +5953,8 @@ IN_PROC_BROWSER_TEST_F(DaoWebstoreBrandingTabHelperBrowserTest,
   EXPECT_NE(nullptr, helper);
 
   dao::DaoWebstoreBrandingTabHelper::CreateForWebContents(contents);
-  EXPECT_EQ(helper, dao::DaoWebstoreBrandingTabHelper::FromWebContents(contents));
+  EXPECT_EQ(helper,
+            dao::DaoWebstoreBrandingTabHelper::FromWebContents(contents));
 }
 
 class DaoWebstoreBrandingScriptBrowserTest : public InProcessBrowserTest {
@@ -6004,13 +5967,12 @@ class DaoWebstoreBrandingScriptBrowserTest : public InProcessBrowserTest {
   }
 
  private:
-  static std::unique_ptr<net::test_server::HttpResponse>
-  HandleWebstoreRequest(const net::test_server::HttpRequest& request) {
+  static std::unique_ptr<net::test_server::HttpResponse> HandleWebstoreRequest(
+      const net::test_server::HttpRequest& request) {
     if (request.relative_url != "/webstore-branding.html") {
       return nullptr;
     }
-    auto response =
-        std::make_unique<net::test_server::BasicHttpResponse>();
+    auto response = std::make_unique<net::test_server::BasicHttpResponse>();
     response->set_code(net::HTTP_OK);
     response->set_content_type("text/html");
     response->set_content(
@@ -6170,12 +6132,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_TRUE(button->IsDrawn());
   EXPECT_FALSE(button->GetEnabled());
   EXPECT_EQ(views::Button::STATE_DISABLED, button->GetState());
-  EXPECT_EQ(l10n_util::GetStringUTF16(
-                IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP),
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP),
             button->GetTooltipText());
   auto* button_label = FindDescendantLabelWithText(
-      button, l10n_util::GetStringUTF16(
-                  IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL));
+      button, l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL));
   ASSERT_NE(nullptr, button_label);
   EXPECT_EQ(ControlCenterLabelColor(), button_label->GetEnabledColor());
   EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
@@ -6223,19 +6183,19 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   popup->ShowAt(gfx::Point(100, 100));
   popup->ShowMoreMenu();
 
-  auto* clear_cookies_button = views::AsViewClass<views::LabelButton>(
-      FindButtonWithAccessibleName(
-          popup, l10n_util::GetStringUTF16(
-                     IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
+  auto* clear_cookies_button =
+      views::AsViewClass<views::LabelButton>(FindButtonWithAccessibleName(
+          popup,
+          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
   ASSERT_NE(nullptr, clear_cookies_button);
 
   views::test::ButtonTestApi(clear_cookies_button)
-      .NotifyClick(ui::MouseEvent(
-          ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-          ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-          ui::EF_LEFT_MOUSE_BUTTON));
-  EXPECT_TRUE(base::test::RunUntil(
-      [&] { return clear_cookies_button->GetEnabled(); }));
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
+                                  gfx::Point(), ui::EventTimeForNow(),
+                                  ui::EF_LEFT_MOUSE_BUTTON,
+                                  ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(
+      base::test::RunUntil([&] { return clear_cookies_button->GetEnabled(); }));
 
   EXPECT_TRUE(content::GetCookies(profile, current_url).empty());
   EXPECT_NE(std::string::npos,
@@ -6264,25 +6224,25 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   popup->ShowMoreMenu();
   ASSERT_TRUE(popup->GetVisible());
 
-  auto* clear_cookies_button = views::AsViewClass<views::LabelButton>(
-      FindButtonWithAccessibleName(
-          popup, l10n_util::GetStringUTF16(
-                     IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
+  auto* clear_cookies_button =
+      views::AsViewClass<views::LabelButton>(FindButtonWithAccessibleName(
+          popup,
+          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
   ASSERT_NE(nullptr, clear_cookies_button);
 
   views::test::ButtonTestApi(clear_cookies_button)
-      .NotifyClick(ui::MouseEvent(
-          ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-          ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-          ui::EF_LEFT_MOUSE_BUTTON));
-  EXPECT_TRUE(base::test::RunUntil(
-      [&] { return clear_cookies_button->GetEnabled(); }));
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
+                                  gfx::Point(), ui::EventTimeForNow(),
+                                  ui::EF_LEFT_MOUSE_BUTTON,
+                                  ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(
+      base::test::RunUntil([&] { return clear_cookies_button->GetEnabled(); }));
 
   EXPECT_FALSE(popup->GetVisible());
   EXPECT_TRUE(toast->GetVisible());
   EXPECT_TRUE(HasDescendantLabelText(
-      toast, l10n_util::GetStringUTF16(
-                 IDS_DAO_CONTROL_CENTER_COOKIES_CLEARED_TOAST)));
+      toast,
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_COOKIES_CLEARED_TOAST)));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
@@ -6297,11 +6257,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
          const net::test_server::HttpRequest& request)
           -> std::unique_ptr<net::test_server::HttpResponse> {
         const GURL absolute_request_url(request.relative_url);
-        const std::string request_path = absolute_request_url.is_valid()
-                                             ? std::string(
-                                                   absolute_request_url.path())
-                                             : std::string(
-                                                   request.GetURL().path());
+        const std::string request_path =
+            absolute_request_url.is_valid()
+                ? std::string(absolute_request_url.path())
+                : std::string(request.GetURL().path());
         if (request_path == "/dao-current-cacheable") {
           request_counts->current_domain.fetch_add(1);
         } else if (request_path == "/dao-other-cacheable") {
@@ -6310,8 +6269,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
           return nullptr;
         }
 
-        auto response =
-            std::make_unique<net::test_server::BasicHttpResponse>();
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
         response->set_code(net::HTTP_OK);
         response->set_content("dao cacheable response");
         response->AddCustomHeader("Cache-Control", "max-age=3600");
@@ -6359,24 +6317,24 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   popup->ShowAt(gfx::Point(100, 100));
   popup->ShowMoreMenu();
 
-  auto* clear_cache_button = views::AsViewClass<views::LabelButton>(
-      FindButtonWithAccessibleName(
+  auto* clear_cache_button =
+      views::AsViewClass<views::LabelButton>(FindButtonWithAccessibleName(
           popup,
           l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEAR_CACHE)));
   ASSERT_NE(nullptr, clear_cache_button);
 
   views::test::ButtonTestApi(clear_cache_button)
-      .NotifyClick(ui::MouseEvent(
-          ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-          ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-          ui::EF_LEFT_MOUSE_BUTTON));
-  EXPECT_TRUE(base::test::RunUntil(
-      [&] { return clear_cache_button->GetEnabled(); }));
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
+                                  gfx::Point(), ui::EventTimeForNow(),
+                                  ui::EF_LEFT_MOUSE_BUTTON,
+                                  ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(
+      base::test::RunUntil([&] { return clear_cache_button->GetEnabled(); }));
 
   EXPECT_FALSE(popup->GetVisible());
   EXPECT_TRUE(HasDescendantLabelText(
-      toast, l10n_util::GetStringUTF16(
-                 IDS_DAO_CONTROL_CENTER_CACHE_CLEARED_TOAST)));
+      toast,
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CACHE_CLEARED_TOAST)));
 
   EXPECT_EQ("dao cacheable response",
             content::EvalJs(web_contents, fetch_text(current_url)));
@@ -6408,17 +6366,17 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   ASSERT_NE(nullptr, button);
   ASSERT_TRUE(button->GetEnabled());
 
-  views::test::ButtonTestApi(button).NotifyClick(ui::MouseEvent(
-      ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-      ui::EF_LEFT_MOUSE_BUTTON));
+  views::test::ButtonTestApi(button).NotifyClick(
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                     ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                     ui::EF_LEFT_MOUSE_BUTTON));
   EXPECT_TRUE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
   EXPECT_TRUE(IsForceDarkModeEffective(browser()->profile()));
 
-  views::test::ButtonTestApi(button).NotifyClick(ui::MouseEvent(
-      ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-      ui::EF_LEFT_MOUSE_BUTTON));
+  views::test::ButtonTestApi(button).NotifyClick(
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                     ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                     ui::EF_LEFT_MOUSE_BUTTON));
   EXPECT_FALSE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
 
   popup->Hide();
@@ -6489,10 +6447,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 
   BrowserAddedRecorder added_recorder;
   views::test::ButtonTestApi(mini_dao_button)
-      .NotifyClick(ui::MouseEvent(
-          ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-          ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-          ui::EF_LEFT_MOUSE_BUTTON));
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
+                                  gfx::Point(), ui::EventTimeForNow(),
+                                  ui::EF_LEFT_MOUSE_BUTTON,
+                                  ui::EF_LEFT_MOUSE_BUTTON));
 
   EXPECT_FALSE(popup->GetVisible());
   ASSERT_EQ(1u, added_recorder.added_count());
@@ -6589,10 +6547,8 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_EQ(SK_ColorWHITE, GetImagePixelColor(image, 0, 0));
   // The short data URL fits a version-1 QR code, placing this sample inside
   // the top-left locator's inner square after the quiet zone.
-  EXPECT_EQ(SkColorSetRGB(31, 65, 115),
-            GetImagePixelColor(image, 46, 46));
-  EXPECT_EQ(SkColorSetRGB(31, 65, 115),
-            GetImagePixelColor(image, 24, 46));
+  EXPECT_EQ(SkColorSetRGB(31, 65, 115), GetImagePixelColor(image, 46, 46));
+  EXPECT_EQ(SkColorSetRGB(31, 65, 115), GetImagePixelColor(image, 24, 46));
 
   popup->Hide();
 }
@@ -6603,8 +6559,8 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   auto result = qr_code_generator::GenerateCode(base::as_byte_span(payload));
   ASSERT_TRUE(result.has_value());
 
-  gfx::ImageSkia image = RenderDaoQrCode(
-      result.value(), 200, CreateSolidExtensionIcon(SK_ColorRED));
+  gfx::ImageSkia image = RenderDaoQrCode(result.value(), 200,
+                                         CreateSolidExtensionIcon(SK_ColorRED));
 
   ASSERT_FALSE(image.isNull());
   EXPECT_EQ(SK_ColorRED, GetCenterPixelColor(image));
@@ -6622,8 +6578,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   model->SetActionVisibility(extension->id(), true);
   ASSERT_TRUE(model->IsActionPinned(extension->id()));
 
-  const std::u16string extension_name =
-      base::UTF8ToUTF16(extension->name());
+  const std::u16string extension_name = base::UTF8ToUTF16(extension->name());
   SetActionIconForActiveTab(browser(), *extension, SK_ColorRED);
 
   auto* pinned_container =
@@ -6633,14 +6588,13 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   auto* pinned_button =
       FindImageButtonWithAccessibleName(pinned_container, extension_name);
   ASSERT_NE(nullptr, pinned_button);
-  EXPECT_EQ(SK_ColorRED,
-            GetCenterPixelColor(
-                pinned_button->GetImage(views::Button::STATE_NORMAL)));
-  EXPECT_EQ(gfx::Size(16, 16),
-            GetExactColorBounds(
-                pinned_button->GetImage(views::Button::STATE_NORMAL),
-                SK_ColorRED)
-                .size());
+  EXPECT_EQ(SK_ColorRED, GetCenterPixelColor(pinned_button->GetImage(
+                             views::Button::STATE_NORMAL)));
+  EXPECT_EQ(
+      gfx::Size(16, 16),
+      GetExactColorBounds(pinned_button->GetImage(views::Button::STATE_NORMAL),
+                          SK_ColorRED)
+          .size());
 
   auto* popup = GetBrowserView(browser())->dao_control_center_popup();
   ASSERT_NE(nullptr, popup);
@@ -6652,14 +6606,14 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   auto* popup_button =
       FindImageButtonWithAccessibleName(extensions_section, extension_name);
   ASSERT_NE(nullptr, popup_button);
-  EXPECT_EQ(SK_ColorRED,
-            GetCenterPixelColor(
-                popup_button->GetImage(views::Button::STATE_NORMAL)));
-  EXPECT_EQ(gfx::Size(16, 16),
-            GetExactColorBounds(
-                popup_button->GetImage(views::Button::STATE_NORMAL),
-                SK_ColorRED)
-                .size());
+  EXPECT_EQ(
+      SK_ColorRED,
+      GetCenterPixelColor(popup_button->GetImage(views::Button::STATE_NORMAL)));
+  EXPECT_EQ(
+      gfx::Size(16, 16),
+      GetExactColorBounds(popup_button->GetImage(views::Button::STATE_NORMAL),
+                          SK_ColorRED)
+          .size());
 
   popup->Hide();
 }
@@ -6779,8 +6733,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   SetActionBadgeForActiveTab(browser(), *extension, "1", SK_ColorBLACK,
                              kInitialBadgeColor);
 
-  const std::u16string extension_name =
-      base::UTF8ToUTF16(extension->name());
+  const std::u16string extension_name = base::UTF8ToUTF16(extension->name());
   auto* pinned_container =
       FindDescendantViewOfClass<DaoPinnedExtensionsContainer>(
           GetBrowserView(browser()));
@@ -6806,37 +6759,47 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       FindImageButtonWithAccessibleName(extensions_section, extension_name);
   ASSERT_NE(nullptr, popup_button);
   EXPECT_TRUE(ImageContainsApproximateColor(
-      popup_button->GetImage(views::Button::STATE_NORMAL),
-      kInitialBadgeColor));
+      popup_button->GetImage(views::Button::STATE_NORMAL), kInitialBadgeColor));
 
   SetActionBadgeForActiveTab(browser(), *extension, "999+",
                              kUpdatedBadgeTextColor, kUpdatedBadgeColor);
 
-  EXPECT_EQ(pinned_button,
-            FindImageButtonWithAccessibleName(pinned_container,
-                                              extension_name));
+  EXPECT_EQ(pinned_button, FindImageButtonWithAccessibleName(pinned_container,
+                                                             extension_name));
   EXPECT_TRUE(ImageContainsApproximateColor(
       pinned_button->GetImage(views::Button::STATE_NORMAL),
       kUpdatedBadgeColor));
+  EXPECT_LE(
+      GetExactColorBounds(pinned_button->GetImage(views::Button::STATE_NORMAL),
+                          kUpdatedBadgeColor)
+          .height(),
+      12);
   EXPECT_TRUE(ImageContainsApproximateColor(
       pinned_button->GetImage(views::Button::STATE_NORMAL),
       kUpdatedBadgeTextColor));
+  EXPECT_LE(GetApproximateColorBounds(
+                pinned_button->GetImage(views::Button::STATE_NORMAL),
+                kUpdatedBadgeTextColor)
+                .height(),
+            5);
   EXPECT_FALSE(ImageContainsApproximateColor(
       pinned_button->GetImage(views::Button::STATE_NORMAL),
       kInitialBadgeColor));
 
-  EXPECT_EQ(popup_button,
-            FindImageButtonWithAccessibleName(extensions_section,
-                                              extension_name));
+  EXPECT_EQ(popup_button, FindImageButtonWithAccessibleName(extensions_section,
+                                                            extension_name));
   EXPECT_TRUE(ImageContainsApproximateColor(
-      popup_button->GetImage(views::Button::STATE_NORMAL),
-      kUpdatedBadgeColor));
+      popup_button->GetImage(views::Button::STATE_NORMAL), kUpdatedBadgeColor));
+  EXPECT_LE(
+      GetExactColorBounds(popup_button->GetImage(views::Button::STATE_NORMAL),
+                          kUpdatedBadgeColor)
+          .height(),
+      12);
   EXPECT_TRUE(ImageContainsApproximateColor(
       popup_button->GetImage(views::Button::STATE_NORMAL),
       kUpdatedBadgeTextColor));
   EXPECT_FALSE(ImageContainsApproximateColor(
-      popup_button->GetImage(views::Button::STATE_NORMAL),
-      kInitialBadgeColor));
+      popup_button->GetImage(views::Button::STATE_NORMAL), kInitialBadgeColor));
 
   popup->Hide();
 }
@@ -6916,13 +6879,11 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   const GURL download_url = embedded_test_server()->GetURL(
       content::SlowDownloadHttpResponse::kKnownSizeUrl);
 
-  Browser* little_dao_browser =
-      dao::DaoLittleDaoController::OpenInLittleDao(browser()->profile(),
-                                                  download_url);
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), download_url);
   ASSERT_NE(nullptr, little_dao_browser);
 
-  auto* card =
-      GetBrowserView(little_dao_browser)->dao_mini_dao_download_card();
+  auto* card = GetBrowserView(little_dao_browser)->dao_mini_dao_download_card();
   ASSERT_NE(nullptr, card);
   observer.WaitForFinished();
   EXPECT_EQ(1u, observer.NumDownloadsSeenInState(
@@ -6932,8 +6893,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   }));
   EXPECT_LE(card->GetPreferredSize().height(), 72);
   views::Button* cancel_button = FindButtonWithAccessibleName(
-      card, l10n_util::GetStringUTF16(
-                IDS_DAO_MINI_DAO_DOWNLOAD_CARD_CANCEL));
+      card, l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_DOWNLOAD_CARD_CANCEL));
   ASSERT_NE(nullptr, cancel_button);
   constexpr int kStableCancelButtonId = 19763;
   cancel_button->SetID(kStableCancelButtonId);
@@ -6944,8 +6904,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   ASSERT_EQ(download::DownloadItem::IN_PROGRESS, items[0]->GetState());
   card->OnDownloadUpdated(manager, items[0]);
   views::Button* updated_cancel_button = FindButtonWithAccessibleName(
-      card, l10n_util::GetStringUTF16(
-                IDS_DAO_MINI_DAO_DOWNLOAD_CARD_CANCEL));
+      card, l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_DOWNLOAD_CARD_CANCEL));
   ASSERT_NE(nullptr, updated_cancel_button);
   EXPECT_EQ(kStableCancelButtonId, updated_cancel_button->GetID());
 
@@ -6979,8 +6938,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
         if (request.relative_url != "/mini-address/path?foo=bar") {
           return nullptr;
         }
-        auto response =
-            std::make_unique<net::test_server::BasicHttpResponse>();
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
         response->set_code(net::HTTP_OK);
         response->set_content_type("text/html");
         response->set_content("<html><body>mini address</body></html>");
@@ -7001,9 +6959,8 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   auto* little_view = little_browser_view->dao_little_dao_view();
   ASSERT_NE(nullptr, little_view);
   auto* label_button = FindLabelButtonExceptText(
-      little_view,
-      l10n_util::GetStringUTF16(
-          IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME));
+      little_view, l10n_util::GetStringUTF16(
+                       IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME));
   ASSERT_NE(nullptr, label_button);
   EXPECT_EQ(base::StrCat({ExpectedAddressBarHostText(url),
                           u"/mini-address/path?foo=bar#section"}),
@@ -7102,9 +7059,10 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
 
   little_view->ShowMiniDaoSiteCenterForTesting();
   EXPECT_TRUE(popup->GetVisible());
-  EXPECT_EQ(nullptr, FindButtonWithAccessibleName(
-                         popup, l10n_util::GetStringUTF16(
-                                    IDS_DAO_CONTROL_CENTER_MINI_DAO)));
+  EXPECT_EQ(
+      nullptr,
+      FindButtonWithAccessibleName(
+          popup, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO)));
   EXPECT_NE(nullptr, FindButtonWithAccessibleName(
                          popup, l10n_util::GetStringUTF16(
                                     IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO)));
@@ -7136,9 +7094,10 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   ASSERT_NE(nullptr, popup);
 
   little_view->ShowMiniDaoSiteCenterForTesting();
-  EXPECT_EQ(nullptr, FindButtonWithAccessibleName(
-                         popup, l10n_util::GetStringUTF16(
-                                    IDS_DAO_FORCE_DARK_MODE_LABEL)));
+  EXPECT_EQ(
+      nullptr,
+      FindButtonWithAccessibleName(
+          popup, l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_LABEL)));
   EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
 
   BrowserRemovedWaiter removed(little_dao_browser);
@@ -7163,8 +7122,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
 
   little_view->ShowMiniDaoSiteCenterForTesting();
   views::Button* page_info_button = FindButtonWithAccessibleName(
-      popup, l10n_util::GetStringUTF16(
-                 IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO));
+      popup, l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO));
   ASSERT_NE(nullptr, page_info_button);
 
   SimulateMouseEnter(page_info_button);
@@ -7223,8 +7181,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   little_browser_view->DeprecatedLayoutImmediately();
 
   auto* page_info_button = FindButtonWithAccessibleName(
-      popup, l10n_util::GetStringUTF16(
-                 IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO));
+      popup, l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO));
   ASSERT_NE(nullptr, page_info_button);
   ASSERT_NE(nullptr, page_info_button->parent());
 
@@ -7284,7 +7241,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, LoadsWithoutConsoleErrors) {
       << base::JoinString(errors, "\n - ");
 }
 
-IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, DreamPageLoadsWithoutConsoleErrors) {
+IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest,
+                       DreamPageLoadsWithoutConsoleErrors) {
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(web_contents);
@@ -7302,28 +7260,28 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWebUILoadTest, DreamPageLoadsWithoutConsoleErrors
       })()
     )";
     EXPECT_EQ(true, content::EvalJs(web_contents, kWaitScript)) << url;
-    EXPECT_EQ("0px", content::EvalJs(
-                          web_contents,
-                          "getComputedStyle(document.body).marginTop"))
+    EXPECT_EQ("0px",
+              content::EvalJs(web_contents,
+                              "getComputedStyle(document.body).marginTop"))
         << url;
-    EXPECT_EQ("0px", content::EvalJs(
-                          web_contents,
-                          "getComputedStyle(document.body).marginLeft"))
+    EXPECT_EQ("0px",
+              content::EvalJs(web_contents,
+                              "getComputedStyle(document.body).marginLeft"))
         << url;
-    EXPECT_EQ("rgb(238, 243, 248)",
-              content::EvalJs(
-                  web_contents,
-                  "getComputedStyle(document.body).backgroundColor"))
+    EXPECT_EQ(
+        "rgb(238, 243, 248)",
+        content::EvalJs(web_contents,
+                        "getComputedStyle(document.body).backgroundColor"))
         << url;
-    EXPECT_EQ(0, content::EvalJs(
-                     web_contents,
-                     "Math.round(document.querySelector('dao-dream-app')"
-                     ".getBoundingClientRect().top)"))
+    EXPECT_EQ(
+        0, content::EvalJs(web_contents,
+                           "Math.round(document.querySelector('dao-dream-app')"
+                           ".getBoundingClientRect().top)"))
         << url;
-    EXPECT_EQ(0, content::EvalJs(
-                     web_contents,
-                     "Math.round(document.querySelector('dao-dream-app')"
-                     ".getBoundingClientRect().left)"))
+    EXPECT_EQ(
+        0, content::EvalJs(web_contents,
+                           "Math.round(document.querySelector('dao-dream-app')"
+                           ".getBoundingClientRect().left)"))
         << url;
 
     std::vector<std::string> errors;
@@ -7872,14 +7830,14 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
   popup->ShowAt(gfx::Point(100, 100));
   popup->ShowMoreMenu();
 
-  auto* clear_cache_button = views::AsViewClass<views::LabelButton>(
-      FindButtonWithAccessibleName(
-          popup, l10n_util::GetStringUTF16(
-                     IDS_DAO_CONTROL_CENTER_CLEAR_CACHE)));
-  auto* clear_cookies_button = views::AsViewClass<views::LabelButton>(
-      FindButtonWithAccessibleName(
-          popup, l10n_util::GetStringUTF16(
-                     IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
+  auto* clear_cache_button =
+      views::AsViewClass<views::LabelButton>(FindButtonWithAccessibleName(
+          popup,
+          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEAR_CACHE)));
+  auto* clear_cookies_button =
+      views::AsViewClass<views::LabelButton>(FindButtonWithAccessibleName(
+          popup,
+          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES)));
   ASSERT_NE(nullptr, clear_cache_button);
   ASSERT_NE(nullptr, clear_cookies_button);
 
@@ -7924,8 +7882,7 @@ class DaoSessionStartupBrowserTest : public InProcessBrowserTest {};
 // The static default returned by GetDefaultStartupType() must be LAST on all
 // platforms — Dao patches away the ChromeOS-only branch so desktop always
 // restores the previous session.
-IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
-                       DefaultStartupTypeIsLast) {
+IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest, DefaultStartupTypeIsLast) {
   EXPECT_EQ(SessionStartupPref::LAST,
             SessionStartupPref::GetDefaultStartupType());
 }
@@ -7946,7 +7903,8 @@ IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
 // browser should still restore on launch.
 IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
                        FreshProfileUsesDefaultPref) {
-  EXPECT_TRUE(SessionStartupPref::TypeIsDefault(browser()->profile()->GetPrefs()));
+  EXPECT_TRUE(
+      SessionStartupPref::TypeIsDefault(browser()->profile()->GetPrefs()));
   EXPECT_EQ(SessionStartupPref::LAST,
             SessionStartupPref::GetDefaultStartupType());
 }
@@ -8027,8 +7985,8 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarHitTestBrowserTest,
   const int hit = browser_view->NonClientHitTest(center);
   EXPECT_EQ(HTCLIENT, hit)
       << "The center of the address bar must be HTCLIENT so its buttons "
-         "receive clicks. Got hit code " << hit
-         << " (HTNOWHERE = window drag region = unclickable).";
+         "receive clicks. Got hit code "
+      << hit << " (HTNOWHERE = window drag region = unclickable).";
 }
 
 // =============================================================================
@@ -8047,8 +8005,7 @@ using DaoLittleDaoControllerTrackerBrowserTest = InProcessBrowserTest;
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
                        UnrelatedBrowserNeverMatches) {
   // Default browser() is TYPE_NORMAL, never registered with the tracker.
-  EXPECT_FALSE(
-      dao::DaoLittleDaoController::IsLittleDaoWindow(browser()));
+  EXPECT_FALSE(dao::DaoLittleDaoController::IsLittleDaoWindow(browser()));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
@@ -8135,8 +8092,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   EXPECT_TRUE(
       dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
   EXPECT_EQ(Browser::TYPE_POPUP, little_dao_browser->type());
-  EXPECT_NE(nullptr,
-            GetBrowserView(little_dao_browser)->dao_little_dao_view());
+  EXPECT_NE(nullptr, GetBrowserView(little_dao_browser)->dao_little_dao_view());
 
   EXPECT_EQ(source_count_before - 1, source_model->count());
   EXPECT_EQ(TabStripModel::kNoTab,
@@ -8226,9 +8182,8 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
       dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
 
   BrowserAddedRecorder added_recorder;
-  EXPECT_EQ(nullptr,
-            dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(
-                little_dao_browser));
+  EXPECT_EQ(nullptr, dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(
+                         little_dao_browser));
   EXPECT_EQ(0u, added_recorder.added_count());
   EXPECT_EQ(1, little_dao_browser->tab_strip_model()->count());
 
@@ -8339,8 +8294,8 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
   stored_bounds.Set("y", 40);
   stored_bounds.Set("width", 760);
   stored_bounds.Set("height", 520);
-  browser()->profile()->GetPrefs()->SetDict(
-      dao::prefs::kDaoLittleDaoWindowSize, std::move(stored_bounds));
+  browser()->profile()->GetPrefs()->SetDict(dao::prefs::kDaoLittleDaoWindowSize,
+                                            std::move(stored_bounds));
   const gfx::Rect expected_adjusted_bounds(0, 40, 760, 520);
 
   Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
@@ -8351,8 +8306,8 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
 
   EXPECT_EQ(expected_adjusted_bounds,
             GetLittleDaoWindowBounds(little_dao_browser));
-  EXPECT_TRUE(kWorkArea.Contains(GetLittleDaoWindowBounds(little_dao_browser)
-                                     .origin()));
+  EXPECT_TRUE(kWorkArea.Contains(
+      GetLittleDaoWindowBounds(little_dao_browser).origin()));
 
   BrowserRemovedWaiter removed(little_dao_browser);
   little_dao_browser->window()->Close();
@@ -8389,16 +8344,13 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
                        ParsePayload_MalformedBody) {
   int sid = 0, idx = 0;
-  EXPECT_FALSE(
-      dao::ParseDaoTabDragPayload("dao-tab-drag:noColon", &sid, &idx));
+  EXPECT_FALSE(dao::ParseDaoTabDragPayload("dao-tab-drag:noColon", &sid, &idx));
   EXPECT_FALSE(dao::ParseDaoTabDragPayload("dao-tab-drag::5", &sid, &idx));
   EXPECT_FALSE(dao::ParseDaoTabDragPayload("dao-tab-drag:1234:", &sid, &idx));
-  EXPECT_FALSE(
-      dao::ParseDaoTabDragPayload("dao-tab-drag:abc:def", &sid, &idx));
+  EXPECT_FALSE(dao::ParseDaoTabDragPayload("dao-tab-drag:abc:def", &sid, &idx));
 }
 
-IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
-                       MoveTabToOtherBrowser) {
+IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest, MoveTabToOtherBrowser) {
   // Append a distinctive tab we'll move across windows.
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   TabStripModel* source_model = browser()->tab_strip_model();
@@ -8417,7 +8369,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   const int target_tabs_before = target->tab_strip_model()->count();
 
   EXPECT_TRUE(dao::ExecuteCrossWindowTabMove(target, source_sid, moved_index,
-                                              /*target_insert_index=*/0));
+                                             /*target_insert_index=*/0));
 
   EXPECT_EQ(source_tabs_before - 1, source_model->count())
       << "Source should have one fewer tab after move.";
@@ -8446,7 +8398,8 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   // contents_container and rejected valid drops.
   gfx::Point drop_point(split->width() - 8, split->height() / 2);
   views::View::ConvertPointToTarget(split, browser_view, &drop_point);
-  ASSERT_TRUE(browser_view->contents_container()->bounds().Contains(drop_point));
+  ASSERT_TRUE(
+      browser_view->contents_container()->bounds().Contains(drop_point));
 
   bool split_state_changed = false;
   base::RunLoop split_run_loop;
@@ -8475,8 +8428,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   EXPECT_EQ(2, split->PaneCount());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
-                       NullTargetReturnsFalse) {
+IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest, NullTargetReturnsFalse) {
   EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(
       nullptr, browser()->session_id().id(), 0, 0));
 }
@@ -8487,9 +8439,9 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   // — a same-window move has its own code path (moveTab via sidebar UI).
   const int tabs_before = browser()->tab_strip_model()->count();
   EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(browser(),
-                                               browser()->session_id().id(),
-                                               /*source_tab_index=*/0,
-                                               /*target_insert_index=*/0));
+                                              browser()->session_id().id(),
+                                              /*source_tab_index=*/0,
+                                              /*target_insert_index=*/0));
   // No tab should have been detached.
   EXPECT_EQ(tabs_before, browser()->tab_strip_model()->count());
 }
@@ -8499,8 +8451,8 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   Browser* target = CreateBrowser(browser()->profile());
   ASSERT_NE(nullptr, target);
   EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(target,
-                                               /*source_session_id=*/999999,
-                                               0, 0));
+                                              /*source_session_id=*/999999, 0,
+                                              0));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
@@ -8516,21 +8468,19 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   EXPECT_EQ(source_tabs_before, browser()->tab_strip_model()->count());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
-                       ClampsTargetInsertIndex) {
+IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest, ClampsTargetInsertIndex) {
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   ASSERT_GE(browser()->tab_strip_model()->count(), 2);
-  const int last_source_index =
-      browser()->tab_strip_model()->count() - 1;
+  const int last_source_index = browser()->tab_strip_model()->count() - 1;
   Browser* target = CreateBrowser(browser()->profile());
   ASSERT_NE(nullptr, target);
   const int target_tabs_before = target->tab_strip_model()->count();
 
   // Asking for a way-too-large insert index should be clamped to append.
-  EXPECT_TRUE(dao::ExecuteCrossWindowTabMove(
-      target, browser()->session_id().id(),
-      /*source_tab_index=*/last_source_index,
-      /*target_insert_index=*/9999));
+  EXPECT_TRUE(
+      dao::ExecuteCrossWindowTabMove(target, browser()->session_id().id(),
+                                     /*source_tab_index=*/last_source_index,
+                                     /*target_insert_index=*/9999));
   EXPECT_EQ(target_tabs_before + 1, target->tab_strip_model()->count());
 }
 
@@ -8558,9 +8508,9 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, EnglishStringsResolve) {
   // ASCII dots become the Unicode ellipsis U+2026. Match that here.
   EXPECT_EQ(u"Type a URL or search…",
             l10n_util::GetStringUTF16(IDS_DAO_COMMAND_BAR_PLACEHOLDER));
-  EXPECT_EQ(u"Control Center",
-            l10n_util::GetStringUTF16(
-                IDS_DAO_CONTROL_CENTER_BUTTON_ACCESSIBLE_NAME));
+  EXPECT_EQ(
+      u"Control Center",
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_BUTTON_ACCESSIBLE_NAME));
   EXPECT_EQ(u"QR Code Result",
             l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_DIALOG_TITLE));
   EXPECT_EQ(u"Check for Updates…",
@@ -8573,17 +8523,16 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, PlaceholderSubstitutionWorks) {
   // IDS_DAO_SUGGESTION_ASK_AI is "Ask AI: $1". $1 should be replaced by the
   // argument passed to GetStringFUTF16 — if the placeholder pipeline is
   // broken (e.g. the message body lost its $1), we'd see the literal "$1".
-  std::u16string result = l10n_util::GetStringFUTF16(
-      IDS_DAO_SUGGESTION_ASK_AI, u"hello world");
+  std::u16string result =
+      l10n_util::GetStringFUTF16(IDS_DAO_SUGGESTION_ASK_AI, u"hello world");
   EXPECT_EQ(u"Ask AI: hello world", result);
 }
 
 class DaoWelcomeWebUIBrowserTest : public InProcessBrowserTest {};
 
-IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest,
-                       LoadsAndMarksWelcomeShown) {
-  browser()->profile()->GetPrefs()->SetBoolean(
-      dao::prefs::kDaoWelcomeShown, false);
+IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest, LoadsAndMarksWelcomeShown) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoWelcomeShown,
+                                               false);
 
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -8620,8 +8569,8 @@ IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://welcome/")));
   ASSERT_EQ(1, model->count());
 
-  browser()->profile()->GetPrefs()->SetBoolean(
-      dao::prefs::kDaoWelcomeShown, false);
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoWelcomeShown,
+                                               false);
 
   dao::DaoSidebarUIHandler handler;
   handler.SetBrowser(browser());
@@ -8742,7 +8691,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest, StartsHidden) {
   EXPECT_FALSE(cursor.is_visible());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest, ShowAtCenterMakesVisible) {
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       ShowAtCenterMakesVisible) {
   DaoAgentCursorView cursor;
   cursor.SetSize(gfx::Size(800, 600));
   cursor.ShowAtCenter();
@@ -8817,8 +8767,7 @@ IN_PROC_BROWSER_TEST_F(DaoDownloadFlyoutViewBrowserTest, StartsIdle) {
 IN_PROC_BROWSER_TEST_F(DaoDownloadFlyoutViewBrowserTest, StartAnimationFlips) {
   DaoDownloadFlyoutView flyout;
   flyout.SetSize(gfx::Size(1024, 768));
-  flyout.StartAnimation(gfx::Point(100, 50),
-                        gfx::Point(20, 600),
+  flyout.StartAnimation(gfx::Point(100, 50), gfx::Point(20, 600),
                         base::DoNothing());
   EXPECT_TRUE(flyout.is_animating());
 }
@@ -8866,8 +8815,7 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewSubcomponentBrowserTest,
   ASSERT_NE(nullptr, split);
   // A web contents that has never been split should not be reported as a
   // member or as the active split tab.
-  auto* active =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  auto* active = browser()->tab_strip_model()->GetActiveWebContents();
   EXPECT_FALSE(split->ContainsWebContents(active));
   EXPECT_FALSE(split->IsActiveSplitTab(active));
 }
@@ -8996,9 +8944,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, WidthClampedToBounds) {
   EXPECT_GE(V::kResizeAreaWidth, 1);
 }
 
-IN_PROC_BROWSER_TEST_F(
-    DaoAgentSidebarViewBrowserTest,
-    PrefillPromptInvokesOnlyPrefillHookWithJsonEscapedText) {
+IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
+                       PrefillPromptInvokesOnlyPrefillHookWithJsonEscapedText) {
   ASSERT_TRUE(LoadAgentWebUI());
   ASSERT_TRUE(InstallExternalActionRecorder());
 
@@ -9010,21 +8957,18 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(WaitForExternalAction());
   EXPECT_EQ(1, content::EvalJs(agent_contents_,
                                "window.__daoExternalActions.length"));
-  EXPECT_EQ("prefill",
-            content::EvalJs(agent_contents_,
-                            "window.__daoExternalActions[0].kind"));
-  EXPECT_EQ(base::UTF16ToUTF8(prompt),
-            content::EvalJs(agent_contents_,
-                            "window.__daoExternalActions[0].value"));
-  EXPECT_EQ(0, content::EvalJs(
-                   agent_contents_,
-                   "window.__daoExternalActions.filter("
-                   "action => action.kind === 'submit').length"));
+  EXPECT_EQ("prefill", content::EvalJs(agent_contents_,
+                                       "window.__daoExternalActions[0].kind"));
+  EXPECT_EQ(
+      base::UTF16ToUTF8(prompt),
+      content::EvalJs(agent_contents_, "window.__daoExternalActions[0].value"));
+  EXPECT_EQ(0, content::EvalJs(agent_contents_,
+                               "window.__daoExternalActions.filter("
+                               "action => action.kind === 'submit').length"));
 }
 
-IN_PROC_BROWSER_TEST_F(
-    DaoAgentSidebarViewBrowserTest,
-    OpenSessionInvokesOnlyOpenSessionHookWithJsonEscapedId) {
+IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
+                       OpenSessionInvokesOnlyOpenSessionHookWithJsonEscapedId) {
   ASSERT_TRUE(LoadAgentWebUI());
   ASSERT_TRUE(InstallExternalActionRecorder());
 
@@ -9036,16 +8980,15 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(WaitForExternalAction());
   EXPECT_EQ(1, content::EvalJs(agent_contents_,
                                "window.__daoExternalActions.length"));
-  EXPECT_EQ("open-session",
-            content::EvalJs(agent_contents_,
-                            "window.__daoExternalActions[0].kind"));
-  EXPECT_EQ(session_id,
-            content::EvalJs(agent_contents_,
-                            "window.__daoExternalActions[0].value"));
-  EXPECT_EQ(0, content::EvalJs(
-                   agent_contents_,
-                   "window.__daoExternalActions.filter("
-                   "action => action.kind === 'submit').length"));
+  EXPECT_EQ(
+      "open-session",
+      content::EvalJs(agent_contents_, "window.__daoExternalActions[0].kind"));
+  EXPECT_EQ(
+      session_id,
+      content::EvalJs(agent_contents_, "window.__daoExternalActions[0].value"));
+  EXPECT_EQ(0, content::EvalJs(agent_contents_,
+                               "window.__daoExternalActions.filter("
+                               "action => action.kind === 'submit').length"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
@@ -9118,12 +9061,12 @@ using DaoAgentSkillServiceTest = InProcessBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, ServiceAvailableForProfile) {
   EXPECT_NE(nullptr, dao::DaoAgentSkillServiceFactory::GetForProfile(
-                        browser()->profile()));
+                         browser()->profile()));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, RegistryReturnsList) {
-  auto* svc = dao::DaoAgentSkillServiceFactory::GetForProfile(
-      browser()->profile());
+  auto* svc =
+      dao::DaoAgentSkillServiceFactory::GetForProfile(browser()->profile());
   ASSERT_NE(nullptr, svc);
   base::test::TestFuture<std::vector<dao::SkillRegistryEntry>> future;
   svc->GetSkillRegistry(future.GetCallback());
@@ -9133,8 +9076,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, RegistryReturnsList) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, SaveAndLoadUserSkill) {
-  auto* svc = dao::DaoAgentSkillServiceFactory::GetForProfile(
-      browser()->profile());
+  auto* svc =
+      dao::DaoAgentSkillServiceFactory::GetForProfile(browser()->profile());
   ASSERT_NE(nullptr, svc);
 
   static constexpr char kSkillId[] = "browsertest_user_skill";
@@ -9185,8 +9128,8 @@ class DaoAgentMemoryServiceConversationTest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
                        DISABLED_ConversationRoundTrip) {
-  auto* svc = dao::DaoAgentMemoryServiceFactory::GetForProfile(
-      browser()->profile());
+  auto* svc =
+      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
   ASSERT_NE(nullptr, svc);
 
   std::vector<dao::ConversationMessage> messages;
@@ -9213,8 +9156,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest, StatsAvailable) {
-  auto* svc = dao::DaoAgentMemoryServiceFactory::GetForProfile(
-      browser()->profile());
+  auto* svc =
+      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
   ASSERT_NE(nullptr, svc);
   base::test::TestFuture<dao::StorageStats> stats;
   svc->GetStorageStats(stats.GetCallback());
@@ -9225,8 +9168,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest, StatsAvailable) {
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
                        StatsDoesNotPoisonStore) {
-  auto* svc = dao::DaoAgentMemoryServiceFactory::GetForProfile(
-      browser()->profile());
+  auto* svc =
+      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
   ASSERT_NE(nullptr, svc);
 
   base::test::TestFuture<dao::StorageStats> stats;
@@ -9241,8 +9184,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
   messages.push_back(m);
 
   base::test::TestFuture<bool> saved;
-  svc->SaveConversationMessages("stats_does_not_poison",
-                                std::move(messages),
+  svc->SaveConversationMessages("stats_does_not_poison", std::move(messages),
                                 saved.GetCallback());
   EXPECT_TRUE(saved.Get());
 }
@@ -9268,8 +9210,8 @@ class DaoBackToOpenerBrowserTest : public InProcessBrowserTest {
     // under engine/src/chrome/test/data/ (which is gitignored). The link
     // target /title1.html is a stock Chromium test fixture and is provided
     // by ServeFilesFromSourceDirectory below.
-    embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
-        &DaoBackToOpenerBrowserTest::HandleOpenerRequest));
+    embedded_test_server()->RegisterRequestHandler(
+        base::BindRepeating(&DaoBackToOpenerBrowserTest::HandleOpenerRequest));
     embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
     ASSERT_TRUE(embedded_test_server()->Start());
   }
@@ -9303,8 +9245,7 @@ class DaoBackToOpenerBrowserTest : public InProcessBrowserTest {
     if (request.relative_url != "/back_to_opener_opener.html") {
       return nullptr;
     }
-    auto response =
-        std::make_unique<net::test_server::BasicHttpResponse>();
+    auto response = std::make_unique<net::test_server::BasicHttpResponse>();
     response->set_code(net::HTTP_OK);
     response->set_content_type("text/html");
     response->set_content(
@@ -9340,8 +9281,7 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
 
   // Child closed, opener focused.
   EXPECT_EQ(1, tab_strip->count());
-  EXPECT_EQ(opener_index,
-            tab_strip->GetIndexOfWebContents(opener_contents));
+  EXPECT_EQ(opener_index, tab_strip->GetIndexOfWebContents(opener_contents));
   EXPECT_EQ(opener_contents, tab_strip->GetActiveWebContents());
 }
 
@@ -9385,8 +9325,7 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
 
 // 3. Closing the opener tab should also disable back-to-opener for the
 // orphaned child tab.
-IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
-                       ParentClosedDisablesBack) {
+IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest, ParentClosedDisablesBack) {
   TabStripModel* tab_strip = browser()->tab_strip_model();
   content::WebContents* opener_contents = tab_strip->GetActiveWebContents();
   const int opener_index = tab_strip->GetIndexOfWebContents(opener_contents);
@@ -9459,8 +9398,7 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
 
 // 5. Pinned tabs should not participate in back-to-opener: a pinned child
 // tab with no in-tab history should report CanGoBack == false.
-IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
-                       PinnedChildDoesNotGoBack) {
+IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest, PinnedChildDoesNotGoBack) {
   TabStripModel* tab_strip = browser()->tab_strip_model();
 
   content::WebContents* dest_contents = OpenChildFromOpener();
@@ -9494,15 +9432,14 @@ IN_PROC_BROWSER_TEST_F(DaoBackToOpenerBrowserTest,
 class DaoAgentWorkspaceBrowserTest : public InProcessBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest, ServiceBoundToProfile) {
-  EXPECT_NE(nullptr,
-            DaoAgentWorkspaceServiceFactory::GetForProfile(
-                browser()->profile()));
+  EXPECT_NE(nullptr, DaoAgentWorkspaceServiceFactory::GetForProfile(
+                         browser()->profile()));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
                        WorkspaceRootCreatedOnFirstWrite) {
-  auto* svc = DaoAgentWorkspaceServiceFactory::GetForProfile(
-      browser()->profile());
+  auto* svc =
+      DaoAgentWorkspaceServiceFactory::GetForProfile(browser()->profile());
   ASSERT_TRUE(svc);
 
   base::RunLoop loop;
@@ -9515,18 +9452,16 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
   loop.Run();
 
   base::ScopedAllowBlockingForTesting allow_blocking;
-  EXPECT_TRUE(base::PathExists(
-      svc->workspace_root().AppendASCII("hello.md")));
+  EXPECT_TRUE(base::PathExists(svc->workspace_root().AppendASCII("hello.md")));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
                        StagingDirClearedOnStartup) {
-  auto* svc = DaoAgentWorkspaceServiceFactory::GetForProfile(
-      browser()->profile());
+  auto* svc =
+      DaoAgentWorkspaceServiceFactory::GetForProfile(browser()->profile());
   ASSERT_TRUE(svc);
 
-  base::FilePath stage =
-      svc->workspace_root().AppendASCII(".workspace_tmp");
+  base::FilePath stage = svc->workspace_root().AppendASCII(".workspace_tmp");
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_TRUE(base::CreateDirectory(stage));
@@ -9535,11 +9470,10 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
   }
 
   base::RunLoop loop;
-  svc->Read("does-not-matter.md", 0, 10,
-            base::BindLambdaForTesting(
-                [&](base::expected<ReadResult, WorkspaceError>) {
-                  loop.Quit();
-                }));
+  svc->Read(
+      "does-not-matter.md", 0, 10,
+      base::BindLambdaForTesting(
+          [&](base::expected<ReadResult, WorkspaceError>) { loop.Quit(); }));
   loop.Run();
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -9731,16 +9665,14 @@ IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
 
   EXPECT_TRUE(dialog->use_dao_system_dialog_style());
   EXPECT_TRUE(dialog->center_in_web_contents());
-  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kOk),
-            dialog->buttons());
+  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kOk), dialog->buttons());
   EXPECT_EQ(ui::ButtonStyle::kProminent,
             dialog->GetDialogButtonStyle(ui::mojom::DialogButton::kOk));
-  auto ok_shortcut =
-      dialog->GetButtonShortcut(ui::mojom::DialogButton::kOk);
+  auto ok_shortcut = dialog->GetButtonShortcut(ui::mojom::DialogButton::kOk);
   ASSERT_TRUE(ok_shortcut.has_value());
   EXPECT_EQ(u"Enter", ok_shortcut->keycap);
-  EXPECT_FALSE(dialog->GetButtonShortcut(
-      ui::mojom::DialogButton::kCancel).has_value());
+  EXPECT_FALSE(
+      dialog->GetButtonShortcut(ui::mojom::DialogButton::kCancel).has_value());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
@@ -9763,14 +9695,15 @@ IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
       u"Alert message", std::u16string());
   ScopedWidgetCloser close_widget(dialog->GetWidget());
 
-  const gfx::Rect content_bounds =
-      GetBrowserView(browser())->GetActiveContentsWebView()->GetBoundsInScreen();
+  const gfx::Rect content_bounds = GetBrowserView(browser())
+                                       ->GetActiveContentsWebView()
+                                       ->GetBoundsInScreen();
   const gfx::Rect dialog_bounds =
       dialog->GetWidget()->GetWindowBoundsInScreen();
-  EXPECT_NEAR(content_bounds.CenterPoint().x(),
-              dialog_bounds.CenterPoint().x(), 2);
-  EXPECT_NEAR(content_bounds.CenterPoint().y(),
-              dialog_bounds.CenterPoint().y(), 2);
+  EXPECT_NEAR(content_bounds.CenterPoint().x(), dialog_bounds.CenterPoint().x(),
+              2);
+  EXPECT_NEAR(content_bounds.CenterPoint().y(), dialog_bounds.CenterPoint().y(),
+              2);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
@@ -9785,8 +9718,7 @@ IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
             dialog->GetDialogButtonStyle(ui::mojom::DialogButton::kOk));
   EXPECT_EQ(ui::ButtonStyle::kTonal,
             dialog->GetDialogButtonStyle(ui::mojom::DialogButton::kCancel));
-  auto ok_shortcut =
-      dialog->GetButtonShortcut(ui::mojom::DialogButton::kOk);
+  auto ok_shortcut = dialog->GetButtonShortcut(ui::mojom::DialogButton::kOk);
   auto cancel_shortcut =
       dialog->GetButtonShortcut(ui::mojom::DialogButton::kCancel);
   ASSERT_TRUE(ok_shortcut.has_value());
@@ -9801,8 +9733,8 @@ IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
       browser(), u"example.com says", content::JAVASCRIPT_DIALOG_TYPE_PROMPT,
       u"Prompt message", u"Default value");
   ScopedWidgetCloser close_widget(dialog->GetWidget());
-  auto* prompt = views::AsViewClass<views::Textfield>(
-      dialog->GetInitiallyFocusedView());
+  auto* prompt =
+      views::AsViewClass<views::Textfield>(dialog->GetInitiallyFocusedView());
 
   ASSERT_NE(nullptr, prompt);
   EXPECT_TRUE(dialog->use_dao_system_dialog_style());
@@ -9832,10 +9764,10 @@ IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
   ASSERT_FALSE(raw_dialog->use_dao_system_dialog_style());
   ASSERT_NE(nullptr, raw_dialog->GetOkButton());
   ASSERT_NE(nullptr, raw_dialog->GetCancelButton());
-  EXPECT_FALSE(raw_dialog->GetButtonShortcut(
-      ui::mojom::DialogButton::kOk).has_value());
-  EXPECT_FALSE(raw_dialog->GetButtonShortcut(
-      ui::mojom::DialogButton::kCancel).has_value());
+  EXPECT_FALSE(
+      raw_dialog->GetButtonShortcut(ui::mojom::DialogButton::kOk).has_value());
+  EXPECT_FALSE(raw_dialog->GetButtonShortcut(ui::mojom::DialogButton::kCancel)
+                   .has_value());
   EXPECT_FALSE(HasDescendantLabelText(raw_dialog->GetOkButton(), u"Enter"));
   EXPECT_FALSE(HasDescendantLabelText(raw_dialog->GetCancelButton(), u"Esc"));
 }
@@ -9946,10 +9878,10 @@ IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
   auto button = dao::CreateDaoDialogButton(
       base::BindLambdaForTesting([&](const ui::Event&) { ++pressed_count; }),
       u"Copy",
-      dao::DaoDialogShortcut{ui::Accelerator(ui::VKEY_C,
-                                             ui::EF_PLATFORM_ACCELERATOR |
-                                                 ui::EF_SHIFT_DOWN),
-                             dao::PlatformShortcutKeycap(u"C", true)},
+      dao::DaoDialogShortcut{
+          ui::Accelerator(ui::VKEY_C,
+                          ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN),
+          dao::PlatformShortcutKeycap(u"C", true)},
       ui::ButtonStyle::kTonal);
 
   EXPECT_TRUE(HasDescendantLabelText(button.get(),
@@ -9982,8 +9914,8 @@ IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
   EXPECT_FALSE(dialog.center_in_web_contents());
   EXPECT_TRUE(HasDescendantLabelText(dialog.GetContentsView(),
                                      dao::PlatformShortcutKeycap(u"C", false)));
-  EXPECT_FALSE(HasDescendantLabelText(
-      dialog.GetContentsView(), dao::PlatformShortcutKeycap(u"C", true)));
+  EXPECT_FALSE(HasDescendantLabelText(dialog.GetContentsView(),
+                                      dao::PlatformShortcutKeycap(u"C", true)));
   EXPECT_TRUE(HasDescendantLabelText(dialog.GetContentsView(),
                                      dao::PlatformShortcutKeycap(u"O", false)));
 }
@@ -10027,12 +9959,11 @@ IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
   views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
 
   views::MdTextButton* copy_button = FindDescendantTextButton(
-      widget->GetRootView(),
-      l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_COPY));
+      widget->GetRootView(), l10n_util::GetStringUTF16(IDS_DAO_QR_RESULT_COPY));
   ASSERT_NE(nullptr, copy_button);
 
-  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(),
-                       gfx::Point(), base::TimeTicks::Now(), ui::EF_NONE,
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       base::TimeTicks::Now(), ui::EF_NONE,
                        ui::EF_LEFT_MOUSE_BUTTON);
   views::test::ButtonTestApi(copy_button).NotifyClick(event);
 
