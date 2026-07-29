@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/sessions/session_service.cc b/chrome/browser/sessions/session_service.cc
+index d7454d758f..3110999faf 100644
+--- a/chrome/browser/sessions/session_service.cc
++++ b/chrome/browser/sessions/session_service.cc
+@@ -14,6 +14,7 @@
+ #include "base/functional/bind.h"
+ #include "base/metrics/histogram_functions.h"
+ #include "base/values.h"
++#include "dao/browser/ui/views/dao_tab_identity.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/apps/app_service/launch_utils.h"
+ #include "chrome/browser/browser_process.h"
+@@ -608,5 +609,10 @@ void SessionService::BuildCommandsForTab(
+   sessions::SessionTabHelper* session_tab_helper =
+       sessions::SessionTabHelper::FromWebContents(tab);
+   SessionID session_id(session_tab_helper->session_id());
++
++  command_storage_manager()->AppendRebuildCommand(
++      sessions::CreateAddTabExtraDataCommand(
++          session_id, dao::kSidebarTabIdentitySessionKey,
++          dao::GetSidebarTabId(tab)));
+ 
+   const blink::UserAgentOverride& ua_override = tab->GetUserAgentOverride();

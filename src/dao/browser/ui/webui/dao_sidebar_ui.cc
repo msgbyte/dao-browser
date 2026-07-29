@@ -9,6 +9,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/base64.h"
@@ -16,6 +17,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -60,6 +62,7 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/updater/dao_updater_service.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
+#include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
@@ -131,6 +134,17 @@ namespace {
 
 constexpr char kDaoWelcomeHost[] = "welcome";
 constexpr char kDaoWelcomeURL[] = "dao://welcome/";
+
+struct PinnedItemsProfileState {
+  std::set<DaoSidebarUIHandler*> handlers;
+  std::string json;
+  bool initialized = false;
+};
+
+std::map<Profile*, PinnedItemsProfileState>& GetPinnedItemsProfileStates() {
+  static base::NoDestructor<std::map<Profile*, PinnedItemsProfileState>> states;
+  return *states;
+}
 
 bool IsReplaceableFirstRunWelcomeURL(const GURL& url) {
   if (url.is_empty() || url == GURL(url::kAboutBlankURL) ||
@@ -453,6 +467,7 @@ DaoSidebarUIHandler::DaoSidebarUIHandler() {
 DaoSidebarUIHandler::~DaoSidebarUIHandler() {
   DaoUpdaterService::GetInstance()->RemoveObserver(this);
   download_notifier_.reset();
+  UnregisterPinnedItemsProfileHandler();
   if (browser_) {
     browser_->tab_strip_model()->RemoveObserver(this);
   }
@@ -461,11 +476,13 @@ DaoSidebarUIHandler::~DaoSidebarUIHandler() {
 void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
   const bool browser_changed = browser_ != browser;
   if (browser_changed) {
+    UnregisterPinnedItemsProfileHandler();
     weak_factory_.InvalidateWeakPtrs();
     pinned_tab_model_.LoadFromJson(std::string());
     pinned_items_loaded_ = false;
     pinned_items_load_pending_ = false;
     pinned_items_auto_save_enabled_ = true;
+    pinned_items_profile_refresh_pending_ = false;
     initial_pinned_reconciliation_pending_ = false;
     session_restore_completed_ = false;
     session_restored_subscription_ = {};
@@ -481,6 +498,9 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
   browser_ = browser;
   if (browser_) {
     browser_->tab_strip_model()->AddObserver(this);
+    if (browser_changed) {
+      RegisterPinnedItemsProfileHandler();
+    }
     // Split callback is wired lazily in HandleGetInitialState because
     // BrowserView may not be ready when SetBrowser is called.
     // Initialize download observer.
@@ -579,7 +599,11 @@ void DaoSidebarUIHandler::ClosePinnedItemTabForTesting(const std::string& id) {
 bool DaoSidebarUIHandler::LoadPinnedItemsForTesting(const std::string& json) {
   initial_pinned_reconciliation_pending_ = true;
   pinned_items_loaded_ = true;
-  return pinned_tab_model_.LoadFromJson(json);
+  if (!pinned_tab_model_.LoadFromJson(json)) {
+    return false;
+  }
+  PublishPinnedItemsToProfileHandlers();
+  return true;
 }
 
 void DaoSidebarUIHandler::SetSessionRestoreCompletedForTesting(
@@ -975,7 +999,6 @@ base::ListValue DaoSidebarUIHandler::BuildPinnedItems() {
     return pinned_items;
   }
 
-  TabStripModel* model = browser_->tab_strip_model();
   const bool restore_complete = IsPinnedSessionRestoreComplete();
   if (ReconcilePinnedItems(restore_complete) &&
       pinned_items_auto_save_enabled_) {
@@ -983,9 +1006,12 @@ base::ListValue DaoSidebarUIHandler::BuildPinnedItems() {
   }
 
   for (const DaoPinnedTabItem& item : pinned_tab_model_.items()) {
-    const int open_tab_index = FindOpenPinnedTabIndexForItem(item);
+    const auto [open_browser, open_tab_index] =
+        FindOpenPinnedTabForItem(item);
+    TabStripModel* open_model =
+        open_browser ? open_browser->tab_strip_model() : nullptr;
     content::WebContents* contents =
-        open_tab_index >= 0 ? model->GetWebContentsAt(open_tab_index) : nullptr;
+        open_model ? open_model->GetWebContentsAt(open_tab_index) : nullptr;
 
     base::DictValue dict;
     dict.Set("id", item.id);
@@ -993,10 +1019,11 @@ base::ListValue DaoSidebarUIHandler::BuildPinnedItems() {
     dict.Set("url", item.url);
     dict.Set("faviconUrl", item.favicon_url);
     dict.Set("state", DaoPinnedTabStateToString(item.state));
-    dict.Set("isOpen", open_tab_index >= 0);
-    dict.Set("openTabIndex", open_tab_index);
+    dict.Set("isOpen", open_browser != nullptr);
+    dict.Set("openTabIndex",
+             open_browser == browser_ ? open_tab_index : -1);
     dict.Set("isActive",
-             open_tab_index >= 0 && open_tab_index == model->active_index());
+             open_model && open_tab_index == open_model->active_index());
     dict.Set("isFaviconLight", contents ? IsFaviconLight(contents) : false);
     pinned_items.Append(std::move(dict));
   }
@@ -1015,18 +1042,42 @@ bool DaoSidebarUIHandler::ReconcilePinnedItems(bool restore_complete) {
     std::string identity;
   };
 
-  TabStripModel* model = browser_->tab_strip_model();
   std::vector<RuntimePinnedTab> runtime_tabs;
-  for (int i = 0; i < model->count(); ++i) {
-    if (!model->IsTabPinned(i)) {
-      continue;
-    }
-    content::WebContents* contents = model->GetWebContentsAt(i);
-    if (contents) {
-      runtime_tabs.push_back({i, contents, GetSidebarTabId(contents)});
-    }
+  auto append_runtime_tabs =
+      [&runtime_tabs](Browser* candidate_browser) {
+        if (!candidate_browser) {
+          return;
+        }
+        TabStripModel* candidate_model =
+            candidate_browser->tab_strip_model();
+        for (int i = 0; i < candidate_model->count(); ++i) {
+          if (!candidate_model->IsTabPinned(i)) {
+            continue;
+          }
+          content::WebContents* contents =
+              candidate_model->GetWebContentsAt(i);
+          if (contents) {
+            runtime_tabs.push_back(
+                {i, contents, GetSidebarTabId(contents)});
+          }
+        }
+      };
+  append_runtime_tabs(browser_);
+  if (ProfileBrowserCollection* collection =
+          ProfileBrowserCollection::GetForProfile(browser_->profile())) {
+    collection->ForEach(
+        [this, &append_runtime_tabs](
+            BrowserWindowInterface* browser_window) {
+          Browser* candidate =
+              browser_window->GetBrowserForMigrationOnly();
+          if (candidate != browser_) {
+            append_runtime_tabs(candidate);
+          }
+          return true;
+        });
   }
 
+  TabStripModel* model = browser_->tab_strip_model();
   bool changed = false;
   std::set<std::string> claimed_identities;
   std::set<std::string> ambiguous_identities;
@@ -1134,31 +1185,153 @@ bool DaoSidebarUIHandler::ReconcilePinnedItems(bool restore_complete) {
   return changed;
 }
 
-int DaoSidebarUIHandler::FindOpenPinnedTabIndexForItem(
+std::pair<Browser*, int> DaoSidebarUIHandler::FindOpenPinnedTabForItem(
     const DaoPinnedTabItem& item) const {
-  if (!browser_) {
-    return -1;
+  if (!browser_ || item.backing_tab_id.empty()) {
+    return {nullptr, -1};
   }
 
-  if (item.backing_tab_id.empty()) {
-    return -1;
+  auto find_in_browser =
+      [&item](Browser* candidate_browser) {
+        if (!candidate_browser) {
+          return -1;
+        }
+        TabStripModel* candidate_model =
+            candidate_browser->tab_strip_model();
+        for (int i = 0; i < candidate_model->count(); ++i) {
+          if (!candidate_model->IsTabPinned(i)) {
+            continue;
+          }
+          content::WebContents* contents =
+              candidate_model->GetWebContentsAt(i);
+          if (contents &&
+              GetSidebarTabId(contents) == item.backing_tab_id) {
+            return i;
+          }
+        }
+        return -1;
+      };
+
+  int index = find_in_browser(browser_);
+  if (index >= 0) {
+    return {browser_, index};
   }
 
-  TabStripModel* model = browser_->tab_strip_model();
-  for (int i = 0; i < model->count(); ++i) {
-    if (!model->IsTabPinned(i)) {
+  Browser* found_browser = nullptr;
+  int found_index = -1;
+  if (ProfileBrowserCollection* collection =
+          ProfileBrowserCollection::GetForProfile(browser_->profile())) {
+    collection->ForEach(
+        [this, &find_in_browser, &found_browser, &found_index](
+            BrowserWindowInterface* browser_window) {
+          Browser* candidate =
+              browser_window->GetBrowserForMigrationOnly();
+          if (candidate == browser_) {
+            return true;
+          }
+          const int candidate_index = find_in_browser(candidate);
+          if (candidate_index >= 0) {
+            found_browser = candidate;
+            found_index = candidate_index;
+            return false;
+          }
+          return true;
+        });
+  }
+  return {found_browser, found_index};
+}
+
+void DaoSidebarUIHandler::RegisterPinnedItemsProfileHandler() {
+  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  if (!profile) {
+    return;
+  }
+
+  PinnedItemsProfileState& state = GetPinnedItemsProfileStates()[profile];
+  state.handlers.insert(this);
+  AdoptPinnedItemsFromProfileState();
+}
+
+void DaoSidebarUIHandler::UnregisterPinnedItemsProfileHandler() {
+  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  if (!profile) {
+    return;
+  }
+
+  auto& states = GetPinnedItemsProfileStates();
+  auto state_it = states.find(profile);
+  if (state_it == states.end()) {
+    return;
+  }
+  state_it->second.handlers.erase(this);
+  if (state_it->second.handlers.empty()) {
+    states.erase(state_it);
+  }
+}
+
+bool DaoSidebarUIHandler::AdoptPinnedItemsFromProfileState() {
+  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  if (!profile) {
+    return false;
+  }
+
+  auto& states = GetPinnedItemsProfileStates();
+  auto state_it = states.find(profile);
+  if (state_it == states.end() || !state_it->second.initialized) {
+    return false;
+  }
+  if (!pinned_tab_model_.LoadFromJson(state_it->second.json)) {
+    LOG(ERROR) << "Failed to adopt the in-memory Dao pinned tab state";
+    return false;
+  }
+  pinned_items_loaded_ = true;
+  pinned_items_auto_save_enabled_ = true;
+  initial_pinned_reconciliation_pending_ = true;
+  return true;
+}
+
+void DaoSidebarUIHandler::PublishPinnedItemsToProfileHandlers() {
+  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  if (!profile) {
+    return;
+  }
+
+  PinnedItemsProfileState& state = GetPinnedItemsProfileStates()[profile];
+  state.initialized = true;
+  state.json = pinned_tab_model_.ToJson();
+  for (DaoSidebarUIHandler* handler : state.handlers) {
+    if (handler == this || !handler->browser_ ||
+        handler->browser_->profile() != profile) {
       continue;
     }
-
-    content::WebContents* contents = model->GetWebContentsAt(i);
-    if (!contents) {
+    if (!handler->pinned_tab_model_.LoadFromJson(state.json)) {
+      LOG(ERROR) << "Failed to synchronize the in-memory Dao pinned tab state";
       continue;
     }
-    if (GetSidebarTabId(contents) == item.backing_tab_id) {
-      return i;
-    }
+    handler->pinned_items_loaded_ = true;
+    handler->pinned_items_auto_save_enabled_ = true;
+    handler->SchedulePinnedItemsProfileRefresh();
   }
-  return -1;
+}
+
+void DaoSidebarUIHandler::SchedulePinnedItemsProfileRefresh() {
+  if (pinned_items_profile_refresh_pending_) {
+    return;
+  }
+  pinned_items_profile_refresh_pending_ = true;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::WeakPtr<DaoSidebarUIHandler> self) {
+            if (!self) {
+              return;
+            }
+            self->pinned_items_profile_refresh_pending_ = false;
+            if (self->IsJavascriptAllowed()) {
+              self->PushFullState();
+            }
+          },
+          weak_factory_.GetWeakPtr()));
 }
 
 void DaoSidebarUIHandler::LoadPinnedItemsThenPushFullState() {
@@ -1171,6 +1344,7 @@ void DaoSidebarUIHandler::LoadPinnedItemsThenPushFullState() {
   if (path.empty()) {
     pinned_items_auto_save_enabled_ = true;
     pinned_items_loaded_ = true;
+    PublishPinnedItemsToProfileHandlers();
     if (IsJavascriptAllowed()) {
       PushFullState();
     }
@@ -1189,6 +1363,12 @@ void DaoSidebarUIHandler::LoadPinnedItemsThenPushFullState() {
             }
 
             self->pinned_items_load_pending_ = false;
+            if (self->AdoptPinnedItemsFromProfileState()) {
+              if (self->IsJavascriptAllowed()) {
+                self->PushFullState();
+              }
+              return;
+            }
             if (!result.success) {
               LOG(WARNING) << "Failed to read Dao pinned tabs; keeping "
                               "in-memory pinned tab model";
@@ -1202,6 +1382,10 @@ void DaoSidebarUIHandler::LoadPinnedItemsThenPushFullState() {
             }
             self->initial_pinned_reconciliation_pending_ = true;
             self->pinned_items_loaded_ = true;
+            if (result.success &&
+                self->pinned_items_auto_save_enabled_) {
+              self->PublishPinnedItemsToProfileHandlers();
+            }
             if (self->IsJavascriptAllowed()) {
               self->PushFullState();
             }
@@ -1210,6 +1394,8 @@ void DaoSidebarUIHandler::LoadPinnedItemsThenPushFullState() {
 }
 
 void DaoSidebarUIHandler::SavePinnedItems() {
+  PublishPinnedItemsToProfileHandlers();
+
   Profile* profile = browser_ ? browser_->profile() : nullptr;
   base::FilePath path = GetPinnedTabsFilePath(profile);
   if (path.empty()) {
@@ -1324,7 +1510,7 @@ void DaoSidebarUIHandler::PinTabAtIndex(int index, int pinned_target_index) {
   }
 }
 
-void DaoSidebarUIHandler::UnpinPinnedItemById(const std::string& id,
+void DaoSidebarUIHandler::UnpinPinnedItemById(std::string id,
                                               int target_index) {
   if (!browser_) {
     return;
@@ -1335,22 +1521,37 @@ void DaoSidebarUIHandler::UnpinPinnedItemById(const std::string& id,
     return;
   }
 
-  const int open_tab_index = FindOpenPinnedTabIndexForItem(*item);
-  if (open_tab_index >= 0) {
-    TabStripModel* model = browser_->tab_strip_model();
+  const auto [open_browser, open_tab_index] =
+      FindOpenPinnedTabForItem(*item);
+  if (open_browser) {
+    TabStripModel* model = open_browser->tab_strip_model();
     content::WebContents* contents = model->GetWebContentsAt(open_tab_index);
     model->SetTabPinned(open_tab_index, false);
 
     if (target_index >= 0 && contents) {
-      int current_index = model->GetIndexOfWebContents(contents);
-      if (current_index != TabStripModel::kNoTab) {
-        int move_target = target_index;
-        if (open_tab_index < move_target) {
-          move_target--;
+      if (open_browser != browser_) {
+        const int source_session_id = open_browser->session_id().id();
+        const int source_index = model->GetIndexOfWebContents(contents);
+        if (source_index == TabStripModel::kNoTab ||
+            !ExecuteCrossWindowTabMove(browser_, source_session_id,
+                                       source_index, target_index)) {
+          const int current_index = model->GetIndexOfWebContents(contents);
+          if (current_index != TabStripModel::kNoTab) {
+            model->SetTabPinned(current_index, true);
+          }
+          return;
         }
-        move_target = std::clamp(move_target, 0, model->count() - 1);
-        if (current_index != move_target) {
-          model->MoveWebContentsAt(current_index, move_target, false);
+      } else {
+        int current_index = model->GetIndexOfWebContents(contents);
+        if (current_index != TabStripModel::kNoTab) {
+          int move_target = target_index;
+          if (open_tab_index < move_target) {
+            move_target--;
+          }
+          move_target = std::clamp(move_target, 0, model->count() - 1);
+          if (current_index != move_target) {
+            model->MoveWebContentsAt(current_index, move_target, false);
+          }
         }
       }
     }
@@ -1402,9 +1603,13 @@ void DaoSidebarUIHandler::ActivateOrOpenPinnedItem(const std::string& id) {
     return;
   }
 
-  const int open_tab_index = FindOpenPinnedTabIndexForItem(*item);
-  if (open_tab_index >= 0) {
-    model->ActivateTabAt(open_tab_index);
+  const auto [open_browser, open_tab_index] =
+      FindOpenPinnedTabForItem(*item);
+  if (open_browser) {
+    open_browser->tab_strip_model()->ActivateTabAt(open_tab_index);
+    if (open_browser->window()) {
+      open_browser->window()->Activate();
+    }
     RecordPinnedActivationResult(*item, prior_state, "backing_tab_id",
                                  tab_count_before, "activated_existing");
     if (IsJavascriptAllowed()) {
@@ -1478,7 +1683,7 @@ void DaoSidebarUIHandler::ActivateOrOpenPinnedItem(const std::string& id) {
   }
 }
 
-void DaoSidebarUIHandler::ClosePinnedItemTab(const std::string& id) {
+void DaoSidebarUIHandler::ClosePinnedItemTab(std::string id) {
   if (!browser_) {
     return;
   }
@@ -1488,13 +1693,19 @@ void DaoSidebarUIHandler::ClosePinnedItemTab(const std::string& id) {
     return;
   }
 
-  const int open_tab_index = FindOpenPinnedTabIndexForItem(*item);
-  if (open_tab_index < 0) {
+  const auto [open_browser, open_tab_index] =
+      FindOpenPinnedTabForItem(*item);
+  if (!open_browser) {
     return;
   }
 
-  browser_->tab_strip_model()->CloseWebContentsAt(
+  open_browser->tab_strip_model()->CloseWebContentsAt(
       open_tab_index, TabCloseTypes::CLOSE_USER_GESTURE);
+  DaoPinnedTabItem* closed_item = pinned_tab_model_.FindById(id);
+  if (closed_item &&
+      pinned_tab_model_.SetState(id, DaoPinnedTabState::kDormant)) {
+    SavePinnedItems();
+  }
   if (IsJavascriptAllowed()) {
     PushFullState();
   }
@@ -2391,7 +2602,7 @@ void DaoSidebarUIHandler::HandleShowPinnedItemContextMenu(
 
   int screen_x = args[1].GetIfInt().value_or(0);
   int screen_y = args[2].GetIfInt().value_or(0);
-  bool is_open = FindOpenPinnedTabIndexForItem(*item) >= 0;
+  bool is_open = FindOpenPinnedTabForItem(*item).first != nullptr;
 
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (!browser_view || !browser_view->dao_sidebar()) {
@@ -3046,10 +3257,10 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
 
     switch (command_id) {
       case kPinnedOpen:
-        return FindOpenPinnedTabIndexForItem(*item) < 0 &&
+        return FindOpenPinnedTabForItem(*item).first == nullptr &&
                GURL(item->url).is_valid();
       case kPinnedCloseTab:
-        return FindOpenPinnedTabIndexForItem(*item) >= 0;
+        return FindOpenPinnedTabForItem(*item).first != nullptr;
       case kPinnedUnpin:
       case kPinnedCopyLink:
         return true;

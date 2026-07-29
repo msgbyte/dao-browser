@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/callback_list.h"
@@ -160,7 +161,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   base::DictValue BuildSidebarState();
   base::ListValue BuildPinnedItems();
   bool ReconcilePinnedItems(bool restore_complete);
-  int FindOpenPinnedTabIndexForItem(const DaoPinnedTabItem& item) const;
+  std::pair<Browser*, int> FindOpenPinnedTabForItem(
+      const DaoPinnedTabItem& item) const;
   void PersistBackingIdentity(content::WebContents* contents);
   void RecordPinnedActivationResult(const DaoPinnedTabItem& item,
                                     DaoPinnedTabState prior_state,
@@ -169,12 +171,17 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
                                     const char* result);
   void OnSessionRestoreDone(Profile* profile, int num_tabs_restored);
   bool IsPinnedSessionRestoreComplete() const;
+  void RegisterPinnedItemsProfileHandler();
+  void UnregisterPinnedItemsProfileHandler();
+  bool AdoptPinnedItemsFromProfileState();
+  void PublishPinnedItemsToProfileHandlers();
+  void SchedulePinnedItemsProfileRefresh();
   void LoadPinnedItemsThenPushFullState();
   void SavePinnedItems();
   void PinTabAtIndex(int index, int pinned_target_index = -1);
-  void UnpinPinnedItemById(const std::string& id, int target_index = -1);
+  void UnpinPinnedItemById(std::string id, int target_index = -1);
   void ActivateOrOpenPinnedItem(const std::string& id);
-  void ClosePinnedItemTab(const std::string& id);
+  void ClosePinnedItemTab(std::string id);
   void MovePinnedItem(const std::string& id, int to_index);
   base::DictValue BuildTabUpdate(int index);
   void PushTabUpdate(int index);
@@ -299,6 +306,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   bool pinned_items_loaded_ = false;
   bool pinned_items_load_pending_ = false;
   bool pinned_items_auto_save_enabled_ = true;
+  bool pinned_items_profile_refresh_pending_ = false;
   bool initial_pinned_reconciliation_pending_ = false;
   bool session_restore_completed_ = false;
   bool saw_web_contents_replacement_ = false;
