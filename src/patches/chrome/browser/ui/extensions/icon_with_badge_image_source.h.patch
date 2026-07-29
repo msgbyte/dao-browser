@@ -1,21 +1,23 @@
 diff --git a/chrome/browser/ui/extensions/icon_with_badge_image_source.h b/chrome/browser/ui/extensions/icon_with_badge_image_source.h
 --- a/chrome/browser/ui/extensions/icon_with_badge_image_source.h
 +++ b/chrome/browser/ui/extensions/icon_with_badge_image_source.h
-@@ -29,7 +29,8 @@ class IconWithBadgeImageSource : public gfx::CanvasImageSource {
+@@ -29,7 +29,9 @@ class IconWithBadgeImageSource : public gfx::CanvasImageSource {
    struct Badge {
      Badge(const std::string& text,
            SkColor text_color,
 -          SkColor background_color);
 +          SkColor background_color,
-+          int font_size_delta = 0);
++          int font_size_delta = 0,
++          int size_delta = 0);
  
      Badge(const Badge&) = delete;
      Badge& operator=(const Badge&) = delete;
-@@ -39,6 +40,7 @@ class IconWithBadgeImageSource : public gfx::CanvasImageSource {
+@@ -39,6 +41,8 @@ class IconWithBadgeImageSource : public gfx::CanvasImageSource {
      std::string text;
      SkColor text_color;
      SkColor background_color;
 +    int font_size_delta;
++    int size_delta;
    };
  
    using GetColorProviderCallback =

@@ -24,6 +24,7 @@ namespace dao {
 namespace {
 
 constexpr int kDaoBadgeFontSizeDelta = -2;
+constexpr int kDaoBadgeSizeDelta = -4;
 
 }  // namespace
 
@@ -56,7 +57,8 @@ gfx::ImageSkia CreateExtensionActionIconWithBadge(
   if (!badge_text.empty()) {
     image_source->SetBadge(std::make_unique<IconWithBadgeImageSource::Badge>(
         badge_text, action.GetBadgeTextColor(tab_id),
-        action.GetBadgeBackgroundColor(tab_id), kDaoBadgeFontSizeDelta));
+        action.GetBadgeBackgroundColor(tab_id), kDaoBadgeFontSizeDelta,
+        kDaoBadgeSizeDelta));
   }
 
   return gfx::ImageSkia(std::move(image_source), size);

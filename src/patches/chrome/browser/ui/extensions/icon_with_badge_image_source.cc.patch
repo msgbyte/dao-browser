@@ -2,21 +2,32 @@ diff --git a/chrome/browser/ui/extensions/icon_with_badge_image_source.cc b/chro
 index e5bb67c..5a9be66 100644
 --- a/chrome/browser/ui/extensions/icon_with_badge_image_source.cc
 +++ b/chrome/browser/ui/extensions/icon_with_badge_image_source.cc
-@@ -68,7 +68,11 @@ float GetBlockedActionBadgeRadius() {
+@@ -68,7 +68,13 @@ float GetBlockedActionBadgeRadius() {
  IconWithBadgeImageSource::Badge::Badge(const std::string& text,
                                         SkColor text_color,
 -                                       SkColor background_color)
 -    : text(text), text_color(text_color), background_color(background_color) {}
 +                                       SkColor background_color,
-+                                       int font_size_delta)
++                                       int font_size_delta,
++                                       int size_delta)
 +    : text(text),
 +      text_color(text_color),
 +      background_color(background_color),
-+      font_size_delta(font_size_delta) {}
++      font_size_delta(font_size_delta),
++      size_delta(size_delta) {}
  
  IconWithBadgeImageSource::Badge::~Badge() = default;
  
-@@ -114,5 +118,8 @@ void IconWithBadgeImageSource::SetBadge(std::unique_ptr<Badge> badge) {
+@@ -106,7 +112,7 @@ void IconWithBadgeImageSource::SetBadge(std::unique_ptr<Badge> badge) {
+                 badge_.get(), get_color_provider_callback_.Run()))
+           : badge_->text_color;
+ 
+-  constexpr int badge_height = 14;
++  const int badge_height = std::max(1, 14 + badge_->size_delta);
+ 
+ #if BUILDFLAG(IS_ANDROID)
+   // Since typography is not currently supported on Android, we use a hardcode
+@@ -114,6 +120,9 @@ void IconWithBadgeImageSource::SetBadge(std::unique_ptr<Badge> badge) {
    gfx::FontList base_font = views::TypographyProvider::Get().GetFont(
        views::style::CONTEXT_BADGE, views::style::STYLE_SECONDARY);
  #endif
@@ -25,3 +36,14 @@ index e5bb67c..5a9be66 100644
 +  }
  
    std::u16string utf16_text = base::UTF8ToUTF16(badge_->text);
+ 
+@@ -129,7 +138,7 @@ void IconWithBadgeImageSource::SetBadge(std::unique_ptr<Badge> badge) {
+       kMaxTextWidth, gfx::Canvas::GetStringWidth(utf16_text, base_font));
+   // Calculate badge size. It is clamped to a min width just because it looks
+   // silly if it is too skinny.
+-  constexpr int kPadding = 2;
+-  int badge_width = text_width + kPadding * 2;
++  const int padding = std::max(0, 2 + badge_->size_delta / 2);
++  int badge_width = text_width + padding * 2;
+ 
+   const gfx::Rect icon_area = GetIconAreaRect();

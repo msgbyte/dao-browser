@@ -2060,8 +2060,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
       browser()->tab_strip_model()->GetIndexOfWebContents(pinned_contents);
   ASSERT_NE(TabStripModel::kNoTab, pinned_index);
   browser()->tab_strip_model()->SetTabPinned(pinned_index, true);
-  AddTabAtIndex(browser(), -1, GURL("about:blank"),
-                ui::PAGE_TRANSITION_TYPED);
+  ASSERT_TRUE(
+      AddTabAtIndex(-1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
   ASSERT_NE(pinned_contents,
             browser()->tab_strip_model()->GetActiveWebContents());
 
@@ -2100,8 +2100,8 @@ IN_PROC_BROWSER_TEST_F(
       browser()->tab_strip_model()->GetIndexOfWebContents(pinned_contents);
   ASSERT_NE(TabStripModel::kNoTab, pinned_index);
   browser()->tab_strip_model()->SetTabPinned(pinned_index, true);
-  AddTabAtIndex(browser(), -1, GURL("about:blank"),
-                ui::PAGE_TRANSITION_TYPED);
+  ASSERT_TRUE(
+      AddTabAtIndex(-1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
 
   const std::string pinned_json = base::StrCat(
       {R"({"version":2,"items":[{"id":"shared-pin","title":"Pinned","url":")",
@@ -2158,8 +2158,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
       browser()->tab_strip_model()->GetIndexOfWebContents(pinned_contents);
   ASSERT_NE(TabStripModel::kNoTab, pinned_index);
   browser()->tab_strip_model()->SetTabPinned(pinned_index, true);
-  AddTabAtIndex(browser(), -1, GURL("about:blank"),
-                ui::PAGE_TRANSITION_TYPED);
+  ASSERT_TRUE(
+      AddTabAtIndex(-1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
 
   const std::string pinned_json = base::StrCat(
       {R"({"version":2,"items":[{"id":"shared-pin","title":"Pinned","url":")",
@@ -6747,6 +6747,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_TRUE(ImageContainsApproximateColor(
       pinned_button->GetImage(views::Button::STATE_NORMAL),
       kInitialBadgeColor));
+  const gfx::Rect pinned_initial_badge_bounds = GetExactColorBounds(
+      pinned_button->GetImage(views::Button::STATE_NORMAL), kInitialBadgeColor);
+  EXPECT_LE(pinned_initial_badge_bounds.width(), 10);
+  EXPECT_LE(pinned_initial_badge_bounds.height(), 10);
 
   auto* popup = GetBrowserView(browser())->dao_control_center_popup();
   ASSERT_NE(nullptr, popup);
@@ -6760,6 +6764,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   ASSERT_NE(nullptr, popup_button);
   EXPECT_TRUE(ImageContainsApproximateColor(
       popup_button->GetImage(views::Button::STATE_NORMAL), kInitialBadgeColor));
+  const gfx::Rect popup_initial_badge_bounds = GetExactColorBounds(
+      popup_button->GetImage(views::Button::STATE_NORMAL), kInitialBadgeColor);
+  EXPECT_LE(popup_initial_badge_bounds.width(), 10);
+  EXPECT_LE(popup_initial_badge_bounds.height(), 10);
 
   SetActionBadgeForActiveTab(browser(), *extension, "999+",
                              kUpdatedBadgeTextColor, kUpdatedBadgeColor);
@@ -6773,7 +6781,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       GetExactColorBounds(pinned_button->GetImage(views::Button::STATE_NORMAL),
                           kUpdatedBadgeColor)
           .height(),
-      12);
+      10);
   EXPECT_TRUE(ImageContainsApproximateColor(
       pinned_button->GetImage(views::Button::STATE_NORMAL),
       kUpdatedBadgeTextColor));
@@ -6794,7 +6802,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       GetExactColorBounds(popup_button->GetImage(views::Button::STATE_NORMAL),
                           kUpdatedBadgeColor)
           .height(),
-      12);
+      10);
   EXPECT_TRUE(ImageContainsApproximateColor(
       popup_button->GetImage(views::Button::STATE_NORMAL),
       kUpdatedBadgeTextColor));
