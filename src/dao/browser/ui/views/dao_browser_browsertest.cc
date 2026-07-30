@@ -128,6 +128,8 @@
 #include "dao/browser/ui/views/dao_control_center_utility_section.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
+#include "dao/browser/ui/views/dao_mcp_approval_dialog.h"
+#include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/dao_qr_code_image.h"
@@ -571,7 +573,8 @@ void SetActionBadgeForActiveTab(Browser* browser,
 
 std::string CallAgentNativeField(content::WebContents* agent_contents,
                                  const std::string& method,
-                                 const std::string& field) {
+                                 const std::string& field,
+                                 const std::string& params_json = "{}") {
   const std::string script = base::StrCat({
       R"JS(
     (async () => {
@@ -581,6 +584,9 @@ std::string CallAgentNativeField(content::WebContents* agent_contents,
       const field = ')JS",
       field,
       R"JS(';
+      const params = JSON.parse(')JS",
+      params_json,
+      R"JS(');
       const result = await new Promise(resolve => {
         const id = method + '_browser_test_' +
             Math.random().toString(36).slice(2);
@@ -596,7 +602,7 @@ std::string CallAgentNativeField(content::WebContents* agent_contents,
           cr.webUIResponse = previous;
           resolve({isSuccess, payload: payload || {}});
         };
-        chrome.send(method, [id, {}]);
+        chrome.send(method, [id, params]);
       });
       const payload = result.payload || {};
       if (field === 'success') {
@@ -8383,6 +8389,12 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, EnglishStringsResolve) {
             l10n_util::GetStringUTF16(IDS_DAO_CHECK_FOR_UPDATES_MENU));
   EXPECT_EQ(u"Check for updates",
             l10n_util::GetStringUTF16(IDS_DAO_CHECK_FOR_UPDATES_BUTTON));
+  EXPECT_EQ(u"Allow browser control?",
+            l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TITLE));
+  EXPECT_EQ(u"Allow this connection",
+            l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_ALLOW));
+  EXPECT_EQ(u"Stop",
+            l10n_util::GetStringUTF16(IDS_DAO_MCP_CONTROL_STOP));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, PlaceholderSubstitutionWorks) {
@@ -8392,6 +8404,9 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, PlaceholderSubstitutionWorks) {
   std::u16string result = l10n_util::GetStringFUTF16(
       IDS_DAO_SUGGESTION_ASK_AI, u"hello world");
   EXPECT_EQ(u"Ask AI: hello world", result);
+  EXPECT_EQ(u"Reported client: Codex 1.2.3",
+            l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_CLIENT, u"Codex",
+                                       u"1.2.3"));
 }
 
 class DaoWelcomeWebUIBrowserTest : public InProcessBrowserTest {};
@@ -8905,8 +8920,12 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
   )";
   EXPECT_EQ(true, content::EvalJs(agent_contents, kWaitForAgentApp));
 
+  const std::string turn_id =
+      CallAgentNativeField(agent_contents, "beginAgentTurn", "turnId");
+  ASSERT_FALSE(turn_id.empty());
+
   EXPECT_EQ(first_url.spec(),
-            CallAgentNativeField(agent_contents, "beginAgentTurn", "url"));
+            CallAgentNativeField(agent_contents, "getPageInfo", "url"));
 
   browser()->tab_strip_model()->ActivateTabAt(1);
   ASSERT_EQ(second_url, browser()
@@ -8917,9 +8936,72 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
   EXPECT_EQ(first_url.spec(),
             CallAgentNativeField(agent_contents, "getPageInfo", "url"));
   EXPECT_EQ("true",
-            CallAgentNativeField(agent_contents, "endAgentTurn", "success"));
+            CallAgentNativeField(agent_contents, "endAgentTurn", "success",
+                                 R"({"turnId":")" + turn_id + R"("})"));
   EXPECT_EQ(second_url.spec(),
-            CallAgentNativeField(agent_contents, "getPageInfo", "url"));
+            CallAgentNativeField(agent_contents, "beginAgentTurn", "url"));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoAgentSidebarViewBrowserTest,
+    AgentTurnRejectsCrossOriginNavigationWithoutExpectedDomainSetter) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL cross_origin_url =
+      embedded_test_server()->GetURL("localhost", "/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+  ASSERT_TRUE(LoadAgentWebUI());
+
+  EXPECT_EQ(initial_url.spec(),
+            CallAgentNativeField(agent_contents_, "beginAgentTurn", "url"));
+  content::WebContents* target =
+
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::ExecJs(agent_contents_, R"(
+    (() => {
+      window.__daoAgentClickCallbackCount = 0;
+      window.__daoAgentClickResult = new Promise(resolve => {
+        const id = 'agent_click_cross_origin_' +
+            Math.random().toString(36).slice(2);
+        const cr = window.cr || (window.cr = {});
+        const previous = cr.webUIResponse;
+        cr.webUIResponse = (callbackId, isSuccess, payload) => {
+          if (callbackId !== id) {
+            if (previous) {
+              previous(callbackId, isSuccess, payload);
+            }
+            return;
+          }
+          window.__daoAgentClickCallbackCount++;
+          cr.webUIResponse = previous;
+          resolve({isSuccess, payload: payload || {}});
+        };
+        chrome.send('agentClick', [id, {selector: 'body'}]);
+      });
+      return true;
+    })()
+  )"));
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(target,
+                           "window.__dao_agent__ && "
+                           "window.__dao_agent__.hasHighlight()")
+        .ExtractBool();
+  }));
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), cross_origin_url));
+
+  EXPECT_EQ("TARGET_FORBIDDEN",
+            content::EvalJs(agent_contents_,
+                            "window.__daoAgentClickResult.then("
+                            "result => String(result.payload.code || ''))")
+                .ExtractString());
+  base::RunLoop settle;
+  base::OneShotTimer timer;
+  timer.Start(FROM_HERE, base::Milliseconds(250), settle.QuitClosure());
+  settle.Run();
+  EXPECT_EQ(
+      1, content::EvalJs(agent_contents_, "window.__daoAgentClickCallbackCount")
+             .ExtractInt());
 }
 
 // =============================================================================
@@ -9778,6 +9860,219 @@ IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
   EXPECT_FALSE(button->AcceleratorPressed(ui::Accelerator(
       ui::VKEY_C, ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN)));
   EXPECT_EQ(1, pressed_count);
+}
+
+class DaoMcpApprovalDialogTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       UsesLocalizedDaoStyleWithoutDefaultAllow) {
+  DaoMcpClientInfo client{
+      .name = "Reported Client",
+      .version = "1.2.3",
+      .verified_pid = 4242,
+  };
+  bool resolved = false;
+  bool allowed = true;
+  DaoMcpApprovalDialog dialog(
+      client, browser(),
+      base::BindLambdaForTesting([&](bool result) {
+        resolved = true;
+        allowed = result;
+      }));
+
+  EXPECT_TRUE(dialog.use_dao_system_dialog_style());
+  EXPECT_TRUE(dialog.center_in_web_contents());
+  EXPECT_FALSE(dialog.GetIsDefault(ui::mojom::DialogButton::kOk));
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_ALLOW),
+            dialog.GetDialogButtonLabel(ui::mojom::DialogButton::kOk));
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_DENY),
+            dialog.GetDialogButtonLabel(ui::mojom::DialogButton::kCancel));
+  EXPECT_TRUE(HasDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_CLIENT,
+                                 u"Reported Client", u"1.2.3")));
+  EXPECT_TRUE(HasDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_PROCESS, u"4242")));
+  EXPECT_FALSE(resolved);
+
+  dialog.DismissWithoutResult();
+  EXPECT_FALSE(resolved);
+  EXPECT_TRUE(allowed);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       DestructionDeniesExactlyOnce) {
+  int callback_count = 0;
+  bool allowed = true;
+  {
+    DaoMcpClientInfo client{
+        .name = "Reported Client",
+        .version = "1.0",
+        .verified_pid = std::nullopt,
+    };
+    DaoMcpApprovalDialog dialog(
+        client, browser(),
+        base::BindLambdaForTesting([&](bool result) {
+          ++callback_count;
+          allowed = result;
+        }));
+  }
+
+  EXPECT_EQ(1, callback_count);
+  EXPECT_FALSE(allowed);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       AllowButtonResolvesExactlyOnce) {
+  int callback_count = 0;
+  bool allowed = false;
+  DaoMcpClientInfo client{
+      .name = "Reported Client",
+      .version = "1.0",
+      .verified_pid = 4242,
+  };
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      client, browser(),
+      base::BindLambdaForTesting([&](bool result) {
+        ++callback_count;
+        allowed = result;
+      }));
+  DaoMcpApprovalDialog* raw_dialog = dialog.get();
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->window()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  raw_dialog->ResetViewShownTimeStampForTesting();
+  views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+  ASSERT_NE(nullptr, raw_dialog->GetOkButton());
+
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(),
+                       gfx::Point(), base::TimeTicks::Now(), ui::EF_NONE,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(raw_dialog->GetOkButton()).NotifyClick(event);
+  destroyed_waiter.Wait();
+
+  EXPECT_EQ(1, callback_count);
+  EXPECT_TRUE(allowed);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       DenyButtonResolvesExactlyOnce) {
+  int callback_count = 0;
+  bool allowed = true;
+  DaoMcpClientInfo client{
+      .name = "Reported Client",
+      .version = "1.0",
+      .verified_pid = 4242,
+  };
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      client, browser(),
+      base::BindLambdaForTesting([&](bool result) {
+        ++callback_count;
+        allowed = result;
+      }));
+  DaoMcpApprovalDialog* raw_dialog = dialog.get();
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->window()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  raw_dialog->ResetViewShownTimeStampForTesting();
+  views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+  ASSERT_NE(nullptr, raw_dialog->GetCancelButton());
+
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(),
+                       gfx::Point(), base::TimeTicks::Now(), ui::EF_NONE,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(raw_dialog->GetCancelButton()).NotifyClick(event);
+  destroyed_waiter.Wait();
+
+  EXPECT_EQ(1, callback_count);
+  EXPECT_FALSE(allowed);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       EscapeCancelsExactlyOnce) {
+  int callback_count = 0;
+  bool allowed = true;
+  DaoMcpClientInfo client{
+      .name = "Reported Client",
+      .version = "1.0",
+      .verified_pid = 4242,
+  };
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      client, browser(),
+      base::BindLambdaForTesting([&](bool result) {
+        ++callback_count;
+        allowed = result;
+      }));
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->window()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+
+  SendDialogKey(widget, ui::VKEY_ESCAPE);
+  destroyed_waiter.Wait();
+
+  EXPECT_EQ(1, callback_count);
+  EXPECT_FALSE(allowed);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest, CloseDeniesExactlyOnce) {
+  int callback_count = 0;
+  bool allowed = true;
+  DaoMcpClientInfo client{
+      .name = "Reported Client",
+      .version = "1.0",
+      .verified_pid = 4242,
+  };
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      client, browser(),
+      base::BindLambdaForTesting([&](bool result) {
+        ++callback_count;
+        allowed = result;
+      }));
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->window()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+
+  widget->CloseWithReason(
+      views::Widget::ClosedReason::kCloseButtonClicked);
+  destroyed_waiter.Wait();
+
+  EXPECT_EQ(1, callback_count);
+  EXPECT_FALSE(allowed);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       ParentDestructionDeniesExactlyOnce) {
+  Browser* parent_browser = CreateBrowser(browser()->profile());
+  ASSERT_NE(nullptr, parent_browser);
+  int callback_count = 0;
+  bool allowed = true;
+  DaoMcpClientInfo client{
+      .name = "Reported Client",
+      .version = "1.0",
+      .verified_pid = 4242,
+  };
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      client, parent_browser,
+      base::BindLambdaForTesting([&](bool result) {
+        ++callback_count;
+        allowed = result;
+      }));
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), parent_browser->window()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+
+  CloseBrowserSynchronously(parent_browser);
+
+  EXPECT_EQ(1, callback_count);
+  EXPECT_FALSE(allowed);
 }
 
 class DaoQrCodeResultDialogBrowserTest : public InProcessBrowserTest {};

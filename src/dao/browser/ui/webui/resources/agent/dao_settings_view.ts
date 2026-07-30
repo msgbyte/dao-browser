@@ -11,6 +11,7 @@ import {
   CONFIDENCE_THRESHOLD_MAP,
   currentSoulContent,
   DEFAULT_SOUL,
+  getAgentToolDefinitions,
   getAgentStats,
   refreshSoulContent,
   resetAgentStats,
@@ -39,7 +40,8 @@ interface WorkspaceAuditEntry {
 
 const DREAM_RUN_NATIVE_TIMEOUT_MS = 6 * 60 * 1000;
 
-import type {AgentStats} from './agent_bridge.js';
+import type {AgentStats, ToolDefinition} from './agent_bridge.js';
+import {initializeBrowserToolCatalog} from './browser_tool_catalog.js';
 import {
   getActiveProvider,
   getProviderConfig,
@@ -48,7 +50,6 @@ import {
   setProviderConfig,
 } from './llm_config.js';
 import type {ProviderSpec} from './llm_config.js';
-import {tools as allTools} from './agent_bridge.js';
 import {
   countEnabled,
   getGroupState,
@@ -110,6 +111,8 @@ export class DaoSettingsView extends CrLitElement {
       resumeStaleHours_: {type: Number, state: true},
       workspaceInfo_: {type: Object, state: true},
       workspaceActivity_: {type: Array, state: true},
+      toolDefinitions_: {type: Array, state: true},
+      toolCatalogLoadFailed_: {type: Boolean, state: true},
     };
   }
 
@@ -146,6 +149,8 @@ export class DaoSettingsView extends CrLitElement {
   declare private resumeStaleHours_: number;
   declare private workspaceInfo_: WorkspaceInfo|null;
   declare private workspaceActivity_: WorkspaceAuditEntry[]|null;
+  declare private toolDefinitions_: ToolDefinition[]|null;
+  declare private toolCatalogLoadFailed_: boolean;
 
   static override get styles() {
     return css`
@@ -607,6 +612,8 @@ export class DaoSettingsView extends CrLitElement {
     this.resumeStaleHours_ = 3;
     this.workspaceInfo_ = null;
     this.workspaceActivity_ = null;
+    this.toolDefinitions_ = null;
+    this.toolCatalogLoadFailed_ = false;
   }
 
 
@@ -614,6 +621,7 @@ export class DaoSettingsView extends CrLitElement {
     super.connectedCallback();
     this.loadSettings_();
     this.loadMemorySettings_();
+    void this.initializeToolDefinitions_();
 
     soulChannel.addEventListener('message', () => {
       refreshSoulContent();
@@ -652,6 +660,18 @@ export class DaoSettingsView extends CrLitElement {
     } else if (tab === 'tools') {
       this.loadWorkspaceInfo_();
       this.loadWorkspaceActivity_();
+    }
+  }
+
+  private async initializeToolDefinitions_() {
+    try {
+      await initializeBrowserToolCatalog();
+      this.toolDefinitions_ = getAgentToolDefinitions();
+      this.toolCatalogLoadFailed_ = false;
+    } catch (error) {
+      console.error('[dao] browser tool catalog load failed', error);
+      this.toolDefinitions_ = [];
+      this.toolCatalogLoadFailed_ = true;
     }
   }
 
@@ -1496,11 +1516,25 @@ export class DaoSettingsView extends CrLitElement {
   // ---- Tools ----
 
   private renderTools_() {
+    const catalogState = this.toolDefinitions_ === null ?
+        html`<div class="empty-state">
+          ${t('settings.tools.catalog_loading')}
+        </div>` :
+        this.toolCatalogLoadFailed_ ?
+        html`<div class="empty-state">
+          ${t('settings.tools.catalog_load_failed')}
+          <button class="btn-secondary" type="button"
+              data-testid="retry-tool-catalog"
+              @click=${() => this.retryToolCatalog_()}>
+            ${t('settings.tools.catalog_retry')}
+          </button>
+        </div>` :
+        TOOL_GROUPS.map(group => this.renderToolGroup_(group.id));
     return html`
       <div class="panel">
         <div class="section-title">${t('settings.tools.title')}</div>
         <div class="section-desc">${t('settings.tools.desc')}</div>
-        ${TOOL_GROUPS.map(group => this.renderToolGroup_(group.id))}
+        ${catalogState}
       </div>
       ${this.renderWorkspace_()}`;
   }
@@ -1509,6 +1543,12 @@ export class DaoSettingsView extends CrLitElement {
     const value = (e.target as HTMLSelectElement).value as SearchSourceOverride;
     setSearchSourceOverride(value);
     this.requestUpdate();
+  }
+
+  private retryToolCatalog_() {
+    this.toolDefinitions_ = null;
+    this.toolCatalogLoadFailed_ = false;
+    void this.initializeToolDefinitions_();
   }
 
   private onJinaApiKeyChange_(value: string) {
@@ -1604,7 +1644,8 @@ export class DaoSettingsView extends CrLitElement {
   }
 
   private renderToolRow_(name: string) {
-    const def = allTools.find(tool => tool.function.name === name);
+    const def = this.toolDefinitions_!.find(
+        tool => tool.function.name === name);
     const desc = def?.function.description ?? '';
     const enabled = isToolEnabled(name);
     return html`

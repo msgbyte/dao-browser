@@ -9,6 +9,71 @@ const daoSettingsTranslations = [
     translation: '您与 Dao',
   },
   {
+    id: '8911605311910049446',
+    translation: 'MCP 服务器',
+  },
+  {
+    id: '2106478259385421742',
+    translation: '启用 MCP 服务器',
+  },
+  {
+    id: '9186595045539973103',
+    translation: '允许外部 MCP 客户端请求控制 Dao 浏览器',
+  },
+  {
+    id: '2220066681252264193',
+    translation: '等待批准',
+  },
+  {
+    id: '6707751271223344615',
+    translation:
+        '<ph name="CLIENT_NAME" />（PID <ph name="CLIENT_PID" />）',
+  },
+  {
+    id: '7605815648537354367',
+    translation: '复制 MCP 配置',
+  },
+  {
+    id: '2600196300617410059',
+    translation: '停止控制',
+  },
+  {
+    id: '532636291227772742',
+    translation: '快速接入',
+  },
+  {
+    id: '6649293836182248224',
+    translation: '选择一个选项，然后复制并使用下方显示的命令或配置。',
+  },
+  {
+    id: '6304318647555713317',
+    translation: '客户端',
+  },
+  {
+    id: '2073751931036911603',
+    translation: 'Codex CLI',
+  },
+  {
+    id: '3730858284451874727',
+    translation: 'Claude Code CLI',
+  },
+  {
+    id: '1155720053110256197',
+    translation: '通用 MCP',
+  },
+  {
+    id: '6837890588055266999',
+    translation: '复制安装命令',
+  },
+  {
+    id: '8552183253311757171',
+    translation: '安装命令已复制',
+  },
+  {
+    id: '4555594373285194249',
+    translation: 'MCP 配置已复制',
+  },
+  {
     id: '7260333196265292710',
     translation: '启用 Little Dao',
   },
@@ -96,13 +161,16 @@ const daoSettingsTranslations = [
 
 describe('settings i18n patches', () => {
   it('provides Simplified Chinese translations for Dao settings strings', () => {
-    const patchPath = path.join(
-        process.cwd(),
-        'src/patches/chrome/app/resources/generated_resources_zh-CN.xtb.patch');
+    const patchPaths = [
+      'src/patches/chrome/app/resources/generated_resources_zh-CN.xtb.patch',
+    ].map(relativePath => path.join(process.cwd(), relativePath));
 
-    expect(existsSync(patchPath)).toBe(true);
+    for (const patchPath of patchPaths) {
+      expect(existsSync(patchPath)).toBe(true);
+    }
 
-    const patch = readFileSync(patchPath, 'utf-8');
+    const patch =
+        patchPaths.map(patchPath => readFileSync(patchPath, 'utf-8')).join('\n');
     for (const entry of daoSettingsTranslations) {
       expect(patch).toContain(
           `+<translation id="${entry.id}">${entry.translation}</translation>`);
@@ -140,6 +208,107 @@ describe('settings i18n patches', () => {
     expect(patch).toContain('id="enhancedPipPreviewOriginalVideo"');
     expect(patch).not.toContain('dao-pip-preview-grid');
     expect(patch).not.toContain('bilibili');
+  });
+
+  it('keeps the MCP master switch outside profile prefs', () => {
+    const pagePatchPath = path.join(
+        process.cwd(),
+        'src/patches/chrome/browser/resources/settings/dao_page/' +
+            'dao_page.ts.patch');
+    const handlerPath = path.join(
+        process.cwd(),
+        'src/dao/browser/mcp/dao_mcp_settings_handler.cc');
+
+    const pagePatch = readFileSync(pagePatchPath, 'utf-8');
+    const handler = readFileSync(handlerPath, 'utf-8');
+    expect(pagePatch).toContain("key: 'dao.mcp_server_enabled'");
+    expect(pagePatch).not.toContain('prefs.dao.mcp_server_enabled');
+    expect(handler).toContain('prefs::kDaoMcpServerEnabled');
+    expect(handler).toContain('DaoMcpService::Get()->SetEnabled(enabled)');
+  });
+
+  it('hides MCP client details outside an active connection', () => {
+    const pagePatchPath = path.join(
+        process.cwd(),
+        'src/patches/chrome/browser/resources/settings/dao_page/' +
+            'dao_page.ts.patch');
+    const handlerPath = path.join(
+        process.cwd(),
+        'src/dao/browser/mcp/dao_mcp_settings_handler.cc');
+
+    const pagePatch = readFileSync(pagePatchPath, 'utf-8');
+    const handler = readFileSync(handlerPath, 'utf-8');
+    expect(pagePatch).toContain("status.state === 'connected'");
+    expect(handler).toContain(
+        'status.state == DaoMcpStatus::kLeaseActive');
+    expect(handler).toContain('result.Set("canStop", can_stop);');
+  });
+
+  it('localizes and wires the enabled-only MCP quick setup command preview', () => {
+    const readPatches = (relativePaths: string[]) =>
+        relativePaths
+            .map(relativePath => readFileSync(
+                     path.join(process.cwd(), relativePath), 'utf-8'))
+            .join('\n');
+    const stringsPatch = readPatches([
+      'src/patches/chrome/app/settings_strings.grdp.patch',
+    ]);
+    const providerPatch = readPatches([
+      'src/patches/chrome/browser/ui/webui/settings/' +
+          'settings_localized_strings_provider.cc.patch',
+    ]);
+    const pageHtmlPatch = readPatches([
+      'src/patches/chrome/browser/resources/settings/dao_page/' +
+          'dao_page.html.patch',
+    ]);
+    const pageTsPatch = readPatches([
+      'src/patches/chrome/browser/resources/settings/dao_page/' +
+          'dao_page.ts.patch',
+    ]);
+
+    for (const messageName of [
+      'IDS_SETTINGS_DAO_MCP_QUICK_SETUP_TITLE',
+      'IDS_SETTINGS_DAO_MCP_QUICK_SETUP_DESCRIPTION',
+      'IDS_SETTINGS_DAO_MCP_CLIENT_LABEL',
+      'IDS_SETTINGS_DAO_MCP_CLIENT_CODEX',
+      'IDS_SETTINGS_DAO_MCP_CLIENT_CLAUDE_CODE',
+      'IDS_SETTINGS_DAO_MCP_CLIENT_GENERIC',
+      'IDS_SETTINGS_DAO_MCP_COPY_INSTALL_COMMAND',
+      'IDS_SETTINGS_DAO_MCP_INSTALL_COMMAND_COPIED',
+      'IDS_SETTINGS_DAO_MCP_CONFIGURATION_COPIED',
+    ]) {
+      expect(stringsPatch).toContain(messageName);
+    }
+
+    for (const key of [
+      'daoMcpQuickSetupTitle',
+      'daoMcpQuickSetupDescription',
+      'daoMcpClientLabel',
+      'daoMcpClientCodex',
+      'daoMcpClientClaudeCode',
+      'daoMcpClientGeneric',
+      'daoMcpCopyInstallCommand',
+      'daoMcpInstallCommandCopied',
+      'daoMcpCopyConfiguration',
+      'daoMcpConfigurationCopied',
+    ]) {
+      expect(providerPatch).toContain(`{"${key}",`);
+      expect(pageHtmlPatch).toContain(`$i18n{${key}}`);
+    }
+
+    expect(pageHtmlPatch).toContain('if="[[showDaoMcpQuickSetup_]]"');
+    expect(pageHtmlPatch).toContain('id="daoMcpConnectionSection"');
+    expect(pageHtmlPatch).toContain('id="daoMcpSetupControls"');
+    expect(pageHtmlPatch).toContain('id="daoMcpSetupPreview"');
+    expect(pageHtmlPatch).toContain('white-space: pre;');
+    expect(pageHtmlPatch).toContain('option value="generic-mcp"');
+    expect(pageTsPatch).toContain(
+        "export type DaoMcpSetupOption = 'codex'|'claude-code'|'generic-mcp';");
+    expect(pageTsPatch).toContain(
+        'getDaoMcpSetupContent(option: DaoMcpSetupOption)');
+    expect(pageTsPatch).toContain(
+        'copyDaoMcpSetupContent(option: DaoMcpSetupOption)');
+    expect(pageHtmlPatch).not.toContain('id="daoMcpCopyConfig"');
   });
 
   it('keeps the enhanced PIP preview window at a fixed 16:9 ratio', () => {

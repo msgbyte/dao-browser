@@ -17,6 +17,7 @@ build_webui("build") {
   static_files = [
     "agent.css",
     "agent.html",
+    "browser_tool_catalog.json",
     "dream.html",
     "index.html",
     "memory.html",
@@ -29,6 +30,7 @@ build_webui("build") {
   ts_files = [
     "agent.ts",
     "agent_bridge.ts",
+    "browser_tool_catalog.ts",
     "dao_agent_app.ts",
     "dao_chat_history_panel.ts",
     "dao_chat_view.ts",

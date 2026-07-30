@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h
+--- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h
++++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h
+@@ -24,6 +24,7 @@ class ChromeBrowserMainExtraPartsProfiles : public ChromeBrowserMainExtraParts {
+ 
+   // Overridden from ChromeBrowserMainExtraParts:
+   void PreProfileInit() override;
++  void PostMainMessageLoopRun() override;
+ };
+ 
+ #endif  // CHROME_BROWSER_PROFILES_CHROME_BROWSER_MAIN_EXTRA_PARTS_PROFILES_H_
+diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+--- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
++++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+@@ -1541,3 +1541,7 @@ void ChromeBrowserMainExtraPartsProfiles::PreProfileInit() {
+                                           std::move(user_data_dir));
+   }
+ }
++
++void ChromeBrowserMainExtraPartsProfiles::PostMainMessageLoopRun() {
++  dao::DaoMcpService::Get()->Shutdown();
++}

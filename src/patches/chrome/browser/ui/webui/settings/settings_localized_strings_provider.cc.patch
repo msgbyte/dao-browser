@@ -9,7 +9,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  #include "base/strings/utf_string_conversions.h"
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
-@@ -62,6 +63,7 @@
+@@ -61,6 +62,7 @@
  #include "chrome/common/url_constants.h"
  #include "chrome/grit/branded_strings.h"
  #include "chrome/grit/generated_resources.h"
@@ -45,3 +45,94 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
+@@ -4145,6 +4153,82 @@
+                                   IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
+ }
+ 
++void AddDaoStrings(content::WebUIDataSource* html_source) {
++  static constexpr webui::LocalizedString kLocalizedStrings[] = {
++      {"daoPageTitle", IDS_SETTINGS_DAO_PAGE_TITLE},
++      {"daoMcpServerTitle", IDS_SETTINGS_DAO_MCP_SERVER_TITLE},
++      {"daoMcpServerEnabledLabel",
++       IDS_SETTINGS_DAO_MCP_SERVER_ENABLED_LABEL},
++      {"daoMcpServerEnabledSubLabel",
++       IDS_SETTINGS_DAO_MCP_SERVER_ENABLED_SUB_LABEL},
++      {"daoMcpStatusLabel", IDS_SETTINGS_DAO_MCP_STATUS_LABEL},
++      {"daoMcpStatusDisabled", IDS_SETTINGS_DAO_MCP_STATUS_DISABLED},
++      {"daoMcpStatusReady", IDS_SETTINGS_DAO_MCP_STATUS_READY},
++      {"daoMcpStatusApprovalRequested",
++       IDS_SETTINGS_DAO_MCP_STATUS_APPROVAL_REQUESTED},
++      {"daoMcpStatusConnected", IDS_SETTINGS_DAO_MCP_STATUS_CONNECTED},
++      {"daoMcpClientDetails", IDS_SETTINGS_DAO_MCP_CLIENT_DETAILS},
++      {"daoMcpCopyConfiguration", IDS_SETTINGS_DAO_MCP_COPY_CONFIG},
++      {"daoMcpStopControl", IDS_SETTINGS_DAO_MCP_STOP_CONTROL},
++      {"daoMcpQuickSetupTitle", IDS_SETTINGS_DAO_MCP_QUICK_SETUP_TITLE},
++      {"daoMcpQuickSetupDescription",
++       IDS_SETTINGS_DAO_MCP_QUICK_SETUP_DESCRIPTION},
++      {"daoMcpClientLabel", IDS_SETTINGS_DAO_MCP_CLIENT_LABEL},
++      {"daoMcpClientCodex", IDS_SETTINGS_DAO_MCP_CLIENT_CODEX},
++      {"daoMcpClientClaudeCode",
++       IDS_SETTINGS_DAO_MCP_CLIENT_CLAUDE_CODE},
++      {"daoMcpClientGeneric", IDS_SETTINGS_DAO_MCP_CLIENT_GENERIC},
++      {"daoMcpCopyInstallCommand",
++       IDS_SETTINGS_DAO_MCP_COPY_INSTALL_COMMAND},
++      {"daoMcpInstallCommandCopied",
++       IDS_SETTINGS_DAO_MCP_INSTALL_COMMAND_COPIED},
++      {"daoMcpConfigurationCopied",
++       IDS_SETTINGS_DAO_MCP_CONFIGURATION_COPIED},
++      {"littleDaoEnabledLabel", IDS_SETTINGS_LITTLE_DAO_ENABLED_LABEL},
++      {"littleDaoEnabledSubLabel",
++       IDS_SETTINGS_LITTLE_DAO_ENABLED_SUB_LABEL},
++      {"enhancedCommandBarSuggestionsEnabledLabel",
++       IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_LABEL},
++      {"enhancedCommandBarSuggestionsEnabledSubLabel",
++       IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_SUB_LABEL},
++      {"askAiEnabledLabel", IDS_SETTINGS_ASK_AI_ENABLED_LABEL},
++      {"askAiEnabledSubLabel", IDS_SETTINGS_ASK_AI_ENABLED_SUB_LABEL},
++      {"staleTabExpirationHoursLabel",
++       IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_LABEL},
++      {"staleTabExpirationHoursSubLabel",
++       IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_SUB_LABEL},
++      {"staleTabExpirationHoursUnit",
++       IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_UNIT},
++      {"staleTabExpirationHoursError",
++       IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_ERROR},
++      {"enhancedPipEnabledLabel", IDS_SETTINGS_ENHANCED_PIP_ENABLED_LABEL},
++      {"enhancedPipEnabledSubLabel",
++       IDS_SETTINGS_ENHANCED_PIP_ENABLED_SUB_LABEL},
++      {"enhancedPipPreviewTitle", IDS_SETTINGS_ENHANCED_PIP_PREVIEW_TITLE},
++      {"enhancedPipPreviewCommentPrimary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_PRIMARY},
++      {"enhancedPipPreviewCommentSecondary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_SECONDARY},
++      {"enhancedPipPreviewCommentTertiary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_TERTIARY},
++      {"enhancedPipPreviewCommentQuaternary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_QUATERNARY},
++      {"enhancedPipPreviewCommentQuinary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_QUINARY},
++      {"enhancedPipPreviewCommentSenary",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_SENARY},
++      {"enhancedPipPreviewOnLabel",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_ON_LABEL},
++      {"enhancedPipPreviewOnDescription",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_ON_DESCRIPTION},
++      {"enhancedPipPreviewOffLabel",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_OFF_LABEL},
++      {"enhancedPipPreviewOffDescription",
++       IDS_SETTINGS_ENHANCED_PIP_PREVIEW_OFF_DESCRIPTION},
++  };
++  html_source->AddLocalizedStrings(kLocalizedStrings);
++}
++
+ void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
+   static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
+       {"securityBundleResetToDefaultsButtonLabel",
+@@ -4294,6 +4378,7 @@
+   AddClearBrowsingDataStrings(html_source, profile);
+   AddCommonStrings(html_source, profile);
+   AddDownloadsStrings(html_source);
++  AddDaoStrings(html_source);
+   AddExtensionsStrings(html_source);
+   AddGlicStrings(html_source, profile);
+   AddPerformanceStrings(html_source);

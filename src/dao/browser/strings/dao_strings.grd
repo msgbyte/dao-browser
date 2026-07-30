@@ -409,6 +409,53 @@
         Open
       </message>
 
+      <!-- Local MCP connection approval and active-control status -->
+      <message name="IDS_DAO_MCP_APPROVAL_TITLE" desc="Title of the native dialog asking whether a local MCP client may control the selected Dao browser window.">
+        Allow browser control?
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_EXPLANATION" desc="Explanation in the MCP connection approval dialog.">
+        A local automation client is requesting access to this Dao window.
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_WARNING" desc="Security warning in the MCP connection approval dialog.">
+        If allowed, it can read and interact with websites using your current login, including by running JavaScript.
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_CLIENT" desc="Reported client identity shown in the MCP approval dialog. CLIENT is untrusted client-reported text and VERSION is its reported version.">
+        Reported client: <ph name="CLIENT">$1<ex>Codex</ex></ph> <ph name="VERSION">$2<ex>1.2.3</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_PROCESS" desc="Verified operating-system process shown in the MCP approval dialog. PID is the local process ID, or a localized unavailable value.">
+        Verified process: <ph name="PID">$1<ex>12345</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_PROCESS_UNAVAILABLE" desc="Value shown when the local MCP helper process ID could not be verified.">
+        unavailable
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_WINDOW" desc="Browser window that will be controlled, shown in the MCP approval dialog. WINDOW is the current window title.">
+        Window: <ph name="WINDOW">$1<ex>Dao Browser</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_PROFILE" desc="Browser profile that will be controlled, shown in the MCP approval dialog. PROFILE is the local profile name.">
+        Profile: <ph name="PROFILE">$1<ex>Personal</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_ALLOW" desc="Prominent button that authorizes one local MCP connection.">
+        Allow this connection
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_DENY" desc="Button that denies one local MCP connection.">
+        Deny
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_TITLE" desc="Title in the banner shown while a local MCP client controls the current Dao window. CLIENT is the client-reported name.">
+        <ph name="CLIENT">$1<ex>Codex</ex></ph> is controlling this window
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_TARGET" desc="Current browser tab shown in the MCP active-control banner. TARGET is the current tab title.">
+        Target: <ph name="TARGET">$1<ex>Project dashboard</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_STOP" desc="Button that revokes the active local MCP browser-control connection.">
+        Stop
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_BUSY" desc="Feedback shown when Dao Agent tries to use a browser tool while a peer MCP client owns browser control.">
+        Another automation client is controlling this browser
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_REVOKED" desc="Toast shown after the user stops an active local MCP browser-control connection.">
+        Browser control stopped
+      </message>
+
       <!-- Little Dao mini-browser window -->
       <message name="IDS_DAO_LITTLE_DAO_ADDRESS_ACCESSIBLE_NAME" desc="Accessible name for the URL display field in the Little Dao mini-browser window.">
         Address

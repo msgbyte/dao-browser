@@ -1,0 +1,23 @@
+diff --git a/ui/views/widget/widget_delegate.h b/ui/views/widget/widget_delegate.h
+index b415451a48..4d31e5dc42 100644
+--- a/ui/views/widget/widget_delegate.h
++++ b/ui/views/widget/widget_delegate.h
+@@ -67,6 +67,10 @@ class DownloadBubbleSecurityViewTest;
+ class DownloadToolbarUIController;
+ #endif
+ 
++namespace dao {
++class DaoMcpApprovalDialog;
++}  // namespace dao
++
+ namespace arc {
+ class ArcTaskWindowBuilder;
+ class ArcVmDataMigrationConfirmationDialog;
+@@ -444,6 +448,7 @@ class VIEWS_EXPORT WidgetDelegate {
+     FRIEND_TEST_ALL_PREFIXES(BubbleUmaLoggerTest, LogMetricFromDelegate);
+     friend class borealis::BorealisDisallowedDialog;
+     friend class borealis::BorealisLaunchErrorDialog;
++    friend class ::dao::DaoMcpApprovalDialog;
+     friend class ::web_app::IsolatedWebAppInstallerViewController;
+     friend class ::web_app::SubAppsInstallDialogController;
+ 

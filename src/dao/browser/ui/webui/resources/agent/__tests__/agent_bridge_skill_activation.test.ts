@@ -48,7 +48,7 @@ vi.mock('../skill_registry.js', async () => {
   };
 });
 
-import {executeTool, tools} from '../agent_bridge.js';
+import {agentOnlyTools, executeTool} from '../agent_bridge.js';
 
 function addSkill(overrides: Partial<MockSkill> = {}): MockSkill {
   const metadata = {
@@ -79,7 +79,8 @@ describe('activate_skill tool', () => {
   });
 
   it('is exposed as a model tool', () => {
-    expect(tools.some(t => t.function.name === 'activate_skill')).toBe(true);
+    expect(agentOnlyTools.some(
+        tool => tool.function.name === 'activate_skill')).toBe(true);
   });
 
   it('requires a skill id', async () => {

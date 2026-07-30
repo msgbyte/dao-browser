@@ -9,7 +9,7 @@
 // `get_readable_content` tool used) by composing the vendored Readability
 // and Turndown IIFEs in a single injected script.
 
-import {callNative} from './agent_bridge.js';
+import {callNative, executeTool} from './agent_bridge.js';
 import type {ElementContextCapture} from './dao_element_context.js';
 import {READABILITY_BUNDLE_IIFE} from './readability_bundle.js';
 import {TURNDOWN_BUNDLE_IIFE} from './turndown_bundle.js';
@@ -54,6 +54,16 @@ export interface ScreenshotClip {
   width: number;
   height: number;
   scale: number;
+}
+
+const LEGACY_UI_ONE_SHOT = {context: 'legacy_ui_one_shot'} as const;
+
+// These calls are initiated by Dao UI controls between model turns. Their
+// explicit context authorizes only the legacy Page one-shot channel.
+function executeLegacyUiPageTool(
+    name: 'get_page_info'|'execute_script'|'capture_screenshot',
+    args: Record<string, unknown> = {}): Promise<unknown> {
+  return executeTool(name, args, LEGACY_UI_ONE_SHOT);
 }
 
 const CAMERA_CURSOR_SVG =
@@ -169,7 +179,7 @@ function hostFromUrl(url: string): string {
 // any script, so it's cheap enough to run on a 2s interval.
 export async function fetchCurrentPageInfo(): Promise<PageInfo | null> {
   try {
-    const raw = await callNative('getPageInfo') as
+    const raw = await executeLegacyUiPageTool('get_page_info') as
         {url?: string; title?: string} | null;
     if (!raw || !raw.url) return null;
     return {url: raw.url, title: raw.title || ''};
@@ -562,9 +572,9 @@ function isElementContextCapture(value: Record<string, unknown>):
 
 export async function cancelElementPicker(): Promise<void> {
   try {
-    await callNative('executeScript', {
+    await executeLegacyUiPageTool('execute_script', {
       code: ELEMENT_PICKER_CANCEL_SCRIPT,
-      lockTab: false,
+      lock_tab: false,
     });
   } catch (_) { /* best-effort */ }
 }
@@ -576,18 +586,18 @@ export async function startElementPicker(
   const startScript = ELEMENT_PICKER_START_SCRIPT.replace(
       '__DAO_ELEMENT_PICKER_USE_CAMERA_CURSOR__',
       options.cameraCursor ? 'true' : 'false');
-  const started = parseNativeJson(await callNative('executeScript', {
+  const started = parseNativeJson(await executeLegacyUiPageTool('execute_script', {
     code: startScript,
-    lockTab: false,
+    lock_tab: false,
   }));
   if (!started || started['error']) return null;
 
   const deadline = Date.now() + timeoutMs;
   while (Date.now() <= deadline) {
     await delay(pollIntervalMs);
-    const payload = parseNativeJson(await callNative('executeScript', {
+    const payload = parseNativeJson(await executeLegacyUiPageTool('execute_script', {
       code: ELEMENT_PICKER_RESULT_SCRIPT,
-      lockTab: false,
+      lock_tab: false,
     }));
     if (!payload) continue;
     if (isElementContextCapture(payload)) {
@@ -619,8 +629,14 @@ export async function captureElementScreenshotFromPage():
   if (!viewport) return null;
   const clip = clampScreenshotClip(capture.locator.bounds, viewport);
   if (!clip) return null;
-  const result = await callNative('captureScreenshot', {clip}) as
-      {data?: string; format?: string; error?: string};
+  const result =
+      await executeLegacyUiPageTool('capture_screenshot', {clip}) as
+      {
+        data?: string;
+        format?: string;
+        media?: {mimeType?: string; data?: string};
+        error?: string;
+      };
   if (result.error || !result.data) return null;
   return buildElementScreenshotAttachment(
       capture, result.data, result.format || 'jpeg');
@@ -755,8 +771,8 @@ export async function fetchCurrentSelection():
   })()`;
   let raw: {result?: string; error?: string};
   try {
-    raw = await callNative(
-        'executeScript', {code: probe, lockTab: false}) as
+    raw = await executeLegacyUiPageTool(
+        'execute_script', {code: probe, lock_tab: false}) as
         {result?: string; error?: string};
   } catch (_) {
     return null;
@@ -841,8 +857,8 @@ export async function fetchPageProbeState(): Promise<PageProbeState> {
 
   let raw: {result?: string; error?: string};
   try {
-    raw = await callNative(
-        'executeScript', {code: probe, lockTab: false}) as
+    raw = await executeLegacyUiPageTool(
+        'execute_script', {code: probe, lock_tab: false}) as
         {result?: string; error?: string};
   } catch (_) {
     return {selection: null, hasFocusedInput: false};
@@ -935,8 +951,8 @@ export async function insertTextIntoFocusedInput(
 
   let raw: {result?: string; error?: string};
   try {
-    raw = await callNative(
-        'executeScript', {code: script, lockTab: false}) as
+    raw = await executeLegacyUiPageTool(
+        'execute_script', {code: script, lock_tab: false}) as
         {result?: string; error?: string};
   } catch (_) {
     return false;
@@ -962,7 +978,8 @@ export async function clearCurrentSelection(): Promise<void> {
     return '';
   })()`;
   try {
-    await callNative('executeScript', {code: script, lockTab: false});
+    await executeLegacyUiPageTool(
+        'execute_script', {code: script, lock_tab: false});
   } catch (_) { /* best-effort */ }
 }
 
@@ -1037,8 +1054,8 @@ export async function captureCurrentPageMarkdown():
 
   let raw: {result?: string; error?: string};
   try {
-    raw = await callNative(
-        'executeScript', {code: CAPTURE_SCRIPT, lockTab: false}) as
+    raw = await executeLegacyUiPageTool(
+        'execute_script', {code: CAPTURE_SCRIPT, lock_tab: false}) as
         {result?: string; error?: string};
   } catch (e) {
     console.warn('[dao-capture] executeScript threw', e);

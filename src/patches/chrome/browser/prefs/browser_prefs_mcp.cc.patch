@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
+--- a/chrome/browser/prefs/browser_prefs.cc
++++ b/chrome/browser/prefs/browser_prefs.cc
+@@ -1427,6 +1427,8 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+   chrome_labs_prefs::RegisterLocalStatePrefs(registry);
+   chrome_urls::RegisterPrefs(registry);
+   ChromeMetricsServiceClient::RegisterPrefs(registry);
++  // Dao global prefs.
++  dao::prefs::RegisterLocalStatePrefs(registry);
+   enterprise_connectors::RegisterLocalStatePrefs(registry);
+   enterprise_groups::RegisterLocalStatePrefs(registry);
+   enterprise_util::RegisterLocalStatePrefs(registry);

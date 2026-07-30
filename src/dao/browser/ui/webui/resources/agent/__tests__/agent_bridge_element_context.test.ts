@@ -125,4 +125,53 @@ describe('agent bridge element context tool', () => {
           selector: '[data-dao-element-context="current"]',
         });
   });
+
+  it('preserves a busy native error without resolving the element in CDP',
+     async () => {
+       setReusableElementContext(sampleContext());
+       const busy = {
+         error: 'Localized browser control busy',
+         code: 'AGENT_CONTROL_BUSY',
+         retryable: true,
+       };
+       const send = vi.fn((method: string, args: unknown[]) => {
+         const [id] = args as [string];
+         expect(method).toBe('executeScript');
+         (window as unknown as {
+           cr: {
+             webUIResponse:
+                 (id: string, ok: boolean, value: unknown) => void,
+           },
+         }).cr.webUIResponse(id, true, busy);
+       });
+       vi.stubGlobal('chrome', {send});
+
+       await expect(executeTool('resolve_element_context', {}))
+           .resolves.toEqual(busy);
+       expect(send).toHaveBeenCalledTimes(1);
+     });
+
+  it('preserves a busy page-info error and skips screenshot CDP work',
+     async () => {
+       const busy = {
+         error: 'Localized browser control busy',
+         code: 'AGENT_CONTROL_BUSY',
+         retryable: true,
+       };
+       const send = vi.fn((method: string, args: unknown[]) => {
+         const [id] = args as [string];
+         expect(method).toBe('getPageInfo');
+         (window as unknown as {
+           cr: {
+             webUIResponse:
+                 (id: string, ok: boolean, value: unknown) => void,
+           },
+         }).cr.webUIResponse(id, true, busy);
+       });
+       vi.stubGlobal('chrome', {send});
+
+       await expect(executeTool('capture_screenshot', {}))
+           .resolves.toEqual(busy);
+       expect(send).toHaveBeenCalledTimes(1);
+     });
 });

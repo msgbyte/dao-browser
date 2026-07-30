@@ -1,0 +1,9 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+declare_args() {
+  # Dao's product version. scripts/commands/build.ts supplies this value from
+  # dao.json without changing Chromium's own version generators.
+  dao_display_version = ""
+}

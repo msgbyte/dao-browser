@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/pref_registry/pref_registry_syncable.h"
+#include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
@@ -17,6 +18,10 @@
 #include "ui/native_theme/native_theme.h"
 
 namespace dao::prefs {
+
+void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
+  registry->RegisterBooleanPref(kDaoMcpServerEnabled, false);
+}
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoAgentMemoryEnabled, false);

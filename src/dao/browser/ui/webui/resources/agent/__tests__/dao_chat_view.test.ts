@@ -60,6 +60,24 @@ vi.mock('../agent_bridge.js', async () => {
     callNative: (...args: unknown[]) => pickerMocks.callNative(...args),
     callNativeArgs: (...args: unknown[]) =>
         pickerMocks.callNativeArgs(...args),
+    executeTool: (
+        name: string, args: Record<string, unknown>,
+        options?: {context?: string}) => {
+      if (options?.context === 'legacy_ui_one_shot') {
+        if (name === 'get_page_info') {
+          return pickerMocks.callNative('getPageInfo');
+        }
+        if (name === 'execute_script') {
+          const {lock_tab: lockTab, ...params} = args;
+          return pickerMocks.callNative(
+              'executeScript', {...params, lockTab});
+        }
+        if (name === 'capture_screenshot') {
+          return pickerMocks.callNative('captureScreenshot', args);
+        }
+      }
+      return actual.executeTool(name, args, options);
+    },
     addWebUIListener: (
         event: string, callback: (...args: unknown[]) => void) => {
       pickerMocks.webUiListeners[event] =
@@ -124,6 +142,10 @@ vi.mock('../dao_telemetry.js', () => ({
 
 vi.mock('../pi_tool_adapter.js', () => ({
   buildAgentTools: () => [],
+}));
+
+vi.mock('../browser_tool_catalog.js', () => ({
+  initializeBrowserToolCatalog: vi.fn(async () => undefined),
 }));
 
 vi.mock('../dao_chat_history_panel.js', () => ({}));
@@ -1439,7 +1461,8 @@ describe('dao-chat-view element picker', () => {
     pickerMocks.captureElementScreenshotFromPage.mockReset();
     pickerMocks.callNative.mockReset();
     pickerMocks.callNativeArgs.mockReset();
-    pickerMocks.callNative.mockResolvedValue({success: true});
+    pickerMocks.callNative.mockResolvedValue(
+        {success: true, turnId: 'test-turn'});
     pickerMocks.callNativeArgs.mockResolvedValue({success: true});
     pickerMocks.webUiListeners = {};
     skillMocks.skills = [];
@@ -1637,6 +1660,8 @@ describe('dao-chat-view element picker', () => {
             'beginAgentTurn',
             'endAgentTurn',
           ]);
+      expect(pickerMocks.callNative).toHaveBeenCalledWith(
+          'endAgentTurn', {turnId: 'test-turn'});
     } finally {
       clearTabWatchTimer(view);
     }
@@ -1928,13 +1953,16 @@ describe('dao-chat-view element picker', () => {
        }
      });
 
-  it('does not end an agent turn that failed to start', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('keeps chat available when browser control belongs to an MCP peer',
+     async () => {
     const originalSend = vi.fn(async () => 'sent');
     const {view, iface} = await mountChatViewWithSend(originalSend);
     pickerMocks.callNative.mockImplementation(async method => {
       if (method === 'beginAgentTurn') {
-        throw new Error('no tab');
+        return {
+          success: true,
+          turnId: 'busy-browser-turn',
+        };
       }
       return {success: true};
     });
@@ -1947,9 +1975,45 @@ describe('dao-chat-view element picker', () => {
                      method === 'endAgentTurn'))
           .toEqual([
             'beginAgentTurn',
+            'endAgentTurn',
           ]);
     } finally {
-      warnSpy.mockRestore();
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('ends overlapping sends with their own agent turn tokens', async () => {
+    let resolveFirst!: (value: string) => void;
+    const firstSend =
+        new Promise<string>(resolve => resolveFirst = resolve);
+    const originalSend = vi.fn()
+                             .mockImplementationOnce(async () => firstSend)
+                             .mockResolvedValueOnce('second');
+    let beginCount = 0;
+    pickerMocks.callNative.mockImplementation(
+        async (method: string, params?: unknown) => {
+          if (method === 'beginAgentTurn') {
+            ++beginCount;
+            return {success: true, turnId: `turn-${beginCount}`};
+          }
+          return {success: true, params};
+        });
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+
+    try {
+      const first = iface.sendMessage('first', []);
+      await vi.waitFor(() => expect(originalSend).toHaveBeenCalledTimes(1));
+      await expect(iface.sendMessage('second', [])).resolves.toBe('second');
+      resolveFirst('first');
+      await expect(first).resolves.toBe('first');
+
+      const endCalls = pickerMocks.callNative.mock.calls.filter(
+          call => call[0] === 'endAgentTurn');
+      expect(endCalls).toEqual([
+        ['endAgentTurn', {turnId: 'turn-2'}],
+        ['endAgentTurn', {turnId: 'turn-1'}],
+      ]);
+    } finally {
       clearTabWatchTimer(view);
     }
   });
@@ -2000,7 +2064,7 @@ describe('dao-chat-view element picker', () => {
       if (method === 'getPageInfo') {
         return {url: 'https://example.com/article', title: 'Article'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     const originalSend = vi.fn(async () => 'sent');
     const {view, iface} = await mountChatViewWithSend(originalSend);
@@ -2036,7 +2100,7 @@ describe('dao-chat-view element picker', () => {
          if (method === 'getPageInfo') {
            return {url: 'https://example.com/article', title: 'Article'};
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        const originalSend = vi.fn(async () => 'sent');
        const {view, iface} = await mountChatViewWithSend(originalSend);
@@ -2091,7 +2155,7 @@ describe('dao-chat-view element picker', () => {
          if (method === 'getPageInfo') {
            return {url: 'https://example.com/app', title: 'Example'};
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        const originalSend = vi.fn(async () => 'sent');
        const {view, iface} = await mountChatViewWithSend(originalSend);
@@ -2140,12 +2204,12 @@ describe('dao-chat-view element picker', () => {
     });
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
       if (method === 'getPageInfo') {
         return {url: 'https://example.com/app', title: 'Example App'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
       if (method === 'getMemoryContext') {
@@ -2171,7 +2235,7 @@ describe('dao-chat-view element picker', () => {
           },
         };
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
 
     try {
@@ -2210,18 +2274,18 @@ describe('dao-chat-view element picker', () => {
     });
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
       if (method === 'getPageInfo') {
         return {url: 'https://example.com/app', title: 'Example App'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
       if (method === 'getMemoryContext') {
         throw new Error('memory unavailable');
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
 
     try {
@@ -2244,12 +2308,12 @@ describe('dao-chat-view element picker', () => {
     });
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
       if (method === 'getPageInfo') {
         return {url: 'https://example.com/app', title: 'Example App'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
       if (method === 'getMemoryContext') {
@@ -2261,7 +2325,7 @@ describe('dao-chat-view element picker', () => {
           }],
         };
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
 
     try {
@@ -2284,12 +2348,12 @@ describe('dao-chat-view element picker', () => {
     });
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
       if (method === 'getPageInfo') {
         return {url: 'chrome://settings', title: 'Settings'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
       if (method === 'getMemoryContext') {
@@ -2301,7 +2365,7 @@ describe('dao-chat-view element picker', () => {
           }],
         };
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
 
     try {
@@ -2324,18 +2388,18 @@ describe('dao-chat-view element picker', () => {
     });
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
       if (method === 'getPageInfo') {
         return {url: 'https://example.com/app', title: 'Example App'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
       if (method === 'getMemoryContext') {
         return {};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
 
     try {
@@ -2886,9 +2950,9 @@ describe('dao-chat-view element picker', () => {
        const {view} = await mountChatViewWithSend(originalSend);
        pickerMocks.callNative.mockImplementation(async (method: string) => {
          if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-           return {success: true};
+           return {success: true, turnId: 'test-turn'};
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -2925,9 +2989,9 @@ describe('dao-chat-view element picker', () => {
        const {view} = await mountChatViewWithSend(originalSend);
        pickerMocks.callNative.mockImplementation(async (method: string) => {
          if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-           return {success: true};
+           return {success: true, turnId: 'test-turn'};
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -2980,9 +3044,9 @@ describe('dao-chat-view element picker', () => {
        const {view} = await mountChatViewWithSend(originalSend);
        pickerMocks.callNative.mockImplementation(async (method: string) => {
          if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-           return {success: true};
+           return {success: true, turnId: 'test-turn'};
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -3017,9 +3081,9 @@ describe('dao-chat-view element picker', () => {
        const {view} = await mountChatViewWithSend(originalSend);
        pickerMocks.callNative.mockImplementation(async (method: string) => {
          if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-           return {success: true};
+           return {success: true, turnId: 'test-turn'};
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -3633,7 +3697,7 @@ describe('dao-chat-view element picker', () => {
              title: 'Pull request',
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -3694,7 +3758,7 @@ describe('dao-chat-view element picker', () => {
              title: 'Pull request',
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -3908,12 +3972,12 @@ describe('dao-chat-view element picker', () => {
     const {view, iface} = await mountChatViewWithSend(originalSend);
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
       if (method === 'getPageInfo') {
         return {url: 'https://github.com/acme/repo/pull/123', title: 'PR'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
       if (method === 'getPageContentForScenario') {
@@ -4000,9 +4064,9 @@ describe('dao-chat-view element picker', () => {
     const {view} = await mountChatViewWithSend(originalSend);
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -4074,7 +4138,7 @@ describe('dao-chat-view element picker', () => {
           title: 'Dao project',
         };
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -4444,9 +4508,9 @@ describe('dao-chat-view element picker', () => {
     const {view} = await mountChatViewWithSend(originalSend);
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -4716,7 +4780,7 @@ describe('dao-chat-view element picker', () => {
              }),
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
 
        try {
@@ -4992,7 +5056,7 @@ describe('dao-chat-view element picker', () => {
              }),
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -5061,7 +5125,7 @@ describe('dao-chat-view element picker', () => {
              }),
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -5123,7 +5187,7 @@ describe('dao-chat-view element picker', () => {
              }),
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -5178,7 +5242,7 @@ describe('dao-chat-view element picker', () => {
              }),
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -5228,7 +5292,7 @@ describe('dao-chat-view element picker', () => {
              }),
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -5265,7 +5329,7 @@ describe('dao-chat-view element picker', () => {
     const {view} = await mountChatViewWithSend(originalSend);
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
       if (method === 'getPageInfo') {
         return {
@@ -5273,7 +5337,7 @@ describe('dao-chat-view element picker', () => {
           title: 'Issue',
         };
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
     pickerMocks.callNativeArgs.mockImplementation(async (method: string) => {
       if (method === 'getPageContentForScenario') {
@@ -5347,7 +5411,7 @@ describe('dao-chat-view element picker', () => {
              title: 'Issue',
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -5417,7 +5481,7 @@ describe('dao-chat-view element picker', () => {
              title: 'Issue',
            };
          }
-         return {success: true};
+         return {success: true, turnId: 'test-turn'};
        });
        pickerMocks.callNativeArgs.mockResolvedValue(true);
 
@@ -5466,7 +5530,7 @@ describe('dao-chat-view element picker', () => {
     const {view} = await mountChatViewWithSend(originalSend);
     pickerMocks.callNative.mockImplementation(async (method: string) => {
       if (method === 'beginAgentTurn' || method === 'endAgentTurn') {
-        return {success: true};
+        return {success: true, turnId: 'test-turn'};
       }
       if (method === 'getPageInfo') {
         return {
@@ -5474,7 +5538,7 @@ describe('dao-chat-view element picker', () => {
           title: 'New page',
         };
       }
-      return {success: true};
+      return {success: true, turnId: 'test-turn'};
     });
 
     try {
@@ -5503,7 +5567,7 @@ describe('dao-chat-view element picker', () => {
   });
 
   it('opens the standalone dream page instead of expanding the report', async () => {
-    pickerMocks.callNative.mockResolvedValue({success: true});
+    pickerMocks.callNative.mockResolvedValue({success: true, turnId: 'test-turn'});
     const view = document.createElement('dao-chat-view') as HTMLElement & {
       dreamReport_: {
         id: number;

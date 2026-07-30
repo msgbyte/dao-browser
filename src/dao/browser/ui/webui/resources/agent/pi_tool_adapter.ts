@@ -8,7 +8,11 @@
 // existing `executeTool(name, args)` in agent_bridge so side effects like
 // `lock_tab`, `save_memory`, and `save_skill` continue to work unchanged.
 
-import {executeTool, recordToolCall, tools} from './agent_bridge.js';
+import {
+  executeTool,
+  getAgentToolDefinitions,
+  recordToolCall,
+} from './agent_bridge.js';
 import type {ToolDefinition} from './agent_bridge.js';
 import {registerDaoToolRenderers} from './dao_tool_renderer.js';
 import {isToolEnabled} from './tool_catalog.js';
@@ -20,7 +24,11 @@ import {isToolEnabled} from './tool_catalog.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AgentTool = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AgentToolResult = {content: Array<{type: 'text'; text: string}>; details: any};
+type AgentToolContent =
+    {type: 'text'; text: string}|
+    {type: 'image'; mimeType: string; data: string};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AgentToolResult = {content: AgentToolContent[]; details: any};
 
 function describeError(e: unknown): string {
   if (e instanceof Error) return e.message || String(e);
@@ -40,6 +48,21 @@ function resultToText(result: unknown): string {
   } catch {
     return String(result);
   }
+}
+
+function nativeToolError(result: unknown): Error|null {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    return null;
+  }
+  const record = result as Record<string, unknown>;
+  if (typeof record['error'] !== 'string' ||
+      typeof record['code'] !== 'string') {
+    return null;
+  }
+  return Object.assign(new Error(record['error']), {
+    code: record['code'],
+    retryable: record['retryable'] === true,
+  });
 }
 
 // Convert a single Dao ToolDefinition to an AgentTool usable by the agent
@@ -62,15 +85,54 @@ function adaptOne(def: ToolDefinition): AgentTool {
       }
       const args = (params ?? {}) as Record<string, unknown>;
       try {
-        const raw = await executeTool(name, args);
-        const text = resultToText(raw);
+        const raw = signal ? await executeTool(name, args, {signal}) :
+                             await executeTool(name, args);
+        const executionError = nativeToolError(raw);
+        if (executionError) {
+          throw executionError;
+        }
+        let details = raw;
+        let media: {mimeType: string; data: string}|null = null;
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          const record = raw as Record<string, unknown>;
+          const candidate = record['media'];
+          if (candidate && typeof candidate === 'object') {
+            const mediaRecord = candidate as Record<string, unknown>;
+            if (typeof mediaRecord['mimeType'] === 'string' &&
+                typeof mediaRecord['data'] === 'string') {
+              media = {
+                mimeType: mediaRecord['mimeType'],
+                data: mediaRecord['data'],
+              };
+              const {
+                media: _media,
+                data: _legacyScreenshotData,
+                ...withoutMedia
+              } = record;
+              details = withoutMedia;
+            }
+          }
+        }
+        const text = resultToText(details);
+        const content: AgentToolContent[] =
+            [{type: 'text', text: text || '(no output)'}];
+        if (media) {
+          content.push({type: 'image', ...media});
+        }
         recordToolCall(name);
         return {
-          content: [{type: 'text', text: text || '(no output)'}],
-          details: raw,
+          content,
+          details,
         };
       } catch (e) {
         recordToolCall(name);
+        if (e instanceof Error && e.name === 'AbortError') {
+          throw e;
+        }
+        if (e instanceof Error && typeof (e as Error&{code?: unknown}).code ===
+                'string') {
+          throw e;
+        }
         throw new Error(`${name} failed: ${describeError(e)}`);
       }
     },
@@ -81,9 +143,10 @@ export function buildAgentTools(): AgentTool[] {
   // Filter out tools the user has disabled via Settings → Tools. Renderers
   // are still registered for every known tool name (cheap, idempotent) so a
   // re-enabled tool renders correctly on the next turn without re-init.
-  const adapted = tools
+  const definitions = getAgentToolDefinitions();
+  const adapted = definitions
       .filter(t => isToolEnabled(t.function.name))
       .map(adaptOne);
-  registerDaoToolRenderers(tools.map(t => t.function.name));
+  registerDaoToolRenderers(definitions.map(t => t.function.name));
   return adapted;
 }

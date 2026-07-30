@@ -6,6 +6,7 @@
 #define DAO_BROWSER_DAO_PREF_NAMES_H_
 
 class Profile;
+class PrefRegistrySimple;
 
 namespace blink::web_pref {
 struct WebPreferences;
@@ -17,7 +18,12 @@ class PrefRegistrySyncable;
 
 namespace dao::prefs {
 
+void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
+
+// Global local-state pref controlling the owner-only local MCP endpoint.
+// The service is disabled by default and remains independent of Dao Agent.
+inline constexpr char kDaoMcpServerEnabled[] = "dao.mcp_server_enabled";
 
 // Boolean pref that controls whether the agent memory system is enabled.
 // When false (the default), the memory service is not created, the proactive
