@@ -106,8 +106,24 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - **DaoAgentCursorView** (`dao_agent_cursor_view.{h,cc}`) — Animated cursor + element-highlight overlay visualizing AI actions
 - **DaoAgentLockBannerView** (`dao_agent_lock_banner_view.{h,cc}`) — Animated banner shown while AI controls a tab
 - **DaoAgentLockTabHelper** (`agent/dao_agent_lock_tab_helper.{h,cc}`) — Per-tab lock state observer
+- **Window-scoped tab automation** (`automation/dao_tab_tools.{h,cc}`) — Shared Agent/MCP list, switch, open, and close operations stay inside the authorized browser window. Sessions follow the same stable tab across WebContents replacement, tab IDs are reconciled to remain unique within a window, and ambiguous selectors fail closed. New targets are limited to HTTP, HTTPS, or `about:blank`; close results wait for unload approval and retarget only after the tab is actually removed.
+- **Session-scoped DevTools automation** (`automation/dao_devtools_tools.{h,cc}`) — Agent and MCP clients share native network, console, and page-resource tools. Domain requests persist independently from confirmed state; events arriving while an enable attempt is pending are staged for that exact generation and host, then committed by a matching success or dropped after all matching attempts fail, cancellation, or a binding change. Clear actions remove both committed and currently staged events without cancelling the matching enable attempt, so only later events can commit. Within one binding, confirmation is monotonic after any successful enable and resets only when the binding changes. Network and console capture retain recent entries under UTF-8-safe field, entry-count, and aggregate-byte budgets with explicit dropped/truncated metadata. One iterative, deduplicating resource traversal synthesizes each frame's Document and reports item, URL-byte, depth, source, scan, and match limits separately. Resource reads require the current exact `(frame, URL)` tree entry when a frame is supplied and reject known decoded sizes over 1 MiB before fetching content; independent per-command response ceilings cover missing metadata. Resource search reports attempted, successfully searched, failed, and content-limited sources plus explicit incompleteness, including bounded Document DOM ingress.
 
-### 2.3 Agent WebUI (`chrome://dao-agent` and `chrome://dao-agent/skills`)
+### 2.3 Local MCP Server
+
+- **Process-global native service** (`mcp/dao_mcp_service.{h,cc}`) — A default-off Local State preference controls a single browser-process MCP endpoint. Authentication and catalog discovery never start the approval timer, so an idle client can remain connected and continue listing tools without losing the endpoint. The first tool call snapshots the exact last-active eligible normal browser window and active tab, then requests native user approval before execution and acquisition of the same tab automation lease used by Dao Agent.
+- **Settings master switch, connection, and quick setup** (`mcp/dao_mcp_settings_handler.{h,cc}`, `resources/settings/dao_page/`) — You and Dao groups the process-global MCP Local State switch, live connection status, and enabled-only setup into one native-style card. It renders Disabled, Ready, Approval requested, and Connected states; shows sanitized client details and Stop only for an active authorized lease; and aligns the selector with its copy action while stacking them at narrow widths. Quick setup defaults to Codex CLI and also offers a user-scoped Claude Code CLI command plus Generic MCP JSON. The preview and clipboard always contain the same native-generated content: CLI commands remain single-line, while Generic MCP is Chromium-native three-space pretty JSON. Malformed Generic MCP JSON fails closed by clearing the preview and leaving the clipboard unchanged; the former standalone configuration button is removed. Native POSIX shell quoting protects the running bundle's actual helper path and its explicit current user-data-directory argument, so Debug and custom-profile installs connect to the correct runtime endpoint.
+- **Hardened local transport** (`mcp/dao_mcp_transport.{h,cc}`, `dao_mcp_connection.{h,cc}`, `dao_mcp_runtime_files.{h,mm}`) — The server owns all listener and connection I/O on Chromium's browser IO thread, uses a non-abstract Unix domain socket inside the user-data MCP directory, enforces owner-only directory/socket/metadata permissions, authenticates the peer UID plus a fresh 256-bit nonce, admits one external client, and removes runtime artifacts on disable or shutdown. Atomic `runtime.json` metadata publishes the socket and nonce only inside that private directory. IO-thread credits bound requests posted but not yet consumed by the UI thread, terminal responses synchronously close the logical request gate and stop further reads, aggregate write budgets fail closed under backpressure, and graceful close has bounded request and write-drain deadlines.
+- **Versioned NDJSON protocol** (`mcp/dao_mcp_protocol.{h,cc}`) — Protocol version 1 supports `hello`, `tools/list`, `tools/call`, and `tools/cancel`, with an 8 MiB line ceiling, 64-request/8 MiB pending-ingress budget, and structured errors. Catalog discovery is available before approval, while execution waits for approval and the external automation lease.
+- **Central external-target eligibility and MCP lifecycle policy** (`automation/dao_browser_target_policy.{h,cc}`, `mcp/dao_mcp_session_lifecycle_monitor.{h,cc}`) — MCP stays pinned to the exact approved normal Browser, regular Profile, and tab, with no eligible-tab fallback. HTTP, HTTPS, literal `about:blank`, and web-hosted PDFs are allowed; popup, Incognito, Guest, internal, extension, DevTools, Agent WebUI, file, data, and custom-scheme targets are rejected. Browser/Profile/target destruction or forbidden navigation enters logical closing, cancels work, clears locks/overlays/CDP state, and releases the lease while retaining the single-client slot until the accepted socket actually disconnects.
+- **Exact-window approval and control UX** (`dao_mcp_approval_dialog.{h,cc}`, `dao_mcp_control_banner_view.{h,cc}`) — Every execution lease displays a localized, fail-closed Dao system dialog in the exact normal Browser selected for approval, with sanitized reported client metadata, verified PID when available, window, Profile, and current-login warning. Allow is intentionally not the default action. While the lease is active, only that BrowserView shows the client and current target in a dedicated row above the address bar; Stop cancels external work, releases the lease, closes the connection, and returns the enabled service to listening.
+- **Peer-agent contention** — Dao Agent chat and non-browser tools remain available while an external MCP peer owns browser control. Dao Agent browser tools fail before CDP execution with the stable, retryable `AGENT_CONTROL_BUSY` error instead of blocking the whole chat turn.
+- **Native stdio MCP helper** (`mcp/helper/`) — The standalone `dao-mcp` executable speaks newline-delimited JSON-RPC and negotiates MCP `2025-11-25` or `2025-06-18` over stdin/stdout, discovers the authenticated browser endpoint from the active user-data directory, and bridges MCP string or numeric request IDs to bounded browser IPC IDs. Its initialization capability opts out of Codex's shared tool-catalog cache so runtime refreshes keep the live Dao client authoritative instead of exposing a stale catalog without a callable connection. It maps the 29-tool catalog to MCP annotations, normalized object/scalar/list results to text plus object `structuredContent`, screenshot media to image content with its real MIME type, and tool failures to `isError: true`. Cancellation is forwarded to the browser and late responses are discarded. Stdout remains protocol-only; unavailable-browser diagnostics are deterministic stderr output.
+- **29-tool external scope** — The shared native catalog contains 30 Dao Agent browser tools; MCP exposes 29 and excludes only the Agent-specific `resolve_element_context`. Agent memory, skill, workspace, and web-provider tools are not part of the local MCP server.
+- **macOS helper packaging** (`mcp/BUILD.gn`, `dao_version.gni`, `chrome/BUILD_mcp_helper.gn.patch`) — The helper is built independently from the browser service, receives the same Dao product-version build argument as the app, and is copied with executable permissions to `Dao.app/Contents/Helpers/dao-mcp`.
+- **Independent execution peer** — MCP owns its own automation session, DevTools client, executor, cursor integration, and cancellation state. It reuses the shared native tab/page/DevTools implementations and lease coordinator without depending on the Agent WebUI lifecycle.
+
+### 2.4 Agent WebUI (`chrome://dao-agent` and `chrome://dao-agent/skills`)
 
 **Application shell** (`src/dao/browser/ui/webui/resources/agent/`)
 - `agent.{html,css,ts}` + `dao_agent_app.ts` — Chat app entry
@@ -147,12 +163,12 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   verification-page reporting; `fetch_url` uses Jina Reader before browser
   fetch.
 
-### 2.4 Vendor Pipeline (Generated, never hand-edit)
+### 2.5 Vendor Pipeline (Generated, never hand-edit)
 - **`npm run vendor`** — Compiles pi-mono / pi-web-ui and related deps from `vendor.config.ts` + `vendor/entries/*`
 - Artifacts: `agent/vendor/pi_runtime_bundle.ts` and `agent/vendor/pi_web_ui.css`
 - `manifest.json` sha256 drift check guards against direct edits
 
-### 2.5 Dream Analysis (nightly behavior learning)
+### 2.6 Dream Analysis (nightly behavior learning)
 - **DaoDreamService** (+ Factory) — profile-keyed scheduler: nightly
   (22:00–06:00 local, system idle ≥1h), daytime catch-up for yesterday,
   and manual trigger from Agent settings. Off by default
@@ -263,9 +279,9 @@ Lightweight window form factor for popups / mini-tools.
 - **Command handling** — `browser_command_controller.cc.patch` + `browser_commands.cc.patch`
 - Note: adding a new IDC_* requires three edit sites (see `MEMORY.md`)
 
-## 13. Chromium Core Integration Patches (182 total)
+## 13. Chromium Core Integration Patches (184 total)
 
-Roughly **182 patch files** across functional Chromium integration and
+Exactly **184 patch files** across functional Chromium integration and
 string-localization/rebranding changes.
 
 ### 13.1 URLs and Schemes
@@ -326,7 +342,7 @@ string-localization/rebranding changes.
 - `media/base/media_switches.cc.patch` — Media switches
 
 ### 13.9 Build / WebUI Toolchain
-- `chrome/browser/BUILD.gn.patch`, `chrome/browser/ui/BUILD.gn.patch`, `chrome/test/BUILD.gn.patch`, `chrome/chrome_paks.gni.patch`, `chrome/app/theme/chromium/BRANDING.patch` — Build graph
+- `chrome/BUILD_mcp_helper.gn.patch`, `chrome/browser/BUILD.gn.patch`, `chrome/browser/ui/BUILD.gn.patch`, `chrome/test/BUILD.gn.patch`, `chrome/chrome_paks.gni.patch`, `chrome/app/theme/chromium/BRANDING.patch` — Build graph
 - `third_party/lit/v3_0/BUILD.gn.patch` — Lit framework integration
 - `ui/webui/resources/tools/build_webui.gni.patch` + `ui/webui/webui_util.cc.patch` — WebUI build helpers
 - `tools/gritsettings/resource_ids.spec.patch` — Resource ID allocation
@@ -361,4 +377,4 @@ string-localization/rebranding changes.
 
 - **Version**: 1.0.79 (based on Chromium 149.0.7827.201)
 - **Target platform**: macOS arm64
-- **Source footprint**: ~45 C++ component pairs under `src/dao/` + 182 patches under `src/patches/`
+- **Source footprint**: ~47 C++ component pairs under `src/dao/` + 184 patches under `src/patches/`

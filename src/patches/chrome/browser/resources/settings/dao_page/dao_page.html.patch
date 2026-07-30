@@ -3,8 +3,38 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,401 @@
+@@ -0,0 +1,625 @@
 +<style include="settings-shared">
++  .dao-mcp-settings {
++    border: 1px solid var(--cr-separator-color);
++    border-radius: 12px;
++    margin: 16px 20px 20px;
++    overflow: hidden;
++  }
++
++  #daoMcpServerEnabled {
++    padding: 4px 16px;
++  }
++
++  .dao-mcp-section {
++    border-top: var(--cr-separator-line);
++    padding: 16px;
++  }
++
++  .dao-mcp-status-section,
++  .dao-mcp-setup-controls {
++    align-items: flex-end;
++    display: flex;
++    gap: 12px;
++    justify-content: space-between;
++  }
++
++  .dao-mcp-status-copy,
++  .dao-mcp-client-field {
++    flex: 1;
++    min-width: 0;
++  }
++
 +  .dao-stale-tab-expiration-row {
 +    align-items: center;
 +    gap: 24px;
@@ -13,6 +43,63 @@ index 0000000000..0000000001
 +  .dao-stale-tab-expiration-text {
 +    flex: 1;
 +    min-width: 0;
++  }
++
++  .dao-mcp-section-title,
++  .dao-mcp-quick-setup-title {
++    color: var(--cr-primary-text-color);
++    font-size: 13px;
++    font-weight: 500;
++    line-height: 20px;
++  }
++
++  .dao-mcp-client {
++    color: var(--cr-secondary-text-color);
++    font-size: 12px;
++    line-height: 18px;
++    margin-top: 4px;
++  }
++
++  .dao-mcp-status-actions {
++    align-items: center;
++    display: flex;
++    gap: 8px;
++  }
++
++  .dao-mcp-status-badge {
++    border-radius: 999px;
++    font-size: 12px;
++    font-weight: 500;
++    line-height: 20px;
++    padding: 0 8px;
++  }
++
++  .dao-mcp-status-badge.disabled {
++    background: var(--google-grey-200);
++    color: var(--google-grey-700);
++  }
++
++  .dao-mcp-status-badge.ready {
++    background: var(--google-blue-100);
++    color: var(--google-blue-700);
++  }
++
++  .dao-mcp-status-badge.approval_requested {
++    background: var(--google-orange-100);
++    color: var(--google-orange-700);
++  }
++
++  .dao-mcp-status-badge.connected {
++    background: var(--google-green-100);
++    color: var(--google-green-700);
++  }
++
++  .dao-mcp-quick-setup-description,
++  .dao-mcp-client-label,
++  .dao-mcp-command-feedback {
++    color: var(--cr-secondary-text-color);
++    font-size: 12px;
++    line-height: 18px;
 +  }
 +
 +  .dao-stale-tab-expiration-label {
@@ -25,6 +112,62 @@ index 0000000000..0000000001
 +    color: var(--cr-secondary-text-color);
 +    font-size: 12px;
 +    line-height: 18px;
++  }
++
++  .dao-mcp-quick-setup-description {
++    margin-top: 2px;
++  }
++
++  .dao-mcp-client-label {
++    display: block;
++    margin-top: 12px;
++  }
++
++  .dao-mcp-client-selector {
++    background: var(--cr-card-background-color);
++    border: 1px solid var(--cr-separator-color);
++    border-radius: 8px;
++    color: var(--cr-primary-text-color);
++    font: inherit;
++    box-sizing: border-box;
++    margin-top: 6px;
++    min-height: 32px;
++    padding: 4px 10px;
++    width: 100%;
++  }
++
++  .dao-mcp-command-preview {
++    background: var(--cr-card-background-color);
++    border: 1px solid var(--cr-separator-color);
++    border-radius: 8px;
++    box-sizing: border-box;
++    color: var(--cr-primary-text-color);
++    display: block;
++    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
++        monospace;
++    font-size: 11px;
++    line-height: 18px;
++    margin-top: 10px;
++    max-height: 220px;
++    overflow: auto;
++    padding: 9px 10px;
++    white-space: pre;
++  }
++
++  .dao-mcp-copy-install-command {
++    margin: 0;
++  }
++
++  .dao-mcp-command-feedback {
++    margin-top: 4px;
++    min-height: 18px;
++  }
++
++  @media (max-width: 520px) {
++    .dao-mcp-setup-controls {
++      align-items: stretch;
++      flex-direction: column;
++    }
 +  }
 +
 +  #staleTabExpirationHours {
@@ -333,6 +476,87 @@ index 0000000000..0000000001
 +      label="$i18n{enhancedPipEnabledLabel}"
 +      sub-label="$i18n{enhancedPipEnabledSubLabel}">
 +  </settings-toggle-button>
++  <div class="dao-mcp-settings">
++    <settings-toggle-button id="daoMcpServerEnabled"
++        pref="{{daoMcpEnabledPref_}}"
++        label="$i18n{daoMcpServerEnabledLabel}"
++        sub-label="$i18n{daoMcpServerEnabledSubLabel}"
++        on-settings-boolean-control-change="onDaoMcpEnabledChange_">
++    </settings-toggle-button>
++    <div id="daoMcpConnectionSection"
++        class="dao-mcp-section dao-mcp-status-section">
++      <div class="dao-mcp-status-copy">
++        <div class="dao-mcp-section-title">$i18n{daoMcpStatusLabel}</div>
++        <template is="dom-if" if="[[showDaoMcpClient_]]" restamp>
++          <div id="daoMcpClient" class="dao-mcp-client">
++            [[daoMcpClientDetails_]]
++          </div>
++        </template>
++      </div>
++      <div class="dao-mcp-status-actions">
++        <span id="daoMcpStatusValue"
++            class$="dao-mcp-status-badge [[daoMcpStatusState_]]">
++          [[daoMcpStatusText_]]
++        </span>
++        <template is="dom-if" if="[[showDaoMcpStop_]]" restamp>
++          <cr-button id="daoMcpStopControl"
++              on-click="onDaoMcpStopControl_">
++            $i18n{daoMcpStopControl}
++          </cr-button>
++        </template>
++      </div>
++    </div>
++    <template is="dom-if" if="[[showDaoMcpQuickSetup_]]" restamp>
++      <div id="daoMcpQuickSetup"
++          class="dao-mcp-section dao-mcp-quick-setup">
++        <div class="dao-mcp-quick-setup-title">
++          $i18n{daoMcpQuickSetupTitle}
++        </div>
++        <div class="dao-mcp-quick-setup-description">
++          $i18n{daoMcpQuickSetupDescription}
++        </div>
++        <div id="daoMcpSetupControls" class="dao-mcp-setup-controls">
++          <div class="dao-mcp-client-field">
++            <label class="dao-mcp-client-label" for="daoMcpClientSelector">
++              $i18n{daoMcpClientLabel}
++            </label>
++            <select id="daoMcpClientSelector" class="dao-mcp-client-selector"
++                value="{{daoMcpSetupOption_::change}}"
++                on-change="onDaoMcpSetupOptionChange_">
++              <option value="codex">$i18n{daoMcpClientCodex}</option>
++              <option value="claude-code">$i18n{daoMcpClientClaudeCode}</option>
++              <option value="generic-mcp">$i18n{daoMcpClientGeneric}</option>
++            </select>
++          </div>
++          <cr-button id="daoMcpCopySetup"
++              class="dao-mcp-copy-install-command"
++              disabled="[[!daoMcpSetupContent_]]"
++              on-click="onDaoMcpCopySetupContent_">
++            <template is="dom-if" if="[[!daoMcpGenericSetup_]]">
++              $i18n{daoMcpCopyInstallCommand}
++            </template>
++            <template is="dom-if" if="[[daoMcpGenericSetup_]]">
++              $i18n{daoMcpCopyConfiguration}
++            </template>
++          </cr-button>
++        </div>
++        <code id="daoMcpSetupPreview"
++            class="dao-mcp-command-preview">[[daoMcpSetupContent_]]</code>
++        <div id="daoMcpSetupFeedback"
++            class="dao-mcp-command-feedback" role="status"
++            aria-live="polite">
++          <template is="dom-if" if="[[daoMcpSetupCopied_]]">
++            <template is="dom-if" if="[[!daoMcpGenericSetup_]]">
++              $i18n{daoMcpInstallCommandCopied}
++            </template>
++            <template is="dom-if" if="[[daoMcpGenericSetup_]]">
++              $i18n{daoMcpConfigurationCopied}
++            </template>
++          </template>
++        </div>
++      </div>
++    </template>
++  </div>
 +  <div id="enhancedPipPreview" class="dao-pip-preview" role="group"
 +      aria-label="$i18n{enhancedPipPreviewTitle}">
 +    <div class="dao-pip-preview-title">$i18n{enhancedPipPreviewTitle}</div>

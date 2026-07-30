@@ -4,7 +4,7 @@
 
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {cr, executeTool, tools} from '../agent_bridge.js';
+import {agentOnlyTools, cr, executeTool} from '../agent_bridge.js';
 
 function installChromeMock() {
   const send = vi.fn((method: string, args: unknown[]) => {
@@ -32,7 +32,7 @@ describe('agent bridge save_memory tool', () => {
   });
 
   it('requires an explicit reusable signal in the tool schema', () => {
-    const tool = tools.find(t => t.function.name === 'save_memory');
+    const tool = agentOnlyTools.find(t => t.function.name === 'save_memory');
 
     expect(tool?.function.parameters.required).toContain('reusable');
   });

@@ -17,8 +17,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/values.h"
-#include "content/public/browser/devtools_agent_host.h"
-#include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
@@ -26,6 +24,8 @@
 #include "dao/browser/agent/dao_agent_proactive_engine.h"
 #include "dao/browser/agent/dao_agent_workspace_types.h"
 #include "dao/browser/agent/dao_dream_service.h"
+#include "dao/browser/automation/dao_devtools_client.h"
+#include "dao/browser/automation/dao_page_tools.h"
 #include "pdf/mojom/pdf.mojom-forward.h"
 #include "url/gurl.h"
 
@@ -44,10 +44,12 @@ class DaoAgentSkillService;
 class DaoAgentUI;
 class DaoIndexUI;
 class DaoAgentWorkspaceService;
+class DaoAgentLease;
+class DaoBrowserAutomationSession;
+class DaoBrowserToolExecutor;
 
 // Serializes native memory context into the object returned to the Agent WebUI.
-base::DictValue SerializeMemoryContextForAgentUi(
-    const MemoryContext& context);
+base::DictValue SerializeMemoryContextForAgentUi(const MemoryContext& context);
 
 bool ShouldCountProactiveOutcomeAsDismissedForScenarioStats(
     const std::string& outcome);
@@ -96,47 +98,9 @@ class DaoAgentUIConfig : public content::WebUIConfig {
       const GURL& url) override;
 };
 
-// CDP client that bridges WebUI JS to DevTools protocol on the active tab.
-class DaoAgentDevToolsClient : public content::DevToolsAgentHostClient {
- public:
-  using ResponseCallback = base::OnceCallback<void(base::Value)>;
-  using EventCallback =
-      base::RepeatingCallback<void(const std::string& method,
-                                   const base::DictValue& params)>;
-
-  DaoAgentDevToolsClient();
-  ~DaoAgentDevToolsClient() override;
-
-  // Attach to the given WebContents. Detaches from any previous host.
-  bool AttachTo(content::WebContents* web_contents);
-
-  // Detach from the current host.
-  void Detach();
-
-  // Send a CDP command. |callback| receives the JSON result.
-  void SendCommand(const std::string& method,
-                   base::DictValue params,
-                   ResponseCallback callback);
-
-  // Set a callback for CDP events (messages without an "id" field).
-  void SetEventCallback(EventCallback callback);
-
-  // content::DevToolsAgentHostClient:
-  void DispatchProtocolMessage(content::DevToolsAgentHost* agent_host,
-                               base::span<const uint8_t> message) override;
-  void AgentHostClosed(content::DevToolsAgentHost* agent_host) override;
-  bool IsTrusted() override;
-  std::string GetTypeForMetrics() override;
-
- private:
-  scoped_refptr<content::DevToolsAgentHost> agent_host_;
-  int next_command_id_ = 1;
-  std::map<int, ResponseCallback> pending_callbacks_;
-  EventCallback event_callback_;
-};
-
 // WebUI message handler for Dao Agent sidebar.
-class DaoAgentUIHandler : public content::WebUIMessageHandler {
+class DaoAgentUIHandler : public content::WebUIMessageHandler,
+                          public DaoPageTools::UiDelegate {
  public:
   DaoAgentUIHandler();
   ~DaoAgentUIHandler() override;
@@ -144,16 +108,42 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   // content::WebUIMessageHandler:
   void RegisterMessages() override;
 
+  // DaoPageTools::UiDelegate:
+  void MoveCursor(content::WebContents* target,
+                  double x,
+                  double y,
+                  base::OnceCallback<void(bool)> callback) override;
+  void PlayClickRipple(content::WebContents* target) override;
+  void CancelCursor(content::WebContents* target) override;
+  bool IsTargetLocked(content::WebContents* target) override;
+  void LockTarget(content::WebContents* target) override;
+  void UnlockTarget(content::WebContents* target) override;
+
  private:
   // Ensures the CDP client is attached to the current agent target.
   // Returns the target WebContents, or nullptr on failure.
   content::WebContents* EnsureAttached();
+  bool RequireActiveAgentTurn(const std::string& callback_id);
   content::WebContents* ResolveTargetContents();
   content::WebContents* GetActivePageContents();
+  void SetAgentTurnTarget(content::WebContents* target);
+  void AbortAgentTurn(DaoToolError error);
+  void ExecutePageTool(std::string callback_id,
+                       std::string tool_name,
+                       base::DictValue arguments);
+  void ExecuteTabTool(std::string callback_id,
+                      std::string tool_name,
+                      base::DictValue arguments);
+  void OnPageToolComplete(std::string callback_id, DaoBrowserToolResult result);
+  void OnTabToolComplete(std::string callback_id,
+                         base::WeakPtr<content::WebContents> previous_target,
+                         DaoBrowserToolResult result);
+  void ResolvePageToolError(std::string callback_id, DaoToolError error);
 
   // Message handlers called from JS via chrome.send().
   void HandleBeginAgentTurn(const base::ListValue& args);
   void HandleEndAgentTurn(const base::ListValue& args);
+  void HandleCancelBrowserTool(const base::ListValue& args);
   void HandleGetPageInfo(const base::ListValue& args);
   void HandleClickElement(const base::ListValue& args);
   void HandleExecuteScript(const base::ListValue& args);
@@ -203,30 +193,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
   void HandleListPageResources(const base::ListValue& args);
   void HandleGetResourceContent(const base::ListValue& args);
   void HandleGetNetworkBody(const base::ListValue& args);
-
-  // Shared tail of HandleGetResourceContent: run Page.getResourceContent
-  // once both frame id and url are known, then reply to |callback_id|.
-  void FetchResourceContentAndReply(const std::string& callback_id,
-                                    const std::string& url,
-                                    const std::string& frame_id);
-
-  // HandleListPageResources continuations — split out because the
-  // two-step CDP chain (Page.enable → Page.getResourceTree) runs into
-  // confusing lambda-capture diagnostics when inlined.
-  void OnPageEnableForResourceList(std::string callback_id,
-                                   std::string type_filter,
-                                   base::Value result);
-  void OnResourceTreeForResourceList(std::string callback_id,
-                                     std::string type_filter,
-                                     base::Value result);
-
-  // HandleGetResourceContent continuation for the frame-id-lookup path.
-  void OnResourceTreeForResourceFetch(std::string callback_id,
-                                      std::string url,
-                                      base::Value result);
-  void OnPageEnableForResourceFetch(std::string callback_id,
-                                    std::string url,
-                                    base::Value result);
+  void HandleSearchInResources(const base::ListValue& args);
 
   // Sidebar control.
   void HandleCloseSidebar(const base::ListValue& args);
@@ -302,27 +269,6 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
                                std::string body,
                                bool truncated);
 
-  void PerformCDPClick(const std::string& callback_id,
-                       const std::string& escaped_selector,
-                       double viewport_x,
-                       double viewport_y,
-                       content::WebContents* locked_contents);
-
-  // Second half of PerformCDPClick: dispatches mousePressed then
-  // mouseReleased with matching `buttons` bitmask. Split out so the
-  // prefix mouseMoved event can be awaited in a separate CDP round trip
-  // without ballooning the nested lambda chain.
-  void DispatchPressAndRelease(const std::string& callback_id,
-                               const std::string& escaped_selector,
-                               double viewport_x,
-                               double viewport_y,
-                               content::WebContents* locked_contents,
-                               base::DictValue press_params);
-
-  // CDP event handler for network/console tracking.
-  void OnCDPEvent(const std::string& method,
-                  const base::DictValue& params);
-
   // State for an in-flight getPdfText capture. Only one capture runs at
   // a time per handler instance.
   struct PdfCaptureState {
@@ -368,19 +314,15 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler {
                               const std::string& error_message);
   void ResolvePdfCaptureNotPdf(const std::string& callback_id);
 
-  // Domain security: expected domain set at session start.
+  // Domain security and pinned target state for the current Agent turn.
   std::string expected_domain_;
-  base::WeakPtr<content::WebContents> agent_turn_target_;
+  std::string active_turn_id_;
+  std::optional<DaoToolError> agent_turn_unavailable_error_;
+  std::unique_ptr<DaoAgentLease> agent_turn_lease_;
+  std::unique_ptr<DaoBrowserAutomationSession> agent_turn_session_;
 
-  // Network tracking state.
-  bool network_tracking_enabled_ = false;
-  std::vector<base::DictValue> network_requests_;
-
-  // Console tracking state.
-  bool console_tracking_enabled_ = false;
-  std::vector<base::DictValue> console_messages_;
-
-  std::unique_ptr<DaoAgentDevToolsClient> devtools_client_;
+  std::unique_ptr<DaoDevToolsClient> devtools_client_;
+  std::unique_ptr<DaoBrowserToolExecutor> browser_tool_executor_;
   base::WeakPtrFactory<DaoAgentUIHandler> weak_factory_{this};
 };
 
@@ -552,8 +494,7 @@ class DaoAgentWorkspaceHandler : public content::WebUIMessageHandler {
   DaoAgentWorkspaceHandler();
   ~DaoAgentWorkspaceHandler() override;
   DaoAgentWorkspaceHandler(const DaoAgentWorkspaceHandler&) = delete;
-  DaoAgentWorkspaceHandler& operator=(const DaoAgentWorkspaceHandler&) =
-      delete;
+  DaoAgentWorkspaceHandler& operator=(const DaoAgentWorkspaceHandler&) = delete;
 
   // content::WebUIMessageHandler:
   void RegisterMessages() override;

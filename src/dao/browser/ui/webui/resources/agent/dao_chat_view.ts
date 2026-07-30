@@ -36,6 +36,7 @@ import {
 import {reportTelemetryEvent} from './dao_telemetry.js';
 import {lookupCostByModelId} from './llm_cost.js';
 import {buildAgentTools} from './pi_tool_adapter.js';
+import {initializeBrowserToolCatalog} from './browser_tool_catalog.js';
 import {toolConfigChannel} from './tool_catalog.js';
 import './dao_chat_history_panel.js';
 import {ensurePiAppStorage, syncActiveKeyToPiStorage} from './pi_app_storage.js';
@@ -1167,6 +1168,7 @@ export class DaoChatView extends CrLitElement {
     // to read from it. Also mirrors the Dao-configured API key for the
     // active provider so AgentInterface's pre-send check passes.
     await ensurePiAppStorage();
+    await initializeBrowserToolCatalog();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mod = pi as any;
@@ -1329,15 +1331,22 @@ export class DaoChatView extends CrLitElement {
         this.origSendMessage_ = iface.sendMessage.bind(iface);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         iface.sendMessage = async (text: string, attachments: any[]) => {
-          let turnTargetStarted = false;
+          let turnId: string|null = null;
           this.pendingMemoryContextText_ = null;
           try {
-            try {
-              await callNative('beginAgentTurn');
-              turnTargetStarted = true;
-            } catch (e) {
-              console.warn('[dao-agent] beginAgentTurn failed', e);
+            const beginResult = await callNative('beginAgentTurn') as {
+              success?: boolean;
+              turnId?: string;
+              error?: string;
+              code?: string;
+            };
+            if (!beginResult?.success || !beginResult.turnId) {
+              throw new Error(
+                  beginResult?.error ||
+                  beginResult?.code ||
+                  'Unable to start the Dao Agent turn.');
             }
+            turnId = beginResult.turnId;
 
             reportTelemetryEvent('agent_message_send', {
               textLength: text?.length ?? 0,
@@ -1373,9 +1382,9 @@ export class DaoChatView extends CrLitElement {
             return result;
           } finally {
             this.pendingMemoryContextText_ = null;
-            if (turnTargetStarted) {
+            if (turnId) {
               try {
-                await callNative('endAgentTurn');
+                await callNative('endAgentTurn', {turnId});
               } catch (e) {
                 console.warn('[dao-agent] endAgentTurn failed', e);
               }

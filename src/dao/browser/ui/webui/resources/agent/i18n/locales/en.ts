@@ -422,6 +422,10 @@ const dict: Dictionary = {
       'Choose which tools the agent can call. Disabled tools are hidden '
       + 'from the model, so it will not attempt to use them. Changes take '
       + 'effect on the next turn of any open chat.',
+  'settings.tools.catalog_loading': 'Loading tool descriptions…',
+  'settings.tools.catalog_load_failed':
+      'Tool descriptions could not be loaded.',
+  'settings.tools.catalog_retry': 'Retry',
   // {group} is the translated tool group label.
   'settings.tools.toggle_all_aria': 'Toggle all {group} tools',
   // {name} is the technical tool identifier (kept untranslated).

@@ -25,7 +25,8 @@ function tool(name: string) {
 vi.mock('../agent_bridge.js', () => ({
   executeTool: (...args: unknown[]) => mocks.executeTool(...args),
   recordToolCall: (...args: unknown[]) => mocks.recordToolCall(...args),
-  tools: [tool('web_search'), tool('close_tab'), tool('activate_skill')],
+  getAgentToolDefinitions: () =>
+      [tool('web_search'), tool('close_tab'), tool('activate_skill')],
 }));
 
 vi.mock('../dao_tool_renderer.js', () => ({
@@ -104,6 +105,55 @@ describe('pi_tool_adapter', () => {
     expect(mocks.recordToolCall).toHaveBeenCalledWith('web_search');
   });
 
+  it('rejects native browser-tool errors with their stable code', async () => {
+    mocks.executeTool.mockResolvedValue({
+      error: 'Another automation client is active.',
+      code: 'AGENT_CONTROL_BUSY',
+      retryable: true,
+    });
+    const [adapted] = buildAgentTools();
+
+    await expect(adapted.execute('call-1', {})).rejects.toMatchObject({
+      message: 'Another automation client is active.',
+      code: 'AGENT_CONTROL_BUSY',
+      retryable: true,
+    });
+    expect(mocks.recordToolCall).toHaveBeenCalledWith('web_search');
+  });
+
+  it('preserves screenshot media as an image content part without base64 text',
+     async () => {
+       mocks.executeTool.mockResolvedValue({
+         screenshot_taken: true,
+         message: 'Screenshot captured successfully.',
+         data: 'jpeg-base64',
+         format: 'jpeg',
+         media: {mimeType: 'image/jpeg', data: 'jpeg-base64'},
+       });
+       const adapted =
+           buildAgentTools().find(t => t.name === 'web_search');
+
+       const result = await adapted.execute('call-1', {});
+
+       expect(result.content).toEqual([
+         {
+           type: 'text',
+           text: JSON.stringify({
+           screenshot_taken: true,
+           message: 'Screenshot captured successfully.',
+           format: 'jpeg',
+         }, null, 2),
+         },
+         {type: 'image', mimeType: 'image/jpeg', data: 'jpeg-base64'},
+       ]);
+       expect(result.details).toEqual({
+         screenshot_taken: true,
+         message: 'Screenshot captured successfully.',
+         format: 'jpeg',
+       });
+       expect(JSON.stringify(result.details)).not.toContain('jpeg-base64');
+     });
+
   it('turns an aborted signal into AbortError before side effects run', async () => {
     const [adapted] = buildAgentTools();
     const controller = new AbortController();
@@ -114,4 +164,18 @@ describe('pi_tool_adapter', () => {
     expect(mocks.executeTool).not.toHaveBeenCalled();
     expect(mocks.recordToolCall).not.toHaveBeenCalled();
   });
+
+  it('threads an active AbortSignal into execution and preserves AbortError',
+     async () => {
+       mocks.executeTool.mockRejectedValue(
+           Object.assign(new Error('aborted'), {name: 'AbortError'}));
+       const [adapted] = buildAgentTools();
+       const controller = new AbortController();
+
+       await expect(adapted.execute('call-1', {}, controller.signal))
+           .rejects.toMatchObject({name: 'AbortError'});
+       expect(mocks.executeTool).toHaveBeenCalledWith(
+           'web_search', {}, {signal: controller.signal});
+       expect(mocks.recordToolCall).toHaveBeenCalledWith('web_search');
+     });
 });

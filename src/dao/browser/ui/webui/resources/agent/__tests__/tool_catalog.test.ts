@@ -25,6 +25,16 @@ afterEach(() => {
 });
 
 describe('tool_catalog: enable/disable semantics', () => {
+  it('keeps the settings browser groups aligned with the 30-tool catalog', () => {
+    const browserGroups = TOOL_GROUPS.filter(
+        group => ['page', 'tabs', 'devtools'].includes(group.id));
+    const browserTools = browserGroups.flatMap(group => group.toolNames);
+
+    expect(browserTools).toHaveLength(30);
+    expect(new Set(browserTools).size).toBe(30);
+    expect(browserTools).toContain('resolve_element_context');
+  });
+
   it('treats unknown tools as enabled (no migration needed for new tools)', () => {
     expect(isToolEnabled('a_tool_we_will_add_in_2027')).toBe(true);
   });

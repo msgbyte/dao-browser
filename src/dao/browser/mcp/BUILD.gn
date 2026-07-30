@@ -1,0 +1,71 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//dao/browser/dao_version.gni")
+
+source_set("mcp_wire") {
+  sources = [
+    "dao_mcp_protocol.cc",
+    "dao_mcp_protocol.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//dao/browser/automation:tool_types",
+  ]
+}
+
+source_set("browser_mcp") {
+  sources = [
+    "dao_mcp_connection.cc",
+    "dao_mcp_connection.h",
+    "dao_mcp_runtime_files.h",
+    "dao_mcp_runtime_files.mm",
+    "dao_mcp_session_lifecycle_monitor.cc",
+    "dao_mcp_session_lifecycle_monitor.h",
+    "dao_mcp_transport.cc",
+    "dao_mcp_transport.h",
+  ]
+
+  public_deps = [ ":mcp_wire" ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/tab_list",
+    "//chrome/browser/ui/browser_window",
+    "//content/public/browser",
+    "//crypto",
+    "//dao/browser/automation:browser_automation",
+    "//net",
+  ]
+}
+
+if (is_mac) {
+  executable("dao_mcp_helper") {
+    output_name = "dao-mcp"
+    sources = [
+      "helper/dao_mcp_browser_client.cc",
+      "helper/dao_mcp_browser_client.h",
+      "helper/dao_mcp_stdio_server.cc",
+      "helper/dao_mcp_stdio_server.h",
+      "helper/main.cc",
+    ]
+
+    defines = [ "DAO_MCP_VERSION=\"$dao_display_version\"" ]
+    frameworks = [ "Foundation.framework" ]
+
+    deps = [
+      ":mcp_wire",
+      "//base",
+      "//chrome/common:constants",
+    ]
+  }
+
+  bundle_data("dao_mcp_helper_bundle_data") {
+    sources = [ "$root_out_dir/dao-mcp" ]
+    outputs = [ "{{bundle_contents_dir}}/Helpers/{{source_file_part}}" ]
+    public_deps = [ ":dao_mcp_helper" ]
+  }
+}

@@ -1,5 +1,4 @@
 diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
-index aae688f787f30..d69bc28a316c1 100644
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
 @@ -571,7 +571,7 @@
@@ -165,7 +164,147 @@ index aae688f787f30..d69bc28a316c1 100644
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -4473,40 +4473,40 @@
+@@ -3836,7 +3836,139 @@
+     <!-- Sync / People Page -->
+     <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
+       You and Google
++    </message>
++    <message name="IDS_SETTINGS_DAO_PAGE_TITLE" desc="Name of the settings page for Dao-specific browser settings.">
++      You and Dao
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_SERVER_TITLE" desc="Heading for Dao Browser's Model Context Protocol server settings.">
++      MCP server
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_SERVER_ENABLED_LABEL" desc="Label for the setting that enables or disables Dao Browser's Model Context Protocol server.">
++      Enable MCP server
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_SERVER_ENABLED_SUB_LABEL" desc="Description for the setting that allows external Model Context Protocol clients to request control of Dao Browser.">
++      Allow external MCP clients to request control of Dao Browser
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_STATUS_LABEL" desc="Label for the current status of Dao Browser's Model Context Protocol server.">
++      Status
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_STATUS_DISABLED" desc="Status shown when Dao Browser's Model Context Protocol server is disabled.">
++      Disabled
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_STATUS_READY" desc="Status shown when Dao Browser's Model Context Protocol server is listening for a client.">
++      Ready
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_STATUS_APPROVAL_REQUESTED" desc="Status shown while an external Model Context Protocol client is waiting for approval.">
++      Approval requested
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_STATUS_CONNECTED" desc="Status shown while an approved external Model Context Protocol client controls Dao Browser.">
++      Connected
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_CLIENT_DETAILS" desc="Details for the external Model Context Protocol client that currently controls Dao Browser.">
++      <ph name="CLIENT_NAME">$1<ex>Codex</ex></ph> (PID <ph name="CLIENT_PID">$2<ex>12345</ex></ph>)
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_COPY_CONFIG" desc="Button label that copies Dao Browser's Model Context Protocol client configuration.">
++      Copy MCP configuration
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_STOP_CONTROL" desc="Button label that stops the active external Model Context Protocol client from controlling Dao Browser.">
++      Stop control
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_QUICK_SETUP_TITLE" desc="Heading for the quick setup commands in Dao Browser's MCP server settings.">
++      Quick setup
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_QUICK_SETUP_DESCRIPTION" desc="Description telling the user how to use a copied Dao MCP install command.">
++      Choose an option, then copy and use the command or configuration shown below.
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_CLIENT_LABEL" desc="Label for the MCP client selector in Dao Browser settings.">
++      Client
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_CLIENT_CODEX" desc="Name of Codex CLI in the Dao MCP client selector.">
++      Codex CLI
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_CLIENT_CLAUDE_CODE" desc="Name of Claude Code CLI in the Dao MCP client selector.">
++      Claude Code CLI
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_CLIENT_GENERIC" desc="Name of the generic MCP configuration in the Dao MCP client selector.">
++      Generic MCP
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_COPY_INSTALL_COMMAND" desc="Button label that copies the selected MCP client's Dao installation command.">
++      Copy install command
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_INSTALL_COMMAND_COPIED" desc="Accessible confirmation shown after copying a Dao MCP installation command.">
++      Install command copied
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_CONFIGURATION_COPIED" desc="Accessible confirmation shown after copying Dao Browser's generic MCP configuration.">
++      MCP configuration copied
++    </message>
++    <message name="IDS_SETTINGS_LITTLE_DAO_ENABLED_LABEL" desc="Label for the setting that enables or disables opening external links in Little Dao mini-browser windows.">
++      Enable Little Dao
++    </message>
++    <message name="IDS_SETTINGS_LITTLE_DAO_ENABLED_SUB_LABEL" desc="Description for the setting that opens links from other apps in Little Dao when enabled, or in a regular full browser window when disabled.">
++      Open links from other apps in a compact Little Dao window
+     </message>
++    <message name="IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_LABEL" desc="Label for the setting that enables or disables richer Arc-style suggestions in the Dao command bar.">
++      Enhanced command bar suggestions
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_SUB_LABEL" desc="Description for the setting that enables richer tab, command, search, and Dao suggestions in the command bar.">
++      Use richer tab, command, search, and Dao suggestions in the command bar
++    </message>
++    <message name="IDS_SETTINGS_ASK_AI_ENABLED_LABEL" desc="Label for the setting that enables or disables the Ask AI suggestion in the Dao command bar.">
++      Ask AI in command bar
++    </message>
++    <message name="IDS_SETTINGS_ASK_AI_ENABLED_SUB_LABEL" desc="Description for the setting that shows an Ask AI suggestion in the command bar.">
++      Show an "Ask AI" suggestion in the command bar
++    </message>
++    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_LABEL" desc="Label for the number of inactive hours after which the sidebar can move a tab into the stale folder.">
++      Stale tab expiration
++    </message>
++    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_SUB_LABEL" desc="Description for the stale tab expiration setting.">
++      Move tabs inactive longer than this into the stale folder
++    </message>
++    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_UNIT" desc="Unit label for the stale tab expiration input.">
++      Hours
++    </message>
++    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_ERROR" desc="Error shown when the stale tab expiration input is outside its supported integer range.">
++      Enter a whole number from 1 to 720
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_ENABLED_LABEL" desc="Label for the setting that enables or disables Dao's custom Document Picture-in-Picture behavior on supported video sites.">
++      Enhanced Picture-in-Picture (PIP)
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_ENABLED_SUB_LABEL" desc="Description for the setting that uses custom Document Picture-in-Picture windows on supported sites when enabled, or original browser Picture-in-Picture when disabled.">
++      Use the custom Document Picture-in-Picture window on supported sites
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_TITLE" desc="Heading for a static preview that compares enhanced Picture-in-Picture with original browser Picture-in-Picture.">
++      Picture-in-Picture preview
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_PRIMARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++      Great scene!
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_SECONDARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++      Nice shot
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_TERTIARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++      So smooth
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_QUATERNARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++      Love this
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_QUINARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++      Nice sync
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_COMMENT_SENARY" desc="Tiny English sample danmaku text shown in the enhanced Picture-in-Picture preview.">
++      Perfect timing
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_ON_LABEL" desc="Label for the enabled state in the enhanced Picture-in-Picture preview.">
++      Enhanced mode
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_ON_DESCRIPTION" desc="Description of the enabled state in the enhanced Picture-in-Picture preview, where supported sites open as a full player window.">
++      Supported sites open as a full player window with controls, subtitles, comments, and Dao styling preserved.
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_OFF_LABEL" desc="Label for the disabled state in the enhanced Picture-in-Picture preview.">
++      Original mode
++    </message>
++    <message name="IDS_SETTINGS_ENHANCED_PIP_PREVIEW_OFF_DESCRIPTION" desc="Description of the disabled state in the enhanced Picture-in-Picture preview, where supported sites use original browser Picture-in-Picture.">
++      Supported sites use the original browser Picture-in-Picture window with only the video surface.
++    </message>
+     <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
+       Google Profile photo
+     </message>
+@@ -4473,40 +4605,40 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS_POLICY" desc="Subtitle of the passwords card in SafetyHub when there are no saved passwords and saving of passwords is disabled through enterprise policy. This text is shown below the header 'No saved passwords'. It explains that the SafetyHub features for passwords are not available since the user's organization has a policy in place that prevents the user from saving passwords in Chrome.">
        Your organization turned off saving passwords
      </message>
@@ -218,7 +357,7 @@ index aae688f787f30..d69bc28a316c1 100644
        Go to notification settings
      </message>
      <message name="IDS_SETTINGS_SAFETY_HUB_USER_EDU_INCOGNITO_SUBHEADER" desc="The subheader of the second item in the 'User Education Module' in the Safety Hub page. This item explains Incognito mode.">
-@@ -4516,21 +4516,21 @@
+@@ -4516,21 +4648,21 @@
        Safe Browsing
      </message>
      <if expr="not is_chromeos">
@@ -244,7 +383,7 @@ index aae688f787f30..d69bc28a316c1 100644
        {NUM_SITES, plural,
         =1 {You can stop this site from sending future notifications.}
         other {You can stop these sites from sending future notifications.}}
-@@ -4558,31 +4558,31 @@
+@@ -4558,31 +4690,31 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MENU_NOTIFICATION" desc="When Safe Browsing is disabled, the proactive Safety Hub feature encourages users to turn on the feature. This label is for the notification in Chrome's three-dot menu.">
        Safe Browsing is off
      </message>

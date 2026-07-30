@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 8ed88c3e4bdfb..4683428c60b57 100644
+index 8ed88c3e4bdfb..2e257ce59b15d 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -20,7 +20,26 @@
+@@ -20,7 +20,27 @@
  #include "chrome/browser/ui/views/animations/side_panel_animations.h"
  #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
  #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
@@ -17,6 +17,7 @@ index 8ed88c3e4bdfb..4683428c60b57 100644
 +#include "dao/browser/ui/views/dao_control_center_popup.h"
 +#include "dao/browser/ui/views/dao_corner_overlay_view.h"
 +#include "dao/browser/ui/views/dao_load_progress_view.h"
++#include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
 +#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
@@ -29,7 +30,7 @@ index 8ed88c3e4bdfb..4683428c60b57 100644
  #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
  #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-@@ -1098,11 +1117,190 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1098,11 +1118,201 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      content_right =
          std::min(content_right, browser_params.visual_client_area.right());
    }
@@ -84,6 +85,17 @@ index 8ed88c3e4bdfb..4683428c60b57 100644
 +      dao_content_area.Inset(gfx::Insets::TLBR(
 +          dao::kContentInsetTop, 0, dao::kContentInsetBottom,
 +          dao_agent_sidebar_active ? 0 : dao::kContentInsetRight));
++    }
++
++    // Active MCP control banner occupies its own row above the address bar.
++    if (auto* const mcp_banner = dao_bv->dao_mcp_control_banner();
++        mcp_banner && mcp_banner->GetVisible()) {
++      const int banner_height = mcp_banner->GetPreferredSize().height();
++      layout.AddChild(
++          mcp_banner,
++          gfx::Rect(dao_content_area.x(), dao_content_area.y(),
++                    dao_content_area.width(), banner_height));
++      dao_content_area.Inset(gfx::Insets::TLBR(banner_height, 0, 0, 0));
 +    }
 +
 +    // Agent lock banner pinned at top of content area.
@@ -224,7 +236,7 @@ index 8ed88c3e4bdfb..4683428c60b57 100644
  
    // Maybe expand and clip the web contents to avoid issues during animation.
    if (features::UseSidePanelFlyoverAnimation()) {
-@@ -1231,24 +1429,45 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayoutImpl(
+@@ -1231,24 +1441,45 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayoutImpl(
    // Lay out toolbar. If tabstrip is completely absent (or vertical), this can
    // go in the top exclusion area.
    const bool toolbar_visible = delegate().IsToolbarVisible();

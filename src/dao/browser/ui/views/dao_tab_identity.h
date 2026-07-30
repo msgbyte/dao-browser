@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 namespace content {
 class WebContents;
@@ -14,11 +15,13 @@ class WebContents;
 
 namespace dao {
 
-inline constexpr char kSidebarTabIdentitySessionKey[] =
-    "dao.sidebar_tab_id";
+inline constexpr char kSidebarTabIdentitySessionKey[] = "dao.sidebar_tab_id";
 
+std::string GetOrCreateSidebarTabId(content::WebContents* contents);
 std::string GetSidebarTabId(content::WebContents* contents);
 void SetSidebarTabId(content::WebContents* contents, const std::string& id);
+void RepairDuplicateSidebarTabIds(
+    const std::vector<content::WebContents*>& contents);
 void CopySidebarTabId(content::WebContents* old_contents,
                       content::WebContents* new_contents);
 void PopulateSidebarTabIdentityExtraData(

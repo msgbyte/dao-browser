@@ -6,6 +6,10 @@
 // markdown rendering, constants.
 
 import {getReusableElementContexts, makeResolveElementContextScript, type ElementContextCapture} from './dao_element_context.js';
+import {
+  getBrowserToolDefinitions,
+  initializeBrowserToolCatalog,
+} from './browser_tool_catalog.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {
   getAllSkills,
@@ -59,6 +63,8 @@ interface PendingCallback {
 
 export interface NativeCallOptions {
   timeoutMs?: number|null;
+  signal?: AbortSignal;
+  cancelMethod?: string;
 }
 
 interface CrNamespace {
@@ -172,8 +178,45 @@ export function callNative(
     method: string, params?: Record<string, unknown>,
     options?: NativeCallOptions): Promise<unknown> {
   return new Promise((resolve, reject) => {
+    if (options?.signal?.aborted) {
+      reject(Object.assign(new Error('aborted'), {name: 'AbortError'}));
+      return;
+    }
     const id = method + '_' + (++callbackCounter);
-    pendingCallbacks[id] = {resolve, reject};
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout>|null = null;
+    const cleanup = () => {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      options?.signal?.removeEventListener('abort', onAbort);
+    };
+    const settleResolve = (value: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+    const settleReject = (reason: unknown, cancel: boolean) => {
+      if (settled) return;
+      settled = true;
+      delete pendingCallbacks[id];
+      cleanup();
+      if (cancel && options?.cancelMethod) {
+        chrome.send(options.cancelMethod, [id]);
+      }
+      reject(reason);
+    };
+    const onAbort = () => {
+      settleReject(
+          Object.assign(new Error('aborted'), {name: 'AbortError'}), true);
+    };
+    pendingCallbacks[id] = {
+      resolve: settleResolve,
+      reject: reason => settleReject(reason, false),
+    };
+    options?.signal?.addEventListener('abort', onAbort, {once: true});
     chrome.send(method, [id, params || {}]);
     const timeoutMs =
         options?.timeoutMs === undefined ? DEFAULT_NATIVE_CALL_TIMEOUT_MS :
@@ -182,10 +225,9 @@ export function callNative(
         !Number.isFinite(timeoutMs)) {
       return;
     }
-    setTimeout(() => {
+    timer = setTimeout(() => {
       if (pendingCallbacks[id]) {
-        delete pendingCallbacks[id];
-        reject(new Error('Timeout calling ' + method));
+        settleReject(new Error('Timeout calling ' + method), true);
       }
     }, timeoutMs);
   });
@@ -313,10 +355,10 @@ You have the following browser tools at your disposal — use them proactively w
 - **scroll_to_element** — Scroll a specific element into view. Accepts either a CSS selector or a ref_id from the accessibility tree.
 - **press_key_chord** — Simulate a keyboard shortcut on the current page (e.g. "ctrl+a", "cmd+c", "Enter", "Tab", "Escape"). Use for form submission, copy/paste, navigation shortcuts, etc.
 - **type_text** — Type text character-by-character into the currently focused element using CDP Input.insertText. Set clear=true to select-all and replace existing content first. Use this instead of execute_script for filling form fields.
-- **list_tabs** — List all open tabs with their index, URL, title, and active status.
-- **switch_tab** — Switch to a different tab by its index (from list_tabs).
-- **open_tab** — Open a new tab with the given URL.
-- **close_tab** — Close a tab by index (defaults to current active tab). Will refuse to close the last tab.
+- **list_tabs** — List tabs in the authorized browser window with stable tab_id values, current indices, URLs, titles, and active status.
+- **switch_tab** — Switch the session target by stable tab_id (preferred) or current index from list_tabs.
+- **open_tab** — Open a new tab in the authorized window and make it the session target.
+- **close_tab** — Close a tab by stable tab_id (preferred) or current index. Defaults to the session target and refuses to close the last tab.
 - **enable_network_tracking** — Start capturing network requests on the current tab. Call this before browsing to monitor API calls, resource loads, etc.
 - **get_network_requests** — Retrieve captured network requests (URLs, methods, status codes, MIME types). Must call \`enable_network_tracking\` first.
 - **clear_network_requests** — Clear all captured network requests.
@@ -463,848 +505,338 @@ function updateSoulByAction(
 
 // ---- Tools Definition ----
 
-export const tools: ToolDefinition[] = [
+export const agentOnlyTools: ToolDefinition[] = [
   {
-    type: 'function',
-    function: {
-      name: 'get_page_info',
-      description: 'Get current page URL, title, and meta description',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'click_element',
-      description: 'Click an element on the current page by CSS selector',
-      parameters: {
-        type: 'object',
-        properties: {
-          selector: {
-            type: 'string',
-            description: 'CSS selector of the element to click',
+    "type": "function",
+    "function": {
+      "name": "update_soul",
+      "description": "Update your SOUL.md. Use when the user asks you to change your personality, behavior, or expresses a persistent preference. Always tell the user what you changed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "How to update: \"replace_section\" replaces a specific ## section (adds it if not found), \"replace_all\" replaces the entire soul. Prefer replace_section."
           },
+          "section": {
+            "type": "string",
+            "description": "For replace_section: the markdown heading to replace (e.g. \"## Vibe\"). Ignored for other actions."
+          },
+          "content": {
+            "type": "string",
+            "description": "The new content to write"
+          }
         },
-        required: ['selector'],
-      },
-    },
+        "required": [
+          "action",
+          "content"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'agent_click',
-      description:
-          'Click an element with visual cursor animation. Shows a purple pointer moving to the element, highlights it, and performs the click. Use this instead of click_element when the tab is being controlled by the agent.',
-      parameters: {
-        type: 'object',
-        properties: {
-          selector: {
-            type: 'string',
-            description: 'CSS selector of the element to click',
+    "type": "function",
+    "function": {
+      "name": "save_memory",
+      "description": "Save a durable record of a successful, reusable page workflow. Use only when the user asked you to remember it or when repeating this action on the same page/domain would likely help later. Do not use for one-off summaries, simple extraction, casual Q&A, failed attempts, or sensitive pages.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "intent": {
+            "type": "string",
+            "description": "The reusable task or workflow the user wanted"
           },
-          description: {
-            type: 'string',
-            description:
-                'Human-readable description of the action (e.g. "Click the Submit button")',
+          "outcome": {
+            "type": "string",
+            "description": "The successful result worth remembering for future visits"
           },
+          "reusable": {
+            "type": "boolean",
+            "description": "Set true only when this memory should help future same-page or same-domain work, or when the user explicitly asked you to remember it."
+          },
+          "save_reason": {
+            "type": "string",
+            "description": "Brief reason this is reusable enough to save; leave empty only when the user explicitly asked you to remember it."
+          }
         },
-        required: ['selector'],
-      },
-    },
+        "required": [
+          "intent",
+          "outcome",
+          "reusable"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'move_cursor',
-      description:
-          'Move the visual cursor to viewport coordinates without clicking',
-      parameters: {
-        type: 'object',
-        properties: {
-          x: {type: 'number', description: 'Viewport X coordinate'},
-          y: {type: 'number', description: 'Viewport Y coordinate'},
+    "type": "function",
+    "function": {
+      "name": "save_skill",
+      "description": "Save a new user skill for the Dao Agent. The skill is defined as a SKILL.md file with YAML frontmatter (name, description, hosts, requiresPageContent) and markdown instructions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "description": "Unique skill identifier (lowercase, hyphens, no spaces)"
+          },
+          "skill_md": {
+            "type": "string",
+            "description": "Complete SKILL.md content including YAML frontmatter"
+          },
+          "host": {
+            "type": "string",
+            "description": "Target hostname for the skill. Use empty string for a global skill."
+          }
         },
-        required: ['x', 'y'],
-      },
-    },
+        "required": [
+          "skill_id",
+          "skill_md",
+          "host"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'highlight_element',
-      description:
-          'Highlight an element on the page with a purple border overlay',
-      parameters: {
-        type: 'object',
-        properties: {
-          selector: {
-            type: 'string',
-            description: 'CSS selector of the element to highlight',
+    "type": "function",
+    "function": {
+      "name": "activate_skill",
+      "description": "Load full instructions for an available Dao Agent skill when the user request clearly matches the skill description. Call this before answering or acting with that skill.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "description": "The exact id of a skill from <available_skills>"
           },
+          "reason": {
+            "type": "string",
+            "description": "Brief reason this skill matches the current user request"
+          }
         },
-        required: ['selector'],
-      },
-    },
+        "required": [
+          "skill_id"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'execute_script',
-      description:
-          'Execute JavaScript code on the current page and return the result',
-      parameters: {
-        type: 'object',
-        properties: {
-          code: {
-            type: 'string',
-            description: 'JavaScript code to execute',
+    "type": "function",
+    "function": {
+      "name": "web_search",
+      "description": "Search the web for up-to-date information. Returns a list of results with title, url, and snippet. Use fetch_url afterwards to read full articles.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query"
           },
-          lock_tab: {
-            type: 'boolean',
-            description:
-                'Whether to temporarily lock the current tab while this script manipulates the page. Use false for read-only scripts.',
-          },
+          "max_results": {
+            "type": "integer",
+            "description": "Max results, default 5, max 10"
+          }
         },
-        required: ['code'],
-      },
-    },
+        "required": [
+          "query"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'update_soul',
-      description:
-          'Update your SOUL.md. Use when the user asks you to change your personality, behavior, or expresses a persistent preference. Always tell the user what you changed.',
-      parameters: {
-        type: 'object',
-        properties: {
-          action: {
-            type: 'string',
-            description:
-                'How to update: "replace_section" replaces a specific ## section (adds it if not found), "replace_all" replaces the entire soul. Prefer replace_section.',
+    "type": "function",
+    "function": {
+      "name": "fetch_url",
+      "description": "Fetch the readable content of a web page as markdown. Use after web_search to read full articles.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL to fetch"
           },
-          section: {
-            type: 'string',
-            description:
-                'For replace_section: the markdown heading to replace (e.g. "## Vibe"). Ignored for other actions.',
-          },
-          content: {
-            type: 'string',
-            description: 'The new content to write',
-          },
+          "with_credentials": {
+            "type": "boolean",
+            "description": "Optional. Defaults to false. When true, the request is sent with the user's cookies attached IF the target URL is same-origin (scheme + host + port) with the active tab — useful for reading authenticated content the user is currently logged into (e.g. their inbox, a paywalled article). Cross-origin URLs are still fetched without cookies regardless of this flag. Only applies to GET; ignored for any non-GET method."
+          }
         },
-        required: ['action', 'content'],
-      },
-    },
+        "required": [
+          "url"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'save_memory',
-      description:
-          'Save a durable record of a successful, reusable page workflow. Use only when the user asked you to remember it or when repeating this action on the same page/domain would likely help later. Do not use for one-off summaries, simple extraction, casual Q&A, failed attempts, or sensitive pages.',
-      parameters: {
-        type: 'object',
-        properties: {
-          intent: {
-            type: 'string',
-            description: 'The reusable task or workflow the user wanted',
+    "type": "function",
+    "function": {
+      "name": "workspace_read",
+      "description": "Read a text file from the agent workspace. Returns content paginated by line range; the workspace is text-only and enforces a quota.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path in workspace."
           },
-          outcome: {
-            type: 'string',
-            description:
-                'The successful result worth remembering for future visits',
+          "offset": {
+            "type": "integer",
+            "description": "Optional 0-based starting line offset (default 0)."
           },
-          reusable: {
-            type: 'boolean',
-            description:
-                'Set true only when this memory should help future same-page or same-domain work, or when the user explicitly asked you to remember it.',
-          },
-          save_reason: {
-            type: 'string',
-            description:
-                'Brief reason this is reusable enough to save; leave empty only when the user explicitly asked you to remember it.',
-          },
+          "limit": {
+            "type": "integer",
+            "description": "Optional max number of lines to return (default 500, max 5000)."
+          }
         },
-        required: ['intent', 'outcome', 'reusable'],
-      },
-    },
+        "required": [
+          "path"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'save_skill',
-      description:
-          'Save a new user skill for the Dao Agent. The skill is defined as a SKILL.md file with YAML frontmatter (name, description, hosts, requiresPageContent) and markdown instructions.',
-      parameters: {
-        type: 'object',
-        properties: {
-          skill_id: {
-            type: 'string',
-            description:
-                'Unique skill identifier (lowercase, hyphens, no spaces)',
+    "type": "function",
+    "function": {
+      "name": "workspace_write",
+      "description": "Write (create or overwrite) a text file in the agent workspace. Subject to the workspace text-only filter and quota.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path in workspace."
           },
-          skill_md: {
-            type: 'string',
-            description: 'Complete SKILL.md content including YAML frontmatter',
-          },
-          host: {
-            type: 'string',
-            description:
-                'Target hostname for the skill. Use empty string for a global skill.',
-          },
+          "content": {
+            "type": "string",
+            "description": "Full text content to write."
+          }
         },
-        required: ['skill_id', 'skill_md', 'host'],
-      },
-    },
+        "required": [
+          "path",
+          "content"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'activate_skill',
-      description:
-          'Load full instructions for an available Dao Agent skill when the user request clearly matches the skill description. Call this before answering or acting with that skill.',
-      parameters: {
-        type: 'object',
-        properties: {
-          skill_id: {
-            type: 'string',
-            description: 'The exact id of a skill from <available_skills>',
+    "type": "function",
+    "function": {
+      "name": "workspace_edit",
+      "description": "Replace a unique substring in a workspace file. Fails if old_text matches zero or multiple locations — widen the context until unique.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path in workspace."
           },
-          reason: {
-            type: 'string',
-            description:
-                'Brief reason this skill matches the current user request',
+          "old_text": {
+            "type": "string",
+            "description": "Exact substring to replace; must be unique."
           },
+          "new_text": {
+            "type": "string",
+            "description": "Replacement text."
+          }
         },
-        required: ['skill_id'],
-      },
-    },
+        "required": [
+          "path",
+          "old_text",
+          "new_text"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'get_accessibility_tree',
-      description:
-          'Get a semantic accessibility tree of the current page. Returns element hierarchy with roles, names, and ref_ids for interactive elements. Use ref_ids with click_by_ref for precise interaction.',
-      parameters: {
-        type: 'object',
-        properties: {
-          filter: {
-            type: 'string',
-            description:
-                'Filter mode: "interactive" (only clickable/input elements, default), "visible" (viewport only), "all" (full page)',
+    "type": "function",
+    "function": {
+      "name": "list_files",
+      "description": "List entries in the agent workspace. Returns directories (trailing \"/\") and text files with their sizes and modification times. Workspace bookkeeping (dotfiles, .workspace_tmp, WORKSPACE.md) is hidden. Results are capped at 1000 entries; check `truncated` and pass a narrower `path` if more exist.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Optional relative directory in the workspace; empty or omitted means the workspace root."
           },
+          "recursive": {
+            "type": "boolean",
+            "description": "If true, descend into subdirectories (default false)."
+          }
         },
-        required: [],
-      },
-    },
+        "required": []
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'click_by_ref',
-      description:
-          'Click an interactive element by its ref_id from the accessibility tree. More reliable than CSS selectors.',
-      parameters: {
-        type: 'object',
-        properties: {
-          ref_id: {
-            type: 'string',
-            description:
-                'The ref_id from the accessibility tree (e.g. "ref_3")',
-          },
-          description: {
-            type: 'string',
-            description:
-                'Human-readable description of the click action',
-          },
+    "type": "function",
+    "function": {
+      "name": "apply_patch",
+      "description": "Apply a V4A-format multi-file patch to the workspace (atomic across files). Use for batched add/update/delete/move operations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patch": {
+            "type": "string",
+            "description": "Full V4A patch text (Begin Patch ... End Patch)."
+          }
         },
-        required: ['ref_id'],
-      },
-    },
+        "required": [
+          "patch"
+        ]
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'resolve_element_context',
-      description:
-          'Resolve one reusable element selected by the user on the current page. When multiple element chips are selected, pass context_id or index. Returns a temporary selector for that element, usually [data-dao-element-context="current"].',
-      parameters: {
-        type: 'object',
-        properties: {
-          context_id: {
-            type: 'string',
-            description:
-                'The context_id from an <element-context> block.',
+    "type": "function",
+    "function": {
+      "name": "download",
+      "description": "Save content directly into the agent workspace without echoing it through tool arguments — use this whenever you want to persist a page or URL, instead of capturing the body and pasting it into workspace_write. Sources: \"page\" captures the active tab's outerHTML; \"url\" fetches an arbitrary http(s) URL. Subject to the workspace text-only filter and quota (binaries are rejected; 5 MiB body cap).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path in workspace (e.g. \"baidu.html\")."
           },
-          index: {
-            type: 'number',
-            description:
-                'Zero-based index from the resolver error contexts list.',
+          "source": {
+            "type": "string",
+            "description": "Source of the content. One of \"page\" (active tab outerHTML) or \"url\" (fetch an http(s) URL). Defaults to \"url\" when \"url\" is provided, otherwise \"page\"."
           },
-          label: {
-            type: 'string',
-            description:
-                'Element label to resolve when context_id is unavailable.',
-          },
+          "url": {
+            "type": "string",
+            "description": "Required when source=\"url\". Must be http(s)."
+          }
         },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'capture_screenshot',
-      description:
-          'Capture a screenshot of the current page viewport. Returns the screenshot as a base64-encoded image for visual analysis.',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'scroll_down',
-      description:
-          'Scroll down the page. Defaults to ~80% of viewport height. Optionally specify exact pixel amount.',
-      parameters: {
-        type: 'object',
-        properties: {
-          amount: {
-            type: 'number',
-            description:
-                'Scroll amount in pixels. Omit to scroll by ~80% of viewport height.',
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'scroll_up',
-      description:
-          'Scroll up the page. Defaults to ~80% of viewport height. Optionally specify exact pixel amount.',
-      parameters: {
-        type: 'object',
-        properties: {
-          amount: {
-            type: 'number',
-            description:
-                'Scroll amount in pixels. Omit to scroll by ~80% of viewport height.',
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'scroll_to_element',
-      description:
-          'Scroll a specific element into view. Accepts either a CSS selector or a ref_id from the accessibility tree.',
-      parameters: {
-        type: 'object',
-        properties: {
-          selector: {
-            type: 'string',
-            description: 'CSS selector of the element',
-          },
-          ref_id: {
-            type: 'string',
-            description: 'ref_id from accessibility tree',
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'press_key_chord',
-      description:
-          'Simulate a keyboard shortcut (e.g. "ctrl+a", "cmd+c", "Enter", "Tab", "Escape", "Backspace"). Dispatches keydown/keyup events on the focused element.',
-      parameters: {
-        type: 'object',
-        properties: {
-          keys: {
-            type: 'string',
-            description:
-                'Key combo string, e.g. "ctrl+a", "cmd+c", "Enter", "shift+Tab"',
-          },
-        },
-        required: ['keys'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'type_text',
-      description:
-          'Type text into the currently focused input field character by character using CDP Input.insertText. Works with all input types including contentEditable and shadow DOM inputs.',
-      parameters: {
-        type: 'object',
-        properties: {
-          text: {
-            type: 'string',
-            description: 'The text to type into the focused element',
-          },
-          clear: {
-            type: 'boolean',
-            description:
-                'If true, select all and replace existing content before typing. Default: false (append).',
-          },
-        },
-        required: ['text'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'list_tabs',
-      description:
-          'List all open browser tabs with their index, URL, title, and active status.',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'switch_tab',
-      description: 'Switch to a different browser tab by its index.',
-      parameters: {
-        type: 'object',
-        properties: {
-          index: {
-            type: 'number',
-            description: 'Tab index (from list_tabs)',
-          },
-        },
-        required: ['index'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'open_tab',
-      description: 'Open a new browser tab with the given URL.',
-      parameters: {
-        type: 'object',
-        properties: {
-          url: {
-            type: 'string',
-            description: 'URL to open (defaults to about:blank)',
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'close_tab',
-      description:
-          'Close a browser tab by index. Defaults to closing the current active tab.',
-      parameters: {
-        type: 'object',
-        properties: {
-          index: {
-            type: 'number',
-            description: 'Tab index to close (defaults to active tab)',
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'enable_network_tracking',
-      description:
-          'Start capturing network requests on the current tab. Call before browsing to monitor API calls and resource loads.',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_network_requests',
-      description:
-          'Get captured network requests (URLs, methods, status codes). Must call enable_network_tracking first.',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'clear_network_requests',
-      description: 'Clear all captured network requests.',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'enable_console_tracking',
-      description:
-          'Start capturing console messages (logs, warnings, errors) on the current tab.',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_console_messages',
-      description:
-          'Get captured console messages. Optionally filter by type. Must call enable_console_tracking first.',
-      parameters: {
-        type: 'object',
-        properties: {
-          filter: {
-            type: 'string',
-            description:
-                'Filter by message type: "error", "warning", "log", "info". Omit for all.',
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'clear_console_messages',
-      description: 'Clear all captured console messages.',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_page_html',
-      description:
-          'EXPENSIVE — last-resort tool that returns the full page outerHTML (up to 512 KiB) and balloons the context. Do NOT call this to summarize a page, find a link/button, or "see what is on the page" — the <current-webpage> markdown block already attached to the user message answers those, and get_accessibility_tree is far cheaper for interactive structure. Only use when you specifically need raw markup the other tools cannot give you (e.g. reading an inline __NEXT_DATA__ / JSON-LD script, or inspecting <meta>/<head> attributes Readability strips). Prefer a targeted execute_script that returns only the substring you need over downloading the whole document.',
-      parameters: {type: 'object', properties: {}, required: []},
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'list_page_resources',
-      description:
-          'List every resource the current page loaded (scripts, stylesheets, images, fonts, XHRs, etc.). Returns [{url, type, mimeType, frameId}]. Use this as the entry point for analyzing a site\'s source.',
-      parameters: {
-        type: 'object',
-        properties: {
-          type_filter: {
-            type: 'string',
-            description:
-                'Optional filter: "Document" | "Stylesheet" | "Script" | "Image" | "Font" | "XHR" | "Fetch" | "all" (default).',
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_resource_content',
-      description:
-          'Fetch the body of a single resource by URL (usually from list_page_resources). Text truncated at 512 KiB; binary returned as base64.',
-      parameters: {
-        type: 'object',
-        properties: {
-          url: {
-            type: 'string',
-            description: 'The resource URL (exact match, from list_page_resources).',
-          },
-          frame_id: {
-            type: 'string',
-            description: 'Optional frame id. Defaults to the main frame.',
-          },
-        },
-        required: ['url'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_network_body',
-      description:
-          'Fetch the response body of a captured network request by request_id (from get_network_requests). Requires enable_network_tracking to have run before the request was made.',
-      parameters: {
-        type: 'object',
-        properties: {
-          request_id: {
-            type: 'string',
-            description: 'The CDP request id from get_network_requests.',
-          },
-        },
-        required: ['request_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'search_in_resources',
-      description:
-          'Regex-search across all loaded text resources. Returns up to max_matches hits with {url, line, excerpt}. Cheaper than downloading every bundle when hunting for a function, endpoint, or string.',
-      parameters: {
-        type: 'object',
-        properties: {
-          pattern: {
-            type: 'string',
-            description: 'Regex pattern (JavaScript syntax).',
-          },
-          flags: {
-            type: 'string',
-            description: 'Regex flags (e.g. "i" for case-insensitive). Defaults to "i".',
-          },
-          types: {
-            type: 'string',
-            description:
-                'Comma-separated resource types to search (default: "Script,Stylesheet,Document"). Binary types (Image, Font) are always skipped.',
-          },
-          max_matches: {
-            type: 'number',
-            description: 'Max matches to return (default 20).',
-          },
-        },
-        required: ['pattern'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'web_search',
-      description:
-          'Search the web for up-to-date information. Returns a list of ' +
-          'results with title, url, and snippet. Use fetch_url afterwards ' +
-          'to read full articles.',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'The search query',
-          },
-          max_results: {
-            type: 'integer',
-            description: 'Max results, default 5, max 10',
-          },
-        },
-        required: ['query'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'fetch_url',
-      description:
-          'Fetch the readable content of a web page as markdown. Use ' +
-          'after web_search to read full articles.',
-      parameters: {
-        type: 'object',
-        properties: {
-          url: {
-            type: 'string',
-            description: 'The URL to fetch',
-          },
-          with_credentials: {
-            type: 'boolean',
-            description:
-                'Optional. Defaults to false. When true, the request is ' +
-                'sent with the user\'s cookies attached IF the target URL ' +
-                'is same-origin (scheme + host + port) with the active ' +
-                'tab — useful for reading authenticated content the user ' +
-                'is currently logged into (e.g. their inbox, a paywalled ' +
-                'article). Cross-origin URLs are still fetched without ' +
-                'cookies regardless of this flag. Only applies to GET; ' +
-                'ignored for any non-GET method.',
-          },
-        },
-        required: ['url'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'workspace_read',
-      description:
-          'Read a text file from the agent workspace. Returns content ' +
-          'paginated by line range; the workspace is text-only and ' +
-          'enforces a quota.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {type: 'string', description: 'Relative path in workspace.'},
-          offset: {
-            type: 'integer',
-            description: 'Optional 0-based starting line offset (default 0).',
-          },
-          limit: {
-            type: 'integer',
-            description:
-                'Optional max number of lines to return (default 500, max 5000).',
-          },
-        },
-        required: ['path'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'workspace_write',
-      description:
-          'Write (create or overwrite) a text file in the agent ' +
-          'workspace. Subject to the workspace text-only filter and quota.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {type: 'string', description: 'Relative path in workspace.'},
-          content: {
-            type: 'string',
-            description: 'Full text content to write.',
-          },
-        },
-        required: ['path', 'content'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'workspace_edit',
-      description:
-          'Replace a unique substring in a workspace file. Fails if ' +
-          'old_text matches zero or multiple locations — widen the ' +
-          'context until unique.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {type: 'string', description: 'Relative path in workspace.'},
-          old_text: {
-            type: 'string',
-            description: 'Exact substring to replace; must be unique.',
-          },
-          new_text: {
-            type: 'string',
-            description: 'Replacement text.',
-          },
-        },
-        required: ['path', 'old_text', 'new_text'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'list_files',
-      description:
-          'List entries in the agent workspace. Returns directories ' +
-          '(trailing "/") and text files with their sizes and ' +
-          'modification times. Workspace bookkeeping (dotfiles, ' +
-          '.workspace_tmp, WORKSPACE.md) is hidden. Results are capped ' +
-          'at 1000 entries; check `truncated` and pass a narrower ' +
-          '`path` if more exist.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description:
-                'Optional relative directory in the workspace; empty ' +
-                'or omitted means the workspace root.',
-          },
-          recursive: {
-            type: 'boolean',
-            description:
-                'If true, descend into subdirectories (default false).',
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'apply_patch',
-      description:
-          'Apply a V4A-format multi-file patch to the workspace ' +
-          '(atomic across files). Use for batched add/update/delete/move ' +
-          'operations.',
-      parameters: {
-        type: 'object',
-        properties: {
-          patch: {
-            type: 'string',
-            description: 'Full V4A patch text (Begin Patch ... End Patch).',
-          },
-        },
-        required: ['patch'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'download',
-      description:
-          'Save content directly into the agent workspace without ' +
-          'echoing it through tool arguments — use this whenever you ' +
-          'want to persist a page or URL, instead of capturing the ' +
-          'body and pasting it into workspace_write. Sources: ' +
-          '"page" captures the active tab\'s outerHTML; "url" fetches ' +
-          'an arbitrary http(s) URL. Subject to the workspace text-' +
-          'only filter and quota (binaries are rejected; 5 MiB body cap).',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description:
-                'Relative path in workspace (e.g. "baidu.html").',
-          },
-          source: {
-            type: 'string',
-            description:
-                'Source of the content. One of "page" (active tab ' +
-                'outerHTML) or "url" (fetch an http(s) URL). Defaults ' +
-                'to "url" when "url" is provided, otherwise "page".',
-          },
-          url: {
-            type: 'string',
-            description:
-                'Required when source="url". Must be http(s).',
-          },
-        },
-        required: ['path'],
-      },
-    },
-  },
+        "required": [
+          "path"
+        ]
+      }
+    }
+  }
 ];
+
+export function getAgentToolDefinitions(): ToolDefinition[] {
+  return [
+    ...getBrowserToolDefinitions('dao_agent'),
+    ...agentOnlyTools,
+  ];
+}
 
 // ---- Tool Execution ----
 
 function getStringArg(args: Record<string, unknown>, key: string): string {
   return typeof args[key] === 'string' ? args[key] as string : '';
+}
+
+function getTabSelectorArgs(
+    args: Record<string, unknown>): {tab_id?: string, index?: number} {
+  const selector: {tab_id?: string, index?: number} = {};
+  if (typeof args['tab_id'] === 'string') {
+    selector.tab_id = args['tab_id'];
+  }
+  if (typeof args['index'] === 'number') {
+    selector.index = args['index'];
+  }
+  return selector;
 }
 
 function getBooleanArg(args: Record<string, unknown>, key: string): boolean {
@@ -1522,8 +1054,37 @@ let lastScreenshotAt_ = 0;
 let lastScreenshotUrl_ = '';
 const SCREENSHOT_MIN_INTERVAL_MS = 2500;
 
+export type ToolExecutionContext = 'model'|'legacy_ui_one_shot';
+
+export interface ExecuteToolOptions {
+  signal?: AbortSignal;
+  context?: ToolExecutionContext;
+}
+
+const LEGACY_UI_ONE_SHOT_TOOLS =
+    new Set(['get_page_info', 'execute_script', 'capture_screenshot']);
+const LEGACY_UI_CONTEXT_MARKER = '__daoAgentExecutionContext';
+
 export async function executeTool(
-    name: string, args: Record<string, unknown>): Promise<unknown> {
+    name: string, args: Record<string, unknown>,
+    options: ExecuteToolOptions = {}): Promise<unknown> {
+  const context = options.context || 'model';
+  if (context === 'legacy_ui_one_shot' &&
+      !LEGACY_UI_ONE_SHOT_TOOLS.has(name)) {
+    throw new Error(
+        `Tool ${name} is not authorized for legacy UI one-shot execution.`);
+  }
+  const callBrowserNative = (
+      method: string, params?: Record<string, unknown>) =>
+      callNative(
+          method,
+          context === 'legacy_ui_one_shot' ?
+              {
+                ...(params || {}),
+                [LEGACY_UI_CONTEXT_MARKER]: context,
+              } :
+              params,
+          {signal: options.signal, cancelMethod: 'cancelBrowserTool'});
   switch (name) {
     case 'workspace_read':
     case 'workspace_write':
@@ -1533,26 +1094,26 @@ export async function executeTool(
     case 'download':
       return await executeWorkspaceTool(name, args);
     case 'get_page_info':
-      return await callNative('getPageInfo');
+      return await callBrowserNative('getPageInfo');
     case 'click_element':
-      return await callNative(
+      return await callBrowserNative(
           'clickElement', {selector: getStringArg(args, 'selector')});
     case 'agent_click':
-      return await callNative('agentClick', {
+      return await callBrowserNative('agentClick', {
         selector: getStringArg(args, 'selector'),
         description: getStringArg(args, 'description'),
       });
     case 'move_cursor':
-      return await callNative('moveCursor', {
+      return await callBrowserNative('moveCursor', {
         x: args['x'] as number,
         y: args['y'] as number,
       });
     case 'highlight_element':
-      return await callNative('highlightElement', {
+      return await callBrowserNative('highlightElement', {
         selector: getStringArg(args, 'selector'),
       });
     case 'execute_script':
-      return await callNative('executeScript', {
+      return await callBrowserNative('executeScript', {
         code: getStringArg(args, 'code'),
         lockTab: getBooleanArg(args, 'lock_tab'),
       });
@@ -1580,7 +1141,7 @@ export async function executeTool(
       }
       let pageInfo: {url?: string; title?: string} = {};
       try {
-        pageInfo = await callNative('getPageInfo') as
+        pageInfo = await callBrowserNative('getPageInfo') as
             {url?: string; title?: string};
       } catch (_) { /* best-effort */ }
       let domain = '';
@@ -1601,7 +1162,7 @@ export async function executeTool(
         };
       }
       try {
-        await callNative('saveEpisode', {
+        await callBrowserNative('saveEpisode', {
           domain,
           pathTemplate,
           url: pageInfo.url || '',
@@ -1630,11 +1191,11 @@ export async function executeTool(
     case 'activate_skill':
       return await executeActivateSkill(args);
     case 'get_accessibility_tree':
-      return await callNative('getAccessibilityTree', {
+      return await callBrowserNative('getAccessibilityTree', {
         filter: getStringArg(args, 'filter') || 'interactive',
       });
     case 'click_by_ref':
-      return await callNative('clickByRef', {
+      return await callBrowserNative('clickByRef', {
         ref_id: getStringArg(args, 'ref_id'),
         description: getStringArg(args, 'description'),
       });
@@ -1642,11 +1203,16 @@ export async function executeTool(
       const chosen = chooseElementContext(getReusableElementContexts(), args);
       if (chosen.error) return chosen.error;
       const context = chosen.context!;
-      const raw = await callNative('executeScript', {
+      const raw = await callBrowserNative('executeScript', {
         code: makeResolveElementContextScript(context.locator),
         lockTab: false,
-      }) as {result?: unknown; error?: string};
-      if (raw.error) return {error: raw.error};
+      }) as {
+        result?: unknown;
+        error?: string;
+        code?: string;
+        retryable?: boolean;
+      };
+      if (raw.error) return raw;
       const result = typeof raw.result === 'string' ? raw.result :
           JSON.stringify(raw.result ?? {});
       try {
@@ -1664,11 +1230,18 @@ export async function executeTool(
       }
     }
     case 'capture_screenshot': {
-      const pageInfo = await callNative('getPageInfo') as {url?: string};
+      const pageInfo = await callBrowserNative('getPageInfo') as {
+        url?: string;
+        error?: string;
+        code?: string;
+        retryable?: boolean;
+      };
+      if (pageInfo.error) return pageInfo;
       const currentUrl = pageInfo?.url || '';
       const now = Date.now();
       const delta = now - lastScreenshotAt_;
-      if (lastScreenshotAt_ > 0 && delta < SCREENSHOT_MIN_INTERVAL_MS &&
+      if (context === 'model' && lastScreenshotAt_ > 0 &&
+          delta < SCREENSHOT_MIN_INTERVAL_MS &&
           currentUrl === lastScreenshotUrl_) {
         return {
           error:
@@ -1678,134 +1251,97 @@ export async function executeTool(
               `post-action page state, use get_accessibility_tree instead.`,
         };
       }
-      const result = await callNative('captureScreenshot') as
-          {data?: string; error?: string};
-      if (result.error) return {error: result.error};
-      lastScreenshotAt_ = now;
-      lastScreenshotUrl_ = currentUrl;
+      const result = await callBrowserNative(
+                         'captureScreenshot',
+                         args['clip'] ? {clip: args['clip']} : undefined) as
+          {
+            data?: string;
+            format?: string;
+            media?: {mimeType?: string; data?: string};
+            error?: string;
+            code?: string;
+            retryable?: boolean;
+          };
+      if (result.error) return result;
+      if (context === 'model') {
+        lastScreenshotAt_ = now;
+        lastScreenshotUrl_ = currentUrl;
+      }
       return {
         screenshot_taken: true,
-        _base64: result.data,
+        data: result.data,
+        format: result.format,
+        media: result.media,
         message: 'Screenshot captured successfully.',
       };
     }
     case 'scroll_down':
-      return await callNative('scrollPage', {direction: 'down', amount: args['amount'] as number});
+      return await callBrowserNative('scrollPage', {direction: 'down', amount: args['amount'] as number});
     case 'scroll_up':
-      return await callNative('scrollPage', {direction: 'up', amount: args['amount'] as number});
+      return await callBrowserNative('scrollPage', {direction: 'up', amount: args['amount'] as number});
     case 'scroll_to_element':
-      return await callNative('scrollToElement', {
+      return await callBrowserNative('scrollToElement', {
         selector: getStringArg(args, 'selector'),
         ref_id: getStringArg(args, 'ref_id'),
       });
     case 'press_key_chord':
-      return await callNative('pressKeyChord', {
+      return await callBrowserNative('pressKeyChord', {
         keys: getStringArg(args, 'keys'),
       });
     case 'list_tabs':
-      return await callNative('listTabs');
+      return await callBrowserNative('listTabs');
     case 'switch_tab':
-      return await callNative('switchTab', {
-        index: args['index'] as number,
-      });
+      return await callBrowserNative('switchTab', getTabSelectorArgs(args));
     case 'open_tab':
-      return await callNative('openTab', {
+      return await callBrowserNative('openTab', {
         url: getStringArg(args, 'url'),
       });
     case 'close_tab':
-      return await callNative('closeTab', {
-        index: args['index'] as number,
-      });
+      return await callBrowserNative('closeTab', getTabSelectorArgs(args));
     case 'enable_network_tracking':
-      return await callNative('enableNetworkTracking');
+      return await callBrowserNative('enableNetworkTracking');
     case 'get_network_requests':
-      return await callNative('getNetworkRequests');
+      return await callBrowserNative('getNetworkRequests');
     case 'clear_network_requests':
-      return await callNative('clearNetworkRequests');
+      return await callBrowserNative('clearNetworkRequests');
     case 'enable_console_tracking':
-      return await callNative('enableConsoleTracking');
+      return await callBrowserNative('enableConsoleTracking');
     case 'get_console_messages':
-      return await callNative('getConsoleMessages', {
+      return await callBrowserNative('getConsoleMessages', {
         filter: getStringArg(args, 'filter'),
       });
     case 'clear_console_messages':
-      return await callNative('clearConsoleMessages');
+      return await callBrowserNative('clearConsoleMessages');
     case 'type_text':
-      return await callNative('typeText', {
+      return await callBrowserNative('typeText', {
         text: getStringArg(args, 'text'),
         clear: args['clear'] as boolean,
       });
     case 'get_page_html':
-      return await callNative('getPageHtml');
+      return await callBrowserNative('getPageHtml');
     case 'list_page_resources':
-      return await callNative('listPageResources', {
+      return await callBrowserNative('listPageResources', {
         type_filter: getStringArg(args, 'type_filter') || 'all',
       });
     case 'get_resource_content':
-      return await callNative('getResourceContent', {
+      return await callBrowserNative('getResourceContent', {
         url: getStringArg(args, 'url'),
         frame_id: getStringArg(args, 'frame_id'),
       });
     case 'get_network_body':
-      return await callNative('getNetworkBody', {
+      return await callBrowserNative('getNetworkBody', {
         request_id: getStringArg(args, 'request_id'),
       });
-    case 'search_in_resources': {
-      const pattern = getStringArg(args, 'pattern');
-      if (!pattern) return {error: 'Missing pattern'};
-      const flags = getStringArg(args, 'flags') || 'i';
-      const typesRaw =
-          getStringArg(args, 'types') || 'Script,Stylesheet,Document';
-      const typesAllowed = new Set(
-          typesRaw.split(',').map(s => s.trim()).filter(Boolean));
-      const maxMatches =
-          typeof args['max_matches'] === 'number' ? args['max_matches'] : 20;
-      let re: RegExp;
-      try {
-        re = new RegExp(pattern, flags);
-      } catch (e) {
-        return {error: 'Invalid regex: ' + (e as Error).message};
-      }
-      // Always exclude binary types regardless of what the caller passed.
-      for (const t of ['Image', 'Font', 'Media', 'Manifest']) {
-        typesAllowed.delete(t);
-      }
-      const listRes = await callNative('listPageResources', {
-        type_filter: 'all',
-      }) as {resources?: Array<{url: string; type: string; mimeType?: string}>};
-      const resources = listRes.resources || [];
-      const targets = resources.filter(r => typesAllowed.has(r.type));
-      const matches: Array<{url: string; line: number; excerpt: string}> = [];
-      // Serial fetch to keep backend pressure low and to bail early once
-      // we've hit the match cap.
-      for (const r of targets) {
-        if (matches.length >= maxMatches) break;
-        const contentRes = await callNative('getResourceContent', {
-          url: r.url,
-          frame_id: '',
-        }) as {content?: string; base64_encoded?: boolean; error?: string};
-        if (contentRes.error || contentRes.base64_encoded || !contentRes.content) {
-          continue;
-        }
-        const lines = contentRes.content.split('\n');
-        for (let i = 0; i < lines.length && matches.length < maxMatches; i++) {
-          const line = lines[i];
-          if (line === undefined) continue;
-          if (re.test(line)) {
-            const excerpt =
-                line.length > 240 ? line.slice(0, 240) + '…' : line;
-            matches.push({url: r.url, line: i + 1, excerpt});
-          }
-        }
-      }
-      return {
-        pattern,
-        flags,
-        searched: targets.length,
-        matches,
-        truncated: matches.length >= maxMatches,
-      };
-    }
+    case 'search_in_resources':
+      return await callBrowserNative('searchInResources', {
+        pattern: getStringArg(args, 'pattern'),
+        flags: getStringArg(args, 'flags') || 'i',
+        types: getStringArg(args, 'types') ||
+            'Script,Stylesheet,Document',
+        max_matches: typeof args['max_matches'] === 'number' ?
+            args['max_matches'] :
+            20,
+      });
     case 'web_search': {
       const query = getStringArg(args, 'query');
       const maxRaw = args['max_results'];
@@ -1824,7 +1360,7 @@ export async function executeTool(
       let activeTabUrl: string|undefined;
       if (withCredentials) {
         try {
-          const info = await callNative('getPageInfo') as
+          const info = await callBrowserNative('getPageInfo') as
               {url?: string} | null;
           if (info && typeof info.url === 'string') {
             activeTabUrl = info.url;
@@ -1859,9 +1395,10 @@ export interface StreamCallbacks {
 export async function callLLMStreaming(
     msgs: ChatMessage[], callbacks: StreamCallbacks,
     signal?: AbortSignal): Promise<void> {
+  await initializeBrowserToolCatalog();
   const cfg = getActiveLLMConfig();
   const {callLLMStreamingWithPi} = await import('./pi_llm_stream.js');
-  return callLLMStreamingWithPi(msgs, tools, callbacks, {
+  return callLLMStreamingWithPi(msgs, getAgentToolDefinitions(), callbacks, {
     provider: cfg.provider,
     apiKey: cfg.apiKey,
     baseUrl: cfg.baseUrl,

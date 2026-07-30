@@ -11,11 +11,60 @@ const bridge = await import('./agent_bridge.js');
 bridge.executeTool('get_page_info', {}).then(console.log);
 ```
 
+## Native browser tool catalog
+
+`browser_tool_catalog.json` is the authoritative schema shared by the native
+Dao Agent and Local MCP execution paths. Dao Agent exposes all 30 native
+browser tools:
+
+```text
+get_page_info
+get_page_html
+get_accessibility_tree
+resolve_element_context
+capture_screenshot
+click_element
+agent_click
+click_by_ref
+move_cursor
+highlight_element
+scroll_down
+scroll_up
+scroll_to_element
+press_key_chord
+type_text
+execute_script
+list_tabs
+switch_tab
+open_tab
+close_tab
+enable_network_tracking
+get_network_requests
+clear_network_requests
+get_network_body
+enable_console_tracking
+get_console_messages
+clear_console_messages
+list_page_resources
+get_resource_content
+search_in_resources
+```
+
+Local MCP exposes the same catalog except for the Agent-specific
+`resolve_element_context`, for a total of 29 tools. Agent memory, skills,
+workspace, provider search/fetch, and other app-level helpers are not MCP
+browser tools.
+
+Use `executeTool(name, arguments)` with the catalog names above. The examples
+below cover selected tools and older app-level helper calls; consult
+`browser_tool_catalog.json` for current native argument and output schemas.
+
 ---
 
-## LLM Tools (via `executeTool`)
+## Selected Agent tools (via `executeTool`)
 
-These are the tools available to the LLM agent, also callable manually for debugging.
+These examples are callable manually for debugging. Some higher-level Agent
+helpers in this section are composed in WebUI and are not exposed to MCP.
 
 ### get_page_content
 

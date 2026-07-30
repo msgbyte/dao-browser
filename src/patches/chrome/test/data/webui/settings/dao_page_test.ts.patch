@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,515 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -11,15 +11,87 @@ index 0000000000..0000000001
 +import 'chrome://settings/settings.js';
 +
 +import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
++import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 +import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-+import type {SettingsDaoPageElement, SettingsToggleButtonElement} from 'chrome://settings/settings.js';
-+import {Router, routes} from 'chrome://settings/settings.js';
-+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
++import type {DaoMcpBrowserProxy, DaoMcpStatus, SettingsDaoPageElement, SettingsToggleButtonElement} from 'chrome://settings/settings.js';
++import {DaoMcpBrowserProxyImpl, loadTimeData, Router, routes} from 'chrome://settings/settings.js';
++import {assertEquals, assertFalse, assertNull, assertTrue} from 'chrome://webui-test/chai_assert.js';
++import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
++import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
++
++type DaoMcpSetupOption = 'codex'|'claude-code'|'generic-mcp';
++
++class TestDaoMcpBrowserProxy extends TestBrowserProxy implements
++    DaoMcpBrowserProxy {
++  private status_: DaoMcpStatus = {
++    enabled: false,
++    state: 'disabled',
++    canStop: false,
++  };
++  private setupContentResolvers_ =
++      new Map<DaoMcpSetupOption, (content: string) => void>();
++  private copyContentResolvers_ =
++      new Map<DaoMcpSetupOption, (copied: boolean) => void>();
++
++  constructor() {
++    super([
++      'getDaoMcpStatus',
++      'setDaoMcpEnabled',
++      'getDaoMcpSetupContent',
++      'copyDaoMcpSetupContent',
++      'stopDaoMcpControl',
++    ]);
++  }
++
++  getDaoMcpStatus(): Promise<DaoMcpStatus> {
++    this.methodCalled('getDaoMcpStatus');
++    return Promise.resolve(this.status_);
++  }
++
++  setDaoMcpEnabled(enabled: boolean): void {
++    this.methodCalled('setDaoMcpEnabled', enabled);
++  }
++
++  getDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<string> {
++    this.methodCalled('getDaoMcpSetupContent', option);
++    return new Promise(resolve => {
++      this.setupContentResolvers_.set(option, resolve);
++    });
++  }
++
++  copyDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<boolean> {
++    this.methodCalled('copyDaoMcpSetupContent', option);
++    return new Promise(resolve => {
++      this.copyContentResolvers_.set(option, resolve);
++    });
++  }
++
++  resolveSetupContent(option: DaoMcpSetupOption, content: string) {
++    const resolve = this.setupContentResolvers_.get(option);
++    assertTrue(!!resolve);
++    this.setupContentResolvers_.delete(option);
++    resolve(content);
++  }
++
++  resolveCopyContent(option: DaoMcpSetupOption, copied: boolean) {
++    const resolve = this.copyContentResolvers_.get(option);
++    assertTrue(!!resolve);
++    this.copyContentResolvers_.delete(option);
++    resolve(copied);
++  }
++
++  stopDaoMcpControl(): void {
++    this.methodCalled('stopDaoMcpControl');
++  }
++}
 +
 +suite('DaoPage', function() {
 +  let page: SettingsDaoPageElement;
++  let mcpBrowserProxy: TestDaoMcpBrowserProxy;
 +
-+  setup(function() {
++  setup(async function() {
++    mcpBrowserProxy = new TestDaoMcpBrowserProxy();
++    DaoMcpBrowserProxyImpl.setInstance(mcpBrowserProxy);
 +    document.body.innerHTML = window.trustedTypes!.emptyHTML;
 +    page = document.createElement('settings-dao-page');
 +    page.prefs = {
@@ -52,7 +124,297 @@ index 0000000000..0000000001
 +      },
 +    };
 +    document.body.appendChild(page);
++    await mcpBrowserProxy.whenCalled('getDaoMcpStatus');
++    await flushTasks();
 +    flush();
++  });
++
++  teardown(function() {
++    page.remove();
++  });
++
++  function getMcpToggle(): SettingsToggleButtonElement {
++    const toggle =
++        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++            '#daoMcpServerEnabled');
++    assertTrue(!!toggle);
++    return toggle;
++  }
++
++  function sendMcpStatus(status: DaoMcpStatus) {
++    webUIListenerCallback('dao-mcp-status-changed', status);
++    flush();
++  }
++
++  test('mcpMasterSwitchDefaultsOff', function() {
++    const toggle = getMcpToggle();
++    assertEquals('dao.mcp_server_enabled', toggle.pref!.key);
++    assertFalse(toggle.checked);
++  });
++
++  test('mcpMasterSwitchSendsRequestedState', async function() {
++    const toggle = getMcpToggle();
++    toggle.checked = true;
++    toggle.notifyChangedByUserInteraction();
++
++    assertTrue(await mcpBrowserProxy.whenCalled('setDaoMcpEnabled'));
++  });
++
++  test('mcpRendersDisabledReadyAndApprovalRequestedStates', function() {
++    const status =
++        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpStatusValue');
++    assertTrue(!!status);
++    assertEquals(loadTimeData.getString('daoMcpStatusDisabled'), status.textContent.trim());
++
++    sendMcpStatus({
++      enabled: true,
++      state: 'ready',
++      canStop: false,
++    });
++    assertEquals(loadTimeData.getString('daoMcpStatusReady'), status.textContent.trim());
++
++    sendMcpStatus({
++      enabled: true,
++      state: 'approval_requested',
++      canStop: false,
++    });
++    assertEquals(
++        loadTimeData.getString('daoMcpStatusApprovalRequested'),
++        status.textContent.trim());
++    assertNull(page.shadowRoot!.querySelector('#daoMcpClient'));
++    assertNull(page.shadowRoot!.querySelector('#daoMcpStopControl'));
++  });
++
++  test('mcpShowsClientAndStopOnlyWhileConnected', function() {
++    sendMcpStatus({
++      enabled: true,
++      state: 'approval_requested',
++      clientName: 'Should not render',
++      clientPid: 99,
++      canStop: false,
++    });
++    assertNull(page.shadowRoot!.querySelector('#daoMcpClient'));
++    assertNull(page.shadowRoot!.querySelector('#daoMcpStopControl'));
++
++    sendMcpStatus({
++      enabled: true,
++      state: 'connected',
++      clientName: 'Codex',
++      clientPid: 12345,
++      canStop: true,
++    });
++
++    const status =
++        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpStatusValue');
++    assertTrue(!!status);
++    assertEquals(
++        loadTimeData.getString('daoMcpStatusConnected'),
++        status.textContent.trim());
++    const client =
++        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpClient');
++    assertTrue(!!client);
++    assertEquals(
++        loadTimeData.getStringF('daoMcpClientDetails', 'Codex', '12345'),
++        client.textContent.trim());
++    assertTrue(
++        !!page.shadowRoot!.querySelector('#daoMcpStopControl'));
++
++    sendMcpStatus({
++      enabled: true,
++      state: 'ready',
++      canStop: false,
++    });
++    assertNull(page.shadowRoot!.querySelector('#daoMcpClient'));
++    assertNull(page.shadowRoot!.querySelector('#daoMcpStopControl'));
++  });
++
++  test('mcpQuickSetupPreviewsAndCopiesSelectedClient', async function() {
++    assertNull(page.shadowRoot!.querySelector('#daoMcpQuickSetup'));
++
++    sendMcpStatus({
++      enabled: true,
++      state: 'ready',
++      canStop: false,
++    });
++    flush();
++    const codexCommand =
++        "codex mcp add dao -- '/Applications/Dao.app/Contents/Helpers/dao-mcp'";
++    mcpBrowserProxy.resolveSetupContent('codex', codexCommand);
++    await flushTasks();
++
++    const quickSetup =
++        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpQuickSetup');
++    const selector =
++        page.shadowRoot!.querySelector<HTMLSelectElement>(
++            '#daoMcpClientSelector');
++    const preview =
++        page.shadowRoot!.querySelector<HTMLElement>(
++            '#daoMcpSetupPreview');
++    assertTrue(
++        !!page.shadowRoot!.querySelector('#daoMcpConnectionSection'));
++    const setupControls =
++        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpSetupControls');
++    assertTrue(!!setupControls);
++    assertNull(page.shadowRoot!.querySelector('.dao-mcp-title'));
++    assertTrue(!!quickSetup);
++    assertTrue(!!selector);
++    assertTrue(!!preview);
++    assertEquals('codex', selector.value);
++    assertEquals(codexCommand, preview.textContent.trim());
++
++    selector.value = 'claude-code';
++    selector.dispatchEvent(new Event('change'));
++    const claudeCommand =
++        "claude mcp add --scope user dao -- '/Applications/Dao.app/Contents/Helpers/dao-mcp'";
++    mcpBrowserProxy.resolveSetupContent('claude-code', claudeCommand);
++    await flushTasks();
++    assertEquals(claudeCommand, preview.textContent.trim());
++
++    page.shadowRoot!
++        .querySelector<HTMLElement>('#daoMcpCopySetup')!.click();
++    assertEquals(
++        'claude-code',
++        await mcpBrowserProxy.whenCalled('copyDaoMcpSetupContent'));
++    mcpBrowserProxy.resolveCopyContent('claude-code', true);
++    await flushTasks();
++    const feedback = page.shadowRoot!.querySelector<HTMLElement>(
++        '#daoMcpSetupFeedback');
++    assertTrue(!!feedback);
++    assertEquals(
++        loadTimeData.getString('daoMcpInstallCommandCopied'),
++        feedback.textContent.trim());
++
++    selector.value = 'generic-mcp';
++    selector.dispatchEvent(new Event('change'));
++    const configuration =
++        '{\\n   "mcpServers": {\\n      "dao": {\\n         "command": "/Applications/Dao.app/Contents/Helpers/dao-mcp"\\n      }\\n   }\\n}\\n';
++    mcpBrowserProxy.resolveSetupContent('generic-mcp', configuration);
++    await flushTasks();
++    assertEquals(configuration.trim(), preview.textContent.trim());
++    assertEquals(
++        '{\\n   "mcpServers": {', preview.textContent.trim().slice(0, 20));
++
++    page.shadowRoot!
++        .querySelector<HTMLElement>('#daoMcpCopySetup')!.click();
++    assertEquals(
++        'generic-mcp',
++        await mcpBrowserProxy.whenCalled('copyDaoMcpSetupContent'));
++    mcpBrowserProxy.resolveCopyContent('generic-mcp', true);
++    await flushTasks();
++    assertEquals(
++        loadTimeData.getString('daoMcpConfigurationCopied'),
++        feedback.textContent.trim());
++
++    sendMcpStatus({
++      enabled: false,
++      state: 'disabled',
++      canStop: false,
++    });
++    flush();
++    assertNull(page.shadowRoot!.querySelector('#daoMcpQuickSetup'));
++  });
++
++  test('mcpQuickSetupIgnoresStalePreviewResponse', async function() {
++    sendMcpStatus({
++      enabled: true,
++      state: 'ready',
++      canStop: false,
++    });
++    flush();
++    const selector =
++        page.shadowRoot!.querySelector<HTMLSelectElement>(
++            '#daoMcpClientSelector')!;
++    selector.value = 'claude-code';
++    selector.dispatchEvent(new Event('change'));
++
++    mcpBrowserProxy.resolveSetupContent('claude-code', 'claude command');
++    await flushTasks();
++    mcpBrowserProxy.resolveSetupContent('codex', 'stale codex command');
++    await flushTasks();
++
++    const preview = page.shadowRoot!.querySelector<HTMLElement>(
++        '#daoMcpSetupPreview')!;
++    assertEquals('claude command', preview.textContent.trim());
++  });
++
++  test('mcpQuickSetupIgnoresCopyCompletionAfterDisableAndReenable',
++      async function() {
++    const codexCommand = 'codex command';
++    sendMcpStatus({
++      enabled: true,
++      state: 'ready',
++      canStop: false,
++    });
++    mcpBrowserProxy.resolveSetupContent('codex', codexCommand);
++    await flushTasks();
++
++    page.shadowRoot!
++        .querySelector<HTMLElement>('#daoMcpCopySetup')!.click();
++    assertEquals(
++        'codex', await mcpBrowserProxy.whenCalled('copyDaoMcpSetupContent'));
++
++    sendMcpStatus({
++      enabled: false,
++      state: 'disabled',
++      canStop: false,
++    });
++    sendMcpStatus({
++      enabled: true,
++      state: 'ready',
++      canStop: false,
++    });
++    mcpBrowserProxy.resolveCopyContent('codex', true);
++    mcpBrowserProxy.resolveSetupContent('codex', codexCommand);
++    await flushTasks();
++
++    const feedback = page.shadowRoot!.querySelector<HTMLElement>(
++        '#daoMcpSetupFeedback');
++    assertTrue(!!feedback);
++    assertEquals('', feedback.textContent.trim());
++  });
++
++  test('mcpQuickSetupDeclaresNarrowControlStacking', async function() {
++    sendMcpStatus({
++      enabled: true,
++      state: 'ready',
++      canStop: false,
++    });
++    mcpBrowserProxy.resolveSetupContent('codex', 'codex command');
++    await flushTasks();
++
++    const style = page.shadowRoot!.querySelector<HTMLStyleElement>('style');
++    assertTrue(!!style && !!style.sheet);
++    const narrowRule = Array.from(style.sheet.cssRules).find(
++        (rule): rule is CSSMediaRule =>
++            rule instanceof CSSMediaRule &&
++            rule.conditionText === '(max-width: 520px)');
++    assertTrue(!!narrowRule);
++    const controlsRule = Array.from(narrowRule.cssRules).find(
++        (rule): rule is CSSStyleRule =>
++            rule instanceof CSSStyleRule &&
++            rule.selectorText === '.dao-mcp-setup-controls');
++    assertTrue(!!controlsRule);
++    assertEquals('column', controlsRule.style.flexDirection);
++  });
++
++  test('mcpHasNoStandaloneCopyConfigButton', function() {
++    assertNull(page.shadowRoot!.querySelector('#daoMcpCopyConfig'));
++  });
++
++  test('mcpStopCallsHandlerWhenLeaseIsActive', async function() {
++    sendMcpStatus({
++      enabled: true,
++      state: 'connected',
++      clientName: 'Codex',
++      clientPid: 12345,
++      canStop: true,
++    });
++    const button =
++        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpStopControl');
++    assertTrue(!!button);
++    button.click();
++
++    await mcpBrowserProxy.whenCalled('stopDaoMcpControl');
 +  });
 +
 +  test('littleDaoToggleBindsToDaoPref', function() {

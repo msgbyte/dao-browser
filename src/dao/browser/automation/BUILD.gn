@@ -1,0 +1,53 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("tool_types") {
+  sources = [
+    "dao_browser_tool_types.cc",
+    "dao_browser_tool_types.h",
+  ]
+
+  public_deps = [ "//base" ]
+}
+
+source_set("browser_automation") {
+  sources = [
+    "dao_agent_lease_manager.cc",
+    "dao_agent_lease_manager.h",
+    "dao_browser_automation_session.cc",
+    "dao_browser_automation_session.h",
+    "dao_browser_tool_catalog.cc",
+    "dao_browser_tool_catalog.h",
+    "dao_browser_tool_executor.cc",
+    "dao_browser_tool_executor.h",
+    "dao_browser_target_policy.cc",
+    "dao_browser_target_policy.h",
+    "dao_devtools_client.cc",
+    "dao_devtools_client.h",
+    "dao_devtools_tools.cc",
+    "dao_devtools_tools.h",
+    "dao_page_tools.cc",
+    "dao_page_tools.h",
+    "dao_tab_tools.cc",
+    "dao_tab_tools.h",
+    "dao_tool_schema_validator.cc",
+    "dao_tool_schema_validator.h",
+    "//dao/browser/ui/views/dao_tab_identity.cc",
+    "//dao/browser/ui/views/dao_tab_identity.h",
+  ]
+
+  public_deps = [ ":tool_types" ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/tab_list",
+    "//chrome/browser/ui/browser_window",
+    "//components/tabs:public",
+    "//content/public/browser",
+    "//dao/browser/ui/webui/resources/agent:resources",
+    "//third_party/re2",
+    "//ui/base",
+  ]
+}

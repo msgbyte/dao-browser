@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -30,7 +31,7 @@ class DaoSidebarTabIdentityData : public base::SupportsUserData::Data {
 
 }  // namespace
 
-std::string GetSidebarTabId(content::WebContents* contents) {
+std::string GetOrCreateSidebarTabId(content::WebContents* contents) {
   if (!contents) {
     return std::string();
   }
@@ -38,10 +39,10 @@ std::string GetSidebarTabId(content::WebContents* contents) {
   auto* identity = static_cast<DaoSidebarTabIdentityData*>(
       contents->GetUserData(&kDaoSidebarTabIdentityKey));
   if (!identity) {
-    contents->SetUserData(&kDaoSidebarTabIdentityKey,
-                          std::make_unique<DaoSidebarTabIdentityData>(
-                              base::Uuid::GenerateRandomV4()
-                                  .AsLowercaseString()));
+    contents->SetUserData(
+        &kDaoSidebarTabIdentityKey,
+        std::make_unique<DaoSidebarTabIdentityData>(
+            base::Uuid::GenerateRandomV4().AsLowercaseString()));
     identity = static_cast<DaoSidebarTabIdentityData*>(
         contents->GetUserData(&kDaoSidebarTabIdentityKey));
   }
@@ -49,13 +50,28 @@ std::string GetSidebarTabId(content::WebContents* contents) {
   return identity->id();
 }
 
+std::string GetSidebarTabId(content::WebContents* contents) {
+  return GetOrCreateSidebarTabId(contents);
+}
+
 void SetSidebarTabId(content::WebContents* contents, const std::string& id) {
   if (!contents || id.empty()) {
     return;
   }
-  contents->SetUserData(
-      &kDaoSidebarTabIdentityKey,
-      std::make_unique<DaoSidebarTabIdentityData>(id));
+  contents->SetUserData(&kDaoSidebarTabIdentityKey,
+                        std::make_unique<DaoSidebarTabIdentityData>(id));
+}
+
+void RepairDuplicateSidebarTabIds(
+    const std::vector<content::WebContents*>& contents) {
+  std::set<std::string> seen;
+  for (content::WebContents* item : contents) {
+    std::string id = GetOrCreateSidebarTabId(item);
+    while (!seen.insert(id).second) {
+      id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+      SetSidebarTabId(item, id);
+    }
+  }
 }
 
 void CopySidebarTabId(content::WebContents* old_contents,

@@ -16,6 +16,18 @@ const settingsMocks = vi.hoisted(() => ({
   toolConfigListeners: {} as Record<string, Array<() => void>>,
 }));
 
+const catalogMocks = vi.hoisted(() => ({
+  initializeBrowserToolCatalog: vi.fn(),
+  definitions: [{
+    type: 'function',
+    function: {
+      name: 'execute_script',
+      description: 'Execute JavaScript code on the current page and return the result',
+      parameters: {type: 'object', properties: {}, required: []},
+    },
+  }],
+}));
+
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   const lit = await import('../../sidebar/__tests__/lit_test_shim.js');
   Object.defineProperty(lit.CrLitElement.prototype, 'disconnectedCallback', {
@@ -48,7 +60,12 @@ vi.mock('../agent_bridge.js', () => ({
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   },
-  tools: [],
+  getAgentToolDefinitions: () => catalogMocks.definitions,
+}));
+
+vi.mock('../browser_tool_catalog.js', () => ({
+  initializeBrowserToolCatalog: () =>
+      catalogMocks.initializeBrowserToolCatalog(),
 }));
 
 vi.mock('../i18n/i18n.js', () => ({
@@ -80,14 +97,14 @@ vi.mock('../llm_config.js', () => ({
 }));
 
 vi.mock('../tool_catalog.js', () => ({
-  countEnabled: () => ({enabled: 0, total: 0}),
-  getGroupState: () => 'none',
-  isGroupExpanded: () => false,
-  isToolEnabled: () => false,
+  countEnabled: () => ({enabled: 1, total: 1}),
+  getGroupState: () => 'all',
+  isGroupExpanded: () => true,
+  isToolEnabled: () => true,
   setGroupEnabled: vi.fn(),
   setGroupExpanded: vi.fn(),
   setToolEnabled: vi.fn(),
-  TOOL_GROUPS: [],
+  TOOL_GROUPS: [{id: 'page', label: 'Page', toolNames: ['execute_script']}],
   toolConfigChannel: {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
@@ -146,6 +163,8 @@ describe('dao-settings-view dream controls', () => {
           return true;
       }
     });
+    catalogMocks.initializeBrowserToolCatalog.mockReset();
+    catalogMocks.initializeBrowserToolCatalog.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -277,5 +296,63 @@ describe('dao-settings-view dream controls', () => {
          detail: {enabled: false},
        });
        window.removeEventListener('dao-proactive-enabled-changed', listener);
+     });
+});
+
+describe('dao-settings-view tool descriptions', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    catalogMocks.initializeBrowserToolCatalog.mockReset();
+    catalogMocks.initializeBrowserToolCatalog.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('renders browser-tool descriptions after catalog initialization',
+     async () => {
+       const view = document.createElement(
+           'dao-settings-view') as TestSettingsView;
+       document.body.appendChild(view);
+       await view.updateComplete;
+
+       view.switchSubTab('tools');
+       await Promise.resolve();
+       await view.updateComplete;
+
+       expect(catalogMocks.initializeBrowserToolCatalog).toHaveBeenCalled();
+       expect(view.shadowRoot!.textContent).toContain(
+           'Execute JavaScript code on the current page and return the result');
+     });
+
+  it('retries a failed catalog load and restores browser-tool descriptions',
+     async () => {
+       catalogMocks.initializeBrowserToolCatalog.mockReset();
+       catalogMocks.initializeBrowserToolCatalog
+           .mockRejectedValueOnce(new Error('temporary catalog failure'))
+           .mockResolvedValueOnce(undefined);
+       const view = document.createElement(
+           'dao-settings-view') as TestSettingsView;
+       document.body.appendChild(view);
+       await Promise.resolve();
+       await view.updateComplete;
+
+       view.switchSubTab('tools');
+       await view.updateComplete;
+
+       expect(view.shadowRoot!.textContent).toContain(
+           'settings.tools.catalog_load_failed');
+       const retry = view.shadowRoot!.querySelector<HTMLButtonElement>(
+           'button[data-testid="retry-tool-catalog"]');
+       expect(retry).toBeTruthy();
+
+       retry!.click();
+       await Promise.resolve();
+       await view.updateComplete;
+
+       expect(catalogMocks.initializeBrowserToolCatalog).toHaveBeenCalledTimes(2);
+       expect(view.shadowRoot!.textContent).toContain(
+           'Execute JavaScript code on the current page and return the result');
      });
 });

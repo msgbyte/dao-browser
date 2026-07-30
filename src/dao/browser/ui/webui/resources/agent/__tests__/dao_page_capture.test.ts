@@ -5,9 +5,11 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const callNativeMock = vi.hoisted(() => vi.fn());
+const executeToolMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../agent_bridge.js', () => ({
   callNative: (...args: unknown[]) => callNativeMock(...args),
+  executeTool: (...args: unknown[]) => executeToolMock(...args),
 }));
 
 import {
@@ -28,6 +30,7 @@ import {buildElementContextAttachment} from '../dao_element_context.js';
 describe('dao_page_capture attachments', () => {
   beforeEach(() => {
     callNativeMock.mockReset();
+    executeToolMock.mockReset();
     vi.spyOn(Date, 'now').mockReturnValue(1234);
     vi.spyOn(Math, 'random').mockReturnValue(0.25);
   });
@@ -163,6 +166,19 @@ describe('dao_page_capture attachments', () => {
 describe('dao_page_capture native probes', () => {
   beforeEach(() => {
     callNativeMock.mockReset();
+    executeToolMock.mockReset();
+    executeToolMock.mockImplementation(
+        (name: string, args: Record<string, unknown>) => {
+          if (name === 'get_page_info') {
+            return callNativeMock('getPageInfo');
+          }
+          if (name === 'capture_screenshot') {
+            return callNativeMock('captureScreenshot', args);
+          }
+          const {lock_tab: lockTab, ...rest} = args;
+          return callNativeMock(
+              'executeScript', {...rest, lockTab});
+        });
   });
 
   it('trims non-empty text selections and ignores empty selections', async () => {
@@ -343,6 +359,65 @@ describe('dao_page_capture native probes', () => {
        expect(startCall?.[1]).toEqual(expect.objectContaining({
          code: expect.stringContaining('crosshair'),
        }));
+     });
+
+  it('captures a selected element through the explicit legacy UI context',
+     async () => {
+       vi.useFakeTimers();
+       executeToolMock
+           .mockResolvedValueOnce({
+             result: JSON.stringify({started: true}),
+           })
+           .mockResolvedValueOnce({
+             result: JSON.stringify({
+               status: 'selected',
+               url: 'https://example.com/login',
+               title: 'Login',
+               label: 'Sign in',
+               text: 'Sign in',
+               viewport: {width: 1200, height: 800},
+               locator: {
+                 role: 'button',
+                 name: 'Sign in',
+                 tag: 'button',
+                 text: 'Sign in',
+                 attributes: {type: 'submit'},
+                 css: 'button[type="submit"]',
+                 fallbackPath: 'body > form > button:nth-of-type(1)',
+                 nearText: ['Email'],
+                 bounds: {x: 10, y: 20, width: 100, height: 40},
+               },
+             }),
+           })
+           .mockResolvedValueOnce({
+             screenshot_taken: true,
+             data: 'legacy-jpeg-base64',
+             format: 'jpeg',
+             media: {
+               mimeType: 'image/jpeg',
+               data: 'legacy-jpeg-base64',
+             },
+           });
+
+       const promise = captureElementScreenshotFromPage();
+       await vi.advanceTimersByTimeAsync(150);
+       await expect(promise).resolves.toMatchObject({
+         type: 'image',
+         content: 'legacy-jpeg-base64',
+         preview: 'legacy-jpeg-base64',
+         mimeType: 'image/jpeg',
+       });
+       expect(executeToolMock).toHaveBeenNthCalledWith(
+           1, 'execute_script', expect.objectContaining({lock_tab: false}),
+           {context: 'legacy_ui_one_shot'});
+       expect(executeToolMock).toHaveBeenNthCalledWith(
+           2, 'execute_script', expect.objectContaining({lock_tab: false}),
+           {context: 'legacy_ui_one_shot'});
+       expect(executeToolMock).toHaveBeenNthCalledWith(
+           3, 'capture_screenshot', {
+             clip: {x: 10, y: 20, width: 100, height: 40, scale: 1},
+           }, {context: 'legacy_ui_one_shot'});
+       vi.useRealTimers();
      });
 
   it('cancels the injected element picker without throwing', async () => {

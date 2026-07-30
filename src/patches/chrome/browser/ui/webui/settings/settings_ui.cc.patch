@@ -1,8 +1,25 @@
 diff --git a/chrome/browser/ui/webui/settings/settings_ui.cc b/chrome/browser/ui/webui/settings/settings_ui.cc
-index ecb360f35259e..fdc235dbb4577 100644
+index ecb360f35259e..e5631f9cb5476 100644
 --- a/chrome/browser/ui/webui/settings/settings_ui.cc
 +++ b/chrome/browser/ui/webui/settings/settings_ui.cc
-@@ -300,9 +300,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+@@ -139,6 +139,7 @@
+ #include "content/public/browser/web_ui_data_source.h"
+ #include "content/public/common/content_features.h"
+ #include "crypto/crypto_buildflags.h"
++#include "dao/browser/mcp/dao_mcp_settings_handler.h"
+ #include "device/vr/buildflags/buildflags.h"
+ #include "printing/buildflags/buildflags.h"
+ #include "services/device/public/cpp/device_features.h"
+@@ -243,6 +244,8 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+ 
+   AddSettingsPageUIHandler(std::make_unique<AccessibilityMainHandler>());
+   AddSettingsPageUIHandler(std::make_unique<BrowserLifetimeHandler>());
++  AddSettingsPageUIHandler(
++      std::make_unique<dao::DaoMcpSettingsHandler>());
+   AddSettingsPageUIHandler(
+       std::make_unique<ClearBrowsingDataHandler>(web_ui, profile));
+   AddSettingsPageUIHandler(std::make_unique<SafetyHubHandler>(profile));
+@@ -300,9 +303,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
    AddSettingsPageUIHandler(std::make_unique<MacSystemSettingsHandler>());
  #endif
  
