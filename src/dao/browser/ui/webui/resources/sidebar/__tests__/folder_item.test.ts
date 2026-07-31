@@ -22,6 +22,8 @@ interface TestFolderItem extends HTMLElement {
   folder: FolderData;
   matchedTabs: TabData[];
   sessionId: number;
+  autoScrollTabId: string;
+  autoScrollToken: number;
   updateComplete: Promise<boolean>;
   willUpdate: (changedProperties: Map<PropertyKey, unknown>) => void;
   updated: (changedProperties: Map<PropertyKey, unknown>) => void;
@@ -162,6 +164,35 @@ describe('dao-folder-item', () => {
 
     child.autoScrollToken = 1;
     await child.updateComplete;
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+      behavior: 'smooth',
+    });
+  });
+
+  it('scrolls the targeted child when its folder expands', async () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const el = createFolderItem();
+    el.folder = folder({collapsed: true});
+    el.matchedTabs = [tab({tabId: 'tab-a', isActive: false})];
+    await el.updateComplete;
+    scrollIntoView.mockClear();
+
+    el.folder = folder({collapsed: false});
+    el.matchedTabs = [tab({tabId: 'tab-a', isActive: true})];
+    el.autoScrollTabId = 'tab-a';
+    el.autoScrollToken = 1;
+    await el.updateComplete;
+
+    const child = el.shadowRoot!.querySelector('dao-tab-item') as HTMLElement & {
+      updateComplete: Promise<boolean>;
+    };
+    await child.updateComplete;
+
     expect(scrollIntoView).toHaveBeenCalledWith({
       block: 'nearest',
       behavior: 'smooth',

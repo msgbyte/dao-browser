@@ -106,6 +106,15 @@ function fireMoveStaleTabsRequested(expirationHours?: unknown) {
   }).cr.webUIListenerCallback('moveStaleTabsRequested', expirationHours);
 }
 
+function fireSidebarStateChanged(state: SidebarState) {
+  (window as unknown as {
+    cr: {
+      webUIListenerCallback:
+          (event: string, state: SidebarState) => void;
+    };
+  }).cr.webUIListenerCallback('sidebarStateChanged', state);
+}
+
 function fireFolderContextMenuCommand(folderId: string, command: string) {
   (window as unknown as {
     cr: {
@@ -238,6 +247,143 @@ describe('dao-sidebar-app', () => {
         expect(el.autoScrollTabId_).toBe('');
         expect(el.autoScrollToken_).toBe(1);
       });
+
+  it('expands the folder containing a newly active tab', async () => {
+    vi.useFakeTimers();
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    const folderTab = tab({
+      tabId: 'tab-a',
+      index: 3,
+      title: 'A',
+      isActive: false,
+    });
+    const looseTab = tab({
+      tabId: 'tab-b',
+      index: 4,
+      title: 'B',
+      isActive: true,
+    });
+    const model = installFolderModel(app, JSON.stringify({
+      version: 1,
+      items: [{
+        type: 'folder',
+        id: 'folder-work',
+        name: 'Work',
+        collapsed: true,
+        children: [{
+          type: 'tab',
+          tabId: folderTab.tabId,
+          url: folderTab.url,
+          title: folderTab.title,
+        }],
+      }],
+    }));
+    fireSidebarStateChanged(sidebarState({
+      activeIndex: looseTab.index,
+      unpinnedTabs: [folderTab, looseTab],
+    }));
+    await app.updateComplete;
+
+    const loadFoldersCall =
+        send.mock.calls.find(call => call[0] === 'loadFolders');
+    expect(loadFoldersCall).toBeDefined();
+    const callbackId = loadFoldersCall![1][0] as string;
+    (window as unknown as {
+      cr: {
+        webUIListenerCallback:
+            (event: string, folderJson: string) => void;
+      };
+    }).cr.webUIListenerCallback(callbackId, model.toJson());
+    await Promise.resolve();
+    await app.updateComplete;
+
+    const previousVersion = app.folderModelVersion_;
+    const previousScrollToken = el.autoScrollToken_;
+
+    fireSidebarStateChanged(sidebarState({
+      activeIndex: folderTab.index,
+      unpinnedTabs: [
+        {...folderTab, isActive: true},
+        {...looseTab, isActive: false},
+      ],
+    }));
+    await app.updateComplete;
+
+    expect(model.getFolders()[0]!.collapsed).toBe(false);
+    expect(el.autoScrollTabId_).toBe(folderTab.tabId);
+    expect(el.autoScrollToken_).toBe(previousScrollToken + 1);
+    expect(app.folderModelVersion_).toBe(previousVersion + 1);
+
+    vi.advanceTimersByTime(300);
+    expect(send).toHaveBeenCalledWith(
+        'saveFolders', [expect.stringContaining('"collapsed": false')]);
+  });
+
+  it('expands an active tab folder after folder loading completes', async () => {
+    vi.useFakeTimers();
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    const folderTab = tab({
+      tabId: 'tab-a',
+      index: 3,
+      title: 'A',
+      isActive: false,
+    });
+    const looseTab = tab({
+      tabId: 'tab-b',
+      index: 4,
+      title: 'B',
+      isActive: true,
+    });
+
+    fireSidebarStateChanged(sidebarState({
+      activeIndex: looseTab.index,
+      unpinnedTabs: [folderTab, looseTab],
+    }));
+    await app.updateComplete;
+
+    fireSidebarStateChanged(sidebarState({
+      activeIndex: folderTab.index,
+      unpinnedTabs: [
+        {...folderTab, isActive: true},
+        {...looseTab, isActive: false},
+      ],
+    }));
+    await app.updateComplete;
+
+    const loadFoldersCall =
+        send.mock.calls.find(call => call[0] === 'loadFolders');
+    expect(loadFoldersCall).toBeDefined();
+    const callbackId = loadFoldersCall![1][0] as string;
+    const folderJson = JSON.stringify({
+      version: 1,
+      items: [{
+        type: 'folder',
+        id: 'folder-work',
+        name: 'Work',
+        collapsed: true,
+        children: [{
+          type: 'tab',
+          tabId: folderTab.tabId,
+          url: folderTab.url,
+          title: folderTab.title,
+        }],
+      }],
+    });
+    (window as unknown as {
+      cr: {
+        webUIListenerCallback:
+            (event: string, folderJson: string) => void;
+      };
+    }).cr.webUIListenerCallback(callbackId, folderJson);
+    await Promise.resolve();
+    await app.updateComplete;
+
+    expect(app.folderModel_.getFolders()[0]!.collapsed).toBe(false);
+    expect(el.autoScrollTabId_).toBe(folderTab.tabId);
+    expect(el.autoScrollToken_).toBe(1);
+  });
 
   it('renders the update button before the plus menu at the toolbar end', async () => {
     const {el} = await loadApp();
