@@ -6110,12 +6110,19 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
-                       ForceDarkModeButtonLivesInMainUtilityRow) {
+                       ForceDarkModeButtonShowsUnavailableToastInSystemLight) {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
   theme->set_preferred_color_scheme(
       ui::NativeTheme::PreferredColorScheme::kLight);
   theme->NotifyOnNativeThemeUpdated();
 
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  ASSERT_TRUE(prefs);
+  prefs->SetBoolean(prefs::kDaoForceDarkModeEnabled, false);
+
+  auto* browser_view = GetBrowserView(browser());
+  auto* toast = browser_view->dao_toast();
+  ASSERT_NE(nullptr, toast);
   auto* popup = GetBrowserView(browser())->dao_control_center_popup();
   ASSERT_NE(nullptr, popup);
   popup->ShowAt(gfx::Point(100, 100));
@@ -6136,8 +6143,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   views::Button* button = FindButtonWithAccessibleName(popup, label);
   ASSERT_NE(nullptr, button);
   EXPECT_TRUE(button->IsDrawn());
-  EXPECT_FALSE(button->GetEnabled());
-  EXPECT_EQ(views::Button::STATE_DISABLED, button->GetState());
+  EXPECT_TRUE(button->GetEnabled());
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP),
             button->GetTooltipText());
   auto* button_label = FindDescendantLabelWithText(
@@ -6145,6 +6151,16 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   ASSERT_NE(nullptr, button_label);
   EXPECT_EQ(ControlCenterLabelColor(), button_label->GetEnabledColor());
   EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
+
+  views::test::ButtonTestApi(button).NotifyClick(
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                     ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                     ui::EF_LEFT_MOUSE_BUTTON));
+
+  EXPECT_FALSE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
+  EXPECT_TRUE(HasDescendantLabelText(
+      toast,
+      l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP)));
 
   popup->Hide();
 }
