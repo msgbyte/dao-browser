@@ -9,6 +9,7 @@ import { FeatureKeyboardFirst } from '@/components/FeatureKeyboardFirst';
 import { FeatureGrid } from '@/components/FeatureGrid';
 import { DownloadCTA } from '@/components/DownloadCTA';
 import { Footer } from '@/components/Footer';
+import { FxDriver } from '@/components/ui/FxDriver';
 import {
   DEFAULT_DESCRIPTION,
   DEFAULT_TITLE,
@@ -38,6 +39,7 @@ export default function HomePage() {
         <DownloadCTA />
       </main>
       <Footer />
+      <FxDriver />
       <script {...jsonLdScriptProps(HOME_PAGE_JSON_LD)} />
     </>
   );

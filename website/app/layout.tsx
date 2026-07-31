@@ -22,42 +22,15 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   manifest: '/manifest.webmanifest',
   icons: {
-    // Two-theme favicons. Browsers that support `media` pick the one matching
-    // the system color-scheme; older browsers fall back to the first entry.
-    icon: [
-      {
-        url: '/icon-light.png',
-        type: 'image/png',
-        sizes: '32x32',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark.png',
-        type: 'image/png',
-        sizes: '32x32',
-        media: '(prefers-color-scheme: dark)',
-      },
-      // Default fallback for browsers without media-aware icon support.
-      { url: '/icon-light.png', type: 'image/png', sizes: '32x32' },
-    ],
-    apple: [
-      {
-        url: '/apple-icon-light.png',
-        sizes: '128x128',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/apple-icon-dark.png',
-        sizes: '128x128',
-        media: '(prefers-color-scheme: dark)',
-      },
-    ],
+    // Forced-dark site (plan 1): always serve the dark favicons.
+    icon: [{ url: '/icon-dark.png', type: 'image/png', sizes: '32x32' }],
+    apple: [{ url: '/apple-icon-dark.png', sizes: '128x128' }],
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ colorScheme: 'dark' }}>
       <body>
         {children}
         <script

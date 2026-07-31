@@ -55,10 +55,16 @@ const ITEMS: GridItem[] = [
 export function FeatureGrid() {
   return (
     <section className={styles.section}>
-      <h2 className={styles.heading}>And there&apos;s more.</h2>
+      <h2 className={styles.heading} data-reveal>
+        And there&apos;s <span className="grad-text">more.</span>
+      </h2>
       <ul className={styles.grid} role="list">
         {ITEMS.map((it) => (
-          <li key={it.title} className={`${styles.card} ${it.highlight ? styles.highlight : ''}`}>
+          <li
+            key={it.title}
+            data-reveal
+            className={`${styles.card} ${it.highlight ? styles.highlight : ''}`}
+          >
             <LucideIcon name={it.icon} size={22} className={styles.icon} />
             <h3 className={styles.cardTitle}>{it.title}</h3>
             <p className={styles.cardBody}>{it.body}</p>

@@ -5,6 +5,7 @@ import { FeatureSection } from '@/components/FeatureSection';
 import { HostSkillsVisual } from '@/components/ui/HostSkillsVisual';
 import { Button } from '@/components/ui/Button';
 import { LucideIcon } from '@/components/ui/LucideIcon';
+import { FxDriver } from '@/components/ui/FxDriver';
 import {
   FocusContextVisual,
   ProactiveSuggestionVisual,
@@ -52,6 +53,7 @@ export default function AgentPage() {
   return (
     <>
       <TopNav />
+      <FxDriver />
       <main>
         {/* -------- Hero -------- */}
         <section id="top" className={styles.hero}>
@@ -228,7 +230,7 @@ export default function AgentPage() {
         />
 
         {/* -------- Closing CTA -------- */}
-        <section className={styles.cta}>
+        <section className={styles.cta} data-reveal>
           <h2 className={styles.ctaHeading}>Try Dao Agent.</h2>
           <p className={styles.ctaBody}>
             It ships inside Dao Browser — no separate install, no extra

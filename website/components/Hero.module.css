@@ -1,8 +1,19 @@
 .hero {
-  max-width: 1120px;
-  margin: 0 auto;
+  position: relative;
   padding: 96px 24px 64px;
   text-align: center;
+  isolation: isolate;
+}
+
+/* Aurora bloom field sits behind the hero content (base styles + bloom
+   animations come from the global `.aurora` class in globals.css). */
+.aurora {
+  z-index: -1;
+}
+
+.inner {
+  max-width: 1120px;
+  margin: 0 auto;
 }
 
 @media (max-width: 768px) {
@@ -55,6 +66,73 @@
   margin-top: 14px;
   font-size: 13px;
   color: var(--text-tertiary);
+}
+
+/* ===== Highlight strip (real built-in features) ===== */
+.highlights {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 36px auto 0;
+  padding: 0;
+  max-width: 720px;
+  list-style: none;
+}
+
+.highlight {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.highlight:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.highlightIcon {
+  color: var(--accent);
+  flex: none;
+}
+
+.highlightLabel {
+  white-space: nowrap;
+}
+
+.highlightHint {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .highlight {
+    transition: none;
+  }
+  .highlight:hover {
+    transform: none;
+  }
 }
 
 .mockupWrap {

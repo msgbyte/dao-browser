@@ -44,7 +44,7 @@ export function FeatureSection({
       id={id}
       className={`${styles.section} ${mockupSide === 'left' ? styles.reverse : ''}`}
     >
-      <div className={styles.text}>
+      <div className={styles.text} data-reveal>
         <div className={styles.eyebrow}>{eyebrow}</div>
         <h2 className={styles.h2}>{heading}</h2>
         <p className={styles.body}>{body}</p>
@@ -63,7 +63,7 @@ export function FeatureSection({
           </a>
         )}
       </div>
-      <div>
+      <div data-reveal>
         {customVisual ?? (mockupVariant && (
           <BrowserFrame>
             <BrowserFrameMockup variant={mockupVariant} />

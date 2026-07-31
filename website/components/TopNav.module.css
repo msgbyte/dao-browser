@@ -28,17 +28,12 @@
   flex-shrink: 0;
 }
 
-/* Two-theme logo swap: light mode shows .brandLogoLight, dark shows .brandLogoDark. */
-.brandLogoDark {
+/* Forced-dark (plan 1): always show the dark logo, hide the light one. */
+.brandLogoLight {
   display: none;
 }
-@media (prefers-color-scheme: dark) {
-  .brandLogoLight {
-    display: none;
-  }
-  .brandLogoDark {
-    display: block;
-  }
+.brandLogoDark {
+  display: block;
 }
 
 .brandWord {

@@ -11,7 +11,9 @@ import styles from './DownloadCTA.module.css';
 export function DownloadCTA() {
   return (
     <section id="download" className={styles.section}>
-      <h2 className={styles.heading}>Try Dao Browser.</h2>
+      <h2 className={styles.heading}>
+        Try <span className="grad-text">Dao Browser.</span>
+      </h2>
       <p className={styles.sub}>
         v{PRODUCT_VERSION} · Built on Chromium {CHROMIUM_VERSION}
       </p>

@@ -69,12 +69,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.18);
-}
-@media (prefers-color-scheme: dark) {
-  .dot {
-    background: rgba(255, 255, 255, 0.22);
-  }
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .tabsThick {
@@ -89,12 +84,7 @@
   height: 12px;
   flex: 1;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.04);
-}
-@media (prefers-color-scheme: dark) {
-  .tabPill {
-    background: rgba(255, 255, 255, 0.04);
-  }
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .tabPillActive {

@@ -6,7 +6,7 @@
 }
 
 html {
-  color-scheme: light dark;
+  color-scheme: dark;
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
 }
@@ -52,25 +52,38 @@ button {
   cursor: pointer;
 }
 
-/* ===== Tokens — Light mode (default) ===== */
+/* =====================================================================
+   Tokens — Deep-space DARK is the ONLY theme (forced-dark, plan 1).
+   OS light/dark following removed; no light toggle.
+   Palette is faithful to dao-browser: blue accent, blue→white gradient
+   ramp, zero purple (DESIGN.md §1: blue is the only chromatic hue).
+   ===================================================================== */
 :root {
-  /* Backgrounds */
-  --bg:              rgb(231, 238, 245);
-  --bg-elevated:     #ffffff;
-  --surface:         rgba(0, 0, 0, 0.06);
-  --surface-hover:   rgba(0, 0, 0, 0.10);
-  --border:          rgba(0, 0, 0, 0.08);
+  /* Deep-space canvas + elevated surfaces */
+  --bg:              rgb(11, 13, 16);
+  --bg-2:            rgb(17, 20, 25);
+  --bg-3:            rgb(23, 27, 33);
+  --bg-elevated:     rgba(255, 255, 255, 0.04);
+  --surface:         rgba(255, 255, 255, 0.06);
+  --surface-hover:   rgba(255, 255, 255, 0.12);
+  --border:          rgba(255, 255, 255, 0.12);
 
-  /* Text — base ink rgb(30, 20, 40) */
-  --text:            rgba(30, 20, 40, 0.87);
-  --text-secondary:  rgba(30, 20, 40, 0.60);
-  --text-tertiary:   rgba(30, 20, 40, 0.40);
+  /* Text */
+  --text:            rgba(245, 245, 245, 0.92);
+  --text-secondary:  rgba(255, 255, 255, 0.60);
+  --text-tertiary:   rgba(255, 255, 255, 0.40);
 
-  /* Accent — shared across themes */
-  --accent:          rgb(70, 120, 190);
-  --accent-hover:    rgb(60, 105, 175);
-  --accent-dim:      rgba(70, 120, 190, 0.15);
-  --accent-subtle:   rgba(70, 120, 190, 0.10);
+  /* Accent — blue, faithful to dao_colors.cc:75 (lightened for dark UI) */
+  --accent:          rgb(96, 150, 224);
+  --accent-hover:    rgb(120, 172, 240);
+  --accent-dim:      rgba(96, 150, 224, 0.28);
+  --accent-subtle:   rgba(96, 150, 224, 0.16);
+
+  /* FX ramp — blue → light-blue → near-white (NO second hue, zero purple) */
+  --cyan:            rgb(150, 200, 240);   /* mid light-blue stop */
+  --violet:          rgb(224, 236, 250);   /* near-white blue (named for FX wiring only) */
+  --neon:            rgba(96, 150, 224, 0.55);
+  --neon-soft:       rgba(96, 150, 224, 0.22);
 
   /* Status */
   --error:           #ef4444;
@@ -78,40 +91,13 @@ button {
   /* Shape */
   --radius:          12px;
 
-  /* 5-step soft shadow (DESIGN.md §8.1) */
+  /* 5-step soft shadow (DESIGN.md §8.1) — dark-tuned */
   --shadow-frame:
-    0  2px  4px  rgba(0, 0, 0, 0.08),
-    0  4px  8px  rgba(0, 0, 0, 0.08),
-    0  8px 16px  rgba(0, 0, 0, 0.06),
-    0 16px 32px  rgba(0, 0, 0, 0.04),
-    0 32px 64px  rgba(0, 0, 0, 0.02);
-}
-
-/* ===== Tokens — Dark mode ===== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:              rgb(54, 59, 64);
-    --bg-elevated:     rgba(255, 255, 255, 0.04);
-    --surface:         rgba(255, 255, 255, 0.06);
-    --surface-hover:   rgba(255, 255, 255, 0.12);
-    --border:          rgba(255, 255, 255, 0.12);
-
-    --text:            rgba(245, 245, 245, 0.92);
-    --text-secondary:  rgba(255, 255, 255, 0.60);
-    --text-tertiary:   rgba(255, 255, 255, 0.40);
-
-    /* --accent stays rgb(70, 120, 190) — DESIGN.md §1: accent is shared across themes. */
-    --accent-hover:    rgb(85, 140, 210);
-    --accent-dim:      rgba(70, 120, 190, 0.28);
-    --accent-subtle:   rgba(70, 120, 190, 0.18);
-
-    --shadow-frame:
-      0  2px  4px  rgba(0, 0, 0, 0.12),
-      0  4px  8px  rgba(0, 0, 0, 0.12),
-      0  8px 16px  rgba(0, 0, 0, 0.09),
-      0 16px 32px  rgba(0, 0, 0, 0.06),
-      0 32px 64px  rgba(0, 0, 0, 0.03);
-  }
+    0  2px  4px  rgba(0, 0, 0, 0.30),
+    0  4px  8px  rgba(0, 0, 0, 0.28),
+    0  8px 16px  rgba(0, 0, 0, 0.22),
+    0 16px 32px  rgba(0, 0, 0, 0.16),
+    0 32px 64px  rgba(0, 0, 0, 0.10);
 }
 
 /* ===== Reduced motion ===== */
@@ -134,4 +120,175 @@ button {
   text-transform: uppercase;
   color: var(--text-tertiary);
   line-height: 1.4;
+}
+
+/* =====================================================================
+   FX layer — aurora blooms, gradient text, conic glow-ring, tilt cards,
+   scroll reveal. Blue→white ramp only. All motion is guarded
+   by prefers-reduced-motion below.
+   ===================================================================== */
+
+/* --- Aurora bloom field (position: relative parent, aria-hidden host) --- */
+.aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 78%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 78%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.aurora > i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.aurora .a1 {
+  width: 46vw;
+  height: 46vw;
+  left: -8vw;
+  top: -12vw;
+  background: radial-gradient(circle at 30% 30%, var(--accent), transparent 70%);
+  animation: aurora-drift-1 26s ease-in-out infinite alternate;
+}
+.aurora .a2 {
+  width: 40vw;
+  height: 40vw;
+  right: -10vw;
+  top: 6vw;
+  background: radial-gradient(circle at 60% 40%, var(--cyan), transparent 70%);
+  opacity: 0.4;
+  animation: aurora-drift-2 32s ease-in-out infinite alternate;
+}
+.aurora .a3 {
+  width: 34vw;
+  height: 34vw;
+  left: 30vw;
+  bottom: -16vw;
+  background: radial-gradient(circle at 50% 50%, var(--violet), transparent 68%);
+  opacity: 0.3;
+  animation: aurora-drift-3 38s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift-1 {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(6vw, 4vw, 0) scale(1.12); }
+}
+@keyframes aurora-drift-2 {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(-5vw, 6vw, 0) scale(1.08); }
+}
+@keyframes aurora-drift-3 {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(4vw, -5vw, 0) scale(1.15); }
+}
+
+/* --- Gradient (streaming) text --- */
+.grad-text {
+  background: linear-gradient(
+    100deg,
+    var(--accent) 0%,
+    var(--cyan) 45%,
+    var(--violet) 75%,
+    var(--accent) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: grad-stream 8s linear infinite;
+}
+@keyframes grad-stream {
+  from { background-position: 0% 50%; }
+  to   { background-position: 220% 50%; }
+}
+
+/* --- Conic glow-ring (badge / logo halo) --- */
+.glow-ring {
+  position: relative;
+  isolation: isolate;
+}
+.glow-ring::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    var(--accent),
+    var(--cyan),
+    var(--violet),
+    var(--accent)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ring-spin 6s linear infinite;
+  z-index: -1;
+}
+@keyframes ring-spin {
+  to { transform: rotate(1turn); }
+}
+
+/* --- Tilt / lift feature card --- */
+.fx-card {
+  position: relative;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+  will-change: transform;
+}
+.fx-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-dim);
+  box-shadow: var(--shadow-frame);
+}
+
+/* --- Scroll reveal --- */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* ===== Reduced-motion guards for the FX layer ===== */
+@media (prefers-reduced-motion: reduce) {
+  .aurora .a1,
+  .aurora .a2,
+  .aurora .a3,
+  .grad-text,
+  .glow-ring::before {
+    animation: none !important;
+  }
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }

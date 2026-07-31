@@ -5,10 +5,9 @@
 }
 
 .heading {
-  font-size: 24px;
+  font-size: clamp(24px, 3.5vw, 34px);
   font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text);
+  letter-spacing: -0.02em;
   margin: 0 0 32px;
   text-align: center;
 }
@@ -34,18 +33,27 @@
 }
 
 .card {
-  background: var(--surface);
+  position: relative;
+  background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: background 200ms ease, transform 200ms ease;
+  transition:
+    background 200ms ease,
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+  will-change: transform;
 }
 
 .card:hover {
-  background: var(--surface-hover);
+  background: var(--bg-3);
+  transform: translateY(-4px);
+  border-color: var(--accent-dim);
+  box-shadow: var(--shadow-frame);
 }
 
 .highlight {
@@ -56,6 +64,18 @@
 
 .highlight:hover {
   background: var(--accent-subtle);
+  box-shadow:
+    inset 0 0 0 1px var(--accent-dim),
+    var(--shadow-frame);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: background 200ms ease;
+  }
+  .card:hover {
+    transform: none;
+  }
 }
 
 .icon {
