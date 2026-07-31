@@ -388,7 +388,7 @@
       <message name="IDS_DAO_FORCE_DARK_MODE_TOOLTIP" desc="Tooltip for the Force dark mode toggle when it can be changed because the system appearance is dark.">
         Darken websites with Auto Dark Mode while the system is in dark mode.
       </message>
-      <message name="IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP" desc="Tooltip for the Force dark mode toggle when it is disabled because the system appearance is light.">
+      <message name="IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP" desc="Tooltip and click-feedback toast for the Force dark mode toggle when it is unavailable because the system appearance is light.">
         Available when the system is in dark mode.
       </message>
 

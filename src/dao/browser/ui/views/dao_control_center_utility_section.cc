@@ -112,7 +112,7 @@ class UtilityButton : public views::Button {
   }
 
   void SetVisualEnabled(bool enabled) {
-    SetEnabled(enabled);
+    visually_enabled_ = enabled;
     label_->SetEnabled(true);
     label_->SetEnabledColor(ControlCenterLabelColor());
     RefreshBackground();
@@ -121,7 +121,7 @@ class UtilityButton : public views::Button {
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
     Button::OnMouseEntered(event);
-    if (GetEnabled()) {
+    if (visually_enabled_) {
       hovered_ = true;
       RefreshBackground();
       SchedulePaint();
@@ -141,9 +141,9 @@ class UtilityButton : public views::Button {
       gfx::Rect icon_bounds = children().front()->bounds();
       const gfx::RectF icon_rect(icon_bounds.x(), icon_bounds.y(),
                                  kUtilIconSize, kUtilIconSize);
-      const SkColor icon_color =
-          selected_ && GetEnabled() ? ControlCenterIconDefault()
-                                    : ControlCenterIconMuted();
+      const SkColor icon_color = selected_ && visually_enabled_
+                                     ? ControlCenterIconDefault()
+                                     : ControlCenterIconMuted();
       if (selected_ && icon_ == LucideIcon::kMoon) {
         DrawFilledMoonIcon(canvas, icon_rect, icon_color);
       } else {
@@ -154,7 +154,7 @@ class UtilityButton : public views::Button {
 
  private:
   void RefreshBackground() {
-    if (!GetEnabled()) {
+    if (!visually_enabled_) {
       SetBackground(nullptr);
       return;
     }
@@ -175,6 +175,7 @@ class UtilityButton : public views::Button {
   raw_ptr<views::Label> label_ = nullptr;
   bool selected_ = false;
   bool hovered_ = false;
+  bool visually_enabled_ = true;
 };
 
 }  // namespace
@@ -278,8 +279,18 @@ void DaoControlCenterUtilitySection::OnMiniDaoClicked() {
 }
 
 void DaoControlCenterUtilitySection::OnForceDarkModeClicked() {
-  if (!popup_ || !popup_->browser() || !IsForceDarkModeAvailable()) {
+  if (!popup_ || !popup_->browser()) {
+    return;
+  }
+
+  if (!IsForceDarkModeAvailable()) {
     RefreshForceDarkModeState();
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(popup_->browser());
+    if (browser_view && browser_view->dao_toast()) {
+      browser_view->dao_toast()->ShowToast(l10n_util::GetStringUTF16(
+          IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP));
+    }
     return;
   }
 

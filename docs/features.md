@@ -81,7 +81,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **DaoLucideIcons** (`dao_lucide_icons.{h,cc}`) — Unified Lucide icon set
 
 ### 1.8 Toast and Feedback
-- **DaoToastView** (`dao_toast_view.{h,cc}`) — Shared lightweight fade-in/fade-out toast for native browser feedback, including Copy URL, webpage Copy Image, QR decode failures, and Control Center actions; callers retain action-specific localized text
+- **DaoToastView** (`dao_toast_view.{h,cc}`) — Shared lightweight fade-in/fade-out toast for native browser feedback, including Copy URL, webpage Copy Image, QR decode failures, and Control Center actions. The Control Center Dark action remains clickable while system appearance is light and explains the system-dark requirement through this toast; callers retain action-specific localized text
 
 ## 2. AI Agent System
 
