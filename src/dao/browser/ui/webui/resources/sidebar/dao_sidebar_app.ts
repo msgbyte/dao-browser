@@ -280,6 +280,8 @@ export class DaoSidebarApp extends CrLitElement {
   private folderModel_ = new FolderModel();
   private foldersLoaded_: boolean = false;
   private initialStateReceived_: boolean = false;
+  private activeTabId_: string = '';
+  private pendingActiveFolderTabId_: string = '';
   private boundClosePlusMenu_: ((e: MouseEvent) => void) | null = null;
   private tabScrollbarHoverTimeout_: number | null = null;
   private listenerHandles_: Array<ReturnType<typeof addListener>> = [];
@@ -323,6 +325,19 @@ export class DaoSidebarApp extends CrLitElement {
 
     this.addSidebarListener_('sidebarStateChanged', (...args: unknown[]) => {
       const state = args[0] as SidebarState;
+      const activeTab = [...state.pinnedTabs, ...state.unpinnedTabs].find(
+          tab => tab.isActive);
+      const activeTabId = activeTab?.tabId || '';
+      const activeUnpinnedTabId =
+          state.unpinnedTabs.find(tab => tab.isActive)?.tabId || '';
+      const activeTabChanged =
+          this.initialStateReceived_ &&
+          activeTabId !== this.activeTabId_;
+      this.activeTabId_ = activeTabId;
+      if (activeTabChanged) {
+        this.pendingActiveFolderTabId_ = activeUnpinnedTabId;
+      }
+
       this.pinnedItems_ = state.pinnedItems || [];
       this.pinnedTabs_ = state.pinnedTabs;
       this.unpinnedTabs_ = state.unpinnedTabs;
@@ -343,7 +358,11 @@ export class DaoSidebarApp extends CrLitElement {
         // Keep runtime tab identities in sync after duplicate/move/close so
         // folder operations target the exact rendered tab, not a URL match.
         this.folderModel_.reconcile(this.unpinnedTabs_);
-        this.folderModelVersion_++;
+        if (this.expandPendingActiveTabFolder_()) {
+          this.saveFolders_();
+        } else {
+          this.folderModelVersion_++;
+        }
       }
     });
 
@@ -357,14 +376,6 @@ export class DaoSidebarApp extends CrLitElement {
         this.unpinnedTabs_ = this.unpinnedTabs_.map(
             t => t.tabId === updated.tabId ? updated : t);
       }
-    });
-
-    this.addSidebarListener_('activeTabChanged', (...args: unknown[]) => {
-      const data = args[0] as {activeIndex: number};
-      this.pinnedTabs_ = this.pinnedTabs_.map(
-          t => ({...t, isActive: t.index === data.activeIndex}));
-      this.unpinnedTabs_ = this.unpinnedTabs_.map(
-          t => ({...t, isActive: t.index === data.activeIndex}));
     });
 
     this.addSidebarListener_('newTabButtonHighlight', (...args: unknown[]) => {
@@ -436,7 +447,10 @@ export class DaoSidebarApp extends CrLitElement {
       // Reconcile with actual tabs.
       if (this.unpinnedTabs_.length > 0) {
         this.folderModel_.reconcile(this.unpinnedTabs_);
+        this.expandPendingActiveTabFolder_();
         this.saveFolders_();
+      } else {
+        this.pendingActiveFolderTabId_ = '';
       }
 
       this.foldersLoaded_ = true;
@@ -453,6 +467,37 @@ export class DaoSidebarApp extends CrLitElement {
   private saveFolders_() {
     saveFolders(this.folderModel_.toJson());
     this.folderModelVersion_++;
+  }
+
+  private expandFolderForActiveTab_(activeTabId: string): boolean {
+    const activeTab =
+        this.unpinnedTabs_.find(tab => tab.tabId === activeTabId);
+    if (!activeTab) {
+      return false;
+    }
+
+    const folderId = this.folderModel_.findTabFolder(activeTab);
+    const folder = this.folderModel_.getFolders().find(
+        candidate => candidate.id === folderId);
+    if (!folder?.collapsed) {
+      return false;
+    }
+
+    this.folderModel_.toggleCollapse(folder.id);
+    return true;
+  }
+
+  private expandPendingActiveTabFolder_(): boolean {
+    const activeTabId = this.pendingActiveFolderTabId_;
+    this.pendingActiveFolderTabId_ = '';
+    if (!activeTabId || activeTabId !== this.activeTabId_ ||
+        !this.expandFolderForActiveTab_(activeTabId)) {
+      return false;
+    }
+
+    this.autoScrollTabId_ = activeTabId;
+    this.autoScrollToken_++;
+    return true;
   }
 
   /**
