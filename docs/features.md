@@ -192,7 +192,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 Built on Chromium's native PiP, adds a Document-PiP interception layer plus several visual + behavior tweaks.
 
 ### 3.1 Dao-owned (`src/dao/browser/pip/`)
-- **DaoPipInterceptor** — Intercepts PiP requests on configured sites and redirects to Document PiP with a specific DOM element
+- **DaoPipInterceptor** — Intercepts PiP requests on configured sites and redirects to Document PiP with a specific DOM element; returning to the opener tab closes the active Document PiP and restores the moved element to the page for both manual and automatic entry
 - **DaoPipSiteRules** — Site rules loaded from `pip_site_rules.json`
 
 ### 3.2 Auto-PiP triggers

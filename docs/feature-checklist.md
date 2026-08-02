@@ -129,7 +129,7 @@ Flagship feature. C++ services + `dao://dao-agent` WebUI + vendor runtime.
 
 | ✔ | Feature | Patch(es) / Source | Risk | Verify after upgrade |
 |---|---------|--------------------|------|----------------------|
-| ☐ | Auto-PiP for *any* video site + Document-PiP interception on configured sites | `picture_in_picture/auto_picture_in_picture_tab_helper.{cc,h}.patch` | 🔴 | Tab-switch on a plain `<video>` page auto-opens PiP; configured site opens Document-PiP and does NOT immediately close |
+| ☐ | Auto-PiP for *any* video site + Document-PiP interception on configured sites | `picture_in_picture/auto_picture_in_picture_tab_helper.{cc,h}.patch`, `src/dao/browser/pip/dao_pip_interceptor.{cc,h}` | 🔴 | Tab-switch on a plain `<video>` page auto-opens PiP; configured site opens Document-PiP and does NOT immediately close; returning to its opener tab closes a manually or automatically opened window and restores the moved player element to the original page |
 | ☐ | Per-site Document-PiP bounds persistence + no permission overlay | `picture_in_picture/picture_in_picture_window_manager.{cc,h}.patch` | 🔴 | Resize/close/reopen restores size; **no permission bubble** (security-relevant removal — review each rebase) |
 | ☐ | Floating auto-hiding Document-PiP top bar (separate overlay widget, hover fade, corner-resize, drag-move) | `views/frame/picture_in_picture_browser_frame_view.{cc,h}.patch` | 🔴 | Top bar hidden initially, fades on hover; drag moves; corner drags resize; content fills width. **Confirm `render_active_` default stays `false`** |
 | ☐ | PiP overlay button re-layout (back-to-tab top-left, minimize adjacent) | `views/overlay/back_to_tab_button.cc.patch`, `minimize_button.cc.patch` | 🟢 | Buttons at top-left, no overlap |
