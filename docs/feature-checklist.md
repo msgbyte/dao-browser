@@ -165,7 +165,7 @@ Lightweight popup window form factor.
 | ☐ | Little Dao popup layout (48px header, URL pill, "Open in Dao") | `views/frame/layout/browser_view_popup_layout_impl.cc.patch` | 🟡 | Popup shows 48px header, no Chrome toolbar |
 | ☐ | External URLs route into Little Dao (startup path) | `ui/startup/startup_browser_creator_impl_little_dao.cc.patch` | 🔴 | With Little Dao enabled + running, OS-opened URL lands in Little Dao |
 | ☐ | External URLs route into Little Dao (macOS app-controller path) | `app_controller_mac_little_dao_external.mm.patch` | 🔴 | Same as above via native open-URL event |
-| ☐ | Fullscreen disabled in Little Dao windows | `ui/browser_command_controller.cc.patch` | 🔴 | Fullscreen off in Little Dao, normal elsewhere |
+| ☐ | Fullscreen disabled in Little Dao windows | `dao_little_dao_controller.cc`, `ui/browser_command_controller.cc.patch` | 🔴 | From a fullscreen Dao window, open an external link; Mini Dao stays windowed and has no native or command fullscreen eligibility |
 | ☐ | Little Dao core (controller/view, Browser::Create timing) | `src/dao/.../little_dao/` | — | Popup spawns with correct chrome |
 | ☐ | Little Dao window tracking and persisted bounds | `dao_little_dao_controller.*`, `dao_pref_names.*` | — | Move/resize/close/reopen restores bounds; closed Little Dao windows are removed from tracking and pointer reuse does not misclassify normal windows |
 | ☐ | Mini Dao extraction from Control Center | `dao_control_center_utility_section.*`, `dao_little_dao_controller.*` | — | Control Center Mini Dao action moves the active live tab into a Little Dao popup, removes the source tab, hides the popup, and rejects extraction from an existing Little Dao |
