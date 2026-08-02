@@ -145,9 +145,11 @@ script uses shared engine mode:
 
 ```bash
 npm install
-npm run worktree:setup
-npm run import
+tsx scripts/cli.ts worktree setup
 ```
+
+It does not run `npm run import`; run import or rebuild separately when the
+worktree's Dao-owned sources need to be synchronized into `engine/src`.
 
 Run it from inside the new worktree:
 
@@ -156,7 +158,7 @@ cd ../dao-browser-feature-from-agent
 npm run setup:worktree
 ```
 
-`npm run worktree:setup` auto-detects the primary checkout with:
+`npm run setup:worktree` auto-detects the primary checkout with:
 
 ```bash
 git worktree list --porcelain
@@ -190,8 +192,7 @@ If auto-detection fails, run the lower-level setup command with an explicit
 primary checkout:
 
 ```bash
-npm install
-npm run worktree:setup -- --primary /Users/moonrailgun/Develop/dao-browser
+npm run setup:worktree -- --primary /Users/moonrailgun/Develop/dao-browser
 npm run import
 ```
 
@@ -199,7 +200,7 @@ To reattach an existing worktree to a specific warm cache, pass its cache key
 and explicitly recreate that worktree's private engine:
 
 ```bash
-npm run worktree:setup -- \
+npm run setup:worktree -- \
   --private-engine \
   --cache-key 149.0.7827.201-dao-debug-<cache-id> \
   --recreate-engine

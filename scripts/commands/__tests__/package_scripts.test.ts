@@ -60,10 +60,9 @@ describe('package scripts', () => {
       scripts?: Record<string, string>;
     };
 
-    expect(packageJson.scripts?.['worktree:setup'])
-        .toBe('tsx scripts/cli.ts worktree setup');
     expect(packageJson.scripts?.['setup:worktree'])
-        .toBe('npm install && npm run worktree:setup && npm run import');
+        .toBe('npm install && tsx scripts/cli.ts worktree setup');
+    expect(packageJson.scripts?.['worktree:setup']).toBeUndefined();
     expect(packageJson.scripts?.['setup-worktree']).toBeUndefined();
   });
 
