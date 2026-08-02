@@ -698,11 +698,25 @@ void DaoPipInterceptor::DocumentOnLoadCompletedInPrimaryMainFrame() {
 
 void DaoPipInterceptor::MediaPictureInPictureChanged(
     bool is_picture_in_picture) {
-  if (!is_picture_in_picture) {
-    const bool was_active = ClearDocumentPipState();
-    if (was_active) {
-      PictureInPictureWindowManager::GetInstance()->ExitPictureInPicture();
+  if (is_picture_in_picture) {
+    if (ShouldIntercept(web_contents()) && !document_pip_active_) {
+      document_pip_active_ = true;
+      capturer_guard_ = web_contents()->IncrementCapturerCount(
+          gfx::Size(), /*stay_hidden=*/false, /*stay_awake=*/true,
+          /*is_activity=*/false);
     }
+    return;
+  }
+
+  const bool was_active = ClearDocumentPipState();
+  if (was_active) {
+    PictureInPictureWindowManager::GetInstance()->ExitPictureInPicture();
+  }
+}
+
+void DaoPipInterceptor::OnVisibilityChanged(content::Visibility visibility) {
+  if (visibility == content::Visibility::VISIBLE && document_pip_active_) {
+    CloseDocumentPip();
   }
 }
 

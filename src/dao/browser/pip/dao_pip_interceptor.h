@@ -39,6 +39,7 @@ class DaoPipInterceptor
   // content::WebContentsObserver:
   void DocumentOnLoadCompletedInPrimaryMainFrame() override;
   void MediaPictureInPictureChanged(bool is_picture_in_picture) override;
+  void OnVisibilityChanged(content::Visibility visibility) override;
 
  private:
   friend class content::WebContentsUserData<DaoPipInterceptor>;

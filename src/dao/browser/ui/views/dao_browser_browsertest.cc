@@ -5140,6 +5140,79 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       ReturningToOpenerRestoresDocumentPipTarget) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="bilibili-player">
+          <div id="dao-original-parent">
+            <div class="bpx-player-container" id="dao-pip-target">
+              <video id="dao-video" style="width:640px;height:360px"></video>
+            </div>
+          </div>
+        </div>`;
+      window.__daoCloseCount = 0;
+      const fakeDocumentPictureInPicture = {
+        window: null,
+        requestWindow: async () => {
+          const pipDocument = document.implementation.createHTMLDocument('');
+          const pipWindow = {
+            document: pipDocument,
+            pagehideHandlers: [],
+            addEventListener(type, handler) {
+              if (type === 'pagehide') {
+                this.pagehideHandlers.push(handler);
+              }
+            },
+            close() {
+              window.__daoCloseCount++;
+              const handlers = this.pagehideHandlers.splice(0);
+              handlers.forEach((handler) => handler.call(this,
+                  new Event('pagehide')));
+              fakeDocumentPictureInPicture.window = null;
+            },
+          };
+          fakeDocumentPictureInPicture.window = pipWindow;
+          return pipWindow;
+        },
+      };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: fakeDocumentPictureInPicture,
+      });
+      !!window.__daoTriggerDocumentPip;
+    )js"));
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+  base::test::TestFuture<bool> result;
+  interceptor->TriggerDocumentPip(result.GetCallback());
+  ASSERT_TRUE(result.Get());
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
+      document.getElementById('dao-original-parent').children.length === 0 &&
+          window.documentPictureInPicture.window.document.body
+              .querySelector('#dao-pip-target') !== null
+    )js"));
+
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  browser()->tab_strip_model()->ActivateTabAt(
+      browser()->tab_strip_model()->GetIndexOfWebContents(contents));
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(contents, "window.__daoCloseCount") == 1;
+  }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"js(
+      document.getElementById('dao-original-parent').firstElementChild ===
+          document.getElementById('dao-pip-target')
+    )js"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
                        TriggerIsIdempotentAndDoesNotDispatchVideoPipEvents) {
   GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -5513,6 +5586,86 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
     )js"));
 
   EXPECT_EQ(1, content::EvalJs(contents, "window.__daoPipEvents.leave"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
+                       ManualRequestRestoresTargetWhenReturningToOpener) {
+  GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
+      document.body.innerHTML = `
+        <div id="bilibili-player">
+          <div id="dao-manual-original-parent">
+            <div class="bpx-player-container" id="dao-manual-pip-target">
+              <video id="dao-manual-video"
+                     style="width:640px;height:360px"></video>
+            </div>
+          </div>
+        </div>`;
+      window.__daoManualCloseCount = 0;
+      const fakeDocumentPictureInPicture = {
+        window: null,
+        requestWindow: async () => {
+          const pipDocument = document.implementation.createHTMLDocument('');
+          const pipWindow = {
+            document: pipDocument,
+            pagehideHandlers: [],
+            addEventListener(type, handler) {
+              if (type === 'pagehide') {
+                this.pagehideHandlers.push(handler);
+              }
+            },
+            close() {
+              window.__daoManualCloseCount++;
+              const handlers = this.pagehideHandlers.splice(0);
+              handlers.forEach((handler) => handler.call(
+                  this, new Event('pagehide')));
+              fakeDocumentPictureInPicture.window = null;
+            },
+          };
+          fakeDocumentPictureInPicture.window = pipWindow;
+          return pipWindow;
+        },
+      };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: fakeDocumentPictureInPicture,
+      });
+      !!window.__daoPipOverrideInstalled;
+    )js"));
+
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
+      document.getElementById('dao-manual-video')
+          .requestPictureInPicture()
+          .then((pipWindow) => !!pipWindow)
+    )js"));
+  ASSERT_EQ(true, content::EvalJs(contents, R"js(
+      document.getElementById('dao-manual-original-parent')
+              .children.length === 0 &&
+          window.documentPictureInPicture.window.document.body
+              .querySelector('#dao-manual-pip-target') !== null
+    )js"));
+
+  auto* interceptor = dao::DaoPipInterceptor::FromWebContents(contents);
+  ASSERT_NE(nullptr, interceptor);
+  interceptor->MediaPictureInPictureChanged(true);
+
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  browser()->tab_strip_model()->ActivateTabAt(
+      browser()->tab_strip_model()->GetIndexOfWebContents(contents));
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(contents, "window.__daoManualCloseCount") == 1;
+  }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"js(
+      document.getElementById('dao-manual-original-parent')
+              .firstElementChild ===
+          document.getElementById('dao-manual-pip-target')
+    )js"));
 }
 
 // =============================================================================
