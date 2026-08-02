@@ -131,6 +131,7 @@ class DaoCommandBarView : public views::View,
   void UpdateGhostText();
   void PositionGhostText();
   void UpdateInputIcon();
+  void FillInput(const std::u16string& text);
 
   // Derives inline completion from the current default action only. This keeps
   // ghost text, auto-selection, and Enter submission aligned with browser
