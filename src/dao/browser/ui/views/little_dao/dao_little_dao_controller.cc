@@ -231,6 +231,7 @@ Browser* CreateLittleDaoBrowser(Profile* profile) {
   const gfx::Rect initial_bounds = GetInitialLittleDaoBounds(profile);
   params.initial_bounds = initial_bounds;
   params.can_resize = true;
+  params.can_maximize = false;
   params.can_fullscreen = false;
   params.omit_from_session_restore = true;
 

@@ -3954,6 +3954,40 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       ExternalUrlMiniDaoStaysWindowedFromFullscreen) {
+  ui::test::ScopedFakeNSWindowFullscreen fake_fullscreen_window;
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(GetBrowserView(browser())->IsFullscreen());
+
+  BrowserAddedRecorder added_recorder;
+  base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
+  StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
+                                   chrome::startup::IsFirstRun::kNo);
+  Browser* little_dao_browser = launch.OpenURLsInBrowser(
+      browser(), chrome::startup::IsProcessStartup::kNo,
+      {GURL("data:text/plain,external-from-fullscreen")});
+
+  ASSERT_EQ(1u, added_recorder.added_count());
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_TRUE(
+      dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  EXPECT_FALSE(little_browser_view->IsFullscreen());
+  EXPECT_FALSE(little_browser_view->CanFullscreen());
+  EXPECT_FALSE(little_browser_view->CanMaximize());
+  EXPECT_FALSE(chrome::IsCommandEnabled(little_dao_browser, IDC_FULLSCREEN));
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  EXPECT_FALSE(GetBrowserView(browser())->IsFullscreen());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
                        ExternalUrlsOpenSeparateLittleDaoWindows) {
   TabStripModel* model = browser()->tab_strip_model();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);

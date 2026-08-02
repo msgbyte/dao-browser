@@ -248,6 +248,7 @@ Lightweight window form factor for popups / mini-tools.
 
 - **DaoLittleDaoController** / **DaoLittleDaoView** (`little_dao/`) — Top bar (48px) with hostname display + "Open in Dao" button
 - **Browser::Create timing control** — Static-flag pattern (`IsCreatingLittleDao()`) to pass state into BrowserView during construction
+- **Permanently windowed** — Mini Dao disables browser fullscreen commands and macOS native maximize/fullscreen eligibility, including when an external link creates it while the main Dao window is fullscreen
 - macOS traffic-light repositioning
 
 ## 8. Webstore Branding
