@@ -809,24 +809,21 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
     return true;
   }
 
-  // Right arrow: accept ghost text when cursor is at end of user input
+  // Right arrow: fill the explicitly selected suggestion, or accept the
+  // default ghost completion, when the cursor is at the end of the input.
   if (key_event.key_code() == ui::VKEY_RIGHT) {
-    if (!inline_autocompletion_.empty()) {
-      size_t cursor_pos = sender->GetCursorPosition();
-      if (cursor_pos == user_input_text_.length()) {
-        // Accept the inline autocompletion into the textfield
-        user_input_text_ = user_input_text_ + inline_autocompletion_;
-        inline_autocompletion_.clear();
-        ghost_text_label_->SetVisible(false);
-        updating_textfield_ = true;
-        sender->SetText(user_input_text_);
-        sender->SetSelectedRange(gfx::Range(user_input_text_.length()));
-        updating_textfield_ = false;
-        last_text_length_ = user_input_text_.length();
-        selected_index_ = -1;
-        selection_explicitly_changed_ = false;
-        suppress_ghost_for_current_query_ = false;
-        StartAutocomplete(user_input_text_);
+    if (sender->GetCursorPosition() == user_input_text_.length()) {
+      if (selection_explicitly_changed_) {
+        if (const AutocompleteMatch* selected_match =
+                GetSelectedVisibleAutocompleteMatch();
+            selected_match && !selected_match->fill_into_edit.empty()) {
+          FillInput(selected_match->fill_into_edit);
+          return true;
+        }
+      }
+
+      if (!inline_autocompletion_.empty()) {
+        FillInput(user_input_text_ + inline_autocompletion_);
         return true;
       }
     }
@@ -837,6 +834,21 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
   }
 
   return false;
+}
+
+void DaoCommandBarView::FillInput(const std::u16string& text) {
+  user_input_text_ = text;
+  inline_autocompletion_.clear();
+  ghost_text_label_->SetVisible(false);
+  updating_textfield_ = true;
+  textfield_->SetText(user_input_text_);
+  textfield_->SetSelectedRange(gfx::Range(user_input_text_.length()));
+  updating_textfield_ = false;
+  last_text_length_ = user_input_text_.length();
+  selected_index_ = -1;
+  selection_explicitly_changed_ = false;
+  suppress_ghost_for_current_query_ = false;
+  StartAutocomplete(user_input_text_);
 }
 
 void DaoCommandBarView::OnResultChanged(AutocompleteController* controller,

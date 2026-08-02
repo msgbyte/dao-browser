@@ -92,7 +92,7 @@ sidebar, insets + rounds the content area, and re-homes the toolbar off-screen.
 |---|---------|--------------------|------|----------------------|
 | ☐ | Cmd+T in sidebar window shows command bar instead of blank tab | `chrome/browser/ui/browser_commands.cc.patch` (`NewTab()` hook) | 🔴 | Cmd+T shows command bar; programmatic/restore new-tabs still create real tabs |
 | ☐ | Cmd+L pre-fills current URL | `views/frame/browser_view.cc.patch` (`SetFocusToLocationBar` redirect) | 🔴 | Cmd+L opens command bar with URL |
-| ☐ | Command bar UI + suggestions + Ask AI | `src/dao/.../dao_command_bar_view.*`, `dao_suggestion_item_view.*` | — | Arrow-key select, Tab-complete, Esc dismiss; Ask AI routes to agent |
+| ☐ | Command bar UI + suggestions + Ask AI | `src/dao/.../dao_command_bar_view.*`, `dao_suggestion_item_view.*` | `DaoCommandBarBrowserTest.RightArrowFillsExplicitlySelectedSuggestion` | Arrow-key select; Right Arrow fills the explicitly selected suggestion without navigating; Tab-complete; Esc dismiss; Ask AI routes to agent |
 
 ## 3. AI Agent System
 

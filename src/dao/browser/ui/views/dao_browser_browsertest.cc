@@ -3225,6 +3225,56 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       RightArrowFillsExplicitlySelectedSuggestion) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git",
+                                                             u"hub.com");
+
+  AutocompleteMatch default_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  default_match.allowed_to_be_default_match = true;
+  default_match.fill_into_edit = u"github.com";
+  default_match.contents = u"github.com";
+  default_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  default_match.destination_url = GURL("https://github.com/");
+  default_match.inline_autocompletion = u"hub.com";
+
+  AutocompleteMatch selected_match(nullptr, 900, false,
+                                   AutocompleteMatchType::HISTORY_URL);
+  selected_match.fill_into_edit = u"github.com/settings/profile";
+  selected_match.contents = u"github.com/settings/profile";
+  selected_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  selected_match.destination_url = GURL("https://github.com/settings/profile");
+
+  command_bar->SetAutocompleteMatchesForTesting(
+      ACMatches{default_match, selected_match},
+      /*autocomplete_done=*/true);
+  ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  ASSERT_EQ(1, command_bar->GetSelectedIndexForTesting());
+
+  const int tab_count = browser()->tab_strip_model()->count();
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RIGHT);
+
+  EXPECT_EQ(u"github.com/settings/profile", textfield->GetText());
+  EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
+  EXPECT_TRUE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnterSubmitsTypedInputWhenSelectionIsAutomatic) {
   ASSERT_TRUE(embedded_test_server()->Start());
 

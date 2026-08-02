@@ -67,7 +67,8 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   - Cmd+T → `ShowForNewTab(prev)` opens blank tab, remembers previous tab; Esc / click-outside calls `CancelNewTab()` to close the blank and return
   - **Ask AI** — Submits prompt directly to the Agent
   - URL-vs-query detection heuristics + ghost-text completion
-  - Keyboard-first: arrow keys to select, Tab to complete, Esc to dismiss
+  - Keyboard-first: arrow keys to select, Right Arrow to fill the selected
+    suggestion into the input, Tab to complete, Esc to dismiss
 - **DaoSuggestionItemView** (`dao_suggestion_item_view.{h,cc}`) — Suggestion row
 - **DaoNewTabButton** also routes through `ShowForNewTab()` with the recorded previous index
 
