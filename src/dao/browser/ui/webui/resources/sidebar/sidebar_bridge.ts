@@ -122,6 +122,8 @@ export interface ActiveDownloadData {
   name: string;
   percent: number;
   speed: string;
+  sizeDetail: string;
+  statusDetail: string;
 }
 
 export interface DownloadState {

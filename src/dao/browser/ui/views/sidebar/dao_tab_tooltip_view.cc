@@ -4,6 +4,8 @@
 
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 
+#include <algorithm>
+
 #include "cc/paint/paint_flags.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -22,6 +24,9 @@ namespace {
 constexpr int kTooltipPaddingH = 10;
 constexpr int kTooltipPaddingV = 6;
 constexpr int kTitleFontSize = 12;
+constexpr int kDetailFontSize = 11;
+constexpr int kLineGap = 4;
+constexpr int kAnchorGap = 8;
 constexpr int kMaxWidth = 320;
 constexpr float kCornerRadius = 8.0f;
 }  // namespace
@@ -45,6 +50,20 @@ DaoTabTooltipView::DaoTabTooltipView() {
   title_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   title_label_->SetMaximumWidthSingleLine(kMaxWidth - 2 * kTooltipPaddingH);
 
+  auto create_detail_label = [this]() {
+    auto label = std::make_unique<views::Label>();
+    label->SetFontList(gfx::FontList().DeriveWithSizeDelta(
+        kDetailFontSize - gfx::FontList().GetFontSize()));
+    label->SetEnabledColor(ToastTextColor());
+    label->SetBackgroundColor(SK_ColorTRANSPARENT);
+    label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    label->SetMaximumWidthSingleLine(kMaxWidth - 2 * kTooltipPaddingH);
+    label->SetVisible(false);
+    return AddChildView(std::move(label));
+  };
+  detail_label_1_ = create_detail_label();
+  detail_label_2_ = create_detail_label();
+
   native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
   ApplyTheme();
 }
@@ -56,31 +75,101 @@ void DaoTabTooltipView::ApplyTheme() {
   if (title_label_) {
     title_label_->SetEnabledColor(ToastTextColor());
   }
+  if (detail_label_1_) {
+    detail_label_1_->SetEnabledColor(ToastTextColor());
+  }
+  if (detail_label_2_) {
+    detail_label_2_->SetEnabledColor(ToastTextColor());
+  }
 }
 
-void DaoTabTooltipView::OnNativeThemeUpdated(
-    ui::NativeTheme* observed_theme) {
+void DaoTabTooltipView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
   ApplyTheme();
   SchedulePaint();
 }
 
 void DaoTabTooltipView::ShowTooltip(const std::u16string& title,
-                                     const gfx::Point& anchor) {
+                                    const gfx::Point& anchor) {
   ApplyTheme();
+  title_label_->SetMultiLine(false);
+  title_label_->SetAllowCharacterBreak(false);
+  title_label_->SetMaximumWidthSingleLine(kMaxWidth - 2 * kTooltipPaddingH);
   title_label_->SetText(title);
+  detail_label_1_->SetVisible(false);
+  detail_label_2_->SetVisible(false);
   anchor_point_ = anchor;
 
-  // Calculate preferred size.
-  gfx::Size title_size = title_label_->GetPreferredSize();
-  int total_width =
-      std::min(kMaxWidth, title_size.width() + 2 * kTooltipPaddingH + 4);
-  int total_height = kTooltipPaddingV + title_size.height() + kTooltipPaddingV;
-  SetPreferredSize(gfx::Size(total_width, total_height));
+  UpdatePreferredSize();
 
   SetVisible(true);
   if (parent()) {
     parent()->InvalidateLayout();
   }
+}
+
+void DaoTabTooltipView::ShowDetailedTooltip(
+    const std::u16string& title,
+    const std::vector<std::u16string>& details,
+    const gfx::Point& anchor) {
+  ApplyTheme();
+  title_label_->SetMultiLine(true);
+  title_label_->SetAllowCharacterBreak(true);
+  title_label_->SetMaximumWidth(kMaxWidth - 2 * kTooltipPaddingH);
+  title_label_->SetText(title);
+  anchor_point_ = anchor;
+
+  auto set_detail = [&details](views::Label* label, size_t index) {
+    const std::u16string detail =
+        index < details.size() ? details.at(index) : std::u16string();
+    label->SetVisible(!detail.empty());
+    label->SetText(detail);
+  };
+  set_detail(detail_label_1_, 0);
+  set_detail(detail_label_2_, 1);
+
+  UpdatePreferredSize();
+  if (parent()) {
+    anchor_point_ = GetBoundsWithin(parent()->GetLocalBounds()).origin();
+  }
+
+  SetVisible(true);
+  if (parent()) {
+    parent()->InvalidateLayout();
+  }
+}
+
+gfx::Rect DaoTabTooltipView::GetBoundsWithin(
+    const gfx::Rect& available_bounds) const {
+  gfx::Rect bounds(anchor_point_, GetPreferredSize());
+  if (bounds.bottom() > available_bounds.bottom()) {
+    bounds.set_y(anchor_point_.y() - bounds.height() - kAnchorGap);
+  }
+  bounds.AdjustToFit(available_bounds);
+  return bounds;
+}
+
+void DaoTabTooltipView::UpdatePreferredSize() {
+  views::Label* labels[] = {title_label_, detail_label_1_, detail_label_2_};
+  int content_width = 0;
+  int content_height = 0;
+  int visible_count = 0;
+  for (views::Label* label : labels) {
+    if (!label->GetVisible()) {
+      continue;
+    }
+    const gfx::Size size = label->GetPreferredSize();
+    content_width = std::max(content_width, size.width());
+    content_height += size.height();
+    ++visible_count;
+  }
+  if (visible_count > 1) {
+    content_height += (visible_count - 1) * kLineGap;
+  }
+
+  const int total_width =
+      std::min(kMaxWidth, content_width + 2 * kTooltipPaddingH + 4);
+  const int total_height = kTooltipPaddingV + content_height + kTooltipPaddingV;
+  SetPreferredSize(gfx::Size(total_width, total_height));
 }
 
 void DaoTabTooltipView::HideTooltip() {
@@ -96,10 +185,10 @@ void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
   auto make_path = [](const gfx::RectF& r, float radius) {
     // radii: top-left, top-right, bottom-right, bottom-left
     const SkVector radii[4] = {
-        {0, 0},               // top-left: sharp
-        {radius, radius},     // top-right
-        {radius, radius},     // bottom-right
-        {radius, radius},     // bottom-left
+        {0, 0},            // top-left: sharp
+        {radius, radius},  // top-right
+        {radius, radius},  // bottom-right
+        {radius, radius},  // bottom-left
     };
     return SkPathBuilder()
         .addRRect(SkRRect::MakeRectRadii(
@@ -113,8 +202,8 @@ void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
     float expand = i * 1.0f;
     float alpha = 15.0f * (kShadowSteps - i + 1) / kShadowSteps;
     gfx::RectF shadow_rect(bounds.x() - expand, bounds.y() - expand + 0.5f,
-                            bounds.width() + 2 * expand,
-                            bounds.height() + 2 * expand);
+                           bounds.width() + 2 * expand,
+                           bounds.height() + 2 * expand);
     cc::PaintFlags shadow_flags;
     shadow_flags.setAntiAlias(true);
     shadow_flags.setStyle(cc::PaintFlags::kFill_Style);
@@ -131,14 +220,21 @@ void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
   bg_flags.setStyle(cc::PaintFlags::kFill_Style);
   canvas->DrawPath(make_path(bounds, kCornerRadius), bg_flags);
 
-  // Position label.
-  gfx::Size title_size = title_label_->GetPreferredSize();
-  int label_x = static_cast<int>(bounds.x()) + kTooltipPaddingH;
-  int label_max_w = static_cast<int>(bounds.width()) - 2 * kTooltipPaddingH;
+  // Position visible labels.
+  const int label_x = static_cast<int>(bounds.x()) + kTooltipPaddingH;
+  const int label_max_w =
+      static_cast<int>(bounds.width()) - 2 * kTooltipPaddingH;
   int y = static_cast<int>(bounds.y()) + kTooltipPaddingV;
-
-  title_label_->SetBoundsRect(
-      gfx::Rect(label_x, y, label_max_w, title_size.height()));
+  views::Label* labels[] = {title_label_, detail_label_1_, detail_label_2_};
+  for (views::Label* label : labels) {
+    if (!label->GetVisible()) {
+      label->SetBoundsRect(gfx::Rect());
+      continue;
+    }
+    const int label_height = label->GetPreferredSize().height();
+    label->SetBoundsRect(gfx::Rect(label_x, y, label_max_w, label_height));
+    y += label_height + kLineGap;
+  }
 }
 
 }  // namespace dao

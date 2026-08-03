@@ -250,6 +250,12 @@ export class DaoDownloadButton extends CrLitElement {
   private dragStartX_: number = 0;
   private dragStartY_: number = 0;
   private readonly DRAG_THRESHOLD_ = 5;
+  private tooltipTimer_: number = 0;
+  private tooltipScheduled_: boolean = false;
+  private tooltipVisible_: boolean = false;
+  private hoveredDownloadId_: number = -1;
+  private lastMouseX_: number = 0;
+  private lastMouseY_: number = 0;
 
   constructor() {
     super();
@@ -263,13 +269,18 @@ export class DaoDownloadButton extends CrLitElement {
     addListener('downloadStateChanged', (...args: unknown[]) => {
       const state = args[0] as DownloadState;
       this.recentFiles_ = state.recentFiles;
-      this.activeDownloads_ = state.activeDownloads;
+      this.setActiveDownloads_(state.activeDownloads);
     });
 
     addListener('activeDownloadsChanged', (...args: unknown[]) => {
       const downloads = args[0] as ActiveDownloadData[];
-      this.activeDownloads_ = downloads;
+      this.setActiveDownloads_(downloads);
     });
+  }
+
+  override disconnectedCallback() {
+    this.clearDownloadTooltip_(true);
+    super.disconnectedCallback?.();
   }
 
   override render() {
@@ -277,7 +288,10 @@ export class DaoDownloadButton extends CrLitElement {
       ${this.activeDownloads_.length > 0 ? html`
         <div class="active-downloads">
           ${this.activeDownloads_.map(dl => html`
-            <div class="active-item">
+            <div class="active-item"
+                 @mousemove=${(e: MouseEvent) =>
+                     this.onDownloadMouseMove_(e, dl.id)}
+                 @mouseleave=${() => this.onDownloadMouseLeave_()}>
               <svg class="active-icon" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2"
                    stroke-linecap="round" stroke-linejoin="round">
@@ -399,7 +413,59 @@ export class DaoDownloadButton extends CrLitElement {
   }
 
   private onCancelDownload_(id: number) {
+    if (this.hoveredDownloadId_ === id) {
+      this.clearDownloadTooltip_(true);
+    }
     sendNative('cancelDownload', id);
+  }
+
+  private setActiveDownloads_(downloads: ActiveDownloadData[]) {
+    if (this.hoveredDownloadId_ >= 0 &&
+        !downloads.some(download => download.id === this.hoveredDownloadId_)) {
+      this.clearDownloadTooltip_(true);
+    }
+    this.activeDownloads_ = downloads;
+  }
+
+  private onDownloadMouseMove_(e: MouseEvent, id: number) {
+    if (this.tooltipTimer_) {
+      window.clearTimeout(this.tooltipTimer_);
+    }
+    this.hoveredDownloadId_ = id;
+    this.lastMouseX_ = e.screenX;
+    this.lastMouseY_ = e.screenY;
+    this.tooltipScheduled_ = true;
+    this.tooltipTimer_ = window.setTimeout(() => {
+      this.tooltipTimer_ = 0;
+      this.tooltipScheduled_ = false;
+      const download = this.activeDownloads_.find(item => item.id === id);
+      if (!download || this.hoveredDownloadId_ !== id) {
+        return;
+      }
+      this.tooltipVisible_ = true;
+      sendNative(
+          'showDownloadTooltip', this.lastMouseX_ + 4, this.lastMouseY_ + 4,
+          download.name, download.sizeDetail, download.statusDetail);
+    }, 400);
+  }
+
+  private onDownloadMouseLeave_() {
+    this.clearDownloadTooltip_(true);
+  }
+
+  private clearDownloadTooltip_(sendHide: boolean) {
+    const shouldHide = sendHide &&
+        (this.tooltipScheduled_ || this.tooltipVisible_);
+    if (this.tooltipTimer_) {
+      window.clearTimeout(this.tooltipTimer_);
+      this.tooltipTimer_ = 0;
+    }
+    this.tooltipScheduled_ = false;
+    this.tooltipVisible_ = false;
+    this.hoveredDownloadId_ = -1;
+    if (shouldHide) {
+      sendNative('hideTabTooltip');
+    }
   }
 }
 
