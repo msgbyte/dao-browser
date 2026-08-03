@@ -142,6 +142,7 @@
 #include "dao/browser/ui/views/little_dao/dao_mini_dao_download_card_view.h"
 #include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
 #include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
+#include "dao/browser/ui/views/sidebar/dao_download_hover_details.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
@@ -8922,6 +8923,72 @@ IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, ShowSetsAnchor) {
   EXPECT_EQ(gfx::Point(120, 30), tooltip.anchor_point());
 }
 
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       DetailedModeShowsTwoDetailLines) {
+  DaoTabTooltipView tooltip;
+  tooltip.ShowTooltip(u"archive.zip", gfx::Point(120, 30));
+  const int title_only_height = tooltip.GetPreferredSize().height();
+
+  tooltip.ShowDetailedTooltip(
+      u"archive.zip",
+      {u"12.0 MB of 100 MB - 12%", u"2.0 MB/s - 44 secs left"},
+      gfx::Point(124, 34));
+
+  EXPECT_TRUE(tooltip.GetVisible());
+  EXPECT_EQ(gfx::Point(124, 34), tooltip.anchor_point());
+  ASSERT_EQ(3u, tooltip.children().size());
+  EXPECT_TRUE(tooltip.children()[1]->GetVisible());
+  EXPECT_TRUE(tooltip.children()[2]->GetVisible());
+  EXPECT_GT(tooltip.GetPreferredSize().height(), title_only_height);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       DetailedModeFlipsAboveBottomEdge) {
+  DaoTabTooltipView tooltip;
+  tooltip.ShowDetailedTooltip(
+      u"archive.zip",
+      {u"12.0 MB of 100 MB - 12%", u"2.0 MB/s - 44 secs left"},
+      gfx::Point(120, 190));
+
+  const gfx::Rect bounds =
+      tooltip.GetBoundsWithin(gfx::Rect(0, 0, 300, 200));
+
+  EXPECT_LE(bounds.bottom(), 200);
+  EXPECT_LT(bounds.y(), tooltip.anchor_point().y());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       DetailedModeWrapsLongFilename) {
+  DaoTabTooltipView tooltip;
+  tooltip.ShowDetailedTooltip(
+      u"archive.zip", {u"12.0 MB of 100 MB - 12%"}, gfx::Point(120, 30));
+  const int short_title_height = tooltip.GetPreferredSize().height();
+
+  tooltip.ShowDetailedTooltip(
+      u"quarterly-financial-report-with-supporting-documents-and-"
+      u"high-resolution-product-screenshots-for-the-entire-team.zip",
+      {u"12.0 MB of 100 MB - 12%"}, gfx::Point(120, 30));
+
+  EXPECT_GT(tooltip.GetPreferredSize().height(), short_title_height);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       TitleOnlyModeHidesPreviousDetailLines) {
+  DaoTabTooltipView tooltip;
+  tooltip.ShowDetailedTooltip(
+      u"archive.zip",
+      {u"12.0 MB of 100 MB - 12%", u"2.0 MB/s - 44 secs left"},
+      gfx::Point(124, 34));
+  const int detailed_height = tooltip.GetPreferredSize().height();
+
+  tooltip.ShowTooltip(u"Some Tab Title", gfx::Point(120, 30));
+
+  ASSERT_EQ(3u, tooltip.children().size());
+  EXPECT_FALSE(tooltip.children()[1]->GetVisible());
+  EXPECT_FALSE(tooltip.children()[2]->GetVisible());
+  EXPECT_LT(tooltip.GetPreferredSize().height(), detailed_height);
+}
+
 IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, HideMakesInvisible) {
   DaoTabTooltipView tooltip;
   tooltip.ShowTooltip(u"x", gfx::Point(0, 0));
@@ -8951,6 +9018,41 @@ IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
 
   EXPECT_EQ(dao::ToastTextColor(), label->GetEnabledColor());
   EXPECT_EQ(SkColorSetRGB(35, 35, 40), label->GetEnabledColor());
+
+  tooltip.ShowDetailedTooltip(
+      u"archive.zip",
+      {u"12.0 MB of 100 MB - 12%", u"2.0 MB/s - 44 secs left"},
+      gfx::Point(124, 34));
+  ASSERT_EQ(3u, tooltip.children().size());
+  for (views::View* child : tooltip.children()) {
+    auto* detail_label = static_cast<views::Label*>(child);
+    EXPECT_EQ(dao::ToastTextColor(), detail_label->GetEnabledColor());
+  }
+}
+
+// =============================================================================
+// DaoDownloadHoverDetailsBrowserTest
+// =============================================================================
+
+using DaoDownloadHoverDetailsBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoDownloadHoverDetailsBrowserTest,
+                       FormatsKnownProgressDetails) {
+  const DownloadHoverDetails details = BuildDownloadHoverDetails(
+      12 * 1024 * 1024, 100 * 1024 * 1024, 12, 2 * 1024 * 1024,
+      base::Seconds(44));
+
+  EXPECT_EQ(u"12.0 MB of 100 MB - 12%", details.size_line);
+  EXPECT_EQ(u"2.0 MB/s - 44 secs left", details.status_line);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDownloadHoverDetailsBrowserTest,
+                       OmitsUnknownProgressDetails) {
+  const DownloadHoverDetails unknown_total = BuildDownloadHoverDetails(
+      12 * 1024 * 1024, 0, 25, 0, std::nullopt);
+
+  EXPECT_EQ(u"12.0 MB", unknown_total.size_line);
+  EXPECT_TRUE(unknown_total.status_line.empty());
 }
 
 // =============================================================================

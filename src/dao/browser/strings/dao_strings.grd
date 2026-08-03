@@ -223,6 +223,9 @@
       <message name="IDS_DAO_UPDATE_APPLYING_ACTION" desc="Transient label for the sidebar update button after the user clicks it and Dao starts applying the update.">
         Applying
       </message>
+      <message name="IDS_DAO_DOWNLOAD_HOVER_VALUE_WITH_DETAIL" desc="Combines two related download progress values in the sidebar hover popup, such as transferred size and percentage or speed and time remaining.">
+        <ph name="VALUE">$1<ex>12 MB of 100 MB</ex></ph> - <ph name="DETAIL">$2<ex>12%</ex></ph>
+      </message>
       <message name="IDS_DAO_CHECK_FOR_UPDATES_MENU" desc="Menu item in the macOS application menu that opens Dao Browser's Sparkle update checker. Uses title case to match neighboring macOS app menu commands.">
         Check for Updates...
       </message>

@@ -75,6 +75,13 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 ### 1.6 Downloads (sidebar-anchored)
 - **DaoDownloadFlyoutView** (`sidebar/dao_download_flyout_view.{h,cc}`) — Anchored flyout panel
 - **DaoFileIconUtilMac** (`sidebar/dao_file_icon_util_mac.{h,mm}`) — Native macOS file icon retrieval
+- **Active-download hover details** — After a settled 400ms hover, an active
+  download row reuses the native sidebar tooltip to show the full filename,
+  transferred/total size, percentage, current speed, and reliable remaining
+  time. Long filenames wrap in detailed mode, and the popup flips above its
+  anchor when needed to remain inside the browser window. Unknown totals,
+  percentages, speeds, and estimates are omitted rather than replaced with
+  misleading values; leaving or removing the row hides the popup immediately.
 
 ### 1.7 Content Area Styling
 - **DaoCornerOverlayView** (`dao_corner_overlay_view.{h,cc}`) — 10px rounded corners + 6-step soft shadow overlay on web contents

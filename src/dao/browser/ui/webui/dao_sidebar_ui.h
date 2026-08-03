@@ -236,6 +236,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleShowFolderContextMenu(const base::ListValue& args);
   void HandleShowClearStaleTabsDialog(const base::ListValue& args);
   void HandleShowTabTooltip(const base::ListValue& args);
+  void HandleShowDownloadTooltip(const base::ListValue& args);
   void HandleHideTabTooltip(const base::ListValue& args);
 
   // Media playback control handlers.

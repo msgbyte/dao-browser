@@ -66,6 +66,7 @@
 #include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
+#include "dao/browser/ui/views/sidebar/dao_download_hover_details.h"
 #include "dao/browser/ui/views/sidebar/dao_file_icon_util_mac.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
@@ -746,6 +747,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "showTabTooltip",
       base::BindRepeating(&DaoSidebarUIHandler::HandleShowTabTooltip,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "showDownloadTooltip",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleShowDownloadTooltip,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "hideTabTooltip",
@@ -2006,8 +2011,19 @@ base::ListValue DaoSidebarUIHandler::BuildActiveDownloadList() {
     base::DictValue d;
     d.Set("id", static_cast<int>(item->GetId()));
     d.Set("name", item->GetFileNameToReportUser().BaseName().value());
-    d.Set("percent", item->PercentComplete());
+    const int percent = item->PercentComplete();
+    d.Set("percent", percent);
     d.Set("speed", FormatSpeed(item->CurrentSpeed()));
+    base::TimeDelta remaining;
+    std::optional<base::TimeDelta> remaining_value;
+    if (item->TimeRemaining(&remaining) && remaining.is_positive()) {
+      remaining_value = remaining;
+    }
+    const DownloadHoverDetails details = BuildDownloadHoverDetails(
+        item->GetReceivedBytes(), item->GetTotalBytes(), percent,
+        item->CurrentSpeed(), remaining_value);
+    d.Set("sizeDetail", base::UTF16ToUTF8(details.size_line));
+    d.Set("statusDetail", base::UTF16ToUTF8(details.status_line));
     active.Append(std::move(d));
   }
   return active;
@@ -2743,6 +2759,39 @@ void DaoSidebarUIHandler::HandleShowTabTooltip(const base::ListValue& args) {
   views::View::ConvertPointFromScreen(bv, &anchor);
 
   bv->dao_tab_tooltip()->ShowTooltip(base::UTF8ToUTF16(*title_str), anchor);
+  bv->InvalidateLayout();
+}
+
+void DaoSidebarUIHandler::HandleShowDownloadTooltip(
+    const base::ListValue& args) {
+  if (!browser_ || args.size() != 5) {
+    return;
+  }
+  const std::optional<int> screen_x = args[0].GetIfInt();
+  const std::optional<int> screen_y = args[1].GetIfInt();
+  const std::string* title = args[2].GetIfString();
+  const std::string* size_detail = args[3].GetIfString();
+  const std::string* status_detail = args[4].GetIfString();
+  if (!screen_x || !screen_y || !title || !size_detail || !status_detail) {
+    return;
+  }
+
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!bv || !bv->dao_tab_tooltip()) {
+    return;
+  }
+
+  gfx::Point anchor(*screen_x, *screen_y);
+  views::View::ConvertPointFromScreen(bv, &anchor);
+  std::vector<std::u16string> details;
+  if (!size_detail->empty()) {
+    details.push_back(base::UTF8ToUTF16(*size_detail));
+  }
+  if (!status_detail->empty()) {
+    details.push_back(base::UTF8ToUTF16(*status_detail));
+  }
+  bv->dao_tab_tooltip()->ShowDetailedTooltip(
+      base::UTF8ToUTF16(*title), details, anchor);
   bv->InvalidateLayout();
 }
 
