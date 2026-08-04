@@ -17,7 +17,7 @@ Dao isn't a browser with an AI extension bolted on — the **AI Agent is a first
 - **Tool-calling agent** that can read, click, scroll, and navigate live pages on your behalf — with an animated cursor + tab-lock banner so you always see what it's doing
 - **Long-term memory** (SQLite + FTS5) across episodic and semantic stores — Dao remembers what you've worked on, not just what's in the current tab
 - **Proactive suggestions** triggered by navigation — Dao notices when a page matches a scenario you've taught it, then offers to act
-- **Skill system** — extend the agent with reusable skills; manage them from `chrome://dao-agent/skills`
+- **Skill system** — extend the agent with reusable skills; manage them from `dao://skills`
 - **Ask AI from the command bar** (Cmd+L) — turn any thought into an agent task without leaving the keyboard
 - **Page → Markdown capture** and **share-card generation** baked into the chat surface
 
@@ -25,7 +25,7 @@ Learn more at [dao.msgbyte.com/agent](https://dao.msgbyte.com/agent).
 
 ### Other Highlights
 
-- **Vertical Tab Sidebar** — Arc-style collapsible sidebar with spaces, favorites, and dual-line active tabs
+- **Vertical Tab Sidebar** — Arc-style collapsible sidebar with folders, favorites, and dual-line active tabs
 - **Spotlight Command Bar** — translucent floating command bar with ghost-text completion + Ask AI integration
 - **Picture-in-Picture & Split View** — keep content where you need it
 - **Calm Minimalism** — chrome recedes so the web page (and the agent) is the focal point

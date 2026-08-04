@@ -112,12 +112,16 @@ The agent-lock surface floats over the brand overlay; values are tuned so the br
 | Dot color (alpha applied by caller) | white base | black base | `AgentLockDotColor()` |
 | Mist gradient step `n` | `rgba(255, 255, 255, 10 + 10n)` | `rgba(0, 0, 0, 10 + 10n)` | `AgentLockMistColor(step)` |
 
-### 1.8 Spaces
+### 1.8 Reserved Workspace Indicator Tokens
+
+These color helpers remain available for a possible future workspace indicator.
+No currently shipped sidebar feature exposes Spaces, so product documentation
+must not present them as available functionality.
 
 | Purpose | Light mode | Dark mode | C++ Function |
 |---------|------------|-----------|--------------|
-| Active space dot | `rgb(70, 120, 190)` (accent) | same | `SpaceActive()` |
-| Inactive space dot | `rgba(30, 20, 40, 0.24)` (60/255) | `rgba(255, 255, 255, 0.24)` | `SpaceInactive()` |
+| Active workspace indicator | `rgb(70, 120, 190)` (accent) | same | `SpaceActive()` |
+| Inactive workspace indicator | `rgba(30, 20, 40, 0.24)` (60/255) | `rgba(255, 255, 255, 0.24)` | `SpaceInactive()` |
 
 ### 1.9 InkDrop
 
@@ -149,7 +153,7 @@ The content area does NOT use Dao's theme tokens. It dynamically adopts the **we
 
 - **Never use full-opacity white or black for backgrounds in chrome.** Use alpha-tinted surfaces (4–16%).
 - **Never use pure black `rgb(0,0,0)` for text.** Light mode uses `rgb(30, 20, 40)` — slightly purple, slightly warm.
-- **Accent is for active/interactive states only.** Active tab indicator, focused space, drop zone, divider hover, active pane outline. Do not use it for passive decoration.
+- **Accent is for active/interactive states only.** Active tab indicator, drop zone, divider hover, active pane outline, and any future focused workspace indicator. Do not use it for passive decoration.
 - **Every color is a function call.** Never cache a `SkColor` across a paint — the user can flip dark mode at any time.
 - **In WebUI, mirror the same hierarchy** but with media-query overrides; see §10.
 
@@ -331,7 +335,7 @@ All icons come from **[Lucide](https://lucide.dev/)**. No custom icon paths, no 
 ### 7.2 Active / Pressed
 
 - Background: surface tint at 10–14% opacity.
-- For accent items (active tab, focused space): use the accent at 100% (or `kActiveTabBackground` for the tab body).
+- For accent items such as the active tab, use the accent at 100% (or `kActiveTabBackground` for the tab body).
 
 ### 7.3 Focus
 
@@ -512,8 +516,8 @@ All theme-aware colors are **functions** declared in `src/dao/browser/ui/views/d
 | `ActiveTabBackground()` | `rgba(±,0.08)` | Selected tab, surface |
 | `SeparatorColor()` | alias of surface | Dividers |
 | `AddressBarBackground()` | `rgba(±,0.06)` | URL pill |
-| `SpaceActive()` | `rgb(70,120,190)` | Active space dot |
-| `SpaceInactive()` | 24% base ink | Inactive space dot |
+| `SpaceActive()` | `rgb(70,120,190)` | Reserved active workspace indicator |
+| `SpaceInactive()` | 24% base ink | Reserved inactive workspace indicator |
 | `InkDropBase()` | `BLACK` / `WHITE` | Ripple base |
 | `InkDropOpacity()` | `0.04f` / `0.06f` | Ripple opacity |
 | `CommandBarScrim()` | `rgba(0,0,0,0.31)` / `0.47` | Command bar backdrop |
@@ -607,7 +611,7 @@ Dark mode (text on `rgb(54,59,64)`):
 
 - The browser chrome should disappear. Content is king — whether the page is light or dark.
 - The sidebar is a tool, not a destination. It collapses to 4px when not needed.
-- Blue accent is used sparingly — it should feel deliberate, not overwhelming. Active tab, focused space, drop zone, divider hover, active pane outline.
+- Blue accent is used sparingly — it should feel deliberate, not overwhelming. Active tab, drop zone, divider hover, active pane outline, and any future focused workspace indicator.
 - Every UI element earns its space. No decorative chrome, no gratuitous ornamentation.
 - System fonts, not custom fonts. The browser should feel native to macOS.
 - Interactions are instant and responsive. No animation exceeds 300ms.

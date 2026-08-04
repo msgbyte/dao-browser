@@ -152,7 +152,7 @@ git apply ../../src/patches/<path>.patch && echo OK
 
 **Rules for patch resolution:**
 
-- **Never run bare `npm run export`.** It rewrites all ~166 patches (stripping
+- **Never run bare `npm run export`.** It rewrites the complete tracked patch set (stripping
   semantically-significant trailing whitespace → "corrupt patch at line N") and falsely
   creates patches for branding-managed files. Always scope: `npm run export -- <file>`.
 - **If `npm run export` corrupts a patch** (trailing-whitespace stripping), fall back to

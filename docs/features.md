@@ -1,6 +1,8 @@
 # Dao Browser Feature Inventory
 
-> This document catalogs all features Dao Browser adds on top of Chromium 149.0.7827.201. Dao-owned code lives in `src/dao/`; Chromium integration patches live in `src/patches/`.
+> This document catalogs the features Dao Browser adds on top of the Chromium
+> baseline configured in `dao.json`. Dao-owned code lives in `src/dao/`;
+> Chromium integration patches live in `src/patches/`.
 
 ## 1. Vertical Sidebar
 
@@ -15,7 +17,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   shortcut labels for Duplicate Tab, Copy Link, and Close Tab
 - **DaoTabTooltipView** (`sidebar/dao_tab_tooltip_view.{h,cc}`) — Hover contextual info next to the sidebar
 
-### 1.2 Sidebar WebUI (`chrome://dao-sidebar`)
+### 1.2 Sidebar WebUI (`dao://sidebar`)
 - **dao_sidebar_app.ts** + **sidebar.{html,css,ts}** — Lit application root
 - **sidebar_bridge.ts** — Mojo client wrapper
 - **dao_sidebar_section.ts** — Reusable collapsible section container
@@ -100,7 +102,9 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 
 ### 2.1 Agent Core Services (`src/dao/browser/agent/`)
 - **DaoAgentMemoryService** (+ `DaoAgentMemoryServiceFactory`) — Profile-keyed long-term memory service, SQLite backend, background sequenced execution
-- **DaoAgentMemoryStore** — SQLite **FTS5** full-text search store (note: see `MEMORY.md` re. test-time `RazeAndPoison` issue → 5 tests `DISABLED_`)
+- **DaoAgentMemoryStore** — SQLite **FTS5** full-text search store. Five direct
+  store round-trip tests remain disabled because test-time `RazeAndPoison`
+  conflicts with direct `Init()`; focused service and read-path coverage remain active.
 - **DaoAgentMemoryTypes** (`dao_agent_memory_types.{h,cc}`) — Episodic / semantic memory record types
 - **DaoAgentProactiveEngine** — Navigation-triggered proactive suggestion engine
   - Scenario matching (URL pattern + page hints)
@@ -132,7 +136,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - **macOS helper packaging** (`mcp/BUILD.gn`, `dao_version.gni`, `chrome/BUILD_mcp_helper.gn.patch`) — The helper is built independently from the browser service, receives the same Dao product-version build argument as the app, and is copied with executable permissions to `Dao.app/Contents/Helpers/dao-mcp`.
 - **Independent execution peer** — MCP owns its own automation session, DevTools client, executor, cursor integration, and cancellation state. It reuses the shared native tab/page/DevTools implementations and lease coordinator without depending on the Agent WebUI lifecycle.
 
-### 2.4 Agent WebUI (`chrome://dao-agent` and `chrome://dao-agent/skills`)
+### 2.4 Agent WebUI (`dao://agent` and `dao://skills`)
 
 **Application shell** (`src/dao/browser/ui/webui/resources/agent/`)
 - `agent.{html,css,ts}` + `dao_agent_app.ts` — Chat app entry
@@ -244,7 +248,7 @@ macOS-style floating control center panel bundling extensions and utilities.
 
 ## 6. Welcome Page
 
-- **DaoWelcomeUI** (`webui/dao_welcome_ui.{h,cc}`) — `chrome://dao-welcome` WebUI controller
+- **DaoWelcomeUI** (`webui/dao_welcome_ui.{h,cc}`) — `dao://welcome` WebUI controller
 - WebUI: `welcome.{html,css,ts}` + `dao_welcome_app.ts` + `welcome_bridge.ts` (Lit)
 - **Menu item + command handling** — User can reopen anytime
 - **First-run preference tracking** — Auto-opens only on first launch (managed via `dao_pref_names`)
@@ -287,12 +291,14 @@ Lightweight window form factor for popups / mini-tools.
 - **App controller** — `app_controller_mac.mm.patch` (validate + execute commands when no browser window exists)
 - **IDC_\* command IDs** — `chrome/app/chrome_command_ids.h.patch`
 - **Command handling** — `browser_command_controller.cc.patch` + `browser_commands.cc.patch`
-- Note: adding a new IDC_* requires three edit sites (see `MEMORY.md`)
+- Adding a new `IDC_*` requires keeping its declaration, shortcut/menu wiring,
+  and command-controller handling synchronized.
 
-## 13. Chromium Core Integration Patches (184 total)
+## 13. Chromium Core Integration Patches
 
-Exactly **184 patch files** across functional Chromium integration and
-string-localization/rebranding changes.
+The live patch inventory is the tracked tree under `src/patches/`. The groups
+below describe its major integration surfaces without duplicating a volatile
+file count.
 
 ### 13.1 URLs and Schemes
 - `content/common/url_schemes.cc.patch` — Register `dao://`
@@ -304,7 +310,7 @@ string-localization/rebranding changes.
 - `third_party/blink/public/common/chrome_debug_urls.h.patch` — Debug URL alias
 
 ### 13.2 BrowserView Integration
-- `views/frame/browser_view.{h,cc}.patch` — Inject `DaoSidebarView` and `DaoCornerOverlayView`; toolbar kept alive but parked at `y=-height` (NOT `IsToolbarVisible() = false`, see `MEMORY.md`)
+- `views/frame/browser_view.{h,cc}.patch` — Inject `DaoSidebarView` and `DaoCornerOverlayView`; toolbar stays alive but is parked at `y=-height` so Chromium omnibox and command plumbing remain available
 - `views/frame/browser_view_layout` (implicit via patches) — Layout adjustments
 - `views/frame/{browser_native_widget_mac,browser_frame_mac,immersive_mode_controller_mac}.mm.patch` — macOS frame integrations
 - `views/frame/contents_web_view.{h,cc}.patch` + `views/frame/contents_layout_manager.cc.patch` — Content area layout
@@ -371,7 +377,9 @@ string-localization/rebranding changes.
 
 - **browser_tests** (`dao_browser_browsertest.cc`) — Integration test framework
 - **Coverage**: sidebar presence / default width / collapse-expand, drag resize, address bar, command bar show/hide & idempotency, tab CRUD, SplitView, CornerOverlay, folder persistence, URL detection heuristics, extension icon and badge updates, PiP site rules / interception / top bar overlay
-- **Known disabled**: 5 `DaoAgentMemoryStore` tests `DISABLED_` due to FTS5 `RazeAndPoison` under direct `Init()` (see `MEMORY.md`)
+- **Known disabled**: 5 `DaoAgentMemoryStore` round-trip tests due to FTS5
+  `RazeAndPoison` under direct `Init()`, plus 4 PiP overlay tests awaiting
+  replacement after upstream API drift
 
 ## 15. Build and Packaging
 
@@ -385,6 +393,8 @@ string-localization/rebranding changes.
 
 ## Current Status
 
-- **Version**: 1.0.79 (based on Chromium 149.0.7827.201)
+- **Version source**: `dao.json` is authoritative for both the Dao display
+  version and Chromium baseline
 - **Target platform**: macOS arm64
-- **Source footprint**: ~47 C++ component pairs under `src/dao/` + 184 patches under `src/patches/`
+- **Source inventory**: `src/dao/` contains Dao-owned sources and
+  `src/patches/` contains the live Chromium integration patch set

@@ -17,6 +17,20 @@ import {
 } from '../package.js';
 
 describe('package scripts', () => {
+  it('exposes documented development and documentation checks', () => {
+    const packageJsonPath = path.join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.download)
+        .toBe('tsx scripts/cli.ts download');
+    expect(packageJson.scripts?.['test:build'])
+        .toBe('tsx scripts/cli.ts build --debug --target browser_tests');
+    expect(packageJson.scripts?.['docs:check'])
+        .toBe('tsx scripts/docs-check.ts');
+  });
+
   it('removes only create-dmg temporary images for the target artifact', () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'dao-package-test-'));
     const dmgPath = path.join(root, 'dao-browser-1.0.78-mac-arm64.dmg');

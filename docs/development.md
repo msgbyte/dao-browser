@@ -34,7 +34,7 @@ gclient --version
 ```bash
 npm install
 npm run setup     # download chromium + apply patches
-npm run build     # build Dao Browser
+npm run rebuild   # re-import tracked sources and build Dao Browser
 ```
 
 ## Commands
@@ -43,12 +43,13 @@ npm run build     # build Dao Browser
 |---------|-------------|
 | `npm run download` | Fetch Chromium source at the version specified in `dao.json` |
 | `npm run import` | Apply patches and copy Dao code into the Chromium tree |
-| `npm run export` | Generate patch files from modifications in the Chromium tree |
+| `npm run export -- <file>` | Export one explicitly scoped Chromium file into its patch |
 | `npm run build` | Build Dao Browser (gn gen + autoninja) |
 | `npm run package` | Package into a `.dmg` for distribution |
 | `npm run package:zip` | Package into a `.zip` for distribution |
 | `npm run setup` | download + import (first-time setup) |
 | `npm run rebuild` | import + build (iterative development) |
+| `npm run docs:check` | Validate maintained documentation commands, links, and Dao URLs |
 | `npm run engine:cache:refresh` | Refresh the local `.dao/engine` warm cache for Git worktree workers |
 | `npm run setup:worktree` | Initialize an externally-created Git worktree for agent work |
 | `npm run archive:worktree` | Archive current worktree engine or dry-run stale primary copies |
@@ -56,14 +57,16 @@ npm run build     # build Dao Browser
 
 ## Development Workflow
 
-1. Run `npm run setup` to fetch Chromium and apply all patches
-2. Make changes directly in `engine/` for rapid iteration
-3. Run `npm run export -- <filepath>` to capture changes as patch files
-4. Run `npm run rebuild` to verify patches apply cleanly and build succeeds
+1. Run `npm run setup` to fetch Chromium and apply all patches.
+2. Make Dao-owned changes in `src/dao/` and Chromium integration changes in
+   the matching file under `src/patches/`.
+3. Run `npm run import` to synchronize the tracked sources into `engine/src`.
+4. Run `npm run rebuild` after the related edits are complete.
 
-For parallel agent work, use the `.dao/engine` worktree cache flow instead of
-copying `engine/` for every Git worktree. See
-[Worktree Engine Cache](./worktree-engine-cache.md).
+`src/dao/` and `src/patches/` are the source of truth. Do not edit `engine/`
+directly during routine development. When an explicitly scoped Chromium patch
+debugging task requires engine-first iteration, export only the intentional
+file with `npm run export -- <file>`; never run bare `npm run export`.
 
 ## Project Structure
 

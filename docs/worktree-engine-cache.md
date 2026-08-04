@@ -1,5 +1,10 @@
 # Worktree Engine Cache
 
+> **Historical tooling reference.** Current project policy requires automated
+> contributors to work in the primary checkout on `main` and not create Git
+> worktrees. Do not follow this runbook unless that policy is explicitly changed
+> for the task. The document is retained to explain the existing cache tooling.
+
 This document explains how to create Git worktrees for parallel agent work without
 copying a full Chromium `engine/` checkout for every worker.
 
@@ -202,7 +207,7 @@ and explicitly recreate that worktree's private engine:
 ```bash
 npm run setup:worktree -- \
   --private-engine \
-  --cache-key 149.0.7827.201-dao-debug-<cache-id> \
+  --cache-key <chromium-version>-dao-debug-<cache-id> \
   --recreate-engine
 npm run import
 ```
