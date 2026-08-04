@@ -20,10 +20,42 @@ concurrency:
 env:
   VERCEL_ORG_ID: team_Twwa0KDaGtEybSu6BXtGJZoD
   VERCEL_PROJECT_ID: prj_0B3eVoAJ5vAKY5yL8CH8cJl8JULp
+  VERCEL_CLI_VERSION: 58.5.1
 
 jobs:
+  check:
+    name: Check website
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check website
+        run: npm run check
+
+      - name: Lint website
+        run: npm run lint
+
+      - name: Build website
+        run: npm run build
+
   deploy:
     name: Deploy (${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'production' || 'preview' }})
+    needs: check
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -43,7 +75,7 @@ jobs:
         run: npm ci
 
       - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+        run: npm install --global vercel@"${VERCEL_CLI_VERSION}"
 
       - name: Set deployment environment
         id: env

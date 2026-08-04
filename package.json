@@ -32,6 +32,7 @@
     "test": "npm run lint:lit && tsx scripts/cli.ts build --debug --target browser_tests && engine/src/out/dao-debug/browser_tests --gtest_filter=\"Dao*\"",
     "test:webui": "vitest run",
     "test:webui:watch": "vitest",
+    "typecheck": "tsc --noEmit",
     "lint:lit": "python3 scripts/lint-lit-reactive-fields.py",
     "docs:check": "tsx scripts/docs-check.ts",
     "vendor": "tsx scripts/cli.ts vendor",

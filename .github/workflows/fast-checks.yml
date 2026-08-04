@@ -1,0 +1,45 @@
+name: Fast Checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fast-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Test and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run WebUI and script tests
+        run: npm run test:webui
+
+      - name: Lint Lit reactive fields
+        run: npm run lint:lit
+
+      - name: Verify vendor bundles
+        run: npm run vendor:check
+
+      - name: Type-check scripts
+        run: npm run typecheck
+
+      - name: Check documentation
+        run: npm run docs:check
