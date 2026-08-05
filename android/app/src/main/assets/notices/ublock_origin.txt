@@ -1,0 +1,21 @@
+uBlock Origin 1.72.2
+
+Dao Browser Android redistributes the Firefox extension under the GNU General Public License 3.0.
+The bundled GeckoView compatibility variant removes only the unsupported
+`menus` permission and `commands` manifest entry; blocking code and filter
+assets remain from the official artifact.
+
+Project and corresponding source:
+https://github.com/gorhill/uBlock
+
+Release:
+https://github.com/gorhill/uBlock/releases/tag/1.72.2
+
+Artifact:
+uBlock0_1.72.2.firefox.signed.xpi
+
+SHA-256:
+40c315b0da7871868155ecfae7a50a58dfa0920aebd865e008214986f1b7c578
+
+The full license text is packaged with the extension at
+assets/extensions/ublock_origin/LICENSE.txt.

@@ -12,13 +12,17 @@ This file gives Codex project-specific context for working in Dao Browser.
 
 Dao Browser is a Chromium-based browser with an Arc-style vertical sidebar, currently targeting macOS arm64. The full Chromium checkout and build output live under `engine/`, which is gitignored and very large. This repository tracks Dao-owned code and patch files, not the whole Chromium tree.
 
-Read `docs/features.md` first when asked what Dao Browser does, when locating the owner of a behavior, or before adding a feature that may overlap with existing work.
+Read `docs/features.md` first for desktop Chromium behavior and
+`docs/features-android.md` first for Android GeckoView behavior when asked what
+Dao Browser does, when locating the owner of a behavior, or before adding a
+feature that may overlap with existing work.
 
 ## Feature Documentation
 
-- When adding or materially changing a Dao Browser feature, update `docs/features.md` in the same change to keep the feature catalog current.
-- When adding or materially changing a Dao Browser feature, update `docs/feature-checklist.md` in the same change so Chromium upgrade and regression checks cover the new behavior.
-- If a feature change does not require updates to either document, explicitly mention why in the final response.
+- When adding or materially changing a desktop Chromium feature, update `docs/features.md` in the same change.
+- When adding or materially changing an Android feature, update `docs/features-android.md` in the same change.
+- When adding or materially changing a feature on either platform, update `docs/feature-checklist.md` so upgrade and regression checks cover the behavior.
+- If a feature change does not require updates to its platform feature inventory or the shared checklist, explicitly mention why in the final response.
 
 ## Source Of Truth
 
@@ -128,8 +132,9 @@ Never hardcode user-facing copy in Dao-owned UI. All user-visible text must have
 - C++ Views strings go in `src/dao/browser/strings/dao_strings.grd` and are read with `l10n_util::GetStringUTF16` or `GetStringFUTF16`.
 - Sidebar WebUI strings go in `src/dao/browser/strings/dao_strings.grd`, are registered on the sidebar `WebUIDataSource` with `AddLocalizedString` / `UseStringsJs`, and are read from TypeScript through `loadTimeData.getString(...)`.
 - Agent WebUI strings go in `src/dao/browser/ui/webui/resources/agent/i18n/locales/en.ts` and are read with `t('key', { var: 'x' })`.
+- Android strings use `android/app/src/main/res/values/strings.xml` as the English source and qualified `values-*/strings.xml` files for translations. Android follows the system locale and falls back to English.
 - `zh-CN` is hand-authored and treated as the tone reference.
-- Other locales are generated manually by the user via `OPENAI_API_KEY=... sh ./i18n.sh`; do not run it automatically.
+- Other desktop and Android locales are generated manually by the user via `OPENAI_API_KEY=... sh ./i18n.sh`; do not run it automatically. The root command dispatches independent platform translators, and `--only desktop` or `--only android` limits the run.
 
 ## Native Toast Feedback
 

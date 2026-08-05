@@ -1,0 +1,22 @@
+KISS Translator 2.0.29
+
+Dao Browser Android redistributes the unmodified public Firefox extension
+artifact under the GNU General Public License v3.0 only.
+
+Project and corresponding source:
+https://github.com/fishjar/kiss-translator
+
+Mozilla Add-ons listing:
+https://addons.mozilla.org/firefox/addon/kiss-translator/
+
+Artifact:
+https://addons.mozilla.org/firefox/downloads/file/4937634/kiss_translator-2.0.29.xpi
+
+SHA-256:
+0316f026b1b0c3d171262b3f4f369e34013abdf1d1bbe9d348290c3db53f4092
+
+License:
+GNU General Public License v3.0 only
+
+The full license text is packaged at
+assets/notices/kiss_translator_license.txt.
