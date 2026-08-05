@@ -4,6 +4,12 @@
 > baseline configured in `dao.json`. Dao-owned code lives in `src/dao/`;
 > Chromium integration patches live in `src/patches/`.
 
+Android GeckoView features, including the native Compose browser shell, are documented separately in
+[`features-android.md`](features-android.md).
+The Android shell now uses Android Components `BrowserStore` tabs with regular-session restore and
+real tab thumbnails, plus persistent history and bookmarks, Android system downloads, persistent
+engine preferences, installed-extension state, and QR scanning.
+
 ## 1. Vertical Sidebar
 
 An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the single biggest UI change in Dao Browser. The sidebar is a hybrid: a C++ Views container hosts a Lit/TypeScript WebUI that renders the actual tab list, favorites, and controls.

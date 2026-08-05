@@ -1,13 +1,13 @@
-#!/usr/bin/env bash
-# Convenience entry point at the repo root for the i18n translator.
-# Delegates to scripts/i18n-translate.sh. See that script's header for the
-# full flag list. Common invocations:
+#!/bin/sh
+# Repository-level entry point for independent desktop and Android translators.
+# Common invocations:
 #
 #   OPENAI_API_KEY=sk-... sh ./i18n.sh
 #   OPENAI_API_KEY=sk-... sh ./i18n.sh --langs zh-TW,ja
+#   OPENAI_API_KEY=sk-... sh ./i18n.sh --only android
 #   OPENAI_API_KEY=sk-... sh ./i18n.sh --dry-run
 
-set -euo pipefail
+set -eu
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-exec "$ROOT/scripts/i18n-translate.sh" "$@"
+exec python3 "$ROOT/scripts/i18n.py" "$@"

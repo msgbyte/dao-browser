@@ -1,0 +1,1 @@
+(()=>{"use strict";(()=>{try{const t=Element.prototype.attachShadow;Element.prototype.attachShadow=function(){for(var o=arguments.length,e=new Array(o),a=0;a<o;a++)e[a]=arguments[a];const n=t.apply(this,e);return window.postMessage({type:"KISS_SHADOW_ROOT_CREATED"},"*"),n}}catch(t){console.log("shadowRootInjector",t)}})()})();
