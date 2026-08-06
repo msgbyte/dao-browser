@@ -10,6 +10,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
@@ -20,8 +23,13 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -165,6 +173,48 @@ internal const val BOOKMARK_DRAWER_TILE_TEST_TAG = "bookmark-drawer-tile"
 internal const val BOOKMARK_DRAWER_ICON_TEST_TAG = "bookmark-drawer-icon"
 
 private val NovaEasing = CubicBezierEasing(0.22f, 0.61f, 0.36f, 1f)
+private const val BrowserTransitionDurationMillis = 220
+private const val BrowserTransitionOffsetDivisor = 10
+private const val TabGridInitialScale = 0.96f
+
+private fun <T> browserMotionSpec() = tween<T>(
+    durationMillis = BrowserTransitionDurationMillis,
+    easing = NovaEasing,
+)
+
+private fun browserContentTransform(
+    transition: BrowserScreenTransition,
+): ContentTransform = when (transition) {
+    BrowserScreenTransition.Forward ->
+        (slideInHorizontally(browserMotionSpec()) {
+            it / BrowserTransitionOffsetDivisor
+        } + fadeIn(browserMotionSpec())).togetherWith(
+            slideOutHorizontally(browserMotionSpec()) {
+                -it / BrowserTransitionOffsetDivisor
+            } + fadeOut(browserMotionSpec()),
+        )
+    BrowserScreenTransition.Backward ->
+        (slideInHorizontally(browserMotionSpec()) {
+            -it / BrowserTransitionOffsetDivisor
+        } + fadeIn(browserMotionSpec())).togetherWith(
+            slideOutHorizontally(browserMotionSpec()) {
+                it / BrowserTransitionOffsetDivisor
+            } + fadeOut(browserMotionSpec()),
+        )
+    BrowserScreenTransition.OpenTabGrid ->
+        (fadeIn(browserMotionSpec()) +
+            scaleIn(browserMotionSpec(), initialScale = TabGridInitialScale)).togetherWith(
+            fadeOut(browserMotionSpec()),
+        )
+    BrowserScreenTransition.CloseTabGrid ->
+        fadeIn(browserMotionSpec()).togetherWith(
+            fadeOut(browserMotionSpec()) +
+                scaleOut(browserMotionSpec(), targetScale = TabGridInitialScale),
+        )
+    BrowserScreenTransition.Immediate ->
+        EnterTransition.None.togetherWith(ExitTransition.None)
+}
+
 private val FilledStarIcon = ImageVector.Builder(
     name = "FilledStar",
     defaultWidth = 24.dp,
@@ -226,7 +276,26 @@ fun BrowserScreen(
     val browserState by controller.state.collectAsStateWithLifecycle()
     val selectedTab = browserState.tabs.firstOrNull { it.id == browserState.selectedTabId }
     val thumbnailCapture = remember { BrowserThumbnailCapture() }
-    var destination by remember { mutableStateOf(BrowserDestination.NewTab) }
+    var animatedDestination by remember {
+        mutableStateOf(
+            BrowserAnimatedDestination(
+                destination = BrowserDestination.NewTab,
+                transition = BrowserScreenTransition.Immediate,
+            ),
+        )
+    }
+    val destination = animatedDestination.destination
+    val navigateTo: (BrowserDestination, BrowserNavigationDirection) -> Unit =
+        { target, direction ->
+            animatedDestination = BrowserAnimatedDestination(
+                destination = target,
+                transition = resolveBrowserScreenTransition(
+                    from = animatedDestination.destination,
+                    to = target,
+                    direction = direction,
+                ),
+            )
+        }
     var returnDestination by remember { mutableStateOf(BrowserDestination.Browsing) }
     var addressEditUrl by remember { mutableStateOf("") }
     var homeReturnTabId by remember { mutableStateOf<String?>(null) }
@@ -263,7 +332,7 @@ fun BrowserScreen(
         extensions.setPopupSessionHandler { popupSession ->
             extensionPopupSession?.close()
             extensionPopupSession = popupSession
-            destination = BrowserDestination.Browsing
+            navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
         }
         onDispose {
             extensions.setPopupSessionHandler(null)
@@ -284,11 +353,14 @@ fun BrowserScreen(
 
     LaunchedEffect(selectedTab?.id) {
         if (!initialTabApplied && selectedTab != null) {
-            destination = if (selectedTab.content.url == AppConfiguration.INITIAL_URL) {
-                BrowserDestination.NewTab
-            } else {
-                BrowserDestination.Browsing
-            }
+            navigateTo(
+                if (selectedTab.content.url == AppConfiguration.INITIAL_URL) {
+                    BrowserDestination.NewTab
+                } else {
+                    BrowserDestination.Browsing
+                },
+                BrowserNavigationDirection.Immediate,
+            )
             initialTabApplied = true
         }
     }
@@ -303,7 +375,7 @@ fun BrowserScreen(
         }
         homeReturnTabId = null
         homeReturnUrl = null
-        destination = BrowserDestination.Browsing
+        navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
     }
 
     val captureSelected = {
@@ -318,20 +390,23 @@ fun BrowserScreen(
             homeReturnTabId = null
             homeReturnUrl = null
             controller.navigate(target)
-            destination = BrowserDestination.Browsing
+            navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
         }
     }
     val openUtility: (BrowserDestination) -> Unit = { target ->
         returnDestination = destination
         captureSelected()
-        destination = target
+        navigateTo(target, BrowserNavigationDirection.Forward)
     }
     val closeUtility = {
-        destination = if (returnDestination == BrowserDestination.NewTab) {
-            BrowserDestination.NewTab
-        } else {
-            BrowserDestination.Browsing
-        }
+        navigateTo(
+            if (returnDestination == BrowserDestination.NewTab) {
+                BrowserDestination.NewTab
+            } else {
+                BrowserDestination.Browsing
+            },
+            BrowserNavigationDirection.Backward,
+        )
     }
 
     BackHandler(enabled = destination == BrowserDestination.Settings) {
@@ -339,15 +414,15 @@ fun BrowserScreen(
     }
 
     BackHandler(enabled = destination == BrowserDestination.About) {
-        destination = BrowserDestination.Settings
+        navigateTo(BrowserDestination.Settings, BrowserNavigationDirection.Backward)
     }
 
     BackHandler(enabled = destination == BrowserDestination.OpenSourceLicenses) {
-        destination = BrowserDestination.About
+        navigateTo(BrowserDestination.About, BrowserNavigationDirection.Backward)
     }
 
     BackHandler(enabled = destination == BrowserDestination.AmoStore) {
-        destination = BrowserDestination.Extensions
+        navigateTo(BrowserDestination.Extensions, BrowserNavigationDirection.Backward)
     }
 
     Surface(
@@ -364,145 +439,188 @@ fun BrowserScreen(
                     extensionPopupSession = null
                 },
             )
-        } else when (destination) {
-            BrowserDestination.NewTab -> NewTabScreen(
-                bookmarks = bookmarks,
-                history = history,
-                tabCount = browserState.tabs.size,
-                onTabs = { destination = BrowserDestination.Tabs },
-                onSettings = { openUtility(BrowserDestination.Settings) },
-                onNavigate = navigate,
-            )
-            BrowserDestination.AddressEdit -> NewTabScreen(
-                bookmarks = bookmarks,
-                history = history,
-                initialQuery = addressEditUrl,
-                startExpanded = true,
-                tabCount = browserState.tabs.size,
-                onTabs = { destination = BrowserDestination.Tabs },
-                onSettings = { openUtility(BrowserDestination.Settings) },
-                onExitExpanded = { destination = BrowserDestination.Browsing },
-                onNavigate = navigate,
-            )
-            BrowserDestination.Browsing -> BrowsingScreen(
-                engine = engine,
-                controller = controller,
-                tab = selectedTab,
-                tabCount = browserState.tabs.size,
-                thumbnailCapture = thumbnailCapture,
-                library = library,
-                darkTheme = preferences.darkTheme,
-                onDarkThemeChange = onDarkThemeChange,
-                onEditAddress = { url ->
-                    addressEditUrl = url
-                    destination = BrowserDestination.AddressEdit
-                },
-                onOpenTabs = {
-                    captureSelected()
-                    destination = BrowserDestination.Tabs
-                },
-                onHome = {
-                    homeReturnUrl = controller.selectedTab()?.content?.url
-                    controller.goHome()
-                    homeReturnTabId = controller.selectedTab()?.id
-                    destination = BrowserDestination.NewTab
-                },
-                onNavigate = navigate,
-                onOpen = openUtility,
-            )
-            BrowserDestination.Settings -> SettingsScreen(
-                preferences = preferences,
-                onDarkThemeChange = onDarkThemeChange,
-                onFontScaleChange = onFontScaleChange,
-                onSearchEngineChange = onSearchEngineChange,
-                onTrackingProtectionChange = onTrackingProtectionChange,
-                onDefaultPrivateBrowsingChange = onDefaultPrivateBrowsingChange,
-                onRemoteDebuggingChange = onRemoteDebuggingChange,
-                onEnableRemoteDebuggingWithAcknowledgement =
-                    onEnableRemoteDebuggingWithAcknowledgement,
-                onOpenAbout = { destination = BrowserDestination.About },
-                onBack = closeUtility,
-            )
-            BrowserDestination.About -> AboutScreen(
-                appInfo = readAboutAppInfo(LocalContext.current),
-                onOpenLicenses = { destination = BrowserDestination.OpenSourceLicenses },
-                onBack = { destination = BrowserDestination.Settings },
-            )
-            BrowserDestination.OpenSourceLicenses -> OpenSourceLicensesScreen(
-                onBack = { destination = BrowserDestination.About },
-            )
-            BrowserDestination.History -> HistoryScreen(
-                visits = history,
-                onClear = { scope.launch { library.clearHistory() } },
-                onDelete = { id -> scope.launch { library.deleteHistoryVisit(id) } },
-                onBack = closeUtility,
-                onNavigate = navigate,
-            )
-            BrowserDestination.Bookmarks -> BookmarksScreen(
-                bookmarks = bookmarks,
-                folders = folders,
-                onCreateFolder = { title -> scope.launch { library.createFolder(title) } },
-                onUpdateBookmark = { id, title, folderId, kind ->
-                    scope.launch { library.updateBookmark(id, title, folderId, kind) }
-                },
-                onDeleteBookmark = { id -> scope.launch { library.deleteBookmark(id) } },
-                onBack = closeUtility,
-                onNavigate = navigate,
-            )
-            BrowserDestination.Downloads -> DownloadsScreen(repository = downloads, onBack = closeUtility)
-            BrowserDestination.Extensions -> ExtensionsScreen(
-                repository = extensions,
-                onOpenStore = { destination = BrowserDestination.AmoStore },
-                onActionInvoked = { destination = BrowserDestination.Browsing },
-                onBack = closeUtility,
-            )
-            BrowserDestination.AmoStore -> {
-                val storeState by amoStoreViewModel.state.collectAsStateWithLifecycle()
-                AmoStoreScreen(
-                    state = storeState,
-                    installedExtensionGuids = installedExtensions.mapTo(mutableSetOf()) { it.id },
-                    installState = extensionInstallState,
-                    transientInstallGuid = amoTransientInstallGuid,
-                    onTransientInstallGuidChange = { amoTransientInstallGuid = it },
-                    onSearch = amoStoreViewModel::search,
-                    onRetry = amoStoreViewModel::retry,
-                    onLoadNext = amoStoreViewModel::loadNext,
-                    onInstall = { addon -> extensions.installFromAmo(addon.installUrl) },
-                    onDismissInstallResult = extensions::dismissResult,
-                    onResolvePermission = extensions::resolvePermission,
-                    onBack = { destination = BrowserDestination.Extensions },
-                )
+        } else {
+            AnimatedContent(
+                targetState = animatedDestination,
+                transitionSpec = { browserContentTransform(targetState.transition) },
+                label = "browserDestination",
+            ) { targetState ->
+                when (targetState.destination) {
+                    BrowserDestination.NewTab -> NewTabScreen(
+                        bookmarks = bookmarks,
+                        history = history,
+                        tabCount = browserState.tabs.size,
+                        onTabs = {
+                            navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
+                        },
+                        onSettings = { openUtility(BrowserDestination.Settings) },
+                        onNavigate = navigate,
+                    )
+                    BrowserDestination.AddressEdit -> NewTabScreen(
+                        bookmarks = bookmarks,
+                        history = history,
+                        initialQuery = addressEditUrl,
+                        startExpanded = true,
+                        tabCount = browserState.tabs.size,
+                        onTabs = {
+                            navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
+                        },
+                        onSettings = { openUtility(BrowserDestination.Settings) },
+                        onExitExpanded = {
+                            navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
+                        },
+                        onNavigate = navigate,
+                    )
+                    BrowserDestination.Browsing -> BrowsingScreen(
+                        engine = engine,
+                        controller = controller,
+                        tab = selectedTab,
+                        tabCount = browserState.tabs.size,
+                        thumbnailCapture = thumbnailCapture,
+                        library = library,
+                        darkTheme = preferences.darkTheme,
+                        onDarkThemeChange = onDarkThemeChange,
+                        onEditAddress = { url ->
+                            addressEditUrl = url
+                            navigateTo(
+                                BrowserDestination.AddressEdit,
+                                BrowserNavigationDirection.Immediate,
+                            )
+                        },
+                        onOpenTabs = {
+                            captureSelected()
+                            navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
+                        },
+                        onHome = {
+                            homeReturnUrl = controller.selectedTab()?.content?.url
+                            controller.goHome()
+                            homeReturnTabId = controller.selectedTab()?.id
+                            navigateTo(BrowserDestination.NewTab, BrowserNavigationDirection.Immediate)
+                        },
+                        onNavigate = navigate,
+                        onOpen = openUtility,
+                    )
+                    BrowserDestination.Settings -> SettingsScreen(
+                        preferences = preferences,
+                        onDarkThemeChange = onDarkThemeChange,
+                        onFontScaleChange = onFontScaleChange,
+                        onSearchEngineChange = onSearchEngineChange,
+                        onTrackingProtectionChange = onTrackingProtectionChange,
+                        onDefaultPrivateBrowsingChange = onDefaultPrivateBrowsingChange,
+                        onRemoteDebuggingChange = onRemoteDebuggingChange,
+                        onEnableRemoteDebuggingWithAcknowledgement =
+                            onEnableRemoteDebuggingWithAcknowledgement,
+                        onOpenAbout = {
+                            navigateTo(BrowserDestination.About, BrowserNavigationDirection.Forward)
+                        },
+                        onBack = closeUtility,
+                    )
+                    BrowserDestination.About -> AboutScreen(
+                        appInfo = readAboutAppInfo(LocalContext.current),
+                        onOpenLicenses = {
+                            navigateTo(
+                                BrowserDestination.OpenSourceLicenses,
+                                BrowserNavigationDirection.Forward,
+                            )
+                        },
+                        onBack = {
+                            navigateTo(BrowserDestination.Settings, BrowserNavigationDirection.Backward)
+                        },
+                    )
+                    BrowserDestination.OpenSourceLicenses -> OpenSourceLicensesScreen(
+                        onBack = {
+                            navigateTo(BrowserDestination.About, BrowserNavigationDirection.Backward)
+                        },
+                    )
+                    BrowserDestination.History -> HistoryScreen(
+                        visits = history,
+                        onClear = { scope.launch { library.clearHistory() } },
+                        onDelete = { id -> scope.launch { library.deleteHistoryVisit(id) } },
+                        onBack = closeUtility,
+                        onNavigate = navigate,
+                    )
+                    BrowserDestination.Bookmarks -> BookmarksScreen(
+                        bookmarks = bookmarks,
+                        folders = folders,
+                        onCreateFolder = { title -> scope.launch { library.createFolder(title) } },
+                        onUpdateBookmark = { id, title, folderId, kind ->
+                            scope.launch { library.updateBookmark(id, title, folderId, kind) }
+                        },
+                        onDeleteBookmark = { id -> scope.launch { library.deleteBookmark(id) } },
+                        onBack = closeUtility,
+                        onNavigate = navigate,
+                    )
+                    BrowserDestination.Downloads -> DownloadsScreen(repository = downloads, onBack = closeUtility)
+                    BrowserDestination.Extensions -> ExtensionsScreen(
+                        repository = extensions,
+                        onOpenStore = {
+                            navigateTo(BrowserDestination.AmoStore, BrowserNavigationDirection.Forward)
+                        },
+                        onActionInvoked = {
+                            navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
+                        },
+                        onBack = closeUtility,
+                    )
+                    BrowserDestination.AmoStore -> {
+                        val storeState by amoStoreViewModel.state.collectAsStateWithLifecycle()
+                        AmoStoreScreen(
+                            state = storeState,
+                            installedExtensionGuids = installedExtensions.mapTo(mutableSetOf()) { it.id },
+                            installState = extensionInstallState,
+                            transientInstallGuid = amoTransientInstallGuid,
+                            onTransientInstallGuidChange = { amoTransientInstallGuid = it },
+                            onSearch = amoStoreViewModel::search,
+                            onRetry = amoStoreViewModel::retry,
+                            onLoadNext = amoStoreViewModel::loadNext,
+                            onInstall = { addon -> extensions.installFromAmo(addon.installUrl) },
+                            onDismissInstallResult = extensions::dismissResult,
+                            onResolvePermission = extensions::resolvePermission,
+                            onBack = {
+                                navigateTo(
+                                    BrowserDestination.Extensions,
+                                    BrowserNavigationDirection.Backward,
+                                )
+                            },
+                        )
+                    }
+                    BrowserDestination.Tabs -> TabGridScreen(
+                        tabs = browserState.tabs,
+                        selectedTabId = browserState.selectedTabId,
+                        thumbnailRepository = thumbnailRepository,
+                        onSelect = { tabId ->
+                            controller.selectTab(tabId)
+                            navigateTo(
+                                if (controller.selectedTab()?.content?.url == AppConfiguration.INITIAL_URL) {
+                                    BrowserDestination.NewTab
+                                } else {
+                                    BrowserDestination.Browsing
+                                },
+                                BrowserNavigationDirection.Immediate,
+                            )
+                        },
+                        onClose = { tabId ->
+                            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                                thumbnailCaptures.close(tabId)
+                            }
+                            controller.closeTab(tabId)
+                        },
+                        onNewTab = {
+                            controller.createTab()
+                            navigateTo(BrowserDestination.NewTab, BrowserNavigationDirection.Immediate)
+                        },
+                        onBack = {
+                            navigateTo(
+                                if (controller.selectedTab()?.content?.url == AppConfiguration.INITIAL_URL) {
+                                    BrowserDestination.NewTab
+                                } else {
+                                    BrowserDestination.Browsing
+                                },
+                                BrowserNavigationDirection.Immediate,
+                            )
+                        },
+                    )
+                }
             }
-            BrowserDestination.Tabs -> TabGridScreen(
-                tabs = browserState.tabs,
-                selectedTabId = browserState.selectedTabId,
-                thumbnailRepository = thumbnailRepository,
-                onSelect = { tabId ->
-                    controller.selectTab(tabId)
-                    destination = if (controller.selectedTab()?.content?.url == AppConfiguration.INITIAL_URL) {
-                        BrowserDestination.NewTab
-                    } else {
-                        BrowserDestination.Browsing
-                    }
-                },
-                onClose = { tabId ->
-                    scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                        thumbnailCaptures.close(tabId)
-                    }
-                    controller.closeTab(tabId)
-                },
-                onNewTab = {
-                    controller.createTab()
-                    destination = BrowserDestination.NewTab
-                },
-                onBack = {
-                    destination = if (controller.selectedTab()?.content?.url == AppConfiguration.INITIAL_URL) {
-                        BrowserDestination.NewTab
-                    } else {
-                        BrowserDestination.Browsing
-                    }
-                },
-            )
         }
     }
 }
