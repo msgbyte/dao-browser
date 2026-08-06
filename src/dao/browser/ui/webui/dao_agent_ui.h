@@ -461,6 +461,7 @@ class DaoAgentDreamHandler : public DaoDreamRunnerHandler {
   void HandleSetDreamDebug(const base::ListValue& args);
   void HandleGetUnviewedDreamReport(const base::ListValue& args);
   void HandleMarkDreamReportViewed(const base::ListValue& args);
+  void HandleOpenDreamReport(const base::ListValue& args);
 
   base::WeakPtrFactory<DaoAgentDreamHandler> weak_factory_{this};
 };

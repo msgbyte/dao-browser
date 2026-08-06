@@ -3384,6 +3384,22 @@ void DaoAgentDreamHandler::RegisterMessages() {
       "markDreamReportViewed",
       base::BindRepeating(&DaoAgentDreamHandler::HandleMarkDreamReportViewed,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "openDreamReport",
+      base::BindRepeating(&DaoAgentDreamHandler::HandleOpenDreamReport,
+                          base::Unretained(this)));
+}
+
+void DaoAgentDreamHandler::HandleOpenDreamReport(
+    const base::ListValue& args) {
+  Browser* browser = FindLastActiveBrowserForMigration();
+  if (!browser) {
+    return;
+  }
+  GURL dream_url(std::string(content::kChromeUIScheme) + "://dream/");
+  NavigateParams params(browser, dream_url, ui::PAGE_TRANSITION_TYPED);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&params);
 }
 
 void DaoAgentDreamHandler::HandleGetDreamEnabled(const base::ListValue& args) {

@@ -14,6 +14,7 @@ const pickerMocks = vi.hoisted(() => ({
   captureElementScreenshotFromPage: vi.fn(),
   callNative: vi.fn(),
   callNativeArgs: vi.fn(),
+  chromeSend: vi.fn(),
   webUiListeners: {} as
       Record<string, Array<(...args: unknown[]) => void>>,
 }));
@@ -1454,6 +1455,9 @@ describe('dao-chat-view message metadata helpers', () => {
 
 describe('dao-chat-view element picker', () => {
   beforeEach(() => {
+    (globalThis as unknown as {chrome: {send: typeof pickerMocks.chromeSend}})
+        .chrome = {send: pickerMocks.chromeSend};
+    pickerMocks.chromeSend.mockReset();
     document.body.innerHTML = '';
     clearReusableElementContext();
     pickerMocks.startElementPicker.mockReset();
@@ -1477,6 +1481,7 @@ describe('dao-chat-view element picker', () => {
   });
 
   afterEach(() => {
+    delete (globalThis as unknown as {chrome?: unknown}).chrome;
     document.body.innerHTML = '';
     clearReusableElementContext();
     vi.restoreAllMocks();
@@ -5590,8 +5595,8 @@ describe('dao-chat-view element picker', () => {
     view.toggleDreamExpanded_();
     await Promise.resolve();
 
-    expect(pickerMocks.callNative).toHaveBeenCalledWith(
-        'openTab', {url: 'dao://dream/'});
+    expect(pickerMocks.chromeSend).toHaveBeenCalledWith(
+        'openDreamReport', []);
     expect(view.dreamExpanded_).toBe(false);
     expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
         'markDreamReportViewed', 7);

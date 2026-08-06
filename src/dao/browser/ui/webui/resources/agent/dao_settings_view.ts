@@ -1064,7 +1064,7 @@ export class DaoSettingsView extends CrLitElement {
   }
 
   private openDreamHistory_() {
-    callNative('openTab', {url: 'dao://dream/'}).catch(() => {});
+    chrome.send('openDreamReport', []);
   }
 
   private async runDreamNow_() {

@@ -4056,7 +4056,7 @@ export class DaoChatView extends CrLitElement {
     if (!this.dreamReport_) {
       return;
     }
-    callNative('openTab', {url: 'dao://dream/'}).catch(() => {});
+    chrome.send('openDreamReport', []);
   }
 
   private dismissDreamReport_() {

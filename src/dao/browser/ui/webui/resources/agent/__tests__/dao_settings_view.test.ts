@@ -7,6 +7,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 const settingsMocks = vi.hoisted(() => ({
   callNative: vi.fn(),
   callNativeArgs: vi.fn(),
+  chromeSend: vi.fn(),
   refreshSoulContent: vi.fn(),
   resetAgentStats: vi.fn(),
   saveSoul: vi.fn(),
@@ -140,6 +141,9 @@ async function mountMemorySettings(): Promise<TestSettingsView> {
 
 describe('dao-settings-view dream controls', () => {
   beforeEach(() => {
+    (globalThis as unknown as {chrome: {send: typeof settingsMocks.chromeSend}})
+        .chrome = {send: settingsMocks.chromeSend};
+    settingsMocks.chromeSend.mockReset();
     document.body.innerHTML = '';
     localStorage.clear();
     settingsMocks.callNative.mockReset();
@@ -168,6 +172,7 @@ describe('dao-settings-view dream controls', () => {
   });
 
   afterEach(() => {
+    delete (globalThis as unknown as {chrome?: unknown}).chrome;
     document.body.innerHTML = '';
     vi.restoreAllMocks();
   });
@@ -182,8 +187,8 @@ describe('dao-settings-view dream controls', () => {
     button!.click();
     await Promise.resolve();
 
-    expect(settingsMocks.callNative).toHaveBeenCalledWith(
-        'openTab', {url: 'dao://dream/'});
+    expect(settingsMocks.chromeSend).toHaveBeenCalledWith(
+        'openDreamReport', []);
   });
 
   it('loads adds and removes dream excluded domains', async () => {
