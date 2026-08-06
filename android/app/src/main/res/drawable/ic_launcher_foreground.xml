@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:bottom="21dp"
-        android:left="21dp"
-        android:right="21dp"
-        android:top="21dp">
-        <bitmap
-            android:gravity="fill"
-            android:src="@drawable/dao_brand_logo" />
-    </item>
-</layer-list>
+<inset
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:inset="29%">
+    <bitmap
+        android:gravity="fill"
+        android:src="@drawable/dao_brand_logo" />
+</inset>

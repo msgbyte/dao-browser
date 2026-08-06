@@ -1,6 +1,7 @@
 import groovy.json.JsonSlurper
 import org.gradle.api.GradleException
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import javax.imageio.ImageIO
 
 plugins {
     alias(libs.plugins.android.application)
@@ -68,6 +69,47 @@ val bundledUBlockOriginDirectory =
 
 val bundledKissTranslatorDirectory =
     layout.projectDirectory.dir("src/main/assets/extensions/kiss_translator")
+
+val legacyLauncherIcons = listOf("mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi").map {
+    layout.projectDirectory.file("src/main/res/mipmap-$it/ic_launcher.png")
+}
+
+val verifyLegacyLauncherIcons by tasks.registering {
+    inputs.files(legacyLauncherIcons)
+
+    doLast {
+        legacyLauncherIcons.forEach { iconFile ->
+            val bitmap = ImageIO.read(iconFile.asFile)
+                ?: throw GradleException("Cannot decode legacy launcher icon: ${iconFile.asFile}")
+            var minX = bitmap.width
+            var minY = bitmap.height
+            var maxX = -1
+            var maxY = -1
+            for (y in 0 until bitmap.height) {
+                for (x in 0 until bitmap.width) {
+                    if ((bitmap.getRGB(x, y) ushr 24) > 8) {
+                        minX = minOf(minX, x)
+                        minY = minOf(minY, y)
+                        maxX = maxOf(maxX, x)
+                        maxY = maxOf(maxY, y)
+                    }
+                }
+            }
+            if (maxX < minX || maxY < minY) {
+                throw GradleException("Legacy launcher icon is empty: ${iconFile.asFile}")
+            }
+            val visibleWidthFraction = (maxX - minX + 1).toDouble() / bitmap.width
+            val visibleHeightFraction = (maxY - minY + 1).toDouble() / bitmap.height
+            if (maxOf(visibleWidthFraction, visibleHeightFraction) > 0.65) {
+                throw GradleException(
+                    "Legacy launcher icon overfills its canvas: ${iconFile.asFile} " +
+                        "(${"%.1f".format(visibleWidthFraction * 100)}% x " +
+                        "${"%.1f".format(visibleHeightFraction * 100)}%)",
+                )
+            }
+        }
+    }
+}
 
 val verifyBundledUBlockOrigin by tasks.registering {
     val manifestFile = bundledUBlockOriginDirectory.file("manifest.json")
@@ -201,6 +243,7 @@ val verifyBundledKissTranslator by tasks.registering {
 }
 
 tasks.named("preBuild").configure {
+    dependsOn(verifyLegacyLauncherIcons)
     dependsOn(verifyBundledUBlockOrigin)
     dependsOn(verifyBundledKissTranslator)
 }

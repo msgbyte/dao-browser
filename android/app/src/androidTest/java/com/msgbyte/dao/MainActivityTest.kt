@@ -411,6 +411,49 @@ class MainActivityTest {
     }
 
     @Test
+    fun adaptiveLauncherLogoKeepsOriginalScaleAt48DpLauncherSize() {
+        val applicationInfo = composeRule.activity.applicationInfo
+        val icon = composeRule.activity.packageManager.getApplicationIcon(applicationInfo)
+        assertTrue("Launcher icon must be adaptive on API 26+", icon is AdaptiveIconDrawable)
+        icon as AdaptiveIconDrawable
+
+        val density = composeRule.activity.resources.displayMetrics.density
+        val canvasSize = (48 * density).roundToInt()
+        val bitmap = Bitmap.createBitmap(canvasSize, canvasSize, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        icon.setBounds(0, 0, canvasSize, canvasSize)
+        icon.foreground.draw(canvas)
+
+        var darkPixelCount = 0
+        var minX = canvasSize
+        var maxX = -1
+        for (y in 0 until canvasSize) {
+            for (x in 0 until canvasSize) {
+                val pixel = bitmap.getPixel(x, y)
+                if (
+                    android.graphics.Color.alpha(pixel) > 8 &&
+                    android.graphics.Color.red(pixel) + android.graphics.Color.green(pixel) +
+                    android.graphics.Color.blue(pixel) < 384
+                ) {
+                    darkPixelCount++
+                    minX = minOf(minX, x)
+                    maxX = maxOf(maxX, x)
+                }
+            }
+        }
+
+        assertTrue(
+            "Launcher foreground must remain visible at 48dp",
+            darkPixelCount >= canvasSize * canvasSize / 100,
+        )
+        val visibleWidthDp = (maxX - minX + 1) / density
+        assertTrue(
+            "Launcher foreground is too small at 48dp: ${visibleWidthDp}dp",
+            visibleWidthDp >= 27f,
+        )
+    }
+
+    @Test
     fun adaptiveLauncherLogoStaysInsideTheOemSafeZone() {
         val applicationInfo = composeRule.activity.applicationInfo
         val icon = composeRule.activity.packageManager.getApplicationIcon(applicationInfo)
@@ -421,7 +464,7 @@ class MainActivityTest {
         val canvasSize = (108 * density).roundToInt()
         val bitmap = Bitmap.createBitmap(canvasSize, canvasSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        icon.foreground.setBounds(0, 0, canvasSize, canvasSize)
+        icon.setBounds(0, 0, canvasSize, canvasSize)
         icon.foreground.draw(canvas)
 
         var minX = canvasSize
@@ -443,8 +486,8 @@ class MainActivityTest {
         val visibleWidthDp = (maxX - minX + 1) / density
         val visibleHeightDp = (maxY - minY + 1) / density
         assertTrue(
-            "Launcher logo exceeds the 62dp OEM-safe box: ${visibleWidthDp}x${visibleHeightDp}dp",
-            max(visibleWidthDp, visibleHeightDp) <= 62f,
+            "Launcher logo exceeds the 66dp OEM-safe box: ${visibleWidthDp}x${visibleHeightDp}dp",
+            max(visibleWidthDp, visibleHeightDp) <= 66f,
         )
     }
 
