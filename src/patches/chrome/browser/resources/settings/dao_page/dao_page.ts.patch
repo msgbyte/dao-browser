@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,1107 @@
+@@ -0,0 +1,1152 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -388,13 +388,16 @@ index 0000000000..0000000001
 +      memoryLoading_: {type: Boolean, value: false},
 +      memoryError_: {type: Boolean, value: false},
 +      clearMemoryPending_: {type: Boolean, value: false},
++      memoryActionSucceeded_: {type: Boolean, value: false},
 +      workspaceSummary_: {type: Object, value: null},
 +      workspaceLoading_: {type: Boolean, value: false},
 +      workspaceError_: {type: Boolean, value: false},
++      workspaceActionSucceeded_: {type: Boolean, value: false},
 +      usageStats_: {type: Object, value: null},
 +      usageLoading_: {type: Boolean, value: false},
 +      usageError_: {type: Boolean, value: false},
 +      resetUsagePending_: {type: Boolean, value: false},
++      usageActionSucceeded_: {type: Boolean, value: false},
 +    };
 +  }
 +
@@ -483,13 +486,16 @@ index 0000000000..0000000001
 +  declare private memoryLoading_: boolean;
 +  declare private memoryError_: boolean;
 +  declare private clearMemoryPending_: boolean;
++  declare private memoryActionSucceeded_: boolean;
 +  declare private workspaceSummary_: DaoAgentWorkspaceSummary|null;
 +  declare private workspaceLoading_: boolean;
 +  declare private workspaceError_: boolean;
++  declare private workspaceActionSucceeded_: boolean;
 +  declare private usageStats_: DaoAgentUsageStats|null;
 +  declare private usageLoading_: boolean;
 +  declare private usageError_: boolean;
 +  declare private resetUsagePending_: boolean;
++  declare private usageActionSucceeded_: boolean;
 +
 +  get memorySummaryForTest(): DaoAgentMemorySummary|null {
 +    return this.memorySummary_;
@@ -634,8 +640,14 @@ index 0000000000..0000000001
 +  }
 +
 +  private onClearMemory_(event: Event): void {
++    this.memoryActionSucceeded_ = false;
 +    this.clearMemoryInvoker_ = event.currentTarget as HTMLElement;
 +    this.getManagementDialog_('clearAllMemoryDialog').showModal();
++  }
++
++  private onClearMemoryDialogClose_(): void {
++    this.clearMemoryInvoker_?.focus();
++    this.clearMemoryInvoker_ = null;
 +  }
 +
 +  private onCancelClearMemory_(): void {
@@ -655,11 +667,15 @@ index 0000000000..0000000001
 +    this.clearMemoryPending_ = true;
 +    try {
 +      if (await this.agentSettingsBrowserProxy_.clearAllMemory()) {
++        this.memoryActionSucceeded_ = true;
++        this.memoryError_ = false;
 +        void this.loadMemorySummary_();
 +      } else {
++        this.memoryActionSucceeded_ = false;
 +        this.memoryError_ = true;
 +      }
 +    } catch {
++      this.memoryActionSucceeded_ = false;
 +      this.memoryError_ = true;
 +    } finally {
 +      this.clearMemoryPending_ = false;
@@ -671,8 +687,12 @@ index 0000000000..0000000001
 +  }
 +
 +  private async onOpenWorkspace_(): Promise<void> {
++    this.workspaceActionSucceeded_ = false;
 +    try {
-+      if (!await this.agentSettingsBrowserProxy_.openWorkspace()) {
++      if (await this.agentSettingsBrowserProxy_.openWorkspace()) {
++        this.workspaceActionSucceeded_ = true;
++        this.workspaceError_ = false;
++      } else {
 +        this.workspaceError_ = true;
 +      }
 +    } catch {
@@ -681,8 +701,14 @@ index 0000000000..0000000001
 +  }
 +
 +  private onResetUsage_(event: Event): void {
++    this.usageActionSucceeded_ = false;
 +    this.resetUsageInvoker_ = event.currentTarget as HTMLElement;
 +    this.getManagementDialog_('resetUsageStatsDialog').showModal();
++  }
++
++  private onResetUsageDialogClose_(): void {
++    this.resetUsageInvoker_?.focus();
++    this.resetUsageInvoker_ = null;
 +  }
 +
 +  private onCancelResetUsage_(): void {
@@ -702,11 +728,15 @@ index 0000000000..0000000001
 +    this.resetUsagePending_ = true;
 +    try {
 +      if (await this.agentSettingsBrowserProxy_.resetUsageStats()) {
++        this.usageActionSucceeded_ = true;
++        this.usageError_ = false;
 +        void this.loadUsageStats_();
 +      } else {
++        this.usageActionSucceeded_ = false;
 +        this.usageError_ = true;
 +      }
 +    } catch {
++      this.usageActionSucceeded_ = false;
 +      this.usageError_ = true;
 +    } finally {
 +      this.resetUsagePending_ = false;
@@ -761,6 +791,21 @@ index 0000000000..0000000001
 +                       .map(([name, count]) => ({name, count}))
 +                       .sort((a, b) => b.count - a.count) :
 +                   [];
++  }
++
++  private getUsageToolCallCount_(stats: DaoAgentUsageStats|null): string {
++    const count = stats ?
++        Object.values(stats.toolCalls).reduce((sum, value) => sum + value, 0) :
++        0;
++    return this.formatInteger_(count);
++  }
++
++  private hasUsageToolEntries_(stats: DaoAgentUsageStats|null): boolean {
++    return this.getUsageToolEntries_(stats).length > 0;
++  }
++
++  private hasNoUsageToolEntries_(stats: DaoAgentUsageStats|null): boolean {
++    return !this.hasUsageToolEntries_(stats);
 +  }
 +
 +  private readAgentBoolean_(key: string, fallback: boolean): boolean {

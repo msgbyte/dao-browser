@@ -181,4 +181,80 @@ describe('settings continuous overview contract', () => {
       expect(handler).not.toContain(`"${forbidden}"`);
     }
   });
+
+  it('renders the complete Agent management ledger without dropping links', () => {
+    const htmlPatch = readPatch('dao_page/dao_page.html.patch');
+    const tsPatch = readPatch('dao_page/dao_page.ts.patch');
+    const managementSource = tsPatch + htmlPatch;
+
+    for (const token of [
+      'conversationCount',
+      'preferenceCount',
+      'episodeCount',
+      'totalSize',
+      'usedBytes',
+      'capBytes',
+      'fileCount',
+      'recentActivity',
+      'apiCalls',
+      'toolCalls',
+      'promptTokens',
+      'completionTokens',
+      'totalTokens',
+      'estimatedCost',
+      'clearAllMemory',
+      'openWorkspace',
+      'resetUsageStats',
+      'href="dao://skills"',
+      'href="dao://memory"',
+      'href="dao://dream"',
+    ]) {
+      expect(managementSource).toContain(token);
+    }
+
+    for (const id of [
+      'daoAgentMemoryManagement',
+      'daoAgentWorkspaceManagement',
+      'daoAgentUsageManagement',
+      'clearAllMemoryDialog',
+      'resetUsageStatsDialog',
+    ]) {
+      expect(htmlPatch).toContain(`id="${id}"`);
+    }
+
+    for (const binding of [
+      'id="agentMemoryRetry"',
+      'on-click="onRetryMemory_"',
+      'id="agentWorkspaceRetry"',
+      'on-click="onRetryWorkspace_"',
+      'id="agentUsageRetry"',
+      'on-click="onRetryUsage_"',
+      'id="clearAllMemoryButton"',
+      'on-click="onClearMemory_"',
+      'id="clearAllMemoryCancel"',
+      'on-click="onCancelClearMemory_"',
+      'id="clearAllMemoryConfirm"',
+      'on-click="onConfirmClearMemory_"',
+      'disabled="[[clearMemoryPending_]]"',
+      'id="openAgentWorkspaceButton"',
+      'on-click="onOpenWorkspace_"',
+      'id="resetUsageStatsButton"',
+      'on-click="onResetUsage_"',
+      'id="resetUsageStatsCancel"',
+      'on-click="onCancelResetUsage_"',
+      'id="resetUsageStatsConfirm"',
+      'on-click="onConfirmResetUsage_"',
+      'disabled="[[resetUsagePending_]]"',
+    ]) {
+      expect(htmlPatch).toContain(binding);
+    }
+
+    expect(htmlPatch).toContain('<dl class="dao-agent-management-metrics">');
+    expect(htmlPatch).toContain('<ol class="dao-agent-activity-list">');
+    expect(htmlPatch).toContain('<ul class="dao-agent-tool-usage-list">');
+    expect(htmlPatch).toContain('aria-live="polite"');
+    expect(htmlPatch).toContain('@media (max-width: 620px)');
+    expect(htmlPatch).toContain(':focus-visible');
+    expect(tsPatch).toContain("cr_dialog/cr_dialog.js");
+  });
 });
