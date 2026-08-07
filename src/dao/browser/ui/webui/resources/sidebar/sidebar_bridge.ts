@@ -233,7 +233,7 @@ export function parseTabDragData(
 export type FolderAction =
   | {action: 'toggleCollapse'; folderId: string}
   | {action: 'rename'; folderId: string; name: string}
-  | {action: 'delete'; folderId: string}
+  | {action: 'unfolder'; folderId: string}
   | {action: 'tabDrop'; folderId: string; dragData: string}
   | {action: 'childReorder'; folderId: string; dragData: string;
      dropIndex: number}

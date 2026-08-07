@@ -40,6 +40,11 @@ const NO_NEW_STALE_TABS_ARCHIVED_TOAST_KEY =
     'daoSidebarNoNewStaleTabsArchivedToast';
 const TOAST_VISIBLE_MS = 3000;
 
+interface PendingFolderDeletion {
+  folderId: string;
+  tabIds: Set<string>;
+}
+
 function getLocalizedString(id: string): string {
   return loadTimeData.getString(id);
 }
@@ -282,6 +287,7 @@ export class DaoSidebarApp extends CrLitElement {
   private initialStateReceived_: boolean = false;
   private activeTabId_: string = '';
   private pendingActiveFolderTabId_: string = '';
+  private pendingFolderDeletion_: PendingFolderDeletion | null = null;
   private boundClosePlusMenu_: ((e: MouseEvent) => void) | null = null;
   private tabScrollbarHoverTimeout_: number | null = null;
   private listenerHandles_: Array<ReturnType<typeof addListener>> = [];
@@ -358,7 +364,11 @@ export class DaoSidebarApp extends CrLitElement {
         // Keep runtime tab identities in sync after duplicate/move/close so
         // folder operations target the exact rendered tab, not a URL match.
         this.folderModel_.reconcile(this.unpinnedTabs_);
-        if (this.expandPendingActiveTabFolder_()) {
+        const expandedActiveFolder = this.expandPendingActiveTabFolder_();
+        if (this.completePendingFolderDeletion_()) {
+          this.folderModelVersion_++;
+          saveFoldersImmediately(this.folderModel_.toJson());
+        } else if (expandedActiveFolder) {
           this.saveFolders_();
         } else {
           this.folderModelVersion_++;
@@ -515,9 +525,10 @@ export class DaoSidebarApp extends CrLitElement {
         this.saveFolders_();
         break;
 
-      case 'delete':
-        this.folderModel_.deleteFolder(detail.folderId);
-        this.saveFolders_();
+      case 'unfolder':
+        if (this.folderModel_.unfolder(detail.folderId)) {
+          this.saveFolders_();
+        }
         break;
 
       case 'tabDrop':
@@ -707,40 +718,83 @@ export class DaoSidebarApp extends CrLitElement {
       return;
     }
 
+    if (command === 'unfolder') {
+      this.handleFolderAction_({action: 'unfolder', folderId});
+      return;
+    }
+
     if (command === 'delete') {
-      this.handleFolderAction_({action: 'delete', folderId});
-      return;
-    }
-
-    if (command === 'clearStaleTabs') {
-      const folder = this.folderModel_.getFolders().find(
-          item => item.id === folderId);
-      if (folder?.name !== STALE_TABS_FOLDER_NAME) {
-        return;
+      if (this.folderModel_.getFolders().some(folder => folder.id === folderId)) {
+        sendNative('showDeleteFolderDialog', folderId);
       }
-      sendNative('showClearStaleTabsDialog', folderId);
       return;
     }
 
-    if (command === 'clearStaleTabsConfirmed') {
-      this.clearStaleTabs_(folderId);
+    if (command === 'deleteConfirmed') {
+      this.deleteFolder_(folderId);
     }
   }
 
-  private clearStaleTabs_(folderId: string) {
+  private deleteFolder_(folderId: string) {
     const folder = this.folderModel_.getFolders().find(
         item => item.id === folderId);
-    if (!folder || folder.name !== STALE_TABS_FOLDER_NAME) {
+    if (!folder) {
       return;
     }
 
     const tabs = this.folderModel_.getMatchedTabs(folderId, this.unpinnedTabs_);
-    this.folderModel_.deleteFolder(folderId);
+    if (tabs.length > 0) {
+      this.pendingFolderDeletion_ = {
+        folderId,
+        tabIds: new Set(tabs.map(tab => tab.tabId)),
+      };
+      sendNative('closeTabsById', tabs.map(tab => tab.tabId));
+      return;
+    }
+
+    if (!this.folderModel_.deleteFolder(folderId)) {
+      return;
+    }
     this.folderModelVersion_++;
     saveFoldersImmediately(this.folderModel_.toJson());
-    if (tabs.length > 0) {
-      sendNative('closeTabsById', tabs.map(tab => tab.tabId));
+  }
+
+  private completePendingFolderDeletion_(): boolean {
+    const pending = this.pendingFolderDeletion_;
+    if (!pending) {
+      return false;
     }
+
+    const openTabIds = new Set(this.unpinnedTabs_.map(tab => tab.tabId));
+    if ([...pending.tabIds].some(tabId => openTabIds.has(tabId))) {
+      const folderExists = this.folderModel_.getFolders().some(
+          folder => folder.id === pending.folderId);
+      if (!folderExists) {
+        this.pendingFolderDeletion_ = null;
+      }
+      return false;
+    }
+
+    const folderExists = this.folderModel_.getFolders().some(
+        folder => folder.id === pending.folderId);
+    if (!folderExists) {
+      // Reconciliation drops folders after their final child disappears. The
+      // model is already in the desired state; flush that state immediately.
+      this.pendingFolderDeletion_ = null;
+      return true;
+    }
+
+    // A tab added to the folder while a beforeunload dialog was open was not
+    // part of the confirmed deletion. Keep the folder instead of deleting it
+    // out from under that tab.
+    if (this.folderModel_.getMatchedTabs(
+            pending.folderId, this.unpinnedTabs_).length > 0) {
+      this.pendingFolderDeletion_ = null;
+      return false;
+    }
+
+    this.pendingFolderDeletion_ = null;
+    return this.folderModel_.deleteFolder(pending.folderId);
   }
 
   private onTabSectionScroll_ = () => {

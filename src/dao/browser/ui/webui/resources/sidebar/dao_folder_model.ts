@@ -174,17 +174,29 @@ export class FolderModel {
   }
 
   /**
-   * Delete a folder by ID. Child tabs become loose tabs at the
+   * Remove a folder by ID while releasing its child tabs as loose tabs at the
    * folder's position in the items array.
    */
-  deleteFolder(folderId: string): void {
+  unfolder(folderId: string): boolean {
     const index = this.items_.findIndex(
         item => item.type === 'folder' && item.id === folderId);
-    if (index === -1) return;
+    if (index === -1) return false;
 
     const folder = this.items_[index] as FolderData;
-    // Replace folder with its children (released as loose tabs).
     this.items_.splice(index, 1, ...folder.children);
+    return true;
+  }
+
+  /**
+   * Delete a folder by ID together with its child tab references.
+   */
+  deleteFolder(folderId: string): boolean {
+    const index = this.items_.findIndex(
+        item => item.type === 'folder' && item.id === folderId);
+    if (index === -1) return false;
+
+    this.items_.splice(index, 1);
+    return true;
   }
 
   /**

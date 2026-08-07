@@ -49,7 +49,7 @@ describe('FolderModel', () => {
     expect(persisted.items[0].children[0]).not.toHaveProperty('tabId');
   });
 
-  it('releases folder children at the folder position when deleting', () => {
+  it('releases folder children at the folder position when unfoldering', () => {
     const model = new FolderModel();
     expect(model.loadFromJson(JSON.stringify({
       version: 1,
@@ -68,11 +68,51 @@ describe('FolderModel', () => {
       ],
     }))).toBe(true);
 
-    model.deleteFolder('f1');
+    expect(model.unfolder('f1')).toBe(true);
 
     expect(model.getOrderedItems().map(item => item.type === 'tab'
       ? item.title
-      : item.name)).toEqual(['First', 'Child', 'Last']);
+        : item.name)).toEqual(['First', 'Child', 'Last']);
+  });
+
+  it('deletes a folder together with its child references', () => {
+    const model = new FolderModel();
+    expect(model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [
+        {type: 'tab', url: 'https://first.example', title: 'First'},
+        {
+          type: 'folder',
+          id: 'f1',
+          name: 'Folder',
+          collapsed: false,
+          children: [
+            {type: 'tab', url: 'https://child.example', title: 'Child'},
+          ],
+        },
+        {type: 'tab', url: 'https://last.example', title: 'Last'},
+      ],
+    }))).toBe(true);
+
+    expect(model.deleteFolder('f1')).toBe(true);
+
+    expect(model.getOrderedItems().map(item => item.type === 'tab'
+      ? item.title
+      : item.name)).toEqual(['First', 'Last']);
+  });
+
+  it('reports missing folders without changing the model', () => {
+    const model = new FolderModel();
+    model.loadFromJson(JSON.stringify({
+      version: 1,
+      items: [{type: 'tab', url: 'https://first.example', title: 'First'}],
+    }));
+
+    expect(model.unfolder('missing')).toBe(false);
+    expect(model.deleteFolder('missing')).toBe(false);
+    expect(model.getOrderedItems()).toEqual([
+      {type: 'tab', url: 'https://first.example', title: 'First'},
+    ]);
   });
 
   it('finds or creates folders by exact name', () => {

@@ -292,23 +292,23 @@
       <message name="IDS_DAO_FOLDER_CONTEXT_RENAME" desc="Context menu item that starts renaming a folder in the Dao sidebar.">
         Rename
       </message>
-      <message name="IDS_DAO_FOLDER_CONTEXT_DELETE" desc="Context menu item that deletes a folder in the Dao sidebar. Tabs inside the folder remain open.">
+      <message name="IDS_DAO_FOLDER_CONTEXT_UNFOLDER" desc="Context menu item that removes a folder in the Dao sidebar while leaving its tabs open.">
+        Unfolder
+      </message>
+      <message name="IDS_DAO_FOLDER_CONTEXT_DELETE" desc="Context menu item that starts deleting a folder and closing every tab inside it.">
         Delete Folder
       </message>
-      <message name="IDS_DAO_FOLDER_CONTEXT_CLEAR_STALE_TABS" desc="Context menu item that starts clearing tabs from the stale folder in the Dao sidebar.">
-        Clear Stale Tabs
+      <message name="IDS_DAO_DELETE_FOLDER_DIALOG_TITLE" desc="Title of the confirmation dialog shown before deleting a Dao sidebar folder and closing its tabs.">
+        Delete folder?
       </message>
-      <message name="IDS_DAO_CLEAR_STALE_TABS_DIALOG_TITLE" desc="Title of the confirmation dialog shown before clearing every tab from the stale folder.">
-        Clear stale tabs?
+      <message name="IDS_DAO_DELETE_FOLDER_DIALOG_DESCRIPTION" desc="Description in the confirmation dialog explaining that deleting a folder closes every tab inside it.">
+        This will close all tabs in the folder and delete the folder.
       </message>
-      <message name="IDS_DAO_CLEAR_STALE_TABS_DIALOG_DESCRIPTION" desc="Description in the confirmation dialog explaining that clearing stale tabs closes the tabs and deletes the stale folder.">
-        This will close all tabs in the stale folder and delete the folder.
-      </message>
-      <message name="IDS_DAO_CLEAR_STALE_TABS_DIALOG_CANCEL" desc="Label on the button that cancels clearing stale tabs.">
+      <message name="IDS_DAO_DELETE_FOLDER_DIALOG_CANCEL" desc="Label on the button that cancels deleting a folder.">
         Cancel
       </message>
-      <message name="IDS_DAO_CLEAR_STALE_TABS_DIALOG_CONFIRM" desc="Label on the destructive confirmation button that clears stale tabs.">
-        Clear
+      <message name="IDS_DAO_DELETE_FOLDER_DIALOG_CONFIRM" desc="Label on the destructive confirmation button that deletes a folder and closes its tabs.">
+        Delete
       </message>
 
       <!-- Command bar -->

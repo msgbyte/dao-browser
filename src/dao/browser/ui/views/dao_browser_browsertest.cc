@@ -93,6 +93,7 @@
 #include "content/public/test/download_test_observer.h"
 #include "content/public/test/slow_download_http_response.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "content/public/test/test_web_ui.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_memory_store.h"
@@ -742,6 +743,11 @@ void AttachSidebarHandlerForTesting(Browser* browser,
   browser->profile()->GetPrefs()->SetBoolean(prefs::kDaoWelcomeShown, true);
   handler->SetBrowser(browser);
 }
+
+class TestDaoSidebarUIHandler : public DaoSidebarUIHandler {
+ public:
+  using DaoSidebarUIHandler::set_web_ui;
+};
 
 class CountingDialogDelegate : public views::DialogDelegate {
  public:
@@ -1952,12 +1958,16 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, CloseTabsByStableIdentity) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
-                       ClearStaleTabsUsesDaoNativeDialog) {
-  DaoSidebarUIHandler handler;
+                       DeleteFolderUsesDaoNativeDialog) {
+  content::TestWebUI web_ui;
+  TestDaoSidebarUIHandler handler;
+  handler.set_web_ui(&web_ui);
   AttachSidebarHandlerForTesting(browser(), &handler);
+  handler.AllowJavascriptForTesting();
+  web_ui.ClearTrackedCalls();
 
   views::Widget* widget =
-      handler.ShowClearStaleTabsDialogForTesting("stale-folder");
+      handler.ShowDeleteFolderDialogForTesting("folder-id");
   ScopedWidgetCloser close_widget(widget);
   ASSERT_NE(nullptr, widget);
   EXPECT_TRUE(widget->IsVisible());
@@ -1965,15 +1975,27 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   views::DialogDelegate* dialog = widget->widget_delegate()->AsDialogDelegate();
   ASSERT_NE(nullptr, dialog);
   EXPECT_TRUE(dialog->use_dao_system_dialog_style());
-  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_TITLE),
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_DELETE_FOLDER_DIALOG_TITLE),
             dialog->GetWindowTitle());
-  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_CONFIRM),
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_DELETE_FOLDER_DIALOG_CONFIRM),
             dialog->GetDialogButtonLabel(ui::mojom::DialogButton::kOk));
-  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_CANCEL),
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_DELETE_FOLDER_DIALOG_CANCEL),
             dialog->GetDialogButtonLabel(ui::mojom::DialogButton::kCancel));
   EXPECT_TRUE(HasDescendantLabelText(
       dialog->GetContentsView(),
-      l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_DESCRIPTION)));
+      l10n_util::GetStringUTF16(IDS_DAO_DELETE_FOLDER_DIALOG_DESCRIPTION)));
+
+  dialog->AcceptDialog();
+
+  ASSERT_EQ(1u, web_ui.call_data().size());
+  const content::TestWebUI::CallData& call = *web_ui.call_data().front();
+  EXPECT_EQ("cr.webUIListenerCallback", call.function_name());
+  ASSERT_NE(nullptr, call.arg1());
+  ASSERT_NE(nullptr, call.arg2());
+  ASSERT_NE(nullptr, call.arg3());
+  EXPECT_EQ("folderContextMenuCommand", call.arg1()->GetString());
+  EXPECT_EQ("folder-id", call.arg2()->GetString());
+  EXPECT_EQ("deleteConfirmed", call.arg3()->GetString());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
