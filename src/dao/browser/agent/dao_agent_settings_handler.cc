@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
@@ -18,6 +19,10 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/web_ui.h"
+#include "dao/browser/agent/dao_agent_memory_service.h"
+#include "dao/browser/agent/dao_agent_memory_service_factory.h"
+#include "dao/browser/agent/dao_agent_workspace_service.h"
+#include "dao/browser/agent/dao_agent_workspace_service_factory.h"
 #include "dao/browser/agent/dao_dream_domain_utils.h"
 #include "dao/browser/dao_pref_names.h"
 
@@ -25,6 +30,7 @@ namespace dao {
 namespace {
 
 constexpr char kSettingsChangedEvent[] = "dao-agent-settings-changed";
+constexpr char kUsageStatsChangedEvent[] = "dao-agent-usage-stats-changed";
 constexpr size_t kMaxSettingValueBytes = 256 * 1024;
 constexpr size_t kMaxSettingsBytes = 512 * 1024;
 
@@ -189,6 +195,37 @@ base::DictValue ReadUsageStatsOrDefault(PrefService* prefs) {
     return normalized;
   }
   return NewUsageStats(base::Time::Now());
+}
+
+base::DictValue BuildMemorySummary(const StorageStats& stats) {
+  base::DictValue summary;
+  summary.Set("totalSize", static_cast<double>(stats.total_size_bytes));
+  summary.Set("conversationCount", stats.conversation_count);
+  summary.Set("episodeCount", stats.episode_count);
+  summary.Set("preferenceCount", stats.preference_count);
+  return summary;
+}
+
+base::DictValue BuildWorkspaceSummary(
+    const DaoAgentWorkspaceService::UsageSnapshot& usage,
+    const std::vector<AuditEntry>& entries) {
+  base::DictValue summary;
+  summary.Set("root", usage.root.AsUTF8Unsafe());
+  summary.Set("usedBytes", static_cast<double>(usage.used_bytes));
+  summary.Set("capBytes", static_cast<double>(usage.cap_bytes));
+  summary.Set("fileCount", static_cast<int>(usage.file_count));
+  summary.Set("fileCountCap", static_cast<int>(usage.file_count_cap));
+
+  base::ListValue recent_activity;
+  for (const AuditEntry& entry : entries) {
+    base::DictValue activity;
+    activity.Set("timestamp", entry.ts);
+    activity.Set("operation", entry.op);
+    activity.Set("path", entry.path);
+    recent_activity.Append(std::move(activity));
+  }
+  summary.Set("recentActivity", std::move(recent_activity));
+  return summary;
 }
 
 }  // namespace
@@ -395,6 +432,38 @@ void DaoAgentSettingsHandler::RegisterMessages() {
       "setDaoAgentSetting",
       base::BindRepeating(&DaoAgentSettingsHandler::HandleSetSetting,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getDaoAgentMemorySummary",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleGetMemorySummary,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "clearAllDaoAgentMemory",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleClearAllMemory,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getDaoAgentWorkspaceSummary",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleGetWorkspaceSummary,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "openDaoAgentWorkspace",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleOpenWorkspace,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getDaoAgentUsageStats",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleGetUsageStats,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "resetDaoAgentUsageStats",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleResetUsageStats,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "recordDaoAgentApiUsage",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleRecordApiUsage,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "recordDaoAgentToolUsage",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleRecordToolUsage,
+                          base::Unretained(this)));
 }
 
 void DaoAgentSettingsHandler::OnJavascriptAllowed() {
@@ -408,15 +477,19 @@ void DaoAgentSettingsHandler::OnJavascriptAllowed() {
   pref_change_registrar_.Add(prefs::kDaoAgentSettings, callback);
   pref_change_registrar_.Add(prefs::kDaoAgentSettingsMigrationVersion,
                              callback);
-  pref_change_registrar_.Add(prefs::kDaoAgentUsageStats, callback);
   pref_change_registrar_.Add(prefs::kDaoAgentMemoryEnabled, callback);
   pref_change_registrar_.Add(prefs::kDaoDreamEnabled, callback);
   pref_change_registrar_.Add(prefs::kDaoDreamDebug, callback);
   pref_change_registrar_.Add(prefs::kDaoDreamExcludedDomains, callback);
+  pref_change_registrar_.Add(
+      prefs::kDaoAgentUsageStats,
+      base::BindRepeating(&DaoAgentSettingsHandler::OnUsageStatsChanged,
+                          base::Unretained(this)));
 }
 
 void DaoAgentSettingsHandler::OnJavascriptDisallowed() {
   pref_change_registrar_.Reset();
+  weak_factory_.InvalidateWeakPtrs();
 }
 
 void DaoAgentSettingsHandler::HandleGetSettings(const base::ListValue& args) {
@@ -448,10 +521,189 @@ void DaoAgentSettingsHandler::HandleSetSetting(const base::ListValue& args) {
       args[0], SetDaoAgentSetting(GetPrefs(), args[1].GetString(), args[2]));
 }
 
+void DaoAgentSettingsHandler::HandleGetMemorySummary(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* service =
+      profile ? DaoAgentMemoryServiceFactory::GetForProfile(profile) : nullptr;
+  if (!service) {
+    ResolveJavascriptCallback(args[0], base::DictValue());
+    return;
+  }
+  service->GetStorageStats(base::BindOnce(
+      [](base::WeakPtr<DaoAgentSettingsHandler> handler,
+         std::string callback_id, StorageStats stats) {
+        if (handler) {
+          handler->ResolveJavascriptCallback(base::Value(callback_id),
+                                             BuildMemorySummary(stats));
+        }
+      },
+      weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentSettingsHandler::HandleClearAllMemory(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentMemoryService* service =
+      profile ? DaoAgentMemoryServiceFactory::GetForProfile(profile) : nullptr;
+  if (!service) {
+    ResolveJavascriptCallback(args[0], base::Value(false));
+    return;
+  }
+  service->ClearAll(base::BindOnce(
+      [](base::WeakPtr<DaoAgentSettingsHandler> handler,
+         std::string callback_id, bool success) {
+        if (handler) {
+          handler->ResolveJavascriptCallback(base::Value(callback_id),
+                                             base::Value(success));
+        }
+      },
+      weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentSettingsHandler::HandleGetWorkspaceSummary(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentWorkspaceService* service =
+      profile ? DaoAgentWorkspaceServiceFactory::GetForProfile(profile)
+              : nullptr;
+  if (!service) {
+    ResolveJavascriptCallback(args[0], base::DictValue());
+    return;
+  }
+  service->GetUsageInfo(base::BindOnce(
+      [](base::WeakPtr<DaoAgentSettingsHandler> handler,
+         std::string callback_id,
+         DaoAgentWorkspaceService::UsageSnapshot usage) {
+        if (!handler) {
+          return;
+        }
+        Profile* profile = Profile::FromWebUI(handler->web_ui());
+        DaoAgentWorkspaceService* service =
+            profile ? DaoAgentWorkspaceServiceFactory::GetForProfile(profile)
+                    : nullptr;
+        if (!service) {
+          handler->ResolveJavascriptCallback(base::Value(callback_id),
+                                             base::DictValue());
+          return;
+        }
+        service->GetRecentAuditAsync(base::BindOnce(
+            [](base::WeakPtr<DaoAgentSettingsHandler> handler,
+               std::string callback_id,
+               DaoAgentWorkspaceService::UsageSnapshot usage,
+               std::vector<AuditEntry> entries) {
+              if (handler) {
+                handler->ResolveJavascriptCallback(
+                    base::Value(callback_id),
+                    BuildWorkspaceSummary(usage, entries));
+              }
+            },
+            handler, callback_id, std::move(usage)));
+      },
+      weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentSettingsHandler::HandleOpenWorkspace(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoAgentWorkspaceService* service =
+      profile ? DaoAgentWorkspaceServiceFactory::GetForProfile(profile)
+              : nullptr;
+  if (!service) {
+    ResolveJavascriptCallback(args[0], base::Value(false));
+    return;
+  }
+  service->OpenInFileManager();
+  ResolveJavascriptCallback(args[0], base::Value(true));
+}
+
+void DaoAgentSettingsHandler::HandleGetUsageStats(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  ResolveJavascriptCallback(args[0], BuildDaoAgentUsageStats(GetPrefs()));
+}
+
+void DaoAgentSettingsHandler::HandleResetUsageStats(
+    const base::ListValue& args) {
+  AllowJavascript();
+  PrefService* prefs = GetPrefs();
+  if (args.size() != 1 || !args[0].is_string() || !prefs) {
+    if (args.size() == 1 && args[0].is_string()) {
+      ResolveJavascriptCallback(args[0], base::Value(false));
+    }
+    return;
+  }
+  ResetDaoAgentUsageStats(prefs, base::Time::Now());
+  ResolveJavascriptCallback(args[0], base::Value(true));
+}
+
+void DaoAgentSettingsHandler::HandleRecordApiUsage(
+    const base::ListValue& args) {
+  AllowJavascript();
+  PrefService* prefs = GetPrefs();
+  if (args.size() != 4 || !prefs) {
+    return;
+  }
+  const std::optional<double> prompt_tokens =
+      ReadNonNegativeFiniteNumber(&args[0]);
+  const std::optional<double> completion_tokens =
+      ReadNonNegativeFiniteNumber(&args[1]);
+  const std::optional<double> prompt_cost_per_million =
+      ReadNonNegativeFiniteNumber(&args[2]);
+  const std::optional<double> completion_cost_per_million =
+      ReadNonNegativeFiniteNumber(&args[3]);
+  if (!prompt_tokens || !completion_tokens || !prompt_cost_per_million ||
+      !completion_cost_per_million) {
+    return;
+  }
+  const double estimated_cost =
+      (*prompt_tokens * *prompt_cost_per_million +
+       *completion_tokens * *completion_cost_per_million) /
+      1'000'000.0;
+  RecordDaoAgentApiUsage(prefs, 1.0, *prompt_tokens, *completion_tokens,
+                         estimated_cost);
+}
+
+void DaoAgentSettingsHandler::HandleRecordToolUsage(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  RecordDaoAgentToolUsage(GetPrefs(), args[0].GetString());
+}
+
 void DaoAgentSettingsHandler::OnSettingsChanged() {
   if (IsJavascriptAllowed() && GetPrefs()) {
     FireWebUIListener(kSettingsChangedEvent,
                       BuildDaoAgentSettingsSnapshot(GetPrefs()));
+  }
+}
+
+void DaoAgentSettingsHandler::OnUsageStatsChanged() {
+  if (IsJavascriptAllowed() && GetPrefs()) {
+    FireWebUIListener(kUsageStatsChangedEvent,
+                      BuildDaoAgentUsageStats(GetPrefs()));
   }
 }
 

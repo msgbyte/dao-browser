@@ -156,4 +156,29 @@ describe('settings continuous overview contract', () => {
     expect(tool_usage).toMatch(
         /ScopedDictPrefUpdate update[\s\S]*?update->FindDict/);
   });
+
+  it('exposes only the restricted Agent management surface', () => {
+    const handler = readDaoSource(
+        'src/dao/browser/agent/dao_agent_settings_handler.cc');
+    for (const message of [
+      'getDaoAgentMemorySummary',
+      'clearAllDaoAgentMemory',
+      'getDaoAgentWorkspaceSummary',
+      'openDaoAgentWorkspace',
+      'getDaoAgentUsageStats',
+      'resetDaoAgentUsageStats',
+    ]) {
+      expect(handler).toContain(`"${message}"`);
+    }
+    for (const forbidden of [
+      'workspaceRead',
+      'workspaceWrite',
+      'workspaceEdit',
+      'workspaceApplyPatch',
+      'workspaceList',
+      'workspaceDownload',
+    ]) {
+      expect(handler).not.toContain(`"${forbidden}"`);
+    }
+  });
 });
