@@ -18,8 +18,8 @@ class PrefRegistrySyncable;
 
 namespace dao::prefs {
 
-void RegisterLocalStatePrefs(PrefRegistrySimple *registry);
-void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable *registry);
+void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
+void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
 // Global local-state pref controlling the owner-only local MCP endpoint.
 // The service is disabled by default and remains independent of Dao Agent.
@@ -105,20 +105,20 @@ inline constexpr char kDaoDreamDebug[] = "dao.dream_debug";
 // collection. A value excludes the domain and its subdomains.
 inline constexpr char kDaoDreamExcludedDomains[] = "dao.dream_excluded_domains";
 
-} // namespace dao::prefs
+}  // namespace dao::prefs
 
 namespace dao {
 
 bool IsSystemDarkMode();
-bool IsForceDarkModeUserEnabled(Profile *profile);
+bool IsForceDarkModeUserEnabled(Profile* profile);
 bool IsForceDarkModeAvailable();
-bool IsForceDarkModeEffective(Profile *profile);
+bool IsForceDarkModeEffective(Profile* profile);
 
-void SetForceDarkModeUserEnabled(Profile *profile, bool enabled);
+void SetForceDarkModeUserEnabled(Profile* profile, bool enabled);
 void ApplyForceDarkModePreferences(
-    Profile *profile, blink::web_pref::WebPreferences *web_preferences);
-void NotifyForceDarkModeChanged(Profile *profile);
+    Profile* profile, blink::web_pref::WebPreferences* web_preferences);
+void NotifyForceDarkModeChanged(Profile* profile);
 
-} // namespace dao
+}  // namespace dao
 
-#endif // DAO_BROWSER_DAO_PREF_NAMES_H_
+#endif  // DAO_BROWSER_DAO_PREF_NAMES_H_
