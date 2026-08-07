@@ -140,7 +140,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   bool LoadPinnedItemsForTesting(const std::string& json);
   void SetSessionRestoreCompletedForTesting(bool completed);
   int CloseTabsByIdForTesting(const base::ListValue& tab_ids);
-  views::Widget* ShowClearStaleTabsDialogForTesting(
+  views::Widget* ShowDeleteFolderDialogForTesting(
       const std::string& folder_id);
   int CloseDuplicateTabsForTesting();
 
@@ -234,7 +234,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleMovePinnedItem(const base::ListValue& args);
   void HandleShowPinnedItemContextMenu(const base::ListValue& args);
   void HandleShowFolderContextMenu(const base::ListValue& args);
-  void HandleShowClearStaleTabsDialog(const base::ListValue& args);
+  void HandleShowDeleteFolderDialog(const base::ListValue& args);
   void HandleShowTabTooltip(const base::ListValue& args);
   void HandleShowDownloadTooltip(const base::ListValue& args);
   void HandleHideTabTooltip(const base::ListValue& args);
@@ -255,8 +255,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   int FindVisualPosition(int tab_index) const;
   void CloseTabsInVisualRange(int from, int to);
   int CloseTabsById(const base::ListValue& tab_ids);
-  views::Widget* ShowClearStaleTabsDialog(const std::string& folder_id);
-  void OnClearStaleTabsDialogAccepted(std::string folder_id);
+  views::Widget* ShowDeleteFolderDialog(const std::string& folder_id);
+  void OnDeleteFolderDialogAccepted(std::string folder_id);
   int CountDuplicateTabsToClose() const;
   int CloseDuplicateTabs();
   void ClearContextMenuState();
@@ -283,8 +283,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kPinnedCloseTab,
     kPinnedCopyLink,
     kFolderRename,
+    kFolderUnfolder,
     kFolderDelete,
-    kFolderClearStaleTabs,
   };
 
   raw_ptr<Browser> browser_ = nullptr;

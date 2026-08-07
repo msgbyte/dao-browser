@@ -7,7 +7,7 @@ index cb2d7b2f5c..b415451a48 100644
  class TabModalConfirmDialogViews;
  class TestBaseWidgetDelegate;
 +namespace dao {
-+class ClearStaleTabsDialog;
++class DeleteFolderDialog;
 +class DaoQrCodeResultDialogView;
 +}  // namespace dao
  class UpdateRecommendedMessageBox;
@@ -18,7 +18,7 @@ index cb2d7b2f5c..b415451a48 100644
      friend class ::TabModalConfirmDialogViews;
      friend class ::TestBaseWidgetDelegate;
 +    // Dao Browser additions.
-+    friend class ::dao::ClearStaleTabsDialog;
++    friend class ::dao::DeleteFolderDialog;
 +    friend class ::dao::DaoQrCodeResultDialogView;
      friend class ::UpdateRecommendedMessageBox;
      friend class ::WebDialogBrowserTest;

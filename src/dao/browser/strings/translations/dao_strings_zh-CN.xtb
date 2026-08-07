@@ -3,6 +3,7 @@
 <translationbundle lang="zh-CN">
 <translation id="1173894706177603556">重命名</translation>
 <translation id="1293177648337752319">取消网站静音</translation>
+<translation id="1349314697251468085">这会关闭文件夹中的所有标签并删除该文件夹。</translation>
 <translation id="1602287703039480507">已清除此网站缓存</translation>
 <translation id="1653598257495639807">二维码扫描结果</translation>
 <translation id="1809939268435598390">删除文件夹</translation>
@@ -15,17 +16,16 @@
 <translation id="3007771295016901659">复制标签页</translation>
 <translation id="3062877722240966678">Dao i18n 管线正常</translation>
 <translation id="3249579521706735875">该功能仅在系统深色模式下生效</translation>
+<translation id="3420663750132400268">删除文件夹？</translation>
 <translation id="3435738964857648380">安全</translation>
 <translation id="3450492919008172498">没有新的标签页被归档</translation>
 <translation id="3551320343578183772">关闭标签页</translation>
-<translation id="35564291038608079">清除过期标签页？</translation>
 <translation id="3657099196021255130">在 Dao 中打开</translation>
 <translation id="3708693288863478389">输入网址或搜索...</translation>
 <translation id="385051799172605136">返回</translation>
 <translation id="3891466792657071243">停止加载</translation>
 <translation id="3901975710974642844">将过期标签页移动到“过期”</translation>
 <translation id="3984237987235889323">应用中</translation>
-<translation id="4029402916766829056">这将关闭“过期”文件夹中的所有标签页，并删除该文件夹。</translation>
 <translation id="4201242995651540725">已归档过去24小时未活动的标签页</translation>
 <translation id="4285498937028063278">取消固定</translation>
 <translation id="4322394346347055525">关闭其他标签页</translation>
@@ -42,10 +42,8 @@
 <translation id="5556459405103347317">重新加载</translation>
 <translation id="5611474372949142946">关闭下方标签页</translation>
 <translation id="5953452567010839148">未找到二维码</translation>
-<translation id="6007071648771993435">清除过期标签页</translation>
 <translation id="6042308850641462728">更多</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
-<translation id="6643016212128521049">清除</translation>
 <translation id="6736243959894955139">地址</translation>
 <translation id="6829876854799051628">清除 Cookie</translation>
 <translation id="6896758677409633944">复制</translation>
@@ -55,7 +53,9 @@
 <translation id="7604253494819481181">再次按<ph name="SHORTCUT" />切换侧边栏</translation>
 <translation id="7658239707568436148">取消</translation>
 <translation id="7717845620320228976">检查更新</translation>
+<translation id="7974106569409739809">解散文件夹</translation>
 <translation id="8137559199583651773">管理扩展</translation>
+<translation id="8261506727792406068">删除</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> 返回</translation>
 <translation id="8717864919010420084">复制链接</translation>
 <translation id="9144412711146411188">已归档不活跃的标签</translation>

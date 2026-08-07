@@ -828,10 +828,7 @@ export class DaoTabList extends CrLitElement {
     if (!folder || !this.folderModel) {
       return;
     }
-    const matchedTabs = this.folderModel.getMatchedTabs(folderId, this.tabs);
-    sendNative(
-        'showFolderContextMenu', folderId, folder.name === 'stale',
-        matchedTabs.map(tab => tab.tabId), screenX, screenY);
+    sendNative('showFolderContextMenu', folderId, screenX, screenY);
   }
 
   /**

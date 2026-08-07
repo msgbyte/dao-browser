@@ -95,29 +95,25 @@
 
 namespace dao {
 
-class ClearStaleTabsDialog : public views::DialogDelegate {
+class DeleteFolderDialog : public views::DialogDelegate {
  public:
-  explicit ClearStaleTabsDialog(base::OnceClosure accept_callback) {
+  explicit DeleteFolderDialog(base::OnceClosure accept_callback) {
     SetOwnedByWidget(OwnedByWidgetPassKey());
     SetModalType(ui::mojom::ModalType::kWindow);
     SetShowCloseButton(false);
-    SetTitle(
-        l10n_util::GetStringUTF16(IDS_DAO_CLEAR_STALE_TABS_DIALOG_TITLE));
+    SetTitle(l10n_util::GetStringUTF16(IDS_DAO_DELETE_FOLDER_DIALOG_TITLE));
     SetButtonLabel(
         ui::mojom::DialogButton::kOk,
-        l10n_util::GetStringUTF16(
-            IDS_DAO_CLEAR_STALE_TABS_DIALOG_CONFIRM));
+        l10n_util::GetStringUTF16(IDS_DAO_DELETE_FOLDER_DIALOG_CONFIRM));
     SetButtonLabel(
         ui::mojom::DialogButton::kCancel,
-        l10n_util::GetStringUTF16(
-            IDS_DAO_CLEAR_STALE_TABS_DIALOG_CANCEL));
+        l10n_util::GetStringUTF16(IDS_DAO_DELETE_FOLDER_DIALOG_CANCEL));
     SetButtonStyle(ui::mojom::DialogButton::kOk,
                    ui::ButtonStyle::kProminent);
     SetAcceptCallback(std::move(accept_callback));
 
-    auto description = std::make_unique<views::Label>(
-        l10n_util::GetStringUTF16(
-            IDS_DAO_CLEAR_STALE_TABS_DIALOG_DESCRIPTION));
+    auto description = std::make_unique<views::Label>(l10n_util::GetStringUTF16(
+        IDS_DAO_DELETE_FOLDER_DIALOG_DESCRIPTION));
     description->SetMultiLine(true);
     description->SetHorizontalAlignment(gfx::ALIGN_LEFT);
     description->SetMaximumWidth(360);
@@ -125,10 +121,10 @@ class ClearStaleTabsDialog : public views::DialogDelegate {
     ConfigureDaoSystemDialog(this);
   }
 
-  ClearStaleTabsDialog(const ClearStaleTabsDialog&) = delete;
-  ClearStaleTabsDialog& operator=(const ClearStaleTabsDialog&) = delete;
+  DeleteFolderDialog(const DeleteFolderDialog&) = delete;
+  DeleteFolderDialog& operator=(const DeleteFolderDialog&) = delete;
 
-  ~ClearStaleTabsDialog() override = default;
+  ~DeleteFolderDialog() override = default;
 };
 
 namespace {
@@ -617,9 +613,9 @@ int DaoSidebarUIHandler::CloseTabsByIdForTesting(
   return CloseTabsById(tab_ids);
 }
 
-views::Widget* DaoSidebarUIHandler::ShowClearStaleTabsDialogForTesting(
+views::Widget* DaoSidebarUIHandler::ShowDeleteFolderDialogForTesting(
     const std::string& folder_id) {
-  return ShowClearStaleTabsDialog(folder_id);
+  return ShowDeleteFolderDialog(folder_id);
 }
 
 int DaoSidebarUIHandler::CloseDuplicateTabsForTesting() {
@@ -740,10 +736,9 @@ void DaoSidebarUIHandler::RegisterMessages() {
       base::BindRepeating(&DaoSidebarUIHandler::HandleShowFolderContextMenu,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
-      "showClearStaleTabsDialog",
-      base::BindRepeating(
-          &DaoSidebarUIHandler::HandleShowClearStaleTabsDialog,
-          base::Unretained(this)));
+      "showDeleteFolderDialog",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleShowDeleteFolderDialog,
+                          base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "showTabTooltip",
       base::BindRepeating(&DaoSidebarUIHandler::HandleShowTabTooltip,
@@ -2665,9 +2660,8 @@ void DaoSidebarUIHandler::HandleShowPinnedItemContextMenu(
 
 void DaoSidebarUIHandler::HandleShowFolderContextMenu(
     const base::ListValue& args) {
-  if (!browser_ || args.size() < 5 || !args[0].is_string() ||
-      !args[1].is_bool() || !args[2].is_list() || !args[3].is_int() ||
-      !args[4].is_int()) {
+  if (!browser_ || args.size() < 3 || !args[0].is_string() ||
+      !args[1].is_int() || !args[2].is_int()) {
     return;
   }
 
@@ -2676,15 +2670,8 @@ void DaoSidebarUIHandler::HandleShowFolderContextMenu(
     return;
   }
 
-  const bool is_stale_folder = args[1].GetBool();
-  const base::ListValue& tab_ids = args[2].GetList();
-  for (const base::Value& tab_id : tab_ids) {
-    if (!tab_id.is_string() || tab_id.GetString().empty()) {
-      return;
-    }
-  }
-  const int screen_x = args[3].GetInt();
-  const int screen_y = args[4].GetInt();
+  const int screen_x = args[1].GetInt();
+  const int screen_y = args[2].GetInt();
 
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (!browser_view || !browser_view->dao_sidebar()) {
@@ -2706,12 +2693,9 @@ void DaoSidebarUIHandler::HandleShowFolderContextMenu(
   tab_context_menu_model_->AddItem(
       kFolderRename,
       l10n_util::GetStringUTF16(IDS_DAO_FOLDER_CONTEXT_RENAME));
-  if (is_stale_folder) {
-    tab_context_menu_model_->AddItem(
-        kFolderClearStaleTabs,
-        l10n_util::GetStringUTF16(
-            IDS_DAO_FOLDER_CONTEXT_CLEAR_STALE_TABS));
-  }
+  tab_context_menu_model_->AddItem(
+      kFolderUnfolder,
+      l10n_util::GetStringUTF16(IDS_DAO_FOLDER_CONTEXT_UNFOLDER));
   tab_context_menu_model_->AddItem(
       kFolderDelete,
       l10n_util::GetStringUTF16(IDS_DAO_FOLDER_CONTEXT_DELETE));
@@ -2726,7 +2710,7 @@ void DaoSidebarUIHandler::HandleShowFolderContextMenu(
                                       ui::mojom::MenuSourceType::kMouse);
 }
 
-void DaoSidebarUIHandler::HandleShowClearStaleTabsDialog(
+void DaoSidebarUIHandler::HandleShowDeleteFolderDialog(
     const base::ListValue& args) {
   if (args.empty() || !args[0].is_string()) {
     return;
@@ -2735,7 +2719,7 @@ void DaoSidebarUIHandler::HandleShowClearStaleTabsDialog(
   if (folder_id.empty()) {
     return;
   }
-  ShowClearStaleTabsDialog(folder_id);
+  ShowDeleteFolderDialog(folder_id);
 }
 
 void DaoSidebarUIHandler::HandleShowTabTooltip(const base::ListValue& args) {
@@ -3164,14 +3148,14 @@ int DaoSidebarUIHandler::CloseTabsById(const base::ListValue& tab_ids) {
   return static_cast<int>(indices.size());
 }
 
-views::Widget* DaoSidebarUIHandler::ShowClearStaleTabsDialog(
+views::Widget* DaoSidebarUIHandler::ShowDeleteFolderDialog(
     const std::string& folder_id) {
   if (!browser_ || folder_id.empty()) {
     return nullptr;
   }
 
-  auto dialog = std::make_unique<ClearStaleTabsDialog>(base::BindOnce(
-      &DaoSidebarUIHandler::OnClearStaleTabsDialogAccepted,
+  auto dialog = std::make_unique<DeleteFolderDialog>(base::BindOnce(
+      &DaoSidebarUIHandler::OnDeleteFolderDialogAccepted,
       weak_factory_.GetWeakPtr(), folder_id));
 
   views::Widget* widget =
@@ -3181,14 +3165,14 @@ views::Widget* DaoSidebarUIHandler::ShowClearStaleTabsDialog(
   return widget;
 }
 
-void DaoSidebarUIHandler::OnClearStaleTabsDialogAccepted(
+void DaoSidebarUIHandler::OnDeleteFolderDialogAccepted(
     std::string folder_id) {
   if (!IsJavascriptAllowed()) {
     return;
   }
   FireWebUIListener("folderContextMenuCommand",
                     base::Value(std::move(folder_id)),
-                    base::Value("clearStaleTabsConfirmed"));
+                    base::Value("deleteConfirmed"));
 }
 
 int DaoSidebarUIHandler::CountDuplicateTabsToClose() const {
@@ -3292,8 +3276,8 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   if (command_id == kCloseDuplicateTabs) {
     return CountDuplicateTabsToClose() > 0;
   }
-  if (command_id == kFolderRename || command_id == kFolderDelete ||
-      command_id == kFolderClearStaleTabs) {
+  if (command_id == kFolderRename || command_id == kFolderUnfolder ||
+      command_id == kFolderDelete) {
     return !context_menu_folder_id_.empty();
   }
   if (command_id == kPinnedOpen || command_id == kPinnedUnpin ||
@@ -3411,21 +3395,14 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
     return;
   }
 
-  if (command_id == kFolderRename || command_id == kFolderDelete) {
+  if (command_id == kFolderRename || command_id == kFolderUnfolder ||
+      command_id == kFolderDelete) {
     if (IsJavascriptAllowed() && !context_menu_folder_id_.empty()) {
+      const char* command = command_id == kFolderRename ? "rename" :
+          command_id == kFolderUnfolder ? "unfolder" : "delete";
       FireWebUIListener(
           "folderContextMenuCommand", base::Value(context_menu_folder_id_),
-          base::Value(command_id == kFolderRename ? "rename" : "delete"));
-    }
-    ClearContextMenuState();
-    return;
-  }
-
-  if (command_id == kFolderClearStaleTabs) {
-    if (IsJavascriptAllowed() && !context_menu_folder_id_.empty()) {
-      FireWebUIListener(
-          "folderContextMenuCommand", base::Value(context_menu_folder_id_),
-          base::Value("clearStaleTabs"));
+          base::Value(command));
     }
     ClearContextMenuState();
     return;

@@ -624,7 +624,7 @@ describe('dao-tab-list', () => {
             'showTabContextMenu', [1, 20, 30, [0, 1], [0, 1, 2]]);
       });
 
-  it('sends matched tab IDs for the exact stale folder menu', async () => {
+  it('requests the uniform context menu for a stale folder', async () => {
     const staleTab = tab({
       tabId: 'stale-tab',
       index: 0,
@@ -677,11 +677,10 @@ describe('dao-tab-list', () => {
     }));
 
     expect(send).toHaveBeenCalledWith(
-        'showFolderContextMenu',
-        ['stale-id', true, ['stale-tab'], 20, 30]);
+        'showFolderContextMenu', ['stale-id', 20, 30]);
   });
 
-  it('does not mark a differently cased Stale folder as stale', async () => {
+  it('requests the same context menu for an ordinary folder', async () => {
     const staleTab = tab({
       tabId: 'stale-tab',
       index: 0,
@@ -690,8 +689,8 @@ describe('dao-tab-list', () => {
     });
     const model = createFolderModel([{
       type: 'folder',
-      id: 'stale-id',
-      name: 'Stale',
+        id: 'ordinary-id',
+        name: 'Reading',
       collapsed: false,
       children: [{
         type: 'tab',
@@ -707,15 +706,14 @@ describe('dao-tab-list', () => {
       bubbles: true,
       composed: true,
       detail: {
-        folderId: 'stale-id',
+        folderId: 'ordinary-id',
         screenX: 20,
         screenY: 30,
       },
     }));
 
     expect(send).toHaveBeenCalledWith(
-        'showFolderContextMenu',
-        ['stale-id', false, ['stale-tab'], 20, 30]);
+        'showFolderContextMenu', ['ordinary-id', 20, 30]);
   });
 
   it('activates native tab drag when leaving at the viewport edge', async () => {

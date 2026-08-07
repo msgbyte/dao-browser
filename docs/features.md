@@ -46,10 +46,12 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   the tab count. Pin state is serialized through a shared sequenced writer and
   atomically replaces the previous profile file.
 - **dao_folder_item.ts** / **dao_folder_model.ts** — Folder grouping with
-  profile-path persistence (load/save round-trip). Only a folder named exactly
-  `stale` exposes a cleanup action through a Dao native system confirmation
-  dialog: confirming closes only its currently matched child tabs and deletes
-  the folder; Cancel preserves both.
+  profile-path persistence (load/save round-trip). Every folder context menu
+  exposes Unfolder, which removes the folder and releases its child tabs in
+  place, and Delete Folder, which uses a Dao native system confirmation dialog
+  before closing the folder's currently matched child tabs. The folder is
+  deleted only after those tabs actually close; cancelling either confirmation
+  or a page's beforeunload prompt preserves the folder and remaining tabs.
 - **Configurable stale-tab expiration** — The "You and Dao" Settings page
   stores a profile-scoped integer from 1–720 hours (24 hours by default);
   the sidebar's "Move Stale Tabs to stale" action reads that value when run,
