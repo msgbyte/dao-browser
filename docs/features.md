@@ -151,6 +151,10 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 
 **Chat surface**
 - `dao_chat_view.ts` — Main conversation view (session resume, skill picker, dynamic chips, composer height tracking, cost stats / usage)
+- **Latest Agent error retry** — A terminal provider error exposes a retry
+  action that reuses the original user submission, replaces only its failed
+  assistant/tool branch, and preserves every earlier timeline entry; cancelled
+  and historical errors cannot truncate the conversation
 - `dao_chat_history_panel.ts` — History panel
 - `dao_compact.ts` — Conversation compaction for context management
 - `dao_page_capture.ts` — Convert current page to markdown and insert into the message

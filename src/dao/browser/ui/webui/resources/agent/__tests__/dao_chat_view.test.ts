@@ -547,6 +547,28 @@ describe('dao-chat-view message metadata helpers', () => {
     expect(iface.requestUpdate).toHaveBeenCalled();
   });
 
+  it('does not auto-compact a latest provider error that can be retried',
+     async () => {
+    vi.mocked(estimateMessagesTokens).mockReturnValue(900);
+    const messages = [
+      {role: 'user', content: 'retry this prompt', dao: {id: 'u1'}},
+      {
+        role: 'assistant',
+        content: [{type: 'text', text: 'Partial response'}],
+        stopReason: 'error',
+        errorMessage: 'Provider unavailable',
+        dao: {id: 'e1'},
+      },
+    ];
+    const view = viewWithMessages(messages);
+    view.agent_.state.model = {contextWindow: 1000};
+
+    await view._daoTestMaybeAutoCompactAfterTurn();
+
+    expect(compactAgentMessages).not.toHaveBeenCalled();
+    expect(view.agent_.state.messages).toEqual(messages);
+  });
+
   it('stays silent when background auto-compaction fails', async () => {
     vi.mocked(estimateMessagesTokens).mockReturnValue(810);
     vi.mocked(compactAgentMessages).mockRejectedValue(
@@ -972,6 +994,106 @@ describe('dao-chat-view message metadata helpers', () => {
 
     expect(panel.querySelector('.dao-debug-context-menu-item')).toBeNull();
   });
+
+  it('shows retry only for the latest terminal agent error', () => {
+    const latestErrorView = viewWithMessages([
+      {role: 'user', content: 'keep this request', dao: {id: 'u1'}},
+      {
+        role: 'assistant',
+        content: [{type: 'text', text: 'Partial response before failure'}],
+        stopReason: 'error',
+        errorMessage: 'Network unavailable',
+        dao: {id: 'e1'},
+      },
+    ]);
+    const {panel: latestErrorPanel} = attachMessageHosts(latestErrorView);
+
+    latestErrorView._daoTestRefreshAssistantActions();
+
+    const retry = latestErrorPanel.querySelector(
+        '.dao-error-retry-btn') as HTMLButtonElement|null;
+    expect(retry).toBeTruthy();
+    expect(retry?.title).toBe('chat.message_actions.retry_error_tooltip');
+
+    const abortedView = viewWithMessages([
+      {role: 'user', content: 'cancel this request', dao: {id: 'u2'}},
+      {
+        role: 'assistant',
+        content: [{type: 'text', text: 'Partial response before cancel'}],
+        stopReason: 'aborted',
+        errorMessage: 'Request was aborted',
+        dao: {id: 'e2'},
+      },
+    ]);
+    const {panel: abortedPanel} = attachMessageHosts(abortedView);
+    abortedView._daoTestRefreshAssistantActions();
+    expect(abortedPanel.querySelector(
+        '.dao-assistant-actions[data-dao-message-id="e2"] .dao-retry-btn'))
+        .toBeNull();
+
+    const historicalErrorView = viewWithMessages([
+      {role: 'user', content: 'old request', dao: {id: 'u3'}},
+      {
+        role: 'assistant',
+        content: [{type: 'text', text: 'Partial old response'}],
+        stopReason: 'error',
+        errorMessage: 'Old failure',
+        dao: {id: 'e3'},
+      },
+      {role: 'user', content: 'new request', dao: {id: 'u4'}},
+      {role: 'assistant', content: 'new response', dao: {id: 'a4'}},
+    ]);
+    const {panel: historicalPanel} = attachMessageHosts(historicalErrorView);
+    historicalErrorView._daoTestRefreshAssistantActions();
+    expect(historicalPanel.querySelector(
+        '.dao-assistant-actions[data-dao-message-id="e3"] .dao-retry-btn'))
+        .toBeNull();
+  });
+
+  it('retries the failed submission without changing its earlier timeline',
+     async () => {
+       const view = viewWithMessages([
+         {role: 'user', content: 'earlier request', dao: {id: 'u0'}},
+         {role: 'assistant', content: 'earlier response', dao: {id: 'a0'}},
+         {
+           role: 'user-with-attachments',
+           content: 'retry this request',
+           attachments: [{id: 'page-1', extractedText: 'original context'}],
+           dao: {id: 'u1'},
+         },
+         {role: 'toolResult', content: 'partial tool output', dao: {id: 't1'}},
+         {
+           role: 'assistant',
+           content: [{type: 'text', text: ''}],
+           stopReason: 'error',
+           errorMessage: 'Provider failed',
+           dao: {id: 'e1'},
+         },
+       ]);
+       const {panel} = attachMessageHosts(view);
+       view._daoTestRefreshAssistantActions();
+
+       const retry = panel.querySelector(
+           '.dao-error-retry-btn') as HTMLButtonElement|null;
+       retry?.click();
+
+       await vi.waitFor(() => {
+         expect(view.agent_.continue).toHaveBeenCalledTimes(1);
+       });
+       expect(view.agent_.state.messages).toEqual([
+         {role: 'user', content: 'earlier request', dao: {id: 'u0'}},
+         {role: 'assistant', content: 'earlier response', dao: {id: 'a0'}},
+         {
+           role: 'user-with-attachments',
+           content: 'retry this request',
+           attachments: [{id: 'page-1', extractedText: 'original context'}],
+           dao: {id: 'u1'},
+         },
+       ]);
+       expect(view.agent_.state.messages.filter(
+           msg => msg.role === 'user' || msg.role === 'user-with-attachments'))
+           .toHaveLength(2);
+     });
 
   it('regenerates from the user paired with the selected assistant', async () => {
     const messages = selectedAssistantHistory();
