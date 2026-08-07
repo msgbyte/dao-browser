@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,1062 @@
+@@ -0,0 +1,1107 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -78,12 +78,51 @@ index 0000000000..0000000001
 +  lastReset: number;
 +}
 +
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === 'object' && value !== null && !Array.isArray(value);
++}
++
++function isNonNegativeFiniteNumber(value: unknown): value is number {
++  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
++}
++
++function isDaoAgentMemorySummary(
++    value: unknown): value is DaoAgentMemorySummary {
++  return isRecord(value) &&
++      isNonNegativeFiniteNumber(value['totalSize']) &&
++      isNonNegativeFiniteNumber(value['conversationCount']) &&
++      isNonNegativeFiniteNumber(value['episodeCount']) &&
++      isNonNegativeFiniteNumber(value['preferenceCount']);
++}
++
++function isDaoAgentWorkspaceActivity(
++    value: unknown): value is DaoAgentWorkspaceActivity {
++  return isRecord(value) && typeof value['timestamp'] === 'string' &&
++      typeof value['operation'] === 'string' &&
++      typeof value['path'] === 'string';
++}
++
++function isDaoAgentWorkspaceSummary(
++    value: unknown): value is DaoAgentWorkspaceSummary {
++  if (!isRecord(value)) {
++    return false;
++  }
++  const recentActivity = value['recentActivity'];
++  return typeof value['root'] === 'string' &&
++      isNonNegativeFiniteNumber(value['usedBytes']) &&
++      isNonNegativeFiniteNumber(value['capBytes']) &&
++      isNonNegativeFiniteNumber(value['fileCount']) &&
++      isNonNegativeFiniteNumber(value['fileCountCap']) &&
++      Array.isArray(recentActivity) &&
++      recentActivity.every(isDaoAgentWorkspaceActivity);
++}
++
 +export interface DaoAgentSettingsBrowserProxy {
 +  getSettings(): Promise<DaoAgentSettingsSnapshot>;
 +  setSetting(key: string, value: string|null): Promise<boolean>;
-+  getMemorySummary(): Promise<DaoAgentMemorySummary>;
++  getMemorySummary(): Promise<unknown>;
 +  clearAllMemory(): Promise<boolean>;
-+  getWorkspaceSummary(): Promise<DaoAgentWorkspaceSummary>;
++  getWorkspaceSummary(): Promise<unknown>;
 +  openWorkspace(): Promise<boolean>;
 +  getUsageStats(): Promise<DaoAgentUsageStats>;
 +  resetUsageStats(): Promise<boolean>;
@@ -99,7 +138,7 @@ index 0000000000..0000000001
 +    return sendWithPromise('setDaoAgentSetting', key, value);
 +  }
 +
-+  getMemorySummary(): Promise<DaoAgentMemorySummary> {
++  getMemorySummary(): Promise<unknown> {
 +    return sendWithPromise('getDaoAgentMemorySummary');
 +  }
 +
@@ -107,7 +146,7 @@ index 0000000000..0000000001
 +    return sendWithPromise('clearAllDaoAgentMemory');
 +  }
 +
-+  getWorkspaceSummary(): Promise<DaoAgentWorkspaceSummary> {
++  getWorkspaceSummary(): Promise<unknown> {
 +    return sendWithPromise('getDaoAgentWorkspaceSummary');
 +  }
 +
@@ -502,6 +541,9 @@ index 0000000000..0000000001
 +    this.memoryError_ = false;
 +    try {
 +      const summary = await this.agentSettingsBrowserProxy_.getMemorySummary();
++      if (!isDaoAgentMemorySummary(summary)) {
++        throw new Error();
++      }
 +      if (generation === this.memorySummaryRequestGeneration_) {
 +        this.memorySummary_ = summary;
 +      }
@@ -523,6 +565,9 @@ index 0000000000..0000000001
 +    try {
 +      const summary =
 +          await this.agentSettingsBrowserProxy_.getWorkspaceSummary();
++      if (!isDaoAgentWorkspaceSummary(summary)) {
++        throw new Error();
++      }
 +      if (generation === this.workspaceSummaryRequestGeneration_) {
 +        this.workspaceSummary_ = summary;
 +      }
