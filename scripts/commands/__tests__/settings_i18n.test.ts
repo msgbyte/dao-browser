@@ -229,25 +229,41 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function getGrdpMessageSource(grdpPatch: string, resourceName: string): string {
+function getGrdpMessage(
+    grdpPatch: string, resourceName: string):
+    {source: string, meaning: string} {
   const messagePattern = new RegExp(
-      `<message name="${resourceName}"[^>]*>([\\s\\S]*?)</message>`, 'g');
+      `<message name="${resourceName}"([^>]*)>([\\s\\S]*?)</message>`, 'g');
   const matches = [...grdpPatch.matchAll(messagePattern)];
   expect(matches, resourceName).toHaveLength(1);
-  return matches[0]![1]!
+  const attributes = matches[0]![1]!;
+  const source = matches[0]![2]!
       .replace(/^\+/gm, '')
       .replace(/<ph name="([^"]+)">[\s\S]*?<\/ph>/g, '$1')
       .replace(/<[^>]+>/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+  const meaning = attributes.match(/\bmeaning="([^"]+)"/)?.[1] ?? '';
+  return {source, meaning};
 }
 
-function getGritMessageId(message: string): string {
-  const fingerprint = createHash('md5')
-                          .update(message, 'utf-8')
-                          .digest('hex')
-                          .slice(0, 16);
-  return (BigInt(`0x${fingerprint}`) & 0x7fffffffffffffffn).toString();
+function getGritFingerprint(value: string): bigint {
+  const unsigned = BigInt(
+      `0x${createHash('md5').update(value, 'utf-8').digest('hex').slice(0, 16)}`);
+  return unsigned & 0x8000000000000000n ?
+      unsigned - 0x10000000000000000n :
+      unsigned;
+}
+
+function getGritMessageId(message: string, meaning = ''): string {
+  let fingerprint = getGritFingerprint(message);
+  if (meaning) {
+    const meaningFingerprint = getGritFingerprint(meaning);
+    fingerprint = fingerprint < 0 ?
+        meaningFingerprint + (fingerprint << 1n) + 1n :
+        meaningFingerprint + (fingerprint << 1n);
+  }
+  return (fingerprint & 0x7fffffffffffffffn).toString();
 }
 
 describe('settings i18n patches', () => {
@@ -267,8 +283,8 @@ describe('settings i18n patches', () => {
     for (const [resourceSuffix, providerKey, translation] of
          daoAgentManagementTranslations) {
       const resourceName = `IDS_SETTINGS_${resourceSuffix}`;
-      const source = getGrdpMessageSource(grdpPatch, resourceName);
-      const translationId = getGritMessageId(source);
+      const {source, meaning} = getGrdpMessage(grdpPatch, resourceName);
+      const translationId = getGritMessageId(source, meaning);
       const providerPattern = new RegExp(
           `\\{"${providerKey}",\\s*${resourceName}\\}`, 'g');
       const translationPattern = new RegExp(
@@ -280,6 +296,31 @@ describe('settings i18n patches', () => {
           .toHaveLength(1);
       expect([...zhCnPatch.matchAll(translationPattern)], providerKey)
           .toHaveLength(1);
+    }
+  });
+
+  it('keeps Agent management IDs distinct from Chromium shared labels', () => {
+    const grdpPatch = readFileSync(path.join(
+        process.cwd(), 'src/patches/chrome/app/settings_strings.grdp.patch'),
+    'utf-8');
+    const chromiumSharedTranslationIds = new Set([
+      '1293556467332435079',
+      '5063480226653192405',
+      '5154917547274118687',
+      '5801568494490449797',
+      '7144878232160441200',
+      '7658239707568436148',
+      '8633025649649592204',
+      '885701979325669005',
+    ]);
+
+    for (const [resourceSuffix] of daoAgentManagementTranslations) {
+      const resourceName = `IDS_SETTINGS_${resourceSuffix}`;
+      const {source, meaning} = getGrdpMessage(grdpPatch, resourceName);
+      expect(
+          chromiumSharedTranslationIds.has(getGritMessageId(source, meaning)),
+          resourceName)
+          .toBe(false);
     }
   });
 

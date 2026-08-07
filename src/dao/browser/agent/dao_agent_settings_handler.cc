@@ -177,13 +177,14 @@ bool NormalizeUsageStats(const base::DictValue& source,
 }
 
 void StoreUsageStats(ScopedDictPrefUpdate* update, base::DictValue stats) {
-  update->clear();
-  update->Merge(std::move(stats));
+  base::DictValue& target = update->Get();
+  target.clear();
+  target.Merge(std::move(stats));
 }
 
 void PrepareUsageStatsForUpdate(ScopedDictPrefUpdate* update) {
   base::DictValue normalized;
-  if (!NormalizeUsageStats(*update, &normalized)) {
+  if (!NormalizeUsageStats(update->Get(), &normalized)) {
     StoreUsageStats(update, NewUsageStats(base::Time::Now()));
   }
 }
