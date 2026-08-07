@@ -45,7 +45,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4145,6 +4153,204 @@
+@@ -4145,6 +4153,210 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -155,8 +155,13 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoAgentManagementLastReset", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_LAST_RESET},
 +      {"daoAgentManagementLoading", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_LOADING},
 +      {"daoAgentManagementMemoryError", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_ERROR},
++      {"daoAgentManagementMemoryActionError", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_ACTION_ERROR},
++      {"daoAgentManagementMemoryRefreshError", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_REFRESH_ERROR},
 +      {"daoAgentManagementWorkspaceError", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_ERROR},
++      {"daoAgentManagementWorkspaceActionError", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_ACTION_ERROR},
 +      {"daoAgentManagementUsageError", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_ERROR},
++      {"daoAgentManagementUsageActionError", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_ACTION_ERROR},
++      {"daoAgentManagementUsageRefreshError", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_REFRESH_ERROR},
 +      {"daoAgentManagementRetry", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RETRY},
 +      {"daoAgentManagementClearMemory", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY},
 +      {"daoAgentManagementOpenWorkspace", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_OPEN_WORKSPACE},
@@ -174,6 +179,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoAgentManagementMemoryCleared", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_CLEARED},
 +      {"daoAgentManagementWorkspaceOpened", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_OPENED},
 +      {"daoAgentManagementUsageReset", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_RESET},
++      {"daoAgentManagementActivityLabel", IDS_SETTINGS_DAO_AGENT_MANAGEMENT_ACTIVITY_LABEL},
 +      {"daoMcpServerTitle", IDS_SETTINGS_DAO_MCP_SERVER_TITLE},
 +      {"daoMcpServerEnabledLabel",
 +       IDS_SETTINGS_DAO_MCP_SERVER_ENABLED_LABEL},
@@ -250,7 +256,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4294,6 +4495,7 @@
+@@ -4294,6 +4501,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

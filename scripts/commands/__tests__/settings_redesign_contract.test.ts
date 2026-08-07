@@ -18,6 +18,15 @@ function readDaoSource(relativePath: string): string {
   return readFileSync(path.join(process.cwd(), relativePath), 'utf-8');
 }
 
+function extractBetween(
+    source: string, startToken: string, endToken: string): string {
+  const start = source.indexOf(startToken);
+  const end = source.indexOf(endToken, start + startToken.length);
+  expect(start, startToken).toBeGreaterThanOrEqual(0);
+  expect(end, endToken).toBeGreaterThan(start);
+  return source.slice(start, end);
+}
+
 function deletionLines(patch: string): string[] {
   return patch.split('\n').filter(
       line => line.startsWith('-') && !line.startsWith('---'));
@@ -222,32 +231,57 @@ describe('settings continuous overview contract', () => {
       expect(htmlPatch).toContain(`id="${id}"`);
     }
 
-    for (const binding of [
-      'id="agentMemoryRetry"',
-      'on-click="onRetryMemory_"',
-      'id="agentWorkspaceRetry"',
-      'on-click="onRetryWorkspace_"',
-      'id="agentUsageRetry"',
-      'on-click="onRetryUsage_"',
-      'id="clearAllMemoryButton"',
-      'on-click="onClearMemory_"',
-      'id="clearAllMemoryCancel"',
-      'on-click="onCancelClearMemory_"',
-      'id="clearAllMemoryConfirm"',
-      'on-click="onConfirmClearMemory_"',
-      'disabled="[[clearMemoryPending_]]"',
-      'id="openAgentWorkspaceButton"',
-      'on-click="onOpenWorkspace_"',
-      'id="resetUsageStatsButton"',
-      'on-click="onResetUsage_"',
-      'id="resetUsageStatsCancel"',
-      'on-click="onCancelResetUsage_"',
-      'id="resetUsageStatsConfirm"',
-      'on-click="onConfirmResetUsage_"',
-      'disabled="[[resetUsagePending_]]"',
-    ]) {
-      expect(htmlPatch).toContain(binding);
-    }
+    const memoryCard = extractBetween(
+        htmlPatch, 'id="daoAgentMemoryManagement"',
+        'id="daoAgentWorkspaceManagement"');
+    const workspaceCard = extractBetween(
+        htmlPatch, 'id="daoAgentWorkspaceManagement"',
+        'id="daoAgentUsageManagement"');
+    const usageCard = extractBetween(
+        htmlPatch, 'id="daoAgentUsageManagement"',
+        'id="daoAgentClearMemoryDialog"');
+    const clearDialog = extractBetween(
+        htmlPatch, 'id="clearAllMemoryDialog"',
+        'id="daoAgentResetUsageDialog"');
+    const resetDialog = extractBetween(
+        htmlPatch, 'id="resetUsageStatsDialog"', '</section>');
+
+    expect(memoryCard).toMatch(
+        /if="\[\[showSummaryLoadError_\(memoryError_, memoryActionSucceeded_\)\]\]"[\s\S]*?id="memoryLoadError"[\s\S]*?id="agentMemoryRetry"[\s\S]*?on-click="onRetryMemory_"/);
+    expect(memoryCard).toMatch(
+        /if="\[\[showSummaryRefreshError_\(memoryError_, memoryActionSucceeded_\)\]\]"[\s\S]*?id="memoryRefreshError"[\s\S]*?daoAgentManagementMemoryRefreshError[\s\S]*?id="agentMemoryRetry"/);
+    expect(workspaceCard).toMatch(
+        /if="\[\[workspaceError_\]\]"[\s\S]*?id="agentWorkspaceRetry"[\s\S]*?on-click="onRetryWorkspace_"/);
+    expect(usageCard).toMatch(
+        /if="\[\[showSummaryLoadError_\(usageError_, usageActionSucceeded_\)\]\]"[\s\S]*?id="usageLoadError"[\s\S]*?id="agentUsageRetry"[\s\S]*?on-click="onRetryUsage_"/);
+    expect(usageCard).toMatch(
+        /if="\[\[showSummaryRefreshError_\(usageError_, usageActionSucceeded_\)\]\]"[\s\S]*?id="usageRefreshError"[\s\S]*?daoAgentManagementUsageRefreshError[\s\S]*?id="agentUsageRetry"/);
+    expect(memoryCard).toContain('if="[[memoryActionError_]]"');
+    expect(memoryCard).toContain('$i18n{daoAgentManagementMemoryRefreshError}');
+    expect(workspaceCard).toContain('if="[[workspaceActionError_]]"');
+    expect(usageCard).toContain('if="[[usageActionError_]]"');
+    expect(usageCard).toContain('$i18n{daoAgentManagementUsageRefreshError}');
+
+    expect(clearDialog).toMatch(
+        /on-close="onClearMemoryDialogClose_"[\s\S]*?id="clearAllMemoryConfirm"[\s\S]*?disabled="\[\[clearMemoryPending_\]\]"[\s\S]*?on-click="onConfirmClearMemory_"/);
+    expect(resetDialog).toMatch(
+        /on-close="onResetUsageDialogClose_"[\s\S]*?id="resetUsageStatsConfirm"[\s\S]*?disabled="\[\[resetUsagePending_\]\]"[\s\S]*?on-click="onConfirmResetUsage_"/);
+
+    expect(memoryCard.match(/dao-agent-management-loading-row/g))
+        .toHaveLength(4);
+    expect(workspaceCard.match(/dao-agent-management-loading-row/g))
+        .toHaveLength(3);
+    expect(usageCard.match(/dao-agent-management-loading-row/g))
+        .toHaveLength(7);
+    expect(htmlPatch).toMatch(
+        /\.dao-agent-management-state \{[\s\S]*?min-height: 62px;/);
+    expect(htmlPatch).toMatch(
+        /@media \(max-width: 620px\)[\s\S]*?\.dao-agent-management-state\.error \{[\s\S]*?flex-direction: column;/);
+
+    expect(workspaceCard).toMatch(
+        /aria-label\$="\[\[formatActivityLabel_\(item\.operation, item\.path\)\]\]"/);
+    expect(workspaceCard).toContain('datetime$="[[item.timestamp]]"');
+    expect(workspaceCard).not.toContain('[[item.operation]] · [[item.path]]');
 
     expect(htmlPatch).toContain('<dl class="dao-agent-management-metrics">');
     expect(htmlPatch).toContain('<ol class="dao-agent-activity-list">');
@@ -256,5 +290,15 @@ describe('settings continuous overview contract', () => {
     expect(htmlPatch).toContain('@media (max-width: 620px)');
     expect(htmlPatch).toContain(':focus-visible');
     expect(tsPatch).toContain("cr_dialog/cr_dialog.js");
+    const webUiTestPatch = readDaoSource(
+        'src/patches/chrome/test/data/webui/settings/dao_page_test.ts.patch');
+    expect(webUiTestPatch).toContain(
+        'clearSuccessRefreshFailureDoesNotSuggestClearingAgain');
+    expect(webUiTestPatch).toContain(
+        'resetSuccessRefreshFailureDoesNotSuggestResettingAgain');
+    expect(webUiTestPatch).toContain(
+        'clearFailureUsesActionSpecificFeedback');
+    expect(webUiTestPatch).toContain(
+        'resetFailureUsesActionSpecificFeedback');
   });
 });

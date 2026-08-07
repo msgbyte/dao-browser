@@ -1,4 +1,5 @@
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {existsSync, readFileSync} from 'node:fs';
 
 import {describe, expect, it} from 'vitest';
@@ -196,9 +197,14 @@ const daoAgentManagementTranslations = [
   ['DAO_AGENT_MANAGEMENT_ESTIMATED_COST', 'daoAgentManagementEstimatedCost', '预估费用'],
   ['DAO_AGENT_MANAGEMENT_LAST_RESET', 'daoAgentManagementLastReset', '上次重置'],
   ['DAO_AGENT_MANAGEMENT_LOADING', 'daoAgentManagementLoading', '正在加载…'],
-  ['DAO_AGENT_MANAGEMENT_MEMORY_ERROR', 'daoAgentManagementMemoryError', '无法加载或清除记忆。请重试刷新，再次清除记忆。'],
-  ['DAO_AGENT_MANAGEMENT_WORKSPACE_ERROR', 'daoAgentManagementWorkspaceError', '无法加载或打开工作区。请重试刷新，再次打开工作区。'],
-  ['DAO_AGENT_MANAGEMENT_USAGE_ERROR', 'daoAgentManagementUsageError', '无法加载或重置用量。请重试刷新，再次重置用量。'],
+  ['DAO_AGENT_MANAGEMENT_MEMORY_ERROR', 'daoAgentManagementMemoryError', '无法加载记忆摘要。请重试刷新。'],
+  ['DAO_AGENT_MANAGEMENT_MEMORY_ACTION_ERROR', 'daoAgentManagementMemoryActionError', '无法清除记忆。请再次尝试清除记忆。'],
+  ['DAO_AGENT_MANAGEMENT_MEMORY_REFRESH_ERROR', 'daoAgentManagementMemoryRefreshError', '记忆已清除，但无法刷新摘要。请重试加载。'],
+  ['DAO_AGENT_MANAGEMENT_WORKSPACE_ERROR', 'daoAgentManagementWorkspaceError', '无法加载工作区摘要。请重试刷新。'],
+  ['DAO_AGENT_MANAGEMENT_WORKSPACE_ACTION_ERROR', 'daoAgentManagementWorkspaceActionError', '无法打开工作区。请再次尝试打开工作区。'],
+  ['DAO_AGENT_MANAGEMENT_USAGE_ERROR', 'daoAgentManagementUsageError', '无法加载用量摘要。请重试刷新。'],
+  ['DAO_AGENT_MANAGEMENT_USAGE_ACTION_ERROR', 'daoAgentManagementUsageActionError', '无法重置用量。请再次尝试重置用量。'],
+  ['DAO_AGENT_MANAGEMENT_USAGE_REFRESH_ERROR', 'daoAgentManagementUsageRefreshError', '用量已重置，但无法刷新摘要。请重试加载。'],
   ['DAO_AGENT_MANAGEMENT_RETRY', 'daoAgentManagementRetry', '重试'],
   ['DAO_AGENT_MANAGEMENT_CLEAR_MEMORY', 'daoAgentManagementClearMemory', '清除记忆'],
   ['DAO_AGENT_MANAGEMENT_OPEN_WORKSPACE', 'daoAgentManagementOpenWorkspace', '打开工作区'],
@@ -216,7 +222,33 @@ const daoAgentManagementTranslations = [
   ['DAO_AGENT_MANAGEMENT_MEMORY_CLEARED', 'daoAgentManagementMemoryCleared', '记忆已清除'],
   ['DAO_AGENT_MANAGEMENT_WORKSPACE_OPENED', 'daoAgentManagementWorkspaceOpened', '工作区已打开'],
   ['DAO_AGENT_MANAGEMENT_USAGE_RESET', 'daoAgentManagementUsageReset', '用量已重置'],
+  ['DAO_AGENT_MANAGEMENT_ACTIVITY_LABEL', 'daoAgentManagementActivityLabel', '操作 <ph name="OPERATION" />，路径 <ph name="PATH" />'],
 ] as const;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getGrdpMessageSource(grdpPatch: string, resourceName: string): string {
+  const messagePattern = new RegExp(
+      `<message name="${resourceName}"[^>]*>([\\s\\S]*?)</message>`, 'g');
+  const matches = [...grdpPatch.matchAll(messagePattern)];
+  expect(matches, resourceName).toHaveLength(1);
+  return matches[0]![1]!
+      .replace(/^\+/gm, '')
+      .replace(/<ph name="([^"]+)">[\s\S]*?<\/ph>/g, '$1')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+}
+
+function getGritMessageId(message: string): string {
+  const fingerprint = createHash('md5')
+                          .update(message, 'utf-8')
+                          .digest('hex')
+                          .slice(0, 16);
+  return (BigInt(`0x${fingerprint}`) & 0x7fffffffffffffffn).toString();
+}
 
 describe('settings i18n patches', () => {
   it('localizes every Agent management state through the settings provider', () => {
@@ -235,12 +267,19 @@ describe('settings i18n patches', () => {
     for (const [resourceSuffix, providerKey, translation] of
          daoAgentManagementTranslations) {
       const resourceName = `IDS_SETTINGS_${resourceSuffix}`;
-      expect(grdpPatch, resourceName)
-          .toContain(`<message name="${resourceName}"`);
-      expect(providerPatch, providerKey)
-          .toContain(`{"${providerKey}", ${resourceName}}`);
-      expect(zhCnPatch, providerKey).toMatch(
-          new RegExp(`<translation id="\\d+">${translation}</translation>`));
+      const source = getGrdpMessageSource(grdpPatch, resourceName);
+      const translationId = getGritMessageId(source);
+      const providerPattern = new RegExp(
+          `\\{"${providerKey}",\\s*${resourceName}\\}`, 'g');
+      const translationPattern = new RegExp(
+          `<translation id="${translationId}">` +
+              `${escapeRegExp(translation)}</translation>`,
+          'g');
+
+      expect([...providerPatch.matchAll(providerPattern)], providerKey)
+          .toHaveLength(1);
+      expect([...zhCnPatch.matchAll(translationPattern)], providerKey)
+          .toHaveLength(1);
     }
   });
 
