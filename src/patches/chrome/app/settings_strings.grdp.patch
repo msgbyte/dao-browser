@@ -352,19 +352,19 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_TITLE" desc="Heading for Dao Agent data management cards.">
 +      Data and management
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_TITLE" desc="Title of the Dao Agent memory management card.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_TITLE" desc="Title of the Dao Agent memory management card." meaning="Dao Agent long-term memory card title">
 +      Memory
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_TITLE" desc="Title of the Dao Agent workspace management card.">
 +      Workspace
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_TITLE" desc="Title of the Dao Agent usage management card.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_TITLE" desc="Title of the Dao Agent usage management card." meaning="Dao Agent usage statistics card title">
 +      Usage
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CONVERSATIONS" desc="Label for the Dao Agent conversation memory count.">
 +      Conversations
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_PREFERENCES" desc="Label for the Dao Agent preference memory count.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_PREFERENCES" desc="Label for the Dao Agent preference memory count." meaning="Dao Agent stored preference count label">
 +      Preferences
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_EPISODES" desc="Label for the Dao Agent episode memory count.">
@@ -376,13 +376,13 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_ROOT" desc="Label for the Dao Agent workspace root path.">
 +      Root
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_STORAGE" desc="Label for Dao Agent workspace storage usage.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_STORAGE" desc="Label for Dao Agent workspace storage usage." meaning="Dao Agent workspace storage usage label">
 +      Storage
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_FILES" desc="Label for the Dao Agent workspace file count.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_FILES" desc="Label for the Dao Agent workspace file count." meaning="Dao Agent workspace file count label">
 +      Files
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RECENT_ACTIVITY" desc="Heading for recent Dao Agent workspace activity.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RECENT_ACTIVITY" desc="Heading for recent Dao Agent workspace activity." meaning="Dao Agent workspace recent activity heading">
 +      Recent activity
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_API_CALLS" desc="Label for the Dao Agent API call count.">
@@ -433,7 +433,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_REFRESH_ERROR" desc="Retry guidance shown when Dao Agent usage was reset but its summary cannot be refreshed.">
 +      Usage was reset, but the summary couldn't be refreshed. Retry to load it.
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RETRY" desc="Button that retries loading a Dao Agent management card.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RETRY" desc="Button that retries loading a Dao Agent management card." meaning="Dao Agent management retry action">
 +      Retry
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY" desc="Button that opens the clear Dao Agent memory confirmation.">
@@ -451,7 +451,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_DIALOG_DESCRIPTION" desc="Description of the permanent effect of clearing Dao Agent memory.">
 +      This permanently deletes all conversation memories, preferences, and episodes. This can't be undone.
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_CANCEL" desc="Button that cancels clearing Dao Agent memory.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_CANCEL" desc="Button that cancels clearing Dao Agent memory." meaning="Dao Agent management dialog cancel action">
 +      Cancel
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_CONFIRM" desc="Button that confirms clearing Dao Agent memory.">
@@ -463,7 +463,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE_DIALOG_DESCRIPTION" desc="Description of the effect of resetting Dao Agent usage.">
 +      This sets all API, tool, and token counts to zero.
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE_CANCEL" desc="Button that cancels resetting Dao Agent usage.">
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE_CANCEL" desc="Button that cancels resetting Dao Agent usage." meaning="Dao Agent management dialog cancel action">
 +      Cancel
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE_CONFIRM" desc="Button that confirms resetting Dao Agent usage.">
