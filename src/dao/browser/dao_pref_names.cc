@@ -19,11 +19,11 @@
 
 namespace dao::prefs {
 
-void RegisterLocalStatePrefs(PrefRegistrySimple *registry) {
+void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kDaoMcpServerEnabled, false);
 }
 
-void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable *registry) {
+void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoAgentMemoryEnabled, false);
   registry->RegisterDictionaryPref(kDaoAgentSettings);
   registry->RegisterIntegerPref(kDaoAgentSettingsMigrationVersion, 0);
@@ -45,42 +45,42 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable *registry) {
   registry->RegisterListPref(kDaoDreamExcludedDomains);
 }
 
-} // namespace dao::prefs
+}  // namespace dao::prefs
 
 namespace dao {
 
 namespace {
 
-Profile *GetStorageProfile(Profile *profile) {
+Profile* GetStorageProfile(Profile* profile) {
   return profile ? profile->GetOriginalProfile() : nullptr;
 }
 
-bool UsesSameStorageProfile(Profile *lhs, Profile *rhs) {
+bool UsesSameStorageProfile(Profile* lhs, Profile* rhs) {
   return GetStorageProfile(lhs) == GetStorageProfile(rhs);
 }
 
-} // namespace
+}  // namespace
 
 bool IsSystemDarkMode() {
-  ui::NativeTheme *theme = ui::NativeTheme::GetInstanceForNativeUi();
+  ui::NativeTheme* theme = ui::NativeTheme::GetInstanceForNativeUi();
   return theme && theme->preferred_color_scheme() ==
                       ui::NativeTheme::PreferredColorScheme::kDark;
 }
 
-bool IsForceDarkModeUserEnabled(Profile *profile) {
-  Profile *storage_profile = GetStorageProfile(profile);
+bool IsForceDarkModeUserEnabled(Profile* profile) {
+  Profile* storage_profile = GetStorageProfile(profile);
   return storage_profile && storage_profile->GetPrefs()->GetBoolean(
                                 prefs::kDaoForceDarkModeEnabled);
 }
 
 bool IsForceDarkModeAvailable() { return IsSystemDarkMode(); }
 
-bool IsForceDarkModeEffective(Profile *profile) {
+bool IsForceDarkModeEffective(Profile* profile) {
   return IsForceDarkModeAvailable() && IsForceDarkModeUserEnabled(profile);
 }
 
-void SetForceDarkModeUserEnabled(Profile *profile, bool enabled) {
-  Profile *storage_profile = GetStorageProfile(profile);
+void SetForceDarkModeUserEnabled(Profile* profile, bool enabled) {
+  Profile* storage_profile = GetStorageProfile(profile);
   if (!storage_profile) {
     return;
   }
@@ -90,7 +90,7 @@ void SetForceDarkModeUserEnabled(Profile *profile, bool enabled) {
 }
 
 void ApplyForceDarkModePreferences(
-    Profile *profile, blink::web_pref::WebPreferences *web_preferences) {
+    Profile* profile, blink::web_pref::WebPreferences* web_preferences) {
   if (!web_preferences) {
     return;
   }
@@ -107,28 +107,28 @@ void ApplyForceDarkModePreferences(
       blink::mojom::PreferredColorScheme::kDark;
 }
 
-void NotifyForceDarkModeChanged(Profile *profile) {
-  Profile *storage_profile = GetStorageProfile(profile);
+void NotifyForceDarkModeChanged(Profile* profile) {
+  Profile* storage_profile = GetStorageProfile(profile);
   if (!storage_profile) {
     return;
   }
 
-  for (BrowserWindowInterface *browser_window :
+  for (BrowserWindowInterface* browser_window :
        GetAllBrowserWindowInterfaces()) {
-    Browser *browser =
+    Browser* browser =
         browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
     if (!browser ||
         !UsesSameStorageProfile(browser->profile(), storage_profile)) {
       continue;
     }
 
-    TabStripModel *tab_strip_model = browser->tab_strip_model();
+    TabStripModel* tab_strip_model = browser->tab_strip_model();
     if (!tab_strip_model) {
       continue;
     }
 
     for (int i = 0; i < tab_strip_model->count(); ++i) {
-      content::WebContents *contents = tab_strip_model->GetWebContentsAt(i);
+      content::WebContents* contents = tab_strip_model->GetWebContentsAt(i);
       if (contents) {
         contents->OnWebPreferencesChanged();
       }
@@ -136,4 +136,4 @@ void NotifyForceDarkModeChanged(Profile *profile) {
   }
 }
 
-} // namespace dao
+}  // namespace dao

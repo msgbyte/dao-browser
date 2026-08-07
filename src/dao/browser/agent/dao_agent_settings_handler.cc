@@ -48,7 +48,7 @@ constexpr std::array<std::string_view, 17> kManagedStringSettings = {
     "dao_jina_api_key",
 };
 
-bool ParseBooleanSetting(const base::Value &value, bool *parsed) {
+bool ParseBooleanSetting(const base::Value& value, bool* parsed) {
   if (!value.is_string()) {
     return false;
   }
@@ -63,14 +63,14 @@ bool ParseBooleanSetting(const base::Value &value, bool *parsed) {
   return false;
 }
 
-std::string SerializeDreamExcludedDomains(PrefService *prefs) {
+std::string SerializeDreamExcludedDomains(PrefService* prefs) {
   std::string json;
   base::JSONWriter::Write(prefs->GetList(prefs::kDaoDreamExcludedDomains),
                           &json);
   return json;
 }
 
-bool SetDreamExcludedDomains(PrefService *prefs, const base::Value &value) {
+bool SetDreamExcludedDomains(PrefService* prefs, const base::Value& value) {
   if (!value.is_string() || value.GetString().size() > kMaxSettingValueBytes) {
     return false;
   }
@@ -80,7 +80,7 @@ bool SetDreamExcludedDomains(PrefService *prefs, const base::Value &value) {
     return false;
   }
   std::set<std::string> normalized;
-  for (const base::Value &entry : parsed->GetList()) {
+  for (const base::Value& entry : parsed->GetList()) {
     if (!entry.is_string()) {
       return false;
     }
@@ -91,14 +91,14 @@ bool SetDreamExcludedDomains(PrefService *prefs, const base::Value &value) {
     normalized.insert(std::move(domain));
   }
   base::ListValue domains;
-  for (const std::string &domain : normalized) {
+  for (const std::string& domain : normalized) {
     domains.Append(domain);
   }
   prefs->SetList(prefs::kDaoDreamExcludedDomains, std::move(domains));
   return true;
 }
 
-std::optional<double> ReadNonNegativeFiniteNumber(const base::Value *value) {
+std::optional<double> ReadNonNegativeFiniteNumber(const base::Value* value) {
   if (!value) {
     return std::nullopt;
   }
@@ -128,8 +128,8 @@ bool IsValidUsageToolName(std::string_view tool_name) {
          base::IsStringUTF8(tool_name);
 }
 
-bool NormalizeUsageStats(const base::DictValue &source,
-                         base::DictValue *normalized) {
+bool NormalizeUsageStats(const base::DictValue& source,
+                         base::DictValue* normalized) {
   const std::optional<double> api_calls =
       ReadNonNegativeFiniteNumber(source.Find(kUsageStatsApiCalls));
   const std::optional<double> prompt_tokens =
@@ -142,7 +142,7 @@ bool NormalizeUsageStats(const base::DictValue &source,
       ReadNonNegativeFiniteNumber(source.Find(kUsageStatsEstimatedCost));
   const std::optional<double> last_reset =
       ReadNonNegativeFiniteNumber(source.Find(kUsageStatsLastReset));
-  const base::DictValue *tool_calls = source.FindDict(kUsageStatsToolCalls);
+  const base::DictValue* tool_calls = source.FindDict(kUsageStatsToolCalls);
   if (!api_calls || !prompt_tokens || !completion_tokens || !total_tokens ||
       !estimated_cost || !last_reset || !tool_calls ||
       *total_tokens != *prompt_tokens + *completion_tokens ||
@@ -170,12 +170,19 @@ bool NormalizeUsageStats(const base::DictValue &source,
   return true;
 }
 
-void StoreUsageStats(ScopedDictPrefUpdate *update, base::DictValue stats) {
+void StoreUsageStats(ScopedDictPrefUpdate* update, base::DictValue stats) {
   update->clear();
   update->Merge(std::move(stats));
 }
 
-base::DictValue ReadUsageStatsOrDefault(PrefService *prefs) {
+void PrepareUsageStatsForUpdate(ScopedDictPrefUpdate* update) {
+  base::DictValue normalized;
+  if (!NormalizeUsageStats(*update, &normalized)) {
+    StoreUsageStats(update, NewUsageStats(base::Time::Now()));
+  }
+}
+
+base::DictValue ReadUsageStatsOrDefault(PrefService* prefs) {
   base::DictValue normalized;
   if (NormalizeUsageStats(prefs->GetDict(prefs::kDaoAgentUsageStats),
                           &normalized)) {
@@ -184,7 +191,7 @@ base::DictValue ReadUsageStatsOrDefault(PrefService *prefs) {
   return NewUsageStats(base::Time::Now());
 }
 
-} // namespace
+}  // namespace
 
 bool IsManagedDaoAgentSetting(std::string_view key) {
   for (std::string_view candidate : kManagedStringSettings) {
@@ -197,7 +204,7 @@ bool IsManagedDaoAgentSetting(std::string_view key) {
          key == kDaoDreamExcludedDomainsSetting;
 }
 
-base::DictValue BuildDaoAgentSettingsSnapshot(PrefService *prefs) {
+base::DictValue BuildDaoAgentSettingsSnapshot(PrefService* prefs) {
   base::DictValue snapshot;
   snapshot.Set("migrationVersion",
                prefs->GetInteger(prefs::kDaoAgentSettingsMigrationVersion));
@@ -217,12 +224,12 @@ base::DictValue BuildDaoAgentSettingsSnapshot(PrefService *prefs) {
   return snapshot;
 }
 
-base::DictValue BuildDaoAgentUsageStats(PrefService *prefs) {
+base::DictValue BuildDaoAgentUsageStats(PrefService* prefs) {
   return prefs ? ReadUsageStatsOrDefault(prefs) : base::DictValue();
 }
 
-bool MigrateLegacyDaoAgentUsageStats(PrefService *prefs,
-                                     const base::Value *legacy_value) {
+bool MigrateLegacyDaoAgentUsageStats(PrefService* prefs,
+                                     const base::Value* legacy_value) {
   if (!prefs || !legacy_value || !legacy_value->is_string() ||
       !prefs->GetDict(prefs::kDaoAgentUsageStats).empty()) {
     return false;
@@ -241,7 +248,7 @@ bool MigrateLegacyDaoAgentUsageStats(PrefService *prefs,
   return true;
 }
 
-void RecordDaoAgentApiUsage(PrefService *prefs, double api_calls,
+void RecordDaoAgentApiUsage(PrefService* prefs, double api_calls,
                             double prompt_tokens, double completion_tokens,
                             double estimated_cost) {
   if (!prefs || !std::isfinite(api_calls) || !std::isfinite(prompt_tokens) ||
@@ -251,38 +258,38 @@ void RecordDaoAgentApiUsage(PrefService *prefs, double api_calls,
     return;
   }
 
-  base::DictValue stats = ReadUsageStatsOrDefault(prefs);
+  ScopedDictPrefUpdate update(prefs, prefs::kDaoAgentUsageStats);
+  PrepareUsageStatsForUpdate(&update);
   const double next_api_calls =
-      *stats.FindDouble(kUsageStatsApiCalls) + api_calls;
+      *update->FindDouble(kUsageStatsApiCalls) + api_calls;
   const double next_prompt_tokens =
-      *stats.FindDouble(kUsageStatsPromptTokens) + prompt_tokens;
+      *update->FindDouble(kUsageStatsPromptTokens) + prompt_tokens;
   const double next_completion_tokens =
-      *stats.FindDouble(kUsageStatsCompletionTokens) + completion_tokens;
+      *update->FindDouble(kUsageStatsCompletionTokens) + completion_tokens;
   const double next_total_tokens = next_prompt_tokens + next_completion_tokens;
   const double next_estimated_cost =
-      *stats.FindDouble(kUsageStatsEstimatedCost) + estimated_cost;
+      *update->FindDouble(kUsageStatsEstimatedCost) + estimated_cost;
   if (!std::isfinite(next_api_calls) || !std::isfinite(next_prompt_tokens) ||
       !std::isfinite(next_completion_tokens) ||
       !std::isfinite(next_total_tokens) ||
       !std::isfinite(next_estimated_cost)) {
     return;
   }
-  stats.Set(kUsageStatsApiCalls, next_api_calls);
-  stats.Set(kUsageStatsPromptTokens, next_prompt_tokens);
-  stats.Set(kUsageStatsCompletionTokens, next_completion_tokens);
-  stats.Set(kUsageStatsTotalTokens, next_total_tokens);
-  stats.Set(kUsageStatsEstimatedCost, next_estimated_cost);
-  ScopedDictPrefUpdate update(prefs, prefs::kDaoAgentUsageStats);
-  StoreUsageStats(&update, std::move(stats));
+  update->Set(kUsageStatsApiCalls, next_api_calls);
+  update->Set(kUsageStatsPromptTokens, next_prompt_tokens);
+  update->Set(kUsageStatsCompletionTokens, next_completion_tokens);
+  update->Set(kUsageStatsTotalTokens, next_total_tokens);
+  update->Set(kUsageStatsEstimatedCost, next_estimated_cost);
 }
 
-void RecordDaoAgentToolUsage(PrefService *prefs, std::string_view tool_name) {
+void RecordDaoAgentToolUsage(PrefService* prefs, std::string_view tool_name) {
   if (!prefs || !IsValidUsageToolName(tool_name)) {
     return;
   }
-  base::DictValue stats = ReadUsageStatsOrDefault(prefs);
-  base::DictValue *tool_calls = stats.FindDict(kUsageStatsToolCalls);
-  const base::Value *existing_value = tool_calls->Find(tool_name);
+  ScopedDictPrefUpdate update(prefs, prefs::kDaoAgentUsageStats);
+  PrepareUsageStatsForUpdate(&update);
+  base::DictValue* tool_calls = update->FindDict(kUsageStatsToolCalls);
+  const base::Value* existing_value = tool_calls->Find(tool_name);
   if (!existing_value && tool_calls->size() >= kMaxDaoAgentUsageTools) {
     return;
   }
@@ -292,11 +299,9 @@ void RecordDaoAgentToolUsage(PrefService *prefs, std::string_view tool_name) {
     return;
   }
   tool_calls->Set(tool_name, existing_count + 1.0);
-  ScopedDictPrefUpdate update(prefs, prefs::kDaoAgentUsageStats);
-  StoreUsageStats(&update, std::move(stats));
 }
 
-void ResetDaoAgentUsageStats(PrefService *prefs, base::Time last_reset) {
+void ResetDaoAgentUsageStats(PrefService* prefs, base::Time last_reset) {
   if (!prefs || last_reset.is_null() ||
       last_reset.InMillisecondsSinceUnixEpoch() < 0) {
     return;
@@ -305,8 +310,8 @@ void ResetDaoAgentUsageStats(PrefService *prefs, base::Time last_reset) {
   StoreUsageStats(&update, NewUsageStats(last_reset));
 }
 
-bool SetDaoAgentSetting(PrefService *prefs, std::string_view key,
-                        const base::Value &value) {
+bool SetDaoAgentSetting(PrefService* prefs, std::string_view key,
+                        const base::Value& value) {
   if (!prefs || !IsManagedDaoAgentSetting(key)) {
     return false;
   }
@@ -316,7 +321,7 @@ bool SetDaoAgentSetting(PrefService *prefs, std::string_view key,
     if (!ParseBooleanSetting(value, &enabled)) {
       return false;
     }
-    const char *pref_name =
+    const char* pref_name =
         key == kDaoAgentMemoryEnabledSetting
             ? prefs::kDaoAgentMemoryEnabled
             : (key == kDaoDreamEnabledSetting ? prefs::kDaoDreamEnabled
@@ -341,8 +346,8 @@ bool SetDaoAgentSetting(PrefService *prefs, std::string_view key,
 }
 
 base::DictValue
-MigrateLegacyDaoAgentSettings(PrefService *prefs,
-                              const base::DictValue &legacy_values) {
+MigrateLegacyDaoAgentSettings(PrefService* prefs,
+                              const base::DictValue& legacy_values) {
   if (!prefs || prefs->GetInteger(prefs::kDaoAgentSettingsMigrationVersion) >=
                     kDaoAgentSettingsMigrationVersion) {
     return prefs ? BuildDaoAgentSettingsSnapshot(prefs) : base::DictValue();
@@ -393,7 +398,7 @@ void DaoAgentSettingsHandler::RegisterMessages() {
 }
 
 void DaoAgentSettingsHandler::OnJavascriptAllowed() {
-  PrefService *prefs = GetPrefs();
+  PrefService* prefs = GetPrefs();
   if (!prefs || pref_change_registrar_.prefs()) {
     return;
   }
@@ -414,7 +419,7 @@ void DaoAgentSettingsHandler::OnJavascriptDisallowed() {
   pref_change_registrar_.Reset();
 }
 
-void DaoAgentSettingsHandler::HandleGetSettings(const base::ListValue &args) {
+void DaoAgentSettingsHandler::HandleGetSettings(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() != 1 || !args[0].is_string() || !GetPrefs()) {
     return;
@@ -423,7 +428,7 @@ void DaoAgentSettingsHandler::HandleGetSettings(const base::ListValue &args) {
 }
 
 void DaoAgentSettingsHandler::HandleMigrateLegacySettings(
-    const base::ListValue &args) {
+    const base::ListValue& args) {
   AllowJavascript();
   if (args.size() != 2 || !args[0].is_string() || !args[1].is_dict() ||
       !GetPrefs()) {
@@ -433,7 +438,7 @@ void DaoAgentSettingsHandler::HandleMigrateLegacySettings(
       args[0], MigrateLegacyDaoAgentSettings(GetPrefs(), args[1].GetDict()));
 }
 
-void DaoAgentSettingsHandler::HandleSetSetting(const base::ListValue &args) {
+void DaoAgentSettingsHandler::HandleSetSetting(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() != 3 || !args[0].is_string() || !args[1].is_string() ||
       !GetPrefs()) {
@@ -450,9 +455,9 @@ void DaoAgentSettingsHandler::OnSettingsChanged() {
   }
 }
 
-PrefService *DaoAgentSettingsHandler::GetPrefs() {
-  Profile *profile = Profile::FromWebUI(web_ui());
+PrefService* DaoAgentSettingsHandler::GetPrefs() {
+  Profile* profile = Profile::FromWebUI(web_ui());
   return profile ? profile->GetOriginalProfile()->GetPrefs() : nullptr;
 }
 
-} // namespace dao
+}  // namespace dao

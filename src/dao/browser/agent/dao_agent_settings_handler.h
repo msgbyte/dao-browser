@@ -28,28 +28,28 @@ inline constexpr char kDaoDreamExcludedDomainsSetting[] =
     "dao_dream_excluded_domains";
 
 bool IsManagedDaoAgentSetting(std::string_view key);
-base::DictValue BuildDaoAgentSettingsSnapshot(PrefService *prefs);
-base::DictValue BuildDaoAgentUsageStats(PrefService *prefs);
-bool MigrateLegacyDaoAgentUsageStats(PrefService *prefs,
-                                     const base::Value *legacy_value);
-void RecordDaoAgentApiUsage(PrefService *prefs, double api_calls,
+base::DictValue BuildDaoAgentSettingsSnapshot(PrefService* prefs);
+base::DictValue BuildDaoAgentUsageStats(PrefService* prefs);
+bool MigrateLegacyDaoAgentUsageStats(PrefService* prefs,
+                                     const base::Value* legacy_value);
+void RecordDaoAgentApiUsage(PrefService* prefs, double api_calls,
                             double prompt_tokens, double completion_tokens,
                             double estimated_cost);
-void RecordDaoAgentToolUsage(PrefService *prefs, std::string_view tool_name);
-void ResetDaoAgentUsageStats(PrefService *prefs, base::Time last_reset);
-bool SetDaoAgentSetting(PrefService *prefs, std::string_view key,
-                        const base::Value &value);
+void RecordDaoAgentToolUsage(PrefService* prefs, std::string_view tool_name);
+void ResetDaoAgentUsageStats(PrefService* prefs, base::Time last_reset);
+bool SetDaoAgentSetting(PrefService* prefs, std::string_view key,
+                        const base::Value& value);
 base::DictValue
-MigrateLegacyDaoAgentSettings(PrefService *prefs,
-                              const base::DictValue &legacy_values);
+MigrateLegacyDaoAgentSettings(PrefService* prefs,
+                              const base::DictValue& legacy_values);
 
 // Shared by dao://agent and dao://settings so both origins observe one
 // Profile-scoped source of truth.
 class DaoAgentSettingsHandler : public content::WebUIMessageHandler {
 public:
   DaoAgentSettingsHandler();
-  DaoAgentSettingsHandler(const DaoAgentSettingsHandler &) = delete;
-  DaoAgentSettingsHandler &operator=(const DaoAgentSettingsHandler &) = delete;
+  DaoAgentSettingsHandler(const DaoAgentSettingsHandler&) = delete;
+  DaoAgentSettingsHandler& operator=(const DaoAgentSettingsHandler&) = delete;
   ~DaoAgentSettingsHandler() override;
 
   // content::WebUIMessageHandler:
@@ -58,15 +58,15 @@ public:
   void OnJavascriptDisallowed() override;
 
 private:
-  void HandleGetSettings(const base::ListValue &args);
-  void HandleMigrateLegacySettings(const base::ListValue &args);
-  void HandleSetSetting(const base::ListValue &args);
+  void HandleGetSettings(const base::ListValue& args);
+  void HandleMigrateLegacySettings(const base::ListValue& args);
+  void HandleSetSetting(const base::ListValue& args);
   void OnSettingsChanged();
-  PrefService *GetPrefs();
+  PrefService* GetPrefs();
 
   PrefChangeRegistrar pref_change_registrar_;
 };
 
-} // namespace dao
+}  // namespace dao
 
-#endif // DAO_BROWSER_AGENT_DAO_AGENT_SETTINGS_HANDLER_H_
+#endif  // DAO_BROWSER_AGENT_DAO_AGENT_SETTINGS_HANDLER_H_

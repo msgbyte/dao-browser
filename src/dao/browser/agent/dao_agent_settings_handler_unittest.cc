@@ -88,7 +88,7 @@ TEST_F(DaoAgentSettingsHandlerTest, MigratesUsageStatsIntoSettingsSnapshot) {
   const base::DictValue snapshot =
       MigrateLegacyDaoAgentSettings(&prefs_, legacy);
 
-  const base::DictValue *usage_stats = snapshot.FindDict("usageStats");
+  const base::DictValue* usage_stats = snapshot.FindDict("usageStats");
   ASSERT_TRUE(usage_stats);
   EXPECT_EQ(1.0, usage_stats->FindDouble("apiCalls").value_or(-1));
   EXPECT_FALSE(snapshot.FindDict("values")->contains("usageStats"));
@@ -142,6 +142,21 @@ TEST_F(DaoAgentSettingsHandlerTest, AccumulatesAndResetsUsageStats) {
   EXPECT_EQ(987654.0, stats.FindDouble("lastReset").value_or(-1));
 }
 
+TEST_F(DaoAgentSettingsHandlerTest, ToolUsagePreservesExistingApiUsage) {
+  RecordDaoAgentApiUsage(&prefs_, 3.0, 20.0, 10.0, 1.5);
+  RecordDaoAgentToolUsage(&prefs_, "web_search");
+
+  const base::DictValue stats = BuildDaoAgentUsageStats(&prefs_);
+  EXPECT_EQ(3.0, stats.FindDouble("apiCalls").value_or(-1));
+  EXPECT_EQ(20.0, stats.FindDouble("promptTokens").value_or(-1));
+  EXPECT_EQ(10.0, stats.FindDouble("completionTokens").value_or(-1));
+  EXPECT_EQ(30.0, stats.FindDouble("totalTokens").value_or(-1));
+  EXPECT_EQ(1.5, stats.FindDouble("estimatedCost").value_or(-1));
+  ASSERT_TRUE(stats.FindDict("toolCalls"));
+  EXPECT_EQ(1.0,
+            stats.FindDict("toolCalls")->FindDouble("web_search").value_or(-1));
+}
+
 TEST_F(DaoAgentSettingsHandlerTest, MigratesKnownMissingValuesOnlyOnce) {
   {
     ScopedDictPrefUpdate update(&prefs_, prefs::kDaoAgentSettings);
@@ -156,7 +171,7 @@ TEST_F(DaoAgentSettingsHandlerTest, MigratesKnownMissingValuesOnlyOnce) {
 
   EXPECT_EQ(kDaoAgentSettingsMigrationVersion,
             snapshot.FindInt("migrationVersion").value_or(-1));
-  const base::DictValue *values = snapshot.FindDict("values");
+  const base::DictValue* values = snapshot.FindDict("values");
   ASSERT_TRUE(values);
   EXPECT_EQ("settings-model", *values->FindString("dao_agent_model"));
   EXPECT_EQ("legacy-key", *values->FindString("dao_agent_api_key"));
@@ -183,12 +198,12 @@ TEST_F(DaoAgentSettingsHandlerTest, NormalizesDreamExcludedDomains) {
       &prefs_, kDaoDreamExcludedDomainsSetting,
       base::Value(R"(["HTTPS://Example.com/path","sub.example.com"] )")));
 
-  const base::ListValue &domains =
+  const base::ListValue& domains =
       prefs_.GetList(prefs::kDaoDreamExcludedDomains);
   ASSERT_EQ(2u, domains.size());
   EXPECT_EQ("example.com", domains[0].GetString());
   EXPECT_EQ("sub.example.com", domains[1].GetString());
 }
 
-} // namespace
-} // namespace dao
+}  // namespace
+}  // namespace dao
