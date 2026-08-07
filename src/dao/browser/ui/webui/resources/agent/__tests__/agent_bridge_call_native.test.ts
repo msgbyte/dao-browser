@@ -4,7 +4,16 @@
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {callNative, cr, executeTool} from '../agent_bridge.js';
+import {
+  applyAgentStatsSnapshot,
+  callNative,
+  cr,
+  executeTool,
+  getAgentStats,
+  recordApiCall,
+  recordToolCall,
+  resetAgentStats,
+} from '../agent_bridge.js';
 
 describe('callNative', () => {
   afterEach(() => {
@@ -38,6 +47,33 @@ describe('callNative', () => {
     cr.webUIResponse(callbackId, true, true);
 
     await expect(promise).resolves.toBe(true);
+  });
+
+  it('forwards usage records to native and replaces the immediate cache', () => {
+    const send = vi.fn();
+    vi.stubGlobal('chrome', {send});
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const profileStats = {
+      apiCalls: 7,
+      toolCalls: {web_search: 3},
+      promptTokens: 100,
+      completionTokens: 25,
+      totalTokens: 125,
+      estimatedCost: 0.0002,
+      lastReset: 1720000000000,
+    };
+
+    recordApiCall(10, 5, 1, 2);
+    expect(send).toHaveBeenCalledWith(
+        'recordDaoAgentApiUsage', [10, 5, 1, 2]);
+    recordToolCall('web_search');
+    expect(send).toHaveBeenCalledWith(
+        'recordDaoAgentToolUsage', ['web_search']);
+    resetAgentStats();
+    expect(send).toHaveBeenCalledWith('resetDaoAgentUsageStats');
+    applyAgentStatsSnapshot(profileStats);
+    expect(getAgentStats()).toEqual(profileStats);
+    expect(setItem).not.toHaveBeenCalled();
   });
 
   it('cancels an in-flight native tool once and ignores a late response',
