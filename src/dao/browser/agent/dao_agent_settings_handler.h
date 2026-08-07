@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <string_view>
 
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -61,10 +62,20 @@ private:
   void HandleGetSettings(const base::ListValue& args);
   void HandleMigrateLegacySettings(const base::ListValue& args);
   void HandleSetSetting(const base::ListValue& args);
+  void HandleGetMemorySummary(const base::ListValue& args);
+  void HandleClearAllMemory(const base::ListValue& args);
+  void HandleGetWorkspaceSummary(const base::ListValue& args);
+  void HandleOpenWorkspace(const base::ListValue& args);
+  void HandleGetUsageStats(const base::ListValue& args);
+  void HandleResetUsageStats(const base::ListValue& args);
+  void HandleRecordApiUsage(const base::ListValue& args);
+  void HandleRecordToolUsage(const base::ListValue& args);
   void OnSettingsChanged();
+  void OnUsageStatsChanged();
   PrefService* GetPrefs();
 
   PrefChangeRegistrar pref_change_registrar_;
+  base::WeakPtrFactory<DaoAgentSettingsHandler> weak_factory_{this};
 };
 
 }  // namespace dao
