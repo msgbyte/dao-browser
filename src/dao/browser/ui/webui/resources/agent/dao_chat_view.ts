@@ -94,6 +94,7 @@ type DaoChatMessage = {
   model?: string;
   usage?: {input: number; output: number; cacheRead: number; cacheWrite: number};
   stopReason?: string;
+  errorMessage?: string;
 };
 
 interface DaoAssistantPair {
@@ -1851,6 +1852,29 @@ export class DaoChatView extends CrLitElement {
     return row;
   }
 
+  private buildErrorActionRow_(
+      msg: DaoChatMessage, disabled: boolean): HTMLElement {
+    const row = document.createElement('div');
+    row.className =
+        'dao-message-actions dao-assistant-actions dao-error-actions';
+    row.dataset['daoMessageId'] = msg.dao?.id || '';
+    const retrySvg =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true">' +
+        '<path d="M3 12a9 9 0 1 0 3-6.7"></path>' +
+        '<path d="M3 4v5h5"></path>' +
+        '</svg>';
+    const id = msg.dao?.id || '';
+    const retry = this.buildActionButton_(
+        'dao-retry-btn dao-error-retry-btn',
+        'chat.message_actions.retry_error_tooltip', retrySvg,
+        () => void this.retryErrorById_(id));
+    retry.disabled = disabled;
+    row.appendChild(retry);
+    return row;
+  }
+
   private buildUserActionRow_(
       msg: DaoChatMessage, disabled: boolean): HTMLElement {
     const row = document.createElement('div');
@@ -2226,7 +2250,13 @@ export class DaoChatView extends CrLitElement {
         }
       } else if (role === 'assistant') {
         const el = assistantEls[assistantCursor++] as HTMLElement | undefined;
-        if (el && msg.dao?.id && this.isAssistantMessage_(msg)) {
+        if (el && msg.dao?.id && msg === msgs[msgs.length - 1] &&
+            this.isRetryableAssistantError_(msg)) {
+          el.insertAdjacentElement(
+              'afterend', this.buildErrorActionRow_(msg, disabled));
+        } else if (el && msg.dao?.id &&
+                   !this.isTerminalAssistantFailure_(msg) &&
+                   this.isAssistantMessage_(msg)) {
           const idx = msgs.indexOf(msg);
           const canRewind = idx >= 0 && idx !== latestAssistantIdx;
           el.insertAdjacentElement(
@@ -2433,6 +2463,17 @@ export class DaoChatView extends CrLitElement {
     const assistantIdx = this.findMessageIndexByDaoId_(assistantId);
     const userIdx = this.findUserIndexForAssistantIndex_(assistantIdx);
     await this.retryFromUserIndex_(userIdx);
+  }
+
+  private async retryErrorById_(errorId: string): Promise<void> {
+    const errorIdx = this.findMessageIndexByDaoId_(errorId);
+    const messages = this.currentMessages_();
+    if (errorIdx !== messages.length - 1 ||
+        !this.isRetryableAssistantError_(messages[errorIdx])) {
+      return;
+    }
+    await this.retryFromUserIndex_(
+        this.findUserIndexForAssistantIndex_(errorIdx));
   }
 
   private async rewindToAssistantById_(assistantId: string): Promise<void> {
@@ -3484,6 +3525,18 @@ export class DaoChatView extends CrLitElement {
         !!this.extractVisibleText_(msg as DaoChatMessage);
   }
 
+  private isRetryableAssistantError_(msg: unknown): msg is DaoChatMessage {
+    return isRecord(msg) && msg['role'] === 'assistant' &&
+        msg['stopReason'] === 'error' &&
+        typeof msg['errorMessage'] === 'string' &&
+        !!msg['errorMessage'].trim();
+  }
+
+  private isTerminalAssistantFailure_(msg: unknown): boolean {
+    return isRecord(msg) && msg['role'] === 'assistant' &&
+        (msg['stopReason'] === 'error' || msg['stopReason'] === 'aborted');
+  }
+
   private extractVisibleText_(msg: DaoChatMessage): string {
     return this.extractAssistantText_(msg);
   }
@@ -3616,6 +3669,10 @@ export class DaoChatView extends CrLitElement {
     const msgs = this.currentMessages_().filter(
         msg => !this.isDaoLocalMessage_(msg));
     if (msgs.length < 2) return;
+    // Preserve the original submission and its terminal error until the user
+    // can retry it. Compaction may summarize that user message and appends a
+    // local notice after the error, either of which would invalidate retry.
+    if (this.isRetryableAssistantError_(msgs[msgs.length - 1])) return;
     const tokens = estimateMessagesTokens(
         msgs as unknown as Parameters<typeof estimateMessagesTokens>[0]);
     const ratio = tokens / ctx;
