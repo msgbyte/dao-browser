@@ -471,6 +471,7 @@ describe('release helpers', () => {
       'commit', '-m', 'initial',
     ], {cwd: root, stdio: 'ignore'});
     execFileSync('git', [
+      '-c', 'user.name=Dao Test', '-c', 'user.email=dao@example.com',
       'tag', '-a', 'v1.0.71', '-m', 'Release v1.0.71',
     ], {cwd: root});
     const head = execFileSync('git', ['rev-parse', 'HEAD'], {

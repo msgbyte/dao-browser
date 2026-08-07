@@ -3,22 +3,27 @@
 // found in the LICENSE file.
 
 import {beforeAll, describe, expect, it, vi} from 'vitest';
-import {marked} from
-    '../../../../../../../../vendor/node_modules/marked/lib/marked.esm.js';
+import {marked} from '../vendor/pi_runtime_bundle.js';
 
 const hookState = vi.hoisted(() => ({
   preprocess: undefined as undefined | ((markdown: string) => string),
 }));
 
-vi.mock('../vendor/pi_runtime_bundle.js', () => ({
-  marked: {
-    use(ext: {hooks?: {preprocess?: (markdown: string) => string}}) {
-      if (typeof ext?.hooks?.preprocess === 'function') {
-        hookState.preprocess = ext.hooks.preprocess;
-      }
+vi.mock('../vendor/pi_runtime_bundle.js', async importOriginal => {
+  const actual = await importOriginal<
+      typeof import('../vendor/pi_runtime_bundle.js')>();
+  return {
+    marked: {
+      parse: actual.marked.parse.bind(actual.marked),
+      use(ext: {hooks?: {preprocess?: (markdown: string) => string}}) {
+        if (typeof ext?.hooks?.preprocess === 'function') {
+          hookState.preprocess = ext.hooks.preprocess;
+        }
+        actual.marked.use(ext);
+      },
     },
-  },
-}));
+  };
+});
 
 vi.mock('../dao_agent_app.js', () => ({}));
 
