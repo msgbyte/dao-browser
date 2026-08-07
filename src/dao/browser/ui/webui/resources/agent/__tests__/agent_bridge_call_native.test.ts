@@ -70,10 +70,42 @@ describe('callNative', () => {
     expect(send).toHaveBeenCalledWith(
         'recordDaoAgentToolUsage', ['web_search']);
     resetAgentStats();
-    expect(send).toHaveBeenCalledWith('resetDaoAgentUsageStats');
+    const resetCall = send.mock.calls.find(
+        call => call[0] === 'resetDaoAgentUsageStats');
+    expect(resetCall).toBeDefined();
+    expect(resetCall![1]).toEqual([expect.any(String)]);
+    cr.webUIResponse((resetCall![1] as string[])[0]!, true, true);
     applyAgentStatsSnapshot(profileStats);
     expect(getAgentStats()).toEqual(profileStats);
     expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid usage records before they diverge from native stats', () => {
+    const send = vi.fn();
+    vi.stubGlobal('chrome', {send});
+    const stats = {
+      apiCalls: 3,
+      toolCalls: {web_search: 2},
+      promptTokens: 30,
+      completionTokens: 10,
+      totalTokens: 40,
+      estimatedCost: 0.0001,
+      lastReset: 1720000000000,
+    };
+    applyAgentStatsSnapshot(stats);
+
+    recordApiCall(-1, 0, 0, 0);
+    recordApiCall(Number.NaN, 0, 0, 0);
+    recordApiCall(0, Number.POSITIVE_INFINITY, 0, 0);
+    recordApiCall(0, 0, -1, 0);
+    recordApiCall(0, 0, Number.NaN, 0);
+    recordApiCall(0, 0, 0, Number.POSITIVE_INFINITY);
+    recordToolCall('');
+    recordToolCall('a'.repeat(129));
+    recordToolCall('\ud800');
+
+    expect(getAgentStats()).toEqual(stats);
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('cancels an in-flight native tool once and ignores a late response',

@@ -1433,28 +1433,67 @@ export function applyAgentStatsSnapshot(stats: AgentStats): void {
   cachedStats = {...stats, toolCalls: {...stats.toolCalls}};
 }
 
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && value >= 0 && Number.isFinite(value);
+}
+
+function isValidUsageToolName(toolName: unknown): toolName is string {
+  if (typeof toolName !== 'string' || toolName.length === 0) {
+    return false;
+  }
+  try {
+    encodeURIComponent(toolName);
+  } catch (_) {
+    return false;
+  }
+  return new TextEncoder().encode(toolName).byteLength <= 128;
+}
+
 // Cost rates follow pi-ai's convention: USD per 1,000,000 tokens.
 // A token count of 1000 with costPerMTokPrompt=0.5 contributes
 // 1000 * 0.5 / 1_000_000 = $0.0005.
 export function recordApiCall(
     promptTokens: number, completionTokens: number,
     costPerMTokPrompt = 0, costPerMTokCompletion = 0) {
-  const p = Number(promptTokens) || 0;
-  const c = Number(completionTokens) || 0;
+  if (!isNonNegativeFiniteNumber(promptTokens) ||
+      !isNonNegativeFiniteNumber(completionTokens) ||
+      !isNonNegativeFiniteNumber(costPerMTokPrompt) ||
+      !isNonNegativeFiniteNumber(costPerMTokCompletion)) {
+    return;
+  }
+  const p = promptTokens;
+  const c = completionTokens;
+  const estimatedCost =
+      (p * costPerMTokPrompt + c * costPerMTokCompletion) / 1_000_000;
+  if (!Number.isFinite(cachedStats.apiCalls + 1) ||
+      !Number.isFinite(cachedStats.promptTokens + p) ||
+      !Number.isFinite(cachedStats.completionTokens + c) ||
+      !Number.isFinite(cachedStats.totalTokens + p + c) ||
+      !Number.isFinite(cachedStats.estimatedCost + estimatedCost)) {
+    return;
+  }
   cachedStats.apiCalls++;
   cachedStats.promptTokens += p;
   cachedStats.completionTokens += c;
   cachedStats.totalTokens += p + c;
-  cachedStats.estimatedCost +=
-      (p * costPerMTokPrompt + c * costPerMTokCompletion) / 1_000_000;
+  cachedStats.estimatedCost += estimatedCost;
   chrome.send('recordDaoAgentApiUsage', [
     p, c, costPerMTokPrompt, costPerMTokCompletion,
   ]);
 }
 
 export function recordToolCall(toolName: string) {
+  if (!isValidUsageToolName(toolName)) {
+    return;
+  }
+  const currentCount = cachedStats.toolCalls[toolName] || 0;
+  if ((!Object.prototype.hasOwnProperty.call(cachedStats.toolCalls, toolName) &&
+       Object.keys(cachedStats.toolCalls).length >= 128) ||
+      !Number.isFinite(currentCount + 1)) {
+    return;
+  }
   cachedStats.toolCalls[toolName] =
-      (cachedStats.toolCalls[toolName] || 0) + 1;
+      currentCount + 1;
   chrome.send('recordDaoAgentToolUsage', [toolName]);
 }
 
@@ -1464,7 +1503,7 @@ export function getAgentStats(): AgentStats {
 
 export function resetAgentStats() {
   cachedStats = defaultStats();
-  chrome.send('resetDaoAgentUsageStats');
+  void callNativeArgs('resetDaoAgentUsageStats').catch(() => {});
 }
 
 // ---- Unique ID Generator ----

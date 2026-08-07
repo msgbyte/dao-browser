@@ -25,9 +25,12 @@ const nativeBridge: AgentSettingsBridge = {
   },
 };
 
-function applyRuntimeSettings(snapshot: AgentSettingsSnapshot): void {
+function applyRuntimeSettings(
+    snapshot: AgentSettingsSnapshot, applyUsageStats = true): void {
   applyAgentSettingsSnapshot(snapshot, localStorage);
-  applyAgentStatsSnapshot(snapshot.usageStats);
+  if (applyUsageStats) {
+    applyUsageStatsSnapshot(snapshot.usageStats);
+  }
   const values = snapshot.values;
   void callNativeArgs(
       'setMemoryEnabled', values['dao_agent_memory_enabled'] === 'true');
@@ -45,6 +48,13 @@ function applyRuntimeSettings(snapshot: AgentSettingsSnapshot): void {
 }
 
 let listenersRegistered = false;
+let usageStatsGeneration = 0;
+
+function applyUsageStatsSnapshot(stats: AgentSettingsSnapshot['usageStats']):
+    void {
+  usageStatsGeneration++;
+  applyAgentStatsSnapshot(stats);
+}
 
 function registerNativeListeners(): void {
   if (listenersRegistered) {
@@ -58,19 +68,24 @@ function registerNativeListeners(): void {
   });
   addWebUIListener('dao-agent-usage-stats-changed', stats => {
     if (stats && typeof stats === 'object') {
-      applyAgentStatsSnapshot(stats as AgentSettingsSnapshot['usageStats']);
+      applyUsageStatsSnapshot(stats as AgentSettingsSnapshot['usageStats']);
     }
   });
 }
 
 export async function startAgentSettingsSync(): Promise<void> {
   registerNativeListeners();
+  const initialUsageStatsGeneration = usageStatsGeneration;
   const snapshot = await initializeAgentSettingsSync(
       nativeBridge, localStorage);
   // initializeAgentSettingsSync already applied the cache; runtime handlers
   // still need the canonical values so lifecycle-sensitive settings such as
   // proactive suggestions and Dream are activated consistently.
-  applyRuntimeSettings(snapshot);
+  if (usageStatsGeneration === initialUsageStatsGeneration) {
+    applyRuntimeSettings(snapshot);
+  } else {
+    applyRuntimeSettings(snapshot, false);
+  }
 }
 
 export async function setCanonicalAgentSetting(
