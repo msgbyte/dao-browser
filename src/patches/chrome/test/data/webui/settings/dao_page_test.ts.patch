@@ -550,7 +550,7 @@ index 0000000000..0000000001
 +        assertTrue(!!refreshError);
 +        assertEquals(
 +            loadTimeData.getString('daoAgentManagementMemoryRefreshError'),
-+            refreshError.textContent!.trim());
++            refreshError.textContent.trim());
 +      });
 +
 +  test('clearFailureUsesActionSpecificFeedback', async function() {
@@ -573,7 +573,7 @@ index 0000000000..0000000001
 +    assertTrue(!!actionError);
 +    assertEquals(
 +        loadTimeData.getString('daoAgentManagementMemoryActionError'),
-+        actionError.textContent!.trim());
++        actionError.textContent.trim());
 +  });
 +
 +  test('openWorkspaceCallsOnlyWorkspaceAction', async function() {
@@ -647,7 +647,7 @@ index 0000000000..0000000001
 +        assertTrue(!!refreshError);
 +        assertEquals(
 +            loadTimeData.getString('daoAgentManagementUsageRefreshError'),
-+            refreshError.textContent!.trim());
++            refreshError.textContent.trim());
 +      });
 +
 +  test('resetFailureUsesActionSpecificFeedback', async function() {
@@ -670,7 +670,7 @@ index 0000000000..0000000001
 +    assertTrue(!!actionError);
 +    assertEquals(
 +        loadTimeData.getString('daoAgentManagementUsageActionError'),
-+        actionError.textContent!.trim());
++        actionError.textContent.trim());
 +  });
 +
 +  test('newerMemoryReloadWinsOverStaleResponse', async function() {
