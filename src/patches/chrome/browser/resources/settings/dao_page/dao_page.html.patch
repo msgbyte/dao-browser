@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,1588 @@
+@@ -0,0 +1,1770 @@
 +<style include="settings-shared">
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
@@ -369,7 +369,7 @@ index 0000000000..0000000001
 +    font-size: 12px;
 +    gap: 10px;
 +    line-height: 18px;
-+    min-height: 44px;
++    min-height: 62px;
 +    padding: 0 16px;
 +  }
 +
@@ -379,6 +379,35 @@ index 0000000000..0000000001
 +
 +  .dao-agent-management-state cr-button {
 +    flex: 0 0 auto;
++  }
++
++  .dao-agent-management-loading {
++    border-top: 1px solid var(--dao-settings-border-subtle);
++  }
++
++  .dao-agent-management-loading-row {
++    align-items: center;
++    display: grid;
++    gap: 18px;
++    grid-template-columns: minmax(96px, 1fr) minmax(48px, 28%);
++    min-height: 62px;
++    padding: 0 16px;
++  }
++
++  .dao-agent-management-loading-row +
++      .dao-agent-management-loading-row {
++    border-top: 1px solid var(--dao-settings-border-subtle);
++  }
++
++  .dao-agent-management-loading-line {
++    background: var(--dao-settings-accent-subtle);
++    border-radius: 999px;
++    height: 8px;
++  }
++
++  .dao-agent-management-loading-line.value {
++    justify-self: end;
++    width: 54%;
 +  }
 +
 +  .dao-agent-management-metrics {
@@ -469,6 +498,17 @@ index 0000000000..0000000001
 +    grid-template-columns: minmax(0, 1fr) auto;
 +  }
 +
++  .dao-agent-activity-description {
++    display: grid;
++    gap: 8px;
++    grid-template-columns: auto minmax(0, 1fr);
++    min-width: 0;
++  }
++
++  .dao-agent-activity-operation {
++    color: var(--dao-settings-text-secondary);
++  }
++
 +  .dao-agent-activity-path,
 +  .dao-agent-tool-usage-name {
 +    min-width: 0;
@@ -544,6 +584,13 @@ index 0000000000..0000000001
 +
 +    .dao-agent-management-actions cr-button {
 +      justify-self: start;
++    }
++
++    .dao-agent-management-state.error {
++      align-items: flex-start;
++      flex-direction: column;
++      justify-content: center;
++      padding-block: 12px;
 +    }
 +  }
 +
@@ -1098,18 +1145,60 @@ index 0000000000..0000000001
 +                $i18n{daoAgentManagementMemoryTitle}
 +              </h4>
 +            </header>
-+            <template is="dom-if" if="[[memoryLoading_]]">
-+              <div class="dao-agent-management-state" role="status">
-+                $i18n{daoAgentManagementLoading}
++            <template is="dom-if"
++                if="[[showInitialLoading_(memoryLoading_, memorySummary_)]]">
++              <div class="dao-agent-management-loading" role="status"
++                  aria-label="$i18n{daoAgentManagementLoading}">
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
 +              </div>
 +            </template>
-+            <template is="dom-if" if="[[memoryError_]]">
-+              <div class="dao-agent-management-state error" role="alert">
++            <template is="dom-if"
++                if="[[showSummaryLoadError_(memoryError_, memoryActionSucceeded_)]]">
++              <div id="memoryLoadError"
++                  class="dao-agent-management-state error" role="alert">
 +                <span>$i18n{daoAgentManagementMemoryError}</span>
 +                <cr-button id="agentMemoryRetry"
 +                    on-click="onRetryMemory_">
 +                  $i18n{daoAgentManagementRetry}
 +                </cr-button>
++              </div>
++            </template>
++            <template is="dom-if"
++                if="[[showSummaryRefreshError_(memoryError_, memoryActionSucceeded_)]]">
++              <div id="memoryRefreshError"
++                  class="dao-agent-management-state error" role="alert">
++                <span id="memoryRefreshErrorMessage">
++                  $i18n{daoAgentManagementMemoryRefreshError}
++                </span>
++                <cr-button id="agentMemoryRetry"
++                    on-click="onRetryMemory_">
++                  $i18n{daoAgentManagementRetry}
++                </cr-button>
++              </div>
++            </template>
++            <template is="dom-if" if="[[memoryActionError_]]">
++              <div id="memoryActionError"
++                  class="dao-agent-management-state error" role="alert">
++                <span>$i18n{daoAgentManagementMemoryActionError}</span>
 +              </div>
 +            </template>
 +            <template is="dom-if" if="[[memorySummary_]]">
@@ -1143,8 +1232,11 @@ index 0000000000..0000000001
 +            </div>
 +            <div class="dao-agent-management-feedback" role="status"
 +                aria-live="polite">
-+              <template is="dom-if" if="[[memoryActionSucceeded_]]">
-+                $i18n{daoAgentManagementMemoryCleared}
++              <template is="dom-if"
++                  if="[[showActionSuccess_(memoryActionSucceeded_, memoryError_)]]">
++                <span id="memoryActionSuccess">
++                  $i18n{daoAgentManagementMemoryCleared}
++                </span>
 +              </template>
 +            </div>
 +          </article>
@@ -1156,18 +1248,41 @@ index 0000000000..0000000001
 +                $i18n{daoAgentManagementWorkspaceTitle}
 +              </h4>
 +            </header>
-+            <template is="dom-if" if="[[workspaceLoading_]]">
-+              <div class="dao-agent-management-state" role="status">
-+                $i18n{daoAgentManagementLoading}
++            <template is="dom-if"
++                if="[[showInitialLoading_(workspaceLoading_, workspaceSummary_)]]">
++              <div class="dao-agent-management-loading" role="status"
++                  aria-label="$i18n{daoAgentManagementLoading}">
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
 +              </div>
 +            </template>
 +            <template is="dom-if" if="[[workspaceError_]]">
-+              <div class="dao-agent-management-state error" role="alert">
++              <div id="workspaceLoadError"
++                  class="dao-agent-management-state error" role="alert">
 +                <span>$i18n{daoAgentManagementWorkspaceError}</span>
 +                <cr-button id="agentWorkspaceRetry"
 +                    on-click="onRetryWorkspace_">
 +                  $i18n{daoAgentManagementRetry}
 +                </cr-button>
++              </div>
++            </template>
++            <template is="dom-if" if="[[workspaceActionError_]]">
++              <div id="workspaceActionError"
++                  class="dao-agent-management-state error" role="alert">
++                <span>$i18n{daoAgentManagementWorkspaceActionError}</span>
 +              </div>
 +            </template>
 +            <template is="dom-if" if="[[workspaceSummary_]]">
@@ -1207,12 +1322,18 @@ index 0000000000..0000000001
 +                        items="[[workspaceSummary_.recentActivity]]">
 +                      <li>
 +                        <div class="dao-agent-activity-main">
-+                          <span class="dao-agent-activity-path"
-+                              title$="[[item.path]]"
-+                              aria-label$="[[item.path]]">
-+                            [[item.operation]] · [[item.path]]
++                          <span class="dao-agent-activity-description"
++                              aria-label$="[[formatActivityLabel_(item.operation, item.path)]]">
++                            <span class="dao-agent-activity-operation">
++                              [[item.operation]]
++                            </span>
++                            <span class="dao-agent-activity-path"
++                                title$="[[item.path]]">
++                              [[item.path]]
++                            </span>
 +                          </span>
-+                          <time class="dao-agent-activity-time">
++                          <time class="dao-agent-activity-time"
++                              datetime$="[[item.timestamp]]">
 +                            [[formatTimestamp_(item.timestamp)]]
 +                          </time>
 +                        </div>
@@ -1240,7 +1361,9 @@ index 0000000000..0000000001
 +            <div class="dao-agent-management-feedback" role="status"
 +                aria-live="polite">
 +              <template is="dom-if" if="[[workspaceActionSucceeded_]]">
-+                $i18n{daoAgentManagementWorkspaceOpened}
++                <span id="workspaceActionSuccess">
++                  $i18n{daoAgentManagementWorkspaceOpened}
++                </span>
 +              </template>
 +            </div>
 +          </article>
@@ -1252,17 +1375,73 @@ index 0000000000..0000000001
 +                $i18n{daoAgentManagementUsageTitle}
 +              </h4>
 +            </header>
-+            <template is="dom-if" if="[[usageLoading_]]">
-+              <div class="dao-agent-management-state" role="status">
-+                $i18n{daoAgentManagementLoading}
++            <template is="dom-if"
++                if="[[showInitialLoading_(usageLoading_, usageStats_)]]">
++              <div class="dao-agent-management-loading" role="status"
++                  aria-label="$i18n{daoAgentManagementLoading}">
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
++                <div class="dao-agent-management-loading-row"
++                    aria-hidden="true">
++                  <span class="dao-agent-management-loading-line"></span>
++                  <span class="dao-agent-management-loading-line value"></span>
++                </div>
 +              </div>
 +            </template>
-+            <template is="dom-if" if="[[usageError_]]">
-+              <div class="dao-agent-management-state error" role="alert">
++            <template is="dom-if"
++                if="[[showSummaryLoadError_(usageError_, usageActionSucceeded_)]]">
++              <div id="usageLoadError"
++                  class="dao-agent-management-state error" role="alert">
 +                <span>$i18n{daoAgentManagementUsageError}</span>
 +                <cr-button id="agentUsageRetry" on-click="onRetryUsage_">
 +                  $i18n{daoAgentManagementRetry}
 +                </cr-button>
++              </div>
++            </template>
++            <template is="dom-if"
++                if="[[showSummaryRefreshError_(usageError_, usageActionSucceeded_)]]">
++              <div id="usageRefreshError"
++                  class="dao-agent-management-state error" role="alert">
++                <span id="usageRefreshErrorMessage">
++                  $i18n{daoAgentManagementUsageRefreshError}
++                </span>
++                <cr-button id="agentUsageRetry" on-click="onRetryUsage_">
++                  $i18n{daoAgentManagementRetry}
++                </cr-button>
++              </div>
++            </template>
++            <template is="dom-if" if="[[usageActionError_]]">
++              <div id="usageActionError"
++                  class="dao-agent-management-state error" role="alert">
++                <span>$i18n{daoAgentManagementUsageActionError}</span>
 +              </div>
 +            </template>
 +            <template is="dom-if" if="[[usageStats_]]">
@@ -1338,8 +1517,11 @@ index 0000000000..0000000001
 +            </div>
 +            <div class="dao-agent-management-feedback" role="status"
 +                aria-live="polite">
-+              <template is="dom-if" if="[[usageActionSucceeded_]]">
-+                $i18n{daoAgentManagementUsageReset}
++              <template is="dom-if"
++                  if="[[showActionSuccess_(usageActionSucceeded_, usageError_)]]">
++                <span id="usageActionSuccess">
++                  $i18n{daoAgentManagementUsageReset}
++                </span>
 +              </template>
 +            </div>
 +          </article>

@@ -164,7 +164,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -3836,7 +3836,436 @@
+@@ -3836,7 +3836,454 @@
      <!-- Sync / People Page -->
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
@@ -409,14 +409,29 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_LOADING" desc="Status shown while a Dao Agent management card loads.">
 +      Loading…
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_ERROR" desc="Retry guidance shown when Dao Agent memory cannot be loaded or cleared.">
-+      Memory couldn't be loaded or cleared. Retry to refresh it, then clear memory again.
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_ERROR" desc="Retry guidance shown when the Dao Agent memory summary cannot be loaded.">
++      Memory summary couldn't be loaded. Retry to refresh it.
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_ERROR" desc="Retry guidance shown when the Dao Agent workspace cannot be loaded or opened.">
-+      Workspace couldn't be loaded or opened. Retry to refresh it, then open the workspace again.
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_ACTION_ERROR" desc="Action-specific failure shown when Dao Agent memory cannot be cleared.">
++      Memory couldn't be cleared. Try clearing memory again.
 +    </message>
-+    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_ERROR" desc="Retry guidance shown when Dao Agent usage cannot be loaded or reset.">
-+      Usage couldn't be loaded or reset. Retry to refresh it, then reset usage again.
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_REFRESH_ERROR" desc="Retry guidance shown when Dao Agent memory was cleared but its summary cannot be refreshed.">
++      Memory was cleared, but the summary couldn't be refreshed. Retry to load it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_ERROR" desc="Retry guidance shown when the Dao Agent workspace summary cannot be loaded.">
++      Workspace summary couldn't be loaded. Retry to refresh it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_ACTION_ERROR" desc="Action-specific failure shown when the Dao Agent workspace cannot be opened.">
++      Workspace couldn't be opened. Try opening the workspace again.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_ERROR" desc="Retry guidance shown when the Dao Agent usage summary cannot be loaded.">
++      Usage summary couldn't be loaded. Retry to refresh it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_ACTION_ERROR" desc="Action-specific failure shown when Dao Agent usage cannot be reset.">
++      Usage couldn't be reset. Try resetting usage again.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_REFRESH_ERROR" desc="Retry guidance shown when Dao Agent usage was reset but its summary cannot be refreshed.">
++      Usage was reset, but the summary couldn't be refreshed. Retry to load it.
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RETRY" desc="Button that retries loading a Dao Agent management card.">
 +      Retry
@@ -468,6 +483,9 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_RESET" desc="Status shown after Dao Agent usage is reset.">
 +      Usage reset
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_ACTIVITY_LABEL" desc="Accessible label combining a Dao Agent workspace operation and its full path.">
++      Operation <ph name="OPERATION">$1<ex>read</ex></ph>, path <ph name="PATH">$2<ex>notes/example.md</ex></ph>
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_MCP_SERVER_TITLE" desc="Heading for Dao Browser's Model Context Protocol server settings.">
 +      MCP server
@@ -601,7 +619,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
      <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
        Google Profile photo
      </message>
-@@ -4473,40 +4887,40 @@
+@@ -4473,40 +4905,40 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS_POLICY" desc="Subtitle of the passwords card in SafetyHub when there are no saved passwords and saving of passwords is disabled through enterprise policy. This text is shown below the header 'No saved passwords'. It explains that the SafetyHub features for passwords are not available since the user's organization has a policy in place that prevents the user from saving passwords in Chrome.">
        Your organization turned off saving passwords
      </message>
@@ -654,7 +672,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Go to notification settings
      </message>
      <message name="IDS_SETTINGS_SAFETY_HUB_USER_EDU_INCOGNITO_SUBHEADER" desc="The subheader of the second item in the 'User Education Module' in the Safety Hub page. This item explains Incognito mode.">
-@@ -4516,21 +4930,21 @@
+@@ -4516,21 +4948,21 @@
        Safe Browsing
      </message>
      <if expr="not is_chromeos">
@@ -680,7 +698,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        {NUM_SITES, plural,
         =1 {You can stop this site from sending future notifications.}
         other {You can stop these sites from sending future notifications.}}
-@@ -4558,31 +4972,31 @@
+@@ -4558,31 +4990,31 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MENU_NOTIFICATION" desc="When Safe Browsing is disabled, the proactive Safety Hub feature encourages users to turn on the feature. This label is for the notification in Chrome's three-dot menu.">
        Safe Browsing is off
      </message>

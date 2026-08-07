@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,1152 @@
+@@ -0,0 +1,1194 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -389,15 +389,18 @@ index 0000000000..0000000001
 +      memoryError_: {type: Boolean, value: false},
 +      clearMemoryPending_: {type: Boolean, value: false},
 +      memoryActionSucceeded_: {type: Boolean, value: false},
++      memoryActionError_: {type: Boolean, value: false},
 +      workspaceSummary_: {type: Object, value: null},
 +      workspaceLoading_: {type: Boolean, value: false},
 +      workspaceError_: {type: Boolean, value: false},
 +      workspaceActionSucceeded_: {type: Boolean, value: false},
++      workspaceActionError_: {type: Boolean, value: false},
 +      usageStats_: {type: Object, value: null},
 +      usageLoading_: {type: Boolean, value: false},
 +      usageError_: {type: Boolean, value: false},
 +      resetUsagePending_: {type: Boolean, value: false},
 +      usageActionSucceeded_: {type: Boolean, value: false},
++      usageActionError_: {type: Boolean, value: false},
 +    };
 +  }
 +
@@ -487,15 +490,18 @@ index 0000000000..0000000001
 +  declare private memoryError_: boolean;
 +  declare private clearMemoryPending_: boolean;
 +  declare private memoryActionSucceeded_: boolean;
++  declare private memoryActionError_: boolean;
 +  declare private workspaceSummary_: DaoAgentWorkspaceSummary|null;
 +  declare private workspaceLoading_: boolean;
 +  declare private workspaceError_: boolean;
 +  declare private workspaceActionSucceeded_: boolean;
++  declare private workspaceActionError_: boolean;
 +  declare private usageStats_: DaoAgentUsageStats|null;
 +  declare private usageLoading_: boolean;
 +  declare private usageError_: boolean;
 +  declare private resetUsagePending_: boolean;
 +  declare private usageActionSucceeded_: boolean;
++  declare private usageActionError_: boolean;
 +
 +  get memorySummaryForTest(): DaoAgentMemorySummary|null {
 +    return this.memorySummary_;
@@ -511,6 +517,10 @@ index 0000000000..0000000001
 +
 +  get clearMemoryPendingForTest(): boolean {
 +    return this.clearMemoryPending_;
++  }
++
++  get memoryActionErrorForTest(): boolean {
++    return this.memoryActionError_;
 +  }
 +
 +  get workspaceSummaryForTest(): DaoAgentWorkspaceSummary|null {
@@ -539,6 +549,10 @@ index 0000000000..0000000001
 +
 +  get resetUsagePendingForTest(): boolean {
 +    return this.resetUsagePending_;
++  }
++
++  get usageActionErrorForTest(): boolean {
++    return this.usageActionError_;
 +  }
 +
 +  private async loadMemorySummary_(): Promise<void> {
@@ -641,6 +655,7 @@ index 0000000000..0000000001
 +
 +  private onClearMemory_(event: Event): void {
 +    this.memoryActionSucceeded_ = false;
++    this.memoryActionError_ = false;
 +    this.clearMemoryInvoker_ = event.currentTarget as HTMLElement;
 +    this.getManagementDialog_('clearAllMemoryDialog').showModal();
 +  }
@@ -668,15 +683,16 @@ index 0000000000..0000000001
 +    try {
 +      if (await this.agentSettingsBrowserProxy_.clearAllMemory()) {
 +        this.memoryActionSucceeded_ = true;
++        this.memoryActionError_ = false;
 +        this.memoryError_ = false;
 +        void this.loadMemorySummary_();
 +      } else {
 +        this.memoryActionSucceeded_ = false;
-+        this.memoryError_ = true;
++        this.memoryActionError_ = true;
 +      }
 +    } catch {
 +      this.memoryActionSucceeded_ = false;
-+      this.memoryError_ = true;
++      this.memoryActionError_ = true;
 +    } finally {
 +      this.clearMemoryPending_ = false;
 +      this.closeManagementDialog_(
@@ -688,20 +704,21 @@ index 0000000000..0000000001
 +
 +  private async onOpenWorkspace_(): Promise<void> {
 +    this.workspaceActionSucceeded_ = false;
++    this.workspaceActionError_ = false;
 +    try {
 +      if (await this.agentSettingsBrowserProxy_.openWorkspace()) {
 +        this.workspaceActionSucceeded_ = true;
-+        this.workspaceError_ = false;
 +      } else {
-+        this.workspaceError_ = true;
++        this.workspaceActionError_ = true;
 +      }
 +    } catch {
-+      this.workspaceError_ = true;
++      this.workspaceActionError_ = true;
 +    }
 +  }
 +
 +  private onResetUsage_(event: Event): void {
 +    this.usageActionSucceeded_ = false;
++    this.usageActionError_ = false;
 +    this.resetUsageInvoker_ = event.currentTarget as HTMLElement;
 +    this.getManagementDialog_('resetUsageStatsDialog').showModal();
 +  }
@@ -729,15 +746,16 @@ index 0000000000..0000000001
 +    try {
 +      if (await this.agentSettingsBrowserProxy_.resetUsageStats()) {
 +        this.usageActionSucceeded_ = true;
++        this.usageActionError_ = false;
 +        this.usageError_ = false;
 +        void this.loadUsageStats_();
 +      } else {
 +        this.usageActionSucceeded_ = false;
-+        this.usageError_ = true;
++        this.usageActionError_ = true;
 +      }
 +    } catch {
 +      this.usageActionSucceeded_ = false;
-+      this.usageError_ = true;
++      this.usageActionError_ = true;
 +    } finally {
 +      this.resetUsagePending_ = false;
 +      this.closeManagementDialog_(
@@ -781,6 +799,30 @@ index 0000000000..0000000001
 +      dateStyle: 'medium',
 +      timeStyle: 'short',
 +    }).format(new Date(value));
++  }
++
++  private formatActivityLabel_(operation: string, path: string): string {
++    return loadTimeData.getStringF(
++        'daoAgentManagementActivityLabel', operation, path);
++  }
++
++  private showInitialLoading_(loading: boolean, data: unknown): boolean {
++    return loading && !data;
++  }
++
++  private showSummaryLoadError_(
++      error: boolean, actionSucceeded: boolean): boolean {
++    return error && !actionSucceeded;
++  }
++
++  private showSummaryRefreshError_(
++      error: boolean, actionSucceeded: boolean): boolean {
++    return error && actionSucceeded;
++  }
++
++  private showActionSuccess_(
++      actionSucceeded: boolean, summaryError: boolean): boolean {
++    return actionSucceeded && !summaryError;
 +  }
 +
 +  private getUsageToolEntries_(stats: DaoAgentUsageStats|null): Array<{

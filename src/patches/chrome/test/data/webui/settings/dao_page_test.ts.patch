@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,1035 @@
+@@ -0,0 +1,1111 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -201,10 +201,22 @@ index 0000000000..0000000001
 +    deferred.resolve(success);
 +  }
 +
++  rejectClearAllMemory(): void {
++    const deferred = this.clearMemoryRequests_.shift();
++    assertTrue(!!deferred);
++    deferred.reject(new Error('clear memory failed'));
++  }
++
 +  resolveResetUsageStats(success: boolean): void {
 +    const deferred = this.resetUsageRequests_.shift();
 +    assertTrue(!!deferred);
 +    deferred.resolve(success);
++  }
++
++  rejectResetUsageStats(): void {
++    const deferred = this.resetUsageRequests_.shift();
++    assertTrue(!!deferred);
++    deferred.reject(new Error('reset usage failed'));
 +  }
 +}
 +
@@ -495,7 +507,7 @@ index 0000000000..0000000001
 +        assertEquals(clearButton, page.shadowRoot!.activeElement);
 +      });
 +
-+  test('confirmClearMemoryReloadsOnlyMemoryAndPreservesLastGoodData',
++  test('clearSuccessRefreshFailureDoesNotSuggestClearingAgain',
 +      async function() {
 +        await resolveAllManagementSummaries();
 +        const clearButton = page.shadowRoot!.querySelector<HTMLElement>(
@@ -528,9 +540,41 @@ index 0000000000..0000000001
 +
 +        agentSettingsBrowserProxy.rejectMemorySummary();
 +        await flushTasks();
++        flush();
 +        assertTrue(page.memoryErrorForTest);
 +        assertDeepEquals(memorySummary, page.memorySummaryForTest);
++        assertNull(page.shadowRoot!.querySelector('#memoryActionError'));
++        assertNull(page.shadowRoot!.querySelector('#memoryActionSuccess'));
++        const refreshError = page.shadowRoot!.querySelector<HTMLElement>(
++            '#memoryRefreshErrorMessage');
++        assertTrue(!!refreshError);
++        assertEquals(
++            loadTimeData.getString('daoAgentManagementMemoryRefreshError'),
++            refreshError.textContent!.trim());
 +      });
++
++  test('clearFailureUsesActionSpecificFeedback', async function() {
++    await resolveAllManagementSummaries();
++    const clearDialog = page.shadowRoot!.querySelector<HTMLElement>(
++        '#clearAllMemoryDialog')!;
++    page.shadowRoot!.querySelector<HTMLElement>('#clearAllMemoryButton')!
++        .click();
++    clearDialog.querySelector<HTMLElement>('#clearAllMemoryConfirm')!.click();
++    agentSettingsBrowserProxy.resolveClearAllMemory(false);
++    await flushTasks();
++    flush();
++
++    assertFalse(page.memoryErrorForTest);
++    assertTrue(page.memoryActionErrorForTest);
++    assertNull(page.shadowRoot!.querySelector('#memoryRefreshError'));
++    assertNull(page.shadowRoot!.querySelector('#agentMemoryRetry'));
++    const actionError = page.shadowRoot!.querySelector<HTMLElement>(
++        '#memoryActionError');
++    assertTrue(!!actionError);
++    assertEquals(
++        loadTimeData.getString('daoAgentManagementMemoryActionError'),
++        actionError.textContent!.trim());
++  });
 +
 +  test('openWorkspaceCallsOnlyWorkspaceAction', async function() {
 +    await resolveAllManagementSummaries();
@@ -562,7 +606,7 @@ index 0000000000..0000000001
 +        assertEquals(resetButton, page.shadowRoot!.activeElement);
 +      });
 +
-+  test('confirmResetUsageReloadsOnlyUsageAndDisablesWhilePending',
++  test('resetSuccessRefreshFailureDoesNotSuggestResettingAgain',
 +      async function() {
 +        await resolveAllManagementSummaries();
 +        const resetButton = page.shadowRoot!.querySelector<HTMLElement>(
@@ -593,9 +637,41 @@ index 0000000000..0000000001
 +        assertEquals(2, agentSettingsBrowserProxy.getCallCount('getUsageStats'));
 +        agentSettingsBrowserProxy.rejectUsageStats();
 +        await flushTasks();
++        flush();
 +        assertTrue(page.usageErrorForTest);
 +        assertDeepEquals(usageStats, page.usageStatsForTest);
++        assertNull(page.shadowRoot!.querySelector('#usageActionError'));
++        assertNull(page.shadowRoot!.querySelector('#usageActionSuccess'));
++        const refreshError = page.shadowRoot!.querySelector<HTMLElement>(
++            '#usageRefreshErrorMessage');
++        assertTrue(!!refreshError);
++        assertEquals(
++            loadTimeData.getString('daoAgentManagementUsageRefreshError'),
++            refreshError.textContent!.trim());
 +      });
++
++  test('resetFailureUsesActionSpecificFeedback', async function() {
++    await resolveAllManagementSummaries();
++    const resetDialog = page.shadowRoot!.querySelector<HTMLElement>(
++        '#resetUsageStatsDialog')!;
++    page.shadowRoot!.querySelector<HTMLElement>('#resetUsageStatsButton')!
++        .click();
++    resetDialog.querySelector<HTMLElement>('#resetUsageStatsConfirm')!.click();
++    agentSettingsBrowserProxy.rejectResetUsageStats();
++    await flushTasks();
++    flush();
++
++    assertFalse(page.usageErrorForTest);
++    assertTrue(page.usageActionErrorForTest);
++    assertNull(page.shadowRoot!.querySelector('#usageRefreshError'));
++    assertNull(page.shadowRoot!.querySelector('#agentUsageRetry'));
++    const actionError = page.shadowRoot!.querySelector<HTMLElement>(
++        '#usageActionError');
++    assertTrue(!!actionError);
++    assertEquals(
++        loadTimeData.getString('daoAgentManagementUsageActionError'),
++        actionError.textContent!.trim());
++  });
 +
 +  test('newerMemoryReloadWinsOverStaleResponse', async function() {
 +    await resolveAllManagementSummaries();
