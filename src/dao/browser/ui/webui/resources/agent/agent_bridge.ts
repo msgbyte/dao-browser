@@ -1419,8 +1419,6 @@ export interface AgentStats {
   lastReset: number;
 }
 
-const STATS_KEY = 'dao_agent_stats';
-
 function defaultStats(): AgentStats {
   return {
     apiCalls: 0, toolCalls: {}, promptTokens: 0,
@@ -1429,33 +1427,10 @@ function defaultStats(): AgentStats {
   };
 }
 
-function loadStats(): AgentStats {
-  const base = defaultStats();
-  try {
-    const raw = localStorage.getItem(STATS_KEY);
-    if (!raw) return base;
-    const parsed = JSON.parse(raw) as Partial<AgentStats>;
-    // Merge with defaults so missing fields from older schemas don't
-    // produce NaN on accumulation.
-    return {
-      apiCalls: Number(parsed.apiCalls) || 0,
-      toolCalls: parsed.toolCalls && typeof parsed.toolCalls === 'object' ?
-          {...parsed.toolCalls} : {},
-      promptTokens: Number(parsed.promptTokens) || 0,
-      completionTokens: Number(parsed.completionTokens) || 0,
-      totalTokens: Number(parsed.totalTokens) || 0,
-      estimatedCost: Number(parsed.estimatedCost) || 0,
-      lastReset: Number(parsed.lastReset) || base.lastReset,
-    };
-  } catch (_) {
-    return base;
-  }
-}
+let cachedStats: AgentStats = defaultStats();
 
-let cachedStats: AgentStats = loadStats();
-
-function saveStats() {
-  localStorage.setItem(STATS_KEY, JSON.stringify(cachedStats));
+export function applyAgentStatsSnapshot(stats: AgentStats): void {
+  cachedStats = {...stats, toolCalls: {...stats.toolCalls}};
 }
 
 // Cost rates follow pi-ai's convention: USD per 1,000,000 tokens.
@@ -1472,13 +1447,15 @@ export function recordApiCall(
   cachedStats.totalTokens += p + c;
   cachedStats.estimatedCost +=
       (p * costPerMTokPrompt + c * costPerMTokCompletion) / 1_000_000;
-  saveStats();
+  chrome.send('recordDaoAgentApiUsage', [
+    p, c, costPerMTokPrompt, costPerMTokCompletion,
+  ]);
 }
 
 export function recordToolCall(toolName: string) {
   cachedStats.toolCalls[toolName] =
       (cachedStats.toolCalls[toolName] || 0) + 1;
-  saveStats();
+  chrome.send('recordDaoAgentToolUsage', [toolName]);
 }
 
 export function getAgentStats(): AgentStats {
@@ -1487,7 +1464,7 @@ export function getAgentStats(): AgentStats {
 
 export function resetAgentStats() {
   cachedStats = defaultStats();
-  saveStats();
+  chrome.send('resetDaoAgentUsageStats');
 }
 
 // ---- Unique ID Generator ----
