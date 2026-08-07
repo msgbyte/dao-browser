@@ -147,9 +147,13 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 ### 2.4 Agent WebUI (`dao://agent` and `dao://skills`)
 
 **Application shell** (`src/dao/browser/ui/webui/resources/agent/`)
-- `agent.{html,css,ts}` + `dao_agent_app.ts` — Chat app entry
+- `agent.{html,css,ts}` + `dao_agent_app.ts` — Chat app entry; its settings
+  button opens the unified `dao://settings/#dao` overview section
 - `skills.html` + `skills.ts` — Skill manager standalone entry
 - `agent_bridge.ts` — Mojo bridge
+- `agent_settings_{sync,native_bridge}.ts` — One-time migration from the
+  `dao://agent` local-storage origin and live synchronization with the
+  Profile-scoped settings source of truth
 
 **Chat surface**
 - `dao_chat_view.ts` — Main conversation view (session resume, skill picker, dynamic chips, composer height tracking, cost stats / usage)
@@ -167,7 +171,43 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - `dao_skill_manager_view.ts` — Skill management surface
 - `skill_registry.ts` — Skill catalog and lookup
 - `tool_catalog.ts` — Tool catalog schema
-- `dao_settings_view.ts` — Expandable tool groups with persistent state
+
+**Unified Agent settings** (`dao://settings/#dao`)
+- `DaoAgentSettingsHandler` stores durable Agent choices in Profile prefs and
+  is shared by the Agent and Settings WebUIs
+- Model/provider credentials, session/display behavior, persona, page and
+  conversation context, web search, memory/proactive suggestions, and Dream
+  analysis are managed in the Dao Settings section
+- Tool group shortcuts and the expandable individual-permission list preserve
+  the existing per-tool enable/disable controls
+- Existing origin-scoped Agent settings migrate once, filling only values that
+  have not already been configured in Settings; runtime/session state remains
+  local to the Agent
+- The continuous overview also owns compact Memory, Workspace, and Usage
+  summaries. Memory and workspace data come from their Profile-keyed services;
+  usage counters are stored in the Profile `dao.agent_usage_stats` pref, which
+  is the source of truth shared with already-open Agent WebUIs
+- `DaoAgentSettingsHandler` exposes only the management facade needed by the
+  overview: memory summary/clear, workspace summary/reveal, and usage
+  read/reset/record. It does not register workspace mutation messages
+- `dao://memory`, `dao://skills`, and `dao://dream` remain secondary management
+  pages linked from the overview rather than duplicate top-level settings
+
+**Settings shell** (`dao://settings`)
+- All top-level Chromium and Dao settings render as one continuous overview in
+  the Dao Open Design shell. Its 184px table of contents, integrated search,
+  680px content column, 30px section rhythm, and light/dark tokens share one
+  page background without a repeated Dao brand header or footer. Nested page
+  index views are kept in normal document flow so their cards contribute real
+  height instead of overlapping later sections
+- Table-of-contents activation scrolls to a section and updates the URL hash;
+  scrolling updates the selected item. Direct legacy top-level paths continue
+  to resolve and normalize to overview hashes
+- Complex management flows remain independent secondary pages. Returning from
+  one restores the overview and its section/scroll context
+- Chromium settings components continue to own their routes, preferences,
+  visibility gates, search integration, and external destinations; the shell
+  changes presentation without replacing the settings inventory
 
 **LLM / runtime plumbing**
 - `llm_config.ts` — Model + provider configuration
