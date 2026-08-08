@@ -74,6 +74,7 @@ struct DomainAgg {
   int total_seconds = 0;
   std::vector<std::string> titles;
   std::map<std::string, int> buckets;
+  std::map<std::string, int> foreground_seconds_by_bucket;
 };
 
 int MaterialSeconds(base::TimeDelta duration) {
@@ -186,13 +187,21 @@ void DreamMaterialCollector::Collect(base::Time window_start,
   conversations_part_.clear();
   preferences_part_.clear();
   feedback_part_.clear();
+  foreground_seconds_by_bucket_part_.clear();
+  foreground_seconds_by_bucket_part_.Set("morning", 0);
+  foreground_seconds_by_bucket_part_.Set("afternoon", 0);
+  foreground_seconds_by_bucket_part_.Set("evening", 0);
+  foreground_seconds_by_bucket_part_.Set("night", 0);
   excluded_domains_ = LoadDreamExcludedDomains(profile_);
+  history_domain_count_ = 0;
+  search_query_count_ = 0;
+  conversation_session_count_ = 0;
   excluded_history_visits_ = 0;
 
-  // 4 parts: history (+search, same query), conversations, preferences,
-  // feedback.
+  // 5 parts: history (+search, same query), conversation excerpts, exact
+  // conversation-session count, preferences, and feedback.
   barrier_ = base::BarrierClosure(
-      4, base::BindOnce(&DreamMaterialCollector::OnPartDone,
+      5, base::BindOnce(&DreamMaterialCollector::OnPartDone,
                         weak_factory_.GetWeakPtr()));
 
   // Part 1: history → domains + search queries.
@@ -216,6 +225,12 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                 return;
               }
               std::map<std::string, DomainAgg> by_domain;
+              std::map<std::string, int> foreground_seconds_by_bucket = {
+                  {"morning", 0},
+                  {"afternoon", 0},
+                  {"evening", 0},
+                  {"night", 0},
+              };
               std::vector<std::string> queries;
               std::set<std::string> seen_queries;
               for (const auto& visit : visits) {
@@ -240,10 +255,15 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                 agg.visit_count++;
                 const base::TimeDelta foreground =
                     ForegroundDurationFor(visit);
-                agg.foreground_seconds += MaterialSeconds(foreground);
+                const int foreground_seconds = MaterialSeconds(foreground);
+                agg.foreground_seconds += foreground_seconds;
                 agg.total_seconds +=
                     MaterialSeconds(TotalDurationFor(visit, foreground));
-                agg.buckets[BucketFor(visit.visit_row.visit_time)]++;
+                const std::string bucket =
+                    BucketFor(visit.visit_row.visit_time);
+                agg.buckets[bucket]++;
+                agg.foreground_seconds_by_bucket[bucket] += foreground_seconds;
+                foreground_seconds_by_bucket[bucket] += foreground_seconds;
                 const std::string title =
                     TruncateMaterialText(
                         base::UTF16ToUTF8(visit.url_row.title()));
@@ -256,6 +276,8 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                 }
               }
               // Top-N domains by foreground attention, then visit count.
+              const int domain_count = static_cast<int>(by_domain.size());
+              const int query_count = static_cast<int>(seen_queries.size());
               std::vector<std::pair<std::string, DomainAgg>> sorted(
                   std::make_move_iterator(by_domain.begin()),
                   std::make_move_iterator(by_domain.end()));
@@ -294,14 +316,27 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                   buckets.Set(name, count);
                 }
                 d.Set("buckets", std::move(buckets));
+                base::DictValue foreground_seconds_by_bucket;
+                for (auto& [name, seconds] :
+                     agg.foreground_seconds_by_bucket) {
+                  foreground_seconds_by_bucket.Set(name, seconds);
+                }
+                d.Set("foreground_seconds_by_bucket",
+                      std::move(foreground_seconds_by_bucket));
                 domains.Append(std::move(d));
               }
               base::ListValue query_list;
               for (auto& q : queries) {
                 query_list.Append(q);
               }
-              self->OnHistoryResults(std::move(domains),
-                                     std::move(query_list));
+              base::DictValue foreground_bucket_stats;
+              for (const auto& [name, seconds] :
+                   foreground_seconds_by_bucket) {
+                foreground_bucket_stats.Set(name, seconds);
+              }
+              self->OnHistoryResults(
+                  std::move(domains), std::move(query_list), domain_count,
+                  query_count, std::move(foreground_bucket_stats));
             },
             weak_factory_.GetWeakPtr()),
         &history_tracker_);
@@ -309,8 +344,8 @@ void DreamMaterialCollector::Collect(base::Time window_start,
 
   // Part 2: agent conversations in window. The user's questions carry the
   // intent; keep the first 2 user messages per session.
-  memory_service_->LoadRecentMessages(
-      500,
+  memory_service_->LoadConversationMessagesInRange(
+      window_start_, window_end_, 500,
       base::BindOnce(
           [](base::WeakPtr<DreamMaterialCollector> self,
              std::vector<ConversationMessage> messages) {
@@ -355,6 +390,16 @@ void DreamMaterialCollector::Collect(base::Time window_start,
               sessions.Append(std::move(s));
             }
             self->OnConversationsLoaded(std::move(sessions));
+          },
+          weak_factory_.GetWeakPtr()));
+
+  memory_service_->CountUserConversationSessionsInRange(
+      window_start_, window_end_,
+      base::BindOnce(
+          [](base::WeakPtr<DreamMaterialCollector> self, int session_count) {
+            if (self) {
+              self->OnConversationSessionCountLoaded(session_count);
+            }
           },
           weak_factory_.GetWeakPtr()));
 
@@ -408,16 +453,30 @@ void DreamMaterialCollector::Collect(base::Time window_start,
       weak_factory_.GetWeakPtr()));
 }
 
-void DreamMaterialCollector::OnHistoryResults(base::ListValue domains,
-                                              base::ListValue queries) {
+void DreamMaterialCollector::OnHistoryResults(
+    base::ListValue domains,
+    base::ListValue queries,
+    int domain_count,
+    int query_count,
+    base::DictValue foreground_seconds_by_bucket) {
   history_part_ = std::move(domains);
   search_part_ = std::move(queries);
+  history_domain_count_ = domain_count;
+  search_query_count_ = query_count;
+  foreground_seconds_by_bucket_part_ =
+      std::move(foreground_seconds_by_bucket);
   barrier_.Run();
 }
 
 void DreamMaterialCollector::OnConversationsLoaded(
     base::ListValue sessions) {
   conversations_part_ = std::move(sessions);
+  barrier_.Run();
+}
+
+void DreamMaterialCollector::OnConversationSessionCountLoaded(
+    int session_count) {
+  conversation_session_count_ = session_count;
   barrier_.Run();
 }
 
@@ -438,10 +497,9 @@ void DreamMaterialCollector::OnPartDone() {
   window.Set("end", FormatLocalYmdHm(window_end_));
   pack.Set("window", std::move(window));
   base::DictValue stats;
-  stats.Set("history_domains", static_cast<int>(history_part_.size()));
-  stats.Set("search_queries", static_cast<int>(search_part_.size()));
-  stats.Set("conversation_sessions",
-            static_cast<int>(conversations_part_.size()));
+  stats.Set("history_domains", history_domain_count_);
+  stats.Set("search_queries", search_query_count_);
+  stats.Set("conversation_sessions", conversation_session_count_);
   stats.Set("preferences", static_cast<int>(preferences_part_.size()));
   stats.Set("feedback_scenarios", static_cast<int>(feedback_part_.size()));
   stats.Set("excluded_history_visits", excluded_history_visits_);
@@ -457,6 +515,8 @@ void DreamMaterialCollector::OnPartDone() {
     }
   }
   stats.Set("source_domains", std::move(source_domains));
+  stats.Set("foreground_seconds_by_bucket",
+            foreground_seconds_by_bucket_part_.Clone());
   pack.Set("stats", std::move(stats));
   pack.Set("history", std::move(history_part_));
   pack.Set("search_queries", std::move(search_part_));

@@ -128,6 +128,26 @@ TEST_F(DaoAgentMemoryStoreTest, ReadOnlySqlAppliesRowLimit) {
   EXPECT_TRUE(result.truncated);
 }
 
+TEST_F(DaoAgentMemoryStoreTest, CountsUserConversationSessionsInRange) {
+  const base::Time now = base::Time::Now();
+  auto save_message = [&](const std::string& session_id, const std::string& role,
+                          base::Time timestamp) {
+    ConversationMessage message;
+    message.role = role;
+    message.content = "content";
+    message.timestamp = timestamp;
+    return store_->SaveConversationMessages(session_id, {message});
+  };
+  ASSERT_TRUE(save_message("inside-a", "user", now - base::Hours(2)));
+  ASSERT_TRUE(save_message("inside-b", "user", now - base::Hours(1)));
+  ASSERT_TRUE(save_message("assistant-only", "assistant",
+                           now - base::Minutes(30)));
+  ASSERT_TRUE(save_message("outside", "user", now - base::Days(2)));
+
+  EXPECT_EQ(2, store_->CountUserConversationSessionsInRange(
+                   now - base::Hours(6), now));
+}
+
 TEST_F(DaoAgentMemoryStoreTest, CooldownTreatsRecentNotNowAsTemporaryBlock) {
   const base::Time now = base::Time::Now();
   ASSERT_TRUE(store_->RecordActionFeedback(
@@ -219,6 +239,22 @@ TEST_F(DaoAgentMemoryStoreTest, SearchEpisodesSkipsNegativeActionResults) {
 
   ASSERT_EQ(1u, episodes.size());
   EXPECT_EQ("Useful search", episodes[0].title);
+}
+
+TEST_F(DaoAgentMemoryStoreTest, DreamReportHistorySupportsAnnualActivity) {
+  for (int day = 0; day < 375; ++day) {
+    DreamReport report;
+    report.dream_date = std::to_string(day);
+    report.report_markdown = "report";
+    report.habit_candidates = "[]";
+    report.material_stats = "{}";
+    report.status = "completed";
+    ASSERT_TRUE(store_->SaveDreamReport(report));
+  }
+
+  const std::vector<DreamReport> reports = store_->GetDreamReports(371);
+
+  EXPECT_EQ(371u, reports.size());
 }
 
 TEST_F(DaoAgentMemoryStoreTest, SearchEpisodesMatchesSavedSubdomains) {

@@ -640,6 +640,68 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   EXPECT_EQ("light", *quick_level);
 }
 
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       CollectorStatsCountSignalsBeforeMaterialCaps) {
+  history::HistoryService* history = HistoryServiceFactory::GetForProfile(
+      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  ASSERT_TRUE(history);
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+  const base::Time now = base::Time::Now();
+
+  for (int i = 0; i < 55; ++i) {
+    const GURL url(base::StringPrintf("https://daily-%02d.example/page", i));
+    history->AddPage(url, now - base::Minutes(120 + i),
+                     history::SOURCE_BROWSED);
+  }
+  for (int i = 0; i < 35; ++i) {
+    const GURL url(base::StringPrintf(
+        "https://www.google.com/search?q=query-%02d", i));
+    history->AddPage(url, now - base::Minutes(30 + i),
+                     history::SOURCE_BROWSED);
+  }
+  for (int i = 0; i < 12; ++i) {
+    ConversationMessage message;
+    message.role = "user";
+    message.content = base::StringPrintf("Daily question %02d?", i);
+    message.timestamp = now - base::Minutes(10 + i);
+    std::vector<ConversationMessage> messages;
+    messages.push_back(std::move(message));
+    ASSERT_TRUE(SaveConversationMessagesForTest(
+        memory, base::StringPrintf("daily-cap-session-%02d", i),
+        std::move(messages)));
+  }
+
+  DreamMaterialCollector collector(browser()->profile(), memory);
+  base::DictValue pack;
+  base::RunLoop loop;
+  collector.Collect(now - base::Hours(6), now,
+                    base::BindLambdaForTesting([&](base::DictValue value) {
+                      pack = std::move(value);
+                      loop.Quit();
+                    }));
+  loop.Run();
+
+  const base::ListValue* domains = pack.FindList("history");
+  const base::ListValue* queries = pack.FindList("search_queries");
+  const base::ListValue* conversations = pack.FindList("conversations");
+  ASSERT_TRUE(domains);
+  ASSERT_TRUE(queries);
+  ASSERT_TRUE(conversations);
+  EXPECT_EQ(DreamMaterialCollector::kMaxDomains,
+            static_cast<int>(domains->size()));
+  EXPECT_EQ(DreamMaterialCollector::kMaxSearchQueries,
+            static_cast<int>(queries->size()));
+  EXPECT_EQ(DreamMaterialCollector::kMaxConversationSessions,
+            static_cast<int>(conversations->size()));
+  const base::DictValue* stats = pack.FindDict("stats");
+  ASSERT_TRUE(stats);
+  EXPECT_EQ(56, stats->FindInt("history_domains").value_or(-1));
+  EXPECT_EQ(35, stats->FindInt("search_queries").value_or(-1));
+  EXPECT_EQ(12, stats->FindInt("conversation_sessions").value_or(-1));
+}
+
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, CollectorCapsLongHistoryText) {
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
       browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
@@ -4459,6 +4521,21 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   // Complete the dream via the result path and verify persistence.
   base::DictValue result;
   result.Set("report_markdown", "# nightly report");
+  base::ListValue habits;
+  base::DictValue habit;
+  habit.Set("key", "daily.must_wait_for_confirmation");
+  habit.Set("value", "Daily candidates remain pending until confirmed.");
+  habit.Set("confidence", 0.8);
+  habit.Set("relation", "new");
+  habits.Append(std::move(habit));
+  result.Set("habits", std::move(habits));
+  base::DictValue recap;
+  recap.Set("summary", "A focused day.");
+  base::DictValue time_buckets;
+  time_buckets.Set("morning_minutes", 12);
+  recap.Set("time_buckets", std::move(time_buckets));
+  recap.Set("themes", base::ListValue());
+  result.Set("recap", std::move(recap));
   service->OnDreamResult(runner.last_request().request_id, std::move(result));
 
   DaoAgentMemoryService* memory =
@@ -4478,9 +4555,31 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
         EXPECT_EQ("completed", r->status);
         EXPECT_EQ("manual", r->trigger_kind);
         EXPECT_EQ("# nightly report", r->report_markdown);
+        std::optional<base::Value> material_stats =
+            base::JSONReader::Read(r->material_stats);
+        ASSERT_TRUE(material_stats.has_value());
+        ASSERT_TRUE(material_stats->is_dict());
+        const base::DictValue* stored_recap =
+            material_stats->GetDict().FindDict("recap");
+        ASSERT_TRUE(stored_recap);
+        EXPECT_EQ("A focused day.", *stored_recap->FindString("summary"));
         verify_loop.Quit();
       }));
   verify_loop.Run();
+
+  std::vector<Preference> preferences;
+  base::RunLoop preferences_loop;
+  memory->GetPreferences(
+      100, 0.0,
+      base::BindLambdaForTesting([&](std::vector<Preference> values) {
+        preferences = std::move(values);
+        preferences_loop.Quit();
+      }));
+  preferences_loop.Run();
+  EXPECT_TRUE(std::none_of(
+      preferences.begin(), preferences.end(), [](const Preference& pref) {
+        return pref.key == "daily.must_wait_for_confirmation";
+      }));
 
   service->ClearRunner(&runner);
 }

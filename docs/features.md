@@ -195,15 +195,28 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - **DreamMaterialCollector** — aggregates one day of signals: history
   (domain+title+time-bucket granularity, top 50; full URLs never leave
   the browser), search keywords (extracted in C++), agent conversation
-  excerpts, proactive-feedback stats.
+  excerpts, proactive-feedback stats. Visit-count buckets remain available to
+  the model, while measured foreground seconds are also aggregated by morning,
+  afternoon, evening, and night for the report rhythm visualization.
 - **dao_dream_runner.ts** — resident agent WebUI executes the LLM
   summarization (user's configured provider) and returns structured
-  habits + a morning-report markdown.
-- Results: habits merged into `preferences` (LLM confidence capped at
-  0.8; user confirmation raises to 0.95), report archived in the
-  `dream_reports` table, morning report card in the Agent panel with
-  per-habit confirm/reject and an optional debug view of the exact LLM
-  input (`dao.dream_debug`).
+  one-minute recap data (summary, time-of-day rhythm, and up to three themes),
+  habits, and a full morning-report markdown. The recap is persisted inside
+  the report's existing material-stats JSON, so older databases need no
+  migration.
+- Results: memory suggestions remain report-local candidates until the user
+  confirms one at confidence 0.95; rejection never deletes or rewrites an
+  existing preference. The report is archived in the `dream_reports` table,
+  with a morning report card in the Agent panel, per-candidate confirm/reject,
+  and an optional debug view of the exact LLM input (`dao.dream_debug`).
+- **`dao://dream` one-minute recap** — responsive two-column report with a
+  53-week real-report activity heatmap, compact daily-and-weekly history rail,
+  summary card,
+  measured foreground-focus rhythm, topic cards, aggregate counts,
+  memory-candidate actions, and a folded full report. Existing rerun, image
+  sharing, source-domain exclusion,
+  and debug controls remain available. Legacy markdown-only reports derive a
+  summary and topic cards locally instead of rendering an incomplete page.
 
 ## 3. Picture-in-Picture Enhancements
 

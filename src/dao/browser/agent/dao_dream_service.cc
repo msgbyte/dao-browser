@@ -910,37 +910,18 @@ void DaoDreamService::MarkFailed(DreamRunRequest request,
 
 void DaoDreamService::PersistResult(const std::string& dream_date,
                                     base::DictValue result) {
-  // 1. Habits → MergePreference (confidence capped; contradict skipped —
-  //    surfaced in the report only, the user adjudicates).
-  if (const base::ListValue* habits = result.FindList("habits")) {
-    for (const base::Value& h : *habits) {
-      const base::DictValue* habit = h.GetIfDict();
-      if (!habit) {
-        continue;
-      }
-      const std::string* key = habit->FindString("key");
-      const std::string* value = habit->FindString("value");
-      const std::string* relation = habit->FindString("relation");
-      if (!key || !value || key->empty() || value->empty()) {
-        continue;
-      }
-      if (relation && *relation == "contradict") {
-        continue;
-      }
-      double confidence = habit->FindDouble("confidence").value_or(0.5);
-      confidence = std::min(confidence, kMaxLLMConfidence);
-      memory_service_->MergePreference(*key, *value, confidence,
-                                       base::DoNothing());
-    }
-  }
-
-  // 2. Report row.
+  // Habit output remains a candidate until the user confirms it in the Dream
+  // report. Persist only the report row here; confirmation owns the memory
+  // write and rejection must leave existing memory untouched.
   DreamReport report;
   report.dream_date = dream_date;
   const std::string* md = result.FindString("report_markdown");
   report.report_markdown = md ? *md : "";
   if (const base::ListValue* habits = result.FindList("habits")) {
     base::JSONWriter::Write(*habits, &report.habit_candidates);
+  }
+  if (const base::DictValue* recap = result.FindDict("recap")) {
+    pending_material_stats_.Set("recap", recap->Clone());
   }
   base::JSONWriter::Write(pending_material_stats_, &report.material_stats);
   report.status = "completed";
