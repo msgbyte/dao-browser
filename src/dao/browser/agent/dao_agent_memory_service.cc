@@ -114,6 +114,23 @@ void DaoAgentMemoryService::LoadConversationMessagesInRange(
       std::move(callback));
 }
 
+void DaoAgentMemoryService::CountUserConversationSessionsInRange(
+    base::Time start,
+    base::Time end,
+    base::OnceCallback<void(int)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(ui_sequence_checker_);
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](DaoAgentMemoryStore* store, base::Time start_time,
+             base::Time end_time) {
+            return store->CountUserConversationSessionsInRange(start_time,
+                                                                end_time);
+          },
+          store_.get(), start, end),
+      std::move(callback));
+}
+
 // --- Conversation Summaries ---
 
 void DaoAgentMemoryService::SaveConversationSummary(

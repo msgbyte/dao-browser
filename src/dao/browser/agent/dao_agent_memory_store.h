@@ -48,6 +48,7 @@ class DaoAgentMemoryStore {
       base::Time start,
       base::Time end,
       int limit);
+  int CountUserConversationSessionsInRange(base::Time start, base::Time end);
 
   // Conversation summaries
   bool SaveConversationSummary(const ConversationSummary& summary);

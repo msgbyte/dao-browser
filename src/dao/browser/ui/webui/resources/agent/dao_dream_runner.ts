@@ -20,8 +20,28 @@ interface DreamHabit {
   relation: 'new'|'reinforce'|'contradict';
 }
 
+interface DreamTheme {
+  name: string;
+  summary: string;
+  intensity: 'light'|'medium'|'deep';
+  time_label: string;
+  attention_share: number;
+}
+
+interface DreamRecap {
+  summary: string;
+  time_buckets: {
+    morning_minutes: number;
+    afternoon_minutes: number;
+    evening_minutes: number;
+    night_minutes: number;
+  };
+  themes: DreamTheme[];
+}
+
 interface DreamResult {
   report_markdown: string;
+  recap: DreamRecap;
   habits: DreamHabit[];
   scenario_adjustments: Array<{scenario_id: string; suggestion: string}>;
 }
@@ -38,7 +58,8 @@ export interface DreamCallResult {
 const SYSTEM_PROMPT = `You are Dao Browser's dream analyst. You receive a
 condensed JSON "material pack" describing one browsing day: top domains with
 page titles, foreground_seconds, total_seconds, duration_level, and
-time-of-day buckets, search queries, short excerpts of the user's questions to
+time-of-day visit buckets plus foreground_seconds_by_bucket, search queries,
+short excerpts of the user's questions to
 the in-browser AI agent, high-confidence known preferences, feedback stats on
 proactive suggestions, and aggregate counts. Turn it into a calm morning
 reflection and a small set of durable memory candidates. The report should
@@ -53,6 +74,22 @@ shape:
     1-3 gentle reflection questions or next-day hints. Do not list every
     domain, page title, or query. Friendly, calm tone; address the user
     directly in the target language.>",
+  "recap": {
+    "summary": "<one calm sentence that captures the day's main arc in the user's language>",
+    "time_buckets": {
+      "morning_minutes": <non-negative integer>,
+      "afternoon_minutes": <non-negative integer>,
+      "evening_minutes": <non-negative integer>,
+      "night_minutes": <non-negative integer>
+    },
+    "themes": [{
+      "name": "<short theme name in the user's language>",
+      "summary": "<one concise evidence-grounded sentence>",
+      "intensity": "light" | "medium" | "deep",
+      "time_label": "<short localized time-of-day label>",
+      "attention_share": <integer 0-100, relative to the strongest theme>
+    }]
+  },
   "habits": [{
     "key": "<dot.namespaced key, e.g. interest.rust_async>",
     "value": "<one-sentence habit/preference description in the user's language>",
@@ -82,6 +119,13 @@ Rules:
   duration_level "deep" deserves the most narrative weight, "medium" can be
   mentioned briefly, and "light" should be summarized in passing or omitted
   unless it reinforces searches, agent conversations, or another strong theme.
+- Build recap.time_buckets from stats.foreground_seconds_by_bucket, converting
+  measured seconds to rounded minutes. Keep zero values when a bucket has no
+  foreground activity. Do not infer time from the visit-count-only buckets.
+- Include 0-3 recap themes. Merge related domains, titles, searches, and agent
+  questions into user-meaningful topics instead of using domain names as theme
+  names. Set the strongest theme's attention_share to 100 and scale the rest
+  relative to it.
 - Treat material.preferences as existing memory, not as new evidence from the
   day. Use it only to decide whether a habit candidate is "reinforce",
   "contradict", or "new".
@@ -111,6 +155,7 @@ function validateResult(parsed: unknown): DreamResult|null {
       obj['report_markdown'].length === 0) {
     return null;
   }
+  const recap = normalizeRecap(obj['recap']);
   const habits: DreamHabit[] = [];
   if (Array.isArray(obj['habits'])) {
     for (const h of obj['habits']) {
@@ -150,8 +195,61 @@ function validateResult(parsed: unknown): DreamResult|null {
   }
   return {
     report_markdown: obj['report_markdown'],
+    recap,
     habits,
     scenario_adjustments: adjustments,
+  };
+}
+
+function boundedInteger(value: unknown, max: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.min(Math.max(Math.round(value), 0), max);
+}
+
+function normalizeRecap(value: unknown): DreamRecap {
+  const recap = typeof value === 'object' && value !== null ?
+      value as Record<string, unknown> : {};
+  const rawBuckets =
+      typeof recap['time_buckets'] === 'object' &&
+          recap['time_buckets'] !== null ?
+      recap['time_buckets'] as Record<string, unknown> : {};
+  const themes: DreamTheme[] = [];
+  if (Array.isArray(recap['themes'])) {
+    for (const theme of recap['themes']) {
+      if (themes.length >= 3 || typeof theme !== 'object' || theme === null) {
+        continue;
+      }
+      const candidate = theme as Record<string, unknown>;
+      if (typeof candidate['name'] !== 'string' ||
+          typeof candidate['summary'] !== 'string' ||
+          !candidate['name'].trim() || !candidate['summary'].trim()) {
+        continue;
+      }
+      const intensity = candidate['intensity'];
+      themes.push({
+        name: candidate['name'].trim(),
+        summary: candidate['summary'].trim(),
+        intensity: intensity === 'light' || intensity === 'deep' ?
+            intensity : 'medium',
+        time_label: typeof candidate['time_label'] === 'string' ?
+            candidate['time_label'].trim() : '',
+        attention_share: boundedInteger(candidate['attention_share'], 100),
+      });
+    }
+  }
+  return {
+    summary: typeof recap['summary'] === 'string' ?
+        recap['summary'].trim() : '',
+    time_buckets: {
+      morning_minutes: boundedInteger(rawBuckets['morning_minutes'], 1440),
+      afternoon_minutes:
+          boundedInteger(rawBuckets['afternoon_minutes'], 1440),
+      evening_minutes: boundedInteger(rawBuckets['evening_minutes'], 1440),
+      night_minutes: boundedInteger(rawBuckets['night_minutes'], 1440),
+    },
+    themes,
   };
 }
 
