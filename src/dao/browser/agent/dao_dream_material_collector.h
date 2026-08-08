@@ -31,14 +31,18 @@ class DaoAgentMemoryService;
 //   "history": [{"domain","visit_count","titles":[..],
 //                "foreground_seconds":N,"total_seconds":N,
 //                "duration_level":"light|medium|deep",
-//                "buckets":{"morning":N,"afternoon":N,"evening":N,"night":N}}],
+//                "buckets":{"morning":N,"afternoon":N,"evening":N,"night":N},
+//                "foreground_seconds_by_bucket":{"morning":N,
+//                  "afternoon":N,"evening":N,"night":N}}],
 //   "search_queries": ["...", ...],
 //   "conversations": [{"session_id","messages":["...",...]}],
 //   "preferences": [{"key","value","confidence","evidence_count"}],
 //   "feedback": [{"scenario_id","name","shown","clicked","dismissed"}],
 //   "stats": {"history_domains":N,"search_queries":N,
 //             "conversation_sessions":N,"preferences":N,
-//             "feedback_scenarios":N}
+//             "feedback_scenarios":N,
+//             "foreground_seconds_by_bucket":{"morning":N,
+//               "afternoon":N,"evening":N,"night":N}}
 // }
 // PRIVACY INVARIANT: no full URL appears anywhere in the output.
 class DreamMaterialCollector {
@@ -75,8 +79,13 @@ class DreamMaterialCollector {
       const std::set<std::string>& excluded_domains);
 
  private:
-  void OnHistoryResults(base::ListValue domains, base::ListValue queries);
+  void OnHistoryResults(base::ListValue domains,
+                        base::ListValue queries,
+                        int domain_count,
+                        int query_count,
+                        base::DictValue foreground_seconds_by_bucket);
   void OnConversationsLoaded(base::ListValue sessions);
+  void OnConversationSessionCountLoaded(int session_count);
   void OnPreferencesLoaded(base::ListValue preferences);
   void OnFeedbackLoaded(base::ListValue feedback);
   void OnPartDone();
@@ -94,7 +103,11 @@ class DreamMaterialCollector {
   base::ListValue conversations_part_;
   base::ListValue preferences_part_;
   base::ListValue feedback_part_;
+  base::DictValue foreground_seconds_by_bucket_part_;
   std::set<std::string> excluded_domains_;
+  int history_domain_count_ = 0;
+  int search_query_count_ = 0;
+  int conversation_session_count_ = 0;
   int excluded_history_visits_ = 0;
 
   base::CancelableTaskTracker history_tracker_;

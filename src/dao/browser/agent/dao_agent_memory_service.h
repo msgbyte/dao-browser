@@ -57,6 +57,10 @@ class DaoAgentMemoryService : public KeyedService {
       base::Time end,
       int limit,
       base::OnceCallback<void(std::vector<ConversationMessage>)> callback);
+  void CountUserConversationSessionsInRange(
+      base::Time start,
+      base::Time end,
+      base::OnceCallback<void(int)> callback);
 
   // Conversation summaries
   void SaveConversationSummary(

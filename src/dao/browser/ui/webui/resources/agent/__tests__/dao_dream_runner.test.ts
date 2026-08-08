@@ -53,6 +53,22 @@ function respondWith(content: string, usage?: {
 
 const VALID = JSON.stringify({
   report_markdown: '昨晚的报告',
+  recap: {
+    summary: '下午专注 Rust，晚上阅读浏览器架构。',
+    time_buckets: {
+      morning_minutes: 22,
+      afternoon_minutes: 125,
+      evening_minutes: 78,
+      night_minutes: 9,
+    },
+    themes: [{
+      name: 'Rust 异步编程',
+      summary: '围绕 tokio 与 async runtime 深入阅读。',
+      intensity: 'deep',
+      time_label: '下午为主',
+      attention_share: 100,
+    }],
+  },
   habits: [{
     key: 'interest.rust',
     value: '你最近在关注 Rust 异步编程。',
@@ -88,6 +104,16 @@ describe('runDream', () => {
     respondWith(VALID);
     const result = await runDream('2026-06-11', {history: []});
     expect(result.report_markdown).toBe('昨晚的报告');
+    expect(result.recap.summary).toBe(
+        '下午专注 Rust，晚上阅读浏览器架构。');
+    expect(result.recap.time_buckets.afternoon_minutes).toBe(125);
+    expect(result.recap.themes).toEqual([{
+      name: 'Rust 异步编程',
+      summary: '围绕 tokio 与 async runtime 深入阅读。',
+      intensity: 'deep',
+      time_label: '下午为主',
+      attention_share: 100,
+    }]);
     expect(result.habits).toHaveLength(1);
     expect(result.habits[0]!.confidence).toBe(0.8);
     expect(result.scenario_adjustments).toHaveLength(1);
@@ -143,6 +169,8 @@ describe('runDream', () => {
        expect(systemPrompt).toContain(
            'summarize by topic, intent, and time pattern');
        expect(systemPrompt).toContain('Use foreground_seconds');
+       expect(systemPrompt).toContain('stats.foreground_seconds_by_bucket');
+       expect(systemPrompt).toContain('visit-count-only buckets');
        expect(systemPrompt).toContain('deep');
        expect(systemPrompt).toContain('light');
        expect(systemPrompt).toContain('Never expose');
@@ -211,5 +239,62 @@ describe('runDream', () => {
     const result = await runDream('2026-06-11', {});
     expect(result.habits).toHaveLength(1);
     expect(result.habits[0]!.key).toBe('k2');
+  });
+
+  it('drops malformed recap themes and clamps numeric recap values',
+     async () => {
+       respondWith(JSON.stringify({
+         report_markdown: 'r',
+         recap: {
+           summary: 'A focused day.',
+           time_buckets: {
+             morning_minutes: -3,
+             afternoon_minutes: 25.8,
+             evening_minutes: 'invalid',
+             night_minutes: 5,
+           },
+           themes: [
+             {name: 'Missing summary'},
+             {
+               name: 'Architecture',
+               summary: 'Read rendering documentation.',
+               intensity: 'unknown',
+               time_label: 'Evening',
+               attention_share: 140,
+             },
+           ],
+         },
+         habits: [],
+         scenario_adjustments: [],
+       }));
+
+       const result = await runDream('2026-06-11', {});
+
+       expect(result.recap.time_buckets).toEqual({
+         morning_minutes: 0,
+         afternoon_minutes: 26,
+         evening_minutes: 0,
+         night_minutes: 5,
+       });
+       expect(result.recap.themes).toEqual([{
+         name: 'Architecture',
+         summary: 'Read rendering documentation.',
+         intensity: 'medium',
+         time_label: 'Evening',
+         attention_share: 100,
+       }]);
+     });
+
+  it('leaves a missing recap summary empty for the UI fallback', async () => {
+    respondWith(JSON.stringify({
+      report_markdown: '## Main thread\nBuilt the new Dream report.\n\n' +
+          '## Note\nKept the old data path.',
+      habits: [],
+      scenario_adjustments: [],
+    }));
+
+    const result = await runDream('2026-06-11', {});
+
+    expect(result.recap.summary).toBe('');
   });
 });

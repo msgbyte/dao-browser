@@ -237,7 +237,6 @@ class DaoDreamService : public KeyedService,
   static constexpr base::TimeDelta kDreamTimeout = base::Minutes(5);
   static constexpr base::TimeDelta kWeeklyTransientDefer = base::Hours(1);
   static constexpr int kMaxAttemptsPerNight = 3;  // 1 initial + 2 retries
-  static constexpr double kMaxLLMConfidence = 0.8;
 
   raw_ptr<Profile> profile_;
   raw_ptr<DaoAgentMemoryService> memory_service_;

@@ -905,6 +905,19 @@ std::vector<ConversationMessage> DaoAgentMemoryStore::LoadRecentMessages(
   return result;
 }
 
+int DaoAgentMemoryStore::CountUserConversationSessionsInRange(
+    base::Time start,
+    base::Time end) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  sql::Statement stmt(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      "SELECT COUNT(DISTINCT session_id) FROM conversations "
+      "WHERE role='user' AND timestamp>=? AND timestamp<?"));
+  stmt.BindInt64(0, TimeToInt(start));
+  stmt.BindInt64(1, TimeToInt(end));
+  return stmt.Step() ? stmt.ColumnInt(0) : 0;
+}
+
 std::vector<ConversationMessage>
 DaoAgentMemoryStore::LoadConversationMessagesInRange(base::Time start,
                                                       base::Time end,
@@ -1708,7 +1721,7 @@ std::optional<DreamReport> DaoAgentMemoryStore::GetDreamReportByDate(
 
 std::vector<DreamReport> DaoAgentMemoryStore::GetDreamReports(int limit) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  limit = std::clamp(limit, 1, 100);
+  limit = std::clamp(limit, 1, 371);
   sql::Statement stmt(db_->GetUniqueStatement(
       base::StrCat({"SELECT ", kDreamReportColumns,
                     " FROM dream_reports WHERE status = 'completed' "
