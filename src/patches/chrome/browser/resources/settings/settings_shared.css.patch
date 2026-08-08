@@ -1,0 +1,128 @@
+diff --git a/chrome/browser/resources/settings/settings_shared.css b/chrome/browser/resources/settings/settings_shared.css
+index 37ebfb19d5..0000000001 100644
+--- a/chrome/browser/resources/settings/settings_shared.css
++++ b/chrome/browser/resources/settings/settings_shared.css
+@@ -12,6 +12,45 @@
+ 
+ /* Common styles for Material Design settings. */
+ 
++:host {
++  --dao-settings-accent: rgb(70, 120, 190);
++  --dao-settings-accent-strong: rgb(52, 98, 162);
++  --dao-settings-accent-subtle: rgba(70, 120, 190, .11);
++  --dao-settings-border: rgba(30, 40, 54, .09);
++  --dao-settings-border-subtle: rgba(30, 40, 54, .065);
++  --dao-settings-content-width: 680px;
++  --dao-settings-page: rgb(248, 249, 250);
++  --dao-settings-shadow:
++      0 1px 2px rgba(0, 0, 0, .04), 0 6px 18px rgba(45, 58, 72, .055);
++  --dao-settings-surface: rgb(255, 255, 255);
++  --dao-settings-surface-hover: rgba(30, 40, 54, .075);
++  --dao-settings-text: rgba(25, 34, 46, .92);
++  --dao-settings-text-secondary: rgba(25, 34, 46, .62);
++  --dao-settings-text-tertiary: rgba(25, 34, 46, .44);
++  --cr-card-background-color: var(--dao-settings-surface);
++  --cr-card-border-radius: 12px;
++  --cr-card-shadow: var(--dao-settings-shadow);
++  --cr-section-min-height: 62px;
++  --cr-section-two-line-min-height: 62px;
++  --cr-section-padding: 18px;
++}
++
++@media (prefers-color-scheme: dark) {
++  :host {
++    --dao-settings-accent-strong: rgb(125, 169, 224);
++    --dao-settings-accent-subtle: rgba(70, 120, 190, .24);
++    --dao-settings-border: rgba(255, 255, 255, .10);
++    --dao-settings-border-subtle: rgba(255, 255, 255, .065);
++    --dao-settings-shadow:
++        0 1px 2px rgba(0, 0, 0, .22), 0 8px 24px rgba(0, 0, 0, .2);
++    --dao-settings-surface: rgb(45, 49, 54);
++    --dao-settings-surface-hover: rgba(255, 255, 255, .075);
++    --dao-settings-text: rgba(250, 250, 250, .94);
++    --dao-settings-text-secondary: rgba(255, 255, 255, .64);
++    --dao-settings-text-tertiary: rgba(255, 255, 255, .44);
++  }
++}
++
+ /* Prevent action-links from being selected to avoid accidental
+  * selection when trying to click it. */
+ a[is=action-link] {
+@@ -23,13 +62,14 @@ h2 {
+   align-items: center;
+   /* TODO(crbug.com/454617005): consider changing to auto */
+   align-self: flex-start;
+-  color: var(--cr-secondary-text-color);
++  color: var(--dao-settings-text);
+   display: flex;
+-  font-size: inherit;
+-  font-weight: 500;
++  font-size: 14px;
++  font-weight: 650;
++  letter-spacing: -.01em;
+   margin: 0;
+   /* TODO(crbug.com/454617005): consider changing to 0 */
+-  padding-bottom: 12px;
++  padding-bottom: 10px;
+   /* TODO(crbug.com/454617005): consider changing to 12px */
+-  padding-top: 32px;
++  padding-top: 30px;
+ }
+@@ -138,11 +178,11 @@ iron-list[risk-selection] {
+ .list-item {
+   align-items: center;
+   display: flex;
+-  min-height: var(--cr-section-min-height);
++  min-height: 62px;
+   padding: 0;
+ }
+ 
+ /* A thin separator line under a list item. */
+ .list-item.underbar {
+-  border-bottom: var(--cr-separator-line);
++  border-bottom: 1px solid var(--dao-settings-border-subtle);
+ }
+@@ -189,9 +229,9 @@ iron-list[risk-selection] {
+ .settings-box {
+   align-items: center;
+-  border-top: var(--cr-separator-line);
++  border-top: 1px solid var(--dao-settings-border-subtle);
+   display: flex;
+-  min-height: var(--cr-section-min-height);
+-  padding: 0 var(--cr-section-padding);
++  min-height: 62px;
++  padding: 0 18px;
+ }
+ 
+ .settings-box.no-padding {
+@@ -213,7 +253,8 @@ iron-list[risk-selection] {
+ .settings-box-text {
+   box-sizing: border-box;
+-  padding-bottom: var(--cr-section-vertical-padding);
+-  padding-top: var(--cr-section-vertical-padding);
++  color: var(--dao-settings-text);
++  padding-bottom: 14px;
++  padding-top: 14px;
+ }
+ 
+ /* We use an explicit tag to remove the top border, rather than a
+@@ -360,3 +401,19 @@ h2.first {
+ .flex {
+   flex: 1;
+ }
++
++/* Dao Settings Open Design presentation. Existing settings components keep
++ * ownership of their behavior while sharing this visual language. */
++.settings-box .secondary,
++.settings-box-text .secondary,
++.secondary {
++  color: var(--dao-settings-text-secondary);
++  font-size: 12px;
++  line-height: 1.45;
++  margin-top: 3px;
++}
++
++.list-item.underbar,
++.vertical-list > *:not(:first-of-type) {
++  border-color: var(--dao-settings-border-subtle);
++}

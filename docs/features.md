@@ -148,7 +148,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 
 **Application shell** (`src/dao/browser/ui/webui/resources/agent/`)
 - `agent.{html,css,ts}` + `dao_agent_app.ts` — Chat app entry; its settings
-  button opens the unified `dao://settings/#dao` overview section
+  button opens the unified `dao://settings/#agent` overview section
 - `skills.html` + `skills.ts` — Skill manager standalone entry
 - `agent_bridge.ts` — Mojo bridge
 - `agent_settings_{sync,native_bridge}.ts` — One-time migration from the
@@ -172,26 +172,41 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - `skill_registry.ts` — Skill catalog and lookup
 - `tool_catalog.ts` — Tool catalog schema
 
-**Unified Agent settings** (`dao://settings/#dao`)
+**Unified Agent settings** (`dao://settings/#agent`, top-level route `/agent`)
 - `DaoAgentSettingsHandler` stores durable Agent choices in Profile prefs and
   is shared by the Agent and Settings WebUIs
+- `Agent` is a top-level Dao-exclusive Settings section beside `You and Dao`.
+  `You and Dao` owns browser capabilities only; all Agent configuration,
+  Memory, Workspace, Usage, Skills, and Dream controls appear exactly once in
+  the Agent section
+- The Agent module is packaged in Chromium's shared Settings lazy bundle and
+  rendered as its own continuous-overview section. Search delegates directly
+  to it, keeping provider, model, API key, session, personality, context,
+  tools, search, memory, proactive suggestions, Dream, workspace, skills, and
+  usage discoverable without a duplicate summary or intermediate subpage
 - Model/provider credentials, session/display behavior, persona, page and
   conversation context, web search, memory/proactive suggestions, and Dream
-  analysis are managed in the Dao Settings section
+  analysis are managed in the Agent Settings section
 - Tool group shortcuts and the expandable individual-permission list preserve
-  the existing per-tool enable/disable controls
+  the existing per-tool enable/disable controls. Rapid changes update one
+  optimistic disabled-tool set and serialize complete-array writes before
+  resynchronizing from the Profile snapshot
 - Existing origin-scoped Agent settings migrate once, filling only values that
   have not already been configured in Settings; runtime/session state remains
-  local to the Agent
-- The continuous overview also owns compact Memory, Workspace, and Usage
-  summaries. Memory and workspace data come from their Profile-keyed services;
-  usage counters are stored in the Profile `dao.agent_usage_stats` pref, which
-  is the source of truth shared with already-open Agent WebUIs
+  local to the Agent. Partial legacy usage records receive canonical defaults,
+  while malformed values are rejected and initialized Profile data wins
+- Session resume retains its established three-hour default and accepts zero
+  hours. Configuration has independent loading, error, and retry feedback, so
+  a configuration failure does not hide or disable management summaries
+- The Agent section owns complete Memory, Workspace, and Usage management.
+  Memory and workspace data come from their Profile-keyed services; usage
+  counters are stored in the Profile `dao.agent_usage_stats` pref, which is the
+  source of truth shared with already-open Agent WebUIs
 - `DaoAgentSettingsHandler` exposes only the management facade needed by the
-  overview: memory summary/clear, workspace summary/reveal, and usage
+  Agent section: memory summary/clear, workspace summary/reveal, and usage
   read/reset/record. It does not register workspace mutation messages
 - `dao://memory`, `dao://skills`, and `dao://dream` remain secondary management
-  pages linked from the overview rather than duplicate top-level settings
+  pages linked from the Agent section rather than duplicate top-level settings
 
 **Settings shell** (`dao://settings`)
 - All top-level Chromium and Dao settings render as one continuous overview in
@@ -199,7 +214,9 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   680px content column, 30px section rhythm, and light/dark tokens share one
   page background without a repeated Dao brand header or footer. Nested page
   index views are kept in normal document flow so their cards contribute real
-  height instead of overlapping later sections
+  height instead of overlapping later sections. Search filters the table of
+  contents to matching sections, clears hidden selection on zero results, and
+  restores the captured pre-search scroll position without top-level routing
 - Table-of-contents activation scrolls to a section and updates the URL hash;
   scrolling updates the selected item. Direct legacy top-level paths continue
   to resolve and normalize to overview hashes

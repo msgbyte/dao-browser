@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => {
     chatRequestUpdate: vi.fn(),
     prefillExternalPrompt: vi.fn(),
     openExternalSession: vi.fn(),
-    settingsRequestUpdate: vi.fn(),
     refreshSkillRegistryIfStale: vi.fn(async () => false),
     initI18n: vi.fn(() => i18nPromise),
     resolveI18n: () => resolveI18nPromise(),
@@ -45,16 +44,6 @@ vi.mock('../dao_chat_view.js', () => {
 
 vi.mock('../dao_dream_dispatcher.js', () => ({}));
 
-vi.mock('../dao_settings_view.js', () => {
-  if (!customElements.get('dao-settings-view')) {
-    customElements.define('dao-settings-view', class extends HTMLElement {
-      requestUpdate = mocks.settingsRequestUpdate;
-      switchSubTab() {}
-    });
-  }
-  return {};
-});
-
 vi.mock('../i18n/i18n.js', () => ({
   initI18n: mocks.initI18n,
   t: (key: string) => key,
@@ -74,7 +63,6 @@ async function loadApp() {
   document.body.appendChild(el);
   await el.updateComplete;
   mocks.chatRequestUpdate.mockClear();
-  mocks.settingsRequestUpdate.mockClear();
   return {el, send};
 }
 
@@ -85,7 +73,6 @@ describe('dao-agent-app i18n refresh', () => {
     mocks.chatRequestUpdate.mockReset();
     mocks.prefillExternalPrompt.mockReset();
     mocks.openExternalSession.mockReset();
-    mocks.settingsRequestUpdate.mockReset();
     mocks.refreshSkillRegistryIfStale.mockReset();
   });
 
@@ -107,7 +94,18 @@ describe('dao-agent-app i18n refresh', () => {
     await el.updateComplete;
 
     expect(mocks.chatRequestUpdate).toHaveBeenCalled();
-    expect(mocks.settingsRequestUpdate).toHaveBeenCalled();
+  });
+
+  it('opens unified settings from the settings button', async () => {
+    const {el, send} = await loadApp();
+    const settingsButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '.dao-app-tab-bar .dao-app-tab:not(.active)');
+    expect(settingsButton).not.toBeNull();
+    settingsButton!.click();
+
+    expect(mocks.callNative).toHaveBeenCalledWith(
+        'openTab', {url: 'dao://settings/#dao'});
+    expect(send).toHaveBeenCalledWith('closeSidebar');
   });
 
   it('routes external prefill requests to the chat view', async () => {

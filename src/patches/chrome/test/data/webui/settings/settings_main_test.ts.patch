@@ -1,0 +1,114 @@
+diff --git a/chrome/test/data/webui/settings/settings_main_test.ts b/chrome/test/data/webui/settings/settings_main_test.ts
+index 4de6fefb8b..0000000001 100644
+--- a/chrome/test/data/webui/settings/settings_main_test.ts
++++ b/chrome/test/data/webui/settings/settings_main_test.ts
+@@ -7,6 +7,7 @@ import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min
+-import type {SettingsMainElement, SettingsPrefsElement} from 'chrome://settings/settings.js';
++import type {SettingsMainElement, SettingsPrefsElement, SettingsPrivacyPageIndexElement} from 'chrome://settings/settings.js';
+ import {CrSettingsPrefs, loadTimeData, Router, routes, setSearchManagerForTesting} from 'chrome://settings/settings.js';
+-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
++import {assertEquals, assertFalse, assertGT, assertTrue} from 'chrome://webui-test/chai_assert.js';
++import {eventToPromise} from 'chrome://webui-test/test_util.js';
+ 
+ import {TestSearchManager} from './test_search_manager.js';
+ // clang-format on
+@@ -35,6 +36,99 @@ suite('MainPageTests', function() {
+     settingsMain.remove();
+   });
+ 
++  test('topLevelRouteShowsContinuousOverview', async function() {
++    await settingsMain.whenViewSwitchingDone();
++    const activeViews = settingsMain.shadowRoot!.querySelectorAll(
++        '#switcher > [slot=view].active');
++    assertGT(activeViews.length, 10);
++    assertTrue(settingsMain.hasAttribute('overview-mode'));
++    assertTrue(Array.from(activeViews).some(view => view.id === 'privacy'));
++    assertTrue(Array.from(activeViews).some(view => view.id === 'appearance'));
++    assertTrue(Array.from(activeViews).some(view => view.id === 'dao'));
++    assertTrue(Array.from(activeViews).some(view => view.id === 'agent'));
++    assertTrue(!!settingsMain.shadowRoot!.querySelector(
++        '#switcher > #agent settings-dao-agent-page'));
++
++    const privacyIndex = settingsMain.shadowRoot!.querySelector<
++        SettingsPrivacyPageIndexElement>('settings-privacy-page-index')!;
++    await privacyIndex.whenViewSwitchingDone();
++    assertTrue(privacyIndex.$.viewManager.querySelector('#privacy')!
++                   .classList.contains('active'));
++  });
++
++  test('hiddenSearchSectionRejectsOverviewNavigation', async function() {
++    await settingsMain.whenViewSwitchingDone();
++    const daoSection = settingsMain.shadowRoot!.querySelector<HTMLElement>(
++        '#switcher > #dao')!;
++    const daoPage = daoSection.querySelector<HTMLElement>(
++        ':scope > settings-dao-page')!;
++    daoPage.toggleAttribute('hidden-by-search', true);
++
++    assertFalse(settingsMain.scrollToOverviewSection('dao', 'auto'));
++  });
++
++  test('secondaryRouteReplacesOverviewAndReturnRestoresIt', async function() {
++    await settingsMain.whenViewSwitchingDone();
++    Router.getInstance().navigateTo(routes.SITE_SETTINGS);
++    await settingsMain.whenViewSwitchingDone();
++
++    let activeViews = settingsMain.shadowRoot!.querySelectorAll(
++        '#switcher > [slot=view].active');
++    assertEquals(1, activeViews.length);
++    assertEquals('privacy', activeViews[0]!.id);
++    assertFalse(settingsMain.hasAttribute('overview-mode'));
++
++    Router.getInstance().navigateTo(routes.BASIC);
++    await settingsMain.whenViewSwitchingDone();
++    activeViews = settingsMain.shadowRoot!.querySelectorAll(
++        '#switcher > [slot=view].active');
++    assertGT(activeViews.length, 10);
++    assertTrue(settingsMain.hasAttribute('overview-mode'));
++  });
++
++  test('searchReportsMatchingSectionsAndRestoresCapturedScroll',
++       async function() {
++         await settingsMain.whenViewSwitchingDone();
++         const host = document.createElement('div');
++         const root = host.attachShadow({mode: 'open'});
++         const container = document.createElement('div');
++         container.id = 'container';
++         Object.defineProperties(container, {
++           clientHeight: {value: 400, configurable: true},
++           scrollHeight: {value: 1200, configurable: true},
++         });
++         root.appendChild(container);
++         container.appendChild(settingsMain);
++         document.body.appendChild(host);
++
++         const matchingIds = ['appearance', 'privacy'];
++         const sections = settingsMain.shadowRoot!.querySelectorAll<HTMLElement>(
++             '#switcher > [slot=view]');
++         for (const section of sections) {
++           const plugin = section.querySelector<HTMLElement>(
++               ':scope > :not(template)');
++           plugin?.toggleAttribute(
++               'no-search', !matchingIds.includes(section.id));
++         }
++
++         container.scrollTop = 180;
++         const resultEvent = eventToPromise<CustomEvent<{
++           query: string,
++           sections: string[],
++         }>>('settings-overview-search-results-changed', settingsMain);
++         await settingsMain.searchContents('matching query');
++         const result = await resultEvent;
++         assertEquals('matching query', result.detail.query);
++         assertEquals(
++             matchingIds.join(','), result.detail.sections.sort().join(','));
++
++         container.scrollTop = 20;
++         await settingsMain.searchContents('second query');
++         assertEquals(20, container.scrollTop);
++         await settingsMain.searchContents('');
++         assertEquals(180, container.scrollTop);
++       });
++
+   test('searchContents() triggers SearchManager', async function() {
+     flush();
+ 

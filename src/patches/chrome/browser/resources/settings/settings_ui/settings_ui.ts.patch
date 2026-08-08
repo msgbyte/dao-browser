@@ -1,0 +1,320 @@
+diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chrome/browser/resources/settings/settings_ui/settings_ui.ts
+--- a/chrome/browser/resources/settings/settings_ui/settings_ui.ts
++++ b/chrome/browser/resources/settings/settings_ui/settings_ui.ts
+@@ -10,8 +10,6 @@
+  *
+  *    <settings-ui prefs="{{prefs}}"></settings-ui>
+  */
+-import 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
+-import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
+ import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
+ import 'chrome://resources/cr_elements/cr_page_host_style.css.js';
+ import 'chrome://resources/cr_elements/icons.html.js';
+@@ -25,11 +23,8 @@
+ import '../settings_vars.css.js';
+ 
+ import type {SettingsPrefsElement} from '/shared/settings/prefs/prefs.js';
+-import type {CrDrawerElement} from 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
+-import type {CrToolbarElement} from 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
++import type {CrToolbarSearchFieldElement} from 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
+ import {FindShortcutMixin} from 'chrome://resources/cr_elements/find_shortcut_mixin.js';
+-import {listenOnce} from 'chrome://resources/js/util.js';
+-import type {DomIf} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+ 
+ import {resetGlobalScrollTargetForTesting, setGlobalScrollTarget} from '../global_scroll_target_mixin.js';
+@@ -45,18 +40,23 @@
++const SEARCH_DEBOUNCE_MS = 150;
++
+ declare global {
+   interface HTMLElementEventMap {
+     'refresh-pref': CustomEvent<string>;
++    'settings-overview-section-changed': CustomEvent<{section: string}>;
++    'settings-overview-search-results-changed':
++        CustomEvent<{query: string, sections: string[]}>;
++    'settings-section-activate':
++        CustomEvent<{section: string, behavior: ScrollBehavior}>;
+   }
+ }
+ 
+ export interface SettingsUiElement {
+   $: {
+     container: HTMLElement,
+-    drawer: CrDrawerElement,
+-    drawerTemplate: DomIf,
+     leftMenu: SettingsMenuElement,
+     main: SettingsMainElement,
++    searchField: CrToolbarSearchFieldElement,
+     scrollableShadow: HTMLElement,
+-    toolbar: CrToolbarElement,
+     prefs: SettingsPrefsElement,
+   };
+ }
+@@ -87,11 +85,6 @@
+         value: false,
+       },
+ 
+-      narrow_: {
+-        type: Boolean,
+-        observer: 'onNarrowChanged_',
+-      },
+-
+       lastSearchQuery_: {
+         type: String,
+         value: '',
+@@ -101,7 +96,8 @@
+ 
+   declare prefs: {[key: string]: any};
+   declare private toolbarSpinnerActive_: boolean;
+-  declare private narrow_: boolean;
+   declare private lastSearchQuery_: string;
++  private searchPromise_: Promise<void> = Promise.resolve();
++  private searchDebounceTimer_: number|null = null;
+ 
+   constructor() {
+@@ -113,15 +105,6 @@
+   override ready() {
+     super.ready();
+ 
+-    // Lazy-create the drawer the first time it is opened or swiped into view.
+-    listenOnce(this.$.drawer, 'cr-drawer-opening', () => {
+-      this.$.drawerTemplate.if = true;
+-    });
+-
+-    window.addEventListener('popstate', () => {
+-      this.$.drawer.cancel();
+-    });
+-
+     window.CrPolicyStrings = {
+       controlledSettingExtension:
+           loadTimeData.getString('controlledSettingExtension'),
+@@ -172,6 +155,9 @@
+     this.$.scrollableShadow.classList.toggle(
+         'force-on', route === routes.PRIVACY_GUIDE || route.depth > 1);
+ 
++    const requestedSection = window.location.hash.substring(1);
++    void this.syncOverviewRoute_(route, requestedSection);
++
+     const urlSearchQuery =
+         Router.getInstance().getQueryParameters().get('search') || '';
+     if (urlSearchQuery === this.lastSearchQuery_) {
+@@ -180,9 +166,7 @@
+ 
+     this.lastSearchQuery_ = urlSearchQuery;
+ 
+-    const toolbar =
+-        this.shadowRoot!.querySelector<CrToolbarElement>('cr-toolbar')!;
+-    const searchField = toolbar.getSearchField();
++    const searchField = this.$.searchField;
+ 
+     // If the search was initiated by directly entering a search URL, need to
+     // sync the URL parameter to the textbox.
+@@ -189,9 +173,9 @@
+     if (urlSearchQuery !== searchField.getValue()) {
+       // Setting the search box value without triggering a 'search-changed'
+       // event, to prevent an unnecessary duplicate entry in |window.history|.
+       searchField.setValue(urlSearchQuery, true /* noEvent */);
+     }
+ 
+-    this.$.main.searchContents(urlSearchQuery);
++    this.searchPromise_ = this.$.main.searchContents(urlSearchQuery);
+   }
+ 
+@@ -200,23 +184,93 @@
+     if (modalContextOpen) {
+       return false;
+     }
+-    this.shadowRoot!.querySelector<CrToolbarElement>('cr-toolbar')!
+-        .getSearchField()
+-        .showAndFocus();
++    this.$.searchField.showAndFocus();
+     return true;
+   }
+ 
+   // Override FindShortcutMixin methods.
+   override searchInputHasFocus() {
+-    return this.shadowRoot!.querySelector<CrToolbarElement>('cr-toolbar')!
+-        .getSearchField()
+-        .isSearchFocused();
++    return this.$.searchField.isSearchFocused();
+   }
+ 
+   private onRefreshPref_(e: CustomEvent<string>) {
+     return this.$.prefs.refresh(e.detail);
+   }
+ 
++  private isOverviewRoute_(route: Route): boolean {
++    return route !== routes.ABOUT && !route.isNavigableDialog &&
++        !route.isSubpage();
++  }
++
++  private async syncOverviewRoute_(route: Route, requestedSection: string) {
++    if (!this.isOverviewRoute_(route)) {
++      return;
++    }
++
++    await Promise.resolve();
++    await this.$.main.whenViewSwitchingDone();
++    if (Router.getInstance().getCurrentRoute() !== route) {
++      return;
++    }
++    if (Router.getInstance().getQueryParameters().has('search')) {
++      return;
++    }
++
++    const section = route.section || requestedSection;
++    if (route.section && route !== routes.BASIC) {
++      this.replaceOverviewHash_(section);
++      Router.getInstance().setCurrentRoute(
++          routes.BASIC, Router.getInstance().getQueryParameters(), false);
++      return;
++    }
++
++    if (section && this.$.main.scrollToOverviewSection(section, 'auto')) {
++      this.replaceOverviewHash_(section);
++      this.$.leftMenu.setActiveSection(section);
++      return;
++    }
++    this.$.main.restoreOverviewScroll();
++  }
++
++  private async onSettingsSectionActivate_(
++      event: CustomEvent<{section: string, behavior: ScrollBehavior}>) {
++    const {section, behavior} = event.detail;
++    const router = Router.getInstance();
++    const hasSearch = !!router.getQueryParameters().get('search');
++    if (!this.isOverviewRoute_(router.getCurrentRoute()) || hasSearch) {
++      router.navigateTo(
++          routes.BASIC, /* dynamicParams */ undefined,
++          /* removeSearch */ true);
++      await Promise.resolve();
++      await this.$.main.whenViewSwitchingDone();
++      await this.searchPromise_;
++    }
++
++    if (this.$.main.scrollToOverviewSection(section, behavior)) {
++      this.replaceOverviewHash_(section);
++      this.$.leftMenu.setActiveSection(section);
++    }
++  }
++
++  private onOverviewSectionChanged_(
++      event: CustomEvent<{section: string}>) {
++    const {section} = event.detail;
++    this.$.leftMenu.setActiveSection(section);
++  }
++
++  private onOverviewSearchResultsChanged_(
++      event: CustomEvent<{query: string, sections: string[]}>) {
++    this.$.leftMenu.setSearchResultSections(
++        event.detail.query, event.detail.sections);
++  }
++
++  private replaceOverviewHash_(section: string) {
++    const url = new URL(window.location.href);
++    url.pathname = '/';
++    url.hash = section;
++    window.history.replaceState(window.history.state, '', url);
++  }
++
+   /**
+    * Handles the 'search-changed' event fired from the toolbar.
+    */
+@@ -223,79 +277,34 @@
+   private onSearchChanged_(e: CustomEvent<string>) {
+     let query = e.detail;
+     if (query.length > MAX_QUERY_LENGTH) {
+       query = query.substring(0, MAX_QUERY_LENGTH);
+     }
++    if (this.searchDebounceTimer_ !== null) {
++      clearTimeout(this.searchDebounceTimer_);
++      this.searchDebounceTimer_ = null;
++    }
++
++    // Clearing should restore the overview immediately. Non-empty searches
++    // are coalesced so typing does not repeatedly search every mounted page.
++    if (query.length === 0) {
++      this.commitSearch_(query);
++      return;
++    }
++    this.searchDebounceTimer_ = window.setTimeout(() => {
++      this.searchDebounceTimer_ = null;
++      this.commitSearch_(query);
++    }, SEARCH_DEBOUNCE_MS);
++  }
++
++  private commitSearch_(query: string) {
+     Router.getInstance().navigateTo(
+         routes.BASIC,
+         query.length > 0 ?
+             new URLSearchParams('search=' + encodeURIComponent(query)) :
+             undefined,
+         /* removeSearch */ true);
+   }
+ 
+-  /**
+-   * Called when a section is selected.
+-   */
+-  private onIronActivate_() {
+-    this.$.drawer.close();
+-  }
+-
+-  private onMenuButtonClick_() {
+-    this.$.drawer.toggle();
+-  }
+-
+-  /**
+-   * When this is called, The drawer animation is finished, and the dialog no
+-   * longer has focus. The selected section will gain focus if one was
+-   * selected. Otherwise, the drawer was closed due being canceled, and the
+-   * main settings container is given focus. That way the arrow keys can be
+-   * used to scroll the container, and pressing tab focuses a component in
+-   * settings.
+-   */
+-  private onMenuClose_() {
+-    if (!this.$.drawer.wasCanceled()) {
+-      // If a navigation happened, SettingsMain handles focusing the
+-      // corresponding section.
+-      return;
+-    }
+-
+-    // Add tab index so that the container can be focused.
+-    this.$.container.setAttribute('tabindex', '-1');
+-    this.$.container.focus();
+-
+-    listenOnce(this.$.container, ['blur', 'pointerdown'], () => {
+-      this.$.container.removeAttribute('tabindex');
+-    });
+-  }
+-
+-  private onNarrowChanged_() {
+-    if (this.$.drawer.open && !this.narrow_) {
+-      this.$.drawer.close();
+-    }
+-
+-    const focusedElement = this.shadowRoot!.activeElement;
+-    if (this.narrow_ && focusedElement === this.$.leftMenu) {
+-      // If changed from non-narrow to narrow and the focus was on the left
+-      // menu, move focus to the button that opens the drawer menu.
+-      this.$.toolbar.focusMenuButton();
+-    } else if (!this.narrow_ && this.$.toolbar.isMenuFocused()) {
+-      // If changed from narrow to non-narrow and the focus was on the button
+-      // that opens the drawer menu, move focus to the left menu.
+-      this.$.leftMenu.focusFirstItem();
+-    } else if (
+-        !this.narrow_ &&
+-        focusedElement === this.shadowRoot!.querySelector('#drawerMenu')) {
+-      // If changed from narrow to non-narrow and the focus was in the drawer
+-      // menu, wait for the drawer to close and then move focus on the left
+-      // menu. The drawer has a dialog element in it so moving focus to an
+-      // element outside the dialog while it is open will not work.
+-      const boundCloseListener = () => {
+-        this.$.leftMenu.focusFirstItem();
+-        this.$.drawer.removeEventListener('close', boundCloseListener);
+-      };
+-      this.$.drawer.addEventListener('close', boundCloseListener);
+-    }
+-  }
+ }
+ 
+ declare global {

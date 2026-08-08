@@ -13,6 +13,7 @@ import {
   recordApiCall,
   recordToolCall,
   resetAgentStats,
+  saveSoul,
 } from '../agent_bridge.js';
 
 describe('callNative', () => {
@@ -48,6 +49,26 @@ describe('callNative', () => {
 
     await expect(promise).resolves.toBe(true);
   });
+
+  it('persists soul updates canonically before updating the local cache',
+     async () => {
+       localStorage.removeItem('dao_agent_soul');
+       const send = vi.fn();
+       vi.stubGlobal('chrome', {send});
+
+       const promise = saveSoul('Canonical soul');
+       expect(localStorage.getItem('dao_agent_soul')).toBeNull();
+       expect(send).toHaveBeenCalledTimes(1);
+       const [method, args] = send.mock.calls[0] as [string, unknown[]];
+       expect(method).toBe('setDaoAgentSetting');
+       const [callbackId, key, value] = args as [string, string, string];
+       expect(key).toBe('dao_agent_soul');
+       expect(value).toBe('Canonical soul');
+
+       cr.webUIResponse(callbackId, true, true);
+       await expect(promise).resolves.toBe(true);
+       expect(localStorage.getItem('dao_agent_soul')).toBe('Canonical soul');
+     });
 
   it('forwards usage records to native and replaces the immediate cache', () => {
     const send = vi.fn();

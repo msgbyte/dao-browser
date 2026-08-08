@@ -338,7 +338,7 @@ describe('settings i18n patches', () => {
     const pagePatch = readFileSync(path.join(
         process.cwd(),
         'src/patches/chrome/browser/resources/settings/dao_page/' +
-            'dao_page.html.patch'), 'utf-8');
+            'dao_agent_page.html.patch'), 'utf-8');
     const typeSource = readFileSync(path.join(
         process.cwd(),
         'src/dao/browser/ui/webui/resources/agent/web_search/types.ts'),
@@ -361,7 +361,7 @@ describe('settings i18n patches', () => {
     const pagePatch = readFileSync(path.join(
         process.cwd(),
         'src/patches/chrome/browser/resources/settings/dao_page/' +
-            'dao_page.html.patch'), 'utf-8');
+            'dao_agent_page.html.patch'), 'utf-8');
     const bridgeSource = readFileSync(path.join(
         process.cwd(),
         'src/dao/browser/ui/webui/resources/agent/agent_bridge.ts'),

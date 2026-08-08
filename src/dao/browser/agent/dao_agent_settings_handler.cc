@@ -176,6 +176,73 @@ bool NormalizeUsageStats(const base::DictValue& source,
   return true;
 }
 
+bool NormalizeLegacyUsageStats(const base::DictValue& source,
+                               base::DictValue* normalized) {
+  base::DictValue defaults = NewUsageStats(base::Time::Now());
+  const auto read_optional_number = [&source, &defaults](
+                                        std::string_view key)
+      -> std::optional<double> {
+    const base::Value* value = source.Find(key);
+    return value ? ReadNonNegativeFiniteNumber(value) :
+                   defaults.FindDouble(key);
+  };
+
+  const std::optional<double> api_calls =
+      read_optional_number(kUsageStatsApiCalls);
+  const std::optional<double> prompt_tokens =
+      read_optional_number(kUsageStatsPromptTokens);
+  const std::optional<double> completion_tokens =
+      read_optional_number(kUsageStatsCompletionTokens);
+  const std::optional<double> estimated_cost =
+      read_optional_number(kUsageStatsEstimatedCost);
+  const std::optional<double> last_reset =
+      read_optional_number(kUsageStatsLastReset);
+  if (!api_calls || !prompt_tokens || !completion_tokens || !estimated_cost ||
+      !last_reset ||
+      !std::isfinite(*prompt_tokens + *completion_tokens)) {
+    return false;
+  }
+
+  const double derived_total = *prompt_tokens + *completion_tokens;
+  const base::Value* total_value = source.Find(kUsageStatsTotalTokens);
+  const std::optional<double> total_tokens =
+      total_value ? ReadNonNegativeFiniteNumber(total_value) : derived_total;
+  if (!total_tokens || *total_tokens != derived_total) {
+    return false;
+  }
+
+  const base::Value* tool_calls_value = source.Find(kUsageStatsToolCalls);
+  const base::DictValue* tool_calls =
+      tool_calls_value ? tool_calls_value->GetIfDict() : nullptr;
+  if (tool_calls_value && !tool_calls) {
+    return false;
+  }
+  if (tool_calls && tool_calls->size() > kMaxDaoAgentUsageTools) {
+    return false;
+  }
+
+  base::DictValue normalized_tools;
+  if (tool_calls) {
+    for (const auto [tool_name, count] : *tool_calls) {
+      const std::optional<double> tool_count =
+          ReadNonNegativeFiniteNumber(&count);
+      if (!IsValidUsageToolName(tool_name) || !tool_count) {
+        return false;
+      }
+      normalized_tools.Set(tool_name, *tool_count);
+    }
+  }
+
+  normalized->Set(kUsageStatsApiCalls, *api_calls);
+  normalized->Set(kUsageStatsToolCalls, std::move(normalized_tools));
+  normalized->Set(kUsageStatsPromptTokens, *prompt_tokens);
+  normalized->Set(kUsageStatsCompletionTokens, *completion_tokens);
+  normalized->Set(kUsageStatsTotalTokens, *total_tokens);
+  normalized->Set(kUsageStatsEstimatedCost, *estimated_cost);
+  normalized->Set(kUsageStatsLastReset, *last_reset);
+  return true;
+}
+
 void StoreUsageStats(ScopedDictPrefUpdate* update, base::DictValue stats) {
   base::DictValue& target = update->Get();
   target.clear();
@@ -278,7 +345,7 @@ bool MigrateLegacyDaoAgentUsageStats(PrefService* prefs,
     return false;
   }
   base::DictValue normalized;
-  if (!NormalizeUsageStats(parsed->GetDict(), &normalized)) {
+  if (!NormalizeLegacyUsageStats(parsed->GetDict(), &normalized)) {
     return false;
   }
   ScopedDictPrefUpdate update(prefs, prefs::kDaoAgentUsageStats);

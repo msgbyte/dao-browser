@@ -67,6 +67,47 @@ TEST_F(DaoAgentSettingsHandlerTest, MigratesValidLegacyUsageStats) {
   EXPECT_EQ(1234.0, stats.FindDouble("lastReset").value_or(-1));
 }
 
+TEST_F(DaoAgentSettingsHandlerTest, MigratesPartialLegacyUsageStats) {
+  base::Value legacy(
+      R"({"apiCalls":9,"promptTokens":4,"completionTokens":5})");
+
+  EXPECT_TRUE(MigrateLegacyDaoAgentUsageStats(&prefs_, &legacy));
+
+  const base::DictValue stats = BuildDaoAgentUsageStats(&prefs_);
+  EXPECT_EQ(9.0, stats.FindDouble("apiCalls").value_or(-1));
+  EXPECT_EQ(4.0, stats.FindDouble("promptTokens").value_or(-1));
+  EXPECT_EQ(5.0, stats.FindDouble("completionTokens").value_or(-1));
+  EXPECT_EQ(9.0, stats.FindDouble("totalTokens").value_or(-1));
+  EXPECT_EQ(0.0, stats.FindDouble("estimatedCost").value_or(-1));
+  EXPECT_TRUE(stats.FindDict("toolCalls")->empty());
+}
+
+TEST_F(DaoAgentSettingsHandlerTest,
+       RejectsMalformedPartialLegacyUsageStats) {
+  for (const std::string& malformed : {
+           R"({"apiCalls":-1})",
+           R"({"toolCalls":{"":1}})",
+           R"({"promptTokens":4,"completionTokens":5,"totalTokens":8})",
+           R"({"estimatedCost":1e999})",
+       }) {
+    base::Value legacy(malformed);
+    EXPECT_FALSE(MigrateLegacyDaoAgentUsageStats(&prefs_, &legacy));
+    EXPECT_TRUE(prefs_.GetDict(prefs::kDaoAgentUsageStats).empty());
+  }
+}
+
+TEST_F(DaoAgentSettingsHandlerTest,
+       CanonicalUsageStatsStillRequireCompleteSchema) {
+  {
+    ScopedDictPrefUpdate update(&prefs_, prefs::kDaoAgentUsageStats);
+    update->Set("apiCalls", 9.0);
+  }
+
+  const base::DictValue stats = BuildDaoAgentUsageStats(&prefs_);
+  EXPECT_EQ(0.0, stats.FindDouble("apiCalls").value_or(-1));
+  EXPECT_EQ(0.0, stats.FindDouble("totalTokens").value_or(-1));
+}
+
 TEST_F(DaoAgentSettingsHandlerTest, ProfileUsageStatsWinAfterMigration) {
   base::Value first(
       R"({"apiCalls":9,"toolCalls":{"web_search":2},"promptTokens":10,"completionTokens":5,"totalTokens":15,"estimatedCost":0.25,"lastReset":1000})");

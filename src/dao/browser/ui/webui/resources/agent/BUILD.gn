@@ -30,6 +30,8 @@ build_webui("build") {
   ts_files = [
     "agent.ts",
     "agent_bridge.ts",
+    "agent_settings_native_bridge.ts",
+    "agent_settings_sync.ts",
     "browser_tool_catalog.ts",
     "dao_agent_app.ts",
     "dao_chat_history_panel.ts",
@@ -46,7 +48,6 @@ build_webui("build") {
     "dao_memory_app.ts",
     "dao_memory_context.ts",
     "dao_memory_table.ts",
-    "dao_settings_view.ts",
     "dao_skill_manager_view.ts",
     "dao_tool_renderer.ts",
     "llm_cost.ts",
