@@ -454,19 +454,25 @@ export function loadSoul(): string {
   return localStorage.getItem('dao_agent_soul') || DEFAULT_SOUL;
 }
 
-export function saveSoul(text: string): void {
+export async function saveSoul(text: string): Promise<boolean> {
+  const accepted = await callNativeArgs(
+      'setDaoAgentSetting', 'dao_agent_soul', text);
+  if (accepted !== true) {
+    return false;
+  }
   localStorage.setItem('dao_agent_soul', text);
   currentSoulContent = text;
   soulChannel.postMessage({type: 'soul_updated'});
+  return true;
 }
 
 export function refreshSoulContent(): void {
   currentSoulContent = loadSoul();
 }
 
-function updateSoulByAction(
+async function updateSoulByAction(
     action: string, content: string,
-    section?: string): {ok: boolean; message: string} {
+    section?: string): Promise<{ok: boolean; message: string}> {
   const current = loadSoul();
 
   switch (action) {
@@ -482,16 +488,23 @@ function updateSoulByAction(
           new RegExp(`(${escaped}[^\\n]*)\\n[\\s\\S]*?(?=\\n${level} |$)`);
       if (!pattern.test(current)) {
         // Section not found — append as a new section.
-        saveSoul(current + '\n\n' + section + '\n\n' + content);
+        if (!await saveSoul(
+                current + '\n\n' + section + '\n\n' + content)) {
+          return {ok: false, message: 'Failed to persist the soul update.'};
+        }
         return {ok: true, message: `New section "${section}" added.`};
       }
       const updated = current.replace(pattern, `$1\n\n${content}`);
-      saveSoul(updated);
+      if (!await saveSoul(updated)) {
+        return {ok: false, message: 'Failed to persist the soul update.'};
+      }
       return {ok: true, message: `Section "${section}" updated.`};
     }
 
     case 'replace_all':
-      saveSoul(content);
+      if (!await saveSoul(content)) {
+        return {ok: false, message: 'Failed to persist the soul update.'};
+      }
       return {ok: true, message: 'Soul replaced entirely.'};
 
     default:
@@ -1118,7 +1131,7 @@ export async function executeTool(
         lockTab: getBooleanArg(args, 'lock_tab'),
       });
     case 'update_soul':
-      return updateSoulByAction(
+      return await updateSoulByAction(
           getStringArg(args, 'action'), getStringArg(args, 'content'),
           getStringArg(args, 'section') || undefined);
     case 'save_memory': {

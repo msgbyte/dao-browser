@@ -1,0 +1,183 @@
+diff --git a/chrome/browser/resources/settings/dao_page/dao_agent_settings_browser_proxy.ts b/chrome/browser/resources/settings/dao_page/dao_agent_settings_browser_proxy.ts
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/browser/resources/settings/dao_page/dao_agent_settings_browser_proxy.ts
+@@ -0,0 +1,177 @@
++// Copyright 2026 Dao Browser Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++import {sendWithPromise} from 'chrome://resources/js/cr.js';
++
++export interface DaoAgentSettingsSnapshot {
++  migrationVersion: number;
++  values: Record<string, string>;
++  usageStats: DaoAgentUsageStats;
++}
++
++export interface DaoAgentMemorySummary {
++  totalSize: number;
++  conversationCount: number;
++  episodeCount: number;
++  preferenceCount: number;
++}
++
++export interface DaoAgentWorkspaceActivity {
++  timestamp: string;
++  operation: string;
++  path: string;
++}
++
++export interface DaoAgentWorkspaceSummary {
++  root: string;
++  usedBytes: number;
++  capBytes: number;
++  fileCount: number;
++  fileCountCap: number;
++  recentActivity: DaoAgentWorkspaceActivity[];
++}
++
++export interface DaoAgentUsageStats {
++  apiCalls: number;
++  toolCalls: Record<string, number>;
++  promptTokens: number;
++  completionTokens: number;
++  totalTokens: number;
++  estimatedCost: number;
++  lastReset: number;
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === 'object' && value !== null && !Array.isArray(value);
++}
++
++function isNonNegativeFiniteNumber(value: unknown): value is number {
++  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
++}
++
++export function isDaoAgentMemorySummary(
++    value: unknown): value is DaoAgentMemorySummary {
++  return isRecord(value) &&
++      isNonNegativeFiniteNumber(value['totalSize']) &&
++      isNonNegativeFiniteNumber(value['conversationCount']) &&
++      isNonNegativeFiniteNumber(value['episodeCount']) &&
++      isNonNegativeFiniteNumber(value['preferenceCount']);
++}
++
++export function isDaoAgentWorkspaceActivity(
++    value: unknown): value is DaoAgentWorkspaceActivity {
++  return isRecord(value) && typeof value['timestamp'] === 'string' &&
++      typeof value['operation'] === 'string' &&
++      typeof value['path'] === 'string';
++}
++
++export function isDaoAgentWorkspaceSummary(
++    value: unknown): value is DaoAgentWorkspaceSummary {
++  if (!isRecord(value)) {
++    return false;
++  }
++  const recentActivity = value['recentActivity'];
++  return typeof value['root'] === 'string' &&
++      isNonNegativeFiniteNumber(value['usedBytes']) &&
++      isNonNegativeFiniteNumber(value['capBytes']) &&
++      isNonNegativeFiniteNumber(value['fileCount']) &&
++      isNonNegativeFiniteNumber(value['fileCountCap']) &&
++      Array.isArray(recentActivity) &&
++      recentActivity.every(isDaoAgentWorkspaceActivity);
++}
++
++export interface DaoAgentSettingsBrowserProxy {
++  getSettings(): Promise<DaoAgentSettingsSnapshot>;
++  setSetting(key: string, value: string|null): Promise<boolean>;
++  getMemorySummary(): Promise<unknown>;
++  clearAllMemory(): Promise<boolean>;
++  getWorkspaceSummary(): Promise<unknown>;
++  openWorkspace(): Promise<boolean>;
++  getUsageStats(): Promise<DaoAgentUsageStats>;
++  resetUsageStats(): Promise<boolean>;
++}
++
++export class DaoAgentSettingsBrowserProxyImpl implements
++    DaoAgentSettingsBrowserProxy {
++  getSettings(): Promise<DaoAgentSettingsSnapshot> {
++    return sendWithPromise('getDaoAgentSettings');
++  }
++
++  setSetting(key: string, value: string|null): Promise<boolean> {
++    return sendWithPromise('setDaoAgentSetting', key, value);
++  }
++
++  getMemorySummary(): Promise<unknown> {
++    return sendWithPromise('getDaoAgentMemorySummary');
++  }
++
++  clearAllMemory(): Promise<boolean> {
++    return sendWithPromise('clearAllDaoAgentMemory');
++  }
++
++  getWorkspaceSummary(): Promise<unknown> {
++    return sendWithPromise('getDaoAgentWorkspaceSummary');
++  }
++
++  openWorkspace(): Promise<boolean> {
++    return sendWithPromise('openDaoAgentWorkspace');
++  }
++
++  getUsageStats(): Promise<DaoAgentUsageStats> {
++    return sendWithPromise('getDaoAgentUsageStats');
++  }
++
++  resetUsageStats(): Promise<boolean> {
++    return sendWithPromise('resetDaoAgentUsageStats');
++  }
++
++  static getInstance(): DaoAgentSettingsBrowserProxy {
++    return agentSettingsInstance ||
++        (agentSettingsInstance = new DaoAgentSettingsBrowserProxyImpl());
++  }
++
++  static setInstance(proxy: DaoAgentSettingsBrowserProxy): void {
++    agentSettingsInstance = proxy;
++  }
++}
++
++let agentSettingsInstance: DaoAgentSettingsBrowserProxy|null = null;
++
++export const AGENT_TOOL_GROUPS: Record<string, string[]> = {
++  page: [
++    'get_page_info', 'get_page_html', 'get_accessibility_tree',
++    'resolve_element_context', 'capture_screenshot', 'click_element',
++    'agent_click', 'click_by_ref', 'move_cursor', 'highlight_element',
++    'scroll_down', 'scroll_up', 'scroll_to_element', 'press_key_chord',
++    'type_text', 'execute_script',
++  ],
++  tabs: ['list_tabs', 'switch_tab', 'open_tab', 'close_tab'],
++  devtools: [
++    'enable_network_tracking', 'get_network_requests',
++    'clear_network_requests', 'get_network_body',
++    'enable_console_tracking', 'get_console_messages',
++    'clear_console_messages', 'list_page_resources',
++    'get_resource_content', 'search_in_resources',
++  ],
++  memory: ['update_soul', 'save_memory', 'save_skill', 'activate_skill'],
++  web: ['web_search', 'fetch_url'],
++  workspace: [
++    'workspace_read', 'workspace_write', 'workspace_edit', 'apply_patch',
++    'list_files', 'download',
++  ],
++};
++
++export const AGENT_PROVIDER_DEFAULTS: Record<
++    string, {baseUrl: string, model: string}> = {
++  'openai-compatible': {
++    baseUrl: 'https://api.openai.com/v1',
++    model: 'gpt-5',
++  },
++  openai: {baseUrl: '', model: 'gpt-5'},
++  anthropic: {baseUrl: '', model: 'claude-sonnet-4-5'},
++  google: {baseUrl: '', model: 'gemini-2.5-flash'},
++  groq: {baseUrl: '', model: 'llama-3.3-70b-versatile'},
++  xai: {baseUrl: '', model: 'grok-4'},
++  openrouter: {baseUrl: '', model: 'openrouter/auto'},
++};

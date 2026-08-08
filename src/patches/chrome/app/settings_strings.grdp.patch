@@ -164,7 +164,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -3836,7 +3836,454 @@
+@@ -3836,7 +3836,484 @@
      <!-- Sync / People Page -->
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
@@ -189,6 +189,36 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_SETTINGS_DESCRIPTION" desc="Description of the unified Dao Agent settings area.">
 +      Configure how the agent connects, behaves, searches, remembers, and learns.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_CONFIGURE_TITLE" desc="Title of the row that opens the complete Dao Agent settings page.">
++      Configure Dao Agent
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_CONFIGURE_DESCRIPTION" desc="Description of the row that opens the complete Dao Agent settings page.">
++      Open model, behavior, capabilities, learning, and data settings.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SUMMARY_UNAVAILABLE" desc="Compact status shown when a Dao Agent overview summary is unavailable.">
++      Unavailable
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_OVERVIEW_SEARCH_TERMS" desc="Search terms that keep moved Dao Agent settings discoverable from the settings overview.">
++      Provider, model, API key, session, personality, context, tools, search, memory, proactive suggestions, Dream, workspace, skills, and usage.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_MODEL_AND_CONNECTION" desc="Heading for the model and connection group on the Dao Agent settings page." meaning="Dao Agent model and connection group heading">
++      Model and connection
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_BEHAVIOR_AND_CONTEXT" desc="Heading for the behavior and context group on the Dao Agent settings page." meaning="Dao Agent behavior and context group heading">
++      Behavior and context
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_CAPABILITIES" desc="Heading for the capabilities group on the Dao Agent settings page." meaning="Dao Agent capabilities group heading">
++      Capabilities
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_LEARNING_AND_ANALYSIS" desc="Heading for the learning and analysis group on the Dao Agent settings page." meaning="Dao Agent learning and analysis group heading">
++      Learning and analysis
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_DATA_AND_MANAGEMENT" desc="Heading for the data and management group on the Dao Agent settings page." meaning="Dao Agent data and management group heading">
++      Data and management
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SETTINGS_LOAD_ERROR" desc="Error shown when Dao Agent configuration cannot be loaded.">
++      Agent configuration could not be loaded. Retry to refresh it.
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MODEL_TITLE" desc="Heading for Dao Agent model connection settings.">
 +      Model and connection
@@ -619,7 +649,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
      <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
        Google Profile photo
      </message>
-@@ -4473,40 +4905,40 @@
+@@ -4473,40 +4935,40 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS_POLICY" desc="Subtitle of the passwords card in SafetyHub when there are no saved passwords and saving of passwords is disabled through enterprise policy. This text is shown below the header 'No saved passwords'. It explains that the SafetyHub features for passwords are not available since the user's organization has a policy in place that prevents the user from saving passwords in Chrome.">
        Your organization turned off saving passwords
      </message>
@@ -672,7 +702,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Go to notification settings
      </message>
      <message name="IDS_SETTINGS_SAFETY_HUB_USER_EDU_INCOGNITO_SUBHEADER" desc="The subheader of the second item in the 'User Education Module' in the Safety Hub page. This item explains Incognito mode.">
-@@ -4516,21 +4948,21 @@
+@@ -4516,21 +4978,21 @@
        Safe Browsing
      </message>
      <if expr="not is_chromeos">
@@ -698,7 +728,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        {NUM_SITES, plural,
         =1 {You can stop this site from sending future notifications.}
         other {You can stop these sites from sending future notifications.}}
-@@ -4558,31 +4990,31 @@
+@@ -4558,31 +5020,31 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MENU_NOTIFICATION" desc="When Safe Browsing is disabled, the proactive Safety Hub feature encourages users to turn on the feature. This label is for the notification in Chrome's three-dot menu.">
        Safe Browsing is off
      </message>

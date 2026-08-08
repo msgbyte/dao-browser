@@ -1,0 +1,43 @@
+diff --git a/chrome/browser/resources/settings/settings_page/settings_section.html b/chrome/browser/resources/settings/settings_page/settings_section.html
+index fb23eed..0c94390 100644
+--- a/chrome/browser/resources/settings/settings_page/settings_section.html
++++ b/chrome/browser/resources/settings/settings_page/settings_section.html
+@@ -7,21 +7,21 @@
+       }
+ 
+       #header {
++        align-items: end;
+         display: flex;
+         justify-content: space-between;
+-        padding-inline-end: var(--cr-section-padding);
++        padding-inline: 2px;
+       }
+ 
+       #header .title {
+-        color: var(--cr-primary-text-color);
+-        font-size: 108%;
+-        font-weight: 400;
+-        letter-spacing: .25px;
+-        margin-bottom: 12px;
+-        margin-top: var(--cr-section-vertical-margin);
++        color: var(--dao-settings-text);
++        font-size: 13px;
++        font-weight: 650;
++        letter-spacing: -.01em;
++        margin-bottom: 10px;
++        margin-top: 26px;
+         outline: none;
+-        padding-bottom: 4px;
+-        padding-top: 8px;
++        padding: 0;
+       }
+ 
+       #feedback {
+@@ -30,6 +30,7 @@
+ 
+       #card {
+         background-color: var(--cr-card-background-color);
++        border: 1px solid var(--dao-settings-border);
+         border-radius: var(--cr-card-border-radius);
+         box-shadow: var(--cr-card-shadow);
+         flex: 1;

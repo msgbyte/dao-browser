@@ -45,7 +45,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4145,6 +4153,210 @@
+@@ -4145,6 +4153,230 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -59,6 +59,26 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoAgentSettingsTitle", IDS_SETTINGS_DAO_AGENT_SETTINGS_TITLE},
 +      {"daoAgentSettingsDescription",
 +       IDS_SETTINGS_DAO_AGENT_SETTINGS_DESCRIPTION},
++      {"daoAgentConfigureTitle",
++       IDS_SETTINGS_DAO_AGENT_CONFIGURE_TITLE},
++      {"daoAgentConfigureDescription",
++       IDS_SETTINGS_DAO_AGENT_CONFIGURE_DESCRIPTION},
++      {"daoAgentSummaryUnavailable",
++       IDS_SETTINGS_DAO_AGENT_SUMMARY_UNAVAILABLE},
++      {"daoAgentOverviewSearchTerms",
++       IDS_SETTINGS_DAO_AGENT_OVERVIEW_SEARCH_TERMS},
++      {"daoAgentGroupModelAndConnection",
++       IDS_SETTINGS_DAO_AGENT_GROUP_MODEL_AND_CONNECTION},
++      {"daoAgentGroupBehaviorAndContext",
++       IDS_SETTINGS_DAO_AGENT_GROUP_BEHAVIOR_AND_CONTEXT},
++      {"daoAgentGroupCapabilities",
++       IDS_SETTINGS_DAO_AGENT_GROUP_CAPABILITIES},
++      {"daoAgentGroupLearningAndAnalysis",
++       IDS_SETTINGS_DAO_AGENT_GROUP_LEARNING_AND_ANALYSIS},
++      {"daoAgentGroupDataAndManagement",
++       IDS_SETTINGS_DAO_AGENT_GROUP_DATA_AND_MANAGEMENT},
++      {"daoAgentSettingsLoadError",
++       IDS_SETTINGS_DAO_AGENT_SETTINGS_LOAD_ERROR},
 +      {"daoAgentModelTitle", IDS_SETTINGS_DAO_AGENT_MODEL_TITLE},
 +      {"daoAgentModelDescription",
 +       IDS_SETTINGS_DAO_AGENT_MODEL_DESCRIPTION},
@@ -256,7 +276,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4294,6 +4501,7 @@
+@@ -4294,6 +4521,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

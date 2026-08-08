@@ -1,18 +1,245 @@
 diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-index cddbd3b798..0000000001 100644
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-@@ -59,6 +59,13 @@
-           $i18n{peoplePageTitle}
-           <cr-ripple></cr-ripple>
-         </a>
-+        <a role="menuitem" id="dao" href="/dao"
+@@ -30,23 +30,119 @@
+         margin-top: 8px;
+       }
+ 
++      .dao-settings-menu-label {
++        color: var(--dao-settings-text-tertiary);
++        font-size: 10px;
++        font-weight: 700;
++        letter-spacing: .09em;
++        padding: 14px 14px 6px;
++        text-transform: uppercase;
++      }
++
++      .cr-nav-menu-item {
++        border-radius: 8px;
++        box-sizing: border-box;
++        color: var(--dao-settings-text-secondary);
++        font-size: 13px;
++        font-weight: 450;
++        height: 36px;
++        margin: 0 8px;
++        min-height: 36px;
++        padding: 0 10px;
++        width: calc(100% - 16px);
++      }
++
++      .cr-nav-menu-item:hover {
++        background: var(--dao-settings-surface-hover);
++        color: var(--dao-settings-text);
++      }
++
++      .cr-nav-menu-item[selected] {
++        background: var(--dao-settings-accent-subtle);
++        color: var(--dao-settings-accent-strong);
++        font-weight: 600;
++      }
++
++      .cr-nav-menu-item:focus:not(:focus-visible) {
++        outline: none;
++      }
++
++      .cr-nav-menu-item[hidden-by-search],
++      :host([search-active]) .dao-settings-menu-label,
++      :host([search-active]) .menu-separator {
++        display: none;
++      }
++
++      #dao .cr-icon,
++      #agent .cr-icon {
++        color: var(--dao-settings-accent);
++      }
++
++      .menu-separator {
++        border-color: var(--dao-settings-border-subtle);
++        margin: 8px;
++      }
++
+       @media (prefers-color-scheme: dark) {
+         #menu {
+-          color: var(--cr-primary-text-color);
++          color: var(--dao-settings-text);
+         }
+ 
+         .menu-separator {
+-          border-bottom: var(--cr-separator-line);  /* override */
++          border-bottom-color: var(--dao-settings-border-subtle);
+         }
+       }
++
++      @media (max-width: 760px) {
++        :host {
++          padding: 4px 14px 12px;
++        }
++
++        #menu {
++          flex-direction: row;
++          gap: 4px;
++          min-width: max-content;
++        }
++
++        .dao-settings-menu-label,
++        .menu-separator {
++          display: none;
++        }
++
++        .cr-nav-menu-item {
++          flex: none;
++          margin: 0;
++          width: auto;
++        }
++      }
+     </style>
+ 
+     <div role="navigation">
+-      <cr-menu-selector id="menu" selectable="a:not(#extensionsLink)"
+-          attr-for-selected="href" on-iron-activate="onSelectorActivate_"
++      <cr-menu-selector id="menu" selectable="a[data-section]"
++          attr-for-selected="data-section"
++          on-iron-activate="onSelectorActivate_"
+           on-click="onLinkClick_" selected-attribute="selected">
++        <div class="dao-settings-menu-label">
++          $i18n{daoSettingsDaoExclusive}
++        </div>
++        <a role="menuitem" id="dao" href="/dao" data-section="dao"
 +            hidden="[[!pageVisibility_.dao]]"
 +            class="cr-nav-menu-item">
 +          <cr-icon icon="settings:person"></cr-icon>
 +          $i18n{daoPageTitle}
 +          <cr-ripple></cr-ripple>
 +        </a>
++        <a role="menuitem" id="agent" href="/agent" data-section="agent"
++            hidden="[[!pageVisibility_.dao]]"
++            class="cr-nav-menu-item">
++          <cr-icon icon="settings:assignment"></cr-icon>
++          $i18n{daoAgentSettingsTitle}
++          <cr-ripple></cr-ripple>
++        </a>
++        <div class="dao-settings-menu-label">$i18n{daoSettingsBrowser}</div>
+         <a role="menuitem"
+-            id="people" href="/people" hidden="[[!pageVisibility_.people]]"
++            id="people" href="/people" data-section="people"
++            hidden="[[!pageVisibility_.people]]"
+             class="cr-nav-menu-item">
+ <if expr="not _google_chrome">
+           <cr-icon icon="settings:person"></cr-icon>
+@@ -58,6 +150,7 @@
+           <cr-ripple></cr-ripple>
+         </a>
          <a role="menuitem" id="autofill" href="/autofill"
++            data-section$="[[getAutofillSection_()]]"
              on-click="onAutofillClick_"
              class="cr-nav-menu-item"
+             hidden="[[!showAutofillMenuItem_(
+@@ -67,7 +160,7 @@
+           $i18n{autofillPageTitle}
+           <cr-ripple></cr-ripple>
+         </a>
+-        <a role="menuitem" href="/privacy"
++        <a role="menuitem" href="/privacy" data-section="privacy"
+             hidden="[[!pageVisibility_.privacy]]"
+             class="cr-nav-menu-item">
+           <cr-icon icon="settings:security"></cr-icon>
+@@ -75,13 +168,14 @@
+           <cr-ripple></cr-ripple>
+         </a>
+         <a role="menuitem" id="performance" href="/performance"
++            data-section="performance"
+             class="cr-nav-menu-item"
+             hidden="[[!pageVisibility_.performance]]">
+           <cr-icon icon="settings:navigation-performance"></cr-icon>
+           $i18n{performancePageTitle}
+           <cr-ripple></cr-ripple>
+         </a>
+-        <a role="menuitem" href="/ai"
++        <a role="menuitem" href="/ai" data-section="ai"
+             hidden="[[!showAiPageMenuItem_(showAiPage_, pageVisibility_.ai)]]"
+             on-click="onAiPageClick_"
+             class="cr-nav-menu-item">
+@@ -90,20 +184,22 @@
+           <cr-ripple></cr-ripple>
+         </a>
+         <a role="menuitem" id="appearance" href="/appearance"
++            data-section="appearance"
+             hidden="[[!pageVisibility_.appearance]]"
+             class="cr-nav-menu-item">
+           <cr-icon icon="settings:palette"></cr-icon>
+           $i18n{appearancePageTitle}
+           <cr-ripple></cr-ripple>
+         </a>
+-        <a role="menuitem" href="/search" class="cr-nav-menu-item">
++        <a role="menuitem" href="/search" data-section="search"
++            class="cr-nav-menu-item">
+           <cr-icon icon="settings:search"></cr-icon>
+           $i18n{searchPageTitle}
+           <cr-ripple></cr-ripple>
+         </a>
+ <if expr="not is_chromeos">
+         <a role="menuitem" id="defaultBrowser" class="cr-nav-menu-item"
+-          href="/defaultBrowser"
++          href="/defaultBrowser" data-section="defaultBrowser"
+           hidden="[[!pageVisibility_.defaultBrowser]]">
+           <cr-icon icon="settings:web"></cr-icon>
+           $i18n{defaultBrowser}
+@@ -111,6 +207,7 @@
+         </a>
+ </if>
+         <a role="menuitem" id="onStartup" href="/onStartup"
++            data-section="onStartup"
+             class="cr-nav-menu-item"
+             hidden="[[!pageVisibility_.onStartup]]">
+           <cr-icon icon="settings:power-settings"></cr-icon>
+@@ -119,6 +216,7 @@
+         </a>
+         <div class="menu-separator"></div>
+         <a role="menuitem" id="languages" href="/languages"
++            data-section="languages"
+             class="cr-nav-menu-item"
+             hidden="[[!pageVisibility_.languages]]">
+           <cr-icon icon="settings:navigation-language"></cr-icon>
+@@ -126,6 +224,7 @@
+           <cr-ripple></cr-ripple>
+         </a>
+         <a role="menuitem" id="downloads" href="/downloads"
++            data-section="downloads"
+             class="cr-nav-menu-item"
+             hidden="[[!pageVisibility_.downloads]]">
+           <cr-icon icon="settings:download"></cr-icon>
+@@ -133,6 +232,7 @@
+           <cr-ripple></cr-ripple>
+         </a>
+         <a role="menuitem" id="accessibility" href="/accessibility"
++            data-section="a11y"
+             class="cr-nav-menu-item"
+             hidden="[[!pageVisibility_.a11y]]">
+           <cr-icon icon="settings:accessibility"></cr-icon>
+@@ -140,14 +240,15 @@
+           <cr-ripple></cr-ripple>
+         </a>
+ <if expr="not is_chromeos">
+-        <a role="menuitem" id="system" href="/system" class="cr-nav-menu-item"
++        <a role="menuitem" id="system" href="/system" data-section="system"
++            class="cr-nav-menu-item"
+             hidden="[[!pageVisibility_.system]]">
+           <cr-icon icon="settings:system"></cr-icon>
+           $i18n{systemPageTitle}
+           <cr-ripple></cr-ripple>
+         </a>
+ </if>
+-        <a role="menuitem" id="reset" href="/reset"
++        <a role="menuitem" id="reset" href="/reset" data-section="reset"
+             hidden="[[!pageVisibility_.reset]]" class="cr-nav-menu-item">
+           <cr-icon icon="settings:restore"></cr-icon>
+           $i18n{resetPageTitle}
+@@ -156,7 +257,7 @@
+         <div hidden="[[hideBottomMenuSeparator_(pageVisibility_)]]"
+             class="menu-separator"></div>
+         <a role="menuitem" id="extensionsLink" class="cr-nav-menu-item"
+-            href="chrome://extensions" target="_blank"
++            href="dao://extensions" target="_blank"
+             hidden="[[!pageVisibility_.extensions]]"
+             on-click="onExtensionsLinkClick_"
+             title="$i18n{extensionsLinkTooltip}">

@@ -14,9 +14,7 @@ import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
 import {callNative} from './agent_bridge.js';
 import './dao_chat_view.js';
 import './dao_dream_dispatcher.js';
-import './dao_settings_view.js';
 import type {DaoChatView} from './dao_chat_view.js';
-import type {DaoSettingsView} from './dao_settings_view.js';
 import {initI18n} from './i18n/i18n.js';
 import {refreshSkillRegistryIfStale} from './skill_registry.js';
 
@@ -90,12 +88,11 @@ export class DaoAgentApp extends CrLitElement {
     this.addEventListener(
         'auxclick', this.onDelegatedLinkClick_ as EventListener, true);
     this.addEventListener('switch-tab', ((e: CustomEvent) => {
-      this.activeTab_ = e.detail.tab;
-      if (e.detail.subTab) {
-        this.updateComplete.then(() => {
-          this.getSettingsView_()?.switchSubTab(e.detail.subTab);
-        });
+      if (e.detail.tab === 'settings') {
+        this.openUnifiedSettings_();
+        return;
       }
+      this.activeTab_ = e.detail.tab;
     }) as EventListener);
 
     // Hook for the C++ command bar: opens a fresh chat session and submits
@@ -274,15 +271,13 @@ export class DaoAgentApp extends CrLitElement {
               @click=${() => this.onTabClick_('chat')} title="Chat">
             ${chatIcon}
           </button>
-          <button class="dao-app-tab ${this.activeTab_ === 'settings' ? 'active' : ''}"
-              @click=${() => this.onTabClick_('settings')} title="Settings">
+          <button class="dao-app-tab"
+              @click=${this.openUnifiedSettings_} title="Settings">
             ${settingsIcon}
           </button>
         </div>
       </div>
       <dao-chat-view ?hidden=${this.activeTab_ !== 'chat'}></dao-chat-view>
-      <dao-settings-view
-          ?hidden=${this.activeTab_ !== 'settings'}></dao-settings-view>
       ${this.toastVisible_ ?
           html`<div class="dao-app-toast">${this.toastText_}</div>` : ''}
     `;
@@ -294,6 +289,11 @@ export class DaoAgentApp extends CrLitElement {
     } else {
       this.activeTab_ = tab;
     }
+  }
+
+  private openUnifiedSettings_() {
+    void callNative('openTab', {url: 'dao://settings/#dao'});
+    chrome.send('closeSidebar');
   }
 
   private onNewChatClick_() {
@@ -381,9 +381,6 @@ export class DaoAgentApp extends CrLitElement {
     return (this.shadowRoot ?? this).querySelector('dao-chat-view');
   }
 
-  private getSettingsView_(): DaoSettingsView|null {
-    return (this.shadowRoot ?? this).querySelector('dao-settings-view');
-  }
 
   private refreshLocalizedViews_() {
     this.requestUpdate();

@@ -1,0 +1,798 @@
+diff --git a/chrome/test/data/webui/settings/dao_agent_page_test.ts b/chrome/test/data/webui/settings/dao_agent_page_test.ts
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/test/data/webui/settings/dao_agent_page_test.ts
+@@ -0,0 +1,792 @@
++// Copyright 2026 Dao Browser Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++import 'chrome://settings/dao_page/dao_agent_page.js';
++
++import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
++import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
++import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
++import type {SettingsDaoAgentPageElement} from 'chrome://settings/dao_page/dao_agent_page.js';
++import {
++  DaoAgentSettingsBrowserProxyImpl,
++} from 'chrome://settings/dao_page/dao_agent_settings_browser_proxy.js';
++import type {
++  DaoAgentSettingsBrowserProxy,
++  DaoAgentSettingsSnapshot,
++} from 'chrome://settings/dao_page/dao_agent_settings_browser_proxy.js';
++import {loadTimeData} from 'chrome://settings/settings.js';
++import {
++  assertDeepEquals,
++  assertEquals,
++  assertFalse,
++  assertNull,
++  assertTrue,
++} from 'chrome://webui-test/chai_assert.js';
++import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
++import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
++
++type DaoAgentMemorySummary =
++    NonNullable<SettingsDaoAgentPageElement['memorySummaryForTest']>;
++type DaoAgentWorkspaceSummary =
++    NonNullable<SettingsDaoAgentPageElement['workspaceSummaryForTest']>;
++type DaoAgentUsageStats =
++    Awaited<ReturnType<DaoAgentSettingsBrowserProxy['getUsageStats']>>;
++
++interface Deferred<T> {
++  resolve: (value: T) => void;
++  reject: (reason?: unknown) => void;
++}
++
++interface DeferredSetting extends Deferred<boolean> {
++  key: string;
++  value: string|null;
++}
++
++const memorySummary: DaoAgentMemorySummary = {
++  totalSize: 1536,
++  conversationCount: 12,
++  episodeCount: 4,
++  preferenceCount: 3,
++};
++
++const workspaceSummary: DaoAgentWorkspaceSummary = {
++  root: '/Users/test/Dao Agent Workspace',
++  usedBytes: 4096,
++  capBytes: 1048576,
++  fileCount: 7,
++  fileCountCap: 100,
++  recentActivity: [{
++    timestamp: '2026-08-07T01:02:03.000Z',
++    operation: 'read',
++    path: 'notes/example.md',
++  }],
++};
++
++const usageStats: DaoAgentUsageStats = {
++  apiCalls: 9,
++  toolCalls: {workspace_read: 5},
++  promptTokens: 1200,
++  completionTokens: 300,
++  totalTokens: 1500,
++  estimatedCost: 0.000123,
++  lastReset: 1786064523000,
++};
++
++class TestDaoAgentSettingsBrowserProxy extends TestBrowserProxy implements
++    DaoAgentSettingsBrowserProxy {
++  private snapshot_: DaoAgentSettingsSnapshot = {
++    migrationVersion: 2,
++    values: {
++      dao_agent_active_provider: 'anthropic',
++      dao_agent_providers: JSON.stringify({
++        anthropic: {apiKey: 'secret', baseUrl: '', model: 'claude-test'},
++      }),
++      dao_agent_memory_enabled: 'true',
++      dao_dream_enabled: 'false',
++    },
++    usageStats: {
++      apiCalls: 0,
++      toolCalls: {},
++      promptTokens: 0,
++      completionTokens: 0,
++      totalTokens: 0,
++      estimatedCost: 0,
++      lastReset: 0,
++    },
++  };
++  private memorySummaryRequests_: Array<Deferred<unknown>> = [];
++  private workspaceSummaryRequests_: Array<Deferred<unknown>> = [];
++  private usageStatsRequests_: Array<Deferred<DaoAgentUsageStats>> = [];
++  private clearMemoryRequests_: Array<Deferred<boolean>> = [];
++  private resetUsageRequests_: Array<Deferred<boolean>> = [];
++  private setSettingRequests_: DeferredSetting[] = [];
++  private deferSettingWrites_ = false;
++  private rejectNextSettingsRequest_ = false;
++
++  constructor() {
++    super([
++      'getSettings',
++      'setSetting',
++      'getMemorySummary',
++      'clearAllMemory',
++      'getWorkspaceSummary',
++      'openWorkspace',
++      'getUsageStats',
++      'resetUsageStats',
++    ]);
++  }
++
++  getSettings(): Promise<DaoAgentSettingsSnapshot> {
++    this.methodCalled('getSettings');
++    if (this.rejectNextSettingsRequest_) {
++      this.rejectNextSettingsRequest_ = false;
++      return Promise.reject(new Error('agent settings failed'));
++    }
++    return Promise.resolve(this.snapshot_);
++  }
++
++  setSetting(key: string, value: string|null): Promise<boolean> {
++    this.methodCalled('setSetting', key, value);
++    if (!this.deferSettingWrites_) {
++      if (value !== null) {
++        this.snapshot_.values = {...this.snapshot_.values, [key]: value};
++      }
++      return Promise.resolve(true);
++    }
++    return new Promise((resolve, reject) => {
++      this.setSettingRequests_.push({key, value, resolve, reject});
++    });
++  }
++
++  getMemorySummary(): Promise<unknown> {
++    this.methodCalled('getMemorySummary');
++    return new Promise((resolve, reject) => {
++      this.memorySummaryRequests_.push({resolve, reject});
++    });
++  }
++
++  clearAllMemory(): Promise<boolean> {
++    this.methodCalled('clearAllMemory');
++    return new Promise((resolve, reject) => {
++      this.clearMemoryRequests_.push({resolve, reject});
++    });
++  }
++
++  getWorkspaceSummary(): Promise<unknown> {
++    this.methodCalled('getWorkspaceSummary');
++    return new Promise((resolve, reject) => {
++      this.workspaceSummaryRequests_.push({resolve, reject});
++    });
++  }
++
++  openWorkspace(): Promise<boolean> {
++    this.methodCalled('openWorkspace');
++    return Promise.resolve(true);
++  }
++
++  getUsageStats(): Promise<DaoAgentUsageStats> {
++    this.methodCalled('getUsageStats');
++    return new Promise((resolve, reject) => {
++      this.usageStatsRequests_.push({resolve, reject});
++    });
++  }
++
++  resetUsageStats(): Promise<boolean> {
++    this.methodCalled('resetUsageStats');
++    return new Promise((resolve, reject) => {
++      this.resetUsageRequests_.push({resolve, reject});
++    });
++  }
++
++  resolveMemorySummary(summary: unknown, request = 0): void {
++    const deferred = this.memorySummaryRequests_[request];
++    assertTrue(!!deferred);
++    this.memorySummaryRequests_.splice(request, 1);
++    deferred.resolve(summary);
++  }
++
++  rejectMemorySummary(request = 0): void {
++    const deferred = this.memorySummaryRequests_[request];
++    assertTrue(!!deferred);
++    this.memorySummaryRequests_.splice(request, 1);
++    deferred.reject(new Error('memory summary failed'));
++  }
++
++  resolveWorkspaceSummary(summary: unknown, request = 0): void {
++    const deferred = this.workspaceSummaryRequests_[request];
++    assertTrue(!!deferred);
++    this.workspaceSummaryRequests_.splice(request, 1);
++    deferred.resolve(summary);
++  }
++
++  rejectWorkspaceSummary(request = 0): void {
++    const deferred = this.workspaceSummaryRequests_[request];
++    assertTrue(!!deferred);
++    this.workspaceSummaryRequests_.splice(request, 1);
++    deferred.reject(new Error('workspace summary failed'));
++  }
++
++  resolveUsageStats(stats: DaoAgentUsageStats, request = 0): void {
++    const deferred = this.usageStatsRequests_[request];
++    assertTrue(!!deferred);
++    this.usageStatsRequests_.splice(request, 1);
++    deferred.resolve(stats);
++  }
++
++  rejectUsageStats(request = 0): void {
++    const deferred = this.usageStatsRequests_[request];
++    assertTrue(!!deferred);
++    this.usageStatsRequests_.splice(request, 1);
++    deferred.reject(new Error('usage stats failed'));
++  }
++
++  resolveClearAllMemory(success: boolean): void {
++    const deferred = this.clearMemoryRequests_.shift();
++    assertTrue(!!deferred);
++    deferred.resolve(success);
++  }
++
++  rejectClearAllMemory(): void {
++    const deferred = this.clearMemoryRequests_.shift();
++    assertTrue(!!deferred);
++    deferred.reject(new Error('clear memory failed'));
++  }
++
++  resolveResetUsageStats(success: boolean): void {
++    const deferred = this.resetUsageRequests_.shift();
++    assertTrue(!!deferred);
++    deferred.resolve(success);
++  }
++
++  rejectResetUsageStats(): void {
++    const deferred = this.resetUsageRequests_.shift();
++    assertTrue(!!deferred);
++    deferred.reject(new Error('reset usage failed'));
++  }
++
++  deferSettingWrites(): void {
++    this.deferSettingWrites_ = true;
++  }
++
++  resolveSettingWrite(success: boolean): void {
++    const deferred = this.setSettingRequests_.shift();
++    assertTrue(!!deferred);
++    if (success && deferred.value !== null) {
++      this.snapshot_.values = {
++        ...this.snapshot_.values,
++        [deferred.key]: deferred.value,
++      };
++    }
++    deferred.resolve(success);
++  }
++
++  rejectNextSettingsRequest(): void {
++    this.rejectNextSettingsRequest_ = true;
++  }
++}
++
++suite('DaoAgentPage', function() {
++  let page: SettingsDaoAgentPageElement;
++  let agentSettingsBrowserProxy: TestDaoAgentSettingsBrowserProxy;
++
++  setup(async function() {
++    agentSettingsBrowserProxy = new TestDaoAgentSettingsBrowserProxy();
++    DaoAgentSettingsBrowserProxyImpl.setInstance(agentSettingsBrowserProxy);
++    document.body.innerHTML = window.trustedTypes!.emptyHTML;
++    page = document.createElement('settings-dao-agent-page');
++    page.prefs = {};
++    document.body.appendChild(page);
++    await agentSettingsBrowserProxy.whenCalled('getSettings');
++    await flushTasks();
++    flush();
++  });
++
++  teardown(function() {
++    page.remove();
++  });
++
++  test('rendersAsTopLevelAgentSectionWithoutSubpageBackControl', function() {
++    assertTrue(!!page.shadowRoot!.querySelector('settings-section'));
++    assertNull(page.shadowRoot!.querySelector('settings-subpage'));
++  });
++
++  async function resolveAllManagementSummaries(): Promise<void> {
++    agentSettingsBrowserProxy.resolveMemorySummary(memorySummary);
++    agentSettingsBrowserProxy.resolveWorkspaceSummary(workspaceSummary);
++    agentSettingsBrowserProxy.resolveUsageStats(usageStats);
++    await flushTasks();
++    flush();
++  }
++
++  async function reconnectPage(): Promise<void> {
++    page.remove();
++    document.body.appendChild(page);
++    await flushTasks();
++    flush();
++  }
++
++  test('completeDetailedControlInventoryExists', function() {
++    for (const id of [
++      'modelAndConnection',
++      'behaviorAndContext',
++      'capabilities',
++      'learningAndAnalysis',
++      'dataAndManagement',
++      'daoAgentProvider',
++      'daoAgentModel',
++      'daoAgentApiKey',
++      'daoAgentBaseUrl',
++      'daoAgentResumeHours',
++      'daoAgentSoul',
++      'daoAgentSearchSource',
++      'daoAgentJinaApiKey',
++      'daoAgentThreshold',
++      'daoAgentDreamExcludedDomains',
++      'daoAgentMemoryManagement',
++      'daoAgentWorkspaceManagement',
++      'daoAgentUsageManagement',
++      'clearAllMemoryButton',
++      'openAgentWorkspaceButton',
++      'resetUsageStatsButton',
++      'clearAllMemoryDialog',
++      'resetUsageStatsDialog',
++    ]) {
++      assertTrue(!!page.shadowRoot!.querySelector(`#${id}`), id);
++    }
++    assertTrue(!!page.shadowRoot!.querySelector('[data-tool-name]'));
++  });
++
++  test('agentManagementSummariesLoadIndependently', async function() {
++    assertEquals(
++        1, agentSettingsBrowserProxy.getCallCount('getMemorySummary'));
++    assertEquals(
++        1, agentSettingsBrowserProxy.getCallCount('getWorkspaceSummary'));
++    assertEquals(1, agentSettingsBrowserProxy.getCallCount('getUsageStats'));
++    assertTrue(page.memoryLoadingForTest);
++    assertTrue(page.workspaceLoadingForTest);
++    assertTrue(page.usageLoadingForTest);
++
++    agentSettingsBrowserProxy.resolveMemorySummary(memorySummary);
++    await flushTasks();
++
++    assertFalse(page.memoryLoadingForTest);
++    assertTrue(page.workspaceLoadingForTest);
++    assertTrue(page.usageLoadingForTest);
++    assertDeepEquals(memorySummary, page.memorySummaryForTest);
++  });
++
++  test('memoryFailureDoesNotReplaceOtherManagementCards', async function() {
++    agentSettingsBrowserProxy.rejectMemorySummary();
++    agentSettingsBrowserProxy.resolveWorkspaceSummary(workspaceSummary);
++    agentSettingsBrowserProxy.resolveUsageStats(usageStats);
++    await flushTasks();
++    flush();
++
++    assertTrue(page.memoryErrorForTest);
++    assertFalse(page.workspaceErrorForTest);
++    assertFalse(page.usageErrorForTest);
++    assertDeepEquals(workspaceSummary, page.workspaceSummaryForTest);
++    assertDeepEquals(usageStats, page.usageStatsForTest);
++    assertTrue(!!page.shadowRoot!.querySelector('#agentMemoryRetry'));
++    assertNull(page.shadowRoot!.querySelector('#agentWorkspaceRetry'));
++    assertNull(page.shadowRoot!.querySelector('#agentUsageRetry'));
++  });
++
++  test('workspaceFailureDoesNotReplaceOtherManagementCards',
++      async function() {
++        agentSettingsBrowserProxy.resolveMemorySummary(memorySummary);
++        agentSettingsBrowserProxy.rejectWorkspaceSummary();
++        agentSettingsBrowserProxy.resolveUsageStats(usageStats);
++        await flushTasks();
++        flush();
++
++        assertFalse(page.memoryErrorForTest);
++        assertTrue(page.workspaceErrorForTest);
++        assertFalse(page.usageErrorForTest);
++        assertDeepEquals(memorySummary, page.memorySummaryForTest);
++        assertDeepEquals(usageStats, page.usageStatsForTest);
++        assertNull(page.shadowRoot!.querySelector('#agentMemoryRetry'));
++        assertTrue(!!page.shadowRoot!.querySelector('#agentWorkspaceRetry'));
++        assertNull(page.shadowRoot!.querySelector('#agentUsageRetry'));
++      });
++
++  test('usageFailureDoesNotReplaceOtherManagementCards', async function() {
++    agentSettingsBrowserProxy.resolveMemorySummary(memorySummary);
++    agentSettingsBrowserProxy.resolveWorkspaceSummary(workspaceSummary);
++    agentSettingsBrowserProxy.rejectUsageStats();
++    await flushTasks();
++    flush();
++
++    assertFalse(page.memoryErrorForTest);
++    assertFalse(page.workspaceErrorForTest);
++    assertTrue(page.usageErrorForTest);
++    assertDeepEquals(memorySummary, page.memorySummaryForTest);
++    assertDeepEquals(workspaceSummary, page.workspaceSummaryForTest);
++    assertNull(page.shadowRoot!.querySelector('#agentMemoryRetry'));
++    assertNull(page.shadowRoot!.querySelector('#agentWorkspaceRetry'));
++    assertTrue(!!page.shadowRoot!.querySelector('#agentUsageRetry'));
++  });
++
++  test('emptyMemoryResponseIsFailureAndPreservesLastGoodData',
++      async function() {
++        await resolveAllManagementSummaries();
++        await reconnectPage();
++
++        agentSettingsBrowserProxy.resolveMemorySummary({});
++        agentSettingsBrowserProxy.resolveWorkspaceSummary(workspaceSummary);
++        agentSettingsBrowserProxy.resolveUsageStats(usageStats);
++        await flushTasks();
++
++        assertTrue(page.memoryErrorForTest);
++        assertDeepEquals(memorySummary, page.memorySummaryForTest);
++      });
++
++  test('emptyWorkspaceResponseIsFailureAndPreservesLastGoodData',
++      async function() {
++        await resolveAllManagementSummaries();
++        await reconnectPage();
++
++        agentSettingsBrowserProxy.resolveMemorySummary(memorySummary);
++        agentSettingsBrowserProxy.resolveWorkspaceSummary({});
++        agentSettingsBrowserProxy.resolveUsageStats(usageStats);
++        await flushTasks();
++
++        assertTrue(page.workspaceErrorForTest);
++        assertDeepEquals(workspaceSummary, page.workspaceSummaryForTest);
++      });
++
++  test('workspaceReconnectFailurePreservesLastGoodData', async function() {
++    await resolveAllManagementSummaries();
++    await reconnectPage();
++
++    agentSettingsBrowserProxy.resolveMemorySummary(memorySummary);
++    agentSettingsBrowserProxy.rejectWorkspaceSummary();
++    agentSettingsBrowserProxy.resolveUsageStats(usageStats);
++    await flushTasks();
++
++    assertEquals(
++        2, agentSettingsBrowserProxy.getCallCount('getWorkspaceSummary'));
++    assertTrue(page.workspaceErrorForTest);
++    assertDeepEquals(workspaceSummary, page.workspaceSummaryForTest);
++  });
++
++  test('usageEventWinsOverStaleInitialResponse', async function() {
++    const newerStats = {...usageStats, apiCalls: 10};
++    webUIListenerCallback('dao-agent-usage-stats-changed', newerStats);
++    agentSettingsBrowserProxy.resolveUsageStats(usageStats);
++    await flushTasks();
++
++    assertDeepEquals(newerStats, page.usageStatsForTest);
++    assertFalse(page.usageLoadingForTest);
++  });
++
++  test('cancelClearMemoryDoesNotCallNativeAndRestoresFocus',
++      async function() {
++        await resolveAllManagementSummaries();
++        const clearButton = page.shadowRoot!.querySelector<HTMLElement>(
++            '#clearAllMemoryButton')!;
++        const clearDialog = page.shadowRoot!.querySelector<HTMLElement & {
++          open: boolean,
++        }>('#clearAllMemoryDialog')!;
++
++        clearButton.click();
++        assertTrue(clearDialog.open);
++        clearDialog.querySelector<HTMLElement>('#clearAllMemoryCancel')!
++            .click();
++
++        assertEquals(
++            0, agentSettingsBrowserProxy.getCallCount('clearAllMemory'));
++        assertEquals(clearButton, page.shadowRoot!.activeElement);
++      });
++
++  test('clearSuccessRefreshFailureDoesNotSuggestClearingAgain',
++      async function() {
++        await resolveAllManagementSummaries();
++        const clearButton = page.shadowRoot!.querySelector<HTMLElement>(
++            '#clearAllMemoryButton')!;
++        const clearDialog = page.shadowRoot!.querySelector<HTMLElement & {
++          open: boolean,
++        }>('#clearAllMemoryDialog')!;
++        const confirm = clearDialog.querySelector<HTMLElement & {
++          disabled: boolean,
++        }>('#clearAllMemoryConfirm')!;
++
++        clearButton.click();
++        confirm.click();
++        await flushTasks();
++        assertEquals(
++            1, agentSettingsBrowserProxy.getCallCount('clearAllMemory'));
++        assertTrue(page.clearMemoryPendingForTest);
++        assertTrue(confirm.disabled);
++
++        agentSettingsBrowserProxy.resolveClearAllMemory(true);
++        await flushTasks();
++        assertFalse(clearDialog.open);
++        assertEquals(clearButton, page.shadowRoot!.activeElement);
++        assertEquals(
++            2, agentSettingsBrowserProxy.getCallCount('getMemorySummary'));
++        assertEquals(
++            1, agentSettingsBrowserProxy.getCallCount('getWorkspaceSummary'));
++        assertEquals(
++            1, agentSettingsBrowserProxy.getCallCount('getUsageStats'));
++
++        agentSettingsBrowserProxy.rejectMemorySummary();
++        await flushTasks();
++        flush();
++        assertTrue(page.memoryErrorForTest);
++        assertDeepEquals(memorySummary, page.memorySummaryForTest);
++        assertNull(page.shadowRoot!.querySelector('#memoryActionError'));
++        assertNull(page.shadowRoot!.querySelector('#memoryActionSuccess'));
++        const refreshError = page.shadowRoot!.querySelector<HTMLElement>(
++            '#memoryRefreshErrorMessage');
++        assertTrue(!!refreshError);
++        assertEquals(
++            loadTimeData.getString('daoAgentManagementMemoryRefreshError'),
++            refreshError.textContent.trim());
++      });
++
++  test('clearFailureUsesActionSpecificFeedback', async function() {
++    await resolveAllManagementSummaries();
++    const clearDialog = page.shadowRoot!.querySelector<HTMLElement>(
++        '#clearAllMemoryDialog')!;
++    page.shadowRoot!.querySelector<HTMLElement>('#clearAllMemoryButton')!
++        .click();
++    clearDialog.querySelector<HTMLElement>('#clearAllMemoryConfirm')!.click();
++    agentSettingsBrowserProxy.resolveClearAllMemory(false);
++    await flushTasks();
++    flush();
++
++    assertFalse(page.memoryErrorForTest);
++    assertTrue(page.memoryActionErrorForTest);
++    assertNull(page.shadowRoot!.querySelector('#memoryRefreshError'));
++    assertNull(page.shadowRoot!.querySelector('#agentMemoryRetry'));
++    const actionError = page.shadowRoot!.querySelector<HTMLElement>(
++        '#memoryActionError');
++    assertTrue(!!actionError);
++    assertEquals(
++        loadTimeData.getString('daoAgentManagementMemoryActionError'),
++        actionError.textContent.trim());
++  });
++
++  test('openWorkspaceCallsOnlyWorkspaceAction', async function() {
++    await resolveAllManagementSummaries();
++    page.shadowRoot!
++        .querySelector<HTMLElement>('#openAgentWorkspaceButton')!.click();
++    await agentSettingsBrowserProxy.whenCalled('openWorkspace');
++
++    assertEquals(1, agentSettingsBrowserProxy.getCallCount('openWorkspace'));
++    assertEquals(
++        1, agentSettingsBrowserProxy.getCallCount('getWorkspaceSummary'));
++  });
++
++  test('cancelResetUsageDoesNotCallNativeAndRestoresFocus',
++      async function() {
++        await resolveAllManagementSummaries();
++        const resetButton = page.shadowRoot!.querySelector<HTMLElement>(
++            '#resetUsageStatsButton')!;
++        const resetDialog = page.shadowRoot!.querySelector<HTMLElement & {
++          open: boolean,
++        }>('#resetUsageStatsDialog')!;
++
++        resetButton.click();
++        assertTrue(resetDialog.open);
++        resetDialog.querySelector<HTMLElement>('#resetUsageStatsCancel')!
++            .click();
++
++        assertEquals(
++            0, agentSettingsBrowserProxy.getCallCount('resetUsageStats'));
++        assertEquals(resetButton, page.shadowRoot!.activeElement);
++      });
++
++  test('resetSuccessRefreshFailureDoesNotSuggestResettingAgain',
++      async function() {
++        await resolveAllManagementSummaries();
++        const resetButton = page.shadowRoot!.querySelector<HTMLElement>(
++            '#resetUsageStatsButton')!;
++        const resetDialog = page.shadowRoot!.querySelector<HTMLElement & {
++          open: boolean,
++        }>('#resetUsageStatsDialog')!;
++        const confirm = resetDialog.querySelector<HTMLElement & {
++          disabled: boolean,
++        }>('#resetUsageStatsConfirm')!;
++
++        resetButton.click();
++        confirm.click();
++        await flushTasks();
++        assertEquals(
++            1, agentSettingsBrowserProxy.getCallCount('resetUsageStats'));
++        assertTrue(page.resetUsagePendingForTest);
++        assertTrue(confirm.disabled);
++
++        agentSettingsBrowserProxy.resolveResetUsageStats(true);
++        await flushTasks();
++        assertFalse(resetDialog.open);
++        assertEquals(resetButton, page.shadowRoot!.activeElement);
++        assertEquals(
++            1, agentSettingsBrowserProxy.getCallCount('getMemorySummary'));
++        assertEquals(
++            1, agentSettingsBrowserProxy.getCallCount('getWorkspaceSummary'));
++        assertEquals(2, agentSettingsBrowserProxy.getCallCount('getUsageStats'));
++        agentSettingsBrowserProxy.rejectUsageStats();
++        await flushTasks();
++        flush();
++        assertTrue(page.usageErrorForTest);
++        assertDeepEquals(usageStats, page.usageStatsForTest);
++        assertNull(page.shadowRoot!.querySelector('#usageActionError'));
++        assertNull(page.shadowRoot!.querySelector('#usageActionSuccess'));
++        const refreshError = page.shadowRoot!.querySelector<HTMLElement>(
++            '#usageRefreshErrorMessage');
++        assertTrue(!!refreshError);
++        assertEquals(
++            loadTimeData.getString('daoAgentManagementUsageRefreshError'),
++            refreshError.textContent.trim());
++      });
++
++  test('resetFailureUsesActionSpecificFeedback', async function() {
++    await resolveAllManagementSummaries();
++    const resetDialog = page.shadowRoot!.querySelector<HTMLElement>(
++        '#resetUsageStatsDialog')!;
++    page.shadowRoot!.querySelector<HTMLElement>('#resetUsageStatsButton')!
++        .click();
++    resetDialog.querySelector<HTMLElement>('#resetUsageStatsConfirm')!.click();
++    agentSettingsBrowserProxy.rejectResetUsageStats();
++    await flushTasks();
++    flush();
++
++    assertFalse(page.usageErrorForTest);
++    assertTrue(page.usageActionErrorForTest);
++    assertNull(page.shadowRoot!.querySelector('#usageRefreshError'));
++    assertNull(page.shadowRoot!.querySelector('#agentUsageRetry'));
++    const actionError = page.shadowRoot!.querySelector<HTMLElement>(
++        '#usageActionError');
++    assertTrue(!!actionError);
++    assertEquals(
++        loadTimeData.getString('daoAgentManagementUsageActionError'),
++        actionError.textContent.trim());
++  });
++
++  test('newerMemoryReloadWinsOverStaleResponse', async function() {
++    await resolveAllManagementSummaries();
++    const clearButton = page.shadowRoot!.querySelector<HTMLElement>(
++        '#clearAllMemoryButton')!;
++    const clearDialog = page.shadowRoot!.querySelector<HTMLElement>(
++        '#clearAllMemoryDialog')!;
++
++    clearButton.click();
++    clearDialog.querySelector<HTMLElement>('#clearAllMemoryConfirm')!.click();
++    agentSettingsBrowserProxy.resolveClearAllMemory(true);
++    await flushTasks();
++    clearButton.click();
++    clearDialog.querySelector<HTMLElement>('#clearAllMemoryConfirm')!.click();
++    agentSettingsBrowserProxy.resolveClearAllMemory(true);
++    await flushTasks();
++
++    const newestSummary = {...memorySummary, conversationCount: 1};
++    agentSettingsBrowserProxy.resolveMemorySummary(newestSummary, 1);
++    await flushTasks();
++    agentSettingsBrowserProxy.resolveMemorySummary(memorySummary);
++    await flushTasks();
++
++    assertDeepEquals(newestSummary, page.memorySummaryForTest);
++    assertFalse(page.memoryLoadingForTest);
++  });
++
++  test('agentSettingsLoadFromProfileSnapshot', function() {
++    const provider = page.shadowRoot!.querySelector<HTMLSelectElement>(
++        '#daoAgentProvider');
++    const model =
++        page.shadowRoot!.querySelector<CrInputElement>('#daoAgentModel');
++    const memory = page.shadowRoot!.querySelector<HTMLElement & {
++      checked: boolean,
++    }>('[data-setting="dao_agent_memory_enabled"]');
++    const dream = page.shadowRoot!.querySelector<HTMLElement & {
++      checked: boolean,
++    }>('[data-setting="dao_dream_enabled"]');
++    assertTrue(!!provider);
++    assertTrue(!!model);
++    assertTrue(!!memory);
++    assertTrue(!!dream);
++    assertEquals('anthropic', provider.value);
++    assertEquals('claude-test', model.value);
++    assertTrue(memory.checked);
++    assertFalse(dream.checked);
++  });
++
++  test('agentSearchOptionsUseRuntimeOverrideValues', function() {
++    const search = page.shadowRoot!.querySelector<HTMLSelectElement>(
++        '#daoAgentSearchSource');
++    assertTrue(!!search);
++    assertEquals(
++        'auto,provider,duckduckgo',
++        [...search.options].map(option => option.value).join(','));
++  });
++
++  test('agentSettingChangesWriteThroughProfileProxy', async function() {
++    const memory = page.shadowRoot!.querySelector<HTMLElement & {
++      checked: boolean,
++    }>('[data-setting="dao_agent_memory_enabled"]');
++    assertTrue(!!memory);
++    memory.checked = false;
++    memory.dispatchEvent(new Event('change'));
++
++    const args = await agentSettingsBrowserProxy.whenCalled('setSetting');
++    assertEquals('dao_agent_memory_enabled', args[0]);
++    assertEquals('false', args[1]);
++  });
++
++  test('concurrentToolTogglesPersistCompleteDisabledArray', async function() {
++    agentSettingsBrowserProxy.deferSettingWrites();
++    const first = page.shadowRoot!.querySelector<HTMLElement & {
++      checked: boolean,
++    }>('[data-tool-name="get_page_info"]');
++    const second = page.shadowRoot!.querySelector<HTMLElement & {
++      checked: boolean,
++    }>('[data-tool-name="list_tabs"]');
++    assertTrue(!!first);
++    assertTrue(!!second);
++
++    first.checked = false;
++    first.dispatchEvent(new Event('change'));
++    const firstArgs =
++        await agentSettingsBrowserProxy.whenCalled('setSetting');
++    assertEquals('dao_disabled_tools', firstArgs[0]);
++    assertDeepEquals(['get_page_info'], JSON.parse(firstArgs[1]));
++
++    agentSettingsBrowserProxy.resetResolver('setSetting');
++    second.checked = false;
++    second.dispatchEvent(new Event('change'));
++    await flushTasks();
++    assertEquals(1, agentSettingsBrowserProxy.getCallCount('setSetting'));
++
++    agentSettingsBrowserProxy.resolveSettingWrite(true);
++    const secondArgs =
++        await agentSettingsBrowserProxy.whenCalled('setSetting');
++    assertEquals('dao_disabled_tools', secondArgs[0]);
++    assertDeepEquals(
++        ['get_page_info', 'list_tabs'], JSON.parse(secondArgs[1]).sort());
++    agentSettingsBrowserProxy.resolveSettingWrite(true);
++    await flushTasks();
++  });
++
++  test('agentResumeWindowDefaultsToThreeAndAllowsZero', function() {
++    const input = page.shadowRoot!.querySelector<CrInputElement>(
++        '#daoAgentResumeHours');
++    assertTrue(!!input);
++    assertEquals('3', input.value);
++    assertEquals('0', input.getAttribute('min'));
++  });
++
++  test('configurationFailureKeepsManagementCardsUsable', async function() {
++    await resolveAllManagementSummaries();
++    agentSettingsBrowserProxy.rejectNextSettingsRequest();
++    await reconnectPage();
++    await resolveAllManagementSummaries();
++
++    assertNull(page.shadowRoot!.querySelector('#daoAgentSettings'));
++    const errorMessage = page.shadowRoot!.querySelector<HTMLElement>(
++        '#agentSettingsLoadErrorMessage');
++    assertTrue(!!errorMessage);
++    assertEquals(
++        loadTimeData.getString('daoAgentSettingsLoadError'),
++        errorMessage.textContent.trim());
++    for (const id of [
++      'daoAgentMemoryManagement',
++      'daoAgentWorkspaceManagement',
++      'daoAgentUsageManagement',
++    ]) {
++      assertTrue(!!page.shadowRoot!.querySelector(`#${id}`));
++    }
++
++    page.shadowRoot!.querySelector<HTMLElement>(
++        '#openAgentWorkspaceButton')!.click();
++    await agentSettingsBrowserProxy.whenCalled('openWorkspace');
++
++    agentSettingsBrowserProxy.resetResolver('getSettings');
++    page.shadowRoot!.querySelector<HTMLElement>('#agentSettingsRetry')!.click();
++    await agentSettingsBrowserProxy.whenCalled('getSettings');
++    await flushTasks();
++    assertTrue(!!page.shadowRoot!.querySelector('#daoAgentSettings'));
++  });
++
++});

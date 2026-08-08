@@ -1,0 +1,189 @@
+diff --git a/chrome/test/data/webui/settings/settings_ui_test.ts b/chrome/test/data/webui/settings/settings_ui_test.ts
+--- a/chrome/test/data/webui/settings/settings_ui_test.ts
++++ b/chrome/test/data/webui/settings/settings_ui_test.ts
+@@ -4,17 +4,14 @@
+ 
+ // clang-format off
+ import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+-import type {CrDrawerElement, CrToolbarElement, CrToolbarSearchFieldElement, SettingsUiElement} from 'chrome://settings/settings.js';
++import type {CrToolbarSearchFieldElement, SettingsUiElement} from 'chrome://settings/settings.js';
+ import {CrSettingsPrefs, MAX_QUERY_LENGTH, Router, routes} from 'chrome://settings/settings.js';
+ import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+-import {eventToPromise} from 'chrome://webui-test/test_util.js';
+ // clang-format on
+ 
+ /** @fileoverview Suite of tests for the Settings layout. */
+-suite('SettingsUIToolbarAndDrawer', function() {
++suite('SettingsUIOpenDesignShell', function() {
+   let ui: SettingsUiElement;
+-  let toolbar: CrToolbarElement;
+-  let drawer: CrDrawerElement;
+ 
+   setup(async function() {
+     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+@@ -22,60 +19,56 @@
+     document.body.appendChild(ui);
+     await CrSettingsPrefs.initialized;
+     flush();
+-    toolbar = ui.$.toolbar;
+-    drawer = ui.$.drawer;
+   });
+ 
+-  test('showing menu in toolbar is dependent on narrow mode', async function() {
+-    assertTrue(!!toolbar);
+-    toolbar.narrow = true;
+-    await toolbar.updateComplete;
+-    assertTrue(toolbar.showMenu);
+-
+-    toolbar.narrow = false;
+-    await toolbar.updateComplete;
+-    assertFalse(toolbar.showMenu);
++  test('uses compact table of contents with integrated search', function() {
++    assertTrue(!!ui.shadowRoot!.querySelector('#daoSettingsNavigation'));
++    assertEquals(ui.$.leftMenu, ui.shadowRoot!.querySelector('#leftMenu'));
++    assertEquals(
++        ui.$.searchField, ui.shadowRoot!.querySelector('#searchField'));
++    assertEquals(null, ui.shadowRoot!.querySelector('cr-toolbar'));
++    assertEquals(null, ui.shadowRoot!.querySelector('cr-drawer'));
++    assertEquals(null, ui.shadowRoot!.querySelector('#daoSettingsBrand'));
++    assertEquals(null, ui.shadowRoot!.querySelector('#daoSettingsRailFooter'));
+   });
+ 
+-  test('app drawer', async () => {
+-    assertEquals(null, ui.shadowRoot!.querySelector('cr-drawer settings-menu'));
+-    assertFalse(drawer.open);
++  test('menu activation scrolls overview and updates hash', function() {
++    const calls: Array<{section: string, behavior?: ScrollBehavior}> = [];
++    ui.$.main.scrollToOverviewSection =
++        (section: string, behavior?: ScrollBehavior) => {
++          calls.push({section, behavior});
++          return true;
++        };
+ 
+-    const drawerOpened = eventToPromise('cr-drawer-opened', drawer);
+-    drawer.openDrawer();
+-    await drawerOpened;
++    ui.$.leftMenu.dispatchEvent(new CustomEvent('settings-section-activate', {
++      bubbles: true,
++      composed: true,
++      detail: {section: 'privacy', behavior: 'auto'},
++    }));
+ 
+-    // Validate that dialog is open and menu is shown so it will animate.
+-    assertTrue(drawer.open);
+-    assertTrue(!!ui.shadowRoot!.querySelector('cr-drawer settings-menu'));
+-
+-    const drawerClosed = eventToPromise('close', drawer);
+-    drawer.cancel();
+-    await drawerClosed;
+-
+-    // Drawer is closed, but menu is still stamped so
+-    // its contents remain visible as the drawer slides
+-    // out.
+-    assertTrue(!!ui.shadowRoot!.querySelector('cr-drawer settings-menu'));
++    assertEquals(1, calls.length);
++    assertEquals('privacy', calls[0]!.section);
++    assertEquals('auto', calls[0]!.behavior);
++    assertEquals('#privacy', window.location.hash);
+   });
+ 
+-  test('app drawer closes when exiting narrow mode', async () => {
+-    // Mimic narrow mode and open the drawer
+-    toolbar.narrow = true;
+-    drawer.openDrawer();
+-    flush();
+-    await eventToPromise('cr-drawer-opened', drawer);
++  test('overview scroll updates menu selection without changing hash',
++       function() {
++    window.history.replaceState(window.history.state, '', '#dao');
++    ui.$.main.dispatchEvent(
++        new CustomEvent('settings-overview-section-changed', {
++          bubbles: true,
++          composed: true,
++          detail: {section: 'appearance'},
++        }));
+ 
+-    toolbar.narrow = false;
+-    flush();
+-    await eventToPromise('close', drawer);
+-    assertFalse(drawer.open);
++    assertEquals('appearance', ui.$.leftMenu.$.menu.selected);
++    assertEquals('#dao', window.location.hash);
+   });
+ });
+ 
+ suite('SettingsUISearch', function() {
+   let ui: SettingsUiElement;
+-  let toolbar: CrToolbarElement;
+   let searchField: CrToolbarSearchFieldElement;
+ 
+   setup(async function() {
+@@ -84,8 +75,7 @@
+     document.body.appendChild(ui);
+     await CrSettingsPrefs.initialized;
+     flush();
+-    toolbar = ui.$.toolbar;
+-    searchField = toolbar.getSearchField();
++    searchField = ui.$.searchField;
+   });
+ 
+   test('URL initiated search propagates to search box', function() {
+@@ -141,21 +131,44 @@
+     assertFalse(urlParams.has('search'));
+   });
++
++  test('coalescesRapidSearchChanges', async function() {
++    const dispatchSearch = (query: string) => {
++      searchField.dispatchEvent(new CustomEvent('search-changed', {
++        bubbles: true,
++        composed: true,
++        detail: query,
++      }));
++    };
++
++    dispatchSearch('d');
++    dispatchSearch('dao');
++    assertFalse(Router.getInstance().getQueryParameters().has('search'));
++    await new Promise(resolve => setTimeout(resolve, 100));
++    assertFalse(Router.getInstance().getQueryParameters().has('search'));
++    await new Promise(resolve => setTimeout(resolve, 60));
++    assertEquals(
++        'dao', Router.getInstance().getQueryParameters().get('search'));
++  });
++
++  test('clearingSearchIsImmediate', async function() {
++    searchField.dispatchEvent(new CustomEvent('search-changed', {
++      bubbles: true,
++      composed: true,
++      detail: 'dao',
++    }));
++    await new Promise(resolve => setTimeout(resolve, 160));
++    assertTrue(Router.getInstance().getQueryParameters().has('search'));
++
++    searchField.dispatchEvent(new CustomEvent('search-changed', {
++      bubbles: true,
++      composed: true,
++      detail: '',
++    }));
++    assertFalse(Router.getInstance().getQueryParameters().has('search'));
++  });
+ 
+-  test('MaintainsFocusOnMenus', async () => {
+-    // Start in non-narrow mode with focus in the left menu.
+-    toolbar.narrow = false;
+-    await toolbar.updateComplete;
++  test('persistent menu remains keyboard focusable', function() {
+     ui.$.leftMenu.focusFirstItem();
+-    assertEquals(ui.$.leftMenu, ui.shadowRoot!.activeElement);
+-
+-    // Switch to narrow mode and test that focus moves to menu button.
+-    toolbar.narrow = true;
+-    await eventToPromise('focusin', toolbar);
+-    assertTrue(toolbar.isMenuFocused());
+-
+-    // Switch back to non-narrow mode and test that focus moves to left menu.
+-    toolbar.narrow = false;
+-    await toolbar.updateComplete;
+     assertEquals(ui.$.leftMenu, ui.shadowRoot!.activeElement);
+   });
+ });

@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/resources/settings/a11y_page/a11y_page_index.html b/chrome/browser/resources/settings/a11y_page/a11y_page_index.html
+--- a/chrome/browser/resources/settings/a11y_page/a11y_page_index.html
++++ b/chrome/browser/resources/settings/a11y_page/a11y_page_index.html
+@@ -3,6 +3,12 @@
+   cr-view-manager[show-all] [slot=view][data-parent-view-id] {
+     display: none;
+   }
++
++  /* Keep active top-level content in document flow when Settings displays its
++     continuous overview. */
++  cr-view-manager [slot=view]:not(.closing) {
++    position: initial;
++  }
+ </style>
+ 
+ <cr-view-manager id="viewManager" class="cr-centered-card-container"

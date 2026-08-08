@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/chrome/browser/resources/settings/settings_main/settings_main.ts
-index ad60dbd778..0000000001 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.ts
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.ts
-@@ -16,6 +16,7 @@ import '../autofill_page/autofill_page_index.js';
+@@ -17,6 +17,7 @@
  import '../on_startup_page/on_startup_page.js';
  import '../people_page/people_page_index.js';
  import '../performance_page/performance_page_index.js';
@@ -10,3 +9,312 @@ index ad60dbd778..0000000001 100644
  import '../privacy_page/privacy_page_index.js';
  import '../reset_page/reset_profile_banner.js';
  import '../search_page/search_page_index.js';
+@@ -53,6 +54,10 @@
+     noSearchResults: HTMLElement,
+     switcher: CrViewManagerElement,
+   };
++
++  restoreOverviewScroll(): void;
++  scrollToOverviewSection(
++      section: string, behavior?: ScrollBehavior): boolean;
+ }
+ 
+ const SettingsMainElementBase = RouteObserverMixin(PolymerElement);
+@@ -100,6 +105,12 @@
+         value: false,
+       },
+ 
++      overviewMode_: {
++        type: Boolean,
++        value: false,
++        reflectToAttribute: true,
++      },
++
+       showNoResultsFound_: {
+         type: Boolean,
+         value: false,
+@@ -129,6 +140,7 @@
+   declare private lastRoute_: Route|null;
+   declare private routes_: SettingsRoutes;
+   declare private inSearchMode_: boolean;
++  declare private overviewMode_: boolean;
+   declare private showNoResultsFound_: boolean;
+   declare private showResetProfileBanner_: boolean;
+   declare toolbarSpinnerActive: boolean;
+@@ -140,6 +152,9 @@
+   private pendingViewSwitching_: PromiseResolver<void> = new PromiseResolver();
+   private topLevelEquivalentRoute_: Route = getTopLevelRoute();
+   private currentQuery_: string = '';
++  private activeOverviewSection_: string = '';
++  private overviewObserver_: IntersectionObserver|null = null;
++  private overviewScrollTop_: number = 0;
+ 
+   override connectedCallback() {
+     super.connectedCallback();
+@@ -150,6 +165,12 @@
+     requestIdleCallback(() => ensureLazyLoaded());
+   }
+ 
++  override disconnectedCallback() {
++    super.disconnectedCallback();
++    this.overviewObserver_?.disconnect();
++    this.overviewObserver_ = null;
++  }
++
+   private beforeNextRenderPromise_(): Promise<void> {
+     return new Promise(res => {
+       beforeNextRender(this, res);
+@@ -159,32 +180,51 @@
+   override async currentRouteChanged(route: Route) {
+     this.pendingViewSwitching_ = new PromiseResolver();
+ 
+-    if (routes.ADVANCED && routes.ADVANCED.contains(route)) {
+-      // Load the lazy module immediately, don't wait for requestIdleCallback()
+-      // to fire. No-op if it has already fired.
+-      ensureLazyLoaded();
++    const wasOverview = this.overviewMode_;
++    this.overviewMode_ = this.isOverviewRoute_(route);
++    if (wasOverview && !this.overviewMode_) {
++      this.rememberOverviewScroll_();
+     }
+ 
++    if (this.overviewMode_ ||
++        (routes.ADVANCED && routes.ADVANCED.contains(route))) {
++      await ensureLazyLoaded();
++    }
++
+     const effectiveRoute =
+-        route === routes.BASIC ? this.topLevelEquivalentRoute_ : route;
++        this.overviewMode_ ? route :
++                             (route === routes.BASIC ?
++                                  this.topLevelEquivalentRoute_ :
++                                  route);
+ 
+     if (this.lastRoute_ === effectiveRoute) {
+-      // Nothing to do.
+       this.pendingViewSwitching_.resolve();
+       return;
+     }
+ 
+     this.lastRoute_ = effectiveRoute;
+ 
++    if (this.overviewMode_) {
++      await this.beforeNextRenderPromise_();
++      if (this.lastRoute_ !== effectiveRoute || !this.isConnected) {
++        this.pendingViewSwitching_.resolve();
++        return;
++      }
++
++      const sectionIds = this.getOverviewSectionIds_();
++      await this.$.switcher.switchViews(
++          sectionIds, 'no-animation', 'no-animation');
++      this.setupOverviewObserver_();
++      this.pendingViewSwitching_.resolve();
++      return;
++    }
++
+     const newSection = effectiveRoute.section;
+     let sectionElement = this.$.switcher.querySelector(`#${newSection}`);
+     if (!sectionElement) {
+-      // Wait for any pageVisibility <dom-if>s to render and try again.
+       await this.beforeNextRenderPromise_();
+ 
+       if (this.lastRoute_ !== effectiveRoute || !this.isConnected) {
+-        // A newer currentRouteChanged call happened while awaiting or no longer
+-        // connected (both can happen in tests). Do nothing.
+         this.pendingViewSwitching_.resolve();
+         return;
+       }
+@@ -192,6 +232,8 @@
+     }
+ 
+     assert(sectionElement);
++    this.overviewObserver_?.disconnect();
++    this.overviewObserver_ = null;
+     await this.$.switcher.switchView(
+         sectionElement.id, 'no-animation', 'no-animation');
+     this.pendingViewSwitching_.resolve();
+@@ -210,6 +252,9 @@
+    * @return A promise indicating that searching finished.
+    */
+   searchContents(query: string): Promise<void> {
++    if (this.currentQuery_ === '' && query !== '') {
++      this.rememberOverviewScroll_();
++    }
+     this.inSearchMode_ = true;
+     this.toolbarSpinnerActive = true;
+     this.currentQuery_ = query;
+@@ -256,10 +301,23 @@
+       this.inSearchMode_ = !result.wasClearSearch;
+       this.showNoResultsFound_ = this.inSearchMode_ && result.matchCount === 0;
+ 
++      const matchingSections =
++          this.getOverviewSections_().map(section => section.id);
++      this.dispatchEvent(
++          new CustomEvent('settings-overview-search-results-changed', {
++            bubbles: true,
++            composed: true,
++            detail: {query, sections: matchingSections},
++          }));
++      this.setupOverviewObserver_();
++      if (!this.inSearchMode_) {
++        this.restoreOverviewScroll();
++      }
++
+       if (this.inSearchMode_) {
+         getAnnouncerInstance().announce(
+             this.showNoResultsFound_ ?
+                 loadTimeData.getString('searchNoResults') :
+                 loadTimeData.getStringF('searchResults', query));
+       }
+     });
+@@ -267,7 +325,7 @@
+   }
+ 
+   private renderPlugin_(route: Route): boolean {
+-    return this.inSearchMode_ ||
++    return this.overviewMode_ || this.inSearchMode_ ||
+         (!!this.lastRoute_ && route.contains(this.lastRoute_));
+   }
+ 
+@@ -295,8 +353,138 @@
+   }
+ 
+   private shouldShowAll_(): boolean {
+-    return this.inSearchMode_ && !!this.lastRoute_ &&
+-        !this.lastRoute_.isSubpage();
++    return this.overviewMode_ ||
++        (this.inSearchMode_ && !!this.lastRoute_ &&
++         !this.lastRoute_.isSubpage());
++  }
++
++  private isOverviewRoute_(route: Route): boolean {
++    if (route === routes.ABOUT || route.isNavigableDialog ||
++        route.isSubpage()) {
++      return false;
++    }
++
++    return route === routes.BASIC || route === routes.ADVANCED ||
++        route.parent === routes.BASIC || route.parent === routes.ADVANCED;
++  }
++
++  private getOverviewSectionIds_(): string[] {
++    return Array
++        .from(this.$.switcher.querySelectorAll<HTMLElement>(
++            ':scope > [slot=view]'))
++        .filter(section => section.id !== 'about')
++        .map(section => section.id);
++  }
++
++  private getOverviewSections_(): HTMLElement[] {
++    return Array
++        .from(this.$.switcher.querySelectorAll<HTMLElement>(
++            ':scope > [slot=view].active'))
++        .filter(section => {
++          const plugin = section.querySelector<HTMLElement>(
++              ':scope > :not(template)');
++          return section.id !== 'about' && !!plugin &&
++              !plugin?.hasAttribute('hidden-by-search');
++        });
++  }
++
++  scrollToOverviewSection(
++      section: string, behavior: ScrollBehavior = 'smooth'): boolean {
++    if (!this.overviewMode_) {
++      return false;
++    }
++
++    const target = this.$.switcher.querySelector<HTMLElement>(
++        `#${CSS.escape(section)}`);
++    if (!target || !this.getOverviewSections_().includes(target)) {
++      return false;
++    }
++
++    target.scrollIntoView({behavior, block: 'start'});
++    this.updateActiveOverviewSection_(section);
++    return true;
++  }
++
++  restoreOverviewScroll(): void {
++    if (!this.overviewMode_) {
++      return;
++    }
++
++    const container = this.getScrollContainer_();
++    if (!container) {
++      return;
++    }
++
++    const maxScroll =
++        Math.max(0, container.scrollHeight - container.clientHeight);
++    container.scrollTop = Math.min(this.overviewScrollTop_, maxScroll);
++    this.updateActiveOverviewSectionFromScroll_();
++  }
++
++  private getScrollContainer_(): HTMLElement|null {
++    const root = this.getRootNode();
++    return root instanceof ShadowRoot ? root.querySelector('#container') : null;
++  }
++
++  private rememberOverviewScroll_() {
++    const container = this.getScrollContainer_();
++    if (container) {
++      this.overviewScrollTop_ = container.scrollTop;
++    }
++  }
++
++  private setupOverviewObserver_() {
++    this.overviewObserver_?.disconnect();
++    const container = this.getScrollContainer_();
++    const sections = this.getOverviewSections_();
++    if (!container || sections.length === 0) {
++      return;
++    }
++
++    this.overviewObserver_ = new IntersectionObserver(
++        () => this.updateActiveOverviewSectionFromScroll_(), {
++          root: container,
++          rootMargin: '-30px 0px -65% 0px',
++          threshold: [0, 0.01, 1],
++        });
++    sections.forEach(section => this.overviewObserver_!.observe(section));
++    this.updateActiveOverviewSectionFromScroll_();
++  }
++
++  private updateActiveOverviewSectionFromScroll_() {
++    const container = this.getScrollContainer_();
++    const sections = this.getOverviewSections_();
++    if (!container || sections.length === 0) {
++      return;
++    }
++
++    const readingLine = container.getBoundingClientRect().top + 40;
++    let current = sections[0];
++    for (const section of sections) {
++      if (section.getBoundingClientRect().top <= readingLine) {
++        current = section;
++      } else {
++        break;
++      }
++    }
++
++    if (container.scrollTop + container.clientHeight >=
++        container.scrollHeight - 2) {
++      current = sections[sections.length - 1];
++    }
++    this.updateActiveOverviewSection_(current.id);
++  }
++
++  private updateActiveOverviewSection_(section: string) {
++    if (section === this.activeOverviewSection_) {
++      return;
++    }
++    this.activeOverviewSection_ = section;
++    this.dispatchEvent(new CustomEvent('settings-overview-section-changed', {
++      bubbles: true,
++      composed: true,
++      detail: {section},
++    }));
+   }
+ 
+   private onResetProfileBannerClose_() {

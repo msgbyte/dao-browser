@@ -2,11 +2,20 @@ diff --git a/chrome/browser/resources/settings/BUILD.gn b/chrome/browser/resourc
 index c2759ca2b0..c4e77c7225 100644
 --- a/chrome/browser/resources/settings/BUILD.gn
 +++ b/chrome/browser/resources/settings/BUILD.gn
-@@ -100,6 +100,7 @@ build_webui("build") {
+@@ -100,6 +100,8 @@ build_webui("build") {
      "controls/settings_radio_group.ts",
      "controls/settings_slider.ts",
      "controls/settings_toggle_button.ts",
++    "dao_page/dao_agent_page.ts",
 +    "dao_page/dao_page.ts",
      "downloads_page/downloads_page.ts",
      "glic_page/glic_page.ts",
      "glic_page/glic_login_permissions_page.ts",
+@@ -338,6 +340,7 @@ build_webui("build") {
+     "base_mixin.ts",
+     "clear_browsing_data_dialog/clear_browsing_data_browser_proxy.ts",
+     "clear_browsing_data_dialog/clear_browsing_data_signin_util.ts",
++    "dao_page/dao_agent_settings_browser_proxy.ts",
+     "downloads_page/downloads_browser_proxy.ts",
+     "ensure_lazy_loaded.ts",
+     "focus_config.ts",

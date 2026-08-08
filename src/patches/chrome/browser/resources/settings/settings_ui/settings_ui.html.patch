@@ -1,0 +1,240 @@
+diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/chrome/browser/resources/settings/settings_ui/settings_ui.html
+--- a/chrome/browser/resources/settings/settings_ui/settings_ui.html
++++ b/chrome/browser/resources/settings/settings_ui/settings_ui.html
+@@ -1,108 +1,158 @@
+     <style include="cr-page-host-style cr-scrollable settings-shared">
+       :host {
+-        display: flex;
+-        flex-direction: column;
++        --dao-settings-accent: rgb(70, 120, 190);
++        --dao-settings-accent-strong: rgb(52, 98, 162);
++        --dao-settings-accent-subtle: rgba(70, 120, 190, .11);
++        --dao-settings-border: rgba(30, 40, 54, .09);
++        --dao-settings-border-subtle: rgba(30, 40, 54, .065);
++        --dao-settings-card: rgb(255, 255, 255);
++        --dao-settings-content-width: 680px;
++        --dao-settings-page: rgb(248, 249, 250);
++        --dao-settings-surface-hover: rgba(30, 40, 54, .075);
++        --dao-settings-text: rgba(25, 34, 46, .92);
++        --dao-settings-text-secondary: rgba(25, 34, 46, .62);
++        --dao-settings-text-tertiary: rgba(25, 34, 46, .44);
++        --settings-menu-width: 184px;
++        display: block;
+         height: 100%;
+-        --settings-menu-width: 266px;
+-        /* Centered cards has a max-width of var(--cr-centered-card-max-width)
+-         * and a width of a certain percentage. Therefore, to make room for the
+-         * cards to be at their max width, the flex-basis of #main needs to be
+-         * whatever value the percentage of would equal to the max width. */
+-        --settings-main-basis: calc(var(--cr-centered-card-max-width) /
+-            var(--cr-centered-card-width-percentage));
+       }
+ 
+-      cr-toolbar {
+-        min-height: 56px;
+-        --cr-toolbar-center-basis: var(--settings-main-basis);
+-      }
+-
+-      cr-toolbar:not([narrow]) {
+-        --cr-toolbar-left-spacer-width: var(--settings-menu-width);
+-      }
+-
+-      @media (prefers-color-scheme: light) {
+-        cr-toolbar {
+-          --iron-icon-fill-color: white;
++      @media (prefers-color-scheme: dark) {
++        :host {
++          --dao-settings-accent-strong: rgb(125, 169, 224);
++          --dao-settings-accent-subtle: rgba(70, 120, 190, .24);
++          --dao-settings-border: rgba(255, 255, 255, .10);
++          --dao-settings-border-subtle: rgba(255, 255, 255, .065);
++          --dao-settings-card: rgb(45, 49, 54);
++          --dao-settings-page: rgb(32, 33, 36);
++          --dao-settings-surface-hover: rgba(255, 255, 255, .075);
++          --dao-settings-text: rgba(250, 250, 250, .94);
++          --dao-settings-text-secondary: rgba(255, 255, 255, .64);
++          --dao-settings-text-tertiary: rgba(255, 255, 255, .44);
+         }
+       }
+ 
+       #container {
+-        display: flex;
+-        flex: 1;
+-        overflow: overlay;
++        background: var(--dao-settings-page);
++        color: var(--dao-settings-text);
++        display: grid;
++        grid-template-columns: var(--settings-menu-width) minmax(0, 1fr);
++        height: 100%;
++        overflow: auto;
+         position: relative;
+       }
+ 
+-      #left,
+-      #main,
+-      #right {
+-        flex: 1 1 0;
+-      }
+-
+-      #left {
+-        height: 100%;
++      #daoSettingsNavigation {
++        background: var(--dao-settings-page);
++        border-inline-end: 1px solid var(--dao-settings-border-subtle);
++        box-sizing: border-box;
++        height: 100vh;
++        min-width: 0;
++        overflow: hidden;
+         position: sticky;
+         top: 0;
+       }
+ 
+-      #left settings-menu {
+-        max-height: 100%;
++      #searchField {
++        --cr-focus-outline-color: var(--dao-settings-accent);
++        --cr-toolbar-field-width: auto;
++        --cr-toolbar-search-field-background: rgba(30, 40, 54, .045);
++        --cr-toolbar-search-field-border-radius: 8px;
++        --cr-toolbar-search-field-input-text-color: var(--dao-settings-text);
++        --cr-toolbar-search-field-prompt-color:
++            var(--dao-settings-text-tertiary);
++        border: 1px solid var(--dao-settings-border);
++        box-sizing: border-box;
++        margin: 20px 14px 8px;
++        width: calc(100% - 28px);
++      }
++
++      @media (prefers-color-scheme: dark) {
++        #searchField {
++          --cr-toolbar-search-field-background: rgba(255, 255, 255, .045);
++        }
++      }
++
++      #leftMenu {
++        box-sizing: border-box;
++        height: calc(100vh - 78px);
+         overflow: auto;
+         overscroll-behavior: contain;
+-        width: var(--settings-menu-width);
++        width: 100%;
+       }
+ 
++      #daoSettingsMain {
++        box-sizing: border-box;
++        min-width: 0;
++        padding: 30px 44px 100px;
++      }
++
++      #scrollableShadow {
++        left: var(--settings-menu-width);
++        position: fixed;
++        right: 0;
++        top: 0;
++      }
++
+       #main {
+-        flex-basis: var(--settings-main-basis);
++        display: block;
++        margin: 0 auto;
++        max-width: var(--dao-settings-content-width);
++        width: 100%;
+       }
+ 
+-      /* The breakpoint of 980px was decided on by the rounded sum of
+-       * var(--settings-main-basis), var(--settings-menu-width), and
+-       * var(--cr-section-padding). */
+-      @media (max-width: 980px) {
+-        #main {
+-          min-width: auto;
+-          /* Add some padding to make room for borders and to prevent focus
+-           * indicators from being cropped. */
+-          padding: 0 3px;
++      @media (max-width: 760px) {
++        #container {
++          grid-template-columns: 1fr;
+         }
++
++        #daoSettingsNavigation {
++          border-bottom: 1px solid var(--dao-settings-border-subtle);
++          border-inline-end: 0;
++          height: auto;
++          position: static;
++        }
++
++        #searchField {
++          margin: 14px 14px 6px;
++        }
++
++        #leftMenu {
++          height: auto;
++          overflow-x: auto;
++          overflow-y: hidden;
++        }
++
++        #daoSettingsMain {
++          padding: 26px 20px 72px;
++        }
++
++        #scrollableShadow {
++          left: 0;
++        }
+       }
+     </style>
+     <settings-prefs id="prefs" prefs="{{prefs}}"></settings-prefs>
+-    <cr-toolbar id="toolbar"
+-        page-name="$i18n{settings}"
+-        clear-label="$i18n{clearSearch}"
+-        autofocus
+-        search-prompt="$i18n{searchPrompt}"
+-        on-cr-toolbar-menu-click="onMenuButtonClick_"
+-        spinner-active="[[toolbarSpinnerActive_]]"
+-        menu-label="$i18n{menuButtonLabel}"
+-        on-search-changed="onSearchChanged_"
+-        role="banner"
+-        narrow="{{narrow_}}"
+-        narrow-threshold="980"
+-        show-menu="[[narrow_]]">
+-    </cr-toolbar>
+-    <cr-drawer id="drawer" on-close="onMenuClose_" heading="$i18n{settings}"
+-        align="$i18n{textdirection}">
+-      <div slot="body">
+-        <template is="dom-if" id="drawerTemplate">
+-          <settings-menu id="drawerMenu" on-iron-activate="onIronActivate_">
+-          </settings-menu>
+-        </template>
+-      </div>
+-    </cr-drawer>
+     <div id="container" class="no-outline cr-scrollable">
+-      <div id="scrollableShadow" class="cr-scrollable-top-shadow"></div>
+-      <div id="left" hidden$="[[narrow_]]">
+-        <settings-menu id="leftMenu" on-iron-activate="onIronActivate_">
++      <aside id="daoSettingsNavigation">
++        <cr-toolbar-search-field id="searchField"
++            label="$i18n{searchPrompt}"
++            clear-label="$i18n{clearSearch}"
++            autofocus
++            spinner-active="[[toolbarSpinnerActive_]]"
++            on-search-changed="onSearchChanged_"
++            showing-search>
++        </cr-toolbar-search-field>
++        <settings-menu id="leftMenu"
++            on-settings-section-activate="onSettingsSectionActivate_">
+         </settings-menu>
+-      </div>
+-      <settings-main id="main" prefs="{{prefs}}"
+-          toolbar-spinner-active="{{toolbarSpinnerActive_}}">
+-      </settings-main>
+-      <!-- An additional child of the flex #container to take up space,
+-           aligned with the right-hand child of the flex toolbar. -->
+-      <div id="right" hidden$="[[narrow_]]"></div>
++      </aside>
++      <main id="daoSettingsMain">
++        <div id="scrollableShadow" class="cr-scrollable-top-shadow"></div>
++        <settings-main id="main" prefs="{{prefs}}"
++            on-settings-overview-section-changed="onOverviewSectionChanged_"
++            on-settings-overview-search-results-changed="onOverviewSearchResultsChanged_"
++            toolbar-spinner-active="{{toolbarSpinnerActive_}}">
++        </settings-main>
++      </main>
+     </div>
