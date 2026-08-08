@@ -1,9 +1,26 @@
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {existsSync, readFileSync} from 'node:fs';
 
 import {describe, expect, it} from 'vitest';
 
 const daoSettingsTranslations = [
+  {
+    id: '4599588625161804776',
+    translation: 'Dao 浏览器',
+  },
+  {
+    id: '5655808454255500256',
+    translation: '基于 Chromium',
+  },
+  {
+    id: '441389943317387777',
+    translation: 'Dao 专属',
+  },
+  {
+    id: '8413644221083874626',
+    translation: '单项工具权限',
+  },
   {
     id: '4833302064619809816',
     translation: '您与 Dao',
@@ -159,7 +176,206 @@ const daoSettingsTranslations = [
   },
 ];
 
+const daoAgentManagementTranslations = [
+  ['DAO_AGENT_MANAGEMENT_TITLE', 'daoAgentManagementTitle', '数据与管理'],
+  ['DAO_AGENT_MANAGEMENT_MEMORY_TITLE', 'daoAgentManagementMemoryTitle', '记忆'],
+  ['DAO_AGENT_MANAGEMENT_WORKSPACE_TITLE', 'daoAgentManagementWorkspaceTitle', '工作区'],
+  ['DAO_AGENT_MANAGEMENT_USAGE_TITLE', 'daoAgentManagementUsageTitle', '用量'],
+  ['DAO_AGENT_MANAGEMENT_CONVERSATIONS', 'daoAgentManagementConversations', '对话'],
+  ['DAO_AGENT_MANAGEMENT_PREFERENCES', 'daoAgentManagementPreferences', '偏好'],
+  ['DAO_AGENT_MANAGEMENT_EPISODES', 'daoAgentManagementEpisodes', '事件'],
+  ['DAO_AGENT_MANAGEMENT_TOTAL_SIZE', 'daoAgentManagementTotalSize', '总大小'],
+  ['DAO_AGENT_MANAGEMENT_ROOT', 'daoAgentManagementRoot', '根目录'],
+  ['DAO_AGENT_MANAGEMENT_STORAGE', 'daoAgentManagementStorage', '存储空间'],
+  ['DAO_AGENT_MANAGEMENT_FILES', 'daoAgentManagementFiles', '文件'],
+  ['DAO_AGENT_MANAGEMENT_RECENT_ACTIVITY', 'daoAgentManagementRecentActivity', '近期活动'],
+  ['DAO_AGENT_MANAGEMENT_API_CALLS', 'daoAgentManagementApiCalls', 'API 调用'],
+  ['DAO_AGENT_MANAGEMENT_TOOL_CALLS', 'daoAgentManagementToolCalls', '工具调用'],
+  ['DAO_AGENT_MANAGEMENT_PROMPT_TOKENS', 'daoAgentManagementPromptTokens', '提示词元'],
+  ['DAO_AGENT_MANAGEMENT_COMPLETION_TOKENS', 'daoAgentManagementCompletionTokens', '补全词元'],
+  ['DAO_AGENT_MANAGEMENT_TOTAL_TOKENS', 'daoAgentManagementTotalTokens', '总词元'],
+  ['DAO_AGENT_MANAGEMENT_ESTIMATED_COST', 'daoAgentManagementEstimatedCost', '预估费用'],
+  ['DAO_AGENT_MANAGEMENT_LAST_RESET', 'daoAgentManagementLastReset', '上次重置'],
+  ['DAO_AGENT_MANAGEMENT_LOADING', 'daoAgentManagementLoading', '正在加载…'],
+  ['DAO_AGENT_MANAGEMENT_MEMORY_ERROR', 'daoAgentManagementMemoryError', '无法加载记忆摘要。请重试刷新。'],
+  ['DAO_AGENT_MANAGEMENT_MEMORY_ACTION_ERROR', 'daoAgentManagementMemoryActionError', '无法清除记忆。请再次尝试清除记忆。'],
+  ['DAO_AGENT_MANAGEMENT_MEMORY_REFRESH_ERROR', 'daoAgentManagementMemoryRefreshError', '记忆已清除，但无法刷新摘要。请重试加载。'],
+  ['DAO_AGENT_MANAGEMENT_WORKSPACE_ERROR', 'daoAgentManagementWorkspaceError', '无法加载工作区摘要。请重试刷新。'],
+  ['DAO_AGENT_MANAGEMENT_WORKSPACE_ACTION_ERROR', 'daoAgentManagementWorkspaceActionError', '无法打开工作区。请再次尝试打开工作区。'],
+  ['DAO_AGENT_MANAGEMENT_USAGE_ERROR', 'daoAgentManagementUsageError', '无法加载用量摘要。请重试刷新。'],
+  ['DAO_AGENT_MANAGEMENT_USAGE_ACTION_ERROR', 'daoAgentManagementUsageActionError', '无法重置用量。请再次尝试重置用量。'],
+  ['DAO_AGENT_MANAGEMENT_USAGE_REFRESH_ERROR', 'daoAgentManagementUsageRefreshError', '用量已重置，但无法刷新摘要。请重试加载。'],
+  ['DAO_AGENT_MANAGEMENT_RETRY', 'daoAgentManagementRetry', '重试'],
+  ['DAO_AGENT_MANAGEMENT_CLEAR_MEMORY', 'daoAgentManagementClearMemory', '清除记忆'],
+  ['DAO_AGENT_MANAGEMENT_OPEN_WORKSPACE', 'daoAgentManagementOpenWorkspace', '打开工作区'],
+  ['DAO_AGENT_MANAGEMENT_RESET_USAGE', 'daoAgentManagementResetUsage', '重置用量'],
+  ['DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_DIALOG_TITLE', 'daoAgentManagementClearMemoryDialogTitle', '清除全部记忆？'],
+  ['DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_DIALOG_DESCRIPTION', 'daoAgentManagementClearMemoryDialogDescription', '这会永久删除所有对话记忆、偏好和事件，且无法撤销。'],
+  ['DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_CANCEL', 'daoAgentManagementClearMemoryCancel', '取消'],
+  ['DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_CONFIRM', 'daoAgentManagementClearMemoryConfirm', '清除记忆'],
+  ['DAO_AGENT_MANAGEMENT_RESET_USAGE_DIALOG_TITLE', 'daoAgentManagementResetUsageDialogTitle', '重置用量统计？'],
+  ['DAO_AGENT_MANAGEMENT_RESET_USAGE_DIALOG_DESCRIPTION', 'daoAgentManagementResetUsageDialogDescription', '这会将所有 API、工具和词元计数清零。'],
+  ['DAO_AGENT_MANAGEMENT_RESET_USAGE_CANCEL', 'daoAgentManagementResetUsageCancel', '取消'],
+  ['DAO_AGENT_MANAGEMENT_RESET_USAGE_CONFIRM', 'daoAgentManagementResetUsageConfirm', '重置用量'],
+  ['DAO_AGENT_MANAGEMENT_NO_RECENT_ACTIVITY', 'daoAgentManagementNoRecentActivity', '暂无近期活动'],
+  ['DAO_AGENT_MANAGEMENT_NO_TOOL_CALLS', 'daoAgentManagementNoToolCalls', '暂无工具调用'],
+  ['DAO_AGENT_MANAGEMENT_MEMORY_CLEARED', 'daoAgentManagementMemoryCleared', '记忆已清除'],
+  ['DAO_AGENT_MANAGEMENT_WORKSPACE_OPENED', 'daoAgentManagementWorkspaceOpened', '工作区已打开'],
+  ['DAO_AGENT_MANAGEMENT_USAGE_RESET', 'daoAgentManagementUsageReset', '用量已重置'],
+  ['DAO_AGENT_MANAGEMENT_ACTIVITY_LABEL', 'daoAgentManagementActivityLabel', '操作 <ph name="OPERATION" />，路径 <ph name="PATH" />'],
+] as const;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getGrdpMessage(
+    grdpPatch: string, resourceName: string):
+    {source: string, meaning: string} {
+  const messagePattern = new RegExp(
+      `<message name="${resourceName}"([^>]*)>([\\s\\S]*?)</message>`, 'g');
+  const matches = [...grdpPatch.matchAll(messagePattern)];
+  expect(matches, resourceName).toHaveLength(1);
+  const attributes = matches[0]![1]!;
+  const source = matches[0]![2]!
+      .replace(/^\+/gm, '')
+      .replace(/<ph name="([^"]+)">[\s\S]*?<\/ph>/g, '$1')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const meaning = attributes.match(/\bmeaning="([^"]+)"/)?.[1] ?? '';
+  return {source, meaning};
+}
+
+function getGritFingerprint(value: string): bigint {
+  const unsigned = BigInt(
+      `0x${createHash('md5').update(value, 'utf-8').digest('hex').slice(0, 16)}`);
+  return unsigned & 0x8000000000000000n ?
+      unsigned - 0x10000000000000000n :
+      unsigned;
+}
+
+function getGritMessageId(message: string, meaning = ''): string {
+  let fingerprint = getGritFingerprint(message);
+  if (meaning) {
+    const meaningFingerprint = getGritFingerprint(meaning);
+    fingerprint = fingerprint < 0 ?
+        meaningFingerprint + (fingerprint << 1n) + 1n :
+        meaningFingerprint + (fingerprint << 1n);
+  }
+  return (fingerprint & 0x7fffffffffffffffn).toString();
+}
+
 describe('settings i18n patches', () => {
+  it('localizes every Agent management state through the settings provider', () => {
+    const grdpPatch = readFileSync(path.join(
+        process.cwd(), 'src/patches/chrome/app/settings_strings.grdp.patch'),
+    'utf-8');
+    const providerPatch = readFileSync(path.join(
+        process.cwd(),
+        'src/patches/chrome/browser/ui/webui/settings/' +
+            'settings_localized_strings_provider.cc.patch'), 'utf-8');
+    const zhCnPatch = readFileSync(path.join(
+        process.cwd(),
+        'src/patches/chrome/app/resources/' +
+            'generated_resources_zh-CN.xtb.patch'), 'utf-8');
+
+    for (const [resourceSuffix, providerKey, translation] of
+         daoAgentManagementTranslations) {
+      const resourceName = `IDS_SETTINGS_${resourceSuffix}`;
+      const {source, meaning} = getGrdpMessage(grdpPatch, resourceName);
+      const translationId = getGritMessageId(source, meaning);
+      const providerPattern = new RegExp(
+          `\\{"${providerKey}",\\s*${resourceName}\\}`, 'g');
+      const translationPattern = new RegExp(
+          `<translation id="${translationId}">` +
+              `${escapeRegExp(translation)}</translation>`,
+          'g');
+
+      expect([...providerPatch.matchAll(providerPattern)], providerKey)
+          .toHaveLength(1);
+      expect([...zhCnPatch.matchAll(translationPattern)], providerKey)
+          .toHaveLength(1);
+    }
+  });
+
+  it('keeps Agent management IDs distinct from Chromium shared labels', () => {
+    const grdpPatch = readFileSync(path.join(
+        process.cwd(), 'src/patches/chrome/app/settings_strings.grdp.patch'),
+    'utf-8');
+    const chromiumSharedTranslationIds = new Set([
+      '1293556467332435079',
+      '5063480226653192405',
+      '5154917547274118687',
+      '5801568494490449797',
+      '7144878232160441200',
+      '7658239707568436148',
+      '8633025649649592204',
+      '885701979325669005',
+    ]);
+
+    for (const [resourceSuffix] of daoAgentManagementTranslations) {
+      const resourceName = `IDS_SETTINGS_${resourceSuffix}`;
+      const {source, meaning} = getGrdpMessage(grdpPatch, resourceName);
+      expect(
+          chromiumSharedTranslationIds.has(getGritMessageId(source, meaning)),
+          resourceName)
+          .toBe(false);
+    }
+  });
+
+  it('does not repeat translation IDs inside the zh-CN patch', () => {
+    const patch = readFileSync(path.join(
+        process.cwd(),
+        'src/patches/chrome/app/resources/generated_resources_zh-CN.xtb.patch'),
+    'utf-8');
+    const ids = [...patch.matchAll(/translation id="(\d+)"/g)]
+                    .map(match => match[1]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('keeps Agent search options aligned with the runtime override type', () => {
+    const pagePatch = readFileSync(path.join(
+        process.cwd(),
+        'src/patches/chrome/browser/resources/settings/dao_page/' +
+            'dao_agent_page.html.patch'), 'utf-8');
+    const typeSource = readFileSync(path.join(
+        process.cwd(),
+        'src/dao/browser/ui/webui/resources/agent/web_search/types.ts'),
+    'utf-8');
+    const options = [...pagePatch.matchAll(
+        /<option value="(auto|provider|duckduckgo)">/g)]
+                        .map(match => match[1]);
+    const override = typeSource.match(
+        /SearchSourceOverride =\s*([^;]+);/)?.[1] ?? '';
+
+    expect(options).toEqual(['auto', 'provider', 'duckduckgo']);
+    for (const option of options) {
+      expect(override).toContain(`'${option}'`);
+    }
+    expect(pagePatch).not.toContain('<option value="jina">');
+    expect(pagePatch).not.toContain('<option value="browser">');
+  });
+
+  it('keeps proactive thresholds aligned with the Agent runtime', () => {
+    const pagePatch = readFileSync(path.join(
+        process.cwd(),
+        'src/patches/chrome/browser/resources/settings/dao_page/' +
+            'dao_agent_page.html.patch'), 'utf-8');
+    const bridgeSource = readFileSync(path.join(
+        process.cwd(),
+        'src/dao/browser/ui/webui/resources/agent/agent_bridge.ts'),
+    'utf-8');
+    const options = [...pagePatch.matchAll(
+        /<option value="(quiet|balanced|active|conservative|proactive)">/g)]
+                        .map(match => match[1]);
+
+    expect(options).toEqual(['quiet', 'balanced', 'active']);
+    for (const option of options) {
+      expect(bridgeSource).toContain(`'${option}':`);
+    }
+  });
+
   it('provides Simplified Chinese translations for Dao settings strings', () => {
     const patchPaths = [
       'src/patches/chrome/app/resources/generated_resources_zh-CN.xtb.patch',

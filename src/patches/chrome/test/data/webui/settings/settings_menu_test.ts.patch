@@ -1,0 +1,276 @@
+diff --git a/chrome/test/data/webui/settings/settings_menu_test.ts b/chrome/test/data/webui/settings/settings_menu_test.ts
+index df9cb79..6fc229b 100644
+--- a/chrome/test/data/webui/settings/settings_menu_test.ts
++++ b/chrome/test/data/webui/settings/settings_menu_test.ts
+@@ -8,7 +8,7 @@
+ import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+ import type {SettingsMenuElement, SettingsRoutes} from 'chrome://settings/settings.js';
+ import {AutofillSettingsReferrer, resetRouterForTesting, loadTimeData, MetricsBrowserProxyImpl, resetPageVisibilityForTesting, Router} from 'chrome://settings/settings.js';
+-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
++import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+ import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
+ import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+ import {eventToPromise} from 'chrome://webui-test/test_util.js';
+@@ -40,58 +40,90 @@ suite('SettingsMenu', function() {
+     resetPageVisibilityForTesting();
+   });
+ 
+-  // Test that navigating via the paper menu always clears the current
+-  // search URL parameter.
+-  test('clearsUrlSearchParam', async () => {
+-    const urlParams = new URLSearchParams('search=foo');
+-    Router.getInstance().navigateTo(
+-        Router.getInstance().getRoutes().BASIC, urlParams);
+-    assertEquals(
+-        urlParams.toString(),
+-        Router.getInstance().getQueryParameters().toString());
++  test('preserves destinations with direct overview items', function() {
++    const anchors =
++        Array.from(settingsMenu.shadowRoot!.querySelectorAll('a'));
++    assertDeepEquals([
++      '/dao', '/agent', '/people', '/autofill', '/privacy', '/performance', '/ai',
++      '/appearance', '/search', '/defaultBrowser', '/onStartup', '/languages',
++      '/downloads', '/accessibility', '/system', '/reset',
++      'dao://extensions', '/help',
++    ], anchors.map(item => item.getAttribute('href')));
++
++    const sectionItems = settingsMenu.shadowRoot!.querySelectorAll<HTMLElement>(
++        '#menu > a[data-section]');
++    assertEquals(16, sectionItems.length);
++    for (const item of sectionItems) {
++      assertEquals(settingsMenu.$.menu, item.parentElement);
++    }
++  });
+ 
+-    const selector = settingsMenu.$.menu;
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
++  test('activates overview section without navigating Router', async () => {
++    Router.getInstance().navigateTo(routes.BASIC);
++    const eventPromise =
++        eventToPromise<CustomEvent<{section: string, behavior: ScrollBehavior}>>(
++            'settings-section-activate', settingsMenu);
+     settingsMenu.$.people.click();
+-    const event = await whenIronSelect;
++    const event = await eventPromise;
+ 
+-    assertEquals(settingsMenu.$.people, event.detail.item);
+-    assertEquals('', Router.getInstance().getQueryParameters().toString());
++    assertEquals('people', event.detail.section);
++    assertEquals('auto', event.detail.behavior);
++    assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
++    assertEquals('people', settingsMenu.$.menu.selected);
++  });
++
++  test('tracksAgentAsSiblingDaoExclusiveSection', function() {
++    Router.getInstance().navigateTo(routes.DAO_AGENT);
++    assertEquals('agent', settingsMenu.$.menu.selected);
++    const agent = settingsMenu.shadowRoot!.querySelector<HTMLElement>(
++        '#agent[data-section="agent"]');
++    assertTrue(!!agent);
++    assertEquals('/agent', agent.getAttribute('href'));
+   });
+ 
+-  test('openResetSection', function() {
+-    Router.getInstance().navigateTo(routes.RESET);
+-    const selector = settingsMenu.$.menu;
+-    assertTrue(!!selector.selected);
+-    assertEquals('/reset', selector.selected.toString());
++  test('selects parent section for a secondary route', function() {
++    Router.getInstance().navigateTo(routes.SITE_SETTINGS);
++    assertEquals('privacy', settingsMenu.$.menu.selected);
+   });
+ 
+-  test('navigateToAnotherSection', async function() {
++  test('tracks top-level route section', function() {
+     Router.getInstance().navigateTo(routes.RESET);
+-    const selector = settingsMenu.$.menu;
+-    assertTrue(!!selector.selected);
+-    assertEquals('/reset', selector.selected.toString());
++    assertEquals('reset', settingsMenu.$.menu.selected);
+ 
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
+     Router.getInstance().navigateTo(routes.PEOPLE);
+-    const event = await whenIronSelect;
+-
+-    assertTrue(!!selector.selected);
+-    assertEquals(settingsMenu.$.people, event.detail.item);
+-    assertEquals('/people', selector.selected.toString());
++    assertEquals('people', settingsMenu.$.menu.selected);
+   });
+ 
+-  test('navigateToBasic', async function() {
++  test('basic route has no route-owned selection', async function() {
+     Router.getInstance().navigateTo(routes.RESET);
+-    const selector = settingsMenu.$.menu;
+-    assertTrue(!!selector.selected);
+-    assertEquals('/reset', selector.selected.toString());
++    assertEquals('reset', settingsMenu.$.menu.selected);
+ 
+     Router.getInstance().navigateTo(routes.BASIC);
+     await microtasksFinished();
+-    assertFalse(!!selector.selected);
++    assertFalse(!!settingsMenu.$.menu.selected);
+   });
+ 
++  test('searchFiltersMenuAndClearsHiddenSelection', function() {
++    const searchVisibleIds = () =>
++        Array.from(settingsMenu.shadowRoot!.querySelectorAll<HTMLElement>(
++            'a[data-section]:not([hidden-by-search])'))
++            .map(item => item.dataset['section']);
++
++    settingsMenu.setActiveSection('privacy');
++    settingsMenu.setSearchResultSections(
++        'matching query', ['appearance', 'privacy']);
++    assertDeepEquals(['privacy', 'appearance'], searchVisibleIds());
++    assertEquals('privacy', settingsMenu.$.menu.selected);
++
++    settingsMenu.setSearchResultSections('zero results', []);
++    assertDeepEquals([], searchVisibleIds());
++    assertFalse(!!settingsMenu.$.menu.selected);
++
++    settingsMenu.setSearchResultSections('', []);
++    assertEquals(
++        16,
++        settingsMenu.shadowRoot!.querySelectorAll(
++            'a[data-section]:not([hidden-by-search])').length);
++  });
++
+   test('noExperimental', async function() {
+@@ -105,24 +136,19 @@ suite('SettingsMenu', function() {
+     assertFalse(isVisible(entry));
+   });
+ 
+-  test('navigateToExperimental', async function() {
++  test('tracks experimental route section', async function() {
+     loadTimeData.overrideValues({showAiPage: true});
+     resetRouterForTesting();
+     createSettingsMenu();
+-    const selector = settingsMenu.$.menu;
+-
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
+-    Router.getInstance().navigateTo(routes.AI);
+-    const event = await whenIronSelect;
++    await microtasksFinished();
+ 
+-    const entry = settingsMenu.shadowRoot!.querySelector('a[href=\'/ai\']');
++    const entry = settingsMenu.shadowRoot!.querySelector<HTMLElement>(
++        'a[href=\'/ai\']');
+     assertTrue(!!entry);
+     assertTrue(isVisible(entry));
+ 
+-    assertTrue(!!event.detail.item);
+-    assertEquals('/ai', selector.selected?.toString());
+-    assertEquals('/ai', event.detail.item.getAttribute('href'));
++    Router.getInstance().navigateTo(routes.AI);
++    assertEquals('ai', settingsMenu.$.menu.selected);
+   });
+ 
+   test('pageVisibility', function() {
+@@ -168,10 +194,8 @@ suite('SettingsMenu', function() {
+     assertPagesHidden(true);
+   });
+ 
+-  test('aiPageMenuClick', async function() {
+-    loadTimeData.overrideValues({
+-      showAiPage: true,
+-    });
++  test('aiPageMenuClick records metric and activates section', async function() {
++    loadTimeData.overrideValues({showAiPage: true});
+     resetRouterForTesting();
+     createSettingsMenu();
+     await microtasksFinished();
+@@ -179,22 +203,18 @@ suite('SettingsMenu', function() {
+     const entry =
+         settingsMenu.shadowRoot!.querySelector<HTMLElement>('a[href=\'/ai\']');
+     assertTrue(!!entry);
+-    assertTrue(isVisible(entry));
+-
+-    const selector = settingsMenu.$.menu;
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
++    const eventPromise = eventToPromise<CustomEvent<{section: string}>>(
++        'settings-section-activate', settingsMenu);
+     entry.click();
+-    // Ensure UMA is logged.
++
+     assertEquals(
+         'SettingsMenu_AiPageEntryPointClicked',
+         await metricsBrowserProxy.whenCalled('recordAction'));
+-    await whenIronSelect;
+-
+-    assertEquals(routes.AI, Router.getInstance().getCurrentRoute());
++    assertEquals('ai', (await eventPromise).detail.section);
++    assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
+   });
+ 
+-  test('autofillPageMenuClick', async function() {
++  test('autofillClick records metric and activates section', async function() {
+     loadTimeData.overrideValues({enableYourSavedInfoSettingsPage: false});
+     resetRouterForTesting();
+     createSettingsMenu();
+@@ -203,49 +223,43 @@ suite('SettingsMenu', function() {
+     const entry = settingsMenu.shadowRoot!.querySelector<HTMLElement>(
+         'a[href=\'/autofill\']');
+     assertTrue(!!entry);
+-    assertTrue(isVisible(entry));
+-
+-    const selector = settingsMenu.$.menu;
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
++    const eventPromise = eventToPromise<CustomEvent<{section: string}>>(
++        'settings-section-activate', settingsMenu);
+     entry.click();
++
+     const [histogramName, referrer] =
+         await metricsBrowserProxy.whenCalled('recordAutofillSettingsReferrer');
+     assertEquals(
+         'Autofill.AutofillAndPasswordsSettingsPage.VisitReferrer',
+         histogramName);
+     assertEquals(AutofillSettingsReferrer.SETTINGS_MENU, referrer);
+-
+-    await whenIronSelect;
+-    assertEquals(routes.AUTOFILL, Router.getInstance().getCurrentRoute());
++    assertEquals('autofill', (await eventPromise).detail.section);
++    assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
+   });
+ 
+-  test('yourSavedInfoMenuItemClick', async function() {
++  test('yourSavedInfoClick activates rendered section', async function() {
+     loadTimeData.overrideValues({enableYourSavedInfoSettingsPage: true});
+     resetRouterForTesting();
+     createSettingsMenu();
+     await microtasksFinished();
+ 
+-    const selector = settingsMenu.$.menu;
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
+     const entry = settingsMenu.shadowRoot!.querySelector<HTMLElement>(
+         'a[href=\'/autofill\']');
+     assertTrue(!!entry);
+-    assertTrue(isVisible(entry));
+-
++    const eventPromise = eventToPromise<CustomEvent<{section: string}>>(
++        'settings-section-activate', settingsMenu);
+     entry.click();
+-    await whenIronSelect;
++
+     const [histogramName, referrer] =
+         await metricsBrowserProxy.whenCalled('recordAutofillSettingsReferrer');
+     assertEquals(
+         'Autofill.YourSavedInfoSettingsPage.VisitReferrer', histogramName);
+     assertEquals(AutofillSettingsReferrer.SETTINGS_MENU, referrer);
+-    assertTrue(!!selector.selected);
+-    assertEquals('/autofill', selector.selected.toString());
+-    assertEquals(
+-        routes.YOUR_SAVED_INFO, Router.getInstance().getCurrentRoute());
++    assertEquals('yourSavedInfo', (await eventPromise).detail.section);
++    assertEquals('yourSavedInfo', settingsMenu.$.menu.selected);
++    assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
+   });
++
+ });
+ 
+ suite('SettingsMenuAutofill', () => {

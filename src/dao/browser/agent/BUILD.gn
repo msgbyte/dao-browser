@@ -10,6 +10,7 @@
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "dao_agent_settings_handler_unittest.cc",
     "dao_agent_memory_store_unittest.cc",
     "dao_agent_proactive_engine_unittest.cc",
     "dao_agent_proactive_ranker_unittest.cc",
@@ -27,6 +28,7 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//chrome/browser/ui:ui",
+    "//components/prefs:test_support",
     "//testing/gtest",
   ]
 }

@@ -454,19 +454,25 @@ export function loadSoul(): string {
   return localStorage.getItem('dao_agent_soul') || DEFAULT_SOUL;
 }
 
-export function saveSoul(text: string): void {
+export async function saveSoul(text: string): Promise<boolean> {
+  const accepted = await callNativeArgs(
+      'setDaoAgentSetting', 'dao_agent_soul', text);
+  if (accepted !== true) {
+    return false;
+  }
   localStorage.setItem('dao_agent_soul', text);
   currentSoulContent = text;
   soulChannel.postMessage({type: 'soul_updated'});
+  return true;
 }
 
 export function refreshSoulContent(): void {
   currentSoulContent = loadSoul();
 }
 
-function updateSoulByAction(
+async function updateSoulByAction(
     action: string, content: string,
-    section?: string): {ok: boolean; message: string} {
+    section?: string): Promise<{ok: boolean; message: string}> {
   const current = loadSoul();
 
   switch (action) {
@@ -482,16 +488,23 @@ function updateSoulByAction(
           new RegExp(`(${escaped}[^\\n]*)\\n[\\s\\S]*?(?=\\n${level} |$)`);
       if (!pattern.test(current)) {
         // Section not found — append as a new section.
-        saveSoul(current + '\n\n' + section + '\n\n' + content);
+        if (!await saveSoul(
+                current + '\n\n' + section + '\n\n' + content)) {
+          return {ok: false, message: 'Failed to persist the soul update.'};
+        }
         return {ok: true, message: `New section "${section}" added.`};
       }
       const updated = current.replace(pattern, `$1\n\n${content}`);
-      saveSoul(updated);
+      if (!await saveSoul(updated)) {
+        return {ok: false, message: 'Failed to persist the soul update.'};
+      }
       return {ok: true, message: `Section "${section}" updated.`};
     }
 
     case 'replace_all':
-      saveSoul(content);
+      if (!await saveSoul(content)) {
+        return {ok: false, message: 'Failed to persist the soul update.'};
+      }
       return {ok: true, message: 'Soul replaced entirely.'};
 
     default:
@@ -1118,7 +1131,7 @@ export async function executeTool(
         lockTab: getBooleanArg(args, 'lock_tab'),
       });
     case 'update_soul':
-      return updateSoulByAction(
+      return await updateSoulByAction(
           getStringArg(args, 'action'), getStringArg(args, 'content'),
           getStringArg(args, 'section') || undefined);
     case 'save_memory': {
@@ -1419,8 +1432,6 @@ export interface AgentStats {
   lastReset: number;
 }
 
-const STATS_KEY = 'dao_agent_stats';
-
 function defaultStats(): AgentStats {
   return {
     apiCalls: 0, toolCalls: {}, promptTokens: 0,
@@ -1429,33 +1440,26 @@ function defaultStats(): AgentStats {
   };
 }
 
-function loadStats(): AgentStats {
-  const base = defaultStats();
-  try {
-    const raw = localStorage.getItem(STATS_KEY);
-    if (!raw) return base;
-    const parsed = JSON.parse(raw) as Partial<AgentStats>;
-    // Merge with defaults so missing fields from older schemas don't
-    // produce NaN on accumulation.
-    return {
-      apiCalls: Number(parsed.apiCalls) || 0,
-      toolCalls: parsed.toolCalls && typeof parsed.toolCalls === 'object' ?
-          {...parsed.toolCalls} : {},
-      promptTokens: Number(parsed.promptTokens) || 0,
-      completionTokens: Number(parsed.completionTokens) || 0,
-      totalTokens: Number(parsed.totalTokens) || 0,
-      estimatedCost: Number(parsed.estimatedCost) || 0,
-      lastReset: Number(parsed.lastReset) || base.lastReset,
-    };
-  } catch (_) {
-    return base;
-  }
+let cachedStats: AgentStats = defaultStats();
+
+export function applyAgentStatsSnapshot(stats: AgentStats): void {
+  cachedStats = {...stats, toolCalls: {...stats.toolCalls}};
 }
 
-let cachedStats: AgentStats = loadStats();
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && value >= 0 && Number.isFinite(value);
+}
 
-function saveStats() {
-  localStorage.setItem(STATS_KEY, JSON.stringify(cachedStats));
+function isValidUsageToolName(toolName: unknown): toolName is string {
+  if (typeof toolName !== 'string' || toolName.length === 0) {
+    return false;
+  }
+  try {
+    encodeURIComponent(toolName);
+  } catch (_) {
+    return false;
+  }
+  return new TextEncoder().encode(toolName).byteLength <= 128;
 }
 
 // Cost rates follow pi-ai's convention: USD per 1,000,000 tokens.
@@ -1464,21 +1468,46 @@ function saveStats() {
 export function recordApiCall(
     promptTokens: number, completionTokens: number,
     costPerMTokPrompt = 0, costPerMTokCompletion = 0) {
-  const p = Number(promptTokens) || 0;
-  const c = Number(completionTokens) || 0;
+  if (!isNonNegativeFiniteNumber(promptTokens) ||
+      !isNonNegativeFiniteNumber(completionTokens) ||
+      !isNonNegativeFiniteNumber(costPerMTokPrompt) ||
+      !isNonNegativeFiniteNumber(costPerMTokCompletion)) {
+    return;
+  }
+  const p = promptTokens;
+  const c = completionTokens;
+  const estimatedCost =
+      (p * costPerMTokPrompt + c * costPerMTokCompletion) / 1_000_000;
+  if (!Number.isFinite(cachedStats.apiCalls + 1) ||
+      !Number.isFinite(cachedStats.promptTokens + p) ||
+      !Number.isFinite(cachedStats.completionTokens + c) ||
+      !Number.isFinite(cachedStats.totalTokens + p + c) ||
+      !Number.isFinite(cachedStats.estimatedCost + estimatedCost)) {
+    return;
+  }
   cachedStats.apiCalls++;
   cachedStats.promptTokens += p;
   cachedStats.completionTokens += c;
   cachedStats.totalTokens += p + c;
-  cachedStats.estimatedCost +=
-      (p * costPerMTokPrompt + c * costPerMTokCompletion) / 1_000_000;
-  saveStats();
+  cachedStats.estimatedCost += estimatedCost;
+  chrome.send('recordDaoAgentApiUsage', [
+    p, c, costPerMTokPrompt, costPerMTokCompletion,
+  ]);
 }
 
 export function recordToolCall(toolName: string) {
+  if (!isValidUsageToolName(toolName)) {
+    return;
+  }
+  const currentCount = cachedStats.toolCalls[toolName] || 0;
+  if ((!Object.prototype.hasOwnProperty.call(cachedStats.toolCalls, toolName) &&
+       Object.keys(cachedStats.toolCalls).length >= 128) ||
+      !Number.isFinite(currentCount + 1)) {
+    return;
+  }
   cachedStats.toolCalls[toolName] =
-      (cachedStats.toolCalls[toolName] || 0) + 1;
-  saveStats();
+      currentCount + 1;
+  chrome.send('recordDaoAgentToolUsage', [toolName]);
 }
 
 export function getAgentStats(): AgentStats {
@@ -1487,7 +1516,7 @@ export function getAgentStats(): AgentStats {
 
 export function resetAgentStats() {
   cachedStats = defaultStats();
-  saveStats();
+  void callNativeArgs('resetDaoAgentUsageStats').catch(() => {});
 }
 
 // ---- Unique ID Generator ----

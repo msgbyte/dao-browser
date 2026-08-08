@@ -30,6 +30,15 @@ inline constexpr char kDaoMcpServerEnabled[] = "dao.mcp_server_enabled";
 // engine does not run, and the agent sidebar WebUI is not loaded.
 inline constexpr char kDaoAgentMemoryEnabled[] = "dao.agent_memory_enabled";
 
+// Profile-scoped canonical store for Dao Agent configuration previously held
+// by the dao://agent origin's localStorage. Values intentionally remain
+// strings so the resident WebUI can keep a compatibility cache while
+// dao://settings becomes the sole editing surface.
+inline constexpr char kDaoAgentSettings[] = "dao.agent_settings";
+inline constexpr char kDaoAgentSettingsMigrationVersion[] =
+    "dao.agent_settings_migration_version";
+inline constexpr char kDaoAgentUsageStats[] = "dao.agent_usage_stats";
+
 // Dictionary pref storing the split view tree layout per window.
 // Keyed by window session ID, each entry holds a serialized tree.
 inline constexpr char kDaoSplitLayout[] = "dao.split_layout";
@@ -76,8 +85,7 @@ inline constexpr char kDaoStaleTabExpirationHours[] =
 // Dictionary pref storing the most recent Little Dao outer window bounds.
 // The key keeps its historical "window_size" name for compatibility with
 // profiles that only stored width and height.
-inline constexpr char kDaoLittleDaoWindowSize[] =
-    "dao.little_dao_window_size";
+inline constexpr char kDaoLittleDaoWindowSize[] = "dao.little_dao_window_size";
 
 // Boolean pref that controls the Dream Analysis system. When false (the
 // default), the dream scheduler never fires and no browsing data is sent
@@ -86,8 +94,7 @@ inline constexpr char kDaoDreamEnabled[] = "dao.dream_enabled";
 
 // Boolean pref that controls the additional weekly Dream report. It is
 // independently opt-in and requires both Agent memory and Dream Analysis.
-inline constexpr char kDaoDreamWeeklyEnabled[] =
-    "dao.dream_weekly_enabled";
+inline constexpr char kDaoDreamWeeklyEnabled[] = "dao.dream_weekly_enabled";
 
 // Boolean pref for dream debug mode. When true, each dream run persists
 // the full material pack JSON (the exact LLM input) into the report row
@@ -96,8 +103,7 @@ inline constexpr char kDaoDreamDebug[] = "dao.dream_debug";
 
 // List pref storing normalized domains excluded from Dream Analysis material
 // collection. A value excludes the domain and its subdomains.
-inline constexpr char kDaoDreamExcludedDomains[] =
-    "dao.dream_excluded_domains";
+inline constexpr char kDaoDreamExcludedDomains[] = "dao.dream_excluded_domains";
 
 }  // namespace dao::prefs
 
@@ -110,8 +116,7 @@ bool IsForceDarkModeEffective(Profile* profile);
 
 void SetForceDarkModeUserEnabled(Profile* profile, bool enabled);
 void ApplyForceDarkModePreferences(
-    Profile* profile,
-    blink::web_pref::WebPreferences* web_preferences);
+    Profile* profile, blink::web_pref::WebPreferences* web_preferences);
 void NotifyForceDarkModeChanged(Profile* profile);
 
 }  // namespace dao

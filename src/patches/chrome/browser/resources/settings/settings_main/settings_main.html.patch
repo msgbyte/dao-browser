@@ -1,12 +1,26 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html b/chrome/browser/resources/settings/settings_main/settings_main.html
-index c6fe484fcf..0000000001 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.html
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.html
-@@ -52,6 +52,16 @@
-     </div>
-   </template>
--
+@@ -32,6 +32,15 @@
+   cr-view-manager [hidden-by-search] {
+     display: none;
+   }
 +
++  :host([overview-mode]) cr-view-manager > [slot=view].active {
++    margin-bottom: 30px;
++    scroll-margin-top: 30px;
++  }
++
++  :host([overview-mode]) cr-view-manager > [slot=view].active:last-of-type {
++    margin-bottom: 0;
++  }
+ </style>
+ <div id="noSearchResults" hidden$="[[!showNoResultsFound_]]">
+   <div>$i18n{searchNoResults}</div>
+@@ -56,6 +65,26 @@
+ 
+ <cr-view-manager id="switcher"
+     show-all$="[[shouldShowAll_(inSearchMode_, lastRoute_)]]">
 +  <template is="dom-if" if="[[showPage_(pageVisibility_.dao)]]">
 +    <div slot="view" id="dao">
 +      <template is="dom-if" if="[[renderPlugin_(
@@ -17,6 +31,52 @@ index c6fe484fcf..0000000001 100644
 +    </div>
 +  </template>
 +
-   <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
-     <div slot="view" id="privacy">
++  <template is="dom-if" if="[[showPage_(pageVisibility_.dao)]]">
++    <div slot="view" id="agent">
++      <template is="dom-if" if="[[renderPlugin_(
++          routes_.DAO_AGENT, lastRoute_, inSearchMode_)]]">
++        <settings-dao-agent-page prefs="{{prefs}}">
++        </settings-dao-agent-page>
++      </template>
++    </div>
++  </template>
++
+   <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
+     <div slot="view" id="people">
        <template is="dom-if" if="[[renderPlugin_(
+@@ -67,17 +96,6 @@
+     </div>
+   </template>
+ 
+-  <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
+-    <div slot="view" id="privacy">
+-      <template is="dom-if" if="[[renderPlugin_(
+-          routes_.PRIVACY, lastRoute_, inSearchMode_)]]">
+-        <settings-privacy-page-index prefs="{{prefs}}"
+-            in-search-mode="[[inSearchMode_]]">
+-        </settings-privacy-page-index>
+-      </template>
+-    </div>
+-  </template>
+-
+   <template is="dom-if" if="[[showAutofillPage_(pageVisibility_.autofill)]]">
+     <div slot="view" id="autofill">
+       <template is="dom-if" if="[[renderPlugin_(
+@@ -97,6 +115,17 @@
+         <settings-your-saved-info-page-index prefs="{{prefs}}"
+             in-search-mode="[[inSearchMode_]]">
+         </settings-your-saved-info-page-index>
++      </template>
++    </div>
++  </template>
++
++  <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
++    <div slot="view" id="privacy">
++      <template is="dom-if" if="[[renderPlugin_(
++          routes_.PRIVACY, lastRoute_, inSearchMode_)]]">
++        <settings-privacy-page-index prefs="{{prefs}}"
++            in-search-mode="[[inSearchMode_]]">
++        </settings-privacy-page-index>
+       </template>
+     </div>
+   </template>

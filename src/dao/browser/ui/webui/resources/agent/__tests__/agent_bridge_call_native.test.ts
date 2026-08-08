@@ -4,7 +4,17 @@
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {callNative, cr, executeTool} from '../agent_bridge.js';
+import {
+  applyAgentStatsSnapshot,
+  callNative,
+  cr,
+  executeTool,
+  getAgentStats,
+  recordApiCall,
+  recordToolCall,
+  resetAgentStats,
+  saveSoul,
+} from '../agent_bridge.js';
 
 describe('callNative', () => {
   afterEach(() => {
@@ -38,6 +48,85 @@ describe('callNative', () => {
     cr.webUIResponse(callbackId, true, true);
 
     await expect(promise).resolves.toBe(true);
+  });
+
+  it('persists soul updates canonically before updating the local cache',
+     async () => {
+       localStorage.removeItem('dao_agent_soul');
+       const send = vi.fn();
+       vi.stubGlobal('chrome', {send});
+
+       const promise = saveSoul('Canonical soul');
+       expect(localStorage.getItem('dao_agent_soul')).toBeNull();
+       expect(send).toHaveBeenCalledTimes(1);
+       const [method, args] = send.mock.calls[0] as [string, unknown[]];
+       expect(method).toBe('setDaoAgentSetting');
+       const [callbackId, key, value] = args as [string, string, string];
+       expect(key).toBe('dao_agent_soul');
+       expect(value).toBe('Canonical soul');
+
+       cr.webUIResponse(callbackId, true, true);
+       await expect(promise).resolves.toBe(true);
+       expect(localStorage.getItem('dao_agent_soul')).toBe('Canonical soul');
+     });
+
+  it('forwards usage records to native and replaces the immediate cache', () => {
+    const send = vi.fn();
+    vi.stubGlobal('chrome', {send});
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const profileStats = {
+      apiCalls: 7,
+      toolCalls: {web_search: 3},
+      promptTokens: 100,
+      completionTokens: 25,
+      totalTokens: 125,
+      estimatedCost: 0.0002,
+      lastReset: 1720000000000,
+    };
+
+    recordApiCall(10, 5, 1, 2);
+    expect(send).toHaveBeenCalledWith(
+        'recordDaoAgentApiUsage', [10, 5, 1, 2]);
+    recordToolCall('web_search');
+    expect(send).toHaveBeenCalledWith(
+        'recordDaoAgentToolUsage', ['web_search']);
+    resetAgentStats();
+    const resetCall = send.mock.calls.find(
+        call => call[0] === 'resetDaoAgentUsageStats');
+    expect(resetCall).toBeDefined();
+    expect(resetCall![1]).toEqual([expect.any(String)]);
+    cr.webUIResponse((resetCall![1] as string[])[0]!, true, true);
+    applyAgentStatsSnapshot(profileStats);
+    expect(getAgentStats()).toEqual(profileStats);
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid usage records before they diverge from native stats', () => {
+    const send = vi.fn();
+    vi.stubGlobal('chrome', {send});
+    const stats = {
+      apiCalls: 3,
+      toolCalls: {web_search: 2},
+      promptTokens: 30,
+      completionTokens: 10,
+      totalTokens: 40,
+      estimatedCost: 0.0001,
+      lastReset: 1720000000000,
+    };
+    applyAgentStatsSnapshot(stats);
+
+    recordApiCall(-1, 0, 0, 0);
+    recordApiCall(Number.NaN, 0, 0, 0);
+    recordApiCall(0, Number.POSITIVE_INFINITY, 0, 0);
+    recordApiCall(0, 0, -1, 0);
+    recordApiCall(0, 0, Number.NaN, 0);
+    recordApiCall(0, 0, 0, Number.POSITIVE_INFINITY);
+    recordToolCall('');
+    recordToolCall('a'.repeat(129));
+    recordToolCall('\ud800');
+
+    expect(getAgentStats()).toEqual(stats);
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('cancels an in-flight native tool once and ignores a late response',

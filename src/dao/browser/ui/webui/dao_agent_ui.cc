@@ -51,6 +51,7 @@
 #include "content/public/common/url_constants.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
+#include "dao/browser/agent/dao_agent_settings_handler.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_skill_service.h"
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
@@ -4250,6 +4251,7 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui) : WebUIController(web_ui) {
       "trusted-types default lit-html-desktop lit-html;");
 
   // Register message handlers.
+  web_ui->AddMessageHandler(std::make_unique<DaoAgentSettingsHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentUIHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentMemoryHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentDreamHandler>());

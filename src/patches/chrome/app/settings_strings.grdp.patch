@@ -164,13 +164,358 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -3836,7 +3836,139 @@
+@@ -3836,7 +3836,484 @@
      <!-- Sync / People Page -->
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_PAGE_TITLE" desc="Name of the settings page for Dao-specific browser settings.">
 +      You and Dao
++    </message>
++    <message name="IDS_SETTINGS_DAO_BRAND_SUBTITLE" desc="Subtitle shown below the Dao brand in settings.">
++      Dao Browser
++    </message>
++    <message name="IDS_SETTINGS_DAO_CHROMIUM_BASIS" desc="Footer text explaining the browser technology used by Dao Browser.">
++      Based on Chromium
++    </message>
++    <message name="IDS_SETTINGS_DAO_EXCLUSIVE_GROUP" desc="Heading for Dao-specific settings navigation items.">
++      Dao exclusive
++    </message>
++    <message name="IDS_SETTINGS_BROWSER_GROUP" desc="Heading for standard browser settings navigation items.">
++      Browser
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SETTINGS_TITLE" desc="Heading for Dao Agent settings.">
++      Dao Agent
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SETTINGS_DESCRIPTION" desc="Description of the unified Dao Agent settings area.">
++      Configure how the agent connects, behaves, searches, remembers, and learns.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_CONFIGURE_TITLE" desc="Title of the row that opens the complete Dao Agent settings page.">
++      Configure Dao Agent
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_CONFIGURE_DESCRIPTION" desc="Description of the row that opens the complete Dao Agent settings page.">
++      Open model, behavior, capabilities, learning, and data settings.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SUMMARY_UNAVAILABLE" desc="Compact status shown when a Dao Agent overview summary is unavailable.">
++      Unavailable
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_OVERVIEW_SEARCH_TERMS" desc="Search terms that keep moved Dao Agent settings discoverable from the settings overview.">
++      Provider, model, API key, session, personality, context, tools, search, memory, proactive suggestions, Dream, workspace, skills, and usage.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_MODEL_AND_CONNECTION" desc="Heading for the model and connection group on the Dao Agent settings page." meaning="Dao Agent model and connection group heading">
++      Model and connection
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_BEHAVIOR_AND_CONTEXT" desc="Heading for the behavior and context group on the Dao Agent settings page." meaning="Dao Agent behavior and context group heading">
++      Behavior and context
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_CAPABILITIES" desc="Heading for the capabilities group on the Dao Agent settings page." meaning="Dao Agent capabilities group heading">
++      Capabilities
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_LEARNING_AND_ANALYSIS" desc="Heading for the learning and analysis group on the Dao Agent settings page." meaning="Dao Agent learning and analysis group heading">
++      Learning and analysis
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_GROUP_DATA_AND_MANAGEMENT" desc="Heading for the data and management group on the Dao Agent settings page." meaning="Dao Agent data and management group heading">
++      Data and management
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SETTINGS_LOAD_ERROR" desc="Error shown when Dao Agent configuration cannot be loaded.">
++      Agent configuration could not be loaded. Retry to refresh it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MODEL_TITLE" desc="Heading for Dao Agent model connection settings.">
++      Model and connection
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MODEL_DESCRIPTION" desc="Description of Dao Agent model connection settings.">
++      Choose a provider and configure the model used for new conversations.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_LABEL" desc="Label for the Dao Agent model provider selector.">
++      Provider
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_OPENAI_COMPATIBLE" desc="Name of the OpenAI-compatible model provider option.">
++      OpenAI-compatible
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_OPENAI" desc="Name of the OpenAI model provider option.">
++      OpenAI
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_ANTHROPIC" desc="Name of the Anthropic model provider option.">
++      Anthropic
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_GOOGLE" desc="Name of the Google model provider option.">
++      Google
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_GROQ" desc="Name of the Groq model provider option.">
++      Groq
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_XAI" desc="Name of the xAI model provider option.">
++      xAI
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_OPENROUTER" desc="Name of the OpenRouter model provider option.">
++      OpenRouter
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MODEL_LABEL" desc="Label for the Dao Agent model name field.">
++      Model
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_API_KEY_LABEL" desc="Label for the Dao Agent API key field.">
++      API key
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_BASE_URL_LABEL" desc="Label for the Dao Agent API base URL field.">
++      Base URL
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SESSION_TITLE" desc="Heading for Dao Agent session and display settings.">
++      Session and display
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_RESUME_SESSION_LABEL" desc="Label for resuming the latest Dao Agent conversation.">
++      Resume the latest conversation
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_RESUME_HOURS_LABEL" desc="Label for the maximum age of a Dao Agent conversation to resume.">
++      Resume conversations newer than this many hours
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOL_DETAILS_LABEL" desc="Label for showing detailed Dao Agent tool calls.">
++      Show tool call details
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DEBUG_LABEL" desc="Label for Dao Agent debug output.">
++      Show debug information
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SOUL_TITLE" desc="Heading for the Dao Agent persona instructions.">
++      Agent persona
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SOUL_DESCRIPTION" desc="Description for the Dao Agent persona instructions field.">
++      Describe the personality, principles, and communication style the agent should follow.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_CONTEXT_TITLE" desc="Heading for Dao Agent context settings.">
++      Context
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PAGE_CONTEXT_LABEL" desc="Label for allowing Dao Agent to use current page context.">
++      Use the current page as context
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_CONVERSATION_LABEL" desc="Label for allowing Dao Agent to use conversation context.">
++      Use conversation context
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SEARCH_TITLE" desc="Heading for Dao Agent web search settings.">
++      Web search
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOLS_TITLE" desc="Heading for Dao Agent tool settings.">
++      Tools
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOLS_DESCRIPTION" desc="Description of the Dao Agent tool group controls.">
++      Choose which kinds of actions the agent can use.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOLS_PAGE" desc="Label for the Dao Agent page tool group.">
++      Page interaction
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOLS_TABS" desc="Label for the Dao Agent tab tool group.">
++      Tabs
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOLS_DEVTOOLS" desc="Label for the Dao Agent developer tool group.">
++      Developer tools
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOLS_MEMORY" desc="Label for the Dao Agent memory and skill tool group.">
++      Memory and skills
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOLS_WEB" desc="Label for the Dao Agent web tool group.">
++      Web
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TOOLS_WORKSPACE" desc="Label for the Dao Agent workspace tool group.">
++      Workspace
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_INDIVIDUAL_TOOLS" desc="Label for the expandable list of individual Dao Agent tool permissions.">
++      Individual tool permissions
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SEARCH_SOURCE_LABEL" desc="Label for the Dao Agent search source selector.">
++      Search source
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SEARCH_AUTO" desc="Automatic Dao Agent search source option.">
++      Automatic
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SEARCH_PROVIDER" desc="Model-provider Dao Agent search source option.">
++      Model provider
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SEARCH_DUCKDUCKGO" desc="DuckDuckGo Dao Agent search source option.">
++      DuckDuckGo
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_JINA_API_KEY_LABEL" desc="Label for the Jina API key field.">
++      Jina API key
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MEMORY_TITLE" desc="Heading for Dao Agent memory and proactive suggestion settings.">
++      Memory and proactive suggestions
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MEMORY_LABEL" desc="Label for enabling Dao Agent memory.">
++      Enable memory
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROACTIVE_LABEL" desc="Label for enabling proactive Dao Agent suggestions.">
++      Enable proactive suggestions
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_THRESHOLD_LABEL" desc="Label for Dao Agent proactive suggestion sensitivity.">
++      Suggestion sensitivity
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_THRESHOLD_CONSERVATIVE" desc="Conservative Dao Agent suggestion sensitivity option.">
++      Conservative
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_THRESHOLD_BALANCED" desc="Balanced Dao Agent suggestion sensitivity option.">
++      Balanced
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_THRESHOLD_PROACTIVE" desc="Proactive Dao Agent suggestion sensitivity option.">
++      Proactive
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_TITLE" desc="Heading for Dao Agent Dream analysis settings.">
++      Dream analysis
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_LABEL" desc="Label for enabling Dao Agent Dream analysis.">
++      Enable Dream analysis
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_DEBUG_LABEL" desc="Label for Dao Agent Dream debug output.">
++      Show Dream debug information
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_EXCLUDED_DOMAINS_LABEL" desc="Label for domains excluded from Dao Agent Dream analysis.">
++      Excluded domains, one per line
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DATA_TITLE" desc="Heading for Dao Agent skills and data links.">
++      Skills and data
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGE_SKILLS" desc="Link that opens the Dao Agent skill manager.">
++      Manage skills
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_INSPECT_MEMORY" desc="Link that opens the Dao Agent memory inspector.">
++      Inspect memory
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_OPEN_DREAM" desc="Link that opens Dao Agent Dream reports.">
++      Open Dream reports
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_TITLE" desc="Heading for Dao Agent data management cards.">
++      Data and management
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_TITLE" desc="Title of the Dao Agent memory management card." meaning="Dao Agent long-term memory card title">
++      Memory
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_TITLE" desc="Title of the Dao Agent workspace management card.">
++      Workspace
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_TITLE" desc="Title of the Dao Agent usage management card." meaning="Dao Agent usage statistics card title">
++      Usage
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CONVERSATIONS" desc="Label for the Dao Agent conversation memory count.">
++      Conversations
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_PREFERENCES" desc="Label for the Dao Agent preference memory count." meaning="Dao Agent stored preference count label">
++      Preferences
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_EPISODES" desc="Label for the Dao Agent episode memory count.">
++      Episodes
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_TOTAL_SIZE" desc="Label for the total size of Dao Agent memory.">
++      Total size
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_ROOT" desc="Label for the Dao Agent workspace root path.">
++      Root
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_STORAGE" desc="Label for Dao Agent workspace storage usage." meaning="Dao Agent workspace storage usage label">
++      Storage
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_FILES" desc="Label for the Dao Agent workspace file count." meaning="Dao Agent workspace file count label">
++      Files
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RECENT_ACTIVITY" desc="Heading for recent Dao Agent workspace activity." meaning="Dao Agent workspace recent activity heading">
++      Recent activity
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_API_CALLS" desc="Label for the Dao Agent API call count.">
++      API calls
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_TOOL_CALLS" desc="Label for Dao Agent tool call usage.">
++      Tool calls
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_PROMPT_TOKENS" desc="Label for the Dao Agent prompt token count.">
++      Prompt tokens
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_COMPLETION_TOKENS" desc="Label for the Dao Agent completion token count.">
++      Completion tokens
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_TOTAL_TOKENS" desc="Label for the Dao Agent total token count.">
++      Total tokens
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_ESTIMATED_COST" desc="Label for the estimated Dao Agent usage cost.">
++      Estimated cost
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_LAST_RESET" desc="Label for when Dao Agent usage was last reset.">
++      Last reset
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_LOADING" desc="Status shown while a Dao Agent management card loads.">
++      Loading…
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_ERROR" desc="Retry guidance shown when the Dao Agent memory summary cannot be loaded.">
++      Memory summary couldn't be loaded. Retry to refresh it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_ACTION_ERROR" desc="Action-specific failure shown when Dao Agent memory cannot be cleared.">
++      Memory couldn't be cleared. Try clearing memory again.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_REFRESH_ERROR" desc="Retry guidance shown when Dao Agent memory was cleared but its summary cannot be refreshed.">
++      Memory was cleared, but the summary couldn't be refreshed. Retry to load it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_ERROR" desc="Retry guidance shown when the Dao Agent workspace summary cannot be loaded.">
++      Workspace summary couldn't be loaded. Retry to refresh it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_ACTION_ERROR" desc="Action-specific failure shown when the Dao Agent workspace cannot be opened.">
++      Workspace couldn't be opened. Try opening the workspace again.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_ERROR" desc="Retry guidance shown when the Dao Agent usage summary cannot be loaded.">
++      Usage summary couldn't be loaded. Retry to refresh it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_ACTION_ERROR" desc="Action-specific failure shown when Dao Agent usage cannot be reset.">
++      Usage couldn't be reset. Try resetting usage again.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_REFRESH_ERROR" desc="Retry guidance shown when Dao Agent usage was reset but its summary cannot be refreshed.">
++      Usage was reset, but the summary couldn't be refreshed. Retry to load it.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RETRY" desc="Button that retries loading a Dao Agent management card." meaning="Dao Agent management retry action">
++      Retry
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY" desc="Button that opens the clear Dao Agent memory confirmation.">
++      Clear memory
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_OPEN_WORKSPACE" desc="Button that opens the Dao Agent workspace.">
++      Open workspace
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE" desc="Button that opens the reset Dao Agent usage confirmation.">
++      Reset usage
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_DIALOG_TITLE" desc="Title of the clear Dao Agent memory confirmation dialog.">
++      Clear all memory?
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_DIALOG_DESCRIPTION" desc="Description of the permanent effect of clearing Dao Agent memory.">
++      This permanently deletes all conversation memories, preferences, and episodes. This can't be undone.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_CANCEL" desc="Button that cancels clearing Dao Agent memory." meaning="Dao Agent management dialog cancel action">
++      Cancel
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_CLEAR_MEMORY_CONFIRM" desc="Button that confirms clearing Dao Agent memory.">
++      Clear memory
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE_DIALOG_TITLE" desc="Title of the reset Dao Agent usage confirmation dialog.">
++      Reset usage statistics?
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE_DIALOG_DESCRIPTION" desc="Description of the effect of resetting Dao Agent usage.">
++      This sets all API, tool, and token counts to zero.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE_CANCEL" desc="Button that cancels resetting Dao Agent usage." meaning="Dao Agent management dialog cancel action">
++      Cancel
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_RESET_USAGE_CONFIRM" desc="Button that confirms resetting Dao Agent usage.">
++      Reset usage
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_NO_RECENT_ACTIVITY" desc="Empty state for Dao Agent workspace recent activity.">
++      No recent activity
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_NO_TOOL_CALLS" desc="Empty state for Dao Agent tool usage.">
++      No tool calls
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_MEMORY_CLEARED" desc="Status shown after Dao Agent memory is cleared.">
++      Memory cleared
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_WORKSPACE_OPENED" desc="Status shown after the Dao Agent workspace is opened.">
++      Workspace opened
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_USAGE_RESET" desc="Status shown after Dao Agent usage is reset.">
++      Usage reset
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_MANAGEMENT_ACTIVITY_LABEL" desc="Accessible label combining a Dao Agent workspace operation and its full path.">
++      Operation <ph name="OPERATION">$1<ex>read</ex></ph>, path <ph name="PATH">$2<ex>notes/example.md</ex></ph>
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_MCP_SERVER_TITLE" desc="Heading for Dao Browser's Model Context Protocol server settings.">
 +      MCP server
@@ -304,7 +649,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
      <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
        Google Profile photo
      </message>
-@@ -4473,40 +4605,40 @@
+@@ -4473,40 +4935,40 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS_POLICY" desc="Subtitle of the passwords card in SafetyHub when there are no saved passwords and saving of passwords is disabled through enterprise policy. This text is shown below the header 'No saved passwords'. It explains that the SafetyHub features for passwords are not available since the user's organization has a policy in place that prevents the user from saving passwords in Chrome.">
        Your organization turned off saving passwords
      </message>
@@ -357,7 +702,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Go to notification settings
      </message>
      <message name="IDS_SETTINGS_SAFETY_HUB_USER_EDU_INCOGNITO_SUBHEADER" desc="The subheader of the second item in the 'User Education Module' in the Safety Hub page. This item explains Incognito mode.">
-@@ -4516,21 +4648,21 @@
+@@ -4516,21 +4978,21 @@
        Safe Browsing
      </message>
      <if expr="not is_chromeos">
@@ -383,7 +728,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        {NUM_SITES, plural,
         =1 {You can stop this site from sending future notifications.}
         other {You can stop these sites from sending future notifications.}}
-@@ -4558,31 +4690,31 @@
+@@ -4558,31 +5020,31 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MENU_NOTIFICATION" desc="When Safe Browsing is disabled, the proactive Safety Hub feature encourages users to turn on the feature. This label is for the notification in Chrome's three-dot menu.">
        Safe Browsing is off
      </message>

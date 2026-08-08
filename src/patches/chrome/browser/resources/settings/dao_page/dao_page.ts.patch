@@ -3,14 +3,14 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,360 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
 +
 +/**
 + * @fileoverview
-+ * 'settings-dao-page' contains Dao-specific browser settings.
++ * 'settings-dao-page' contains the Dao settings overview.
 + */
 +import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 +import '../controls/settings_toggle_button.js';
@@ -207,6 +207,7 @@ index 0000000000..0000000001
 +  private daoMcpCopyRequest_ = 0;
 +  private daoMcpBrowserProxy_: DaoMcpBrowserProxy =
 +      DaoMcpBrowserProxyImpl.getInstance();
++
 +
 +  override connectedCallback() {
 +    super.connectedCallback();

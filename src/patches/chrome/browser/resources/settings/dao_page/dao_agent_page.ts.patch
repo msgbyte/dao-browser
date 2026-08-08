@@ -1,0 +1,817 @@
+diff --git a/chrome/browser/resources/settings/dao_page/dao_agent_page.ts b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
+@@ -0,0 +1,811 @@
++// Copyright 2026 Dao Browser Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++/**
++ * @fileoverview
++ * 'settings-dao-agent-page' contains the detailed Dao Agent settings.
++ */
++import 'chrome://resources/cr_elements/cr_button/cr_button.js';
++import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
++import 'chrome://resources/cr_elements/cr_input/cr_input.js';
++import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
++import '../settings_page/settings_section.js';
++import '../settings_shared.css.js';
++
++import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
++import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
++import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
++
++import {loadTimeData} from '../i18n_setup.js';
++import {getSearchManager} from '../search_settings.js';
++import type {SearchResult} from '../search_settings.js';
++import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
++
++import {
++  AGENT_PROVIDER_DEFAULTS,
++  AGENT_TOOL_GROUPS,
++  DaoAgentSettingsBrowserProxyImpl,
++  isDaoAgentMemorySummary,
++  isDaoAgentWorkspaceSummary,
++} from './dao_agent_settings_browser_proxy.js';
++import type {
++  DaoAgentMemorySummary,
++  DaoAgentSettingsBrowserProxy,
++  DaoAgentSettingsSnapshot,
++  DaoAgentUsageStats,
++  DaoAgentWorkspaceSummary,
++} from './dao_agent_settings_browser_proxy.js';
++import {getTemplate} from './dao_agent_page.html.js';
++
++export interface SettingsDaoAgentPageElement {
++  prefs: {[key: string]: any};
++}
++
++const SettingsDaoAgentPageElementBase = WebUiListenerMixin(PolymerElement);
++
++export class SettingsDaoAgentPageElement extends
++    SettingsDaoAgentPageElementBase implements SettingsPlugin {
++  static get is() {
++    return 'settings-dao-agent-page';
++  }
++
++  static get template() {
++    return getTemplate();
++  }
++
++  static get properties() {
++    return {
++      prefs: {
++        type: Object,
++        notify: true,
++      },
++      agentSettingsReady_: {type: Boolean, value: false},
++      agentSettingsLoading_: {type: Boolean, value: false},
++      agentSettingsError_: {type: Boolean, value: false},
++      agentActiveProvider_: {type: String, value: 'openai-compatible'},
++      agentApiKey_: {type: String, value: ''},
++      agentBaseUrl_: {type: String, value: 'https://api.openai.com/v1'},
++      agentModel_: {type: String, value: 'gpt-5'},
++      agentSoul_: {type: String, value: ''},
++      agentShowToolDetails_: {type: Boolean, value: false},
++      agentDebugMode_: {type: Boolean, value: false},
++      agentResumeLastSession_: {type: Boolean, value: true},
++      agentResumeStaleHours_: {type: String, value: '3'},
++      agentProactiveEnabled_: {type: Boolean, value: true},
++      agentPageContextEnabled_: {type: Boolean, value: true},
++      agentConversationEnabled_: {type: Boolean, value: true},
++      agentMemoryEnabled_: {type: Boolean, value: true},
++      agentDreamEnabled_: {type: Boolean, value: true},
++      agentDreamDebug_: {type: Boolean, value: false},
++      agentProactiveThreshold_: {type: String, value: 'balanced'},
++      agentSearchSource_: {type: String, value: 'auto'},
++      agentJinaApiKey_: {type: String, value: ''},
++      agentDreamExcludedDomains_: {type: String, value: ''},
++      agentPageToolsEnabled_: {type: Boolean, value: true},
++      agentTabToolsEnabled_: {type: Boolean, value: true},
++      agentDevToolsEnabled_: {type: Boolean, value: true},
++      agentMemoryToolsEnabled_: {type: Boolean, value: true},
++      agentWebToolsEnabled_: {type: Boolean, value: true},
++      agentWorkspaceToolsEnabled_: {type: Boolean, value: true},
++      agentToolNames_: {
++        type: Array,
++        value: () => Object.values(AGENT_TOOL_GROUPS).flat(),
++      },
++      memorySummary_: {type: Object, value: null},
++      memoryLoading_: {type: Boolean, value: false},
++      memoryError_: {type: Boolean, value: false},
++      clearMemoryPending_: {type: Boolean, value: false},
++      memoryActionSucceeded_: {type: Boolean, value: false},
++      memoryActionError_: {type: Boolean, value: false},
++      workspaceSummary_: {type: Object, value: null},
++      workspaceLoading_: {type: Boolean, value: false},
++      workspaceError_: {type: Boolean, value: false},
++      workspaceActionSucceeded_: {type: Boolean, value: false},
++      workspaceActionError_: {type: Boolean, value: false},
++      usageStats_: {type: Object, value: null},
++      usageLoading_: {type: Boolean, value: false},
++      usageError_: {type: Boolean, value: false},
++      resetUsagePending_: {type: Boolean, value: false},
++      usageActionSucceeded_: {type: Boolean, value: false},
++      usageActionError_: {type: Boolean, value: false},
++    };
++  }
++
++  declare prefs: {[key: string]: any};
++  private agentSettingsBrowserProxy_: DaoAgentSettingsBrowserProxy =
++      DaoAgentSettingsBrowserProxyImpl.getInstance();
++  private agentSettingsValues_: Record<string, string> = {};
++  private optimisticDisabledTools_ = new Set<string>();
++  private disabledToolsWritePromise_: Promise<void> = Promise.resolve();
++  private disabledToolsMutationGeneration_ = 0;
++  private disabledToolsWritesPending_ = 0;
++  private preserveOptimisticDisabledTools_ = false;
++  private memorySummaryRequestGeneration_ = 0;
++  private workspaceSummaryRequestGeneration_ = 0;
++  private usageStatsRequestGeneration_ = 0;
++  private clearMemoryInvoker_: HTMLElement|null = null;
++  private resetUsageInvoker_: HTMLElement|null = null;
++
++  override connectedCallback() {
++    super.connectedCallback();
++    this.addWebUiListener(
++        'dao-agent-settings-changed',
++        (snapshot: DaoAgentSettingsSnapshot) =>
++            this.updateAgentSettings_(snapshot));
++    void this.loadAgentSettings_();
++    this.addWebUiListener(
++        'dao-agent-usage-stats-changed',
++        (stats: DaoAgentUsageStats) => this.updateUsageStats_(stats));
++    void this.loadMemorySummary_();
++    void this.loadWorkspaceSummary_();
++    void this.loadUsageStats_();
++  }
++
++  async searchContents(query: string): Promise<SearchResult> {
++    const searchRequest = await getSearchManager().search(query, this);
++    return searchRequest.getSearchResult();
++  }
++
++  declare private agentSettingsReady_: boolean;
++  declare private agentSettingsLoading_: boolean;
++  declare private agentSettingsError_: boolean;
++  declare private agentActiveProvider_: string;
++  declare private agentApiKey_: string;
++  declare private agentBaseUrl_: string;
++  declare private agentModel_: string;
++  declare private agentSoul_: string;
++  declare private agentShowToolDetails_: boolean;
++  declare private agentDebugMode_: boolean;
++  declare private agentResumeLastSession_: boolean;
++  declare private agentResumeStaleHours_: string;
++  declare private agentProactiveEnabled_: boolean;
++  declare private agentPageContextEnabled_: boolean;
++  declare private agentConversationEnabled_: boolean;
++  declare private agentMemoryEnabled_: boolean;
++  declare private agentDreamEnabled_: boolean;
++  declare private agentDreamDebug_: boolean;
++  declare private agentProactiveThreshold_: string;
++  declare private agentSearchSource_: string;
++  declare private agentJinaApiKey_: string;
++  declare private agentDreamExcludedDomains_: string;
++  declare private agentPageToolsEnabled_: boolean;
++  declare private agentTabToolsEnabled_: boolean;
++  declare private agentDevToolsEnabled_: boolean;
++  declare private agentMemoryToolsEnabled_: boolean;
++  declare private agentWebToolsEnabled_: boolean;
++  declare private agentWorkspaceToolsEnabled_: boolean;
++  declare private agentToolNames_: string[];
++  declare private memorySummary_: DaoAgentMemorySummary|null;
++  declare private memoryLoading_: boolean;
++  declare private memoryError_: boolean;
++  declare private clearMemoryPending_: boolean;
++  declare private memoryActionSucceeded_: boolean;
++  declare private memoryActionError_: boolean;
++  declare private workspaceSummary_: DaoAgentWorkspaceSummary|null;
++  declare private workspaceLoading_: boolean;
++  declare private workspaceError_: boolean;
++  declare private workspaceActionSucceeded_: boolean;
++  declare private workspaceActionError_: boolean;
++  declare private usageStats_: DaoAgentUsageStats|null;
++  declare private usageLoading_: boolean;
++  declare private usageError_: boolean;
++  declare private resetUsagePending_: boolean;
++  declare private usageActionSucceeded_: boolean;
++  declare private usageActionError_: boolean;
++
++  get memorySummaryForTest(): DaoAgentMemorySummary|null {
++    return this.memorySummary_;
++  }
++
++  get memoryLoadingForTest(): boolean {
++    return this.memoryLoading_;
++  }
++
++  get memoryErrorForTest(): boolean {
++    return this.memoryError_;
++  }
++
++  get clearMemoryPendingForTest(): boolean {
++    return this.clearMemoryPending_;
++  }
++
++  get memoryActionErrorForTest(): boolean {
++    return this.memoryActionError_;
++  }
++
++  get workspaceSummaryForTest(): DaoAgentWorkspaceSummary|null {
++    return this.workspaceSummary_;
++  }
++
++  get workspaceLoadingForTest(): boolean {
++    return this.workspaceLoading_;
++  }
++
++  get workspaceErrorForTest(): boolean {
++    return this.workspaceError_;
++  }
++
++  get usageStatsForTest(): DaoAgentUsageStats|null {
++    return this.usageStats_;
++  }
++
++  get usageLoadingForTest(): boolean {
++    return this.usageLoading_;
++  }
++
++  get usageErrorForTest(): boolean {
++    return this.usageError_;
++  }
++
++  get resetUsagePendingForTest(): boolean {
++    return this.resetUsagePending_;
++  }
++
++  get usageActionErrorForTest(): boolean {
++    return this.usageActionError_;
++  }
++
++  private async loadMemorySummary_(): Promise<void> {
++    const generation = ++this.memorySummaryRequestGeneration_;
++    this.memoryLoading_ = true;
++    this.memoryError_ = false;
++    try {
++      const summary = await this.agentSettingsBrowserProxy_.getMemorySummary();
++      if (!isDaoAgentMemorySummary(summary)) {
++        throw new Error();
++      }
++      if (generation === this.memorySummaryRequestGeneration_) {
++        this.memorySummary_ = summary;
++      }
++    } catch {
++      if (generation === this.memorySummaryRequestGeneration_) {
++        this.memoryError_ = true;
++      }
++    } finally {
++      if (generation === this.memorySummaryRequestGeneration_) {
++        this.memoryLoading_ = false;
++      }
++    }
++  }
++
++  private async loadWorkspaceSummary_(): Promise<void> {
++    const generation = ++this.workspaceSummaryRequestGeneration_;
++    this.workspaceLoading_ = true;
++    this.workspaceError_ = false;
++    try {
++      const summary =
++          await this.agentSettingsBrowserProxy_.getWorkspaceSummary();
++      if (!isDaoAgentWorkspaceSummary(summary)) {
++        throw new Error();
++      }
++      if (generation === this.workspaceSummaryRequestGeneration_) {
++        this.workspaceSummary_ = summary;
++      }
++    } catch {
++      if (generation === this.workspaceSummaryRequestGeneration_) {
++        this.workspaceError_ = true;
++      }
++    } finally {
++      if (generation === this.workspaceSummaryRequestGeneration_) {
++        this.workspaceLoading_ = false;
++      }
++    }
++  }
++
++  private async loadUsageStats_(): Promise<void> {
++    const generation = ++this.usageStatsRequestGeneration_;
++    this.usageLoading_ = true;
++    this.usageError_ = false;
++    try {
++      const stats = await this.agentSettingsBrowserProxy_.getUsageStats();
++      if (generation === this.usageStatsRequestGeneration_) {
++        this.usageStats_ = {...stats, toolCalls: {...stats.toolCalls}};
++      }
++    } catch {
++      if (generation === this.usageStatsRequestGeneration_) {
++        this.usageError_ = true;
++      }
++    } finally {
++      if (generation === this.usageStatsRequestGeneration_) {
++        this.usageLoading_ = false;
++      }
++    }
++  }
++
++  private updateUsageStats_(stats: DaoAgentUsageStats): void {
++    ++this.usageStatsRequestGeneration_;
++    this.usageStats_ = {...stats, toolCalls: {...stats.toolCalls}};
++    this.usageLoading_ = false;
++    this.usageError_ = false;
++  }
++
++  private onRetryMemory_(): void {
++    void this.loadMemorySummary_();
++  }
++
++  private onRetryWorkspace_(): void {
++    void this.loadWorkspaceSummary_();
++  }
++
++  private onRetryUsage_(): void {
++    void this.loadUsageStats_();
++  }
++
++  private getManagementDialog_(id: string): CrDialogElement {
++    return this.shadowRoot!.querySelector<CrDialogElement>(`#${id}`)!;
++  }
++
++  private closeManagementDialog_(
++      dialog: CrDialogElement, invoker: HTMLElement|null): void {
++    if (dialog.open) {
++      dialog.close();
++    }
++    invoker?.focus();
++  }
++
++  private onClearMemory_(event: Event): void {
++    this.memoryActionSucceeded_ = false;
++    this.memoryActionError_ = false;
++    this.clearMemoryInvoker_ = event.currentTarget as HTMLElement;
++    this.getManagementDialog_('clearAllMemoryDialog').showModal();
++  }
++
++  private onClearMemoryDialogClose_(): void {
++    this.clearMemoryInvoker_?.focus();
++    this.clearMemoryInvoker_ = null;
++  }
++
++  private onCancelClearMemory_(): void {
++    if (this.clearMemoryPending_) {
++      return;
++    }
++    this.closeManagementDialog_(
++        this.getManagementDialog_('clearAllMemoryDialog'),
++        this.clearMemoryInvoker_);
++    this.clearMemoryInvoker_ = null;
++  }
++
++  private async onConfirmClearMemory_(): Promise<void> {
++    if (this.clearMemoryPending_) {
++      return;
++    }
++    this.clearMemoryPending_ = true;
++    try {
++      if (await this.agentSettingsBrowserProxy_.clearAllMemory()) {
++        this.memoryActionSucceeded_ = true;
++        this.memoryActionError_ = false;
++        this.memoryError_ = false;
++        void this.loadMemorySummary_();
++      } else {
++        this.memoryActionSucceeded_ = false;
++        this.memoryActionError_ = true;
++      }
++    } catch {
++      this.memoryActionSucceeded_ = false;
++      this.memoryActionError_ = true;
++    } finally {
++      this.clearMemoryPending_ = false;
++      this.closeManagementDialog_(
++          this.getManagementDialog_('clearAllMemoryDialog'),
++          this.clearMemoryInvoker_);
++      this.clearMemoryInvoker_ = null;
++    }
++  }
++
++  private async onOpenWorkspace_(): Promise<void> {
++    this.workspaceActionSucceeded_ = false;
++    this.workspaceActionError_ = false;
++    try {
++      if (await this.agentSettingsBrowserProxy_.openWorkspace()) {
++        this.workspaceActionSucceeded_ = true;
++      } else {
++        this.workspaceActionError_ = true;
++      }
++    } catch {
++      this.workspaceActionError_ = true;
++    }
++  }
++
++  private onResetUsage_(event: Event): void {
++    this.usageActionSucceeded_ = false;
++    this.usageActionError_ = false;
++    this.resetUsageInvoker_ = event.currentTarget as HTMLElement;
++    this.getManagementDialog_('resetUsageStatsDialog').showModal();
++  }
++
++  private onResetUsageDialogClose_(): void {
++    this.resetUsageInvoker_?.focus();
++    this.resetUsageInvoker_ = null;
++  }
++
++  private onCancelResetUsage_(): void {
++    if (this.resetUsagePending_) {
++      return;
++    }
++    this.closeManagementDialog_(
++        this.getManagementDialog_('resetUsageStatsDialog'),
++        this.resetUsageInvoker_);
++    this.resetUsageInvoker_ = null;
++  }
++
++  private async onConfirmResetUsage_(): Promise<void> {
++    if (this.resetUsagePending_) {
++      return;
++    }
++    this.resetUsagePending_ = true;
++    try {
++      if (await this.agentSettingsBrowserProxy_.resetUsageStats()) {
++        this.usageActionSucceeded_ = true;
++        this.usageActionError_ = false;
++        this.usageError_ = false;
++        void this.loadUsageStats_();
++      } else {
++        this.usageActionSucceeded_ = false;
++        this.usageActionError_ = true;
++      }
++    } catch {
++      this.usageActionSucceeded_ = false;
++      this.usageActionError_ = true;
++    } finally {
++      this.resetUsagePending_ = false;
++      this.closeManagementDialog_(
++          this.getManagementDialog_('resetUsageStatsDialog'),
++          this.resetUsageInvoker_);
++      this.resetUsageInvoker_ = null;
++    }
++  }
++
++  private formatBytes_(bytes: number): string {
++    const units = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'];
++    const safeBytes = Number.isFinite(bytes) ? Math.max(0, bytes) : 0;
++    const unitIndex = safeBytes === 0 ? 0 : Math.min(
++        Math.floor(Math.log(safeBytes) / Math.log(1024)), units.length - 1);
++    const value = safeBytes / 1024 ** unitIndex;
++    return new Intl.NumberFormat(undefined, {
++      style: 'unit',
++      unit: units[unitIndex],
++      unitDisplay: 'short',
++      maximumFractionDigits: unitIndex === 0 ? 0 : 1,
++    }).format(value);
++  }
++
++  private formatInteger_(value: number): string {
++    return new Intl.NumberFormat(undefined, {
++      maximumFractionDigits: 0,
++    }).format(value);
++  }
++
++  private formatCost_(value: number): string {
++    return new Intl.NumberFormat(undefined, {
++      style: 'currency',
++      currency: 'USD',
++      minimumFractionDigits: 2,
++      maximumFractionDigits: 6,
++    }).format(value);
++  }
++
++  private formatTimestamp_(value: number|string): string {
++    return new Intl.DateTimeFormat(undefined, {
++      dateStyle: 'medium',
++      timeStyle: 'short',
++    }).format(new Date(value));
++  }
++
++  private formatActivityLabel_(operation: string, path: string): string {
++    return loadTimeData.getStringF(
++        'daoAgentManagementActivityLabel', operation, path);
++  }
++
++  private showInitialLoading_(loading: boolean, data: unknown): boolean {
++    return loading && !data;
++  }
++
++  private showSummaryLoadError_(
++      error: boolean, actionSucceeded: boolean): boolean {
++    return error && !actionSucceeded;
++  }
++
++  private showSummaryRefreshError_(
++      error: boolean, actionSucceeded: boolean): boolean {
++    return error && actionSucceeded;
++  }
++
++  private showActionSuccess_(
++      actionSucceeded: boolean, summaryError: boolean): boolean {
++    return actionSucceeded && !summaryError;
++  }
++
++  private getUsageToolEntries_(stats: DaoAgentUsageStats|null): Array<{
++    name: string,
++    count: number,
++  }> {
++    return stats ? Object.entries(stats.toolCalls)
++                       .map(([name, count]) => ({name, count}))
++                       .sort((a, b) => b.count - a.count) :
++                   [];
++  }
++
++  private getUsageToolCallCount_(stats: DaoAgentUsageStats|null): string {
++    const count = stats ?
++        Object.values(stats.toolCalls).reduce((sum, value) => sum + value, 0) :
++        0;
++    return this.formatInteger_(count);
++  }
++
++  private hasUsageToolEntries_(stats: DaoAgentUsageStats|null): boolean {
++    return this.getUsageToolEntries_(stats).length > 0;
++  }
++
++  private hasNoUsageToolEntries_(stats: DaoAgentUsageStats|null): boolean {
++    return !this.hasUsageToolEntries_(stats);
++  }
++
++  private async loadAgentSettings_(): Promise<void> {
++    this.agentSettingsLoading_ = true;
++    this.agentSettingsError_ = false;
++    this.agentSettingsReady_ = false;
++    try {
++      const snapshot = await this.agentSettingsBrowserProxy_.getSettings();
++      this.updateAgentSettings_(snapshot);
++    } catch {
++      this.agentSettingsError_ = true;
++    } finally {
++      this.agentSettingsLoading_ = false;
++    }
++  }
++
++  private onRetryAgentSettings_(): void {
++    void this.loadAgentSettings_();
++  }
++
++  private readAgentBoolean_(key: string, fallback: boolean): boolean {
++    const value = this.agentSettingsValues_[key];
++    return value === undefined ? fallback : value === 'true';
++  }
++
++  private getAgentProviders_(): Record<string, {
++    apiKey: string, baseUrl: string, model: string,
++  }> {
++    try {
++      const parsed = JSON.parse(
++          this.agentSettingsValues_['dao_agent_providers'] || '{}');
++      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ?
++          parsed : {};
++    } catch {
++      return {};
++    }
++  }
++
++  private updateActiveAgentProviderFields_() {
++    const provider = this.getAgentProviders_()[this.agentActiveProvider_];
++    const defaults = AGENT_PROVIDER_DEFAULTS[this.agentActiveProvider_] ||
++        AGENT_PROVIDER_DEFAULTS['openai-compatible'];
++    this.agentApiKey_ = provider?.apiKey || '';
++    this.agentBaseUrl_ = provider?.baseUrl || defaults.baseUrl;
++    this.agentModel_ = provider?.model || defaults.model;
++  }
++
++  private parseDisabledTools_(value: string|undefined): Set<string> {
++    try {
++      const parsed = JSON.parse(value || '[]');
++      return Array.isArray(parsed) ?
++          new Set(parsed.filter(
++              (tool: unknown): tool is string => typeof tool === 'string')) :
++          new Set<string>();
++    } catch {
++      return new Set<string>();
++    }
++  }
++
++  private serializeDisabledTools_(): string {
++    return JSON.stringify([...this.optimisticDisabledTools_].sort());
++  }
++
++  private updateAgentSettings_(
++      snapshot: DaoAgentSettingsSnapshot, forceDisabledTools = false) {
++    const snapshotDisabledTools =
++        this.parseDisabledTools_(snapshot.values['dao_disabled_tools']);
++    if (forceDisabledTools || !this.preserveOptimisticDisabledTools_) {
++      this.optimisticDisabledTools_ = snapshotDisabledTools;
++    }
++    const disabledTools = this.preserveOptimisticDisabledTools_ &&
++            !forceDisabledTools ?
++        this.optimisticDisabledTools_ : snapshotDisabledTools;
++    this.agentSettingsValues_ = {
++      ...snapshot.values,
++      dao_disabled_tools: JSON.stringify([...disabledTools].sort()),
++    };
++    this.agentActiveProvider_ =
++        this.agentSettingsValues_['dao_agent_active_provider'] ||
++        'openai-compatible';
++    this.updateActiveAgentProviderFields_();
++    this.agentSoul_ = this.agentSettingsValues_['dao_agent_soul'] || '';
++    this.agentShowToolDetails_ =
++        this.readAgentBoolean_('dao_tool_call_show_details', false);
++    this.agentDebugMode_ =
++        this.readAgentBoolean_('dao_agent_debug_mode', false);
++    this.agentResumeLastSession_ =
++        this.readAgentBoolean_('dao_resume_last_session', true);
++    this.agentResumeStaleHours_ =
++        snapshot.values['dao_resume_stale_hours'] || '3';
++    this.agentProactiveEnabled_ =
++        this.readAgentBoolean_('dao_proactive_enabled', true);
++    this.agentPageContextEnabled_ =
++        this.readAgentBoolean_('dao_page_context_enabled', true);
++    this.agentConversationEnabled_ =
++        this.readAgentBoolean_('dao_conversation_enabled', true);
++    this.agentMemoryEnabled_ =
++        this.readAgentBoolean_('dao_agent_memory_enabled', true);
++    this.agentDreamEnabled_ =
++        this.readAgentBoolean_('dao_dream_enabled', true);
++    this.agentDreamDebug_ =
++        this.readAgentBoolean_('dao_dream_debug', false);
++    this.agentProactiveThreshold_ =
++        this.agentSettingsValues_['dao_proactive_threshold'] || 'balanced';
++    this.agentSearchSource_ =
++        this.agentSettingsValues_['dao_search_source'] || 'auto';
++    this.agentJinaApiKey_ =
++        this.agentSettingsValues_['dao_jina_api_key'] || '';
++    const groupEnabled = (group: string) =>
++        AGENT_TOOL_GROUPS[group].some(tool => !disabledTools.has(tool));
++    this.agentPageToolsEnabled_ = groupEnabled('page');
++    this.agentTabToolsEnabled_ = groupEnabled('tabs');
++    this.agentDevToolsEnabled_ = groupEnabled('devtools');
++    this.agentMemoryToolsEnabled_ = groupEnabled('memory');
++    this.agentWebToolsEnabled_ = groupEnabled('web');
++    this.agentWorkspaceToolsEnabled_ = groupEnabled('workspace');
++    try {
++      const domains = JSON.parse(
++          this.agentSettingsValues_['dao_dream_excluded_domains'] || '[]');
++      this.agentDreamExcludedDomains_ = Array.isArray(domains) ?
++          domains.join('\n') : '';
++    } catch {
++      this.agentDreamExcludedDomains_ = '';
++    }
++    this.agentSettingsReady_ = true;
++    this.agentSettingsError_ = false;
++  }
++
++  private queueDisabledToolsWrite_(): void {
++    const value = this.serializeDisabledTools_();
++    const generation = ++this.disabledToolsMutationGeneration_;
++    ++this.disabledToolsWritesPending_;
++    this.preserveOptimisticDisabledTools_ = true;
++    this.agentSettingsValues_ = {
++      ...this.agentSettingsValues_,
++      dao_disabled_tools: value,
++    };
++
++    this.disabledToolsWritePromise_ =
++        this.disabledToolsWritePromise_.then(async () => {
++          try {
++            await this.agentSettingsBrowserProxy_.setSetting(
++                'dao_disabled_tools', value);
++          } catch {
++          }
++          --this.disabledToolsWritesPending_;
++          if (this.disabledToolsWritesPending_ !== 0) {
++            return;
++          }
++
++          try {
++            const snapshot =
++                await this.agentSettingsBrowserProxy_.getSettings();
++            if (generation === this.disabledToolsMutationGeneration_ &&
++                this.disabledToolsWritesPending_ === 0) {
++              this.preserveOptimisticDisabledTools_ = false;
++              this.updateAgentSettings_(snapshot, true);
++            }
++          } catch {
++            if (generation === this.disabledToolsMutationGeneration_ &&
++                this.disabledToolsWritesPending_ === 0) {
++              this.agentSettingsReady_ = false;
++              this.agentSettingsError_ = true;
++            }
++          }
++        });
++  }
++
++  private async setAgentSetting_(key: string, value: string|null) {
++    const accepted = await this.agentSettingsBrowserProxy_.setSetting(
++        key, value);
++    if (accepted && value !== null) {
++      this.agentSettingsValues_ = {...this.agentSettingsValues_, [key]: value};
++    }
++  }
++
++  private onAgentBooleanSettingChange_(event: Event) {
++    const target = event.currentTarget as HTMLElement & {checked: boolean};
++    const key = target.dataset['setting'];
++    if (key) {
++      void this.setAgentSetting_(key, String(target.checked));
++    }
++  }
++
++  private onAgentTextSettingChange_(event: Event) {
++    const target = event.currentTarget as HTMLInputElement;
++    const key = target.dataset['setting'];
++    if (key) {
++      void this.setAgentSetting_(key, target.value);
++    }
++  }
++
++  private onAgentProviderChange_(event: Event) {
++    this.agentActiveProvider_ =
++        (event.currentTarget as HTMLSelectElement).value;
++    void this.setAgentSetting_(
++        'dao_agent_active_provider', this.agentActiveProvider_);
++    this.updateActiveAgentProviderFields_();
++  }
++
++  private onAgentProviderFieldChange_() {
++    const providers = this.getAgentProviders_();
++    providers[this.agentActiveProvider_] = {
++      apiKey: this.agentApiKey_,
++      baseUrl: this.agentBaseUrl_,
++      model: this.agentModel_,
++    };
++    void this.setAgentSetting_(
++        'dao_agent_providers', JSON.stringify(providers));
++  }
++
++  private onAgentDreamDomainsChange_() {
++    const domains = this.agentDreamExcludedDomains_.split('\n')
++                        .map(domain => domain.trim())
++                        .filter(Boolean);
++    void this.setAgentSetting_(
++        'dao_dream_excluded_domains', JSON.stringify(domains));
++  }
++
++  private onAgentToolGroupChange_(event: Event) {
++    const target = event.currentTarget as HTMLElement & {checked: boolean};
++    const group = target.dataset['toolGroup'];
++    const tools = group ? AGENT_TOOL_GROUPS[group] : undefined;
++    if (!tools) {
++      return;
++    }
++    for (const tool of tools) {
++      if (target.checked) {
++        this.optimisticDisabledTools_.delete(tool);
++      } else {
++        this.optimisticDisabledTools_.add(tool);
++      }
++    }
++    this.queueDisabledToolsWrite_();
++  }
++
++  private isAgentToolEnabled_(
++      tool: string, values: Record<string, string>): boolean {
++    try {
++      const parsed = JSON.parse(values['dao_disabled_tools'] || '[]');
++      return !Array.isArray(parsed) || !parsed.includes(tool);
++    } catch {
++      return true;
++    }
++  }
++
++  private onAgentToolChange_(event: Event) {
++    const target = event.currentTarget as HTMLElement & {checked: boolean};
++    const tool = target.dataset['toolName'];
++    if (!tool) {
++      return;
++    }
++    if (target.checked) {
++      this.optimisticDisabledTools_.delete(tool);
++    } else {
++      this.optimisticDisabledTools_.add(tool);
++    }
++    this.queueDisabledToolsWrite_();
++  }
++
++}
++
++declare global {
++  interface HTMLElementTagNameMap {
++    'settings-dao-agent-page': SettingsDaoAgentPageElement;
++  }
++}
++
++customElements.define(
++    SettingsDaoAgentPageElement.is, SettingsDaoAgentPageElement);

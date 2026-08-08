@@ -1,0 +1,41 @@
+diff --git a/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts b/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
+--- a/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
++++ b/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
+@@ -275,9 +275,9 @@ export class SettingsPrivacyPageIndexElement extends
+         }
+         // </if>
+ 
+-        // Display the default views if in search mode, since they could be part
+-        // of search results.
+-        return this.inSearchMode ? this.getDefaultViews_() : [];
++        // Dao's BASIC route is a continuous overview, so Privacy's root views
++        // must participate even when Settings is not searching.
++        return this.getDefaultViews_();
+       default: {
+         // Handle case of routes whose UIs are still hosted within
+         // settings-privacy-page.
+@@ -356,9 +356,10 @@ export class SettingsPrivacyPageIndexElement extends
+     return visibility !== false;
+   }
+ 
+   private renderView_(route: Route): boolean {
+-    return this.inSearchMode ||
+-        (!!this.currentRoute && this.currentRoute === route);
++    return this.inSearchMode || (!!this.currentRoute &&
++        (this.currentRoute === route ||
++         (this.currentRoute === routes.BASIC && route === routes.PRIVACY)));
+   }
+ 
+   private renderPrivacyView_(): boolean {
+@@ -371,9 +372,10 @@ export class SettingsPrivacyPageIndexElement extends
+     }
+     // </if>
+ 
+     return this.inSearchMode ||
+         (!!this.currentRoute &&
+-         (this.currentRoute === routes.PRIVACY ||
++         (this.currentRoute === routes.BASIC ||
++          this.currentRoute === routes.PRIVACY ||
+           this.isRouteHostedWithinPrivacyView_(this.currentRoute)));
+   }
+ 

@@ -25,6 +25,9 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoAgentMemoryEnabled, false);
+  registry->RegisterDictionaryPref(kDaoAgentSettings);
+  registry->RegisterIntegerPref(kDaoAgentSettingsMigrationVersion, 0);
+  registry->RegisterDictionaryPref(kDaoAgentUsageStats);
   registry->RegisterDictionaryPref(kDaoSplitLayout);
   registry->RegisterDictionaryPref(kDaoPipWindowBoundsByOrigin);
   registry->RegisterBooleanPref(kDaoEnhancedPipEnabled, true);
@@ -70,9 +73,7 @@ bool IsForceDarkModeUserEnabled(Profile* profile) {
                                 prefs::kDaoForceDarkModeEnabled);
 }
 
-bool IsForceDarkModeAvailable() {
-  return IsSystemDarkMode();
-}
+bool IsForceDarkModeAvailable() { return IsSystemDarkMode(); }
 
 bool IsForceDarkModeEffective(Profile* profile) {
   return IsForceDarkModeAvailable() && IsForceDarkModeUserEnabled(profile);
@@ -89,8 +90,7 @@ void SetForceDarkModeUserEnabled(Profile* profile, bool enabled) {
 }
 
 void ApplyForceDarkModePreferences(
-    Profile* profile,
-    blink::web_pref::WebPreferences* web_preferences) {
+    Profile* profile, blink::web_pref::WebPreferences* web_preferences) {
   if (!web_preferences) {
     return;
   }

@@ -28,7 +28,14 @@
 // import so it's in place by the first render.
 import {installDaoMarkdownPreprocess} from './dao_markdown.js';
 import {marked} from './vendor/pi_runtime_bundle.js';
+import {startAgentSettingsSync} from './agent_settings_native_bridge.js';
 
 installDaoMarkdownPreprocess(marked);
 
-import './dao_agent_app.js';
+void startAgentSettingsSync()
+    .catch(error => {
+      // Keep the Agent usable with its existing local cache when a profile is
+      // shutting down or the native settings bridge is temporarily absent.
+      console.warn('[dao] failed to initialize unified agent settings', error);
+    })
+    .finally(() => import('./dao_agent_app.js'));
