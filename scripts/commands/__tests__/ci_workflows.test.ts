@@ -33,6 +33,9 @@ describe('CI workflows', () => {
 
   it('checks the website before deploying with a pinned Vercel CLI', () => {
     const workflow = read('.github/workflows/deploy-website.yml');
+    const websitePackageJson = JSON.parse(read('website/package.json')) as {
+      devDependencies?: Record<string, string>;
+    };
 
     expect(workflow).toMatch(/jobs:\n  check:/u);
     expect(workflow).toMatch(/\n  deploy:\n/u);
@@ -43,5 +46,6 @@ describe('CI workflows', () => {
     expect(workflow).toContain('VERCEL_CLI_VERSION: 58.5.1');
     expect(workflow).toContain('vercel@"${VERCEL_CLI_VERSION}"');
     expect(workflow).not.toContain('vercel@latest');
+    expect(websitePackageJson.devDependencies?.vitest).toBeDefined();
   });
 });
