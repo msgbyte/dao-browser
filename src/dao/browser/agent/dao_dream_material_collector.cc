@@ -316,13 +316,13 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                   buckets.Set(name, count);
                 }
                 d.Set("buckets", std::move(buckets));
-                base::DictValue foreground_seconds_by_bucket;
+                base::DictValue domain_foreground_seconds_by_bucket;
                 for (auto& [name, seconds] :
                      agg.foreground_seconds_by_bucket) {
-                  foreground_seconds_by_bucket.Set(name, seconds);
+                  domain_foreground_seconds_by_bucket.Set(name, seconds);
                 }
                 d.Set("foreground_seconds_by_bucket",
-                      std::move(foreground_seconds_by_bucket));
+                      std::move(domain_foreground_seconds_by_bucket));
                 domains.Append(std::move(d));
               }
               base::ListValue query_list;
