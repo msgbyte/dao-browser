@@ -4,6 +4,8 @@
 
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
+import {html} from '../../sidebar/__tests__/lit_test_shim.js';
+
 const bridgeMocks = vi.hoisted(() => ({
   callNative: vi.fn(),
   callNativeArgs: vi.fn(),
@@ -117,6 +119,14 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
 import '../dao_dream_app.js';
 
 type TestDreamApp = HTMLElement & {updateComplete: Promise<boolean>};
+type TestDreamAppPrototype = {
+  renderActivityHeatmap_: () => ReturnType<typeof html>;
+};
+
+const dreamAppPrototype =
+    (customElements.get('dao-dream-app') as CustomElementConstructor)
+        .prototype as unknown as TestDreamAppPrototype;
+let restoreActivityHeatmap: () => void;
 
 function report(
     dreamDate: string,
@@ -250,6 +260,15 @@ describe('dao-dream-app routing', () => {
     shareMocks.copyPngBlobToClipboard.mockClear();
     shareMocks.copyPngBlobToClipboard.mockResolvedValue(undefined);
     localStorage.clear();
+    // Keep the scroll target without rebuilding 371 heatmap cells for tests
+    // that exercise unrelated report actions.
+    const activityHeatmapSpy =
+        vi.spyOn(dreamAppPrototype, 'renderActivityHeatmap_')
+            .mockReturnValue(html`
+              <section class="activity-heatmap">
+                <div class="heatmap-scroll"></div>
+              </section>`);
+    restoreActivityHeatmap = () => activityHeatmapSpy.mockRestore();
   });
 
   afterEach(() => {
@@ -359,6 +378,7 @@ describe('dao-dream-app routing', () => {
 
   it('renders the selected one-minute recap design from structured data',
      async () => {
+       restoreActivityHeatmap();
        bridgeMocks.callNative.mockResolvedValueOnce([
          report('2026-06-19', habitCandidates(), recapMaterialStats()),
          report('2026-06-18'),
