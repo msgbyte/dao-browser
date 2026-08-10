@@ -196,6 +196,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void HandleSearchInResources(const base::ListValue& args);
 
   // Sidebar control.
+  void HandleOpenAgentSettings(const base::ListValue& args);
   void HandleCloseSidebar(const base::ListValue& args);
   void HandleFocusAgentSidebar(const base::ListValue& args);
 

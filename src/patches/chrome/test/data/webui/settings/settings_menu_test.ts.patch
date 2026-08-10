@@ -77,8 +77,8 @@ index df9cb79..6fc229b 100644
 -    assertTrue(!!selector.selected);
 -    assertEquals('/reset', selector.selected.toString());
 +  test('selects parent section for a secondary route', function() {
-+    Router.getInstance().navigateTo(routes.SITE_SETTINGS);
-+    assertEquals('privacy', settingsMenu.$.menu.selected);
++    Router.getInstance().navigateTo(routes.DAO_AGENT_DETAILS);
++    assertEquals('agent', settingsMenu.$.menu.selected);
    });
  
 -  test('navigateToAnotherSection', async function() {

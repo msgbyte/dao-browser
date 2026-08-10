@@ -12,7 +12,7 @@ index 4de6fefb8b..0000000001 100644
  
  import {TestSearchManager} from './test_search_manager.js';
  // clang-format on
-@@ -35,6 +36,99 @@ suite('MainPageTests', function() {
+@@ -35,6 +36,101 @@ suite('MainPageTests', function() {
      settingsMain.remove();
    });
  
@@ -27,6 +27,8 @@ index 4de6fefb8b..0000000001 100644
 +    assertTrue(Array.from(activeViews).some(view => view.id === 'dao'));
 +    assertTrue(Array.from(activeViews).some(view => view.id === 'agent'));
 +    assertTrue(!!settingsMain.shadowRoot!.querySelector(
++        '#switcher > #agent settings-dao-agent-page-index'));
++    assertFalse(!!settingsMain.shadowRoot!.querySelector(
 +        '#switcher > #agent settings-dao-agent-page'));
 +
 +    const privacyIndex = settingsMain.shadowRoot!.querySelector<
@@ -49,13 +51,13 @@ index 4de6fefb8b..0000000001 100644
 +
 +  test('secondaryRouteReplacesOverviewAndReturnRestoresIt', async function() {
 +    await settingsMain.whenViewSwitchingDone();
-+    Router.getInstance().navigateTo(routes.SITE_SETTINGS);
++    Router.getInstance().navigateTo(routes.DAO_AGENT_DETAILS);
 +    await settingsMain.whenViewSwitchingDone();
 +
 +    let activeViews = settingsMain.shadowRoot!.querySelectorAll(
 +        '#switcher > [slot=view].active');
 +    assertEquals(1, activeViews.length);
-+    assertEquals('privacy', activeViews[0]!.id);
++    assertEquals('agent', activeViews[0]!.id);
 +    assertFalse(settingsMain.hasAttribute('overview-mode'));
 +
 +    Router.getInstance().navigateTo(routes.BASIC);

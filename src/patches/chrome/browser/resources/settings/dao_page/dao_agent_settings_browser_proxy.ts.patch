@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_settings_browser_proxy.ts
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,182 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -94,6 +94,7 @@ index 0000000000..0000000001
 +  clearAllMemory(): Promise<boolean>;
 +  getWorkspaceSummary(): Promise<unknown>;
 +  openWorkspace(): Promise<boolean>;
++  startManualDream(): Promise<boolean>;
 +  getUsageStats(): Promise<DaoAgentUsageStats>;
 +  resetUsageStats(): Promise<boolean>;
 +}
@@ -122,6 +123,10 @@ index 0000000000..0000000001
 +
 +  openWorkspace(): Promise<boolean> {
 +    return sendWithPromise('openDaoAgentWorkspace');
++  }
++
++  startManualDream(): Promise<boolean> {
++    return sendWithPromise('startManualDaoDream');
 +  }
 +
 +  getUsageStats(): Promise<DaoAgentUsageStats> {

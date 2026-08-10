@@ -96,16 +96,34 @@ describe('dao-agent-app i18n refresh', () => {
     expect(mocks.chatRequestUpdate).toHaveBeenCalled();
   });
 
-  it('opens unified settings from the settings button', async () => {
+  it('closes the sidebar after unified settings opens', async () => {
+    mocks.callNative.mockResolvedValueOnce({success: true});
     const {el, send} = await loadApp();
     const settingsButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
         '.dao-app-tab-bar .dao-app-tab:not(.active)');
     expect(settingsButton).not.toBeNull();
     settingsButton!.click();
 
-    expect(mocks.callNative).toHaveBeenCalledWith(
-        'openTab', {url: 'dao://settings/#dao'});
+    await vi.waitFor(() => {
+      expect(mocks.callNative).toHaveBeenCalledWith('openAgentSettings');
+    });
+    expect(mocks.callNative).not.toHaveBeenCalledWith(
+        'openTab', expect.anything());
     expect(send).toHaveBeenCalledWith('closeSidebar');
+  });
+
+  it('keeps the sidebar open when unified settings cannot open', async () => {
+    mocks.callNative.mockRejectedValueOnce(new Error('navigation failed'));
+    const {el, send} = await loadApp();
+    const settingsButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '.dao-app-tab-bar .dao-app-tab:not(.active)');
+    expect(settingsButton).not.toBeNull();
+    settingsButton!.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.callNative).toHaveBeenCalledWith('openAgentSettings');
+    });
+    expect(send).not.toHaveBeenCalledWith('closeSidebar');
   });
 
   it('routes external prefill requests to the chat view', async () => {

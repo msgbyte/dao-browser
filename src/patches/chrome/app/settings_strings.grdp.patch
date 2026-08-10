@@ -164,7 +164,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -3836,7 +3836,484 @@
+@@ -3836,7 +3836,508 @@
      <!-- Sync / People Page -->
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
@@ -280,6 +280,15 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    <message name="IDS_SETTINGS_DAO_AGENT_SOUL_DESCRIPTION" desc="Description for the Dao Agent persona instructions field.">
 +      Describe the personality, principles, and communication style the agent should follow.
 +    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SOUL_RESET" desc="Button that restores the default Dao Agent persona." meaning="Dao Agent persona reset button">
++      Reset to default
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SOUL_RESET_SUCCESS" desc="Confirmation shown after restoring the default Dao Agent persona.">
++      Default persona restored
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_SOUL_RESET_ERROR" desc="Error shown when the default Dao Agent persona could not be restored.">
++      Could not restore the default persona.
++    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_CONTEXT_TITLE" desc="Heading for Dao Agent context settings.">
 +      Context
 +    </message>
@@ -366,6 +375,21 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_EXCLUDED_DOMAINS_LABEL" desc="Label for domains excluded from Dao Agent Dream analysis.">
 +      Excluded domains, one per line
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_RUN_DESCRIPTION" desc="Description of the requirements for manually generating a Dao Agent Dream report.">
++      Enable memory and Dream analysis before generating a report.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_RUN_NOW" desc="Button that manually generates a Dao Agent Dream report.">
++      Generate Dream report
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_RUNNING" desc="Button label while a Dao Agent Dream report is being generated." meaning="Dao Agent Dream report generation in progress">
++      Generating...
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_RUN_SUCCESS" desc="Confirmation shown after manually generating a Dao Agent Dream report.">
++      Dream report generated
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_DREAM_RUN_ERROR" desc="Error shown when a Dao Agent Dream report could not be generated.">
++      Could not generate the Dream report.
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_DATA_TITLE" desc="Heading for Dao Agent skills and data links.">
 +      Skills and data
@@ -649,7 +673,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
      <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
        Google Profile photo
      </message>
-@@ -4473,40 +4935,40 @@
+@@ -4473,40 +4959,40 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS_POLICY" desc="Subtitle of the passwords card in SafetyHub when there are no saved passwords and saving of passwords is disabled through enterprise policy. This text is shown below the header 'No saved passwords'. It explains that the SafetyHub features for passwords are not available since the user's organization has a policy in place that prevents the user from saving passwords in Chrome.">
        Your organization turned off saving passwords
      </message>
@@ -702,7 +726,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Go to notification settings
      </message>
      <message name="IDS_SETTINGS_SAFETY_HUB_USER_EDU_INCOGNITO_SUBHEADER" desc="The subheader of the second item in the 'User Education Module' in the Safety Hub page. This item explains Incognito mode.">
-@@ -4516,21 +4978,21 @@
+@@ -4516,21 +5002,21 @@
        Safe Browsing
      </message>
      <if expr="not is_chromeos">
@@ -728,7 +752,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        {NUM_SITES, plural,
         =1 {You can stop this site from sending future notifications.}
         other {You can stop these sites from sending future notifications.}}
-@@ -4558,31 +5020,31 @@
+@@ -4558,31 +5044,31 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MENU_NOTIFICATION" desc="When Safe Browsing is disabled, the proactive Safety Hub feature encourages users to turn on the feature. This label is for the notification in Chrome's three-dot menu.">
        Safe Browsing is off
      </message>

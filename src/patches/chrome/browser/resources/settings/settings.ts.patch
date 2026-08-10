@@ -2,12 +2,14 @@ diff --git a/chrome/browser/resources/settings/settings.ts b/chrome/browser/reso
 index f221bf6cd2..0905c92e55 100644
 --- a/chrome/browser/resources/settings/settings.ts
 +++ b/chrome/browser/resources/settings/settings.ts
-@@ -75,6 +75,10 @@ export {SettingsCheckboxListEntryElement} from './controls/settings_checkbox_lis
+@@ -75,6 +75,12 @@ export {SettingsCheckboxListEntryElement} from './controls/settings_checkbox_lis
  export {DefaultBrowserBrowserProxyImpl} from './default_browser_page/default_browser_browser_proxy.js';
  export type {DefaultBrowserBrowserProxy, DefaultBrowserInfo} from './default_browser_page/default_browser_browser_proxy.js';
  export {SettingsDefaultBrowserPageElement} from './default_browser_page/default_browser_page.js';
 +export {DaoAgentSettingsBrowserProxyImpl} from './dao_page/dao_agent_settings_browser_proxy.js';
 +export type {DaoAgentMemorySummary, DaoAgentSettingsBrowserProxy, DaoAgentSettingsSnapshot, DaoAgentUsageStats, DaoAgentWorkspaceActivity, DaoAgentWorkspaceSummary} from './dao_page/dao_agent_settings_browser_proxy.js';
++export {SettingsDaoAgentPageElement} from './dao_page/dao_agent_page.js';
++export {SettingsDaoAgentPageIndexElement} from './dao_page/dao_agent_page_index.js';
 +export {DaoMcpBrowserProxyImpl, SettingsDaoPageElement} from './dao_page/dao_page.js';
 +export type {DaoMcpBrowserProxy, DaoMcpStatus} from './dao_page/dao_page.js';
  // </if>

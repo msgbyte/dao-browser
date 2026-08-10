@@ -45,7 +45,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4145,6 +4153,230 @@
+@@ -4145,6 +4153,242 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -108,6 +108,11 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoAgentSoulTitle", IDS_SETTINGS_DAO_AGENT_SOUL_TITLE},
 +      {"daoAgentSoulDescription",
 +       IDS_SETTINGS_DAO_AGENT_SOUL_DESCRIPTION},
++      {"daoAgentSoulReset", IDS_SETTINGS_DAO_AGENT_SOUL_RESET},
++      {"daoAgentSoulResetSuccess",
++       IDS_SETTINGS_DAO_AGENT_SOUL_RESET_SUCCESS},
++      {"daoAgentSoulResetError",
++       IDS_SETTINGS_DAO_AGENT_SOUL_RESET_ERROR},
 +      {"daoAgentContextTitle", IDS_SETTINGS_DAO_AGENT_CONTEXT_TITLE},
 +      {"daoAgentPageContextLabel",
 +       IDS_SETTINGS_DAO_AGENT_PAGE_CONTEXT_LABEL},
@@ -150,6 +155,13 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +       IDS_SETTINGS_DAO_AGENT_DREAM_DEBUG_LABEL},
 +      {"daoAgentDreamExcludedDomainsLabel",
 +       IDS_SETTINGS_DAO_AGENT_DREAM_EXCLUDED_DOMAINS_LABEL},
++      {"daoAgentDreamRunDescription",
++       IDS_SETTINGS_DAO_AGENT_DREAM_RUN_DESCRIPTION},
++      {"daoAgentDreamRunNow", IDS_SETTINGS_DAO_AGENT_DREAM_RUN_NOW},
++      {"daoAgentDreamRunning", IDS_SETTINGS_DAO_AGENT_DREAM_RUNNING},
++      {"daoAgentDreamRunSuccess",
++       IDS_SETTINGS_DAO_AGENT_DREAM_RUN_SUCCESS},
++      {"daoAgentDreamRunError", IDS_SETTINGS_DAO_AGENT_DREAM_RUN_ERROR},
 +      {"daoAgentDataTitle", IDS_SETTINGS_DAO_AGENT_DATA_TITLE},
 +      {"daoAgentManageSkills", IDS_SETTINGS_DAO_AGENT_MANAGE_SKILLS},
 +      {"daoAgentInspectMemory", IDS_SETTINGS_DAO_AGENT_INSPECT_MEMORY},
@@ -276,7 +288,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4294,6 +4521,7 @@
+@@ -4294,6 +4533,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

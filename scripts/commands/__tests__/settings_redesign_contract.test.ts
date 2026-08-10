@@ -84,6 +84,9 @@ const AGENT_CONTROL_AND_ACTION_IDS = [
   "daoAgentJinaApiKey",
   "daoAgentThreshold",
   "daoAgentDreamExcludedDomains",
+  "resetAgentSoulButton",
+  "runDreamNowButton",
+  "openDreamHistoryLink",
   "agentSettingsRetry",
   "agentMemoryRetry",
   "agentMemoryRefreshRetry",
@@ -121,6 +124,9 @@ const AGENT_CRITICAL_HANDLERS = [
   "onAgentProviderChange_",
   "onAgentProviderFieldChange_",
   "onAgentDreamDomainsChange_",
+  "onResetAgentSoul_",
+  "onRunDreamNow_",
+  "isDreamRunDisabled_",
   "onAgentToolGroupChange_",
   "isAgentToolEnabled_",
   "onAgentToolChange_",
@@ -351,6 +357,83 @@ describe("settings continuous overview contract", () => {
     expect(tsPatch).toContain("Object.values(AGENT_TOOL_GROUPS).flat()");
   });
 
+  it("preserves legacy Agent actions and one shared content inset", () => {
+    const htmlPatch = addedPayload(
+      readPatch("dao_page/dao_agent_page.html.patch"),
+    );
+    const tsPatch = addedPayload(
+      readPatch("dao_page/dao_agent_page.ts.patch"),
+    );
+    const proxyPatch = addedPayload(
+      readPatch("dao_page/dao_agent_settings_browser_proxy.ts.patch"),
+    );
+    const handler = readDaoSource(
+      "src/dao/browser/agent/dao_agent_settings_handler.cc",
+    );
+
+    for (const id of AGENT_CONTROL_AND_ACTION_IDS) {
+      expect(htmlPatch, id).toContain(`id="${id}"`);
+    }
+    for (const handlerName of AGENT_CRITICAL_HANDLERS) {
+      expect(tsPatch, handlerName).toContain(handlerName);
+    }
+    expect(proxyPatch).toContain("startManualDream(): Promise<boolean>");
+    expect(proxyPatch).toContain("sendWithPromise('startManualDaoDream')");
+    expect(handler).toContain('"startManualDaoDream"');
+
+    expect(htmlPatch).toContain("--dao-agent-content-inset: 18px");
+    expect(htmlPatch).toContain("margin: 12px auto 0");
+    expect(htmlPatch).not.toMatch(/padding:\s*0 16px/);
+  });
+
+  it("separates Agent management modules into compact inset cards", () => {
+    const htmlPatch = addedPayload(
+      readPatch("dao_page/dao_agent_page.html.patch"),
+    );
+
+    expect(htmlPatch).toContain("--dao-agent-management-gap: 16px");
+    expect(htmlPatch).toContain("--dao-agent-management-padding: 16px");
+    expect(htmlPatch).toContain("gap: var(--dao-agent-management-gap)");
+    expect(htmlPatch).toContain(
+      "padding: var(--dao-agent-management-padding)",
+    );
+    expect(htmlPatch).toMatch(
+      /\.dao-agent-management-card\s*\{[\s\S]*?border: 1px solid var\(--dao-settings-border\)/,
+    );
+    expect(htmlPatch).toMatch(
+      /\.dao-agent-management-card\s*\{[\s\S]*?border-radius: 12px/,
+    );
+    expect(htmlPatch).toMatch(
+      /\.dao-agent-management-card\s*\{[\s\S]*?box-shadow: var\(--dao-settings-shadow\)/,
+    );
+    const managementCardHeader = htmlPatch.match(
+      /\.dao-agent-management-card-header \{[^}]*\}/,
+    )?.[0];
+    expect(managementCardHeader).toBeDefined();
+    expect(managementCardHeader).toContain("align-items: center;");
+
+    const managementCardTitle = htmlPatch.match(
+      /\.dao-agent-management-card-title \{[^}]*\}/,
+    )?.[0];
+    expect(managementCardTitle).toBeDefined();
+    expect(managementCardTitle).toContain(
+      "border-inline-start: 3px solid var(--dao-settings-accent);",
+    );
+    expect(managementCardTitle).toContain("font-size: 14px;");
+    expect(managementCardTitle).toContain("font-weight: 650;");
+    expect(managementCardTitle).toContain("padding-inline-start: 10px;");
+    expect(occurrenceCount(
+      htmlPatch,
+      '<h4 class="dao-agent-management-card-title">',
+    )).toBe(3);
+    expect(htmlPatch).toContain("min-height: 54px");
+    expect(htmlPatch).toContain(
+      "background: var(--dao-agent-management-action-surface)",
+    );
+    expect(htmlPatch).toContain("--dao-agent-management-gap: 12px");
+    expect(htmlPatch).toContain("--dao-agent-management-padding: 12px");
+  });
+
   it("packages Agent settings in the shared Settings lazy bundle", () => {
     const lazyLoad = "lazy_load.ts.patch";
 
@@ -364,8 +447,9 @@ describe("settings continuous overview contract", () => {
     );
   });
 
-  it("owns Agent as a top-level Settings section beside You and Dao", () => {
+  it("keeps a compact Agent overview entry and routes details to a subpage", () => {
     const routePatch = addedPayload(readPatch("route.ts.patch"));
+    const routerPatch = addedPayload(readPatch("router_dao.ts.patch"));
     const menuPatch = addedPayload(
       readPatch("settings_menu/settings_menu.html.patch"),
     );
@@ -374,6 +458,14 @@ describe("settings continuous overview contract", () => {
     );
     const daoHtml = addedPayload(readPatch("dao_page/dao_page.html.patch"));
     const daoTs = addedPayload(readPatch("dao_page/dao_page.ts.patch"));
+    const indexTsPath = "dao_page/dao_agent_page_index.ts.patch";
+    const indexHtmlPath = "dao_page/dao_agent_page_index.html.patch";
+    const hasIndexPatches =
+      existsSync(patchPath(indexTsPath)) &&
+      existsSync(patchPath(indexHtmlPath));
+    expect(hasIndexPatches).toBe(true);
+    if (!hasIndexPatches) return;
+    const indexHtml = addedPayload(readPatch(indexHtmlPath));
     const agentHtml = addedPayload(
       readPatch("dao_page/dao_agent_page.html.patch"),
     );
@@ -381,9 +473,13 @@ describe("settings continuous overview contract", () => {
 
     expect(routePatch).toContain(
       "r.DAO_AGENT = r.BASIC.createSection(\n" +
-        "        '/agent', 'agent', " +
-        "loadTimeData.getString('daoAgentSettingsTitle'));",
+        "        '/agentOverview', 'agent',\n" +
+        "        loadTimeData.getString('daoAgentSettingsTitle'));",
     );
+    expect(routePatch).toContain(
+      "r.DAO_AGENT_DETAILS = r.DAO_AGENT.createChild('/agent');",
+    );
+    expect(routerPatch).toContain("DAO_AGENT_DETAILS: Route;");
     expect(routePatch).not.toContain("r.DAO.createChild('/dao/agent')");
 
     const daoMenuIndex = menuPatch.indexOf(
@@ -400,9 +496,16 @@ describe("settings continuous overview contract", () => {
     expect(mainPatch).toContain('<settings-dao-page prefs="{{prefs}}">');
     expect(mainPatch).toContain('<div slot="view" id="agent">');
     expect(mainPatch).toContain(
+      '<settings-dao-agent-page-index prefs="{{prefs}}">',
+    );
+    expect(mainPatch).not.toContain(
       '<settings-dao-agent-page prefs="{{prefs}}">',
     );
     expect(mainPatch).not.toContain("<settings-dao-page-index");
+
+    expect(indexHtml).toContain('id="parent"');
+    expect(indexHtml).toContain('id="agentSettings"');
+    expect(indexHtml).toContain('data-parent-view-id="parent"');
 
     for (const forbidden of [
       "daoAgentSummary",
@@ -439,10 +542,10 @@ describe("settings continuous overview contract", () => {
     );
     expect(menuTest).toContain("tracksAgentAsSiblingDaoExclusiveSection");
     expect(mainTest).toContain(
-      "#switcher > #agent settings-dao-agent-page",
+      "#switcher > #agent settings-dao-agent-page-index",
     );
     expect(agentTest).toContain(
-      "rendersAsTopLevelAgentSectionWithoutSubpageBackControl",
+      "rendersFiveVerticalSettingsSections",
     );
   });
 
@@ -526,60 +629,57 @@ describe("settings continuous overview contract", () => {
       expect(translation![1]).toMatch(/[\u3400-\u9fff]/u);
     }
 
-    for (const [sectionId, headingId, messageId] of [
+    for (const [sectionId, messageId] of [
       [
         "modelAndConnection",
-        "modelAndConnectionHeading",
         "daoAgentGroupModelAndConnection",
       ],
       [
         "behaviorAndContext",
-        "behaviorAndContextHeading",
         "daoAgentGroupBehaviorAndContext",
       ],
-      ["capabilities", "capabilitiesHeading", "daoAgentGroupCapabilities"],
+      ["capabilities", "daoAgentGroupCapabilities"],
       [
         "learningAndAnalysis",
-        "learningAndAnalysisHeading",
         "daoAgentGroupLearningAndAnalysis",
       ],
       [
         "dataAndManagement",
-        "dataAndManagementHeading",
         "daoAgentGroupDataAndManagement",
       ],
     ] as const) {
-      expect(agentHtml, sectionId).toContain(`<section id="${sectionId}"`);
-      expect(agentHtml, headingId).toContain(`aria-labelledby="${headingId}"`);
-      expect(agentHtml, messageId).toMatch(
+      expect(agentHtml, sectionId).toMatch(
         new RegExp(
-          `<h2 id="${headingId}"[^>]*>\\s*\\$i18n\\{${messageId}\\}\\s*</h2>`,
+          `<settings-section id="${sectionId}"[\\s\\S]*?` +
+            `page-title="\\$i18n\\{${messageId}\\}"`,
         ),
       );
     }
+    expect(occurrenceCount(agentHtml, "<settings-section id=")).toBe(5);
+    expect(agentHtml).not.toMatch(
+      /role="tablist"|section-navigation|section-rail/,
+    );
   });
 
-  it("documents the top-level Agent settings regression contract", () => {
+  it("documents the compact Agent entry and secondary page contract", () => {
     const features = readDaoSource("docs/features.md");
     const checklist = readDaoSource("docs/feature-checklist.md");
 
     for (const marker of [
-      "`dao://settings/#agent`",
-      "top-level Dao-exclusive Settings section",
-      "all Agent configuration,",
+      "`dao://settings/agent`",
+      "compact top-level Dao-exclusive Settings entry",
+      "five vertical Settings sections",
       "Chromium's shared Settings lazy bundle",
-      "without a duplicate summary or intermediate subpage",
+      "closes the sidebar only after the navigation succeeds",
     ]) {
       expect(features, marker).toContain(marker);
     }
     for (const marker of [
-      "exact inventory",
-      "Chromium's shared Settings lazy bundle",
-      "You and Dao` contains no Agent summary or state",
-      "overview scroll selection",
-      "search filtering",
-      "English-first",
-      "light and dark",
+      "one compact Agent entry and no full Agent form",
+      "navigating directly to `/agent`",
+      "Back restores the overview",
+      "Settings search finds the compact entry",
+      "light/dark themes",
       "below 760 px",
       "keyboard",
       "reduced motion",
@@ -596,6 +696,7 @@ describe("settings continuous overview contract", () => {
     const proxy = '"dao_page/dao_agent_settings_browser_proxy.ts"';
     const components = [
       '"dao_page/dao_agent_page.ts"',
+      '"dao_page/dao_agent_page_index.ts"',
       '"dao_page/dao_page.ts"',
     ];
     const webComponentHunk = hunks.find((hunk) =>
@@ -635,7 +736,7 @@ describe("settings continuous overview contract", () => {
       .filter((line) => line.startsWith("+") && !line.startsWith("+++")).length;
 
     expect(hunkHeader, "new-file hunk header").not.toBeNull();
-    expect(payloadCount).toBe(177);
+    expect(payloadCount).toBe(182);
     expect(Number(hunkHeader![1]), "declared new-file line count").toBe(
       payloadCount,
     );
@@ -682,6 +783,7 @@ describe("settings continuous overview contract", () => {
 
     const testTargets = [
       ["dao_page_test", "DaoPage"],
+      ["dao_agent_page_index_test", "DaoAgentPageIndex"],
       ["dao_agent_page_test", "DaoAgentPage"],
     ] as const;
     for (const [source, runner] of testTargets) {
@@ -706,7 +808,7 @@ describe("settings continuous overview contract", () => {
         runnerPayload,
         "IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_Dao",
       ),
-    ).toBe(2);
+    ).toBe(3);
     expect(runnerPayload).not.toMatch(
       /IN_PROC_BROWSER_TEST_F\(SettingsTest, Dao(?:Agent)?Page(?:Index)?\)/,
     );
@@ -925,7 +1027,7 @@ describe("settings continuous overview contract", () => {
         "dao_agent_page_test.ts.patch",
     );
     const managementStart = htmlPatch.indexOf(
-      '<section id="dataAndManagement" class="dao-agent-management-group"',
+      '<settings-section id="dataAndManagement"',
     );
     const settingsGateEnd = htmlPatch.lastIndexOf(
       "</template>",
@@ -1074,7 +1176,7 @@ describe("settings continuous overview contract", () => {
     const resetDialog = extractBetween(
       htmlPatch,
       'id="resetUsageStatsDialog"',
-      "</section>",
+      "</settings-section>",
     );
 
     expect(memoryCard).toMatch(
@@ -1115,7 +1217,7 @@ describe("settings continuous overview contract", () => {
       7,
     );
     expect(htmlPatch).toMatch(
-      /\.dao-agent-management-state \{[\s\S]*?min-height: 62px;/,
+      /\.dao-agent-management-state \{[\s\S]*?min-height: 54px;/,
     );
     expect(htmlPatch).toMatch(
       /@media \(max-width: 760px\)[\s\S]*?\.dao-agent-management-state\.error \{[\s\S]*?flex-direction: column;/,

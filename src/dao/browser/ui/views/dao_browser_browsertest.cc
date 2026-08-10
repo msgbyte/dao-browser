@@ -9345,6 +9345,25 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, WidthClampedToBounds) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
+                       AgentGearOpensSettingsSubpageWithoutTurn) {
+  ASSERT_TRUE(LoadAgentWebUI());
+  const int tab_count_before = browser()->tab_strip_model()->count();
+  ui_test_utils::TabAddedWaiter tab_waiter(browser());
+
+  ASSERT_TRUE(content::ExecJs(agent_contents_, R"(
+    document.querySelector(
+        'dao-agent-app .dao-app-tab-bar .dao-app-tab:last-child').click();
+  )"));
+  tab_waiter.Wait();
+
+  EXPECT_EQ(tab_count_before + 1, browser()->tab_strip_model()->count());
+  content::WebContents* active =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, active);
+  EXPECT_EQ(GURL("dao://settings/agent"), active->GetVisibleURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
                        PrefillPromptInvokesOnlyPrefillHookWithJsonEscapedText) {
   ASSERT_TRUE(LoadAgentWebUI());
   ASSERT_TRUE(InstallExternalActionRecorder());

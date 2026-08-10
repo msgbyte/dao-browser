@@ -500,6 +500,10 @@ void DaoAgentUIHandler::RegisterMessages() {
       base::BindRepeating(&DaoAgentUIHandler::HandleClearConsoleMessages,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "openAgentSettings",
+      base::BindRepeating(&DaoAgentUIHandler::HandleOpenAgentSettings,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "closeSidebar",
       base::BindRepeating(&DaoAgentUIHandler::HandleCloseSidebar,
                           base::Unretained(this)));
@@ -1486,6 +1490,33 @@ void DaoAgentUIHandler::HandleSearchInResources(const base::ListValue& args) {
   }
   ExecutePageTool(args[0].GetString(), "search_in_resources",
                   args[1].GetDict().Clone());
+}
+
+void DaoAgentUIHandler::HandleOpenAgentSettings(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.empty() || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+
+  Browser* browser = FindLastActiveBrowserForMigration();
+  if (!browser) {
+    ResolveJavascriptCallback(
+        base::Value(callback_id),
+        base::DictValue().Set("success", false));
+    return;
+  }
+
+  const GURL settings_url(std::string(content::kChromeUIScheme) +
+                          "://settings/agent");
+  NavigateParams params(browser, settings_url, ui::PAGE_TRANSITION_TYPED);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&params);
+  ResolveJavascriptCallback(
+      base::Value(callback_id),
+      base::DictValue().Set(
+          "success", params.navigated_or_inserted_contents != nullptr));
 }
 
 void DaoAgentUIHandler::HandleCloseSidebar(const base::ListValue& args) {
