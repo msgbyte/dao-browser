@@ -5,7 +5,7 @@
 import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {callNative, callNativeArgs} from './dream_bridge.js';
-import {initI18n, t} from './i18n/i18n.js';
+import {currentLocale, initI18n, t} from './i18n/i18n.js';
 import {renderDaoMarkdown} from './dao_markdown.js';
 import {
   copyPngBlobToClipboard,
@@ -44,6 +44,7 @@ interface DreamMaterialStats {
   searchQueries: number;
   conversationSessions: number;
   sourceDomains: string[];
+  hasStructuredRecap: boolean;
   recap: DreamRecap;
 }
 
@@ -371,39 +372,6 @@ export class DaoDreamApp extends CrLitElement {
 
       .report-body {
         min-width: 0;
-      }
-
-      .history-item {
-        display: block;
-        width: 100%;
-        height: auto;
-        min-height: 36px;
-        margin: 0 0 6px;
-        padding: 8px 10px;
-        border-color: transparent;
-        background: transparent;
-        text-align: left;
-      }
-
-      .history-item:hover,
-      .history-item.selected {
-        border-color: rgba(70, 120, 190, 0.22);
-        background: rgba(70, 120, 190, 0.08);
-      }
-
-      .history-date {
-        display: block;
-        font-size: 13px;
-        font-weight: 650;
-        line-height: 1.3;
-      }
-
-      .history-kind {
-        display: block;
-        margin-top: 2px;
-        color: rgba(30, 20, 40, 0.48);
-        font-size: 11px;
-        line-height: 1.3;
       }
 
       .markdown {
@@ -784,12 +752,13 @@ export class DaoDreamApp extends CrLitElement {
       }
 
       .history-item:hover {
-        background: rgba(var(--dream-accent), 0.06);
+        border-color: rgba(var(--dream-accent), 0.2);
+        background: rgba(var(--dream-accent), 0.1);
       }
 
       .history-item[data-selected="true"] {
-        border-color: rgba(var(--dream-accent), 0.22);
-        background: rgba(var(--dream-accent), 0.1);
+        border-color: rgba(var(--dream-accent), 0.28);
+        background: rgba(var(--dream-accent), 0.14);
       }
 
       .history-item:focus-visible {
@@ -1380,6 +1349,21 @@ export class DaoDreamApp extends CrLitElement {
     void this.loadPage_();
   }
 
+  override updated(changedProperties: Map<PropertyKey, unknown>) {
+    if (changedProperties.has('loading_') && !this.loading_) {
+      this.scrollHeatmapToLatest_();
+    }
+  }
+
+  private scrollHeatmapToLatest_() {
+    const heatmap =
+        this.shadowRoot?.querySelector<HTMLElement>('.heatmap-scroll');
+    if (!heatmap) {
+      return;
+    }
+    heatmap.scrollLeft = Math.max(0, heatmap.scrollWidth - heatmap.clientWidth);
+  }
+
   private currentRoute_(): 'today'|'history' {
     const path = window.location.pathname.replace(/\/+$/, '');
     return path === '/today' ? 'today' : 'history';
@@ -1578,6 +1562,9 @@ export class DaoDreamApp extends CrLitElement {
         });
       }
     }
+    const recapSummary = typeof recap['summary'] === 'string' ?
+        recap['summary'].trim() : '';
+    const hasStructuredRecap = Boolean(recapSummary || themes.length > 0);
     if (themes.length === 0) {
       sections.slice(0, 3).forEach((section, index) => themes.push({
         name: section.title || t('dream.page.theme_fallback'),
@@ -1590,14 +1577,13 @@ export class DaoDreamApp extends CrLitElement {
     const sourceDomains = Array.isArray(parsed['source_domains']) ?
         parsed['source_domains'].filter(
             (item): item is string => typeof item === 'string') : [];
-    const recapSummary = typeof recap['summary'] === 'string' ?
-        recap['summary'].trim() : '';
     return {
       historyDomains: this.boundedNumber_(parsed['history_domains'], 10000),
       searchQueries: this.boundedNumber_(parsed['search_queries'], 10000),
       conversationSessions:
           this.boundedNumber_(parsed['conversation_sessions'], 10000),
       sourceDomains,
+      hasStructuredRecap,
       recap: {
         summary: recapSummary || sections[0]?.body || reportMarkdown.trim(),
         timeBuckets: {
@@ -2117,8 +2103,24 @@ export class DaoDreamApp extends CrLitElement {
       </svg>`;
   }
 
-  private formatMinutes_(minutes: number) {
-    return t('dream.page.minutes', {count: minutes});
+  private formatDuration_(minutes: number) {
+    const roundedMinutes = Math.max(0, Math.round(minutes));
+    if (roundedMinutes < 60) {
+      return t('dream.page.minutes', {count: roundedMinutes});
+    }
+    const hours = Math.floor(roundedMinutes / 60);
+    const remainingMinutes = roundedMinutes % 60;
+    const formatUnit = (value: number, unit: 'hour'|'minute') =>
+      new Intl.NumberFormat(currentLocale(), {
+        style: 'unit',
+        unit,
+        unitDisplay: 'short',
+      }).format(value);
+    const formattedHours = formatUnit(hours, 'hour');
+    if (remainingMinutes === 0) {
+      return formattedHours;
+    }
+    return `${formattedHours} ${formatUnit(remainingMinutes, 'minute')}`;
   }
 
   private renderRhythm_(report: DailyDreamReportData) {
@@ -2149,7 +2151,7 @@ export class DaoDreamApp extends CrLitElement {
                   style=${`height:${Math.round(value / peak * 100)}%`}></div>
               <div class="rhythm-meta">
                 <strong>${label}</strong>
-                <span>${this.formatMinutes_(value)}</span>
+                <span>${this.formatDuration_(value)}</span>
               </div>
             </div>`)}
         </div>
@@ -2206,6 +2208,16 @@ export class DaoDreamApp extends CrLitElement {
       </section>`;
   }
 
+  private historySummary_(report: DailyDreamReportData) {
+    if (!report.stats.hasStructuredRecap) {
+      return report.stats.recap.summary ||
+          this.triggerKindLabel_(report.triggerKind);
+    }
+    return report.stats.recap.themes[0]?.name ||
+        report.stats.recap.summary ||
+        this.triggerKindLabel_(report.triggerKind);
+  }
+
   private renderHistoryList_() {
     const reports = this.historyReports_();
     const selectedKey = this.report_ ?
@@ -2242,8 +2254,7 @@ export class DaoDreamApp extends CrLitElement {
               </span>
               <span class="history-kind">
                 ${weekly ? report.headline :
-                  report.stats.recap.themes[0]?.name ||
-                    this.triggerKindLabel_(report.triggerKind)}
+                  this.historySummary_(report)}
               </span>
             </span>
             ${weekly ? html`<span class="history-kind-badge">

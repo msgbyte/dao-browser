@@ -7,6 +7,12 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 const callLLMStreaming = vi.fn();
 const recordApiCall = vi.fn();
 const addWebUIListener = vi.fn();
+const i18nMocks = vi.hoisted(() => ({
+  initialized: false,
+  locale: 'zh-CN',
+  initI18n: vi.fn(),
+  currentLocale: vi.fn(),
+}));
 
 vi.mock('../agent_bridge.js', () => ({
   addWebUIListener: (...args: unknown[]) => addWebUIListener(...args),
@@ -33,7 +39,8 @@ vi.mock('../llm_config.js', () => ({
   }),
 }));
 vi.mock('../i18n/i18n.js', () => ({
-  currentLocale: () => 'zh-CN',
+  initI18n: () => i18nMocks.initI18n(),
+  currentLocale: () => i18nMocks.currentLocale(),
 }));
 
 import {extractJson, runDream} from '../dao_dream_runner.js';
@@ -98,6 +105,15 @@ describe('runDream', () => {
   beforeEach(() => {
     callLLMStreaming.mockReset();
     recordApiCall.mockReset();
+    i18nMocks.initialized = false;
+    i18nMocks.locale = 'zh-CN';
+    i18nMocks.initI18n.mockReset();
+    i18nMocks.initI18n.mockImplementation(async () => {
+      i18nMocks.initialized = true;
+    });
+    i18nMocks.currentLocale.mockReset();
+    i18nMocks.currentLocale.mockImplementation(
+        () => i18nMocks.initialized ? i18nMocks.locale : 'en');
   });
 
   it('parses a valid response and caps confidence at 0.8', async () => {
@@ -139,7 +155,8 @@ describe('runDream', () => {
     expect(recordApiCall).toHaveBeenCalledWith(11, 7, 2, 6);
   });
 
-  it('asks the model to keep user-facing text in the current locale', async () => {
+  it('injects the resolved locale into the report prompts', async () => {
+    i18nMocks.locale = 'fr';
     respondWith(VALID);
     await runDream('2026-06-11', {});
 
@@ -149,9 +166,13 @@ describe('runDream', () => {
     }>;
     const systemPrompt = messages[0]!.content;
 
+    expect(messages[0]!.content).toContain('Required output locale: fr');
+    expect(messages[0]!.content).not.toContain('zh-CN');
+    expect(messages[1]!.content).toContain('Locale: fr');
     expect(systemPrompt).toContain(
         'All user-facing report text, habit values, evidence, and questions');
-    expect(systemPrompt).toContain('For zh-CN, use Simplified Chinese');
+    expect(systemPrompt).not.toContain(
+        'recent questions clearly use another language');
     expect(systemPrompt).not.toContain('Habit keys and values in English');
   });
 

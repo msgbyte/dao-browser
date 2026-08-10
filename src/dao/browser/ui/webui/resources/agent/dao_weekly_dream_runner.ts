@@ -11,7 +11,7 @@ import {
   extractJson,
   recordDreamUsage,
 } from './dao_dream_runner.js';
-import {currentLocale} from './i18n/i18n.js';
+import {currentLocale, initI18n} from './i18n/i18n.js';
 import {getActiveLLMConfig} from './llm_config.js';
 
 export interface WeeklyDreamThread {
@@ -100,7 +100,9 @@ Output STRICT JSON (no markdown fence or commentary) with exactly this shape:
 }
 
 Rules:
-- Follow the Locale from the user message for every user-facing string.
+- Use the required output locale injected below for every user-facing string.
+  It is authoritative; source material in another language must not change
+  the output language.
 - The output must contain no URLs, no HTML, no tool calls, and no prebuilt
   Agent instruction. A next_step is a concise user action, not a prompt for
   an agent to execute.
@@ -314,11 +316,15 @@ export async function runWeeklyDream(
   if (!cfg.apiKey) {
     throw new Error('no LLM api key configured');
   }
+  await initI18n();
+  const locale = currentLocale();
+  const systemPrompt =
+      `${SYSTEM_PROMPT}\n\nRequired output locale: ${locale}`;
   const messages: ChatMessage[] = [
-    {role: 'system', content: SYSTEM_PROMPT},
+    {role: 'system', content: systemPrompt},
     {
       role: 'user',
-      content: `Locale: ${currentLocale()}\n` +
+      content: `Locale: ${locale}\n` +
           `Period: ${period.start} to ${period.end}\n` +
           `Weekly material pack:\n${JSON.stringify(material)}`,
     },

@@ -35,6 +35,7 @@ vi.mock('../dao_share_image.js', () => ({
 
 vi.mock('../i18n/i18n.js', () => ({
   initI18n: vi.fn(async () => undefined),
+  currentLocale: () => 'zh-CN',
   t: (key: string, vars?: Record<string, string | number>) => {
     const templates: Record<string, string> = {
       'chat.dream.card_date': 'About {date}',
@@ -117,6 +118,12 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
 }));
 
 import '../dao_dream_app.js';
+
+const dreamAppCtor = customElements.get('dao-dream-app') as
+    CustomElementConstructor & {
+      invokeLifecycleCallbacksForTesting?: boolean;
+    };
+dreamAppCtor.invokeLifecycleCallbacksForTesting = true;
 
 type TestDreamApp = HTMLElement & {updateComplete: Promise<boolean>};
 type TestDreamAppPrototype = {
@@ -291,6 +298,19 @@ describe('dao-dream-app routing', () => {
     expect(el.shadowRoot!.textContent).toContain('Thu, Jun 11');
   });
 
+  it('opens the activity heatmap at the newest dates', async () => {
+    vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockReturnValue(760);
+    vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(220);
+    bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-12')]);
+
+    const el = await mountDreamApp('/');
+    const heatmap =
+        el.shadowRoot!.querySelector<HTMLElement>('.heatmap-scroll');
+
+    expect(heatmap).toBeTruthy();
+    expect(heatmap!.scrollLeft).toBe(540);
+  });
+
   it('loads dream history for dao://dream/history', async () => {
     bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-10')]);
 
@@ -395,7 +415,7 @@ describe('dao-dream-app routing', () => {
        expect(root.querySelectorAll('.rhythm-slot')).toHaveLength(4);
        expect(root.querySelector(
            '.rhythm-slot[data-peak="true"]')?.textContent)
-           .toContain('125 min');
+           .toContain('2小时 5分钟');
        expect(root.querySelectorAll('.theme-card')).toHaveLength(1);
        expect(root.querySelector('.theme-card')?.textContent)
            .toContain('Rust async programming');
@@ -424,13 +444,46 @@ describe('dao-dream-app routing', () => {
         .toContain('Main thread');
   });
 
+  it('uses legacy report content instead of its generic heading in history',
+     async () => {
+       bridgeMocks.callNative.mockResolvedValueOnce([{
+         ...report('2026-06-19'),
+         reportMarkdown:
+             '## 昨天的主线\n完成了发布流程整理，并验证了关键配置。',
+       }]);
+
+       const el = await mountDreamApp('/');
+       const historySummary =
+           el.shadowRoot!.querySelector('.history-kind')?.textContent || '';
+
+       expect(historySummary).toContain(
+           '完成了发布流程整理，并验证了关键配置。');
+       expect(historySummary).not.toContain('昨天的主线');
+     });
+
+  it('keeps a valid structured theme when recap summary is empty', async () => {
+    const stats = JSON.parse(recapMaterialStats());
+    stats.recap.summary = '';
+    bridgeMocks.callNative.mockResolvedValueOnce([{
+      ...report('2026-06-19', '[]', JSON.stringify(stats)),
+      reportMarkdown: '## 昨天的主线\n旧版正文不应覆盖结构化主题。',
+    }]);
+
+    const el = await mountDreamApp('/');
+    const historySummary =
+        el.shadowRoot!.querySelector('.history-kind')?.textContent || '';
+
+    expect(historySummary).toContain('Rust async programming');
+    expect(historySummary).not.toContain('旧版正文');
+  });
+
   it('uses measured foreground buckets instead of model-estimated rhythm',
      async () => {
        const stats = JSON.parse(recapMaterialStats());
        stats.foreground_seconds_by_bucket = {
          morning: 600,
          afternoon: 7200,
-         evening: 1800,
+         evening: 7500,
          night: 0,
        };
        stats.recap.time_buckets = {
@@ -449,8 +502,8 @@ describe('dao-dream-app routing', () => {
 
        expect(slots.map(slot => slot.textContent)).toEqual([
          expect.stringContaining('10 min'),
-         expect.stringContaining('120 min'),
-         expect.stringContaining('30 min'),
+         expect.stringContaining('2小时'),
+         expect.stringContaining('2小时 5分钟'),
          expect.stringContaining('0 min'),
        ]);
      });

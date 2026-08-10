@@ -6,6 +6,12 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const callLLMStreaming = vi.fn();
 const recordApiCall = vi.fn();
+const i18nMocks = vi.hoisted(() => ({
+  initialized: false,
+  locale: 'zh-CN',
+  initI18n: vi.fn(),
+  currentLocale: vi.fn(),
+}));
 
 vi.mock('../agent_bridge.js', () => ({
   addWebUIListener: vi.fn(),
@@ -32,7 +38,8 @@ vi.mock('../llm_config.js', () => ({
   }),
 }));
 vi.mock('../i18n/i18n.js', () => ({
-  currentLocale: () => 'zh-CN',
+  initI18n: () => i18nMocks.initI18n(),
+  currentLocale: () => i18nMocks.currentLocale(),
 }));
 
 import {
@@ -303,10 +310,20 @@ describe('runWeeklyDream', () => {
   beforeEach(() => {
     callLLMStreaming.mockReset();
     recordApiCall.mockReset();
+    i18nMocks.initialized = false;
+    i18nMocks.locale = 'zh-CN';
+    i18nMocks.initI18n.mockReset();
+    i18nMocks.initI18n.mockImplementation(async () => {
+      i18nMocks.initialized = true;
+    });
+    i18nMocks.currentLocale.mockReset();
+    i18nMocks.currentLocale.mockImplementation(
+        () => i18nMocks.initialized ? i18nMocks.locale : 'en');
   });
 
-  it('uses locale and the locked safety instructions with an empty tool list',
+  it('waits for locale and uses locked safety instructions with no tools',
      async () => {
+       i18nMocks.locale = 'fr';
        respondWith(JSON.stringify(validOutput()));
 
        await runWeeklyDream(
@@ -319,6 +336,8 @@ describe('runWeeklyDream', () => {
          content: string;
        }>;
        const systemPrompt = messages[0]!.content.replace(/\s+/g, ' ');
+       expect(systemPrompt).toContain('Required output locale: fr');
+       expect(systemPrompt).not.toContain('zh-CN');
        expect(systemPrompt).toContain('untrusted evidence');
        expect(systemPrompt).toContain(
            'Browsing or search activity alone cannot prove completion');
@@ -330,7 +349,7 @@ describe('runWeeklyDream', () => {
        expect(systemPrompt).toContain('no tool calls');
        expect(systemPrompt).toContain(
            'no prebuilt Agent instruction');
-       expect(messages[1]!.content).toContain('Locale: zh-CN');
+       expect(messages[1]!.content).toContain('Locale: fr');
        expect(messages[1]!.content).toContain(
            'Period: 2026-07-06 to 2026-07-13');
      });
