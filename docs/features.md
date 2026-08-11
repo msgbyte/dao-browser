@@ -342,6 +342,57 @@ macOS-style floating control center panel bundling extensions and utilities.
 - **Menu item + command handling** — User can reopen anytime
 - **First-run preference tracking** — Auto-opens only on first launch (managed via `dao_pref_names`)
 
+## 6.1 Browser Data Migration
+
+- **Standalone migration surface** — `dao://import` is a dedicated Lit WebUI,
+  exposed as an explicit **Import browser data** row on the **You and Dao**
+  Settings page and from the existing system **Import Bookmarks and Settings…**
+  command instead of Chromium's modal importer. Its source grid always shows
+  Chrome, Arc, Edge, Safari, and Firefox: detected profiles remain individually
+  selectable, while browser kinds without a detected profile appear as disabled
+  cards. The flow lets the user choose supported data categories, reconnects to
+  an active profile-scoped job after reload, and reports per-category progress
+  and retryable partial failures. Stopped jobs retain completed-batch counts and
+  are presented as cancelled, not completed.
+- **Asynchronous candidate counts** — Selecting a Chromium-family profile
+  starts independent background counts for each supported category without
+  blocking navigation or migration. Bookmark, history, password, and extension
+  counts read source metadata directly; password counting never decrypts a
+  credential or triggers Keychain authorization. Tab sessions are counted only
+  from a temporary snapshot because Chromium's session reader can rotate files.
+  These preflight values describe scanned candidates and may differ from final
+  imported totals if the source changes or Dao skips conflicts. Legacy Safari
+  and Firefox importers report the count as unavailable until migration.
+- **Supported sources** — Chrome, Arc, and Edge profiles use Dao's snapshot
+  adapters; Safari and Firefox profiles use Chromium's sandboxed platform
+  importers for the categories those importers support on macOS.
+- **Safe source reads** — Chromium-family stores are copied to a temporary
+  profile snapshot with bounded metadata-stability retries. SQLite sidecars and
+  session directories are included, so source browsers can normally remain
+  open. Temporary snapshots are deleted with the category operation.
+- **Merge-only destination writes** — Bookmarks are placed under a localized
+  imported root, destination password conflicts are preserved, already-open
+  tab URLs and installed extensions are skipped, and history writes use the
+  profile History service. History and password counts advance only after the
+  destination services confirm the persisted records. No category replaces
+  existing Dao data.
+- **Passwords and extensions** — The selection screen warns that password
+  decryption may trigger a macOS Keychain authorization prompt. A denial fails
+  only passwords. Compatible web-store extensions are reinstalled in sequence;
+  extension storage and sign-in state are not copied.
+- **Imported tabs** — Source session tabs retain order, become background
+  discarded tabs, and are collected in a collapsed sidebar folder. Tabs are
+  created in cancellable batches; a failed folder write rolls back tabs from
+  that import instead of leaving orphaned browser tabs. Successful folder
+  persistence invalidates every live same-profile sidebar cache.
+- **Privacy boundary** — Migration records, snapshots, and progress stay local;
+  only official extension reinstallation may use the network. Cookies are not
+  imported because Chromium does not expose a safe cross-profile cookie import
+  API and copied encrypted cookie stores are not portable.
+- Core owners: `browser/import/dao_migration_service.*`,
+  `dao_profile_snapshot.*`, source adapters and target writers;
+  `webui/dao_import_ui.*` and `webui/resources/import/` own the WebUI.
+
 ## 7. Little Dao Window
 
 Lightweight window form factor for popups / mini-tools.

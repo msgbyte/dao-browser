@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/resources/settings/people_page/people_page.ts b/chrome/browser/resources/settings/people_page/people_page.ts
+index 3a62fb9d43..698f3c4608 100644
+--- a/chrome/browser/resources/settings/people_page/people_page.ts
++++ b/chrome/browser/resources/settings/people_page/people_page.ts
+@@ -391,7 +391,7 @@ export class SettingsPeoplePageElement extends
+   }
+ 
+   private onImportDataClick_() {
+-    Router.getInstance().navigateTo(routes.IMPORT_DATA);
++    OpenWindowProxyImpl.getInstance().openUrl('dao://import/');
+   }
+ 
+   private onImportDataDialogClosed_() {

@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,360 @@
+@@ -0,0 +1,366 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -13,6 +13,7 @@ index 0000000000..0000000001
 + * 'settings-dao-page' contains the Dao settings overview.
 + */
 +import 'chrome://resources/cr_elements/cr_button/cr_button.js';
++import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 +import '../controls/settings_toggle_button.js';
 +import '../settings_page/settings_section.js';
 +import '../settings_shared.css.js';
@@ -20,6 +21,7 @@ index 0000000000..0000000001
 +
 +import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 +import {sendWithPromise} from 'chrome://resources/js/cr.js';
++import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 +import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 +import type {
 +  CrInputElement,
@@ -259,6 +261,10 @@ index 0000000000..0000000001
 +  async searchContents(query: string) {
 +    const searchRequest = await getSearchManager().search(query, this);
 +    return searchRequest.getSearchResult();
++  }
++
++  private onImportBrowserDataClick_() {
++    OpenWindowProxyImpl.getInstance().openUrl('dao://import/');
 +  }
 +
 +  private onDaoMcpEnabledChange_(event: Event) {

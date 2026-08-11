@@ -2,18 +2,19 @@ diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/u
 index 9daef52054236..d4f6fc8bad782 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 +++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-@@ -4,6 +4,10 @@
+@@ -4,6 +4,11 @@
  
  #include "chrome/browser/ui/webui/chrome_web_ui_configs.h"
  
 +#include "dao/browser/ui/webui/dao_agent_ui.h"
++#include "dao/browser/ui/webui/dao_import_ui.h"
 +#include "dao/browser/ui/webui/dao_sidebar_ui.h"
 +#include "dao/browser/ui/webui/dao_welcome_ui.h"
 +
  #include "build/android_buildflags.h"
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
-@@ -246,6 +250,15 @@ void RegisterChromeWebUIConfigs() {
+@@ -246,6 +251,16 @@ void RegisterChromeWebUIConfigs() {
    map.AddWebUIConfig(
        std::make_unique<AccessibilityAnnotatorInternalsUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
@@ -22,6 +23,7 @@ index 9daef52054236..d4f6fc8bad782 100644
 +  map.AddWebUIConfig(std::make_unique<dao::DaoAgentUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoDreamUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoIndexUIConfig>());
++  map.AddWebUIConfig(std::make_unique<dao::DaoImportUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoMemoryUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoSidebarUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoSkillsUIConfig>());
@@ -29,7 +31,7 @@ index 9daef52054236..d4f6fc8bad782 100644
    map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
    map.AddWebUIConfig(std::make_unique<BrowsingTopicsInternalsUIConfig>());
    map.AddWebUIConfig(
-@@ -483,7 +496,8 @@ void RegisterChromeWebUIConfigs() {
+@@ -483,7 +498,8 @@ void RegisterChromeWebUIConfigs() {
  
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
      BUILDFLAG(IS_CHROMEOS)

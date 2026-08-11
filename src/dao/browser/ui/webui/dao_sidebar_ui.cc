@@ -558,6 +558,20 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
   }
 }
 
+// static
+void DaoSidebarUIHandler::NotifyFolderDataChanged(Profile* profile) {
+  auto state_it = GetPinnedItemsProfileStates().find(profile);
+  if (state_it == GetPinnedItemsProfileStates().end()) {
+    return;
+  }
+  for (DaoSidebarUIHandler* handler : state_it->second.handlers) {
+    handler->folder_json_.clear();
+    if (handler->IsJavascriptAllowed()) {
+      handler->FireWebUIListener("folderDataChanged");
+    }
+  }
+}
+
 base::ListValue DaoSidebarUIHandler::GetPinnedItemsForTesting() {
   return BuildPinnedItems();
 }

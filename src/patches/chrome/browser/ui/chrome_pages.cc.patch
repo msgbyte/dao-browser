@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/chrome_pages.cc b/chrome/browser/ui/chrome_pages.cc
+--- a/chrome/browser/ui/chrome_pages.cc
++++ b/chrome/browser/ui/chrome_pages.cc
+@@ -608,7 +608,8 @@ void ShowSafeBrowsingEnhancedProtectionWithIph(
+ 
+ void ShowImportDialog(BrowserWindowInterface* browser) {
+   base::RecordAction(UserMetricsAction("Import_ShowDlg"));
+-  ShowSettingsSubPage(browser, kImportDataSubPage);
++  ShowSingletonTabIgnorePathOverwriteNTP(browser,
++                                         GURL("dao://import/"));
+ }
+ 
+ void ShowAboutChrome(BrowserWindowInterface* browser) {

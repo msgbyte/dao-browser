@@ -108,6 +108,8 @@
 #include "dao/browser/dao_auto_pip_visibility_helper.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/dao_webstore_branding_tab_helper.h"
+#include "dao/browser/import/dao_chromium_migration_target.h"
+#include "dao/browser/import/dao_migration_writer.h"
 #include "dao/browser/pip/dao_pip_bounds_prefs.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
 #include "dao/browser/pip/dao_pip_resize_utils.h"
@@ -8878,6 +8880,70 @@ IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest,
   EXPECT_EQ(1, model->count())
       << "The first-run welcome navigation should reuse the existing "
          "dao://welcome startup tab instead of opening a duplicate tab.";
+}
+
+class DaoImportWebUIBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoImportWebUIBrowserTest,
+                       ImportSettingsCommandOpensStandaloneMigrationUI) {
+  ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_IMPORT_SETTINGS));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  EXPECT_EQ(GURL("dao://import/"), contents->GetVisibleURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoImportWebUIBrowserTest, LoadsStandaloneMigrationUI) {
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  content::WebContentsConsoleObserver observer(contents);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://import/")));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      await customElements.whenDefined('dao-import-app');
+      return !!document.querySelector('dao-import-app');
+    })()
+  )"));
+
+  std::vector<std::string> errors;
+  for (const auto& message : observer.messages()) {
+    if (message.log_level == blink::mojom::ConsoleMessageLevel::kError) {
+      errors.push_back(base::UTF16ToUTF8(message.message));
+    }
+  }
+  EXPECT_TRUE(errors.empty())
+      << "dao://import emitted console errors during load:\n - "
+      << base::JoinString(errors, "\n - ");
+}
+
+IN_PROC_BROWSER_TEST_F(DaoImportWebUIBrowserTest,
+                       FailedTabFolderWriteRollsBackImportedTabs) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  const base::FilePath folder_path =
+      browser()->profile()->GetPath().AppendASCII("dao_folders.json");
+  ASSERT_TRUE(base::WriteFile(folder_path, R"({"version":1,"items":[]})"));
+  const int original_tab_count = browser()->tab_strip_model()->count();
+  dao::import::DaoChromiumMigrationTarget target(browser()->profile());
+  dao::import::DaoMigrationWriter writer(&target);
+  dao::import::TabEntry tab;
+  tab.url = GURL("https://import-rollback.example/");
+  tab.title = u"Rollback";
+  std::string folder_id;
+
+  const dao::import::WriteResult result =
+      writer.WriteTabsBatch({tab}, u"Imported tabs", &folder_id);
+  ASSERT_EQ(1u, result.imported);
+  ASSERT_FALSE(folder_id.empty());
+  ASSERT_TRUE(base::DeleteFile(folder_path));
+  ASSERT_TRUE(base::CreateDirectory(folder_path));
+
+  EXPECT_FALSE(writer.FinishTabs(folder_id));
+  EXPECT_EQ(original_tab_count, browser()->tab_strip_model()->count());
+  EXPECT_TRUE(base::DeletePathRecursively(folder_path));
 }
 
 // =============================================================================

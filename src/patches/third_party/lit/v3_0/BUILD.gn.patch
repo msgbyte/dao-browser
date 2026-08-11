@@ -2,11 +2,12 @@ diff --git a/third_party/lit/v3_0/BUILD.gn b/third_party/lit/v3_0/BUILD.gn
 index 9a1c53ea74..8b42ed94d9 100644
 --- a/third_party/lit/v3_0/BUILD.gn
 +++ b/third_party/lit/v3_0/BUILD.gn
-@@ -134,6 +134,9 @@ ts_library("build_ts") {
+@@ -134,6 +134,10 @@ ts_library("build_ts") {
      "//content/browser/resources/traces_internals:build_ts",
      "//ios/chrome/app/resources/profile_internals:build_ts",
      "//ui/webui/resources/cr_components/composebox:build_ts",
 +    "//dao/browser/ui/webui/resources/agent:build_ts",
++    "//dao/browser/ui/webui/resources/import:build_ts",
 +    "//dao/browser/ui/webui/resources/sidebar:build_ts",
 +    "//dao/browser/ui/webui/resources/welcome:build_ts",
      "//ui/webui/resources/cr_components/cr_shortcut_input:build_ts",
