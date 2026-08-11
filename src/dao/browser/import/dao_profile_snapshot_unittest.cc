@@ -8,12 +8,21 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
+#include "base/run_loop.h"
+#include "base/test/task_environment.h"
+#include "base/threading/thread_restrictions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao::import {
 namespace {
 
-TEST(DaoProfileSnapshotTest, CopiesStableFileAndSqliteSidecars) {
+class DaoProfileSnapshotTest : public testing::Test {
+ protected:
+  base::test::TaskEnvironment task_environment_;
+};
+
+TEST_F(DaoProfileSnapshotTest, CopiesStableFileAndSqliteSidecars) {
   base::ScopedTempDir source_dir;
   ASSERT_TRUE(source_dir.CreateUniqueTempDir());
   ASSERT_TRUE(
@@ -35,7 +44,7 @@ TEST(DaoProfileSnapshotTest, CopiesStableFileAndSqliteSidecars) {
   EXPECT_TRUE(base::PathExists(result.path.AppendASCII("History-shm")));
 }
 
-TEST(DaoProfileSnapshotTest, ReportsMissingSourceWithoutLeavingSnapshot) {
+TEST_F(DaoProfileSnapshotTest, ReportsMissingSourceWithoutLeavingSnapshot) {
   base::ScopedTempDir source_dir;
   ASSERT_TRUE(source_dir.CreateUniqueTempDir());
 
@@ -49,7 +58,7 @@ TEST(DaoProfileSnapshotTest, ReportsMissingSourceWithoutLeavingSnapshot) {
   EXPECT_TRUE(result.path.empty());
 }
 
-TEST(DaoProfileSnapshotTest, RecursivelyCopiesSessionDirectory) {
+TEST_F(DaoProfileSnapshotTest, RecursivelyCopiesSessionDirectory) {
   base::ScopedTempDir source_dir;
   ASSERT_TRUE(source_dir.CreateUniqueTempDir());
   const base::FilePath sessions = source_dir.GetPath().AppendASCII("Sessions");
@@ -66,7 +75,7 @@ TEST(DaoProfileSnapshotTest, RecursivelyCopiesSessionDirectory) {
       result.path.AppendASCII("Sessions").AppendASCII("Session_1")));
 }
 
-TEST(DaoProfileSnapshotTest, StopsBeforeCopyWhenCancelled) {
+TEST_F(DaoProfileSnapshotTest, StopsBeforeCopyWhenCancelled) {
   base::ScopedTempDir source_dir;
   ASSERT_TRUE(source_dir.CreateUniqueTempDir());
   ASSERT_TRUE(base::WriteFile(source_dir.GetPath().AppendASCII("Bookmarks"),
@@ -84,7 +93,7 @@ TEST(DaoProfileSnapshotTest, StopsBeforeCopyWhenCancelled) {
   EXPECT_TRUE(result.path.empty());
 }
 
-TEST(DaoProfileSnapshotTest, RemovesTemporaryDirectoryWithResultLifetime) {
+TEST_F(DaoProfileSnapshotTest, RemovesTemporaryDirectoryWithResultLifetime) {
   base::ScopedTempDir source_dir;
   ASSERT_TRUE(source_dir.CreateUniqueTempDir());
   ASSERT_TRUE(base::WriteFile(source_dir.GetPath().AppendASCII("Bookmarks"),
@@ -100,6 +109,42 @@ TEST(DaoProfileSnapshotTest, RemovesTemporaryDirectoryWithResultLifetime) {
     snapshot_path = result.path;
     EXPECT_TRUE(base::DirectoryExists(snapshot_path));
   }
+
+  task_environment_.RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(snapshot_path));
+}
+
+TEST_F(DaoProfileSnapshotTest,
+       RemovesTemporaryDirectoryWithoutBlockingCallingSequence) {
+  base::ScopedTempDir source_dir;
+  ASSERT_TRUE(source_dir.CreateUniqueTempDir());
+  ASSERT_TRUE(base::WriteFile(source_dir.GetPath().AppendASCII("Bookmarks"),
+                              "bookmarks"));
+
+  SnapshotRequest request;
+  request.source_profile = source_dir.GetPath();
+  request.relative_paths = {base::FilePath(FILE_PATH_LITERAL("Bookmarks"))};
+
+  base::FilePath snapshot_path;
+  base::RunLoop run_loop;
+  DaoProfileSnapshot::Create(
+      request, base::BindOnce(
+                   [](base::FilePath* snapshot_path, base::OnceClosure quit,
+                      SnapshotResult result) {
+                     EXPECT_TRUE(result.success);
+                     if (result.success) {
+                       *snapshot_path = result.path;
+                       EXPECT_TRUE(base::DirectoryExists(*snapshot_path));
+                       {
+                         base::ScopedDisallowBlocking disallow_blocking;
+                         result = SnapshotResult();
+                       }
+                     }
+                     std::move(quit).Run();
+                   },
+                   &snapshot_path, run_loop.QuitClosure()));
+  run_loop.Run();
+  task_environment_.RunUntilIdle();
 
   EXPECT_FALSE(base::PathExists(snapshot_path));
 }

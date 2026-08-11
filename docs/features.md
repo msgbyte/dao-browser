@@ -345,6 +345,7 @@ macOS-style floating control center panel bundling extensions and utilities.
 ## 6.1 Browser Data Migration
 
 - **Standalone migration surface** — `dao://import` is a dedicated Lit WebUI,
+  with a localized **Import browser data** document title for its browser tab,
   exposed as an explicit **Import browser data** row on the **You and Dao**
   Settings page and from the existing system **Import Bookmarks and Settings…**
   command instead of Chromium's modal importer. Its source grid always shows
@@ -353,7 +354,11 @@ macOS-style floating control center panel bundling extensions and utilities.
   cards. The flow lets the user choose supported data categories, reconnects to
   an active profile-scoped job after reload, and reports per-category progress
   and retryable partial failures. Stopped jobs retain completed-batch counts and
-  are presented as cancelled, not completed.
+  are presented as cancelled, not completed. Partial completion identifies the
+  categories that need retrying in a dedicated summary and visually marks their
+  result cards without hiding any items that were imported before the failure.
+  The active migration rail uses the detected source browser's product logo and
+  Dao's packaged product logo instead of generic letter placeholders.
 - **Asynchronous candidate counts** — Selecting a Chromium-family profile
   starts independent background counts for each supported category without
   blocking navigation or migration. Bookmark, history, password, and extension
@@ -369,7 +374,9 @@ macOS-style floating control center panel bundling extensions and utilities.
 - **Safe source reads** — Chromium-family stores are copied to a temporary
   profile snapshot with bounded metadata-stability retries. SQLite sidecars and
   session directories are included, so source browsers can normally remain
-  open. Temporary snapshots are deleted with the category operation.
+  open. Temporary snapshots are deleted with the category operation. Cleanup
+  stays off the UI thread and blocks browser shutdown until copied history,
+  password, and session data has been removed.
 - **Merge-only destination writes** — Bookmarks are placed under a localized
   imported root, destination password conflicts are preserved, already-open
   tab URLs and installed extensions are skipped, and history writes use the

@@ -34,6 +34,7 @@ const SOURCE_KINDS = [
 ] as const;
 
 const TERMINAL_PHASES = new Set(['succeeded', 'failed', 'cancelled']);
+const DAO_LOGO_URL = 'assets/dao.png';
 
 type SourceCard = {
   kind: string;
@@ -74,6 +75,7 @@ export class DaoImportApp extends CrLitElement {
         --accent-soft: rgba(70, 120, 190, .12);
         --success: rgb(46, 140, 92);
         --danger: rgb(196, 65, 65);
+        --danger-soft: rgba(196, 65, 65, .1);
         align-items: center;
         background: var(--bg);
         color: var(--text);
@@ -97,6 +99,7 @@ export class DaoImportApp extends CrLitElement {
           --accent-soft: rgba(70, 120, 190, .22);
           --success: rgb(74, 176, 120);
           --danger: rgb(245, 118, 118);
+          --danger-soft: rgba(245, 118, 118, .14);
         }
       }
 
@@ -131,16 +134,10 @@ export class DaoImportApp extends CrLitElement {
       header { border-bottom: 1px solid var(--border); }
       footer { border-top: 1px solid var(--border); gap: 16px; }
       .brand { align-items: center; display: flex; gap: 10px; }
-      .brand-mark {
-        align-items: center;
-        background: var(--accent);
-        border-radius: 8px;
-        color: white;
-        display: flex;
-        font-size: 17px;
-        font-weight: 700;
+      .brand-logo {
+        display: block;
         height: 28px;
-        justify-content: center;
+        object-fit: contain;
         width: 28px;
       }
       .brand-name { font-size: 13px; font-weight: 650; }
@@ -379,7 +376,13 @@ export class DaoImportApp extends CrLitElement {
         justify-content: center;
         width: 64px;
       }
-      .pipe-disc.dao { background: var(--accent); color: white; font-size: 18px; }
+      .pipe-disc.dao { background: transparent; }
+      .pipe-logo {
+        display: block;
+        height: 54px;
+        object-fit: contain;
+        width: 54px;
+      }
       .conduit { height: 2px; background: var(--border); position: relative; }
       .conduit::after {
         animation: travel 1.6s ease-in-out infinite;
@@ -465,10 +468,51 @@ export class DaoImportApp extends CrLitElement {
         transform: rotate(45deg) translate(-4px, -4px);
         width: 13px;
       }
+      .failure-summary {
+        align-items: flex-start;
+        background: var(--danger-soft);
+        border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+        border-radius: 10px;
+        color: var(--danger);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 18px;
+        max-width: 100%;
+        padding: 10px 14px;
+        text-align: start;
+      }
+      .failure-summary strong { font-size: 13px; }
+      .failure-categories { display: flex; flex-wrap: wrap; gap: 6px; }
+      .failure-category {
+        background: var(--panel);
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 650;
+        padding: 3px 9px;
+      }
       .stats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px; }
-      .stat { background: var(--surface); border-radius: 10px; min-width: 105px; padding: 11px 14px; }
+      .failure-summary + .stats { margin-top: 12px; }
+      .stat {
+        background: var(--surface);
+        border: 1px solid transparent;
+        border-radius: 10px;
+        min-width: 105px;
+        padding: 10px 13px;
+      }
+      .stat.failed {
+        background: var(--danger-soft);
+        border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+      }
       .stat strong { display: block; font-size: 20px; }
       .stat span { color: var(--secondary); }
+      .stat.failed strong, .stat .stat-status { color: var(--danger); }
+      .stat .stat-status {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        margin-top: 4px;
+      }
 
       .hint { color: var(--tertiary); line-height: 1.4; }
       .actions { display: flex; gap: 8px; margin-inline-start: auto; }
@@ -704,7 +748,7 @@ export class DaoImportApp extends CrLitElement {
     return html`
       <header>
         <div class="brand">
-          <span class="brand-mark" aria-hidden="true">D</span>
+          <img class="brand-logo" src=${DAO_LOGO_URL} alt="">
           <span class="brand-name">${this.string_('daoImportWizardName')}</span>
         </div>
         <div class="rail" aria-hidden="true">
@@ -818,7 +862,10 @@ export class DaoImportApp extends CrLitElement {
         </div>
         <span class="conduit"></span>
         <div class="pipe-node">
-          <span class="pipe-disc dao">D</span>
+          <span class="pipe-disc dao">
+            <img class="pipe-logo" data-test="dao-logo"
+                src=${DAO_LOGO_URL} alt="">
+          </span>
           <span>${this.string_('daoImportDaoName')}</span>
         </div>
       </div>
@@ -868,11 +915,27 @@ export class DaoImportApp extends CrLitElement {
             this.string_('daoImportCancelledDescription') : failed.length ?
             this.string_('daoImportPartialDescription') :
             this.string_('daoImportDoneDescription')}</p>
+        ${failed.length ? html`
+          <div class="failure-summary" data-test="failure-summary"
+              role="status">
+            <strong>${this.string_('daoImportFailedSummaryTitle')}</strong>
+            <div class="failure-categories">
+              ${failed.map(item => html`
+                <span class="failure-category">
+                  ${this.categoryLabel_(item.category)}
+                </span>`)}
+            </div>
+          </div>` : nothing}
         <div class="stats">
           ${totals.map(item => html`
-            <div class="stat">
+            <div class="stat ${item.phase === 'failed' ? 'failed' : ''}"
+                data-summary-category=${item.category}>
               <strong>${item.imported || 0}</strong>
               <span>${this.categoryLabel_(item.category)}</span>
+              ${item.phase === 'failed' ? html`
+                <span class="stat-status">
+                  ${this.string_('daoImportFailedStatus')}
+                </span>` : nothing}
             </div>`)}
         </div>
       </div>`;

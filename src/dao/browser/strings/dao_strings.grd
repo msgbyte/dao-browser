@@ -498,6 +498,7 @@
       </message>
 
       <!-- Browser data migration WebUI -->
+      <message name="IDS_DAO_IMPORT_PAGE_TITLE" desc="Document title of the standalone browser data migration page.">Import browser data</message>
       <message name="IDS_DAO_IMPORT_WIZARD_NAME" desc="Name of the standalone browser data migration wizard.">Dao Migration</message>
       <message name="IDS_DAO_IMPORT_STEP_SOURCE" desc="Step label for choosing a source browser profile.">Step 1 of 4 · Choose a source</message>
       <message name="IDS_DAO_IMPORT_SOURCE_TITLE" desc="Heading asking which browser profile to import from.">Where are you moving from?</message>
@@ -540,6 +541,8 @@
       <message name="IDS_DAO_IMPORT_PHASE_CANCELLED" desc="Cancelled migration category status.">Cancelled</message>
       <message name="IDS_DAO_IMPORT_PARTIAL_TITLE" desc="Completion heading when some data categories failed.">Most of your data is here</message>
       <message name="IDS_DAO_IMPORT_PARTIAL_DESCRIPTION" desc="Explanation shown when some categories can be retried after partial migration.">Completed categories are ready to use. You can retry only the parts that need attention.</message>
+      <message name="IDS_DAO_IMPORT_FAILED_SUMMARY_TITLE" desc="Heading above the browser data categories that need to be retried.">These items need to be retried</message>
+      <message name="IDS_DAO_IMPORT_FAILED_STATUS" desc="Status shown on a browser data category that failed to migrate.">Migration failed</message>
       <message name="IDS_DAO_IMPORT_DONE_TITLE" desc="Heading shown after all selected data categories were imported.">Your move is complete</message>
       <message name="IDS_DAO_IMPORT_DONE_DESCRIPTION" desc="Explanation shown after successful browser migration.">Your imported data is ready in Dao. Open tabs are kept unloaded in a collapsed folder until you need them.</message>
       <message name="IDS_DAO_IMPORT_CANCELLED_TITLE" desc="Completion heading shown after the user stops a browser migration.">Migration stopped</message>

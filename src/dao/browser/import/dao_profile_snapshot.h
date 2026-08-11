@@ -14,6 +14,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
+#include "base/task/sequenced_task_runner.h"
 
 namespace dao::import {
 
@@ -59,7 +60,9 @@ struct SnapshotResult {
 
  private:
   friend class DaoProfileSnapshot;
-  std::unique_ptr<base::ScopedTempDir> temp_dir;
+  using TempDirPtr =
+      std::unique_ptr<base::ScopedTempDir, base::OnTaskRunnerDeleter>;
+  TempDirPtr temp_dir;
 };
 
 class DaoProfileSnapshot {

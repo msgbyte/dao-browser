@@ -21,7 +21,8 @@ vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
 
 vi.mock('//resources/js/load_time_data.js', () => ({
   loadTimeData: {
-    getString: (key: string) => key,
+    getString: (key: string) =>
+        key === 'daoImportPageTitle' ? 'Import browser data' : key,
     getStringF: (key: string, value: string) => `${key}:${value}`,
   },
 }));
@@ -67,6 +68,14 @@ describe('dao-import-app', () => {
   });
 
   afterEach(() => vi.clearAllMocks());
+
+  it('sets the localized document title from WebUI data', async () => {
+    document.title = '';
+
+    await import('../import.js');
+
+    expect(document.title).toBe('Import browser data');
+  });
 
   it('renders an actionable empty state when no profiles are detected',
      async () => {
@@ -327,6 +336,98 @@ describe('dao-import-app', () => {
 
     expect(app.step_).toBe(3);
     expect(app.selectedSourceId_).toBe('chrome-default');
+  });
+
+  it('uses product logos for the source and Dao migration endpoints',
+     async () => {
+       bridge.detectImportSources.mockResolvedValue([{
+         id: 'edge-work',
+         kind: 'edge',
+         browserName: 'Microsoft Edge',
+         profileName: 'Work',
+         supportedCategories: ['bookmarks'],
+       }]);
+       bridge.getBrowserMigrationState.mockResolvedValue({
+         sourceId: 'edge-work',
+         terminal: false,
+         cancelRequested: false,
+         categories: [{
+           category: 'bookmarks',
+           phase: 'reading',
+           imported: 0,
+           skipped: 0,
+           conflicted: 0,
+           failed: 0,
+           completedItems: 0,
+           totalItems: 1,
+           indeterminate: false,
+           errorCode: '',
+         }],
+       });
+
+       const app = await createApp();
+       await app.updateComplete;
+
+       expect(app.shadowRoot!
+                  .querySelector<HTMLImageElement>(
+                      '.migration-pipe .source-logo')!
+                  .getAttribute('src'))
+           .toBe('assets/edge.svg');
+       expect(app.shadowRoot!
+                  .querySelector<HTMLImageElement>('[data-test="dao-logo"]')!
+                  .getAttribute('src'))
+           .toBe('assets/dao.png');
+     });
+
+  it('identifies failed categories in the completion summary', async () => {
+    bridge.getBrowserMigrationState.mockResolvedValue({
+      sourceId: 'chrome-default',
+      terminal: true,
+      cancelRequested: false,
+      categories: [
+        {
+          category: 'bookmarks',
+          phase: 'succeeded',
+          imported: 720,
+          skipped: 0,
+          conflicted: 0,
+          failed: 0,
+          completedItems: 720,
+          totalItems: 720,
+          indeterminate: false,
+          errorCode: '',
+        },
+        {
+          category: 'passwords',
+          phase: 'failed',
+          imported: 1,
+          skipped: 0,
+          conflicted: 0,
+          failed: 0,
+          completedItems: 1,
+          totalItems: 2,
+          indeterminate: false,
+          errorCode: 'keychain_access_denied',
+        },
+      ],
+    });
+
+    const app = await createApp();
+    await app.updateComplete;
+
+    const failureSummary = app.shadowRoot!.querySelector(
+        '[data-test="failure-summary"]');
+    expect(failureSummary!.textContent)
+        .toContain('daoImportCategoryPasswords');
+
+    const failedStat = app.shadowRoot!.querySelector(
+        '[data-summary-category="passwords"]');
+    expect(failedStat!.classList.contains('failed')).toBe(true);
+    expect(failedStat!.textContent).toContain('daoImportFailedStatus');
+
+    const succeededStat = app.shadowRoot!.querySelector(
+        '[data-summary-category="bookmarks"]');
+    expect(succeededStat!.classList.contains('failed')).toBe(false);
   });
 
   it('renders cancellation instead of successful completion', async () => {

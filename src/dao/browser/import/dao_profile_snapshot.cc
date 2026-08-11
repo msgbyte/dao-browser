@@ -132,7 +132,8 @@ SnapshotRequest::SnapshotRequest(const SnapshotRequest&) = default;
 SnapshotRequest& SnapshotRequest::operator=(const SnapshotRequest&) = default;
 SnapshotRequest::~SnapshotRequest() = default;
 
-SnapshotResult::SnapshotResult() = default;
+SnapshotResult::SnapshotResult()
+    : temp_dir(nullptr, base::OnTaskRunnerDeleter(nullptr)) {}
 SnapshotResult::SnapshotResult(SnapshotResult&&) = default;
 SnapshotResult& SnapshotResult::operator=(SnapshotResult&&) = default;
 SnapshotResult::~SnapshotResult() = default;
@@ -164,7 +165,11 @@ SnapshotResult DaoProfileSnapshot::CreateOnBlockingThread(
     return result;
   }
 
-  auto temp_dir = std::make_unique<base::ScopedTempDir>();
+  SnapshotResult::TempDirPtr temp_dir(
+      new base::ScopedTempDir(),
+      base::OnTaskRunnerDeleter(base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+           base::TaskShutdownBehavior::BLOCK_SHUTDOWN})));
   if (!temp_dir->CreateUniqueTempDir()) {
     result.error_code = "copy_failed";
     return result;

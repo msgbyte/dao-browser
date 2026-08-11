@@ -14,6 +14,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/grit/dao_import_resources.h"
 #include "chrome/grit/dao_import_resources_map.h"
+#include "chrome/grit/chrome_unscaled_resources.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "dao/browser/import/dao_migration_service.h"
@@ -246,8 +247,10 @@ DaoImportUI::DaoImportUI(content::WebUI *web_ui) : WebUIController(web_ui) {
   content::WebUIDataSource *source =
       content::WebUIDataSource::CreateAndAdd(profile, "import");
   source->AddResourcePaths(kDaoImportResources);
+  source->AddResourcePath("assets/dao.png", IDR_PRODUCT_LOGO_64);
   source->SetDefaultResource(IDR_DAO_IMPORT_IMPORT_HTML);
   source->AddLocalizedStrings({
+      {"daoImportPageTitle", IDS_DAO_IMPORT_PAGE_TITLE},
       {"daoImportWizardName", IDS_DAO_IMPORT_WIZARD_NAME},
       {"daoImportStepSource", IDS_DAO_IMPORT_STEP_SOURCE},
       {"daoImportSourceTitle", IDS_DAO_IMPORT_SOURCE_TITLE},
@@ -292,6 +295,8 @@ DaoImportUI::DaoImportUI(content::WebUI *web_ui) : WebUIController(web_ui) {
       {"daoImportPhaseCancelled", IDS_DAO_IMPORT_PHASE_CANCELLED},
       {"daoImportPartialTitle", IDS_DAO_IMPORT_PARTIAL_TITLE},
       {"daoImportPartialDescription", IDS_DAO_IMPORT_PARTIAL_DESCRIPTION},
+      {"daoImportFailedSummaryTitle", IDS_DAO_IMPORT_FAILED_SUMMARY_TITLE},
+      {"daoImportFailedStatus", IDS_DAO_IMPORT_FAILED_STATUS},
       {"daoImportDoneTitle", IDS_DAO_IMPORT_DONE_TITLE},
       {"daoImportDoneDescription", IDS_DAO_IMPORT_DONE_DESCRIPTION},
       {"daoImportCancelledTitle", IDS_DAO_IMPORT_CANCELLED_TITLE},

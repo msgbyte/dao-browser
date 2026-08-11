@@ -13,6 +13,7 @@
 #include "base/strings/string_view_util.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "sql/test/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao::import {
@@ -53,7 +54,7 @@ TEST(DaoChromiumProfileAdapterTest, ReadsBookmarkHierarchyAndToolbarOrigin) {
 TEST(DaoChromiumProfileAdapterTest, ReadsHistoryVisitsInStableOrder) {
   base::ScopedTempDir profile_dir;
   ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
-  sql::Database database;
+  sql::Database database(sql::test::kTestTag);
   ASSERT_TRUE(database.Open(profile_dir.GetPath().AppendASCII("History")));
   ASSERT_TRUE(database.Execute(
       "CREATE TABLE urls (id INTEGER PRIMARY KEY, url LONGVARCHAR, title "
@@ -99,20 +100,22 @@ TEST(DaoChromiumProfileAdapterTest, ReadsExtensionEnabledState) {
 TEST(DaoChromiumProfileAdapterTest, ReadsPasswordMetadataWithDecryptor) {
   base::ScopedTempDir profile_dir;
   ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
-  sql::Database database;
+  sql::Database database(sql::test::kTestTag);
   ASSERT_TRUE(database.Open(profile_dir.GetPath().AppendASCII("Login Data")));
   ASSERT_TRUE(database.Execute(
       "CREATE TABLE logins (origin_url VARCHAR, username_value VARCHAR, "
       "password_value BLOB, signon_realm VARCHAR, date_created INTEGER, "
       "blacklisted_by_user INTEGER)"));
-  sql::Statement insert(database.GetUniqueStatement(
-      "INSERT INTO logins VALUES (?, ?, ?, ?, ?, 0)"));
-  insert.BindString(0, "https://example.com/login");
-  insert.BindString16(1, u"person@example.com");
-  insert.BindBlob(2, base::as_byte_span(std::string_view("cipher")));
-  insert.BindString(3, "https://example.com/");
-  insert.BindInt64(4, 13300000000000000);
-  ASSERT_TRUE(insert.Run());
+  {
+    sql::Statement insert(database.GetUniqueStatement(
+        "INSERT INTO logins VALUES (?, ?, ?, ?, ?, 0)"));
+    insert.BindString(0, "https://example.com/login");
+    insert.BindString16(1, u"person@example.com");
+    insert.BindBlob(2, base::as_byte_span(std::string_view("cipher")));
+    insert.BindString(3, "https://example.com/");
+    insert.BindInt64(4, 13300000000000000);
+    ASSERT_TRUE(insert.Run());
+  }
   database.Close();
 
   DaoChromiumProfileAdapter adapter(profile_dir.GetPath(),
@@ -130,7 +133,7 @@ TEST(DaoChromiumProfileAdapterTest,
      CountsPasswordCandidatesWithoutDecryptingThem) {
   base::ScopedTempDir profile_dir;
   ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
-  sql::Database database;
+  sql::Database database(sql::test::kTestTag);
   ASSERT_TRUE(database.Open(profile_dir.GetPath().AppendASCII("Login Data")));
   ASSERT_TRUE(
       database.Execute("CREATE TABLE logins (blacklisted_by_user INTEGER)"));

@@ -55,3 +55,47 @@ The header and progress rail are clearly readable in the full-view comparison, s
 No actionable P0, P1, or P2 visual findings remain for this regression.
 
 final result: passed
+
+---
+
+# Browser Migration Failure And Logo QA
+
+## Source visual truth
+
+- User-reported completion state: `/var/folders/0l/4dc990md3yn_g3b46dtmhp880000gn/T/orca-paste-1786445140695-69467f1b-dea4-4e72-98ff-929e65e28a19.png`.
+- User-reported broken logo state: `/var/folders/0l/4dc990md3yn_g3b46dtmhp880000gn/T/orca-paste-1786445925493-926fcbbe-e275-4e0b-84e5-da3196959779.png`.
+- State: light theme, partial migration completion and source selection.
+
+## Implementation evidence
+
+- Completion screenshot: `/tmp/dao-import-ui-qa-completion-final.png`.
+- Migration screenshot: `/tmp/dao-import-ui-qa-progress-final.png`.
+- Before/after completion comparison: `/tmp/dao-import-ui-qa-comparison-final.png`.
+- Viewport: 894 x 672 CSS pixels at device scale factor 2.
+- Screenshot pixels: 1788 x 1344.
+
+## Comparison evidence
+
+The completion state now lists failed categories in a compact danger-tinted summary and repeats the failure state on the affected statistic cards. Successful categories retain the existing neutral card treatment and all imported counts remain visible. The header and migration target use the packaged Dao product logo; the selected source uses its browser-specific logo.
+
+The runtime image checks reported a 64 x 64 natural size for each Dao logo and a 150 x 150 natural size for the Microsoft Edge logo. No image had a zero natural size or rendered as a broken image.
+
+## Required fidelity surfaces
+
+- Typography: passed; existing hierarchy and localized copy are preserved.
+- Spacing and layout: passed; the new failure summary fits without overlapping the statistics or footer.
+- Colors: passed; failed categories use a restrained danger treatment while successful categories remain neutral.
+- Asset fidelity: passed; same-origin WebUI resource mapping serves the packaged Dao logo and source-browser SVGs remain crisp.
+- Content clarity: passed; the failed category names and `Migration failed` status are both visible.
+
+## Verification
+
+- Focused WebUI and browser-import contract tests: 2 files, 15 tests passed.
+- Lit reactive-field lint: 205 files scanned, 0 violations.
+- `npm run rebuild`: succeeded in 11 incremental steps after correcting the resource header.
+- `git diff --check`: passed.
+- Runtime `dao://import` image and failure-state inspection: passed.
+
+No actionable P0, P1, or P2 visual findings remain for this change.
+
+final result: passed
