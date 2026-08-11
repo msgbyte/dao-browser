@@ -517,7 +517,7 @@ TEST_F(DaoMcpHelperBrowserTest,
   const base::DictValue* server_info = result->FindDict("serverInfo");
   ASSERT_TRUE(server_info);
   EXPECT_EQ("dao-browser", *server_info->FindString("name"));
-  EXPECT_EQ("1.0.79.0", *server_info->FindString("version"));
+  EXPECT_EQ("1.0.90.0", *server_info->FindString("version"));
   ASSERT_TRUE(result->FindDict("capabilities"));
   EXPECT_TRUE(result->FindDict("capabilities")->FindDict("tools"));
 
