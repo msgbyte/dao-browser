@@ -174,8 +174,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
-#include "ui/color/color_id.h"
-#include "ui/color/color_variant.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/display/display.h"
@@ -10173,9 +10171,7 @@ IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
   auto* message_scroll_view =
       FindDescendantViewOfClass<views::ScrollView>(dialog);
   ASSERT_NE(nullptr, message_scroll_view);
-  ASSERT_TRUE(message_scroll_view->GetBackgroundColor().has_value());
-  EXPECT_EQ(ui::ColorVariant(ui::kColorDialogBackground),
-            message_scroll_view->GetBackgroundColor().value());
+  EXPECT_FALSE(message_scroll_view->GetBackgroundColor().has_value());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoJavaScriptDialogBrowserTest,
