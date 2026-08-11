@@ -2059,6 +2059,42 @@ export class DaoDreamApp extends CrLitElement {
     this.activityTooltip_ = null;
   }
 
+  private renderActivityHeatmapCell_(
+      dateKey: string, label: string, report: DailyDreamReportData|null,
+      level: number, column: number, row: number) {
+    return html`
+      <button class="heat-cell" data-level=${String(level)}
+          style=${`grid-column:${column};grid-row:${row}`}
+          role="gridcell"
+          aria-label="${label}"
+          aria-describedby="${
+            this.activityTooltip_?.dateKey === dateKey ?
+              'dream-activity-tooltip' : nothing}"
+          @pointerenter=${report ?
+            (event: Event) => this.showActivityTooltip_(event, report) :
+            undefined}
+          @pointerleave=${report ? () => this.hideActivityTooltip_() :
+            undefined}
+          @focus=${report ?
+            (event: Event) => this.showActivityTooltip_(event, report) :
+            undefined}
+          @blur=${report ? () => this.hideActivityTooltip_() : undefined}
+          @click=${report ? () => this.selectHistoryReport_(report) :
+            undefined}
+          ?disabled=${!report}>
+      </button>`;
+  }
+
+  private renderActivityTooltip_() {
+    return this.activityTooltip_ ? html`
+      <div id="dream-activity-tooltip" class="activity-tooltip"
+          role="tooltip"
+          style=${`left:${this.activityTooltip_.left}px;` +
+            `top:${this.activityTooltip_.top}px`}>
+        ${this.activityTooltip_.text}
+      </div>` : nothing;
+  }
+
   private renderActivityHeatmap_() {
     const reportsByDate = new Map(
         this.reports_.map(report => [report.dreamDate, report]));
@@ -2095,27 +2131,8 @@ export class DaoDreamApp extends CrLitElement {
         previousMonth = date.getMonth();
       }
       const label = this.formatDreamDate_(dateKey);
-      cells.push(html`
-        <button class="heat-cell" data-level=${String(level)}
-            style=${`grid-column:${column};grid-row:${index % 7 + 1}`}
-            role="gridcell"
-            aria-label="${label}"
-            aria-describedby="${
-              this.activityTooltip_?.dateKey === dateKey ?
-                'dream-activity-tooltip' : nothing}"
-            @pointerenter=${report ?
-              (event: Event) => this.showActivityTooltip_(event, report) :
-              undefined}
-            @pointerleave=${report ? () => this.hideActivityTooltip_() :
-              undefined}
-            @focus=${report ?
-              (event: Event) => this.showActivityTooltip_(event, report) :
-              undefined}
-            @blur=${report ? () => this.hideActivityTooltip_() : undefined}
-            @click=${report ? () => this.selectHistoryReport_(report) :
-              undefined}
-            ?disabled=${!report}>
-        </button>`);
+      cells.push(this.renderActivityHeatmapCell_(
+          dateKey, label, report || null, level, column, index % 7 + 1));
     }
     return html`
       <section class="activity-heatmap">
@@ -2143,13 +2160,7 @@ export class DaoDreamApp extends CrLitElement {
           <span>${t('dream.page.activity_more')}</span>
         </div>
       </section>
-      ${this.activityTooltip_ ? html`
-        <div id="dream-activity-tooltip" class="activity-tooltip"
-            role="tooltip"
-            style=${`left:${this.activityTooltip_.left}px;` +
-              `top:${this.activityTooltip_.top}px`}>
-          ${this.activityTooltip_.text}
-        </div>` : nothing}`;
+      ${this.renderActivityTooltip_()}`;
   }
 
   private renderThemeIcon_(index: number) {

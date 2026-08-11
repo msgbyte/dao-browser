@@ -128,14 +128,22 @@ const dreamAppCtor = customElements.get('dao-dream-app') as
 dreamAppCtor.invokeLifecycleCallbacksForTesting = true;
 
 type TestDreamApp = HTMLElement & {updateComplete: Promise<boolean>};
+type TestDreamReport = {dreamDate: string};
 type TestDreamAppPrototype = {
+  reports_: TestDreamReport[];
   renderActivityHeatmap_: () => ReturnType<typeof html>;
+  renderActivityHeatmapCell_: (
+      dateKey: string, label: string, report: TestDreamReport|null,
+      level: number, column: number, row: number) => ReturnType<typeof html>;
+  renderActivityTooltip_: () => ReturnType<typeof html>;
+  hideActivityTooltip_: () => void;
 };
 
 const dreamAppPrototype =
     (customElements.get('dao-dream-app') as CustomElementConstructor)
         .prototype as unknown as TestDreamAppPrototype;
 let restoreActivityHeatmap: () => void;
+let useSingleCellActivityHeatmap: (dateKey: string, label: string) => void;
 
 function report(
     dreamDate: string,
@@ -278,6 +286,22 @@ describe('dao-dream-app routing', () => {
                 <div class="heatmap-scroll"></div>
               </section>`);
     restoreActivityHeatmap = () => activityHeatmapSpy.mockRestore();
+    useSingleCellActivityHeatmap = (dateKey: string, label: string) => {
+      activityHeatmapSpy.mockImplementation(function(
+          this: TestDreamAppPrototype) {
+        const report =
+            this.reports_.find(item => item.dreamDate === dateKey) || null;
+        return html`
+          <section class="activity-heatmap">
+            <div class="heatmap-scroll"
+                @scroll=${() => this.hideActivityTooltip_()}>
+              ${this.renderActivityHeatmapCell_(
+                dateKey, label, report, report ? 1 : 0, 1, 1)}
+            </div>
+          </section>
+          ${this.renderActivityTooltip_()}`;
+      });
+    };
   });
 
   afterEach(() => {
@@ -315,7 +339,7 @@ describe('dao-dream-app routing', () => {
 
   it('shows and hides localized active duration for a heatmap cell',
      async () => {
-       restoreActivityHeatmap();
+       useSingleCellActivityHeatmap('2026-06-19', '6月19日周五');
        bridgeMocks.callNative.mockResolvedValueOnce([
          report('2026-06-19', '[]', recapMaterialStats()),
        ]);
@@ -358,7 +382,7 @@ describe('dao-dream-app routing', () => {
 
   it('shows unavailable duration for a legacy heatmap report on focus',
      async () => {
-       restoreActivityHeatmap();
+       useSingleCellActivityHeatmap('2026-06-19', '6月19日周五');
        bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-19')]);
 
        const el = await mountDreamApp('/');
