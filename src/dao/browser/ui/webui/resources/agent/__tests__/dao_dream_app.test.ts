@@ -77,6 +77,8 @@ vi.mock('../i18n/i18n.js', () => ({
       'dream.page.activity_less': 'Less',
       'dream.page.activity_more': 'More',
       'dream.page.activity_label': 'Daily Dream report activity',
+      'dream.page.activity_tooltip': '{date} · {duration}',
+      'dream.page.activity_duration_unavailable': 'Duration unavailable',
       'dream.page.weekly_badge': 'Weekly',
       'dream.page.weekly_eyebrow': 'Weekly Dream Recap',
       'dream.page.weekly_period': '{start} – {end}',
@@ -295,7 +297,7 @@ describe('dao-dream-app routing', () => {
     expect(bridgeMocks.callNative).toHaveBeenCalledWith(
         'getDreamReports', {limit: 371});
     expect(el.shadowRoot!.textContent).toContain('2026-06-12');
-    expect(el.shadowRoot!.textContent).toContain('Thu, Jun 11');
+    expect(el.shadowRoot!.textContent).toContain('6月11日周四');
   });
 
   it('opens the activity heatmap at the newest dates', async () => {
@@ -310,6 +312,70 @@ describe('dao-dream-app routing', () => {
     expect(heatmap).toBeTruthy();
     expect(heatmap!.scrollLeft).toBe(540);
   });
+
+  it('shows and hides localized active duration for a heatmap cell',
+     async () => {
+       restoreActivityHeatmap();
+       bridgeMocks.callNative.mockResolvedValueOnce([
+         report('2026-06-19', '[]', recapMaterialStats()),
+       ]);
+
+       const el = await mountDreamApp('/');
+       const cell = el.shadowRoot!.querySelector<HTMLButtonElement>(
+           '.heat-cell[aria-label="6月19日周五"]');
+       expect(cell).toBeTruthy();
+
+       cell!.dispatchEvent(new Event('pointerenter'));
+       await el.updateComplete;
+
+       const tooltip = el.shadowRoot!.querySelector<HTMLElement>(
+           '[role="tooltip"]');
+       expect(tooltip?.textContent).toContain('6月19日');
+       expect(tooltip?.textContent).toContain('3小时 54分钟');
+       expect(tooltip?.closest('.activity-heatmap')).toBeNull();
+       expect(el.shadowRoot!
+                  .querySelector<HTMLButtonElement>(
+                      '.heat-cell[aria-label="6月19日周五"]')
+                  ?.getAttribute('aria-describedby'))
+           .toBe('dream-activity-tooltip');
+
+       cell!.dispatchEvent(new Event('pointerleave'));
+       await el.updateComplete;
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')).toBeNull();
+
+       el.shadowRoot!
+           .querySelector<HTMLButtonElement>(
+               '.heat-cell[aria-label="6月19日周五"]')!
+           .dispatchEvent(new Event('pointerenter'));
+       await el.updateComplete;
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')).toBeTruthy();
+
+       el.shadowRoot!.querySelector<HTMLElement>('.heatmap-scroll')!
+           .dispatchEvent(new Event('scroll'));
+       await el.updateComplete;
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')).toBeNull();
+     });
+
+  it('shows unavailable duration for a legacy heatmap report on focus',
+     async () => {
+       restoreActivityHeatmap();
+       bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-19')]);
+
+       const el = await mountDreamApp('/');
+       const cell = el.shadowRoot!.querySelector<HTMLButtonElement>(
+           '.heat-cell[aria-label="6月19日周五"]');
+       expect(cell).toBeTruthy();
+
+       cell!.dispatchEvent(new Event('focus'));
+       await el.updateComplete;
+
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')?.textContent)
+           .toContain('Duration unavailable');
+
+       cell!.dispatchEvent(new Event('blur'));
+       await el.updateComplete;
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')).toBeNull();
+     });
 
   it('loads dream history for dao://dream/history', async () => {
     bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-10')]);

@@ -45,7 +45,15 @@ interface DreamMaterialStats {
   conversationSessions: number;
   sourceDomains: string[];
   hasStructuredRecap: boolean;
+  hasDurationData: boolean;
   recap: DreamRecap;
+}
+
+interface ActivityTooltipState {
+  dateKey: string;
+  text: string;
+  left: number;
+  top: number;
 }
 
 interface DailyDreamReportData {
@@ -119,6 +127,7 @@ export class DaoDreamApp extends CrLitElement {
       dreamExcludedDomains_: {type: Array, state: true},
       dreamExclusionAdding_: {type: Boolean, state: true},
       dreamExclusionError_: {type: String, state: true},
+      activityTooltip_: {type: Object, state: true},
     };
   }
 
@@ -134,6 +143,7 @@ export class DaoDreamApp extends CrLitElement {
   declare private dreamExcludedDomains_: string[];
   declare private dreamExclusionAdding_: boolean;
   declare private dreamExclusionError_: string;
+  declare private activityTooltip_: ActivityTooltipState|null;
 
   constructor() {
     super();
@@ -149,6 +159,7 @@ export class DaoDreamApp extends CrLitElement {
     this.dreamExcludedDomains_ = [];
     this.dreamExclusionAdding_ = false;
     this.dreamExclusionError_ = '';
+    this.activityTooltip_ = null;
   }
 
   static override get styles() {
@@ -693,6 +704,23 @@ export class DaoDreamApp extends CrLitElement {
       .heat-cell:not(:disabled):focus-visible {
         outline: 2px solid rgb(var(--dream-accent));
         outline-offset: 1px;
+      }
+
+      .activity-tooltip {
+        position: fixed;
+        z-index: 10;
+        max-width: min(240px, calc(100vw - 24px));
+        padding: 6px 9px;
+        border: 1px solid rgba(var(--dream-accent), 0.22);
+        border-radius: 7px;
+        background: rgba(30, 20, 40, 0.92);
+        box-shadow: 0 6px 18px rgba(var(--dream-ink), 0.16);
+        color: white;
+        font-size: 11px;
+        line-height: 1.35;
+        pointer-events: none;
+        transform: translate(-50%, calc(-100% - 7px));
+        white-space: nowrap;
       }
 
       .heatmap-legend {
@@ -1528,6 +1556,12 @@ export class DaoDreamApp extends CrLitElement {
     const hasMeasuredBuckets = measuredBuckets !== null &&
         ['morning', 'afternoon', 'evening', 'night'].some(
             key => typeof measuredBuckets[key] === 'number');
+    const hasRecapBuckets = [
+      'morning_minutes',
+      'afternoon_minutes',
+      'evening_minutes',
+      'night_minutes',
+    ].some(key => typeof rawBuckets[key] === 'number');
     const bucketMinutes = (name: string, recapName: string) => {
       if (hasMeasuredBuckets) {
         return this.boundedNumber_(
@@ -1584,6 +1618,7 @@ export class DaoDreamApp extends CrLitElement {
           this.boundedNumber_(parsed['conversation_sessions'], 10000),
       sourceDomains,
       hasStructuredRecap,
+      hasDurationData: hasMeasuredBuckets || hasRecapBuckets,
       recap: {
         summary: recapSummary || sections[0]?.body || reportMarkdown.trim(),
         timeBuckets: {
@@ -1980,7 +2015,7 @@ export class DaoDreamApp extends CrLitElement {
 
   private formatDreamDate_(value: string): string {
     const date = this.parseDreamDate_(value);
-    return date ? new Intl.DateTimeFormat(undefined, {
+    return date ? new Intl.DateTimeFormat(currentLocale(), {
       month: 'short',
       day: 'numeric',
       weekday: 'short',
@@ -1998,6 +2033,30 @@ export class DaoDreamApp extends CrLitElement {
     const signals = report.stats.historyDomains + report.stats.searchQueries +
         report.stats.conversationSessions;
     return signals >= 16 ? 4 : signals >= 9 ? 3 : signals >= 3 ? 2 : 1;
+  }
+
+  private showActivityTooltip_(event: Event, report: DailyDreamReportData) {
+    const cell = event.currentTarget as HTMLElement;
+    const rect = cell.getBoundingClientRect();
+    const buckets = report.stats.recap.timeBuckets;
+    const duration = report.stats.hasDurationData ?
+        this.formatDuration_(
+            buckets.morning + buckets.afternoon + buckets.evening +
+            buckets.night) :
+        t('dream.page.activity_duration_unavailable');
+    this.activityTooltip_ = {
+      dateKey: report.dreamDate,
+      text: t('dream.page.activity_tooltip', {
+        date: this.formatDreamDate_(report.dreamDate),
+        duration,
+      }),
+      left: rect.left + rect.width / 2,
+      top: rect.top,
+    };
+  }
+
+  private hideActivityTooltip_() {
+    this.activityTooltip_ = null;
   }
 
   private renderActivityHeatmap_() {
@@ -2029,7 +2088,7 @@ export class DaoDreamApp extends CrLitElement {
       const column = Math.floor(index / 7) + 1;
       if (date.getMonth() !== previousMonth && date.getDate() <= 7) {
         monthLabels.push({
-          label: new Intl.DateTimeFormat(undefined, {month: 'short'})
+          label: new Intl.DateTimeFormat(currentLocale(), {month: 'short'})
                      .format(date),
           column,
         });
@@ -2040,11 +2099,22 @@ export class DaoDreamApp extends CrLitElement {
         <button class="heat-cell" data-level=${String(level)}
             style=${`grid-column:${column};grid-row:${index % 7 + 1}`}
             role="gridcell"
-            title=${label}
-            aria-label=${label}
-            ?disabled=${!report}
+            aria-label="${label}"
+            aria-describedby="${
+              this.activityTooltip_?.dateKey === dateKey ?
+                'dream-activity-tooltip' : nothing}"
+            @pointerenter=${report ?
+              (event: Event) => this.showActivityTooltip_(event, report) :
+              undefined}
+            @pointerleave=${report ? () => this.hideActivityTooltip_() :
+              undefined}
+            @focus=${report ?
+              (event: Event) => this.showActivityTooltip_(event, report) :
+              undefined}
+            @blur=${report ? () => this.hideActivityTooltip_() : undefined}
             @click=${report ? () => this.selectHistoryReport_(report) :
-              undefined}>
+              undefined}
+            ?disabled=${!report}>
         </button>`);
     }
     return html`
@@ -2055,7 +2125,8 @@ export class DaoDreamApp extends CrLitElement {
             count: this.reports_.length,
           })}</span>
         </div>
-        <div class="heatmap-scroll">
+        <div class="heatmap-scroll"
+            @scroll=${() => this.hideActivityTooltip_()}>
           <div class="heatmap-months">
             ${monthLabels.map(month => html`
               <span style=${`grid-column:${month.column}`}>${month.label}</span>`)}
@@ -2071,7 +2142,14 @@ export class DaoDreamApp extends CrLitElement {
             <i data-level=${String(level)}></i>`)}
           <span>${t('dream.page.activity_more')}</span>
         </div>
-      </section>`;
+      </section>
+      ${this.activityTooltip_ ? html`
+        <div id="dream-activity-tooltip" class="activity-tooltip"
+            role="tooltip"
+            style=${`left:${this.activityTooltip_.left}px;` +
+              `top:${this.activityTooltip_.top}px`}>
+          ${this.activityTooltip_.text}
+        </div>` : nothing}`;
   }
 
   private renderThemeIcon_(index: number) {

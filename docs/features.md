@@ -274,7 +274,8 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   and an optional debug view of the exact LLM input (`dao.dream_debug`).
 - **`dao://dream` one-minute recap** — responsive two-column report with a
   53-week real-report activity heatmap, compact daily-and-weekly history rail,
-  summary card,
+  localized date-and-active-duration tooltips for report-bearing heatmap cells
+  on pointer hover and keyboard focus, summary card,
   measured foreground-focus rhythm, topic cards, aggregate counts,
   memory-candidate actions, and a folded full report. Existing rerun, image
   sharing, source-domain exclusion,
