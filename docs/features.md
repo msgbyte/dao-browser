@@ -148,7 +148,8 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 
 **Application shell** (`src/dao/browser/ui/webui/resources/agent/`)
 - `agent.{html,css,ts}` + `dao_agent_app.ts` — Chat app entry; its settings
-  button opens the unified `dao://settings/#agent` overview section
+  button uses a fixed native navigation command to open the unified
+  `dao://settings/agent` secondary page and closes the sidebar only after the navigation succeeds
 - `skills.html` + `skills.ts` — Skill manager standalone entry
 - `agent_bridge.ts` — Mojo bridge
 - `agent_settings_{sync,native_bridge}.ts` — One-time migration from the
@@ -172,21 +173,24 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - `skill_registry.ts` — Skill catalog and lookup
 - `tool_catalog.ts` — Tool catalog schema
 
-**Unified Agent settings** (`dao://settings/#agent`, top-level route `/agent`)
+**Unified Agent settings** (`dao://settings/agent`, overview entry `#agent`)
 - `DaoAgentSettingsHandler` stores durable Agent choices in Profile prefs and
   is shared by the Agent and Settings WebUIs
-- `Agent` is a top-level Dao-exclusive Settings section beside `You and Dao`.
-  `You and Dao` owns browser capabilities only; all Agent configuration,
-  Memory, Workspace, Usage, Skills, and Dream controls appear exactly once in
-  the Agent section
+- `Agent` remains a compact top-level Dao-exclusive Settings entry beside
+  `You and Dao`. `You and Dao` owns browser capabilities only; the complete
+  Agent configuration, Memory, Workspace, Usage, Skills, and Dream controls
+  appear exactly once on the Agent secondary page
 - The Agent module is packaged in Chromium's shared Settings lazy bundle and
-  rendered as its own continuous-overview section. Search delegates directly
-  to it, keeping provider, model, API key, session, personality, context,
-  tools, search, memory, proactive suggestions, Dream, workspace, skills, and
-  usage discoverable without a duplicate summary or intermediate subpage
+  reached from the compact overview entry. The detail page uses five vertical Settings sections:
+  Model and connection, Behavior and context,
+  Capabilities, Learning and analysis, and Data and management. It adds no
+  section rail or tabs
 - Model/provider credentials, session/display behavior, persona, page and
   conversation context, web search, memory/proactive suggestions, and Dream
   analysis are managed in the Agent Settings section
+- The persona card can restore the runtime default, while the Dream card can
+  generate a report immediately when Memory and Dream analysis are enabled and
+  keeps the existing Dream report history link available
 - Tool group shortcuts and the expandable individual-permission list preserve
   the existing per-tool enable/disable controls. Rapid changes update one
   optimistic disabled-tool set and serialize complete-array writes before
@@ -199,6 +203,8 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   hours. Configuration has independent loading, error, and retry feedback, so
   a configuration failure does not hide or disable management summaries
 - The Agent section owns complete Memory, Workspace, and Usage management.
+  These modules render as independent compact cards inside Data and management
+  so their headings and actions remain visually separated.
   Memory and workspace data come from their Profile-keyed services; usage
   counters are stored in the Profile `dao.agent_usage_stats` pref, which is the
   source of truth shared with already-open Agent WebUIs

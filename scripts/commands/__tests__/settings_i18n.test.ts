@@ -177,6 +177,34 @@ const daoSettingsTranslations = [
 ];
 
 const daoAgentManagementTranslations = [
+  ['DAO_AGENT_SOUL_RESET', 'daoAgentSoulReset', '恢复默认设置'],
+  [
+    'DAO_AGENT_SOUL_RESET_SUCCESS',
+    'daoAgentSoulResetSuccess',
+    '已恢复默认人格',
+  ],
+  [
+    'DAO_AGENT_SOUL_RESET_ERROR',
+    'daoAgentSoulResetError',
+    '无法恢复默认人格。',
+  ],
+  [
+    'DAO_AGENT_DREAM_RUN_DESCRIPTION',
+    'daoAgentDreamRunDescription',
+    '请先启用记忆和 Dream 分析，再生成报告。',
+  ],
+  ['DAO_AGENT_DREAM_RUN_NOW', 'daoAgentDreamRunNow', '生成 Dream 报告'],
+  ['DAO_AGENT_DREAM_RUNNING', 'daoAgentDreamRunning', '正在生成…'],
+  [
+    'DAO_AGENT_DREAM_RUN_SUCCESS',
+    'daoAgentDreamRunSuccess',
+    'Dream 报告已生成',
+  ],
+  [
+    'DAO_AGENT_DREAM_RUN_ERROR',
+    'daoAgentDreamRunError',
+    '无法生成 Dream 报告。',
+  ],
   ['DAO_AGENT_MANAGEMENT_TITLE', 'daoAgentManagementTitle', '数据与管理'],
   ['DAO_AGENT_MANAGEMENT_MEMORY_TITLE', 'daoAgentManagementMemoryTitle', '记忆'],
   ['DAO_AGENT_MANAGEMENT_WORKSPACE_TITLE', 'daoAgentManagementWorkspaceTitle', '工作区'],
@@ -267,6 +295,24 @@ function getGritMessageId(message: string, meaning = ''): string {
 }
 
 describe('settings i18n patches', () => {
+  it('reuses localized Agent configure copy in the compact overview', () => {
+    const indexPatch = readFileSync(path.join(
+        process.cwd(),
+        'src/patches/chrome/browser/resources/settings/dao_page/' +
+            'dao_agent_page_index.html.patch'), 'utf-8');
+    const providerPatch = readFileSync(path.join(
+        process.cwd(),
+        'src/patches/chrome/browser/ui/webui/settings/' +
+            'settings_localized_strings_provider.cc.patch'), 'utf-8');
+
+    expect(indexPatch).toContain('$i18n{daoAgentConfigureTitle}');
+    expect(indexPatch).toContain('$i18n{daoAgentConfigureDescription}');
+    expect(providerPatch).toMatch(
+        /\{"daoAgentConfigureTitle",\s*\+\s*IDS_SETTINGS_DAO_AGENT_CONFIGURE_TITLE\}/);
+    expect(providerPatch).toMatch(
+        /\{"daoAgentConfigureDescription",\s*\+\s*IDS_SETTINGS_DAO_AGENT_CONFIGURE_DESCRIPTION\}/);
+  });
+
   it('localizes every Agent management state through the settings provider', () => {
     const grdpPatch = readFileSync(path.join(
         process.cwd(), 'src/patches/chrome/app/settings_strings.grdp.patch'),
@@ -286,7 +332,7 @@ describe('settings i18n patches', () => {
       const {source, meaning} = getGrdpMessage(grdpPatch, resourceName);
       const translationId = getGritMessageId(source, meaning);
       const providerPattern = new RegExp(
-          `\\{"${providerKey}",\\s*${resourceName}\\}`, 'g');
+          `\\{"${providerKey}",\\s*(?:\\+\\s*)?${resourceName}\\}`, 'g');
       const translationPattern = new RegExp(
           `<translation id="${translationId}">` +
               `${escapeRegExp(translation)}</translation>`,
@@ -299,15 +345,17 @@ describe('settings i18n patches', () => {
     }
   });
 
-  it('keeps Agent management IDs distinct from Chromium shared labels', () => {
+  it('keeps Agent settings IDs distinct from Chromium shared labels', () => {
     const grdpPatch = readFileSync(path.join(
         process.cwd(), 'src/patches/chrome/app/settings_strings.grdp.patch'),
     'utf-8');
     const chromiumSharedTranslationIds = new Set([
       '1293556467332435079',
+      '2332742915001411729',
       '5063480226653192405',
       '5154917547274118687',
       '5801568494490449797',
+      '5983716913605894570',
       '7144878232160441200',
       '7658239707568436148',
       '8633025649649592204',

@@ -234,6 +234,18 @@ TEST_F(DaoAgentSettingsHandlerTest, ValidatesNativeBooleanSettings) {
   EXPECT_TRUE(prefs_.GetBoolean(prefs::kDaoAgentMemoryEnabled));
 }
 
+TEST_F(DaoAgentSettingsHandlerTest, ResettingSoulRemovesPersonaOverride) {
+  EXPECT_TRUE(SetDaoAgentSetting(&prefs_, "dao_agent_soul",
+                                 base::Value("Custom soul")));
+  EXPECT_EQ("Custom soul",
+            *prefs_.GetDict(prefs::kDaoAgentSettings)
+                 .FindString("dao_agent_soul"));
+
+  EXPECT_TRUE(SetDaoAgentSetting(&prefs_, "dao_agent_soul", base::Value()));
+  EXPECT_FALSE(
+      prefs_.GetDict(prefs::kDaoAgentSettings).contains("dao_agent_soul"));
+}
+
 TEST_F(DaoAgentSettingsHandlerTest, NormalizesDreamExcludedDomains) {
   EXPECT_TRUE(SetDaoAgentSetting(
       &prefs_, kDaoDreamExcludedDomainsSetting,

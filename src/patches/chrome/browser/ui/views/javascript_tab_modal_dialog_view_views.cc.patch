@@ -68,17 +68,18 @@ index e0c7c6df6f..db97367c4b 100644
  
    SetAcceptCallback(base::BindOnce(
        [](JavaScriptTabModalDialogViewViews* dialog) {
-@@ -135,8 +177,9 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
+@@ -135,8 +177,10 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
  
    message_box_view_ = new views::MessageBoxView(
        message_text, /* detect_directionality = */ true);
++  dao::ConfigureDaoSystemDialogContent(message_box_view_);
    if (dialog_type == content::JAVASCRIPT_DIALOG_TYPE_PROMPT) {
      message_box_view_->SetPromptField(default_prompt_text);
 +    ConfigureDaoPromptTextfield(message_box_view_->GetVisiblePromptField());
    }
  
    SetLayoutManager(std::make_unique<views::FillLayout>());
-@@ -151,10 +193,23 @@ JavaScriptTabModalDialogViewViews::CreateAlertDialogForTesting(
+@@ -151,10 +194,23 @@ JavaScriptTabModalDialogViewViews::CreateAlertDialogForTesting(
      Browser* browser,
      std::u16string title,
      std::u16string message) {

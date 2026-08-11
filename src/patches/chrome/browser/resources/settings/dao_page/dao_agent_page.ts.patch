@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
-@@ -0,0 +1,811 @@
+@@ -0,0 +1,871 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -74,6 +74,8 @@ index 0000000000..0000000001
 +      agentBaseUrl_: {type: String, value: 'https://api.openai.com/v1'},
 +      agentModel_: {type: String, value: 'gpt-5'},
 +      agentSoul_: {type: String, value: ''},
++      agentSoulResetSucceeded_: {type: Boolean, value: false},
++      agentSoulResetError_: {type: Boolean, value: false},
 +      agentShowToolDetails_: {type: Boolean, value: false},
 +      agentDebugMode_: {type: Boolean, value: false},
 +      agentResumeLastSession_: {type: Boolean, value: true},
@@ -84,6 +86,9 @@ index 0000000000..0000000001
 +      agentMemoryEnabled_: {type: Boolean, value: true},
 +      agentDreamEnabled_: {type: Boolean, value: true},
 +      agentDreamDebug_: {type: Boolean, value: false},
++      dreamRunning_: {type: Boolean, value: false},
++      dreamRunSucceeded_: {type: Boolean, value: false},
++      dreamRunError_: {type: Boolean, value: false},
 +      agentProactiveThreshold_: {type: String, value: 'balanced'},
 +      agentSearchSource_: {type: String, value: 'auto'},
 +      agentJinaApiKey_: {type: String, value: ''},
@@ -161,6 +166,8 @@ index 0000000000..0000000001
 +  declare private agentBaseUrl_: string;
 +  declare private agentModel_: string;
 +  declare private agentSoul_: string;
++  declare private agentSoulResetSucceeded_: boolean;
++  declare private agentSoulResetError_: boolean;
 +  declare private agentShowToolDetails_: boolean;
 +  declare private agentDebugMode_: boolean;
 +  declare private agentResumeLastSession_: boolean;
@@ -171,6 +178,9 @@ index 0000000000..0000000001
 +  declare private agentMemoryEnabled_: boolean;
 +  declare private agentDreamEnabled_: boolean;
 +  declare private agentDreamDebug_: boolean;
++  declare private dreamRunning_: boolean;
++  declare private dreamRunSucceeded_: boolean;
++  declare private dreamRunError_: boolean;
 +  declare private agentProactiveThreshold_: string;
 +  declare private agentSearchSource_: string;
 +  declare private agentJinaApiKey_: string;
@@ -716,9 +726,17 @@ index 0000000000..0000000001
 +  private async setAgentSetting_(key: string, value: string|null) {
 +    const accepted = await this.agentSettingsBrowserProxy_.setSetting(
 +        key, value);
-+    if (accepted && value !== null) {
++    if (!accepted) {
++      return false;
++    }
++    if (value === null) {
++      const values = {...this.agentSettingsValues_};
++      delete values[key];
++      this.agentSettingsValues_ = values;
++    } else {
 +      this.agentSettingsValues_ = {...this.agentSettingsValues_, [key]: value};
 +    }
++    return true;
 +  }
 +
 +  private onAgentBooleanSettingChange_(event: Event) {
@@ -762,6 +780,48 @@ index 0000000000..0000000001
 +                        .filter(Boolean);
 +    void this.setAgentSetting_(
 +        'dao_dream_excluded_domains', JSON.stringify(domains));
++  }
++
++  private async onResetAgentSoul_(): Promise<void> {
++    this.agentSoulResetSucceeded_ = false;
++    this.agentSoulResetError_ = false;
++    try {
++      if (!await this.setAgentSetting_('dao_agent_soul', null)) {
++        this.agentSoulResetError_ = true;
++        return;
++      }
++      this.agentSoul_ = '';
++      this.agentSoulResetSucceeded_ = true;
++    } catch {
++      this.agentSoulResetError_ = true;
++    }
++  }
++
++  private isDreamRunDisabled_(memoryEnabled: boolean, dreamEnabled: boolean,
++                              running: boolean): boolean {
++    return !memoryEnabled || !dreamEnabled || running;
++  }
++
++  private async onRunDreamNow_(): Promise<void> {
++    if (this.isDreamRunDisabled_(
++            this.agentMemoryEnabled_, this.agentDreamEnabled_,
++            this.dreamRunning_)) {
++      return;
++    }
++    this.dreamRunning_ = true;
++    this.dreamRunSucceeded_ = false;
++    this.dreamRunError_ = false;
++    try {
++      if (await this.agentSettingsBrowserProxy_.startManualDream()) {
++        this.dreamRunSucceeded_ = true;
++      } else {
++        this.dreamRunError_ = true;
++      }
++    } catch {
++      this.dreamRunError_ = true;
++    } finally {
++      this.dreamRunning_ = false;
++    }
 +  }
 +
 +  private onAgentToolGroupChange_(event: Event) {

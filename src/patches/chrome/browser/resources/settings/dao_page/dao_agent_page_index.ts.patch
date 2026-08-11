@@ -1,0 +1,89 @@
+diff --git a/chrome/browser/resources/settings/dao_page/dao_agent_page_index.ts b/chrome/browser/resources/settings/dao_page/dao_agent_page_index.ts
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/browser/resources/settings/dao_page/dao_agent_page_index.ts
+@@ -0,0 +1,83 @@
++// Copyright 2026 Dao Browser Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
++import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
++import '/shared/settings/prefs/prefs.js';
++import '../settings_page/settings_section.js';
++import '../settings_shared.css.js';
++
++import type {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
++import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
++
++import {routes} from '../route.js';
++import {RouteObserverMixin, Router} from '../router.js';
++import type {Route, SettingsRoutes} from '../router.js';
++import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
++import {SearchableViewContainerMixin} from '../settings_page/searchable_view_container_mixin.js';
++
++import {getTemplate} from './dao_agent_page_index.html.js';
++
++export interface SettingsDaoAgentPageIndexElement {
++  $: {
++    viewManager: CrViewManagerElement,
++  };
++}
++
++const SettingsDaoAgentPageIndexElementBase =
++    SearchableViewContainerMixin(RouteObserverMixin(PolymerElement));
++
++export class SettingsDaoAgentPageIndexElement extends
++    SettingsDaoAgentPageIndexElementBase implements SettingsPlugin {
++  static get is() {
++    return 'settings-dao-agent-page-index';
++  }
++
++  static get template() {
++    return getTemplate();
++  }
++
++  static get properties() {
++    return {
++      prefs: Object,
++      routes_: {
++        type: Object,
++        value: () => routes,
++      },
++    };
++  }
++
++  declare prefs: {[key: string]: any};
++  declare private routes_: SettingsRoutes;
++
++  override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
++    super.currentRouteChanged(newRoute, oldRoute);
++    queueMicrotask(() => {
++      if (newRoute === routes.DAO_AGENT_DETAILS) {
++        this.$.viewManager.switchView(
++            'agentSettings', 'no-animation', 'no-animation');
++      } else if (newRoute === routes.DAO_AGENT || newRoute === routes.BASIC) {
++        this.$.viewManager.switchView(
++            'parent', 'no-animation', 'no-animation');
++      }
++    });
++  }
++
++  private shouldRenderDetails_(route: Route|null): boolean {
++    return route === routes.DAO_AGENT_DETAILS;
++  }
++
++  private onOpenAgentSettings_() {
++    Router.getInstance().navigateTo(routes.DAO_AGENT_DETAILS);
++  }
++}
++
++declare global {
++  interface HTMLElementTagNameMap {
++    'settings-dao-agent-page-index': SettingsDaoAgentPageIndexElement;
++  }
++}
++
++customElements.define(
++    SettingsDaoAgentPageIndexElement.is, SettingsDaoAgentPageIndexElement);

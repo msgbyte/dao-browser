@@ -2,7 +2,7 @@ diff --git a/chrome/test/data/webui/settings/settings_browsertest.cc b/chrome/te
 index 382856939e..0000000001 100644
 --- a/chrome/test/data/webui/settings/settings_browsertest.cc
 +++ b/chrome/test/data/webui/settings/settings_browsertest.cc
-@@ -253,6 +253,18 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, DownloadsPage) {
+@@ -253,6 +253,22 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, DownloadsPage) {
    RunTest("settings/downloads_page_test.js", "mocha.run()");
  }
 -
@@ -17,6 +17,10 @@ index 382856939e..0000000001 100644
 +
 +IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_DaoAgentPage) {
 +  RunTest("settings/dao_agent_page_test.js", "mocha.run()");
++}
++
++IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_DaoAgentPageIndex) {
++  RunTest("settings/dao_agent_page_index_test.js", "mocha.run()");
 +}
 +
  IN_PROC_BROWSER_TEST_F(SettingsTest, DropdownMenu) {

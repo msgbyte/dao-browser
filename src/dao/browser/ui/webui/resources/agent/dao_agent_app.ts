@@ -291,9 +291,16 @@ export class DaoAgentApp extends CrLitElement {
     }
   }
 
-  private openUnifiedSettings_() {
-    void callNative('openTab', {url: 'dao://settings/#dao'});
-    chrome.send('closeSidebar');
+  private async openUnifiedSettings_() {
+    try {
+      const result = await callNative('openAgentSettings') as
+          {success?: boolean};
+      if (result.success) {
+        chrome.send('closeSidebar');
+      }
+    } catch {
+      // Keep the sidebar open when native navigation is unavailable.
+    }
   }
 
   private onNewChatClick_() {

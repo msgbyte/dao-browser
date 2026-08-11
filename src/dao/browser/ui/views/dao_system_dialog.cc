@@ -23,7 +23,9 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/controls/scroll_view.h"
 #include "ui/views/layout/proposed_layout.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/window/dialog_delegate.h"
 
@@ -42,6 +44,15 @@ constexpr gfx::Insets kDaoDialogContentMargins =
 constexpr gfx::Insets kDaoDialogTitleMargins =
     gfx::Insets::TLBR(20, 22, 8, 22);
 constexpr gfx::Insets kDaoDialogButtonPadding = gfx::Insets::VH(7, 13);
+
+void ClearScrollViewBackgrounds(views::View* root) {
+  if (auto* scroll_view = views::AsViewClass<views::ScrollView>(root)) {
+    scroll_view->SetBackgroundColor(std::nullopt);
+  }
+  for (views::View* child : root->children()) {
+    ClearScrollViewBackgrounds(child);
+  }
+}
 
 SkColor DialogButtonBackground(ui::ButtonStyle style) {
   if (style == ui::ButtonStyle::kProminent) {
@@ -309,6 +320,12 @@ void ConfigureDaoSystemDialog(views::DialogDelegate* delegate,
         ui::Accelerator(ui::VKEY_ESCAPE, ui::EF_NONE), u"Esc");
   } else {
     delegate->ClearButtonShortcut(ui::mojom::DialogButton::kCancel);
+  }
+}
+
+void ConfigureDaoSystemDialogContent(views::View* content) {
+  if (content) {
+    ClearScrollViewBackgrounds(content);
   }
 }
 

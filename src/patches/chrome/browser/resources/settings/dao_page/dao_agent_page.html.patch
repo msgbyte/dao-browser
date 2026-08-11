@@ -3,8 +3,15 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.html
-@@ -0,0 +1,1196 @@
+@@ -0,0 +1,1295 @@
 +<style include="settings-shared">
++  :host {
++    --dao-agent-content-inset: 18px;
++    --dao-agent-management-action-surface: rgba(70, 120, 190, .035);
++    --dao-agent-management-gap: 16px;
++    --dao-agent-management-padding: 16px;
++  }
++
 +  .dao-agent-heading {
 +    color: var(--dao-settings-text);
 +    font-size: 14px;
@@ -39,7 +46,7 @@ index 0000000000..0000000001
 +    border-top: 1px solid var(--dao-settings-border-subtle);
 +    border-radius: 0;
 +    box-shadow: none;
-+    padding: 16px 18px 18px;
++    padding: 16px var(--dao-agent-content-inset) 18px;
 +  }
 +
 +  .dao-agent-card-title {
@@ -55,6 +62,10 @@ index 0000000000..0000000001
 +    font-size: 12px;
 +    line-height: 1.45;
 +    margin-bottom: 12px;
++  }
++
++  .dao-agent-dream-run-description {
++    margin-top: 12px;
 +  }
 +
 +  .dao-agent-fields {
@@ -80,6 +91,10 @@ index 0000000000..0000000001
 +  }
 +
 +  @media (prefers-color-scheme: dark) {
++    :host {
++      --dao-agent-management-action-surface: rgba(70, 120, 190, .08);
++    }
++
 +    .dao-agent-select,
 +    .dao-agent-textarea {
 +      background: rgba(255, 255, 255, .045);
@@ -151,8 +166,48 @@ index 0000000000..0000000001
 +    font-size: 11px;
 +  }
 +
++  .dao-agent-card-actions {
++    align-items: center;
++    display: flex;
++    flex-wrap: wrap;
++    gap: 8px;
++    justify-content: flex-end;
++    padding-top: 12px;
++  }
++
++  .dao-agent-card-actions .dao-agent-link {
++    color: var(--dao-settings-accent-strong);
++    font-size: 12px;
++    line-height: 32px;
++    margin-inline-end: auto;
++    text-decoration: none;
++  }
++
++  .dao-agent-card-actions .dao-agent-link:hover {
++    text-decoration: underline;
++  }
++
++  .dao-agent-card-actions .dao-agent-link:focus-visible,
++  .dao-agent-card-actions cr-button:focus-visible {
++    outline: 2px solid var(--dao-settings-accent);
++    outline-offset: 2px;
++  }
++
++  .dao-agent-card-feedback {
++    color: var(--dao-settings-accent-strong);
++    font-size: 11px;
++    line-height: 18px;
++    min-height: 18px;
++    padding-top: 6px;
++    text-align: end;
++  }
++
++  .dao-agent-card-feedback .error {
++    color: var(--dao-settings-text);
++  }
++
 +  .dao-agent-management-group {
-+    margin: 12px 0 0;
++    margin: 12px auto 0;
 +  }
 +
 +  .dao-agent-management-heading {
@@ -165,34 +220,36 @@ index 0000000000..0000000001
 +
 +  .dao-agent-management-cards {
 +    display: grid;
-+    gap: 0;
++    gap: var(--dao-agent-management-gap);
 +    grid-template-columns: minmax(0, 1fr);
++    padding: var(--dao-agent-management-padding);
 +  }
 +
 +  .dao-agent-management-card {
-+    background: transparent;
-+    border: 0;
-+    border-top: 1px solid var(--dao-settings-border-subtle);
-+    border-radius: 0;
-+    box-shadow: none;
++    background: var(--dao-settings-surface);
++    border: 1px solid var(--dao-settings-border);
++    border-radius: 12px;
++    box-shadow: var(--dao-settings-shadow);
 +    min-width: 0;
 +    overflow: hidden;
 +  }
 +
 +  .dao-agent-management-card-header {
-+    align-items: baseline;
++    align-items: center;
 +    display: flex;
 +    justify-content: space-between;
-+    min-height: 50px;
-+    padding: 0 16px;
++    min-height: 52px;
++    padding: 0 var(--dao-agent-content-inset);
 +  }
 +
 +  .dao-agent-management-card-title {
++    border-inline-start: 3px solid var(--dao-settings-accent);
 +    color: var(--dao-settings-text);
-+    font-size: 13px;
++    font-size: 14px;
 +    font-weight: 650;
 +    line-height: 20px;
 +    margin: 0;
++    padding-inline-start: 10px;
 +  }
 +
 +  .dao-agent-management-state {
@@ -203,8 +260,8 @@ index 0000000000..0000000001
 +    font-size: 12px;
 +    gap: 10px;
 +    line-height: 18px;
-+    min-height: 62px;
-+    padding: 0 16px;
++    min-height: 54px;
++    padding: 0 var(--dao-agent-content-inset);
 +  }
 +
 +  .dao-agent-management-state.error {
@@ -224,8 +281,8 @@ index 0000000000..0000000001
 +    display: grid;
 +    gap: 18px;
 +    grid-template-columns: minmax(96px, 1fr) minmax(48px, 28%);
-+    min-height: 62px;
-+    padding: 0 16px;
++    min-height: 54px;
++    padding: 0 var(--dao-agent-content-inset);
 +  }
 +
 +  .dao-agent-management-loading-row +
@@ -254,8 +311,8 @@ index 0000000000..0000000001
 +    display: grid;
 +    gap: 18px;
 +    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
-+    min-height: 62px;
-+    padding: 0 16px;
++    min-height: 54px;
++    padding: 0 var(--dao-agent-content-inset);
 +  }
 +
 +  .dao-agent-management-row + .dao-agent-management-row {
@@ -295,7 +352,7 @@ index 0000000000..0000000001
 +
 +  .dao-agent-management-detail {
 +    border-top: 1px solid var(--dao-settings-border-subtle);
-+    padding: 12px 16px 14px;
++    padding: 12px var(--dao-agent-content-inset) 14px;
 +  }
 +
 +  .dao-agent-management-detail-title {
@@ -360,12 +417,13 @@ index 0000000000..0000000001
 +
 +  .dao-agent-management-actions {
 +    align-items: center;
++    background: var(--dao-agent-management-action-surface);
 +    border-top: 1px solid var(--dao-settings-border-subtle);
 +    display: flex;
 +    gap: 8px;
 +    justify-content: flex-end;
-+    min-height: 62px;
-+    padding: 0 12px;
++    min-height: 56px;
++    padding: 0 var(--dao-agent-content-inset);
 +  }
 +
 +  .dao-agent-management-actions .dao-agent-link {
@@ -391,7 +449,7 @@ index 0000000000..0000000001
 +    font-size: 11px;
 +    line-height: 18px;
 +    min-height: 18px;
-+    padding: 0 16px 8px;
++    padding: 0 var(--dao-agent-content-inset) 8px;
 +    text-align: end;
 +  }
 +
@@ -401,6 +459,11 @@ index 0000000000..0000000001
 +  }
 +
 +  @media (max-width: 760px) {
++    :host {
++      --dao-agent-management-gap: 12px;
++      --dao-agent-management-padding: 12px;
++    }
++
 +    .dao-agent-fields {
 +      grid-template-columns: 1fr;
 +    }
@@ -430,8 +493,6 @@ index 0000000000..0000000001
 +
 +</style>
 +
-+<settings-section page-title="$i18n{daoAgentSettingsTitle}"
-+    class="cr-centered-card-container">
 +  <div class="dao-agent-heading">$i18n{daoAgentSettingsTitle}</div>
 +  <div class="dao-agent-description">
 +    $i18n{daoAgentSettingsDescription}
@@ -454,12 +515,10 @@ index 0000000000..0000000001
 +    </div>
 +  </template>
 +  <template is="dom-if" if="[[agentSettingsReady_]]" restamp>
-+    <div id="daoAgentSettings" class="dao-agent-grid">
-+      <section id="modelAndConnection" class="dao-agent-section"
-+          aria-labelledby="modelAndConnectionHeading">
-+      <h2 id="modelAndConnectionHeading" class="dao-agent-management-heading">
-+        $i18n{daoAgentGroupModelAndConnection}
-+      </h2>
++    <span id="daoAgentSettings" hidden></span>
++    <settings-section id="modelAndConnection"
++        class="dao-agent-section cr-centered-card-container"
++        page-title="$i18n{daoAgentGroupModelAndConnection}">
 +      <div class="dao-agent-card">
 +        <div class="dao-agent-card-title">$i18n{daoAgentModelTitle}</div>
 +        <div class="dao-agent-card-description">
@@ -502,13 +561,11 @@ index 0000000000..0000000001
 +          </cr-input>
 +        </div>
 +      </div>
-+      </section>
++    </settings-section>
 +
-+      <section id="behaviorAndContext" class="dao-agent-section"
-+          aria-labelledby="behaviorAndContextHeading">
-+      <h2 id="behaviorAndContextHeading" class="dao-agent-management-heading">
-+        $i18n{daoAgentGroupBehaviorAndContext}
-+      </h2>
++    <settings-section id="behaviorAndContext"
++        class="dao-agent-section cr-centered-card-container"
++        page-title="$i18n{daoAgentGroupBehaviorAndContext}">
 +      <div class="dao-agent-card">
 +        <div class="dao-agent-card-title">$i18n{daoAgentSessionTitle}</div>
 +        <div class="dao-agent-toggle-row">
@@ -556,6 +613,25 @@ index 0000000000..0000000001
 +            aria-label="$i18n{daoAgentSoulTitle}"
 +            value="{{agentSoul_::input}}" data-setting="dao_agent_soul"
 +            on-change="onAgentTextSettingChange_"></textarea>
++        <div class="dao-agent-card-actions">
++          <cr-button id="resetAgentSoulButton"
++              on-click="onResetAgentSoul_">
++            $i18n{daoAgentSoulReset}
++          </cr-button>
++        </div>
++        <div class="dao-agent-card-feedback" role="status"
++            aria-live="polite">
++          <template is="dom-if" if="[[agentSoulResetSucceeded_]]">
++            <span id="agentSoulResetSuccess">
++              $i18n{daoAgentSoulResetSuccess}
++            </span>
++          </template>
++          <template is="dom-if" if="[[agentSoulResetError_]]">
++            <span id="agentSoulResetError" class="error">
++              $i18n{daoAgentSoulResetError}
++            </span>
++          </template>
++        </div>
 +      </div>
 +      <div class="dao-agent-card">
 +        <div class="dao-agent-card-title">$i18n{daoAgentContextTitle}</div>
@@ -578,13 +654,11 @@ index 0000000000..0000000001
 +          </cr-toggle>
 +        </div>
 +      </div>
-+      </section>
++    </settings-section>
 +
-+      <section id="capabilities" class="dao-agent-section"
-+          aria-labelledby="capabilitiesHeading">
-+      <h2 id="capabilitiesHeading" class="dao-agent-management-heading">
-+        $i18n{daoAgentGroupCapabilities}
-+      </h2>
++    <settings-section id="capabilities"
++        class="dao-agent-section cr-centered-card-container"
++        page-title="$i18n{daoAgentGroupCapabilities}">
 +      <div class="dao-agent-card">
 +        <div class="dao-agent-card-title">$i18n{daoAgentToolsTitle}</div>
 +        <div class="dao-agent-card-description">
@@ -674,13 +748,11 @@ index 0000000000..0000000001
 +          </cr-input>
 +        </div>
 +      </div>
-+      </section>
++    </settings-section>
 +
-+      <section id="learningAndAnalysis" class="dao-agent-section"
-+          aria-labelledby="learningAndAnalysisHeading">
-+      <h2 id="learningAndAnalysisHeading" class="dao-agent-management-heading">
-+        $i18n{daoAgentGroupLearningAndAnalysis}
-+      </h2>
++    <settings-section id="learningAndAnalysis"
++        class="dao-agent-section cr-centered-card-container"
++        page-title="$i18n{daoAgentGroupLearningAndAnalysis}">
 +      <div class="dao-agent-card">
 +        <div class="dao-agent-card-title">$i18n{daoAgentMemoryTitle}</div>
 +        <div class="dao-agent-toggle-row">
@@ -750,17 +822,45 @@ index 0000000000..0000000001
 +              value="{{agentDreamExcludedDomains_::input}}"
 +              on-change="onAgentDreamDomainsChange_"></textarea>
 +        </label>
++        <div class="dao-agent-card-description dao-agent-dream-run-description">
++          $i18n{daoAgentDreamRunDescription}
++        </div>
++        <div class="dao-agent-card-actions">
++          <a id="openDreamHistoryLink" class="dao-agent-link"
++              href="dao://dream" target="_blank">
++            $i18n{daoAgentOpenDream}
++          </a>
++          <cr-button id="runDreamNowButton" class="action-button"
++              disabled="[[isDreamRunDisabled_(agentMemoryEnabled_, agentDreamEnabled_, dreamRunning_)]]"
++              on-click="onRunDreamNow_">
++            <template is="dom-if" if="[[dreamRunning_]]">
++              $i18n{daoAgentDreamRunning}
++            </template>
++            <template is="dom-if" if="[[!dreamRunning_]]">
++              $i18n{daoAgentDreamRunNow}
++            </template>
++          </cr-button>
++        </div>
++        <div class="dao-agent-card-feedback" role="status"
++            aria-live="polite">
++          <template is="dom-if" if="[[dreamRunSucceeded_]]">
++            <span id="dreamRunSuccess">
++              $i18n{daoAgentDreamRunSuccess}
++            </span>
++          </template>
++          <template is="dom-if" if="[[dreamRunError_]]">
++            <span id="dreamRunError" class="error">
++              $i18n{daoAgentDreamRunError}
++            </span>
++          </template>
++        </div>
 +      </div>
-+      </section>
-+    </div>
++    </settings-section>
 +  </template>
 +
-+      <section id="dataAndManagement" class="dao-agent-management-group"
-+          aria-labelledby="dataAndManagementHeading">
-+        <h2 id="dataAndManagementHeading"
-+            class="dao-agent-management-heading">
-+          $i18n{daoAgentGroupDataAndManagement}
-+        </h2>
++  <settings-section id="dataAndManagement"
++      class="dao-agent-management-group cr-centered-card-container"
++      page-title="$i18n{daoAgentGroupDataAndManagement}">
 +        <div class="dao-agent-management-cards">
 +          <article id="daoAgentMemoryManagement"
 +              class="dao-agent-management-card">
@@ -1198,5 +1298,4 @@ index 0000000000..0000000001
 +            </div>
 +          </cr-dialog>
 +        </div>
-+      </section>
-+</settings-section>
++  </settings-section>

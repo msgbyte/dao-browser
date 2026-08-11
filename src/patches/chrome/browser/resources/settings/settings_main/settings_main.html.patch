@@ -35,8 +35,8 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html 
 +    <div slot="view" id="agent">
 +      <template is="dom-if" if="[[renderPlugin_(
 +          routes_.DAO_AGENT, lastRoute_, inSearchMode_)]]">
-+        <settings-dao-agent-page prefs="{{prefs}}">
-+        </settings-dao-agent-page>
++        <settings-dao-agent-page-index prefs="{{prefs}}">
++        </settings-dao-agent-page-index>
 +      </template>
 +    </div>
 +  </template>

@@ -109,7 +109,11 @@ class TestDaoMcpSettingsHandler : public DaoMcpSettingsHandler {
 class DaoMcpSettingsHandlerTest : public testing::Test {
  public:
   DaoMcpSettingsHandlerTest()
-      : handler_(std::make_unique<TestDaoMcpSettingsHandler>(&service_)) {
+      : user_data_override_(
+            chrome::DIR_USER_DATA,
+            base::FilePath(FILE_PATH_LITERAL("/Users/Test/Dao Debug")),
+            true),
+        handler_(std::make_unique<TestDaoMcpSettingsHandler>(&service_)) {
     handler_->set_web_ui(&web_ui_);
   }
 
@@ -131,6 +135,7 @@ class DaoMcpSettingsHandlerTest : public testing::Test {
 
  private:
   content::BrowserTaskEnvironment task_environment_;
+  base::ScopedPathOverride user_data_override_;
   content::TestWebUI web_ui_;
   FakeDaoMcpSettingsService service_;
   std::unique_ptr<TestDaoMcpSettingsHandler> handler_;
@@ -407,6 +412,9 @@ TEST_F(DaoMcpSettingsHandlerTest, ObservesOnlyWhileJavascriptIsAllowed) {
 TEST(DaoMcpSettingsConfigurationTest, UsesProvidedApplicationBundlePath) {
   const base::FilePath bundle_path(
       FILE_PATH_LITERAL("/Volumes/Test/Dao Debug.app"));
+  base::ScopedPathOverride user_data_override(
+      chrome::DIR_USER_DATA,
+      base::FilePath(FILE_PATH_LITERAL("/Users/Test/Dao Debug")), true);
   const std::string configuration =
       BuildDaoMcpConfigurationForBundle(bundle_path);
   const std::optional<base::Value> parsed =

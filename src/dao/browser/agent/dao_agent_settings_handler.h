@@ -66,6 +66,7 @@ private:
   void HandleClearAllMemory(const base::ListValue& args);
   void HandleGetWorkspaceSummary(const base::ListValue& args);
   void HandleOpenWorkspace(const base::ListValue& args);
+  void HandleStartManualDream(const base::ListValue& args);
   void HandleGetUsageStats(const base::ListValue& args);
   void HandleResetUsageStats(const base::ListValue& args);
   void HandleRecordApiUsage(const base::ListValue& args);

@@ -24,6 +24,8 @@
 #include "dao/browser/agent/dao_agent_workspace_service.h"
 #include "dao/browser/agent/dao_agent_workspace_service_factory.h"
 #include "dao/browser/agent/dao_dream_domain_utils.h"
+#include "dao/browser/agent/dao_dream_service.h"
+#include "dao/browser/agent/dao_dream_service_factory.h"
 #include "dao/browser/dao_pref_names.h"
 
 namespace dao {
@@ -517,6 +519,10 @@ void DaoAgentSettingsHandler::RegisterMessages() {
       base::BindRepeating(&DaoAgentSettingsHandler::HandleOpenWorkspace,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "startManualDaoDream",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleStartManualDream,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "getDaoAgentUsageStats",
       base::BindRepeating(&DaoAgentSettingsHandler::HandleGetUsageStats,
                           base::Unretained(this)));
@@ -701,6 +707,39 @@ void DaoAgentSettingsHandler::HandleOpenWorkspace(const base::ListValue& args) {
   }
   service->OpenInFileManager();
   ResolveJavascriptCallback(args[0], base::Value(true));
+}
+
+void DaoAgentSettingsHandler::HandleStartManualDream(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  DaoDreamService* service =
+      profile ? DaoDreamServiceFactory::GetForProfile(profile) : nullptr;
+  if (!service) {
+    RejectJavascriptCallback(base::Value(callback_id),
+                             base::Value("dream service unavailable"));
+    return;
+  }
+  service->StartManualDream(base::BindOnce(
+      [](base::WeakPtr<DaoAgentSettingsHandler> handler,
+         std::string callback_id, bool success, const std::string& error) {
+        if (!handler) {
+          return;
+        }
+        if (success) {
+          handler->ResolveJavascriptCallback(base::Value(callback_id),
+                                             base::Value(true));
+          return;
+        }
+        handler->RejectJavascriptCallback(
+            base::Value(callback_id),
+            base::Value(error.empty() ? "dream run failed" : error));
+      },
+      weak_factory_.GetWeakPtr(), callback_id));
 }
 
 void DaoAgentSettingsHandler::HandleGetUsageStats(const base::ListValue& args) {

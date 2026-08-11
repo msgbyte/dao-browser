@@ -1493,17 +1493,17 @@ void DaoSidebarUIHandler::PinTabAtIndex(int index, int pinned_target_index) {
     return;
   }
 
+  PersistBackingIdentity(contents);
+  model->SetTabPinned(index, true);
   DaoPinnedTabItem& pinned_item =
       pinned_tab_model_.AddOrUpdate(base::UTF16ToUTF8(contents->GetTitle()),
                                     contents->GetVisibleURL().spec(),
                                     FaviconToDataUrl(contents),
                                     GetSidebarTabId(contents));
-  PersistBackingIdentity(contents);
   if (pinned_target_index >= 0) {
     pinned_tab_model_.Move(pinned_item.id,
                            static_cast<size_t>(pinned_target_index));
   }
-  model->SetTabPinned(index, true);
   SavePinnedItems();
   if (IsJavascriptAllowed()) {
     PushFullState();

@@ -17,6 +17,7 @@
 
 namespace views {
 class DialogDelegate;
+class View;
 }  // namespace views
 
 namespace dao {
@@ -38,6 +39,9 @@ std::u16string PlatformShortcutKeycap(std::u16string_view key,
 void ConfigureDaoSystemDialog(
     views::DialogDelegate* delegate,
     const DaoSystemDialogOptions& options = DaoSystemDialogOptions());
+
+// Makes nested scrollable content inherit the custom dialog surface.
+void ConfigureDaoSystemDialogContent(views::View* content);
 
 std::unique_ptr<views::MdTextButton> CreateDaoDialogButton(
     views::Button::PressedCallback callback,

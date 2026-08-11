@@ -1,0 +1,46 @@
+diff --git a/chrome/test/data/webui/settings/dao_agent_page_index_test.ts b/chrome/test/data/webui/settings/dao_agent_page_index_test.ts
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/test/data/webui/settings/dao_agent_page_index_test.ts
+@@ -0,0 +1,40 @@
++// Copyright 2026 Dao Browser Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++import 'chrome://settings/settings.js';
++
++import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
++import type {SettingsDaoAgentPageIndexElement} from 'chrome://settings/settings.js';
++import {resetRouterForTesting, Router, routes} from 'chrome://settings/settings.js';
++import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
++
++suite('DaoAgentPageIndexTest', function() {
++  let page: SettingsDaoAgentPageIndexElement;
++
++  setup(function() {
++    document.body.innerHTML = window.trustedTypes!.emptyHTML;
++    resetRouterForTesting();
++    Router.getInstance().navigateTo(routes.BASIC);
++    page = document.createElement('settings-dao-agent-page-index');
++    document.body.appendChild(page);
++    flush();
++  });
++
++  teardown(function() {
++    page.remove();
++  });
++
++  test('rendersCompactOverviewEntry', function() {
++    const parent = page.$.viewManager.querySelector('#parent');
++    assertTrue(!!parent);
++    assertTrue(!!parent.querySelector('#openAgentSettings'));
++    assertFalse(!!parent.querySelector('settings-dao-agent-page'));
++  });
++
++  test('overviewEntryNavigatesToDetailsRoute', function() {
++    page.shadowRoot!.querySelector<HTMLElement>('#openAgentSettings')!.click();
++    assertEquals(
++        routes.DAO_AGENT_DETAILS, Router.getInstance().getCurrentRoute());
++  });
++});

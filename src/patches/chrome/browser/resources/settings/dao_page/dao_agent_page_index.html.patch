@@ -1,0 +1,36 @@
+diff --git a/chrome/browser/resources/settings/dao_page/dao_agent_page_index.html b/chrome/browser/resources/settings/dao_page/dao_agent_page_index.html
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/browser/resources/settings/dao_page/dao_agent_page_index.html
+@@ -0,0 +1,30 @@
++<style include="settings-shared">
++  cr-view-manager [hidden-by-search],
++  cr-view-manager[show-all] [slot=view][data-parent-view-id] {
++    display: none;
++  }
++
++  cr-view-manager [slot=view]:not(.closing) {
++    position: initial;
++  }
++</style>
++
++<cr-view-manager id="viewManager" class="cr-centered-card-container"
++    show-all$="[[shouldShowAll]]">
++  <settings-section slot="view" id="parent"
++      page-title="$i18n{daoAgentSettingsTitle}">
++    <cr-link-row id="openAgentSettings"
++        label="$i18n{daoAgentConfigureTitle}"
++        sub-label="$i18n{daoAgentConfigureDescription}"
++        on-click="onOpenAgentSettings_">
++    </cr-link-row>
++  </settings-section>
++
++  <template is="dom-if" if="[[shouldRenderDetails_(currentRoute)]]"
++      update-when-false>
++    <settings-dao-agent-page slot="view" id="agentSettings"
++        data-parent-view-id="parent" prefs="{{prefs}}"
++        route-path$="[[routes_.DAO_AGENT_DETAILS.path]]">
++    </settings-dao-agent-page>
++  </template>
++</cr-view-manager>

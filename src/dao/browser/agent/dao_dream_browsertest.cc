@@ -4556,7 +4556,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
         EXPECT_EQ("manual", r->trigger_kind);
         EXPECT_EQ("# nightly report", r->report_markdown);
         std::optional<base::Value> material_stats =
-            base::JSONReader::Read(r->material_stats);
+            base::JSONReader::Read(r->material_stats, base::JSON_PARSE_RFC);
         ASSERT_TRUE(material_stats.has_value());
         ASSERT_TRUE(material_stats->is_dict());
         const base::DictValue* stored_recap =
