@@ -5199,7 +5199,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
-                       ReturningToOpenerRestoresDocumentPipTarget) {
+                       TransientVisibilityWaitsForOpenerSelection) {
   GURL url = embedded_test_server()->GetURL("bilibili.com", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   content::WebContents* contents =
@@ -5259,6 +5259,15 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
     )js"));
 
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  ASSERT_NE(contents,
+            browser()->tab_strip_model()->GetActiveWebContents());
+
+  // Document PiP creation can transiently report the hidden opener as visible
+  // while it is being captured. That must not be treated as the user returning
+  // to the opener tab.
+  interceptor->OnVisibilityChanged(content::Visibility::VISIBLE);
+  EXPECT_EQ(0, content::EvalJs(contents, "window.__daoCloseCount"));
+
   browser()->tab_strip_model()->ActivateTabAt(
       browser()->tab_strip_model()->GetIndexOfWebContents(contents));
 

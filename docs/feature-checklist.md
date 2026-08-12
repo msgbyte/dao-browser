@@ -141,7 +141,7 @@ Flagship feature. C++ services + `dao://dao-agent` WebUI + vendor runtime.
 | ☐ | macOS history-swipe overlay clipped | `renderer_host/chrome_render_widget_host_view_mac_delegate.mm.patch` | 🟢 | Back/forward swipe overlay stays clipped |
 | ☐ | Dao dark blue-gray PiP window theme | `ui/color/chrome_color_mixer.cc.patch` | 🟡 | PiP uses Dao colors; check newly-added `kColorPipWindow*` tokens for unthemed defaults |
 | ☐ | Media progress bar fills flush to playhead | `components/global_media_controls/.../media_progress_view.cc.patch` | 🟢 | No gap between fill and indicator |
-| ☐ | PiP interceptor + auto-PiP visibility tab helpers | `ui/tab_helpers.cc.patch` + `src/dao/browser/pip/` | 🟢 | Interception + minimize-triggered auto-PiP work |
+| ☐ | PiP interceptor + auto-PiP visibility tab helpers | `ui/tab_helpers.cc.patch` + `src/dao/browser/pip/` | 🟢 | Interception + minimize-triggered auto-PiP work; transient opener visibility keeps Document PiP open, while selecting the opener closes it and restores its target |
 | ☐ | Doc-PiP permission-prompt / SODA-failure-log flags enabled | `media/base/media_switches.cc.patch` | 🟡 | Both flags still exist + default enabled |
 
 > **Highest-risk trio:** auto-PiP eligibility rewrite, window-manager overlay/bounds

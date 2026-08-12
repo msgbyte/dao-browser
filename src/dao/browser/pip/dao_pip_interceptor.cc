@@ -16,6 +16,9 @@
 #include "base/time/time.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "components/prefs/pref_service.h"
 #include "dao/browser/dao_pref_names.h"
@@ -715,9 +718,17 @@ void DaoPipInterceptor::MediaPictureInPictureChanged(
 }
 
 void DaoPipInterceptor::OnVisibilityChanged(content::Visibility visibility) {
-  if (visibility == content::Visibility::VISIBLE && document_pip_active_) {
-    CloseDocumentPip();
+  if (visibility != content::Visibility::VISIBLE || !document_pip_active_) {
+    return;
   }
+
+  Browser* browser = chrome::FindBrowserWithTab(web_contents());
+  if (!browser ||
+      browser->tab_strip_model()->GetActiveWebContents() != web_contents()) {
+    return;
+  }
+
+  CloseDocumentPip();
 }
 
 bool DaoPipInterceptor::ClearDocumentPipState() {
