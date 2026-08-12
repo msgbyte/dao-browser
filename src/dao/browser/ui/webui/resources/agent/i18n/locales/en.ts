@@ -407,6 +407,8 @@ const dict: Dictionary = {
   'dream.page.activity_less': 'Less',
   'dream.page.activity_more': 'More',
   'dream.page.activity_label': 'Daily Dream report activity',
+  'dream.page.activity_tooltip': '{date} · {duration}',
+  'dream.page.activity_duration_unavailable': 'Duration unavailable',
   'dream.page.weekly_badge': 'Weekly',
   'dream.page.weekly_eyebrow': 'Weekly Dream Recap',
   'dream.page.weekly_period': '{start} – {end}',

@@ -8,7 +8,7 @@
 
 import {recordApiCall} from './agent_bridge.js';
 import type {ChatMessage, UsageInfo} from './agent_bridge.js';
-import {currentLocale} from './i18n/i18n.js';
+import {currentLocale, initI18n} from './i18n/i18n.js';
 import {getCostRatesForConfig} from './llm_cost.js';
 import {getActiveLLMConfig} from './llm_config.js';
 
@@ -104,10 +104,9 @@ shape:
 }
 
 Rules:
-- Use the Locale from the user message as the default output language. If the
-  user's recent questions clearly use another language, follow that current
-  language habit instead. For zh-CN, use Simplified Chinese and Chinese
-  punctuation.
+- Use the required output locale injected below for every user-facing string.
+  It is authoritative; source material in another language must not change
+  the output language.
 - All user-facing report text, habit values, evidence, and questions must
   use the user's current locale and language style. Do not mix English into
   Chinese output unless the source material itself is an English proper noun,
@@ -323,11 +322,15 @@ export async function runDream(
   if (!cfg.apiKey) {
     throw new Error('no LLM api key configured');
   }
-  const userPrompt = `Locale: ${currentLocale()}\n` +
+  await initI18n();
+  const locale = currentLocale();
+  const systemPrompt =
+      `${SYSTEM_PROMPT}\n\nRequired output locale: ${locale}`;
+  const userPrompt = `Locale: ${locale}\n` +
       `Dream date: ${dreamDate}\n` +
       `Material pack:\n${JSON.stringify(material)}`;
   const messages: ChatMessage[] = [
-    {role: 'system', content: SYSTEM_PROMPT},
+    {role: 'system', content: systemPrompt},
     {role: 'user', content: userPrompt},
   ];
   if (options.debug) {

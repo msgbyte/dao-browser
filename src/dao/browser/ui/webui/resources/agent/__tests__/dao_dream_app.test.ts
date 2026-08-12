@@ -35,6 +35,7 @@ vi.mock('../dao_share_image.js', () => ({
 
 vi.mock('../i18n/i18n.js', () => ({
   initI18n: vi.fn(async () => undefined),
+  currentLocale: () => 'zh-CN',
   t: (key: string, vars?: Record<string, string | number>) => {
     const templates: Record<string, string> = {
       'chat.dream.card_date': 'About {date}',
@@ -76,6 +77,8 @@ vi.mock('../i18n/i18n.js', () => ({
       'dream.page.activity_less': 'Less',
       'dream.page.activity_more': 'More',
       'dream.page.activity_label': 'Daily Dream report activity',
+      'dream.page.activity_tooltip': '{date} · {duration}',
+      'dream.page.activity_duration_unavailable': 'Duration unavailable',
       'dream.page.weekly_badge': 'Weekly',
       'dream.page.weekly_eyebrow': 'Weekly Dream Recap',
       'dream.page.weekly_period': '{start} – {end}',
@@ -118,15 +121,29 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
 
 import '../dao_dream_app.js';
 
+const dreamAppCtor = customElements.get('dao-dream-app') as
+    CustomElementConstructor & {
+      invokeLifecycleCallbacksForTesting?: boolean;
+    };
+dreamAppCtor.invokeLifecycleCallbacksForTesting = true;
+
 type TestDreamApp = HTMLElement & {updateComplete: Promise<boolean>};
+type TestDreamReport = {dreamDate: string};
 type TestDreamAppPrototype = {
+  reports_: TestDreamReport[];
   renderActivityHeatmap_: () => ReturnType<typeof html>;
+  renderActivityHeatmapCell_: (
+      dateKey: string, label: string, report: TestDreamReport|null,
+      level: number, column: number, row: number) => ReturnType<typeof html>;
+  renderActivityTooltip_: () => ReturnType<typeof html>;
+  hideActivityTooltip_: () => void;
 };
 
 const dreamAppPrototype =
     (customElements.get('dao-dream-app') as CustomElementConstructor)
         .prototype as unknown as TestDreamAppPrototype;
 let restoreActivityHeatmap: () => void;
+let useSingleCellActivityHeatmap: (dateKey: string, label: string) => void;
 
 function report(
     dreamDate: string,
@@ -248,6 +265,24 @@ function expectIconOnlyCopyButton(
   expect(button!.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
 }
 
+function countTemplateMarkers(value: unknown, marker: string): number {
+  if (Array.isArray(value)) {
+    return value.reduce(
+        (count, item) => count + countTemplateMarkers(item, marker), 0);
+  }
+  if (typeof value !== 'object' || value === null ||
+      !('strings' in value) || !('values' in value)) {
+    return 0;
+  }
+  const template = value as {
+    strings: readonly string[];
+    values: readonly unknown[];
+  };
+  const ownMarkers = template.strings.join('').split(marker).length - 1;
+  return ownMarkers + template.values.reduce(
+      (count, item) => count + countTemplateMarkers(item, marker), 0);
+}
+
 describe('dao-dream-app routing', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -269,6 +304,22 @@ describe('dao-dream-app routing', () => {
                 <div class="heatmap-scroll"></div>
               </section>`);
     restoreActivityHeatmap = () => activityHeatmapSpy.mockRestore();
+    useSingleCellActivityHeatmap = (dateKey: string, label: string) => {
+      activityHeatmapSpy.mockImplementation(function(
+          this: TestDreamAppPrototype) {
+        const report =
+            this.reports_.find(item => item.dreamDate === dateKey) || null;
+        return html`
+          <section class="activity-heatmap">
+            <div class="heatmap-scroll"
+                @scroll=${() => this.hideActivityTooltip_()}>
+              ${this.renderActivityHeatmapCell_(
+                dateKey, label, report, report ? 1 : 0, 1, 1)}
+            </div>
+          </section>
+          ${this.renderActivityTooltip_()}`;
+      });
+    };
   });
 
   afterEach(() => {
@@ -288,8 +339,85 @@ describe('dao-dream-app routing', () => {
     expect(bridgeMocks.callNative).toHaveBeenCalledWith(
         'getDreamReports', {limit: 371});
     expect(el.shadowRoot!.textContent).toContain('2026-06-12');
-    expect(el.shadowRoot!.textContent).toContain('Thu, Jun 11');
+    expect(el.shadowRoot!.textContent).toContain('6月11日周四');
   });
+
+  it('opens the activity heatmap at the newest dates', async () => {
+    vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockReturnValue(760);
+    vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(220);
+    bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-12')]);
+
+    const el = await mountDreamApp('/');
+    const heatmap =
+        el.shadowRoot!.querySelector<HTMLElement>('.heatmap-scroll');
+
+    expect(heatmap).toBeTruthy();
+    expect(heatmap!.scrollLeft).toBe(540);
+  });
+
+  it('shows and hides localized active duration for a heatmap cell',
+     async () => {
+       useSingleCellActivityHeatmap('2026-06-19', '6月19日周五');
+       bridgeMocks.callNative.mockResolvedValueOnce([
+         report('2026-06-19', '[]', recapMaterialStats()),
+       ]);
+
+       const el = await mountDreamApp('/');
+       const cell = el.shadowRoot!.querySelector<HTMLButtonElement>(
+           '.heat-cell[aria-label="6月19日周五"]');
+       expect(cell).toBeTruthy();
+
+       cell!.dispatchEvent(new Event('pointerenter'));
+       await el.updateComplete;
+
+       const tooltip = el.shadowRoot!.querySelector<HTMLElement>(
+           '[role="tooltip"]');
+       expect(tooltip?.textContent).toContain('6月19日');
+       expect(tooltip?.textContent).toContain('3小时 54分钟');
+       expect(tooltip?.closest('.activity-heatmap')).toBeNull();
+       expect(el.shadowRoot!
+                  .querySelector<HTMLButtonElement>(
+                      '.heat-cell[aria-label="6月19日周五"]')
+                  ?.getAttribute('aria-describedby'))
+           .toBe('dream-activity-tooltip');
+
+       cell!.dispatchEvent(new Event('pointerleave'));
+       await el.updateComplete;
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')).toBeNull();
+
+       el.shadowRoot!
+           .querySelector<HTMLButtonElement>(
+               '.heat-cell[aria-label="6月19日周五"]')!
+           .dispatchEvent(new Event('pointerenter'));
+       await el.updateComplete;
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')).toBeTruthy();
+
+       el.shadowRoot!.querySelector<HTMLElement>('.heatmap-scroll')!
+           .dispatchEvent(new Event('scroll'));
+       await el.updateComplete;
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')).toBeNull();
+     });
+
+  it('shows unavailable duration for a legacy heatmap report on focus',
+     async () => {
+       useSingleCellActivityHeatmap('2026-06-19', '6月19日周五');
+       bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-19')]);
+
+       const el = await mountDreamApp('/');
+       const cell = el.shadowRoot!.querySelector<HTMLButtonElement>(
+           '.heat-cell[aria-label="6月19日周五"]');
+       expect(cell).toBeTruthy();
+
+       cell!.dispatchEvent(new Event('focus'));
+       await el.updateComplete;
+
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')?.textContent)
+           .toContain('Duration unavailable');
+
+       cell!.dispatchEvent(new Event('blur'));
+       await el.updateComplete;
+       expect(el.shadowRoot!.querySelector('[role="tooltip"]')).toBeNull();
+     });
 
   it('loads dream history for dao://dream/history', async () => {
     bridgeMocks.callNative.mockResolvedValueOnce([report('2026-06-10')]);
@@ -378,7 +506,6 @@ describe('dao-dream-app routing', () => {
 
   it('renders the selected one-minute recap design from structured data',
      async () => {
-       restoreActivityHeatmap();
        bridgeMocks.callNative.mockResolvedValueOnce([
          report('2026-06-19', habitCandidates(), recapMaterialStats()),
          report('2026-06-18'),
@@ -388,14 +515,13 @@ describe('dao-dream-app routing', () => {
        const root = el.shadowRoot!;
 
        expect(root.querySelector('.activity-heatmap')).toBeTruthy();
-       expect(root.querySelectorAll('.heat-cell').length).toBeGreaterThan(350);
        expect(root.querySelectorAll('.history-item')).toHaveLength(2);
        expect(root.querySelector('.recap-summary')?.textContent).toContain(
            'Afternoon focus shifted');
        expect(root.querySelectorAll('.rhythm-slot')).toHaveLength(4);
        expect(root.querySelector(
            '.rhythm-slot[data-peak="true"]')?.textContent)
-           .toContain('125 min');
+           .toContain('2小时 5分钟');
        expect(root.querySelectorAll('.theme-card')).toHaveLength(1);
        expect(root.querySelector('.theme-card')?.textContent)
            .toContain('Rust async programming');
@@ -407,6 +533,18 @@ describe('dao-dream-app routing', () => {
            .toContain('3');
        expect(root.querySelector('details.full-report')).toBeTruthy();
        expect(root.querySelector('.memory-candidates')).toBeTruthy();
+     });
+
+  it('builds a full year of activity heatmap cells without mounting them',
+     () => {
+       restoreActivityHeatmap();
+       const el = document.createElement('dao-dream-app') as
+           TestDreamApp & TestDreamAppPrototype;
+
+       const template = el.renderActivityHeatmap_();
+
+       expect(countTemplateMarkers(template, 'class="heat-cell"'))
+           .toBeGreaterThan(350);
      });
 
   it('derives a concise recap fallback from legacy markdown', async () => {
@@ -424,13 +562,46 @@ describe('dao-dream-app routing', () => {
         .toContain('Main thread');
   });
 
+  it('uses legacy report content instead of its generic heading in history',
+     async () => {
+       bridgeMocks.callNative.mockResolvedValueOnce([{
+         ...report('2026-06-19'),
+         reportMarkdown:
+             '## 昨天的主线\n完成了发布流程整理，并验证了关键配置。',
+       }]);
+
+       const el = await mountDreamApp('/');
+       const historySummary =
+           el.shadowRoot!.querySelector('.history-kind')?.textContent || '';
+
+       expect(historySummary).toContain(
+           '完成了发布流程整理，并验证了关键配置。');
+       expect(historySummary).not.toContain('昨天的主线');
+     });
+
+  it('keeps a valid structured theme when recap summary is empty', async () => {
+    const stats = JSON.parse(recapMaterialStats());
+    stats.recap.summary = '';
+    bridgeMocks.callNative.mockResolvedValueOnce([{
+      ...report('2026-06-19', '[]', JSON.stringify(stats)),
+      reportMarkdown: '## 昨天的主线\n旧版正文不应覆盖结构化主题。',
+    }]);
+
+    const el = await mountDreamApp('/');
+    const historySummary =
+        el.shadowRoot!.querySelector('.history-kind')?.textContent || '';
+
+    expect(historySummary).toContain('Rust async programming');
+    expect(historySummary).not.toContain('旧版正文');
+  });
+
   it('uses measured foreground buckets instead of model-estimated rhythm',
      async () => {
        const stats = JSON.parse(recapMaterialStats());
        stats.foreground_seconds_by_bucket = {
          morning: 600,
          afternoon: 7200,
-         evening: 1800,
+         evening: 7500,
          night: 0,
        };
        stats.recap.time_buckets = {
@@ -449,8 +620,8 @@ describe('dao-dream-app routing', () => {
 
        expect(slots.map(slot => slot.textContent)).toEqual([
          expect.stringContaining('10 min'),
-         expect.stringContaining('120 min'),
-         expect.stringContaining('30 min'),
+         expect.stringContaining('2小时'),
+         expect.stringContaining('2小时 5分钟'),
          expect.stringContaining('0 min'),
        ]);
      });

@@ -307,6 +307,8 @@ const dict: Dictionary = {
   'dream.page.activity_less': '少',
   'dream.page.activity_more': '多',
   'dream.page.activity_label': '过去一年每日梦境报告活跃度',
+  'dream.page.activity_tooltip': '{date} · {duration}',
+  'dream.page.activity_duration_unavailable': '暂无时长数据',
   'dream.page.weekly_badge': '每周',
   'dream.page.weekly_eyebrow': '每周梦境回顾',
   'dream.page.weekly_period': '{start} 至 {end}',
