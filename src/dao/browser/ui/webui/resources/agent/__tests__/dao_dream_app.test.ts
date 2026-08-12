@@ -265,6 +265,24 @@ function expectIconOnlyCopyButton(
   expect(button!.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
 }
 
+function countTemplateMarkers(value: unknown, marker: string): number {
+  if (Array.isArray(value)) {
+    return value.reduce(
+        (count, item) => count + countTemplateMarkers(item, marker), 0);
+  }
+  if (typeof value !== 'object' || value === null ||
+      !('strings' in value) || !('values' in value)) {
+    return 0;
+  }
+  const template = value as {
+    strings: readonly string[];
+    values: readonly unknown[];
+  };
+  const ownMarkers = template.strings.join('').split(marker).length - 1;
+  return ownMarkers + template.values.reduce(
+      (count, item) => count + countTemplateMarkers(item, marker), 0);
+}
+
 describe('dao-dream-app routing', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -488,7 +506,6 @@ describe('dao-dream-app routing', () => {
 
   it('renders the selected one-minute recap design from structured data',
      async () => {
-       restoreActivityHeatmap();
        bridgeMocks.callNative.mockResolvedValueOnce([
          report('2026-06-19', habitCandidates(), recapMaterialStats()),
          report('2026-06-18'),
@@ -498,7 +515,6 @@ describe('dao-dream-app routing', () => {
        const root = el.shadowRoot!;
 
        expect(root.querySelector('.activity-heatmap')).toBeTruthy();
-       expect(root.querySelectorAll('.heat-cell').length).toBeGreaterThan(350);
        expect(root.querySelectorAll('.history-item')).toHaveLength(2);
        expect(root.querySelector('.recap-summary')?.textContent).toContain(
            'Afternoon focus shifted');
@@ -517,6 +533,18 @@ describe('dao-dream-app routing', () => {
            .toContain('3');
        expect(root.querySelector('details.full-report')).toBeTruthy();
        expect(root.querySelector('.memory-candidates')).toBeTruthy();
+     });
+
+  it('builds a full year of activity heatmap cells without mounting them',
+     () => {
+       restoreActivityHeatmap();
+       const el = document.createElement('dao-dream-app') as
+           TestDreamApp & TestDreamAppPrototype;
+
+       const template = el.renderActivityHeatmap_();
+
+       expect(countTemplateMarkers(template, 'class="heat-cell"'))
+           .toBeGreaterThan(350);
      });
 
   it('derives a concise recap fallback from legacy markdown', async () => {
