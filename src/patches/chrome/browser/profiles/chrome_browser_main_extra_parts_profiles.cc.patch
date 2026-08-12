@@ -20,7 +20,7 @@ index 1aab47b6d039a..783c86ba03c03 100644
  #include "components/autofill/content/browser/autofill_log_router_factory.h"
  #include "components/breadcrumbs/core/breadcrumbs_status.h"
  #include "components/captive_portal/core/buildflags.h"
-@@ -622,6 +625,12 @@
+@@ -622,6 +625,13 @@
  #include "chrome/browser/net/nss_service_factory.h"
  #endif
  
@@ -28,6 +28,7 @@ index 1aab47b6d039a..783c86ba03c03 100644
 +#include "dao/browser/agent/dao_agent_skill_service_factory.h"
 +#include "dao/browser/agent/dao_agent_workspace_service_factory.h"
 +#include "dao/browser/agent/dao_dream_service_factory.h"
++#include "dao/browser/import/dao_migration_service_factory.h"
 +#include "dao/browser/mcp/dao_mcp_service.h"
 +
  void AddProfilesExtraParts(ChromeBrowserMainParts* main_parts) {
@@ -45,7 +46,7 @@ index 1aab47b6d039a..783c86ba03c03 100644
  
  // This method gets the instance of each ServiceFactory. We do this so that
  // each ServiceFactory initializes itself and registers its dependencies with
-@@ -894,6 +904,10 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -894,6 +905,11 @@ void ChromeBrowserMainExtraPartsProfiles::
  #endif  // BUILDFLAG(!IS_ANDROID)
    CrossDevicePrefTrackerFactory::GetInstance();
    DataTypeStoreServiceFactory::GetInstance();
@@ -53,6 +54,7 @@ index 1aab47b6d039a..783c86ba03c03 100644
 +  dao::DaoAgentSkillServiceFactory::GetInstance();
 +  dao::DaoAgentWorkspaceServiceFactory::GetInstance();
 +  dao::DaoDreamServiceFactory::GetInstance();
++  dao::import::DaoMigrationServiceFactory::GetInstance();
  #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
    data_controls::ChromeRulesServiceFactory::GetInstance();
  #endif

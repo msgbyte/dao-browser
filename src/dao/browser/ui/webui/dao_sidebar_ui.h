@@ -79,6 +79,10 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   // Set the browser this handler operates on.
   void SetBrowser(Browser* browser);
 
+  // Invalidates folder caches for all sidebar windows of `profile` after a
+  // profile-level writer updates dao_folders.json.
+  static void NotifyFolderDataChanged(Profile* profile);
+
   // content::WebUIMessageHandler:
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;

@@ -1249,4 +1249,45 @@ describe("settings continuous overview contract", () => {
     expect(webUiTestPatch).toContain("clearFailureUsesActionSpecificFeedback");
     expect(webUiTestPatch).toContain("resetFailureUsesActionSpecificFeedback");
   });
+
+  it("exposes browser migration from the Dao settings page", () => {
+    const htmlPatch = readDaoSource(
+      "src/patches/chrome/browser/resources/settings/dao_page/" +
+        "dao_page.html.patch",
+    );
+    const tsPatch = readDaoSource(
+      "src/patches/chrome/browser/resources/settings/dao_page/" +
+        "dao_page.ts.patch",
+    );
+    const webUiTestPatch = readDaoSource(
+      "src/patches/chrome/test/data/webui/settings/dao_page_test.ts.patch",
+    );
+    const profileFactoriesPatch = readDaoSource(
+      "src/patches/chrome/browser/profiles/" +
+        "chrome_browser_main_extra_parts_profiles.cc.patch",
+    );
+    const importHtml = readDaoSource(
+      "src/dao/browser/ui/webui/resources/import/import.html",
+    );
+
+    expect(htmlPatch).toContain('id="importBrowserData"');
+    expect(htmlPatch).toContain('$i18n{importTitle}');
+    expect(htmlPatch).toContain('on-click="onImportBrowserDataClick_"');
+    expect(tsPatch).toContain(
+      "OpenWindowProxyImpl.getInstance().openUrl('dao://import/');",
+    );
+    expect(webUiTestPatch).toContain(
+      "importBrowserDataOpensStandaloneMigration",
+    );
+    expect(profileFactoriesPatch).toContain(
+      '#include "dao/browser/import/dao_migration_service_factory.h"',
+    );
+    expect(profileFactoriesPatch).toContain(
+      "dao::import::DaoMigrationServiceFactory::GetInstance();",
+    );
+    expect(importHtml.indexOf('src="strings.m.js"')).toBeGreaterThanOrEqual(0);
+    expect(importHtml.indexOf('src="strings.m.js"')).toBeLessThan(
+      importHtml.indexOf('src="import.js"'),
+    );
+  });
 });

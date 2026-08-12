@@ -395,6 +395,10 @@ export class DaoSidebarApp extends CrLitElement {
     this.addSidebarListener_(
         'sidebarPointerExited', () => this.clearPointerState_());
 
+    this.addSidebarListener_('folderDataChanged', () => {
+      void this.reloadFolders_();
+    });
+
     this.addSidebarListener_(
         'moveStaleTabsRequested', (...args: unknown[]) => {
           this.moveStaleTabsToFolder_(args[0]);
@@ -468,6 +472,18 @@ export class DaoSidebarApp extends CrLitElement {
     } catch (e) {
       console.error('DaoSidebarApp: failed to load folders', e);
       this.foldersLoaded_ = true;
+    }
+  }
+
+  private async reloadFolders_() {
+    try {
+      const json = await loadFolders();
+      this.folderModel_.loadFromJson(json);
+      this.folderModel_.reconcile(this.unpinnedTabs_);
+      this.foldersLoaded_ = true;
+      this.saveFolders_();
+    } catch (e) {
+      console.error('DaoSidebarApp: failed to reload folders', e);
     }
   }
 

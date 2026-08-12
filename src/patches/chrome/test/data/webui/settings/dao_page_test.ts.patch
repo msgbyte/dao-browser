@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,530 @@
+@@ -0,0 +1,545 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -22,6 +22,7 @@ index 0000000000..0000000001
 +import {
 +  DaoMcpBrowserProxyImpl,
 +  loadTimeData,
++  OpenWindowProxyImpl,
 +  Router,
 +  routes,
 +} from 'chrome://settings/settings.js';
@@ -33,6 +34,7 @@ index 0000000000..0000000001
 +} from 'chrome://webui-test/chai_assert.js';
 +import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 +import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
++import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
 +
 +type DaoMcpSetupOption = 'codex'|'claude-code'|'generic-mcp';
 +
@@ -103,10 +105,13 @@ index 0000000000..0000000001
 +suite('DaoPage', function() {
 +  let page: SettingsDaoPageElement;
 +  let mcpBrowserProxy: TestDaoMcpBrowserProxy;
++  let openWindowProxy: TestOpenWindowProxy;
 +
 +  setup(async function() {
 +    mcpBrowserProxy = new TestDaoMcpBrowserProxy();
 +    DaoMcpBrowserProxyImpl.setInstance(mcpBrowserProxy);
++    openWindowProxy = new TestOpenWindowProxy();
++    OpenWindowProxyImpl.setInstance(openWindowProxy);
 +    document.body.innerHTML = window.trustedTypes!.emptyHTML;
 +    page = document.createElement('settings-dao-page');
 +    page.prefs = {
@@ -439,6 +444,16 @@ index 0000000000..0000000001
 +    assertTrue(!!toggle);
 +    assertEquals('dao.little_dao_enabled', toggle.pref!.key);
 +    assertTrue(toggle.checked);
++  });
++
++  test('importBrowserDataOpensStandaloneMigration', async function() {
++    const importRow =
++        page.shadowRoot!.querySelector<HTMLElement>('#importBrowserData');
++    assertTrue(!!importRow);
++    importRow.click();
++
++    assertEquals(
++        'dao://import/', await openWindowProxy.whenCalled('openUrl'));
 +  });
 +
 +  test('enhancedCommandBarSuggestionsToggleBindsToDaoPref', function() {

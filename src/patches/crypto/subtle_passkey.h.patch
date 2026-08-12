@@ -1,0 +1,24 @@
+diff --git a/crypto/subtle_passkey.h b/crypto/subtle_passkey.h
+--- a/crypto/subtle_passkey.h
++++ b/crypto/subtle_passkey.h
+@@ -21,5 +21,9 @@ class SubtlePassKey;
+ }  // namespace crypto
+ 
++namespace dao::import {
++class DaoChromiumPasswordDecryptorMac;
++}
++
+ namespace chromeos {
+ crypto::SubtlePassKey MakeCryptoPassKeyForSharedSessionHandler();
+ }
+@@ -78,6 +82,10 @@ class CRYPTO_EXPORT SubtlePassKey final {
+   // arbitrary (possibly attacker-supplied) PBKDF2 parameters.
+   friend SubtlePassKey chromeos::onc::MakeCryptoPassKey();
+ 
++  // This class uses custom PBKDF2 parameters to remain compatible with
++  // persisted Chromium-based browser profiles.
++  friend class ::dao::import::DaoChromiumPasswordDecryptorMac;
++
+   // These classes use custom PBKDF2 parameters and have to keep doing so for
+   // compatibility with existing persisted data.
+   friend class os_crypt_async::FreedesktopSecretKeyProvider;

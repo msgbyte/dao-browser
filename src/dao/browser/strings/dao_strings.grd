@@ -496,6 +496,67 @@
       <message name="IDS_DAO_MINI_DAO_DOWNLOAD_CARD_OVERFLOW" desc="Summary line in the Mini Dao download progress card when more active downloads exist than can be shown. COUNT is the number of additional active downloads hidden behind the summary.">
         <ph name="COUNT">$1<ex>3</ex></ph> more
       </message>
+
+      <!-- Browser data migration WebUI -->
+      <message name="IDS_DAO_IMPORT_PAGE_TITLE" desc="Document title of the standalone browser data migration page.">Import browser data</message>
+      <message name="IDS_DAO_IMPORT_WIZARD_NAME" desc="Name of the standalone browser data migration wizard.">Dao Migration</message>
+      <message name="IDS_DAO_IMPORT_STEP_SOURCE" desc="Step label for choosing a source browser profile.">Step 1 of 4 · Choose a source</message>
+      <message name="IDS_DAO_IMPORT_SOURCE_TITLE" desc="Heading asking which browser profile to import from.">Where are you moving from?</message>
+      <message name="IDS_DAO_IMPORT_SOURCE_DESCRIPTION" desc="Explanation shown above detected source browser profiles.">Choose a browser profile on this Mac. Each profile is listed separately so you stay in control of what moves.</message>
+      <message name="IDS_DAO_IMPORT_DETECTING_SOURCES" desc="Status shown while local browser profiles are being detected.">Looking for browser profiles…</message>
+      <message name="IDS_DAO_IMPORT_NO_SOURCES" desc="Empty state shown when no supported browser profiles were found.">No supported browser profiles were found on this Mac.</message>
+      <message name="IDS_DAO_IMPORT_SCAN_AGAIN" desc="Button that scans the Mac again for browser profiles.">Scan again</message>
+      <message name="IDS_DAO_IMPORT_BROWSER_CHROME" desc="Name of Google Chrome in an unavailable source browser card.">Google Chrome</message>
+      <message name="IDS_DAO_IMPORT_BROWSER_ARC" desc="Name of Arc in an unavailable source browser card.">Arc</message>
+      <message name="IDS_DAO_IMPORT_BROWSER_EDGE" desc="Name of Microsoft Edge in an unavailable source browser card.">Microsoft Edge</message>
+      <message name="IDS_DAO_IMPORT_BROWSER_SAFARI" desc="Name of Safari in an unavailable source browser card.">Safari</message>
+      <message name="IDS_DAO_IMPORT_BROWSER_FIREFOX" desc="Name of Firefox in an unavailable source browser card.">Firefox</message>
+      <message name="IDS_DAO_IMPORT_SOURCE_NOT_DETECTED" desc="Status shown on a disabled source browser card when no profile was detected.">Not detected</message>
+      <message name="IDS_DAO_IMPORT_STEP_DATA" desc="Step label for choosing data categories.">Step 2 of 4 · Choose what moves</message>
+      <message name="IDS_DAO_IMPORT_DATA_TITLE" desc="Heading asking which browser data categories to import.">What would you like to bring?</message>
+      <message name="IDS_DAO_IMPORT_DATA_DESCRIPTION" desc="Explanation of safe merge behavior for imported data.">Dao merges imported items with what you already have. Existing data is never replaced.</message>
+      <message name="IDS_DAO_IMPORT_CATEGORY_BOOKMARKS" desc="Label for the bookmarks import category.">Bookmarks</message>
+      <message name="IDS_DAO_IMPORT_CATEGORY_HISTORY" desc="Label for the browsing history import category.">Browsing history</message>
+      <message name="IDS_DAO_IMPORT_CATEGORY_PASSWORDS" desc="Label for the saved passwords import category.">Saved passwords</message>
+      <message name="IDS_DAO_IMPORT_CATEGORY_TABS" desc="Label for the open tabs import category.">Open tabs</message>
+      <message name="IDS_DAO_IMPORT_CATEGORY_EXTENSIONS" desc="Label for the browser extensions import category.">Extensions</message>
+      <message name="IDS_DAO_IMPORT_COUNT_SCANNING" desc="Status shown while a browser data category candidate count is being calculated.">Counting…</message>
+      <message name="IDS_DAO_IMPORT_COUNT_SCANNED" desc="Candidate count shown before migration begins. COUNT is the number of source records scanned and can differ from the final imported count."><ph name="COUNT">$1<ex>1,234</ex></ph> candidates</message>
+      <message name="IDS_DAO_IMPORT_COUNT_UNAVAILABLE" desc="Status shown when a source browser does not support a pre-migration candidate count.">Count unavailable</message>
+      <message name="IDS_DAO_IMPORT_PASSWORD_TIP_TITLE" desc="Title of the password import Keychain authorization notice.">A macOS Keychain prompt may appear</message>
+      <message name="IDS_DAO_IMPORT_PASSWORD_TIP_DESCRIPTION" desc="Explains the expected macOS Keychain authorization and denial behavior before password import begins.">Dao needs the selected browser’s Safe Storage key to decrypt saved passwords. If you deny access, only passwords are skipped and the rest of the migration continues.</message>
+      <message name="IDS_DAO_IMPORT_EXTENSION_TIP_TITLE" desc="Title of the extension reinstall network notice.">Extensions are reinstalled from their official store</message>
+      <message name="IDS_DAO_IMPORT_EXTENSION_TIP_DESCRIPTION" desc="Explains that extension reinstall is the only migration step that may use the network.">Your browser data stays on this Mac. Reinstalling compatible extensions is the only step that may connect to the internet; extension settings and sign-ins are not copied.</message>
+      <message name="IDS_DAO_IMPORT_STEP_PROGRESS" desc="Step label shown while migration is running.">Step 3 of 4 · Moving your data</message>
+      <message name="IDS_DAO_IMPORT_PROGRESS_TITLE" desc="Heading shown while browser data is being imported.">Moving your data into Dao</message>
+      <message name="IDS_DAO_IMPORT_PROGRESS_DESCRIPTION" desc="Explanation that the source browser can remain open during migration.">You can keep using the source browser. If one data type keeps changing, Dao will ask you to close it and retry only that part.</message>
+      <message name="IDS_DAO_IMPORT_SOURCE_FALLBACK" desc="Fallback label when the selected source browser name is temporarily unavailable.">Source browser</message>
+      <message name="IDS_DAO_IMPORT_DAO_NAME" desc="Dao product name shown at the destination end of the migration rail.">Dao</message>
+      <message name="IDS_DAO_IMPORT_PHASE_PENDING" desc="Pending migration category status.">Waiting</message>
+      <message name="IDS_DAO_IMPORT_PHASE_SNAPSHOTTING" desc="Migration category status while a stable local snapshot is created.">Preparing a local copy</message>
+      <message name="IDS_DAO_IMPORT_PHASE_READING" desc="Migration category status while source data is read.">Reading</message>
+      <message name="IDS_DAO_IMPORT_PHASE_WRITING" desc="Migration category status while data is merged into Dao.">Adding to Dao</message>
+      <message name="IDS_DAO_IMPORT_PHASE_SUCCEEDED" desc="Successful migration category status.">Complete</message>
+      <message name="IDS_DAO_IMPORT_PHASE_FAILED" desc="Failed migration category status.">Needs attention</message>
+      <message name="IDS_DAO_IMPORT_PHASE_CANCELLED" desc="Cancelled migration category status.">Cancelled</message>
+      <message name="IDS_DAO_IMPORT_PARTIAL_TITLE" desc="Completion heading when some data categories failed.">Most of your data is here</message>
+      <message name="IDS_DAO_IMPORT_PARTIAL_DESCRIPTION" desc="Explanation shown when some categories can be retried after partial migration.">Completed categories are ready to use. You can retry only the parts that need attention.</message>
+      <message name="IDS_DAO_IMPORT_FAILED_SUMMARY_TITLE" desc="Heading above the browser data categories that need to be retried.">These items need to be retried</message>
+      <message name="IDS_DAO_IMPORT_FAILED_STATUS" desc="Status shown on a browser data category that failed to migrate.">Migration failed</message>
+      <message name="IDS_DAO_IMPORT_DONE_TITLE" desc="Heading shown after all selected data categories were imported.">Your move is complete</message>
+      <message name="IDS_DAO_IMPORT_DONE_DESCRIPTION" desc="Explanation shown after successful browser migration.">Your imported data is ready in Dao. Open tabs are kept unloaded in a collapsed folder until you need them.</message>
+      <message name="IDS_DAO_IMPORT_CANCELLED_TITLE" desc="Completion heading shown after the user stops a browser migration.">Migration stopped</message>
+      <message name="IDS_DAO_IMPORT_CANCELLED_DESCRIPTION" desc="Explanation shown after the user stops a browser migration, including that completed work remains available.">Data imported before you stopped is ready to use. You can start another migration whenever you’re ready.</message>
+      <message name="IDS_DAO_IMPORT_MERGE_HINT" desc="Footer reassurance shown before starting browser migration.">Imported items are merged without replacing existing data.</message>
+      <message name="IDS_DAO_IMPORT_LOCAL_HINT" desc="Footer privacy note shown in the browser migration wizard.">Your browser data is processed locally on this Mac.</message>
+      <message name="IDS_DAO_IMPORT_BACK" desc="Button returning to the source browser selection step.">Back</message>
+      <message name="IDS_DAO_IMPORT_START" desc="Button that starts browser data migration.">Start migration</message>
+      <message name="IDS_DAO_IMPORT_CANCEL" desc="Button that requests safe cancellation of a running migration.">Stop migration</message>
+      <message name="IDS_DAO_IMPORT_RETRY_FAILED" desc="Button that retries only failed browser data categories.">Retry failed items</message>
+      <message name="IDS_DAO_IMPORT_CONTINUE" desc="Button advancing from source selection to data category selection.">Continue</message>
+      <message name="IDS_DAO_IMPORT_BOOKMARK_ROOT" desc="Name of the bookmark folder that contains data brought in by the migration flow.">Imported browser data</message>
+      <message name="IDS_DAO_IMPORT_TAB_FOLDER" desc="Name of the collapsed sidebar folder that contains tabs brought in by the migration flow.">Imported tabs</message>
+
       <!-- Install dialog notice -->
       <message name="IDS_DAO_INSTALL_PROMPT_LEGACY_MV2_NOTICE" desc="One-line notice shown above the permission list in the extension install dialog when the extension being installed is a legacy Manifest V2 extension. Tells the user that Dao still supports MV2 but most other browsers do not. Plain text, no link.">
         This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.

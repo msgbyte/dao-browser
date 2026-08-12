@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,625 @@
+@@ -0,0 +1,630 @@
 +<style include="settings-shared">
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
@@ -432,6 +432,11 @@ index 0000000000..0000000001
 +
 +<settings-section page-title="$i18n{daoPageTitle}"
 +    class="cr-centered-card-container">
++  <cr-link-row id="importBrowserData"
++      label="$i18n{importTitle}"
++      on-click="onImportBrowserDataClick_"
++      role-description="$i18n{subpageArrowRoleDescription}">
++  </cr-link-row>
 +  <settings-toggle-button id="littleDaoEnabled"
 +      pref="{{prefs.dao.little_dao_enabled}}"
 +      label="$i18n{littleDaoEnabledLabel}"

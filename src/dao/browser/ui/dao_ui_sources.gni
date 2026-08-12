@@ -3,6 +3,29 @@
 # found in the LICENSE file.
 
 dao_browser_ui_sources = [
+  "//dao/browser/import/dao_chromium_profile_adapter.cc",
+  "//dao/browser/import/dao_chromium_profile_adapter.h",
+  "//dao/browser/import/dao_chromium_migration_target.cc",
+  "//dao/browser/import/dao_chromium_migration_target.h",
+  "//dao/browser/import/dao_chromium_password_decryptor_mac.h",
+  "//dao/browser/import/dao_migration_job.cc",
+  "//dao/browser/import/dao_migration_job.h",
+  "//dao/browser/import/dao_legacy_profile_writer.cc",
+  "//dao/browser/import/dao_legacy_profile_writer.h",
+  "//dao/browser/import/dao_migration_service.cc",
+  "//dao/browser/import/dao_migration_service.h",
+  "//dao/browser/import/dao_migration_service_factory.cc",
+  "//dao/browser/import/dao_migration_service_factory.h",
+  "//dao/browser/import/dao_migration_types.cc",
+  "//dao/browser/import/dao_migration_types.h",
+  "//dao/browser/import/dao_migration_writer.cc",
+  "//dao/browser/import/dao_migration_writer.h",
+  "//dao/browser/import/dao_profile_snapshot.cc",
+  "//dao/browser/import/dao_profile_snapshot.h",
+  "//dao/browser/import/dao_source_detector.cc",
+  "//dao/browser/import/dao_source_detector.h",
+  "//dao/browser/import/dao_source_adapter.cc",
+  "//dao/browser/import/dao_source_adapter.h",
   "//dao/browser/agent/dao_agent_lock_tab_helper.cc",
   "//dao/browser/agent/dao_agent_lock_tab_helper.h",
   "//dao/browser/agent/dao_agent_settings_handler.cc",
@@ -158,6 +181,8 @@ dao_browser_ui_sources = [
   "//dao/browser/ui/views/split/dao_split_view.h",
   "//dao/browser/ui/webui/dao_agent_ui.cc",
   "//dao/browser/ui/webui/dao_agent_ui.h",
+  "//dao/browser/ui/webui/dao_import_ui.cc",
+  "//dao/browser/ui/webui/dao_import_ui.h",
   "//dao/browser/ui/webui/dao_pinned_tab_model.cc",
   "//dao/browser/ui/webui/dao_pinned_tab_model.h",
   "//dao/browser/ui/webui/dao_pinned_tab_storage.cc",
@@ -170,19 +195,29 @@ dao_browser_ui_sources = [
 
 dao_browser_ui_deps = [
   "//components/favicon/content",
+  "//components/password_manager/core/browser:password_form",
+  "//components/password_manager/core/browser/password_store:password_store_interface",
   "//components/pdf/browser",
   "//components/qr_code_generator",
+  "//components/sessions",
+  "//crypto",
   "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
   "//dao/browser/mcp:browser_mcp",
   "//dao/browser/qrcode:qr_decoder",
   "//dao/browser/strings:dao_strings",
   "//dao/browser/ui/webui/resources/agent:resources",
   "//dao/browser/ui/webui/resources/sidebar:resources",
+  "//dao/browser/ui/webui/resources/import:resources",
   "//dao/browser/ui/webui/resources/welcome:resources",
   "//sql",
 ]
 
 dao_browser_ui_test_sources = [
+  "//dao/browser/import/dao_chromium_profile_adapter_unittest.cc",
+  "//dao/browser/import/dao_migration_job_unittest.cc",
+  "//dao/browser/import/dao_migration_writer_unittest.cc",
+  "//dao/browser/import/dao_profile_snapshot_unittest.cc",
+  "//dao/browser/import/dao_source_detector_unittest.cc",
   "//dao/browser/agent/dao_dream_browsertest.cc",
   "//dao/browser/automation/dao_devtools_tools_browsertest.cc",
   "//dao/browser/mcp/dao_mcp_end_to_end_browsertest.cc",
@@ -209,5 +244,7 @@ dao_browser_ui_test_deps = [
 ]
 
 if (is_mac) {
+  dao_browser_ui_sources +=
+      [ "//dao/browser/import/dao_chromium_password_decryptor_mac.mm" ]
   dao_browser_ui_test_deps += [ "//dao/browser/mcp:dao_mcp_helper" ]
 }

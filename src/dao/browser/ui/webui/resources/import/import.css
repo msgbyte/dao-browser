@@ -1,0 +1,25 @@
+/* Copyright 2026 Dao Browser Authors. All rights reserved. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: rgb(231, 238, 245);
+  color: rgba(30, 20, 40, 0.92);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: rgb(54, 59, 64);
+    color: rgba(245, 245, 245, 0.92);
+  }
+}
