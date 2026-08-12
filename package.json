@@ -27,7 +27,7 @@
     "package:signed": "tsx scripts/cli.ts package --sign-id",
     "package:release": "tsx scripts/cli.ts package --sign-id --notarize --staple",
     "setup": "tsx scripts/cli.ts download && npm run import",
-    "rebuild": "npm run import && npm run build:debug",
+    "rebuild": "npm run import -- --repair && npm run build:debug",
     "test:build": "tsx scripts/cli.ts build --debug --target browser_tests",
     "test": "npm run lint:lit && tsx scripts/cli.ts build --debug --target browser_tests && engine/src/out/dao-debug/browser_tests --gtest_filter=\"Dao*\"",
     "test:webui": "vitest run",

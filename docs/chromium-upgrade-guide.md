@@ -123,6 +123,17 @@ artifacts like `out/` and `engine/src/dao/` are preserved). The importer:
 **The output you care about:** `Patches: N applied, M already applied, K failed`. Any
 `K > 0` prints a `fix-import-patches.sh` command. That's your work list.
 
+For the normal local compile loop, `npm run rebuild` opts into one targeted automatic
+repair attempt. It resets and reapplies only the targets declared by patches that failed
+in that import run, verifies each repaired patch, and then continues the rebuild. Plain
+`npm run import` does not auto-repair; it keeps printing the manual command so Chromium
+upgrade conflict resolution and intentional `engine/src` debugging remain explicit.
+Automatic repair never uses `--force` and never retries in a loop.
+If a failed patch shares a target file with another Dao patch, rebuild fails closed
+before resetting that file and asks for manual conflict resolution without printing
+the destructive repair command. If any targeted repair or verification fails, all
+target files are restored to their pre-repair state before rebuild exits.
+
 ### 1.3 Resolve failed patches (the core loop)
 
 For each failed patch, work in `engine/src` and regenerate the patch. **Prioritize by the

@@ -59,6 +59,15 @@ export function buildFixImportPatchesMessage(patchFiles: string[]): string {
   ].join("\n");
 }
 
+export function buildSharedRepairTargetsMessage(
+  targetPaths: string[]
+): string {
+  return [
+    ...targetPaths.map((targetPath) => `  ${targetPath}`),
+    "Resolve the shared targets manually, then re-run: npm run import",
+  ].join("\n");
+}
+
 export type PatchApplyResult = "applied" | "already-applied" | "failed";
 
 export interface PatchTarget {
@@ -114,6 +123,31 @@ export function parsePatchTargets(content: string): PatchTarget[] {
   }
 
   return targets;
+}
+
+export function findSharedRepairTargets(
+  repairPatchPaths: string[],
+  allPatchPaths: string[]
+): string[] {
+  const repairTargets = new Set<string>();
+  for (const patchPath of repairPatchPaths) {
+    for (const target of parsePatchTargets(readFileSync(patchPath, "utf-8"))) {
+      repairTargets.add(target.path);
+    }
+  }
+
+  const targetOwners = new Map<string, Set<string>>();
+  for (const patchPath of allPatchPaths) {
+    for (const target of parsePatchTargets(readFileSync(patchPath, "utf-8"))) {
+      const owners = targetOwners.get(target.path) ?? new Set<string>();
+      owners.add(patchPath);
+      targetOwners.set(target.path, owners);
+    }
+  }
+
+  return [...repairTargets]
+    .filter((targetPath) => (targetOwners.get(targetPath)?.size ?? 0) > 1)
+    .sort();
 }
 
 function isTrackedPath(srcDir: string, targetPath: string): boolean {
@@ -226,6 +260,30 @@ async function isPatchAlreadyApplied(
   }
 }
 
+export async function repairFailedPatches(
+  srcDir: string,
+  patchPaths: string[],
+  repairScriptPath = path.join(ROOT_DIR, "scripts", "fix-import-patches.sh")
+): Promise<boolean> {
+  if (patchPaths.length === 0) {
+    return true;
+  }
+
+  try {
+    execFileSync("sh", [repairScriptPath, ...patchPaths], {
+      cwd: ROOT_DIR,
+      stdio: "inherit",
+    });
+  } catch {
+    return false;
+  }
+
+  const verificationResults = await Promise.all(
+    patchPaths.map((patchPath) => isPatchAlreadyApplied(srcDir, patchPath))
+  );
+  return verificationResults.every(Boolean);
+}
+
 export async function applyPatchWithAlreadyAppliedFallback(
   srcDir: string,
   patchPath: string
@@ -290,10 +348,18 @@ export const importCommand = new Command("import")
   .description("Apply patches and copy Dao code into the Chromium tree")
   .option("--patches-only", "Only apply patches, skip copying Dao source")
   .option(
+    "--repair",
+    "Repair only failed patch targets once before continuing"
+  )
+  .option(
     "--force",
     "Reset tracked files and stale patch-created files before importing"
   )
-  .action(async (opts: { patchesOnly?: boolean; force?: boolean }) => {
+  .action(async (opts: {
+    patchesOnly?: boolean;
+    repair?: boolean;
+    force?: boolean;
+  }) => {
     const srcDir = path.join(ENGINE_DIR, "src");
 
     if (!existsSync(srcDir)) {
@@ -418,6 +484,37 @@ export const importCommand = new Command("import")
     log(
       `Patches: ${applied} applied, ${skipped} already applied, ${failed} failed`
     );
+
+    if (failed > 0 && opts.repair) {
+      const failedFullPatchPaths = failedPatchFiles.map(
+        (patchFile) => path.join(PATCHES_DIR, patchFile)
+      );
+      const sharedTargets = findSharedRepairTargets(
+        failedFullPatchPaths,
+        fullPatchPaths
+      );
+      if (sharedTargets.length > 0) {
+        error(
+          "Automatic repair cannot safely reset patch targets shared by " +
+            "multiple Dao patches:"
+        );
+        console.error(buildSharedRepairTargetsMessage(sharedTargets));
+        process.exitCode = 1;
+        return;
+      }
+
+      warn(`Repairing ${failed} failed patch(es) before continuing...`);
+      if (!await repairFailedPatches(srcDir, failedFullPatchPaths)) {
+        error(`Automatic repair failed for ${failed} patch(es).`);
+        console.error(buildFixImportPatchesMessage(failedPatchFiles));
+        process.exitCode = 1;
+        return;
+      }
+
+      success(`Repaired and verified ${failed} failed patch(es)`);
+      failed = 0;
+      failedPatchFiles.length = 0;
+    }
 
     // Step 1.25: Apply generated rewrites for highly mechanical Chromium edits
     // that would otherwise be tracked as dozens of one-line patch files.

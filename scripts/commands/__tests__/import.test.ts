@@ -25,14 +25,28 @@ import {
   applyPatchWithAlreadyAppliedFallback,
   buildFixImportPatchesCommand,
   buildFixImportPatchesMessage,
+  buildSharedRepairTargetsMessage,
   cleanupPatchCreatedFiles,
+  findSharedRepairTargets,
   parsePatchTargets,
   prepareForcedImport,
   readChromiumVersion,
+  repairFailedPatches,
   validateChromiumVersion,
 } from '../import.js';
 
 describe('import helpers', () => {
+  it('enables targeted repair only for rebuild', () => {
+    const packageJson = JSON.parse(readFileSync(
+        path.join(process.cwd(), 'package.json'), 'utf-8')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.import).toBe('tsx scripts/cli.ts import');
+    expect(packageJson.scripts?.rebuild).toBe(
+        'npm run import -- --repair && npm run build:debug');
+  });
+
   it('parses every target in a multi-file patch', () => {
     const patchContent = [
       'diff --git a/tracked.txt b/tracked.txt',
@@ -399,6 +413,208 @@ describe('import helpers', () => {
       "sh scripts/fix-import-patches.sh 'src/patches/chrome/browser/ui/BUILD.gn.patch'",
       'Then re-run: npm run import',
     ].join('\n'));
+  });
+
+  it('detects failed patch targets shared with another Dao patch', () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const firstPatch = path.join(tempRoot, 'first.patch');
+    const secondPatch = path.join(tempRoot, 'second.patch');
+    const independentPatch = path.join(tempRoot, 'independent.patch');
+    writeFileSync(firstPatch, [
+      'diff --git a/shared.txt b/shared.txt',
+      '--- a/shared.txt',
+      '+++ b/shared.txt',
+      '@@ -1 +1,2 @@',
+      ' upstream',
+      '+first change',
+      '',
+    ].join('\n'));
+    writeFileSync(secondPatch, [
+      'diff --git a/shared.txt b/shared.txt',
+      '--- a/shared.txt',
+      '+++ b/shared.txt',
+      '@@ -1 +1,2 @@',
+      ' upstream',
+      '+second change',
+      '',
+    ].join('\n'));
+    writeFileSync(independentPatch, [
+      'diff --git a/independent.txt b/independent.txt',
+      '--- a/independent.txt',
+      '+++ b/independent.txt',
+      '@@ -1 +1,2 @@',
+      ' upstream',
+      '+independent change',
+      '',
+    ].join('\n'));
+
+    expect(findSharedRepairTargets(
+        [firstPatch],
+        [firstPatch, secondPatch, independentPatch])).toEqual(['shared.txt']);
+    expect(findSharedRepairTargets(
+        [independentPatch],
+        [firstPatch, secondPatch, independentPatch])).toEqual([]);
+  });
+
+  it('does not recommend destructive repair for shared patch targets', () => {
+    const message = buildSharedRepairTargetsMessage([
+      'chrome/browser/resources/settings/router.ts',
+    ]);
+
+    expect(message).toContain(
+        'chrome/browser/resources/settings/router.ts');
+    expect(message).toContain('Resolve the shared targets manually');
+    expect(message).not.toContain('fix-import-patches.sh');
+  });
+
+  it('repairs and verifies only the requested failed patches', async () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const scriptsDir = path.join(tempRoot, 'scripts');
+    const patchesDir = path.join(tempRoot, 'src/patches/test');
+    const repoDir = path.join(tempRoot, 'engine/src');
+    mkdirSync(scriptsDir, {recursive: true});
+    mkdirSync(patchesDir, {recursive: true});
+    mkdirSync(repoDir, {recursive: true});
+
+    const repairScriptPath = path.join(scriptsDir, 'fix-import-patches.sh');
+    copyFileSync(
+        path.join(process.cwd(), 'scripts/fix-import-patches.sh'),
+        repairScriptPath);
+
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    const targetPath = path.join(repoDir, 'target.txt');
+    writeFileSync(targetPath, 'upstream\n');
+    execFileSync('git', ['add', 'target.txt'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const patchPath = path.join(patchesDir, 'target.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/target.txt b/target.txt',
+      '--- a/target.txt',
+      '+++ b/target.txt',
+      '@@ -1 +1 @@',
+      '-upstream',
+      '+Dao value',
+      '',
+    ].join('\n'));
+    writeFileSync(targetPath, 'stale local value\n');
+
+    await expect(repairFailedPatches(
+        repoDir, [patchPath], repairScriptPath)).resolves.toBe(true);
+    expect(readFileSync(targetPath, 'utf-8')).toBe('Dao value\n');
+  });
+
+  it('reports a failed targeted repair without claiming success', async () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const scriptsDir = path.join(tempRoot, 'scripts');
+    const patchesDir = path.join(tempRoot, 'src/patches/test');
+    const repoDir = path.join(tempRoot, 'engine/src');
+    mkdirSync(scriptsDir, {recursive: true});
+    mkdirSync(patchesDir, {recursive: true});
+    mkdirSync(repoDir, {recursive: true});
+
+    const repairScriptPath = path.join(scriptsDir, 'fix-import-patches.sh');
+    copyFileSync(
+        path.join(process.cwd(), 'scripts/fix-import-patches.sh'),
+        repairScriptPath);
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    writeFileSync(path.join(repoDir, '.gitkeep'), '');
+    execFileSync('git', ['add', '.gitkeep'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    const patchPath = path.join(patchesDir, 'missing.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/missing.txt b/missing.txt',
+      '--- a/missing.txt',
+      '+++ b/missing.txt',
+      '@@ -1 +1 @@',
+      '-upstream',
+      '+Dao value',
+      '',
+    ].join('\n'));
+
+    await expect(repairFailedPatches(
+        repoDir, [patchPath], repairScriptPath)).resolves.toBe(false);
+  });
+
+  it('restores patch targets when repair fails after resetting them', async () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const scriptsDir = path.join(tempRoot, 'scripts');
+    const patchesDir = path.join(tempRoot, 'src/patches/test');
+    const repoDir = path.join(tempRoot, 'engine/src');
+    mkdirSync(scriptsDir, {recursive: true});
+    mkdirSync(patchesDir, {recursive: true});
+    mkdirSync(repoDir, {recursive: true});
+
+    const repairScriptPath = path.join(scriptsDir, 'fix-import-patches.sh');
+    copyFileSync(
+        path.join(process.cwd(), 'scripts/fix-import-patches.sh'),
+        repairScriptPath);
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+
+    const targetPath = path.join(repoDir, 'target.txt');
+    writeFileSync(targetPath, 'upstream value\n');
+    execFileSync('git', ['add', 'target.txt'], {
+      cwd: repoDir,
+      stdio: 'ignore',
+    });
+    execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Dao Test',
+          '-c',
+          'user.email=dao-test@example.com',
+          'commit',
+          '-m',
+          'init',
+        ],
+        {cwd: repoDir, stdio: 'ignore'});
+
+    writeFileSync(targetPath, 'local debugging value\n');
+    const patchPath = path.join(patchesDir, 'target.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/target.txt b/target.txt',
+      '--- a/target.txt',
+      '+++ b/target.txt',
+      '@@ -1 +1 @@',
+      '-different upstream value',
+      '+Dao value',
+      '',
+    ].join('\n'));
+
+    await expect(repairFailedPatches(
+        repoDir, [patchPath], repairScriptPath)).resolves.toBe(false);
+    expect(readFileSync(targetPath, 'utf-8')).toBe(
+        'local debugging value\n');
   });
 
   it('treats fallback apply failures as already applied when reverse-check passes', async () => {
