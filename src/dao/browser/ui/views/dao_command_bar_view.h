@@ -17,6 +17,7 @@
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "components/favicon_base/favicon_types.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
+#include "components/omnibox/browser/autocomplete_match.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
@@ -127,6 +128,7 @@ class DaoCommandBarView : public views::View,
   void InitAutocompleteController();
   void StartAutocomplete(const std::u16string& text);
   void StopAutocomplete();
+  void ClearSuggestions();
   void UpdateSuggestions();
   void UpdateGhostText();
   void PositionGhostText();
@@ -153,6 +155,11 @@ class DaoCommandBarView : public views::View,
   int GetAutocompleteProviderTypesForCurrentMode() const;
   const AutocompleteMatch* GetSelectedVisibleAutocompleteMatch() const;
   std::u16string GetIntentLabelForMatch(const AutocompleteMatch& match) const;
+  GURL GetSearchUrl(const std::u16string& search_terms) const;
+  AutocompleteMatch CreateExactSearchMatch(
+      const std::u16string& search_terms) const;
+  bool IsExactSearchMatch(const AutocompleteMatch& match,
+                          const std::u16string& search_terms) const;
 
   raw_ptr<Browser> browser_;
   raw_ptr<views::View> shadow_view_ = nullptr;
@@ -164,6 +171,7 @@ class DaoCommandBarView : public views::View,
   raw_ptr<views::View> dropdown_container_ = nullptr;
 
   std::vector<raw_ptr<DaoSuggestionItemView>> suggestion_views_;
+  std::vector<AutocompleteMatch> visible_matches_;
 
   std::unique_ptr<AutocompleteController> autocomplete_controller_;
   std::unique_ptr<ChromeAutocompleteSchemeClassifier> scheme_classifier_;
