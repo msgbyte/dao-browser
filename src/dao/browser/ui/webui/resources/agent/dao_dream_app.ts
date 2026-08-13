@@ -167,10 +167,9 @@ export class DaoDreamApp extends CrLitElement {
       :host {
         display: block;
         min-height: 100vh;
-        color: rgba(30, 20, 40, 0.88);
-        background:
-          linear-gradient(180deg, rgb(238, 243, 248) 0%, rgb(249, 251, 253) 46%),
-          rgb(249, 251, 253);
+        color: rgba(var(--dream-ink), 0.88);
+        background: var(--dream-bg-soft);
+        color-scheme: light;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
@@ -186,11 +185,11 @@ export class DaoDreamApp extends CrLitElement {
         justify-content: space-between;
         gap: 20px;
         padding-bottom: 24px;
-        border-bottom: 1px solid rgba(70, 120, 190, 0.18);
+        border-bottom: 1px solid rgba(var(--dream-accent), 0.18);
       }
 
       .eyebrow {
-        color: rgb(70, 120, 190);
+        color: rgb(var(--dream-accent));
         font-size: 12px;
         font-weight: 600;
         margin-bottom: 8px;
@@ -205,7 +204,7 @@ export class DaoDreamApp extends CrLitElement {
       }
 
       .date {
-        color: rgba(30, 20, 40, 0.56);
+        color: rgba(var(--dream-ink), 0.56);
         font-size: 13px;
         white-space: nowrap;
       }
@@ -226,18 +225,18 @@ export class DaoDreamApp extends CrLitElement {
         width: 30px;
         height: 30px;
         padding: 0;
-        border: 1px solid rgba(70, 120, 190, 0.24);
+        border: 1px solid rgba(var(--dream-accent), 0.24);
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.68);
-        color: rgba(30, 20, 40, 0.80);
+        background: var(--dream-surface);
+        color: rgba(var(--dream-ink), 0.80);
         line-height: 1;
         cursor: pointer;
       }
 
       .copy-image-button:hover:not(:disabled),
       .rerun-report-button:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.92);
-        border-color: rgba(70, 120, 190, 0.42);
+        background: var(--dream-surface-strong);
+        border-color: rgba(var(--dream-accent), 0.42);
       }
 
       .copy-image-button:disabled,
@@ -262,14 +261,14 @@ export class DaoDreamApp extends CrLitElement {
         align-items: center;
         justify-content: center;
         min-height: 240px;
-        color: rgba(30, 20, 40, 0.58);
+        color: rgba(var(--dream-ink), 0.58);
         font-size: 14px;
         text-align: center;
       }
 
       .empty-title {
         display: block;
-        color: rgba(30, 20, 40, 0.82);
+        color: rgba(var(--dream-ink), 0.82);
         font-size: 18px;
         font-weight: 650;
         margin-bottom: 8px;
@@ -288,31 +287,31 @@ export class DaoDreamApp extends CrLitElement {
       }
 
       .history-list {
-        border-right: 1px solid rgba(70, 120, 190, 0.14);
+        border-right: 1px solid rgba(var(--dream-accent), 0.14);
         padding-right: 16px;
       }
 
       .history-list-title {
         margin: 0 0 10px;
-        color: rgba(30, 20, 40, 0.56);
+        color: rgba(var(--dream-ink), 0.56);
         font-size: 12px;
         font-weight: 650;
       }
 
       .history-rerun-error {
         margin: -4px 0 10px;
-        color: rgb(160, 48, 48);
+        color: var(--dream-danger);
         font-size: 12px;
         line-height: 1.4;
       }
 
       .report-domain-picker {
-        border-top: 1px solid rgba(70, 120, 190, 0.16);
+        border-top: 1px solid var(--dream-border);
         padding-top: 18px;
       }
 
       .report-domain-summary {
-        color: rgba(30, 20, 40, 0.88);
+        color: rgba(var(--dream-ink), 0.88);
         font-size: 16px;
         font-weight: 650;
         line-height: 1.3;
@@ -336,16 +335,16 @@ export class DaoDreamApp extends CrLitElement {
         max-width: 100%;
         min-height: 34px;
         padding: 6px 10px;
-        border: 1px solid rgba(70, 120, 190, 0.18);
+        border: 1px solid rgba(var(--dream-accent), 0.18);
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.62);
-        color: rgba(30, 20, 40, 0.72);
+        background: var(--dream-surface);
+        color: rgba(var(--dream-ink), 0.72);
         font-size: 12px;
       }
 
       .report-domain-option.excluded {
-        background: rgba(70, 120, 190, 0.08);
-        color: rgba(30, 20, 40, 0.46);
+        background: rgba(var(--dream-accent), 0.08);
+        color: rgba(var(--dream-ink), 0.46);
       }
 
       .report-domain-option span {
@@ -370,13 +369,13 @@ export class DaoDreamApp extends CrLitElement {
 
       .report-domain-status {
         flex: 0 0 auto;
-        color: rgba(30, 20, 40, 0.46);
+        color: rgba(var(--dream-ink), 0.46);
         font-size: 12px;
       }
 
       .report-domain-empty {
         margin: 12px 0 0;
-        color: rgba(30, 20, 40, 0.52);
+        color: rgba(var(--dream-ink), 0.52);
         font-size: 12px;
         line-height: 1.45;
       }
@@ -414,7 +413,7 @@ export class DaoDreamApp extends CrLitElement {
       }
 
       section {
-        border-top: 1px solid rgba(70, 120, 190, 0.16);
+        border-top: 1px solid var(--dream-border);
         padding-top: 18px;
       }
 
@@ -431,7 +430,7 @@ export class DaoDreamApp extends CrLitElement {
         align-items: flex-start;
         gap: 12px;
         padding: 12px 0;
-        border-top: 1px solid rgba(30, 20, 40, 0.08);
+        border-top: 1px solid var(--dream-border-soft);
       }
 
       .habit:first-of-type {
@@ -450,7 +449,7 @@ export class DaoDreamApp extends CrLitElement {
 
       .habit-evidence {
         margin-top: 4px;
-        color: rgba(30, 20, 40, 0.52);
+        color: rgba(var(--dream-ink), 0.52);
         font-size: 12px;
         line-height: 1.45;
       }
@@ -465,33 +464,33 @@ export class DaoDreamApp extends CrLitElement {
       button {
         height: 30px;
         padding: 0 12px;
-        border: 1px solid rgba(70, 120, 190, 0.24);
+        border: 1px solid rgba(var(--dream-accent), 0.24);
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.68);
-        color: rgba(30, 20, 40, 0.80);
+        background: var(--dream-surface);
+        color: rgba(var(--dream-ink), 0.80);
         font: inherit;
         font-size: 12px;
         cursor: pointer;
       }
 
       button:hover {
-        background: rgba(255, 255, 255, 0.92);
-        border-color: rgba(70, 120, 190, 0.42);
+        background: var(--dream-surface-strong);
+        border-color: rgba(var(--dream-accent), 0.42);
       }
 
       .state {
-        color: rgba(30, 20, 40, 0.52);
+        color: rgba(var(--dream-ink), 0.52);
         font-size: 12px;
         line-height: 30px;
       }
 
       details {
-        border-top: 1px solid rgba(70, 120, 190, 0.16);
+        border-top: 1px solid var(--dream-border);
         padding-top: 18px;
       }
 
       summary {
-        color: rgba(30, 20, 40, 0.62);
+        color: rgba(var(--dream-ink), 0.62);
         cursor: pointer;
         font-size: 13px;
       }
@@ -502,8 +501,8 @@ export class DaoDreamApp extends CrLitElement {
         margin: 12px 0 0;
         padding: 12px;
         border-radius: 8px;
-        background: rgba(70, 120, 190, 0.08);
-        color: rgba(30, 20, 40, 0.72);
+        background: rgba(var(--dream-accent), 0.08);
+        color: rgba(var(--dream-ink), 0.72);
         font-size: 12px;
         line-height: 1.45;
         white-space: pre-wrap;
@@ -512,7 +511,7 @@ export class DaoDreamApp extends CrLitElement {
 
       .debug-meta {
         margin: 12px 0 0;
-        color: rgba(30, 20, 40, 0.58);
+        color: rgba(var(--dream-ink), 0.58);
         font-size: 12px;
       }
 
@@ -550,7 +549,7 @@ export class DaoDreamApp extends CrLitElement {
 
         .history-list {
           border-right: 0;
-          border-bottom: 1px solid rgba(70, 120, 190, 0.14);
+          border-bottom: 1px solid rgba(var(--dream-accent), 0.14);
           margin-bottom: 22px;
           padding: 0 0 16px;
         }
@@ -570,6 +569,7 @@ export class DaoDreamApp extends CrLitElement {
         --dream-surface-strong: rgba(255, 255, 255, 0.9);
         --dream-border: rgba(var(--dream-accent), 0.16);
         --dream-border-soft: rgba(var(--dream-ink), 0.08);
+        --dream-danger: rgb(160, 48, 48);
         --dream-fg: rgba(var(--dream-ink), 0.9);
         --dream-fg-2: rgba(var(--dream-ink), 0.66);
         --dream-fg-3: rgba(var(--dream-ink), 0.48);
@@ -1263,9 +1263,11 @@ export class DaoDreamApp extends CrLitElement {
           --dream-surface-strong: rgba(255, 255, 255, 0.1);
           --dream-border: rgba(var(--dream-accent), 0.34);
           --dream-border-soft: rgba(255, 255, 255, 0.09);
+          --dream-danger: rgb(255, 150, 150);
           --dream-fg: rgba(var(--dream-ink), 0.92);
           --dream-fg-2: rgba(var(--dream-ink), 0.66);
           --dream-fg-3: rgba(var(--dream-ink), 0.46);
+          color-scheme: dark;
         }
 
         .habit-relation[data-relation="contradict"] {

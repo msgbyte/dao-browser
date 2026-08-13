@@ -548,6 +548,26 @@ describe('dao-dream-app routing', () => {
         /\.history-item\s*{[^}]*min-width:\s*0;[^}]*height:\s*auto;/s);
   });
 
+  it('uses theme tokens for report surfaces in dark mode', () => {
+    const ctor = customElements.get('dao-dream-app') as
+        CustomElementConstructor & {
+          styles: {strings: readonly string[]};
+        };
+    const cssText = ctor.styles.strings.join('');
+
+    expect(cssText).toMatch(/:host\s*{[^}]*color-scheme:\s*light;/s);
+    expect(cssText).toMatch(
+        /@media \(prefers-color-scheme: dark\)[\s\S]*color-scheme:\s*dark;/);
+    expect(cssText).toMatch(
+        /\.status\s*{[^}]*color:\s*rgba\(var\(--dream-ink\), 0\.58\);/s);
+    expect(cssText).toMatch(
+        /\.report-domain-option\s*{[^}]*background:\s*var\(--dream-surface\);[^}]*color:\s*rgba\(var\(--dream-ink\), 0\.72\);/s);
+    expect(cssText).toMatch(
+        /\.habit-evidence\s*{[^}]*color:\s*rgba\(var\(--dream-ink\), 0\.52\);/s);
+    expect(cssText).toMatch(
+        /pre\s*{[^}]*background:\s*rgba\(var\(--dream-accent\), 0\.08\);[^}]*color:\s*rgba\(var\(--dream-ink\), 0\.72\);/s);
+  });
+
   it('builds a full year of activity heatmap cells without mounting them',
      () => {
        restoreActivityHeatmap();
