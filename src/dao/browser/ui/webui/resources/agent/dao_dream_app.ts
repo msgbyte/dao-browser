@@ -771,12 +771,20 @@ export class DaoDreamApp extends CrLitElement {
         display: flex;
         align-items: center;
         gap: 9px;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: auto;
         min-height: 0;
         margin: 0 0 1px;
         padding: 7px 10px;
+        overflow: hidden;
         border: 1px solid transparent;
         border-radius: 10px;
+        background: transparent;
         color: inherit;
+        text-align: left;
       }
 
       .history-item:hover {

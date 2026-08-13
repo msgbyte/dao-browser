@@ -535,6 +535,19 @@ describe('dao-dream-app routing', () => {
        expect(root.querySelector('.memory-candidates')).toBeTruthy();
      });
 
+  it('keeps history items inside the history rail', () => {
+    const ctor = customElements.get('dao-dream-app') as
+        CustomElementConstructor & {
+          styles: {strings: readonly string[]};
+        };
+    const cssText = ctor.styles.strings.join('');
+
+    expect(cssText).toMatch(
+        /\.history-item\s*{[^}]*width:\s*100%;[^}]*max-width:\s*100%;/s);
+    expect(cssText).toMatch(
+        /\.history-item\s*{[^}]*min-width:\s*0;[^}]*height:\s*auto;/s);
+  });
+
   it('builds a full year of activity heatmap cells without mounting them',
      () => {
        restoreActivityHeatmap();
