@@ -70,22 +70,25 @@ describe('dao_tool_renderer', () => {
     localStorage.clear();
   });
 
-  it('adds native title text to collapsed tool-call labels', () => {
+  it('names every tool call and keeps details collapsed by default', () => {
     const longToolName =
         'very_long_dao_tool_name_that_should_be_available_on_hover';
     const longFetchTitle =
         'Extremely long fetched document title that should remain discoverable';
 
-    registerDaoToolRenderers([longToolName, 'fetch_url']);
+    registerDaoToolRenderers([longToolName, 'web_search', 'fetch_url']);
 
     const regularRenderer = mocks.renderers.get(longToolName);
+    const searchRenderer = mocks.renderers.get('web_search');
     const fetchRenderer = mocks.renderers.get('fetch_url');
 
     expect(regularRenderer).toBeTruthy();
+    expect(searchRenderer).toBeTruthy();
     expect(fetchRenderer).toBeTruthy();
 
     const regular = regularRenderer!.render('{"example":true}', null, false);
     const regularHtml = templateHtml(regular.content as TemplateValue);
+    expect(regularHtml).toContain('?open=>');
     expect(regularHtml).toContain(
         `class="dao-tool-call-summary" title="${longToolName}"`);
     expect(regularHtml).toContain(
@@ -103,13 +106,39 @@ describe('dao_tool_renderer', () => {
       }],
     };
 
-    const fetch = fetchRenderer!.render('', fetchResult, false);
+    const fetch = fetchRenderer!.render(
+        '{"url":"https://example.com/article"}', fetchResult, false);
     const fetchHtml = templateHtml(fetch.content as TemplateValue);
     expect(fetchHtml).toContain(
-        `class="dao-tool-call-summary" title="custom-source  Read: ${
+        `class="dao-tool-call-summary" title="fetch_url  custom-source  Read: ${
             longFetchTitle}"`);
     expect(fetchHtml).toContain(
-        `class="dao-tool-call-name" title="custom-source  Read: ${
+        'class="dao-tool-call-name" title="fetch_url">fetch_url</span>');
+    expect(fetchHtml).toContain(
+        `class="dao-tool-call-detail" title="custom-source  Read: ${
             longFetchTitle}"`);
+    expect(fetchHtml).toContain('class="dao-tool-call-label">Input</div>');
+    expect(fetchHtml).toContain('&quot;url&quot;');
+
+    const search = searchRenderer!.render('{"query":"tool call names"}', {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          source: 'provider',
+          query: 'tool call names',
+          results: [],
+        }),
+      }],
+    }, false);
+    const searchHtml = templateHtml(search.content as TemplateValue);
+    expect(searchHtml).toContain(
+        'class="dao-tool-call-name" title="web_search">web_search</span>');
+    expect(searchHtml).toContain('class="dao-tool-call-label">Input</div>');
+    expect(searchHtml).toContain('&quot;query&quot;');
+
+    localStorage.setItem('dao_tool_call_show_details', 'true');
+    const expanded = regularRenderer!.render('{"example":true}', null, false);
+    expect(templateHtml(expanded.content as TemplateValue))
+        .toContain('?open=true');
   });
 });

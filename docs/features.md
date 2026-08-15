@@ -170,6 +170,9 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - `dao_page_capture.ts` — Convert current page to markdown and insert into the message
 - `dao_share_image.ts` — Share-card image generation
 - `dao_tool_renderer.ts` — Tool-call result rendering
+  - Every tool call keeps its stable tool name visible; provider-specific
+    search/fetch context is shown as secondary summary text, while parameters
+    and output stay collapsed by default and can be expanded per call
 
 **Skills + tools**
 - `dao_skill_manager_view.ts` — Skill management surface

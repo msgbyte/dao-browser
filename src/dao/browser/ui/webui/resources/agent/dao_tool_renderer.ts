@@ -15,6 +15,7 @@
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as pi from './vendor/pi_runtime_bundle.js';
+import {t} from './i18n/i18n.js';
 import type {FetchSource, SearchSource} from './web_search/index.js';
 
 const SHOW_DETAILS_KEY = 'dao_tool_call_show_details';
@@ -112,21 +113,40 @@ function streamState(result: any, isStreaming: boolean): string {
   return isStreaming ? 'inprogress' : 'complete';
 }
 
+function renderCodeSection(label: string, code: string,
+                           language: string): unknown {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const html = (pi as any).html;
+  return html`
+    <div class="dao-tool-call-section">
+      <div class="dao-tool-call-label">${label}</div>
+      <code-block .code=${code} language=${language}></code-block>
+    </div>
+  `;
+}
+
 // Shared <details>/<summary> chrome used by every Dao tool renderer.
 // Body is a child template the caller provides.
-function renderToolShell(state: string, summaryLabel: string,
-                          body: unknown, extraClass = ''): unknown {
+function renderToolShell(state: string, toolName: string, summaryDetail: string,
+                         body: unknown, extraClass = ''): unknown {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const html = (pi as any).html;
   const open = shouldDefaultExpand();
   const cls = ['dao-tool-call', `dao-tool-call-${state}`, extraClass]
                   .filter(Boolean)
                   .join(' ');
+  const summaryLabel = summaryDetail ?
+      `${toolName}  ${summaryDetail}` : toolName;
   return html`
     <details class=${cls} ?open=${open}>
       <summary class="dao-tool-call-summary" title="${summaryLabel}">
         <span class="dao-tool-call-dot" aria-hidden="true"></span>
-        <span class="dao-tool-call-name" title="${summaryLabel}">${summaryLabel}</span>
+        <span class="dao-tool-call-name" title="${toolName}">${toolName}</span>
+        ${summaryDetail ? html`
+          <span class="dao-tool-call-detail" title="${summaryDetail}">
+            ${summaryDetail}
+          </span>
+        ` : ''}
         <svg class="dao-tool-call-chevron" aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -141,7 +161,7 @@ function renderToolShell(state: string, summaryLabel: string,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderWebSearch(this: unknown, _params: string, result: any,
+function renderWebSearch(this: unknown, params: string, result: any,
                           isStreaming: boolean):
     {content: unknown; isCustom: boolean} {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,14 +169,17 @@ function renderWebSearch(this: unknown, _params: string, result: any,
   const text = extractText(result);
   const parsed = text ? safeJson<RenderedSearch>(text) : null;
   if (!parsed) {
-    return renderDao('web_search', _params, result, isStreaming);
+    return renderDao('web_search', params, result, isStreaming);
   }
 
   const badge = SOURCE_BADGE[parsed.source] ?? parsed.source;
   const summary = `${badge}  Searched: "${parsed.query}"`;
+  const paramsText = params ? prettyJson(params) : '';
 
   const body = html`
     <div class="dao-tool-call-body dao-search-card-body">
+      ${paramsText ? renderCodeSection(
+          t('chat.tool_call.input'), paramsText, 'json') : ''}
       ${parsed.error ? html`
         <div class="dao-search-error">${parsed.error}</div>
       ` : ''}
@@ -181,13 +204,14 @@ function renderWebSearch(this: unknown, _params: string, result: any,
 
   return {
     content: renderToolShell(
-        streamState(result, isStreaming), summary, body, 'dao-search-card'),
+        streamState(result, isStreaming), 'web_search', summary, body,
+        'dao-search-card'),
     isCustom: true,
   };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderFetchUrl(this: unknown, _params: string, result: any,
+function renderFetchUrl(this: unknown, params: string, result: any,
                          isStreaming: boolean):
     {content: unknown; isCustom: boolean} {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -195,14 +219,17 @@ function renderFetchUrl(this: unknown, _params: string, result: any,
   const text = extractText(result);
   const parsed = text ? safeJson<RenderedFetch>(text) : null;
   if (!parsed) {
-    return renderDao('fetch_url', _params, result, isStreaming);
+    return renderDao('fetch_url', params, result, isStreaming);
   }
 
   const badge = SOURCE_BADGE[parsed.source] ?? parsed.source;
   const summary = `${badge}  Read: ${parsed.title || parsed.url}`;
+  const paramsText = params ? prettyJson(params) : '';
 
   const body = html`
     <div class="dao-tool-call-body">
+      ${paramsText ? renderCodeSection(
+          t('chat.tool_call.input'), paramsText, 'json') : ''}
       ${parsed.error ? html`
         <div class="dao-search-error">${parsed.error}</div>
       ` : html`
@@ -214,7 +241,8 @@ function renderFetchUrl(this: unknown, _params: string, result: any,
 
   return {
     content: renderToolShell(
-        streamState(result, isStreaming), summary, body, 'dao-fetch-card'),
+        streamState(result, isStreaming), 'fetch_url', summary, body,
+        'dao-fetch-card'),
     isCustom: true,
   };
 }
@@ -228,43 +256,17 @@ function renderDao(this: unknown, toolName: string, params: string, result: any,
                          (isStreaming ? 'inprogress' : 'complete');
   const paramsText = params ? prettyJson(params) : '';
   const output = extractOutput(result);
-  const open = shouldDefaultExpand();
-
-  const statusClass = 'dao-tool-call dao-tool-call-' + state;
-  const summaryLabel = isStreaming && !result ?
-      (paramsText ? toolName : 'Preparing ' + toolName + '...') :
-      toolName;
+  const body = html`
+    <div class="dao-tool-call-body">
+      ${paramsText ? renderCodeSection(
+          t('chat.tool_call.input'), paramsText, 'json') : ''}
+      ${result ? renderCodeSection(
+          t('chat.tool_call.output'), output.text, output.language) : ''}
+    </div>
+  `;
 
   return {
-    content: html`
-      <details class=${statusClass} ?open=${open}>
-        <summary class="dao-tool-call-summary" title="${summaryLabel}">
-          <span class="dao-tool-call-dot" aria-hidden="true"></span>
-          <span class="dao-tool-call-name" title="${summaryLabel}">${summaryLabel}</span>
-          <svg class="dao-tool-call-chevron" aria-hidden="true"
-              xmlns="http://www.w3.org/2000/svg"
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-            <path d="m6 9 6 6 6-6"></path>
-          </svg>
-        </summary>
-        <div class="dao-tool-call-body">
-          ${paramsText ? html`
-            <div class="dao-tool-call-section">
-              <div class="dao-tool-call-label">Input</div>
-              <code-block .code=${paramsText} language="json"></code-block>
-            </div>
-          ` : ''}
-          ${result ? html`
-            <div class="dao-tool-call-section">
-              <div class="dao-tool-call-label">Output</div>
-              <code-block .code=${output.text} language=${output.language}></code-block>
-            </div>
-          ` : ''}
-        </div>
-      </details>
-    `,
+    content: renderToolShell(state, toolName, '', body),
     isCustom: true,
   };
 }

@@ -1034,10 +1034,19 @@ details.dao-tool-call-error .dao-tool-call-dot {
   50%      { opacity: 1;    transform: scale(1.15); }
 }
 details.dao-tool-call .dao-tool-call-name {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
+  font-weight: 600;
   color: rgba(30, 20, 40, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+details.dao-tool-call .dao-tool-call-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: rgba(30, 20, 40, 0.58);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1446,6 +1455,9 @@ body {
   }
   details.dao-tool-call .dao-tool-call-name {
     color: rgba(245, 245, 245, 0.92);
+  }
+  details.dao-tool-call .dao-tool-call-detail {
+    color: rgba(255, 255, 255, 0.58);
   }
   details.dao-tool-call .dao-tool-call-chevron {
     color: rgba(255, 255, 255, 0.70);

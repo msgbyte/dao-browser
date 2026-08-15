@@ -154,6 +154,10 @@ const dict: Dictionary = {
   'chat.code_block.insert_tooltip': 'Insert into focused input on this page',
   'chat.code_block.inserted': 'Inserted',
   'chat.code_block.no_input': 'No input focused',
+
+  // Collapsible tool-call detail sections.
+  'chat.tool_call.input': 'Input',
+  'chat.tool_call.output': 'Output',
   'chat.code_block.empty': 'Empty',
 
   // Toast shown when the user submits while a turn is still streaming.

@@ -119,6 +119,8 @@ const dict: Dictionary = {
   'chat.code_block.insert_tooltip': '插入到此页面上的焦点输入',
   'chat.code_block.inserted': '已插入',
   'chat.code_block.no_input': '没有焦点输入',
+  'chat.tool_call.input': '输入',
+  'chat.tool_call.output': '输出',
   'chat.code_block.empty': '空',
   'chat.toast.wait_for_turn': '请等待当前回合结束',
   'chat.skill_picker.aria_label': '技能选择器',
