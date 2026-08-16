@@ -16,9 +16,9 @@ namespace dao {
 
 namespace {
 
-constexpr std::array<std::string_view, 10> kAllowedExtensions = {
-    ".txt", ".md", ".json", ".csv", ".yaml",
-    ".yml", ".html", ".xml", ".log", ".tsv",
+constexpr std::array<std::string_view, 12> kAllowedExtensions = {
+    ".txt", ".md",  ".json", ".csv", ".yaml", ".yml",
+    ".html", ".css", ".js",  ".xml", ".log",  ".tsv",
 };
 
 constexpr size_t kNulProbeBytes = 8 * 1024;

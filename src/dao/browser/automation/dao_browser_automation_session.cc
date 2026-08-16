@@ -15,6 +15,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
 
 namespace dao {
 namespace {
@@ -63,12 +64,18 @@ bool IsAutomationUrlEligible(const GURL& url) {
   return url.SchemeIsHTTPOrHTTPS() || url.spec() == "about:blank";
 }
 
+bool IsDaoHomeUrl(const GURL& url) {
+  return url.SchemeIs(content::kChromeUIScheme) && url.host() == "home";
+}
+
 DaoBrowserAutomationSession::DaoBrowserAutomationSession(
     BrowserWindowInterface* browser_window,
-    content::WebContents* target)
+    content::WebContents* target,
+    TargetPolicy target_policy)
     : browser_window_(browser_window ? browser_window->GetWeakPtr() : nullptr),
       profile_(browser_window ? browser_window->GetProfile()->GetWeakPtr()
-                              : nullptr) {
+                              : nullptr),
+      target_policy_(target_policy) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SetTarget(target);
 }
@@ -181,10 +188,14 @@ DaoBrowserAutomationSession::ResolveEligibleTarget() const {
   }
 
   const auto& url = target.value()->GetLastCommittedURL();
+  const bool eligible_url =
+      IsAutomationUrlEligible(url) ||
+      (weak_this->target_policy_ == TargetPolicy::kLegacyUiWithDaoHome &&
+       IsDaoHomeUrl(url));
   if (weak_this->browser_window_->GetType() !=
           BrowserWindowInterface::TYPE_NORMAL ||
       weak_this->profile_->IsOffTheRecord() ||
-      weak_this->profile_->IsGuestSession() || !IsAutomationUrlEligible(url)) {
+      weak_this->profile_->IsGuestSession() || !eligible_url) {
     return base::unexpected(MakeDaoToolError(
         DaoToolErrorCode::kTargetForbidden,
         "The authorized browser target is not eligible for automation."));

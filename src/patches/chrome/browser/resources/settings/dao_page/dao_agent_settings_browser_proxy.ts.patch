@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_settings_browser_proxy.ts
-@@ -0,0 +1,182 @@
+@@ -0,0 +1,190 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -170,6 +170,14 @@ index 0000000000..0000000001
 +  workspace: [
 +    'workspace_read', 'workspace_write', 'workspace_edit', 'apply_patch',
 +    'list_files', 'download',
++  ],
++  home: [
++    'home_get_manifest', 'home_list_files', 'home_read_file',
++    'home_get_diagnostics', 'home_get_selected_element', 'home_apply_patch',
++    'home_add_asset', 'home_preview', 'home_publish', 'home_rollback',
++    'home_list_connectors', 'home_collect_sample', 'home_test_connector',
++    'home_request_source_access', 'home_list_versions',
++    'home_export_project', 'home_get_bootstrap_brief',
 +  ],
 +};
 +

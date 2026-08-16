@@ -105,9 +105,16 @@ export class DaoAgentApp extends CrLitElement {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__daoExternalSubmit =
         (text: string,
-         options?: {includePageContext?: boolean}) => {
+         options?: {
+           includePageContext?: boolean;
+           historyClaimToken?: string;
+         }) => {
       if (typeof text !== 'string' || !text) return;
       const includePageContext = options?.includePageContext !== false;
+      const historyClaimToken =
+          typeof options?.historyClaimToken === 'string' ?
+          options.historyClaimToken :
+          undefined;
       const deadline = Date.now() + 5000;
       const tryOnce = () => {
         if (this.activeTab_ !== 'chat') {
@@ -117,11 +124,14 @@ export class DaoAgentApp extends CrLitElement {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const iface: any = view?.querySelector('pi-chat-panel agent-interface');
         if (view && iface && typeof iface.sendMessage === 'function') {
-          void view.submitExternalPrompt(text, {includePageContext});
+          void view.submitExternalPrompt(
+              text, {includePageContext, historyClaimToken});
           return;
         }
         if (Date.now() < deadline) {
           setTimeout(tryOnce, 80);
+        } else if (historyClaimToken) {
+          chrome.send('cancelHomeHistoryClaim', [historyClaimToken]);
         }
       };
       // Let the active-tab flip render before the first attempt.

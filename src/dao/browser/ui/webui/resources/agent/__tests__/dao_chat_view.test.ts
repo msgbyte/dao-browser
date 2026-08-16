@@ -240,6 +240,7 @@ import {
   copyPngBlobToClipboard,
   renderShareImage,
 } from '../dao_share_image.js';
+import {ensurePiAppStorage} from '../pi_app_storage.js';
 import '../dao_chat_view.js';
 
 function sampleContext(): ElementContextCapture {
@@ -1794,6 +1795,109 @@ describe('dao-chat-view element picker', () => {
     }
   });
 
+  it('binds a history claim token only to its external prompt turn', async () => {
+    const originalSend = vi.fn(async () => 'sent');
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    const typedView = view as HTMLElement & {
+      submitExternalPrompt: (
+          text: string,
+          options: {
+            includePageContext?: boolean;
+            historyClaimToken?: string;
+          }) => Promise<void>;
+    };
+
+    try {
+      await iface.sendMessage('ordinary message', []);
+      await typedView.submitExternalPrompt('build from history', {
+        includePageContext: false,
+        historyClaimToken: 'history-claim',
+      });
+
+      const beginCalls = pickerMocks.callNative.mock.calls.filter(
+          call => call[0] === 'beginAgentTurn');
+      expect(beginCalls).toEqual([
+        [
+          'beginAgentTurn', undefined,
+          {cancelMethod: 'cancelBeginAgentTurn'},
+        ],
+        [
+          'beginAgentTurn', {historyClaimToken: 'history-claim'},
+          {cancelMethod: 'cancelBeginAgentTurn'},
+        ],
+      ]);
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it('cancels a history claim when mount stays pending after the interface exists',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         submitExternalPrompt: (
+             text: string,
+             options: {historyClaimToken: string}) => Promise<void>;
+       };
+       const panel = document.createElement('div');
+       const iface = document.createElement('agent-interface') as HTMLElement & {
+         sendMessage: ReturnType<typeof vi.fn>;
+       };
+       iface.sendMessage = vi.fn(async () => undefined);
+       panel.appendChild(iface);
+       Object.assign(view, {
+         panel_: panel,
+         mountReady_: new Promise<void>(() => {}),
+         mountSucceeded_: false,
+       });
+
+       vi.useFakeTimers();
+       try {
+         let settled = false;
+         void view.submitExternalPrompt(
+             'Build from history', {historyClaimToken: 'stuck-claim'})
+             .then(() => {
+               settled = true;
+             });
+         await vi.advanceTimersByTimeAsync(5100);
+
+         expect(settled).toBe(true);
+         expect(iface.sendMessage).not.toHaveBeenCalled();
+         expect(pickerMocks.chromeSend).toHaveBeenCalledWith(
+             'cancelHomeHistoryClaim', ['stuck-claim']);
+       } finally {
+         vi.useRealTimers();
+       }
+     });
+
+  it('settles mount failure and cancels its external history claim', async () => {
+    vi.mocked(ensurePiAppStorage).mockRejectedValueOnce(
+        new Error('storage unavailable'));
+    const view = document.createElement('dao-chat-view') as HTMLElement & {
+      mount_: () => Promise<void>;
+      submitExternalPrompt: (
+          text: string,
+          options: {historyClaimToken: string}) => Promise<void>;
+    };
+    const panel = document.createElement('div') as HTMLElement & {
+      setAgent: ReturnType<typeof vi.fn>;
+    };
+    const iface = document.createElement('agent-interface') as HTMLElement & {
+      sendMessage: ReturnType<typeof vi.fn>;
+    };
+    iface.sendMessage = vi.fn(async () => undefined);
+    panel.setAgent = vi.fn(async () => undefined);
+    panel.appendChild(iface);
+    Object.assign(view, {panel_: panel});
+
+    await expect(view.mount_()).rejects.toThrow('storage unavailable');
+    await view.submitExternalPrompt(
+        'Build from history', {historyClaimToken: 'failed-mount-claim'});
+
+    expect(iface.sendMessage).not.toHaveBeenCalled();
+    expect(pickerMocks.chromeSend).toHaveBeenCalledWith(
+        'cancelHomeHistoryClaim', ['failed-mount-claim']);
+  });
+
   it('clears a visible proactive suggestion when the user sends a manual message',
      async () => {
        const originalSend = vi.fn(async () => 'sent');
@@ -2109,41 +2213,89 @@ describe('dao-chat-view element picker', () => {
     }
   });
 
-  it('ends overlapping sends with their own agent turn tokens', async () => {
-    let resolveFirst!: (value: string) => void;
-    const firstSend =
-        new Promise<string>(resolve => resolveFirst = resolve);
-    const originalSend = vi.fn()
-                             .mockImplementationOnce(async () => firstSend)
-                             .mockResolvedValueOnce('second');
-    let beginCount = 0;
-    pickerMocks.callNative.mockImplementation(
-        async (method: string, params?: unknown) => {
-          if (method === 'beginAgentTurn') {
-            ++beginCount;
-            return {success: true, turnId: `turn-${beginCount}`};
-          }
-          return {success: true, params};
-        });
-    const {view, iface} = await mountChatViewWithSend(originalSend);
+  it('does not replace an agent turn when send re-enters before streaming',
+     async () => {
+       let resolveBegin!: (value: {success: true; turnId: string}) => void;
+       const beginResult = new Promise<{success: true; turnId: string}>(
+           resolve => resolveBegin = resolve);
+       const originalSend = vi.fn(async () => 'first');
+       let beginCount = 0;
+       pickerMocks.callNative.mockImplementation(
+           async (method: string, params?: unknown) => {
+             if (method === 'beginAgentTurn') {
+               ++beginCount;
+               return beginCount === 1 ? beginResult :
+                                         {success: true, turnId: 'turn-2'};
+             }
+             return {success: true, params};
+           });
+       const {view, iface} = await mountChatViewWithSend(originalSend);
 
-    try {
-      const first = iface.sendMessage('first', []);
-      await vi.waitFor(() => expect(originalSend).toHaveBeenCalledTimes(1));
-      await expect(iface.sendMessage('second', [])).resolves.toBe('second');
-      resolveFirst('first');
-      await expect(first).resolves.toBe('first');
+       try {
+         const first = iface.sendMessage('first', []);
+         await vi.waitFor(() => {
+           const beginCalls = pickerMocks.callNative.mock.calls.filter(
+               call => call[0] === 'beginAgentTurn');
+           expect(beginCalls).toHaveLength(1);
+         });
 
-      const endCalls = pickerMocks.callNative.mock.calls.filter(
-          call => call[0] === 'endAgentTurn');
-      expect(endCalls).toEqual([
-        ['endAgentTurn', {turnId: 'turn-2'}],
-        ['endAgentTurn', {turnId: 'turn-1'}],
-      ]);
-    } finally {
-      clearTabWatchTimer(view);
-    }
-  });
+         await expect(iface.sendMessage('second', [])).resolves.toBeUndefined();
+         const beginCalls = pickerMocks.callNative.mock.calls.filter(
+             call => call[0] === 'beginAgentTurn');
+         expect(beginCalls).toHaveLength(1);
+
+         resolveBegin({success: true, turnId: 'turn-1'});
+         await expect(first).resolves.toBe('first');
+         expect(originalSend).toHaveBeenCalledOnce();
+         expect(pickerMocks.callNative.mock.calls.filter(
+                    call => call[0] === 'endAgentTurn'))
+             .toEqual([['endAgentTurn', {turnId: 'turn-1'}]]);
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('ignores a duplicate external submit without resetting its active claim',
+     async () => {
+       let resolveSend!: (value: string) => void;
+       const originalSend = vi.fn()
+                                .mockImplementationOnce(
+                                    async () => new Promise<string>(
+                                        resolve => resolveSend = resolve))
+                                .mockResolvedValueOnce('duplicate');
+       const {view} = await mountChatViewWithSend(originalSend);
+       const typedView = view as HTMLElement & {
+         agent_: {abort: ReturnType<typeof vi.fn>};
+         submitExternalPrompt: (
+             text: string,
+             options?: {historyClaimToken?: string}) => Promise<void>;
+       };
+       typedView.agent_.abort = vi.fn();
+
+       try {
+         const first = typedView.submitExternalPrompt(
+             'Create my Home', {historyClaimToken: 'active-claim'});
+         await vi.waitFor(() => expect(originalSend).toHaveBeenCalledOnce());
+
+         await typedView.submitExternalPrompt(
+             'Create my Home', {historyClaimToken: 'active-claim'});
+
+         expect(typedView.agent_.abort).toHaveBeenCalledOnce();
+         expect(originalSend).toHaveBeenCalledOnce();
+         expect(pickerMocks.chromeSend).not.toHaveBeenCalledWith(
+             'cancelHomeHistoryClaim', ['active-claim']);
+
+         await typedView.submitExternalPrompt(
+             'Use newer history', {historyClaimToken: 'conflicting-claim'});
+         expect(pickerMocks.chromeSend).toHaveBeenCalledWith(
+             'cancelHomeHistoryClaim', ['conflicting-claim']);
+
+         resolveSend('sent');
+         await first;
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
 
   it('includes the memory context contract in the system prompt', async () => {
     const originalSend = vi.fn(async () => 'sent');
@@ -2158,10 +2310,55 @@ describe('dao-chat-view element picker', () => {
       expect(prompt).toContain('historical, potentially stale personal context');
       expect(prompt).toContain('Current user instructions');
       expect(prompt).toContain('<soul>\nsoul\n</soul>');
+      expect(prompt).not.toContain('<dao-home-project-contract>');
     } finally {
       clearTabWatchTimer(view);
     }
   });
+
+  it('injects a runnable project contract into an active Home turn',
+     async () => {
+       pickerMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'beginAgentTurn') {
+           return {
+             success: true,
+             turnId: 'home-turn',
+             homeContext: {active: true, revision: ''},
+           };
+         }
+         if (method === 'getPageInfo') {
+           return {url: 'dao://home/', title: 'Home'};
+         }
+         return {success: true};
+       });
+       const originalSend = vi.fn(async () => 'sent');
+       const {view, iface} = await mountChatViewWithSend(originalSend);
+
+       try {
+         await iface.sendMessage('Create my Home', []);
+         const systemPrompt = (view as unknown as {
+           agent_: {state: {systemPrompt: string}};
+         }).agent_.state.systemPrompt;
+
+         expect(systemPrompt).toContain('<dao-home-project-contract>');
+         expect(systemPrompt).toContain('*** Begin Patch');
+         expect(systemPrompt).toContain(
+             '{"format_version":1,"entry":"index.html"');
+         expect(systemPrompt).toContain(
+             'home_apply_patch/home_replace_files -> home_preview -> home_publish');
+         expect(systemPrompt).toContain('Do not create a Vite');
+         expect(systemPrompt).toContain(
+             '<script src="app.js" defer></script>');
+         expect(systemPrompt).toContain(
+             'Inline <script> blocks and inline event handlers are rejected');
+         expect(systemPrompt).toContain(
+             'localStorage, sessionStorage, cookies, or IndexedDB');
+         expect(systemPrompt).toContain('dao.session.get(key)');
+         expect(systemPrompt).toContain('dao.navigation.open(url)');
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
 
   it('declares the skill catalog prompt as Lit state', () => {
     const properties = (customElements.get('dao-chat-view') as unknown as {

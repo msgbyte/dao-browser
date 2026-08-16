@@ -37,6 +37,11 @@ bool IsAutomationUrlEligible(const GURL& url);
 
 class DaoBrowserAutomationSession {
  public:
+  enum class TargetPolicy {
+    kWebOnly,
+    kLegacyUiWithDaoHome,
+  };
+
   struct DevToolsState {
     DevToolsState();
     ~DevToolsState();
@@ -84,7 +89,9 @@ class DaoBrowserAutomationSession {
   // Sessions must be created, resolved, and destroyed on the browser UI
   // sequence.
   DaoBrowserAutomationSession(BrowserWindowInterface* browser_window,
-                              content::WebContents* target);
+                              content::WebContents* target,
+                              TargetPolicy target_policy =
+                                  TargetPolicy::kWebOnly);
   ~DaoBrowserAutomationSession();
 
   DaoBrowserAutomationSession(const DaoBrowserAutomationSession&) = delete;
@@ -119,6 +126,7 @@ class DaoBrowserAutomationSession {
   base::WeakPtr<Profile> profile_;
   tabs::TabHandle target_handle_;
   mutable base::WeakPtr<content::WebContents> resolved_contents_;
+  const TargetPolicy target_policy_;
   std::string expected_domain_;
   mutable url::Origin committed_origin_;
   mutable int64_t document_sequence_number_ = -1;

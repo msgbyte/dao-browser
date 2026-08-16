@@ -22,6 +22,10 @@ const daoSettingsTranslations = [
     translation: '单项工具权限',
   },
   {
+    id: '932327136139879170',
+    translation: '主页',
+  },
+  {
     id: '4833302064619809816',
     translation: '您与 Dao',
   },

@@ -294,6 +294,275 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   and debug controls remain available. Legacy markdown-only reports derive a
   summary and topic cards locally instead of rendering an incomplete page.
 
+### 2.7 Dao Home Personal Web Runtime (`dao://home`)
+
+- **URL-only personal website** — `dao://home/` and its internal paths load one
+  Profile-owned project. v1 has no new-tab, startup, sidebar, Settings, or other
+  discovery entry, and regular Profile is required; Incognito/Guest are
+  disabled.
+- **Existing Agent integration** — The two empty-state actions open the
+  existing right-side Agent. Home-specific atomic tools are injected only for
+  a turn pinned to the exact active Home tab and published revision, and native
+  code revalidates the pinned document and its one-way Home authorization
+  before and after asynchronous work. That document authorization is the
+  authoritative lifecycle signal: focusing the Agent sidebar or a different
+  browser window does not retarget the turn, and macOS occlusion does not
+  invalidate a still-selected Home document. Selecting another tab in the
+  initiating window, truly hiding the Home document, or navigating it still
+  invalidates the authorization. Each active
+  Home turn also receives a
+  bounded construction contract covering the required
+  manifest, directly runnable browser files, V4A patch grammar, strict CSP and
+  opaque-origin runtime constraints, and the atomic apply-preview-publish
+  sequence. It directs generated interaction code into project script files,
+  memory-only state through `dao.session`, and external navigation through the
+  trusted confirmation API instead of inline script, Web Storage, or raw
+  network APIs. Native tool failures include their stable error code in the
+  model-visible message so the Agent can correct a rejected patch instead of
+  guessing another project format. Re-entrant manual or command-bar submits
+  are ignored while a send is establishing or running its native turn, so a
+  duplicate UI event cannot replace the turn and invalidate its Home lease.
+  Publication, trusted import, and rollback calls carry a one-way
+  document/turn lease into the
+  blocking project store; tab, navigation, visibility, or turn loss invalidates
+  the lease, and a stale turn cannot acquire a replacement after the Home
+  returns to the foreground. Publication rechecks the lease while holding the
+  final commit guard. A cancelled rollback also discards its browser-owned
+  temporary draft before returning.
+  The Agent tool settings expose the complete Home group, including asset
+  import, so the group or individual Home tools can be disabled with the shared
+  tool policy.
+  `home_preview` loads the exact immutable draft in a temporary untrusted
+  sandbox; both regular and permission-expanding Agent publication paths
+  require that draft's in-memory success receipt.
+  Existing-project edits must list and read every target file first. Focused
+  changes use exact V4A hunks, while whole-file rewrites use the atomic
+  `home_replace_files` tool, which puts all related full-file replacements in
+  one atomic draft instead of deleting and re-adding paths. Both
+  routes create an unpublished validated draft and retain the same preview and
+  publication gates.
+  The Agent composer's DOM-context and element-screenshot pickers also work on
+  the active Home document. A narrowly scoped legacy UI session may capture
+  that exact `dao://home` target. While picking, the trusted host temporarily
+  covers the generated-app iframe so pointer events never reach project code,
+  then asks the fixed runtime to hit-test the pointer coordinates without
+  dispatching a click. The cover is removed immediately after selection or
+  cancellation and is never installed during ordinary Home use. Selection
+  prefers a stable
+  `data-dao-node-id` and records it for `home_get_selected_element`; existing
+  projects without node IDs receive a bounded unique CSS locator instead.
+  Selection suppresses the element's normal action and translates its bounds
+  back into top-level screenshot coordinates. Other internal pages remain
+  ineligible for browser automation.
+- **Built-in design direction** — Every Home creation and editing turn receives
+  a compact browser-owned design-director contract, so users do not install or
+  select a design skill. The Agent chooses one coherent visual point of view,
+  uses explicit hierarchy, spacing, type, color, radius, and responsive rules,
+  rejects common generic AI-page defaults, and silently reviews the draft for
+  hierarchy, craft, function, originality, responsiveness, and runtime safety
+  before preview. The approach is adapted from the MIT-licensed
+  [OpenDesign director protocol](https://github.com/qiuyiwu1989-star/opendesign/blob/main/skill/SKILL.md)
+  and is bundled locally; generation does not depend on a live third-party
+  design service.
+- **Local project ownership** — `DaoHomeProjectService` stores validated text
+  files, immutable published revisions, drafts, summaries, grants, rollback,
+  and grant-free JSON export/import under the Profile. A secondary trusted menu
+  exposes summary-first version history, a read-only source tree, and an
+  explicit older-version-to-current source diff. Export includes runtime
+  dependency guidance but excludes approvals, credentials, Agent data, and
+  collected source content. A destructive trusted-menu reset requires explicit
+  confirmation, then atomically returns Home to its initial empty state and
+  deletes every project revision, temporary draft, connector grant, and local
+  diagnostic; a failed or stale reset leaves the published project unchanged.
+  Export/import round-trips the bounded immutable
+  revision history and its source files. After explicit confirmation, the
+  imported draft must pass the same isolated preview as an Agent draft before
+  it can create a new local head, and the imported project always remains
+  disconnected. Import rejects a package whose declared current files differ
+  from its exported head, whose exported revision is not the final head, or
+  whose parent/restore graph is disconnected. It discards all temporary
+  draft/history files on any failed, cancelled, or abandoned operation.
+- **Privacy-minimized history bootstrap** — Only an explicit user action reads
+  the last 30 days of local history. A native reducer converts eligible HTTP(S)
+  visits into at most 12 ranked origin-root launch targets and at most three
+  feed-capable source candidates discovered from distinct routes in a repeated
+  route family. Candidate slots are reserved independently from the twelve
+  most-frequent launch origins, so high-frequency utility sites cannot crowd
+  every content source out of the brief. Origin identity includes scheme and
+  port, and route-family working state is strictly bounded. No domain catalog
+  or site-specific collection recipe participates in discovery. Generic semantic route signals keep account,
+  authentication, mail, payment, settings, search, and discovery surfaces out
+  of automatic feed collection. The Agent receives only stable action IDs,
+  label/category hints, canonical root URLs, source eligibility, and locale—no
+  browsing titles, visit counts, time buckets, paths, or full visited URLs.
+  Feed candidates include a browser-owned bounded result schema and generic
+  collection, intent, and content-kind starting hints. The Agent dynamically
+  proposes the exact same-site feed URL and its `site_feed`, following,
+  subscription, or activity semantics while authoring the collector. The
+  trusted browser rejects missing, duplicate, unsupported, credential-bearing,
+  or cross-site proposals and binds the accepted URL and semantics to the
+  visible permission and test transaction. This lets the generated collector
+  adapt to the site's actual feed conventions, including a meaningful same-site
+  subdomain, without turning site identities, collection paths, or DOM selectors
+  into browser code.
+  The Agent dynamically authors each collector from the candidate website and
+  the fixed page RPC instead of selecting a browser-hardcoded site recipe.
+  Personalized feed intents must stay inside semantic feed-card or activity
+  containers; the trusted manifest validator requires every collection query
+  to use an inline quoted selector for structured repeated-card roots, so its
+  scope can be audited without evaluating generated code. It rejects both generic and
+  content-path-constrained whole-page link fallbacks, so a successful collector
+  cannot silently degrade into recommendations or site navigation.
+  Personalized collectors query card roots and
+  extract structured fields through ordered descendant-selector fallbacks,
+  making them less dependent on a single internal title-link class. When card
+  classes have drifted, a collector may try a bounded union of alternate
+  semantic card roots but must return an empty result rather than leave the
+  personalized container. The brief is never persisted by Home.
+  The exact Home tab must
+  still be active when the asynchronous history query completes, and leaving
+  that Home document clears any unconsumed material. A random one-shot token
+  binds the material to the exact external history prompt and Agent turn for
+  that document; a normal or replacement prompt, another window, or another
+  turn cannot consume it. Replacing or failing to dispatch the prompt and
+  timing out or failing Agent chat initialization, and aborting or ending the
+  claimed turn clear the material. Losing the Home owner while Agent bootstrap
+  still awaits the project snapshot also releases the browser-control lease,
+  and the native begin operation is explicitly cancelled if its WebUI callback
+  times out, so MCP and later Agent turns are not left busy.
+- **Feed-first history Home** — The history turn builds a comprehensive
+  information portal, never a launchpad or browsing report. Quick navigation
+  remains compact and preserves every launch target, while successful sources
+  produce a prominent continuous feed and source/category controls. The Agent
+  chooses a top-aligned, inline, single-column, split, or lateral composition
+  from the actual content and viewport instead of inheriting a mandatory
+  sidebar or fixed column width. Source-free fallbacks keep the required feed
+  state compact rather than turning most of the page into an empty panel. It
+  asks the trusted Home UI for one grouped
+  decision covering up to three proposed live sources, tests selected sources
+  sequentially, and publishes one final revision. Rejected, authentication-required, runtime-
+  failed, and schema-failed sources degrade to launch-only actions; an empty
+  selection or all-failed run still publishes a useful launchpad. If no
+  source candidate exists, the browser binds every supplied candidate up to
+  the three-source limit to its AI-authored conventional collector module in
+  the provisional draft, replaces model-authored connector declarations with
+  canonical read-only permissions, and writes the bounded result schema before
+  permission is shown. The detached executor uses the regular Profile so these
+  collectors reuse an existing signed-in session without receiving credentials.
+  A missing, empty, or structurally unsafe authored collector is omitted on a
+  per-source basis before the grouped permission request; valid collectors in
+  the same batch still proceed to permission and testing instead of one broken
+  candidate invalidating the whole bootstrap. A brief with no candidates transitions
+  directly to disconnected final construction without presenting an empty
+  permission dialog. Provisional
+  drafts are never previewed or published. The grouped decision is exempt from
+  the ordinary Agent bridge timeout, completed decisions are idempotent, and a
+  timed-out pending decision can be atomically resolved to an empty selection
+  on the same provisional draft instead of stranding the transaction in an
+  `already_exists` state. Successful
+  tests expose only bounded native-generated `sample_shape` type and
+  empty/non-empty metadata to the Agent; raw values, dynamic keys, media
+  handles, and error payloads remain ephemeral and cannot enter drafts,
+  revisions, or exports. Browser-owned preview validation requires every
+  canonical action and successful source slot exactly once, rejects report
+  persistence and direct HTTP(S) anchors/forms/submit overrides, and permits
+  publication only from the exact live turn, base revision, and tested
+  connector fingerprints.
+  Before final preview, the browser overwrites `experience.json` with canonical
+  metadata derived from the four highest-ranked launch actions and the final
+  successfully tested connector IDs. Additional valid launch actions remain
+  allowed and every launch target from the brief must be present, while the
+  highest-ranked controls remain visible and focusable. The launch index cannot
+  be the entire page: preview requires a visible, non-empty `data-dao-feed`
+  region with explicit loading, populated, empty, and unavailable states.
+  Successful sources populate that region with fresh cards; a source-free
+  fallback remains honest about having no collected items.
+  Each successful source is represented exactly once by matching
+  `data-dao-source-slot` and `data-dao-connector` semantics, including when its
+  current collection is empty; failed and deselected sources cannot claim a
+  slot. The generation contract states these required attributes explicitly so
+  preview validation does not depend on an undocumented convention.
+  Final UI drafts remain connector-free: immediately before preview, the
+  trusted browser copies only successfully tested modules and schemas from the
+  provisional draft and binds their exact canonical declarations and limits.
+  This preserves approved fingerprints without asking the model to reconstruct
+  security-sensitive manifest fields.
+  This removes
+  model-authored experience metadata as a failure point and prevents ordinary
+  single-source permission requests from bypassing the grouped bootstrap flow.
+- **Untrusted generated application** — User HTML/CSS/JavaScript runs at
+  `chrome-untrusted://dao-home-app` without WebUI bindings or arbitrary network
+  access. The fixed runtime exposes only session state, source collection,
+  bounded HTTP(S) navigation, media-resolution requests, and stable node
+  selection. The fixed runtime automatically connects canonical
+  `data-dao-action` / `data-dao-action-url` controls to trusted navigation, so
+  a validated launch action opens directly without an extra confirmation.
+  Collected cards marked with `data-dao-feed-link`, `data-dao-feed-url`, and
+  `data-dao-feed-source` use the same direct user-click path.
+  Arbitrary `dao.navigation.open` calls still require browser-owned confirmation.
+  A synchronous trusted prelude owns canonical action clicks before project
+  scripts run, so generated capture handlers cannot replace or suppress the
+  confirmation path. The host inserts that prelude after a real leading
+  doctype and before all project markup, without mistaking HTML comments for
+  document structure. The generated canvas fills the browser-owned content
+  card without adding another inset or border, and the prelude clears only the
+  browser's default `html` and `body` margins before project styles run so
+  generated layouts start edge-to-edge but can still add intentional spacing.
+  Unpublished preview resources are available only while
+  the trusted Home host owns an active, timed preview request. Generated code
+  cannot submit its own preview verdict: the trusted parent reports only the
+  iframe load, while the browser process binds the exact preview frame and
+  rejects console errors, failed loads, or cross-document replacement before
+  issuing the draft receipt. A trusted Home dialog displays and confirms
+  non-action generated-app navigation before it occurs.
+- **Generated connector isolation** — Connector modules run in a second
+  no-bindings `chrome-untrusted://dao-home-connector` sandbox and receive only
+  a fixed, audited page RPC. Native code owns a detached, never-focused regular
+  Profile `WebContents`, origin/path/capability checks, sensitive-control
+  rejection, login-state detection, JSON-schema/result limits, timeout, and
+  active-Home cancellation. Page-visible media becomes an opaque session
+  handle; generated code can resolve only a bounded local blob and never sees
+  the original media URL. Finishing a collection snapshots referenced media
+  into a bounded immutable in-memory payload and immediately destroys the
+  detached source page, so cached handles cannot drift after page navigation
+  or DOM changes. Unique media URLs are encoded sequentially; a canvas is
+  rejected before allocation when its raw pixels exceed the remaining 5 MiB
+  session budget, and repeated handles share one retained blob. Completed
+  executors retain only those snapshots for a bounded session window. The
+  trusted host keeps at most the same 16 successful
+  collection results, evicts them in executor-completion order, and reruns an
+  evicted request so returned media handles always have a retained native owner.
+- **Trusted source permission** — Agent code can create an opaque permission
+  request but cannot grant access. Home shows normalized website, path,
+  read-only capability, lifecycle scope, and collection budgets. For budget
+  expansion, the trusted dialog shows each increased dimension as the exact
+  previous and requested values. Confirmation grants only the exact draft
+  connector and budget fingerprint; the Agent must successfully test every
+  expanded connector before Home atomically publishes the previewed draft and
+  its grants. Budget increases require renewed approval, while decreases
+  migrate an existing exact grant without widening access. Rollback never
+  restores a revoked grant, and import clears all grants.
+- **No automatic maintenance** — Opening Home renders published code without an
+  LLM call. Source collection is visible-card initiated, duplicate requests are
+  coalesced for the active session, and successful results (including an empty
+  result) are reused for ten minutes before the next foreground collection can
+  refresh them. Generated feed apps keep the same per-connector ten-minute
+  memory cache and never create a refresh timer or background crawl. The
+  connector sandbox is also present on an empty active Home so the
+  first approved connector draft can be tested before its initial publication.
+  Source payloads and generated-app session state remain memory-only and are
+  cleared when Home loses active ownership; both untrusted frames and native
+  executors are torn down and recreated only after Home becomes active again.
+  Agent draft sampling uses a separate executor: ending or replacing the Agent
+  turn cancels its draft work without interrupting an in-flight published Home
+  card, while Home navigation, hiding, closure, or revision replacement cancels
+  both classes.
+  Connector and generated-runtime failures record bounded non-content
+  diagnostics; only the explicit **Ask Dao to fix** action starts a repair
+  turn. A Home-scoped Agent sample request is routed through the same trusted
+  host, detached executor, schema validation, and lifecycle cancellation as a
+  visible source card.
+
 ## 3. Picture-in-Picture Enhancements
 
 Built on Chromium's native PiP, adds a Document-PiP interception layer plus several visual + behavior tweaks.

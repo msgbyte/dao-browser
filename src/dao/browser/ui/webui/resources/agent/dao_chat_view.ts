@@ -27,6 +27,7 @@ import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {addReusableElementContext, buildElementContextAttachment, consumeReusableElementContexts, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
 import {buildMemoryContextText, hasMemoryContextPayload, type NativeMemoryContext} from './dao_memory_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
+import {clearHomeToolContext, getHomeSystemPrompt, setHomeToolContext, type HomeToolContext} from './home_tools.js';
 import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, captureElementScreenshotFromPage, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type PiAttachment, type SelectionCapture} from './dao_page_capture.js';
 import {
@@ -239,6 +240,7 @@ const PROACTIVE_DEFERRED_MAX_AGE_MS = 300000;
 const PROACTIVE_NOT_NOW_SNOOZE_MS = 600000;
 const PROACTIVE_REPLACEMENT_CONFIDENCE_MARGIN = 0.05;
 const PROACTIVE_SCENARIO_MIN_CONFIDENCE = 0.75;
+const EXTERNAL_SUBMIT_MOUNT_TIMEOUT_MS = 5000;
 const PROACTIVE_TRACKING_PARAM_NAMES = new Set([
   'fbclid',
   'gclid',
@@ -393,6 +395,7 @@ export class DaoChatView extends CrLitElement {
   private agent_: PiAgent | null = null;
   private panel_: PiChatPanel | null = null;
   private mounted_ = false;
+  private mountSucceeded_ = false;
   // Resolves once mount_() has finished (including maybeResumeLastSession_).
   // Awaited by submitExternalPrompt so the resume probe can't land after a
   // Cmd+L/Cmd+T-driven startNewSession() and re-hydrate the old conversation.
@@ -403,6 +406,11 @@ export class DaoChatView extends CrLitElement {
   // Guards maybeResumeLastSession_ from racing an in-flight external submit
   // across its `await getAllMetadata()`.
   private externalSubmitInFlight_ = false;
+  private externalSubmitHistoryClaimToken_ = '';
+  // Covers the native-turn setup window before Pi marks the agent streaming.
+  // A re-entrant send in that window would replace the active native turn and
+  // invalidate any Home mutation lease owned by the original request.
+  private sendInFlight_ = false;
   // One-shot flag consumed by the monkey-patched sendMessage to skip
   // maybeAttachPage_/maybeAttachSelection_ on the first turn of a Cmd+T
   // session — the user asked a standalone question, not one about the page
@@ -1087,7 +1095,9 @@ export class DaoChatView extends CrLitElement {
 
   override firstUpdated() {
     this.panel_ = this.querySelector('pi-chat-panel') as PiChatPanel;
-    void this.mount_();
+    void this.mount_().catch(error => {
+      console.error('[dao-agent] chat mount failed', error);
+    });
   }
 
   private readDebugMode_(): boolean {
@@ -1162,8 +1172,21 @@ export class DaoChatView extends CrLitElement {
   }
 
   private async mount_() {
-    if (this.mounted_ || !this.panel_) return;
+    if (this.mounted_) return;
+    if (!this.panel_) {
+      this.mountReadyResolve_();
+      return;
+    }
     this.mounted_ = true;
+    try {
+      await this.mountContents_();
+      this.mountSucceeded_ = true;
+    } finally {
+      this.mountReadyResolve_();
+    }
+  }
+
+  private async mountContents_() {
 
     // Boot the pi-web-ui AppStorage singleton before the ChatPanel tries
     // to read from it. Also mirrors the Dao-configured API key for the
@@ -1331,15 +1354,28 @@ export class DaoChatView extends CrLitElement {
       if (typeof iface.sendMessage === 'function' && !this.origSendMessage_) {
         this.origSendMessage_ = iface.sendMessage.bind(iface);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        iface.sendMessage = async (text: string, attachments: any[]) => {
+        iface.sendMessage = async (
+            text: string, attachments: any[],
+            options?: {historyClaimToken?: string}) => {
+          if (this.sendInFlight_ || this.agent_?.state.isStreaming) return;
+          this.sendInFlight_ = true;
           let turnId: string|null = null;
           this.pendingMemoryContextText_ = null;
           try {
-            const beginResult = await callNative('beginAgentTurn') as {
+            const historyClaimToken =
+                typeof options?.historyClaimToken === 'string' &&
+                    options.historyClaimToken ?
+                options.historyClaimToken :
+                undefined;
+            const beginResult = await callNative(
+                'beginAgentTurn', historyClaimToken ? {historyClaimToken} :
+                                                     undefined,
+                {cancelMethod: 'cancelBeginAgentTurn'}) as {
               success?: boolean;
               turnId?: string;
               error?: string;
               code?: string;
+              homeContext?: HomeToolContext;
             };
             if (!beginResult?.success || !beginResult.turnId) {
               throw new Error(
@@ -1348,6 +1384,11 @@ export class DaoChatView extends CrLitElement {
                   'Unable to start the Dao Agent turn.');
             }
             turnId = beginResult.turnId;
+            setHomeToolContext(beginResult.homeContext ?? {
+              active: false,
+              revision: '',
+            });
+            this.refreshTools_();
 
             reportTelemetryEvent('agent_message_send', {
               textLength: text?.length ?? 0,
@@ -1390,6 +1431,9 @@ export class DaoChatView extends CrLitElement {
                 console.warn('[dao-agent] endAgentTurn failed', e);
               }
             }
+            clearHomeToolContext();
+            this.refreshTools_();
+            this.sendInFlight_ = false;
           }
         };
       }
@@ -1569,11 +1613,7 @@ export class DaoChatView extends CrLitElement {
     //
     // Awaited (not fired-and-forgotten) so mountReady_ resolves only after
     // resume has settled, fencing it against submitExternalPrompt's reset.
-    try {
-      await this.maybeResumeLastSession_();
-    } finally {
-      this.mountReadyResolve_();
-    }
+    await this.maybeResumeLastSession_();
   }
 
   private async maybeResumeLastSession_() {
@@ -3406,14 +3446,16 @@ export class DaoChatView extends CrLitElement {
     void syncActiveKeyToPiStorage();
   }
 
-  // BASE_SYSTEM_PROMPT + current skill catalog + current SOUL.md, with the
-  // soul wrapped in <soul> tags so the LLM can clearly delineate personality
-  // from base instructions (and so downstream tooling can find/replace the
-  // soul block). Rebuilt fresh on each call so callers get the latest saved
-  // soul.
+  // BASE_SYSTEM_PROMPT + current skill catalog + contextual Home contract +
+  // current SOUL.md, with the soul wrapped in <soul> tags so the LLM can
+  // clearly delineate personality from base instructions (and so downstream
+  // tooling can find/replace the soul block). Rebuilt fresh on each call so
+  // callers get the latest saved soul and active-turn context.
   private buildSystemPrompt_(): string {
     const skills = this.skillCatalogPrompt_.trim();
+    const home = getHomeSystemPrompt().trim();
     return BASE_SYSTEM_PROMPT + (skills ? '\n\n' + skills : '') +
+        (home ? '\n\n' + home : '') +
         '\n\n<soul>\n' + currentSoulContent + '\n</soul>';
   }
 
@@ -5236,14 +5278,33 @@ export class DaoChatView extends CrLitElement {
   // live by the time it runs.
   async submitExternalPrompt(
       text: string,
-      options?: {includePageContext?: boolean}) {
+      options?: {
+        includePageContext?: boolean;
+        historyClaimToken?: string;
+      }) {
     if (!text) return;
+    const historyClaimToken =
+        typeof options?.historyClaimToken === 'string' ?
+        options.historyClaimToken :
+        '';
+    if (this.externalSubmitInFlight_) {
+      if (historyClaimToken &&
+          historyClaimToken !== this.externalSubmitHistoryClaimToken_) {
+        chrome.send(
+            'cancelHomeHistoryClaim', [historyClaimToken]);
+      }
+      return;
+    }
     const includePageContext = options?.includePageContext !== false;
     this.externalSubmitInFlight_ = true;
+    this.externalSubmitHistoryClaimToken_ = historyClaimToken;
+    let submitted = false;
     try {
       // Wait for mount_'s resume probe to finish so its loadSession_ can't
       // land after our reset and re-hydrate the previous conversation.
-      await this.mountReady_;
+      if (!await this.waitForExternalSubmitMount_()) {
+        return;
+      }
       this.startNewSession();
       if (!includePageContext) {
         // suppressChipAttachOnce_ gates the monkey-patched sendMessage so a
@@ -5259,17 +5320,41 @@ export class DaoChatView extends CrLitElement {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const iface = this.panel_?.querySelector('agent-interface') as any;
       if (iface && typeof iface.sendMessage === 'function') {
+        submitted = true;
         try {
-          await iface.sendMessage(text, []);
+          await iface.sendMessage(
+              text, [], historyClaimToken ?
+                  {historyClaimToken} :
+                  undefined);
         } catch (_) { /* surfaced via agent error events */ }
       }
     } finally {
+      if (!submitted && historyClaimToken) {
+        chrome.send(
+            'cancelHomeHistoryClaim', [historyClaimToken]);
+      }
       this.externalSubmitInFlight_ = false;
+      this.externalSubmitHistoryClaimToken_ = '';
       // Defensive: even if the send threw before sendMessage consumed it,
       // clear so a normal user-typed turn afterwards doesn't accidentally
       // skip its chip attach.
       this.suppressChipAttachOnce_ = false;
     }
+  }
+
+  private async waitForExternalSubmitMount_(): Promise<boolean> {
+    let timeoutId = 0;
+    const timeout = new Promise<boolean>(resolve => {
+      timeoutId = window.setTimeout(
+          () => resolve(false), EXTERNAL_SUBMIT_MOUNT_TIMEOUT_MS);
+    });
+    const mounted = this.mountReady_.then(
+        () => this.mountSucceeded_, () => false);
+    const result = await Promise.race([mounted, timeout]);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+    }
+    return result;
   }
 }
 

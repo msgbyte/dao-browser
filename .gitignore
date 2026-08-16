@@ -10,8 +10,6 @@ dist/
 .superpowers/
 .dao/
 
-docs/superpowers
-
 # Patch paths mirror Chromium and can legitimately contain otherwise ignored
 # directory names. Keep these canonical patch files visible to Git.
 !src/patches/google_apis/gcm/engine/

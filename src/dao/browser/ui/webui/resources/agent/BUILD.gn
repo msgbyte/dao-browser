@@ -68,6 +68,7 @@ build_webui("build") {
     "dao_share_image.ts",
     "dream.ts",
     "dream_bridge.ts",
+    "home_tools.ts",
     "web_search/circuit_breaker.ts",
     "web_search/index.ts",
     "web_search/provider_capabilities.ts",

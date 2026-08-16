@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.cc
+index 1be4c62df5a04..d1094cfc2e081 100644
+--- a/chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.h"
+ 
++#include "dao/browser/ui/webui/dao_home_ui.h"
++
+ #include "build/build_config.h"
+ #include "chrome/common/buildflags.h"
+ #include "content/public/browser/webui_config_map.h"
+@@ -46,6 +48,11 @@ void RegisterChromeUntrustedWebUIConfigs() {
+   auto& map = content::WebUIConfigMap::GetInstance();
+ #endif  // defined(TOOLKIT_VIEWS) || BUILDFLAG(ENABLE_PRINT_PREVIEW)
+ 
++  map.AddUntrustedWebUIConfig(
++      std::make_unique<dao::DaoHomeAppUIConfig>());
++  map.AddUntrustedWebUIConfig(
++      std::make_unique<dao::DaoHomeConnectorUIConfig>());
++
+ #if defined(TOOLKIT_VIEWS)
+   map.AddUntrustedWebUIConfig(
+       std::make_unique<lens::LensOverlayUntrustedUIConfig>());

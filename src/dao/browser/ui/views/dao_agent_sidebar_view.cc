@@ -90,6 +90,7 @@ void DaoAgentSidebarView::OnNativeThemeUpdated(
 }
 
 DaoAgentSidebarView::~DaoAgentSidebarView() {
+  ClearPendingPrompt(pending_prompt_generation_, /*abandoned=*/true);
   if (web_view_ && web_view_->GetWebContents()) {
     web_view_->GetWebContents()->SetDelegate(nullptr);
   }
@@ -119,12 +120,21 @@ void DaoAgentSidebarView::EnsureLoaded() {
 
 void DaoAgentSidebarView::ExpandAndSubmitPrompt(
     const std::u16string& prompt,
-    bool include_page_context) {
+    bool include_page_context,
+    std::string history_claim_token,
+    base::OnceClosure on_prompt_abandoned) {
   if (prompt.empty()) {
+    if (on_prompt_abandoned) {
+      std::move(on_prompt_abandoned).Run();
+    }
     return;
   }
+  ClearPendingPrompt(pending_prompt_generation_, /*abandoned=*/true);
   pending_prompt_ = prompt;
   pending_include_page_context_ = include_page_context;
+  pending_history_claim_token_ = std::move(history_claim_token);
+  pending_prompt_abandoned_ = std::move(on_prompt_abandoned);
+  const uint64_t generation = ++pending_prompt_generation_;
 
   if (!expanded_) {
     Toggle();
@@ -137,7 +147,8 @@ void DaoAgentSidebarView::ExpandAndSubmitPrompt(
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
-                     weak_factory_.GetWeakPtr(), /*attempts_left=*/60));
+                     weak_factory_.GetWeakPtr(), /*attempts_left=*/60,
+                     generation));
 }
 
 void DaoAgentSidebarView::ExpandAndPrefillPrompt(
@@ -242,8 +253,13 @@ void DaoAgentSidebarView::TryFlushPendingExternalAction(int attempts_left) {
           weak_factory_.GetWeakPtr(), action, value, attempts_left));
 }
 
-void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {
-  if (pending_prompt_.empty() || !web_view_) {
+void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left,
+                                               uint64_t generation) {
+  if (generation != pending_prompt_generation_ || pending_prompt_.empty()) {
+    return;
+  }
+  if (!web_view_) {
+    ClearPendingPrompt(generation, /*abandoned=*/true);
     return;
   }
   content::WebContents* web_contents = web_view_->GetWebContents();
@@ -254,10 +270,11 @@ void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE,
           base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
-                         weak_factory_.GetWeakPtr(), attempts_left - 1),
+                         weak_factory_.GetWeakPtr(), attempts_left - 1,
+                         generation),
           base::Milliseconds(100));
     } else {
-      pending_prompt_.clear();
+      ClearPendingPrompt(generation, /*abandoned=*/true);
     }
     return;
   }
@@ -271,12 +288,21 @@ void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {
 
   const std::string include_page_literal =
       pending_include_page_context_ ? "true" : "false";
+  std::string history_claim_option;
+  if (!pending_history_claim_token_.empty()) {
+    std::string claim_token_json;
+    base::EscapeJSONString(pending_history_claim_token_,
+                           /*put_in_quotes=*/true, &claim_token_json);
+    history_claim_option =
+        base::StrCat({", historyClaimToken: ", claim_token_json});
+  }
 
   std::u16string script = base::UTF8ToUTF16(base::StrCat({
       "(function(){",
       "  if (typeof window.__daoExternalSubmit === 'function') {",
       "    window.__daoExternalSubmit(", prompt_json,
-      ", { includePageContext: ", include_page_literal, " });",
+      ", { includePageContext: ", include_page_literal, history_claim_option,
+      " });",
       "    return true;",
       "  }",
       "  return false;",
@@ -287,26 +313,44 @@ void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left) {
       script,
       base::BindOnce(
           [](base::WeakPtr<DaoAgentSidebarView> self, int attempts_left,
-             base::Value value) {
+             uint64_t generation, base::Value value) {
             if (!self) {
+              return;
+            }
+            if (generation != self->pending_prompt_generation_) {
               return;
             }
             const bool dispatched = value.is_bool() && value.GetBool();
             if (dispatched) {
-              self->pending_prompt_.clear();
+              self->ClearPendingPrompt(generation, /*abandoned=*/false);
               return;
             }
             if (attempts_left <= 0) {
-              self->pending_prompt_.clear();
+              self->ClearPendingPrompt(generation, /*abandoned=*/true);
               return;
             }
             base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
                 FROM_HERE,
                 base::BindOnce(&DaoAgentSidebarView::TryFlushPendingPrompt,
-                               self, attempts_left - 1),
+                               self, attempts_left - 1, generation),
                 base::Milliseconds(100));
           },
-          weak_self, attempts_left));
+          weak_self, attempts_left, generation));
+}
+
+void DaoAgentSidebarView::ClearPendingPrompt(uint64_t generation,
+                                            bool abandoned) {
+  if (generation != pending_prompt_generation_) {
+    return;
+  }
+  pending_prompt_.clear();
+  pending_include_page_context_ = true;
+  pending_history_claim_token_.clear();
+  base::OnceClosure on_prompt_abandoned =
+      std::move(pending_prompt_abandoned_);
+  if (abandoned && on_prompt_abandoned) {
+    std::move(on_prompt_abandoned).Run();
+  }
 }
 
 bool DaoAgentSidebarView::Toggle() {

@@ -16,6 +16,8 @@ TEST(TextOnlyFilterTest, AcceptsAllowedExtensions) {
   EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("notes.md")));
   EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("data.json")));
   EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("table.csv")));
+  EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("styles.css")));
+  EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("runtime.js")));
   EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("Document.TXT")));
 }
 

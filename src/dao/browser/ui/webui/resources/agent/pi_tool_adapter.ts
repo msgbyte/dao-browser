@@ -59,8 +59,9 @@ function nativeToolError(result: unknown): Error|null {
       typeof record['code'] !== 'string') {
     return null;
   }
-  return Object.assign(new Error(record['error']), {
-    code: record['code'],
+  const code = record['code'];
+  return Object.assign(new Error(`${record['error']} [code: ${code}]`), {
+    code,
     retryable: record['retryable'] === true,
   });
 }
