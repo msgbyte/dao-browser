@@ -11,6 +11,7 @@ import {
   initializeBrowserToolCatalog,
 } from './browser_tool_catalog.js';
 import {getActiveLLMConfig} from './llm_config.js';
+import {getHomeToolDefinitions, isHomeTool} from './home_tools.js';
 import {
   getAllSkills,
   isSkillAvailableForHost,
@@ -831,6 +832,7 @@ export function getAgentToolDefinitions(): ToolDefinition[] {
   return [
     ...getBrowserToolDefinitions('dao_agent'),
     ...agentOnlyTools,
+    ...getHomeToolDefinitions(),
   ];
 }
 
@@ -1096,8 +1098,14 @@ export async function executeTool(
                 ...(params || {}),
                 [LEGACY_UI_CONTEXT_MARKER]: context,
               } :
-              params,
+          params,
           {signal: options.signal, cancelMethod: 'cancelBrowserTool'});
+  if (isHomeTool(name)) {
+    return await callNative('executeHomeTool', {name, arguments: args}, {
+      signal: options.signal,
+      timeoutMs: name === 'home_request_bootstrap_sources' ? null : undefined,
+    });
+  }
   switch (name) {
     case 'workspace_read':
     case 'workspace_write':

@@ -204,10 +204,169 @@ export function isCapturablePageUrl(url: string): boolean {
 
 const ELEMENT_PICKER_START_SCRIPT = `(function() {
   try {
+    var useCameraCursor = __DAO_ELEMENT_PICKER_USE_CAMERA_CURSOR__;
+    if (location.protocol === 'dao:' && location.host === 'home') {
+      var app = document.querySelector('dao-home-app');
+      var frame = app && app.shadowRoot &&
+          app.shadowRoot.querySelector('[data-test="project-frame"]');
+      if (!frame || !frame.contentWindow) {
+        return JSON.stringify({error: 'The Home project frame is unavailable.'});
+      }
+      var priorBridge = window.__dao_element_picker__;
+      if (priorBridge && priorBridge.cancel) priorBridge.cancel();
+      var bridgeState = {active: true, result: null};
+      var bridgeRequestId = 'home-picker-' + Date.now() + '-' +
+          Math.random().toString(36).slice(2);
+      var hoverFrame = 0;
+      var hoverPoint = null;
+      var selecting = false;
+      var frameRect = frame.getBoundingClientRect();
+      var pickerCursor = useCameraCursor ?
+          'url("${CAMERA_CURSOR_DATA_URI}") 12 12, crosshair' : 'crosshair';
+      var inputLayer = document.createElement('div');
+      inputLayer.setAttribute('data-dao-home-picker-input-layer', '1');
+      inputLayer.style.position = 'fixed';
+      inputLayer.style.background = 'transparent';
+      inputLayer.style.cursor = pickerCursor;
+      inputLayer.style.zIndex = '2147483646';
+      var highlight = document.createElement('div');
+      highlight.setAttribute('data-dao-home-picker-highlight', '1');
+      highlight.style.position = 'fixed';
+      highlight.style.display = 'none';
+      highlight.style.pointerEvents = 'none';
+      highlight.style.border = '2px solid rgba(70, 120, 190, 0.95)';
+      highlight.style.borderRadius = '8px';
+      highlight.style.background = 'rgba(70, 120, 190, 0.12)';
+      highlight.style.boxShadow =
+          '0 0 0 9999px rgba(15, 23, 42, 0.08)';
+      highlight.style.zIndex = '2147483647';
+
+      function layoutInputLayer() {
+        frameRect = frame.getBoundingClientRect();
+        inputLayer.style.left = Math.round(frameRect.left) + 'px';
+        inputLayer.style.top = Math.round(frameRect.top) + 'px';
+        inputLayer.style.width = Math.round(frameRect.width) + 'px';
+        inputLayer.style.height = Math.round(frameRect.height) + 'px';
+      }
+
+      function removeBridge() {
+        window.removeEventListener('message', onHomePickerMessage);
+        window.removeEventListener('keydown', onHomePickerKeyDown, true);
+        window.removeEventListener('resize', layoutInputLayer);
+        if (hoverFrame) cancelAnimationFrame(hoverFrame);
+        if (inputLayer.parentNode) inputLayer.parentNode.removeChild(inputLayer);
+        if (highlight.parentNode) highlight.parentNode.removeChild(highlight);
+      }
+
+      function finishHomePicker(result) {
+        if (!bridgeState.active) return;
+        bridgeState.result = result;
+        bridgeState.active = false;
+        removeBridge();
+      }
+
+      function sendHitTest(type, clientX, clientY) {
+        frameRect = frame.getBoundingClientRect();
+        frame.contentWindow.postMessage({
+          daoHomePicker: 1,
+          type: type,
+          requestId: bridgeRequestId,
+          x: clientX - frameRect.left,
+          y: clientY - frameRect.top
+        }, '*');
+      }
+
+      function flushHover() {
+        hoverFrame = 0;
+        if (!hoverPoint || !bridgeState.active || selecting) return;
+        sendHitTest('hover', hoverPoint.x, hoverPoint.y);
+      }
+
+      function onHomePickerMove(event) {
+        hoverPoint = {x: event.clientX, y: event.clientY};
+        if (!hoverFrame) hoverFrame = requestAnimationFrame(flushHover);
+      }
+
+      function onHomePickerClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        if (selecting) return false;
+        selecting = true;
+        sendHitTest('select', event.clientX, event.clientY);
+        return false;
+      }
+
+      function onHomePickerKeyDown(event) {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        event.stopPropagation();
+        finishHomePicker({status: 'cancelled'});
+      }
+
+      function onHomePickerMessage(event) {
+        var message = event.data;
+        if (event.source !== frame.contentWindow || event.origin !== 'null' ||
+            !message || message.daoHomePicker !== 1 ||
+            message.requestId !== bridgeRequestId || !message.result) {
+          return;
+        }
+        var result = message.result;
+        if (message.type === 'hover') {
+          if (result.status !== 'selected' || !result.locator ||
+              !result.locator.bounds) {
+            highlight.style.display = 'none';
+            return;
+          }
+          frameRect = frame.getBoundingClientRect();
+          var hoverBounds = result.locator.bounds;
+          highlight.style.display = 'block';
+          highlight.style.left =
+              Math.round(frameRect.left + hoverBounds.x) + 'px';
+          highlight.style.top =
+              Math.round(frameRect.top + hoverBounds.y) + 'px';
+          highlight.style.width = Math.round(hoverBounds.width) + 'px';
+          highlight.style.height = Math.round(hoverBounds.height) + 'px';
+          return;
+        }
+        if (message.type !== 'select') return;
+        if (result.status === 'selected' && result.locator &&
+            result.locator.bounds) {
+          frameRect = frame.getBoundingClientRect();
+          result.url = location.href;
+          result.title = document.title || '';
+          result.locator.bounds.x += Math.round(frameRect.left);
+          result.locator.bounds.y += Math.round(frameRect.top);
+          result.viewport = {
+            width: Math.round(window.innerWidth || 0),
+            height: Math.round(window.innerHeight || 0)
+          };
+        }
+        finishHomePicker(result);
+      }
+      window.addEventListener('message', onHomePickerMessage);
+      window.addEventListener('keydown', onHomePickerKeyDown, true);
+      window.addEventListener('resize', layoutInputLayer);
+      inputLayer.addEventListener('mousemove', onHomePickerMove);
+      inputLayer.addEventListener('click', onHomePickerClick, true);
+      layoutInputLayer();
+      document.documentElement.appendChild(inputLayer);
+      document.documentElement.appendChild(highlight);
+      window.__dao_element_picker__ = {
+        getResult: function() {
+          return bridgeState.result ||
+              {status: bridgeState.active ? 'pending' : 'cancelled'};
+        },
+        cancel: function() {
+          finishHomePicker({status: 'cancelled'});
+          return true;
+        }
+      };
+      return JSON.stringify({started: true});
+    }
     var existing = window.__dao_element_picker__;
     if (existing && existing.cancel) existing.cancel();
 
-    var useCameraCursor = __DAO_ELEMENT_PICKER_USE_CAMERA_CURSOR__;
     var previousCursor = document.documentElement.style.cursor;
     var cameraCursor = 'url("${CAMERA_CURSOR_DATA_URI}") 12 12, crosshair';
     var pickerCursor = useCameraCursor ? cameraCursor : 'crosshair';

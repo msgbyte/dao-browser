@@ -1,7 +1,7 @@
 diff --git a/chrome/app/resources/generated_resources_zh-CN.xtb b/chrome/app/resources/generated_resources_zh-CN.xtb
 --- a/chrome/app/resources/generated_resources_zh-CN.xtb
 +++ b/chrome/app/resources/generated_resources_zh-CN.xtb
-@@ -1,6 +1,122 @@
+@@ -1,6 +1,123 @@
  <?xml version="1.0" ?>
  <!DOCTYPE translationbundle>
  <translationbundle lang="zh-CN">
@@ -71,6 +71,7 @@ diff --git a/chrome/app/resources/generated_resources_zh-CN.xtb b/chrome/app/res
 +<translation id="939920441769659441">记忆与技能</translation>
 +<translation id="5107522548814527560">网页</translation>
 +<translation id="261799307673205052">工作区</translation>
++<translation id="932327136139879170">主页</translation>
 +<translation id="7912282924337854728">技能与数据</translation>
 +<translation id="8844476858332168421">管理技能</translation>
 +<translation id="530561758670680801">查看记忆</translation>

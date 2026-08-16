@@ -50,6 +50,38 @@ describe('callNative', () => {
     await expect(promise).resolves.toBe(true);
   });
 
+  it('does not time out while bootstrap source approval awaits the user',
+     async () => {
+       vi.useFakeTimers();
+       const send = vi.fn();
+       vi.stubGlobal('chrome', {send});
+
+       const promise = executeTool('home_request_bootstrap_sources', {
+         base_revision: '',
+         draft_id: 'provisional-draft',
+         sources: [{
+           connector_id: 'github',
+           collection_url: 'https://github.com/',
+           content_intent: 'activity_feed',
+           content_kinds: ['activity'],
+         }],
+       });
+       let settled = false;
+       promise.finally(() => {
+         settled = true;
+       });
+
+       await vi.advanceTimersByTimeAsync(60000);
+
+       expect(settled).toBe(false);
+       expect(send).toHaveBeenCalledTimes(1);
+       const [method, args] = send.mock.calls[0] as [string, unknown[]];
+       expect(method).toBe('executeHomeTool');
+       const [callbackId] = args as [string, Record<string, unknown>];
+       cr.webUIResponse(callbackId, true, {connector_ids: []});
+       await expect(promise).resolves.toEqual({connector_ids: []});
+     });
+
   it('persists soul updates canonically before updating the local cache',
      async () => {
        localStorage.removeItem('dao_agent_soul');

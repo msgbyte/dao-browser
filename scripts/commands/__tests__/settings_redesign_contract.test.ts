@@ -111,6 +111,7 @@ const AGENT_TOOL_GROUP_NAMES = [
   "memory",
   "web",
   "workspace",
+  "home",
 ] as const;
 
 const AGENT_CRITICAL_HANDLERS = [
@@ -736,7 +737,7 @@ describe("settings continuous overview contract", () => {
       .filter((line) => line.startsWith("+") && !line.startsWith("+++")).length;
 
     expect(hunkHeader, "new-file hunk header").not.toBeNull();
-    expect(payloadCount).toBe(182);
+    expect(payloadCount).toBe(190);
     expect(Number(hunkHeader![1]), "declared new-file line count").toBe(
       payloadCount,
     );

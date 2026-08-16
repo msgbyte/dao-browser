@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.html
-@@ -0,0 +1,1295 @@
+@@ -0,0 +1,1301 @@
 +<style include="settings-shared">
 +  :host {
 +    --dao-agent-content-inset: 18px;
@@ -705,6 +705,12 @@ index 0000000000..0000000001
 +          <cr-toggle checked="{{agentWorkspaceToolsEnabled_}}"
 +              data-tool-group="workspace"
 +              on-change="onAgentToolGroupChange_">
++          </cr-toggle>
++        </div>
++        <div class="dao-agent-toggle-row">
++          <span class="dao-agent-toggle-copy">$i18n{daoAgentToolsHome}</span>
++          <cr-toggle checked="{{agentHomeToolsEnabled_}}"
++              data-tool-group="home" on-change="onAgentToolGroupChange_">
 +          </cr-toggle>
 +        </div>
 +        <details class="dao-agent-tool-details">

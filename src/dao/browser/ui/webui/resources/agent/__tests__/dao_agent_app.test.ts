@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
   return {
     callNative: vi.fn(),
     chatRequestUpdate: vi.fn(),
+    submitExternalPrompt: vi.fn(),
     prefillExternalPrompt: vi.fn(),
     openExternalSession: vi.fn(),
     refreshSkillRegistryIfStale: vi.fn(async () => false),
@@ -32,6 +33,7 @@ vi.mock('../dao_chat_view.js', () => {
   if (!customElements.get('dao-chat-view')) {
     customElements.define('dao-chat-view', class extends HTMLElement {
       requestUpdate = mocks.chatRequestUpdate;
+      submitExternalPrompt = mocks.submitExternalPrompt;
       focusInput() {}
       startNewSession() {}
       openHistory() {}
@@ -71,6 +73,7 @@ describe('dao-agent-app i18n refresh', () => {
     document.body.innerHTML = '';
     mocks.callNative.mockReset();
     mocks.chatRequestUpdate.mockReset();
+    mocks.submitExternalPrompt.mockReset();
     mocks.prefillExternalPrompt.mockReset();
     mocks.openExternalSession.mockReset();
     mocks.refreshSkillRegistryIfStale.mockReset();
@@ -80,6 +83,8 @@ describe('dao-agent-app i18n refresh', () => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
+    delete (window as unknown as {__daoExternalSubmit?: unknown})
+        .__daoExternalSubmit;
     delete (window as unknown as {__daoExternalPrefill?: unknown})
         .__daoExternalPrefill;
     delete (window as unknown as {__daoExternalOpenSession?: unknown})
@@ -138,6 +143,59 @@ describe('dao-agent-app i18n refresh', () => {
       expect(mocks.prefillExternalPrompt).toHaveBeenCalledWith(
           'Review this report');
     });
+  });
+
+  it('forwards a history claim token with its exact external prompt', async () => {
+    const {el} = await loadApp();
+    const view = el.shadowRoot!.querySelector('dao-chat-view')!;
+    const panel = document.createElement('pi-chat-panel');
+    const iface = document.createElement('agent-interface') as HTMLElement & {
+      sendMessage: () => void;
+    };
+    iface.sendMessage = () => {};
+    panel.appendChild(iface);
+    view.appendChild(panel);
+
+    const submit = (window as unknown as {
+      __daoExternalSubmit: (
+          text: string,
+          options: {
+            includePageContext: boolean;
+            historyClaimToken: string;
+          }) => void;
+    }).__daoExternalSubmit;
+    submit('Build from my history', {
+      includePageContext: false,
+      historyClaimToken: 'history-claim',
+    });
+
+    await vi.waitFor(() => {
+      expect(mocks.submitExternalPrompt).toHaveBeenCalledWith(
+          'Build from my history', {
+            includePageContext: false,
+            historyClaimToken: 'history-claim',
+          });
+    });
+  });
+
+  it('cancels a history claim when the external prompt cannot mount', async () => {
+    const {send} = await loadApp();
+    vi.useFakeTimers();
+    try {
+      const submit = (window as unknown as {
+        __daoExternalSubmit: (
+            text: string,
+            options: {historyClaimToken: string}) => void;
+      }).__daoExternalSubmit;
+      submit('Build from my history', {historyClaimToken: 'stale-claim'});
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(5100);
+
+      expect(send).toHaveBeenCalledWith(
+          'cancelHomeHistoryClaim', ['stale-claim']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('routes external session requests to the chat view', async () => {

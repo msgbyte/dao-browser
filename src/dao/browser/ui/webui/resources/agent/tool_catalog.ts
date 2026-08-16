@@ -84,6 +84,31 @@ export const TOOL_GROUPS: ToolGroup[] = [
       'download',
     ],
   },
+  {
+    id: 'home',
+    label: 'Home',
+    toolNames: [
+      'home_get_manifest',
+      'home_list_files',
+      'home_read_file',
+      'home_get_diagnostics',
+      'home_get_selected_element',
+      'home_apply_patch',
+      'home_replace_files',
+      'home_add_asset',
+      'home_preview',
+      'home_publish',
+      'home_rollback',
+      'home_list_connectors',
+      'home_collect_sample',
+      'home_test_connector',
+      'home_request_source_access',
+      'home_list_versions',
+      'home_export_project',
+      'home_get_bootstrap_brief',
+      'home_request_bootstrap_sources',
+    ],
+  },
 ];
 
 const STORAGE_KEY = 'dao_disabled_tools';

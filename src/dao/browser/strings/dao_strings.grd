@@ -557,6 +557,71 @@
       <message name="IDS_DAO_IMPORT_BOOKMARK_ROOT" desc="Name of the bookmark folder that contains data brought in by the migration flow.">Imported browser data</message>
       <message name="IDS_DAO_IMPORT_TAB_FOLDER" desc="Name of the collapsed sidebar folder that contains tabs brought in by the migration flow.">Imported tabs</message>
 
+      <!-- Dao Home WebUI -->
+      <message name="IDS_DAO_HOME_PAGE_TITLE" desc="Document title for the personal Dao Home page.">Home</message>
+      <message name="IDS_DAO_HOME_LOADING" desc="Status shown while the Home project is loading.">Loading your Home…</message>
+      <message name="IDS_DAO_HOME_EMPTY_TITLE" desc="Heading shown before a Home project has been created.">Make the web feel like yours</message>
+      <message name="IDS_DAO_HOME_EMPTY_DESCRIPTION" desc="Description of the personal Home project empty state.">Create a private, living page that Dao can shape around what you care about.</message>
+      <message name="IDS_DAO_HOME_CREATE" desc="Button that asks Dao to create a new Home project.">Create with Dao</message>
+      <message name="IDS_DAO_HOME_CREATE_FROM_HISTORY" desc="Button that asks Dao to create Home using minimized recent browsing history.">Create from my browsing history</message>
+      <message name="IDS_DAO_HOME_MENU" desc="Button that opens trusted Home project management actions.">Home controls</message>
+      <message name="IDS_DAO_HOME_EDIT_WITH_DAO" desc="Menu action that asks Dao to edit the current Home project.">Edit with Dao</message>
+      <message name="IDS_DAO_HOME_EXPORT" desc="Menu action that exports the current Home project.">Export project</message>
+      <message name="IDS_DAO_HOME_IMPORT" desc="Menu action that imports a Home project package.">Import project</message>
+      <message name="IDS_DAO_HOME_RESET" desc="Destructive trusted action that deletes the current Home project and returns to the initial empty state.">Reset Home</message>
+      <message name="IDS_DAO_HOME_ROLLBACK" desc="Menu action that restores an older Home revision as a new version.">Restore this version</message>
+      <message name="IDS_DAO_HOME_RUNTIME_ERROR_TITLE" desc="Heading shown when the generated Home application fails to load.">Your Home could not be displayed</message>
+      <message name="IDS_DAO_HOME_RUNTIME_ERROR_DESCRIPTION" desc="Explanation shown when the generated Home application fails to load.">Your project is still safe. Retry, restore a version, or ask Dao to repair it.</message>
+      <message name="IDS_DAO_HOME_RETRY" desc="Button that reloads the current Home project.">Try again</message>
+      <message name="IDS_DAO_HOME_ASK_DAO_TO_FIX" desc="Button that explicitly asks Dao to inspect and repair a failed Home project.">Ask Dao to fix</message>
+      <message name="IDS_DAO_HOME_VIEW_SOURCE" desc="Menu action that opens the read-only Home source viewer.">View source</message>
+      <message name="IDS_DAO_HOME_VERSION_HISTORY" desc="Menu action that opens Home version history.">Version history</message>
+      <message name="IDS_DAO_HOME_CLOSE" desc="Accessible label for closing a Home secondary panel.">Close</message>
+      <message name="IDS_DAO_HOME_FILES" desc="Accessible label for the Home source file list.">Project files</message>
+      <message name="IDS_DAO_HOME_SELECT_FILE" desc="Placeholder in the Home source viewer before a file is selected.">Select a file to view its source.</message>
+      <message name="IDS_DAO_HOME_COMPARE_VERSION" desc="Accessible label for selecting a Home version in the source viewer.">Compare version</message>
+      <message name="IDS_DAO_HOME_DIFF_CURRENT" desc="Label shown when source is displayed as a diff against the current Home version.">Changes to current version</message>
+      <message name="IDS_DAO_HOME_CURRENT_VERSION" desc="Label for the currently published Home version.">Current version</message>
+      <message name="IDS_DAO_HOME_RESTORE_VERSION" desc="Label for a restorable older Home version.">Restore as a new version</message>
+      <message name="IDS_DAO_HOME_CONNECT_SOURCE" desc="Title for the trusted source permission dialog. The placeholder is a connector name.">Connect <ph name="SOURCE_NAME">$1<ex>X Feed</ex></ph></message>
+      <message name="IDS_DAO_HOME_PERMISSION_DESCRIPTION" desc="Description of the trusted Home source permission request.">This source can read only the approved pages while Home is active.</message>
+      <message name="IDS_DAO_HOME_CONNECT_SOURCES_TITLE" desc="Title for the trusted grouped Home source permission dialog.">Connect live sources?</message>
+      <message name="IDS_DAO_HOME_CONNECT_SOURCES_DESCRIPTION" desc="Description of the trusted grouped Home source permission request.">Dao will test the selected sources and add the ones that work. Each source can read only the pages and data shown below while Home is active.</message>
+      <message name="IDS_DAO_HOME_AUTHENTICATION_MAY_BE_REQUIRED" desc="Notice that a Home source may need the user to already be signed in.">May require you to be signed in</message>
+      <message name="IDS_DAO_HOME_CONNECT_SELECTED" desc="Button that approves the selected Home sources.">Connect selected</message>
+      <message name="IDS_DAO_HOME_CONTINUE_WITHOUT_SOURCES" desc="Button that rejects all proposed live sources and continues creating Home.">Continue without live sources</message>
+      <message name="IDS_DAO_HOME_WEBSITE" desc="Label for websites in a Home source permission request.">Website</message>
+      <message name="IDS_DAO_HOME_PAGE_SCOPE" desc="Label for page paths in a Home source permission request.">Page</message>
+      <message name="IDS_DAO_HOME_CAPABILITIES" desc="Label for capabilities in a Home source permission request.">Capabilities</message>
+      <message name="IDS_DAO_HOME_RUNS" desc="Label for the lifecycle in a Home source permission request.">Runs</message>
+      <message name="IDS_DAO_HOME_ACTIVE_ONLY" desc="Lifecycle value in a Home source permission request.">Only while dao://home is active</message>
+      <message name="IDS_DAO_HOME_WRITE_ACCESS" desc="Label for write access in a Home source permission request.">Write access</message>
+      <message name="IDS_DAO_HOME_NOT_ALLOWED" desc="Value stating that source write access is forbidden.">Not allowed</message>
+      <message name="IDS_DAO_HOME_RESOURCE_LIMITS" desc="Label for resource budgets in a Home source permission request.">Resource limits</message>
+      <message name="IDS_DAO_HOME_RESULT_BYTES_LIMIT" desc="Maximum connector result size shown for a new Home project.">Result data: up to <ph name="BYTE_COUNT">$1<ex>1,048,576</ex></ph> bytes</message>
+      <message name="IDS_DAO_HOME_RESULT_BYTES_INCREASE" desc="Connector result size increase shown before the user approves it.">Result data: <ph name="OLD_BYTE_COUNT">$1<ex>65,536</ex></ph> to <ph name="NEW_BYTE_COUNT">$2<ex>5,242,880</ex></ph> bytes</message>
+      <message name="IDS_DAO_HOME_ITEM_LIMIT" desc="Maximum items per connector shown for a new Home project.">Items per connector: up to <ph name="ITEM_COUNT">$1<ex>100</ex></ph></message>
+      <message name="IDS_DAO_HOME_ITEM_LIMIT_INCREASE" desc="Connector item count increase shown before the user approves it.">Items per connector: <ph name="OLD_ITEM_COUNT">$1<ex>25</ex></ph> to <ph name="NEW_ITEM_COUNT">$2<ex>250</ex></ph></message>
+      <message name="IDS_DAO_HOME_CAPABILITY_READ_CONTENT" desc="Human-readable Home connector capability.">Read page content</message>
+      <message name="IDS_DAO_HOME_CAPABILITY_READ_STYLE" desc="Human-readable Home connector capability.">Read presentation styles</message>
+      <message name="IDS_DAO_HOME_CAPABILITY_SCROLL" desc="Human-readable Home connector capability.">Scroll to load more</message>
+      <message name="IDS_DAO_HOME_CANCEL" desc="Button that cancels a trusted Home action.">Cancel</message>
+      <message name="IDS_DAO_HOME_CONNECT" desc="Button that approves and connects a Home source.">Connect</message>
+      <message name="IDS_DAO_HOME_CONFIRM" desc="Button that confirms a trusted Home project action.">Confirm</message>
+      <message name="IDS_DAO_HOME_CONFIRM_IMPORT_TITLE" desc="Title for the Home project import confirmation.">Replace this Home?</message>
+      <message name="IDS_DAO_HOME_CONFIRM_IMPORT_DESCRIPTION" desc="Description for Home project import confirmation.">The imported project will become a new version. Source access will stay disconnected until you approve it again.</message>
+      <message name="IDS_DAO_HOME_IMPORT_FAILED" desc="Error shown when a Home project package cannot be imported.">The project could not be imported. Check the package and try again.</message>
+      <message name="IDS_DAO_HOME_CONFIRM_RESET_TITLE" desc="Title for the destructive Home reset confirmation.">Reset Home?</message>
+      <message name="IDS_DAO_HOME_CONFIRM_RESET_DESCRIPTION" desc="Description explaining everything deleted by a Home reset and that it cannot be undone.">This permanently deletes the current project, all versions, and source access. This cannot be undone.</message>
+      <message name="IDS_DAO_HOME_RESET_FAILED" desc="Error shown when Home reset fails without changing the current project.">Home could not be reset. The current project was not changed. Try again.</message>
+      <message name="IDS_DAO_HOME_CONFIRM_RESTORE_TITLE" desc="Title for the Home version restore confirmation.">Restore this version?</message>
+      <message name="IDS_DAO_HOME_CONFIRM_RESTORE_DESCRIPTION" desc="Description for Home version restore confirmation.">The selected project state will be published as a new version. Existing history will remain available.</message>
+      <message name="IDS_DAO_HOME_CONFIRM_NAVIGATION_TITLE" desc="Title for the trusted confirmation shown before generated Home content opens an external page.">Open this link?</message>
+      <message name="IDS_DAO_HOME_CONFIRM_NAVIGATION_DESCRIPTION" desc="Description for the trusted confirmation shown before generated Home content opens an external page.">This Home wants to open an external page. Review the destination before continuing.</message>
+      <message name="IDS_DAO_HOME_CREATE_AGENT_PROMPT" desc="Agent prompt submitted after the user asks Dao to create their Home.">Create my Dao Home. Start by asking what I want this personal page to help me explore, then build and publish the first version.</message>
+      <message name="IDS_DAO_HOME_HISTORY_AGENT_PROMPT" desc="Agent prompt submitted after the user asks Dao to create Home from minimized browsing history.">Create my Dao Home from my recent browsing themes. Use only the privacy-minimized Home history material, explain the direction briefly, then build and publish the first version.</message>
+      <message name="IDS_DAO_HOME_REPAIR_AGENT_PROMPT" desc="Agent prompt submitted only after the user explicitly asks Dao to repair Home.">Inspect the bounded Dao Home diagnostics, explain the failure, and repair the current project. Keep the current runnable version until the repair validates, then publish the repair as a new version.</message>
+
       <!-- Install dialog notice -->
       <message name="IDS_DAO_INSTALL_PROMPT_LEGACY_MV2_NOTICE" desc="One-line notice shown above the permission list in the extension install dialog when the extension being installed is a legacy Manifest V2 extension. Tells the user that Dao still supports MV2 but most other browsers do not. Plain text, no link.">
         This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.

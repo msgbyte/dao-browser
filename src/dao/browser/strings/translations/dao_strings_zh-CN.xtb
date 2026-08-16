@@ -51,7 +51,6 @@
 <translation id="7401173814860935855">已清除此网站 Cookie</translation>
 <translation id="7532108947552493901">检查更新...</translation>
 <translation id="7604253494819481181">再次按<ph name="SHORTCUT" />切换侧边栏</translation>
-<translation id="7658239707568436148">取消</translation>
 <translation id="7717845620320228976">检查更新</translation>
 <translation id="7974106569409739809">解散文件夹</translation>
 <translation id="8137559199583651773">管理扩展</translation>
@@ -117,4 +116,67 @@
 <translation id="2359808026110333948">继续</translation>
 <translation id="5436835454512450295">导入的浏览器数据</translation>
 <translation id="642671119120438272">导入的标签页</translation>
+<translation id="932327136139879170">主页</translation>
+<translation id="6204195547326023850">正在打开你的主页…</translation>
+<translation id="1526981372643266878">把常看的网页，变成你的主页</translation>
+<translation id="591645459245805338">创建一个只属于你的动态页面，让 Dao 按照你关心的内容来设计。</translation>
+<translation id="6971377058826420967">和 Dao 一起创建</translation>
+<translation id="172937028082106236">根据我的浏览记录创建</translation>
+<translation id="8237260373784588552">主页设置</translation>
+<translation id="4221615148091761714">让 Dao 修改</translation>
+<translation id="8052762370740257987">导出项目</translation>
+<translation id="8028081981001403222">导入项目</translation>
+<translation id="684699560760227351">重置主页</translation>
+<translation id="6586201961110912838">恢复这个版本</translation>
+<translation id="962181630102348889">暂时无法显示你的主页</translation>
+<translation id="7714812312719848690">项目仍然安全。你可以重试、恢复旧版本，或让 Dao 帮你修复。</translation>
+<translation id="8725066075913043281">重试</translation>
+<translation id="4898928054560997780">让 Dao 修复</translation>
+<translation id="5334844597069022743">查看源代码</translation>
+<translation id="8549865052695885354">版本记录</translation>
+<translation id="6040143037577758943">关闭</translation>
+<translation id="677387175345781299">项目文件</translation>
+<translation id="5301255231518510089">选择一个文件查看源代码。</translation>
+<translation id="1111094358966140566">对比版本</translation>
+<translation id="251834402454969316">与当前版本的差异</translation>
+<translation id="81044950628177848">当前版本</translation>
+<translation id="2882207023658691113">恢复为新版本</translation>
+<translation id="8541190477675392821">连接 <ph name="SOURCE_NAME" /></translation>
+<translation id="8774154357663601701">这个来源只能在主页处于打开状态时读取你批准的页面。</translation>
+<translation id="5126909118906525779">连接实时来源？</translation>
+<translation id="3229872815652336688">Dao 会测试所选来源，并把可用的来源添加到主页。每个来源只能在主页处于打开状态时读取下方显示的页面和数据。</translation>
+<translation id="2612596415938768738">可能需要你先登录</translation>
+<translation id="94889370059095136">连接所选来源</translation>
+<translation id="831684326378391082">暂不连接，继续创建</translation>
+<translation id="1566049601598938765">网站</translation>
+<translation id="1818606096021558659">页面</translation>
+<translation id="210592584469870355">权限</translation>
+<translation id="2976307543842414852">运行时机</translation>
+<translation id="5874739091759960360">仅在 dao://home 处于打开状态时</translation>
+<translation id="6764328036096492220">写入权限</translation>
+<translation id="4652266463001779298">不允许</translation>
+<translation id="6801297003382412689">资源上限</translation>
+<translation id="6119407933322978843">结果数据：最多 <ph name="BYTE_COUNT" /> 字节</translation>
+<translation id="8826852601577125903">结果数据：从 <ph name="OLD_BYTE_COUNT" /> 增加到 <ph name="NEW_BYTE_COUNT" /> 字节</translation>
+<translation id="9115526757421297517">每个来源的项目数：最多 <ph name="ITEM_COUNT" /></translation>
+<translation id="1816380826555616620">每个来源的项目数：从 <ph name="OLD_ITEM_COUNT" /> 增加到 <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="2348199177323591972">读取页面内容</translation>
+<translation id="7803931104677504532">读取页面样式</translation>
+<translation id="1530524805356937121">滚动加载更多内容</translation>
+<translation id="7658239707568436148">取消</translation>
+<translation id="5308380583665731573">连接</translation>
+<translation id="8131740175452115882">确认</translation>
+<translation id="4500440256909785690">替换当前主页？</translation>
+<translation id="8349478524212888083">导入的项目会成为一个新版本。来源权限不会随项目导入，需要你重新确认。</translation>
+<translation id="1984122437277059790">无法导入这个项目，请检查项目包后重试。</translation>
+<translation id="7615777614791709701">重置主页？</translation>
+<translation id="2085323698672376231">这会永久删除当前项目、所有版本记录和来源权限，且无法撤销。</translation>
+<translation id="5942499955694738574">无法重置主页。当前项目没有改变，请重试。</translation>
+<translation id="8595238918901827309">恢复这个版本？</translation>
+<translation id="5400726083793179041">选中的项目状态会发布为新版本，已有版本记录仍会保留。</translation>
+<translation id="2580366865845491095">打开这个链接？</translation>
+<translation id="6299569859560607348">这个主页想打开一个外部页面。继续前请确认目标地址。</translation>
+<translation id="3509982919032226274">帮我创建 Dao 主页。先询问这个个人页面要帮助我探索什么，再构建并发布第一个版本。</translation>
+<translation id="6325047129563993580">根据我最近的浏览主题创建 Dao 主页。只使用经过隐私精简的主页浏览材料，先简要说明设计方向，再构建并发布第一个版本。</translation>
+<translation id="3909499025801874715">检查有界的 Dao 主页诊断信息，说明故障原因并修复当前项目。在修复通过验证前保留当前可运行版本，验证后将修复发布为新版本。</translation>
 </translationbundle>

@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
-@@ -0,0 +1,871 @@
+@@ -0,0 +1,874 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -99,6 +99,7 @@ index 0000000000..0000000001
 +      agentMemoryToolsEnabled_: {type: Boolean, value: true},
 +      agentWebToolsEnabled_: {type: Boolean, value: true},
 +      agentWorkspaceToolsEnabled_: {type: Boolean, value: true},
++      agentHomeToolsEnabled_: {type: Boolean, value: true},
 +      agentToolNames_: {
 +        type: Array,
 +        value: () => Object.values(AGENT_TOOL_GROUPS).flat(),
@@ -191,6 +192,7 @@ index 0000000000..0000000001
 +  declare private agentMemoryToolsEnabled_: boolean;
 +  declare private agentWebToolsEnabled_: boolean;
 +  declare private agentWorkspaceToolsEnabled_: boolean;
++  declare private agentHomeToolsEnabled_: boolean;
 +  declare private agentToolNames_: string[];
 +  declare private memorySummary_: DaoAgentMemorySummary|null;
 +  declare private memoryLoading_: boolean;
@@ -671,6 +673,7 @@ index 0000000000..0000000001
 +    this.agentMemoryToolsEnabled_ = groupEnabled('memory');
 +    this.agentWebToolsEnabled_ = groupEnabled('web');
 +    this.agentWorkspaceToolsEnabled_ = groupEnabled('workspace');
++    this.agentHomeToolsEnabled_ = groupEnabled('home');
 +    try {
 +      const domains = JSON.parse(
 +          this.agentSettingsValues_['dao_dream_excluded_domains'] || '[]');

@@ -105,7 +105,7 @@ describe('pi_tool_adapter', () => {
     expect(mocks.recordToolCall).toHaveBeenCalledWith('web_search');
   });
 
-  it('rejects native browser-tool errors with their stable code', async () => {
+  it('includes a native tool error code in the model-visible message', async () => {
     mocks.executeTool.mockResolvedValue({
       error: 'Another automation client is active.',
       code: 'AGENT_CONTROL_BUSY',
@@ -114,7 +114,8 @@ describe('pi_tool_adapter', () => {
     const [adapted] = buildAgentTools();
 
     await expect(adapted.execute('call-1', {})).rejects.toMatchObject({
-      message: 'Another automation client is active.',
+      message:
+          'Another automation client is active. [code: AGENT_CONTROL_BUSY]',
       code: 'AGENT_CONTROL_BUSY',
       retryable: true,
     });

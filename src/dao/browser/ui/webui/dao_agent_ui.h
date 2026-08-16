@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/values.h"
@@ -38,6 +39,9 @@ class PDFDocumentHelper;
 }  // namespace pdf
 
 namespace dao {
+
+class DaoHomeAgentTools;
+class DaoHomeMutationLease;
 
 class DaoAgentMemoryService;
 class DaoAgentSkillService;
@@ -128,6 +132,10 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   content::WebContents* GetActivePageContents();
   void SetAgentTurnTarget(content::WebContents* target);
   void AbortAgentTurn(DaoToolError error);
+  void FinishPendingBeginAgentTurn(const std::string& callback_id);
+  bool OwnsActiveHomeTurn(const std::string& turn_id,
+                          const base::WeakPtr<content::WebContents>& target);
+  void InvalidateHomeMutationLeases();
   void ExecutePageTool(std::string callback_id,
                        std::string tool_name,
                        base::DictValue arguments);
@@ -142,7 +150,10 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
 
   // Message handlers called from JS via chrome.send().
   void HandleBeginAgentTurn(const base::ListValue& args);
+  void HandleCancelBeginAgentTurn(const base::ListValue& args);
+  void HandleCancelHomeHistoryClaim(const base::ListValue& args);
   void HandleEndAgentTurn(const base::ListValue& args);
+  void HandleExecuteHomeTool(const base::ListValue& args);
   void HandleCancelBrowserTool(const base::ListValue& args);
   void HandleGetPageInfo(const base::ListValue& args);
   void HandleClickElement(const base::ListValue& args);
@@ -279,11 +290,11 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
     PdfCaptureState& operator=(const PdfCaptureState&) = delete;
 
     std::string callback_id;
-    GURL initial_url;          // captured before async chain begins
+    GURL initial_url;  // captured before async chain begins
     std::u16string title;
     int32_t page_count = 0;
     int32_t next_page = 0;
-    std::string text;          // UTF-8 accumulator
+    std::string text;  // UTF-8 accumulator
     static constexpr size_t kBudgetBytes = 512 * 1024;
   };
 
@@ -318,9 +329,14 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   // Domain security and pinned target state for the current Agent turn.
   std::string expected_domain_;
   std::string active_turn_id_;
+  std::string pending_begin_callback_id_;
+  scoped_refptr<DaoHomeMutationLease> home_turn_authorization_;
   std::optional<DaoToolError> agent_turn_unavailable_error_;
   std::unique_ptr<DaoAgentLease> agent_turn_lease_;
   std::unique_ptr<DaoBrowserAutomationSession> agent_turn_session_;
+  std::unique_ptr<DaoHomeAgentTools> home_agent_tools_;
+  std::map<std::string, scoped_refptr<DaoHomeMutationLease>>
+      home_mutation_leases_;
 
   std::unique_ptr<DaoDevToolsClient> devtools_client_;
   std::unique_ptr<DaoBrowserToolExecutor> browser_tool_executor_;
@@ -329,7 +345,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
 
 // Memory-specific message handler, separate from tool handler.
 class DaoAgentMemoryHandler : public content::WebUIMessageHandler,
-                               public DaoAgentProactiveEngine::Delegate {
+                              public DaoAgentProactiveEngine::Delegate {
  public:
   DaoAgentMemoryHandler();
   ~DaoAgentMemoryHandler() override;

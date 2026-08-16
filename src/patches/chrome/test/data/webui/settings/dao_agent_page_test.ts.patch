@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_agent_page_test.ts
-@@ -0,0 +1,891 @@
+@@ -0,0 +1,910 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -852,6 +852,25 @@ index 0000000000..0000000001
 +        ['get_page_info', 'list_tabs'], JSON.parse(secondArgs[1]).sort());
 +    agentSettingsBrowserProxy.resolveSettingWrite(true);
 +    await flushTasks();
++  });
++
++  test('homeToolGroupCanBeDisabled', async function() {
++    const home = page.shadowRoot!.querySelector<HTMLElement & {
++      checked: boolean,
++    }>('[data-tool-group="home"]');
++    assertTrue(!!home);
++    assertTrue(home.checked);
++
++    home.checked = false;
++    home.dispatchEvent(new Event('change'));
++
++    const args = await agentSettingsBrowserProxy.whenCalled('setSetting');
++    assertEquals('dao_disabled_tools', args[0]);
++    const disabledTools = JSON.parse(args[1]);
++    assertEquals(17, disabledTools.length);
++    assertTrue(disabledTools.includes('home_get_manifest'));
++    assertTrue(disabledTools.includes('home_add_asset'));
++    assertTrue(disabledTools.includes('home_get_bootstrap_brief'));
 +  });
 +
 +  test('agentResumeWindowDefaultsToThreeAndAllowsZero', function() {

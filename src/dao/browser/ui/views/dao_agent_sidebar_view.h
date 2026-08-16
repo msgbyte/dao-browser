@@ -5,8 +5,10 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_AGENT_SIDEBAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_AGENT_SIDEBAR_VIEW_H_
 
+#include <cstdint>
 #include <string>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -65,8 +67,14 @@ class DaoAgentSidebarView : public views::View,
   // selection are spliced into the first turn.  Cmd+L keeps the page
   // context (the user is asking about the page they're on); Cmd+T does not
   // (the user is opening a fresh tab to ask a standalone question).
+  // `history_claim_token` is carried only by the exact external prompt that
+  // owns a staged Home history pack. `on_prompt_abandoned` runs if that prompt
+  // is replaced or cannot reach the Agent WebUI before the retry deadline.
   void ExpandAndSubmitPrompt(const std::u16string& prompt,
-                             bool include_page_context);
+                             bool include_page_context,
+                             std::string history_claim_token = std::string(),
+                             base::OnceClosure on_prompt_abandoned =
+                                 base::OnceClosure());
 
   // Expands the sidebar and pre-fills the chat composer without submitting.
   // The request is retried while the Agent WebUI installs its external hook.
@@ -110,7 +118,8 @@ class DaoAgentSidebarView : public views::View,
   // Polls the agent WebUI trying to invoke window.__daoExternalSubmit; kept
   // alive across retries until the hook is installed or kSubmitTimeoutMs
   // elapses.
-  void TryFlushPendingPrompt(int attempts_left);
+  void TryFlushPendingPrompt(int attempts_left, uint64_t generation);
+  void ClearPendingPrompt(uint64_t generation, bool abandoned);
 
   void QueueExternalAction(PendingExternalAction action, std::string value);
   void TryFlushPendingExternalAction(int attempts_left);
@@ -134,13 +143,16 @@ class DaoAgentSidebarView : public views::View,
 
   // Pending prompt queued by ExpandAndSubmitPrompt while the WebUI hook
   // (window.__daoExternalSubmit) is still loading.  Cleared when the
-  // submission is dispatched or the retry deadline is reached.
+  // submission is dispatched, replaced, or the retry deadline is reached.
   std::u16string pending_prompt_;
   // Whether the pending prompt should include current-page / selection
   // context when it lands.  Captured at queue time alongside the prompt
   // because the dispatch is deferred and the caller's intent (Cmd+L vs
   // Cmd+T) needs to survive the wait.
   bool pending_include_page_context_ = true;
+  std::string pending_history_claim_token_;
+  base::OnceClosure pending_prompt_abandoned_;
+  uint64_t pending_prompt_generation_ = 0;
 
   PendingExternalAction pending_external_action_ =
       PendingExternalAction::kNone;
