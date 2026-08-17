@@ -37,6 +37,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
@@ -102,6 +103,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -168,6 +170,7 @@ import androidx.core.content.ContextCompat
 const val BROWSER_SURFACE_TEST_TAG = "browser-surface"
 const val BROWSER_CONTROLS_TEST_TAG = "browser-controls"
 const val NEW_TAB_SCREEN_TEST_TAG = "new-tab-screen"
+const val EDGE_BACK_GESTURE_TEST_TAG = "edge-back-gesture"
 internal const val SECURITY_RIPPLE_TEST_TAG = "security-ripple"
 internal const val BOOKMARK_DRAWER_TILE_TEST_TAG = "bookmark-drawer-tile"
 internal const val BOOKMARK_DRAWER_ICON_TEST_TAG = "bookmark-drawer-icon"
@@ -176,6 +179,8 @@ private val NovaEasing = CubicBezierEasing(0.22f, 0.61f, 0.36f, 1f)
 private const val BrowserTransitionDurationMillis = 220
 private const val BrowserTransitionOffsetDivisor = 10
 private const val TabGridInitialScale = 0.96f
+private val EdgeBackGestureWidth = 24.dp
+private val EdgeBackGestureThreshold = 64.dp
 
 private fun <T> browserMotionSpec() = tween<T>(
     durationMillis = BrowserTransitionDurationMillis,
@@ -308,6 +313,7 @@ fun BrowserScreen(
     val bookmarks by library.bookmarks.collectAsStateWithLifecycle()
     val folders by library.folders.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val rootView = LocalView.current
     val thumbnailCaptures = remember(scope, thumbnailCapture, thumbnailRepository) {
         TabThumbnailCaptureCoordinator(
             scope = scope,
@@ -383,6 +389,24 @@ fun BrowserScreen(
             thumbnailCaptures.capture(tab.id, tab.content.private)
         }
     }
+    val openTabsFromComposePage: () -> Unit = {
+        val tab = controller.selectedTab()
+        val bitmap = try {
+            captureViewThumbnail(rootView)
+        } catch (error: Throwable) {
+            Log.e("BrowserScreen", "Unable to capture Compose tab thumbnail", error)
+            null
+        }
+        if (tab == null || bitmap == null) {
+            navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
+        } else {
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                thumbnailCaptures.captureAndWait(tab.id, tab.content.private) { bitmap }
+                navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
+            }
+            Unit
+        }
+    }
 
     val navigate: (String) -> Unit = { rawTarget ->
         resolver.resolve(rawTarget)?.let { target ->
@@ -450,9 +474,7 @@ fun BrowserScreen(
                         bookmarks = bookmarks,
                         history = history,
                         tabCount = browserState.tabs.size,
-                        onTabs = {
-                            navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
-                        },
+                        onTabs = openTabsFromComposePage,
                         onSettings = { openUtility(BrowserDestination.Settings) },
                         onNavigate = navigate,
                     )
@@ -462,9 +484,7 @@ fun BrowserScreen(
                         initialQuery = addressEditUrl,
                         startExpanded = true,
                         tabCount = browserState.tabs.size,
-                        onTabs = {
-                            navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
-                        },
+                        onTabs = openTabsFromComposePage,
                         onSettings = { openUtility(BrowserDestination.Settings) },
                         onExitExpanded = {
                             navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
@@ -1165,6 +1185,10 @@ private fun BrowsingScreen(
         controller.clearFindMatches()
     }
 
+    BackHandler(enabled = !scannerOpen && !findOpen && content?.canGoBack == true) {
+        controller.goBack()
+    }
+
     androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         ModalNavigationDrawer(
             drawerState = drawerState,
@@ -1195,6 +1219,12 @@ private fun BrowsingScreen(
                             onFind = {
                                 scope.launch { drawerState.close() }
                                 findOpen = true
+                            },
+                            onReload = {
+                                scope.launch {
+                                    drawerState.close()
+                                    controller.reload()
+                                }
                             },
                             onShare = {
                                 val intent = Intent(Intent.ACTION_SEND).apply {
@@ -1259,18 +1289,25 @@ private fun BrowsingScreen(
                         }
                         val session = tab?.engineState?.engineSession
                         if (session != null) {
-                            BrowserSurface(
-                                engine = engine,
-                                session = session,
-                                modifier = Modifier.weight(1f).fillMaxWidth().testTag(BROWSER_SURFACE_TEST_TAG),
-                                thumbnailCapture = thumbnailCapture,
-                                refreshing = refreshRequested,
-                                onRefresh = {
-                                    refreshRequested = true
-                                    refreshObservedLoading = false
-                                    controller.reload()
-                                },
-                            )
+                            Box(Modifier.weight(1f).fillMaxWidth()) {
+                                BrowserSurface(
+                                    engine = engine,
+                                    session = session,
+                                    modifier = Modifier.fillMaxSize().testTag(BROWSER_SURFACE_TEST_TAG),
+                                    thumbnailCapture = thumbnailCapture,
+                                    refreshing = refreshRequested,
+                                    onRefresh = {
+                                        refreshRequested = true
+                                        refreshObservedLoading = false
+                                        controller.reload()
+                                    },
+                                )
+                                EdgeBackGesture(
+                                    enabled = content?.canGoBack == true && drawerState.isClosed,
+                                    onBack = controller::goBack,
+                                    modifier = Modifier.align(Alignment.CenterStart),
+                                )
+                            }
                         } else {
                             Box(Modifier.weight(1f).fillMaxWidth())
                         }
@@ -1297,6 +1334,36 @@ private fun BrowsingScreen(
             onDismiss = { securitySheetOpen = false },
         )
     }
+}
+
+@Composable
+internal fun EdgeBackGesture(
+    enabled: Boolean,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (!enabled) return
+
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(EdgeBackGestureWidth)
+            .testTag(EDGE_BACK_GESTURE_TEST_TAG)
+            .pointerInput(onBack) {
+                var distance = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { distance = 0f },
+                    onHorizontalDrag = { change, dragAmount ->
+                        distance = (distance + dragAmount).coerceAtLeast(0f)
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        if (distance >= EdgeBackGestureThreshold.toPx()) onBack()
+                    },
+                    onDragCancel = { distance = 0f },
+                )
+            },
+    )
 }
 
 @Composable
@@ -1611,6 +1678,7 @@ private fun BrowserDrawer(
     onDarkThemeChange: (Boolean) -> Unit,
     onToggleBookmark: () -> Unit,
     onFind: () -> Unit,
+    onReload: () -> Unit,
     onShare: () -> Unit,
     onHome: () -> Unit,
     onScan: () -> Unit,
@@ -1624,7 +1692,7 @@ private fun BrowserDrawer(
         ) {
             DrawerNavButton(Lucide.ChevronLeft, R.string.back, controller::goBack, Modifier.weight(1f), canGoBack)
             DrawerNavButton(Lucide.ChevronRight, R.string.forward, controller::goForward, Modifier.weight(1f), canGoForward)
-            DrawerNavButton(Lucide.RefreshCw, R.string.reload, controller::reload, Modifier.weight(1f))
+            DrawerNavButton(Lucide.RefreshCw, R.string.reload, onReload, Modifier.weight(1f))
             DrawerNavButton(Lucide.Share, R.string.share, onShare, Modifier.weight(1f))
         }
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -3,6 +3,7 @@ package com.msgbyte.dao.ui
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +53,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+internal const val DAO_BRAND_LOGO_TEST_TAG = "dao-brand-logo"
+
 @Composable
 fun AboutScreen(
     appInfo: AboutAppInfo,
@@ -82,11 +85,13 @@ fun AboutScreen(
                 modifier = Modifier.size(88.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                androidx.compose.foundation.Image(
+                Image(
                     painter = painterResource(R.drawable.dao_brand_logo),
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(DAO_BRAND_LOGO_TEST_TAG),
                 )
             }
             Spacer(Modifier.height(12.dp))

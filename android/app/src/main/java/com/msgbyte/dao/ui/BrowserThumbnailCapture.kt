@@ -1,6 +1,8 @@
 package com.msgbyte.dao.ui
 
 import android.graphics.Bitmap
+import android.view.View
+import androidx.core.view.drawToBitmap
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -32,4 +34,9 @@ class BrowserThumbnailCapture {
     private companion object {
         const val CAPTURE_TIMEOUT_MILLIS = 750L
     }
+}
+
+internal fun captureViewThumbnail(view: View): Bitmap? {
+    if (!view.isLaidOut || view.width <= 0 || view.height <= 0) return null
+    return view.drawToBitmap()
 }

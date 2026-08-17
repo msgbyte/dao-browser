@@ -61,6 +61,7 @@ import mozilla.components.browser.state.state.TabSessionState
 
 const val TAB_GRID_TEST_TAG = "tab-grid"
 const val TAB_CARD_TEST_TAG_PREFIX = "tab-card-"
+const val TAB_THUMBNAIL_TEST_TAG_PREFIX = "tab-thumbnail-"
 
 @Composable
 fun TabGridScreen(
@@ -190,7 +191,8 @@ private fun TabGridCard(
                         Image(
                             bitmap = thumbnail.asImageBitmap(),
                             contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize()
+                                .testTag("$TAB_THUMBNAIL_TEST_TAG_PREFIX${tab.id}"),
                             contentScale = ContentScale.Crop,
                         )
                     } else {

@@ -21,6 +21,22 @@ internal class TabThumbnailCaptureCoordinator(
     private var nextGeneration = 0L
 
     fun capture(tabId: String, private: Boolean) {
+        startCapture(tabId, private, captureThumbnail)
+    }
+
+    suspend fun captureAndWait(
+        tabId: String,
+        private: Boolean,
+        captureThumbnail: suspend () -> Bitmap?,
+    ) {
+        startCapture(tabId, private, captureThumbnail).join()
+    }
+
+    private fun startCapture(
+        tabId: String,
+        private: Boolean,
+        captureThumbnail: suspend () -> Bitmap?,
+    ): Job {
         val previous = captureJobs.remove(tabId)
         previous?.cancel()
         val generation = ++nextGeneration
@@ -45,6 +61,7 @@ internal class TabThumbnailCaptureCoordinator(
                 if (activeGenerations[tabId] == generation) activeGenerations.remove(tabId)
             }
         }
+        return job
     }
 
     suspend fun close(tabId: String) {

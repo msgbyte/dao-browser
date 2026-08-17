@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
@@ -29,6 +30,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.down
@@ -39,8 +41,10 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.msgbyte.dao.ui.NEW_TAB_SCREEN_TEST_TAG
+import com.msgbyte.dao.ui.EDGE_BACK_GESTURE_TEST_TAG
 import com.msgbyte.dao.ui.TAB_GRID_TEST_TAG
 import com.msgbyte.dao.ui.TAB_CARD_TEST_TAG_PREFIX
+import com.msgbyte.dao.ui.TAB_THUMBNAIL_TEST_TAG_PREFIX
 import com.msgbyte.dao.ui.BOOKMARK_OPTIONS_TEST_TAG_PREFIX
 import com.msgbyte.dao.about.readAboutAppInfo
 import com.msgbyte.dao.browser.BrowserFontScale
@@ -336,6 +340,20 @@ class MainActivityTest {
         composeRule.onAllNodesWithContentDescription(closeTab)[0].performClick()
         composeRule.onNodeWithText(composeRule.activity.getString(R.string.tabs_title, 1))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun openingTabGridFromNewTabShowsItsCapturedThumbnail() {
+        val tabs = composeRule.activity.getString(R.string.tab_switcher)
+        val tabThumbnail = SemanticsMatcher("Captured tab thumbnail") { node ->
+            node.config.contains(SemanticsProperties.TestTag) &&
+                node.config[SemanticsProperties.TestTag].startsWith(TAB_THUMBNAIL_TEST_TAG_PREFIX)
+        }
+
+        composeRule.onNodeWithContentDescription(tabs).performClick()
+
+        composeRule.onNodeWithTag(TAB_GRID_TEST_TAG).assertIsDisplayed()
+        composeRule.onNode(tabThumbnail).assertIsDisplayed()
     }
 
     private fun openSettings() {
@@ -753,6 +771,46 @@ class MainActivityTest {
         composeRule.onNodeWithContentDescription(back).assertIsNotEnabled()
         composeRule.onNodeWithContentDescription(forward).assertIsNotEnabled()
         composeRule.onNodeWithContentDescription(reload).assertIsEnabled()
+    }
+
+    @Test
+    fun reloadFromDrawerClosesTheDrawer() {
+        val addressHint = composeRule.activity.getString(R.string.address_hint)
+        val menu = composeRule.activity.getString(R.string.menu)
+        val reload = composeRule.activity.getString(R.string.reload)
+
+        composeRule.onNodeWithText(addressHint).performClick()
+        composeRule.onNode(hasSetTextAction()).performTextInput("about:blank#reload-closes-drawer")
+        composeRule.onNode(hasSetTextAction()).performImeAction()
+        composeRule.onNodeWithContentDescription(menu).performClick()
+        composeRule.onNodeWithContentDescription(reload).performClick()
+
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription(reload).assertIsNotDisplayed()
+        composeRule.onNodeWithContentDescription(menu).assertIsDisplayed()
+    }
+
+    @Test
+    fun rightSwipeFromLeftEdgeNavigatesBack() {
+        val addressHint = composeRule.activity.getString(R.string.address_hint)
+        val firstUrl = "about:blank#edge-back-first"
+        val secondUrl = "about:blank#edge-back-second"
+
+        composeRule.onNodeWithText(addressHint).performClick()
+        composeRule.onNode(hasSetTextAction()).performTextInput(firstUrl)
+        composeRule.onNode(hasSetTextAction()).performImeAction()
+        composeRule.onNodeWithText(firstUrl).performClick()
+        composeRule.onNode(hasSetTextAction()).performTextReplacement(secondUrl)
+        composeRule.onNode(hasSetTextAction()).performImeAction()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag(EDGE_BACK_GESTURE_TEST_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag(EDGE_BACK_GESTURE_TEST_TAG).performTouchInput {
+            swipeRight(startX = 1f, endX = 300f, durationMillis = 250)
+        }
+
+        composeRule.onNodeWithText(firstUrl).assertIsDisplayed()
     }
 
     @Test

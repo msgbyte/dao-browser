@@ -1,11 +1,17 @@
 package com.msgbyte.dao.ui
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -21,6 +27,7 @@ import com.msgbyte.dao.R
 import com.msgbyte.dao.about.AboutAppInfo
 import com.msgbyte.dao.ui.theme.DaoTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,6 +55,37 @@ class AboutScreensTest {
         composeRule.onNodeWithText("Dao Browser").assertIsDisplayed()
         composeRule.onNodeWithText("0.1.0").assertIsDisplayed()
         composeRule.onNodeWithText(engineDisplay).assertIsDisplayed()
+    }
+
+    @Test
+    fun aboutScreenUsesLightLogoInDarkTheme() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val nightConfiguration = Configuration(context.resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                Configuration.UI_MODE_NIGHT_YES
+        }
+        val nightContext = context.createConfigurationContext(nightConfiguration)
+
+        composeRule.setContent {
+            CompositionLocalProvider(LocalContext provides nightContext) {
+                DaoTheme(darkTheme = true) {
+                    AboutScreen(
+                        appInfo = AboutAppInfo("0.1.0", "153.0.2"),
+                        onOpenLicenses = {},
+                        onBack = {},
+                    )
+                }
+            }
+        }
+
+        val pixels = composeRule.onNodeWithTag(DAO_BRAND_LOGO_TEST_TAG)
+            .captureToImage()
+            .toPixelMap()
+        val containsLightLogoPixel = (0 until pixels.height).any { y ->
+            (0 until pixels.width).any { x -> pixels[x, y].luminance() > 0.8f }
+        }
+
+        assertTrue(containsLightLogoPixel)
     }
 
     @Test

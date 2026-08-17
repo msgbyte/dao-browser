@@ -10,11 +10,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import mozilla.components.concept.engine.EngineView
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -140,6 +142,27 @@ class BrowserThumbnailCaptureTest {
 
         assertEquals(listOf(captureFailure), reported)
         assertEquals(listOf(expectedBitmap), saved)
+    }
+
+    @Test
+    fun `capture and wait returns only after the thumbnail is saved`() = runBlocking {
+        val expectedBitmap = mockk<Bitmap>()
+        val allowSave = CompletableDeferred<Unit>()
+        val coordinator = TabThumbnailCaptureCoordinator(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            captureThumbnail = { null },
+            saveThumbnail = { _, _, _ -> allowSave.await() },
+            deleteThumbnail = {},
+        )
+
+        val capture = async {
+            coordinator.captureAndWait(tabId = "new-tab", private = false) { expectedBitmap }
+        }
+        yield()
+
+        assertFalse(capture.isCompleted)
+        allowSave.complete(Unit)
+        capture.await()
     }
 
     @Test
