@@ -222,6 +222,33 @@ class BrowserTabsControllerTest {
     }
 
     @Test
+    fun `external navigation reuses a blank selected tab`() {
+        val controller = createControllerWithEngine()
+        val blankTabId = controller.createTab(private = false)
+
+        controller.openExternalUrl("https://external.example")
+
+        assertEquals(1, controller.state.value.tabs.size)
+        assertEquals(blankTabId, controller.state.value.selectedTabId)
+        assertEquals("https://external.example", controller.selectedTab()?.content?.url)
+    }
+
+    @Test
+    fun `external navigation opens beside an occupied tab with the same privacy mode`() {
+        val controller = createControllerWithEngine()
+        val existingTabId = controller.createTab(private = true)
+        controller.navigate("https://existing.example")
+
+        controller.openExternalUrl("https://external.example")
+
+        assertEquals(2, controller.state.value.tabs.size)
+        assertEquals("https://existing.example", controller.state.value.tabs.first().content.url)
+        assertEquals(existingTabId, controller.state.value.tabs.first().id)
+        assertEquals("https://external.example", controller.selectedTab()?.content?.url)
+        assertTrue(controller.selectedTab()?.content?.private == true)
+    }
+
+    @Test
     fun `ensureSession creates the selected restored engine session`() {
         val engine = mockk<Engine>(relaxed = true)
         val session = mockk<EngineSession>(relaxed = true)
@@ -390,6 +417,22 @@ class BrowserTabsControllerTest {
         snapshotStorage = snapshotStorage,
         onSnapshotClearFailure = onSnapshotClearFailure,
     )
+
+    private fun createControllerWithEngine(): BrowserTabsController {
+        val engine = mockk<Engine>(relaxed = true)
+        every { engine.createSession(any(), any()) } answers {
+            mockk<EngineSession>(relaxed = true)
+        }
+        return BrowserTabsController(
+            store = BrowserStore(
+                middleware = EngineMiddleware.create(
+                    engine = engine,
+                    scope = CoroutineScope(Dispatchers.Unconfined),
+                ),
+            ),
+            defaultPrivateBrowsing = false,
+        )
+    }
 
     private fun recoverableTab(id: String, url: String) = RecoverableTab(
         engineSessionState = null,

@@ -277,6 +277,8 @@ fun BrowserScreen(
     onDefaultPrivateBrowsingChange: (Boolean) -> Unit,
     onRemoteDebuggingChange: (Boolean) -> Unit,
     onEnableRemoteDebuggingWithAcknowledgement: () -> Unit,
+    externalNavigationUrl: String? = null,
+    onExternalNavigationConsumed: () -> Unit = {},
 ) {
     val browserState by controller.state.collectAsStateWithLifecycle()
     val selectedTab = browserState.tabs.firstOrNull { it.id == browserState.selectedTabId }
@@ -357,8 +359,21 @@ fun BrowserScreen(
             ?.let { controller.ensureSession(it.id) }
     }
 
-    LaunchedEffect(selectedTab?.id) {
-        if (!initialTabApplied && selectedTab != null) {
+    LaunchedEffect(
+        selectedTab?.id,
+        selectedTab?.engineState?.engineSession,
+        externalNavigationUrl,
+    ) {
+        if (externalNavigationUrl != null && selectedTab?.engineState?.engineSession != null) {
+            homeReturnTabId = null
+            homeReturnUrl = null
+            extensionPopupSession?.close()
+            extensionPopupSession = null
+            controller.openExternalUrl(externalNavigationUrl)
+            navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
+            initialTabApplied = true
+            onExternalNavigationConsumed()
+        } else if (!initialTabApplied && selectedTab != null) {
             navigateTo(
                 if (selectedTab.content.url == AppConfiguration.INITIAL_URL) {
                     BrowserDestination.NewTab

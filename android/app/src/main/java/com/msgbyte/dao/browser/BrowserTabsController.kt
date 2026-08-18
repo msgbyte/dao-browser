@@ -111,6 +111,16 @@ class BrowserTabsController(
         store.dispatch(EngineAction.LoadUrlAction(tabId, url))
     }
 
+    fun openExternalUrl(url: String) {
+        val selectedTab = selectedTab()
+        if (selectedTab == null) {
+            createTab()
+        } else if (selectedTab.content.url != AppConfiguration.INITIAL_URL) {
+            createTab(private = selectedTab.content.private)
+        }
+        navigate(url)
+    }
+
     fun ensureSession(tabId: String) {
         val tab = state.value.tabs.firstOrNull { it.id == tabId } ?: return
         if (tab.engineState.engineSession != null || tab.engineState.initializing) return
