@@ -681,16 +681,22 @@ void DaoAddressBarView::UpdateBackgroundColor() {
   SetBackground(views::CreateSolidBackground(bg_color));
   UpdateUrlTextColors(bg_color);
 
-  // Adaptive bottom separator: 0.1 opacity white on dark, 0.1 opacity black on light
-  int r = SkColorGetR(bg_color);
-  int g = SkColorGetG(bg_color);
-  int b = SkColorGetB(bg_color);
-  double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-  SkColor separator_color = luminance < 128
-      ? SkColorSetARGB(25, 255, 255, 255)   // dark bg → white 0.1
-      : SkColorSetARGB(25, 0, 0, 0);        // light bg → black 0.1
-  SetBorder(views::CreateSolidSidedBorder(
-      gfx::Insets::TLBR(0, 0, 1, 0), separator_color));
+  // The bottom separator belongs to the expanded address bar chrome. Remove
+  // the border entirely in the collapsed immersive layout so it collapses
+  // together with the rest of the chrome.
+  if (sidebar_collapsed_) {
+    SetBorder(nullptr);
+  } else {
+    int r = SkColorGetR(bg_color);
+    int g = SkColorGetG(bg_color);
+    int b = SkColorGetB(bg_color);
+    double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    SkColor separator_color = luminance < 128
+                                  ? SkColorSetARGB(25, 255, 255, 255)
+                                  : SkColorSetARGB(25, 0, 0, 0);
+    SetBorder(views::CreateSolidSidedBorder(gfx::Insets::TLBR(0, 0, 1, 0),
+                                            separator_color));
+  }
 
   UpdateToggleButtonColor();
   UpdateNavButtonColors();
@@ -758,6 +764,9 @@ void DaoAddressBarView::SetSidebarCollapsed(bool collapsed) {
     return;
   }
   sidebar_collapsed_ = collapsed;
+
+  // Update the bottom separator together with the collapsed chrome state.
+  UpdateBackgroundColor();
 
   if (traffic_light_spacer_) {
     // In fullscreen there are no traffic lights, so never show the spacer.
