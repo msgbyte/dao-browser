@@ -28,7 +28,6 @@
 class Browser;
 
 namespace views {
-class Label;
 class Textfield;
 }
 
@@ -98,6 +97,18 @@ class DaoCommandBarView : public views::View,
   const std::u16string& GetInlineAutocompletionForTesting() const {
     return inline_autocompletion_;
   }
+  const std::u16string& GetUserInputTextForTesting() const {
+    return user_input_text_;
+  }
+  const std::u16string& GetSelectionPreviewTextForTesting() const {
+    return selection_preview_text_;
+  }
+  bool IsSelectionPreviewActiveForTesting() const {
+    return selection_preview_active_;
+  }
+  int GetAutocompleteStartCountForTesting() const {
+    return autocomplete_start_count_for_testing_;
+  }
   int GetAutocompleteProviderTypesForTesting() const {
     return GetAutocompleteProviderTypesForCurrentMode();
   }
@@ -130,15 +141,18 @@ class DaoCommandBarView : public views::View,
   void StopAutocomplete();
   void ClearSuggestions();
   void UpdateSuggestions();
-  void UpdateGhostText();
-  void PositionGhostText();
+  void UpdateSelectionPreview();
+  void ClearSelectionPreview(bool restore_user_input);
+  void AcceptSelectionPreview();
+  std::u16string GetSelectionPreviewText() const;
+  void UpdateInlineAutocompletion();
+  void ClearInlineAutocompletion(bool restore_user_input);
   void UpdateInputIcon();
   void FillInput(const std::u16string& text);
 
-  // Derives inline completion from the current default action only. This keeps
-  // ghost text, auto-selection, and Enter submission aligned with browser
-  // omnibox behavior. Returns the empty string when nothing applies or when
-  // ghost text is suppressed for the current query.
+  // Derives inline completion from the current default action when no
+  // selection preview is active. Returns the empty string when nothing applies
+  // or suggested text is suppressed for the current query.
   std::u16string GetInlineAutocompletionForResult() const;
   bool IsAutocompleteResultStableForInlineAutocompletion() const;
   bool HasSubmittableInlineAutocompletion() const;
@@ -167,7 +181,6 @@ class DaoCommandBarView : public views::View,
   raw_ptr<views::View> card_container_ = nullptr;
   raw_ptr<views::ImageView> favicon_icon_ = nullptr;
   raw_ptr<views::Textfield> textfield_ = nullptr;
-  raw_ptr<views::Label> ghost_text_label_ = nullptr;
   raw_ptr<views::View> dropdown_container_ = nullptr;
 
   std::vector<raw_ptr<DaoSuggestionItemView>> suggestion_views_;
@@ -178,25 +191,27 @@ class DaoCommandBarView : public views::View,
   bool autocomplete_controller_uses_enhanced_suggestions_ = false;
 
   int selected_index_ = -1;
-  // In default mode, auto-selection keeps this false so Enter follows visible
-  // inline completion or typed input; arrow keys and clicks flip it so explicit
-  // suggestions win. Enhanced suggestions always submit the selected visible
-  // row first, matching the visual default action.
+  // Tracks whether the highlighted row was reached through explicit keyboard
+  // or pointer interaction. Automatic highlighting leaves this false so it
+  // cannot write a preview into the textfield.
   bool selection_explicitly_changed_ = false;
   std::u16string user_input_text_;
+  std::u16string selection_preview_text_;
+  // The last explicitly previewed value rejected with Backspace. Keep it
+  // across subsequent edits so a late result cannot restore that exact value.
+  std::u16string rejected_selection_preview_text_;
+  bool selection_preview_active_ = false;
   std::u16string inline_autocompletion_;
   bool updating_textfield_ = false;
   int visible_suggestion_count_ = 0;
+  int autocomplete_start_count_for_testing_ = 0;
   std::optional<AutocompleteController::UpdateType>
       autocomplete_update_type_for_testing_;
 
-  // True while the user is deleting in the current query lifetime — set in
-  // ContentsChanged when the textfield shrinks and on the first Backspace
-  // that absorbs visible ghost text. Cleared on the next non-deletion query.
-  // Blocks both Chromium's async inline-autocomplete output and Dao's local
-  // fallback derivation so deletion does not feel sticky. Also gates Enter:
-  // while set, ApplySelectedSuggestion ignores the auto-selected default
-  // match and navigates by the typed text instead.
+  // True only for the unchanged query after deleting or rejecting suggested
+  // text. It scopes Chromium's prevent-inline-autocomplete input flag to the
+  // deletion request; a later insertion clears it so provider ranking remains
+  // unchanged for the new query.
   bool suppress_ghost_for_current_query_ = false;
 
   // Length of |user_input_text_| at the previous ContentsChanged tick. Used

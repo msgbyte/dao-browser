@@ -76,12 +76,25 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   - Cmd+L → `Show()` pre-fills current URL (`SetFocusToLocationBar(is_user_initiated=true)`)
   - Cmd+T → `ShowForNewTab(prev)` opens blank tab, remembers previous tab; Esc / click-outside calls `CancelNewTab()` to close the blank and return
   - **Ask AI** — Submits prompt directly to the Agent
-  - URL-vs-query detection heuristics + ghost-text completion
+  - URL-vs-query detection heuristics + provider inline completion when no
+    selection preview is active; the native textfield contains the typed prefix
+    plus a selected completion suffix, so Select All, copy, and replacement
+    edits include the completed text, while long suffixes keep the typed prefix
+    and caret boundary visible
   - Every non-blank query reserves one exact-input Search action within the
     five-row suggestion limit, even when history, tabs, bookmarks, or URL
     matches rank above it; empty and whitespace-only input shows no suggestions
-  - Keyboard-first: arrow keys to select, Right Arrow to fill the selected
-    suggestion into the input, Tab to complete, Esc to dismiss
+  - The first result is highlighted automatically without writing that row's
+    `fill_into_edit` value into the native textfield; provider-owned inline
+    completion remains a distinct selected suffix, and only explicit arrow-key
+    browsing previews a row while the original query remains separate and
+    autocomplete is not restarted
+  - Keyboard-first: Backspace rejects a non-identical preview without deleting
+    the query; that exact rejected suggestion stays suppressed while the user
+    continues typing, and later provider results remain highlight-only until the
+    user browses or accepts them; Right Arrow or Tab accepts the highlighted or
+    previewed row without navigating, Enter submits the selected result, and
+    Esc dismisses
 - **DaoSuggestionItemView** (`dao_suggestion_item_view.{h,cc}`) — Suggestion row
 - **DaoNewTabButton** also routes through `ShowForNewTab()` with the recorded previous index
 

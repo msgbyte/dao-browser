@@ -188,6 +188,8 @@
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
+#include "ui/gfx/range/range.h"
+#include "ui/gfx/text_utils.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/button/image_button.h"
@@ -2986,7 +2988,93 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
 // DaoCommandBarBrowserTest
 // =============================================================================
 
-class DaoCommandBarBrowserTest : public InProcessBrowserTest {};
+class DaoCommandBarBrowserTest : public InProcessBrowserTest {
+ protected:
+  bool LoadAgentWebUI() {
+    agent_sidebar_ = GetBrowserView(browser())->dao_agent_sidebar();
+    if (!agent_sidebar_) {
+      ADD_FAILURE() << "Agent sidebar is unavailable";
+      return false;
+    }
+
+    auto* web_view =
+        FindDescendantViewOfClass<views::WebView>(agent_sidebar_);
+    if (!web_view) {
+      ADD_FAILURE() << "Agent WebView is unavailable";
+      return false;
+    }
+    agent_contents_ = web_view->GetWebContents();
+    if (!agent_contents_) {
+      ADD_FAILURE() << "Agent WebContents is unavailable";
+      return false;
+    }
+
+    const GURL agent_url("chrome://agent/");
+    if (agent_contents_->GetLastCommittedURL() != agent_url) {
+      content::TestNavigationObserver observer(agent_contents_);
+      agent_sidebar_->Toggle();
+      observer.Wait();
+    } else if (!agent_sidebar_->is_expanded()) {
+      agent_sidebar_->Toggle();
+    }
+    if (!content::WaitForLoadStop(agent_contents_)) {
+      ADD_FAILURE() << "Agent WebUI did not finish loading";
+      return false;
+    }
+
+    return content::EvalJs(agent_contents_, R"(
+      (async () => {
+        await customElements.whenDefined('dao-agent-app');
+        return true;
+      })()
+    )").ExtractBool();
+  }
+
+  bool InstallExternalSubmitRecorder() {
+    if (!agent_contents_) {
+      return false;
+    }
+    return content::ExecJs(agent_contents_, R"(
+      (() => {
+        window.__daoExternalActions = [];
+        window.__daoExternalSubmit = (value, options) => {
+          window.__daoExternalActions.push({
+            kind: 'submit',
+            value,
+            includePageContext: options?.includePageContext,
+          });
+        };
+        window.__daoWaitForExternalAction = () => new Promise(resolve => {
+          const deadline = Date.now() + 7000;
+          const poll = () => {
+            if (window.__daoExternalActions.length > 0) {
+              resolve(true);
+              return;
+            }
+            if (Date.now() >= deadline) {
+              resolve(false);
+              return;
+            }
+            setTimeout(poll, 10);
+          };
+          poll();
+        });
+      })();
+    )");
+  }
+
+  bool WaitForExternalAction() {
+    if (!agent_contents_) {
+      return false;
+    }
+    return content::EvalJs(agent_contents_,
+                           "window.__daoWaitForExternalAction()")
+        .ExtractBool();
+  }
+
+  raw_ptr<dao::DaoAgentSidebarView> agent_sidebar_ = nullptr;
+  raw_ptr<content::WebContents> agent_contents_ = nullptr;
+};
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, CommandBarInitiallyHidden) {
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -3006,7 +3094,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, CommandBarShowAndHide) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       InputAndInlineCompletionUseSeventeenPointText) {
+                       InlineCompletionUsesNativeTextfieldSelection) {
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
@@ -3016,10 +3104,96 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
   ASSERT_NE(nullptr, textfield);
   EXPECT_EQ(17, textfield->GetFontList().GetFontSize());
+  EXPECT_EQ(u"dao.com", textfield->GetText());
+  EXPECT_EQ(gfx::Range(7, 3), textfield->GetSelectedRange());
+  EXPECT_EQ(u".com", textfield->GetSelectedText());
+}
 
-  auto* ghost_label = FindDescendantLabelWithText(command_bar, u".com");
-  ASSERT_NE(nullptr, ghost_label);
-  EXPECT_EQ(17, ghost_label->font_list().GetFontSize());
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InlineCompletionSelectAllIncludesCompletedText) {
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"dao", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.inline_autocompletion = u".com";
+  match.fill_into_edit = u"dao.com";
+  match.contents = u"dao.com";
+  match.destination_url = GURL("https://dao.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match}, true);
+
+  auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  textfield->SelectAll(false);
+
+  // A repeated async provider result must not reset the user's full selection
+  // back to only the inline suffix.
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match}, true);
+  EXPECT_EQ(u"dao.com", textfield->GetSelectedText());
+  textfield->InsertOrReplaceText(u"replacement");
+  EXPECT_EQ(u"replacement", textfield->GetText());
+  EXPECT_EQ(u"replacement", command_bar->GetUserInputTextForTesting());
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       InlineCompletionKeepsTypedPrefixVisible) {
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  const std::u16string user_input = u"githu";
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(user_input, u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.inline_autocompletion =
+      u"b.com/chengzeli7/Bartender/tree/master/app/src/main/java/com/example/"
+      u"commandbar/VeryLongCompletion.java";
+  match.fill_into_edit = user_input + match.inline_autocompletion;
+  match.contents = match.fill_into_edit;
+  match.destination_url = GURL("https://github.com/chengzeli7/Bartender/tree/"
+                               "master/app/src/main/java/com/example/"
+                               "commandbar/VeryLongCompletion.java");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match}, true);
+
+  auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_LT(textfield->width(),
+            gfx::GetStringWidth(textfield->GetText(),
+                                textfield->GetFontList()));
+
+  const int display_left =
+      textfield->GetBoundsInScreen().x() + textfield->GetInsets().left();
+  const int typed_prefix_width =
+      gfx::GetStringWidth(user_input, textfield->GetFontList());
+  EXPECT_GE(textfield->GetCaretBounds().x(),
+            display_left + typed_prefix_width - 1);
+  EXPECT_EQ(gfx::Range(textfield->GetText().length(), user_input.length()),
+            textfield->GetSelectedRange());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       TypingReplacesSelectedInlineCompletionSuffix) {
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"go",
+                                                             u"ogle.com");
+
+  auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  textfield->InsertOrReplaceText(u"x");
+
+  EXPECT_EQ(u"gox", textfield->GetText());
+  EXPECT_EQ(u"gox", command_bar->GetUserInputTextForTesting());
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowIsIdempotent) {
@@ -3272,12 +3446,15 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
     command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
     command_bar->SetAutocompleteMatchesForTesting(ACMatches{history_match});
     ASSERT_GT(command_bar->GetVisibleSuggestionCountForTesting(), 0);
+    ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
 
     command_bar->ContentsChanged(nullptr, u"");
 
     EXPECT_EQ(0, command_bar->GetVisibleSuggestionCountForTesting());
     EXPECT_EQ(-1, command_bar->GetSelectedIndexForTesting());
     EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
+    EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+    EXPECT_TRUE(command_bar->GetSelectionPreviewTextForTesting().empty());
     EXPECT_FALSE(
         HasVisibleDescendantLabelText(command_bar, u"github.com"));
     command_bar->Hide();
@@ -3585,8 +3762,9 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   EXPECT_EQ(target_url, contents->GetLastCommittedURL());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       RightArrowFillsExplicitlySelectedSuggestion) {
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    SelectionPreviewArrowsAndRightAcceptanceDoNotRestartOrNavigate) {
   browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
 
@@ -3623,20 +3801,469 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   views::Textfield* textfield =
       FindDescendantViewOfClass<views::Textfield>(command_bar);
   ASSERT_NE(nullptr, textfield);
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_EQ(u"git", command_bar->GetUserInputTextForTesting());
+  EXPECT_TRUE(command_bar->GetSelectionPreviewTextForTesting().empty());
+  EXPECT_EQ(u"github.com", textfield->GetText());
+  EXPECT_EQ(gfx::Range(10, 3), textfield->GetSelectedRange());
+  EXPECT_EQ(u"hub.com",
+            command_bar->GetInlineAutocompletionForTesting());
+
+  const int autocomplete_start_count =
+      command_bar->GetAutocompleteStartCountForTesting();
 
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
   ASSERT_EQ(1, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"github.com/settings/profile", textfield->GetText());
+  EXPECT_EQ(autocomplete_start_count,
+            command_bar->GetAutocompleteStartCountForTesting());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"github.com", textfield->GetText());
+  EXPECT_EQ(autocomplete_start_count,
+            command_bar->GetAutocompleteStartCountForTesting());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  ASSERT_EQ(1, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"github.com/settings/profile", textfield->GetText());
+  EXPECT_EQ(autocomplete_start_count,
+            command_bar->GetAutocompleteStartCountForTesting());
 
   const int tab_count = browser()->tab_strip_model()->count();
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RIGHT);
 
   EXPECT_EQ(u"github.com/settings/profile", textfield->GetText());
+  EXPECT_EQ(u"github.com/settings/profile",
+            command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(autocomplete_start_count + 1,
+            command_bar->GetAutocompleteStartCountForTesting());
   EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
   EXPECT_TRUE(command_bar->GetVisible());
 }
 
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    SelectionPreviewUpArrowWrapsAndUpdatesSuggestionPreview) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"github.com";
+  match.contents = u"github.com";
+  match.destination_url = GURL("https://github.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  ASSERT_EQ(2, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_EQ(u"git", textfield->GetText());
+
+  const int autocomplete_start_count =
+      command_bar->GetAutocompleteStartCountForTesting();
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+
+  EXPECT_EQ(1, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"git", textfield->GetText());
+  EXPECT_EQ(u"git", command_bar->GetSelectionPreviewTextForTesting());
+  EXPECT_EQ(autocomplete_start_count,
+            command_bar->GetAutocompleteStartCountForTesting());
+}
+
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       EnterSubmitsTypedInputWhenSelectionIsAutomatic) {
+                       SelectionPreviewTabAcceptsWithoutMovingFocus) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"github.com";
+  match.contents = u"github.com";
+  match.destination_url = GURL("https://github.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(u"git", textfield->GetText());
+  ASSERT_TRUE(textfield->HasFocus());
+  const int autocomplete_start_count =
+      command_bar->GetAutocompleteStartCountForTesting();
+  const int tab_count = browser()->tab_strip_model()->count();
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_TAB);
+
+  EXPECT_EQ(u"github.com", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(u"github.com", textfield->GetText());
+  EXPECT_EQ(autocomplete_start_count + 1,
+            command_bar->GetAutocompleteStartCountForTesting());
+  EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
+  EXPECT_TRUE(command_bar->GetVisible());
+  EXPECT_TRUE(textfield->HasFocus());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    AutoHighlightedSuggestionDoesNotReplaceEditedInputUntilAccepted) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"github", u"");
+
+  AutocompleteMatch initial_match(nullptr, 1000, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  initial_match.allowed_to_be_default_match = true;
+  initial_match.fill_into_edit = u"github.com";
+  initial_match.contents = u"github.com";
+  initial_match.destination_url = GURL("https://github.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{initial_match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(u"github", textfield->GetText());
+
+  textfield->SetSelectedRange(gfx::Range(3, 6));
+  textfield->InsertOrReplaceText(u"");
+  textfield->InsertOrReplaceText(u"x");
+  ASSERT_EQ(u"gitx", command_bar->GetUserInputTextForTesting());
+  ASSERT_EQ(u"gitx", textfield->GetText());
+
+  AutocompleteMatch fresh_match(nullptr, 1100, false,
+                                AutocompleteMatchType::HISTORY_URL);
+  fresh_match.allowed_to_be_default_match = true;
+  fresh_match.fill_into_edit = u"gitx.dev";
+  fresh_match.contents = u"gitx.dev";
+  fresh_match.destination_url = GURL("https://gitx.dev/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{fresh_match});
+
+  EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_EQ(u"gitx", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(u"gitx", textfield->GetText());
+  EXPECT_EQ(gfx::Range(4), textfield->GetSelectedRange());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RIGHT);
+
+  EXPECT_EQ(u"gitx.dev", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(u"gitx.dev", textfield->GetText());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SelectionPreviewTypingReplacesSelectedSuffix) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"github.com";
+  match.contents = u"github.com";
+  match.destination_url = GURL("https://github.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(gfx::Range(3, 10), textfield->GetSelectedRange());
+  const int autocomplete_start_count =
+      command_bar->GetAutocompleteStartCountForTesting();
+
+  textfield->InsertOrReplaceText(u"x");
+
+  EXPECT_EQ(u"gitx", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(u"gitx", textfield->GetText());
+  EXPECT_EQ(autocomplete_start_count + 1,
+            command_bar->GetAutocompleteStartCountForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    SelectionPreviewBackspaceRejectsAndAsyncTickDoesNotRestore) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"github.com";
+  match.contents = u"github.com";
+  match.destination_url = GURL("https://github.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_BACK);
+
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_EQ(u"git", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(u"git", textfield->GetText());
+  EXPECT_EQ(gfx::Range(3), textfield->GetSelectedRange());
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_EQ(u"git", textfield->GetText());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  EXPECT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_EQ(u"github.com", textfield->GetText());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    SelectionPreviewRejectionSuppressionSurvivesSubsequentTyping) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"github.com";
+  match.contents = u"github.com";
+  match.destination_url = GURL("https://github.com/");
+  match.inline_autocompletion = u"hub.com";
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_BACK);
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(u"git", textfield->GetText());
+
+  textfield->InsertOrReplaceText(u"x");
+  ASSERT_EQ(u"gitx", command_bar->GetUserInputTextForTesting());
+  ASSERT_EQ(u"gitx", textfield->GetText());
+
+  // A stale provider result must not restore the rejected text or become the
+  // implicit Enter action after the user continues typing.
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+  EXPECT_EQ(u"gitx", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(u"gitx", textfield->GetText());
+  EXPECT_EQ(gfx::Range(4), textfield->GetSelectedRange());
+
+  AutocompleteMatch fresh_match(nullptr, 1100, false,
+                                AutocompleteMatchType::HISTORY_URL);
+  fresh_match.allowed_to_be_default_match = true;
+  fresh_match.fill_into_edit = u"gitx.dev";
+  fresh_match.contents = u"gitx.dev";
+  fresh_match.destination_url = GURL("https://gitx.dev/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{fresh_match});
+
+  // A different result may be highlighted automatically, but it must not
+  // enter the textfield until the user browses or accepts it.
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_EQ(u"gitx", textfield->GetText());
+  EXPECT_EQ(gfx::Range(4), textfield->GetSelectedRange());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RIGHT);
+  EXPECT_EQ(u"gitx.dev", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(u"gitx.dev", textfield->GetText());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SelectionPreviewRecomputesWhenSameRowChanges) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"github.com";
+  match.contents = u"github.com";
+  match.destination_url = GURL("https://github.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"git", textfield->GetText());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_EQ(gfx::Range(3, 10), textfield->GetSelectedRange());
+
+  match.fill_into_edit = u"https://github.com";
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+  EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"https://github.com", textfield->GetText());
+  EXPECT_EQ(gfx::Range(18), textfield->GetSelectedRange());
+
+  match.fill_into_edit.clear();
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+  EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"git", textfield->GetText());
+  EXPECT_EQ(gfx::Range(3), textfield->GetSelectedRange());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    SelectionPreviewPreservesOriginalInputForExactSearchAndAskAi) {
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"new york", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"newyork.com";
+  match.contents = u"newyork.com";
+  match.destination_url = GURL("https://newyork.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_EQ(1, command_bar->GetAskAiRowIndexForTesting());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  ASSERT_EQ(1, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"new york", textfield->GetText());
+  EXPECT_EQ(u"new york", command_bar->GetSelectionPreviewTextForTesting());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  ASSERT_EQ(2, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"new york", textfield->GetText());
+  EXPECT_EQ(u"new york", command_bar->GetSelectionPreviewTextForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SelectionPreviewEnterOnAskAiUsesOriginalQuery) {
+  ASSERT_TRUE(LoadAgentWebUI());
+  ASSERT_TRUE(InstallExternalSubmitRecorder());
+
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"new york", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"newyork.com";
+  match.contents = u"newyork.com";
+  match.destination_url = GURL("https://newyork.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  ASSERT_EQ(1, command_bar->GetAskAiRowIndexForTesting());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  ASSERT_EQ(1, command_bar->GetSelectedIndexForTesting());
+  ASSERT_EQ(u"new york", command_bar->GetSelectionPreviewTextForTesting());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+
+  ASSERT_TRUE(WaitForExternalAction());
+  EXPECT_EQ("submit",
+            content::EvalJs(agent_contents_,
+                            "window.__daoExternalActions[0].kind")
+                .ExtractString());
+  EXPECT_EQ("new york",
+            content::EvalJs(agent_contents_,
+                            "window.__daoExternalActions[0].value")
+                .ExtractString());
+  EXPECT_FALSE(
+      content::EvalJs(
+          agent_contents_,
+          "window.__daoExternalActions[0].includePageContext")
+          .ExtractBool());
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    SelectionPreviewClearsOnHideAndNewTabInitialization) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.fill_into_edit = u"github.com";
+  match.contents = u"github.com";
+  match.destination_url = GURL("https://github.com/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(u"git", textfield->GetText());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(u"github.com", textfield->GetText());
+
+  command_bar->Hide();
+
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_TRUE(command_bar->GetSelectionPreviewTextForTesting().empty());
+  EXPECT_EQ(u"git", textfield->GetText());
+
+  command_bar->ShowForNewTab();
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_TRUE(command_bar->GetSelectionPreviewTextForTesting().empty());
+  EXPECT_TRUE(textfield->GetText().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SelectionPreviewEnterSubmitsAutoSelectedMatch) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL typed_url = embedded_test_server()->GetURL("/title1.html");
@@ -3661,6 +4288,11 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
   ASSERT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_EQ(base::UTF8ToUTF16(typed_url.spec()), textfield->GetText());
 
   ui_test_utils::TabAddedWaiter tab_waiter(browser());
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
@@ -3668,7 +4300,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_NE(nullptr, contents);
   ASSERT_TRUE(content::WaitForLoadStop(contents));
 
-  EXPECT_EQ(typed_url, contents->GetLastCommittedURL());
+  EXPECT_EQ(suggestion_url, contents->GetLastCommittedURL());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
@@ -3700,7 +4332,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       EnhancedSuggestionsEnterSubmitsAutoSelectedMatch) {
+                       EnhancedSelectionPreviewEnterSubmitsAutoSelectedMatch) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL typed_url = embedded_test_server()->GetURL("/title1.html");
@@ -3727,6 +4359,11 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
   ASSERT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_EQ(base::UTF8ToUTF16(typed_url.spec()), textfield->GetText());
 
   ui_test_utils::TabAddedWaiter tab_waiter(browser());
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
@@ -3774,7 +4411,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
-    EnhancedSuggestionsEnterAfterGhostRejectionUsesTypedInput) {
+    SelectionPreviewEnterAfterBackspaceRejectionUsesTypedInput) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL typed_url = embedded_test_server()->GetURL("/title1.html");
@@ -3805,13 +4442,31 @@ IN_PROC_BROWSER_TEST_F(
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match},
                                                 /*autocomplete_done=*/true);
   ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
-  ASSERT_EQ(std::u16string(kGhost),
-            command_bar->GetInlineAutocompletionForTesting());
-
-  // First Backspace absorbs the visible ghost text and marks the inline
-  // suggestion as rejected for this query; the typed text stays intact.
-  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_BACK);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
   ASSERT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+
+  // First Backspace rejects the visible selection preview and leaves the
+  // original query intact.
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_BACK);
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(typed_text, command_bar->GetUserInputTextForTesting());
+
+  views::Textfield* textfield =
+      FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  textfield->InsertOrReplaceText(u"#typed");
+  const GURL edited_url(typed_url.spec() + "#typed");
+  ASSERT_EQ(base::UTF8ToUTF16(edited_url.spec()),
+            command_bar->GetUserInputTextForTesting());
+
+  // Simulate the rejected result arriving again after the next edit. It must
+  // remain neither visible as a preview nor eligible as the implicit action.
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match},
+                                                /*autocomplete_done=*/true);
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(base::UTF8ToUTF16(edited_url.spec()), textfield->GetText());
 
   ui_test_utils::TabAddedWaiter tab_waiter(browser());
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
@@ -3819,9 +4474,9 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_NE(nullptr, contents);
   ASSERT_TRUE(content::WaitForLoadStop(contents));
 
-  // Enter must honor the rejection and navigate by the typed text, not the
-  // auto-selected match behind the rejected ghost text.
-  EXPECT_EQ(typed_url, contents->GetLastCommittedURL());
+  // Enter must honor the rejection and subsequent edit, not the auto-selected
+  // match behind the rejected ghost text.
+  EXPECT_EQ(edited_url, contents->GetLastCommittedURL());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
@@ -4086,7 +4741,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       InlineAutocompletionClearsForNewQuery) {
+                       SelectionPreviewSuppressesGhostForNewQuery) {
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
@@ -4101,15 +4756,20 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   default_match.contents = u"google.com";
   default_match.destination_url = GURL("https://google.com/");
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match});
-  ASSERT_EQ(u"ogle.com", command_bar->GetInlineAutocompletionForTesting());
+  ASSERT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
 
   command_bar->ContentsChanged(nullptr, u"goo");
 
   EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       InlineAutocompletionWaitsForStableResult) {
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    SelectionPreviewSuppressesGhostForTransientAndStableResults) {
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
@@ -4126,14 +4786,19 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match},
                                                 false);
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  EXPECT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
   EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match}, true);
-  EXPECT_EQ(u"ogle.com", command_bar->GetInlineAutocompletionForTesting());
+  EXPECT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       InlineAutocompletionAllowsSearchLikeInput) {
+                       SelectionPreviewSuppressesGhostForSearchLikeInput) {
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
@@ -4150,9 +4815,11 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{default_match}, true);
 
-  // Search-like inputs (no dot, >2 chars) used to be suppressed; ghost
-  // text now follows the default match like the browser omnibox does.
-  EXPECT_EQ(u"gle.com", command_bar->GetInlineAutocompletionForTesting());
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  EXPECT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
