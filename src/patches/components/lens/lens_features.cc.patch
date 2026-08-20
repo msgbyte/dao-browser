@@ -1,0 +1,15 @@
+diff --git a/components/lens/lens_features.cc b/components/lens/lens_features.cc
+index 6e75033c6b2b..0c442576b52c 100644
+--- a/components/lens/lens_features.cc
++++ b/components/lens/lens_features.cc
+@@ -640,7 +640,9 @@ bool GetShouldIssueProcessPrewarmingForLens() {
+ }
+ 
+ bool IsLensOverlayEnabled() {
+-  return base::FeatureList::IsEnabled(kLensOverlay);
++  // Dao does not expose the Google Lens overlay or any of its browser entry
++  // points.
++  return false;
+ }
+ 
+ std::string GetLensOverlayActivityURL() {

@@ -721,6 +721,7 @@ Lightweight window form factor for popups / mini-tools.
 
 ## 12. Shortcuts and Menus
 
+- **Google Lens Overlay disabled** — `components/lens/lens_features.cc.patch` permanently disables the overlay capability, removing its toolbar, address-bar, app-menu, and context-menu entry points while preserving ordinary search-provider image search
 - **macOS global shortcuts** — `chrome/browser/global_keyboard_shortcuts_mac.mm.patch`
 - **macOS main menu** — `cocoa/main_menu_builder.mm.patch` + `cocoa/accelerators_cocoa.mm.patch`
 - **App controller** — `app_controller_mac.mm.patch` (validate + execute commands when no browser window exists)
