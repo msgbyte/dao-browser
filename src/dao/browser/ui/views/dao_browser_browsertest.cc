@@ -58,6 +58,9 @@
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
 #include "chrome/browser/ui/startup/startup_types.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_native_view.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
@@ -66,6 +69,9 @@
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
+#include "chrome/browser/ui/views/side_panel/side_panel.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_header.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/search_test_utils.h"
@@ -9291,6 +9297,56 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarHitTestBrowserTest,
   const int hit = browser_view->NonClientHitTest(center);
   EXPECT_EQ(HTCLIENT, hit)
       << "The center of the address bar must be HTCLIENT so its buttons "
+         "receive clicks. Got hit code "
+      << hit << " (HTNOWHERE = window drag region = unclickable).";
+}
+
+// =============================================================================
+// DaoNativeSidePanelHitTestBrowserTest
+//
+// Chromium's native Side Panel header overlaps Dao's draggable titlebar strip.
+// Its header must remain client area so controls such as Close receive clicks.
+// =============================================================================
+
+using DaoNativeSidePanelHitTestBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoNativeSidePanelHitTestBrowserTest,
+                       HeaderCenterIsHTCLIENT) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  ASSERT_NE(nullptr, browser_view);
+
+  SidePanelCoordinator* coordinator = SidePanelCoordinator::From(browser());
+  ASSERT_NE(nullptr, coordinator);
+  coordinator->DisableAnimationsForTesting();
+
+  SidePanelRegistry* registry =
+      SidePanelRegistry::From(browser()->GetActiveTabInterface());
+  ASSERT_NE(nullptr, registry);
+  const SidePanelEntry::Key entry_key(
+      SidePanelEntry::Id::kShoppingInsights);
+  ASSERT_TRUE(registry->Register(std::make_unique<SidePanelEntry>(
+      entry_key,
+      base::BindRepeating([](SidePanelEntryScope&) {
+        return SidePanelNativeView(std::make_unique<views::View>());
+      }),
+      /*default_content_width_callback=*/base::NullCallback())));
+  coordinator->Show(entry_key);
+
+  SidePanel* side_panel = browser_view->side_panel();
+  ASSERT_NE(nullptr, side_panel);
+  ASSERT_TRUE(side_panel->GetVisible());
+
+  browser_view->DeprecatedLayoutImmediately();
+  SidePanelHeader* header = side_panel->GetHeaderView<SidePanelHeader>();
+  ASSERT_NE(nullptr, header);
+  ASSERT_FALSE(header->bounds().IsEmpty());
+
+  gfx::Point center = header->GetLocalBounds().CenterPoint();
+  views::View::ConvertPointToTarget(header, browser_view, &center);
+
+  const int hit = browser_view->NonClientHitTest(center);
+  EXPECT_EQ(HTCLIENT, hit)
+      << "The native Side Panel header must be HTCLIENT so its controls "
          "receive clicks. Got hit code "
       << hit << " (HTNOWHERE = window drag region = unclickable).";
 }

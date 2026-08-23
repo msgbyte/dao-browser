@@ -70,6 +70,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 ### 1.4 Address Bar and Active-Tab URL
 - **DaoAddressBarView** (`dao_address_bar_view.{h,cc}`) — Embedded URL pill (14px radius), referenced by sidebar / command bar / control center; adapts text color to background luminance
 - Active-tab URL display is rendered inline in the dual-line tab item
+- **Native Side Panel compatibility** — Chromium Side Panel content and its
+  40px header remain client-hit-testable where they overlap Dao's macOS
+  titlebar, so header controls such as Pin and Close continue to receive clicks
 
 ### 1.5 Command Bar (Spotlight-style)
 - **DaoCommandBarView** (`dao_command_bar_view.{h,cc}`) — Translucent scrim + frosted floating panel + layered shadows

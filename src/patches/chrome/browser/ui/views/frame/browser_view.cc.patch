@@ -282,7 +282,7 @@ index bcb1930a86dd2..20acaf3489516 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
-@@ -4706,6 +4906,98 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4706,6 +4906,105 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -322,6 +322,13 @@ index bcb1930a86dd2..20acaf3489516 100644
 +        dao_mcp_control_banner_->GetVisible() &&
 +        dao_mcp_control_banner_->bounds().Contains(
 +            point_in_browser_view_coords)) {
++      return HTCLIENT;
++    }
++
++    // Dao: Chromium's native Side Panel overlaps the draggable top strip.
++    // Keep its header controls, including Close, clickable.
++    if (side_panel_ && side_panel_->GetVisible() &&
++        side_panel_->bounds().Contains(point_in_browser_view_coords)) {
 +      return HTCLIENT;
 +    }
 +
@@ -381,7 +388,7 @@ index bcb1930a86dd2..20acaf3489516 100644
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -5110,6 +5402,18 @@ void BrowserView::OnThemeChanged() {
+@@ -5110,6 +5409,18 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();
