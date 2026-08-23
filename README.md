@@ -3,16 +3,20 @@
 
   ### Dao Browser
 
-  An **AI-native**, content-first Chromium-based browser with a vertical tab sidebar — built for the agentic web.
+  **A browser made for people, centered on content, and thoughtfully enhanced by AI.**
+
+  Built on Chromium, Dao keeps the web — not the browser — at the center of your attention.
 
   [Download](https://dao.msgbyte.com/download) · [Website](https://dao.msgbyte.com/) · [AI Agent](https://dao.msgbyte.com/agent) · [Features](docs/features.md) · [Development](docs/development.md)
 </div>
 
 ---
 
-### Built-in AI Agent
+### AI That Supports Your Browsing
 
-Dao isn't a browser with an AI extension bolted on — the **AI Agent is a first-class citizen**, woven into the browsing surface itself.
+AI in Dao is designed to support your attention, not compete for it. The built-in
+Agent works with the page you're viewing, ready to help you understand, navigate,
+and act when you ask.
 
 - **Tool-calling agent** that can read, click, scroll, and navigate live pages on your behalf — with an animated cursor + tab-lock banner so you always see what it's doing
 - **Long-term memory** (SQLite + FTS5) across episodic and semantic stores — Dao remembers what you've worked on, not just what's in the current tab
@@ -28,7 +32,7 @@ Learn more at [dao.msgbyte.com/agent](https://dao.msgbyte.com/agent).
 - **Vertical Tab Sidebar** — Arc-style collapsible sidebar with folders, favorites, and dual-line active tabs
 - **Spotlight Command Bar** — translucent floating command bar with ghost-text completion + Ask AI integration
 - **Picture-in-Picture & Split View** — keep content where you need it
-- **Calm Minimalism** — chrome recedes so the web page (and the agent) is the focal point
+- **Calm Minimalism** — chrome recedes so the web page remains the focal point
 
 ### Platforms
 
