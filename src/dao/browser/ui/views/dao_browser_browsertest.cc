@@ -177,6 +177,7 @@
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/accessibility/ax_node_data.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -3525,10 +3526,10 @@ IN_PROC_BROWSER_TEST_F(
   }
   command_bar->SetAutocompleteMatchesForTesting(matches);
 
-  EXPECT_EQ(5, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_EQ(6, command_bar->GetVisibleSuggestionCountForTesting());
   EXPECT_TRUE(HasDescendantLabelText(command_bar, u"dao browser"));
   EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Search"));
-  EXPECT_FALSE(HasDescendantLabelText(command_bar, u"history4"));
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"history4"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
@@ -3569,6 +3570,66 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ShowsAllMatchesInFiveRowScrollableViewport) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"dao browser",
+                                                             u"");
+
+  AutocompleteMatch search_match(nullptr, 1000, false,
+                                 AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED);
+  search_match.allowed_to_be_default_match = true;
+  search_match.fill_into_edit = u"dao browser";
+  search_match.contents = u"dao browser";
+  search_match.destination_url =
+      GURL("https://www.google.com/search?q=dao+browser");
+
+  ACMatches matches{search_match};
+  for (int i = 0; i < 6; ++i) {
+    AutocompleteMatch match(nullptr, 900 - i, false,
+                            AutocompleteMatchType::HISTORY_URL);
+    match.fill_into_edit =
+        base::ASCIIToUTF16("history" + base::NumberToString(i));
+    match.contents = match.fill_into_edit;
+    match.destination_url =
+        GURL("https://example.com/" + base::NumberToString(i));
+    matches.push_back(std::move(match));
+  }
+  command_bar->SetAutocompleteMatchesForTesting(matches);
+  command_bar->GetWidget()->LayoutRootViewIfNecessary();
+
+  EXPECT_EQ(7, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"history5"));
+  auto* scroll_view =
+      FindDescendantViewOfClass<views::ScrollView>(command_bar);
+  ASSERT_NE(nullptr, scroll_view);
+  EXPECT_EQ(208, scroll_view->height());
+  ASSERT_NE(nullptr, scroll_view->contents());
+  EXPECT_EQ(288, scroll_view->contents()->GetPreferredSize({}).height());
+  EXPECT_EQ(288, scroll_view->contents()->height());
+  EXPECT_EQ(208, scroll_view->contents()->parent()->height());
+  EXPECT_TRUE(scroll_view->IsVerticalContentOverflowing());
+  for (int i = 0; i < 5; ++i) {
+    SendDialogKey(command_bar->GetWidget(), ui::VKEY_DOWN);
+  }
+  EXPECT_EQ(5, command_bar->GetSelectedIndexForTesting());
+  ui::AXNodeData scroll_view_data;
+  scroll_view->GetViewAccessibility().GetAccessibleNodeData(&scroll_view_data);
+  EXPECT_GT(scroll_view_data.GetIntAttribute(
+                ax::mojom::IntAttribute::kScrollY),
+            0);
+
+  // Regression coverage: this DCHECKed when layer scrolling was disabled.
+  ui::test::EventGenerator event_generator(
+      browser()->window()->GetNativeWindow());
+  event_generator.ScrollSequence(scroll_view->GetBoundsInScreen().CenterPoint(),
+                                 base::TimeDelta(), 0, 20, 1, 2);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        PromotesExactSearchBelowVisibleCutoff) {
   browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
@@ -3599,9 +3660,9 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   matches.push_back(std::move(search_match));
   command_bar->SetAutocompleteMatchesForTesting(matches);
 
-  EXPECT_EQ(5, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_EQ(6, command_bar->GetVisibleSuggestionCountForTesting());
   EXPECT_TRUE(HasDescendantLabelText(command_bar, u"dao browser"));
-  EXPECT_FALSE(HasDescendantLabelText(command_bar, u"history4"));
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"history4"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
@@ -3651,11 +3712,11 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   command_bar->SetAutocompleteMatchesForTesting(matches);
 
   EXPECT_EQ(1, command_bar->GetAskAiRowIndexForTesting());
-  EXPECT_EQ(5, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_EQ(7, command_bar->GetVisibleSuggestionCountForTesting());
   EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Ask AI: dao browser"));
   EXPECT_TRUE(HasDescendantLabelText(command_bar, u"dao browser"));
   EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Search"));
-  EXPECT_FALSE(HasDescendantLabelText(command_bar, u"history3"));
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"history3"));
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -3726,10 +3787,10 @@ IN_PROC_BROWSER_TEST_F(
 
   EXPECT_TRUE(HasDescendantLabelText(command_bar, u"Search"));
 
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 5; ++i) {
     SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
   }
-  ASSERT_EQ(4, command_bar->GetSelectedIndexForTesting());
+  ASSERT_EQ(5, command_bar->GetSelectedIndexForTesting());
 
   ui_test_utils::TabAddedWaiter tab_waiter(browser());
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);

@@ -28,6 +28,7 @@
 class Browser;
 
 namespace views {
+class ScrollView;
 class Textfield;
 }
 
@@ -119,7 +120,7 @@ class DaoCommandBarView : public views::View,
   }
 
  private:
-  static constexpr int kMaxSuggestions = 5;
+  static constexpr int kVisibleSuggestionRows = 5;
 
   void Navigate(const std::u16string& text);
   void NavigateToMatch(const AutocompleteMatch& match);
@@ -181,6 +182,7 @@ class DaoCommandBarView : public views::View,
   raw_ptr<views::View> card_container_ = nullptr;
   raw_ptr<views::ImageView> favicon_icon_ = nullptr;
   raw_ptr<views::Textfield> textfield_ = nullptr;
+  raw_ptr<views::ScrollView> dropdown_scroll_view_ = nullptr;
   raw_ptr<views::View> dropdown_container_ = nullptr;
 
   std::vector<raw_ptr<DaoSuggestionItemView>> suggestion_views_;
@@ -220,10 +222,9 @@ class DaoCommandBarView : public views::View,
   size_t last_text_length_ = 0;
 
   // Index inside suggestion_views_ of the synthetic "Ask AI" row, or -1
-  // when the current input does not qualify (empty / looks like a URL) or
-  // there is no room for it below the autocomplete matches.  The row
-  // occupies one of the kMaxSuggestions slots; Enter / click on it routes
-  // to SubmitAskAi instead of NavigateToMatch.
+  // when the current input does not qualify (empty / looks like a URL). The
+  // row is inserted after the top autocomplete match; Enter / click on it
+  // routes to SubmitAskAi instead of NavigateToMatch.
   int ask_ai_row_index_ = -1;
 
   // When true, we are in "pre-new-tab" mode: no tab has been created yet.

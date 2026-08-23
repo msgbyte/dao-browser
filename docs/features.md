@@ -84,9 +84,10 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     plus a selected completion suffix, so Select All, copy, and replacement
     edits include the completed text, while long suffixes keep the typed prefix
     and caret boundary visible
-  - Every non-blank query reserves one exact-input Search action within the
-    five-row suggestion limit, even when history, tabs, bookmarks, or URL
-    matches rank above it; empty and whitespace-only input shows no suggestions
+  - Every non-blank query keeps one exact-input Search action alongside the
+    full Chromium autocomplete result. The dropdown remains five rows tall and
+    scrolls by pointer or keyboard when more results are available; empty and
+    whitespace-only input shows no suggestions
   - The first result is highlighted automatically without writing that row's
     `fill_into_edit` value into the native textfield; provider-owned inline
     completion remains a distinct selected suffix, and only explicit arrow-key

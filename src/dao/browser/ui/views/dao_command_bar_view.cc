@@ -69,6 +69,7 @@
 #include "ui/gfx/range/range.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
+#include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/layout/box_layout.h"
 
@@ -241,15 +242,24 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
   // Make the textfield fill the card width
   card_layout->SetFlexForView(textfield_, 1);
 
-  // Dropdown container: inside the glass container (no own layer)
-  dropdown_container_ = glass_container_->AddChildView(
-      std::make_unique<views::View>());
+  auto dropdown_scroll_view = std::make_unique<views::ScrollView>();
+  dropdown_scroll_view->SetBackgroundColor(std::nullopt);
+  dropdown_scroll_view->SetDrawOverflowIndicator(false);
+  dropdown_scroll_view->SetHorizontalScrollBarMode(
+      views::ScrollView::ScrollBarMode::kDisabled);
+  dropdown_scroll_view->SetVerticalScrollBarMode(
+      views::ScrollView::ScrollBarMode::kHiddenButEnabled);
+  dropdown_scroll_view->ClipHeightTo(0, kVisibleSuggestionRows * 40 + 8);
+  dropdown_scroll_view_ =
+      glass_container_->AddChildView(std::move(dropdown_scroll_view));
+  dropdown_container_ =
+      dropdown_scroll_view_->SetContents(std::make_unique<views::View>());
   dropdown_container_->SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical, gfx::Insets::VH(4, 0)));
-  dropdown_container_->SetVisible(false);
+  dropdown_scroll_view_->SetVisible(false);
 
   // Pre-create suggestion items
-  for (int i = 0; i < kMaxSuggestions; ++i) {
+  for (int i = 0; i < kVisibleSuggestionRows; ++i) {
     auto* item = dropdown_container_->AddChildView(
         std::make_unique<DaoSuggestionItemView>(
             i, base::BindRepeating(&DaoCommandBarView::OnSuggestionClicked,
@@ -551,11 +561,12 @@ void DaoCommandBarView::Layout(PassKey) {
 
   // Calculate total glass container height
   int glass_height = kCardHeight;
-  bool has_dropdown = dropdown_container_ &&
-                      dropdown_container_->GetVisible();
+  bool has_dropdown =
+      dropdown_scroll_view_ && dropdown_scroll_view_->GetVisible();
   int dropdown_height = 0;
   if (has_dropdown) {
-    dropdown_height = visible_suggestion_count_ * 40 + 8;
+    dropdown_height =
+        std::min(visible_suggestion_count_, kVisibleSuggestionRows) * 40 + 8;
     glass_height += dropdown_height;
   }
 
@@ -580,8 +591,8 @@ void DaoCommandBarView::Layout(PassKey) {
 
   // Dropdown is directly below the card (local coords)
   if (has_dropdown) {
-    dropdown_container_->SetBounds(0, kCardHeight, card_width,
-                                   dropdown_height);
+    dropdown_scroll_view_->SetBounds(0, kCardHeight, card_width,
+                                     dropdown_height);
   }
 
 }
@@ -890,7 +901,7 @@ void DaoCommandBarView::ClearSuggestions() {
     suggestion_view->SetSelected(false);
   }
   visible_matches_.clear();
-  dropdown_container_->SetVisible(false);
+  dropdown_scroll_view_->SetVisible(false);
   visible_suggestion_count_ = 0;
   selected_index_ = -1;
   selection_explicitly_changed_ = false;
@@ -912,22 +923,10 @@ void DaoCommandBarView::UpdateSuggestions() {
   const bool enhanced_suggestions_enabled = EnhancedSuggestionsEnabled();
   const AutocompleteResult& result = autocomplete_controller_->result();
   const bool show_ask_ai = ShouldShowAskAiSuggestion();
-  const int max_match_slots = kMaxSuggestions - (show_ask_ai ? 1 : 0);
-
   visible_matches_.clear();
-  for (size_t i = 0;
-       i < result.size() &&
-       visible_matches_.size() < static_cast<size_t>(max_match_slots);
-       ++i) {
-    visible_matches_.push_back(result.match_at(i));
-  }
-
-  const AutocompleteMatch* exact_search_match = nullptr;
+  visible_matches_.reserve(result.size() + 1);
   for (size_t i = 0; i < result.size(); ++i) {
-    if (IsExactSearchMatch(result.match_at(i), search_terms)) {
-      exact_search_match = &result.match_at(i);
-      break;
-    }
+    visible_matches_.push_back(result.match_at(i));
   }
 
   const bool exact_search_is_visible =
@@ -936,14 +935,7 @@ void DaoCommandBarView::UpdateSuggestions() {
                     return IsExactSearchMatch(match, search_terms);
                   });
   if (!exact_search_is_visible) {
-    AutocompleteMatch reserved_match =
-        exact_search_match ? *exact_search_match
-                           : CreateExactSearchMatch(search_terms);
-    if (visible_matches_.size() < static_cast<size_t>(max_match_slots)) {
-      visible_matches_.push_back(std::move(reserved_match));
-    } else {
-      visible_matches_.back() = std::move(reserved_match);
-    }
+    visible_matches_.push_back(CreateExactSearchMatch(search_terms));
   }
 
   // Keep Ask AI in the same slot across default and enhanced modes: after the
@@ -951,11 +943,24 @@ void DaoCommandBarView::UpdateSuggestions() {
   ask_ai_row_index_ =
       show_ask_ai ? std::min(1, static_cast<int>(visible_matches_.size())) : -1;
 
+  visible_suggestion_count_ = static_cast<int>(visible_matches_.size()) +
+                              (ask_ai_row_index_ >= 0 ? 1 : 0);
+  while (suggestion_views_.size() <
+         static_cast<size_t>(visible_suggestion_count_)) {
+    const int index = static_cast<int>(suggestion_views_.size());
+    suggestion_views_.push_back(dropdown_container_->AddChildView(
+        std::make_unique<DaoSuggestionItemView>(
+            index,
+            base::BindRepeating(&DaoCommandBarView::OnSuggestionClicked,
+                                base::Unretained(this)),
+            browser_->profile())));
+  }
+
   // Check if we have a bookmark model for icon determination
   bookmarks::BookmarkModel* bookmark_model =
       BookmarkModelFactory::GetForBrowserContext(browser_->profile());
 
-  for (int i = 0; i < kMaxSuggestions; ++i) {
+  for (int i = 0; i < static_cast<int>(suggestion_views_.size()); ++i) {
     // Map a display slot to the corresponding autocomplete match index.
     // Slots before the Ask-AI row are 1:1; slots after it shift down by
     // one because the Ask-AI row displaces one real match downward.
@@ -989,11 +994,8 @@ void DaoCommandBarView::UpdateSuggestions() {
     }
   }
 
-  visible_suggestion_count_ = static_cast<int>(visible_matches_.size()) +
-                              (ask_ai_row_index_ >= 0 ? 1 : 0);
-
   if (visible_suggestion_count_ > 0) {
-    dropdown_container_->SetVisible(true);
+    dropdown_scroll_view_->SetVisible(true);
     int next_selected_index = selected_index_;
     if (next_selected_index < 0) {
       next_selected_index = 0;
@@ -1009,7 +1011,7 @@ void DaoCommandBarView::UpdateSuggestions() {
     // the user explicitly browses or accepts it.
     SetSelectedIndex(next_selected_index, false);
   } else {
-    dropdown_container_->SetVisible(false);
+    dropdown_scroll_view_->SetVisible(false);
     ClearSelectionPreview(true);
   }
 
@@ -1484,15 +1486,18 @@ void DaoCommandBarView::SetSelectedIndex(int index, bool user_initiated) {
 
   if (index != selected_index_) {
     // Deselect old
-    if (selected_index_ >= 0 && selected_index_ < kMaxSuggestions) {
+    if (selected_index_ >= 0 &&
+        selected_index_ < static_cast<int>(suggestion_views_.size())) {
       suggestion_views_[selected_index_]->SetSelected(false);
     }
 
     selected_index_ = index;
 
     // Select new
-    if (selected_index_ >= 0 && selected_index_ < kMaxSuggestions) {
+    if (selected_index_ >= 0 &&
+        selected_index_ < static_cast<int>(suggestion_views_.size())) {
       suggestion_views_[selected_index_]->SetSelected(true);
+      suggestion_views_[selected_index_]->ScrollViewToVisible();
     }
   }
 
@@ -1581,7 +1586,7 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
 
 void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
   StopAutocomplete();
-  dropdown_container_->SetVisible(false);
+  dropdown_scroll_view_->SetVisible(false);
   visible_suggestion_count_ = 0;
   ask_ai_row_index_ = -1;
 
@@ -1648,7 +1653,7 @@ void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
     }
 
     StopAutocomplete();
-    dropdown_container_->SetVisible(false);
+    dropdown_scroll_view_->SetVisible(false);
     visible_suggestion_count_ = 0;
     SetVisible(false);
     SetWebContentEventProcessing(true);
@@ -1664,7 +1669,7 @@ void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
   }
 
   StopAutocomplete();
-  dropdown_container_->SetVisible(false);
+  dropdown_scroll_view_->SetVisible(false);
   visible_suggestion_count_ = 0;
 
   if (is_new_tab_mode_) {
@@ -1734,7 +1739,7 @@ void DaoCommandBarView::Navigate(const std::u16string& text) {
   }
 
   StopAutocomplete();
-  dropdown_container_->SetVisible(false);
+  dropdown_scroll_view_->SetVisible(false);
   visible_suggestion_count_ = 0;
 
   if (is_new_tab_mode_) {
@@ -1769,7 +1774,7 @@ void DaoCommandBarView::CancelNewTab() {
   is_new_tab_mode_ = false;
 
   StopAutocomplete();
-  dropdown_container_->SetVisible(false);
+  dropdown_scroll_view_->SetVisible(false);
   visible_suggestion_count_ = 0;
 
   SetVisible(false);
