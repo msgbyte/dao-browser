@@ -489,7 +489,10 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   chat_button_ = AddChildView(std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnChatButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kSparkles, u"Toggle Chat"));
+      LucideIcon::kSparkles,
+      l10n_util::GetStringUTF16(IDS_DAO_ASSISTANT_TOGGLE_ACCESSIBLE_NAME)));
+  chat_button_->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_DAO_ASSISTANT_TOGGLE_TOOLTIP));
 
   // Control center button (fixed at right edge)
   control_center_button_ = AddChildView(

@@ -10,6 +10,7 @@
 <translation id="21133533946938348">固定标签页</translation>
 <translation id="2175927920773552910">二维码</translation>
 <translation id="243275146591958220">取消下载</translation>
+<translation id="2519023533785544875">打开智能助手</translation>
 <translation id="2698054069012763064">另有 <ph name="COUNT" /> 项</translation>
 <translation id="2703180365855369896">关闭重复标签页</translation>
 <translation id="2973324205039581528">将网站静音</translation>
@@ -41,6 +42,7 @@
 <translation id="5538307496474303926">清除中...</translation>
 <translation id="5556459405103347317">重新加载</translation>
 <translation id="5611474372949142946">关闭下方标签页</translation>
+<translation id="5649936378931470828">打开智能助手（<ph name="SHORTCUT" />）</translation>
 <translation id="5953452567010839148">未找到二维码</translation>
 <translation id="6042308850641462728">更多</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>

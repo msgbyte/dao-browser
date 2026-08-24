@@ -2878,6 +2878,17 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest, AddressBarExists) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
+                       AssistantButtonShowsShortcutTooltip) {
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+
+  views::Button* assistant_button =
+      FindButtonWithAccessibleName(address_bar, u"Open Assistant");
+  ASSERT_NE(nullptr, assistant_button);
+  EXPECT_EQ(u"Open Assistant (\u2318E)", assistant_button->GetTooltipText());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
                        UrlHoverClearsWithinAddressBar) {
   DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
