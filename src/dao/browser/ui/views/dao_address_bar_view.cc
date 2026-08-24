@@ -18,7 +18,12 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
+#include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+#include "components/security_state/content/security_state_tab_helper.h"
+#include "components/strings/grit/components_strings.h"
 #include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -65,6 +70,7 @@ constexpr int kFontSize = 12;
 constexpr int kNavButtonSize = 24;
 constexpr int kNavIconSize = 14;
 constexpr int kNavButtonRadius = 6;
+constexpr SkColor kSecurityWarningColor = SkColorSetRGB(217, 48, 37);
 
 }  // namespace
 
@@ -343,7 +349,6 @@ END_METADATA
 DaoAddressBarView::DaoAddressBarView(Browser* browser)
     : browser_(browser), tab_strip_model_(browser->tab_strip_model()) {
   SetBackground(views::CreateSolidBackground(SK_ColorWHITE));  // default
-  SetNotifyEnterExitOnChild(true);
 
   // Top rounded corners (bottom corners are on the contents container)
   SetPaintToLayer();
@@ -422,6 +427,17 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
           .WithWeight(1));
   left_flex->SetProperty(views::kMarginsKey, gfx::Insets());
   AddChildView(std::move(left_flex));
+
+  auto security_btn = std::make_unique<NavIconButton>(
+      base::BindRepeating(&DaoAddressBarView::OnSecurityButtonPressed,
+                          base::Unretained(this)),
+      LucideIcon::kShieldOff,
+      l10n_util::GetStringUTF16(IDS_PAGE_INFO_NOT_SECURE_SUMMARY_SHORT));
+  security_btn->SetTooltipText(l10n_util::GetStringUTF16(
+      IDS_PAGE_INFO_NOT_SECURE_SUMMARY_SHORT));
+  security_btn->SetIconColor(kSecurityWarningColor);
+  security_btn->SetVisible(false);
+  security_button_ = AddChildView(std::move(security_btn));
 
   // URL pill: wraps host + path labels, sized to content, centered by spacers.
   url_container_ = AddChildView(std::make_unique<views::View>());
@@ -567,6 +583,23 @@ void DaoAddressBarView::UpdateURL() {
   }
 }
 
+void DaoAddressBarView::UpdateSecurityButton() {
+  bool visible = false;
+  content::WebContents* web_contents =
+      tab_strip_model_ ? tab_strip_model_->GetActiveWebContents() : nullptr;
+  if (web_contents) {
+    if (auto* helper = SecurityStateTabHelper::FromWebContents(web_contents)) {
+      const security_state::SecurityLevel level = helper->GetSecurityLevel();
+      visible = level == security_state::WARNING ||
+                level == security_state::DANGEROUS;
+    }
+  }
+  static_cast<views::FlexLayout*>(url_container_->GetLayoutManager())
+      ->SetInteriorMargin(visible ? gfx::Insets::TLBR(2, 4, 2, 8)
+                                  : gfx::Insets::VH(2, 8));
+  security_button_->SetVisible(visible);
+}
+
 bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
   // If the click lands on the control center button, let it handle it
   if (control_center_button_) {
@@ -586,8 +619,9 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
   }
   // If the click lands on any nav button, let it handle it
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
-                              stop_refresh_button_.get(), chat_button_.get()}) {
-    if (btn) {
+                              stop_refresh_button_.get(), security_button_.get(),
+                              chat_button_.get()}) {
+    if (btn && btn->GetVisible()) {
       gfx::Point pt = event.location();
       views::View::ConvertPointToTarget(this, btn, &pt);
       if (btn->HitTestPoint(pt)) {
@@ -730,6 +764,7 @@ void DaoAddressBarView::ObserveActiveWebContents() {
   }
   UpdateNavButtonEnabled();
   UpdateStopRefreshButton();
+  UpdateSecurityButton();
 }
 
 std::unique_ptr<ui::MenuModel> DaoAddressBarView::CreateHistoryMenuModel(
@@ -853,6 +888,25 @@ void DaoAddressBarView::OnStopRefreshButtonPressed() {
   }
 }
 
+void DaoAddressBarView::OnSecurityButtonPressed() {
+  content::WebContents* contents =
+      tab_strip_model_ ? tab_strip_model_->GetActiveWebContents() : nullptr;
+  content::NavigationEntry* entry =
+      contents ? contents->GetController().GetVisibleEntry() : nullptr;
+  if (!entry || entry->IsInitialEntry() || !security_button_ || !GetWidget()) {
+    return;
+  }
+
+  auto specification = PageInfoBubbleSpecification::Builder(
+                           views::BubbleAnchor(security_button_),
+                           GetWidget()->GetNativeWindow(), contents,
+                           entry->GetVirtualURL())
+                           .Build();
+  views::BubbleDialogDelegateView* bubble =
+      PageInfoBubbleView::CreatePageInfoBubble(std::move(specification));
+  bubble->GetWidget()->Show();
+}
+
 void DaoAddressBarView::OnChatButtonPressed() {
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(browser_);
@@ -925,6 +979,10 @@ void DaoAddressBarView::DidFinishNavigation(
   UpdateStopRefreshButton();
 }
 
+void DaoAddressBarView::DidChangeVisibleSecurityState() {
+  UpdateSecurityButton();
+}
+
 void DaoAddressBarView::UpdateNavButtonColors() {
   SkColor bg_color = GetCurrentPageBackgroundColor();
   int r = SkColorGetR(bg_color);
@@ -948,6 +1006,10 @@ void DaoAddressBarView::UpdateNavButtonColors() {
       nav_btn->SetIconColor(icon_color);
       nav_btn->SetHoverBgColor(hover_bg);
     }
+  }
+  if (security_button_) {
+    static_cast<NavIconButton*>(security_button_.get())
+        ->SetHoverBgColor(hover_bg);
   }
   if (control_center_button_) {
     control_center_button_->SetIconColor(icon_color);
@@ -982,7 +1044,8 @@ std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
   }
   // Navigation buttons
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
-                              stop_refresh_button_.get(), chat_button_.get()}) {
+                              stop_refresh_button_.get(), security_button_.get(),
+                              chat_button_.get()}) {
     if (btn && btn->GetVisible()) {
       rects.push_back(btn->GetMirroredBounds());
     }

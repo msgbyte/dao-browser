@@ -69,10 +69,12 @@
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
+#include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -85,6 +87,7 @@
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/strings/grit/components_strings.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/base_session_service_commands.h"
 #include "components/sessions/core/command_storage_manager.h"
@@ -2855,13 +2858,49 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 // DaoAddressBarBrowserTest
 // =============================================================================
 
-class DaoAddressBarBrowserTest : public InProcessBrowserTest {};
+class DaoAddressBarBrowserTest : public InProcessBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InProcessBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(switches::kNoProxyServer);
+  }
+
+  void SetUpOnMainThread() override {
+    host_resolver()->AddRule("*", "127.0.0.1");
+  }
+};
 
 IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest, AddressBarExists) {
   DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
   ASSERT_NE(nullptr, address_bar);
   EXPECT_EQ(DaoAddressBarView::kBarHeight,
             address_bar->GetPreferredSize().height());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
+                       UrlHoverClearsWithinAddressBar) {
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  GetBrowserView(browser())->DeprecatedLayoutImmediately();
+
+  views::Label* host_label = FindDescendantLabelWithText(
+      address_bar, address_bar->GetHostTextForTesting());
+  ASSERT_NE(nullptr, host_label);
+  views::View* url_container = host_label->parent();
+  ASSERT_NE(nullptr, url_container);
+  ASSERT_EQ(nullptr, url_container->background());
+
+  ui::test::EventGenerator event_generator(
+      browser()->window()->GetNativeWindow());
+  event_generator.MoveMouseTo(
+      url_container->GetBoundsInScreen().CenterPoint());
+  EXPECT_NE(nullptr, url_container->background());
+
+  views::View* control_center_button = address_bar->control_center_button();
+  ASSERT_NE(nullptr, control_center_button);
+  event_generator.MoveMouseTo(
+      control_center_button->GetBoundsInScreen().CenterPoint());
+  EXPECT_EQ(nullptr, url_container->background());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
@@ -2879,6 +2918,50 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
   EXPECT_EQ(base::UTF8ToUTF16(std::string(url.path()) + "?" +
                               std::string(url.query())),
             address_bar->GetPathTextForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
+                       AddressBarSecurityButtonOpensPageInfo) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      embedded_test_server()->GetURL("example.test", "/title1.html")));
+
+  DaoAddressBarView* address_bar = GetBrowserView(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  GetBrowserView(browser())->DeprecatedLayoutImmediately();
+  views::Button* security_button = FindButtonWithAccessibleName(
+      address_bar,
+      l10n_util::GetStringUTF16(IDS_PAGE_INFO_NOT_SECURE_SUMMARY_SHORT));
+  ASSERT_NE(nullptr, security_button);
+  EXPECT_TRUE(security_button->GetVisible());
+  gfx::Rect url_bounds = address_bar->url_container_bounds();
+  views::View::ConvertRectToScreen(address_bar, &url_bounds);
+  EXPECT_FALSE(security_button->GetBoundsInScreen().Intersects(url_bounds));
+  views::Label* host_label = FindDescendantLabelWithText(
+      address_bar, address_bar->GetHostTextForTesting());
+  ASSERT_NE(nullptr, host_label);
+  EXPECT_EQ(4, host_label->GetBoundsInScreen().x() - url_bounds.x());
+  EXPECT_LE(host_label->GetBoundsInScreen().x() -
+                security_button->GetBoundsInScreen().right(),
+            6);
+
+  views::test::ButtonTestApi(security_button)
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
+                                 gfx::Point(), ui::EventTimeForNow(),
+                                 ui::EF_LEFT_MOUSE_BUTTON,
+                                 ui::EF_LEFT_MOUSE_BUTTON));
+  auto* page_info =
+      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+  ASSERT_NE(nullptr, page_info);
+  page_info->GetWidget()->CloseNow();
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+  EXPECT_FALSE(security_button->GetVisible());
+  GetBrowserView(browser())->DeprecatedLayoutImmediately();
+  url_bounds = address_bar->url_container_bounds();
+  views::View::ConvertRectToScreen(address_bar, &url_bounds);
+  EXPECT_EQ(8, host_label->GetBoundsInScreen().x() - url_bounds.x());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest, AddressBarShowsFragment) {

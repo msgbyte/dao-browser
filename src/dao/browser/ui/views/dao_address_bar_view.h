@@ -74,6 +74,7 @@ class DaoAddressBarView : public views::View,
   void DidStopLoading() override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
+  void DidChangeVisibleSecurityState() override;
 
   // Called by the sidebar to update toggle button visibility.
   void SetSidebarCollapsed(bool collapsed);
@@ -113,6 +114,7 @@ class DaoAddressBarView : public views::View,
 
  private:
   void UpdateURL();
+  void UpdateSecurityButton();
   SkColor GetCurrentPageBackgroundColor() const;
   void UpdateBackgroundColor();
   void UpdateUrlTextColors(SkColor background_color);
@@ -128,6 +130,7 @@ class DaoAddressBarView : public views::View,
   void OnBackButtonPressed();
   void OnForwardButtonPressed();
   void OnStopRefreshButtonPressed();
+  void OnSecurityButtonPressed();
   void OnChatButtonPressed();
 
   raw_ptr<Browser> browser_;
@@ -140,6 +143,7 @@ class DaoAddressBarView : public views::View,
   raw_ptr<views::Button> stop_refresh_button_ = nullptr;
   raw_ptr<DaoPinnedExtensionsContainer> pinned_extensions_ = nullptr;
   raw_ptr<views::Button> chat_button_ = nullptr;
+  raw_ptr<views::Button> security_button_ = nullptr;
   raw_ptr<views::View> url_container_ = nullptr;
   raw_ptr<views::Label> host_label_ = nullptr;
   raw_ptr<views::Label> path_label_ = nullptr;
