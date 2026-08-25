@@ -126,17 +126,12 @@ base::expected<content::WebContents*, DaoToolError>
 DaoBrowserAutomationSession::ResolveTarget() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   tabs::TabInterface* target_tab = target_handle_.Get();
-  if (!browser_window_ || !profile_ || !target_tab ||
+  content::WebContents* target =
+      target_tab ? target_tab->GetContents() : nullptr;
+  if (!browser_window_ || !profile_ || !target_tab || !target ||
       browser_window_->GetProfile() != profile_.get() ||
-      target_tab->GetProfile() != profile_.get() ||
+      target->GetBrowserContext() != profile_.get() ||
       !WindowContainsTab(browser_window_.get(), target_tab)) {
-    ClearResolvedTarget();
-    return base::unexpected(MakeDaoToolError(
-        DaoToolErrorCode::kTargetGone,
-        "The authorized browser target is no longer available."));
-  }
-  content::WebContents* target = target_tab->GetContents();
-  if (!target || target->GetBrowserContext() != profile_.get()) {
     ClearResolvedTarget();
     return base::unexpected(MakeDaoToolError(
         DaoToolErrorCode::kTargetGone,
