@@ -200,6 +200,8 @@
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/events/test/event_generator.h"
+#include "ui/gfx/animation/animation.h"
+#include "ui/gfx/canvas.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/range/range.h"
@@ -10406,6 +10408,11 @@ IN_PROC_BROWSER_TEST_F(DaoDownloadHoverDetailsBrowserTest,
 
 using DaoAgentCursorViewBrowserTest = InProcessBrowserTest;
 
+class PaintableDaoAgentCursorView : public DaoAgentCursorView {
+ public:
+  void PaintForTesting(gfx::Canvas* canvas) { OnPaint(canvas); }
+};
+
 IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest, StartsHidden) {
   DaoAgentCursorView cursor;
   EXPECT_FALSE(cursor.is_visible());
@@ -10433,6 +10440,92 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   DaoAgentCursorView cursor;
   cursor.Hide();
   EXPECT_FALSE(cursor.is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       UsesDistanceAwareMotionPaths) {
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(800, 600));
+  cursor.ShowAtCenter();
+
+  cursor.AnimateTo(450, 300, base::DoNothing());
+  EXPECT_FALSE(cursor.uses_curved_path_for_testing());
+  cursor.Hide();
+
+  cursor.ShowAtCenter();
+  cursor.AnimateTo(610, 300, base::DoNothing());
+  EXPECT_EQ(!gfx::Animation::PrefersReducedMotion(),
+            cursor.uses_curved_path_for_testing());
+  cursor.Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       PaintsBlackAndWhiteAgentPointer) {
+  PaintableDaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(100, 100));
+  cursor.ShowAtCenter();
+
+  gfx::Canvas canvas(gfx::Size(100, 100), 1.0f, false);
+  cursor.PaintForTesting(&canvas);
+  const SkBitmap bitmap = canvas.GetBitmap();
+  bool has_black = false;
+  bool has_white = false;
+  for (int y = 0; y < bitmap.height(); ++y) {
+    for (int x = 0; x < bitmap.width(); ++x) {
+      const SkColor color = bitmap.getColor(x, y);
+      if (SkColorGetA(color) < 200) {
+        continue;
+      }
+      has_black |= SkColorGetR(color) < 40 && SkColorGetG(color) < 40 &&
+                   SkColorGetB(color) < 40;
+      has_white |= SkColorGetR(color) > 215 && SkColorGetG(color) > 215 &&
+                   SkColorGetB(color) > 215;
+    }
+  }
+
+  EXPECT_TRUE(has_black);
+  EXPECT_TRUE(has_white);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       HideCompletesActiveMoveExactlyOnce) {
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(800, 600));
+  cursor.ShowAtCenter();
+  int callback_count = 0;
+  cursor.AnimateTo(
+      700, 500,
+      base::BindOnce([](int* count) { ++*count; }, &callback_count));
+
+  cursor.Hide();
+  EXPECT_EQ(1, callback_count);
+  cursor.Hide();
+  EXPECT_EQ(1, callback_count);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       ActiveTargetStopsAnimatingAfterTabSwitch) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  content::WebContents* target =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  DaoAgentCursorView* cursor = browser_view->dao_agent_cursor();
+  ASSERT_NE(nullptr, cursor);
+  cursor->ShowAtCenter();
+  ASSERT_TRUE(cursor->is_visible());
+
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+
+  EXPECT_FALSE(CanAnimateAgentCursorForTarget(target));
+  EXPECT_FALSE(cursor->is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       ActiveTabInInactiveWindowCannotAnimate) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  content::WebContents* target =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_FALSE(browser_view->IsActive());
+  EXPECT_FALSE(CanAnimateAgentCursorForTarget(target));
 }
 
 // =============================================================================

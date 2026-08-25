@@ -625,7 +625,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
-                       AgentSwitchCandidatePolicyRemainsUnchanged) {
+                       AgentSwitchRetargetsWithoutActivation) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   tabs::TabInterface* pinned = tabs()->GetActiveTab();
   ASSERT_NE(nullptr, pinned);
@@ -639,9 +639,36 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
               DaoToolClient::kDaoAgent);
 
   ASSERT_TRUE(result.ok) << result.error->message;
-  EXPECT_EQ(internal, tabs()->GetActiveTab());
+  EXPECT_EQ(pinned, tabs()->GetActiveTab());
   ASSERT_TRUE(session->ResolveTarget().has_value());
   EXPECT_EQ(internal->GetContents(), session->ResolveTarget().value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
+                       AgentTargetStaysPinnedAcrossUserTabChanges) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  tabs::TabInterface* foreground = tabs()->GetActiveTab();
+  tabs::TabInterface* target = OpenTab(browser(), second_url());
+  auto session = MakeSession(browser(), foreground->GetContents());
+
+  DaoBrowserToolResult switched = Execute(
+      session.get(), "switch_tab",
+      base::DictValue().Set(
+          "tab_id", GetOrCreateSidebarTabId(target->GetContents())),
+      DaoToolClient::kDaoAgent);
+  ASSERT_TRUE(switched.ok) << switched.error->message;
+  EXPECT_EQ(foreground, tabs()->GetActiveTab());
+
+  tabs::TabInterface* new_foreground = OpenTab(browser(), third_url(), true);
+  DaoBrowserToolResult page =
+      Execute(session.get(), "get_page_info", base::DictValue(),
+              DaoToolClient::kDaoAgent);
+
+  ASSERT_TRUE(page.ok) << page.error->message;
+  EXPECT_EQ(second_url().spec(), *page.data.GetDict().FindString("url"));
+  EXPECT_EQ(new_foreground, tabs()->GetActiveTab());
+  ASSERT_TRUE(session->ResolveTarget().has_value());
+  EXPECT_EQ(target->GetContents(), session->ResolveTarget().value());
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -728,6 +755,29 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   ASSERT_TRUE(result.target.has_value());
   EXPECT_EQ(GetOrCreateSidebarTabId(opened->GetContents()),
             result.target->tab_id);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
+                       AgentOpenTabRetargetsWithoutActivation) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  tabs::TabInterface* foreground = tabs()->GetActiveTab();
+  auto session = MakeSession(browser(), foreground->GetContents());
+  const int original_count = tabs()->GetTabCount();
+
+  DaoBrowserToolResult result =
+      Execute(session.get(), "open_tab",
+              base::DictValue().Set("url", second_url().spec()),
+              DaoToolClient::kDaoAgent);
+
+  ASSERT_TRUE(result.ok) << result.error->message;
+  EXPECT_EQ(original_count + 1, tabs()->GetTabCount());
+  EXPECT_EQ(foreground, tabs()->GetActiveTab());
+  ASSERT_TRUE(session->ResolveTarget().has_value());
+  content::WebContents* opened = session->ResolveTarget().value();
+  EXPECT_NE(foreground->GetContents(), opened);
+  EXPECT_EQ(second_url(), opened->GetVisibleURL());
+  ASSERT_TRUE(result.target.has_value());
+  EXPECT_EQ(GetOrCreateSidebarTabId(opened), result.target->tab_id);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
@@ -1174,7 +1224,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
       base::StrCat({R"({"tab_id":")", *second_id, R"(","index":)",
                     base::NumberToString(first_index), "}"}));
   EXPECT_TRUE(switched.FindBool("success").value_or(false));
-  EXPECT_EQ(second, tabs()->GetActiveTab());
+  EXPECT_EQ(first, tabs()->GetActiveTab());
   base::DictValue switched_page =
       CallAgentNative(agent_contents, "getPageInfo");
   ASSERT_NE(nullptr, switched_page.FindString("url"));

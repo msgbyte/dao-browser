@@ -27,7 +27,9 @@
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -44,6 +46,7 @@
 #include "dao/browser/automation/dao_browser_tool_types.h"
 #include "dao/browser/automation/dao_devtools_client.h"
 #include "dao/browser/strings/grit/dao_strings.h"
+#include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -123,6 +126,11 @@ public:
   void MoveCursor(content::WebContents *target, double x, double y,
                   base::OnceCallback<void(bool)> callback) override {
     ++move_count_;
+    if (respect_target_activation_ && !CanAnimateTarget(target)) {
+      std::move(callback).Run(false);
+      return;
+    }
+    ++animation_count_;
     if (hold_next_cursor_move_) {
       hold_next_cursor_move_ = false;
       pending_cursor_callback_ = std::move(callback);
@@ -135,7 +143,7 @@ public:
   }
 
   void PlayClickRipple(content::WebContents *target) override {
-    if (target) {
+    if (target && (!respect_target_activation_ || CanAnimateTarget(target))) {
       ++ripple_count_;
     }
   }
@@ -160,8 +168,11 @@ public:
   }
 
   int move_count() const { return move_count_; }
+  int animation_count() const { return animation_count_; }
   int ripple_count() const { return ripple_count_; }
   int cancel_cursor_count() const { return cancel_cursor_count_; }
+
+  void RespectTargetActivation() { respect_target_activation_ = true; }
 
   void HoldNextCursorMove(base::OnceClosure ready) {
     hold_next_cursor_move_ = true;
@@ -175,9 +186,18 @@ public:
   }
 
 private:
+  bool CanAnimateTarget(content::WebContents *target) const {
+    Browser *browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+    BrowserView *browser_view =
+        browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
+    return browser_view && browser_view->GetActiveWebContents() == target;
+  }
+
   int move_count_ = 0;
+  int animation_count_ = 0;
   int ripple_count_ = 0;
   int cancel_cursor_count_ = 0;
+  bool respect_target_activation_ = false;
   bool hold_next_cursor_move_ = false;
   base::OnceClosure cursor_ready_;
   base::OnceCallback<void(bool)> pending_cursor_callback_;
@@ -315,6 +335,133 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   ASSERT_TRUE(result.data.is_dict());
   EXPECT_EQ("Title Of Awesomeness",
             *result.data.GetDict().FindString("result"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       ForegroundCursorAnimatesAndClickRipples) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents *target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(
+      target,
+      "window.__dao_clicks=0;document.body.style.minHeight='500px';"
+      "document.body.addEventListener('click',()=>window.__dao_clicks++);"));
+  ui_delegate_.RespectTargetActivation();
+  base::RunLoop cursor_ready;
+  ui_delegate_.HoldNextCursorMove(cursor_ready.QuitClosure());
+  DaoBrowserToolCall call;
+  call.request_id = "foreground-animated-click";
+  call.name = "agent_click";
+  call.arguments = base::DictValue().Set("selector", "body");
+  call.timeout = base::Seconds(5);
+  base::test::TestFuture<DaoBrowserToolResult> future;
+  executor_->Execute(session.get(), DaoToolClient::kMcp, std::move(call),
+                     future.GetCallback());
+  cursor_ready.Run();
+
+  EXPECT_FALSE(future.IsReady());
+  EXPECT_EQ(1, ui_delegate_.animation_count());
+  ui_delegate_.CompletePendingCursorMove(true);
+  DaoBrowserToolResult result = future.Take();
+
+  ASSERT_TRUE(result.ok) << result.error->message;
+  EXPECT_EQ(1, ui_delegate_.ripple_count());
+  EXPECT_EQ(1, content::EvalJs(target, "window.__dao_clicks").ExtractInt());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       BackgroundCursorIsNoopAndClickStaysPinned) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents *target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(
+      target,
+      "window.__dao_clicks=0;document.body.style.minHeight='500px';"
+      "document.body.addEventListener('click',()=>window.__dao_clicks++);"));
+  chrome::AddTabAt(browser(), second_url(), 1, true);
+  content::WebContents *foreground =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(foreground));
+  ASSERT_NE(target, foreground);
+  ui_delegate_.RespectTargetActivation();
+
+  DaoBrowserToolResult moved =
+      Execute(session.get(), "move_cursor",
+              base::DictValue().Set("x", 10).Set("y", 20));
+  ASSERT_TRUE(moved.ok) << moved.error->message;
+  EXPECT_EQ(0, ui_delegate_.animation_count());
+
+  DaoBrowserToolResult clicked =
+      Execute(session.get(), "agent_click",
+              base::DictValue().Set("selector", "body"));
+  ASSERT_TRUE(clicked.ok) << clicked.error->message;
+  EXPECT_EQ(0, ui_delegate_.animation_count());
+  EXPECT_EQ(0, ui_delegate_.ripple_count());
+  EXPECT_EQ(1, content::EvalJs(target, "window.__dao_clicks").ExtractInt());
+  EXPECT_EQ(foreground, browser()->tab_strip_model()->GetActiveWebContents());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       BackgroundClickReportsDevToolsFailure) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  chrome::AddTabAt(browser(), second_url(), 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  ui_delegate_.RespectTargetActivation();
+
+  devtools_client_->SetCommandCallbackForTesting(base::BindRepeating(
+      [](DaoDevToolsClient* client, const std::string& method) {
+        if (method == "Input.dispatchMouseEvent") {
+          client->Detach();
+        }
+      },
+      devtools_client_.get()));
+  DaoBrowserToolResult result =
+      Execute(session.get(), "agent_click",
+              base::DictValue().Set("selector", "body"));
+  devtools_client_->SetCommandCallbackForTesting(
+      DaoDevToolsClient::CommandCallbackForTesting());
+
+  ASSERT_FALSE(result.ok);
+  ASSERT_TRUE(result.error.has_value());
+  EXPECT_EQ(DaoToolErrorCode::kToolCancelled, result.error->code);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       TabSwitchDuringCursorMoveDoesNotLeakRipple) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents *target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(
+      target,
+      "window.__dao_clicks=0;document.body.style.minHeight='500px';"
+      "document.body.addEventListener('click',()=>window.__dao_clicks++);"));
+  ui_delegate_.RespectTargetActivation();
+  base::RunLoop cursor_ready;
+  ui_delegate_.HoldNextCursorMove(cursor_ready.QuitClosure());
+  DaoBrowserToolCall call;
+  call.request_id = "tab-switch-during-cursor-move";
+  call.name = "agent_click";
+  call.arguments = base::DictValue().Set("selector", "body");
+  call.timeout = base::Seconds(5);
+  base::test::TestFuture<DaoBrowserToolResult> future;
+  executor_->Execute(session.get(), DaoToolClient::kMcp, std::move(call),
+                     future.GetCallback());
+  cursor_ready.Run();
+
+  chrome::AddTabAt(browser(), second_url(), 1, true);
+  content::WebContents *foreground =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(foreground));
+  ui_delegate_.CompletePendingCursorMove(false);
+  DaoBrowserToolResult result = future.Take();
+
+  ASSERT_TRUE(result.ok) << result.error->message;
+  EXPECT_EQ(1, ui_delegate_.animation_count());
+  EXPECT_EQ(0, ui_delegate_.ripple_count());
+  EXPECT_EQ(1, content::EvalJs(target, "window.__dao_clicks").ExtractInt());
+  EXPECT_EQ(foreground, browser()->tab_strip_model()->GetActiveWebContents());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,

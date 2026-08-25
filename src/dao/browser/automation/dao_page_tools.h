@@ -39,6 +39,7 @@ class DaoPageTools {
    public:
     virtual ~UiDelegate() = default;
 
+    // The callback is true only when a foreground animation ran.
     virtual void MoveCursor(content::WebContents* target,
                             double x,
                             double y,
@@ -131,6 +132,11 @@ class DaoPageTools {
                              double x,
                              double y,
                              bool moved);
+  void DispatchBackgroundClick(std::string_view request_id,
+                               double x,
+                               double y);
+  void OnBackgroundClickCommand(std::string request_id,
+                                DaoDevToolsClient::CommandResult result);
   void DispatchMouseMove(std::string_view request_id, double x, double y);
   void DispatchMousePress(std::string request_id,
                           double x,

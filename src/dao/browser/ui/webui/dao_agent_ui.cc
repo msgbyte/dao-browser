@@ -576,6 +576,11 @@ void DaoAgentUIHandler::MoveCursor(content::WebContents* target,
     std::move(callback).Run(false);
     return;
   }
+  if (!CanAnimateAgentCursorForTarget(target)) {
+    cursor_view->Hide();
+    std::move(callback).Run(false);
+    return;
+  }
 
   gfx::Rect viewport_screen;
   if (target->GetRenderWidgetHostView()) {
@@ -593,9 +598,13 @@ void DaoAgentUIHandler::MoveCursor(content::WebContents* target,
   }
   cursor_view->AnimateTo(view_x, view_y,
                          base::BindOnce(
-                             [](base::OnceCallback<void(bool)> done) {
-                               std::move(done).Run(true);
+                             [](base::WeakPtr<content::WebContents> target,
+                                base::OnceCallback<void(bool)> done) {
+                               std::move(done).Run(
+                                   target && CanAnimateAgentCursorForTarget(
+                                                 target.get()));
                              },
+                             target->GetWeakPtr(),
                              std::move(callback)));
 }
 
@@ -604,9 +613,14 @@ void DaoAgentUIHandler::PlayClickRipple(content::WebContents* target) {
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   auto* cursor_view = browser_view ? browser_view->dao_agent_cursor() : nullptr;
-  if (cursor_view) {
-    cursor_view->PlayClickRipple();
+  if (!cursor_view) {
+    return;
   }
+  if (!CanAnimateAgentCursorForTarget(target)) {
+    cursor_view->Hide();
+    return;
+  }
+  cursor_view->PlayClickRipple();
 }
 
 void DaoAgentUIHandler::CancelCursor(content::WebContents* target) {

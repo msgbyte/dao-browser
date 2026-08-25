@@ -11,11 +11,17 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/views/view.h"
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace dao {
 
+bool CanAnimateAgentCursorForTarget(content::WebContents* target);
+
 // Renders a virtual mouse cursor on top of web content to visualize
-// AI agent actions. Shows a branded purple arrow pointer with smooth
-// Bezier movement animation and click ripple effects.
+// AI agent actions. Shows a black-and-white pointer with an accent glow,
+// directional movement animation, and click ripple effects.
 // This view is transparent and click-through — it never intercepts events.
 class DaoAgentCursorView : public views::View {
   METADATA_HEADER(DaoAgentCursorView, views::View)
@@ -43,6 +49,7 @@ class DaoAgentCursorView : public views::View {
   void PlayClickRipple();
 
   bool is_visible() const { return cursor_visible_; }
+  bool uses_curved_path_for_testing() const { return uses_curved_path_; }
 
  protected:
   void OnPaint(gfx::Canvas* canvas) override;
@@ -66,6 +73,10 @@ class DaoAgentCursorView : public views::View {
   // Move animation state.
   gfx::PointF move_start_;
   gfx::PointF move_end_;
+  gfx::PointF move_control_;
+  bool uses_curved_path_ = false;
+  float cursor_rotation_degrees_ = 0.0f;
+  float cursor_scale_x_ = 1.0f;
   base::TimeTicks move_start_time_;
   base::TimeDelta move_duration_;
   base::RepeatingTimer move_timer_;

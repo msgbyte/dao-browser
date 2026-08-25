@@ -458,23 +458,25 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
         return result;
       }
     }
-    tab_list->ActivateTab(selected->handle);
-    if (!weak_this || !session_weak) {
-      return ErrorResult(
-          DaoToolErrorCode::kToolCancelled,
-          "Browser tab tool ownership changed while activating a target.");
-    }
-    browser_window = session_weak->browser_window();
-    tab_list =
-        browser_window ? TabListInterface::From(browser_window) : nullptr;
-    selected_tab = selected->handle.Get();
-    if (!tab_list || !selected_tab) {
-      return ErrorResult(DaoToolErrorCode::kTargetGone,
-                         "The selected tab is no longer available.");
-    }
-    if (tab_list->GetActiveTab() != selected_tab) {
-      return ErrorResult(DaoToolErrorCode::kTargetGone,
-                         "The selected tab could not be activated.");
+    if (client == DaoToolClient::kMcp) {
+      tab_list->ActivateTab(selected->handle);
+      if (!weak_this || !session_weak) {
+        return ErrorResult(
+            DaoToolErrorCode::kToolCancelled,
+            "Browser tab tool ownership changed while activating a target.");
+      }
+      browser_window = session_weak->browser_window();
+      tab_list =
+          browser_window ? TabListInterface::From(browser_window) : nullptr;
+      selected_tab = selected->handle.Get();
+      if (!tab_list || !selected_tab) {
+        return ErrorResult(DaoToolErrorCode::kTargetGone,
+                           "The selected tab is no longer available.");
+      }
+      if (tab_list->GetActiveTab() != selected_tab) {
+        return ErrorResult(DaoToolErrorCode::kTargetGone,
+                           "The selected tab could not be activated.");
+      }
     }
     content::WebContents* new_target = selected_tab->GetContents();
     session_weak->SetTarget(new_target);
@@ -521,8 +523,13 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
     for (tabs::TabInterface* tab : tab_list->GetAllTabs()) {
       handles_before.push_back(tab->GetHandle());
     }
+    tabs::TabInterface* active_tab_before = tab_list->GetActiveTab();
+    const tabs::TabHandle active_handle_before =
+        active_tab_before ? active_tab_before->GetHandle()
+                          : tabs::TabHandle::Null();
+    const bool activate_tab = client == DaoToolClient::kMcp;
     const int active_index = tab_list->GetActiveIndex();
-    tab_list->OpenTab(url, active_index, true);
+    tab_list->OpenTab(url, active_index, activate_tab);
     if (!weak_this || !session_weak) {
       return ErrorResult(
           DaoToolErrorCode::kToolCancelled,
@@ -549,7 +556,10 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
         opened = tab;
       }
     }
-    if (!opened || tab_list->GetActiveTab() != opened) {
+    if (!opened ||
+        (activate_tab && tab_list->GetActiveTab() != opened) ||
+        (!activate_tab &&
+         tab_list->GetActiveTab() != active_handle_before.Get())) {
       return ErrorResult(
           DaoToolErrorCode::kTargetGone,
           "The new tab was not created in the authorized browser window.");

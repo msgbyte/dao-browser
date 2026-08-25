@@ -587,6 +587,7 @@ struct DaoPageTools::Operation : public content::WebContentsObserver {
   base::DictValue arguments;
   ResultCallback callback;
   std::set<int> command_ids;
+  int pending_background_click_commands = 0;
   bool owns_lock = false;
   bool temporary_highlight = false;
   bool persistent_highlight_committed = false;
@@ -1448,7 +1449,56 @@ void DaoPageTools::OnAnimatedCursorMoved(std::string request_id,
     TrackCursor(operation->target.get());
     ui_delegate_->PlayClickRipple(operation->target.get());
   }
+  if (!moved) {
+    DispatchBackgroundClick(request_id, x, y);
+    return;
+  }
   DispatchMouseMove(request_id, x, y);
+}
+
+void DaoPageTools::DispatchBackgroundClick(std::string_view request_id,
+                                           double x,
+                                           double y) {
+  Operation* operation = FindOperation(request_id);
+  if (!operation) {
+    return;
+  }
+  operation->pending_background_click_commands = 3;
+  for (const char* type : {"mouseMoved", "mousePressed", "mouseReleased"}) {
+    base::DictValue params;
+    params.Set("type", type);
+    params.Set("x", static_cast<int>(x));
+    params.Set("y", static_cast<int>(y));
+    const bool moved = std::string_view(type) == "mouseMoved";
+    params.Set("button", moved ? "none" : "left");
+    params.Set("buttons", std::string_view(type) == "mousePressed" ? 1 : 0);
+    if (!moved) {
+      params.Set("clickCount", 1);
+    }
+    SendCommand(request_id, "Input.dispatchMouseEvent", std::move(params),
+                base::BindOnce(&DaoPageTools::OnBackgroundClickCommand,
+                               weak_factory_.GetWeakPtr(),
+                               std::string(request_id)));
+    if (!FindOperation(request_id)) {
+      return;
+    }
+  }
+}
+
+void DaoPageTools::OnBackgroundClickCommand(
+    std::string request_id,
+    DaoDevToolsClient::CommandResult result) {
+  Operation* operation = FindOperation(request_id);
+  if (!operation) {
+    return;
+  }
+  if (!result.has_value()) {
+    FinishError(request_id, std::move(result).error());
+    return;
+  }
+  if (--operation->pending_background_click_commands == 0) {
+    FinishAnimatedClick(request_id, base::Value());
+  }
 }
 
 void DaoPageTools::DispatchMouseMove(std::string_view request_id,
@@ -1578,12 +1628,9 @@ void DaoPageTools::ExecuteMoveCursor(std::string_view request_id) {
             if (!operation) {
               return;
             }
-            if (!moved) {
-              self->FinishError(request_id,
-                                InternalError("Agent cursor is unavailable."));
-              return;
+            if (moved) {
+              self->TrackCursor(operation->target.get());
             }
-            self->TrackCursor(operation->target.get());
             self->FinishSuccess(request_id, base::Value(true));
           },
           weak_factory_.GetWeakPtr(), std::string(request_id)));
