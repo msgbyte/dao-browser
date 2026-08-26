@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,630 @@
+@@ -0,0 +1,637 @@
 +<style include="settings-shared">
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
@@ -476,6 +476,13 @@ index 0000000000..0000000001
 +      </span>
 +    </cr-input>
 +  </div>
++  <settings-toggle-button id="autoPipEnabled"
++      pref="{{autoPipEnabledPref_}}"
++      no-set-pref
++      label="$i18n{autoPipEnabledLabel}"
++      sub-label="$i18n{autoPipEnabledSubLabel}"
++      on-settings-boolean-control-change="onAutoPipEnabledChange_">
++  </settings-toggle-button>
 +  <settings-toggle-button id="enhancedPipEnabled"
 +      pref="{{prefs.dao.enhanced_pip_enabled}}"
 +      label="$i18n{enhancedPipEnabledLabel}"

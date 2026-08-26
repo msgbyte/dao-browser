@@ -590,7 +590,7 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 - **DaoPipSiteRules** — Site rules loaded from `pip_site_rules.json`
 
 ### 3.2 Auto-PiP triggers
-- **DaoAutoPipVisibilityHelper** (`browser/dao_auto_pip_visibility_helper.{h,cc}`) — Watches window-visibility changes (minimize, hide) and triggers auto-PiP for the active tab's playing video; complements Chromium's `AutoPictureInPictureTabHelper` (which only handles tab switching)
+- **DaoAutoPipVisibilityHelper** (`browser/dao_auto_pip_visibility_helper.{h,cc}`) — Watches window-visibility changes (minimize, hide) and triggers auto-PiP for the active tab's playing video; complements Chromium's `AutoPictureInPictureTabHelper` (which handles tab switching). Both paths obey Chromium's native automatic Picture-in-Picture content setting, exposed as a switch on **You and Dao**
 - Patches: `auto_picture_in_picture_tab_helper.cc.patch`, `picture_in_picture_window_manager.cc.patch`
 
 ### 3.3 PiP window chrome

@@ -4,12 +4,18 @@
 
 #include "dao/browser/dao_auto_pip_visibility_helper.h"
 
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "content/public/browser/media_session.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
+#include "url/gurl.h"
 
 namespace dao {
 
@@ -19,6 +25,16 @@ DaoAutoPipVisibilityHelper::DaoAutoPipVisibilityHelper(
       content::WebContentsUserData<DaoAutoPipVisibilityHelper>(*web_contents) {}
 
 DaoAutoPipVisibilityHelper::~DaoAutoPipVisibilityHelper() = default;
+
+bool DaoAutoPipVisibilityHelper::IsAutoPictureInPictureAllowed() const {
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  const GURL& url = web_contents()->GetLastCommittedURL();
+  return HostContentSettingsMapFactory::GetForProfile(profile)
+             ->GetContentSetting(
+                 url, url, ContentSettingsType::AUTO_PICTURE_IN_PICTURE) !=
+         CONTENT_SETTING_BLOCK;
+}
 
 void DaoAutoPipVisibilityHelper::OnVisibilityChanged(
     content::Visibility visibility) {
@@ -35,6 +51,9 @@ void DaoAutoPipVisibilityHelper::OnVisibilityChanged(
         browser->tab_strip_model()->GetIndexOfWebContents(web_contents());
     if (active_index != our_index) {
       return;  // Not the active tab, skip (tab switch handled elsewhere).
+    }
+    if (!IsAutoPictureInPictureAllowed()) {
+      return;
     }
 
     // Check if already in PiP.
