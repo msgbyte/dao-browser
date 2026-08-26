@@ -12,6 +12,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "dao/browser/mcp/dao_mcp_connection.h"
 #include "net/base/net_errors.h"
@@ -21,12 +22,25 @@
 namespace dao {
 namespace {
 
-constexpr int kListenerBacklog = 1;
+constexpr size_t kMaxConnections = 32;
+constexpr int kListenerBacklog = static_cast<int>(kMaxConnections);
 constexpr size_t kMaxPendingRequests = 64;
 constexpr size_t kMaxPendingRequestBytes = kDaoMcpMaxLineBytes + 1;
+constexpr size_t kMaxTotalPendingRequests =
+    kMaxConnections * kMaxPendingRequests;
+constexpr size_t kMaxTotalPendingRequestBytes =
+    kMaxConnections * kMaxPendingRequestBytes;
 constexpr base::TimeDelta kPendingRequestDrainTimeout = base::Seconds(1);
 
 }  // namespace
+
+struct DaoMcpTransport::ConnectionState {
+  std::unique_ptr<DaoMcpConnection> connection;
+  size_t pending_request_count = 0;
+  size_t pending_request_bytes = 0;
+  bool closing = false;
+  base::OneShotTimer pending_request_drain_timer;
+};
 
 DaoMcpTransport::DaoMcpTransport(AcceptedCallback accepted_callback,
                                  RequestCallback request_callback,
@@ -79,17 +93,11 @@ void DaoMcpTransport::StartAccepting() {
 void DaoMcpTransport::Stop() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   weak_factory_.InvalidateWeakPtrs();
-  active_connection_generation_ = 0;
-  pending_request_count_ = 0;
-  pending_request_bytes_ = 0;
-  connection_closing_ = false;
-  pending_request_drain_timer_.Stop();
   listener_.reset();
   accepted_socket_.reset();
-  if (connection_) {
-    connection_->Close();
-    connection_.reset();
-  }
+  connections_.clear();
+  total_pending_request_count_ = 0;
+  total_pending_request_bytes_ = 0;
   accepted_verified_pid_.reset();
   socket_path_.clear();
 }
@@ -98,8 +106,9 @@ void DaoMcpTransport::SendSuccess(uint64_t connection_generation,
                                   std::string id,
                                   base::DictValue result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (IsActiveConnection(connection_generation) && !connection_closing_) {
-    connection_->SendSuccess(id, std::move(result));
+  ConnectionState* state = FindConnection(connection_generation);
+  if (state && !state->closing) {
+    state->connection->SendSuccess(id, std::move(result));
   }
 }
 
@@ -107,38 +116,43 @@ void DaoMcpTransport::SendError(uint64_t connection_generation,
                                 std::optional<std::string> id,
                                 DaoToolError error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (IsActiveConnection(connection_generation) && !connection_closing_) {
-    connection_->SendError(id, error);
+  ConnectionState* state = FindConnection(connection_generation);
+  if (state && !state->closing) {
+    state->connection->SendError(id, error);
   }
 }
 
 void DaoMcpTransport::AcknowledgeRequest(uint64_t connection_generation,
                                          size_t wire_bytes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!IsActiveConnection(connection_generation) ||
-      pending_request_count_ == 0 || wire_bytes > pending_request_bytes_) {
+  ConnectionState* state = FindConnection(connection_generation);
+  if (!state || state->pending_request_count == 0 ||
+      wire_bytes > state->pending_request_bytes) {
     return;
   }
-  --pending_request_count_;
-  pending_request_bytes_ -= wire_bytes;
-  if (pending_request_count_ == 0 && connection_closing_) {
-    pending_request_drain_timer_.Stop();
-    connection_->CloseAfterWrites();
+  --state->pending_request_count;
+  state->pending_request_bytes -= wire_bytes;
+  --total_pending_request_count_;
+  total_pending_request_bytes_ -= wire_bytes;
+  if (state->pending_request_count == 0 && state->closing) {
+    state->pending_request_drain_timer.Stop();
+    state->connection->CloseAfterWrites();
   }
 }
 
 void DaoMcpTransport::CloseAfterWrites(uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!IsActiveConnection(connection_generation) || connection_closing_) {
+  ConnectionState* state = FindConnection(connection_generation);
+  if (!state || state->closing) {
     return;
   }
-  connection_closing_ = true;
-  connection_->StopReading();
-  if (pending_request_count_ == 0) {
-    connection_->CloseAfterWrites();
+  state->closing = true;
+  state->connection->StopReading();
+  if (state->pending_request_count == 0) {
+    state->connection->CloseAfterWrites();
     return;
   }
-  pending_request_drain_timer_.Start(
+  state->pending_request_drain_timer.Start(
       FROM_HERE, kPendingRequestDrainTimeout,
       base::BindOnce(&DaoMcpTransport::CloseConnection,
                      weak_factory_.GetWeakPtr(), connection_generation));
@@ -146,8 +160,9 @@ void DaoMcpTransport::CloseAfterWrites(uint64_t connection_generation) {
 
 void DaoMcpTransport::CloseConnection(uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (IsActiveConnection(connection_generation)) {
-    connection_->Close();
+  ConnectionState* state = FindConnection(connection_generation);
+  if (state) {
+    state->connection->Close();
   }
 }
 
@@ -191,7 +206,7 @@ void DaoMcpTransport::OnAccepted(int result) {
     return;
   }
 
-  if (connection_) {
+  if (connections_.size() >= kMaxConnections) {
     accepted_socket_->Disconnect();
     accepted_socket_.reset();
     AcceptNext();
@@ -199,19 +214,17 @@ void DaoMcpTransport::OnAccepted(int result) {
   }
 
   const uint64_t connection_generation = next_connection_generation_++;
-  connection_ = std::make_unique<DaoMcpConnection>(
+  auto state = std::make_unique<ConnectionState>();
+  state->connection = std::make_unique<DaoMcpConnection>(
       std::move(accepted_socket_), accepted_verified_pid_,
       base::BindRepeating(&DaoMcpTransport::OnRequest,
                           weak_factory_.GetWeakPtr(), connection_generation),
       base::BindOnce(&DaoMcpTransport::OnConnectionClosed,
                      weak_factory_.GetWeakPtr(), connection_generation));
-  active_connection_generation_ = connection_generation;
-  pending_request_count_ = 0;
-  pending_request_bytes_ = 0;
-  connection_closing_ = false;
-  pending_request_drain_timer_.Stop();
+  DaoMcpConnection* connection = state->connection.get();
+  connections_.emplace(connection_generation, std::move(state));
   accepted_callback_.Run(connection_generation, accepted_verified_pid_);
-  connection_->Start();
+  connection->Start();
   AcceptNext();
 }
 
@@ -219,36 +232,48 @@ void DaoMcpTransport::OnRequest(uint64_t connection_generation,
                                 DaoMcpRequest request,
                                 size_t wire_bytes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!IsActiveConnection(connection_generation) || connection_closing_) {
+  ConnectionState* state = FindConnection(connection_generation);
+  if (!state || state->closing) {
     return;
   }
-  if (pending_request_count_ >= kMaxPendingRequests ||
-      wire_bytes > kMaxPendingRequestBytes - pending_request_bytes_) {
-    connection_->Close();
+  if (state->pending_request_count >= kMaxPendingRequests ||
+      wire_bytes > kMaxPendingRequestBytes - state->pending_request_bytes ||
+      total_pending_request_count_ >= kMaxTotalPendingRequests ||
+      wire_bytes >
+          kMaxTotalPendingRequestBytes - total_pending_request_bytes_) {
+    state->connection->Close();
     return;
   }
-  ++pending_request_count_;
-  pending_request_bytes_ += wire_bytes;
+  ++state->pending_request_count;
+  state->pending_request_bytes += wire_bytes;
+  ++total_pending_request_count_;
+  total_pending_request_bytes_ += wire_bytes;
   request_callback_.Run(connection_generation, std::move(request), wire_bytes);
 }
 
 void DaoMcpTransport::OnConnectionClosed(uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!IsActiveConnection(connection_generation)) {
+  auto existing = connections_.find(connection_generation);
+  if (existing == connections_.end()) {
     return;
   }
-  active_connection_generation_ = 0;
-  pending_request_count_ = 0;
-  pending_request_bytes_ = 0;
-  connection_closing_ = false;
-  pending_request_drain_timer_.Stop();
-  connection_.reset();
+  total_pending_request_count_ -= existing->second->pending_request_count;
+  total_pending_request_bytes_ -= existing->second->pending_request_bytes;
+  std::unique_ptr<DaoMcpConnection> connection =
+      std::move(existing->second->connection);
+  connections_.erase(existing);
   disconnected_callback_.Run(connection_generation);
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce([](std::unique_ptr<DaoMcpConnection>) {},
+                     std::move(connection)));
 }
 
-bool DaoMcpTransport::IsActiveConnection(uint64_t connection_generation) const {
+DaoMcpTransport::ConnectionState* DaoMcpTransport::FindConnection(
+    uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return connection_ && connection_generation == active_connection_generation_;
+  auto existing = connections_.find(connection_generation);
+  return existing == connections_.end() ? nullptr : existing->second.get();
 }
 
 }  // namespace dao

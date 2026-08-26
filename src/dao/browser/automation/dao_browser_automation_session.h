@@ -100,6 +100,7 @@ class DaoBrowserAutomationSession {
 
   BrowserWindowInterface* browser_window() const;
   Profile* profile() const;
+  tabs::TabHandle target_handle() const;
   void SetTarget(content::WebContents* target);
   bool RefreshTargetDocumentSnapshot(content::WebContents* target);
   base::expected<content::WebContents*, DaoToolError> ResolveTarget() const;

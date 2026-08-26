@@ -449,11 +449,17 @@
       <message name="IDS_DAO_MCP_APPROVAL_DENY" desc="Button that denies one local MCP connection.">
         Deny
       </message>
-      <message name="IDS_DAO_MCP_CONTROL_TITLE" desc="Title in the banner shown while a local MCP client controls the current Dao window. CLIENT is the client-reported name.">
-        <ph name="CLIENT">$1<ex>Codex</ex></ph> is controlling this window
+      <message name="IDS_DAO_MCP_CONTROL_TITLE" desc="Title in the popup shown while a local MCP client controls browser tabs. CLIENT is the client-reported name.">
+        <ph name="CLIENT">$1<ex>Codex</ex></ph> is controlling browser tabs
       </message>
-      <message name="IDS_DAO_MCP_CONTROL_TARGET" desc="Current browser tab shown in the MCP active-control banner. TARGET is the current tab title.">
+      <message name="IDS_DAO_MCP_CONTROL_BUTTON_ACCESSIBLE_NAME" desc="Accessible name and tooltip for the robot button that opens active MCP browser-control details.">
+        AI control details
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_TARGET" desc="Current browser tab shown in the MCP active-control popup. TARGET is the current tab title.">
         Target: <ph name="TARGET">$1<ex>Project dashboard</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_TAB_COUNT" desc="Number of browser tabs controlled by the active MCP connection. COUNT is the number of tabs.">
+        Controlled tabs: <ph name="COUNT">$1<ex>3</ex></ph>
       </message>
       <message name="IDS_DAO_MCP_CONTROL_STOP" desc="Button that revokes the active local MCP browser-control connection.">
         Stop

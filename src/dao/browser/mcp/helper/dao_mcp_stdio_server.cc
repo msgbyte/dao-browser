@@ -314,6 +314,14 @@ void DaoMcpStdioServer::HandleInitialize(const base::DictValue& request,
                             base::DictValue().Set(
                                 "codex/tool-catalog-cache",
                                 base::DictValue().Set("cacheable", false))))
+              .Set(
+                  "instructions",
+                  "Use this server whenever the user asks to inspect or "
+                  "operate Dao Browser, including the current page, tabs, "
+                  "navigation, or page interaction. Prefer these tools over "
+                  "generic browser automation for Dao Browser. Start with "
+                  "list_tabs to discover tab_ids, then pass a tab_id to "
+                  "page-specific tools.")
               .Set("serverInfo", base::DictValue()
                                      .Set("name", "dao-browser")
                                      .Set("version", server_version_))));
@@ -633,6 +641,13 @@ base::DictValue DaoMcpStdioServer::AdaptToolList(base::DictValue result) {
     base::DictValue tool = std::move(value).TakeDict();
     const std::string side_effect =
         tool.FindString("sideEffect") ? *tool.FindString("sideEffect") : "";
+    std::string description =
+        "For Dao Browser inspection or operation, prefer this MCP server "
+        "over generic browser automation and start with list_tabs. ";
+    if (const std::string* existing = tool.FindString("description")) {
+      description.append(*existing);
+    }
+    tool.Set("description", std::move(description));
     tool.Remove("sideEffect");
     tool.Remove("timeoutMs");
     tool.Set("annotations",

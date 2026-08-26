@@ -144,7 +144,6 @@
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/ui/views/dao_load_progress_view.h"
 #include "dao/browser/ui/views/dao_mcp_approval_dialog.h"
-#include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/dao_qr_code_image.h"
@@ -11832,6 +11831,31 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   dialog.DismissWithoutResult();
   EXPECT_FALSE(resolved);
   EXPECT_TRUE(allowed);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       SerializesConcurrentApprovalRequests) {
+  DaoMcpApprovalDialogController* controller =
+      DaoMcpApprovalDialogController::Get();
+  ASSERT_EQ(0u, controller->queued_approval_count_for_testing());
+  DaoMcpClientInfo client{
+      .name = "Reported Client",
+      .version = "1.0",
+      .verified_pid = 4242,
+  };
+  int callback_count = 0;
+  controller->RequestApproval(
+      client, browser(), "first",
+      base::BindLambdaForTesting([&](bool) { ++callback_count; }));
+  controller->RequestApproval(
+      client, browser(), "second",
+      base::BindLambdaForTesting([&](bool) { ++callback_count; }));
+
+  EXPECT_EQ(1u, controller->queued_approval_count_for_testing());
+  controller->CancelApproval("first");
+  EXPECT_EQ(0u, controller->queued_approval_count_for_testing());
+  controller->CancelApproval("second");
+  EXPECT_EQ(0, callback_count);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,

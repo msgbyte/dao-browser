@@ -27,22 +27,26 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/mcp/dao_mcp_service.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_button.h"
-#include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
+#include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
+#include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/menu_source_utils.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
-#include "ui/gfx/font_list.h"
 #include "ui/compositor/layer.h"
+#include "ui/gfx/animation/linear_animation.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/font_list.h"
+#include "ui/gfx/geometry/transform.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
@@ -54,8 +58,6 @@
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/widget/widget.h"
-#include "ui/gfx/animation/linear_animation.h"
-#include "ui/gfx/geometry/transform.h"
 
 namespace dao {
 
@@ -439,6 +441,17 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   security_btn->SetVisible(false);
   security_button_ = AddChildView(std::move(security_btn));
 
+  auto mcp_control_btn = std::make_unique<NavIconButton>(
+      base::BindRepeating(&DaoAddressBarView::OnMcpControlButtonPressed,
+                          base::Unretained(this)),
+      LucideIcon::kBot,
+      l10n_util::GetStringUTF16(
+          IDS_DAO_MCP_CONTROL_BUTTON_ACCESSIBLE_NAME));
+  mcp_control_btn->SetTooltipText(l10n_util::GetStringUTF16(
+      IDS_DAO_MCP_CONTROL_BUTTON_ACCESSIBLE_NAME));
+  mcp_control_btn->SetVisible(false);
+  mcp_control_button_ = AddChildView(std::move(mcp_control_btn));
+
   // URL pill: wraps host + path labels, sized to content, centered by spacers.
   url_container_ = AddChildView(std::make_unique<views::View>());
   auto* url_layout =
@@ -498,6 +511,9 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   control_center_button_ = AddChildView(
       std::make_unique<DaoControlCenterButton>(browser));
 
+  mcp_service_subscription_ = DaoMcpService::Get()->AddObserver(
+      base::BindRepeating(&DaoAddressBarView::OnMcpServiceStatusChanged,
+                          base::Unretained(this)));
   tab_strip_model_->AddObserver(this);
   ObserveActiveWebContents();
   UpdateURL();
@@ -505,6 +521,7 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
 }
 
 DaoAddressBarView::~DaoAddressBarView() {
+  CloseMcpControlPopup();
   if (tab_strip_model_) {
     tab_strip_model_->RemoveObserver(this);
   }
@@ -514,6 +531,7 @@ void DaoAddressBarView::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
+  CloseMcpControlPopup();
   ObserveActiveWebContents();
   UpdateURL();
   UpdateBackgroundColor();
@@ -623,7 +641,7 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
   // If the click lands on any nav button, let it handle it
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
                               stop_refresh_button_.get(), security_button_.get(),
-                              chat_button_.get()}) {
+                              mcp_control_button_.get(), chat_button_.get()}) {
     if (btn && btn->GetVisible()) {
       gfx::Point pt = event.location();
       views::View::ConvertPointToTarget(this, btn, &pt);
@@ -768,6 +786,7 @@ void DaoAddressBarView::ObserveActiveWebContents() {
   UpdateNavButtonEnabled();
   UpdateStopRefreshButton();
   UpdateSecurityButton();
+  UpdateMcpControlButton();
 }
 
 std::unique_ptr<ui::MenuModel> DaoAddressBarView::CreateHistoryMenuModel(
@@ -910,6 +929,53 @@ void DaoAddressBarView::OnSecurityButtonPressed() {
   bubble->GetWidget()->Show();
 }
 
+void DaoAddressBarView::UpdateMcpControlButton() {
+  content::WebContents* contents =
+      tab_strip_model_ ? tab_strip_model_->GetActiveWebContents() : nullptr;
+  const bool visible = DaoMcpService::Get()->IsTargetControlled(contents);
+  mcp_control_button_->SetVisible(visible);
+  if (!visible) {
+    CloseMcpControlPopup();
+  }
+}
+
+void DaoAddressBarView::OnMcpControlButtonPressed() {
+  if (mcp_control_popup_tracker_.view()) {
+    CloseMcpControlPopup();
+    return;
+  }
+
+  content::WebContents* contents =
+      tab_strip_model_ ? tab_strip_model_->GetActiveWebContents() : nullptr;
+  if (!contents || !DaoMcpService::Get()->IsTargetControlled(contents)) {
+    UpdateMcpControlButton();
+    return;
+  }
+
+  auto popup = std::make_unique<DaoMcpControlBannerView>(
+      mcp_control_button_, browser_, contents);
+  DaoMcpControlBannerView* popup_ptr = popup.get();
+  views::Widget* widget = views::BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(popup),
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+  mcp_control_popup_tracker_.SetView(popup_ptr);
+  widget->Show();
+}
+
+void DaoAddressBarView::CloseMcpControlPopup() {
+  views::View* popup = mcp_control_popup_tracker_.view();
+  mcp_control_popup_tracker_.SetView(nullptr);
+  if (popup && popup->GetWidget()) {
+    popup->GetWidget()->Close();
+  }
+}
+
+void DaoAddressBarView::OnMcpServiceStatusChanged(
+    const DaoMcpServiceStatus&) {
+  CloseMcpControlPopup();
+  UpdateMcpControlButton();
+}
+
 void DaoAddressBarView::OnChatButtonPressed() {
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(browser_);
@@ -1003,7 +1069,8 @@ void DaoAddressBarView::UpdateNavButtonColors() {
       : SkColorSetARGB(20, 0, 0, 0);
 
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
-                              stop_refresh_button_.get(), chat_button_.get()}) {
+                              stop_refresh_button_.get(),
+                              mcp_control_button_.get(), chat_button_.get()}) {
     if (btn) {
       auto* nav_btn = static_cast<NavIconButton*>(btn);
       nav_btn->SetIconColor(icon_color);
@@ -1039,6 +1106,12 @@ std::u16string DaoAddressBarView::GetPathTextForTesting() const {
                      : std::u16string();
 }
 
+DaoMcpControlBannerView*
+DaoAddressBarView::mcp_control_popup_for_testing() {
+  return static_cast<DaoMcpControlBannerView*>(
+      mcp_control_popup_tracker_.view());
+}
+
 std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
   std::vector<gfx::Rect> rects;
   // URL pill
@@ -1048,7 +1121,7 @@ std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
   // Navigation buttons
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
                               stop_refresh_button_.get(), security_button_.get(),
-                              chat_button_.get()}) {
+                              mcp_control_button_.get(), chat_button_.get()}) {
     if (btn && btn->GetVisible()) {
       rects.push_back(btn->GetMirroredBounds());
     }

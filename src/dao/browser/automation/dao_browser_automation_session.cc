@@ -94,6 +94,11 @@ Profile* DaoBrowserAutomationSession::profile() const {
   return profile_.get();
 }
 
+tabs::TabHandle DaoBrowserAutomationSession::target_handle() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return target_handle_;
+}
+
 void DaoBrowserAutomationSession::SetTarget(content::WebContents* target) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   content::WebContents* previous_target = resolved_contents_.get();

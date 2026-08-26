@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -17,7 +18,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/process/process_handle.h"
 #include "base/sequence_checker.h"
-#include "base/timer/timer.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
 
@@ -28,7 +28,7 @@ class UnixDomainServerSocket;
 
 namespace dao {
 
-// Owns the Unix socket listener and its accepted connection. Every method and
+// Owns the Unix socket listener and accepted connections. Every method and
 // callback runs on the browser IO thread.
 class DaoMcpTransport {
  public:
@@ -61,6 +61,8 @@ class DaoMcpTransport {
   void CloseConnection(uint64_t connection_generation);
 
  private:
+  struct ConnectionState;
+
   bool AuthenticatePeer(uid_t peer_uid,
                         std::optional<base::ProcessId> peer_pid);
   void AcceptNext();
@@ -69,7 +71,7 @@ class DaoMcpTransport {
                  DaoMcpRequest request,
                  size_t wire_bytes);
   void OnConnectionClosed(uint64_t connection_generation);
-  bool IsActiveConnection(uint64_t connection_generation) const;
+  ConnectionState* FindConnection(uint64_t connection_generation);
 
   AcceptedCallback accepted_callback_;
   RequestCallback request_callback_;
@@ -77,14 +79,11 @@ class DaoMcpTransport {
   base::FilePath socket_path_;
   std::unique_ptr<net::UnixDomainServerSocket> listener_;
   std::unique_ptr<net::StreamSocket> accepted_socket_;
-  std::unique_ptr<class DaoMcpConnection> connection_;
+  std::map<uint64_t, std::unique_ptr<ConnectionState>> connections_;
   std::optional<base::ProcessId> accepted_verified_pid_;
   uint64_t next_connection_generation_ = 1;
-  uint64_t active_connection_generation_ = 0;
-  size_t pending_request_count_ = 0;
-  size_t pending_request_bytes_ = 0;
-  bool connection_closing_ = false;
-  base::OneShotTimer pending_request_drain_timer_;
+  size_t total_pending_request_count_ = 0;
+  size_t total_pending_request_bytes_ = 0;
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<DaoMcpTransport> weak_factory_{this};
 };

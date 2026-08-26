@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -16,6 +17,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/view.h"
+#include "ui/views/view_tracker.h"
 
 class Browser;
 class TabStripModel;
@@ -39,7 +41,9 @@ class MenuModel;
 
 namespace dao {
 class DaoControlCenterButton;
+class DaoMcpControlBannerView;
 class DaoPinnedExtensionsContainer;
+struct DaoMcpServiceStatus;
 }
 
 namespace dao {
@@ -84,7 +88,6 @@ class DaoAddressBarView : public views::View,
     toggle_callback_ = std::move(callback);
   }
 
-
   // Update the chat button highlight to reflect agent sidebar state.
   void SetChatButtonHighlighted(bool highlighted);
 
@@ -101,6 +104,11 @@ class DaoAddressBarView : public views::View,
   size_t GetBackHistoryMenuItemCountForTesting() const;
 
   size_t GetForwardHistoryMenuItemCountForTesting() const;
+
+  views::Button* mcp_control_button_for_testing() const {
+    return mcp_control_button_;
+  }
+  DaoMcpControlBannerView* mcp_control_popup_for_testing();
 
   // Returns rects of all interactive elements (buttons, URL pill, control
   // center) in address bar coordinates, for hit-testing in the layout.
@@ -122,6 +130,8 @@ class DaoAddressBarView : public views::View,
   void UpdateNavButtonColors();
   void UpdateNavButtonEnabled();
   void UpdateStopRefreshButton();
+  void UpdateMcpControlButton();
+  void CloseMcpControlPopup();
   void UpdateUrlContainerHover(bool hovered);
   void ObserveActiveWebContents();
   std::unique_ptr<ui::MenuModel> CreateHistoryMenuModel(bool forward) const;
@@ -131,6 +141,8 @@ class DaoAddressBarView : public views::View,
   void OnForwardButtonPressed();
   void OnStopRefreshButtonPressed();
   void OnSecurityButtonPressed();
+  void OnMcpControlButtonPressed();
+  void OnMcpServiceStatusChanged(const DaoMcpServiceStatus& status);
   void OnChatButtonPressed();
 
   raw_ptr<Browser> browser_;
@@ -144,10 +156,13 @@ class DaoAddressBarView : public views::View,
   raw_ptr<DaoPinnedExtensionsContainer> pinned_extensions_ = nullptr;
   raw_ptr<views::Button> chat_button_ = nullptr;
   raw_ptr<views::Button> security_button_ = nullptr;
+  raw_ptr<views::Button> mcp_control_button_ = nullptr;
   raw_ptr<views::View> url_container_ = nullptr;
   raw_ptr<views::Label> host_label_ = nullptr;
   raw_ptr<views::Label> path_label_ = nullptr;
   raw_ptr<DaoControlCenterButton> control_center_button_ = nullptr;
+  views::ViewTracker mcp_control_popup_tracker_;
+  base::CallbackListSubscription mcp_service_subscription_;
   base::RepeatingClosure toggle_callback_;
   bool sidebar_collapsed_ = false;
   bool url_hovered_ = false;

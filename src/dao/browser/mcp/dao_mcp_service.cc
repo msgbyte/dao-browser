@@ -49,6 +49,7 @@
 #include "dao/browser/mcp/dao_mcp_session_lifecycle_monitor.h"
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "dao/browser/ui/views/dao_mcp_approval_dialog.h"
+#include "dao/browser/ui/views/dao_tab_identity.h"
 #include "net/base/net_errors.h"
 
 namespace dao {
@@ -58,7 +59,7 @@ constexpr size_t kMaxClientLabelBytes = 256;
 constexpr size_t kMaxPendingToolCalls = 64;
 constexpr size_t kMaxPendingToolCallBytes = kDaoMcpMaxLineBytes;
 constexpr base::TimeDelta kHelloTimeout = base::Seconds(5);
-constexpr base::TimeDelta kApprovalTimeout = base::Seconds(30);
+constexpr base::TimeDelta kApprovalTimeout = base::Minutes(1);
 constexpr base::TimeDelta kLeaseRetryDelay = base::Milliseconds(50);
 
 DaoToolError AuthorizationDenied() {
@@ -69,6 +70,12 @@ DaoToolError AuthorizationDenied() {
 DaoToolError InvalidRequest(std::string message) {
   return MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
                           std::move(message));
+}
+
+DaoBrowserToolResult ErrorResult(DaoToolError error) {
+  DaoBrowserToolResult result;
+  result.error = std::move(error);
+  return result;
 }
 
 std::string SideEffectName(DaoBrowserToolSideEffect side_effect) {
@@ -84,6 +91,43 @@ std::string SideEffectName(DaoBrowserToolSideEffect side_effect) {
 }
 
 }  // namespace
+
+struct DaoMcpService::TargetContext {
+  TargetContext() = default;
+  ~TargetContext() = default;
+
+  std::unique_ptr<DaoBrowserAutomationSession> session;
+  std::unique_ptr<DaoMcpSessionLifecycleMonitor> lifecycle_monitor;
+  std::unique_ptr<DaoDevToolsClient> devtools_client;
+  std::unique_ptr<DaoBrowserToolExecutor> tool_executor;
+  std::optional<DaoAgentLease> lease;
+};
+
+struct DaoMcpService::ConnectionState {
+  uint64_t generation = 0;
+  bool closing = false;
+  std::optional<base::ProcessId> verified_pid;
+  ApprovalState approval_state = ApprovalState::kNotRequested;
+  base::TimeTicks approval_deadline;
+  base::OneShotTimer hello_timer;
+  base::OneShotTimer approval_timer;
+  base::OneShotTimer lease_retry_timer;
+  std::optional<DaoMcpClientInfo> client_info;
+  std::string connection_id;
+  std::map<std::string, std::unique_ptr<TargetContext>, std::less<>>
+      target_contexts;
+  std::string default_target_id;
+  std::map<std::string, PendingToolCall, std::less<>> pending_tool_calls;
+  std::set<std::string, std::less<>> active_tool_calls;
+  std::map<std::string, std::string, std::less<>> active_tool_targets;
+  std::map<std::string, size_t, std::less<>> active_tool_call_bytes;
+  size_t active_tool_call_bytes_total = 0;
+  std::unique_ptr<DaoDevToolsClient> tab_tool_devtools_client;
+  std::unique_ptr<DaoBrowserToolExecutor> tab_tool_executor;
+  std::map<std::string, std::unique_ptr<DaoBrowserAutomationSession>,
+           std::less<>>
+      tab_tool_sessions;
+};
 
 class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
  public:
@@ -236,11 +280,7 @@ DaoMcpService* DaoMcpService::Get() {
 DaoMcpService::DaoMcpService()
     : hello_timeout_(kHelloTimeout),
       approval_timeout_(kApprovalTimeout),
-      page_ui_delegate_(std::make_unique<DaoMcpPageUiDelegate>()),
-      devtools_client_(std::make_unique<DaoDevToolsClient>()),
-      tool_executor_(
-          std::make_unique<DaoBrowserToolExecutor>(devtools_client_.get(),
-                                                   page_ui_delegate_.get())) {
+      page_ui_delegate_(std::make_unique<DaoMcpPageUiDelegate>()) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
@@ -317,11 +357,13 @@ std::string DaoMcpService::GetMcpConfiguration() const {
 
 Browser* DaoMcpService::GetAuthorizedBrowser() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (status_.state != DaoMcpStatus::kLeaseActive || !external_lease_ ||
-      !session_) {
+  const ConnectionState* connection = GetDisplayConnection();
+  const TargetContext* context =
+      connection ? GetDefaultTargetContext(*connection) : nullptr;
+  if (!context || !context->lease) {
     return nullptr;
   }
-  BrowserWindowInterface* browser_window = session_->browser_window();
+  BrowserWindowInterface* browser_window = context->session->browser_window();
   return browser_window ? browser_window->GetBrowserForMigrationOnly()
                         : nullptr;
 }
@@ -331,16 +373,51 @@ content::WebContents* DaoMcpService::GetAuthorizedTarget() const {
   if (!GetAuthorizedBrowser()) {
     return nullptr;
   }
-  auto target = session_->ResolveTarget();
+  const ConnectionState* connection = GetDisplayConnection();
+  const TargetContext* context =
+      connection ? GetDefaultTargetContext(*connection) : nullptr;
+  if (!context) {
+    return nullptr;
+  }
+  auto target = context->session->ResolveTarget();
   return target.has_value() ? target.value() : nullptr;
+}
+
+bool DaoMcpService::IsTargetControlled(content::WebContents* target) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!target) {
+    return false;
+  }
+  for (const auto& [_, connection] : connections_) {
+    for (const auto& [_, context] : connection->target_contexts) {
+      auto controlled_target = context->session->ResolveTarget();
+      if (context->lease && controlled_target.has_value() &&
+          *controlled_target == target) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+size_t DaoMcpService::GetControlledTargetCount() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  size_t count = 0;
+  for (const auto& [_, connection] : connections_) {
+    for (const auto& [_, context] : connection->target_contexts) {
+      count += context->lease.has_value();
+    }
+  }
+  return count;
 }
 
 void DaoMcpService::StopControl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!connection_active_) {
+  ConnectionState* connection = GetDisplayConnection();
+  if (!connection) {
     return;
   }
-  RejectConnection(MakeDaoToolError(
+  RejectConnection(*connection, MakeDaoToolError(
       DaoToolErrorCode::kToolCancelled,
       "External MCP browser control was stopped by the user."));
 }
@@ -365,43 +442,113 @@ void DaoMcpService::SetTimeoutsForTesting(base::TimeDelta hello_timeout,
 
 void DaoMcpService::SetDevToolsCommandCallbackForTesting(
     base::RepeatingCallback<void(const std::string&)> callback) {
-  devtools_client_->SetCommandCallbackForTesting(std::move(callback));
+  devtools_command_callback_for_testing_ = std::move(callback);
+  for (auto& [_, connection] : connections_) {
+    connection->tab_tool_devtools_client->SetCommandCallbackForTesting(
+        devtools_command_callback_for_testing_);
+    for (auto& [_, context] : connection->target_contexts) {
+      context->devtools_client->SetCommandCallbackForTesting(
+          devtools_command_callback_for_testing_);
+    }
+  }
 }
 
 size_t DaoMcpService::active_tool_call_count_for_testing() const {
-  return active_tool_calls_.size();
+  size_t count = 0;
+  for (const auto& [_, connection] : connections_) {
+    count += connection->active_tool_calls.size();
+  }
+  return count;
 }
 
 size_t DaoMcpService::pending_executor_call_count_for_testing() const {
-  return tool_executor_->pending_count_for_testing();
+  size_t count = 0;
+  for (const auto& [_, connection] : connections_) {
+    count += connection->tab_tool_executor->pending_count_for_testing();
+    for (const auto& [_, context] : connection->target_contexts) {
+      count += context->tool_executor->pending_count_for_testing();
+    }
+  }
+  return count;
 }
 
 size_t DaoMcpService::pending_devtools_command_count_for_testing() const {
-  return devtools_client_->pending_command_count_for_testing();
+  size_t count = 0;
+  for (const auto& [_, connection] : connections_) {
+    count +=
+        connection->tab_tool_devtools_client->pending_command_count_for_testing();
+    for (const auto& [_, context] : connection->target_contexts) {
+      count += context->devtools_client->pending_command_count_for_testing();
+    }
+  }
+  return count;
 }
 
 bool DaoMcpService::devtools_attached_for_testing() const {
-  return devtools_client_->agent_host() != nullptr;
+  for (const auto& [_, connection] : connections_) {
+    for (const auto& [_, context] : connection->target_contexts) {
+      if (context->devtools_client->agent_host()) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 size_t DaoMcpService::page_operation_count_for_testing() const {
-  return tool_executor_->page_operation_count_for_testing();
+  size_t count = 0;
+  for (const auto& [_, connection] : connections_) {
+    count += connection->tab_tool_executor->page_operation_count_for_testing();
+    for (const auto& [_, context] : connection->target_contexts) {
+      count += context->tool_executor->page_operation_count_for_testing();
+    }
+  }
+  return count;
 }
 
 size_t DaoMcpService::page_lock_count_for_testing() const {
-  return tool_executor_->page_lock_count_for_testing();
+  size_t count = 0;
+  for (const auto& [_, connection] : connections_) {
+    count += connection->tab_tool_executor->page_lock_count_for_testing();
+    for (const auto& [_, context] : connection->target_contexts) {
+      count += context->tool_executor->page_lock_count_for_testing();
+    }
+  }
+  return count;
 }
 
 size_t DaoMcpService::page_highlight_count_for_testing() const {
-  return tool_executor_->page_highlight_count_for_testing();
+  size_t count = 0;
+  for (const auto& [_, connection] : connections_) {
+    count += connection->tab_tool_executor->page_highlight_count_for_testing();
+    for (const auto& [_, context] : connection->target_contexts) {
+      count += context->tool_executor->page_highlight_count_for_testing();
+    }
+  }
+  return count;
 }
 
 size_t DaoMcpService::page_cursor_count_for_testing() const {
-  return tool_executor_->page_cursor_count_for_testing();
+  size_t count = 0;
+  for (const auto& [_, connection] : connections_) {
+    count += connection->tab_tool_executor->page_cursor_count_for_testing();
+    for (const auto& [_, context] : connection->target_contexts) {
+      count += context->tool_executor->page_cursor_count_for_testing();
+    }
+  }
+  return count;
 }
 
 void DaoMcpService::TrackPageCursorForTesting(content::WebContents* target) {
-  tool_executor_->TrackPageCursorForTesting(target);
+  for (auto& [_, connection] : connections_) {
+    for (auto& [_, context] : connection->target_contexts) {
+      auto controlled_target = context->session->ResolveTarget();
+      if (controlled_target.has_value() && *controlled_target == target) {
+        context->tool_executor->TrackPageCursorForTesting(target);
+        return;
+      }
+    }
+  }
 }
 
 void DaoMcpService::OnEnabledPrefChanged() {
@@ -442,7 +589,7 @@ void DaoMcpService::OnRuntimePrepared(
   }
   if (!prepared.has_value()) {
     listener_start_pending_ = false;
-    UpdateStatus(DaoMcpStatus::kDisabled);
+    UpdateStatus();
     return;
   }
 
@@ -478,7 +625,7 @@ void DaoMcpService::OnTransportListening(uint64_t runtime_generation,
     listener_start_pending_ = false;
     transport_.Reset();
     QueueRuntimeCleanup();
-    UpdateStatus(DaoMcpStatus::kDisabled);
+    UpdateStatus();
     return;
   }
   runtime_task_runner_->PostTaskAndReplyWithResult(
@@ -511,13 +658,13 @@ void DaoMcpService::OnRuntimePublished(
       transport_.Reset();
     }
     QueueRuntimeCleanup();
-    UpdateStatus(DaoMcpStatus::kDisabled);
+    UpdateStatus();
     return;
   }
 
   listener_active_ = true;
   transport_.AsyncCall(&DaoMcpTransport::StartAccepting);
-  UpdateStatus(DaoMcpStatus::kListening);
+  UpdateStatus();
 }
 
 void DaoMcpService::QueueRuntimeCleanup() {
@@ -534,16 +681,16 @@ void DaoMcpService::StopListening() {
   ++runtime_generation_;
   listener_start_pending_ = false;
   listener_active_ = false;
-  connection_active_ = false;
-  connection_closing_ = false;
-  active_connection_generation_ = 0;
   if (!transport_.is_null()) {
     transport_.AsyncCall(&DaoMcpTransport::Stop);
     transport_.Reset();
   }
-  ResetConnectionState();
+  for (auto& [_, connection] : connections_) {
+    ResetConnectionState(*connection);
+  }
+  connections_.clear();
   QueueRuntimeCleanup();
-  UpdateStatus(DaoMcpStatus::kDisabled);
+  UpdateStatus();
 }
 
 void DaoMcpService::OnTransportAccepted(
@@ -552,17 +699,24 @@ void DaoMcpService::OnTransportAccepted(
     std::optional<base::ProcessId> verified_pid) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (runtime_generation != runtime_generation_ || !listener_active_ ||
-      connection_active_) {
+      connections_.contains(connection_generation)) {
     return;
   }
-  connection_active_ = true;
-  connection_closing_ = false;
-  active_connection_generation_ = connection_generation;
-  accepted_verified_pid_ = verified_pid;
-  hello_timer_.Start(
+  auto connection = std::make_unique<ConnectionState>();
+  connection->generation = connection_generation;
+  connection->verified_pid = verified_pid;
+  connection->tab_tool_devtools_client = std::make_unique<DaoDevToolsClient>();
+  connection->tab_tool_devtools_client->SetCommandCallbackForTesting(
+      devtools_command_callback_for_testing_);
+  connection->tab_tool_executor = std::make_unique<DaoBrowserToolExecutor>(
+      connection->tab_tool_devtools_client.get(), page_ui_delegate_.get());
+  ConnectionState* connection_ptr = connection.get();
+  connections_.emplace(connection_generation, std::move(connection));
+  connection_ptr->hello_timer.Start(
       FROM_HERE, hello_timeout_,
       base::BindOnce(&DaoMcpService::OnHelloTimeout, weak_factory_.GetWeakPtr(),
                      connection_generation));
+  UpdateStatus();
 }
 
 void DaoMcpService::OnTransportRequest(uint64_t runtime_generation,
@@ -570,10 +724,11 @@ void DaoMcpService::OnTransportRequest(uint64_t runtime_generation,
                                        DaoMcpRequest request,
                                        size_t wire_bytes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (runtime_generation == runtime_generation_ &&
-      connection_generation == active_connection_generation_ &&
-      connection_active_ && !connection_closing_) {
-    OnRequest(std::move(request));
+  if (runtime_generation == runtime_generation_) {
+    ConnectionState* connection = FindConnection(connection_generation);
+    if (connection && !connection->closing) {
+      OnRequest(*connection, std::move(request));
+    }
   }
   if (runtime_generation == runtime_generation_ && !transport_.is_null()) {
     transport_.AsyncCall(&DaoMcpTransport::AcknowledgeRequest)
@@ -584,98 +739,149 @@ void DaoMcpService::OnTransportRequest(uint64_t runtime_generation,
 void DaoMcpService::OnConnectionClosed(uint64_t runtime_generation,
                                        uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (runtime_generation != runtime_generation_ ||
-      connection_generation != active_connection_generation_) {
+  if (runtime_generation != runtime_generation_) {
     return;
   }
-  active_connection_generation_ = 0;
-  connection_active_ = false;
-  connection_closing_ = false;
-  ResetConnectionState();
-  UpdateStatus(listener_active_ ? DaoMcpStatus::kListening
-                                : DaoMcpStatus::kDisabled);
+  auto connection = connections_.find(connection_generation);
+  if (connection == connections_.end()) {
+    return;
+  }
+  ResetConnectionState(*connection->second);
+  connections_.erase(connection);
+  UpdateStatus();
 }
 
-void DaoMcpService::ResetConnectionState() {
+DaoMcpService::ConnectionState* DaoMcpService::FindConnection(
+    uint64_t connection_generation) {
+  auto connection = connections_.find(connection_generation);
+  return connection == connections_.end() ? nullptr : connection->second.get();
+}
+
+const DaoMcpService::ConnectionState* DaoMcpService::FindConnection(
+    uint64_t connection_generation) const {
+  auto connection = connections_.find(connection_generation);
+  return connection == connections_.end() ? nullptr : connection->second.get();
+}
+
+DaoMcpService::ConnectionState* DaoMcpService::GetDisplayConnection() {
+  return const_cast<ConnectionState*>(
+      std::as_const(*this).GetDisplayConnection());
+}
+
+const DaoMcpService::ConnectionState*
+DaoMcpService::GetDisplayConnection() const {
+  BrowserWindowInterface* browser_window =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
+  tabs::TabInterface* active_tab =
+      browser_window ? browser_window->GetActiveTabInterface() : nullptr;
+  content::WebContents* active_target =
+      active_tab ? active_tab->GetContents() : nullptr;
+  if (active_target) {
+    for (const auto& [_, connection] : connections_) {
+      for (const auto& [_, context] : connection->target_contexts) {
+        auto target = context->session->ResolveTarget();
+        if (context->lease && target.has_value() && *target == active_target) {
+          return connection.get();
+        }
+      }
+    }
+  }
+  for (const auto& [_, connection] : connections_) {
+    for (const auto& [_, context] : connection->target_contexts) {
+      if (context->lease) {
+        return connection.get();
+      }
+    }
+  }
+  for (const auto& [_, connection] : connections_) {
+    if (connection->approval_state == ApprovalState::kPending ||
+        connection->approval_state == ApprovalState::kAllowed) {
+      return connection.get();
+    }
+  }
+  return connections_.empty() ? nullptr : connections_.begin()->second.get();
+}
+
+void DaoMcpService::ResetConnectionState(ConnectionState& connection) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  connection_closing_ = false;
-  hello_timer_.Stop();
-  approval_timer_.Stop();
-  lease_retry_timer_.Stop();
-  if (approval_delegate_ && !connection_id_.empty() &&
-      approval_state_ == ApprovalState::kPending) {
-    approval_delegate_->CancelApproval(connection_id_);
+  connection.hello_timer.Stop();
+  connection.approval_timer.Stop();
+  connection.lease_retry_timer.Stop();
+  if (approval_delegate_ && !connection.connection_id.empty() &&
+      connection.approval_state == ApprovalState::kPending) {
+    approval_delegate_->CancelApproval(connection.connection_id);
   }
-  if (tool_executor_) {
-    tool_executor_->CancelAll(
-        MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
-                         "The MCP browser connection was closed."));
-    tool_executor_->ClearSessionState(session_.get());
+  const DaoToolError closed = MakeDaoToolError(
+      DaoToolErrorCode::kToolCancelled,
+      "The MCP browser connection was closed.");
+  connection.tab_tool_executor->CancelAll(closed);
+  for (auto& [_, context] : connection.target_contexts) {
+    context->tool_executor->CancelAll(closed);
+    context->tool_executor->ClearSessionState(context->session.get());
+    context->devtools_client->Detach();
   }
-  if (devtools_client_) {
-    devtools_client_->Detach();
-  }
-  pending_tool_calls_.clear();
-  active_tool_calls_.clear();
-  active_tool_call_bytes_.clear();
-  active_tool_call_bytes_total_ = 0;
-  session_lifecycle_monitor_.reset();
-  external_lease_.reset();
-  session_.reset();
-  client_info_.reset();
-  connection_id_.clear();
-  approval_state_ = ApprovalState::kNotRequested;
-  approval_deadline_ = base::TimeTicks();
+  connection.pending_tool_calls.clear();
+  connection.active_tool_calls.clear();
+  connection.active_tool_targets.clear();
+  connection.active_tool_call_bytes.clear();
+  connection.active_tool_call_bytes_total = 0;
+  connection.tab_tool_sessions.clear();
+  connection.default_target_id.clear();
+  connection.target_contexts.clear();
+  connection.client_info.reset();
+  connection.connection_id.clear();
+  connection.approval_state = ApprovalState::kNotRequested;
+  connection.approval_deadline = base::TimeTicks();
 }
 
 void DaoMcpService::OnHelloTimeout(uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (connection_generation != active_connection_generation_ ||
-      !connection_active_ || client_info_) {
+  ConnectionState* connection = FindConnection(connection_generation);
+  if (!connection || connection->client_info) {
     return;
   }
-  SendError(std::nullopt,
+  SendError(*connection, std::nullopt,
             MakeDaoToolError(DaoToolErrorCode::kAuthorizationTimeout,
                              "The MCP browser connection handshake timed out.",
                              true));
-  CloseConnectionAfterWrites();
+  CloseConnectionAfterWrites(*connection);
 }
 
-void DaoMcpService::OnRequest(DaoMcpRequest request) {
+void DaoMcpService::OnRequest(ConnectionState& connection,
+                              DaoMcpRequest request) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!connection_active_) {
-    return;
-  }
-  if (!client_info_ && request.method != "hello") {
-    SendError(request.id,
+  if (!connection.client_info && request.method != "hello") {
+    SendError(connection, request.id,
               InvalidRequest("hello must be the first IPC request."));
-    CloseConnectionAfterWrites();
+    CloseConnectionAfterWrites(connection);
   } else if (request.method == "hello") {
-    HandleHello(std::move(request));
+    HandleHello(connection, std::move(request));
   } else if (request.method == "tools/list") {
-    HandleToolsList(std::move(request));
+    HandleToolsList(connection, std::move(request));
   } else if (request.method == "tools/call") {
-    HandleToolsCall(std::move(request));
+    HandleToolsCall(connection, std::move(request));
   } else if (request.method == "tools/cancel") {
-    HandleToolsCancel(std::move(request));
+    HandleToolsCancel(connection, std::move(request));
   } else {
-    SendError(request.id,
+    SendError(connection, request.id,
               InvalidRequest("The browser IPC method is unsupported."));
   }
 }
 
-void DaoMcpService::HandleHello(DaoMcpRequest request) {
+void DaoMcpService::HandleHello(ConnectionState& connection,
+                                DaoMcpRequest request) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!request.id) {
-    SendError(request.id, InvalidRequest("hello requires a request id."));
-    CloseConnectionAfterWrites();
+    SendError(connection, request.id,
+              InvalidRequest("hello requires a request id."));
+    CloseConnectionAfterWrites(connection);
     return;
   }
-  if (client_info_ || session_ ||
-      approval_state_ != ApprovalState::kNotRequested) {
-    SendError(request.id,
+  if (connection.client_info || !connection.target_contexts.empty() ||
+      connection.approval_state != ApprovalState::kNotRequested) {
+    SendError(connection, request.id,
               InvalidRequest("hello has already completed for this socket."));
-    CloseConnectionAfterWrites();
+    CloseConnectionAfterWrites(connection);
     return;
   }
 
@@ -689,52 +895,70 @@ void DaoMcpService::HandleHello(DaoMcpRequest request) {
       crypto::SecureMemEqual(base::as_byte_span(*nonce),
                              base::as_byte_span(expected_nonce));
   if (!nonce_matches) {
-    SendError(request.id, AuthorizationDenied());
-    CloseConnectionAfterWrites();
+    SendError(connection, request.id, AuthorizationDenied());
+    CloseConnectionAfterWrites(connection);
     return;
   }
   if (!name || name->empty() || name->size() > kMaxClientLabelBytes ||
       !version || version->empty() || version->size() > kMaxClientLabelBytes) {
     SendError(
-        request.id,
+        connection, request.id,
         InvalidRequest("hello requires bounded client name and version."));
-    CloseConnectionAfterWrites();
+    CloseConnectionAfterWrites(connection);
     return;
   }
 
-  client_info_ = DaoMcpClientInfo{
+  connection.client_info = DaoMcpClientInfo{
       .name = *name,
       .version = *version,
-      .verified_pid = accepted_verified_pid_,
+      .verified_pid = connection.verified_pid,
   };
-  connection_id_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
-  hello_timer_.Stop();
+  connection.connection_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  connection.hello_timer.Stop();
   SendSuccess(
-      *request.id,
+      connection, *request.id,
       base::DictValue()
-          .Set("connection_id", connection_id_)
+          .Set("connection_id", connection.connection_id)
           .Set("status", "ready"));
+  UpdateStatus();
 }
 
-void DaoMcpService::HandleToolsList(DaoMcpRequest request) {
+void DaoMcpService::HandleToolsList(ConnectionState& connection,
+                                    DaoMcpRequest request) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!request.id) {
-    SendError(request.id, InvalidRequest("tools/list requires a request id."));
+    SendError(connection, request.id,
+              InvalidRequest("tools/list requires a request id."));
     return;
   }
-  if (!client_info_) {
-    SendError(request.id, AuthorizationDenied());
+  if (!connection.client_info) {
+    SendError(connection, request.id, AuthorizationDenied());
     return;
   }
 
   base::ListValue serialized_tools;
   for (const DaoBrowserToolDefinition* definition :
        DaoBrowserToolCatalog::Get()->List(DaoToolClient::kMcp)) {
+    base::DictValue input_schema = definition->input_schema.Clone();
+    if (definition->group != DaoBrowserToolGroup::kTabs) {
+      base::DictValue* properties = input_schema.FindDict("properties");
+      if (!properties) {
+        input_schema.Set("properties", base::DictValue());
+        properties = input_schema.FindDict("properties");
+      }
+      properties->Set(
+          "tab_id",
+          base::DictValue()
+              .Set("type", "string")
+              .Set("description",
+                   "Optional controlled tab id. Uses the current automation "
+                   "target when omitted."));
+    }
     base::DictValue tool =
         base::DictValue()
             .Set("name", definition->name)
             .Set("description", definition->description)
-            .Set("inputSchema", definition->input_schema.Clone())
+            .Set("inputSchema", std::move(input_schema))
             .Set("sideEffect", SideEffectName(definition->side_effect))
             .Set("timeoutMs",
                  static_cast<int>(definition->timeout.InMilliseconds()));
@@ -743,27 +967,29 @@ void DaoMcpService::HandleToolsList(DaoMcpRequest request) {
     }
     serialized_tools.Append(std::move(tool));
   }
-  SendSuccess(*request.id,
+  SendSuccess(connection, *request.id,
               base::DictValue().Set("tools", std::move(serialized_tools)));
 }
 
-void DaoMcpService::HandleToolsCall(DaoMcpRequest request) {
+void DaoMcpService::HandleToolsCall(ConnectionState& connection,
+                                    DaoMcpRequest request) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!request.id) {
-    SendError(request.id, InvalidRequest("tools/call requires a request id."));
+    SendError(connection, request.id,
+              InvalidRequest("tools/call requires a request id."));
     return;
   }
-  if (!client_info_) {
-    SendError(request.id, AuthorizationDenied());
+  if (!connection.client_info) {
+    SendError(connection, request.id, AuthorizationDenied());
     return;
   }
-  if (active_tool_calls_.contains(*request.id)) {
-    SendError(request.id,
+  if (connection.active_tool_calls.contains(*request.id)) {
+    SendError(connection, request.id,
               InvalidRequest("The browser tool request id is already active."));
     return;
   }
-  if (active_tool_calls_.size() >= kMaxPendingToolCalls) {
-    SendError(request.id,
+  if (connection.active_tool_calls.size() >= kMaxPendingToolCalls) {
+    SendError(connection, request.id,
               MakeDaoToolError(
                   DaoToolErrorCode::kInternalError,
                   "Too many MCP browser tool calls are outstanding.", true));
@@ -776,41 +1002,42 @@ void DaoMcpService::HandleToolsCall(DaoMcpRequest request) {
       name ? DaoBrowserToolCatalog::Get()->Find(*name, DaoToolClient::kMcp)
            : nullptr;
   if (!name || !arguments) {
-    SendError(request.id,
+    SendError(connection, request.id,
               InvalidRequest("tools/call requires name and object arguments."));
     return;
   }
   if (!definition) {
-    SendError(request.id,
+    SendError(connection, request.id,
               MakeDaoToolError(DaoToolErrorCode::kUnknownTool,
                                "Unknown or unavailable MCP browser tool."));
     return;
   }
-  if (approval_state_ == ApprovalState::kDenied) {
-    SendError(request.id, AuthorizationDenied());
+  if (connection.approval_state == ApprovalState::kDenied) {
+    SendError(connection, request.id, AuthorizationDenied());
     return;
   }
 
   std::string serialized_arguments;
   if (!base::JSONWriter::Write(*arguments, &serialized_arguments) ||
       serialized_arguments.size() >
-          kMaxPendingToolCallBytes - active_tool_call_bytes_total_) {
-    SendError(request.id,
+          kMaxPendingToolCallBytes - connection.active_tool_call_bytes_total) {
+    SendError(connection, request.id,
               MakeDaoToolError(DaoToolErrorCode::kInternalError,
                                "The pending MCP tool-call budget is exhausted.",
                                true));
     return;
   }
 
-  if (approval_state_ == ApprovalState::kNotRequested) {
-    auto approval_browser = PrepareApprovalSession();
+  if (connection.approval_state == ApprovalState::kNotRequested) {
+    auto approval_browser = PrepareApprovalSession(connection);
     if (!approval_browser.has_value()) {
-      SendError(request.id, std::move(approval_browser).error());
+      SendError(connection, request.id, std::move(approval_browser).error());
       return;
     }
-    RequestApproval(*approval_browser);
-    if (connection_closing_ || !client_info_ || !session_ ||
-        approval_state_ == ApprovalState::kDenied) {
+    RequestApproval(connection, *approval_browser);
+    if (connection.closing || !connection.client_info ||
+        connection.target_contexts.empty() ||
+        connection.approval_state == ApprovalState::kDenied) {
       return;
     }
   }
@@ -820,83 +1047,124 @@ void DaoMcpService::HandleToolsCall(DaoMcpRequest request) {
   pending.call.name = *name;
   pending.call.arguments = arguments->Clone();
   pending.call.timeout = definition->timeout;
+  pending.group = definition->group;
+  pending.target_id = connection.default_target_id;
+  if (definition->group != DaoBrowserToolGroup::kTabs) {
+    if (base::Value* routing_tab_id =
+            pending.call.arguments.Find("tab_id")) {
+      if (!routing_tab_id->is_string() ||
+          routing_tab_id->GetString().empty()) {
+        SendError(connection, request.id,
+                  InvalidRequest("tab_id must be a non-empty string."));
+        return;
+      }
+      pending.target_id = routing_tab_id->GetString();
+      pending.call.arguments.Remove("tab_id");
+    }
+    if (!connection.target_contexts.contains(pending.target_id)) {
+      SendError(connection, request.id,
+                MakeDaoToolError(
+                    DaoToolErrorCode::kTargetGone,
+                    "The requested MCP browser target is not controlled."));
+      return;
+    }
+  }
   pending.buffered_bytes = serialized_arguments.size();
-  active_tool_calls_.insert(*request.id);
-  active_tool_call_bytes_.emplace(*request.id, pending.buffered_bytes);
-  active_tool_call_bytes_total_ += pending.buffered_bytes;
-  pending_tool_calls_.emplace(*request.id, std::move(pending));
-  if (approval_state_ == ApprovalState::kAllowed && external_lease_) {
-    DispatchPendingCalls();
+  connection.active_tool_calls.insert(*request.id);
+  connection.active_tool_call_bytes.emplace(*request.id,
+                                             pending.buffered_bytes);
+  connection.active_tool_call_bytes_total += pending.buffered_bytes;
+  connection.pending_tool_calls.emplace(*request.id, std::move(pending));
+  const TargetContext* default_context = GetDefaultTargetContext(connection);
+  if (connection.approval_state == ApprovalState::kAllowed &&
+      default_context && default_context->lease) {
+    DispatchPendingCalls(connection);
   }
 }
 
-void DaoMcpService::HandleToolsCancel(DaoMcpRequest request) {
+void DaoMcpService::HandleToolsCancel(ConnectionState& connection,
+                                      DaoMcpRequest request) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const std::string* request_id = request.params.FindString("request_id");
   if (!request_id || request_id->empty()) {
     if (request.id) {
       SendError(
-          request.id,
+          connection, request.id,
           InvalidRequest("tools/cancel requires a non-empty request_id."));
     }
     return;
   }
 
-  auto pending = pending_tool_calls_.find(*request_id);
-  if (pending != pending_tool_calls_.end()) {
-    auto bytes = active_tool_call_bytes_.find(*request_id);
-    if (bytes != active_tool_call_bytes_.end()) {
-      active_tool_call_bytes_total_ -= bytes->second;
-      active_tool_call_bytes_.erase(bytes);
+  auto pending = connection.pending_tool_calls.find(*request_id);
+  if (pending != connection.pending_tool_calls.end()) {
+    auto bytes = connection.active_tool_call_bytes.find(*request_id);
+    if (bytes != connection.active_tool_call_bytes.end()) {
+      connection.active_tool_call_bytes_total -= bytes->second;
+      connection.active_tool_call_bytes.erase(bytes);
     }
-    pending_tool_calls_.erase(pending);
-    active_tool_calls_.erase(*request_id);
-    SendError(std::optional<std::string>(*request_id),
+    connection.pending_tool_calls.erase(pending);
+    connection.active_tool_calls.erase(*request_id);
+    SendError(connection, std::optional<std::string>(*request_id),
               MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
                                "The browser tool call was cancelled."));
-  } else if (tool_executor_) {
-    tool_executor_->Cancel(*request_id);
+  } else {
+    auto tab_session = connection.tab_tool_sessions.find(*request_id);
+    if (tab_session != connection.tab_tool_sessions.end()) {
+      connection.tab_tool_executor->Cancel(*request_id);
+    } else {
+      auto target = connection.active_tool_targets.find(*request_id);
+      auto context = target == connection.active_tool_targets.end()
+                         ? connection.target_contexts.end()
+                         : connection.target_contexts.find(target->second);
+      if (context != connection.target_contexts.end()) {
+        context->second->tool_executor->Cancel(*request_id);
+      }
+    }
   }
-  if (request.id && connection_active_) {
-    SendSuccess(*request.id, base::DictValue().Set("cancelled", true));
+  if (request.id && !connection.closing) {
+    SendSuccess(connection, *request.id,
+                base::DictValue().Set("cancelled", true));
   }
 }
 
-void DaoMcpService::SendSuccess(std::string id, base::DictValue result) {
+void DaoMcpService::SendSuccess(ConnectionState& connection,
+                                std::string id,
+                                base::DictValue result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (connection_active_ && !connection_closing_ && !transport_.is_null()) {
+  if (!connection.closing && !transport_.is_null()) {
     transport_.AsyncCall(&DaoMcpTransport::SendSuccess)
-        .WithArgs(active_connection_generation_, std::move(id),
+        .WithArgs(connection.generation, std::move(id),
                   std::move(result));
   }
 }
 
-void DaoMcpService::SendError(const std::optional<std::string>& id,
+void DaoMcpService::SendError(ConnectionState& connection,
+                              const std::optional<std::string>& id,
                               DaoToolError error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (connection_active_ && !connection_closing_ && !transport_.is_null()) {
+  if (!connection.closing && !transport_.is_null()) {
     transport_.AsyncCall(&DaoMcpTransport::SendError)
-        .WithArgs(active_connection_generation_, id, std::move(error));
+        .WithArgs(connection.generation, id, std::move(error));
   }
 }
 
-void DaoMcpService::CloseConnectionAfterWrites() {
+void DaoMcpService::CloseConnectionAfterWrites(ConnectionState& connection) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!connection_active_ || connection_closing_) {
+  if (connection.closing) {
     return;
   }
-  connection_closing_ = true;
+  connection.closing = true;
   if (!transport_.is_null()) {
     transport_.AsyncCall(&DaoMcpTransport::CloseAfterWrites)
-        .WithArgs(active_connection_generation_);
+        .WithArgs(connection.generation);
   }
 }
 
 base::expected<Browser*, DaoToolError>
-DaoMcpService::PrepareApprovalSession() {
+DaoMcpService::PrepareApprovalSession(ConnectionState& connection) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!client_info_ || session_ ||
-      approval_state_ != ApprovalState::kNotRequested) {
+  if (!connection.client_info || !connection.target_contexts.empty() ||
+      connection.approval_state != ApprovalState::kNotRequested) {
     return base::unexpected(
         InvalidRequest("The MCP approval session is already initialized."));
   }
@@ -915,50 +1183,47 @@ DaoMcpService::PrepareApprovalSession() {
     return base::unexpected(std::move(target_policy).error());
   }
 
-  auto session =
-      std::make_unique<DaoBrowserAutomationSession>(browser_window, target);
-  auto resolved_target = session->ResolveTarget();
-  if (!resolved_target.has_value()) {
-    return base::unexpected(std::move(resolved_target).error());
+  auto target_id = AddTargetContext(connection, browser_window, target);
+  if (!target_id.has_value()) {
+    return base::unexpected(std::move(target_id).error());
   }
-
-  session_ = std::move(session);
-  session_lifecycle_monitor_ = std::make_unique<DaoMcpSessionLifecycleMonitor>(
-      session_.get(), base::BindOnce(&DaoMcpService::OnSessionInvalidated,
-                                     weak_factory_.GetWeakPtr()));
-  session_lifecycle_monitor_->Start();
+  connection.default_target_id = std::move(target_id).value();
   return browser;
 }
 
-void DaoMcpService::RequestApproval(Browser* browser) {
+void DaoMcpService::RequestApproval(ConnectionState& connection,
+                                    Browser* browser) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  approval_state_ = ApprovalState::kPending;
-  approval_deadline_ = base::TimeTicks::Now() + approval_timeout_;
-  UpdateStatus(DaoMcpStatus::kPendingApproval);
-  if (!connection_active_ || approval_state_ != ApprovalState::kPending ||
-      !client_info_ || !session_) {
+  connection.approval_state = ApprovalState::kPending;
+  connection.approval_deadline = base::TimeTicks::Now() + approval_timeout_;
+  UpdateStatus();
+  TargetContext* context = GetDefaultTargetContext(connection);
+  if (connection.closing ||
+      connection.approval_state != ApprovalState::kPending ||
+      !connection.client_info || !context) {
     return;
   }
-  BrowserWindowInterface* browser_window = session_->browser_window();
+  BrowserWindowInterface* browser_window = context->session->browser_window();
   Browser* approval_browser =
       browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
   if (!approval_browser || approval_browser != browser) {
-    RejectConnection(MakeDaoToolError(
+    RejectConnection(connection, MakeDaoToolError(
         DaoToolErrorCode::kTargetGone,
         "The browser selected for MCP approval is no longer available."));
     return;
   }
-  const uint64_t connection_generation = active_connection_generation_;
-  const std::string connection_id = connection_id_;
-  approval_timer_.Start(FROM_HERE, approval_timeout_,
-                        base::BindOnce(&DaoMcpService::OnApprovalTimeout,
-                                       weak_factory_.GetWeakPtr(),
-                                       connection_generation, connection_id));
+  const uint64_t connection_generation = connection.generation;
+  const std::string connection_id = connection.connection_id;
+  connection.approval_timer.Start(
+      FROM_HERE, approval_timeout_,
+      base::BindOnce(&DaoMcpService::OnApprovalTimeout,
+                     weak_factory_.GetWeakPtr(), connection_generation,
+                     connection_id));
   if (!approval_delegate_) {
-    RejectConnection(AuthorizationDenied());
+    RejectConnection(connection, AuthorizationDenied());
     return;
   }
-  DaoMcpClientInfo client = *client_info_;
+  DaoMcpClientInfo client = *connection.client_info;
   approval_delegate_->RequestApproval(
       client, approval_browser, connection_id,
       base::BindOnce(&DaoMcpService::OnApprovalResult,
@@ -973,85 +1238,72 @@ void DaoMcpService::OnApprovalResult(uint64_t connection_generation,
   if (!IsCurrentApproval(connection_generation, connection_id)) {
     return;
   }
-  if (!allowed) {
-    RejectConnection(AuthorizationDenied());
+  ConnectionState* connection = FindConnection(connection_generation);
+  if (!connection) {
     return;
   }
-  approval_state_ = ApprovalState::kAllowed;
+  if (!allowed) {
+    RejectConnection(*connection, AuthorizationDenied());
+    return;
+  }
+  connection->approval_state = ApprovalState::kAllowed;
   TryAcquireExternalLease(connection_generation, std::move(connection_id));
 }
 
 void DaoMcpService::TryAcquireExternalLease(uint64_t connection_generation,
                                             std::string connection_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (connection_generation != active_connection_generation_ ||
-      connection_id != connection_id_ || !connection_active_ ||
-      approval_state_ != ApprovalState::kAllowed || external_lease_) {
+  ConnectionState* connection = FindConnection(connection_generation);
+  if (!connection || connection_id != connection->connection_id ||
+      connection->closing ||
+      connection->approval_state != ApprovalState::kAllowed) {
     return;
   }
-  if (!session_) {
-    RejectConnection(MakeDaoToolError(
+  TargetContext* context = GetDefaultTargetContext(*connection);
+  if (!context) {
+    RejectConnection(*connection, MakeDaoToolError(
         DaoToolErrorCode::kTargetGone,
         "The authorized browser session is no longer available."));
     return;
   }
-  auto target = session_->ResolveTarget();
-  if (!target.has_value()) {
-    RejectConnection(std::move(target).error());
-    return;
-  }
-  BrowserWindowInterface* browser_window = session_->browser_window();
-  Browser* browser =
-      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
-  auto target_policy = ValidateExternalTarget(browser, session_->profile(), *target);
-  if (!target_policy.has_value()) {
-    RejectConnection(std::move(target_policy).error());
-    return;
-  }
-  Profile* profile = session_->profile();
-  if (!profile) {
-    RejectConnection(MakeDaoToolError(
-        DaoToolErrorCode::kTargetGone,
-        "The authorized browser profile is no longer available."));
-    return;
-  }
-
-  auto acquired = DaoAgentLeaseManager::GetForProfile(profile)->TryAcquire(
-      {DaoToolClient::kMcp, connection_id_, client_info_->name});
+  auto acquired = AcquireTargetLease(*connection, *context);
   if (acquired.has_value()) {
-    approval_timer_.Stop();
-    external_lease_.emplace(std::move(acquired).value());
-    UpdateStatus(DaoMcpStatus::kLeaseActive);
-    DispatchPendingCalls();
+    connection->approval_timer.Stop();
+    UpdateStatus();
+    DispatchPendingCalls(*connection);
     return;
   }
 
   const DaoToolError error = acquired.error();
   const bool retryable_busy = error.code == DaoToolErrorCode::kLeaseBusy ||
                               error.code == DaoToolErrorCode::kAgentControlBusy;
-  if (retryable_busy && base::TimeTicks::Now() < approval_deadline_) {
-    lease_retry_timer_.Start(
+  if (retryable_busy &&
+      base::TimeTicks::Now() < connection->approval_deadline) {
+    connection->lease_retry_timer.Start(
         FROM_HERE, kLeaseRetryDelay,
         base::BindOnce(&DaoMcpService::TryAcquireExternalLease,
                        weak_factory_.GetWeakPtr(), connection_generation,
                        std::move(connection_id)));
     return;
   }
-  RejectConnection(error);
+  RejectConnection(*connection, error);
 }
 
 void DaoMcpService::OnApprovalTimeout(uint64_t connection_generation,
                                       std::string connection_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (connection_generation != active_connection_generation_ ||
-      connection_id != connection_id_) {
+  ConnectionState* connection = FindConnection(connection_generation);
+  if (!connection || connection_id != connection->connection_id) {
     return;
   }
-  if (approval_state_ != ApprovalState::kPending &&
-      !(approval_state_ == ApprovalState::kAllowed && !external_lease_)) {
+  const TargetContext* context = GetDefaultTargetContext(*connection);
+  if (connection->approval_state != ApprovalState::kPending &&
+      !(connection->approval_state == ApprovalState::kAllowed &&
+        context && !context->lease)) {
     return;
   }
   RejectConnection(
+      *connection,
       MakeDaoToolError(DaoToolErrorCode::kAuthorizationTimeout,
                        "The MCP browser connection approval timed out.", true));
 }
@@ -1059,109 +1311,367 @@ void DaoMcpService::OnApprovalTimeout(uint64_t connection_generation,
 bool DaoMcpService::IsCurrentApproval(uint64_t connection_generation,
                                       std::string_view connection_id) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return connection_generation == active_connection_generation_ &&
-         connection_id == connection_id_ && connection_active_ &&
-         approval_state_ == ApprovalState::kPending;
+  const ConnectionState* connection = FindConnection(connection_generation);
+  return connection && !connection->closing &&
+         connection_id == connection->connection_id &&
+         connection->approval_state == ApprovalState::kPending;
 }
 
-void DaoMcpService::RejectConnection(DaoToolError error) {
+DaoMcpService::TargetContext* DaoMcpService::GetDefaultTargetContext(
+    ConnectionState& connection) {
+  auto context = connection.target_contexts.find(connection.default_target_id);
+  return context == connection.target_contexts.end() ? nullptr
+                                                     : context->second.get();
+}
+
+const DaoMcpService::TargetContext*
+DaoMcpService::GetDefaultTargetContext(
+    const ConnectionState& connection) const {
+  auto context = connection.target_contexts.find(connection.default_target_id);
+  return context == connection.target_contexts.end() ? nullptr
+                                                     : context->second.get();
+}
+
+base::expected<std::string, DaoToolError> DaoMcpService::AddTargetContext(
+    ConnectionState& connection,
+    BrowserWindowInterface* browser_window,
+    content::WebContents* target,
+    bool allow_uncommitted_url) {
+  Browser* browser =
+      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+  Profile* profile = browser ? browser->profile() : nullptr;
+  auto target_policy = ValidateExternalTarget(
+      browser, profile, target, allow_uncommitted_url);
+  if (!target_policy.has_value()) {
+    return base::unexpected(std::move(target_policy).error());
+  }
+
+  if (const TargetContext* default_context =
+          GetDefaultTargetContext(connection)) {
+    BrowserWindowInterface* authorized_window =
+        default_context->session->browser_window();
+    Browser* authorized_browser =
+        authorized_window
+            ? authorized_window->GetBrowserForMigrationOnly()
+            : nullptr;
+    if (!authorized_browser || authorized_window != browser_window ||
+        authorized_browser->profile() != profile) {
+      return base::unexpected(MakeDaoToolError(
+          DaoToolErrorCode::kInvalidArgument,
+          "MCP tab targets must remain in the approved browser window."));
+    }
+  }
+
+  const std::string target_id = GetOrCreateSidebarTabId(target);
+  if (connection.target_contexts.contains(target_id)) {
+    return target_id;
+  }
+
+  auto context = std::make_unique<TargetContext>();
+  context->session =
+      std::make_unique<DaoBrowserAutomationSession>(browser_window, target);
+  auto resolved_target = context->session->ResolveTarget();
+  if (!resolved_target.has_value()) {
+    return base::unexpected(std::move(resolved_target).error());
+  }
+  context->devtools_client = std::make_unique<DaoDevToolsClient>();
+  context->devtools_client->SetCommandCallbackForTesting(
+      devtools_command_callback_for_testing_);
+  context->tool_executor = std::make_unique<DaoBrowserToolExecutor>(
+      context->devtools_client.get(), page_ui_delegate_.get());
+  if (connection.approval_state == ApprovalState::kAllowed) {
+    auto acquired =
+        AcquireTargetLease(connection, *context, allow_uncommitted_url);
+    if (!acquired.has_value()) {
+      return base::unexpected(std::move(acquired).error());
+    }
+  }
+  context->lifecycle_monitor =
+      std::make_unique<DaoMcpSessionLifecycleMonitor>(
+          context->session.get(),
+          base::BindOnce(&DaoMcpService::OnTargetInvalidated,
+                         weak_factory_.GetWeakPtr(), connection.generation,
+                         target_id));
+  DaoMcpSessionLifecycleMonitor* monitor = context->lifecycle_monitor.get();
+  connection.target_contexts.emplace(target_id, std::move(context));
+  monitor->Start();
+  if (!connection.target_contexts.contains(target_id)) {
+    return base::unexpected(MakeDaoToolError(
+        DaoToolErrorCode::kTargetGone,
+        "The requested MCP browser target is no longer available."));
+  }
+  return target_id;
+}
+
+base::expected<void, DaoToolError> DaoMcpService::AcquireTargetLease(
+    ConnectionState& connection,
+    TargetContext& context,
+    bool allow_uncommitted_url) {
+  if (context.lease) {
+    return base::ok();
+  }
+  auto target = context.session->ResolveTarget();
+  if (!target.has_value()) {
+    return base::unexpected(std::move(target).error());
+  }
+  BrowserWindowInterface* browser_window = context.session->browser_window();
+  Browser* browser =
+      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+  auto target_policy = ValidateExternalTarget(
+      browser, context.session->profile(), *target, allow_uncommitted_url);
+  if (!target_policy.has_value()) {
+    return base::unexpected(std::move(target_policy).error());
+  }
+  Profile* profile = context.session->profile();
+  if (!profile || !connection.client_info || connection.connection_id.empty()) {
+    return base::unexpected(MakeDaoToolError(
+        DaoToolErrorCode::kTargetGone,
+        "The authorized browser profile is no longer available."));
+  }
+  auto acquired = DaoAgentLeaseManager::GetForProfile(profile)->TryAcquire(
+      context.session->target_handle(),
+      {DaoToolClient::kMcp, connection.connection_id,
+       connection.client_info->name});
+  if (!acquired.has_value()) {
+    return base::unexpected(std::move(acquired).error());
+  }
+  context.lease.emplace(std::move(acquired).value());
+  return base::ok();
+}
+
+void DaoMcpService::RejectConnection(ConnectionState& connection,
+                                     DaoToolError error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  hello_timer_.Stop();
-  approval_timer_.Stop();
-  lease_retry_timer_.Stop();
+  connection.hello_timer.Stop();
+  connection.approval_timer.Stop();
+  connection.lease_retry_timer.Stop();
   const bool cancel_pending_approval =
-      approval_state_ == ApprovalState::kPending && !connection_id_.empty();
-  approval_state_ = ApprovalState::kDenied;
+      connection.approval_state == ApprovalState::kPending &&
+      !connection.connection_id.empty();
+  connection.approval_state = ApprovalState::kDenied;
   if (approval_delegate_ && cancel_pending_approval) {
-    approval_delegate_->CancelApproval(connection_id_);
+    approval_delegate_->CancelApproval(connection.connection_id);
   }
-  FailPendingCalls(error);
-  if (tool_executor_) {
-    tool_executor_->CancelAll(error);
-    tool_executor_->ClearSessionState(session_.get());
-  }
-  if (devtools_client_) {
-    devtools_client_->Detach();
+  FailPendingCalls(connection, error);
+  connection.tab_tool_executor->CancelAll(error);
+  for (auto& [_, context] : connection.target_contexts) {
+    context->tool_executor->CancelAll(error);
+    context->tool_executor->ClearSessionState(context->session.get());
+    context->devtools_client->Detach();
   }
   // Active tool cancellation completes synchronously and writes its structured
   // result while the connection is still writable. Close only after those
   // exactly-once completions have been queued.
-  CloseConnectionAfterWrites();
-  pending_tool_calls_.clear();
-  active_tool_calls_.clear();
-  active_tool_call_bytes_.clear();
-  active_tool_call_bytes_total_ = 0;
-  session_lifecycle_monitor_.reset();
-  external_lease_.reset();
-  session_.reset();
-  client_info_.reset();
-  connection_id_.clear();
-  approval_deadline_ = base::TimeTicks();
+  CloseConnectionAfterWrites(connection);
+  connection.pending_tool_calls.clear();
+  connection.active_tool_calls.clear();
+  connection.active_tool_targets.clear();
+  connection.active_tool_call_bytes.clear();
+  connection.active_tool_call_bytes_total = 0;
+  connection.tab_tool_sessions.clear();
+  connection.default_target_id.clear();
+  connection.target_contexts.clear();
+  connection.client_info.reset();
+  connection.connection_id.clear();
+  connection.approval_deadline = base::TimeTicks();
+  UpdateStatus();
 }
 
-void DaoMcpService::OnSessionInvalidated(DaoToolError error) {
+void DaoMcpService::OnTargetInvalidated(uint64_t connection_generation,
+                                        std::string target_id,
+                                        DaoToolError error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!connection_active_ || connection_closing_) {
+  ConnectionState* connection = FindConnection(connection_generation);
+  if (!connection || connection->closing) {
     return;
   }
-  RejectConnection(std::move(error));
+  auto context = connection->target_contexts.find(target_id);
+  if (context == connection->target_contexts.end()) {
+    return;
+  }
+  FailPendingCallsForTarget(*connection, target_id, error);
+  context->second->tool_executor->CancelAll(error);
+  context->second->tool_executor->ClearSessionState(
+      context->second->session.get());
+  context->second->devtools_client->Detach();
+  connection->target_contexts.erase(context);
+  if (connection->default_target_id == target_id) {
+    connection->default_target_id = connection->target_contexts.empty()
+                                        ? std::string()
+                                        : connection->target_contexts.begin()->first;
+  }
+  if (connection->target_contexts.empty() &&
+      connection->tab_tool_sessions.empty()) {
+    RejectConnection(*connection, std::move(error));
+    return;
+  }
+  UpdateStatus();
 }
 
-void DaoMcpService::FailPendingCalls(const DaoToolError& error) {
+void DaoMcpService::FailPendingCalls(ConnectionState& connection,
+                                     const DaoToolError& error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   std::vector<std::string> request_ids;
-  request_ids.reserve(pending_tool_calls_.size());
-  for (const auto& [request_id, _] : pending_tool_calls_) {
+  request_ids.reserve(connection.pending_tool_calls.size());
+  for (const auto& [request_id, _] : connection.pending_tool_calls) {
     request_ids.push_back(request_id);
   }
-  pending_tool_calls_.clear();
+  connection.pending_tool_calls.clear();
   for (const std::string& request_id : request_ids) {
-    active_tool_calls_.erase(request_id);
-    auto bytes = active_tool_call_bytes_.find(request_id);
-    if (bytes != active_tool_call_bytes_.end()) {
-      active_tool_call_bytes_total_ -= bytes->second;
-      active_tool_call_bytes_.erase(bytes);
+    connection.active_tool_calls.erase(request_id);
+    connection.active_tool_targets.erase(request_id);
+    auto bytes = connection.active_tool_call_bytes.find(request_id);
+    if (bytes != connection.active_tool_call_bytes.end()) {
+      connection.active_tool_call_bytes_total -= bytes->second;
+      connection.active_tool_call_bytes.erase(bytes);
     }
-    SendError(std::optional<std::string>(request_id), error);
+    SendError(connection, std::optional<std::string>(request_id), error);
   }
 }
 
-void DaoMcpService::DispatchPendingCalls() {
+void DaoMcpService::FailPendingCallsForTarget(
+    ConnectionState& connection,
+    std::string_view target_id,
+    const DaoToolError& error) {
+  std::vector<std::string> request_ids;
+  for (const auto& [request_id, pending] : connection.pending_tool_calls) {
+    if (pending.target_id == target_id) {
+      request_ids.push_back(request_id);
+    }
+  }
+  for (const std::string& request_id : request_ids) {
+    connection.pending_tool_calls.erase(request_id);
+    connection.active_tool_calls.erase(request_id);
+    connection.active_tool_targets.erase(request_id);
+    auto bytes = connection.active_tool_call_bytes.find(request_id);
+    if (bytes != connection.active_tool_call_bytes.end()) {
+      connection.active_tool_call_bytes_total -= bytes->second;
+      connection.active_tool_call_bytes.erase(bytes);
+    }
+    SendError(connection, std::optional<std::string>(request_id), error);
+  }
+}
+
+void DaoMcpService::DispatchPendingCalls(ConnectionState& connection) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  while (connection_active_ && external_lease_ &&
-         !pending_tool_calls_.empty()) {
-    auto it = pending_tool_calls_.begin();
+  while (!connection.closing && !connection.pending_tool_calls.empty()) {
+    auto it = connection.pending_tool_calls.begin();
     PendingToolCall pending = std::move(it->second);
-    pending_tool_calls_.erase(it);
-    DispatchToolCall(std::move(pending));
+    connection.pending_tool_calls.erase(it);
+    DispatchToolCall(connection, std::move(pending));
   }
 }
 
-void DaoMcpService::DispatchToolCall(PendingToolCall pending) {
+void DaoMcpService::DispatchToolCall(ConnectionState& connection,
+                                     PendingToolCall pending) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const std::string request_id = pending.call.request_id;
-  tool_executor_->Execute(
-      session_.get(), DaoToolClient::kMcp, std::move(pending.call),
+  connection.active_tool_targets.emplace(request_id, pending.target_id);
+  if (pending.group == DaoBrowserToolGroup::kTabs) {
+    auto context = connection.target_contexts.find(pending.target_id);
+    if (context == connection.target_contexts.end()) {
+      OnToolCallComplete(
+          connection.generation, request_id, false,
+          ErrorResult(MakeDaoToolError(
+              DaoToolErrorCode::kTargetGone,
+              "The current MCP browser target is no longer available.")));
+      return;
+    }
+    auto target = context->second->session->ResolveTarget();
+    if (!target.has_value()) {
+      OnToolCallComplete(connection.generation, request_id, false,
+                         ErrorResult(std::move(target).error()));
+      return;
+    }
+    const bool allow_uncommitted_url = pending.call.name == "open_tab";
+    auto session = std::make_unique<DaoBrowserAutomationSession>(
+        context->second->session->browser_window(), *target);
+    DaoBrowserAutomationSession* session_ptr = session.get();
+    connection.tab_tool_sessions.emplace(request_id, std::move(session));
+    connection.tab_tool_executor->Execute(
+        session_ptr, DaoToolClient::kMcp, std::move(pending.call),
+        base::BindOnce(&DaoMcpService::OnToolCallComplete,
+                       weak_factory_.GetWeakPtr(), connection.generation,
+                       request_id,
+                       allow_uncommitted_url));
+    return;
+  }
+
+  auto context = connection.target_contexts.find(pending.target_id);
+  if (context == connection.target_contexts.end()) {
+    OnToolCallComplete(
+        connection.generation, request_id, false,
+        ErrorResult(MakeDaoToolError(
+            DaoToolErrorCode::kTargetGone,
+            "The requested MCP browser target is no longer available.")));
+    return;
+  }
+  context->second->tool_executor->Execute(
+      context->second->session.get(), DaoToolClient::kMcp,
+      std::move(pending.call),
       base::BindOnce(&DaoMcpService::OnToolCallComplete,
-                     weak_factory_.GetWeakPtr(), request_id));
+                     weak_factory_.GetWeakPtr(), connection.generation,
+                     request_id, false));
 }
 
-void DaoMcpService::OnToolCallComplete(std::string request_id,
+void DaoMcpService::OnToolCallComplete(uint64_t connection_generation,
+                                       std::string request_id,
+                                       bool allow_uncommitted_url,
                                        DaoBrowserToolResult result) {
   ++tool_call_completion_count_for_testing_;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!active_tool_calls_.erase(request_id)) {
+  ConnectionState* connection = FindConnection(connection_generation);
+  if (!connection || !connection->active_tool_calls.erase(request_id)) {
     return;
   }
-  auto bytes = active_tool_call_bytes_.find(request_id);
-  if (bytes != active_tool_call_bytes_.end()) {
-    active_tool_call_bytes_total_ -= bytes->second;
-    active_tool_call_bytes_.erase(bytes);
+  connection->active_tool_targets.erase(request_id);
+  auto bytes = connection->active_tool_call_bytes.find(request_id);
+  if (bytes != connection->active_tool_call_bytes.end()) {
+    connection->active_tool_call_bytes_total -= bytes->second;
+    connection->active_tool_call_bytes.erase(bytes);
   }
-  if (connection_active_) {
-    SendSuccess(request_id, SerializeDaoBrowserToolResult(std::move(result)));
+  bool target_set_changed = false;
+  auto tab_session = connection->tab_tool_sessions.find(request_id);
+  if (tab_session != connection->tab_tool_sessions.end()) {
+    if (result.ok && !connection->closing &&
+        connection->approval_state == ApprovalState::kAllowed) {
+      const size_t previous_target_count = connection->target_contexts.size();
+      const std::string previous_default_target_id =
+          connection->default_target_id;
+      auto target = tab_session->second->ResolveTarget();
+      if (target.has_value()) {
+        auto target_id = AddTargetContext(
+            *connection, tab_session->second->browser_window(), *target,
+            allow_uncommitted_url);
+        if (target_id.has_value()) {
+          connection->default_target_id = std::move(target_id).value();
+          target_set_changed =
+              connection->target_contexts.size() != previous_target_count ||
+              connection->default_target_id != previous_default_target_id;
+        } else {
+          result.ok = false;
+          result.error = std::move(target_id).error();
+        }
+      } else {
+        result.ok = false;
+        result.error = std::move(target).error();
+      }
+    }
+    connection->tab_tool_sessions.erase(tab_session);
   }
-  NotifyStatusObservers();
+  if (!connection->closing) {
+    SendSuccess(*connection, request_id,
+                SerializeDaoBrowserToolResult(std::move(result)));
+  }
+  if (target_set_changed) {
+    UpdateStatus();
+  }
+  if (!connection->closing && connection->target_contexts.empty() &&
+      connection->tab_tool_sessions.empty()) {
+    RejectConnection(*connection, MakeDaoToolError(
+        DaoToolErrorCode::kTargetGone,
+        "No controlled MCP browser targets remain."));
+  }
 }
 
 void DaoMcpService::NotifyStatusObservers() {
@@ -1169,11 +1679,27 @@ void DaoMcpService::NotifyStatusObservers() {
   status_observers_.Notify(status_);
 }
 
-void DaoMcpService::UpdateStatus(DaoMcpStatus state) {
+void DaoMcpService::UpdateStatus() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DaoMcpServiceStatus next;
-  next.state = state;
-  next.client = client_info_;
+  next.state = listener_active_ || listener_start_pending_
+                   ? DaoMcpStatus::kListening
+                   : DaoMcpStatus::kDisabled;
+  const ConnectionState* connection = GetDisplayConnection();
+  if (connection) {
+    bool has_lease = false;
+    for (const auto& [_, context] : connection->target_contexts) {
+      has_lease |= context->lease.has_value();
+    }
+    if (has_lease) {
+      next.state = DaoMcpStatus::kLeaseActive;
+      next.client = connection->client_info;
+    } else if (connection->approval_state == ApprovalState::kPending ||
+               connection->approval_state == ApprovalState::kAllowed) {
+      next.state = DaoMcpStatus::kPendingApproval;
+      next.client = connection->client_info;
+    }
+  }
   const bool unchanged =
       next.state == status_.state &&
       ((!next.client && !status_.client) ||

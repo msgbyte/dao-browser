@@ -6,12 +6,13 @@
 #define DAO_BROWSER_AUTOMATION_DAO_AGENT_LEASE_MANAGER_H_
 
 #include <cstdint>
-#include <optional>
+#include <map>
 
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/supports_user_data.h"
 #include "base/types/expected.h"
+#include "components/tabs/public/tab_interface.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
 
 class Profile;
@@ -35,9 +36,12 @@ class DaoAgentLease {
  private:
   friend class DaoAgentLeaseManager;
 
-  DaoAgentLease(base::WeakPtr<DaoAgentLeaseManager> manager, uint64_t lease_id);
+  DaoAgentLease(base::WeakPtr<DaoAgentLeaseManager> manager,
+                tabs::TabHandle target_handle,
+                uint64_t lease_id);
 
   base::WeakPtr<DaoAgentLeaseManager> manager_;
+  tabs::TabHandle target_handle_;
   uint64_t lease_id_ = 0;
   SEQUENCE_CHECKER(sequence_checker_);
 };
@@ -54,17 +58,26 @@ class DaoAgentLeaseManager : public base::SupportsUserData::Data {
 
   static DaoAgentLeaseManager* GetForProfile(Profile* profile);
 
+  // Conservatively reserves all tabs. Kept for callers that do not have a
+  // concrete browser target.
   base::expected<DaoAgentLease, DaoToolError> TryAcquire(
+      DaoAgentClientId client);
+  base::expected<DaoAgentLease, DaoToolError> TryAcquire(
+      tabs::TabHandle target_handle,
       DaoAgentClientId client);
 
  private:
   friend class DaoAgentLease;
 
-  void Release(uint64_t lease_id);
+  struct LeaseState {
+    uint64_t lease_id;
+    DaoAgentClientId owner;
+  };
+
+  void Release(tabs::TabHandle target_handle, uint64_t lease_id);
 
   uint64_t next_lease_id_ = 1;
-  uint64_t active_lease_id_ = 0;
-  std::optional<DaoAgentClientId> owner_;
+  std::map<tabs::TabHandle, LeaseState> leases_;
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<DaoAgentLeaseManager> weak_factory_{this};
 };

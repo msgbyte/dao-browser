@@ -72,6 +72,7 @@
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
+#include "dao/browser/ui/views/dao_tab_identity.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -93,6 +94,13 @@ bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
   return std::ranges::any_of(root->children(), [text](views::View* child) {
     return HasDescendantLabelText(child, text);
   });
+}
+
+void ClickButton(views::Button* button) {
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       base::TimeTicks::Now(), ui::EF_NONE,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(button).NotifyClick(event);
 }
 
 class DaoMcpProtocolTest : public testing::Test {};
@@ -1019,6 +1027,40 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   const base::ListValue* tools = result->FindList("tools");
   ASSERT_TRUE(tools);
   EXPECT_EQ(29u, tools->size());
+  auto find_tool = [](const base::ListValue& tool_list,
+                      std::string_view name) -> const base::DictValue* {
+    for (const base::Value& value : tool_list) {
+      const base::DictValue* tool = value.GetIfDict();
+      const std::string* tool_name = tool ? tool->FindString("name") : nullptr;
+      if (tool_name && *tool_name == name) {
+        return tool;
+      }
+    }
+    return nullptr;
+  };
+  const base::DictValue* page_tool = find_tool(*tools, "get_page_info");
+  ASSERT_NE(nullptr, page_tool);
+  EXPECT_EQ("string", *page_tool->FindStringByDottedPath(
+                          "inputSchema.properties.tab_id.type"));
+  const base::ListValue* page_required =
+      page_tool->FindListByDottedPath("inputSchema.required");
+  ASSERT_NE(nullptr, page_required);
+  EXPECT_FALSE(std::ranges::any_of(
+      *page_required, [](const base::Value& value) {
+        return value.is_string() && value.GetString() == "tab_id";
+      }));
+
+  const base::DictValue* switch_tool = find_tool(*tools, "switch_tab");
+  ASSERT_NE(nullptr, switch_tool);
+  EXPECT_EQ("string", *switch_tool->FindStringByDottedPath(
+                          "inputSchema.properties.tab_id.type"));
+  const base::ListValue* switch_required =
+      switch_tool->FindListByDottedPath("inputSchema.required");
+  ASSERT_NE(nullptr, switch_required);
+  EXPECT_FALSE(std::ranges::any_of(
+      *switch_required, [](const base::Value& value) {
+        return value.is_string() && value.GetString() == "tab_id";
+      }));
 
   ASSERT_TRUE(client->Send(ToolCall("call-after-idle-discovery")));
   ASSERT_TRUE(base::test::RunUntil(
@@ -1244,11 +1286,15 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
   BrowserView* other_view =
       BrowserView::GetBrowserViewForBrowser(other_browser);
   ASSERT_NE(nullptr, authorized_view);
-  ASSERT_NE(nullptr, authorized_view->dao_mcp_control_banner());
   ASSERT_NE(nullptr, other_view);
-  ASSERT_NE(nullptr, other_view->dao_mcp_control_banner());
-  EXPECT_TRUE(authorized_view->dao_mcp_control_banner()->GetVisible());
-  EXPECT_FALSE(other_view->dao_mcp_control_banner()->GetVisible());
+  ASSERT_NE(nullptr, authorized_view->dao_address_bar());
+  ASSERT_NE(nullptr, other_view->dao_address_bar());
+  EXPECT_TRUE(authorized_view->dao_address_bar()
+                  ->mcp_control_button_for_testing()
+                  ->GetVisible());
+  EXPECT_FALSE(other_view->dao_address_bar()
+                   ->mcp_control_button_for_testing()
+                   ->GetVisible());
   ASSERT_TRUE(client->Send(
       base::DictValue()
           .Set("version", kDaoMcpIpcVersion)
@@ -1282,12 +1328,19 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
 
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   ASSERT_NE(nullptr, browser_view);
-  DaoMcpControlBannerView* banner = browser_view->dao_mcp_control_banner();
-  ASSERT_NE(nullptr, banner);
-  ASSERT_TRUE(banner->GetVisible());
+  DaoAddressBarView* address_bar = browser_view->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  ASSERT_TRUE(address_bar->mcp_control_button_for_testing()->GetVisible());
+  ClickButton(address_bar->mcp_control_button_for_testing());
+  DaoMcpControlBannerView* popup =
+      address_bar->mcp_control_popup_for_testing();
+  ASSERT_NE(nullptr, popup);
   EXPECT_TRUE(HasDescendantLabelText(
-      banner, l10n_util::GetStringFUTF16(IDS_DAO_MCP_CONTROL_TARGET,
-                                         u"Original MCP target")));
+      popup, l10n_util::GetStringFUTF16(IDS_DAO_MCP_CONTROL_TARGET,
+                                        u"Original MCP target")));
+  EXPECT_TRUE(HasDescendantLabelText(
+      popup,
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_CONTROL_TAB_COUNT, u"1")));
 
   auto replacement = content::WebContents::Create(
       content::WebContents::CreateParams(browser()->profile()));
@@ -1299,11 +1352,14 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
       replacement_ptr, embedded_test_server()->GetURL("/title2.html")));
   base::RunLoop().RunUntilIdle();
   ASSERT_EQ(replacement_ptr, service_->GetAuthorizedTarget());
-  EXPECT_EQ(replacement_ptr, banner->web_contents());
-  EXPECT_TRUE(banner->GetVisible());
+  EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
+  ASSERT_TRUE(address_bar->mcp_control_button_for_testing()->GetVisible());
+  ClickButton(address_bar->mcp_control_button_for_testing());
+  popup = address_bar->mcp_control_popup_for_testing();
+  ASSERT_NE(nullptr, popup);
   EXPECT_TRUE(HasDescendantLabelText(
-      banner, l10n_util::GetStringFUTF16(IDS_DAO_MCP_CONTROL_TARGET,
-                                         u"Title Of Awesomeness")));
+      popup, l10n_util::GetStringFUTF16(IDS_DAO_MCP_CONTROL_TARGET,
+                                        u"Title Of Awesomeness")));
 
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   const int target_index =
@@ -1312,11 +1368,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
   browser()->tab_strip_model()->DetachAndDeleteWebContentsAt(target_index);
 
   EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
-  EXPECT_FALSE(banner->GetVisible());
-  EXPECT_EQ(nullptr, banner->web_contents());
+  EXPECT_FALSE(address_bar->mcp_control_button_for_testing()->GetVisible());
+  EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest, OccupiesDedicatedClientRow) {
+IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
+                       ShowsIndicatorBeforeUrlPill) {
   FakeApprovalDelegate approval;
   service_->SetApprovalDelegate(&approval);
   EnableService();
@@ -1328,17 +1385,17 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest, OccupiesDedicatedClientRow) {
 
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   ASSERT_NE(nullptr, browser_view);
-  DaoMcpControlBannerView* banner = browser_view->dao_mcp_control_banner();
-  ASSERT_NE(nullptr, banner);
-  ASSERT_TRUE(banner->GetVisible());
+  DaoAddressBarView* address_bar = browser_view->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  views::Button* indicator = address_bar->mcp_control_button_for_testing();
+  ASSERT_NE(nullptr, indicator);
+  ASSERT_TRUE(indicator->GetVisible());
   browser_view->GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
 
-  EXPECT_LE(banner->bounds().bottom(),
-            browser_view->dao_address_bar()->bounds().y());
-  EXPECT_FALSE(banner->bounds().Intersects(
-      browser_view->contents_container()->bounds()));
-  EXPECT_EQ(HTCLIENT,
-            browser_view->NonClientHitTest(banner->bounds().CenterPoint()));
+  EXPECT_LE(indicator->GetMirroredBounds().right(),
+            address_bar->url_container_bounds().x());
+  EXPECT_EQ(DaoAddressBarView::kBarHeight,
+            address_bar->GetPreferredSize().height());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
@@ -1567,16 +1624,44 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
-                       RejectsConcurrentExternalConnection) {
+                       ControlsDifferentTabsFromConcurrentConnections) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
   EnableService();
   std::unique_ptr<TestMcpClient> first = ConnectClient();
   ASSERT_TRUE(first);
-  std::unique_ptr<TestMcpClient> second = ConnectClient();
-  ASSERT_TRUE(second);
-
   ASSERT_TRUE(first->Send(HelloRequest(nonce(), "first-hello")));
   EXPECT_TRUE(first->Read());
-  EXPECT_FALSE(second->Read());
+
+  TabStripModel* tabs = browser()->tab_strip_model();
+  content::WebContents* first_target = tabs->GetActiveWebContents();
+  ASSERT_NE(nullptr, first_target);
+  ASSERT_TRUE(first->Send(ToolCall("first-call")));
+  WaitForApprovalRequestCount(&approval, 1u);
+
+  content::WebContents* second_target = chrome::AddAndReturnTabAt(
+      browser(), embedded_test_server()->GetURL("/title2.html"), -1, true);
+  ASSERT_NE(nullptr, second_target);
+  ASSERT_TRUE(content::WaitForLoadStop(second_target));
+  std::unique_ptr<TestMcpClient> second = ConnectClient();
+  ASSERT_TRUE(second);
+  ASSERT_TRUE(second->Send(HelloRequest(nonce(), "second-hello")));
+  EXPECT_TRUE(second->Read());
+  ASSERT_TRUE(second->Send(ToolCall("second-call")));
+  WaitForApprovalRequestCount(&approval, 2u);
+
+  approval.ResolveAt(0, true);
+  std::optional<base::DictValue> first_response = first->Read();
+  ASSERT_TRUE(first_response);
+  EXPECT_TRUE(first_response->FindDict("result"));
+  approval.ResolveAt(1, true);
+  std::optional<base::DictValue> second_response = second->Read();
+  ASSERT_TRUE(second_response);
+  EXPECT_TRUE(second_response->FindDict("result"));
+
+  EXPECT_TRUE(service_->IsTargetControlled(first_target));
+  EXPECT_TRUE(service_->IsTargetControlled(second_target));
+  EXPECT_EQ(2u, service_->GetControlledTargetCount());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest, IdleHelloCandidateIsEvicted) {
@@ -1900,6 +1985,154 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                          ->TryAcquire({DaoToolClient::kDaoAgent,
                                        "agent-after-disconnect", "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       RoutesEachControlledTabWithoutChangingTheActiveTab) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  std::unique_ptr<TestMcpClient> client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ApproveFirstToolCall(client.get(), &approval);
+
+  TabStripModel* tabs = browser()->tab_strip_model();
+  content::WebContents* first = tabs->GetActiveWebContents();
+  ASSERT_NE(nullptr, first);
+  const std::string first_id = GetOrCreateSidebarTabId(first);
+  content::WebContents* second = chrome::AddAndReturnTabAt(
+      browser(), embedded_test_server()->GetURL("/title2.html"), -1, false);
+  ASSERT_NE(nullptr, second);
+  ASSERT_TRUE(content::WaitForLoadStop(second));
+  RepairDuplicateSidebarTabIds({first, second});
+  const std::string second_id = GetOrCreateSidebarTabId(second);
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "switch-second", "switch_tab",
+      base::DictValue().Set("tab_id", second_id))));
+  std::optional<base::DictValue> switch_response = client->Read();
+  ASSERT_TRUE(switch_response);
+  const base::DictValue* switch_result =
+      switch_response->FindDict("result");
+  ASSERT_NE(nullptr, switch_result);
+  EXPECT_TRUE(switch_result->FindBool("ok").value_or(false));
+  EXPECT_EQ(second, tabs->GetActiveWebContents());
+  EXPECT_EQ(second, service_->GetAuthorizedTarget());
+  EXPECT_EQ(2u, service_->GetControlledTargetCount());
+  EXPECT_TRUE(service_->IsTargetControlled(first));
+  EXPECT_TRUE(service_->IsTargetControlled(second));
+
+  tabs->ActivateTabAt(tabs->GetIndexOfWebContents(first));
+  ASSERT_EQ(first, tabs->GetActiveWebContents());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "route-second", "execute_script",
+      base::DictValue()
+          .Set("tab_id", second_id)
+          .Set("code", "document.body.dataset.mcpRoute = 'explicit'"))));
+  std::optional<base::DictValue> explicit_response = client->Read();
+  ASSERT_TRUE(explicit_response);
+  const base::DictValue* explicit_result =
+      explicit_response->FindDict("result");
+  ASSERT_NE(nullptr, explicit_result);
+  EXPECT_TRUE(explicit_result->FindBool("ok").value_or(false));
+  EXPECT_EQ(first, tabs->GetActiveWebContents());
+  EXPECT_EQ("absent",
+            content::EvalJs(first,
+                            "document.body.dataset.mcpRoute || 'absent'")
+                .ExtractString());
+  EXPECT_EQ("explicit",
+            content::EvalJs(second, "document.body.dataset.mcpRoute")
+                .ExtractString());
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "route-default", "execute_script",
+      base::DictValue().Set(
+          "code", "document.body.dataset.mcpDefault = 'second'"))));
+  std::optional<base::DictValue> default_response = client->Read();
+  ASSERT_TRUE(default_response);
+  const base::DictValue* default_result =
+      default_response->FindDict("result");
+  ASSERT_NE(nullptr, default_result);
+  EXPECT_TRUE(default_result->FindBool("ok").value_or(false));
+  EXPECT_EQ(first, tabs->GetActiveWebContents());
+  EXPECT_EQ("second",
+            content::EvalJs(second, "document.body.dataset.mcpDefault")
+                .ExtractString());
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "open-third", "open_tab",
+      base::DictValue().Set(
+          "url", embedded_test_server()->GetURL("/title3.html").spec()))));
+  std::optional<base::DictValue> open_response = client->Read();
+  ASSERT_TRUE(open_response);
+  const base::DictValue* open_result = open_response->FindDict("result");
+  ASSERT_NE(nullptr, open_result);
+  EXPECT_TRUE(open_result->FindBool("ok").value_or(false));
+  content::WebContents* third = tabs->GetActiveWebContents();
+  ASSERT_NE(nullptr, third);
+  EXPECT_NE(first, third);
+  EXPECT_NE(second, third);
+  EXPECT_EQ(third, service_->GetAuthorizedTarget());
+  EXPECT_EQ(3u, service_->GetControlledTargetCount());
+  EXPECT_TRUE(service_->IsTargetControlled(first));
+  EXPECT_TRUE(service_->IsTargetControlled(second));
+  EXPECT_TRUE(service_->IsTargetControlled(third));
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "unknown-target", "get_page_info",
+      base::DictValue().Set("tab_id", "not-controlled"))));
+  std::optional<base::DictValue> unknown_response = client->Read();
+  ASSERT_TRUE(unknown_response);
+  const base::DictValue* unknown_error = unknown_response->FindDict("error");
+  ASSERT_NE(nullptr, unknown_error);
+  EXPECT_EQ("TARGET_GONE", *unknown_error->FindString("code"));
+  EXPECT_EQ(first_id, GetSidebarTabId(first));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       RemovingOneControlledTabPreservesTheOthers) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  std::unique_ptr<TestMcpClient> client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ApproveFirstToolCall(client.get(), &approval);
+
+  TabStripModel* tabs = browser()->tab_strip_model();
+  content::WebContents* first = tabs->GetActiveWebContents();
+  ASSERT_NE(nullptr, first);
+  content::WebContents* second = chrome::AddAndReturnTabAt(
+      browser(), embedded_test_server()->GetURL("/title2.html"), -1, false);
+  ASSERT_NE(nullptr, second);
+  ASSERT_TRUE(content::WaitForLoadStop(second));
+  RepairDuplicateSidebarTabIds({first, second});
+  ASSERT_TRUE(client->Send(ToolCall(
+      "switch-second", "switch_tab",
+      base::DictValue().Set("tab_id", GetOrCreateSidebarTabId(second)))));
+  ASSERT_TRUE(client->Read());
+  ASSERT_EQ(2u, service_->GetControlledTargetCount());
+
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  content::WebContents* keeper = tabs->GetActiveWebContents();
+  ASSERT_NE(first, keeper);
+  ASSERT_NE(second, keeper);
+  tabs->DetachAndDeleteWebContentsAt(tabs->GetIndexOfWebContents(second));
+  ASSERT_TRUE(base::test::RunUntil([this, first] {
+    return service_->GetStatus().state == DaoMcpStatus::kLeaseActive &&
+           service_->GetControlledTargetCount() == 1u &&
+           service_->GetAuthorizedTarget() == first;
+  }));
+  EXPECT_TRUE(service_->IsTargetControlled(first));
+  EXPECT_FALSE(service_->IsTargetControlled(keeper));
+
+  tabs->DetachAndDeleteWebContentsAt(tabs->GetIndexOfWebContents(first));
+  WaitUntilListeningWithoutClient();
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+  EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
@@ -2358,8 +2591,10 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
   EXPECT_EQ(nullptr, service_->GetAuthorizedBrowser());
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   ASSERT_NE(nullptr, browser_view);
-  ASSERT_NE(nullptr, browser_view->dao_mcp_control_banner());
-  EXPECT_FALSE(browser_view->dao_mcp_control_banner()->GetVisible());
+  ASSERT_NE(nullptr, browser_view->dao_address_bar());
+  EXPECT_FALSE(browser_view->dao_address_bar()
+                   ->mcp_control_button_for_testing()
+                   ->GetVisible());
   {
     auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->profile())
                            ->TryAcquire({DaoToolClient::kDaoAgent,
@@ -2402,21 +2637,22 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
 
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   ASSERT_NE(nullptr, browser_view);
-  DaoMcpControlBannerView* banner = browser_view->dao_mcp_control_banner();
-  ASSERT_NE(nullptr, banner);
-  ASSERT_TRUE(banner->GetVisible());
-  ASSERT_NE(nullptr, banner->stop_button_for_testing());
-  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-                       base::TimeTicks::Now(), ui::EF_NONE,
-                       ui::EF_LEFT_MOUSE_BUTTON);
-  views::test::ButtonTestApi(banner->stop_button_for_testing())
-      .NotifyClick(event);
+  DaoAddressBarView* address_bar = browser_view->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  ASSERT_TRUE(address_bar->mcp_control_button_for_testing()->GetVisible());
+  ClickButton(address_bar->mcp_control_button_for_testing());
+  DaoMcpControlBannerView* popup =
+      address_bar->mcp_control_popup_for_testing();
+  ASSERT_NE(nullptr, popup);
+  ASSERT_NE(nullptr, popup->stop_button_for_testing());
+  ClickButton(popup->stop_button_for_testing());
 
   EXPECT_TRUE(base::test::RunUntil([this, target] {
     return service_->GetStatus().state == DaoMcpStatus::kListening &&
            !DaoAgentLockTabHelper::IsLocked(target);
   }));
-  EXPECT_FALSE(banner->GetVisible());
+  EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
+  EXPECT_FALSE(address_bar->mcp_control_button_for_testing()->GetVisible());
   EXPECT_EQ(nullptr, service_->GetAuthorizedBrowser());
   auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->profile())
                          ->TryAcquire({DaoToolClient::kDaoAgent,

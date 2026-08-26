@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 index bcb1930a86dd2..20acaf3489516 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4,6 +4,28 @@
+@@ -4,6 +4,27 @@
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
  
@@ -17,7 +17,6 @@ index bcb1930a86dd2..20acaf3489516 100644
 +#include "dao/browser/ui/views/dao_corner_overlay_view.h"
 +#include "dao/browser/ui/views/dao_load_progress_controller.h"
 +#include "dao/browser/ui/views/dao_load_progress_view.h"
-+#include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
 +#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
@@ -46,7 +45,7 @@ index bcb1930a86dd2..20acaf3489516 100644
  #if BUILDFLAG(IS_CHROMEOS)
        // Immersive mode allows the toolbar to be shown, so do not show the
        // bubble. However, do show the bubble in a managed guest session (see
-@@ -929,6 +959,112 @@ BrowserView::BrowserView(Browser* browser)
+@@ -929,6 +959,105 @@ BrowserView::BrowserView(Browser* browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
@@ -72,13 +71,6 @@ index bcb1930a86dd2..20acaf3489516 100644
 +    // Dao: Thin banner shown while the active tab is AI-locked.
 +    dao_agent_lock_banner_ = AddChildView(
 +        std::make_unique<dao::DaoAgentLockBannerView>());
-+
-+    // Dao: Active local MCP control is visible only in the exact authorized
-+    // normal browser window.
-+    if (browser_->is_type_normal()) {
-+      dao_mcp_control_banner_ = AddChildView(
-+          std::make_unique<dao::DaoMcpControlBannerView>(browser_.get()));
-+    }
 +
 +    // Dao: Address bar at the top of the content area (URL pill + nav buttons).
 +    dao_address_bar_ = AddChildView(
@@ -282,7 +274,7 @@ index bcb1930a86dd2..20acaf3489516 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
-@@ -4706,6 +4906,105 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4706,6 +4906,96 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -313,15 +305,6 @@ index bcb1930a86dd2..20acaf3489516 100644
 +  if (dao_sidebar_ && dao_sidebar_->GetVisible()) {
 +    if (dao_agent_sidebar_ && dao_agent_sidebar_->GetVisible() &&
 +        dao_agent_sidebar_->bounds().Contains(point_in_browser_view_coords)) {
-+      return HTCLIENT;
-+    }
-+
-+    // Dao: The MCP status banner lives in the otherwise draggable strip above
-+    // web contents. Keep its Stop action and the rest of the banner clickable.
-+    if (dao_mcp_control_banner_ &&
-+        dao_mcp_control_banner_->GetVisible() &&
-+        dao_mcp_control_banner_->bounds().Contains(
-+            point_in_browser_view_coords)) {
 +      return HTCLIENT;
 +    }
 +

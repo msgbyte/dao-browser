@@ -2,7 +2,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/vi
 index bb0e0958c9077..2c9fe4166500e 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -124,6 +124,27 @@ enum class InstallableWebAppCheckResult;
+@@ -124,6 +124,26 @@ enum class InstallableWebAppCheckResult;
  struct WebAppBannerData;
  }  // namespace webapps
  
@@ -22,7 +22,6 @@ index bb0e0958c9077..2c9fe4166500e 100644
 +class DaoAgentCursorView;
 +class DaoLoadProgressController;
 +class DaoLoadProgressView;
-+class DaoMcpControlBannerView;
 +class DaoTabTooltipView;
 +class DaoToastView;
 +}  // namespace dao
@@ -30,7 +29,7 @@ index bb0e0958c9077..2c9fe4166500e 100644
  class CustomFloatingCorner;
  
  ///////////////////////////////////////////////////////////////////////////////
-@@ -271,6 +292,26 @@ class BrowserView : public BrowserWindow,
+@@ -271,6 +292,23 @@ class BrowserView : public BrowserWindow,
  
    MultiContentsView* multi_contents_view() { return multi_contents_view_; }
  
@@ -48,16 +47,13 @@ index bb0e0958c9077..2c9fe4166500e 100644
 +  dao::DaoSplitView* dao_split_view() { return dao_split_view_; }
 +  dao::DaoAgentLockBannerView* dao_agent_lock_banner() { return dao_agent_lock_banner_; }
 +  dao::DaoAgentCursorView* dao_agent_cursor() { return dao_agent_cursor_; }
-+  dao::DaoMcpControlBannerView* dao_mcp_control_banner() {
-+    return dao_mcp_control_banner_;
-+  }
 +  dao::DaoTabTooltipView* dao_tab_tooltip() { return dao_tab_tooltip_; }
 +  dao::DaoToastView* dao_toast() { return dao_toast_; }
 +
    // Returns either the Horizontal or Vertical TabStrip.
    TabStripRegionView* tab_strip_view() const;
  
-@@ -1274,8 +1315,29 @@ class BrowserView : public BrowserWindow,
+@@ -1274,8 +1315,28 @@ class BrowserView : public BrowserWindow,
    // should exist if and only if the side_panel_coordinator is created.
    raw_ptr<SidePanel> side_panel_ = nullptr;
  
@@ -78,7 +74,6 @@ index bb0e0958c9077..2c9fe4166500e 100644
 +  raw_ptr<dao::DaoSplitView> dao_split_view_ = nullptr;
 +  raw_ptr<dao::DaoAgentLockBannerView> dao_agent_lock_banner_ = nullptr;
 +  raw_ptr<dao::DaoAgentCursorView> dao_agent_cursor_ = nullptr;
-+  raw_ptr<dao::DaoMcpControlBannerView> dao_mcp_control_banner_ = nullptr;
 +  raw_ptr<dao::DaoTabTooltipView> dao_tab_tooltip_ = nullptr;
 +  raw_ptr<dao::DaoToastView> dao_toast_ = nullptr;
 +

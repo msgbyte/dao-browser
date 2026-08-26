@@ -201,45 +201,83 @@ DaoMcpApprovalDialogController* DaoMcpApprovalDialogController::Get() {
 DaoMcpApprovalDialogController::DaoMcpApprovalDialogController() = default;
 DaoMcpApprovalDialogController::~DaoMcpApprovalDialogController() = default;
 
+DaoMcpApprovalDialogController::PendingRequest::PendingRequest(
+    const DaoMcpClientInfo& client,
+    Browser* browser,
+    std::string connection_id,
+    base::OnceCallback<void(bool)> callback)
+    : client(client),
+      browser(browser),
+      connection_id(std::move(connection_id)),
+      callback(std::move(callback)) {}
+
+DaoMcpApprovalDialogController::PendingRequest::~PendingRequest() = default;
+DaoMcpApprovalDialogController::PendingRequest::PendingRequest(
+    PendingRequest&&) = default;
+DaoMcpApprovalDialogController::PendingRequest&
+DaoMcpApprovalDialogController::PendingRequest::operator=(PendingRequest&&) =
+    default;
+
 void DaoMcpApprovalDialogController::RequestApproval(
     const DaoMcpClientInfo& client,
     Browser* browser,
     std::string_view connection_id,
     base::OnceCallback<void(bool)> callback) {
-  if (pending_dialog_) {
-    pending_dialog_->DismissWithoutResult();
-  }
-  pending_dialog_.reset();
-  pending_connection_id_.clear();
-
   if (!IsEligibleApprovalBrowser(browser)) {
     std::move(callback).Run(false);
     return;
   }
 
-  std::string owned_connection_id(connection_id);
+  pending_requests_.emplace_back(client, browser, std::string(connection_id),
+                                 std::move(callback));
+  ShowNextApproval();
+}
+
+void DaoMcpApprovalDialogController::ShowNextApproval() {
+  if (pending_dialog_ || pending_requests_.empty()) {
+    return;
+  }
+
+  PendingRequest request = std::move(pending_requests_.front());
+  pending_requests_.pop_front();
+  if (!IsEligibleApprovalBrowser(request.browser)) {
+    std::move(request.callback).Run(false);
+    ShowNextApproval();
+    return;
+  }
+
   auto dialog = std::make_unique<DaoMcpApprovalDialog>(
-      client, browser,
+      request.client, request.browser,
       base::BindOnce(&DaoMcpApprovalDialogController::OnDialogResult,
-                     base::Unretained(this), owned_connection_id,
-                     std::move(callback)));
+                     base::Unretained(this), request.connection_id,
+                     std::move(request.callback)));
   pending_dialog_ = dialog->GetWeakPtr();
-  pending_connection_id_ = std::move(owned_connection_id);
+  pending_connection_id_ = std::move(request.connection_id);
+  request.browser->window()->Activate();
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), browser->window()->GetNativeWindow());
+      std::move(dialog), request.browser->window()->GetNativeWindow());
   widget->Show();
 }
 
 void DaoMcpApprovalDialogController::CancelApproval(
     std::string_view connection_id) {
-  if (connection_id != pending_connection_id_) {
+  if (connection_id == pending_connection_id_) {
+    if (pending_dialog_) {
+      pending_dialog_->DismissWithoutResult();
+    }
+    pending_dialog_.reset();
+    pending_connection_id_.clear();
+    ShowNextApproval();
     return;
   }
-  if (pending_dialog_) {
-    pending_dialog_->DismissWithoutResult();
+
+  for (auto request = pending_requests_.begin();
+       request != pending_requests_.end(); ++request) {
+    if (request->connection_id == connection_id) {
+      pending_requests_.erase(request);
+      return;
+    }
   }
-  pending_dialog_.reset();
-  pending_connection_id_.clear();
 }
 
 void DaoMcpApprovalDialogController::OnDialogResult(
@@ -252,6 +290,7 @@ void DaoMcpApprovalDialogController::OnDialogResult(
   pending_dialog_.reset();
   pending_connection_id_.clear();
   std::move(callback).Run(allowed);
+  ShowNextApproval();
 }
 
 }  // namespace dao

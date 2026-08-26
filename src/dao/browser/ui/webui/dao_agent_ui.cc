@@ -43,6 +43,7 @@
 #include "components/pdf/browser/pdf_document_helper.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/storage_partition.h"
@@ -776,7 +777,9 @@ void DaoAgentUIHandler::ExecutePageTool(std::string callback_id,
   }
 
   auto acquired = DaoAgentLeaseManager::GetForProfile(browser->profile())
-                      ->TryAcquire({DaoToolClient::kDaoAgent,
+                      ->TryAcquire(tabs::TabInterface::GetFromContents(target)
+                                       ->GetHandle(),
+                                   {DaoToolClient::kDaoAgent,
                                     "dao-agent-legacy-ui", "Dao Agent UI"});
   if (!acquired.has_value()) {
     ResolvePageToolError(std::move(callback_id),
@@ -958,7 +961,9 @@ void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
   }
 
   auto acquired = DaoAgentLeaseManager::GetForProfile(browser->profile())
-                      ->TryAcquire({DaoToolClient::kDaoAgent, "dao-agent-turn",
+                      ->TryAcquire(tabs::TabInterface::GetFromContents(contents)
+                                       ->GetHandle(),
+                                   {DaoToolClient::kDaoAgent, "dao-agent-turn",
                                     "Dao Agent"});
   if (!acquired.has_value()) {
     DaoToolError error = LocalizeAgentToolError(std::move(acquired).error());
@@ -1496,7 +1501,9 @@ void DaoAgentUIHandler::HandleClearHighlight(const base::ListValue& args) {
     if (target && browser) {
       auto acquired =
           DaoAgentLeaseManager::GetForProfile(browser->profile())
-              ->TryAcquire({DaoToolClient::kDaoAgent,
+              ->TryAcquire(tabs::TabInterface::GetFromContents(target)
+                               ->GetHandle(),
+                           {DaoToolClient::kDaoAgent,
                             "dao-agent-clear-highlight", "Dao Agent"});
       if (!acquired.has_value()) {
         ResolvePageToolError(callback_id, std::move(acquired).error());

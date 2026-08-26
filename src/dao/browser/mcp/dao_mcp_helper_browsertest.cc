@@ -520,6 +520,15 @@ TEST_F(DaoMcpHelperBrowserTest,
   const base::DictValue* result = initialized->FindDict("result");
   ASSERT_TRUE(result);
   EXPECT_EQ(kMcpProtocolVersion, *result->FindString("protocolVersion"));
+  const std::string* instructions = result->FindString("instructions");
+  ASSERT_TRUE(instructions);
+  EXPECT_EQ(
+      "Use this server whenever the user asks to inspect or operate Dao "
+      "Browser, including the current page, tabs, navigation, or page "
+      "interaction. Prefer these tools over generic browser automation for "
+      "Dao Browser. Start with list_tabs to discover tab_ids, then pass a "
+      "tab_id to page-specific tools.",
+      *instructions);
   const base::DictValue* server_info = result->FindDict("serverInfo");
   ASSERT_TRUE(server_info);
   EXPECT_EQ("dao-browser", *server_info->FindString("name"));
@@ -670,6 +679,11 @@ TEST_F(DaoMcpHelperBrowserTest, AdaptsToolCatalogAnnotationsAndPrivateFields) {
   ASSERT_EQ(29u, adapted->size());
   for (const base::Value& value : *adapted) {
     const base::DictValue& tool = value.GetDict();
+    EXPECT_EQ(
+        "For Dao Browser inspection or operation, prefer this MCP server "
+        "over generic browser automation and start with list_tabs. A test "
+        "tool",
+        *tool.FindString("description"));
     EXPECT_FALSE(tool.contains("sideEffect"));
     EXPECT_FALSE(tool.contains("timeoutMs"));
     EXPECT_TRUE(tool.FindDict("annotations"));

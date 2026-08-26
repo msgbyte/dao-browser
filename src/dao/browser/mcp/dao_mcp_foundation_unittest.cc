@@ -385,6 +385,26 @@ TEST(DaoMcpLeaseTest, RejectsSecondAgentUntilRelease) {
           .has_value());
 }
 
+TEST(DaoMcpLeaseTest, AllowsDifferentTabsButRejectsSameTab) {
+  DaoAgentLeaseManager leases;
+  auto first = leases.TryAcquire(
+      tabs::TabHandle(1), {DaoToolClient::kMcp, "external-1", "Codex"});
+  ASSERT_TRUE(first.has_value());
+  auto second = leases.TryAcquire(
+      tabs::TabHandle(2), {DaoToolClient::kMcp, "external-2", "Claude"});
+  ASSERT_TRUE(second.has_value());
+
+  auto blocked = leases.TryAcquire(
+      tabs::TabHandle(1), {DaoToolClient::kMcp, "external-3", "Codex"});
+  ASSERT_FALSE(blocked.has_value());
+  EXPECT_EQ(DaoToolErrorCode::kLeaseBusy, blocked.error().code);
+
+  first->Reset();
+  EXPECT_TRUE(leases.TryAcquire(
+      tabs::TabHandle(1),
+      {DaoToolClient::kMcp, "external-3", "Codex"}).has_value());
+}
+
 TEST(DaoMcpLeaseTest, MoveAndDestructionPreserveRaiiOwnership) {
   DaoAgentLeaseManager leases;
   {

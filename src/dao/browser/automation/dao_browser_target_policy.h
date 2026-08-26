@@ -26,7 +26,8 @@ base::expected<void, DaoToolError> ValidateExternalTargetUrl(const GURL& url);
 base::expected<void, DaoToolError> ValidateExternalTarget(
     Browser* browser,
     Profile* profile,
-    content::WebContents* contents);
+    content::WebContents* contents,
+    bool allow_uncommitted_url = false);
 
 }  // namespace dao
 

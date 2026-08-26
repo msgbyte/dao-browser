@@ -29,10 +29,12 @@
 #include "base/types/expected.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "dao/browser/automation/dao_agent_lease_manager.h"
+#include "dao/browser/automation/dao_browser_tool_catalog.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
 #include "dao/browser/mcp/dao_mcp_transport.h"
 
 class Browser;
+class BrowserWindowInterface;
 class PrefService;
 
 namespace base {
@@ -105,6 +107,8 @@ class DaoMcpService {
   std::string GetMcpConfiguration() const;
   Browser* GetAuthorizedBrowser() const;
   content::WebContents* GetAuthorizedTarget() const;
+  bool IsTargetControlled(content::WebContents* target) const;
+  size_t GetControlledTargetCount() const;
   void StopControl();
   base::CallbackListSubscription AddObserver(StatusObserver observer);
   void SetApprovalDelegate(DaoMcpApprovalDelegate* delegate);
@@ -124,7 +128,7 @@ class DaoMcpService {
   size_t tool_call_completion_count_for_testing() const {
     return tool_call_completion_count_for_testing_;
   }
-  bool connection_active_for_testing() const { return connection_active_; }
+  bool connection_active_for_testing() const { return !connections_.empty(); }
 
  private:
   friend class base::NoDestructor<DaoMcpService>;
@@ -146,8 +150,13 @@ class DaoMcpService {
     PendingToolCall& operator=(const PendingToolCall&) = delete;
 
     DaoBrowserToolCall call;
+    DaoBrowserToolGroup group = DaoBrowserToolGroup::kPage;
+    std::string target_id;
     size_t buffered_bytes = 0;
   };
+
+  struct TargetContext;
+  struct ConnectionState;
 
   DaoMcpService();
   ~DaoMcpService();
@@ -170,20 +179,29 @@ class DaoMcpService {
                           size_t wire_bytes);
   void OnConnectionClosed(uint64_t runtime_generation,
                           uint64_t connection_generation);
-  void ResetConnectionState();
+  ConnectionState* FindConnection(uint64_t connection_generation);
+  const ConnectionState* FindConnection(uint64_t connection_generation) const;
+  ConnectionState* GetDisplayConnection();
+  const ConnectionState* GetDisplayConnection() const;
+  void ResetConnectionState(ConnectionState& connection);
   void OnHelloTimeout(uint64_t connection_generation);
 
-  void OnRequest(DaoMcpRequest request);
-  void HandleHello(DaoMcpRequest request);
-  void HandleToolsList(DaoMcpRequest request);
-  void HandleToolsCall(DaoMcpRequest request);
-  void HandleToolsCancel(DaoMcpRequest request);
-  void SendSuccess(std::string id, base::DictValue result);
-  void SendError(const std::optional<std::string>& id, DaoToolError error);
-  void CloseConnectionAfterWrites();
+  void OnRequest(ConnectionState& connection, DaoMcpRequest request);
+  void HandleHello(ConnectionState& connection, DaoMcpRequest request);
+  void HandleToolsList(ConnectionState& connection, DaoMcpRequest request);
+  void HandleToolsCall(ConnectionState& connection, DaoMcpRequest request);
+  void HandleToolsCancel(ConnectionState& connection, DaoMcpRequest request);
+  void SendSuccess(ConnectionState& connection,
+                   std::string id,
+                   base::DictValue result);
+  void SendError(ConnectionState& connection,
+                 const std::optional<std::string>& id,
+                 DaoToolError error);
+  void CloseConnectionAfterWrites(ConnectionState& connection);
 
-  base::expected<Browser*, DaoToolError> PrepareApprovalSession();
-  void RequestApproval(Browser* browser);
+  base::expected<Browser*, DaoToolError> PrepareApprovalSession(
+      ConnectionState& connection);
+  void RequestApproval(ConnectionState& connection, Browser* browser);
   void OnApprovalResult(uint64_t connection_generation,
                         std::string connection_id,
                         bool allowed);
@@ -193,15 +211,36 @@ class DaoMcpService {
                          std::string connection_id);
   bool IsCurrentApproval(uint64_t connection_generation,
                          std::string_view connection_id) const;
-  void RejectConnection(DaoToolError error);
-  void OnSessionInvalidated(DaoToolError error);
-  void FailPendingCalls(const DaoToolError& error);
-  void DispatchPendingCalls();
-  void DispatchToolCall(PendingToolCall pending);
-  void OnToolCallComplete(std::string request_id, DaoBrowserToolResult result);
+  TargetContext* GetDefaultTargetContext(ConnectionState& connection);
+  const TargetContext* GetDefaultTargetContext(
+      const ConnectionState& connection) const;
+  base::expected<std::string, DaoToolError> AddTargetContext(
+      ConnectionState& connection,
+      BrowserWindowInterface* browser_window,
+      content::WebContents* target,
+      bool allow_uncommitted_url = false);
+  base::expected<void, DaoToolError> AcquireTargetLease(
+      ConnectionState& connection,
+      TargetContext& context,
+      bool allow_uncommitted_url = false);
+  void RejectConnection(ConnectionState& connection, DaoToolError error);
+  void OnTargetInvalidated(uint64_t connection_generation,
+                           std::string target_id,
+                           DaoToolError error);
+  void FailPendingCalls(ConnectionState& connection,
+                        const DaoToolError& error);
+  void FailPendingCallsForTarget(ConnectionState& connection,
+                                 std::string_view target_id,
+                                 const DaoToolError& error);
+  void DispatchPendingCalls(ConnectionState& connection);
+  void DispatchToolCall(ConnectionState& connection, PendingToolCall pending);
+  void OnToolCallComplete(uint64_t connection_generation,
+                          std::string request_id,
+                          bool allow_uncommitted_url,
+                          DaoBrowserToolResult result);
 
   void NotifyStatusObservers();
-  void UpdateStatus(DaoMcpStatus state);
+  void UpdateStatus();
 
   raw_ptr<PrefService> local_state_ = nullptr;
   base::FilePath user_data_dir_;
@@ -211,35 +250,17 @@ class DaoMcpService {
   uint64_t runtime_generation_ = 0;
   bool listener_start_pending_ = false;
   bool listener_active_ = false;
-  bool connection_active_ = false;
-  bool connection_closing_ = false;
   base::SequenceBound<DaoMcpTransport> transport_;
-  std::optional<base::ProcessId> accepted_verified_pid_;
-  uint64_t active_connection_generation_ = 0;
+  std::map<uint64_t, std::unique_ptr<ConnectionState>> connections_;
 
   raw_ptr<DaoMcpApprovalDelegate> approval_delegate_ = nullptr;
-  ApprovalState approval_state_ = ApprovalState::kNotRequested;
-  base::TimeTicks approval_deadline_;
   base::TimeDelta hello_timeout_;
   base::TimeDelta approval_timeout_;
-  base::OneShotTimer hello_timer_;
-  base::OneShotTimer approval_timer_;
-  base::OneShotTimer lease_retry_timer_;
-
-  std::optional<DaoMcpClientInfo> client_info_;
-  std::string connection_id_;
-  std::unique_ptr<DaoBrowserAutomationSession> session_;
-  std::unique_ptr<DaoMcpSessionLifecycleMonitor> session_lifecycle_monitor_;
-  std::optional<DaoAgentLease> external_lease_;
-  std::map<std::string, PendingToolCall, std::less<>> pending_tool_calls_;
-  std::set<std::string, std::less<>> active_tool_calls_;
-  std::map<std::string, size_t, std::less<>> active_tool_call_bytes_;
-  size_t active_tool_call_bytes_total_ = 0;
   size_t tool_call_completion_count_for_testing_ = 0;
 
   std::unique_ptr<DaoMcpPageUiDelegate> page_ui_delegate_;
-  std::unique_ptr<DaoDevToolsClient> devtools_client_;
-  std::unique_ptr<DaoBrowserToolExecutor> tool_executor_;
+  base::RepeatingCallback<void(const std::string&)>
+      devtools_command_callback_for_testing_;
 
   DaoMcpServiceStatus status_;
   base::RepeatingCallbackList<void(const DaoMcpServiceStatus&)>
