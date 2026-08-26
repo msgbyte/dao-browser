@@ -164,7 +164,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -3836,7 +3836,511 @@
+@@ -3836,7 +3836,517 @@
      <!-- Sync / People Page -->
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
@@ -633,6 +633,12 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    </message>
 +    <message name="IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_ERROR" desc="Error shown when the stale tab expiration input is outside its supported integer range.">
 +      Enter a whole number from 1 to 720
++    </message>
++    <message name="IDS_SETTINGS_AUTO_PIP_ENABLED_LABEL" desc="Label for the setting that enables or disables automatic Picture-in-Picture when a playing video moves to the background.">
++      Automatic Picture-in-Picture (PIP)
++    </message>
++    <message name="IDS_SETTINGS_AUTO_PIP_ENABLED_SUB_LABEL" desc="Description for the setting that automatically opens Picture-in-Picture when a playing video moves to the background.">
++      Open Picture-in-Picture automatically when a playing video moves to the background
 +    </message>
 +    <message name="IDS_SETTINGS_ENHANCED_PIP_ENABLED_LABEL" desc="Label for the setting that enables or disables Dao's custom Document Picture-in-Picture behavior on supported video sites.">
 +      Enhanced Picture-in-Picture (PIP)

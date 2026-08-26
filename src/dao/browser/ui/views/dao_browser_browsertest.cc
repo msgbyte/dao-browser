@@ -34,6 +34,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
@@ -79,6 +80,9 @@
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/download/public/common/download_item.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
@@ -7376,6 +7380,31 @@ IN_PROC_BROWSER_TEST_F(DaoAutoPipVisibilityHelperBrowserTest,
   dao::DaoAutoPipVisibilityHelper::CreateForWebContents(contents);
   EXPECT_EQ(helper, dao::DaoAutoPipVisibilityHelper::FromWebContents(contents));
 }
+
+namespace dao {
+
+using DaoAutoPipContentSettingBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoAutoPipContentSettingBrowserTest,
+                       RespectsBlockedSetting) {
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, contents);
+  auto* helper = DaoAutoPipVisibilityHelper::FromWebContents(contents);
+  ASSERT_NE(nullptr, helper);
+
+  HostContentSettingsMap* settings =
+      HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+  settings->SetDefaultContentSetting(
+      ContentSettingsType::AUTO_PICTURE_IN_PICTURE, CONTENT_SETTING_BLOCK);
+  EXPECT_FALSE(helper->IsAutoPictureInPictureAllowed());
+
+  settings->SetDefaultContentSetting(
+      ContentSettingsType::AUTO_PICTURE_IN_PICTURE, CONTENT_SETTING_ASK);
+  EXPECT_TRUE(helper->IsAutoPictureInPictureAllowed());
+}
+
+}  // namespace dao
 
 // =============================================================================
 // DaoWebstoreBrandingTabHelperBrowserTest

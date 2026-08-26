@@ -3,12 +3,13 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,545 @@
+@@ -0,0 +1,591 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
 +
 +import 'chrome://settings/settings.js';
++import 'chrome://settings/lazy_load.js';
 +
 +import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 +import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
@@ -27,6 +28,11 @@ index 0000000000..0000000001
 +  routes,
 +} from 'chrome://settings/settings.js';
 +import {
++  ContentSetting,
++  ContentSettingsTypes,
++  SiteSettingsBrowserProxyImpl,
++} from 'chrome://settings/lazy_load.js';
++import {
 +  assertEquals,
 +  assertFalse,
 +  assertNull,
@@ -35,6 +41,12 @@ index 0000000000..0000000001
 +import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 +import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 +import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
++
++import {TestSiteSettingsBrowserProxy} from './test_site_settings_browser_proxy.js';
++import {
++  createContentSettingTypeToValuePair,
++  createSiteSettingsPrefs,
++} from './test_util.js';
 +
 +type DaoMcpSetupOption = 'codex'|'claude-code'|'generic-mcp';
 +
@@ -106,12 +118,20 @@ index 0000000000..0000000001
 +  let page: SettingsDaoPageElement;
 +  let mcpBrowserProxy: TestDaoMcpBrowserProxy;
 +  let openWindowProxy: TestOpenWindowProxy;
++  let siteSettingsBrowserProxy: TestSiteSettingsBrowserProxy;
 +
 +  setup(async function() {
 +    mcpBrowserProxy = new TestDaoMcpBrowserProxy();
 +    DaoMcpBrowserProxyImpl.setInstance(mcpBrowserProxy);
 +    openWindowProxy = new TestOpenWindowProxy();
 +    OpenWindowProxyImpl.setInstance(openWindowProxy);
++    siteSettingsBrowserProxy = new TestSiteSettingsBrowserProxy();
++    siteSettingsBrowserProxy.setPrefs(createSiteSettingsPrefs([
++      createContentSettingTypeToValuePair(
++          ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE,
++          {setting: ContentSetting.ASK}),
++    ], []));
++    SiteSettingsBrowserProxyImpl.setInstance(siteSettingsBrowserProxy);
 +    document.body.innerHTML = window.trustedTypes!.emptyHTML;
 +    page = document.createElement('settings-dao-page');
 +    page.prefs = {
@@ -482,6 +502,32 @@ index 0000000000..0000000001
 +    assertTrue(!!toggle);
 +    assertEquals('dao.enhanced_pip_enabled', toggle.pref!.key);
 +    assertTrue(toggle.checked);
++  });
++
++  test('autoPipToggleUsesNativeContentSetting', async function() {
++    const toggle =
++        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++            '#autoPipEnabled');
++    assertTrue(!!toggle);
++    assertEquals(
++        ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE,
++        await siteSettingsBrowserProxy.whenCalled(
++            'getDefaultValueForContentType'));
++    assertTrue(toggle.checked);
++
++    toggle.click();
++    let [category, setting] = await siteSettingsBrowserProxy.whenCalled(
++        'setDefaultValueForContentType');
++    assertEquals(ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE, category);
++    assertEquals(ContentSetting.BLOCK, setting);
++
++    siteSettingsBrowserProxy.resetResolver(
++        'setDefaultValueForContentType');
++    toggle.click();
++    [category, setting] = await siteSettingsBrowserProxy.whenCalled(
++        'setDefaultValueForContentType');
++    assertEquals(ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE, category);
++    assertEquals(ContentSetting.ASK, setting);
 +  });
 +
 +  test('staleTabExpirationInputSavesValidInteger', function() {

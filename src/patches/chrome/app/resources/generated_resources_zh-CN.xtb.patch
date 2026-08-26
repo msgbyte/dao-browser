@@ -1,11 +1,13 @@
 diff --git a/chrome/app/resources/generated_resources_zh-CN.xtb b/chrome/app/resources/generated_resources_zh-CN.xtb
 --- a/chrome/app/resources/generated_resources_zh-CN.xtb
 +++ b/chrome/app/resources/generated_resources_zh-CN.xtb
-@@ -1,6 +1,123 @@
+@@ -1,6 +1,125 @@
  <?xml version="1.0" ?>
  <!DOCTYPE translationbundle>
  <translationbundle lang="zh-CN">
 +<translation id="42079359526797400">增强的画中画 (PIP)</translation>
++<translation id="2382779221361494104">自动画中画 (PIP)</translation>
++<translation id="5282350383463890461">播放中的视频进入后台时，自动打开画中画</translation>
 +<translation id="532636291227772742">快速接入</translation>
 +<translation id="6649293836182248224">选择一个选项，然后复制并使用下方显示的命令或配置。</translation>
 +<translation id="6304318647555713317">客户端</translation>

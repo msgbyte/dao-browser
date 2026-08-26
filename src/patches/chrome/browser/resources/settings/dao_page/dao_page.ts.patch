@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,366 @@
+@@ -0,0 +1,410 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -32,6 +32,9 @@ index 0000000000..0000000001
 +import {loadTimeData} from '../i18n_setup.js';
 +import {getSearchManager} from '../search_settings.js';
 +import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
++import {ContentSetting, ContentSettingsTypes} from '../site_settings/constants.js';
++import type {SiteSettingsBrowserProxy} from '../site_settings/site_settings_browser_proxy.js';
++import {SiteSettingsBrowserProxyImpl} from '../site_settings/site_settings_browser_proxy.js';
 +
 +import {getTemplate} from './dao_page.html.js';
 +
@@ -113,6 +116,16 @@ index 0000000000..0000000001
 +        type: Object,
 +        notify: true,
 +      },
++      autoPipEnabledPref_: {
++        type: Object,
++        value() {
++          return {
++            key: 'auto-picture-in-picture',
++            type: chrome.settingsPrivate.PrefType.BOOLEAN,
++            value: true,
++          };
++        },
++      },
 +      daoMcpEnabledPref_: {
 +        type: Object,
 +        value() {
@@ -193,6 +206,8 @@ index 0000000000..0000000001
 +  }
 +
 +  declare prefs: {[key: string]: any};
++  declare private autoPipEnabledPref_:
++      chrome.settingsPrivate.PrefObject<boolean>;
 +  declare private daoMcpEnabledPref_:
 +      chrome.settingsPrivate.PrefObject<boolean>;
 +  declare private daoMcpStatusText_: string;
@@ -209,15 +224,44 @@ index 0000000000..0000000001
 +  private daoMcpCopyRequest_ = 0;
 +  private daoMcpBrowserProxy_: DaoMcpBrowserProxy =
 +      DaoMcpBrowserProxyImpl.getInstance();
-+
++  private siteSettingsBrowserProxy_: SiteSettingsBrowserProxy =
++      SiteSettingsBrowserProxyImpl.getInstance();
 +
 +  override connectedCallback() {
 +    super.connectedCallback();
++    this.addWebUiListener(
++        'contentSettingCategoryChanged',
++        (category: ContentSettingsTypes) => {
++          if (category ===
++              ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE) {
++            this.updateAutoPipEnabled_();
++          }
++        });
 +    this.addWebUiListener(
 +        'dao-mcp-status-changed',
 +        (status: DaoMcpStatus) => this.updateDaoMcpStatus_(status));
 +    this.daoMcpBrowserProxy_.getDaoMcpStatus().then(
 +        status => this.updateDaoMcpStatus_(status));
++    this.updateAutoPipEnabled_();
++  }
++
++  private async updateAutoPipEnabled_() {
++    const defaultValue =
++        await this.siteSettingsBrowserProxy_.getDefaultValueForContentType(
++            ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE);
++    this.set(
++        'autoPipEnabledPref_.value',
++        defaultValue.setting !== ContentSetting.BLOCK);
++  }
++
++  private onAutoPipEnabledChange_() {
++    const enabled =
++        this.shadowRoot!
++            .querySelector<SettingsToggleButtonElement>('#autoPipEnabled')!
++            .checked;
++    this.siteSettingsBrowserProxy_.setDefaultValueForContentType(
++        ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE,
++        enabled ? ContentSetting.ASK : ContentSetting.BLOCK);
 +  }
 +
 +  declare private staleTabExpirationHoursInvalid_: boolean;

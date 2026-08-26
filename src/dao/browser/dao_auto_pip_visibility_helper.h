@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_DAO_AUTO_PIP_VISIBILITY_HELPER_H_
 #define DAO_BROWSER_DAO_AUTO_PIP_VISIBILITY_HELPER_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -26,8 +27,11 @@ class DaoAutoPipVisibilityHelper
 
  private:
   friend class content::WebContentsUserData<DaoAutoPipVisibilityHelper>;
+  FRIEND_TEST_ALL_PREFIXES(DaoAutoPipContentSettingBrowserTest,
+                           RespectsBlockedSetting);
   explicit DaoAutoPipVisibilityHelper(content::WebContents* web_contents);
 
+  bool IsAutoPictureInPictureAllowed() const;
   void OnDocumentPipResult(bool success);
 
   bool triggered_pip_ = false;
