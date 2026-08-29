@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_UI_WEBUI_DAO_SIDEBAR_UI_H_
 #define DAO_BROWSER_UI_WEBUI_DAO_SIDEBAR_UI_H_
 
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <string>
@@ -99,6 +100,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void OnTabPinnedStateChanged(tabs::TabInterface* tab, int index) override;
 
   // download::AllDownloadItemNotifier::Observer:
+  void OnManagerInitialized(content::DownloadManager* manager) override;
   void OnDownloadCreated(content::DownloadManager* manager,
                          download::DownloadItem* item) override;
   void OnDownloadUpdated(content::DownloadManager* manager,
@@ -223,6 +225,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleApplyReadyUpdate(const base::ListValue& args);
   void HandleOpenDownloadsFolder(const base::ListValue& args);
   void HandleOpenRecentFile(const base::ListValue& args);
+  void HandleOpenDownload(const base::ListValue& args);
   void HandleCancelDownload(const base::ListValue& args);
   void HandleStartFileDrag(const base::ListValue& args);
   void HandleTabDragActive(const base::ListValue& args);
@@ -305,6 +308,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   mojo::Receiver<media_session::mojom::MediaSessionObserver>
       media_session_observer_receiver_{this};
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
+  std::set<uint32_t> in_progress_download_ids_;
   std::vector<base::FilePath> recent_file_paths_;
   std::string folder_json_;  // Per-window folder data (in-memory)
   DaoPinnedTabModel pinned_tab_model_;

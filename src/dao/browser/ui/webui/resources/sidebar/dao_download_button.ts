@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {sendNative, addListener} from './sidebar_bridge.js';
 import type {
   RecentFileData, ActiveDownloadData, DownloadState
 } from './sidebar_bridge.js';
+
+interface CompletedDownloadData {
+  id: number;
+  name: string;
+}
 
 export class DaoDownloadButton extends CrLitElement {
   static get is() {
@@ -126,6 +132,7 @@ export class DaoDownloadButton extends CrLitElement {
       .trigger-zone {
         position: relative;
         display: flex;
+        min-width: 0;
       }
 
       .popup-stack {
@@ -219,6 +226,60 @@ export class DaoDownloadButton extends CrLitElement {
         background: rgba(0, 0, 0, 0.08);
       }
 
+      .completed-download {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        max-width: calc(100vw - 50px);
+        height: 26px;
+        border-radius: 8px;
+        background: var(--ink-drop);
+        overflow: hidden;
+      }
+
+      .completed-open,
+      .completed-close {
+        display: flex;
+        align-items: center;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: default;
+      }
+
+      .completed-open {
+        min-width: 0;
+        height: 26px;
+        padding: 0 6px;
+        gap: 5px;
+      }
+
+      .completed-open svg,
+      .completed-close svg {
+        flex-shrink: 0;
+      }
+
+      .completed-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 11px;
+      }
+
+      .completed-close {
+        width: 24px;
+        height: 26px;
+        padding: 0;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .completed-open:hover,
+      .completed-close:hover {
+        background: rgba(0, 0, 0, 0.08);
+      }
+
       @media (prefers-color-scheme: dark) {
         .file-list {
           background:
@@ -232,6 +293,10 @@ export class DaoDownloadButton extends CrLitElement {
         .download-btn:hover {
           background: rgba(255, 255, 255, 0.08);
         }
+        .completed-open:hover,
+        .completed-close:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
       }
     `;
   }
@@ -240,11 +305,13 @@ export class DaoDownloadButton extends CrLitElement {
     return {
       recentFiles_: {type: Array},
       activeDownloads_: {type: Array},
+      completedDownload_: {type: Object},
     };
   }
 
   declare protected recentFiles_: RecentFileData[];
   declare protected activeDownloads_: ActiveDownloadData[];
+  declare protected completedDownload_: CompletedDownloadData|null;
 
   private dragFileIndex_: number = -1;
   private dragStartX_: number = 0;
@@ -256,11 +323,13 @@ export class DaoDownloadButton extends CrLitElement {
   private hoveredDownloadId_: number = -1;
   private lastMouseX_: number = 0;
   private lastMouseY_: number = 0;
+  private completedListOpenedByHover_: boolean = false;
 
   constructor() {
     super();
     this.recentFiles_ = [];
     this.activeDownloads_ = [];
+    this.completedDownload_ = null;
   }
 
   override connectedCallback() {
@@ -275,6 +344,11 @@ export class DaoDownloadButton extends CrLitElement {
     addListener('activeDownloadsChanged', (...args: unknown[]) => {
       const downloads = args[0] as ActiveDownloadData[];
       this.setActiveDownloads_(downloads);
+    });
+
+    addListener('downloadCompleted', (...args: unknown[]) => {
+      this.completedDownload_ = args[0] as CompletedDownloadData;
+      this.completedListOpenedByHover_ = false;
     });
   }
 
@@ -323,8 +397,8 @@ export class DaoDownloadButton extends CrLitElement {
 
       <div class="toolbar-row">
         <div class="trigger-zone"
-             @mouseenter=${this.onMouseEnter_}
-             @mouseleave=${this.onMouseLeave_}>
+             @mouseenter=${() => this.onMouseEnter_()}
+             @mouseleave=${() => this.onMouseLeave_()}>
           <div class="popup-stack">
             <div class="file-list">
               ${this.recentFiles_.map(file => html`
@@ -347,16 +421,46 @@ export class DaoDownloadButton extends CrLitElement {
             </div>
           </div>
 
-          <button class="download-btn" title="Downloads"
-                  @click=${this.onButtonClick_}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-          </button>
+          ${this.completedDownload_ ? html`
+            <div class="completed-download">
+              <button class="completed-open"
+                      title=${this.completedDownload_.name}
+                      @click=${() => this.onCompletedOpen_()}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span class="completed-name">${this.completedDownload_.name}</span>
+              </button>
+              <button class="completed-close"
+                      title=${loadTimeData.getString(
+                          'daoDismissCompletedDownload')}
+                      aria-label=${loadTimeData.getString(
+                          'daoDismissCompletedDownload')}
+                      @click=${() => this.onCompletedClose_()}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          ` : html`
+            <button class="download-btn" title="Downloads"
+                    @click=${this.onButtonClick_}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
+          `}
         </div>
 
         <slot name="toolbar-end"></slot>
@@ -365,16 +469,37 @@ export class DaoDownloadButton extends CrLitElement {
   }
 
   private onMouseEnter_() {
+    if (this.completedDownload_) {
+      this.completedListOpenedByHover_ = true;
+    }
     this.classList.add('expanded');
     sendNative('requestDownloadState');
   }
 
   private onMouseLeave_() {
     this.classList.remove('expanded');
+    if (this.completedListOpenedByHover_) {
+      this.completedDownload_ = null;
+      this.completedListOpenedByHover_ = false;
+    }
   }
 
   private onButtonClick_() {
     sendNative('openDownloadsFolder');
+  }
+
+  private onCompletedOpen_() {
+    if (!this.completedDownload_) {
+      return;
+    }
+    sendNative('openDownload', this.completedDownload_.id);
+    this.completedDownload_ = null;
+    this.completedListOpenedByHover_ = false;
+  }
+
+  private onCompletedClose_() {
+    this.completedDownload_ = null;
+    this.completedListOpenedByHover_ = false;
   }
 
   private onFileMouseDown_(e: MouseEvent, index: number) {

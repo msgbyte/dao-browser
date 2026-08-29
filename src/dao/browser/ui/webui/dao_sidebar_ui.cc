@@ -485,6 +485,7 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
     session_restored_subscription_ = {};
     reopening_pinned_item_ids_.clear();
     persisted_identity_session_tab_ids_.clear();
+    in_progress_download_ids_.clear();
     saw_web_contents_replacement_ = false;
   }
 
@@ -689,6 +690,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "openRecentFile",
       base::BindRepeating(&DaoSidebarUIHandler::HandleOpenRecentFile,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "openDownload",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleOpenDownload,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "cancelDownload",
@@ -1972,28 +1977,56 @@ void DaoSidebarUIHandler::HandleSetDropInsertIndex(
 
 // ---- Download Observer ----
 
+void DaoSidebarUIHandler::OnManagerInitialized(
+    content::DownloadManager* manager) {
+  content::DownloadManager::DownloadVector items;
+  manager->GetAllDownloads(&items);
+  for (download::DownloadItem* item : items) {
+    if (item->GetState() == download::DownloadItem::IN_PROGRESS) {
+      in_progress_download_ids_.insert(item->GetId());
+    }
+  }
+}
+
 void DaoSidebarUIHandler::OnDownloadCreated(content::DownloadManager* manager,
                                             download::DownloadItem* item) {
-  if (!IsJavascriptAllowed()) {
-    return;
+  if (item->GetState() == download::DownloadItem::IN_PROGRESS) {
+    in_progress_download_ids_.insert(item->GetId());
   }
-  PushActiveDownloads();
+  if (IsJavascriptAllowed()) {
+    PushActiveDownloads();
+  }
 }
 
 void DaoSidebarUIHandler::OnDownloadUpdated(content::DownloadManager* manager,
                                             download::DownloadItem* item) {
-  if (!IsJavascriptAllowed()) {
-    return;
+  const uint32_t id = item->GetId();
+  const bool was_in_progress = in_progress_download_ids_.contains(id);
+  if (item->GetState() == download::DownloadItem::IN_PROGRESS) {
+    in_progress_download_ids_.insert(id);
+  } else {
+    in_progress_download_ids_.erase(id);
   }
-  PushActiveDownloads();
+
+  if (was_in_progress &&
+      item->GetState() == download::DownloadItem::COMPLETE &&
+      item->CanOpenDownload() && IsJavascriptAllowed()) {
+    base::DictValue completed;
+    completed.Set("id", static_cast<int>(id));
+    completed.Set("name", item->GetFileNameToReportUser().BaseName().value());
+    FireWebUIListener("downloadCompleted", completed);
+  }
+  if (IsJavascriptAllowed()) {
+    PushActiveDownloads();
+  }
 }
 
 void DaoSidebarUIHandler::OnDownloadRemoved(content::DownloadManager* manager,
                                             download::DownloadItem* item) {
-  if (!IsJavascriptAllowed()) {
-    return;
+  in_progress_download_ids_.erase(item->GetId());
+  if (IsJavascriptAllowed()) {
+    PushActiveDownloads();
   }
-  PushActiveDownloads();
 }
 
 base::ListValue DaoSidebarUIHandler::BuildActiveDownloadList() {
@@ -2177,6 +2210,26 @@ void DaoSidebarUIHandler::HandleOpenRecentFile(const base::ListValue& args) {
   platform_util::OpenItem(browser_->profile(), recent_file_paths_[index],
                           platform_util::OPEN_FILE,
                           platform_util::OpenOperationCallback());
+}
+
+void DaoSidebarUIHandler::HandleOpenDownload(const base::ListValue& args) {
+  if (!browser_ || args.empty()) {
+    return;
+  }
+  int id = args[0].GetIfInt().value_or(-1);
+  if (id < 0) {
+    return;
+  }
+
+  auto* profile = browser_->profile();
+  auto* manager = profile ? profile->GetDownloadManager() : nullptr;
+  download::DownloadItem* item =
+      manager ? manager->GetDownload(static_cast<uint32_t>(id)) : nullptr;
+  if (!item || item->GetState() != download::DownloadItem::COMPLETE ||
+      !item->CanOpenDownload()) {
+    return;
+  }
+  item->OpenDownload();
 }
 
 void DaoSidebarUIHandler::HandleCancelDownload(const base::ListValue& args) {
@@ -3556,6 +3609,8 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
   source->AddLocalizedString(
       "daoSidebarNoNewStaleTabsArchivedToast",
       IDS_DAO_SIDEBAR_NO_NEW_STALE_TABS_ARCHIVED_TOAST);
+  source->AddLocalizedString("daoDismissCompletedDownload",
+                             IDS_DAO_DISMISS_COMPLETED_DOWNLOAD);
   source->UseStringsJs();
 
   // Allow innerHTML for Lit rendering.

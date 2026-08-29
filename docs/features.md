@@ -113,6 +113,13 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   anchor when needed to remain inside the browser window. Unknown totals,
   percentages, speeds, and estimates are omitted rather than replaced with
   misleading values; leaving or removing the row hides the popup immediately.
+- **Latest completed download** — The sidebar download button becomes a
+  persistent filename label when an observed in-progress download completes.
+  Clicking the label opens that file, while its close button only dismisses the
+  label. Hovering opens the existing download list; the label stays visible
+  while moving between both surfaces and is dismissed after leaving their
+  shared hover area. It never expires on a timer, and later completions replace
+  the displayed item without adding a separate history queue.
 
 ### 1.7 Content Area Styling
 - **DaoCornerOverlayView** (`dao_corner_overlay_view.{h,cc}`) — 10px rounded corners + 6-step soft shadow overlay on web contents

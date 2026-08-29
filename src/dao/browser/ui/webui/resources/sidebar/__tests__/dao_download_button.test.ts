@@ -17,6 +17,9 @@ import type {ActiveDownloadData} from '../sidebar_bridge.js';
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
 });
+vi.mock('//resources/js/load_time_data.js', () => ({
+  loadTimeData: {getString: (id: string) => id},
+}));
 
 function getStyles(): string {
   const ctor = customElements.get('dao-download-button') as unknown as {
@@ -155,5 +158,39 @@ describe('dao-download-button', () => {
     }).cr.webUIListenerCallback('activeDownloadsChanged', []);
 
     expect(send).toHaveBeenLastCalledWith('hideTabTooltip', []);
+  });
+
+  it('keeps a completed download until it is opened, closed, or left after hover', async () => {
+    const {el, send} = await renderDownloadButton();
+    const notify = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, value: unknown) => void};
+    }).cr.webUIListenerCallback;
+    const completed = {id: 42, name: 'tiny.txt'};
+
+    notify('downloadCompleted', completed);
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.completed-download')).not.toBeNull();
+
+    (el.shadowRoot!.querySelector('.completed-open') as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(send).toHaveBeenCalledWith('openDownload', [42]);
+    expect(el.shadowRoot!.querySelector('.completed-download')).toBeNull();
+
+    notify('downloadCompleted', completed);
+    await el.updateComplete;
+    (el.shadowRoot!.querySelector('.completed-close') as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.completed-download')).toBeNull();
+    expect(send.mock.calls.filter(([method]) => method === 'openDownload'))
+        .toHaveLength(1);
+
+    notify('downloadCompleted', completed);
+    await el.updateComplete;
+    const zone = el.shadowRoot!.querySelector('.trigger-zone') as HTMLElement;
+    zone.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(send).toHaveBeenCalledWith('requestDownloadState', []);
+    zone.dispatchEvent(new MouseEvent('mouseleave'));
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.completed-download')).toBeNull();
   });
 });
