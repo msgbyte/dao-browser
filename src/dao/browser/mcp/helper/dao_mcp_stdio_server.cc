@@ -319,9 +319,14 @@ void DaoMcpStdioServer::HandleInitialize(const base::DictValue& request,
                   "Use this server whenever the user asks to inspect or "
                   "operate Dao Browser, including the current page, tabs, "
                   "navigation, or page interaction. Prefer these tools over "
-                  "generic browser automation for Dao Browser. Start with "
-                  "list_tabs to discover tab_ids, then pass a tab_id to "
-                  "page-specific tools.")
+                  "generic browser automation for Dao Browser. Use list_tabs "
+                  "to establish the initial current target, then pass its "
+                  "tab_id to page-specific tools. Preserve that target across "
+                  "follow-up requests unless the user explicitly asks to "
+                  "switch browser tabs. Treat ambiguous requests such as "
+                  "open, click, or select X as page-local: inspect the current "
+                  "target with get_accessibility_tree and use click_by_ref. "
+                  "Use switch_tab only for explicit browser-tab navigation.")
               .Set("serverInfo", base::DictValue()
                                      .Set("name", "dao-browser")
                                      .Set("version", server_version_))));
@@ -643,7 +648,7 @@ base::DictValue DaoMcpStdioServer::AdaptToolList(base::DictValue result) {
         tool.FindString("sideEffect") ? *tool.FindString("sideEffect") : "";
     std::string description =
         "For Dao Browser inspection or operation, prefer this MCP server "
-        "over generic browser automation and start with list_tabs. ";
+        "over generic browser automation. ";
     if (const std::string* existing = tool.FindString("description")) {
       description.append(*existing);
     }

@@ -526,8 +526,13 @@ TEST_F(DaoMcpHelperBrowserTest,
       "Use this server whenever the user asks to inspect or operate Dao "
       "Browser, including the current page, tabs, navigation, or page "
       "interaction. Prefer these tools over generic browser automation for "
-      "Dao Browser. Start with list_tabs to discover tab_ids, then pass a "
-      "tab_id to page-specific tools.",
+      "Dao Browser. Use list_tabs to establish the initial current target, "
+      "then pass its tab_id to page-specific tools. Preserve that target "
+      "across follow-up requests unless the user explicitly asks to switch "
+      "browser tabs. Treat ambiguous requests such as open, click, or select "
+      "X as page-local: inspect the current target with "
+      "get_accessibility_tree and use click_by_ref. Use switch_tab only for "
+      "explicit browser-tab navigation.",
       *instructions);
   const base::DictValue* server_info = result->FindDict("serverInfo");
   ASSERT_TRUE(server_info);
@@ -681,8 +686,7 @@ TEST_F(DaoMcpHelperBrowserTest, AdaptsToolCatalogAnnotationsAndPrivateFields) {
     const base::DictValue& tool = value.GetDict();
     EXPECT_EQ(
         "For Dao Browser inspection or operation, prefer this MCP server "
-        "over generic browser automation and start with list_tabs. A test "
-        "tool",
+        "over generic browser automation. A test tool",
         *tool.FindString("description"));
     EXPECT_FALSE(tool.contains("sideEffect"));
     EXPECT_FALSE(tool.contains("timeoutMs"));

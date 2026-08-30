@@ -57,7 +57,7 @@
     },
     {
       "name": "get_accessibility_tree",
-      "description": "Get a semantic accessibility tree of the current page. Returns element hierarchy with roles, names, and ref_ids for interactive elements. Use ref_ids with click_by_ref for precise interaction.",
+      "description": "Get a semantic accessibility tree of the current page. Returns element hierarchy with roles, names, and ref_ids for interactive elements. Use this before interacting with page elements, then use ref_ids with click_by_ref for precise interaction.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -410,7 +410,7 @@
     },
     {
       "name": "switch_tab",
-      "description": "Switch to a browser tab in the authorized window by stable tab id or current index.",
+      "description": "Switch to a browser tab in the authorized window by stable tab id or current index. Use only for explicit browser-tab navigation, not for page-local tabs, links, buttons, or menu items.",
       "group": "tabs",
       "clients": [
         "dao_agent",

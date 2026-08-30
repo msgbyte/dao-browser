@@ -139,4 +139,16 @@ describe('browser_tool_catalog', () => {
     expect(frameId?.description).toContain('exact');
     expect(frameId?.description).not.toContain('Defaults to the main frame');
   });
+
+  it('keeps page interaction distinct from browser tab switching', () => {
+    const entries = validateBrowserToolCatalog(loadCatalogResource()).tools;
+    const accessibilityTree =
+        entries.find(entry => entry.name === 'get_accessibility_tree');
+    const switchTab = entries.find(entry => entry.name === 'switch_tab');
+
+    expect(accessibilityTree?.description)
+        .toContain('Use this before interacting with page elements');
+    expect(switchTab?.description)
+        .toContain('not for page-local tabs, links, buttons, or menu items');
+  });
 });
