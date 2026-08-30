@@ -211,10 +211,14 @@ index bcb1930a86dd2..20acaf3489516 100644
        multi_contents_view_->GetActiveContentsView()->SetWebContents(
            new_contents);
      }
-@@ -2034,6 +2192,21 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -2034,6 +2192,25 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
    UpdateTitleBar();
  
    CHECK_DEREF(TranslateBubbleController::From(browser_.get())).CloseBubble();
++
++  if (dao_toast_) {
++    dao_toast_->HideToast();
++  }
 +
 +  // Dao: Update lock banner + cursor overlays for the newly-active tab.
 +  if (dao_agent_lock_banner_) {

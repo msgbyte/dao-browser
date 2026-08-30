@@ -7,14 +7,17 @@
 #include "base/functional/bind.h"
 #include "cc/paint/paint_flags.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/layer_animator.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/font_list.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/transform.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/label.h"
 
 namespace dao {
@@ -77,6 +80,11 @@ void DaoToastView::ShowToast(const std::u16string& message) {
   label_->SetText(message);
   SetVisible(true);
 
+  views::ViewAccessibility& accessibility = GetViewAccessibility();
+  accessibility.SetRole(ax::mojom::Role::kAlert);
+  accessibility.SetName(message, ax::mojom::NameFrom::kAttribute);
+  NotifyAccessibilityEventDeprecated(ax::mojom::Event::kAlert, true);
+
   // Calculate preferred width: padding + text + padding
   int text_width = label_->GetPreferredSize().width();
   int total_width = kToastPaddingHorizontal + text_width + kToastPaddingHorizontal;
@@ -96,6 +104,17 @@ void DaoToastView::ShowToast(const std::u16string& message) {
   layer()->SetTransform(gfx::Transform());
 
   StartDismissTimer();
+}
+
+bool DaoToastView::IsShowingToast(const std::u16string& message) const {
+  return GetVisible() && label_->GetText() == message;
+}
+
+void DaoToastView::HideToast() {
+  dismiss_timer_.Stop();
+  hide_timer_.Stop();
+  layer()->GetAnimator()->StopAnimating();
+  SetVisible(false);
 }
 
 void DaoToastView::OnPaint(gfx::Canvas* canvas) {
@@ -155,12 +174,8 @@ void DaoToastView::FadeOut() {
 
   // Hide after fade-out animation completes
   hide_timer_.Start(FROM_HERE, kFadeOutDuration,
-                    base::BindOnce(&DaoToastView::HideAfterFade,
+                    base::BindOnce(&DaoToastView::HideToast,
                                    base::Unretained(this)));
-}
-
-void DaoToastView::HideAfterFade() {
-  SetVisible(false);
 }
 
 }  // namespace dao

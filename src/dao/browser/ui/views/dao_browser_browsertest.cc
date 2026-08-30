@@ -76,6 +76,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -7524,6 +7525,68 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest, ShowToastMakesVisible) {
   // Non-zero preferred size after text is laid out.
   EXPECT_GT(toast->GetPreferredSize().width(), 0);
   EXPECT_GT(toast->GetPreferredSize().height(), 0);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       PinnedTabCloseUsesDaoToast) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, false);
+  model->SetTabPinned(model->active_index(), true);
+  ASSERT_EQ(2, model->count());
+
+  chrome::CloseTab(browser());
+
+  EXPECT_EQ(2, model->count());
+  BrowserView* browser_view = GetBrowserView(browser());
+  auto* toast = browser_view->dao_toast();
+  ASSERT_NE(nullptr, toast);
+  ASSERT_TRUE(toast->GetVisible());
+
+  ui::Accelerator accelerator;
+  ASSERT_TRUE(browser_view->GetAcceleratorForCommandId(IDC_CLOSE_TAB,
+                                                       &accelerator));
+  const std::u16string message = l10n_util::GetStringFUTF16(
+      IDS_CLOSE_PINNED_TAB_TOAST_BODY, accelerator.GetShortcutText());
+  EXPECT_TRUE(toast->IsShowingToast(message));
+
+  ui::AXNodeData accessibility_data;
+  toast->GetViewAccessibility().GetAccessibleNodeData(&accessibility_data);
+  EXPECT_EQ(ax::mojom::Role::kAlert, accessibility_data.role);
+  EXPECT_EQ(message, accessibility_data.GetString16Attribute(
+                         ax::mojom::StringAttribute::kName));
+
+  browser_view->DeprecatedLayoutImmediately();
+  const gfx::Rect content_bounds =
+      browser_view->GetActiveContentsWebView()->GetBoundsInScreen();
+  const gfx::Rect toast_bounds = toast->GetBoundsInScreen();
+  EXPECT_TRUE(content_bounds.Contains(toast_bounds));
+  EXPECT_GE(toast_bounds.y() - content_bounds.y(), 16);
+
+  chrome::CloseTab(browser());
+  EXPECT_EQ(1, model->count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       PinnedTabCloseConfirmationIsTabScoped) {
+  TabStripModel* model = browser()->tab_strip_model();
+  model->SetTabPinned(model->active_index(), true);
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  model->SetTabPinned(model->active_index(), true);
+  ASSERT_EQ(2, model->count());
+
+  chrome::CloseTab(browser());
+  EXPECT_EQ(2, model->count());
+  chrome::CloseTab(browser());
+  ASSERT_EQ(1, model->count());
+
+  content::WebContents* remaining_tab = model->GetActiveWebContents();
+  ASSERT_NE(nullptr, remaining_tab);
+  ASSERT_TRUE(model->GetActiveTab()->IsPinned());
+
+  chrome::CloseTab(browser());
+
+  EXPECT_EQ(remaining_tab, model->GetActiveWebContents());
+  EXPECT_TRUE(model->GetActiveTab()->IsPinned());
 }
 
 // =============================================================================

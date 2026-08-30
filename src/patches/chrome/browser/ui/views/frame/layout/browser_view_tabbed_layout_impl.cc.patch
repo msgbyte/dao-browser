@@ -29,7 +29,7 @@ index 8ed88c3e4bdfb..2e257ce59b15d 100644
  #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
  #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-@@ -1098,11 +1118,190 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1098,11 +1118,191 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      content_right =
          std::min(content_right, browser_params.visual_client_area.right());
    }
@@ -163,14 +163,15 @@ index 8ed88c3e4bdfb..2e257ce59b15d 100644
 +      layout.AddChild(tooltip, gfx::Rect(anchor, tt_size));
 +    }
 +
-+    // Toast in top-right of content area.
++    // Toast in top-right of content area. Leave room for its 16 px slide-in
++    // transform so the animated toast never clips above the content card.
 +    if (auto* const toast = dao_bv->dao_toast();
 +        toast && toast->GetVisible()) {
 +      const gfx::Size toast_size = toast->GetPreferredSize();
 +      layout.AddChild(
 +          toast,
 +          gfx::Rect(dao_content_area.right() - toast_size.width() - 12,
-+                    dao_content_area.y() + 4, toast_size.width(),
++                    dao_content_area.y() + 20, toast_size.width(),
 +                    toast_size.height()));
 +    }
 +

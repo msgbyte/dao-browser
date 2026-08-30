@@ -36,6 +36,9 @@ class DaoToastView : public views::View,
   // Show a toast message. If a toast is already visible, it is replaced.
   void ShowToast(const std::u16string& message);
 
+  bool IsShowingToast(const std::u16string& message) const;
+  void HideToast();
+
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
 
@@ -45,7 +48,6 @@ class DaoToastView : public views::View,
  private:
   void StartDismissTimer();
   void FadeOut();
-  void HideAfterFade();
   void ApplyTheme();
 
   raw_ptr<views::Label> label_ = nullptr;
