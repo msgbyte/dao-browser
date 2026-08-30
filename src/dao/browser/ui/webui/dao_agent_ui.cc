@@ -870,6 +870,9 @@ content::WebContents* DaoAgentUIHandler::GetActivePageContents() {
   if (!contents) {
     return nullptr;
   }
+  if (!tabs::TabInterface::MaybeGetFromContents(contents)) {
+    return nullptr;
+  }
 
   // Don't attach to the agent page itself.
   if (contents->GetURL().host() == "agent") {
