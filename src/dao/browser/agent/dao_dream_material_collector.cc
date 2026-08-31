@@ -5,6 +5,7 @@
 #include "dao/browser/agent/dao_dream_material_collector.h"
 
 #include <algorithm>
+#include <array>
 #include <limits>
 #include <map>
 #include <set>
@@ -13,14 +14,18 @@
 
 #include "base/barrier_closure.h"
 #include "base/functional/bind.h"
+#include "base/numerics/safe_math.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
+#include "dao/browser/activity/dao_foreground_activity_service.h"
+#include "dao/browser/activity/dao_foreground_activity_service_factory.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_dream_domain_utils.h"
+#include "dao/browser/agent/dao_dream_foreground_policy.h"
 #include "net/base/url_util.h"
 #include "url/gurl.h"
 
@@ -35,9 +40,8 @@ struct SearchEngine {
   const char* query_param;
 };
 constexpr SearchEngine kSearchEngines[] = {
-    {"google.com", "q"},     {"bing.com", "q"},
-    {"duckduckgo.com", "q"}, {"kagi.com", "q"},
-    {"baidu.com", "wd"},     {"search.brave.com", "q"},
+    {"google.com", "q"}, {"bing.com", "q"},   {"duckduckgo.com", "q"},
+    {"kagi.com", "q"},   {"baidu.com", "wd"}, {"search.brave.com", "q"},
 };
 constexpr double kMinKnownPreferenceConfidence = 0.9;
 constexpr int kMediumForegroundSeconds = 5 * 60;
@@ -68,6 +72,12 @@ std::string FormatLocalYmdHm(base::Time t) {
                             e.day_of_month, e.hour, e.minute);
 }
 
+std::string FormatLocalDate(base::Time t) {
+  base::Time::Exploded e;
+  t.LocalExplode(&e);
+  return base::StringPrintf("%04d-%02d-%02d", e.year, e.month, e.day_of_month);
+}
+
 struct DomainAgg {
   int visit_count = 0;
   int foreground_seconds = 0;
@@ -85,6 +95,12 @@ int MaterialSeconds(base::TimeDelta duration) {
       std::min<int64_t>(duration.InSeconds(), std::numeric_limits<int>::max()));
 }
 
+int AddMaterialSeconds(int current, int64_t added) {
+  base::CheckedNumeric<int> total(current);
+  total += std::clamp<int64_t>(added, 0, std::numeric_limits<int>::max());
+  return total.ValueOrDefault(std::numeric_limits<int>::max());
+}
+
 base::TimeDelta ForegroundDurationFor(const history::AnnotatedVisit& visit) {
   const base::TimeDelta foreground =
       visit.context_annotations.total_foreground_duration;
@@ -95,14 +111,6 @@ base::TimeDelta ForegroundDurationFor(const history::AnnotatedVisit& visit) {
     return visit.visit_row.visit_duration;
   }
   return base::Seconds(0);
-}
-
-base::TimeDelta TotalDurationFor(const history::AnnotatedVisit& visit,
-                                 base::TimeDelta foreground) {
-  if (visit.visit_row.visit_duration > foreground) {
-    return visit.visit_row.visit_duration;
-  }
-  return foreground;
 }
 
 const char* DurationLevelFor(int foreground_seconds) {
@@ -145,10 +153,9 @@ std::string DreamMaterialCollector::ExtractSearchQuery(
   for (const auto& engine : kSearchEngines) {
     const std::string suffix(engine.host_suffix);
     const bool match =
-        host == suffix ||
-        (host.size() > suffix.size() + 1 &&
-         host.compare(host.size() - suffix.size() - 1, std::string::npos,
-                      "." + suffix) == 0);
+        host == suffix || (host.size() > suffix.size() + 1 &&
+                           host.compare(host.size() - suffix.size() - 1,
+                                        std::string::npos, "." + suffix) == 0);
     if (!match) {
       continue;
     }
@@ -198,10 +205,13 @@ void DreamMaterialCollector::Collect(base::Time window_start,
   conversation_session_count_ = 0;
   excluded_history_visits_ = 0;
 
-  // 5 parts: history (+search, same query), conversation excerpts, exact
-  // conversation-session count, preferences, and feedback.
+  history_visits_.clear();
+  activity_snapshot_ = {};
+
+  // History, activity, conversation excerpts, exact conversation-session
+  // count, preferences, and feedback.
   barrier_ = base::BarrierClosure(
-      5, base::BindOnce(&DreamMaterialCollector::OnPartDone,
+      6, base::BindOnce(&DreamMaterialCollector::OnPartDone,
                         weak_factory_.GetWeakPtr()));
 
   // Part 1: history → domains + search queries.
@@ -218,128 +228,25 @@ void DreamMaterialCollector::Collect(base::Time window_start,
     history->GetAnnotatedVisits(
         options, /*compute_redirect_chain_start_properties=*/false,
         /*get_unclustered_visits_only=*/false,
-        base::BindOnce(
-            [](base::WeakPtr<DreamMaterialCollector> self,
-               std::vector<history::AnnotatedVisit> visits) {
-              if (!self) {
-                return;
-              }
-              std::map<std::string, DomainAgg> by_domain;
-              std::map<std::string, int> foreground_seconds_by_bucket = {
-                  {"morning", 0},
-                  {"afternoon", 0},
-                  {"evening", 0},
-                  {"night", 0},
-              };
-              std::vector<std::string> queries;
-              std::set<std::string> seen_queries;
-              for (const auto& visit : visits) {
-                const GURL& url = visit.url_row.url();
-                const std::string domain(url.host());
-                if (IsDreamDomainExcluded(domain, self->excluded_domains_)) {
-                  self->excluded_history_visits_++;
-                  continue;
-                }
-                // Search-query extraction first (uses URL, then drops it).
-                std::string q = ExtractSearchQuery(url.spec());
-                if (!q.empty() && seen_queries.insert(q).second &&
-                    queries.size() <
-                        static_cast<size_t>(kMaxSearchQueries)) {
-                  queries.push_back(TruncateMaterialText(q));
-                }
-                // Domain aggregation — only domain + title survive.
-                if (domain.empty()) {
-                  continue;
-                }
-                DomainAgg& agg = by_domain[domain];
-                agg.visit_count++;
-                const base::TimeDelta foreground =
-                    ForegroundDurationFor(visit);
-                const int foreground_seconds = MaterialSeconds(foreground);
-                agg.foreground_seconds += foreground_seconds;
-                agg.total_seconds +=
-                    MaterialSeconds(TotalDurationFor(visit, foreground));
-                const std::string bucket =
-                    BucketFor(visit.visit_row.visit_time);
-                agg.buckets[bucket]++;
-                agg.foreground_seconds_by_bucket[bucket] += foreground_seconds;
-                foreground_seconds_by_bucket[bucket] += foreground_seconds;
-                const std::string title =
-                    TruncateMaterialText(
-                        base::UTF16ToUTF8(visit.url_row.title()));
-                if (!title.empty() &&
-                    agg.titles.size() <
-                        static_cast<size_t>(kMaxTitlesPerDomain) &&
-                    std::find(agg.titles.begin(), agg.titles.end(),
-                              title) == agg.titles.end()) {
-                  agg.titles.push_back(title);
-                }
-              }
-              // Top-N domains by foreground attention, then visit count.
-              const int domain_count = static_cast<int>(by_domain.size());
-              const int query_count = static_cast<int>(seen_queries.size());
-              std::vector<std::pair<std::string, DomainAgg>> sorted(
-                  std::make_move_iterator(by_domain.begin()),
-                  std::make_move_iterator(by_domain.end()));
-              std::sort(sorted.begin(), sorted.end(),
-                        [](const auto& a, const auto& b) {
-                          if (a.second.foreground_seconds !=
-                              b.second.foreground_seconds) {
-                            return a.second.foreground_seconds >
-                                   b.second.foreground_seconds;
-                          }
-                          if (a.second.visit_count != b.second.visit_count) {
-                            return a.second.visit_count >
-                                   b.second.visit_count;
-                          }
-                          return a.first < b.first;
-                        });
-              if (sorted.size() > static_cast<size_t>(kMaxDomains)) {
-                sorted.resize(kMaxDomains);
-              }
-              base::ListValue domains;
-              for (auto& [domain, agg] : sorted) {
-                base::DictValue d;
-                d.Set("domain", domain);
-                d.Set("visit_count", agg.visit_count);
-                d.Set("foreground_seconds", agg.foreground_seconds);
-                d.Set("total_seconds", agg.total_seconds);
-                d.Set("duration_level",
-                      DurationLevelFor(agg.foreground_seconds));
-                base::ListValue titles;
-                for (auto& t : agg.titles) {
-                  titles.Append(t);
-                }
-                d.Set("titles", std::move(titles));
-                base::DictValue buckets;
-                for (auto& [name, count] : agg.buckets) {
-                  buckets.Set(name, count);
-                }
-                d.Set("buckets", std::move(buckets));
-                base::DictValue domain_foreground_seconds_by_bucket;
-                for (auto& [name, seconds] :
-                     agg.foreground_seconds_by_bucket) {
-                  domain_foreground_seconds_by_bucket.Set(name, seconds);
-                }
-                d.Set("foreground_seconds_by_bucket",
-                      std::move(domain_foreground_seconds_by_bucket));
-                domains.Append(std::move(d));
-              }
-              base::ListValue query_list;
-              for (auto& q : queries) {
-                query_list.Append(q);
-              }
-              base::DictValue foreground_bucket_stats;
-              for (const auto& [name, seconds] :
-                   foreground_seconds_by_bucket) {
-                foreground_bucket_stats.Set(name, seconds);
-              }
-              self->OnHistoryResults(
-                  std::move(domains), std::move(query_list), domain_count,
-                  query_count, std::move(foreground_bucket_stats));
-            },
-            weak_factory_.GetWeakPtr()),
+        base::BindOnce(&DreamMaterialCollector::OnHistoryResults,
+                       weak_factory_.GetWeakPtr()),
         &history_tracker_);
+  }
+
+  foreground_query_time_ = base::Time::Now();
+  const std::string activity_start_date = FormatLocalDate(window_start_);
+  const std::string activity_end_date = FormatLocalDate(
+      window_end_ > window_start_ ? window_end_ - base::Microseconds(1)
+                                  : window_end_);
+  DaoForegroundActivityService* activity =
+      DaoForegroundActivityServiceFactory::GetForProfile(profile_);
+  if (activity) {
+    activity->GetSnapshot(
+        activity_start_date, activity_end_date,
+        base::BindOnce(&DreamMaterialCollector::OnActivitySnapshot,
+                       weak_factory_.GetWeakPtr()));
+  } else {
+    barrier_.Run();
   }
 
   // Part 2: agent conversations in window. The user's questions carry the
@@ -370,8 +277,7 @@ void DreamMaterialCollector::Collect(base::Time window_start,
                 }
                 session_order.push_back(msg.session_id);
                 it = by_session
-                         .emplace(msg.session_id,
-                                  std::vector<std::string>())
+                         .emplace(msg.session_id, std::vector<std::string>())
                          .first;
               }
               if (it->second.size() < 2) {
@@ -454,22 +360,18 @@ void DreamMaterialCollector::Collect(base::Time window_start,
 }
 
 void DreamMaterialCollector::OnHistoryResults(
-    base::ListValue domains,
-    base::ListValue queries,
-    int domain_count,
-    int query_count,
-    base::DictValue foreground_seconds_by_bucket) {
-  history_part_ = std::move(domains);
-  search_part_ = std::move(queries);
-  history_domain_count_ = domain_count;
-  search_query_count_ = query_count;
-  foreground_seconds_by_bucket_part_ =
-      std::move(foreground_seconds_by_bucket);
+    std::vector<history::AnnotatedVisit> visits) {
+  history_visits_ = std::move(visits);
   barrier_.Run();
 }
 
-void DreamMaterialCollector::OnConversationsLoaded(
-    base::ListValue sessions) {
+void DreamMaterialCollector::OnActivitySnapshot(
+    DaoForegroundActivitySnapshot snapshot) {
+  activity_snapshot_ = std::move(snapshot);
+  barrier_.Run();
+}
+
+void DreamMaterialCollector::OnConversationsLoaded(base::ListValue sessions) {
   conversations_part_ = std::move(sessions);
   barrier_.Run();
 }
@@ -491,6 +393,156 @@ void DreamMaterialCollector::OnFeedbackLoaded(base::ListValue feedback) {
 }
 
 void DreamMaterialCollector::OnPartDone() {
+  const std::string start_date = FormatLocalDate(window_start_);
+  const std::string end_date = FormatLocalDate(
+      window_end_ > window_start_ ? window_end_ - base::Microseconds(1)
+                                  : window_end_);
+  DreamForegroundRangePolicy foreground_policy =
+      ResolveDreamForegroundWindowPolicy(window_start_, window_end_,
+                                         activity_snapshot_,
+                                         foreground_query_time_);
+  std::map<std::string, DomainAgg> by_domain;
+  std::map<std::string, int> foreground_seconds_by_bucket = {
+      {"morning", 0}, {"afternoon", 0}, {"evening", 0}, {"night", 0}};
+  std::vector<std::string> queries;
+  std::set<std::string> seen_queries;
+  for (const auto& visit : history_visits_) {
+    const GURL& url = visit.url_row.url();
+    const std::string domain(url.host());
+    if (IsDreamDomainExcluded(domain, excluded_domains_)) {
+      excluded_history_visits_++;
+      continue;
+    }
+    std::string query = ExtractSearchQuery(url.spec());
+    if (!query.empty() && seen_queries.insert(query).second &&
+        queries.size() < static_cast<size_t>(kMaxSearchQueries)) {
+      queries.push_back(TruncateMaterialText(query));
+    }
+    if (domain.empty()) {
+      continue;
+    }
+    DomainAgg& aggregate = by_domain[domain];
+    aggregate.visit_count++;
+    const std::string bucket = BucketFor(visit.visit_row.visit_time);
+    aggregate.buckets[bucket]++;
+    aggregate.total_seconds += MaterialSeconds(visit.visit_row.visit_duration);
+    const DreamForegroundDatePolicy date_policy =
+        ResolveDreamForegroundDatePolicy(
+            FormatLocalDate(visit.visit_row.visit_time), activity_snapshot_,
+            foreground_query_time_);
+    if (date_policy.use_legacy) {
+      const int seconds = MaterialSeconds(ForegroundDurationFor(visit));
+      aggregate.foreground_seconds =
+          AddMaterialSeconds(aggregate.foreground_seconds, seconds);
+      aggregate.foreground_seconds_by_bucket[bucket] = AddMaterialSeconds(
+          aggregate.foreground_seconds_by_bucket[bucket], seconds);
+      foreground_seconds_by_bucket[bucket] =
+          AddMaterialSeconds(foreground_seconds_by_bucket[bucket], seconds);
+    }
+    const std::string title =
+        TruncateMaterialText(base::UTF16ToUTF8(visit.url_row.title()));
+    if (!title.empty() &&
+        aggregate.titles.size() < static_cast<size_t>(kMaxTitlesPerDomain) &&
+        std::find(aggregate.titles.begin(), aggregate.titles.end(), title) ==
+            aggregate.titles.end()) {
+      aggregate.titles.push_back(title);
+    }
+  }
+
+  std::vector<DaoForegroundActivityRow> native_rows;
+  for (const auto& row : activity_snapshot_.rows) {
+    if (!IsDreamForegroundRowInWindow(row, window_start_, window_end_,
+                                      foreground_query_time_)) {
+      continue;
+    }
+    const DreamForegroundDatePolicy date_policy =
+        ResolveDreamForegroundDatePolicy(row.local_date, activity_snapshot_,
+                                         foreground_query_time_);
+    if (date_policy.use_native) {
+      native_rows.push_back(row);
+    }
+  }
+  const std::optional<DreamForegroundActivitySummary> native =
+      SummarizeDreamForegroundActivity(native_rows, excluded_domains_);
+  static constexpr std::array<const char*, 4> kBucketNames = {
+      "morning", "afternoon", "evening", "night"};
+  if (!native) {
+    foreground_policy.coverage = DreamForegroundCoverage::kUnavailable;
+    foreground_policy.coverage_seconds = 0;
+  } else {
+    for (const auto& [domain, milliseconds] : native->foreground_ms_by_host) {
+      by_domain[domain].foreground_seconds = AddMaterialSeconds(
+          by_domain[domain].foreground_seconds, milliseconds / 1000);
+    }
+    for (size_t i = 0; i < native->foreground_ms_by_bucket.size(); ++i) {
+      foreground_seconds_by_bucket[kBucketNames[i]] =
+          AddMaterialSeconds(foreground_seconds_by_bucket[kBucketNames[i]],
+                             native->foreground_ms_by_bucket[i] / 1000);
+    }
+    for (const auto& [domain, buckets] :
+         native->foreground_ms_by_host_and_bucket) {
+      for (size_t bucket = 0; bucket < buckets.size(); ++bucket) {
+        by_domain[domain].foreground_seconds_by_bucket[kBucketNames[bucket]] =
+            AddMaterialSeconds(
+                by_domain[domain]
+                    .foreground_seconds_by_bucket[kBucketNames[bucket]],
+                buckets[bucket] / 1000);
+      }
+    }
+  }
+
+  history_domain_count_ = static_cast<int>(by_domain.size());
+  search_query_count_ = static_cast<int>(seen_queries.size());
+  std::vector<std::pair<std::string, DomainAgg>> sorted(
+      std::make_move_iterator(by_domain.begin()),
+      std::make_move_iterator(by_domain.end()));
+  std::sort(
+      sorted.begin(), sorted.end(), [](const auto& left, const auto& right) {
+        if (left.second.foreground_seconds != right.second.foreground_seconds) {
+          return left.second.foreground_seconds >
+                 right.second.foreground_seconds;
+        }
+        if (left.second.visit_count != right.second.visit_count) {
+          return left.second.visit_count > right.second.visit_count;
+        }
+        return left.first < right.first;
+      });
+  if (sorted.size() > static_cast<size_t>(kMaxDomains)) {
+    sorted.resize(kMaxDomains);
+  }
+  history_part_.clear();
+  for (auto& [domain, aggregate] : sorted) {
+    base::DictValue entry;
+    entry.Set("domain", domain);
+    entry.Set("visit_count", aggregate.visit_count);
+    entry.Set("foreground_seconds", aggregate.foreground_seconds);
+    entry.Set("total_seconds", aggregate.total_seconds);
+    entry.Set("duration_level", DurationLevelFor(aggregate.foreground_seconds));
+    base::ListValue titles;
+    for (auto& title : aggregate.titles) {
+      titles.Append(title);
+    }
+    entry.Set("titles", std::move(titles));
+    base::DictValue buckets;
+    base::DictValue foreground_buckets;
+    for (const char* name : kBucketNames) {
+      buckets.Set(name, aggregate.buckets[name]);
+      foreground_buckets.Set(name,
+                             aggregate.foreground_seconds_by_bucket[name]);
+    }
+    entry.Set("buckets", std::move(buckets));
+    entry.Set("foreground_seconds_by_bucket", std::move(foreground_buckets));
+    history_part_.Append(std::move(entry));
+  }
+  search_part_.clear();
+  for (auto& query : queries) {
+    search_part_.Append(std::move(query));
+  }
+  foreground_seconds_by_bucket_part_.clear();
+  for (const auto& [name, seconds] : foreground_seconds_by_bucket) {
+    foreground_seconds_by_bucket_part_.Set(name, seconds);
+  }
+
   base::DictValue pack;
   base::DictValue window;
   window.Set("start", FormatLocalYmdHm(window_start_));
@@ -503,6 +555,13 @@ void DreamMaterialCollector::OnPartDone() {
   stats.Set("preferences", static_cast<int>(preferences_part_.size()));
   stats.Set("feedback_scenarios", static_cast<int>(feedback_part_.size()));
   stats.Set("excluded_history_visits", excluded_history_visits_);
+  stats.Set("foreground_source",
+            DreamForegroundSourceName(foreground_policy.source));
+  stats.Set("foreground_coverage",
+            DreamForegroundCoverageName(foreground_policy.coverage));
+  stats.Set("coverage_seconds", static_cast<int>(std::min<int64_t>(
+                                    foreground_policy.coverage_seconds,
+                                    std::numeric_limits<int>::max())));
   base::ListValue source_domains;
   for (const base::Value& entry : history_part_) {
     const base::DictValue* domain_entry = entry.GetIfDict();

@@ -14,6 +14,8 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "components/history/core/browser/history_types.h"
+#include "dao/browser/activity/dao_foreground_activity_store.h"
 
 class Profile;
 
@@ -79,11 +81,8 @@ class DreamMaterialCollector {
       const std::set<std::string>& excluded_domains);
 
  private:
-  void OnHistoryResults(base::ListValue domains,
-                        base::ListValue queries,
-                        int domain_count,
-                        int query_count,
-                        base::DictValue foreground_seconds_by_bucket);
+  void OnHistoryResults(std::vector<history::AnnotatedVisit> visits);
+  void OnActivitySnapshot(DaoForegroundActivitySnapshot snapshot);
   void OnConversationsLoaded(base::ListValue sessions);
   void OnConversationSessionCountLoaded(int session_count);
   void OnPreferencesLoaded(base::ListValue preferences);
@@ -98,6 +97,9 @@ class DreamMaterialCollector {
   CollectCallback callback_;
   base::RepeatingClosure barrier_;
 
+  std::vector<history::AnnotatedVisit> history_visits_;
+  DaoForegroundActivitySnapshot activity_snapshot_;
+  base::Time foreground_query_time_;
   base::ListValue history_part_;
   base::ListValue search_part_;
   base::ListValue conversations_part_;

@@ -16,6 +16,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/history/core/browser/history_types.h"
+#include "dao/browser/activity/dao_foreground_activity_store.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
 
 class Profile;
@@ -65,6 +66,7 @@ class WeeklyDreamMaterialCollector {
 
  private:
   void OnHistoryLoaded(std::vector<history::AnnotatedVisit> visits);
+  void OnActivitySnapshot(DaoForegroundActivitySnapshot snapshot);
   void OnConversationSummariesLoaded(
       std::vector<ConversationSummary> summaries);
   void OnConversationMessagesLoaded(
@@ -85,6 +87,8 @@ class WeeklyDreamMaterialCollector {
   base::RepeatingClosure barrier_;
 
   std::vector<history::AnnotatedVisit> history_visits_;
+  DaoForegroundActivitySnapshot activity_snapshot_;
+  base::Time foreground_query_time_;
   std::vector<ConversationSummary> conversation_summaries_;
   std::vector<ConversationMessage> conversation_messages_;
   std::vector<DreamReport> daily_reports_;

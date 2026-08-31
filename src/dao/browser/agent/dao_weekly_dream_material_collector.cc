@@ -5,6 +5,7 @@
 #include "dao/browser/agent/dao_weekly_dream_material_collector.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <limits>
 #include <map>
@@ -15,14 +16,18 @@
 #include "base/barrier_closure.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
+#include "base/numerics/safe_math.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/history/core/browser/history_service.h"
+#include "dao/browser/activity/dao_foreground_activity_service.h"
+#include "dao/browser/activity/dao_foreground_activity_service_factory.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_dream_domain_utils.h"
+#include "dao/browser/agent/dao_dream_foreground_policy.h"
 #include "url/gurl.h"
 
 namespace dao {
@@ -62,19 +67,19 @@ int64_t MaterialSeconds(base::TimeDelta duration) {
   return std::max<int64_t>(duration.InSeconds(), 0);
 }
 
-base::TimeDelta ForegroundDurationFor(
-    const history::AnnotatedVisit& visit) {
+int64_t AddMaterialSeconds(int64_t current, int64_t added) {
+  base::CheckedNumeric<int64_t> total(current);
+  total += std::max<int64_t>(added, 0);
+  return total.ValueOrDefault(std::numeric_limits<int64_t>::max());
+}
+
+base::TimeDelta ForegroundDurationFor(const history::AnnotatedVisit& visit) {
   const base::TimeDelta foreground =
       visit.context_annotations.total_foreground_duration;
   if (foreground >= base::Seconds(0)) {
     return foreground;
   }
   return std::max(visit.visit_row.visit_duration, base::Seconds(0));
-}
-
-base::TimeDelta TotalDurationFor(const history::AnnotatedVisit& visit,
-                                 base::TimeDelta foreground) {
-  return std::max(visit.visit_row.visit_duration, foreground);
 }
 
 bool IsSchemeCharacter(char character) {
@@ -95,8 +100,7 @@ bool IsLinkBoundary(const std::string& text, size_t position) {
   if (position == 0) {
     return true;
   }
-  const unsigned char previous =
-      static_cast<unsigned char>(text[position - 1]);
+  const unsigned char previous = static_cast<unsigned char>(text[position - 1]);
   return !std::isalnum(previous) && previous != '_';
 }
 
@@ -116,14 +120,12 @@ size_t LinkEndAt(const std::string& text, size_t position) {
   bool is_link = false;
   size_t payload_start = position;
   if (position + 2 < text.size() && text[position] == '/' &&
-      text[position + 1] == '/' &&
-      !IsUrlTerminator(text[position + 2])) {
+      text[position + 1] == '/' && !IsUrlTerminator(text[position + 2])) {
     is_link = true;
     payload_start = position + 2;
   }
   if (!is_link && StartsWithInsensitive(text, position, "www.") &&
-      position + 4 < text.size() &&
-      !IsUrlTerminator(text[position + 4])) {
+      position + 4 < text.size() && !IsUrlTerminator(text[position + 4])) {
     is_link = true;
     payload_start = position + 4;
   }
@@ -131,13 +133,11 @@ size_t LinkEndAt(const std::string& text, size_t position) {
   if (!is_link && position < text.size() &&
       std::isalpha(static_cast<unsigned char>(text[position]))) {
     size_t scheme_end = position + 1;
-    while (scheme_end < text.size() &&
-           IsSchemeCharacter(text[scheme_end])) {
+    while (scheme_end < text.size() && IsSchemeCharacter(text[scheme_end])) {
       ++scheme_end;
     }
     is_link = scheme_end + 1 < text.size() && text[scheme_end] == ':' &&
-              !std::isspace(
-                  static_cast<unsigned char>(text[scheme_end + 1]));
+              !std::isspace(static_cast<unsigned char>(text[scheme_end + 1]));
     if (is_link) {
       payload_start = scheme_end + 1;
     }
@@ -245,9 +245,8 @@ bool HasSubstantiveMaterialText(std::string text) {
   });
 }
 
-std::string RedactMaterialText(
-    const std::string& text,
-    const std::set<std::string>& sensitive_values) {
+std::string RedactMaterialText(const std::string& text,
+                               const std::set<std::string>& sensitive_values) {
   std::string sanitized = RedactLinks(text);
   for (const std::string& sensitive : sensitive_values) {
     RedactSensitiveValue(&sanitized, sensitive);
@@ -260,8 +259,8 @@ std::string SanitizeMaterialText(
     const std::set<std::string>& sensitive_values) {
   std::string sanitized = RedactMaterialText(text, sensitive_values);
   std::u16string utf16 = base::UTF8ToUTF16(sanitized);
-  if (utf16.size() > static_cast<size_t>(
-                         WeeklyDreamMaterialCollector::kMaxTextChars)) {
+  if (utf16.size() >
+      static_cast<size_t>(WeeklyDreamMaterialCollector::kMaxTextChars)) {
     utf16.resize(WeeklyDreamMaterialCollector::kMaxTextChars);
   }
   return base::UTF16ToUTF8(utf16);
@@ -273,8 +272,7 @@ bool IsUserQuestion(const std::string& text) {
 }
 
 std::string SafeDomain(const std::string& input) {
-  const std::string trimmed(
-      base::TrimWhitespaceASCII(input, base::TRIM_ALL));
+  const std::string trimmed(base::TrimWhitespaceASCII(input, base::TRIM_ALL));
   if (trimmed.empty()) {
     return std::string();
   }
@@ -288,9 +286,8 @@ std::string SafeDomain(const std::string& input) {
   return base::ToLowerASCII(parsed.host());
 }
 
-bool IsExcludedSourceDomain(
-    const std::string& domain,
-    const std::set<std::string>& excluded_domains) {
+bool IsExcludedSourceDomain(const std::string& domain,
+                            const std::set<std::string>& excluded_domains) {
   const std::string normalized = NormalizeDreamExcludedDomain(domain);
   return !normalized.empty() &&
          IsDreamDomainExcluded(normalized, excluded_domains);
@@ -302,6 +299,7 @@ struct DomainAggregate {
   int64_t foreground_seconds = 0;
   int64_t total_seconds = 0;
   std::map<std::string, int> time_buckets;
+  std::map<std::string, int64_t> foreground_seconds_by_bucket;
   std::set<std::string> coverage_dates;
 };
 
@@ -387,8 +385,7 @@ base::DictValue RebuildPreviousContent(
                 RebuildPreviousThread(*primary, sensitive_values));
   }
 
-  if (const base::ListValue* secondary =
-          input.FindList("secondary_threads")) {
+  if (const base::ListValue* secondary = input.FindList("secondary_threads")) {
     base::ListValue rebuilt;
     for (const base::Value& value : *secondary) {
       const base::DictValue* thread = value.GetIfDict();
@@ -403,8 +400,7 @@ base::DictValue RebuildPreviousContent(
     content.Set("secondary_threads", std::move(rebuilt));
   }
 
-  if (const base::ListValue* outcomes =
-          input.FindList("retained_outcomes")) {
+  if (const base::ListValue* outcomes = input.FindList("retained_outcomes")) {
     base::ListValue rebuilt;
     for (const base::Value& value : *outcomes) {
       const base::DictValue* outcome = value.GetIfDict();
@@ -412,8 +408,7 @@ base::DictValue RebuildPreviousContent(
         continue;
       }
       base::DictValue rebuilt_outcome;
-      CopySanitizedString(*outcome, "text", sensitive_values,
-                          &rebuilt_outcome);
+      CopySanitizedString(*outcome, "text", sensitive_values, &rebuilt_outcome);
       if (std::optional<double> confidence =
               outcome->FindDouble("confidence")) {
         rebuilt_outcome.Set("confidence", *confidence);
@@ -426,8 +421,7 @@ base::DictValue RebuildPreviousContent(
     content.Set("retained_outcomes", std::move(rebuilt));
   }
 
-  if (const base::DictValue* footprint =
-          input.FindDict("footprint_summary")) {
+  if (const base::DictValue* footprint = input.FindDict("footprint_summary")) {
     base::DictValue rebuilt_footprint;
     if (const base::ListValue* themes = footprint->FindList("themes")) {
       base::ListValue rebuilt_themes;
@@ -483,10 +477,12 @@ void WeeklyDreamMaterialCollector::Collect(base::Time window_start,
   conversation_messages_.clear();
   daily_reports_.clear();
   previous_weekly_report_.reset();
+  activity_snapshot_ = {};
 
-  // History, summaries, fallback messages, daily reports, and previous week.
+  // History, activity, summaries, fallback messages, daily reports, and
+  // previous week.
   barrier_ = base::BarrierClosure(
-      5, base::BindOnce(&WeeklyDreamMaterialCollector::OnAllPartsLoaded,
+      6, base::BindOnce(&WeeklyDreamMaterialCollector::OnAllPartsLoaded,
                         weak_factory_.GetWeakPtr()));
 
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
@@ -505,6 +501,22 @@ void WeeklyDreamMaterialCollector::Collect(base::Time window_start,
         base::BindOnce(&WeeklyDreamMaterialCollector::OnHistoryLoaded,
                        weak_factory_.GetWeakPtr()),
         &history_tracker_);
+  }
+
+  foreground_query_time_ = base::Time::Now();
+  const std::string activity_start_date = LocalDate(window_start_);
+  const std::string activity_end_date = LocalDate(
+      window_end_ > window_start_ ? window_end_ - base::Microseconds(1)
+                                  : window_end_);
+  DaoForegroundActivityService* activity =
+      DaoForegroundActivityServiceFactory::GetForProfile(profile_);
+  if (activity) {
+    activity->GetSnapshot(
+        activity_start_date, activity_end_date,
+        base::BindOnce(&WeeklyDreamMaterialCollector::OnActivitySnapshot,
+                       weak_factory_.GetWeakPtr()));
+  } else {
+    barrier_.Run();
   }
 
   if (!memory_service_) {
@@ -538,6 +550,12 @@ void WeeklyDreamMaterialCollector::Collect(base::Time window_start,
 void WeeklyDreamMaterialCollector::OnHistoryLoaded(
     std::vector<history::AnnotatedVisit> visits) {
   history_visits_ = std::move(visits);
+  barrier_.Run();
+}
+
+void WeeklyDreamMaterialCollector::OnActivitySnapshot(
+    DaoForegroundActivitySnapshot snapshot) {
+  activity_snapshot_ = std::move(snapshot);
   barrier_.Run();
 }
 
@@ -581,6 +599,14 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
   }
   WeeklyDreamMaterial material;
   std::set<std::string> coverage_dates;
+  const std::string activity_start_date = LocalDate(window_start_);
+  const std::string activity_end_date = LocalDate(
+      window_end_ > window_start_ ? window_end_ - base::Microseconds(1)
+                                  : window_end_);
+  DreamForegroundRangePolicy foreground_policy =
+      ResolveDreamForegroundWindowPolicy(window_start_, window_end_,
+                                         activity_snapshot_,
+                                         foreground_query_time_);
 
   std::map<std::string, DomainAggregate> domains_by_name;
   std::map<std::string, PageCandidate> pages_by_locator;
@@ -590,19 +616,29 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
       continue;
     }
     const std::string domain = base::ToLowerASCII(url.host());
-    if (domain.empty() ||
-        IsExcludedSourceDomain(domain, excluded_domains)) {
+    if (domain.empty() || IsExcludedSourceDomain(domain, excluded_domains)) {
       continue;
     }
 
-    const base::TimeDelta foreground = ForegroundDurationFor(visit);
-    const base::TimeDelta total = TotalDurationFor(visit, foreground);
+    const DreamForegroundDatePolicy date_policy =
+        ResolveDreamForegroundDatePolicy(LocalDate(visit.visit_row.visit_time),
+                                         activity_snapshot_,
+                                         foreground_query_time_);
+    const base::TimeDelta foreground = date_policy.use_legacy
+                                           ? ForegroundDurationFor(visit)
+                                           : base::Seconds(0);
     DomainAggregate& aggregate = domains_by_name[domain];
     aggregate.domain = domain;
     aggregate.visit_count++;
-    aggregate.foreground_seconds += MaterialSeconds(foreground);
-    aggregate.total_seconds += MaterialSeconds(total);
+    aggregate.foreground_seconds = AddMaterialSeconds(
+        aggregate.foreground_seconds, MaterialSeconds(foreground));
+    aggregate.total_seconds += MaterialSeconds(visit.visit_row.visit_duration);
     aggregate.time_buckets[TimeBucketFor(visit.visit_row.visit_time)]++;
+    aggregate.foreground_seconds_by_bucket[TimeBucketFor(
+        visit.visit_row.visit_time)] =
+        AddMaterialSeconds(aggregate.foreground_seconds_by_bucket[TimeBucketFor(
+                               visit.visit_row.visit_time)],
+                           MaterialSeconds(foreground));
     aggregate.coverage_dates.insert(LocalDate(visit.visit_row.visit_time));
 
     const std::string title = SanitizeMaterialText(
@@ -614,16 +650,52 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
     const bool replace_title =
         page.last_seen_at.is_null() ||
         visit.visit_row.visit_time > page.last_seen_at ||
-        (visit.visit_row.visit_time == page.last_seen_at &&
-         title < page.title);
+        (visit.visit_row.visit_time == page.last_seen_at && title < page.title);
     if (replace_title) {
       page.title = title;
     }
     page.domain = domain;
     page.local_locator = url.spec();
-    page.foreground_seconds += MaterialSeconds(foreground);
-    page.last_seen_at =
-        std::max(page.last_seen_at, visit.visit_row.visit_time);
+    page.foreground_seconds = AddMaterialSeconds(page.foreground_seconds,
+                                                 MaterialSeconds(foreground));
+    page.last_seen_at = std::max(page.last_seen_at, visit.visit_row.visit_time);
+  }
+
+  std::vector<DaoForegroundActivityRow> native_rows;
+  for (const auto& row : activity_snapshot_.rows) {
+    if (!IsDreamForegroundRowInWindow(row, window_start_, window_end_,
+                                      foreground_query_time_)) {
+      continue;
+    }
+    if (ResolveDreamForegroundDatePolicy(row.local_date, activity_snapshot_,
+                                         foreground_query_time_)
+            .use_native) {
+      native_rows.push_back(row);
+    }
+  }
+  const std::optional<DreamForegroundActivitySummary> native =
+      SummarizeDreamForegroundActivity(native_rows, excluded_domains);
+  static constexpr std::array<const char*, 4> kBucketNames = {
+      "morning", "afternoon", "evening", "night"};
+  if (!native) {
+    foreground_policy.coverage = DreamForegroundCoverage::kUnavailable;
+    foreground_policy.coverage_seconds = 0;
+  } else {
+    for (const auto& [domain, milliseconds] : native->foreground_ms_by_host) {
+      DomainAggregate& aggregate = domains_by_name[domain];
+      aggregate.domain = domain;
+      aggregate.foreground_seconds =
+          AddMaterialSeconds(aggregate.foreground_seconds, milliseconds / 1000);
+    }
+    for (const auto& [domain, buckets] :
+         native->foreground_ms_by_host_and_bucket) {
+      for (size_t bucket = 0; bucket < buckets.size(); ++bucket) {
+        int64_t& seconds =
+            domains_by_name[domain]
+                .foreground_seconds_by_bucket[kBucketNames[bucket]];
+        seconds = AddMaterialSeconds(seconds, buckets[bucket] / 1000);
+      }
+    }
   }
 
   std::vector<DomainAggregate*> sorted_domains;
@@ -688,8 +760,7 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
       continue;
     }
     pages_per_domain[page->domain]++;
-    const std::string ref_id =
-        base::StringPrintf("page_%d", ++page_ref_number);
+    const std::string ref_id = base::StringPrintf("page_%d", ++page_ref_number);
     base::DictValue model_page;
     model_page.Set("ref_id", ref_id);
     model_page.Set("title", page->title);
@@ -710,14 +781,23 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
     base::DictValue entry;
     entry.Set("domain", domain->domain);
     entry.Set("visit_count", domain->visit_count);
-    entry.Set("foreground_seconds",
-              ClampToInt(domain->foreground_seconds));
+    entry.Set("foreground_seconds", ClampToInt(domain->foreground_seconds));
     entry.Set("total_seconds", ClampToInt(domain->total_seconds));
+    entry.Set("duration_level", domain->foreground_seconds >= 30 * 60 ? "deep"
+                                : domain->foreground_seconds >= 5 * 60
+                                    ? "medium"
+                                    : "light");
     base::DictValue buckets;
     for (const char* name : {"morning", "afternoon", "evening", "night"}) {
       buckets.Set(name, domain->time_buckets[name]);
     }
     entry.Set("time_buckets", std::move(buckets));
+    base::DictValue foreground_buckets;
+    for (const char* name : kBucketNames) {
+      foreground_buckets.Set(
+          name, ClampToInt(domain->foreground_seconds_by_bucket[name]));
+    }
+    entry.Set("foreground_seconds_by_bucket", std::move(foreground_buckets));
     base::ListValue pages;
     for (base::DictValue& page : model_pages_by_domain[domain->domain]) {
       pages.Append(std::move(page));
@@ -734,8 +814,7 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
       continue;
     }
     const std::string domain = SafeDomain(summary.primary_domain);
-    if (!domain.empty() &&
-        IsExcludedSourceDomain(domain, excluded_domains)) {
+    if (!domain.empty() && IsExcludedSourceDomain(domain, excluded_domains)) {
       continue;
     }
     const std::string summary_text =
@@ -775,8 +854,7 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
       continue;
     }
     const std::string domain = SafeDomain(message.page_url);
-    if (!domain.empty() &&
-        IsExcludedSourceDomain(domain, excluded_domains)) {
+    if (!domain.empty() && IsExcludedSourceDomain(domain, excluded_domains)) {
       continue;
     }
     const std::string redacted_text =
@@ -800,8 +878,7 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
 
   std::sort(selected_fallback_questions.begin(),
             selected_fallback_questions.end(),
-            [](const FallbackQuestion& left,
-               const FallbackQuestion& right) {
+            [](const FallbackQuestion& left, const FallbackQuestion& right) {
               if (left.timestamp != right.timestamp) {
                 return left.timestamp > right.timestamp;
               }
@@ -823,8 +900,7 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
 
   std::map<std::string, ConversationCandidate> fallback_by_session;
   for (FallbackQuestion& question : selected_fallback_questions) {
-    ConversationCandidate& candidate =
-        fallback_by_session[question.session_id];
+    ConversationCandidate& candidate = fallback_by_session[question.session_id];
     candidate.session_id = question.session_id;
     candidate.last_timestamp =
         std::max(candidate.last_timestamp, question.timestamp);
@@ -837,8 +913,7 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
     ConversationCandidate& candidate = entry.second;
     std::sort(candidate.fallback_questions.begin(),
               candidate.fallback_questions.end(),
-              [](const FallbackQuestion& left,
-                 const FallbackQuestion& right) {
+              [](const FallbackQuestion& left, const FallbackQuestion& right) {
                 if (left.timestamp != right.timestamp) {
                   return left.timestamp < right.timestamp;
                 }
@@ -877,8 +952,7 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
       conversations_material.Append(std::move(conversation));
       source_title = candidate.summary;
     } else {
-      for (const FallbackQuestion& question :
-           candidate.fallback_questions) {
+      for (const FallbackQuestion& question : candidate.fallback_questions) {
         base::DictValue fallback;
         fallback.Set("ref_id", ref_id);
         fallback.Set("text", question.text);
@@ -910,9 +984,8 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
     }
     base::DictValue daily;
     daily.Set("dream_date", report.dream_date);
-    daily.Set(
-        "report_markdown",
-        SanitizeMaterialText(report.report_markdown, sensitive_session_ids));
+    daily.Set("report_markdown", SanitizeMaterialText(report.report_markdown,
+                                                      sensitive_session_ids));
     daily_material.Append(std::move(daily));
     coverage_dates.insert(report.dream_date);
   }
@@ -935,8 +1008,8 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
     if (parsed && parsed->is_dict()) {
       base::DictValue previous_week;
       previous_week.Set(
-          "content", RebuildPreviousContent(parsed->GetDict(),
-                                              sensitive_session_ids));
+          "content",
+          RebuildPreviousContent(parsed->GetDict(), sensitive_session_ids));
       pack.Set("previous_week", std::move(previous_week));
     }
   }
@@ -949,6 +1022,11 @@ void WeeklyDreamMaterialCollector::OnAllPartsLoaded() {
   stats.Set("daily_reports", retained_daily_report_count);
   stats.Set("coverage_days", static_cast<int>(coverage_dates.size()));
   stats.Set("source_count", static_cast<int>(material.local_sources.size()));
+  stats.Set("foreground_source",
+            DreamForegroundSourceName(foreground_policy.source));
+  stats.Set("foreground_coverage",
+            DreamForegroundCoverageName(foreground_policy.coverage));
+  stats.Set("coverage_seconds", ClampToInt(foreground_policy.coverage_seconds));
   pack.Set("stats", std::move(stats));
 
   material.model_material = std::move(pack);

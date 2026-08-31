@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -21,6 +22,7 @@
 #include "base/test/run_until.h"
 #include "base/test/scoped_libc_timezone_override.h"
 #include "base/test/simple_test_clock.h"
+#include "base/test/simple_test_tick_clock.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/history/history_service_factory.h"
@@ -31,12 +33,17 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
+#include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "dao/browser/activity/dao_foreground_activity_service.h"
+#include "dao/browser/activity/dao_foreground_activity_service_factory.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
+#include "dao/browser/agent/dao_dream_foreground_policy.h"
 #include "dao/browser/agent/dao_dream_material_collector.h"
 #include "dao/browser/agent/dao_dream_service.h"
 #include "dao/browser/agent/dao_dream_service_factory.h"
@@ -60,6 +67,21 @@ base::Time LocalTime(int year, int month, int day, int hour, int minute) {
   base::Time t;
   CHECK(base::Time::FromLocalExploded(e, &t));
   return t;
+}
+
+std::string LocalDateString(base::Time time) {
+  base::Time::Exploded exploded;
+  time.LocalExplode(&exploded);
+  return base::StringPrintf("%04d-%02d-%02d", exploded.year, exploded.month,
+                            exploded.day_of_month);
+}
+
+std::unique_ptr<KeyedService> BuildDreamForegroundActivityService(
+    base::Clock* clock,
+    const base::TickClock* tick_clock,
+    content::BrowserContext* context) {
+  return std::make_unique<DaoForegroundActivityService>(
+      Profile::FromBrowserContext(context), clock, tick_clock);
 }
 
 void SetForegroundDurationForUrl(history::HistoryService* history,
@@ -398,9 +420,33 @@ IN_PROC_BROWSER_TEST_F(DaoDreamStaticTest, DreamDomainExclusionMatching) {
 // --- Fixture with memory + dream enabled ---
 
 class DaoDreamBrowserTest : public InProcessBrowserTest {
+ public:
+  DaoDreamBrowserTest() {
+    foreground_clock_.SetNow(LocalTime(2099, 1, 1, 12, 0));
+    foreground_tick_clock_.SetNowTicks(base::TimeTicks() + base::Hours(1));
+  }
+
  protected:
+  void SetUpBrowserContextKeyedServices(
+      content::BrowserContext* context) override {
+    const std::string test_name =
+        testing::UnitTest::GetInstance()->current_test_info()->name();
+    if (test_name.rfind("NativeForeground", 0) == 0 ||
+        test_name.rfind("ForegroundCoverage", 0) == 0 ||
+        test_name.rfind("WeeklyForeground", 0) == 0) {
+      foreground_clock_.SetNow(base::Time::Now());
+    }
+    DaoForegroundActivityServiceFactory::GetInstance()->SetTestingFactory(
+        context,
+        base::BindRepeating(&BuildDreamForegroundActivityService,
+                            &foreground_clock_, &foreground_tick_clock_));
+    InProcessBrowserTest::SetUpBrowserContextKeyedServices(context);
+  }
+
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(embedded_test_server()->Start());
     PrefService* pref_service = browser()->profile()->GetPrefs();
     pref_service->SetBoolean(prefs::kDaoAgentMemoryEnabled, true);
     pref_service->SetBoolean(prefs::kDaoDreamEnabled, true);
@@ -409,13 +455,201 @@ class DaoDreamBrowserTest : public InProcessBrowserTest {
   DaoDreamService* dream_service() {
     return DaoDreamServiceFactory::GetForProfile(browser()->profile());
   }
+
+  DaoForegroundActivitySnapshot ForegroundSnapshot() {
+    DaoForegroundActivitySnapshot snapshot;
+    base::RunLoop loop;
+    const std::string date = LocalDateString(foreground_clock_.Now());
+    foreground_service()->GetSnapshot(
+        date, date,
+        base::BindLambdaForTesting([&](DaoForegroundActivitySnapshot value) {
+          snapshot = std::move(value);
+          loop.Quit();
+        }));
+    loop.Run();
+    return snapshot;
+  }
+
+  void AdvanceForeground(base::TimeDelta duration) {
+    foreground_clock_.Advance(duration);
+    foreground_tick_clock_.Advance(duration);
+  }
+
+  base::Time ForegroundNow() const { return foreground_clock_.Now(); }
+
+  DaoForegroundActivityService* foreground_service() {
+    return DaoForegroundActivityServiceFactory::GetForProfile(
+        browser()->profile());
+  }
+
+ private:
+  base::SimpleTestClock foreground_clock_;
+  base::SimpleTestTickClock foreground_tick_clock_;
 };
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, ServiceGatedByPrefs) {
   EXPECT_NE(nullptr, dream_service());
-  browser()->profile()->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled,
-                                               false);
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
   EXPECT_EQ(nullptr, dream_service());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       NativeForegroundReplacesHistoryOnOverlappingDate) {
+  ASSERT_TRUE(ForegroundSnapshot().available);
+  const GURL url =
+      embedded_test_server()->GetURL("native-replace.example", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  AdvanceForeground(base::Seconds(12));
+  foreground_service()->CheckpointForTesting();
+  const DaoForegroundActivitySnapshot snapshot = ForegroundSnapshot();
+  ASSERT_TRUE(snapshot.available);
+  ASSERT_FALSE(snapshot.rows.empty());
+
+  history::HistoryService* history = HistoryServiceFactory::GetForProfile(
+      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  ASSERT_TRUE(history);
+  SetForegroundDurationForUrl(history, url, base::Seconds(90));
+  const base::Time now = ForegroundNow();
+
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+  DreamMaterialCollector collector(browser()->profile(), memory);
+  base::DictValue material;
+  base::RunLoop loop;
+  collector.Collect(now - base::Hours(1), now,
+                    base::BindLambdaForTesting([&](base::DictValue value) {
+                      material = std::move(value);
+                      loop.Quit();
+                    }));
+  loop.Run();
+
+  const base::ListValue* domains = material.FindList("history");
+  ASSERT_TRUE(domains);
+  const base::DictValue* native_domain = nullptr;
+  for (const base::Value& domain : *domains) {
+    const std::string* domain_name = domain.GetDict().FindString("domain");
+    if (domain_name && *domain_name == "native-replace.example") {
+      native_domain = &domain.GetDict();
+      break;
+    }
+  }
+  ASSERT_TRUE(native_domain);
+  EXPECT_EQ(12, native_domain->FindInt("foreground_seconds").value_or(-1));
+  EXPECT_EQ(1, native_domain->FindInt("visit_count").value_or(0));
+  const base::DictValue* stats = material.FindDict("stats");
+  ASSERT_TRUE(stats);
+  ASSERT_TRUE(stats->FindString("foreground_source"));
+  ASSERT_TRUE(stats->FindString("foreground_coverage"));
+  EXPECT_EQ("dao_active_tab_v1", *stats->FindString("foreground_source"));
+  EXPECT_EQ("partial", *stats->FindString("foreground_coverage"));
+
+  WeeklyDreamMaterialCollector weekly_collector(browser()->profile(), memory);
+  WeeklyDreamMaterial weekly;
+  base::RunLoop weekly_loop;
+  const std::string local_date = LocalDateString(now);
+  weekly_collector.Collect(
+      now - base::Hours(1), now, local_date, local_date,
+      base::BindLambdaForTesting([&](WeeklyDreamMaterial value) {
+        weekly = std::move(value);
+        weekly_loop.Quit();
+      }));
+  weekly_loop.Run();
+  const base::ListValue* weekly_domains =
+      weekly.model_material.FindList("history");
+  ASSERT_TRUE(weekly_domains);
+  bool found_weekly_native = false;
+  for (const base::Value& domain : *weekly_domains) {
+    const std::string* domain_name = domain.GetDict().FindString("domain");
+    if (domain_name && *domain_name == "native-replace.example") {
+      found_weekly_native = true;
+      EXPECT_EQ(12,
+                domain.GetDict().FindInt("foreground_seconds").value_or(-1));
+    }
+  }
+  EXPECT_TRUE(found_weekly_native);
+  ASSERT_FALSE(weekly.local_sources.empty());
+  for (const WeeklyDreamSource& source : weekly.local_sources) {
+    if (source.source_kind == "page") {
+      EXPECT_FALSE(source.local_locator.empty());
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       NativeForegroundCompletedDateWithoutRowsIsFullZero) {
+  const base::Time now = base::Time::Now();
+  DaoForegroundActivitySnapshot snapshot;
+  snapshot.available = true;
+  snapshot.tracking_started_at = now - base::Days(2);
+  snapshot.retained_from_date = LocalDateString(now - base::Days(2));
+
+  const DreamForegroundDatePolicy policy = ResolveDreamForegroundDatePolicy(
+      LocalDateString(now - base::Days(1)), snapshot, now);
+  EXPECT_TRUE(policy.use_native);
+  EXPECT_EQ(DreamForegroundCoverage::kFull, policy.coverage);
+  EXPECT_EQ(0u, snapshot.rows.size());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       NativeForegroundExclusionPrecedesRecomputation) {
+  DaoForegroundActivityRow included;
+  included.host = "included.example";
+  included.foreground_ms = 4000;
+  included.bucket = DaoForegroundActivityBucket::kMorning;
+  DaoForegroundActivityRow excluded = included;
+  excluded.host = "blocked.example";
+  excluded.foreground_ms = 9000;
+
+  const std::optional<DreamForegroundActivitySummary> summary =
+      SummarizeDreamForegroundActivity({included, excluded},
+                                       {"blocked.example"});
+  ASSERT_TRUE(summary.has_value());
+  EXPECT_EQ(4000, summary->total_foreground_ms);
+  EXPECT_EQ(1u, summary->foreground_ms_by_host.size());
+  EXPECT_FALSE(summary->foreground_ms_by_host.contains("blocked.example"));
+  EXPECT_EQ(4000, summary->foreground_ms_by_bucket[0]);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       ForegroundCoverageMetadataRoundTripsUnchanged) {
+  DaoAgentMemoryService* memory =
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(memory);
+  for (
+      const std::string& stats :
+      {std::string(
+           R"({"foreground_source":"dao_active_tab_v1","foreground_coverage":"partial","coverage_seconds":321})"),
+       std::string(
+           R"({"foreground_source":"dao_active_tab_v1","foreground_coverage":"unavailable","coverage_seconds":0})")}) {
+    DreamReport report;
+    report.dream_date = stats.find("partial") != std::string::npos
+                            ? "2026-08-30"
+                            : "2026-08-31";
+    report.material_stats = stats;
+    report.status = "completed";
+    ASSERT_TRUE(SaveDreamReportForTest(memory, report));
+    const std::optional<DreamReport> loaded =
+        LoadDreamReportForTest(memory, report.dream_date);
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(stats, loaded->material_stats);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
+                       WeeklyForegroundMixedRangeSumsEachDateOnce) {
+  const base::Time now = base::Time::Now();
+  DaoForegroundActivitySnapshot snapshot;
+  snapshot.available = true;
+  snapshot.tracking_started_at = now - base::Days(1);
+  snapshot.retained_from_date = LocalDateString(now - base::Days(1));
+  const DreamForegroundRangePolicy range =
+      ResolveDreamForegroundRangePolicy(LocalDateString(now - base::Days(2)),
+                                        LocalDateString(now), snapshot, now);
+  EXPECT_EQ(DreamForegroundSource::kMixed, range.source);
+  EXPECT_EQ(DreamForegroundCoverage::kMixed, range.coverage);
+  EXPECT_TRUE(range.use_legacy);
+  EXPECT_TRUE(range.use_native);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
@@ -908,7 +1142,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, DreamReportStoreRoundTrip) {
   report.dream_date = "2026-06-10";
   report.report_markdown = "# report";
   report.habit_candidates = "[]";
-  report.material_stats = "{}";
+  report.material_stats = R"({ "source_count": 2 })";
   report.status = "completed";
   report.attempt_count = 1;
   report.trigger_kind = "manual";
@@ -936,6 +1170,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, DreamReportStoreRoundTrip) {
         }));
     loop.Run();
     ASSERT_TRUE(got.has_value());
+    EXPECT_EQ(report.material_stats, got->material_stats);
     EXPECT_EQ("completed", got->status);
     EXPECT_EQ("{\"history\":[]}", got->debug_material_json);
     EXPECT_TRUE(got->viewed_at.is_null());
