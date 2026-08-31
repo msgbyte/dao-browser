@@ -281,6 +281,8 @@ const dict: Dictionary = {
   'dream.page.recap_title': '你昨天过得怎么样',
   'dream.page.summary_label': '一句话总结',
   'dream.page.rhythm_title': '今日节奏',
+  'dream.page.foreground_partial': '前台活跃时间仅为部分统计',
+  'dream.page.foreground_unavailable': '前台活跃时间暂不可用',
   'dream.page.rhythm_hint': '按前台专注时长',
   'dream.page.rhythm_morning': '上午',
   'dream.page.rhythm_afternoon': '下午',

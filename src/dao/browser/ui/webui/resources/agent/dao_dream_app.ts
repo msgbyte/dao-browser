@@ -44,10 +44,18 @@ interface DreamMaterialStats {
   searchQueries: number;
   conversationSessions: number;
   sourceDomains: string[];
+  foregroundSource?: DreamForegroundSource;
+  foregroundCoverage?: DreamForegroundCoverage;
+  coverageSeconds?: number;
   hasStructuredRecap: boolean;
   hasDurationData: boolean;
   recap: DreamRecap;
 }
+
+type DreamForegroundSource =
+    'dao_active_tab_v1'|'chromium_history_legacy'|'mixed';
+type DreamForegroundCoverage =
+    'full'|'partial'|'legacy'|'mixed'|'unavailable';
 
 interface ActivityTooltipState {
   dateKey: string;
@@ -97,6 +105,9 @@ interface WeeklyDreamReportData {
   materialStats: string;
   triggerKind: string;
   sourceCount: number;
+  foregroundSource?: DreamForegroundSource;
+  foregroundCoverage?: DreamForegroundCoverage;
+  coverageSeconds?: number;
   createdAt?: number;
 }
 
@@ -941,6 +952,13 @@ export class DaoDreamApp extends CrLitElement {
         margin: 0 0 12px;
       }
 
+      .foreground-coverage-note {
+        margin: 0 0 12px;
+        color: var(--dream-fg-2);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
       .rhythm-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -1558,15 +1576,29 @@ export class DaoDreamApp extends CrLitElement {
     const rawBuckets =
         recap['time_buckets'] && typeof recap['time_buckets'] === 'object' ?
         recap['time_buckets'] as Record<string, unknown> : {};
+    const foregroundSource =
+        parsed['foreground_source'] === 'dao_active_tab_v1' ||
+            parsed['foreground_source'] === 'chromium_history_legacy' ||
+            parsed['foreground_source'] === 'mixed' ?
+        parsed['foreground_source'] as DreamForegroundSource : undefined;
+    const foregroundCoverage =
+        parsed['foreground_coverage'] === 'full' ||
+            parsed['foreground_coverage'] === 'partial' ||
+            parsed['foreground_coverage'] === 'legacy' ||
+            parsed['foreground_coverage'] === 'mixed' ||
+            parsed['foreground_coverage'] === 'unavailable' ?
+        parsed['foreground_coverage'] as DreamForegroundCoverage : undefined;
+    const isForegroundUnavailable = foregroundCoverage === 'unavailable';
     const measuredBuckets =
         parsed['foreground_seconds_by_bucket'] &&
             typeof parsed['foreground_seconds_by_bucket'] === 'object' ?
         parsed['foreground_seconds_by_bucket'] as Record<string, unknown> :
         null;
-    const hasMeasuredBuckets = measuredBuckets !== null &&
+    const hasMeasuredBuckets = !isForegroundUnavailable &&
+        measuredBuckets !== null &&
         ['morning', 'afternoon', 'evening', 'night'].some(
             key => typeof measuredBuckets[key] === 'number');
-    const hasRecapBuckets = [
+    const hasRecapBuckets = !isForegroundUnavailable && [
       'morning_minutes',
       'afternoon_minutes',
       'evening_minutes',
@@ -1577,7 +1609,8 @@ export class DaoDreamApp extends CrLitElement {
         return this.boundedNumber_(
             (measuredBuckets![name] as number) / 60, 1440);
       }
-      return this.boundedNumber_(rawBuckets[recapName], 1440);
+      return hasRecapBuckets ?
+          this.boundedNumber_(rawBuckets[recapName], 1440) : 0;
     };
     const sections = this.markdownSections_(reportMarkdown);
     const themes: DreamTheme[] = [];
@@ -1627,6 +1660,12 @@ export class DaoDreamApp extends CrLitElement {
       conversationSessions:
           this.boundedNumber_(parsed['conversation_sessions'], 10000),
       sourceDomains,
+      foregroundSource,
+      foregroundCoverage,
+      coverageSeconds: typeof parsed['coverage_seconds'] === 'number' &&
+              Number.isFinite(parsed['coverage_seconds']) ?
+          this.boundedNumber_(parsed['coverage_seconds'], Number.MAX_SAFE_INTEGER) :
+          undefined,
       hasStructuredRecap,
       hasDurationData: hasMeasuredBuckets || hasRecapBuckets,
       recap: {
@@ -1720,6 +1759,9 @@ export class DaoDreamApp extends CrLitElement {
     const footprint = value['footprint_summary'] &&
             typeof value['footprint_summary'] === 'object' ?
         value['footprint_summary'] as Record<string, unknown> : {};
+    const foregroundMetadata = this.normalizeWeeklyForegroundMetadata_(
+        typeof report['materialStats'] === 'string' ?
+            report['materialStats'] : '');
     return {
       reportKind: 'weekly',
       id: report['id'],
@@ -1739,9 +1781,45 @@ export class DaoDreamApp extends CrLitElement {
       triggerKind: typeof report['triggerKind'] === 'string' ?
           report['triggerKind'] : '',
       sourceCount: this.boundedNumber_(report['sourceCount'], 10000),
+      ...foregroundMetadata,
       createdAt: typeof report['createdAt'] === 'number' &&
               Number.isFinite(report['createdAt']) ?
           report['createdAt'] : undefined,
+    };
+  }
+
+  private normalizeWeeklyForegroundMetadata_(raw: string): {
+    foregroundSource?: DreamForegroundSource;
+    foregroundCoverage?: DreamForegroundCoverage;
+    coverageSeconds?: number;
+  } {
+    let parsed: Record<string, unknown> = {};
+    try {
+      const candidate = JSON.parse(raw || '{}');
+      if (candidate && typeof candidate === 'object' &&
+          !Array.isArray(candidate)) {
+        parsed = candidate as Record<string, unknown>;
+      }
+    } catch {}
+    const foregroundSource =
+        parsed['foreground_source'] === 'dao_active_tab_v1' ||
+            parsed['foreground_source'] === 'chromium_history_legacy' ||
+            parsed['foreground_source'] === 'mixed' ?
+        parsed['foreground_source'] as DreamForegroundSource : undefined;
+    const foregroundCoverage =
+        parsed['foreground_coverage'] === 'full' ||
+            parsed['foreground_coverage'] === 'partial' ||
+            parsed['foreground_coverage'] === 'legacy' ||
+            parsed['foreground_coverage'] === 'mixed' ||
+            parsed['foreground_coverage'] === 'unavailable' ?
+        parsed['foreground_coverage'] as DreamForegroundCoverage : undefined;
+    return {
+      foregroundSource,
+      foregroundCoverage,
+      coverageSeconds: typeof parsed['coverage_seconds'] === 'number' &&
+              Number.isFinite(parsed['coverage_seconds']) ?
+          this.boundedNumber_(parsed['coverage_seconds'], Number.MAX_SAFE_INTEGER) :
+          undefined,
     };
   }
 
@@ -2233,7 +2311,10 @@ export class DaoDreamApp extends CrLitElement {
     const peak = Math.max(...slots.map(([, value]) => value), 1);
     const peakIndex = slots.reduce(
         (best, slot, index) => slot[1] > slots[best]![1] ? index : best, 0);
-    if (slots.every(([, value]) => value === 0)) {
+    const coverageNote =
+        this.foregroundCoverageNote_(report.stats.foregroundCoverage);
+    const hasRhythm = slots.some(([, value]) => value !== 0);
+    if (!hasRhythm && !coverageNote) {
       return nothing;
     }
     return html`
@@ -2242,7 +2323,9 @@ export class DaoDreamApp extends CrLitElement {
           <h2>${t('dream.page.rhythm_title')}</h2>
           <span>${t('dream.page.rhythm_hint')}</span>
         </div>
-        <div class="rhythm-grid">
+        ${coverageNote ? html`
+          <p class="foreground-coverage-note">${coverageNote}</p>` : nothing}
+        ${hasRhythm ? html`<div class="rhythm-grid">
           ${slots.map(([label, value], index) => html`
             <div class="rhythm-slot"
                 data-peak=${index === peakIndex ? 'true' : 'false'}>
@@ -2253,8 +2336,18 @@ export class DaoDreamApp extends CrLitElement {
                 <span>${this.formatDuration_(value)}</span>
               </div>
             </div>`)}
-        </div>
+        </div>` : nothing}
       </section>`;
+  }
+
+  private foregroundCoverageNote_(coverage?: DreamForegroundCoverage) {
+    if (coverage === 'unavailable') {
+      return t('dream.page.foreground_unavailable');
+    }
+    if (coverage === 'partial' || coverage === 'mixed') {
+      return t('dream.page.foreground_partial');
+    }
+    return '';
   }
 
   private renderThemes_(report: DailyDreamReportData) {
@@ -2676,12 +2769,17 @@ export class DaoDreamApp extends CrLitElement {
                 </div></div>`)}
             </div>
           </section>` : nothing}
-        ${report.timePattern || report.footprintThemes.length > 0 ? html`
+        ${report.timePattern || report.footprintThemes.length > 0 ||
+            this.foregroundCoverageNote_(report.foregroundCoverage) ? html`
           <section class="recap-block weekly-footprint">
             <div class="block-title">
               <h2>${t('dream.page.weekly_time_pattern')}</h2>
               <span>${report.footprintThemes.join(' · ')}</span>
             </div>
+            ${this.foregroundCoverageNote_(report.foregroundCoverage) ? html`
+              <p class="foreground-coverage-note">
+                ${this.foregroundCoverageNote_(report.foregroundCoverage)}
+              </p>` : nothing}
             ${report.timePattern ? html`<p>${report.timePattern}</p>` : nothing}
           </section>` : nothing}
         <details class="full-report">

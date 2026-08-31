@@ -56,6 +56,10 @@ vi.mock('../i18n/i18n.js', () => ({
       'dream.page.rhythm_afternoon': 'Afternoon',
       'dream.page.rhythm_evening': 'Evening',
       'dream.page.rhythm_night': 'Late night',
+      'dream.page.foreground_partial':
+          'Foreground time is partially measured',
+      'dream.page.foreground_unavailable':
+          'Foreground time is unavailable',
       'dream.page.minutes': '{count} min',
       'dream.page.themes_title': 'What you did',
       'dream.page.themes_count': '{count} themes',
@@ -160,7 +164,7 @@ function report(
   };
 }
 
-function weeklyReport(weekStart: string) {
+function weeklyReport(weekStart: string, materialStats = '{"source_count":2}') {
   return {
     reportKind: 'weekly',
     id: 701,
@@ -187,7 +191,7 @@ function weeklyReport(weekStart: string) {
         time_pattern: 'Focused work clustered in the afternoon.',
       },
     },
-    materialStats: '{"source_count":2}',
+    materialStats,
     triggerKind: 'scheduled_weekly',
     sourceCount: 2,
     createdAt: Date.UTC(2026, 7, 10, 6, 0),
@@ -658,6 +662,104 @@ describe('dao-dream-app routing', () => {
          expect.stringContaining('0 min'),
        ]);
      });
+
+  it('labels partial daily foreground time while keeping measured buckets',
+     async () => {
+       const stats = JSON.parse(recapMaterialStats());
+       stats.foreground_source = 'dao_active_tab_v1';
+       stats.foreground_coverage = 'partial';
+       stats.coverage_seconds = 3600;
+       stats.foreground_seconds_by_bucket = {
+         morning: 600,
+         afternoon: 0,
+         evening: 0,
+         night: 0,
+       };
+       bridgeMocks.callNative.mockResolvedValueOnce([
+         report('2026-06-19', '[]', JSON.stringify(stats)),
+       ]);
+
+       const el = await mountDreamApp('/');
+
+       expect(el.shadowRoot!.querySelector('.foreground-coverage-note')
+                  ?.textContent)
+           .toContain('Foreground time is partially measured');
+       expect(el.shadowRoot!.querySelectorAll('.rhythm-slot')).toHaveLength(4);
+     });
+
+  it('shows unavailable daily foreground time without inferring a rhythm',
+     async () => {
+       const stats = JSON.parse(recapMaterialStats());
+       stats.foreground_source = 'dao_active_tab_v1';
+       stats.foreground_coverage = 'unavailable';
+       stats.coverage_seconds = 0;
+       stats.foreground_seconds_by_bucket = {
+         morning: 600,
+         afternoon: 7200,
+         evening: 7500,
+         night: 0,
+       };
+       bridgeMocks.callNative.mockResolvedValueOnce([
+         report('2026-06-19', '[]', JSON.stringify(stats)),
+       ]);
+
+       const el = await mountDreamApp('/');
+
+       expect(el.shadowRoot!.querySelector('.foreground-coverage-note')
+                  ?.textContent)
+           .toContain('Foreground time is unavailable');
+       expect(el.shadowRoot!.querySelectorAll('.rhythm-slot')).toHaveLength(0);
+     });
+
+  it('shows mixed and unavailable coverage on weekly time patterns',
+     async () => {
+       bridgeMocks.callNative.mockImplementation(async (method: string) => {
+         if (method === 'getDreamReports') {
+           return [];
+         }
+         if (method === 'getWeeklyDreamReports') {
+           return [weeklyReport('2026-08-03', JSON.stringify({
+             source_count: 2,
+             foreground_source: 'mixed',
+             foreground_coverage: 'mixed',
+             coverage_seconds: 86400,
+           })), weeklyReport('2026-07-27', JSON.stringify({
+             source_count: 2,
+             foreground_source: 'dao_active_tab_v1',
+             foreground_coverage: 'unavailable',
+             coverage_seconds: 0,
+           }))];
+         }
+         return true;
+       });
+
+       const el = await mountDreamApp('/');
+       expect(el.shadowRoot!.querySelector('.foreground-coverage-note')
+                  ?.textContent)
+           .toContain('Foreground time is partially measured');
+
+       const unavailable =
+           el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+               '.history-item[data-report-kind="weekly"]')[1];
+       expect(unavailable).toBeTruthy();
+       unavailable!.click();
+       await el.updateComplete;
+
+       expect(el.shadowRoot!.querySelector('.foreground-coverage-note')
+                  ?.textContent)
+           .toContain('Foreground time is unavailable');
+     });
+
+  it('keeps legacy reports without coverage metadata unchanged', async () => {
+    bridgeMocks.callNative.mockResolvedValueOnce([
+      report('2026-06-19', '[]', recapMaterialStats()),
+    ]);
+
+    const el = await mountDreamApp('/');
+
+    expect(el.shadowRoot!.querySelector('.foreground-coverage-note')).toBeNull();
+    expect(el.shadowRoot!.querySelectorAll('.rhythm-slot')).toHaveLength(4);
+  });
 
   it('lists report source domains and adds one to exclusions', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);

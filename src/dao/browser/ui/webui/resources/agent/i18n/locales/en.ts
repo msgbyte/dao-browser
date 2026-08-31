@@ -383,6 +383,8 @@ const dict: Dictionary = {
   'dream.page.recap_title': 'How was your day yesterday?',
   'dream.page.summary_label': 'In one sentence',
   'dream.page.rhythm_title': 'Your rhythm',
+  'dream.page.foreground_partial': 'Foreground time is partially measured',
+  'dream.page.foreground_unavailable': 'Foreground time is unavailable',
   'dream.page.rhythm_hint': 'By foreground focus time',
   'dream.page.rhythm_morning': 'Morning',
   'dream.page.rhythm_afternoon': 'Afternoon',

@@ -354,6 +354,30 @@ describe('runWeeklyDream', () => {
            'Period: 2026-07-06 to 2026-07-13');
      });
 
+  it('defines weekly foreground evidence for every coverage state',
+     async () => {
+       respondWith(JSON.stringify(validOutput()));
+
+       await runWeeklyDream(
+           {start: '2026-07-06', end: '2026-07-13'}, MATERIAL);
+
+       const messages = callLLMStreaming.mock.calls[0]![0] as Array<{
+         role: string;
+         content: string;
+       }>;
+       const systemPrompt = messages[0]!.content.replace(/\s+/g, ' ');
+       expect(systemPrompt).toContain(
+           'Native full coverage is measured foreground evidence');
+       expect(systemPrompt).toContain(
+           'Native partial coverage is measured only within its coverage window');
+       expect(systemPrompt).toContain(
+           'Mixed weekly evidence must retain its coverage qualifier');
+       expect(systemPrompt).toContain(
+           'Unavailable foreground coverage means timing is unknown');
+       expect(systemPrompt).toContain(
+           'make no foreground-time or time-of-day conclusion');
+     });
+
   it('records usage separately for the initial and repair calls', async () => {
     respondWith('not json', {
       prompt_tokens: 11,

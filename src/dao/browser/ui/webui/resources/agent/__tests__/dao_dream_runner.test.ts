@@ -199,6 +199,59 @@ describe('runDream', () => {
        expect(systemPrompt).toContain('not like an audit log');
      });
 
+  it('does not treat unavailable foreground coverage as measured zero',
+     async () => {
+       respondWith(VALID);
+       await runDream('2026-06-11', {
+         stats: {
+           foreground_source: 'dao_active_tab_v1',
+           foreground_coverage: 'unavailable',
+           coverage_seconds: 0,
+           foreground_seconds_by_bucket: {
+             morning: 0,
+             afternoon: 0,
+             evening: 0,
+             night: 0,
+           },
+         },
+       });
+
+       const messages = callLLMStreaming.mock.calls[0]![0] as Array<{
+         role: string;
+         content: string;
+       }>;
+       const systemPrompt = messages[0]!.content;
+
+       expect(systemPrompt).toContain(
+           'unavailable means foreground timing is unknown');
+       expect(systemPrompt).toContain(
+           'do not infer zero foreground time or time-of-day habits');
+     });
+
+  it('uses partial foreground values only with their coverage qualifier',
+     async () => {
+       respondWith(VALID);
+       await runDream('2026-06-11', {
+         stats: {
+           foreground_source: 'dao_active_tab_v1',
+           foreground_coverage: 'partial',
+           coverage_seconds: 3600,
+           foreground_seconds_by_bucket: {morning: 900},
+         },
+       });
+
+       const messages = callLLMStreaming.mock.calls[0]![0] as Array<{
+         role: string;
+         content: string;
+       }>;
+       const systemPrompt = messages[0]!.content;
+
+       expect(systemPrompt).toContain(
+           'Native full and partial values are the only measured foreground evidence');
+       expect(systemPrompt).toContain(
+           'Keep the partial coverage qualifier on every time claim');
+     });
+
   it('asks the model to treat material preferences as existing memory',
      async () => {
        respondWith(VALID);

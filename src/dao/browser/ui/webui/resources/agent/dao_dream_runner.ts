@@ -118,6 +118,10 @@ Rules:
   duration_level "deep" deserves the most narrative weight, "medium" can be
   mentioned briefly, and "light" should be summarized in passing or omitted
   unless it reinforces searches, agent conversations, or another strong theme.
+- Native full and partial values are the only measured foreground evidence.
+- Keep the partial coverage qualifier on every time claim.
+- If unavailable, unavailable means foreground timing is unknown.
+  Ignore any foreground bucket values in that state; do not infer zero foreground time or time-of-day habits.
 - Build recap.time_buckets from stats.foreground_seconds_by_bucket, converting
   measured seconds to rounded minutes. Keep zero values when a bucket has no
   foreground activity. Do not infer time from the visit-count-only buckets.
