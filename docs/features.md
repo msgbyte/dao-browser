@@ -288,6 +288,23 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - `manifest.json` sha256 drift check guards against direct edits
 
 ### 2.6 Dream Analysis (nightly behavior learning)
+- **Shared foreground activity service** — an eager service runs once for each
+  regular Profile, independently of Dream and Agent Memory; it is not created
+  for off-the-record Profiles. At most one page is timed: the selected
+  HTTP(S) tab in the active, visible, non-minimized browser window, or the
+  selected pane when that tab is in Split View. Tab, navigation, window,
+  suspend/resume, and timezone events settle elapsed time with a monotonic
+  clock. A 60-second checkpoint bounds loss before an abrupt exit, normal
+  shutdown writes a final checkpoint, suspended time is excluded, and a
+  timezone change starts new local-calendar attribution without rewriting
+  prior aggregates. Local midnight and 06:00, 12:00, 18:00, and 22:00 are
+  exact boundaries, including 23- and 25-hour DST days.
+- **Privacy-minimized activity store** — each regular Profile keeps its own
+  `DaoForegroundActivity.db`, containing only aggregate elapsed milliseconds
+  by local date, time bucket, and canonical host. It stores no full URL, path,
+  query, fragment, page title, page content, or interaction log; snapshots
+  checkpoint before reading, and retention is the current local date plus the
+  preceding 370 dates.
 - **DaoDreamService** (+ Factory) — profile-keyed scheduler: nightly
   (22:00–06:00 local, system idle ≥1h), daytime catch-up for yesterday,
   and manual trigger from Agent settings. Off by default
@@ -297,7 +314,16 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   the browser), search keywords (extracted in C++), agent conversation
   excerpts, proactive-feedback stats. Visit-count buckets remain available to
   the model, while measured foreground seconds are also aggregated by morning,
-  afternoon, evening, and night for the report rhythm visualization.
+  afternoon, evening, and night for the report rhythm visualization. History
+  continues to provide visits, titles, searches, coarse visit buckets, and
+  visit duration. For each exact 06:00-to-06:00 Dream window, foreground time
+  is selected per local date without overlap: dates before native tracking use
+  legacy History; the tracking-start date and current date are native partial;
+  completed retained dates are native full, including measured zero when no
+  row exists; and pruned or failed native queries are unavailable rather than
+  falling back. Daily and weekly reports never add History foreground time to
+  native foreground time for the same date, though a weekly report may mix
+  sources across different dates.
 - **dao_dream_runner.ts** — resident agent WebUI executes the LLM
   summarization (user's configured provider) and returns structured
   one-minute recap data (summary, time-of-day rhythm, and up to three themes),
@@ -318,6 +344,10 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   sharing, source-domain exclusion,
   and debug controls remain available. Legacy markdown-only reports derive a
   summary and topic cards locally instead of rendering an incomplete page.
+  Newly generated reports persist `foreground_source`, `foreground_coverage`,
+  and `coverage_seconds`; the UI labels partial coverage and does not present
+  unavailable coverage as measured zero, while older reports without these
+  keys retain their legacy rendering unchanged.
 
 ### 2.7 Dao Home Personal Web Runtime (`dao://home`)
 
