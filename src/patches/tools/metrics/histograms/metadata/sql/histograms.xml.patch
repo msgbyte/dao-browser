@@ -2,11 +2,12 @@ diff --git a/tools/metrics/histograms/metadata/sql/histograms.xml b/tools/metric
 index af77f333b5..87aef200aa 100644
 --- a/tools/metrics/histograms/metadata/sql/histograms.xml
 +++ b/tools/metrics/histograms/metadata/sql/histograms.xml
-@@ -46,6 +46,8 @@ chromium-metrics-reviews@google.com.
+@@ -46,6 +46,9 @@ chromium-metrics-reviews@google.com.
    <variant name="Cookie" summary="Cookie"/>
    <variant name="DatabaseTracker" summary="DatabaseTracker"/>
    <variant name="DataSharingGroupStorage" summary="DataSharingGroupStorage"/>
 +  <variant name="DaoAgentMemory" summary="DaoAgentMemory"/>
++  <variant name="DaoForegroundActivity" summary="DaoForegroundActivity"/>
 +  <variant name="DaoMigration" summary="DaoMigration"/>
    <variant name="DataSharingMigrationStateStorage"
        summary="DataSharingMigrationStateStorage"/>

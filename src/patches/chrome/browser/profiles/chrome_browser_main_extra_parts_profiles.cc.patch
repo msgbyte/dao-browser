@@ -20,10 +20,11 @@ index 1aab47b6d039a..783c86ba03c03 100644
  #include "components/autofill/content/browser/autofill_log_router_factory.h"
  #include "components/breadcrumbs/core/breadcrumbs_status.h"
  #include "components/captive_portal/core/buildflags.h"
-@@ -622,6 +625,14 @@
+@@ -622,6 +625,15 @@
  #include "chrome/browser/net/nss_service_factory.h"
  #endif
  
++#include "dao/browser/activity/dao_foreground_activity_service_factory.h"
 +#include "dao/browser/agent/dao_agent_memory_service_factory.h"
 +#include "dao/browser/agent/dao_agent_skill_service_factory.h"
 +#include "dao/browser/agent/dao_agent_workspace_service_factory.h"
@@ -35,10 +36,11 @@ index 1aab47b6d039a..783c86ba03c03 100644
  void AddProfilesExtraParts(ChromeBrowserMainParts* main_parts) {
    main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsProfiles>());
  }
-@@ -894,6 +906,12 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -894,6 +907,13 @@ void ChromeBrowserMainExtraPartsProfiles::
  #endif  // BUILDFLAG(!IS_ANDROID)
    CrossDevicePrefTrackerFactory::GetInstance();
    DataTypeStoreServiceFactory::GetInstance();
++  dao::DaoForegroundActivityServiceFactory::GetInstance();
 +  dao::DaoAgentMemoryServiceFactory::GetInstance();
 +  dao::DaoAgentSkillServiceFactory::GetInstance();
 +  dao::DaoAgentWorkspaceServiceFactory::GetInstance();
@@ -48,7 +50,7 @@ index 1aab47b6d039a..783c86ba03c03 100644
  #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
    data_controls::ChromeRulesServiceFactory::GetInstance();
  #endif
-@@ -1518,4 +1536,14 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -1518,4 +1538,14 @@ void ChromeBrowserMainExtraPartsProfiles::
  
  void ChromeBrowserMainExtraPartsProfiles::PreProfileInit() {
    EnsureBrowserContextKeyedServiceFactoriesBuilt();
