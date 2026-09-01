@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {
@@ -156,8 +157,38 @@ export class DaoTabItem extends CrLitElement {
         transition: opacity 0.1s ease, background 0.12s ease, color 0.12s ease;
       }
 
+      .tab-actions {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+      }
+
+      .tab-actions > * {
+        grid-area: 1 / 1;
+      }
+
+      .mcp-control-icon {
+        width: 20px;
+        height: 20px;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+
+      .mcp-control-icon svg {
+        opacity: 0.4;
+      }
+
       .tab-row:hover .close-btn {
         opacity: 1;
+      }
+
+      .tab-row:hover .mcp-control-icon {
+        opacity: 0;
       }
 
       .close-btn:hover {
@@ -177,9 +208,21 @@ export class DaoTabItem extends CrLitElement {
         opacity: 0;
       }
 
+      :host([hover-suppressed]) .tab-row:hover .mcp-control-icon {
+        opacity: 1;
+      }
+
       :host([hover-suppressed]) .close-btn:hover {
         background: transparent;
         color: var(--text-muted);
+      }
+
+      .tab-actions:focus-within .close-btn {
+        opacity: 1;
+      }
+
+      .tab-actions:focus-within .mcp-control-icon {
+        opacity: 0;
       }
 
     `;
@@ -296,15 +339,35 @@ export class DaoTabItem extends CrLitElement {
           </button>
         ` : ''}
         <span class="title">${displayTitle}</span>
-        <button class="close-btn"
-                @click=${this.onClose_}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        <div class="tab-actions">
+          ${tab.isMcpControlled ? html`
+            <span class="mcp-control-icon" role="img"
+                aria-label=${loadTimeData.getString(
+                    'daoMcpControlButtonAccessibleName')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  aria-hidden="true">
+                <path d="M12 8V4H8" />
+                <rect width="16" height="12" x="4" y="8" rx="2" />
+                <path d="M2 14h2" />
+                <path d="M20 14h2" />
+                <path d="M15 13v2" />
+                <path d="M9 13v2" />
+              </svg>
+            </span>
+          ` : ''}
+          <button class="close-btn"
+                  aria-label=${loadTimeData.getString('daoCloseTab')}
+                  @click=${this.onClose_}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
     `;
   }

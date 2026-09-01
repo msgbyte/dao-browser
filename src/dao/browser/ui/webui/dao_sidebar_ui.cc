@@ -58,6 +58,7 @@
 #include "content/public/common/url_constants.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/dao_pref_names.h"
+#include "dao/browser/mcp/dao_mcp_service.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/updater/dao_updater_service.h"
@@ -459,6 +460,9 @@ void DaoSidebarUIHandler::PlaceGroupAroundAnchor(
 
 DaoSidebarUIHandler::DaoSidebarUIHandler() {
   DaoUpdaterService::GetInstance()->AddObserver(this);
+  mcp_service_subscription_ = DaoMcpService::Get()->AddObserver(
+      base::BindRepeating(&DaoSidebarUIHandler::OnMcpServiceStatusChanged,
+                          base::Unretained(this)));
 }
 
 DaoSidebarUIHandler::~DaoSidebarUIHandler() {
@@ -813,6 +817,13 @@ void DaoSidebarUIHandler::OnDaoUpdateStatusChanged(const DaoUpdateStatus&) {
   PushUpdateState();
 }
 
+void DaoSidebarUIHandler::OnMcpServiceStatusChanged(
+    const DaoMcpServiceStatus&) {
+  if (browser_ && IsJavascriptAllowed()) {
+    PushFullState();
+  }
+}
+
 void DaoSidebarUIHandler::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
@@ -992,6 +1003,8 @@ base::DictValue DaoSidebarUIHandler::BuildSidebarState() {
     tab.Set("isAudible", IsTabAudible(contents));
     tab.Set("isMuted", contents->IsAudioMuted());
     tab.Set("isAgentLocked", DaoAgentLockTabHelper::IsLocked(contents));
+    tab.Set("isMcpControlled",
+            DaoMcpService::Get()->IsTargetControlled(contents));
     tab.Set("isInSplit", split_contents.count(contents) > 0);
 
     if (model->IsTabPinned(i)) {
@@ -1770,6 +1783,8 @@ base::DictValue DaoSidebarUIHandler::BuildTabUpdate(int index) {
   tab.Set("isAudible", IsTabAudible(contents));
   tab.Set("isMuted", contents->IsAudioMuted());
   tab.Set("isAgentLocked", DaoAgentLockTabHelper::IsLocked(contents));
+  tab.Set("isMcpControlled",
+          DaoMcpService::Get()->IsTargetControlled(contents));
 
   tab.Set("isInSplit", IsInAnySplitGroup(contents));
   return tab;
@@ -3611,6 +3626,9 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
       IDS_DAO_SIDEBAR_NO_NEW_STALE_TABS_ARCHIVED_TOAST);
   source->AddLocalizedString("daoDismissCompletedDownload",
                              IDS_DAO_DISMISS_COMPLETED_DOWNLOAD);
+  source->AddLocalizedString("daoMcpControlButtonAccessibleName",
+                             IDS_DAO_MCP_CONTROL_BUTTON_ACCESSIBLE_NAME);
+  source->AddLocalizedString("daoCloseTab", IDS_DAO_TAB_CONTEXT_CLOSE_TAB);
   source->UseStringsJs();
 
   // Allow innerHTML for Lit rendering.

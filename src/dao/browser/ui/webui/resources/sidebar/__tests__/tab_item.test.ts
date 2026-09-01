@@ -14,6 +14,10 @@ vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
 });
 
+vi.mock('//resources/js/load_time_data.js', () => ({
+  loadTimeData: {getString: (id: string) => id},
+}));
+
 interface TestTabItem extends HTMLElement {
   tabData: TabData;
   active: boolean;
@@ -93,6 +97,23 @@ describe('dao-tab-item', () => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
+  });
+
+  it('shows MCP control status in the close button slot', async () => {
+    const el = document.createElement('dao-tab-item') as TestTabItem;
+    el.tabData = tab({isMcpControlled: true});
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const status = el.shadowRoot!.querySelector('.mcp-control-icon');
+    expect(status).not.toBeNull();
+    expect(status!.getAttribute('aria-label'))
+        .toBe('daoMcpControlButtonAccessibleName');
+    expect(el.shadowRoot!.querySelector('.close-btn')).not.toBeNull();
+
+    el.tabData = tab({isMcpControlled: false});
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.mcp-control-icon')).toBeNull();
   });
 
   it('marks tab drags with a Dao tab MIME type', async () => {

@@ -223,7 +223,9 @@ class DaoMcpService {
       ConnectionState& connection,
       TargetContext& context,
       bool allow_uncommitted_url = false);
-  void RejectConnection(ConnectionState& connection, DaoToolError error);
+  void RejectConnection(ConnectionState& connection,
+                        DaoToolError error,
+                        bool notify_if_status_unchanged = false);
   void OnTargetInvalidated(uint64_t connection_generation,
                            std::string target_id,
                            DaoToolError error);
@@ -240,7 +242,7 @@ class DaoMcpService {
                           DaoBrowserToolResult result);
 
   void NotifyStatusObservers();
-  void UpdateStatus();
+  void UpdateStatus(bool notify_if_unchanged = false);
 
   raw_ptr<PrefService> local_state_ = nullptr;
   base::FilePath user_data_dir_;
