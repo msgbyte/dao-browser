@@ -746,9 +746,12 @@ void DaoMcpService::OnConnectionClosed(uint64_t runtime_generation,
   if (connection == connections_.end()) {
     return;
   }
+  const bool had_controlled_target = std::ranges::any_of(
+      connection->second->target_contexts,
+      [](const auto& entry) { return entry.second->lease.has_value(); });
   ResetConnectionState(*connection->second);
   connections_.erase(connection);
-  UpdateStatus();
+  UpdateStatus(had_controlled_target);
 }
 
 DaoMcpService::ConnectionState* DaoMcpService::FindConnection(
@@ -1440,8 +1443,12 @@ base::expected<void, DaoToolError> DaoMcpService::AcquireTargetLease(
 }
 
 void DaoMcpService::RejectConnection(ConnectionState& connection,
-                                     DaoToolError error) {
+                                     DaoToolError error,
+                                     bool notify_if_status_unchanged) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  notify_if_status_unchanged |= std::ranges::any_of(
+      connection.target_contexts,
+      [](const auto& entry) { return entry.second->lease.has_value(); });
   connection.hello_timer.Stop();
   connection.approval_timer.Stop();
   connection.lease_retry_timer.Stop();
@@ -1474,7 +1481,7 @@ void DaoMcpService::RejectConnection(ConnectionState& connection,
   connection.client_info.reset();
   connection.connection_id.clear();
   connection.approval_deadline = base::TimeTicks();
-  UpdateStatus();
+  UpdateStatus(notify_if_status_unchanged);
 }
 
 void DaoMcpService::OnTargetInvalidated(uint64_t connection_generation,
@@ -1489,6 +1496,7 @@ void DaoMcpService::OnTargetInvalidated(uint64_t connection_generation,
   if (context == connection->target_contexts.end()) {
     return;
   }
+  const bool was_controlled = context->second->lease.has_value();
   FailPendingCallsForTarget(*connection, target_id, error);
   context->second->tool_executor->CancelAll(error);
   context->second->tool_executor->ClearSessionState(
@@ -1502,10 +1510,10 @@ void DaoMcpService::OnTargetInvalidated(uint64_t connection_generation,
   }
   if (connection->target_contexts.empty() &&
       connection->tab_tool_sessions.empty()) {
-    RejectConnection(*connection, std::move(error));
+    RejectConnection(*connection, std::move(error), was_controlled);
     return;
   }
-  UpdateStatus();
+  UpdateStatus(was_controlled);
 }
 
 void DaoMcpService::FailPendingCalls(ConnectionState& connection,
@@ -1664,7 +1672,7 @@ void DaoMcpService::OnToolCallComplete(uint64_t connection_generation,
                 SerializeDaoBrowserToolResult(std::move(result)));
   }
   if (target_set_changed) {
-    UpdateStatus();
+    UpdateStatus(/*notify_if_unchanged=*/true);
   }
   if (!connection->closing && connection->target_contexts.empty() &&
       connection->tab_tool_sessions.empty()) {
@@ -1679,7 +1687,7 @@ void DaoMcpService::NotifyStatusObservers() {
   status_observers_.Notify(status_);
 }
 
-void DaoMcpService::UpdateStatus() {
+void DaoMcpService::UpdateStatus(bool notify_if_unchanged) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DaoMcpServiceStatus next;
   next.state = listener_active_ || listener_start_pending_
@@ -1707,10 +1715,12 @@ void DaoMcpService::UpdateStatus() {
         next.client->name == status_.client->name &&
         next.client->version == status_.client->version &&
         next.client->verified_pid == status_.client->verified_pid));
-  if (unchanged) {
+  if (unchanged && !notify_if_unchanged) {
     return;
   }
-  status_ = std::move(next);
+  if (!unchanged) {
+    status_ = std::move(next);
+  }
   NotifyStatusObservers();
 }
 

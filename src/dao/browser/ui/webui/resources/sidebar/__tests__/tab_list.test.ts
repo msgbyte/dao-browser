@@ -16,6 +16,10 @@ vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
 });
 
+vi.mock('//resources/js/load_time_data.js', () => ({
+  loadTimeData: {getString: (id: string) => id},
+}));
+
 interface TestTabList extends HTMLElement {
   tabs: TabData[];
   sessionId: number;

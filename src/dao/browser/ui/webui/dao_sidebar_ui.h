@@ -54,6 +54,7 @@ namespace dao {
 
 class DaoSidebarUI;
 class DaoSplitView;
+struct DaoMcpServiceStatus;
 
 // WebUI config for dao://sidebar
 class DaoSidebarUIConfig : public content::WebUIConfig {
@@ -201,6 +202,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void PushUpdateState();
   base::DictValue BuildUpdateState();
   static std::string UpdateStateToString(DaoUpdateState state);
+  void OnMcpServiceStatusChanged(const DaoMcpServiceStatus& status);
 
   // Media playback widget.
   int FindAudibleTabIndex() const;
@@ -322,6 +324,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   std::set<std::string> reopening_pinned_item_ids_;
   std::set<int> persisted_identity_session_tab_ids_;
   base::CallbackListSubscription session_restored_subscription_;
+  base::CallbackListSubscription mcp_service_subscription_;
   std::string pending_scroll_target_tab_id_;
 
   // Context menu state.

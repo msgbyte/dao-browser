@@ -80,6 +80,7 @@ export interface TabData {
   isAudible: boolean;
   isMuted: boolean;
   isAgentLocked?: boolean;
+  isMcpControlled?: boolean;
   isInSplit?: boolean;
   isFaviconLight?: boolean;
   lastActiveTimeMs?: number;
