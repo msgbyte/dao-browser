@@ -105,7 +105,7 @@ DaoBrowserToolExecutor::~DaoBrowserToolExecutor() {
   weak_factory_.InvalidateWeakPtrs();
 }
 
-void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
+bool DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
                                      DaoToolClient client,
                                      DaoBrowserToolCall call,
                                      ResultCallback callback) {
@@ -114,7 +114,7 @@ void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
     ReplyError(std::move(callback),
                MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
                                 "Browser tool executor is shutting down."));
-    return;
+    return false;
   }
   const DaoBrowserToolDefinition* definition =
       catalog_->Find(call.name, client);
@@ -122,13 +122,13 @@ void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
     ReplyError(std::move(callback),
                MakeDaoToolError(DaoToolErrorCode::kUnknownTool,
                                 "Unknown or unavailable browser tool."));
-    return;
+    return false;
   }
 
   auto validation = ValidateToolArguments(*definition, call.arguments);
   if (!validation.has_value()) {
     ReplyError(std::move(callback), std::move(validation).error());
-    return;
+    return false;
   }
   if (call.name == "switch_tab") {
     const std::string* tab_id = call.arguments.FindString("tab_id");
@@ -136,7 +136,7 @@ void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
       ReplyError(std::move(callback),
                  MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
                                   "switch_tab requires tab_id or index."));
-      return;
+      return false;
     }
   }
 
@@ -144,7 +144,7 @@ void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
     ReplyError(std::move(callback),
                MakeDaoToolError(DaoToolErrorCode::kTargetGone,
                                 "Browser automation session is unavailable."));
-    return;
+    return false;
   }
   base::WeakPtr<DaoBrowserToolExecutor> weak_this = weak_factory_.GetWeakPtr();
   base::WeakPtr<DaoBrowserAutomationSession> session_weak =
@@ -156,11 +156,11 @@ void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
         DaoToolErrorCode::kToolCancelled,
         "Browser tool ownership changed while resolving the target.");
     std::move(callback).Run(std::move(result));
-    return;
+    return false;
   }
   if (!target.has_value()) {
     ReplyError(std::move(callback), std::move(target).error());
-    return;
+    return false;
   }
 
   if (call.request_id.empty() ||
@@ -168,7 +168,7 @@ void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
     ReplyError(std::move(callback),
                MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
                                 "Browser tool request id is empty or active."));
-    return;
+    return false;
   }
 
   const base::TimeDelta timeout =
@@ -185,7 +185,7 @@ void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
         request_id, session_weak.get(), client, call.name, call.arguments,
         base::BindOnce(&DaoBrowserToolExecutor::Complete, weak_this,
                        request_id));
-    return;
+    return true;
   }
 
   weak_this->Dispatch(
@@ -205,6 +205,7 @@ void DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
           },
           session_weak, client),
       std::move(call.arguments));
+  return true;
 }
 
 void DaoBrowserToolExecutor::Cancel(std::string_view request_id,

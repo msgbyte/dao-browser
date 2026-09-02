@@ -1,7 +1,7 @@
 diff --git a/chrome/app/resources/generated_resources_zh-CN.xtb b/chrome/app/resources/generated_resources_zh-CN.xtb
 --- a/chrome/app/resources/generated_resources_zh-CN.xtb
 +++ b/chrome/app/resources/generated_resources_zh-CN.xtb
-@@ -1,6 +1,125 @@
+@@ -1,6 +1,128 @@
  <?xml version="1.0" ?>
  <!DOCTYPE translationbundle>
  <translationbundle lang="zh-CN">
@@ -17,6 +17,9 @@ diff --git a/chrome/app/resources/generated_resources_zh-CN.xtb b/chrome/app/res
 +<translation id="6837890588055266999">复制安装命令</translation>
 +<translation id="8552183253311757171">安装命令已复制</translation>
 +<translation id="4555594373285194249">MCP 配置已复制</translation>
++<translation id="1153965900410596406">工具使用</translation>
++<translation id="2286241709612292499">总调用次数</translation>
++<translation id="6509753766172800574">暂无 MCP 工具调用</translation>
 +<translation id="8672485401328649039">Dao 智能体</translation>
 +<translation id="7995736051427003412">配置智能体的连接、行为、搜索、记忆和学习方式。</translation>
 +<translation id="7748142381048173417">无法加载智能体配置。请重试刷新。</translation>

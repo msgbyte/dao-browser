@@ -45,7 +45,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4145,6 +4153,245 @@
+@@ -4145,6 +4153,249 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -241,6 +241,10 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +       IDS_SETTINGS_DAO_MCP_INSTALL_COMMAND_COPIED},
 +      {"daoMcpConfigurationCopied",
 +       IDS_SETTINGS_DAO_MCP_CONFIGURATION_COPIED},
++      {"daoMcpUsageTitle", IDS_SETTINGS_DAO_MCP_USAGE_TITLE},
++      {"daoMcpUsageTotal", IDS_SETTINGS_DAO_MCP_USAGE_TOTAL},
++      {"daoMcpUsageNoCalls", IDS_SETTINGS_DAO_MCP_USAGE_NO_CALLS},
++      {"daoMcpUsageReset", IDS_SETTINGS_DAO_MCP_USAGE_RESET},
 +      {"littleDaoEnabledLabel", IDS_SETTINGS_LITTLE_DAO_ENABLED_LABEL},
 +      {"littleDaoEnabledSubLabel",
 +       IDS_SETTINGS_LITTLE_DAO_ENABLED_SUB_LABEL},

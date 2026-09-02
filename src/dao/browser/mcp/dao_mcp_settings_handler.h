@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/values.h"
 #include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "dao/browser/mcp/dao_mcp_service.h"
 
 namespace dao {
@@ -60,16 +61,20 @@ class DaoMcpSettingsHandler : public settings::SettingsPageUIHandler {
   void HandleGetDaoMcpSetupContent(const base::ListValue& args);
   void HandleCopyDaoMcpSetupContent(const base::ListValue& args);
   void HandleStopDaoMcpControl(const base::ListValue& args);
+  void HandleResetDaoMcpUsageStats(const base::ListValue& args);
 
  private:
+  PrefService* GetPrefs();
   std::optional<std::string> GetSetupContent(
       std::string_view option_id) const;
-  base::DictValue CreateStatusValue() const;
+  base::DictValue CreateStatusValue();
   void OnStatusChanged(const DaoMcpServiceStatus&);
+  void OnUsageStatsChanged();
 
   std::unique_ptr<DaoMcpSettingsService> owned_service_;
   raw_ptr<DaoMcpSettingsService> service_;
   base::CallbackListSubscription status_subscription_;
+  PrefChangeRegistrar pref_change_registrar_;
 };
 
 }  // namespace dao

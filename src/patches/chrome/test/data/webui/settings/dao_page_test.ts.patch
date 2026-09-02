@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,591 @@
+@@ -0,0 +1,628 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -69,6 +69,7 @@ index 0000000000..0000000001
 +      'getDaoMcpSetupContent',
 +      'copyDaoMcpSetupContent',
 +      'stopDaoMcpControl',
++      'resetDaoMcpUsageStats',
 +    ]);
 +  }
 +
@@ -111,6 +112,10 @@ index 0000000000..0000000001
 +
 +  stopDaoMcpControl(): void {
 +    this.methodCalled('stopDaoMcpControl');
++  }
++
++  resetDaoMcpUsageStats(): void {
++    this.methodCalled('resetDaoMcpUsageStats');
 +  }
 +}
 +
@@ -266,6 +271,38 @@ index 0000000000..0000000001
 +    });
 +    assertNull(page.shadowRoot!.querySelector('#daoMcpClient'));
 +    assertNull(page.shadowRoot!.querySelector('#daoMcpStopControl'));
++  });
++
++  test('mcpShowsAndResetsUsageStats', async function() {
++    sendMcpStatus({
++      enabled: true,
++      state: 'ready',
++      canStop: false,
++      usageStats: {
++        totalCalls: 3,
++        toolCalls: {
++          get_page_info: 1,
++          click: 2,
++        },
++        lastReset: 1000,
++      },
++    });
++
++    const total =
++        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpUsageTotal');
++    assertTrue(!!total);
++    assertTrue(total.textContent.includes('3'));
++    const rows = page.shadowRoot!.querySelectorAll<HTMLElement>(
++        '.dao-mcp-usage-row');
++    assertEquals(2, rows.length);
++    assertTrue(rows[0]!.textContent.includes('click'));
++    assertTrue(rows[0]!.textContent.includes('2'));
++    assertTrue(rows[1]!.textContent.includes('get_page_info'));
++    assertTrue(rows[1]!.textContent.includes('1'));
++
++    page.shadowRoot!
++        .querySelector<HTMLElement>('#daoMcpResetUsage')!.click();
++    await mcpBrowserProxy.whenCalled('resetDaoMcpUsageStats');
 +  });
 +
 +  test('mcpQuickSetupPreviewsAndCopiesSelectedClient', async function() {

@@ -24,6 +24,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
+  registry->RegisterDictionaryPref(kDaoMcpUsageStats);
   registry->RegisterBooleanPref(kDaoAgentMemoryEnabled, false);
   registry->RegisterDictionaryPref(kDaoAgentSettings);
   registry->RegisterIntegerPref(kDaoAgentSettingsMigrationVersion, 0);

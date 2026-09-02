@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,445 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -42,12 +42,19 @@ index 0000000000..0000000001
 +    'disabled'|'ready'|'approval_requested'|'connected';
 +export type DaoMcpSetupOption = 'codex'|'claude-code'|'generic-mcp';
 +
++export interface DaoMcpUsageStats {
++  totalCalls: number;
++  toolCalls: Record<string, number>;
++  lastReset: number;
++}
++
 +export interface DaoMcpStatus {
 +  enabled: boolean;
 +  state: DaoMcpStatusState;
 +  clientName?: string;
 +  clientPid?: number;
 +  canStop: boolean;
++  usageStats?: DaoMcpUsageStats;
 +}
 +
 +export interface DaoMcpBrowserProxy {
@@ -56,6 +63,7 @@ index 0000000000..0000000001
 +  getDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<string>;
 +  copyDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<boolean>;
 +  stopDaoMcpControl(): void;
++  resetDaoMcpUsageStats(): void;
 +}
 +
 +export class DaoMcpBrowserProxyImpl implements DaoMcpBrowserProxy {
@@ -77,6 +85,10 @@ index 0000000000..0000000001
 +
 +  stopDaoMcpControl(): void {
 +    chrome.send('stopDaoMcpControl');
++  }
++
++  resetDaoMcpUsageStats(): void {
++    chrome.send('resetDaoMcpUsageStats');
 +  }
 +
 +  static getInstance(): DaoMcpBrowserProxy {
@@ -187,6 +199,16 @@ index 0000000000..0000000001
 +        value: false,
 +      },
 +
++      daoMcpUsageTotal_: {
++        type: Number,
++        value: 0,
++      },
++
++      daoMcpUsageTools_: {
++        type: Array,
++        value: () => [],
++      },
++
 +      staleTabExpirationHoursInvalid_: {
 +        type: Boolean,
 +        value: false,
@@ -220,6 +242,8 @@ index 0000000000..0000000001
 +  declare private daoMcpSetupContent_: string;
 +  declare private daoMcpSetupCopied_: boolean;
 +  declare private daoMcpGenericSetup_: boolean;
++  declare private daoMcpUsageTotal_: number;
++  declare private daoMcpUsageTools_: Array<{name: string, count: number}>;
 +  private daoMcpSetupContentRequest_ = 0;
 +  private daoMcpCopyRequest_ = 0;
 +  private daoMcpBrowserProxy_: DaoMcpBrowserProxy =
@@ -366,6 +390,10 @@ index 0000000000..0000000001
 +    this.daoMcpBrowserProxy_.stopDaoMcpControl();
 +  }
 +
++  private onDaoMcpResetUsage_() {
++    this.daoMcpBrowserProxy_.resetDaoMcpUsageStats();
++  }
++
 +  private updateDaoMcpStatus_(status: DaoMcpStatus) {
 +    this.daoMcpStatusState_ = status.state;
 +    this.daoMcpEnabledPref_ = {
@@ -382,6 +410,13 @@ index 0000000000..0000000001
 +    };
 +    this.daoMcpStatusText_ =
 +        loadTimeData.getString(statusStringKeys[status.state]);
++    this.daoMcpUsageTotal_ = status.usageStats?.totalCalls ?? 0;
++    this.daoMcpUsageTools_ =
++        Object.entries(status.usageStats?.toolCalls ?? {})
++            .map(([name, count]) => ({name, count}))
++            .sort((left, right) =>
++                right.count - left.count ||
++                left.name.localeCompare(right.name));
 +
 +    this.showDaoMcpQuickSetup_ = status.enabled;
 +    if (status.enabled) {

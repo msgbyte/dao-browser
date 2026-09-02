@@ -1138,6 +1138,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        ToolCallWaitsForApprovalAndUsesExternalLease) {
+  PrefService* profile_prefs = browser()->profile()->GetPrefs();
+  ResetDaoMcpUsageStats(profile_prefs, base::Time::Now());
   FakeApprovalDelegate approval;
   service_->SetApprovalDelegate(&approval);
   EnableService();
@@ -1156,6 +1158,9 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 
   ASSERT_TRUE(base::test::RunUntil(
       [&approval] { return approval.has_pending_request(); }));
+  EXPECT_EQ(0.0, BuildDaoMcpUsageStats(profile_prefs)
+                     .FindDouble("totalCalls")
+                     .value_or(-1.0));
   approval.Resolve(true);
 
   ASSERT_EQ(DaoMcpStatus::kLeaseActive, service_->GetStatus().state);
@@ -1165,6 +1170,48 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(result);
   EXPECT_EQ(true, result->FindBool("ok"));
   EXPECT_FALSE(result->contains("error"));
+
+  const base::DictValue usage = BuildDaoMcpUsageStats(profile_prefs);
+  EXPECT_EQ(1.0, usage.FindDouble("totalCalls").value_or(-1.0));
+  ASSERT_TRUE(usage.FindDict("toolCalls"));
+  EXPECT_EQ(1.0, usage.FindDict("toolCalls")
+                     ->FindDouble("get_page_info")
+                     .value_or(-1.0));
+
+  ASSERT_TRUE(client->Send(
+      ToolCall("call-invalid", "execute_script", base::DictValue())));
+  std::optional<base::DictValue> invalid_response = client->Read();
+  ASSERT_TRUE(invalid_response);
+  const base::DictValue* invalid_result = invalid_response->FindDict("result");
+  ASSERT_TRUE(invalid_result);
+  EXPECT_FALSE(invalid_result->FindBool("ok").value_or(true));
+  EXPECT_EQ(1.0, BuildDaoMcpUsageStats(profile_prefs)
+                     .FindDouble("totalCalls")
+                     .value_or(-1.0));
+
+  ASSERT_TRUE(client->Send(
+      ToolCall("call-failed", "execute_script",
+               base::DictValue().Set("code", "throw new Error('expected')"))));
+  std::optional<base::DictValue> failed_response = client->Read();
+  ASSERT_TRUE(failed_response);
+  const base::DictValue* failed_result = failed_response->FindDict("result");
+  ASSERT_TRUE(failed_result);
+  EXPECT_FALSE(failed_result->FindBool("ok").value_or(true));
+
+  const base::DictValue usage_after_failure =
+      BuildDaoMcpUsageStats(profile_prefs);
+  EXPECT_EQ(2.0,
+            usage_after_failure.FindDouble("totalCalls").value_or(-1.0));
+  ASSERT_TRUE(usage_after_failure.FindDict("toolCalls"));
+  EXPECT_EQ(1.0, usage_after_failure.FindDict("toolCalls")
+                     ->FindDouble("execute_script")
+                     .value_or(-1.0));
+
+  ResetDaoMcpUsageStats(profile_prefs, base::Time::Now());
+  const base::DictValue reset_usage = BuildDaoMcpUsageStats(profile_prefs);
+  EXPECT_EQ(0.0, reset_usage.FindDouble("totalCalls").value_or(-1.0));
+  ASSERT_TRUE(reset_usage.FindDict("toolCalls"));
+  EXPECT_TRUE(reset_usage.FindDict("toolCalls")->empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,

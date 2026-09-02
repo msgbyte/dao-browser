@@ -101,6 +101,7 @@ class TestDaoMcpSettingsHandler : public DaoMcpSettingsHandler {
   using DaoMcpSettingsHandler::HandleGetDaoMcpStatus;
   using DaoMcpSettingsHandler::HandleGetDaoMcpSetupContent;
   using DaoMcpSettingsHandler::HandleCopyDaoMcpSetupContent;
+  using DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats;
   using DaoMcpSettingsHandler::HandleSetDaoMcpEnabled;
   using DaoMcpSettingsHandler::HandleStopDaoMcpControl;
   using DaoMcpSettingsHandler::set_web_ui;
@@ -146,6 +147,9 @@ TEST_F(DaoMcpSettingsHandlerTest, ReportsAllStatesAndOnlyExposesActiveClient) {
   EXPECT_FALSE(disabled.FindBool("enabled").value());
   EXPECT_EQ("disabled", *disabled.FindString("state"));
   EXPECT_FALSE(disabled.FindBool("canStop").value());
+  const base::DictValue* usage = disabled.FindDict("usageStats");
+  ASSERT_TRUE(usage);
+  EXPECT_EQ(0.0, usage->FindDouble("totalCalls").value_or(-1.0));
 
   web_ui()->ClearTrackedCalls();
   service()->SetEnabled(true);

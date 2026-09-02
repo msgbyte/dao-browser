@@ -25,6 +25,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 // The service is disabled by default and remains independent of Dao Agent.
 inline constexpr char kDaoMcpServerEnabled[] = "dao.mcp_server_enabled";
 
+// Profile-scoped MCP tool execution counters, kept separate from Dao Agent.
+inline constexpr char kDaoMcpUsageStats[] = "dao.mcp_usage_stats";
+
 // Boolean pref that controls whether the agent memory system is enabled.
 // When false (the default), the memory service is not created, the proactive
 // engine does not run, and the agent sidebar WebUI is not loaded.

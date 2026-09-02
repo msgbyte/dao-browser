@@ -45,7 +45,8 @@ class DaoBrowserToolExecutor {
   DaoBrowserToolExecutor(const DaoBrowserToolExecutor&) = delete;
   DaoBrowserToolExecutor& operator=(const DaoBrowserToolExecutor&) = delete;
 
-  void Execute(DaoBrowserAutomationSession* session,
+  // Returns true only when the call is accepted for dispatch.
+  bool Execute(DaoBrowserAutomationSession* session,
                DaoToolClient client,
                DaoBrowserToolCall call,
                ResultCallback callback);

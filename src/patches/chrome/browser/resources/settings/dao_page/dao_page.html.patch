@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,637 @@
+@@ -0,0 +1,694 @@
 +<style include="settings-shared">
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
@@ -161,6 +161,33 @@ index 0000000000..0000000001
 +  .dao-mcp-command-feedback {
 +    margin-top: 4px;
 +    min-height: 18px;
++  }
++
++  .dao-mcp-usage-header,
++  .dao-mcp-usage-row {
++    align-items: center;
++    display: flex;
++    gap: 12px;
++    justify-content: space-between;
++  }
++
++  .dao-mcp-usage-total,
++  .dao-mcp-usage-empty,
++  .dao-mcp-usage-row {
++    color: var(--cr-secondary-text-color);
++    font-size: 12px;
++    line-height: 18px;
++  }
++
++  .dao-mcp-usage-list {
++    display: grid;
++    gap: 8px;
++    margin-top: 12px;
++  }
++
++  .dao-mcp-usage-count {
++    color: var(--cr-primary-text-color);
++    font-variant-numeric: tabular-nums;
 +  }
 +
 +  @media (max-width: 520px) {
@@ -517,6 +544,36 @@ index 0000000000..0000000001
 +          </cr-button>
 +        </template>
 +      </div>
++    </div>
++    <div id="daoMcpUsageSection" class="dao-mcp-section">
++      <div class="dao-mcp-usage-header">
++        <div>
++          <div class="dao-mcp-section-title">$i18n{daoMcpUsageTitle}</div>
++          <div id="daoMcpUsageTotal" class="dao-mcp-usage-total">
++            $i18n{daoMcpUsageTotal}: [[daoMcpUsageTotal_]]
++          </div>
++        </div>
++        <cr-button id="daoMcpResetUsage"
++            disabled="[[!daoMcpUsageTotal_]]"
++            on-click="onDaoMcpResetUsage_">
++          $i18n{daoMcpUsageReset}
++        </cr-button>
++      </div>
++      <template is="dom-if" if="[[daoMcpUsageTools_.length]]" restamp>
++        <div id="daoMcpUsageList" class="dao-mcp-usage-list" role="list">
++          <template is="dom-repeat" items="[[daoMcpUsageTools_]]">
++            <div class="dao-mcp-usage-row" role="listitem">
++              <span>[[item.name]]</span>
++              <span class="dao-mcp-usage-count">[[item.count]]</span>
++            </div>
++          </template>
++        </div>
++      </template>
++      <template is="dom-if" if="[[!daoMcpUsageTools_.length]]" restamp>
++        <div id="daoMcpUsageEmpty" class="dao-mcp-usage-empty">
++          $i18n{daoMcpUsageNoCalls}
++        </div>
++      </template>
 +    </div>
 +    <template is="dom-if" if="[[showDaoMcpQuickSetup_]]" restamp>
 +      <div id="daoMcpQuickSetup"

@@ -164,7 +164,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -3836,7 +3836,517 @@
+@@ -3836,7 +3836,529 @@
      <!-- Sync / People Page -->
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
@@ -603,6 +603,18 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_MCP_CONFIGURATION_COPIED" desc="Accessible confirmation shown after copying Dao Browser's generic MCP configuration.">
 +      MCP configuration copied
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_USAGE_TITLE" desc="Heading for MCP tool usage statistics in Dao Browser settings.">
++      Tool usage
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_USAGE_TOTAL" desc="Label for the total number of MCP tool calls.">
++      Total calls
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_USAGE_NO_CALLS" desc="Empty state for MCP tool usage statistics.">
++      No MCP tool calls yet
++    </message>
++    <message name="IDS_SETTINGS_DAO_MCP_USAGE_RESET" desc="Button label that resets MCP tool usage statistics.">
++      Reset usage
 +    </message>
 +    <message name="IDS_SETTINGS_LITTLE_DAO_ENABLED_LABEL" desc="Label for the setting that enables or disables opening external links in Little Dao mini-browser windows.">
 +      Enable Little Dao

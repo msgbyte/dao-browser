@@ -6,6 +6,7 @@
 
 #include <unistd.h>
 
+#include <cmath>
 #include <utility>
 #include <vector>
 
@@ -61,6 +62,46 @@ constexpr size_t kMaxPendingToolCallBytes = kDaoMcpMaxLineBytes;
 constexpr base::TimeDelta kHelloTimeout = base::Seconds(5);
 constexpr base::TimeDelta kApprovalTimeout = base::Minutes(1);
 constexpr base::TimeDelta kLeaseRetryDelay = base::Milliseconds(50);
+constexpr char kUsageTotalCalls[] = "totalCalls";
+constexpr char kUsageToolCalls[] = "toolCalls";
+constexpr char kUsageLastReset[] = "lastReset";
+
+std::optional<double> ReadNonNegativeNumber(const base::Value* value) {
+  if (!value) {
+    return std::nullopt;
+  }
+  const double number = value->is_int()
+                            ? static_cast<double>(value->GetInt())
+                            : (value->is_double() ? value->GetDouble() : -1.0);
+  return number >= 0.0 && std::isfinite(number) ? std::optional(number)
+                                                : std::nullopt;
+}
+
+base::DictValue NewMcpUsageStats(base::Time last_reset) {
+  base::DictValue stats;
+  stats.Set(kUsageTotalCalls, 0.0);
+  stats.Set(kUsageToolCalls, base::DictValue());
+  stats.Set(kUsageLastReset,
+            static_cast<double>(last_reset.InMillisecondsSinceUnixEpoch()));
+  return stats;
+}
+
+void RecordMcpToolUsage(PrefService* prefs, std::string_view tool_name) {
+  if (!prefs || tool_name.empty()) {
+    return;
+  }
+  base::DictValue stats = BuildDaoMcpUsageStats(prefs);
+  const double total = *stats.FindDouble(kUsageTotalCalls) + 1.0;
+  base::DictValue* tool_calls = stats.FindDict(kUsageToolCalls);
+  const double count =
+      ReadNonNegativeNumber(tool_calls->Find(tool_name)).value_or(0.0) + 1.0;
+  if (!std::isfinite(total) || !std::isfinite(count)) {
+    return;
+  }
+  stats.Set(kUsageTotalCalls, total);
+  tool_calls->Set(tool_name, count);
+  prefs->SetDict(prefs::kDaoMcpUsageStats, std::move(stats));
+}
 
 DaoToolError AuthorizationDenied() {
   return MakeDaoToolError(DaoToolErrorCode::kAuthorizationDenied,
@@ -91,6 +132,42 @@ std::string SideEffectName(DaoBrowserToolSideEffect side_effect) {
 }
 
 }  // namespace
+
+base::DictValue BuildDaoMcpUsageStats(PrefService* prefs) {
+  base::DictValue normalized = NewMcpUsageStats(base::Time::Now());
+  if (!prefs) {
+    return normalized;
+  }
+  const base::DictValue& stored = prefs->GetDict(prefs::kDaoMcpUsageStats);
+  const std::optional<double> total =
+      ReadNonNegativeNumber(stored.Find(kUsageTotalCalls));
+  const std::optional<double> last_reset =
+      ReadNonNegativeNumber(stored.Find(kUsageLastReset));
+  const base::DictValue* tool_calls = stored.FindDict(kUsageToolCalls);
+  if (!total || !last_reset || !tool_calls) {
+    return normalized;
+  }
+  base::DictValue normalized_tools;
+  for (const auto [name, value] : *tool_calls) {
+    const std::optional<double> count = ReadNonNegativeNumber(&value);
+    if (count) {
+      normalized_tools.Set(name, *count);
+    }
+  }
+  normalized.Set(kUsageTotalCalls, *total);
+  normalized.Set(kUsageToolCalls, std::move(normalized_tools));
+  normalized.Set(kUsageLastReset, *last_reset);
+  return normalized;
+}
+
+void ResetDaoMcpUsageStats(PrefService* prefs, base::Time last_reset) {
+  if (!prefs || last_reset.is_null() ||
+      last_reset.InMillisecondsSinceUnixEpoch() < 0) {
+    return;
+  }
+  prefs->SetDict(prefs::kDaoMcpUsageStats,
+                 NewMcpUsageStats(last_reset));
+}
 
 struct DaoMcpService::TargetContext {
   TargetContext() = default;
@@ -1596,12 +1673,17 @@ void DaoMcpService::DispatchToolCall(ConnectionState& connection,
         context->second->session->browser_window(), *target);
     DaoBrowserAutomationSession* session_ptr = session.get();
     connection.tab_tool_sessions.emplace(request_id, std::move(session));
-    connection.tab_tool_executor->Execute(
-        session_ptr, DaoToolClient::kMcp, std::move(pending.call),
-        base::BindOnce(&DaoMcpService::OnToolCallComplete,
-                       weak_factory_.GetWeakPtr(), connection.generation,
-                       request_id,
-                       allow_uncommitted_url));
+    Profile* profile = context->second->session->profile();
+    PrefService* prefs =
+        profile ? profile->GetOriginalProfile()->GetPrefs() : nullptr;
+    const std::string tool_name = pending.call.name;
+    if (connection.tab_tool_executor->Execute(
+            session_ptr, DaoToolClient::kMcp, std::move(pending.call),
+            base::BindOnce(&DaoMcpService::OnToolCallComplete,
+                           weak_factory_.GetWeakPtr(), connection.generation,
+                           request_id, allow_uncommitted_url))) {
+      RecordMcpToolUsage(prefs, tool_name);
+    }
     return;
   }
 
@@ -1614,12 +1696,18 @@ void DaoMcpService::DispatchToolCall(ConnectionState& connection,
             "The requested MCP browser target is no longer available.")));
     return;
   }
-  context->second->tool_executor->Execute(
-      context->second->session.get(), DaoToolClient::kMcp,
-      std::move(pending.call),
-      base::BindOnce(&DaoMcpService::OnToolCallComplete,
-                     weak_factory_.GetWeakPtr(), connection.generation,
-                     request_id, false));
+  Profile* profile = context->second->session->profile();
+  PrefService* prefs =
+      profile ? profile->GetOriginalProfile()->GetPrefs() : nullptr;
+  const std::string tool_name = pending.call.name;
+  if (context->second->tool_executor->Execute(
+          context->second->session.get(), DaoToolClient::kMcp,
+          std::move(pending.call),
+          base::BindOnce(&DaoMcpService::OnToolCallComplete,
+                         weak_factory_.GetWeakPtr(), connection.generation,
+                         request_id, false))) {
+    RecordMcpToolUsage(prefs, tool_name);
+  }
 }
 
 void DaoMcpService::OnToolCallComplete(uint64_t connection_generation,

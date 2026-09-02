@@ -20,8 +20,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "dao/browser/dao_pref_names.h"
 #include "ui/base/clipboard/clipboard.h"
@@ -160,15 +162,28 @@ void DaoMcpSettingsHandler::RegisterMessages() {
       "stopDaoMcpControl",
       base::BindRepeating(&DaoMcpSettingsHandler::HandleStopDaoMcpControl,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "resetDaoMcpUsageStats",
+      base::BindRepeating(
+          &DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats,
+          base::Unretained(this)));
 }
 
 void DaoMcpSettingsHandler::OnJavascriptAllowed() {
   status_subscription_ = service_->AddObserver(base::BindRepeating(
       &DaoMcpSettingsHandler::OnStatusChanged, base::Unretained(this)));
+  if (PrefService* prefs = GetPrefs()) {
+    pref_change_registrar_.Init(prefs);
+    pref_change_registrar_.Add(
+        prefs::kDaoMcpUsageStats,
+        base::BindRepeating(&DaoMcpSettingsHandler::OnUsageStatsChanged,
+                            base::Unretained(this)));
+  }
 }
 
 void DaoMcpSettingsHandler::OnJavascriptDisallowed() {
   status_subscription_ = {};
+  pref_change_registrar_.Reset();
 }
 
 void DaoMcpSettingsHandler::HandleGetDaoMcpStatus(
@@ -215,6 +230,21 @@ void DaoMcpSettingsHandler::HandleStopDaoMcpControl(
   service_->StopControl();
 }
 
+void DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats(
+    const base::ListValue& args) {
+  CHECK(args.empty());
+  ResetDaoMcpUsageStats(GetPrefs(), base::Time::Now());
+}
+
+PrefService* DaoMcpSettingsHandler::GetPrefs() {
+  content::WebContents* web_contents = web_ui()->GetWebContents();
+  Profile* profile =
+      web_contents
+          ? Profile::FromBrowserContext(web_contents->GetBrowserContext())
+          : nullptr;
+  return profile ? profile->GetOriginalProfile()->GetPrefs() : nullptr;
+}
+
 std::optional<std::string> DaoMcpSettingsHandler::GetSetupContent(
     std::string_view option_id) const {
   if (option_id == "generic-mcp") {
@@ -235,7 +265,7 @@ std::optional<std::string> DaoMcpSettingsHandler::GetSetupContent(
                                              option_id);
 }
 
-base::DictValue DaoMcpSettingsHandler::CreateStatusValue() const {
+base::DictValue DaoMcpSettingsHandler::CreateStatusValue() {
   const DaoMcpServiceStatus status = service_->GetStatus();
   base::DictValue result;
   result.Set("enabled", service_->IsEnabled());
@@ -243,6 +273,7 @@ base::DictValue DaoMcpSettingsHandler::CreateStatusValue() const {
 
   const bool can_stop = status.state == DaoMcpStatus::kLeaseActive;
   result.Set("canStop", can_stop);
+  result.Set("usageStats", BuildDaoMcpUsageStats(GetPrefs()));
   if (can_stop && status.client) {
     result.Set("clientName", SanitizeClientName(status.client->name));
     if (status.client->verified_pid) {
@@ -255,6 +286,12 @@ base::DictValue DaoMcpSettingsHandler::CreateStatusValue() const {
 
 void DaoMcpSettingsHandler::OnStatusChanged(const DaoMcpServiceStatus&) {
   FireWebUIListener(kStatusChangedEvent, CreateStatusValue());
+}
+
+void DaoMcpSettingsHandler::OnUsageStatsChanged() {
+  if (IsJavascriptAllowed()) {
+    FireWebUIListener(kStatusChangedEvent, CreateStatusValue());
+  }
 }
 
 }  // namespace dao

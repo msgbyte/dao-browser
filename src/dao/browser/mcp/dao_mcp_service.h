@@ -27,6 +27,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
+#include "base/values.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "dao/browser/automation/dao_agent_lease_manager.h"
 #include "dao/browser/automation/dao_browser_tool_catalog.h"
@@ -91,6 +92,8 @@ class DaoMcpApprovalDelegate {
 
 std::string BuildDaoMcpConfigurationForBundle(
     const base::FilePath& bundle_path);
+base::DictValue BuildDaoMcpUsageStats(PrefService* prefs);
+void ResetDaoMcpUsageStats(PrefService* prefs, base::Time last_reset);
 
 class DaoMcpService {
  public:
