@@ -95,7 +95,7 @@ constexpr char kHighlightInjectScript[] = R"js(
 // assigns stable-for-the-current-snapshot data-dao-ref attributes and returns a
 // compact textual tree rather than the very large raw CDP AX payload.
 constexpr char kAccessibilityTreeScript[] = R"js(
-(function(filterMode) {
+(function(filterMode, query, snapshotId) {
   var MAX_DEPTH = 15;
   var MAX_CHARS = 50000;
   var refCounter = 0;
@@ -103,11 +103,20 @@ constexpr char kAccessibilityTreeScript[] = R"js(
   var charCount = 0;
   var truncated = false;
 
+  if (query && query.scope && query.scope.ref_id &&
+      document.documentElement.getAttribute('data-dao-snapshot') !==
+          query.scope.snapshot_id) {
+    return JSON.stringify({error: 'The scope ref snapshot is stale.'});
+  }
+
   // Clear old refs.
   var oldRefs = document.querySelectorAll('[data-dao-ref]');
+  var oldRefMap = new Map();
   for (var i = 0; i < oldRefs.length; i++) {
+    oldRefMap.set(oldRefs[i].getAttribute('data-dao-ref'), oldRefs[i]);
     oldRefs[i].removeAttribute('data-dao-ref');
   }
+  document.documentElement.setAttribute('data-dao-snapshot', snapshotId);
 
   var SKIP_TAGS = {
     SCRIPT:1, STYLE:1, NOSCRIPT:1, TEMPLATE:1, IFRAME:1,
@@ -183,6 +192,82 @@ constexpr char kAccessibilityTreeScript[] = R"js(
     if (name.length > 80) name = name.substring(0, 77) + '...';
     name = name.replace(/[\n\r\t]+/g, ' ').trim();
     return name;
+  }
+
+  function isEnabled(el) {
+    return !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+  }
+
+  if (query) {
+    var scope = query.scope || {};
+    var scopeCandidates = [];
+    try {
+      if (scope.selector) {
+        scopeCandidates = Array.from(document.querySelectorAll(scope.selector));
+      } else if (scope.ref_id) {
+        var scopeByRef = oldRefMap.get(scope.ref_id);
+        scopeCandidates = scopeByRef ? [scopeByRef] : [];
+      } else if (scope.role || scope.name) {
+        scopeCandidates = Array.from(document.querySelectorAll('*')).filter(function(el) {
+          return (!scope.role || getRole(el) === scope.role) &&
+                 (!scope.name || getName(el) === scope.name);
+        });
+      } else {
+        scopeCandidates = [document.body || document.documentElement];
+      }
+    } catch (error) {
+      return JSON.stringify({error: 'Invalid scope selector.'});
+    }
+
+    var scopeIndex = scope.index;
+    if (scope.nth === 'last') scopeIndex = scopeCandidates.length - 1;
+    if (scope.nth === 'first') scopeIndex = 0;
+    if (scopeIndex === undefined && scopeCandidates.length > 1) {
+      return JSON.stringify({error: 'Scope matched multiple elements; use nth or index.'});
+    }
+    var root = scopeCandidates[scopeIndex === undefined ? 0 : scopeIndex];
+    if (!root) return JSON.stringify({error: 'Scope element was not found.'});
+    var scopeRefId = 'ref_' + (++refCounter);
+    root.setAttribute('data-dao-ref', scopeRefId);
+
+    var candidates = [root].concat(Array.from(root.querySelectorAll('*')));
+    var textMode = query.text_match || 'exact';
+    var matches = candidates.filter(function(el) {
+      var text = (el.textContent || '').replace(/[\n\r\t]+/g, ' ').trim();
+      if (query.role && getRole(el) !== query.role) return false;
+      if (query.name && getName(el) !== query.name) return false;
+      if (query.text !== undefined &&
+          (textMode === 'contains' ? !text.includes(query.text) : text !== query.text)) {
+        return false;
+      }
+      if (query.visible !== undefined && isVisible(el) !== query.visible) return false;
+      if (query.enabled !== undefined && isEnabled(el) !== query.enabled) return false;
+      return true;
+    });
+    if (query.require_count !== undefined && matches.length !== query.require_count) {
+      return JSON.stringify({
+        error: 'Expected ' + query.require_count + ' matches but found ' + matches.length + '.'
+      });
+    }
+
+    var maxResults = query.max_results === undefined ? 20 : query.max_results;
+    var result = matches.slice(0, maxResults).map(function(el) {
+      var refId = el.getAttribute('data-dao-ref') || 'ref_' + (++refCounter);
+      el.setAttribute('data-dao-ref', refId);
+      return {
+        ref_id: refId,
+        role: getRole(el),
+        name: getName(el),
+        text: (el.textContent || '').replace(/[\n\r\t]+/g, ' ').trim().substring(0, 500),
+        visible: isVisible(el),
+        enabled: isEnabled(el)
+      };
+    });
+    return JSON.stringify({
+      matches: result,
+      count: matches.length,
+      scope_ref_id: scopeRefId
+    });
   }
 
   function getExtras(el) {
@@ -587,6 +672,8 @@ struct DaoPageTools::Operation : public content::WebContentsObserver {
   base::DictValue arguments;
   ResultCallback callback;
   std::set<int> command_ids;
+  std::string document_id;
+  std::string snapshot_id;
   int pending_background_click_commands = 0;
   bool owns_lock = false;
   bool temporary_highlight = false;
@@ -654,12 +741,13 @@ void DaoPageTools::TrackCursorForTesting(content::WebContents* target) {
 }
 
 bool DaoPageTools::Handles(std::string_view name) {
-  constexpr std::array<std::string_view, 15> kNames = {
-      "get_page_info",      "get_page_html", "get_accessibility_tree",
-      "capture_screenshot", "click_element", "agent_click",
-      "click_by_ref",       "move_cursor",   "highlight_element",
-      "scroll_down",        "scroll_up",     "scroll_to_element",
-      "press_key_chord",    "type_text",     "execute_script",
+  constexpr std::array<std::string_view, 16> kNames = {
+      "get_page_info",     "get_page_html",      "get_accessibility_tree",
+      "query_elements",    "capture_screenshot", "click_element",
+      "agent_click",       "click_by_ref",       "move_cursor",
+      "highlight_element", "scroll_down",        "scroll_up",
+      "scroll_to_element", "press_key_chord",    "type_text",
+      "execute_script",
   };
   return std::ranges::find(kNames, name) != kNames.end();
 }
@@ -753,6 +841,8 @@ void DaoPageTools::Execute(std::string request_id,
     ExecuteGetPageHtml(request_id);
   } else if (name == "get_accessibility_tree") {
     ExecuteAccessibilityTree(request_id);
+  } else if (name == "query_elements") {
+    ExecuteQueryElements(request_id);
   } else if (name == "capture_screenshot") {
     ExecuteCaptureScreenshot(request_id);
   } else if (name == "click_element") {
@@ -766,14 +856,7 @@ void DaoPageTools::Execute(std::string request_id,
     }
     ExecuteAnimatedClick(request_id, *selector);
   } else if (name == "click_by_ref") {
-    Operation* op = FindOperation(request_id);
-    const std::string* ref_id = op->arguments.FindString("ref_id");
-    if (!ref_id || ref_id->empty()) {
-      FinishError(request_id, InvalidArgument("ref_id must not be empty."));
-      return;
-    }
-    ExecuteAnimatedClick(request_id,
-                         "[data-dao-ref=" + QuoteForJavaScript(*ref_id) + "]");
+    ExecuteClickByRef(request_id);
   } else if (name == "move_cursor") {
     ExecuteMoveCursor(request_id);
   } else if (name == "highlight_element") {
@@ -1238,13 +1321,66 @@ void DaoPageTools::ExecuteGetPageHtml(std::string_view request_id) {
 }
 
 void DaoPageTools::ExecuteAccessibilityTree(std::string_view request_id) {
+  ExecuteAccessibilitySnapshot(request_id, false);
+}
+
+void DaoPageTools::ExecuteQueryElements(std::string_view request_id) {
+  ExecuteAccessibilitySnapshot(request_id, true);
+}
+
+void DaoPageTools::ExecuteAccessibilitySnapshot(std::string_view request_id,
+                                                bool query) {
   Operation* operation = FindOperation(request_id);
+  if (!operation) {
+    return;
+  }
   const std::string filter = operation->arguments.FindString("filter")
                                  ? *operation->arguments.FindString("filter")
                                  : "interactive";
+  if (query) {
+    const std::optional<int> max_results =
+        operation->arguments.FindInt("max_results");
+    const std::optional<int> require_count =
+        operation->arguments.FindInt("require_count");
+    if ((max_results && (*max_results < 1 || *max_results > 100)) ||
+        (require_count && *require_count < 0)) {
+      FinishError(request_id,
+                  InvalidArgument("Invalid query result count constraint."));
+      return;
+    }
+    if (const base::DictValue* scope = operation->arguments.FindDict("scope")) {
+      if (const std::string* ref_id = scope->FindString("ref_id")) {
+        const std::string* document_id = scope->FindString("document_id");
+        const std::string* snapshot_id = scope->FindString("snapshot_id");
+        const std::string expected_document_id =
+            "document-" +
+            base::NumberToString(operation->document_sequence_number);
+        if (ref_id->empty() || !document_id ||
+            *document_id != expected_document_id || !snapshot_id ||
+            snapshot_id->empty()) {
+          FinishError(request_id,
+                      InvalidArgument(
+                          "A current ref_id, document_id, and snapshot_id are "
+                          "required for ref scope."));
+          return;
+        }
+      }
+    }
+  }
+  operation->snapshot_id =
+      "snapshot-" + base::Uuid::GenerateRandomV4().AsLowercaseString();
+  operation->document_id =
+      "document-" + base::NumberToString(operation->document_sequence_number);
+  std::string query_json = "null";
+  if (query) {
+    base::JSONWriter::Write(base::Value(operation->arguments.Clone()),
+                            &query_json);
+  }
   base::DictValue params;
-  params.Set("expression", std::string(kAccessibilityTreeScript) + "(" +
-                               QuoteForJavaScript(filter) + ")");
+  params.Set("expression",
+             std::string(kAccessibilityTreeScript) + "(" +
+                 QuoteForJavaScript(filter) + "," + query_json + "," +
+                 QuoteForJavaScript(operation->snapshot_id) + ")");
   params.Set("returnByValue", true);
   SendCommand(
       request_id, "Runtime.evaluate", std::move(params),
@@ -1268,6 +1404,17 @@ void DaoPageTools::ExecuteAccessibilityTree(std::string_view request_id) {
             std::optional<base::Value> parsed =
                 base::JSONReader::Read(*value, base::JSON_PARSE_RFC);
             if (parsed && parsed->is_dict()) {
+              if (const std::string* error =
+                      parsed->GetDict().FindString("error")) {
+                self->FinishError(request_id, InvalidArgument(*error));
+                return;
+              }
+              Operation* operation = self->FindOperation(request_id);
+              if (!operation) {
+                return;
+              }
+              parsed->GetDict().Set("document_id", operation->document_id);
+              parsed->GetDict().Set("snapshot_id", operation->snapshot_id);
               self->FinishSuccess(request_id, std::move(*parsed));
               return;
             }
@@ -1275,6 +1422,131 @@ void DaoPageTools::ExecuteAccessibilityTree(std::string_view request_id) {
                                                 "tree", std::move(*value))));
           },
           weak_factory_.GetWeakPtr(), std::string(request_id)));
+}
+
+void DaoPageTools::ExecuteClickByRef(std::string_view request_id) {
+  Operation* operation = FindOperation(request_id);
+  if (!operation) {
+    return;
+  }
+  const std::string* ref_id = operation->arguments.FindString("ref_id");
+  const std::string* document_id =
+      operation->arguments.FindString("document_id");
+  const std::string* snapshot_id =
+      operation->arguments.FindString("snapshot_id");
+  const std::string expected_document_id =
+      "document-" + base::NumberToString(operation->document_sequence_number);
+  if (!ref_id || ref_id->empty() || !document_id ||
+      *document_id != expected_document_id || !snapshot_id ||
+      snapshot_id->empty()) {
+    FinishError(
+        request_id,
+        InvalidArgument(
+            "A current ref_id, document_id, and snapshot_id are required."));
+    return;
+  }
+  std::string preconditions_json = "{}";
+  if (const base::DictValue* preconditions =
+          operation->arguments.FindDict("preconditions")) {
+    base::JSONWriter::Write(base::Value(preconditions->Clone()),
+                            &preconditions_json);
+  }
+  const std::string script = R"js(
+(function(refId, snapshotId, preconditions) {
+  function fail(message) { return JSON.stringify({error: message}); }
+  function visible(el) {
+    if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
+    var style = getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  }
+  function role(el) {
+    var explicit = el.getAttribute('role');
+    if (explicit) return explicit;
+    var tag = el.tagName.toLowerCase();
+    if (tag === 'a') return 'link';
+    if (tag === 'button') return 'button';
+    if (tag === 'select') return 'combobox';
+    if (tag === 'textarea') return 'textbox';
+    if (tag === 'input') {
+      var type = (el.type || 'text').toLowerCase();
+      if (type === 'checkbox' || type === 'radio' || type === 'range') {
+        return type === 'range' ? 'slider' : type;
+      }
+      if (type === 'submit' || type === 'button' || type === 'reset') return 'button';
+      return 'textbox';
+    }
+    return 'generic';
+  }
+  if (document.documentElement.getAttribute('data-dao-snapshot') !== snapshotId) {
+    return fail('The page snapshot is stale.');
+  }
+  var el = Array.from(document.querySelectorAll('[data-dao-ref]')).find(function(candidate) {
+    return candidate.getAttribute('data-dao-ref') === refId;
+  });
+  if (!el) return fail('The referenced element was not found.');
+  if (preconditions.url !== undefined && location.href !== preconditions.url) {
+    return fail('The URL precondition failed.');
+  }
+  if (preconditions.visible !== undefined && visible(el) !== preconditions.visible) {
+    return fail('The visibility precondition failed.');
+  }
+  var enabled = !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+  if (preconditions.enabled !== undefined && enabled !== preconditions.enabled) {
+    return fail('The enabled precondition failed.');
+  }
+  if (preconditions.text !== undefined &&
+      (el.textContent || '').trim() !== preconditions.text) {
+    return fail('The text precondition failed.');
+  }
+  if (preconditions.role !== undefined && role(el) !== preconditions.role) {
+    return fail('The role precondition failed.');
+  }
+  if (preconditions.ancestor_ref !== undefined) {
+    var ancestor = el.parentElement;
+    while (ancestor && ancestor.getAttribute('data-dao-ref') !== preconditions.ancestor_ref) {
+      ancestor = ancestor.parentElement;
+    }
+    if (!ancestor) return fail('The ancestor precondition failed.');
+  }
+  el.click();
+  return JSON.stringify({clicked: true, ref_id: refId});
+})
+)js" + std::string("(") + QuoteForJavaScript(*ref_id) +
+                             "," + QuoteForJavaScript(*snapshot_id) + "," +
+                             preconditions_json + ")";
+  base::DictValue params;
+  params.Set("expression", script);
+  params.Set("returnByValue", true);
+  SendCommand(request_id, "Runtime.evaluate", std::move(params),
+              base::BindOnce(
+                  [](base::WeakPtr<DaoPageTools> self, std::string request_id,
+                     DaoDevToolsClient::CommandResult result) {
+                    if (!self) {
+                      return;
+                    }
+                    if (!result.has_value()) {
+                      self->FinishError(request_id, std::move(result).error());
+                      return;
+                    }
+                    std::optional<std::string> json = RemoteString(result);
+                    std::optional<base::Value> parsed =
+                        json ? base::JSONReader::Read(*json,
+                                                      base::JSON_PARSE_RFC)
+                             : std::nullopt;
+                    if (!parsed || !parsed->is_dict()) {
+                      self->FinishError(
+                          request_id,
+                          InternalError("Guarded click evaluation failed."));
+                      return;
+                    }
+                    if (const std::string* error =
+                            parsed->GetDict().FindString("error")) {
+                      self->FinishError(request_id, InvalidArgument(*error));
+                      return;
+                    }
+                    self->FinishSuccess(request_id, std::move(*parsed));
+                  },
+                  weak_factory_.GetWeakPtr(), std::string(request_id)));
 }
 
 void DaoPageTools::ExecuteCaptureScreenshot(std::string_view request_id) {

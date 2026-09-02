@@ -57,7 +57,7 @@
     },
     {
       "name": "get_accessibility_tree",
-      "description": "Get a semantic accessibility tree of the current page. Returns element hierarchy with roles, names, and ref_ids for interactive elements. Use this before interacting with page elements, then use ref_ids with click_by_ref for precise interaction.",
+      "description": "Get a semantic accessibility tree of the current page. Use this before interacting with page elements. Pass the returned document_id, snapshot_id, and ref_id to click_by_ref for a guarded interaction.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -71,6 +71,66 @@
           "filter": {
             "type": "string",
             "description": "Filter mode: \"interactive\" (only clickable/input elements, default), \"visible\" (viewport only), \"all\" (full page)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "query_elements",
+      "description": "Query a compact set of page elements by scope and semantic filters. Returns document_id, snapshot_id, and stable ref_ids for guarded click_by_ref calls. A scope ref_id must include the document_id and snapshot_id returned with that ref.",
+      "group": "page",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "read",
+      "timeoutMs": 5000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "object",
+            "description": "Optional search root selected by CSS selector, prior ref_id, or semantic role/name; use nth or index to disambiguate. A ref_id scope also requires its source document_id and snapshot_id.",
+            "properties": {
+              "selector": { "type": "string" },
+              "ref_id": { "type": "string" },
+              "document_id": {
+                "type": "string",
+                "description": "The document_id returned with the scope ref_id."
+              },
+              "snapshot_id": {
+                "type": "string",
+                "description": "The snapshot_id returned with the scope ref_id."
+              },
+              "role": { "type": "string" },
+              "name": { "type": "string" },
+              "nth": { "type": "string", "enum": ["first", "last"] },
+              "index": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false,
+            "required": []
+          },
+          "role": { "type": "string" },
+          "name": { "type": "string" },
+          "text": { "type": "string" },
+          "text_match": {
+            "type": "string",
+            "enum": ["exact", "contains"],
+            "description": "Text matching mode; defaults to exact."
+          },
+          "visible": { "type": "boolean" },
+          "enabled": { "type": "boolean" },
+          "max_results": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Maximum matches to return; defaults to 20 and is capped at 100."
+          },
+          "require_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Fail unless the total match count equals this value."
           }
         },
         "required": []
@@ -93,7 +153,7 @@
             "description": "The context_id from an <element-context> block."
           },
           "index": {
-            "type": "number",
+            "type": "integer",
             "description": "Zero-based index from the resolver error contexts list."
           },
           "label": {
@@ -172,7 +232,7 @@
     },
     {
       "name": "click_by_ref",
-      "description": "Click an interactive element by its ref_id from the accessibility tree. More reliable than CSS selectors.",
+      "description": "Atomically validate and click an element by ref_id. The required document and snapshot ids prevent stale-page clicks; optional preconditions guard semantic context.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -187,13 +247,36 @@
             "type": "string",
             "description": "The ref_id from the accessibility tree (e.g. \"ref_3\")"
           },
+          "document_id": {
+            "type": "string",
+            "description": "The document_id returned with the ref_id."
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "The snapshot_id returned with the ref_id."
+          },
           "description": {
             "type": "string",
             "description": "Human-readable description of the click action"
+          },
+          "preconditions": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "visible": { "type": "boolean" },
+              "enabled": { "type": "boolean" },
+              "text": { "type": "string" },
+              "role": { "type": "string" },
+              "ancestor_ref": { "type": "string" }
+            },
+            "additionalProperties": false,
+            "required": []
           }
         },
         "required": [
-          "ref_id"
+          "ref_id",
+          "document_id",
+          "snapshot_id"
         ]
       }
     },
@@ -481,7 +564,7 @@
     },
     {
       "name": "enable_network_tracking",
-      "description": "Start capturing network requests on the current tab. Call before browsing to monitor API calls and resource loads.",
+      "description": "Start capturing network requests on the current tab and return the current cursor for later wait_for_network_response calls.",
       "group": "devtools",
       "clients": [
         "dao_agent",
@@ -497,7 +580,7 @@
     },
     {
       "name": "get_network_requests",
-      "description": "Get the bounded recent network request buffer (URLs, methods, status codes) plus stored_bytes, dropped_count, and truncated_field_count metadata. Must call enable_network_tracking first.",
+      "description": "Get the bounded recent network request buffer (URLs, methods, status codes) plus next_cursor, stored_bytes, dropped_count, and truncated_field_count metadata. Must call enable_network_tracking first.",
       "group": "devtools",
       "clients": [
         "dao_agent",
@@ -509,6 +592,56 @@
         "type": "object",
         "properties": {},
         "required": []
+      }
+    },
+    {
+      "name": "wait_for_network_response",
+      "description": "Wait for a completed response after a cursor, match URL/method/status and an optional JSON value, then return only selected JSON paths.",
+      "group": "devtools",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "read",
+      "timeoutMs": 185000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Cursor returned by enable_network_tracking or a previous network result; defaults to 0."
+          },
+          "url_pattern": {
+            "type": "string",
+            "description": "URL pattern with optional * wildcards."
+          },
+          "method": { "type": "string" },
+          "status": { "type": "integer" },
+          "json_path": {
+            "type": "string",
+            "description": "Simple JSON path such as $.status."
+          },
+          "any_of": {
+            "type": "array",
+            "description": "Accepted values at json_path.",
+            "items": { "type": "string" }
+          },
+          "select": {
+            "type": "array",
+            "description": "Simple JSON paths to return instead of the full body.",
+            "items": { "type": "string" }
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 180000,
+            "description": "Wait timeout in milliseconds; defaults to 30000 and is capped at 180000."
+          }
+        },
+        "required": [
+          "url_pattern"
+        ]
       }
     },
     {

@@ -465,6 +465,10 @@ void DaoAgentUIHandler::RegisterMessages() {
       base::BindRepeating(&DaoAgentUIHandler::HandleGetAccessibilityTree,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "queryElements",
+      base::BindRepeating(&DaoAgentUIHandler::HandleQueryElements,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "clickByRef", base::BindRepeating(&DaoAgentUIHandler::HandleClickByRef,
                                         base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
@@ -508,6 +512,10 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "getNetworkRequests",
       base::BindRepeating(&DaoAgentUIHandler::HandleGetNetworkRequests,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "waitForNetworkResponse",
+      base::BindRepeating(&DaoAgentUIHandler::HandleWaitForNetworkResponse,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "clearNetworkRequests",
@@ -1552,6 +1560,16 @@ void DaoAgentUIHandler::HandleGetAccessibilityTree(
       args[1].is_dict() ? args[1].GetDict().Clone() : base::DictValue());
 }
 
+void DaoAgentUIHandler::HandleQueryElements(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  ExecutePageTool(
+      args[0].GetString(), "query_elements",
+      args[1].is_dict() ? args[1].GetDict().Clone() : base::DictValue());
+}
+
 void DaoAgentUIHandler::HandleClickByRef(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 2 || !args[0].is_string()) {
@@ -1710,6 +1728,17 @@ void DaoAgentUIHandler::HandleGetNetworkRequests(const base::ListValue& args) {
   ExecutePageTool(args[0].GetString(), "get_network_requests",
 
                   base::DictValue());
+}
+
+void DaoAgentUIHandler::HandleWaitForNetworkResponse(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  ExecutePageTool(
+      args[0].GetString(), "wait_for_network_response",
+      args[1].is_dict() ? args[1].GetDict().Clone() : base::DictValue());
 }
 
 void DaoAgentUIHandler::HandleClearNetworkRequests(

@@ -531,8 +531,8 @@ TEST_F(DaoMcpHelperBrowserTest,
       "across follow-up requests unless the user explicitly asks to switch "
       "browser tabs. Treat ambiguous requests such as open, click, or select "
       "X as page-local: inspect the current target with "
-      "get_accessibility_tree and use click_by_ref. Use switch_tab only for "
-      "explicit browser-tab navigation.",
+      "query_elements, then pass its document_id, snapshot_id, and ref_id to "
+      "click_by_ref. Use switch_tab only for explicit browser-tab navigation.",
       *instructions);
   const base::DictValue* server_info = result->FindDict("serverInfo");
   ASSERT_TRUE(server_info);
@@ -658,7 +658,7 @@ TEST_F(DaoMcpHelperBrowserTest, AdaptsToolCatalogAnnotationsAndPrivateFields) {
                                           .Set("status", "pending_approval"))));
 
   base::ListValue tools;
-  for (int index = 0; index < 29; ++index) {
+  for (int index = 0; index < 31; ++index) {
     const std::string side_effect = index == 1   ? "interaction"
                                     : index == 2 ? "destructive"
                                                  : "read";
@@ -681,7 +681,7 @@ TEST_F(DaoMcpHelperBrowserTest, AdaptsToolCatalogAnnotationsAndPrivateFields) {
   const base::ListValue* adapted =
       response->FindDict("result")->FindList("tools");
   ASSERT_TRUE(adapted);
-  ASSERT_EQ(29u, adapted->size());
+  ASSERT_EQ(31u, adapted->size());
   for (const base::Value& value : *adapted) {
     const base::DictValue& tool = value.GetDict();
     EXPECT_EQ(

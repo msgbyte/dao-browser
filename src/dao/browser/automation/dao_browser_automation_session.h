@@ -50,6 +50,7 @@ class DaoBrowserAutomationSession {
     DevToolsState& operator=(const DevToolsState&) = delete;
 
     bool network_tracking_enabled = false;
+    uint64_t network_cursor = 0;
     bool network_tracking_requested = false;
     uint64_t network_enable_attempt_epoch = 0;
     std::set<uint64_t> network_pending_enable_attempts;

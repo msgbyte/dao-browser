@@ -26,6 +26,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       'get_page_info',
       'get_page_html',
       'get_accessibility_tree',
+      'query_elements',
       'resolve_element_context',
       'capture_screenshot',
       'click_element',
@@ -52,6 +53,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     toolNames: [
       'enable_network_tracking',
       'get_network_requests',
+      'wait_for_network_response',
       'clear_network_requests',
       'get_network_body',
       'enable_console_tracking',

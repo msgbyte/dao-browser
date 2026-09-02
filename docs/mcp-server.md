@@ -81,16 +81,17 @@ action.
 
 ## Tool scope
 
-MCP exposes 29 native browser tools from the same versioned catalog used by Dao
+MCP exposes 31 native browser tools from the same versioned catalog used by Dao
 Agent:
 
-- page information, HTML, accessibility, screenshots, script execution, input,
-  scrolling, highlighting, and cursor interaction;
+- page information, HTML, accessibility, scoped semantic queries, screenshots,
+  guarded clicks, script execution, input, scrolling, highlighting, and cursor
+  interaction;
 - window-scoped tab listing, switching, opening, and closing;
-- network and console capture;
+- network and console capture, including cursor-based response waits;
 - page-resource listing, reading, and search.
 
-`resolve_element_context` is the thirtieth native Dao Agent browser tool and is
+`resolve_element_context` is an additional native Dao Agent browser tool and is
 not exposed to MCP. Agent memory, skills, workspace, and web-provider tools are
 also outside the MCP browser catalog.
 

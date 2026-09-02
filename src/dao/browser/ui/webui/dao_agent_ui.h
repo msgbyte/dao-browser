@@ -174,6 +174,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void HandleHighlightElement(const base::ListValue& args);
   void HandleClearHighlight(const base::ListValue& args);
   void HandleGetAccessibilityTree(const base::ListValue& args);
+  void HandleQueryElements(const base::ListValue& args);
   void HandleClickByRef(const base::ListValue& args);
   void HandleCaptureScreenshot(const base::ListValue& args);
   void HandleScrollPage(const base::ListValue& args);
@@ -193,6 +194,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   // Network/console debugging handlers.
   void HandleEnableNetworkTracking(const base::ListValue& args);
   void HandleGetNetworkRequests(const base::ListValue& args);
+  void HandleWaitForNetworkResponse(const base::ListValue& args);
   void HandleClearNetworkRequests(const base::ListValue& args);
   void HandleEnableConsoleTracking(const base::ListValue& args);
   void HandleGetConsoleMessages(const base::ListValue& args);

@@ -289,4 +289,65 @@ describe('callNative', () => {
       truncated: false,
     });
   });
+
+  it('forwards the safe page and network workflow unchanged', async () => {
+    const send = vi.fn();
+    vi.stubGlobal('chrome', {send});
+    const queryArgs = {
+      scope: {selector: '[aria-label="Story panel"]', nth: 'last'},
+      role: 'button',
+      text: 'Generate',
+      text_match: 'exact',
+      visible: true,
+      enabled: true,
+      require_count: 1,
+    };
+    const queryPromise = executeTool('query_elements', queryArgs);
+    const [queryMethod, queryCallArgs] = send.mock.calls[0] as
+        [string, unknown[]];
+    const [queryCallbackId, queryParams] = queryCallArgs as
+        [string, Record<string, unknown>];
+    expect(queryMethod).toBe('queryElements');
+    expect(queryParams).toEqual(queryArgs);
+    cr.webUIResponse(queryCallbackId, true, {
+      document_id: 'doc-1', snapshot_id: 'snap-1', matches: [{ref_id: 'ref-1'}],
+    });
+    await queryPromise;
+
+    const clickArgs = {
+      ref_id: 'ref-1',
+      document_id: 'doc-1',
+      snapshot_id: 'snap-1',
+      preconditions: {text: 'Generate', enabled: true},
+    };
+    const clickPromise = executeTool('click_by_ref', clickArgs);
+    const [clickMethod, clickCallArgs] = send.mock.calls[1] as
+        [string, unknown[]];
+    const [clickCallbackId, clickParams] = clickCallArgs as
+        [string, Record<string, unknown>];
+    expect(clickMethod).toBe('clickByRef');
+    expect(clickParams).toEqual(clickArgs);
+    cr.webUIResponse(clickCallbackId, true, {success: true});
+    await clickPromise;
+
+    const waitArgs = {
+      cursor: 7,
+      url_pattern: '*/api/job?id=*',
+      json_path: '$.status',
+      any_of: ['done', 'failed'],
+      select: ['$.status'],
+      timeout_ms: 180000,
+    };
+    const waitPromise = executeTool('wait_for_network_response', waitArgs);
+    const [waitMethod, waitCallArgs] = send.mock.calls[2] as
+        [string, unknown[]];
+    const [waitCallbackId, waitParams] = waitCallArgs as
+        [string, Record<string, unknown>];
+    expect(waitMethod).toBe('waitForNetworkResponse');
+    expect(waitParams).toEqual(waitArgs);
+    cr.webUIResponse(waitCallbackId, true, {
+      next_cursor: 8, selected: {'$.status': 'done'},
+    });
+    await waitPromise;
+  });
 });

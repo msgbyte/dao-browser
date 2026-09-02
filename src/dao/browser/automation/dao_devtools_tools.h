@@ -95,6 +95,12 @@ private:
 
   void ExecuteEnableNetwork(std::string_view request_id);
   void ExecuteGetNetwork(std::string_view request_id);
+  void ExecuteWaitForNetworkResponse(std::string_view request_id);
+  void CheckNetworkWaits(DaoBrowserAutomationSession *session);
+  void CheckNetworkWait(std::string_view request_id);
+  void OnNetworkWaitBody(std::string request_id,
+                         base::expected<base::Value, DaoToolError> result);
+  void OnNetworkWaitTimeout(std::string request_id);
   void ExecuteClearNetwork(std::string_view request_id);
   void ExecuteGetNetworkBody(std::string_view request_id);
   void ExecuteEnableConsole(std::string_view request_id);

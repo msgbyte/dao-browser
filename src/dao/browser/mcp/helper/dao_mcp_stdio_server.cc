@@ -325,8 +325,9 @@ void DaoMcpStdioServer::HandleInitialize(const base::DictValue& request,
                   "follow-up requests unless the user explicitly asks to "
                   "switch browser tabs. Treat ambiguous requests such as "
                   "open, click, or select X as page-local: inspect the current "
-                  "target with get_accessibility_tree and use click_by_ref. "
-                  "Use switch_tab only for explicit browser-tab navigation.")
+                  "target with query_elements, then pass its document_id, "
+                  "snapshot_id, and ref_id to click_by_ref. Use switch_tab "
+                  "only for explicit browser-tab navigation.")
               .Set("serverInfo", base::DictValue()
                                      .Set("name", "dao-browser")
                                      .Set("version", server_version_))));

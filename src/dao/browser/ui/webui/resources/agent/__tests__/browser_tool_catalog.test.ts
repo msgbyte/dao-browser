@@ -52,15 +52,15 @@ describe('browser_tool_catalog', () => {
     await initializeBrowserToolCatalog();
 
     expect(injectedCatalog.getString).toHaveBeenCalledTimes(2);
-    expect(getBrowserToolDefinitions('mcp')).toHaveLength(29);
+    expect(getBrowserToolDefinitions('mcp')).toHaveLength(31);
   });
 
-  it('exposes exactly 29 browser tools to MCP', async () => {
+  it('exposes exactly 31 browser tools to MCP', async () => {
     await initializeBrowserToolCatalog();
     const names = getBrowserToolDefinitions('mcp').map(
         tool => tool.function.name);
 
-    expect(names).toHaveLength(29);
+    expect(names).toHaveLength(31);
     expect(names).not.toContain('resolve_element_context');
     expect([...names].sort()).toEqual([
       'agent_click',
@@ -86,16 +86,47 @@ describe('browser_tool_catalog', () => {
       'move_cursor',
       'open_tab',
       'press_key_chord',
+      'query_elements',
       'scroll_down',
       'scroll_to_element',
       'scroll_up',
       'search_in_resources',
       'switch_tab',
       'type_text',
+      'wait_for_network_response',
     ]);
     expect([...new Set(getCatalogEntries('mcp').map(entry => entry.group))]
                .sort())
         .toEqual(['devtools', 'page', 'tabs']);
+  });
+
+  it('exposes the safe query-click-wait workflow', () => {
+    const entries = validateBrowserToolCatalog(loadCatalogResource()).tools;
+    const query = entries.find(entry => entry.name === 'query_elements');
+    const click = entries.find(entry => entry.name === 'click_by_ref');
+    const enableNetwork =
+        entries.find(entry => entry.name === 'enable_network_tracking');
+    const wait =
+        entries.find(entry => entry.name === 'wait_for_network_response');
+
+    expect(query?.inputSchema.properties).toHaveProperty('scope');
+    expect(query?.inputSchema.properties).toHaveProperty('require_count');
+    expect(query?.inputSchema.properties.scope.properties).toEqual(
+        expect.objectContaining({
+          ref_id: expect.any(Object),
+          document_id: expect.any(Object),
+          snapshot_id: expect.any(Object),
+        }));
+    expect(query?.inputSchema.properties.scope.required).toEqual([]);
+    expect(click?.inputSchema.required).toEqual(
+        expect.arrayContaining(['ref_id', 'document_id', 'snapshot_id']));
+    expect(click?.inputSchema.properties).toHaveProperty('preconditions');
+    expect(click?.inputSchema.properties.preconditions.required).toEqual([]);
+    expect(enableNetwork?.description).toContain('cursor');
+    expect(wait?.inputSchema.properties).toHaveProperty('cursor');
+    expect(wait?.inputSchema.properties).toHaveProperty('json_path');
+    expect(wait?.inputSchema.properties).toHaveProperty('any_of');
+    expect(wait?.inputSchema.properties).toHaveProperty('select');
   });
 
   it('keeps resolve_element_context available to Dao Agent only', async () => {

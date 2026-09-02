@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_settings_browser_proxy.ts
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,191 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -152,7 +152,8 @@ index 0000000000..0000000001
 +export const AGENT_TOOL_GROUPS: Record<string, string[]> = {
 +  page: [
 +    'get_page_info', 'get_page_html', 'get_accessibility_tree',
-+    'resolve_element_context', 'capture_screenshot', 'click_element',
++    'query_elements', 'resolve_element_context', 'capture_screenshot',
++    'click_element',
 +    'agent_click', 'click_by_ref', 'move_cursor', 'highlight_element',
 +    'scroll_down', 'scroll_up', 'scroll_to_element', 'press_key_chord',
 +    'type_text', 'execute_script',
@@ -160,7 +161,7 @@ index 0000000000..0000000001
 +  tabs: ['list_tabs', 'switch_tab', 'open_tab', 'close_tab'],
 +  devtools: [
 +    'enable_network_tracking', 'get_network_requests',
-+    'clear_network_requests', 'get_network_body',
++    'wait_for_network_response', 'clear_network_requests', 'get_network_body',
 +    'enable_console_tracking', 'get_console_messages',
 +    'clear_console_messages', 'list_page_resources',
 +    'get_resource_content', 'search_in_resources',

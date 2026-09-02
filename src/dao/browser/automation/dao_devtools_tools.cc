@@ -15,9 +15,12 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
+#include "base/strings/pattern.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/timer/timer.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
@@ -409,6 +412,27 @@ std::optional<size_t> ParseMaxMatches(const base::Value *value) {
   return static_cast<size_t>(std::ceil(number));
 }
 
+bool IsSimpleJsonPath(std::string_view path) {
+  if (path == "$") {
+    return true;
+  }
+  if (!base::StartsWith(path, "$.")) {
+    return false;
+  }
+  const std::string_view dotted = path.substr(2);
+  return !dotted.empty() && dotted.front() != '.' && dotted.back() != '.' &&
+         dotted.find("..") == std::string_view::npos;
+}
+
+const base::Value *FindSimpleJsonPath(const base::Value &value,
+                                      std::string_view path) {
+  if (path == "$") {
+    return &value;
+  }
+  const base::DictValue *dict = value.GetIfDict();
+  return dict ? dict->FindByDottedPath(path.substr(2)) : nullptr;
+}
+
 bool ConfigureRegex(std::string_view pattern, std::string_view flags,
                     std::unique_ptr<re2::RE2> *regex, std::string *error) {
   std::set<char> seen_flags;
@@ -467,6 +491,11 @@ struct DaoDevToolsTools::Operation {
   std::set<int> command_ids;
   std::optional<DomainEnableAttempt> domain_enable_attempt;
 
+  double wait_cursor = 0;
+  bool wait_body_pending = false;
+  base::DictValue wait_match;
+  base::OneShotTimer wait_timer;
+
   std::string search_pattern;
   std::string search_flags;
   std::unique_ptr<re2::RE2> search_regex;
@@ -507,12 +536,13 @@ DaoDevToolsTools::~DaoDevToolsTools() {
 }
 
 bool DaoDevToolsTools::Handles(std::string_view name) {
-  constexpr std::array<std::string_view, 10> kNames = {
-      "enable_network_tracking", "get_network_requests",
-      "clear_network_requests",  "get_network_body",
-      "enable_console_tracking", "get_console_messages",
-      "clear_console_messages",  "list_page_resources",
-      "get_resource_content",    "search_in_resources",
+  constexpr std::array<std::string_view, 11> kNames = {
+      "enable_network_tracking",   "get_network_requests",
+      "wait_for_network_response", "clear_network_requests",
+      "get_network_body",          "enable_console_tracking",
+      "get_console_messages",      "clear_console_messages",
+      "list_page_resources",       "get_resource_content",
+      "search_in_resources",
   };
   return std::ranges::find(kNames, name) != kNames.end();
 }
@@ -611,6 +641,8 @@ void DaoDevToolsTools::Execute(std::string request_id,
     ExecuteEnableNetwork(request_id);
   } else if (name == "get_network_requests") {
     ExecuteGetNetwork(request_id);
+  } else if (name == "wait_for_network_response") {
+    ExecuteWaitForNetworkResponse(request_id);
   } else if (name == "clear_network_requests") {
     ExecuteClearNetwork(request_id);
   } else if (name == "get_network_body") {
@@ -1446,16 +1478,51 @@ void DaoDevToolsTools::OnCDPEvent(content::DevToolsAgentHost *agent_host,
       if (const std::string *request_id = params.FindString("requestId")) {
         *network_fields_truncated += SetBoundedString(
             &entry, "request_id", *request_id, kMaxTrackedFieldBytes);
+        for (auto it = network_requests->rbegin();
+             it != network_requests->rend(); ++it) {
+          const std::string *captured_id = it->FindString("request_id");
+          const std::string *phase = it->FindString("phase");
+          const std::string *request_method = it->FindString("method");
+          if (captured_id && phase && request_method &&
+              *captured_id == *request_id && *phase == "request") {
+            entry.Set("method", *request_method);
+            break;
+          }
+        }
       }
       if (const std::string *type = params.FindString("type")) {
         *network_fields_truncated +=
             SetBoundedString(&entry, "type", *type, kMaxTrackedFieldBytes);
       }
+      entry.Set("cursor", 0.0);
+      entry.Set("complete", false);
       entry.Set("phase", "response");
       StoreBoundedEntry(network_requests, network_request_bytes,
                         network_requests_dropped, kMaxNetworkRequests,
                         kMaxNetworkTrackingBytes, kMaxNetworkEntryBytes,
                         std::move(entry));
+    } else if (method == "Network.loadingFinished") {
+      const std::string *request_id = params.FindString("requestId");
+      if (request_id) {
+        for (auto it = network_requests->rbegin();
+             it != network_requests->rend(); ++it) {
+          const std::string *captured_id = it->FindString("request_id");
+          const std::string *phase = it->FindString("phase");
+          const bool complete = it->FindBool("complete").value_or(false);
+          if (captured_id && phase && *captured_id == *request_id &&
+              *phase == "response" && !complete) {
+            it->Set("complete", true);
+            it->Set("cursor", static_cast<double>(++state.network_cursor));
+            if (state.network_tracking_enabled) {
+              CheckNetworkWaits(session.get());
+              if (!weak_this || !session) {
+                return;
+              }
+            }
+            break;
+          }
+        }
+      }
     }
   }
 
@@ -1588,6 +1655,8 @@ void DaoDevToolsTools::ExecuteEnableNetwork(std::string_view request_id) {
                 request_id,
                 base::Value(base::DictValue()
                                 .Set("success", true)
+                                .Set("cursor",
+                                     static_cast<double>(state.network_cursor))
                                 .Set("message", "Network tracking enabled")));
           },
           weak_factory_.GetWeakPtr(), std::string(request_id), generation,
@@ -1612,12 +1681,185 @@ void DaoDevToolsTools::ExecuteGetNetwork(std::string_view request_id) {
               .Set("requests", std::move(requests))
               .Set("count", static_cast<int>(state.network_requests.size()))
               .Set("enabled", state.network_tracking_enabled)
+              .Set("next_cursor", static_cast<double>(state.network_cursor))
               .Set("stored_bytes",
                    static_cast<double>(state.network_request_bytes))
               .Set("dropped_count",
                    static_cast<double>(state.network_requests_dropped))
               .Set("truncated_field_count",
                    static_cast<double>(state.network_fields_truncated))));
+}
+
+void DaoDevToolsTools::ExecuteWaitForNetworkResponse(
+    std::string_view request_id) {
+  Operation *operation = FindOperation(request_id);
+  if (!operation || !operation->session) {
+    return;
+  }
+  const DaoBrowserAutomationSession::DevToolsState &state =
+      operation->session->devtools_state();
+  const std::string *url_pattern =
+      operation->arguments.FindString("url_pattern");
+  const std::string *json_path = operation->arguments.FindString("json_path");
+  const base::ListValue *any_of = operation->arguments.FindList("any_of");
+  const base::ListValue *select = operation->arguments.FindList("select");
+  const int timeout_ms =
+      operation->arguments.FindInt("timeout_ms").value_or(30000);
+  if (!state.network_tracking_enabled || !url_pattern || url_pattern->empty() ||
+      (json_path != nullptr) != (any_of != nullptr) ||
+      (any_of && any_of->empty()) ||
+      (json_path && !IsSimpleJsonPath(*json_path)) || timeout_ms < 1 ||
+      timeout_ms > 180000) {
+    FinishError(request_id,
+                InvalidArgument("Invalid network response wait arguments."));
+    return;
+  }
+  if (select) {
+    for (const base::Value &path : *select) {
+      if (!path.is_string() || !IsSimpleJsonPath(path.GetString())) {
+        FinishError(request_id, InvalidArgument("Invalid selected JSON path."));
+        return;
+      }
+    }
+  }
+  const double cursor = operation->arguments.FindDouble("cursor").value_or(0);
+  if (!std::isfinite(cursor) || cursor < 0 || std::floor(cursor) != cursor) {
+    FinishError(request_id, InvalidArgument("Invalid network cursor."));
+    return;
+  }
+  operation->wait_cursor = cursor;
+  operation->wait_timer.Start(
+      FROM_HERE, base::Milliseconds(timeout_ms),
+      base::BindOnce(&DaoDevToolsTools::OnNetworkWaitTimeout,
+                     weak_factory_.GetWeakPtr(), std::string(request_id)));
+  CheckNetworkWait(request_id);
+}
+
+void DaoDevToolsTools::CheckNetworkWaits(DaoBrowserAutomationSession *session) {
+  std::vector<std::string> request_ids;
+  for (const auto &[request_id, operation] : operations_) {
+    if (operation->name == "wait_for_network_response" &&
+        operation->session.get() == session) {
+      request_ids.push_back(request_id);
+    }
+  }
+  base::WeakPtr<DaoDevToolsTools> weak_this = weak_factory_.GetWeakPtr();
+  for (const std::string &request_id : request_ids) {
+    CheckNetworkWait(request_id);
+    if (!weak_this) {
+      return;
+    }
+  }
+}
+
+void DaoDevToolsTools::CheckNetworkWait(std::string_view request_id) {
+  Operation *operation = FindOperation(request_id);
+  if (!operation || !operation->session || operation->wait_body_pending) {
+    return;
+  }
+  const DaoBrowserAutomationSession::DevToolsState &state =
+      operation->session->devtools_state();
+  const std::string &url_pattern =
+      *operation->arguments.FindString("url_pattern");
+  const std::string *expected_method =
+      operation->arguments.FindString("method");
+  const std::optional<int> expected_status =
+      operation->arguments.FindInt("status");
+  for (const base::DictValue &entry : state.network_requests) {
+    const double cursor = entry.FindDouble("cursor").value_or(0);
+    if (!entry.FindBool("complete").value_or(false) ||
+        cursor <= operation->wait_cursor) {
+      continue;
+    }
+    operation->wait_cursor = cursor;
+    const std::string *url = entry.FindString("url");
+    const std::string *method = entry.FindString("method");
+    const std::optional<int> status = entry.FindInt("status");
+    if (!url || !base::MatchPattern(*url, url_pattern) ||
+        (expected_method && (!method || !base::EqualsCaseInsensitiveASCII(
+                                            *method, *expected_method))) ||
+        (expected_status && status != expected_status)) {
+      continue;
+    }
+    operation->wait_match = entry.Clone();
+    const bool needs_body = operation->arguments.FindString("json_path") ||
+                            operation->arguments.FindList("select");
+    if (!needs_body) {
+      base::DictValue data = operation->wait_match.Clone();
+      data.Set("next_cursor", operation->wait_cursor);
+      FinishSuccess(request_id, base::Value(std::move(data)));
+      return;
+    }
+    const std::string *network_request_id = entry.FindString("request_id");
+    if (!network_request_id) {
+      continue;
+    }
+    operation->wait_body_pending = true;
+    SendCommand(request_id, "Network.getResponseBody",
+                base::DictValue().Set("requestId", *network_request_id),
+                base::BindOnce(&DaoDevToolsTools::OnNetworkWaitBody,
+                               weak_factory_.GetWeakPtr(),
+                               std::string(request_id)),
+                kMaxResourceProtocolResponseBytes);
+    return;
+  }
+}
+
+void DaoDevToolsTools::OnNetworkWaitBody(
+    std::string request_id, base::expected<base::Value, DaoToolError> result) {
+  Operation *operation = FindOperation(request_id);
+  if (!operation) {
+    return;
+  }
+  operation->wait_body_pending = false;
+  const base::DictValue *response =
+      result.has_value() ? result->GetIfDict() : nullptr;
+  const std::string *body = response ? response->FindString("body") : nullptr;
+  if (!body || response->FindBool("base64Encoded").value_or(false)) {
+    CheckNetworkWait(request_id);
+    return;
+  }
+  std::optional<base::Value> parsed =
+      base::JSONReader::Read(*body, base::JSON_PARSE_RFC);
+  if (!parsed) {
+    CheckNetworkWait(request_id);
+    return;
+  }
+  if (const std::string *json_path =
+          operation->arguments.FindString("json_path")) {
+    const base::Value *candidate = FindSimpleJsonPath(*parsed, *json_path);
+    const base::ListValue &any_of = *operation->arguments.FindList("any_of");
+    if (!candidate ||
+        std::ranges::none_of(any_of, [candidate](const base::Value &accepted) {
+          return accepted == *candidate;
+        })) {
+      CheckNetworkWait(request_id);
+      return;
+    }
+  }
+  base::DictValue selected;
+  if (const base::ListValue *paths = operation->arguments.FindList("select")) {
+    for (const base::Value &path_value : *paths) {
+      const std::string &path = path_value.GetString();
+      const base::Value *value = FindSimpleJsonPath(*parsed, path);
+      if (!value) {
+        CheckNetworkWait(request_id);
+        return;
+      }
+      selected.Set(path, value->Clone());
+    }
+  }
+  base::DictValue data = operation->wait_match.Clone();
+  data.Set("next_cursor", operation->wait_cursor);
+  data.Set("selected", std::move(selected));
+  FinishSuccess(request_id, base::Value(std::move(data)));
+}
+
+void DaoDevToolsTools::OnNetworkWaitTimeout(std::string request_id) {
+  FinishError(request_id,
+              MakeDaoToolError(DaoToolErrorCode::kToolTimeout,
+                               "Timed out waiting for a network response.",
+                               true));
 }
 
 void DaoDevToolsTools::ExecuteClearNetwork(std::string_view request_id) {

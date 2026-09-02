@@ -313,13 +313,14 @@ class DaoMcpDevToolsBrowserTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(DaoMcpDevToolsBrowserTest,
-                       RegistersExactlyTheTenSharedDevToolsTools) {
-  constexpr std::array<std::string_view, 10> kNames = {
-      "enable_network_tracking", "get_network_requests",
-      "clear_network_requests",  "get_network_body",
-      "enable_console_tracking", "get_console_messages",
-      "clear_console_messages",  "list_page_resources",
-      "get_resource_content",    "search_in_resources",
+                       RegistersExactlyTheElevenSharedDevToolsTools) {
+  constexpr std::array<std::string_view, 11> kNames = {
+      "enable_network_tracking",   "get_network_requests",
+      "wait_for_network_response", "clear_network_requests",
+      "get_network_body",          "enable_console_tracking",
+      "get_console_messages",      "clear_console_messages",
+      "list_page_resources",       "get_resource_content",
+      "search_in_resources",
   };
   for (std::string_view name : kNames) {
     EXPECT_TRUE(DaoDevToolsTools::Handles(name)) << name;
@@ -1029,6 +1030,55 @@ IN_PROC_BROWSER_TEST_F(DaoMcpDevToolsBrowserTest,
   EXPECT_EQ(R"({"source":"dao-network-body"})",
             *body.data.GetDict().FindString("body"));
   EXPECT_FALSE(body.data.GetDict().FindBool("base64_encoded").value_or(true));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpDevToolsBrowserTest,
+                       WaitsForMatchingNetworkJsonAfterCursor) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page_url()));
+  auto session = MakeSession();
+  DaoBrowserToolResult enabled =
+      Execute(session.get(), "enable_network_tracking");
+  ASSERT_TRUE(enabled.ok) << enabled.error->message;
+  const double cursor =
+      enabled.data.GetDict().FindDouble("cursor").value_or(-1);
+  ASSERT_GE(cursor, 0);
+
+  const GURL response_url = embedded_test_server()->GetURL("/api-body?wait=1");
+  base::ListValue any_of;
+  any_of.Append("dao-network-body");
+  base::ListValue select;
+  select.Append("$.source");
+  base::test::TestFuture<DaoBrowserToolResult> future;
+  int callback_count = 0;
+  ExecuteAsync(session.get(), "wait_for_network_response",
+               base::DictValue()
+                   .Set("cursor", cursor)
+                   .Set("url_pattern", response_url.spec())
+                   .Set("method", "GET")
+                   .Set("status", 200)
+                   .Set("json_path", "$.source")
+                   .Set("any_of", std::move(any_of))
+                   .Set("select", std::move(select))
+                   .Set("timeout_ms", 5000),
+               &future, &callback_count);
+
+  ASSERT_EQ(
+      "dao-network-body",
+      content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      "fetch('/api-body?wait=1').then(r => r.json()).then(v => "
+                      "v.source)")
+          .ExtractString());
+  DaoBrowserToolResult result = future.Take();
+  base::RunLoop().RunUntilIdle();
+
+  ASSERT_TRUE(result.ok) << result.error->message;
+  const base::DictValue& data = result.data.GetDict();
+  EXPECT_EQ(response_url.spec(), *data.FindString("url"));
+  EXPECT_GT(data.FindDouble("next_cursor").value_or(cursor), cursor);
+  ASSERT_NE(nullptr, data.FindDict("selected"));
+  EXPECT_EQ("dao-network-body",
+            *data.FindDict("selected")->FindString("$.source"));
+  EXPECT_EQ(1, callback_count);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpDevToolsBrowserTest,

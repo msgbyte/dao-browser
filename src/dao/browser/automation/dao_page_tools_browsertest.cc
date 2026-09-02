@@ -286,13 +286,14 @@ protected:
 };
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
-                       RegistersExactlyTheFifteenSharedPageTools) {
-  constexpr std::array<std::string_view, 15> kSharedPageTools = {
-      "get_page_info",      "get_page_html", "get_accessibility_tree",
-      "capture_screenshot", "click_element", "agent_click",
-      "click_by_ref",       "move_cursor",   "highlight_element",
-      "scroll_down",        "scroll_up",     "scroll_to_element",
-      "press_key_chord",    "type_text",     "execute_script",
+                       RegistersExactlyTheSixteenSharedPageTools) {
+  constexpr std::array<std::string_view, 16> kSharedPageTools = {
+      "get_page_info",     "get_page_html",      "get_accessibility_tree",
+      "query_elements",    "capture_screenshot", "click_element",
+      "agent_click",       "click_by_ref",       "move_cursor",
+      "highlight_element", "scroll_down",        "scroll_up",
+      "scroll_to_element", "press_key_chord",    "type_text",
+      "execute_script",
   };
 
   for (std::string_view name : kSharedPageTools) {
@@ -300,6 +301,114 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   }
   EXPECT_FALSE(DaoPageTools::Handles("resolve_element_context"));
   EXPECT_FALSE(DaoPageTools::Handles("list_tabs"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       QueryElementsSupportsGuardedClick) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    window.__dao_guarded_clicks = 0;
+    document.body.innerHTML =
+        '<section aria-label="Story panel"><button>Old</button></section>' +
+        '<section aria-label="Story panel"><button id="live">Open door</button></section>';
+    document.getElementById('live').onclick = () => ++window.__dao_guarded_clicks;
+  )"));
+
+  DaoBrowserToolResult query = Execute(
+      session.get(), "query_elements",
+      base::DictValue()
+          .Set("scope", base::DictValue()
+                            .Set("selector", "[aria-label=\"Story panel\"]")
+                            .Set("nth", "last"))
+          .Set("role", "button")
+          .Set("text", "Open door")
+          .Set("text_match", "exact")
+          .Set("visible", true)
+          .Set("enabled", true)
+          .Set("max_results", 3)
+          .Set("require_count", 1));
+
+  ASSERT_TRUE(query.ok) << query.error->message;
+  const base::DictValue& data = query.data.GetDict();
+  const base::ListValue* matches = data.FindList("matches");
+  ASSERT_NE(nullptr, matches);
+  ASSERT_EQ(1u, matches->size());
+  const base::DictValue& match = (*matches)[0].GetDict();
+  base::DictValue click_arguments;
+  click_arguments.Set("ref_id", *match.FindString("ref_id"));
+  click_arguments.Set("document_id", *data.FindString("document_id"));
+  click_arguments.Set("snapshot_id", *data.FindString("snapshot_id"));
+  click_arguments.Set(
+      "preconditions",
+      base::DictValue()
+          .Set("url", first_url().spec())
+          .Set("visible", true)
+          .Set("enabled", true)
+          .Set("text", "Open door")
+          .Set("role", "button")
+          .Set("ancestor_ref", *data.FindString("scope_ref_id")));
+
+  DaoBrowserToolResult clicked =
+      Execute(session.get(), "click_by_ref", click_arguments.Clone());
+  ASSERT_TRUE(clicked.ok) << clicked.error->message;
+  EXPECT_EQ(
+      1, content::EvalJs(target, "window.__dao_guarded_clicks").ExtractInt());
+
+  ASSERT_TRUE(content::ExecJs(
+      target, "document.getElementById('live').textContent = 'Changed';"));
+  DaoBrowserToolResult guarded =
+      Execute(session.get(), "click_by_ref", std::move(click_arguments));
+  ASSERT_FALSE(guarded.ok);
+  EXPECT_EQ(DaoToolErrorCode::kInvalidArgument, guarded.error->code);
+  EXPECT_EQ(
+      1, content::EvalJs(target, "window.__dao_guarded_clicks").ExtractInt());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       QueryElementsRejectsStaleRefScope) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML =
+        '<section id="first"><button>First</button></section>' +
+        '<section id="second"><button>Second</button></section>';
+  )"));
+
+  DaoBrowserToolResult first = Execute(
+      session.get(), "query_elements",
+      base::DictValue()
+          .Set("scope", base::DictValue().Set("selector", "#first"))
+          .Set("role", "button")
+          .Set("require_count", 1));
+  ASSERT_TRUE(first.ok) << first.error->message;
+  const base::DictValue& first_data = first.data.GetDict();
+  const std::string stale_ref = *first_data.FindString("scope_ref_id");
+  const std::string stale_document = *first_data.FindString("document_id");
+  const std::string stale_snapshot = *first_data.FindString("snapshot_id");
+
+  DaoBrowserToolResult second = Execute(
+      session.get(), "query_elements",
+      base::DictValue()
+          .Set("scope", base::DictValue().Set("selector", "#second"))
+          .Set("role", "button")
+          .Set("require_count", 1));
+  ASSERT_TRUE(second.ok) << second.error->message;
+
+  DaoBrowserToolResult stale = Execute(
+      session.get(), "query_elements",
+      base::DictValue()
+          .Set("scope", base::DictValue()
+                            .Set("ref_id", stale_ref)
+                            .Set("document_id", stale_document)
+                            .Set("snapshot_id", stale_snapshot))
+          .Set("role", "button")
+          .Set("require_count", 1));
+
+  ASSERT_FALSE(stale.ok);
+  EXPECT_EQ(DaoToolErrorCode::kInvalidArgument, stale.error->code);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
