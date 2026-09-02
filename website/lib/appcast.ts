@@ -83,6 +83,18 @@ export async function loadAppcastItems(): Promise<AppcastItem[]> {
   return parseAppcast(xml);
 }
 
+export function getHistoryDownloadUrl(
+  item: AppcastItem,
+  isLatest: boolean,
+  githubUrl: string,
+): string {
+  if (isLatest) return item.downloadUrl;
+  const fileName = new URL(item.downloadUrl).pathname.split('/').pop();
+  if (!fileName) return item.downloadUrl;
+  const tagVersion = item.shortVersion.replace(/\.0$/, '');
+  return `${githubUrl}/releases/download/v${tagVersion}/${fileName}`;
+}
+
 export function formatBytes(bytes: number): string {
   if (!bytes || bytes <= 0) return '—';
   const units = ['B', 'KB', 'MB', 'GB'];

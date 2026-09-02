@@ -91,25 +91,25 @@ Assume we're shipping `0.5.1`. Replace the version number throughout.
    your keychain private key, and writes a fresh `dist/appcast.xml`. See
    [Sparkle appcast](#sparkle-appcast).
 
-6. **Publish the GitHub Release**
+6. **Push the release tag**
 
    ```bash
-   gh release create v0.5.1 \
-     dist/dao-browser-0.5.1-mac-arm64.dmg \
-     dist/appcast.xml \
-     --title "Dao Browser v0.5.1" \
-     --notes-file CHANGELOG_v0.5.1.md
+   git push origin v0.5.1
    ```
-   ⚠️ The `appcast.xml` asset must be uploaded with every release —
-   `SUFeedURL` resolves to `releases/latest/download/appcast.xml`, so users
-   on older versions discover the new release through this file.
 
-7. **Verify the feed is live**
+   `.github/workflows/publish-github-release.yml` downloads the already
+   notarized DMG from R2 and creates the matching GitHub Release. Push only
+   the new tag instead of every local tag.
+
+7. **Verify the GitHub archive and feed are live**
 
    ```bash
-   curl -sL https://github.com/msgbyte/dao-browser/releases/latest/download/appcast.xml | head -50
-   # Should return the <rss> document containing <item> for 0.5.1.
+   gh release view v0.5.1
+   curl -sL https://dao.msgbyte.com/appcast.xml | head -50
    ```
+
+   Do not clean the R2 copy until the GitHub Release contains
+   `dao-browser-0.5.1-mac-arm64.dmg`.
 
 8. **Optional but strongly recommended: real auto-update test**
 
@@ -395,8 +395,9 @@ automatically.
 
 `appcast.xml` is the feed file clients poll. It lives at the URL set by
 `SUFeedURL` in `Info.plist` (currently
-`https://github.com/msgbyte/dao-browser/releases/latest/download/appcast.xml`,
-which auto-resolves to the asset on your latest GitHub Release).
+`https://dao.msgbyte.com/appcast.xml`). Full-update enclosure URLs remain on
+R2; GitHub Releases are the permanent archive used by older rows on the
+website's version-history page.
 
 ### Maintenance model
 
@@ -409,24 +410,24 @@ which auto-resolves to the asset on your latest GitHub Release).
   in `dist/`, signs each, and rewrites `dist/appcast.xml`. Use this
   for every release.
 
-### One-shot publish
+### GitHub Release archive
 
 ```bash
-# Build + sign + notarize + staple a new version
-npm run package:release
+# After npm run release creates the local tag and uploads the DMG to R2:
+git push origin v0.5.1
 
-# Sign the dmg for Sparkle and regenerate appcast.xml
-third_party/sparkle/bin/generate_appcast dist/
-
-# Upload to a GitHub Release tagged v0.5.1
-gh release create v0.5.1 \
-  dist/dao-browser-0.5.1-mac-arm64.dmg \
-  dist/appcast.xml \
-  --title "v0.5.1" \
-  --notes-file CHANGELOG_v0.5.1.md
+# Preview or perform the one-time archive of releases already in appcast.xml:
+npm run release:github:backfill -- --dry-run
+npm run release:github:backfill
 ```
 
-Phase 2 (CI/CD) wraps this in a GitHub Actions workflow.
+The tag workflow runs `npm run release:github -- v0.5.1`. That command is
+idempotent when the expected asset already exists, and the backfill command
+can be rerun after an interruption. The website keeps the newest history row
+on R2; older rows derive a GitHub tag by removing the fixed trailing `.0`
+from `sparkle:shortVersionString`. All referenced tags must already exist on
+GitHub because publishing uses `--verify-tag`. Complete the initial backfill
+before deploying the history-link change.
 
 ### Verifying end-to-end
 
@@ -445,11 +446,5 @@ writes diagnostic info there). The two most common failure modes are:
   *after* `generate_appcast` ran, invalidating the EdDSA signature.
   Always sign in this order: codesign → notarize → staple →
   generate_appcast.
-- **`SUFeedURL` 404**: GitHub Release was published as draft, so
-  `releases/latest` doesn't include it yet.
-
-## Next phases
-
-- **Phase 2**: Run this pipeline from GitHub Actions on every tagged
-  release, upload the `.dmg` + Sparkle `appcast.xml` to GitHub Releases
-  automatically.
+- **`SUFeedURL` 404**: the deployed website is missing `public/appcast.xml`,
+  or the Vercel deployment did not complete.

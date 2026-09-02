@@ -48,4 +48,17 @@ describe('CI workflows', () => {
     expect(workflow).not.toContain('vercel@latest');
     expect(websitePackageJson.devDependencies?.vitest).toBeDefined();
   });
+
+  it('archives each pushed release tag from R2 to GitHub Releases', () => {
+    const workflowPath = '.github/workflows/publish-github-release.yml';
+    expect(existsSync(path.join(process.cwd(), workflowPath))).toBe(true);
+
+    const workflow = read(workflowPath);
+    expect(workflow).toContain("tags:\n      - 'v*'");
+    expect(workflow).toContain('contents: write');
+    expect(workflow).toContain('run: npm ci');
+    expect(workflow).toContain(
+        'run: npm run release:github -- "$GITHUB_REF_NAME"');
+    expect(workflow).toContain('GH_TOKEN: ${{ github.token }}');
+  });
 });

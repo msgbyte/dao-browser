@@ -5,6 +5,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -66,6 +67,27 @@ describe('package scripts', () => {
 
     expect(packageJson.scripts?.['upload:cleanup'])
         .toBe('tsx scripts/cli.ts upload cleanup');
+  });
+
+  it('exposes the GitHub release publishing commands', () => {
+    const packageJsonPath = path.join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.['release:github'])
+        .toBe('tsx scripts/cli.ts github-release publish');
+    expect(packageJson.scripts?.['release:github:backfill'])
+        .toBe('tsx scripts/cli.ts github-release backfill');
+
+    const help = spawnSync(
+        process.execPath,
+        ['--import', 'tsx', 'scripts/cli.ts', 'github-release', '--help'], {
+          cwd: process.cwd(),
+          encoding: 'utf-8',
+        });
+    expect(help.status, help.stderr).toBe(0);
+    expect(help.stdout).toContain('Publish one tagged DMG to GitHub Releases');
   });
 
   it('exposes the agent worktree setup command', () => {

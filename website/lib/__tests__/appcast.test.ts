@@ -1,6 +1,12 @@
 import {describe, expect, it} from 'vitest';
 
-import {formatBytes, formatPubDate, parseAppcast} from '../appcast.js';
+import {
+  formatBytes,
+  formatPubDate,
+  getHistoryDownloadUrl,
+  parseAppcast,
+  type AppcastItem,
+} from '../appcast.js';
 
 describe('parseAppcast', () => {
   it('ignores commented sample items, skips delta enclosures, and sorts newest first',
@@ -80,5 +86,41 @@ describe('appcast formatting helpers', () => {
     expect(formatBytes(1536)).toBe('1.5 KB');
     expect(formatBytes(1048576)).toBe('1.0 MB');
     expect(formatPubDate('not a date')).toBe('not a date');
+  });
+});
+
+describe('version history download URLs', () => {
+  it('keeps the latest release on R2 and sends older releases to GitHub', () => {
+    const latest: AppcastItem = {
+      title: '1.0.101.0',
+      shortVersion: '1.0.101.0',
+      pubDate: 'Thu, 03 Sep 2026 05:20:24 +0800',
+      downloadUrl:
+        'https://dao-release.msgbyte.com/dao-browser-1.0.101-mac-arm64.dmg',
+      sizeBytes: 158940030,
+      gitCommit: null,
+      minimumSystemVersion: '12.0',
+    };
+    const previous = {
+      ...latest,
+      title: '1.0.100.0',
+      shortVersion: '1.0.100.0',
+      downloadUrl:
+        'https://dao-release.msgbyte.com/dao-browser-1.0.100-mac-arm64.dmg',
+    };
+
+    expect(getHistoryDownloadUrl(
+      latest,
+      true,
+      'https://github.com/msgbyte/dao-browser',
+    )).toBe(latest.downloadUrl);
+    expect(getHistoryDownloadUrl(
+      previous,
+      false,
+      'https://github.com/msgbyte/dao-browser',
+    )).toBe(
+      'https://github.com/msgbyte/dao-browser/releases/download/v1.0.100/' +
+        'dao-browser-1.0.100-mac-arm64.dmg',
+    );
   });
 });

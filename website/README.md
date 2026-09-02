@@ -25,7 +25,10 @@ From the repo root, `npm run website` is a shortcut for `cd website && npm run d
 
 ## Source of Truth
 
-- Product version, Chromium version, GitHub URL, download URL → `lib/version.ts` (reads `../dao.json`)
+- Product version, Chromium version, and latest download URL → `public/info.json`
+- Version history metadata and R2 enclosure URLs → `public/appcast.xml`
+- Historical download URLs → GitHub Releases, derived by removing the fixed
+  trailing `.0` from each appcast `shortVersionString`
 - Design tokens → `app/globals.css` (mirrors `../DESIGN.md` §10.1)
 - Icons → `components/ui/LucideIcon.tsx` (path data verbatim from <https://lucide.dev>)
 - OG image → `app/opengraph-image.tsx` (rebuilt on every `npm run build`)
@@ -52,6 +55,13 @@ deploy settings live in the Vercel project dashboard.
 
 To publish a new release: edit `public/info.json` (version + platform URLs).
 The Route Handler reads it at request time; no rebuild required.
+
+The newest row on `/history` uses its R2 enclosure URL. Older rows use the
+matching GitHub Release asset URL. Before deleting historical DMGs from R2,
+run `npm run release:github:backfill` at the repository root and confirm every
+referenced asset has been archived successfully. For the first rollout of
+this behavior, finish that backfill before deploying the website change so
+existing history links already have matching GitHub assets.
 
 ## Manual QA checklist
 

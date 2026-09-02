@@ -20,6 +20,7 @@ import {
   buildReleaseApplication,
   formatNotarizeRecoveryCommand,
   formatReleaseFailure,
+  formatReleaseSuccessInstructions,
   generateReleaseAppcast,
   importReleaseSources,
   injectGitCommitIntoAppcast,
@@ -188,6 +189,16 @@ async function waitForFile(filePath: string): Promise<void> {
 }
 
 describe('release helpers', () => {
+  it('reports automatic GitHub archiving in the release handoff', () => {
+    expect(formatReleaseSuccessInstructions('1.0.102')).toEqual([
+      'Next manual steps (not done by this script):',
+      '  - Commit + push (one-liner):',
+      '      git add . && git commit -m "chore: dump to version v1.0.102" && git push origin main v1.0.102',
+      '  - The pushed tag automatically archives the R2 DMG on GitHub Releases.',
+      '  - Deploy the website so dao.msgbyte.com/appcast.xml updates.',
+    ]);
+  });
+
   it('keeps no-signal child processes in the foreground process group', () => {
     const options = createStreamingSpawnOptions(
       '/tmp',
@@ -355,7 +366,6 @@ describe('release helpers', () => {
        const utilsUrl = pathToFileURL(
          path.join(process.cwd(), 'scripts/utils.ts'),
        ).href;
-       const tsxCli = path.join(process.cwd(), 'node_modules/tsx/dist/cli.mjs');
        writeFileSync(innerPath, [
          "const fs = require('node:fs');",
          'fs.writeFileSync(process.argv[2], String(process.pid));',
@@ -393,7 +403,8 @@ describe('release helpers', () => {
          '}',
        ].join('\n'));
        const outer = spawn(process.execPath, [
-         tsxCli,
+         '--import',
+         'tsx',
          wrapperPath,
          innerPath,
          innerPidPath,

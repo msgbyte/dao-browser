@@ -7,6 +7,7 @@ import {
   loadAppcastItems,
   formatBytes,
   formatPubDate,
+  getHistoryDownloadUrl,
   type AppcastItem,
 } from '@/lib/appcast';
 import {
@@ -56,8 +57,8 @@ export default async function HistoryPage() {
           </div>
           <h1 className={styles.heading}>All releases</h1>
           <p className={styles.subhead}>
-            Every Dao Browser build we&apos;ve shipped, newest first. Each link
-            points at the signed .dmg on our release CDN.
+            Every Dao Browser build we&apos;ve shipped, newest first. The latest
+            stays on our release CDN; older builds are archived on GitHub.
           </p>
         </header>
 
@@ -80,7 +81,8 @@ export default async function HistoryPage() {
 }
 
 function ReleaseRow({ item, isLatest }: { item: AppcastItem; isLatest: boolean }) {
-  const fileName = item.downloadUrl.split('/').pop() ?? 'download.dmg';
+  const downloadUrl = getHistoryDownloadUrl(item, isLatest, GITHUB_URL);
+  const fileName = downloadUrl.split('/').pop() ?? 'download.dmg';
   const commitShort = item.gitCommit ? item.gitCommit.slice(0, 7) : null;
   return (
     <li className={`${styles.item} ${isLatest ? styles.itemLatest : ''}`}>
@@ -120,7 +122,7 @@ function ReleaseRow({ item, isLatest }: { item: AppcastItem; isLatest: boolean }
         </div>
       </div>
       <a
-        href={item.downloadUrl}
+        href={downloadUrl}
         className={`${styles.downloadBtn} ${isLatest ? styles.downloadBtnPrimary : ''}`}
         download={fileName}
       >

@@ -928,13 +928,19 @@ export function formatReleaseRetryCommand(
 
 function printReleaseSuccess(newVersion: string): void {
   success(`Release ${newVersion} ready.`);
-  log("Next manual steps (not done by this script):");
-  log("  - Commit + push (one-liner):");
-  log(
-    `      git add . && git commit -m "chore: dump to version v${newVersion}" && git push --follow-tags`
-  );
-  log("  - Deploy the website so dao.msgbyte.com/appcast.xml updates.");
-  log("  - (Optional) Create a GitHub Release with the .dmg from dist/.");
+  for (const line of formatReleaseSuccessInstructions(newVersion)) log(line);
+}
+
+export function formatReleaseSuccessInstructions(
+  newVersion: string
+): string[] {
+  return [
+    "Next manual steps (not done by this script):",
+    "  - Commit + push (one-liner):",
+    `      git add . && git commit -m "chore: dump to version v${newVersion}" && git push origin main v${newVersion}`,
+    "  - The pushed tag automatically archives the R2 DMG on GitHub Releases.",
+    "  - Deploy the website so dao.msgbyte.com/appcast.xml updates.",
+  ];
 }
 
 export function importReleaseSources(
