@@ -20,7 +20,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **DaoSidebarUIHandler** — Mojo bridge between sidebar C++ and the WebUI (media state, folder persistence, tab commands)
 - **Incognito indicator** — Native shield-check status icon beside the sidebar collapse button in Incognito windows, with a localized privacy tooltip
 - **Sidebar context menu** — Native right-click menu support with registered
-  shortcut labels for Duplicate Tab, Copy Link, and Close Tab
+  shortcut labels for Duplicate Tab, Copy Link, and Close Tab. When the local
+  MCP server is enabled, regular-profile tabs also expose Copy Tab ID for
+  stable MCP targeting. Incognito and Guest windows keep the action hidden.
 - **DaoTabTooltipView** (`sidebar/dao_tab_tooltip_view.{h,cc}`) — Hover contextual info next to the sidebar
 
 ### 1.2 Sidebar WebUI (`dao://sidebar`)

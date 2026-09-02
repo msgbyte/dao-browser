@@ -782,6 +782,29 @@ describe('dao-sidebar-app', () => {
     }
   });
 
+  it('offers Copy Tab ID only for eligible profiles while MCP is enabled', () => {
+    const handlerText = readFileSync(
+        'src/dao/browser/ui/webui/dao_sidebar_ui.cc', 'utf8');
+    const headerText = readFileSync(
+        'src/dao/browser/ui/webui/dao_sidebar_ui.h', 'utf8');
+    const grdText = readFileSync(
+        'src/dao/browser/strings/dao_strings.grd', 'utf8');
+    const zhCnText = readFileSync(
+        'src/dao/browser/strings/translations/dao_strings_zh-CN.xtb',
+        'utf8');
+
+    expect(headerText).toContain('kCopyTabId');
+    expect(handlerText).toMatch(
+        /GetBoolean\(prefs::kDaoMcpServerEnabled\)[\s\S]*?!browser_->profile\(\)->IsOffTheRecord\(\)[\s\S]*?!browser_->profile\(\)->IsGuestSession\(\)[\s\S]*?AddItem\(\s*kCopyTabId/);
+    expect(handlerText).toMatch(
+        /case kCopyTabId:[\s\S]*?GetSidebarTabId\(contents\)[\s\S]*?WriteText/);
+    expect(handlerText).toContain('IDS_DAO_TAB_ID_COPIED_TOAST');
+    expect(grdText).toContain('IDS_DAO_TAB_CONTEXT_COPY_TAB_ID');
+    expect(grdText).toContain('IDS_DAO_TAB_ID_COPIED_TOAST');
+    expect(zhCnText).toContain('复制 Tab ID');
+    expect(zhCnText).toContain('已复制 Tab ID');
+  });
+
   it('maps native tab context menu items to registered accelerators', () => {
     const handlerText = readFileSync(
         'src/dao/browser/ui/webui/dao_sidebar_ui.cc', 'utf8');

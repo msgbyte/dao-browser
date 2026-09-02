@@ -278,6 +278,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   enum TabContextMenuCommand {
     kDuplicateTab = 0,
     kCopyLink,
+    kCopyTabId,
     kToggleMute,
     kCloseTab,
     kCloseOtherTabs,

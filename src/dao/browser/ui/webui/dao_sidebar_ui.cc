@@ -23,6 +23,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/favicon/favicon_utils.h"
@@ -2546,6 +2547,15 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
       l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_DUPLICATE_TAB));
   tab_context_menu_model_->AddItem(
       kCopyLink, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_COPY_LINK));
+  PrefService* local_state = g_browser_process->local_state();
+  if (local_state &&
+      local_state->GetBoolean(prefs::kDaoMcpServerEnabled) &&
+      !browser_->profile()->IsOffTheRecord() &&
+      !browser_->profile()->IsGuestSession()) {
+    tab_context_menu_model_->AddItem(
+        kCopyTabId,
+        l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_COPY_TAB_ID));
+  }
   if (!model->IsTabPinned(tab_index)) {
     tab_context_menu_model_->AddItem(
         kPinTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_PIN_TAB));
@@ -3415,6 +3425,7 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
     case kMoveStaleTabsToFolder:
       return true;
     case kCopyLink:
+    case kCopyTabId:
     case kToggleMute:
     case kCloseTab:
       return true;
@@ -3559,6 +3570,24 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
         if (bv && bv->dao_toast()) {
           bv->dao_toast()->ShowToast(u"Copied Current Url");
           bv->InvalidateLayout();
+        }
+      }
+      break;
+    }
+
+    case kCopyTabId: {
+      content::WebContents* contents =
+          model->GetWebContentsAt(context_menu_tab_index_);
+      if (contents) {
+        const std::string tab_id = GetSidebarTabId(contents);
+        ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
+        writer.WriteText(base::UTF8ToUTF16(tab_id));
+        BrowserView* browser_view =
+            BrowserView::GetBrowserViewForBrowser(browser_);
+        if (browser_view && browser_view->dao_toast()) {
+          browser_view->dao_toast()->ShowToast(
+              l10n_util::GetStringUTF16(IDS_DAO_TAB_ID_COPIED_TOAST));
+          browser_view->InvalidateLayout();
         }
       }
       break;

@@ -253,6 +253,12 @@
       <message name="IDS_DAO_TAB_CONTEXT_COPY_LINK" desc="Context menu item that copies the URL of the selected regular tab in the Dao sidebar.">
         Copy Link
       </message>
+      <message name="IDS_DAO_TAB_CONTEXT_COPY_TAB_ID" desc="Context menu item that copies the stable ID of the selected regular tab in the Dao sidebar.">
+        Copy Tab ID
+      </message>
+      <message name="IDS_DAO_TAB_ID_COPIED_TOAST" desc="Toast shown after the stable ID of a regular tab is copied from the Dao sidebar.">
+        Tab ID copied
+      </message>
       <message name="IDS_DAO_TAB_CONTEXT_PIN_TAB" desc="Context menu item that pins a regular tab into the Dao sidebar pinned items section.">
         Pin Tab
       </message>
