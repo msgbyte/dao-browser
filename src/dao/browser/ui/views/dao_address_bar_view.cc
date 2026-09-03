@@ -971,9 +971,13 @@ void DaoAddressBarView::CloseMcpControlPopup() {
 }
 
 void DaoAddressBarView::OnMcpServiceStatusChanged(
-    const DaoMcpServiceStatus&) {
-  CloseMcpControlPopup();
+    const DaoMcpServiceStatus& status) {
   UpdateMcpControlButton();
+  auto* popup = mcp_control_popup_for_testing();
+  if (popup && popup->UpdateLatestToolCall(status)) {
+    return;
+  }
+  CloseMcpControlPopup();
 }
 
 void DaoAddressBarView::OnChatButtonPressed() {

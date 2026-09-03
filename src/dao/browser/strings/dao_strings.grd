@@ -467,6 +467,9 @@
       <message name="IDS_DAO_MCP_CONTROL_TARGET" desc="Current browser tab shown in the MCP active-control popup. TARGET is the current tab title.">
         Target: <ph name="TARGET">$1<ex>Project dashboard</ex></ph>
       </message>
+      <message name="IDS_DAO_MCP_CONTROL_LATEST_TOOL" desc="Latest browser tool accepted for execution by the active MCP connection. TOOL is the tool name.">
+        Latest MCP call: <ph name="TOOL">$1<ex>execute_script</ex></ph>
+      </message>
       <message name="IDS_DAO_MCP_CONTROL_TAB_COUNT" desc="Number of browser tabs controlled by the active MCP connection. COUNT is the number of tabs.">
         Controlled tabs: <ph name="COUNT">$1<ex>3</ex></ph>
       </message>

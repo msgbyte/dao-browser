@@ -1420,6 +1420,42 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
+                       ShowsLatestAcceptedToolCall) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  std::unique_ptr<TestMcpClient> client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ApproveFirstToolCall(client.get(), &approval);
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  ASSERT_NE(nullptr, browser_view);
+  DaoAddressBarView* address_bar = browser_view->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  ClickButton(address_bar->mcp_control_button_for_testing());
+  DaoMcpControlBannerView* popup =
+      address_bar->mcp_control_popup_for_testing();
+  ASSERT_NE(nullptr, popup);
+  EXPECT_TRUE(HasDescendantLabelText(
+      popup, l10n_util::GetStringFUTF16(
+                 IDS_DAO_MCP_CONTROL_LATEST_TOOL, u"get_page_info")));
+
+  ASSERT_TRUE(client->Send(
+      ToolCall("latest-tool", "execute_script",
+               base::DictValue().Set("code", "document.title"))));
+  std::optional<base::DictValue> response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindDict("result"));
+
+  EXPECT_EQ(popup, address_bar->mcp_control_popup_for_testing());
+  EXPECT_TRUE(HasDescendantLabelText(
+      popup, l10n_util::GetStringFUTF16(
+                 IDS_DAO_MCP_CONTROL_LATEST_TOOL, u"execute_script")));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
                        ShowsIndicatorBeforeUrlPill) {
   FakeApprovalDelegate approval;
   service_->SetApprovalDelegate(&approval);

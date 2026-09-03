@@ -97,6 +97,10 @@ DaoMcpControlBannerView::DaoMcpControlBannerView(
           IDS_DAO_MCP_CONTROL_TARGET,
           SanitizeLabel(target ? target->GetTitle() : std::u16string())),
       TextSecondary()));
+  latest_tool_label_ =
+      AddChildView(CreateLabel(std::u16string(), TextSecondary()));
+  latest_tool_label_->SetVisible(false);
+  UpdateLatestToolCall(status);
   AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(
           IDS_DAO_MCP_CONTROL_TAB_COUNT,
@@ -112,6 +116,21 @@ DaoMcpControlBannerView::DaoMcpControlBannerView(
 }
 
 DaoMcpControlBannerView::~DaoMcpControlBannerView() = default;
+
+bool DaoMcpControlBannerView::UpdateLatestToolCall(
+    const DaoMcpServiceStatus& status) {
+  if (status.latest_tool_call_serial == latest_tool_call_serial_) {
+    return false;
+  }
+  latest_tool_call_serial_ = status.latest_tool_call_serial;
+  latest_tool_label_->SetVisible(status.latest_tool_name.has_value());
+  if (status.latest_tool_name) {
+    latest_tool_label_->SetText(l10n_util::GetStringFUTF16(
+        IDS_DAO_MCP_CONTROL_LATEST_TOOL,
+        SanitizeLabel(*status.latest_tool_name)));
+  }
+  return true;
+}
 
 views::View* DaoMcpControlBannerView::GetContentsView() {
   return this;

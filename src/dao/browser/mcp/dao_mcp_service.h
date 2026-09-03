@@ -77,6 +77,8 @@ struct DaoMcpServiceStatus {
 
   DaoMcpStatus state = DaoMcpStatus::kDisabled;
   std::optional<DaoMcpClientInfo> client;
+  std::optional<std::string> latest_tool_name;
+  uint64_t latest_tool_call_serial = 0;
 };
 
 class DaoMcpApprovalDelegate {
@@ -239,6 +241,9 @@ class DaoMcpService {
                                  const DaoToolError& error);
   void DispatchPendingCalls(ConnectionState& connection);
   void DispatchToolCall(ConnectionState& connection, PendingToolCall pending);
+  void RecordAcceptedToolCall(uint64_t connection_generation,
+                              PrefService* prefs,
+                              std::string tool_name);
   void OnToolCallComplete(uint64_t connection_generation,
                           std::string request_id,
                           bool allow_uncommitted_url,

@@ -199,6 +199,8 @@ struct DaoMcpService::ConnectionState {
   std::map<std::string, std::string, std::less<>> active_tool_targets;
   std::map<std::string, size_t, std::less<>> active_tool_call_bytes;
   size_t active_tool_call_bytes_total = 0;
+  std::optional<std::string> latest_tool_name;
+  uint64_t latest_tool_call_serial = 0;
   std::unique_ptr<DaoDevToolsClient> tab_tool_devtools_client;
   std::unique_ptr<DaoBrowserToolExecutor> tab_tool_executor;
   std::map<std::string, std::unique_ptr<DaoBrowserAutomationSession>,
@@ -1650,6 +1652,7 @@ void DaoMcpService::DispatchPendingCalls(ConnectionState& connection) {
 void DaoMcpService::DispatchToolCall(ConnectionState& connection,
                                      PendingToolCall pending) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  const uint64_t connection_generation = connection.generation;
   const std::string request_id = pending.call.request_id;
   connection.active_tool_targets.emplace(request_id, pending.target_id);
   if (pending.group == DaoBrowserToolGroup::kTabs) {
@@ -1680,9 +1683,9 @@ void DaoMcpService::DispatchToolCall(ConnectionState& connection,
     if (connection.tab_tool_executor->Execute(
             session_ptr, DaoToolClient::kMcp, std::move(pending.call),
             base::BindOnce(&DaoMcpService::OnToolCallComplete,
-                           weak_factory_.GetWeakPtr(), connection.generation,
+                           weak_factory_.GetWeakPtr(), connection_generation,
                            request_id, allow_uncommitted_url))) {
-      RecordMcpToolUsage(prefs, tool_name);
+      RecordAcceptedToolCall(connection_generation, prefs, tool_name);
     }
     return;
   }
@@ -1704,10 +1707,23 @@ void DaoMcpService::DispatchToolCall(ConnectionState& connection,
           context->second->session.get(), DaoToolClient::kMcp,
           std::move(pending.call),
           base::BindOnce(&DaoMcpService::OnToolCallComplete,
-                         weak_factory_.GetWeakPtr(), connection.generation,
+                         weak_factory_.GetWeakPtr(), connection_generation,
                          request_id, false))) {
-    RecordMcpToolUsage(prefs, tool_name);
+    RecordAcceptedToolCall(connection_generation, prefs, tool_name);
   }
+}
+
+void DaoMcpService::RecordAcceptedToolCall(uint64_t connection_generation,
+                                           PrefService* prefs,
+                                           std::string tool_name) {
+  RecordMcpToolUsage(prefs, tool_name);
+  ConnectionState* connection = FindConnection(connection_generation);
+  if (!connection) {
+    return;
+  }
+  connection->latest_tool_name = std::move(tool_name);
+  ++connection->latest_tool_call_serial;
+  UpdateStatus(/*notify_if_unchanged=*/true);
 }
 
 void DaoMcpService::OnToolCallComplete(uint64_t connection_generation,
@@ -1790,6 +1806,8 @@ void DaoMcpService::UpdateStatus(bool notify_if_unchanged) {
     if (has_lease) {
       next.state = DaoMcpStatus::kLeaseActive;
       next.client = connection->client_info;
+      next.latest_tool_name = connection->latest_tool_name;
+      next.latest_tool_call_serial = connection->latest_tool_call_serial;
     } else if (connection->approval_state == ApprovalState::kPending ||
                connection->approval_state == ApprovalState::kAllowed) {
       next.state = DaoMcpStatus::kPendingApproval;
@@ -1802,7 +1820,9 @@ void DaoMcpService::UpdateStatus(bool notify_if_unchanged) {
        (next.client && status_.client &&
         next.client->name == status_.client->name &&
         next.client->version == status_.client->version &&
-        next.client->verified_pid == status_.client->verified_pid));
+        next.client->verified_pid == status_.client->verified_pid)) &&
+      next.latest_tool_name == status_.latest_tool_name &&
+      next.latest_tool_call_serial == status_.latest_tool_call_serial;
   if (unchanged && !notify_if_unchanged) {
     return;
   }

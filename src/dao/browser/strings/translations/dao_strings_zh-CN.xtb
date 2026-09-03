@@ -183,4 +183,5 @@
 <translation id="3509982919032226274">帮我创建 Dao 主页。先询问这个个人页面要帮助我探索什么，再构建并发布第一个版本。</translation>
 <translation id="6325047129563993580">根据我最近的浏览主题创建 Dao 主页。只使用经过隐私精简的主页浏览材料，先简要说明设计方向，再构建并发布第一个版本。</translation>
 <translation id="3909499025801874715">检查有界的 Dao 主页诊断信息，说明故障原因并修复当前项目。在修复通过验证前保留当前可运行版本，验证后将修复发布为新版本。</translation>
+<translation id="9046231519826652276">最新 MCP 调用：<ph name="TOOL" /></translation>
 </translationbundle>
