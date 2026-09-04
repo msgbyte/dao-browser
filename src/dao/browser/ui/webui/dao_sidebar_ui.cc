@@ -491,6 +491,7 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
     reopening_pinned_item_ids_.clear();
     persisted_identity_session_tab_ids_.clear();
     in_progress_download_ids_.clear();
+    stale_tab_ids_.clear();
     saw_web_contents_replacement_ = false;
   }
 
@@ -628,6 +629,11 @@ void DaoSidebarUIHandler::SetSessionRestoreCompletedForTesting(
   session_restore_completed_ = completed;
 }
 
+void DaoSidebarUIHandler::SetStaleTabIdsForTesting(
+    std::set<std::string> tab_ids) {
+  stale_tab_ids_ = std::move(tab_ids);
+}
+
 int DaoSidebarUIHandler::CloseTabsByIdForTesting(
     const base::ListValue& tab_ids) {
   return CloseTabsById(tab_ids);
@@ -727,6 +733,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "saveFolders",
       base::BindRepeating(&DaoSidebarUIHandler::HandleSaveFolders,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setStaleTabIds",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleSetStaleTabIds,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "showTabContextMenu",
@@ -830,6 +840,7 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
   bool pinned_state_changed = false;
+  std::string stale_tab_selected_after_close;
   if (change.type() == TabStripModelChange::kReplaced) {
     const TabStripModelChange::Replace* replaced = change.GetReplace();
     if (replaced) {
@@ -845,6 +856,17 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
            removed->contents) {
         if (!removed_tab.contents) {
           continue;
+        }
+        if (removed_tab.contents == selection.old_contents &&
+            removed_tab.tab_detach_reason ==
+                tabs::TabInterface::DetachReason::kDelete &&
+            selection.new_contents &&
+            !stale_tab_ids_.contains(
+                GetSidebarTabId(selection.old_contents)) &&
+            stale_tab_ids_.contains(
+                GetSidebarTabId(selection.new_contents))) {
+          stale_tab_selected_after_close =
+              GetSidebarTabId(selection.new_contents);
         }
         DaoPinnedTabItem* item = pinned_tab_model_.FindByBackingTabId(
             GetSidebarTabId(removed_tab.contents));
@@ -864,6 +886,15 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
     SavePinnedItems();
   }
 
+  if (!stale_tab_selected_after_close.empty()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&DaoSidebarUIHandler::SelectNonStaleTab,
+                       weak_factory_.GetWeakPtr(),
+                       std::move(stale_tab_selected_after_close)));
+    return;
+  }
+
   if (!IsJavascriptAllowed()) {
     return;
   }
@@ -880,6 +911,36 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
   // Selection-only change: push full state because split group membership
   // depends on which tab is active (IsSplitActive / GetSplitContents).
   if (selection.active_tab_changed()) {
+    PushFullState();
+  }
+}
+
+void DaoSidebarUIHandler::SelectNonStaleTab(
+    std::string expected_stale_tab_id) {
+  if (!browser_ || browser_->IsAttemptingToCloseBrowser()) {
+    return;
+  }
+
+  TabStripModel* model = browser_->tab_strip_model();
+  const int active_index = model->active_index();
+  content::WebContents* active = model->GetActiveWebContents();
+  if (!active || GetSidebarTabId(active) != expected_stale_tab_id) {
+    return;
+  }
+
+  for (int distance = 1; distance < model->count(); ++distance) {
+    for (const int index : {active_index + distance,
+                            active_index - distance}) {
+      if (index >= 0 && index < model->count() &&
+          !stale_tab_ids_.contains(
+              GetSidebarTabId(model->GetWebContentsAt(index)))) {
+        model->ActivateTabAt(index);
+        return;
+      }
+    }
+  }
+
+  if (IsJavascriptAllowed()) {
     PushFullState();
   }
 }
@@ -2491,6 +2552,26 @@ void DaoSidebarUIHandler::HandleSaveFolders(const base::ListValue& args) {
       base::BindOnce([](base::FilePath file_path,
                         std::string data) { base::WriteFile(file_path, data); },
                      path, *json));
+}
+
+void DaoSidebarUIHandler::HandleSetStaleTabIds(
+    const base::ListValue& args) {
+  if (args.empty()) {
+    return;
+  }
+  const base::ListValue* tab_ids = args[0].GetIfList();
+  if (!tab_ids) {
+    return;
+  }
+
+  std::set<std::string> stale_tab_ids;
+  for (const base::Value& value : *tab_ids) {
+    const std::string* tab_id = value.GetIfString();
+    if (tab_id) {
+      stale_tab_ids.insert(*tab_id);
+    }
+  }
+  stale_tab_ids_ = std::move(stale_tab_ids);
 }
 
 void DaoSidebarUIHandler::HandleShowTabContextMenu(

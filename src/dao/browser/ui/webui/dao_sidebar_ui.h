@@ -146,6 +146,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void ClosePinnedItemTabForTesting(const std::string& id);
   bool LoadPinnedItemsForTesting(const std::string& json);
   void SetSessionRestoreCompletedForTesting(bool completed);
+  void SetStaleTabIdsForTesting(std::set<std::string> tab_ids);
   int CloseTabsByIdForTesting(const base::ListValue& tab_ids);
   views::Widget* ShowDeleteFolderDialogForTesting(
       const std::string& folder_id);
@@ -184,6 +185,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void PublishPinnedItemsToProfileHandlers();
   void SchedulePinnedItemsProfileRefresh();
   void LoadPinnedItemsThenPushFullState();
+  void SelectNonStaleTab(std::string expected_stale_tab_id);
   void SavePinnedItems();
   void PinTabAtIndex(int index, int pinned_target_index = -1);
   void UnpinPinnedItemById(std::string id, int target_index = -1);
@@ -235,6 +237,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleDetachTabToNewWindow(const base::ListValue& args);
   void HandleLoadFolders(const base::ListValue& args);
   void HandleSaveFolders(const base::ListValue& args);
+  void HandleSetStaleTabIds(const base::ListValue& args);
   void HandleShowTabContextMenu(const base::ListValue& args);
   void HandlePinTab(const base::ListValue& args);
   void HandleUnpinPinnedItem(const base::ListValue& args);
@@ -314,6 +317,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   std::set<uint32_t> in_progress_download_ids_;
   std::vector<base::FilePath> recent_file_paths_;
   std::string folder_json_;  // Per-window folder data (in-memory)
+  std::set<std::string> stale_tab_ids_;
   DaoPinnedTabModel pinned_tab_model_;
   bool pinned_items_loaded_ = false;
   bool pinned_items_load_pending_ = false;

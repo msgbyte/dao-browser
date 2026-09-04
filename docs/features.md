@@ -57,7 +57,10 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **Configurable stale-tab expiration** — The "You and Dao" Settings page
   stores a profile-scoped integer from 1–720 hours (24 hours by default);
   the sidebar's "Move Stale Tabs to stale" action reads that value when run,
-  validates it defensively, and archives only qualifying ordinary tabs
+  validates it defensively, and archives only qualifying ordinary tabs.
+  Closing an ordinary active tab skips archived tabs when another ordinary tab
+  remains. If only `stale` tabs remain, or the closed tab was already in
+  `stale`, Chromium's normal choice is kept and the folder expands to it.
 - **dao_new_tab_button.ts** — New-tab button
 - **dao_download_button.ts** — Download flyout trigger
 - **dao_media_control.ts** — Per-tab media playback controls

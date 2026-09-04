@@ -446,8 +446,20 @@ export class DaoSidebarApp extends CrLitElement {
         'visibilitychange', this.boundVisibilityChange_);
   }
 
-  override updated() {
+  override updated(changedProperties: Map<PropertyKey, unknown>) {
     this.updateTabScrollbar_();
+    if (!this.foldersLoaded_ ||
+        !changedProperties.has('folderModelVersion_')) {
+      return;
+    }
+
+    const staleFolder =
+        this.folderModel_.findFolderByName(STALE_TABS_FOLDER_NAME);
+    const staleTabIds = staleFolder ?
+        this.folderModel_.getMatchedTabs(staleFolder.id, this.unpinnedTabs_)
+            .map(tab => tab.tabId) :
+        [];
+    sendNative('setStaleTabIds', staleTabIds);
   }
 
   /**

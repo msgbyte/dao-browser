@@ -5051,6 +5051,58 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, TabClose) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       CommandWCloseSkipsStaleFolderUnlessClosingStaleTab) {
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* regular_tab = model->GetActiveWebContents();
+  ASSERT_NE(nullptr, regular_tab);
+
+  chrome::AddTabAt(browser(), GURL("about:blank#stale"), -1, true);
+  content::WebContents* stale_tab = model->GetActiveWebContents();
+  chrome::AddTabAt(browser(), GURL("about:blank#closing"), -1, true);
+  content::WebContents* closing_tab = model->GetActiveWebContents();
+  ASSERT_NE(nullptr, stale_tab);
+  ASSERT_NE(nullptr, closing_tab);
+
+  content::TestWebUI web_ui;
+  TestDaoSidebarUIHandler handler;
+  handler.set_web_ui(&web_ui);
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  ASSERT_TRUE(handler.LoadPinnedItemsForTesting(
+      R"({"version":2,"items":[]})"));
+  handler.AllowJavascriptForTesting();
+  handler.SetStaleTabIdsForTesting({GetSidebarTabId(stale_tab)});
+
+  chrome::CloseTab(browser());
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(regular_tab, model->GetActiveWebContents());
+
+  chrome::AddTabAt(browser(), GURL("about:blank#closing-stale"), -1, true);
+  content::WebContents* closing_stale_tab = model->GetActiveWebContents();
+  ASSERT_NE(nullptr, closing_stale_tab);
+  handler.SetStaleTabIdsForTesting(
+      {GetSidebarTabId(stale_tab), GetSidebarTabId(closing_stale_tab)});
+
+  chrome::CloseTab(browser());
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(stale_tab, model->GetActiveWebContents());
+
+  handler.SetStaleTabIdsForTesting({GetSidebarTabId(stale_tab)});
+  model->ActivateTabAt(model->GetIndexOfWebContents(regular_tab));
+  ASSERT_EQ(2, model->count());
+  web_ui.ClearTrackedCalls();
+
+  chrome::CloseTab(browser());
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(1, model->count());
+  EXPECT_EQ(stale_tab, model->GetActiveWebContents());
+  ASSERT_EQ(1u, web_ui.call_data().size());
+  const content::TestWebUI::CallData& call = *web_ui.call_data().front();
+  EXPECT_EQ("cr.webUIListenerCallback", call.function_name());
+  ASSERT_NE(nullptr, call.arg1());
+  EXPECT_EQ("sidebarStateChanged", call.arg1()->GetString());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
                        DuplicateActiveTabInsertsAfterOriginal) {
   TabStripModel* model = browser()->tab_strip_model();
   ASSERT_TRUE(embedded_test_server()->Start());

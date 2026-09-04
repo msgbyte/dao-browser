@@ -205,6 +205,32 @@ describe('dao-sidebar-app', () => {
     expect(send).toHaveBeenCalledWith('requestUpdateState', []);
   });
 
+  it('reports exact stale tab ids to the native handler', async () => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    const staleTab = tab({tabId: 'tab-stale'});
+    installFolderModel(app, JSON.stringify({
+      version: 1,
+      items: [{
+        type: 'folder',
+        id: 'folder-stale',
+        name: 'stale',
+        collapsed: true,
+        children: [{
+          type: 'tab',
+          tabId: staleTab.tabId,
+          url: staleTab.url,
+          title: staleTab.title,
+        }],
+      }],
+    }));
+    app.unpinnedTabs_ = [staleTab, tab({tabId: 'tab-regular'})];
+    app.folderModelVersion_++;
+    await app.updateComplete;
+
+    expect(send).toHaveBeenCalledWith('setStaleTabIds', [['tab-stale']]);
+  });
+
   it('creates a one-shot scroll intent from sidebar state', async () => {
     const {el} = await loadApp();
     await el.updateComplete;
