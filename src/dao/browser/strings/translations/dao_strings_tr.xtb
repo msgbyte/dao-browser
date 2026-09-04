@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="tr">
+<translation id="1111094358966140566">Sürümü karşılaştır</translation>
 <translation id="1173894706177603556">Yeniden Adlandır</translation>
+<translation id="1182228621215085947">Dao'ya sor</translation>
+<translation id="121570799358042869">Tarayıcı verileriniz bu Mac'te kalır. Uyumlu uzantıları yeniden yüklemek internete bağlanabilecek tek adımdır; uzantı ayarları ve oturum açma bilgileri kopyalanmaz.</translation>
+<translation id="1236455002425740182">Dao Geçişi</translation>
+<translation id="1272079795634619415">Durdur</translation>
 <translation id="1293177648337752319">Sitenin Sesini Aç</translation>
+<translation id="1349314697251468085">Bu işlem klasördeki tüm sekmeleri kapatır ve klasörü siler.</translation>
+<translation id="1352298709666490484">Sekmeye geç</translation>
+<translation id="1383876407941801731">Ara</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Web'i kendinize ait hissettirin</translation>
+<translation id="1530524805356937121">Daha fazlasını yüklemek için kaydır</translation>
+<translation id="1566049601598938765">Web sitesi</translation>
+<translation id="1602287703039480507">Bu sitenin önbelleği temizlendi</translation>
+<translation id="1637441054828003579">Başarısız öğeleri yeniden dene</translation>
+<translation id="1641203463264514072">Verilerinizin çoğu burada</translation>
 <translation id="1653598257495639807">QR Kod Sonucu</translation>
+<translation id="172937028082106236">Tarama geçmişimden oluştur</translation>
+<translation id="17513872634828108">Açık sekmeler</translation>
 <translation id="1809939268435598390">Klasörü Sil</translation>
+<translation id="1816380826555616620">Bağlayıcı başına öğe: <ph name="OLD_ITEM_COUNT" /> yerine <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Sayfa</translation>
+<translation id="1844249872546141866">Pencere: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Sayı kullanılamıyor</translation>
+<translation id="1929197983938319610">Kaynak tarayıcıyı kullanmaya devam edebilirsiniz. Bir veri türü değişmeye devam ederse Dao sizden onu kapatmanızı ister ve yalnızca o bölümü yeniden dener.</translation>
+<translation id="1984122437277059790">Proje içe aktarılamadı. Paketi kontrol edin ve tekrar deneyin.</translation>
+<translation id="2085323698672376231">Bu işlem geçerli projeyi, tüm sürümleri ve kaynak erişimini kalıcı olarak siler. Bu işlem geri alınamaz.</translation>
+<translation id="210592584469870355">Yetenekler</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Sekmeyi Sabitle</translation>
+<translation id="2175927920773552910">QR kodu</translation>
+<translation id="2199413402821420360">Bu sekme Mini Dao'da açılamadı</translation>
+<translation id="2209843794360152290">İçe aktarılan öğeler, mevcut veriler değiştirilmeden birleştirilir.</translation>
+<translation id="2254382823755510690">İçe aktarılan verileriniz Dao'da hazır. Açık sekmeler, ihtiyacınız olana kadar daraltılmış bir klasörde yüklenmeden tutulur.</translation>
+<translation id="2348199177323591972">Sayfa içeriğini oku</translation>
+<translation id="2359808026110333948">Devam et</translation>
+<translation id="2398703750948514961">İptal edildi</translation>
+<translation id="2414886740292270097">Koyu</translation>
+<translation id="243275146591958220">İndirmeyi iptal et</translation>
+<translation id="2496180316473517155">Tarama geçmişi</translation>
+<translation id="251834402454969316">Geçerli sürümden değişiklikler</translation>
+<translation id="2519023533785544875">Asistan'ı aç</translation>
+<translation id="2535607573648844553">Dao'nun, kaydedilmiş şifrelerin şifresini çözmek için seçili tarayıcının Güvenli Depolama anahtarına ihtiyacı vardır. Erişimi reddederseniz yalnızca şifreler atlanır ve geçişin geri kalanı devam eder.</translation>
+<translation id="2580366865845491095">Bu bağlantı açılsın mı?</translation>
+<translation id="2612596415938768738">Oturum açmanız gerekebilir</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> daha</translation>
 <translation id="2703180365855369896">Yinelenen Sekmeleri Kapat</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Okunuyor</translation>
+<translation id="2820330532305477229">Nereden geçiş yapıyorsunuz?</translation>
+<translation id="2882207023658691113">Yeni sürüm olarak geri yükle</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> tarayıcı sekmelerini denetliyor</translation>
 <translation id="2973324205039581528">Siteyi Sessize Al</translation>
+<translation id="2976307543842414852">Çalışır</translation>
 <translation id="3007771295016901659">Sekmeyi Çoğalt</translation>
 <translation id="3062877722240966678">Dao i18n hattı TAMAM</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Doğrulanmış işlem: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao, seçili kaynakları test eder ve çalışanları ekler. Ana Sayfa etkinken her kaynak yalnızca aşağıda gösterilen sayfaları ve verileri okuyabilir.</translation>
+<translation id="3249579521706735875">Sistem koyu moddayken kullanılabilir.</translation>
+<translation id="3356580349448036450">Tamamlandı</translation>
+<translation id="3404183081987133644">Durdurmadan önce içe aktarılan veriler kullanıma hazır. Hazır olduğunuzda başka bir geçiş başlatabilirsiniz.</translation>
+<translation id="3420663750132400268">Klasör silinsin mi?</translation>
+<translation id="3427713535827228685">Bu sitedeki uzantılar</translation>
+<translation id="3435738964857648380">Güvenlik</translation>
 <translation id="3450492919008172498">Yeni sekme arşivlenmedi</translation>
+<translation id="3509982919032226274">Dao Ana Sayfamı oluştur. Önce bu kişisel sayfanın keşfetmeme yardımcı olmasını istediğim konuyu sor, ardından ilk sürümü oluştur ve yayımla.</translation>
 <translation id="3551320343578183772">Sekmeyi Kapat</translation>
 <translation id="3657099196021255130">Dao'da Aç</translation>
 <translation id="3708693288863478389">Bir URL veya arama yazın...</translation>
+<translation id="381667777775855564">Dao'ya ekleniyor</translation>
 <translation id="385051799172605136">Geri</translation>
 <translation id="3891466792657071243">Yüklemeyi Durdur</translation>
 <translation id="3901975710974642844">Eski Sekmeleri "eski"ye Taşı</translation>
+<translation id="3909499025801874715">Sınırlandırılmış Dao Ana Sayfa tanılamalarını incele, hatayı açıkla ve geçerli projeyi onar. Onarım doğrulanana kadar geçerli çalışır sürümü koru, ardından onarımı yeni bir sürüm olarak yayımla.</translation>
+<translation id="3927932062596804919">Reddet</translation>
 <translation id="3984237987235889323">Uygulanıyor</translation>
+<translation id="3999659648104077867">Tarayıcı denetimi durduruldu</translation>
+<translation id="4165986682804962316">Site ayarları</translation>
 <translation id="4201242995651540725">Son 24 saattir etkin olmayan sekmeler arşivlendi</translation>
+<translation id="4221615148091761714">Dao ile düzenle</translation>
 <translation id="4285498937028063278">Sabitlemeyi Kaldır</translation>
 <translation id="4322394346347055525">Diğer Sekmeleri Kapat</translation>
+<translation id="4332876892329258166">Geçişi başlat</translation>
 <translation id="4380677223237520064">QR Kodunu Çöz</translation>
+<translation id="4404136731284211429">Tekrar tara</translation>
+<translation id="4500440256909785690">Bu Ana Sayfa değiştirilsin mi?</translation>
 <translation id="4543782226216763900">Kenar Çubuğunu Değiştir (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Yapay Zekaya Sor: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Geçişiniz tamamlandı</translation>
+<translation id="4652266463001779298">İzin verilmiyor</translation>
+<translation id="4724836371241170775">4 adımın 2.'si · Taşınacakları seçin</translation>
 <translation id="473775607612524610">Güncelle</translation>
+<translation id="481205936353439293">4 adımın 3.'sü · Verileriniz taşınıyor</translation>
+<translation id="4854731374904470810">Sekme kimliğini kopyala</translation>
 <translation id="4881695831933465202">Aç</translation>
+<translation id="4898928054560997780">Dao'dan düzeltmesini iste</translation>
+<translation id="49041264823677952">Tamamlanan indirmeyi kapat</translation>
+<translation id="493638356004396067">Geçiş başarısız oldu</translation>
+<translation id="4968006660055392545">Bu Mac'te desteklenen tarayıcı profili bulunamadı.</translation>
+<translation id="5004648724625831205">Yerel kopya hazırlanıyor</translation>
 <translation id="501297852093417632">Önbelleği Temizle</translation>
 <translation id="5027562294707732951">Eklenti ekle</translation>
+<translation id="5126909118906525779">Canlı kaynaklar bağlansın mı?</translation>
 <translation id="5192454087436290060">Kontrol Merkezi</translation>
+<translation id="5289912690346335931">Sayılıyor…</translation>
+<translation id="5301255231518510089">Kaynağını görüntülemek için bir dosya seçin.</translation>
+<translation id="5308380583665731573">Bağla</translation>
+<translation id="5322475253112112619">İzin verilirse JavaScript çalıştırmak da dahil olmak üzere mevcut oturumunuzla web sitelerini okuyabilir ve onlarla etkileşim kurabilir.</translation>
+<translation id="5334844597069022743">Kaynağı görüntüle</translation>
+<translation id="5400726083793179041">Seçili proje durumu yeni bir sürüm olarak yayımlanır. Mevcut geçmiş kullanılabilir kalır.</translation>
+<translation id="5436835454512450295">İçe aktarılan tarayıcı verileri</translation>
 <translation id="5450299006531484229">Yukarıdaki Sekmeleri Kapat</translation>
 <translation id="5538307496474303926">Temizleniyor...</translation>
 <translation id="5556459405103347317">Yeniden Yükle</translation>
 <translation id="5611474372949142946">Aşağıdaki Sekmeleri Kapat</translation>
+<translation id="5649936378931470828">Asistan'ı aç (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Kaydedilmiş şifreler</translation>
+<translation id="5871520043546374642">Geçiş durduruldu</translation>
+<translation id="5873058639175438941">Sistem koyu moddayken web sitelerini Otomatik Koyu Mod ile koyulaştırın.</translation>
+<translation id="5874739091759960360">Yalnızca dao://home etkinken</translation>
+<translation id="591645459245805338">Dao'nun önem verdiğiniz şeylere göre şekillendirebileceği özel ve canlı bir sayfa oluşturun.</translation>
+<translation id="5942499955694738574">Ana Sayfa sıfırlanamadı. Geçerli proje değiştirilmedi. Tekrar deneyin.</translation>
 <translation id="5953452567010839148">QR kodu bulunamadı</translation>
+<translation id="6018824944448456809">4 adımın 1.'si · Kaynak seçin</translation>
+<translation id="6040143037577758943">Kapat</translation>
+<translation id="6042308850641462728">Diğer</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Sonuç verisi: en fazla <ph name="BYTE_COUNT" /> bayt</translation>
+<translation id="6204195547326023850">Ana Sayfanız yükleniyor…</translation>
+<translation id="6266039999629596120">İlgi gerekiyor</translation>
+<translation id="6270944267518310103">Bekliyor</translation>
+<translation id="6299569859560607348">Bu Ana Sayfa harici bir sayfa açmak istiyor. Devam etmeden önce hedefi inceleyin.</translation>
+<translation id="6325047129563993580">Son tarama temalarımdan Dao Ana Sayfamı oluştur. Yalnızca gizlilik açısından en aza indirilmiş Ana Sayfa geçmişi materyalini kullan, yönü kısaca açıkla, ardından ilk sürümü oluştur ve yayımla.</translation>
+<translation id="642671119120438272">İçe aktarılan sekmeler</translation>
+<translation id="648743804821442565">Yerel bir otomasyon istemcisi bu Dao penceresine erişim istiyor.</translation>
+<translation id="6527303717912515753">Paylaş</translation>
+<translation id="6586201961110912838">Bu sürümü geri yükle</translation>
+<translation id="6601997535892446436">Bu Mac'te bir tarayıcı profili seçin. Nelerin taşınacağını denetleyebilmeniz için her profil ayrı listelenir.</translation>
 <translation id="6736243959894955139">Adres</translation>
+<translation id="6764328036096492220">Yazma erişimi</translation>
+<translation id="677387175345781299">Proje dosyaları</translation>
+<translation id="6786747875388722282">Uzantılar</translation>
+<translation id="6801297003382412689">Kaynak sınırları</translation>
 <translation id="6829876854799051628">Çerezleri Temizle</translation>
+<translation id="6832689803248022656">Neleri getirmek istersiniz?</translation>
+<translation id="684699560760227351">Ana Sayfayı sıfırla</translation>
 <translation id="6896758677409633944">Kopyala</translation>
+<translation id="6940497786570685033">Gizli modda geziniyorsunuz. Tüm Gizli pencereleri kapattıktan sonra Dao, tarama geçmişinizi, çerezlerinizi veya site verilerinizi saklamaz. İndirilenler ve yer işaretleri saklanır.</translation>
+<translation id="6963772203726867701">Algılanmadı</translation>
+<translation id="6971377058826420967">Dao ile oluştur</translation>
+<translation id="7020790421915196218">Tamamlanan kategoriler kullanıma hazır. Yalnızca ilgi gerektiren bölümleri yeniden deneyebilirsiniz.</translation>
+<translation id="7401173814860935855">Bu sitenin çerezleri temizlendi</translation>
+<translation id="7465855397028934440">Tarayıcı profilleri aranıyor…</translation>
+<translation id="750760654246049420">Başka bir otomasyon istemcisi bu tarayıcıyı denetliyor</translation>
 <translation id="7532108947552493901">Güncellemeleri Kontrol Et...</translation>
+<translation id="7533550325431812">Bu bağlantıya izin ver</translation>
 <translation id="7604253494819481181">Kenar çubuğunu değiştirmek için <ph name="SHORTCUT" /> tuşuna tekrar basın</translation>
+<translation id="7615777614791709701">Ana Sayfa sıfırlansın mı?</translation>
+<translation id="7626429522809774043">Tarayıcı denetimine izin verilsin mi?</translation>
+<translation id="7636812263792427733">Koyu modu zorla</translation>
+<translation id="7658239707568436148">İptal</translation>
+<translation id="7714812312719848690">Projeniz hâlâ güvende. Yeniden deneyin, bir sürümü geri yükleyin veya Dao'dan onarmasını isteyin.</translation>
 <translation id="7717845620320228976">Güncellemeleri kontrol et</translation>
+<translation id="7803931104677504532">Sunum stillerini oku</translation>
+<translation id="7974106569409739809">Klasörü kaldır</translation>
+<translation id="7995663841236651667">Tarayıcı verileriniz bu Mac'te yerel olarak işlenir.</translation>
+<translation id="8028081981001403222">Projeyi içe aktar</translation>
+<translation id="8041968312565730454">Kaynak tarayıcı</translation>
+<translation id="8052762370740257987">Projeyi dışa aktar</translation>
+<translation id="8097718730266959883">kullanılamıyor</translation>
+<translation id="81044950628177848">Geçerli sürüm</translation>
+<translation id="8131740175452115882">Onayla</translation>
 <translation id="8137559199583651773">Eklentileri yönet</translation>
+<translation id="8138892305328483863">Dao, içe aktarılan öğeleri mevcut öğelerinizle birleştirir. Mevcut veriler asla değiştirilmez.</translation>
+<translation id="8175534235396780357">Yapay zekâ denetim ayrıntıları</translation>
+<translation id="8237260373784588552">Ana Sayfa denetimleri</translation>
+<translation id="824895471210913946">Hedef: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Sil</translation>
+<translation id="831684326378391082">Canlı kaynaklar olmadan devam et</translation>
+<translation id="8349478524212888083">İçe aktarılan proje yeni bir sürüm olur. Kaynak erişimi, siz tekrar onaylayana kadar bağlantısız kalır.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> bağla</translation>
+<translation id="8549865052695885354">Sürüm geçmişi</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Geri</translation>
+<translation id="8595238918901827309">Bu sürüm geri yüklensin mi?</translation>
+<translation id="8668072977518790485">Sekme kimliği kopyalandı</translation>
+<translation id="8684229942427488970">Site merkezi</translation>
 <translation id="8717864919010420084">Bağlantıyı Kopyala</translation>
+<translation id="8725066075913043281">Tekrar dene</translation>
+<translation id="8774154357663601701">Bu kaynak, Ana Sayfa etkinken yalnızca onaylanan sayfaları okuyabilir.</translation>
+<translation id="8781013843394828812">Bu öğelerin yeniden denenmesi gerekiyor</translation>
+<translation id="8787633576358327637">Bir macOS Anahtar Zinciri istemi görünebilir</translation>
+<translation id="8820817407110198400">Yer işaretleri</translation>
+<translation id="8826852601577125903">Sonuç verisi: <ph name="OLD_BYTE_COUNT" /> bayttan <ph name="NEW_BYTE_COUNT" /> bayta</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> aday</translation>
+<translation id="8899040626072079337">Verileriniz Dao'ya taşınıyor</translation>
+<translation id="8962539151725780858">Denetlenen sekmeler: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Son MCP çağrısı: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Bağlayıcı başına öğe: en fazla <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Etkin olmayan sekmeler arşivlendi</translation>
+<translation id="9186557253975059599">Bildirilen istemci: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Kenar Çubuğunu Değiştir</translation>
+<translation id="9205549548211212895">Geçişi durdur</translation>
+<translation id="932327136139879170">Ana Sayfa</translation>
+<translation id="932413031402847895">Tarayıcı verilerini içe aktar</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Seçilenleri bağla</translation>
+<translation id="949725615797318423">Uzantılar resmî mağazalarından yeniden yüklenir</translation>
+<translation id="962181630102348889">Ana Sayfanız görüntülenemedi</translation>
 </translationbundle>

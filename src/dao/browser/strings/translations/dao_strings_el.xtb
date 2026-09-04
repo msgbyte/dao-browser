@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="el">
+<translation id="1111094358966140566">Σύγκριση έκδοσης</translation>
 <translation id="1173894706177603556">Μετονομασία</translation>
+<translation id="1182228621215085947">Ρωτήστε το Dao</translation>
+<translation id="121570799358042869">Τα δεδομένα του προγράμματος περιήγησής σας παραμένουν σε αυτό το Mac. Η επανεγκατάσταση συμβατών επεκτάσεων είναι το μόνο βήμα που μπορεί να συνδεθεί στο διαδίκτυο· οι ρυθμίσεις επεκτάσεων και οι συνδέσεις δεν αντιγράφονται.</translation>
+<translation id="1236455002425740182">Μετεγκατάσταση Dao</translation>
+<translation id="1272079795634619415">Διακοπή</translation>
 <translation id="1293177648337752319">Αναίρεση Σίγασης Ιστότοπου</translation>
+<translation id="1349314697251468085">Αυτό θα κλείσει όλες τις καρτέλες στον φάκελο και θα διαγράψει τον φάκελο.</translation>
+<translation id="1352298709666490484">Εναλλαγή καρτέλας</translation>
+<translation id="1383876407941801731">Αναζήτηση</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Προφίλ: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Κάντε τον ιστό να σας ταιριάζει</translation>
+<translation id="1530524805356937121">Κύλιση για φόρτωση περισσότερων</translation>
+<translation id="1566049601598938765">Ιστότοπος</translation>
+<translation id="1602287703039480507">Η προσωρινή μνήμη εκκαθαρίστηκε για αυτόν τον ιστότοπο</translation>
+<translation id="1637441054828003579">Επανάληψη αποτυχημένων στοιχείων</translation>
+<translation id="1641203463264514072">Τα περισσότερα δεδομένα σας είναι εδώ</translation>
 <translation id="1653598257495639807">Αποτέλεσμα QR Code</translation>
+<translation id="172937028082106236">Δημιουργία από το ιστορικό περιήγησής μου</translation>
+<translation id="17513872634828108">Ανοιχτές καρτέλες</translation>
 <translation id="1809939268435598390">Διαγραφή φακέλου</translation>
+<translation id="1816380826555616620">Στοιχεία ανά σύνδεση: από <ph name="OLD_ITEM_COUNT" /> σε <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Σελίδα</translation>
+<translation id="1844249872546141866">Παράθυρο: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Μη διαθέσιμη καταμέτρηση</translation>
+<translation id="1929197983938319610">Μπορείτε να συνεχίσετε να χρησιμοποιείτε το πρόγραμμα περιήγησης προέλευσης. Αν ένας τύπος δεδομένων συνεχίζει να αλλάζει, το Dao θα σας ζητήσει να το κλείσετε και να δοκιμάσετε ξανά μόνο αυτό το μέρος.</translation>
+<translation id="1984122437277059790">Δεν ήταν δυνατή η εισαγωγή του έργου. Ελέγξτε το πακέτο και δοκιμάστε ξανά.</translation>
+<translation id="2085323698672376231">Αυτό διαγράφει μόνιμα το τρέχον έργο, όλες τις εκδόσεις και την πρόσβαση στις πηγές. Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.</translation>
+<translation id="210592584469870355">Δυνατότητες</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Καρφίτσωμα καρτέλας</translation>
+<translation id="2175927920773552910">Κωδικός QR</translation>
+<translation id="2199413402821420360">Δεν ήταν δυνατό το άνοιγμα αυτής της καρτέλας στο Mini Dao</translation>
+<translation id="2209843794360152290">Τα εισαγόμενα στοιχεία συγχωνεύονται χωρίς να αντικαθίστανται υπάρχοντα δεδομένα.</translation>
+<translation id="2254382823755510690">Τα εισαγόμενα δεδομένα σας είναι έτοιμα στο Dao. Οι ανοιχτές καρτέλες διατηρούνται μη φορτωμένες σε έναν συμπτυγμένο φάκελο μέχρι να τις χρειαστείτε.</translation>
+<translation id="2348199177323591972">Ανάγνωση περιεχομένου σελίδας</translation>
+<translation id="2359808026110333948">Συνέχεια</translation>
+<translation id="2398703750948514961">Ακυρώθηκε</translation>
+<translation id="2414886740292270097">Σκοτεινή</translation>
+<translation id="243275146591958220">Ακύρωση λήψης</translation>
+<translation id="2496180316473517155">Ιστορικό περιήγησης</translation>
+<translation id="251834402454969316">Αλλαγές στην τρέχουσα έκδοση</translation>
+<translation id="2519023533785544875">Άνοιγμα Βοηθού</translation>
+<translation id="2535607573648844553">Το Dao χρειάζεται το κλειδί Safe Storage του επιλεγμένου προγράμματος περιήγησης για να αποκρυπτογραφήσει αποθηκευμένους κωδικούς πρόσβασης. Αν αρνηθείτε την πρόσβαση, παραλείπονται μόνο οι κωδικοί πρόσβασης και η υπόλοιπη μετεγκατάσταση συνεχίζεται.</translation>
+<translation id="2580366865845491095">Άνοιγμα αυτού του συνδέσμου;</translation>
+<translation id="2612596415938768738">Μπορεί να απαιτείται σύνδεση</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> ακόμη</translation>
 <translation id="2703180365855369896">Κλείσιμο διπλών καρτελών</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Ανάγνωση</translation>
+<translation id="2820330532305477229">Από πού μεταφέρεστε;</translation>
+<translation id="2882207023658691113">Επαναφορά ως νέα έκδοση</translation>
+<translation id="2904931165000922387">Το <ph name="CLIENT" /> ελέγχει καρτέλες προγράμματος περιήγησης</translation>
 <translation id="2973324205039581528">Σίγαση Ιστότοπου</translation>
+<translation id="2976307543842414852">Εκτελέσεις</translation>
 <translation id="3007771295016901659">Διπλότυπη Καρτέλα</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Επαληθευμένη διεργασία: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Το Dao θα ελέγξει τις επιλεγμένες πηγές και θα προσθέσει όσες λειτουργούν. Κάθε πηγή μπορεί να διαβάζει μόνο τις σελίδες και τα δεδομένα που εμφανίζονται παρακάτω όσο η Αρχική είναι ενεργή.</translation>
+<translation id="3249579521706735875">Διαθέσιμο όταν το σύστημα βρίσκεται σε σκοτεινή λειτουργία.</translation>
+<translation id="3356580349448036450">Ολοκληρώθηκε</translation>
+<translation id="3404183081987133644">Τα δεδομένα που εισήχθησαν πριν τη διακοπή είναι έτοιμα για χρήση. Μπορείτε να ξεκινήσετε άλλη μετεγκατάσταση όποτε είστε έτοιμοι.</translation>
+<translation id="3420663750132400268">Διαγραφή φακέλου;</translation>
+<translation id="3427713535827228685">Επεκτάσεις σε αυτόν τον ιστότοπο</translation>
+<translation id="3435738964857648380">Ασφάλεια</translation>
 <translation id="3450492919008172498">Δεν αρχειοθετήθηκαν νέες καρτέλες</translation>
+<translation id="3509982919032226274">Δημιούργησε την Αρχική μου στο Dao. Ξεκίνα ρωτώντας τι θέλω να με βοηθά να εξερευνώ αυτή η προσωπική σελίδα και έπειτα δημιούργησε και δημοσίευσε την πρώτη έκδοση.</translation>
 <translation id="3551320343578183772">Κλείσιμο καρτέλας</translation>
 <translation id="3657099196021255130">Άνοιγμα στο Dao</translation>
 <translation id="3708693288863478389">Πληκτρολογήστε μια διεύθυνση URL ή αναζητήστε...</translation>
+<translation id="381667777775855564">Προσθήκη στο Dao</translation>
 <translation id="385051799172605136">Πίσω</translation>
 <translation id="3891466792657071243">Διακοπή φόρτωσης</translation>
 <translation id="3901975710974642844">Μετακίνηση ανενεργών καρτελών στο "ανενεργό"</translation>
+<translation id="3909499025801874715">Εξέτασε τα περιορισμένα διαγνωστικά της Αρχικής Dao, εξήγησε την αποτυχία και επιδιόρθωσε το τρέχον έργο. Διατήρησε την τρέχουσα εκτελέσιμη έκδοση έως ότου επαληθευτεί η επιδιόρθωση και έπειτα δημοσίευσε την επιδιόρθωση ως νέα έκδοση.</translation>
+<translation id="3927932062596804919">Απόρριψη</translation>
 <translation id="3984237987235889323">Εφαρμογή</translation>
+<translation id="3999659648104077867">Ο έλεγχος προγράμματος περιήγησης διακόπηκε</translation>
+<translation id="4165986682804962316">Ρυθμίσεις ιστοτόπου</translation>
 <translation id="4201242995651540725">Οι αρχειοθετημένες καρτέλες είναι ανενεργές για τις τελευταίες 24 ώρες</translation>
+<translation id="4221615148091761714">Επεξεργασία με το Dao</translation>
 <translation id="4285498937028063278">Ξεκαρφίτσωμα</translation>
 <translation id="4322394346347055525">Κλείσιμο Άλλων Καρτελών</translation>
+<translation id="4332876892329258166">Έναρξη μετεγκατάστασης</translation>
 <translation id="4380677223237520064">Αποκωδικοποίηση QR Code</translation>
+<translation id="4404136731284211429">Σάρωση ξανά</translation>
+<translation id="4500440256909785690">Αντικατάσταση αυτής της Αρχικής;</translation>
 <translation id="4543782226216763900">Εναλλαγή πλαϊνής γραμμής (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Ρωτήστε το AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Η μεταφορά σας ολοκληρώθηκε</translation>
+<translation id="4652266463001779298">Δεν επιτρέπεται</translation>
+<translation id="4724836371241170775">Βήμα 2 από 4 · Επιλέξτε τι μεταφέρεται</translation>
 <translation id="473775607612524610">Ενημέρωση</translation>
+<translation id="481205936353439293">Βήμα 3 από 4 · Μεταφορά των δεδομένων σας</translation>
+<translation id="4854731374904470810">Αντιγραφή ID καρτέλας</translation>
 <translation id="4881695831933465202">Άνοιγμα</translation>
+<translation id="4898928054560997780">Ζητήστε από το Dao να το επιδιορθώσει</translation>
+<translation id="49041264823677952">Απόρριψη ολοκληρωμένης λήψης</translation>
+<translation id="493638356004396067">Η μετεγκατάσταση απέτυχε</translation>
+<translation id="4968006660055392545">Δεν βρέθηκαν υποστηριζόμενα προφίλ προγράμματος περιήγησης σε αυτό το Mac.</translation>
+<translation id="5004648724625831205">Προετοιμασία τοπικού αντιγράφου</translation>
 <translation id="501297852093417632">Εκκαθάριση cache</translation>
 <translation id="5027562294707732951">Προσθήκη επέκτασης</translation>
+<translation id="5126909118906525779">Σύνδεση ζωντανών πηγών;</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Καταμέτρηση…</translation>
+<translation id="5301255231518510089">Επιλέξτε ένα αρχείο για να δείτε τον πηγαίο κώδικά του.</translation>
+<translation id="5308380583665731573">Σύνδεση</translation>
+<translation id="5322475253112112619">Αν επιτραπεί, μπορεί να διαβάζει και να αλληλεπιδρά με ιστοτόπους χρησιμοποιώντας την τρέχουσα σύνδεσή σας, μεταξύ άλλων εκτελώντας JavaScript.</translation>
+<translation id="5334844597069022743">Προβολή πηγαίου κώδικα</translation>
+<translation id="5400726083793179041">Η επιλεγμένη κατάσταση του έργου θα δημοσιευτεί ως νέα έκδοση. Το υπάρχον ιστορικό θα παραμείνει διαθέσιμο.</translation>
+<translation id="5436835454512450295">Εισαγόμενα δεδομένα προγράμματος περιήγησης</translation>
 <translation id="5450299006531484229">Κλείσιμο Καρτελών Πάνω</translation>
 <translation id="5538307496474303926">Εκκαθάριση...</translation>
 <translation id="5556459405103347317">Επαναφόρτωση</translation>
 <translation id="5611474372949142946">Κλείσιμο Καρτελών Κάτω</translation>
+<translation id="5649936378931470828">Άνοιγμα Βοηθού (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Αποθηκευμένοι κωδικοί πρόσβασης</translation>
+<translation id="5871520043546374642">Η μετεγκατάσταση διακόπηκε</translation>
+<translation id="5873058639175438941">Σκουραίνει τους ιστοτόπους με την Αυτόματη σκοτεινή λειτουργία όταν το σύστημα βρίσκεται σε σκοτεινή λειτουργία.</translation>
+<translation id="5874739091759960360">Μόνο όσο το dao://home είναι ενεργό</translation>
+<translation id="591645459245805338">Δημιουργήστε μια ιδιωτική, ζωντανή σελίδα που το Dao μπορεί να διαμορφώσει γύρω από όσα σας ενδιαφέρουν.</translation>
+<translation id="5942499955694738574">Δεν ήταν δυνατή η επαναφορά της Αρχικής. Το τρέχον έργο δεν άλλαξε. Δοκιμάστε ξανά.</translation>
 <translation id="5953452567010839148">Δεν βρέθηκε κωδικός QR</translation>
+<translation id="6018824944448456809">Βήμα 1 από 4 · Επιλέξτε πηγή</translation>
+<translation id="6040143037577758943">Κλείσιμο</translation>
+<translation id="6042308850641462728">Περισσότερα</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Δεδομένα αποτελέσματος: έως <ph name="BYTE_COUNT" /> byte</translation>
+<translation id="6204195547326023850">Φόρτωση της Αρχικής σας…</translation>
+<translation id="6266039999629596120">Απαιτείται προσοχή</translation>
+<translation id="6270944267518310103">Αναμονή</translation>
+<translation id="6299569859560607348">Αυτή η Αρχική θέλει να ανοίξει μια εξωτερική σελίδα. Ελέγξτε τον προορισμό πριν συνεχίσετε.</translation>
+<translation id="6325047129563993580">Δημιούργησε την Αρχική μου στο Dao από τα πρόσφατα θέματα περιήγησής μου. Χρησιμοποίησε μόνο το ιστορικό Αρχικής με ελαχιστοποιημένα δεδομένα για την προστασία της ιδιωτικότητας, εξήγησε συνοπτικά την κατεύθυνση και έπειτα δημιούργησε και δημοσίευσε την πρώτη έκδοση.</translation>
+<translation id="642671119120438272">Εισαγόμενες καρτέλες</translation>
+<translation id="648743804821442565">Ένα τοπικό πρόγραμμα-πελάτης αυτοματοποίησης ζητά πρόσβαση σε αυτό το παράθυρο του Dao.</translation>
+<translation id="6527303717912515753">Κοινή χρήση</translation>
+<translation id="6586201961110912838">Επαναφορά αυτής της έκδοσης</translation>
+<translation id="6601997535892446436">Επιλέξτε ένα προφίλ προγράμματος περιήγησης σε αυτό το Mac. Κάθε προφίλ εμφανίζεται ξεχωριστά, ώστε να ελέγχετε τι μεταφέρεται.</translation>
 <translation id="6736243959894955139">Διεύθυνση</translation>
+<translation id="6764328036096492220">Πρόσβαση εγγραφής</translation>
+<translation id="677387175345781299">Αρχεία έργου</translation>
+<translation id="6786747875388722282">Επεκτάσεις</translation>
+<translation id="6801297003382412689">Όρια πόρων</translation>
 <translation id="6829876854799051628">Εκκαθάριση cookies</translation>
+<translation id="6832689803248022656">Τι θα θέλατε να μεταφέρετε;</translation>
+<translation id="684699560760227351">Επαναφορά Αρχικής</translation>
 <translation id="6896758677409633944">Αντιγραφή</translation>
+<translation id="6940497786570685033">Περιηγείστε σε κατάσταση ανώνυμης περιήγησης. Αφού κλείσετε όλα τα παράθυρα ανώνυμης περιήγησης, το Dao δεν θα διατηρήσει το ιστορικό περιήγησης, τα cookie ή τα δεδομένα ιστοτόπων σας. Οι λήψεις και οι σελιδοδείκτες διατηρούνται.</translation>
+<translation id="6963772203726867701">Δεν εντοπίστηκε</translation>
+<translation id="6971377058826420967">Δημιουργία με το Dao</translation>
+<translation id="7020790421915196218">Οι ολοκληρωμένες κατηγορίες είναι έτοιμες για χρήση. Μπορείτε να επαναλάβετε μόνο τα μέρη που απαιτούν προσοχή.</translation>
+<translation id="7401173814860935855">Τα cookie εκκαθαρίστηκαν για αυτόν τον ιστότοπο</translation>
+<translation id="7465855397028934440">Αναζήτηση προφίλ προγράμματος περιήγησης…</translation>
+<translation id="750760654246049420">Ένα άλλο πρόγραμμα-πελάτης αυτοματοποίησης ελέγχει αυτό το πρόγραμμα περιήγησης</translation>
 <translation id="7532108947552493901">Έλεγχος για ενημερώσεις...</translation>
+<translation id="7533550325431812">Να επιτρέπεται αυτή η σύνδεση</translation>
 <translation id="7604253494819481181">Πατήστε <ph name="SHORTCUT" /> ξανά για εναλλαγή της πλαϊνής γραμμής</translation>
+<translation id="7615777614791709701">Επαναφορά Αρχικής;</translation>
+<translation id="7626429522809774043">Να επιτραπεί ο έλεγχος του προγράμματος περιήγησης;</translation>
+<translation id="7636812263792427733">Επιβολή σκοτεινής λειτουργίας</translation>
+<translation id="7658239707568436148">Ακύρωση</translation>
+<translation id="7714812312719848690">Το έργο σας παραμένει ασφαλές. Δοκιμάστε ξανά, επαναφέρετε μια έκδοση ή ζητήστε από το Dao να το επιδιορθώσει.</translation>
 <translation id="7717845620320228976">Έλεγχος για ενημερώσεις</translation>
+<translation id="7803931104677504532">Ανάγνωση στυλ παρουσίασης</translation>
+<translation id="7974106569409739809">Κατάργηση φακέλου</translation>
+<translation id="7995663841236651667">Τα δεδομένα του προγράμματος περιήγησής σας υποβάλλονται σε τοπική επεξεργασία σε αυτό το Mac.</translation>
+<translation id="8028081981001403222">Εισαγωγή έργου</translation>
+<translation id="8041968312565730454">Πρόγραμμα περιήγησης προέλευσης</translation>
+<translation id="8052762370740257987">Εξαγωγή έργου</translation>
+<translation id="8097718730266959883">μη διαθέσιμο</translation>
+<translation id="81044950628177848">Τρέχουσα έκδοση</translation>
+<translation id="8131740175452115882">Επιβεβαίωση</translation>
 <translation id="8137559199583651773">Διαχείριση επεκτάσεων</translation>
+<translation id="8138892305328483863">Το Dao συγχωνεύει τα εισαγόμενα στοιχεία με αυτά που ήδη έχετε. Τα υπάρχοντα δεδομένα δεν αντικαθίστανται ποτέ.</translation>
+<translation id="8175534235396780357">Λεπτομέρειες ελέγχου AI</translation>
+<translation id="8237260373784588552">Στοιχεία ελέγχου Αρχικής</translation>
+<translation id="824895471210913946">Στόχος: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Διαγραφή</translation>
+<translation id="831684326378391082">Συνέχεια χωρίς ζωντανές πηγές</translation>
+<translation id="8349478524212888083">Το εισαγόμενο έργο θα γίνει νέα έκδοση. Η πρόσβαση στις πηγές θα παραμείνει αποσυνδεδεμένη μέχρι να την εγκρίνετε ξανά.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Σύνδεση <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Ιστορικό εκδόσεων</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Πίσω</translation>
+<translation id="8595238918901827309">Επαναφορά αυτής της έκδοσης;</translation>
+<translation id="8668072977518790485">Το ID καρτέλας αντιγράφηκε</translation>
+<translation id="8684229942427488970">Κέντρο ιστοτόπου</translation>
 <translation id="8717864919010420084">Αντιγραφή συνδέσμου</translation>
+<translation id="8725066075913043281">Δοκιμή ξανά</translation>
+<translation id="8774154357663601701">Αυτή η πηγή μπορεί να διαβάζει μόνο τις εγκεκριμένες σελίδες όσο η Αρχική είναι ενεργή.</translation>
+<translation id="8781013843394828812">Αυτά τα στοιχεία πρέπει να δοκιμαστούν ξανά</translation>
+<translation id="8787633576358327637">Ενδέχεται να εμφανιστεί ένα μήνυμα του macOS Keychain</translation>
+<translation id="8820817407110198400">Σελιδοδείκτες</translation>
+<translation id="8826852601577125903">Δεδομένα αποτελέσματος: από <ph name="OLD_BYTE_COUNT" /> σε <ph name="NEW_BYTE_COUNT" /> byte</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> υποψήφια στοιχεία</translation>
+<translation id="8899040626072079337">Μεταφορά των δεδομένων σας στο Dao</translation>
+<translation id="8962539151725780858">Ελεγχόμενες καρτέλες: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Τελευταία κλήση MCP: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Στοιχεία ανά σύνδεση: έως <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Οι ανενεργές καρτέλες αρχειοθετήθηκαν</translation>
+<translation id="9186557253975059599">Αναφερόμενο πρόγραμμα-πελάτης: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Εναλλαγή πλαϊνής γραμμής</translation>
+<translation id="9205549548211212895">Διακοπή μετεγκατάστασης</translation>
+<translation id="932327136139879170">Αρχική</translation>
+<translation id="932413031402847895">Εισαγωγή δεδομένων προγράμματος περιήγησης</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Σύνδεση επιλεγμένων</translation>
+<translation id="949725615797318423">Οι επεκτάσεις επανεγκαθίστανται από το επίσημο κατάστημά τους</translation>
+<translation id="962181630102348889">Δεν ήταν δυνατή η εμφάνιση της Αρχικής σας</translation>
 </translationbundle>

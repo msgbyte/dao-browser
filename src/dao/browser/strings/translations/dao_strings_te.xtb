@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="te">
+<translation id="1111094358966140566">వెర్షన్‌ను పోల్చు</translation>
 <translation id="1173894706177603556">పేరు మార్చు</translation>
+<translation id="1182228621215085947">Daoని అడుగు</translation>
+<translation id="121570799358042869">మీ బ్రౌజర్ డేటా ఈ Macలోనే ఉంటుంది. అనుకూల ఎక్స్‌టెన్షన్‌లను మళ్లీ ఇన్‌స్టాల్ చేయడమే ఇంటర్నెట్‌కు కనెక్ట్ అయ్యే ఏకైక దశ; ఎక్స్‌టెన్షన్ సెట్టింగ్‌లు మరియు సైన్-ఇన్‌లు కాపీ చేయబడవు.</translation>
+<translation id="1236455002425740182">Dao మైగ్రేషన్</translation>
+<translation id="1272079795634619415">ఆపు</translation>
 <translation id="1293177648337752319">సైట్ మూయింపు తొలగించు</translation>
+<translation id="1349314697251468085">ఇది ఫోల్డర్‌లోని అన్ని ట్యాబ్‌లను మూసివేసి, ఫోల్డర్‌ను తొలగిస్తుంది.</translation>
+<translation id="1352298709666490484">ట్యాబ్ మార్చు</translation>
+<translation id="1383876407941801731">వెతుకు</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">ప్రొఫైల్: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">వెబ్ మీ సొంతమైనట్లు అనిపించేలా చేయండి</translation>
+<translation id="1530524805356937121">మరిన్ని లోడ్ చేయడానికి స్క్రోల్ చేయండి</translation>
+<translation id="1566049601598938765">వెబ్‌సైట్</translation>
+<translation id="1602287703039480507">ఈ సైట్‌కు క్యాష్ క్లియర్ చేయబడింది</translation>
+<translation id="1637441054828003579">విఫలమైన అంశాలను మళ్లీ ప్రయత్నించు</translation>
+<translation id="1641203463264514072">మీ డేటాలో ఎక్కువ భాగం ఇక్కడ ఉంది</translation>
 <translation id="1653598257495639807">QR కోడ్ ఫలితం</translation>
+<translation id="172937028082106236">నా బ్రౌజింగ్ చరిత్ర నుండి సృష్టించు</translation>
+<translation id="17513872634828108">తెరిచిన ట్యాబ్‌లు</translation>
 <translation id="1809939268435598390">ఫోల్డర్ తొలగించు</translation>
+<translation id="1816380826555616620">ప్రతి కనెక్టర్‌కు అంశాలు: <ph name="OLD_ITEM_COUNT" /> నుండి <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">పేజీ</translation>
+<translation id="1844249872546141866">విండో: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">లెక్కింపు అందుబాటులో లేదు</translation>
+<translation id="1929197983938319610">మీరు మూల బ్రౌజర్‌ను ఉపయోగించడం కొనసాగించవచ్చు. ఒక డేటా రకం మారుతూనే ఉంటే, దాన్ని మూసివేసి ఆ భాగాన్ని మాత్రమే మళ్లీ ప్రయత్నించమని Dao అడుగుతుంది.</translation>
+<translation id="1984122437277059790">ప్రాజెక్ట్‌ను దిగుమతి చేయలేకపోయాం. ప్యాకేజీని తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.</translation>
+<translation id="2085323698672376231">ఇది ప్రస్తుత ప్రాజెక్ట్, అన్ని వెర్షన్‌లు మరియు మూల యాక్సెస్‌ను శాశ్వతంగా తొలగిస్తుంది. దీన్ని రద్దు చేయలేరు.</translation>
+<translation id="210592584469870355">సామర్థ్యాలు</translation>
+<translation id="2109761659519935228">మినీ Dao</translation>
 <translation id="21133533946938348">ట్యాబ్‌ను పిన్ చేయండి</translation>
+<translation id="2175927920773552910">QR కోడ్</translation>
+<translation id="2199413402821420360">ఈ ట్యాబ్‌ను మినీ Daoలో తెరవలేకపోయాం</translation>
+<translation id="2209843794360152290">ఇప్పటికే ఉన్న డేటాను భర్తీ చేయకుండా దిగుమతి చేసిన అంశాలు విలీనం చేయబడతాయి.</translation>
+<translation id="2254382823755510690">మీ దిగుమతి చేసిన డేటా Daoలో సిద్ధంగా ఉంది. తెరిచిన ట్యాబ్‌లు మీకు అవసరమయ్యే వరకు కుదించిన ఫోల్డర్‌లో లోడ్ చేయకుండా ఉంచబడతాయి.</translation>
+<translation id="2348199177323591972">పేజీ కంటెంట్‌ను చదవండి</translation>
+<translation id="2359808026110333948">కొనసాగించు</translation>
+<translation id="2398703750948514961">రద్దు చేయబడింది</translation>
+<translation id="2414886740292270097">డార్క్</translation>
+<translation id="243275146591958220">డౌన్‌లోడ్‌ను రద్దు చేయి</translation>
+<translation id="2496180316473517155">బ్రౌజింగ్ చరిత్ర</translation>
+<translation id="251834402454969316">ప్రస్తుత వెర్షన్‌కు మార్పులు</translation>
+<translation id="2519023533785544875">అసిస్టెంట్‌ను తెరవండి</translation>
+<translation id="2535607573648844553">సేవ్ చేసిన పాస్‌వర్డ్‌లను డీక్రిప్ట్ చేయడానికి ఎంచుకున్న బ్రౌజర్ యొక్క సేఫ్ స్టోరేజ్ కీ Daoకు అవసరం. మీరు యాక్సెస్‌ను నిరాకరిస్తే, పాస్‌వర్డ్‌లు మాత్రమే దాటవేయబడతాయి మరియు మిగతా మైగ్రేషన్ కొనసాగుతుంది.</translation>
+<translation id="2580366865845491095">ఈ లింక్‌ను తెరవాలా?</translation>
+<translation id="2612596415938768738">మీరు సైన్ ఇన్ చేసి ఉండాల్సి రావచ్చు</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> మరిన్ని</translation>
 <translation id="2703180365855369896">నకిలీ ట్యాబ్‌లను మూసివేయి</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">చదువుతోంది</translation>
+<translation id="2820330532305477229">మీరు ఎక్కడి నుండి మారుతున్నారు?</translation>
+<translation id="2882207023658691113">కొత్త వెర్షన్‌గా పునరుద్ధరించు</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> బ్రౌజర్ ట్యాబ్‌లను నియంత్రిస్తోంది</translation>
 <translation id="2973324205039581528">సైట్ మూయించు</translation>
+<translation id="2976307543842414852">నడుస్తుంది</translation>
 <translation id="3007771295016901659">ట్యాబ్ నకలు</translation>
 <translation id="3062877722240966678">Dao i18n పైప్‌లైన్ సరే</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">ధృవీకరించిన ప్రాసెస్: <ph name="PID" /></translation>
+<translation id="3229872815652336688">ఎంచుకున్న మూలాలను Dao పరీక్షించి, పని చేసే వాటిని జోడిస్తుంది. హోమ్ సక్రియంగా ఉన్నప్పుడు ప్రతి మూలం దిగువ చూపిన పేజీలు మరియు డేటాను మాత్రమే చదవగలదు.</translation>
+<translation id="3249579521706735875">సిస్టమ్ డార్క్ మోడ్‌లో ఉన్నప్పుడు అందుబాటులో ఉంటుంది.</translation>
+<translation id="3356580349448036450">పూర్తయింది</translation>
+<translation id="3404183081987133644">మీరు ఆపే ముందు దిగుమతి చేసిన డేటా ఉపయోగించడానికి సిద్ధంగా ఉంది. మీరు సిద్ధంగా ఉన్నప్పుడల్లా మరో మైగ్రేషన్ ప్రారంభించవచ్చు.</translation>
+<translation id="3420663750132400268">ఫోల్డర్‌ను తొలగించాలా?</translation>
+<translation id="3427713535827228685">ఈ సైట్‌లోని ఎక్స్‌టెన్షన్‌లు</translation>
+<translation id="3435738964857648380">భద్రత</translation>
 <translation id="3450492919008172498">కొత్త ట్యాబ్‌లు ఆర్కైవ్ చేయబడలేదు</translation>
+<translation id="3509982919032226274">నా Dao హోమ్‌ను సృష్టించు. ఈ వ్యక్తిగత పేజీ నేను అన్వేషించాలనుకునే వాటికి ఎలా సహాయపడాలో ముందుగా అడిగి, ఆపై మొదటి వెర్షన్‌ను రూపొందించి ప్రచురించు.</translation>
 <translation id="3551320343578183772">ట్యాబ్‌ను మూసివేయండి</translation>
 <translation id="3657099196021255130">Dao లో తెరవండి</translation>
 <translation id="3708693288863478389">URL లేదా శోధన టైప్ చేయండి...</translation>
+<translation id="381667777775855564">Daoకు జోడిస్తోంది</translation>
 <translation id="385051799172605136">వెనుకకు</translation>
 <translation id="3891466792657071243">లోడ్ ఆపండి</translation>
 <translation id="3901975710974642844">"స్టేల్" కు స్టేల్ ట్యాబ్‌లను తరలించండి</translation>
+<translation id="3909499025801874715">పరిమితమైన Dao హోమ్ డయాగ్నోస్టిక్‌లను పరిశీలించి, వైఫల్యాన్ని వివరించి, ప్రస్తుత ప్రాజెక్ట్‌ను సరిచేయి. సవరణ ధృవీకరించబడే వరకు ప్రస్తుత అమలు చేయగల వెర్షన్‌ను ఉంచి, ఆపై సవరణను కొత్త వెర్షన్‌గా ప్రచురించు.</translation>
+<translation id="3927932062596804919">నిరాకరించు</translation>
 <translation id="3984237987235889323">వర్తింపజేస్తోంది</translation>
+<translation id="3999659648104077867">బ్రౌజర్ నియంత్రణ ఆపివేయబడింది</translation>
+<translation id="4165986682804962316">సైట్ సెట్టింగ్‌లు</translation>
 <translation id="4201242995651540725">గత 24 గంటలుగా క్రియాశీలంగా లేని ట్యాబ్‌లు ఆర్కైవ్ చేయబడ్డాయి</translation>
+<translation id="4221615148091761714">Daoతో సవరించు</translation>
 <translation id="4285498937028063278">అన్‌పిన్ చేయండి</translation>
 <translation id="4322394346347055525">ఇతర ట్యాబ్‌లను మూసివేయి</translation>
+<translation id="4332876892329258166">మైగ్రేషన్ ప్రారంభించు</translation>
 <translation id="4380677223237520064">QR కోడ్ డీకోడ్ చేయండి</translation>
+<translation id="4404136731284211429">మళ్లీ స్కాన్ చేయి</translation>
+<translation id="4500440256909785690">ఈ హోమ్‌ను భర్తీ చేయాలా?</translation>
 <translation id="4543782226216763900">సైడ్‌బార్ మార్చు (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">AI ని అడగండి: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">మీ తరలింపు పూర్తయింది</translation>
+<translation id="4652266463001779298">అనుమతించబడలేదు</translation>
+<translation id="4724836371241170775">4లో 2వ దశ · ఏవి తరలుతాయో ఎంచుకోండి</translation>
 <translation id="473775607612524610">నవీకరణ</translation>
+<translation id="481205936353439293">4లో 3వ దశ · మీ డేటాను తరలిస్తోంది</translation>
+<translation id="4854731374904470810">ట్యాబ్ IDని కాపీ చేయి</translation>
 <translation id="4881695831933465202">తెరవండి</translation>
+<translation id="4898928054560997780">సరిచేయమని Daoను అడుగు</translation>
+<translation id="49041264823677952">పూర్తయిన డౌన్‌లోడ్‌ను తొలగించు</translation>
+<translation id="493638356004396067">మైగ్రేషన్ విఫలమైంది</translation>
+<translation id="4968006660055392545">ఈ Macలో మద్దతు ఉన్న బ్రౌజర్ ప్రొఫైల్‌లు కనుగొనబడలేదు.</translation>
+<translation id="5004648724625831205">స్థానిక కాపీని సిద్ధం చేస్తోంది</translation>
 <translation id="501297852093417632">క్యాష్ క్లియర్ చేయండి</translation>
 <translation id="5027562294707732951">ఎక్స్‌టెన్షన్ జోడించండి</translation>
+<translation id="5126909118906525779">ప్రత్యక్ష మూలాలను కనెక్ట్ చేయాలా?</translation>
 <translation id="5192454087436290060">కంట్రోల్ సెంటర్</translation>
+<translation id="5289912690346335931">లెక్కిస్తోంది…</translation>
+<translation id="5301255231518510089">దాని మూలాన్ని వీక్షించడానికి ఫైల్‌ను ఎంచుకోండి.</translation>
+<translation id="5308380583665731573">కనెక్ట్ చేయి</translation>
+<translation id="5322475253112112619">అనుమతిస్తే, JavaScriptను అమలు చేయడంతో సహా మీ ప్రస్తుత లాగిన్‌ను ఉపయోగించి వెబ్‌సైట్‌లను చదవగలదు మరియు వాటితో పరస్పర చర్య చేయగలదు.</translation>
+<translation id="5334844597069022743">మూలాన్ని వీక్షించు</translation>
+<translation id="5400726083793179041">ఎంచుకున్న ప్రాజెక్ట్ స్థితి కొత్త వెర్షన్‌గా ప్రచురించబడుతుంది. ఇప్పటికే ఉన్న చరిత్ర అందుబాటులోనే ఉంటుంది.</translation>
+<translation id="5436835454512450295">దిగుమతి చేసిన బ్రౌజర్ డేటా</translation>
 <translation id="5450299006531484229">పైన ఉన్న ట్యాబ్‌లను మూసివేయి</translation>
 <translation id="5538307496474303926">క్లియర్ చేస్తోంది...</translation>
 <translation id="5556459405103347317">మళ్లీ లోడ్ చేయండి</translation>
 <translation id="5611474372949142946">క్రింద ఉన్న ట్యాబ్‌లను మూసివేయి</translation>
+<translation id="5649936378931470828">అసిస్టెంట్‌ను తెరవండి (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">సేవ్ చేసిన పాస్‌వర్డ్‌లు</translation>
+<translation id="5871520043546374642">మైగ్రేషన్ ఆపివేయబడింది</translation>
+<translation id="5873058639175438941">సిస్టమ్ డార్క్ మోడ్‌లో ఉన్నప్పుడు ఆటో డార్క్ మోడ్‌తో వెబ్‌సైట్‌లను డార్క్‌గా చేయండి.</translation>
+<translation id="5874739091759960360">dao://home సక్రియంగా ఉన్నప్పుడు మాత్రమే</translation>
+<translation id="591645459245805338">మీకు ముఖ్యమైన వాటి చుట్టూ Dao రూపొందించగల ప్రైవేట్, సజీవ పేజీని సృష్టించండి.</translation>
+<translation id="5942499955694738574">హోమ్‌ను రీసెట్ చేయలేకపోయాం. ప్రస్తుత ప్రాజెక్ట్ మార్చబడలేదు. మళ్లీ ప్రయత్నించండి.</translation>
 <translation id="5953452567010839148">QR కోడ్ కనబడలేదు</translation>
+<translation id="6018824944448456809">4లో 1వ దశ · మూలాన్ని ఎంచుకోండి</translation>
+<translation id="6040143037577758943">మూసివేయి</translation>
+<translation id="6042308850641462728">మరిన్ని</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">ఫలిత డేటా: గరిష్ఠంగా <ph name="BYTE_COUNT" /> బైట్‌లు</translation>
+<translation id="6204195547326023850">మీ హోమ్‌ను లోడ్ చేస్తోంది…</translation>
+<translation id="6266039999629596120">శ్రద్ధ అవసరం</translation>
+<translation id="6270944267518310103">వేచి ఉంది</translation>
+<translation id="6299569859560607348">ఈ హోమ్ బాహ్య పేజీని తెరవాలనుకుంటోంది. కొనసాగించే ముందు గమ్యాన్ని సమీక్షించండి.</translation>
+<translation id="6325047129563993580">నా ఇటీవలి బ్రౌజింగ్ థీమ్‌ల నుండి నా Dao హోమ్‌ను సృష్టించు. గోప్యత-కనిష్ఠీకరించిన హోమ్ చరిత్ర సమాచారాన్ని మాత్రమే ఉపయోగించి, దిశను సంక్షిప్తంగా వివరించి, ఆపై మొదటి వెర్షన్‌ను రూపొందించి ప్రచురించు.</translation>
+<translation id="642671119120438272">దిగుమతి చేసిన ట్యాబ్‌లు</translation>
+<translation id="648743804821442565">స్థానిక ఆటోమేషన్ క్లయింట్ ఈ Dao విండోకు యాక్సెస్‌ను అభ్యర్థిస్తోంది.</translation>
+<translation id="6527303717912515753">షేర్ చేయి</translation>
+<translation id="6586201961110912838">ఈ వెర్షన్‌ను పునరుద్ధరించు</translation>
+<translation id="6601997535892446436">ఈ Macలో బ్రౌజర్ ప్రొఫైల్‌ను ఎంచుకోండి. ఏది తరలుతుందో మీ నియంత్రణలో ఉండేందుకు ప్రతి ప్రొఫైల్ విడిగా జాబితా చేయబడింది.</translation>
 <translation id="6736243959894955139">చిరునామా</translation>
+<translation id="6764328036096492220">వ్రాయడానికి యాక్సెస్</translation>
+<translation id="677387175345781299">ప్రాజెక్ట్ ఫైల్‌లు</translation>
+<translation id="6786747875388722282">ఎక్స్‌టెన్షన్‌లు</translation>
+<translation id="6801297003382412689">వనరుల పరిమితులు</translation>
 <translation id="6829876854799051628">కుకీస్ క్లియర్ చేయండి</translation>
+<translation id="6832689803248022656">మీరు ఏమి తీసుకురావాలనుకుంటున్నారు?</translation>
+<translation id="684699560760227351">హోమ్‌ను రీసెట్ చేయి</translation>
 <translation id="6896758677409633944">కాపీ</translation>
+<translation id="6940497786570685033">మీరు అజ్ఞాత మోడ్‌లో బ్రౌజ్ చేస్తున్నారు. మీరు అన్ని అజ్ఞాత విండోలను మూసివేసిన తర్వాత, Dao మీ బ్రౌజింగ్ చరిత్ర, కుక్కీలు లేదా సైట్ డేటాను ఉంచదు. డౌన్‌లోడ్‌లు మరియు బుక్‌మార్క్‌లు ఉంచబడతాయి.</translation>
+<translation id="6963772203726867701">గుర్తించబడలేదు</translation>
+<translation id="6971377058826420967">Daoతో సృష్టించు</translation>
+<translation id="7020790421915196218">పూర్తయిన వర్గాలు ఉపయోగించడానికి సిద్ధంగా ఉన్నాయి. శ్రద్ధ అవసరమైన భాగాలను మాత్రమే మళ్లీ ప్రయత్నించవచ్చు.</translation>
+<translation id="7401173814860935855">ఈ సైట్‌కు కుక్కీలు క్లియర్ చేయబడ్డాయి</translation>
+<translation id="7465855397028934440">బ్రౌజర్ ప్రొఫైల్‌ల కోసం వెతుకుతోంది…</translation>
+<translation id="750760654246049420">మరొక ఆటోమేషన్ క్లయింట్ ఈ బ్రౌజర్‌ను నియంత్రిస్తోంది</translation>
 <translation id="7532108947552493901">నవీకరణలను తనిఖీ చేయండి...</translation>
+<translation id="7533550325431812">ఈ కనెక్షన్‌ను అనుమతించు</translation>
 <translation id="7604253494819481181">సైడ్‌బార్ టోగుల్ చేయడానికి <ph name="SHORTCUT" /> మళ్లీ నొక్కండి</translation>
+<translation id="7615777614791709701">హోమ్‌ను రీసెట్ చేయాలా?</translation>
+<translation id="7626429522809774043">బ్రౌజర్ నియంత్రణను అనుమతించాలా?</translation>
+<translation id="7636812263792427733">డార్క్ మోడ్‌ను బలవంతంగా అమలు చేయి</translation>
+<translation id="7658239707568436148">రద్దు చేయి</translation>
+<translation id="7714812312719848690">మీ ప్రాజెక్ట్ ఇంకా సురక్షితంగా ఉంది. మళ్లీ ప్రయత్నించండి, ఒక వెర్షన్‌ను పునరుద్ధరించండి లేదా దాన్ని సరిచేయమని Daoను అడగండి.</translation>
 <translation id="7717845620320228976">నవీకరణలను తనిఖీ చేయండి</translation>
+<translation id="7803931104677504532">ప్రదర్శన శైలులను చదవండి</translation>
+<translation id="7974106569409739809">ఫోల్డర్‌ను తీసివేయి</translation>
+<translation id="7995663841236651667">మీ బ్రౌజర్ డేటా ఈ Macలో స్థానికంగా ప్రాసెస్ చేయబడుతుంది.</translation>
+<translation id="8028081981001403222">ప్రాజెక్ట్‌ను దిగుమతి చేయి</translation>
+<translation id="8041968312565730454">మూల బ్రౌజర్</translation>
+<translation id="8052762370740257987">ప్రాజెక్ట్‌ను ఎగుమతి చేయి</translation>
+<translation id="8097718730266959883">అందుబాటులో లేదు</translation>
+<translation id="81044950628177848">ప్రస్తుత వెర్షన్</translation>
+<translation id="8131740175452115882">నిర్ధారించు</translation>
 <translation id="8137559199583651773">ఎక్స్‌టెన్షన్లను నిర్వహించండి</translation>
+<translation id="8138892305328483863">మీ వద్ద ఇప్పటికే ఉన్న వాటితో దిగుమతి చేసిన అంశాలను Dao విలీనం చేస్తుంది. ఇప్పటికే ఉన్న డేటా ఎప్పుడూ భర్తీ చేయబడదు.</translation>
+<translation id="8175534235396780357">AI నియంత్రణ వివరాలు</translation>
+<translation id="8237260373784588552">హోమ్ నియంత్రణలు</translation>
+<translation id="824895471210913946">లక్ష్యం: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">తొలగించు</translation>
+<translation id="831684326378391082">ప్రత్యక్ష మూలాలు లేకుండా కొనసాగించు</translation>
+<translation id="8349478524212888083">దిగుమతి చేసిన ప్రాజెక్ట్ కొత్త వెర్షన్ అవుతుంది. మీరు మళ్లీ ఆమోదించే వరకు మూల యాక్సెస్ డిస్‌కనెక్ట్ అయి ఉంటుంది.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" />ను కనెక్ట్ చేయి</translation>
+<translation id="8549865052695885354">వెర్షన్ చరిత్ర</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← వెనుకకు</translation>
+<translation id="8595238918901827309">ఈ వెర్షన్‌ను పునరుద్ధరించాలా?</translation>
+<translation id="8668072977518790485">ట్యాబ్ ID కాపీ చేయబడింది</translation>
+<translation id="8684229942427488970">సైట్ కేంద్రం</translation>
 <translation id="8717864919010420084">లింక్ కాపీ చేయండి</translation>
+<translation id="8725066075913043281">మళ్లీ ప్రయత్నించు</translation>
+<translation id="8774154357663601701">హోమ్ సక్రియంగా ఉన్నప్పుడు ఈ మూలం ఆమోదించబడిన పేజీలను మాత్రమే చదవగలదు.</translation>
+<translation id="8781013843394828812">ఈ అంశాలను మళ్లీ ప్రయత్నించాలి</translation>
+<translation id="8787633576358327637">macOS కీచెయిన్ ప్రాంప్ట్ కనిపించవచ్చు</translation>
+<translation id="8820817407110198400">బుక్‌మార్క్‌లు</translation>
+<translation id="8826852601577125903">ఫలిత డేటా: <ph name="OLD_BYTE_COUNT" /> నుండి <ph name="NEW_BYTE_COUNT" /> బైట్‌లు</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> అభ్యర్థులు</translation>
+<translation id="8899040626072079337">మీ డేటాను Daoలోకి తరలిస్తోంది</translation>
+<translation id="8962539151725780858">నియంత్రిత ట్యాబ్‌లు: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">తాజా MCP కాల్: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">ప్రతి కనెక్టర్‌కు అంశాలు: గరిష్ఠంగా <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">నిష్క్రియ ట్యాబ్‌లు ఆర్కైవ్ చేయబడ్డాయి</translation>
+<translation id="9186557253975059599">నివేదించిన క్లయింట్: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">సైడ్‌బార్ మార్చు</translation>
+<translation id="9205549548211212895">మైగ్రేషన్ ఆపు</translation>
+<translation id="932327136139879170">హోమ్</translation>
+<translation id="932413031402847895">బ్రౌజర్ డేటాను దిగుమతి చేయి</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">ఎంచుకున్న వాటిని కనెక్ట్ చేయి</translation>
+<translation id="949725615797318423">ఎక్స్‌టెన్షన్‌లు వాటి అధికారిక స్టోర్ నుండి మళ్లీ ఇన్‌స్టాల్ చేయబడతాయి</translation>
+<translation id="962181630102348889">మీ హోమ్‌ను ప్రదర్శించలేకపోయాం</translation>
 </translationbundle>

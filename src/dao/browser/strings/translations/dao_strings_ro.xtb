@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ro">
+<translation id="1111094358966140566">Compară versiunea</translation>
 <translation id="1173894706177603556">Redenumește</translation>
+<translation id="1182228621215085947">Întreabă Dao</translation>
+<translation id="121570799358042869">Datele browserului rămân pe acest Mac. Reinstalarea extensiilor compatibile este singurul pas care se poate conecta la internet; setările extensiilor și autentificările nu sunt copiate.</translation>
+<translation id="1236455002425740182">Migrare Dao</translation>
+<translation id="1272079795634619415">Oprește</translation>
 <translation id="1293177648337752319">Activează sunetul site-ului</translation>
+<translation id="1349314697251468085">Aceasta va închide toate filele din dosar și va șterge dosarul.</translation>
+<translation id="1352298709666490484">Comută fila</translation>
+<translation id="1383876407941801731">Caută</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Fă webul să pară al tău</translation>
+<translation id="1530524805356937121">Derulează pentru a încărca mai multe</translation>
+<translation id="1566049601598938765">Site web</translation>
+<translation id="1602287703039480507">Cache-ul a fost golit pentru acest site</translation>
+<translation id="1637441054828003579">Reîncearcă elementele eșuate</translation>
+<translation id="1641203463264514072">Majoritatea datelor tale sunt aici</translation>
 <translation id="1653598257495639807">Rezultatul codului QR</translation>
+<translation id="172937028082106236">Creează din istoricul meu de navigare</translation>
+<translation id="17513872634828108">File deschise</translation>
 <translation id="1809939268435598390">Șterge folder</translation>
+<translation id="1816380826555616620">Elemente per conector: de la <ph name="OLD_ITEM_COUNT" /> la <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Pagină</translation>
+<translation id="1844249872546141866">Fereastră: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Număr indisponibil</translation>
+<translation id="1929197983938319610">Poți continua să folosești browserul sursă. Dacă un tip de date se modifică în continuare, Dao îți va cere să îl închizi și să reîncerci doar acea parte.</translation>
+<translation id="1984122437277059790">Proiectul nu a putut fi importat. Verifică pachetul și încearcă din nou.</translation>
+<translation id="2085323698672376231">Aceasta șterge permanent proiectul curent, toate versiunile și accesul la surse. Acțiunea nu poate fi anulată.</translation>
+<translation id="210592584469870355">Capabilități</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Fixează fila</translation>
+<translation id="2175927920773552910">Cod QR</translation>
+<translation id="2199413402821420360">Nu s-a putut deschide această filă în Mini Dao</translation>
+<translation id="2209843794360152290">Elementele importate sunt îmbinate fără a înlocui datele existente.</translation>
+<translation id="2254382823755510690">Datele importate sunt gata în Dao. Filele deschise sunt păstrate neîncărcate într-un dosar restrâns până când ai nevoie de ele.</translation>
+<translation id="2348199177323591972">Citește conținutul paginii</translation>
+<translation id="2359808026110333948">Continuă</translation>
+<translation id="2398703750948514961">Anulat</translation>
+<translation id="2414886740292270097">Întunecat</translation>
+<translation id="243275146591958220">Anulează descărcarea</translation>
+<translation id="2496180316473517155">Istoric de navigare</translation>
+<translation id="251834402454969316">Modificări față de versiunea curentă</translation>
+<translation id="2519023533785544875">Deschide Asistentul</translation>
+<translation id="2535607573648844553">Dao are nevoie de cheia Safe Storage a browserului selectat pentru a decripta parolele salvate. Dacă refuzi accesul, sunt omise doar parolele, iar restul migrării continuă.</translation>
+<translation id="2580366865845491095">Deschizi acest link?</translation>
+<translation id="2612596415938768738">Poate necesita autentificare</translation>
+<translation id="2698054069012763064">încă <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Închide filele duplicate</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Se citesc datele</translation>
+<translation id="2820330532305477229">De unde te muți?</translation>
+<translation id="2882207023658691113">Restaurează ca versiune nouă</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> controlează filele browserului</translation>
 <translation id="2973324205039581528">Dezactivează sunetul site-ului</translation>
+<translation id="2976307543842414852">Rulări</translation>
 <translation id="3007771295016901659">Duplică fila</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Proces verificat: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao va testa sursele selectate și le va adăuga pe cele care funcționează. Fiecare sursă poate citi doar paginile și datele afișate mai jos cât timp Acasă este activă.</translation>
+<translation id="3249579521706735875">Disponibil când sistemul este în modul întunecat.</translation>
+<translation id="3356580349448036450">Finalizat</translation>
+<translation id="3404183081987133644">Datele importate înainte de oprire sunt gata de utilizare. Poți începe o altă migrare oricând ești pregătit.</translation>
+<translation id="3420663750132400268">Ștergi dosarul?</translation>
+<translation id="3427713535827228685">Extensii pe acest site</translation>
+<translation id="3435738964857648380">Securitate</translation>
 <translation id="3450492919008172498">Nu au fost arhivate file noi</translation>
+<translation id="3509982919032226274">Creează pagina mea Acasă Dao. Începe prin a mă întreba ce vreau să mă ajute să explorez această pagină personală, apoi construiește și publică prima versiune.</translation>
 <translation id="3551320343578183772">Închide fila</translation>
 <translation id="3657099196021255130">Deschideți în Dao</translation>
 <translation id="3708693288863478389">Introduceți un URL sau căutați...</translation>
+<translation id="381667777775855564">Se adaugă în Dao</translation>
 <translation id="385051799172605136">Înapoi</translation>
 <translation id="3891466792657071243">Opriți încărcarea</translation>
 <translation id="3901975710974642844">Mută filele vechi în "vechi"</translation>
+<translation id="3909499025801874715">Inspectează diagnosticarea limitată a paginii Acasă Dao, explică eroarea și repară proiectul curent. Păstrează versiunea rulabilă curentă până când repararea este validată, apoi publică repararea ca versiune nouă.</translation>
+<translation id="3927932062596804919">Refuză</translation>
 <translation id="3984237987235889323">Se aplică</translation>
+<translation id="3999659648104077867">Controlul browserului a fost oprit</translation>
+<translation id="4165986682804962316">Setări site</translation>
 <translation id="4201242995651540725">Filele inactive în ultimele 24 de ore au fost arhivate</translation>
+<translation id="4221615148091761714">Editează cu Dao</translation>
 <translation id="4285498937028063278">Anulează fixarea</translation>
 <translation id="4322394346347055525">Închide celelalte file</translation>
+<translation id="4332876892329258166">Începe migrarea</translation>
 <translation id="4380677223237520064">Decodifică cod QR</translation>
+<translation id="4404136731284211429">Scanează din nou</translation>
+<translation id="4500440256909785690">Înlocuiești această pagină Acasă?</translation>
 <translation id="4543782226216763900">Comutare bara laterală (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Întrebați AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Mutarea este finalizată</translation>
+<translation id="4652266463001779298">Nepermis</translation>
+<translation id="4724836371241170775">Pasul 2 din 4 · Alege ce se mută</translation>
 <translation id="473775607612524610">Actualizează</translation>
+<translation id="481205936353439293">Pasul 3 din 4 · Se mută datele</translation>
+<translation id="4854731374904470810">Copiază ID-ul filei</translation>
 <translation id="4881695831933465202">Deschideți</translation>
+<translation id="4898928054560997780">Cere-i lui Dao să repare</translation>
+<translation id="49041264823677952">Închide descărcarea finalizată</translation>
+<translation id="493638356004396067">Migrarea a eșuat</translation>
+<translation id="4968006660055392545">Nu s-au găsit profiluri de browser acceptate pe acest Mac.</translation>
+<translation id="5004648724625831205">Se pregătește o copie locală</translation>
 <translation id="501297852093417632">Ștergeți cache-ul</translation>
 <translation id="5027562294707732951">Adăugați extensie</translation>
+<translation id="5126909118906525779">Conectezi surse live?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Se numără…</translation>
+<translation id="5301255231518510089">Selectează un fișier pentru a-i vedea sursa.</translation>
+<translation id="5308380583665731573">Conectează</translation>
+<translation id="5322475253112112619">Dacă permiți, acesta poate citi și interacționa cu site-uri folosind autentificarea curentă, inclusiv prin rularea JavaScript.</translation>
+<translation id="5334844597069022743">Vezi sursa</translation>
+<translation id="5400726083793179041">Starea selectată a proiectului va fi publicată ca versiune nouă. Istoricul existent va rămâne disponibil.</translation>
+<translation id="5436835454512450295">Date importate din browser</translation>
 <translation id="5450299006531484229">Închide filele de deasupra</translation>
 <translation id="5538307496474303926">Se șterge...</translation>
 <translation id="5556459405103347317">Reîncărcați</translation>
 <translation id="5611474372949142946">Închide filele de dedesubt</translation>
+<translation id="5649936378931470828">Deschide Asistentul (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Parole salvate</translation>
+<translation id="5871520043546374642">Migrarea a fost oprită</translation>
+<translation id="5873058639175438941">Întunecă site-urile cu Modul întunecat automat când sistemul este în modul întunecat.</translation>
+<translation id="5874739091759960360">Doar cât timp dao://home este activ</translation>
+<translation id="591645459245805338">Creează o pagină privată, dinamică, pe care Dao o poate adapta la ceea ce contează pentru tine.</translation>
+<translation id="5942499955694738574">Pagina Acasă nu a putut fi resetată. Proiectul curent nu a fost modificat. Încearcă din nou.</translation>
 <translation id="5953452567010839148">Nu a fost găsit niciun cod QR</translation>
+<translation id="6018824944448456809">Pasul 1 din 4 · Alege o sursă</translation>
+<translation id="6040143037577758943">Închide</translation>
+<translation id="6042308850641462728">Mai multe</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Date rezultate: până la <ph name="BYTE_COUNT" /> octeți</translation>
+<translation id="6204195547326023850">Se încarcă pagina Acasă…</translation>
+<translation id="6266039999629596120">Necesită atenție</translation>
+<translation id="6270944267518310103">În așteptare</translation>
+<translation id="6299569859560607348">Această pagină Acasă vrea să deschidă o pagină externă. Verifică destinația înainte de a continua.</translation>
+<translation id="6325047129563993580">Creează pagina mea Acasă Dao din temele recente de navigare. Folosește doar materialul din istoricul Acasă minimizat pentru confidențialitate, explică pe scurt direcția, apoi construiește și publică prima versiune.</translation>
+<translation id="642671119120438272">File importate</translation>
+<translation id="648743804821442565">Un client de automatizare local solicită acces la această fereastră Dao.</translation>
+<translation id="6527303717912515753">Distribuie</translation>
+<translation id="6586201961110912838">Restaurează această versiune</translation>
+<translation id="6601997535892446436">Alege un profil de browser de pe acest Mac. Fiecare profil este listat separat, astfel încât să controlezi ce se mută.</translation>
 <translation id="6736243959894955139">Adresă</translation>
+<translation id="6764328036096492220">Acces de scriere</translation>
+<translation id="677387175345781299">Fișiere proiect</translation>
+<translation id="6786747875388722282">Extensii</translation>
+<translation id="6801297003382412689">Limite de resurse</translation>
 <translation id="6829876854799051628">Ștergeți cookie-urile</translation>
+<translation id="6832689803248022656">Ce ai vrea să aduci?</translation>
+<translation id="684699560760227351">Resetează Acasă</translation>
 <translation id="6896758677409633944">Copiați</translation>
+<translation id="6940497786570685033">Navighezi în modul Incognito. După ce închizi toate ferestrele Incognito, Dao nu va păstra istoricul de navigare, modulele cookie sau datele site-urilor. Descărcările și marcajele sunt păstrate.</translation>
+<translation id="6963772203726867701">Nedetectat</translation>
+<translation id="6971377058826420967">Creează cu Dao</translation>
+<translation id="7020790421915196218">Categoriile finalizate sunt gata de utilizare. Poți reîncerca doar părțile care necesită atenție.</translation>
+<translation id="7401173814860935855">Modulele cookie au fost șterse pentru acest site</translation>
+<translation id="7465855397028934440">Se caută profiluri de browser…</translation>
+<translation id="750760654246049420">Un alt client de automatizare controlează acest browser</translation>
 <translation id="7532108947552493901">Verifică actualizări...</translation>
+<translation id="7533550325431812">Permite această conexiune</translation>
 <translation id="7604253494819481181">Apasă din nou <ph name="SHORTCUT" /> pentru a comuta bara laterală</translation>
+<translation id="7615777614791709701">Resetezi Acasă?</translation>
+<translation id="7626429522809774043">Permiți controlul browserului?</translation>
+<translation id="7636812263792427733">Forțează modul întunecat</translation>
+<translation id="7658239707568436148">Anulează</translation>
+<translation id="7714812312719848690">Proiectul tău este în continuare în siguranță. Reîncearcă, restaurează o versiune sau cere-i lui Dao să îl repare.</translation>
 <translation id="7717845620320228976">Verifică actualizări</translation>
+<translation id="7803931104677504532">Citește stilurile de prezentare</translation>
+<translation id="7974106569409739809">Anulează gruparea</translation>
+<translation id="7995663841236651667">Datele browserului sunt procesate local pe acest Mac.</translation>
+<translation id="8028081981001403222">Importă proiectul</translation>
+<translation id="8041968312565730454">Browser sursă</translation>
+<translation id="8052762370740257987">Exportă proiectul</translation>
+<translation id="8097718730266959883">indisponibil</translation>
+<translation id="81044950628177848">Versiunea curentă</translation>
+<translation id="8131740175452115882">Confirmă</translation>
 <translation id="8137559199583651773">Gestionați extensiile</translation>
+<translation id="8138892305328483863">Dao îmbină elementele importate cu cele existente. Datele existente nu sunt niciodată înlocuite.</translation>
+<translation id="8175534235396780357">Detalii despre controlul IA</translation>
+<translation id="8237260373784588552">Comenzi Acasă</translation>
+<translation id="824895471210913946">Țintă: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Șterge</translation>
+<translation id="831684326378391082">Continuă fără surse live</translation>
+<translation id="8349478524212888083">Proiectul importat va deveni o versiune nouă. Accesul la surse va rămâne deconectat până îl aprobi din nou.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Conectează <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Istoric versiuni</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Înapoi</translation>
+<translation id="8595238918901827309">Restaurezi această versiune?</translation>
+<translation id="8668072977518790485">ID-ul filei a fost copiat</translation>
+<translation id="8684229942427488970">Centrul site-ului</translation>
 <translation id="8717864919010420084">Copiază linkul</translation>
+<translation id="8725066075913043281">Încearcă din nou</translation>
+<translation id="8774154357663601701">Această sursă poate citi doar paginile aprobate cât timp Acasă este activă.</translation>
+<translation id="8781013843394828812">Aceste elemente trebuie reîncercate</translation>
+<translation id="8787633576358327637">Poate apărea o solicitare macOS Keychain</translation>
+<translation id="8820817407110198400">Marcaje</translation>
+<translation id="8826852601577125903">Date rezultate: de la <ph name="OLD_BYTE_COUNT" /> la <ph name="NEW_BYTE_COUNT" /> octeți</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> candidați</translation>
+<translation id="8899040626072079337">Se mută datele în Dao</translation>
+<translation id="8962539151725780858">File controlate: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Ultimul apel MCP: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Elemente per conector: până la <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Filele inactive au fost arhivate</translation>
+<translation id="9186557253975059599">Client raportat: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Comutare bara laterală</translation>
+<translation id="9205549548211212895">Oprește migrarea</translation>
+<translation id="932327136139879170">Acasă</translation>
+<translation id="932413031402847895">Importă datele browserului</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Conectează selecția</translation>
+<translation id="949725615797318423">Extensiile sunt reinstalate din magazinul lor oficial</translation>
+<translation id="962181630102348889">Pagina Acasă nu a putut fi afișată</translation>
 </translationbundle>

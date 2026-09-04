@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="et">
+<translation id="1111094358966140566">Võrdle versiooni</translation>
 <translation id="1173894706177603556">Nimeta ümber</translation>
+<translation id="1182228621215085947">Küsi Daolt</translation>
+<translation id="121570799358042869">Teie brauseriandmed jäävad sellesse Maci. Ühilduvate laienduste uuesti installimine on ainus toiming, mis võib luua internetiühenduse; laienduste seadeid ja sisselogimisi ei kopeerita.</translation>
+<translation id="1236455002425740182">Dao migreerimine</translation>
+<translation id="1272079795634619415">Peata</translation>
 <translation id="1293177648337752319">Luba heli saidil</translation>
+<translation id="1349314697251468085">See sulgeb kõik kaustas olevad vahekaardid ja kustutab kausta.</translation>
+<translation id="1352298709666490484">Vaheta vahekaarti</translation>
+<translation id="1383876407941801731">Otsi</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profiil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Muutke veeb enda omaks</translation>
+<translation id="1530524805356937121">Rohkema laadimiseks kerimine</translation>
+<translation id="1566049601598938765">Veebisait</translation>
+<translation id="1602287703039480507">Selle saidi vahemälu on tühjendatud</translation>
+<translation id="1637441054828003579">Proovi ebaõnnestunud üksusi uuesti</translation>
+<translation id="1641203463264514072">Enamik teie andmetest on kohal</translation>
 <translation id="1653598257495639807">QR-koodi tulemus</translation>
+<translation id="172937028082106236">Loo minu sirvimisajaloo põhjal</translation>
+<translation id="17513872634828108">Avatud vahekaardid</translation>
 <translation id="1809939268435598390">Kustuta kaust</translation>
+<translation id="1816380826555616620">Üksusi ühendaja kohta: <ph name="OLD_ITEM_COUNT" /> kuni <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Leht</translation>
+<translation id="1844249872546141866">Aken: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Arv pole saadaval</translation>
+<translation id="1929197983938319610">Võite lähtebrauseri kasutamist jätkata. Kui mõni andmetüüp muutub pidevalt, palub Dao teil selle sulgeda ja proovida uuesti ainult seda osa.</translation>
+<translation id="1984122437277059790">Projekti ei saanud importida. Kontrollige paketti ja proovige uuesti.</translation>
+<translation id="2085323698672376231">See kustutab jäädavalt praeguse projekti, kõik versioonid ja juurdepääsu allikatele. Seda ei saa tagasi võtta.</translation>
+<translation id="210592584469870355">Võimalused</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Kinnita vahekaart</translation>
+<translation id="2175927920773552910">QR-kood</translation>
+<translation id="2199413402821420360">Seda vahekaarti ei saanud Mini Daos avada</translation>
+<translation id="2209843794360152290">Imporditud üksused ühendatakse olemasolevaid andmeid asendamata.</translation>
+<translation id="2254382823755510690">Teie imporditud andmed on Daos valmis. Avatud vahekaardid hoitakse laadimata ahendatud kaustas, kuni neid vajate.</translation>
+<translation id="2348199177323591972">Lehe sisu lugemine</translation>
+<translation id="2359808026110333948">Jätka</translation>
+<translation id="2398703750948514961">Tühistatud</translation>
+<translation id="2414886740292270097">Tume</translation>
+<translation id="243275146591958220">Tühista allalaadimine</translation>
+<translation id="2496180316473517155">Sirvimisajalugu</translation>
+<translation id="251834402454969316">Muudatused praeguses versioonis</translation>
+<translation id="2519023533785544875">Ava assistent</translation>
+<translation id="2535607573648844553">Dao vajab salvestatud paroolide dekrüptimiseks valitud brauseri Safe Storage'i võtit. Kui keelate juurdepääsu, jäetakse vahele ainult paroolid ja ülejäänud migreerimine jätkub.</translation>
+<translation id="2580366865845491095">Kas avada see link?</translation>
+<translation id="2612596415938768738">Võib nõuda sisselogimist</translation>
+<translation id="2698054069012763064">veel <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Sulge duplikaatvahekaardid</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Lugemine</translation>
+<translation id="2820330532305477229">Kust te üle tulete?</translation>
+<translation id="2882207023658691113">Taasta uue versioonina</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> juhib brauseri vahekaarte</translation>
 <translation id="2973324205039581528">Vaigista sait</translation>
+<translation id="2976307543842414852">Käivitused</translation>
 <translation id="3007771295016901659">Dubleeri vaheleht</translation>
 <translation id="3062877722240966678">Dao i18n torujuhe OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Kontrollitud protsess: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao testib valitud allikaid ja lisab töötavad allikad. Iga allikas saab avalehe aktiivsuse ajal lugeda ainult allpool kuvatud lehti ja andmeid.</translation>
+<translation id="3249579521706735875">Saadaval, kui süsteem kasutab tumedat režiimi.</translation>
+<translation id="3356580349448036450">Valmis</translation>
+<translation id="3404183081987133644">Enne peatamist imporditud andmed on kasutamiseks valmis. Kui olete valmis, saate igal ajal alustada uut migreerimist.</translation>
+<translation id="3420663750132400268">Kas kustutada kaust?</translation>
+<translation id="3427713535827228685">Selle saidi laiendused</translation>
+<translation id="3435738964857648380">Turvalisus</translation>
 <translation id="3450492919008172498">Uusi vahekaarte ei arhiveeritud</translation>
+<translation id="3509982919032226274">Loo minu Dao avaleht. Alusta küsimisega, mida soovin sellel isiklikul lehel uurida, seejärel loo ja avalda esimene versioon.</translation>
 <translation id="3551320343578183772">Sulge vahekaart</translation>
 <translation id="3657099196021255130">Ava Daos</translation>
 <translation id="3708693288863478389">Sisesta URL või otsi...</translation>
+<translation id="381667777775855564">Daosse lisamine</translation>
 <translation id="385051799172605136">Tagasi</translation>
 <translation id="3891466792657071243">Peata laadimine</translation>
 <translation id="3901975710974642844">Liiguta vananenud vahekaardid "vananenud"</translation>
+<translation id="3909499025801874715">Kontrolli piiratud Dao avalehe diagnostikaandmeid, selgita tõrget ja paranda praegune projekt. Säilita praegune käivitatav versioon, kuni parandus on valideeritud, seejärel avalda parandus uue versioonina.</translation>
+<translation id="3927932062596804919">Keela</translation>
 <translation id="3984237987235889323">Rakendamine</translation>
+<translation id="3999659648104077867">Brauseri juhtimine peatatud</translation>
+<translation id="4165986682804962316">Saidi seaded</translation>
 <translation id="4201242995651540725">Arhiveeritud vahekaardid, mis on olnud passiivsed viimased 24 tundi</translation>
+<translation id="4221615148091761714">Muuda Daoga</translation>
 <translation id="4285498937028063278">Eemalda kinnitus</translation>
 <translation id="4322394346347055525">Sulge teised vahelehed</translation>
+<translation id="4332876892329258166">Alusta migreerimist</translation>
 <translation id="4380677223237520064">Dekodeeri QR-kood</translation>
+<translation id="4404136731284211429">Otsi uuesti</translation>
+<translation id="4500440256909785690">Kas asendada see avaleht?</translation>
 <translation id="4543782226216763900">Külgriba lülitamine (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Küsi AI-lt: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Üleminek on lõpule viidud</translation>
+<translation id="4652266463001779298">Pole lubatud</translation>
+<translation id="4724836371241170775">2. samm 4-st · Valige ülekantav</translation>
 <translation id="473775607612524610">Uuenda</translation>
+<translation id="481205936353439293">3. samm 4-st · Andmete ülekandmine</translation>
+<translation id="4854731374904470810">Kopeeri vahekaardi ID</translation>
 <translation id="4881695831933465202">Ava</translation>
+<translation id="4898928054560997780">Palu Daol parandada</translation>
+<translation id="49041264823677952">Eemalda lõpetatud allalaadimine</translation>
+<translation id="493638356004396067">Migreerimine ebaõnnestus</translation>
+<translation id="4968006660055392545">Sellest Macist ei leitud toetatud brauseriprofiile.</translation>
+<translation id="5004648724625831205">Kohaliku koopia ettevalmistamine</translation>
 <translation id="501297852093417632">Tühjenda vahemälu</translation>
 <translation id="5027562294707732951">Lisa laiendus</translation>
+<translation id="5126909118906525779">Kas ühendada reaalajas allikad?</translation>
 <translation id="5192454087436290060">Juhtimiskeskus</translation>
+<translation id="5289912690346335931">Loendamine…</translation>
+<translation id="5301255231518510089">Valige fail, et vaadata selle lähtekoodi.</translation>
+<translation id="5308380583665731573">Ühenda</translation>
+<translation id="5322475253112112619">Luba andmisel saab see teie praeguse sisselogimisega veebisaite lugeda ja nendega suhelda, sealhulgas JavaScripti käivitada.</translation>
+<translation id="5334844597069022743">Kuva lähtekood</translation>
+<translation id="5400726083793179041">Valitud projekti olek avaldatakse uue versioonina. Olemasolev ajalugu jääb kättesaadavaks.</translation>
+<translation id="5436835454512450295">Imporditud brauseriandmed</translation>
 <translation id="5450299006531484229">Sulge ülemised vahelehed</translation>
 <translation id="5538307496474303926">Tühjendamine...</translation>
 <translation id="5556459405103347317">Laadi uuesti</translation>
 <translation id="5611474372949142946">Sulge alumised vahelehed</translation>
+<translation id="5649936378931470828">Ava assistent (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Salvestatud paroolid</translation>
+<translation id="5871520043546374642">Migreerimine peatatud</translation>
+<translation id="5873058639175438941">Tumedasta veebisaite automaatse tumeda režiimiga, kui süsteem kasutab tumedat režiimi.</translation>
+<translation id="5874739091759960360">Ainult siis, kui dao://home on aktiivne</translation>
+<translation id="591645459245805338">Looge privaatne, arenev leht, mille Dao kujundab teie huvide järgi.</translation>
+<translation id="5942499955694738574">Avalehe lähtestamine ebaõnnestus. Praegust projekti ei muudetud. Proovige uuesti.</translation>
 <translation id="5953452567010839148">QR-koodi ei leitud</translation>
+<translation id="6018824944448456809">1. samm 4-st · Valige allikas</translation>
+<translation id="6040143037577758943">Sulge</translation>
+<translation id="6042308850641462728">Rohkem</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Tulemiandmed: kuni <ph name="BYTE_COUNT" /> baiti</translation>
+<translation id="6204195547326023850">Teie avalehe laadimine…</translation>
+<translation id="6266039999629596120">Vajab tähelepanu</translation>
+<translation id="6270944267518310103">Ootel</translation>
+<translation id="6299569859560607348">See avaleht soovib avada välise lehe. Enne jätkamist vaadake sihtkoht üle.</translation>
+<translation id="6325047129563993580">Loo minu Dao avaleht minu hiljutiste sirvimisteemade põhjal. Kasuta ainult privaatsust arvestavalt minimeeritud avalehe ajaloomaterjali, selgita suunda lühidalt ning seejärel loo ja avalda esimene versioon.</translation>
+<translation id="642671119120438272">Imporditud vahekaardid</translation>
+<translation id="648743804821442565">Kohalik automatiseerimisklient taotleb juurdepääsu sellele Dao aknale.</translation>
+<translation id="6527303717912515753">Jaga</translation>
+<translation id="6586201961110912838">Taasta see versioon</translation>
+<translation id="6601997535892446436">Valige selles Macis brauseriprofiil. Iga profiil on eraldi loetletud, et saaksite kontrollida, mis üle tuuakse.</translation>
 <translation id="6736243959894955139">Aadress</translation>
+<translation id="6764328036096492220">Kirjutusõigus</translation>
+<translation id="677387175345781299">Projektifailid</translation>
+<translation id="6786747875388722282">Laiendused</translation>
+<translation id="6801297003382412689">Ressursipiirangud</translation>
 <translation id="6829876854799051628">Tühjenda küpsised</translation>
+<translation id="6832689803248022656">Mida soovite üle tuua?</translation>
+<translation id="684699560760227351">Lähtesta avaleht</translation>
 <translation id="6896758677409633944">Kopeeri</translation>
+<translation id="6940497786570685033">Sirvite inkognito režiimis. Pärast kõigi inkognito akende sulgemist ei säilita Dao sirvimisajalugu, küpsiseid ega saidiandmeid. Allalaaditud failid ja järjehoidjad säilivad.</translation>
+<translation id="6963772203726867701">Ei tuvastatud</translation>
+<translation id="6971377058826420967">Loo Daoga</translation>
+<translation id="7020790421915196218">Lõpetatud kategooriad on kasutamiseks valmis. Saate uuesti proovida ainult tähelepanu vajavaid osi.</translation>
+<translation id="7401173814860935855">Selle saidi küpsised on kustutatud</translation>
+<translation id="7465855397028934440">Brauseriprofiilide otsimine…</translation>
+<translation id="750760654246049420">Teine automatiseerimisklient juhib seda brauserit</translation>
 <translation id="7532108947552493901">Otsi värskendusi...</translation>
+<translation id="7533550325431812">Luba see ühendus</translation>
 <translation id="7604253494819481181">Vajutage uuesti <ph name="SHORTCUT" /> külgriba vahetamiseks</translation>
+<translation id="7615777614791709701">Kas lähtestada avaleht?</translation>
+<translation id="7626429522809774043">Kas lubada brauseri juhtimine?</translation>
+<translation id="7636812263792427733">Sunni tumedat režiimi</translation>
+<translation id="7658239707568436148">Loobu</translation>
+<translation id="7714812312719848690">Teie projekt on endiselt turvaline. Proovige uuesti, taastage versioon või paluge Daol see parandada.</translation>
 <translation id="7717845620320228976">Otsi värskendusi</translation>
+<translation id="7803931104677504532">Kuvastiilide lugemine</translation>
+<translation id="7974106569409739809">Eemalda kaustast</translation>
+<translation id="7995663841236651667">Teie brauseriandmeid töödeldakse selles Macis kohapeal.</translation>
+<translation id="8028081981001403222">Impordi projekt</translation>
+<translation id="8041968312565730454">Lähtebrauser</translation>
+<translation id="8052762370740257987">Ekspordi projekt</translation>
+<translation id="8097718730266959883">pole saadaval</translation>
+<translation id="81044950628177848">Praegune versioon</translation>
+<translation id="8131740175452115882">Kinnita</translation>
 <translation id="8137559199583651773">Halda laiendusi</translation>
+<translation id="8138892305328483863">Dao ühendab imporditud üksused olemasolevatega. Olemasolevaid andmeid ei asendata kunagi.</translation>
+<translation id="8175534235396780357">AI juhtimise üksikasjad</translation>
+<translation id="8237260373784588552">Avalehe juhtelemendid</translation>
+<translation id="824895471210913946">Sihtmärk: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Kustuta</translation>
+<translation id="831684326378391082">Jätka ilma reaalajas allikateta</translation>
+<translation id="8349478524212888083">Imporditud projektist saab uus versioon. Juurdepääs allikatele jääb katkestatuks, kuni selle uuesti heaks kiidate.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Ühenda <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Versiooniajalugu</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Tagasi</translation>
+<translation id="8595238918901827309">Kas taastada see versioon?</translation>
+<translation id="8668072977518790485">Vahekaardi ID kopeeritud</translation>
+<translation id="8684229942427488970">Saidi keskus</translation>
 <translation id="8717864919010420084">Kopeeri link</translation>
+<translation id="8725066075913043281">Proovi uuesti</translation>
+<translation id="8774154357663601701">See allikas saab avalehe aktiivsuse ajal lugeda ainult heakskiidetud lehti.</translation>
+<translation id="8781013843394828812">Need üksused tuleb uuesti proovida</translation>
+<translation id="8787633576358327637">Võidakse kuvada macOS-i võtmehoidja viip</translation>
+<translation id="8820817407110198400">Järjehoidjad</translation>
+<translation id="8826852601577125903">Tulemiandmed: <ph name="OLD_BYTE_COUNT" /> kuni <ph name="NEW_BYTE_COUNT" /> baiti</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidaati</translation>
+<translation id="8899040626072079337">Andmete ülekandmine Daosse</translation>
+<translation id="8962539151725780858">Juhitavad vahekaardid: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Viimane MCP-kutse: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Üksusi ühendaja kohta: kuni <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Mitteaktiivsed vahekaardid arhiveeritud</translation>
+<translation id="9186557253975059599">Teatatud klient: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Külgriba lülitamine</translation>
+<translation id="9205549548211212895">Peata migreerimine</translation>
+<translation id="932327136139879170">Avaleht</translation>
+<translation id="932413031402847895">Brauseriandmete importimine</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Ühenda valitud</translation>
+<translation id="949725615797318423">Laiendused installitakse uuesti nende ametlikust poest</translation>
+<translation id="962181630102348889">Teie avalehte ei saanud kuvada</translation>
 </translationbundle>

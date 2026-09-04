@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="fil">
+<translation id="1111094358966140566">Ihambing ang bersyon</translation>
 <translation id="1173894706177603556">Palitan ang Pangalan</translation>
+<translation id="1182228621215085947">Tanungin ang Dao</translation>
+<translation id="121570799358042869">Mananatili ang data ng iyong browser sa Mac na ito. Ang muling pag-install ng mga compatible na extension ang tanging hakbang na maaaring kumonekta sa internet; hindi kinokopya ang mga setting ng extension at pag-sign in.</translation>
+<translation id="1236455002425740182">Paglipat sa Dao</translation>
+<translation id="1272079795634619415">Ihinto</translation>
 <translation id="1293177648337752319">I-unmute ang Site</translation>
+<translation id="1349314697251468085">Isasara nito ang lahat ng tab sa folder at ide-delete ang folder.</translation>
+<translation id="1352298709666490484">Lumipat ng Tab</translation>
+<translation id="1383876407941801731">Maghanap</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profile: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Gawing parang sa iyo ang web</translation>
+<translation id="1530524805356937121">Mag-scroll upang mag-load pa</translation>
+<translation id="1566049601598938765">Website</translation>
+<translation id="1602287703039480507">Na-clear ang cache para sa site na ito</translation>
+<translation id="1637441054828003579">Subukang muli ang mga nabigong item</translation>
+<translation id="1641203463264514072">Narito na ang karamihan ng iyong data</translation>
 <translation id="1653598257495639807">Resulta ng QR Code</translation>
+<translation id="172937028082106236">Gumawa mula sa history ko ng pagba-browse</translation>
+<translation id="17513872634828108">Mga bukas na tab</translation>
 <translation id="1809939268435598390">Tanggalin ang Folder</translation>
+<translation id="1816380826555616620">Mga item bawat connector: <ph name="OLD_ITEM_COUNT" /> hanggang <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Page</translation>
+<translation id="1844249872546141866">Window: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Hindi available ang bilang</translation>
+<translation id="1929197983938319610">Maaari mong patuloy na gamitin ang source browser. Kung patuloy na nagbabago ang isang uri ng data, hihilingin ng Dao na isara mo ito at subukang muli ang bahaging iyon lamang.</translation>
+<translation id="1984122437277059790">Hindi ma-import ang proyekto. Suriin ang package at subukang muli.</translation>
+<translation id="2085323698672376231">Permanenteng ide-delete nito ang kasalukuyang proyekto, lahat ng bersyon, at access sa source. Hindi ito maaaring i-undo.</translation>
+<translation id="210592584469870355">Mga kakayahan</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">I-pin ang Tab</translation>
+<translation id="2175927920773552910">QR Code</translation>
+<translation id="2199413402821420360">Hindi mabuksan ang tab na ito sa Mini Dao</translation>
+<translation id="2209843794360152290">Pinagsasama ang mga na-import na item nang hindi pinapalitan ang umiiral na data.</translation>
+<translation id="2254382823755510690">Handa na ang iyong na-import na data sa Dao. Ang mga bukas na tab ay mananatiling hindi naka-load sa isang nakatiklop na folder hanggang kailanganin mo ang mga ito.</translation>
+<translation id="2348199177323591972">Basahin ang content ng page</translation>
+<translation id="2359808026110333948">Magpatuloy</translation>
+<translation id="2398703750948514961">Nakansela</translation>
+<translation id="2414886740292270097">Madilim</translation>
+<translation id="243275146591958220">Kanselahin ang download</translation>
+<translation id="2496180316473517155">History ng pagba-browse</translation>
+<translation id="251834402454969316">Mga pagbabago sa kasalukuyang bersyon</translation>
+<translation id="2519023533785544875">Buksan ang Assistant</translation>
+<translation id="2535607573648844553">Kailangan ng Dao ang Safe Storage key ng napiling browser upang i-decrypt ang mga naka-save na password. Kung tatanggihan mo ang access, mga password lang ang lalaktawan at magpapatuloy ang natitirang paglipat.</translation>
+<translation id="2580366865845491095">Buksan ang link na ito?</translation>
+<translation id="2612596415938768738">Maaaring kailangan mong mag-sign in</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> pa</translation>
 <translation id="2703180365855369896">Isara ang mga Dobleng Tab</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Binabasa</translation>
+<translation id="2820330532305477229">Saan ka lilipat mula?</translation>
+<translation id="2882207023658691113">Ibalik bilang bagong bersyon</translation>
+<translation id="2904931165000922387">Kinokontrol ng <ph name="CLIENT" /> ang mga tab ng browser</translation>
 <translation id="2973324205039581528">I-mute ang Site</translation>
+<translation id="2976307543842414852">Gumagana</translation>
 <translation id="3007771295016901659">Kopyahin ang Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Na-verify na proseso: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Susubukan ng Dao ang mga napiling source at idaragdag ang mga gumagana. Mababasa lamang ng bawat source ang mga page at data na ipinapakita sa ibaba habang aktibo ang Home.</translation>
+<translation id="3249579521706735875">Available kapag nasa dark mode ang system.</translation>
+<translation id="3356580349448036450">Kumpleto</translation>
+<translation id="3404183081987133644">Handa nang gamitin ang data na na-import bago ka huminto. Maaari kang magsimula ng isa pang paglipat kapag handa ka na.</translation>
+<translation id="3420663750132400268">I-delete ang folder?</translation>
+<translation id="3427713535827228685">Mga extension sa site na ito</translation>
+<translation id="3435738964857648380">Seguridad</translation>
 <translation id="3450492919008172498">Walang bagong tab na na-archive</translation>
+<translation id="3509982919032226274">Gumawa ng Dao Home ko. Magsimula sa pagtatanong kung ano ang gusto kong matulungan akong tuklasin ng personal na page na ito, pagkatapos ay buuin at i-publish ang unang bersyon.</translation>
 <translation id="3551320343578183772">Isara ang Tab</translation>
 <translation id="3657099196021255130">Buksan sa Dao</translation>
 <translation id="3708693288863478389">Mag-type ng URL o maghanap...</translation>
+<translation id="381667777775855564">Idinadagdag sa Dao</translation>
 <translation id="385051799172605136">Bumalik</translation>
 <translation id="3891466792657071243">Itigil ang Paglo-load</translation>
 <translation id="3901975710974642844">Ilipat ang mga Lumang Tab sa "lumang"</translation>
+<translation id="3909499025801874715">Suriin ang limitadong diagnostic ng Dao Home, ipaliwanag ang pagkabigo, at ayusin ang kasalukuyang proyekto. Panatilihin ang kasalukuyang gumaganang bersyon hanggang mapatunayan ang pagkukumpuni, pagkatapos ay i-publish ang pagkukumpuni bilang bagong bersyon.</translation>
+<translation id="3927932062596804919">Tanggihan</translation>
 <translation id="3984237987235889323">Inia-apply</translation>
+<translation id="3999659648104077867">Itinigil ang kontrol sa browser</translation>
+<translation id="4165986682804962316">Mga setting ng site</translation>
 <translation id="4201242995651540725">Na-archive ang mga tab na hindi aktibo sa nakaraang 24 oras</translation>
+<translation id="4221615148091761714">I-edit gamit ang Dao</translation>
 <translation id="4285498937028063278">I-unpin</translation>
 <translation id="4322394346347055525">Isara ang Ibang Mga Tab</translation>
+<translation id="4332876892329258166">Simulan ang paglipat</translation>
 <translation id="4380677223237520064">I-decode ang QR Code</translation>
+<translation id="4404136731284211429">Mag-scan muli</translation>
+<translation id="4500440256909785690">Palitan ang Home na ito?</translation>
 <translation id="4543782226216763900">I-toggle ang Sidebar (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Tanungin ang AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Kumpleto na ang iyong paglipat</translation>
+<translation id="4652266463001779298">Hindi pinapayagan</translation>
+<translation id="4724836371241170775">Hakbang 2 sa 4 · Piliin ang ililipat</translation>
 <translation id="473775607612524610">I-update</translation>
+<translation id="481205936353439293">Hakbang 3 sa 4 · Inililipat ang iyong data</translation>
+<translation id="4854731374904470810">Kopyahin ang ID ng Tab</translation>
 <translation id="4881695831933465202">Buksan</translation>
+<translation id="4898928054560997780">Hilingin sa Dao na ayusin</translation>
+<translation id="49041264823677952">Alisin ang natapos na download</translation>
+<translation id="493638356004396067">Nabigo ang paglipat</translation>
+<translation id="4968006660055392545">Walang nakitang sinusuportahang profile ng browser sa Mac na ito.</translation>
+<translation id="5004648724625831205">Naghahanda ng lokal na kopya</translation>
 <translation id="501297852093417632">I-clear ang Cache</translation>
 <translation id="5027562294707732951">Magdagdag ng extension</translation>
+<translation id="5126909118906525779">Ikonekta ang mga live source?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Binibilang…</translation>
+<translation id="5301255231518510089">Pumili ng file upang tingnan ang source nito.</translation>
+<translation id="5308380583665731573">Ikonekta</translation>
+<translation id="5322475253112112619">Kung papayagan, mababasa at makakaugnayan nito ang mga website gamit ang iyong kasalukuyang pag-login, kabilang ang pagpapatakbo ng JavaScript.</translation>
+<translation id="5334844597069022743">Tingnan ang source</translation>
+<translation id="5400726083793179041">Ipa-publish ang napiling estado ng proyekto bilang bagong bersyon. Mananatiling available ang umiiral na history.</translation>
+<translation id="5436835454512450295">Na-import na data ng browser</translation>
 <translation id="5450299006531484229">Isara ang Mga Tab sa Itaas</translation>
 <translation id="5538307496474303926">Nililinis...</translation>
 <translation id="5556459405103347317">I-reload</translation>
 <translation id="5611474372949142946">Isara ang Mga Tab sa Ibaba</translation>
+<translation id="5649936378931470828">Buksan ang Assistant (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Mga naka-save na password</translation>
+<translation id="5871520043546374642">Itinigil ang paglipat</translation>
+<translation id="5873058639175438941">Padilimin ang mga website gamit ang Auto Dark Mode habang nasa dark mode ang system.</translation>
+<translation id="5874739091759960360">Habang aktibo lamang ang dao://home</translation>
+<translation id="591645459245805338">Gumawa ng pribado at buhay na page na maaaring hubugin ng Dao ayon sa mahalaga sa iyo.</translation>
+<translation id="5942499955694738574">Hindi ma-reset ang Home. Hindi binago ang kasalukuyang proyekto. Subukang muli.</translation>
 <translation id="5953452567010839148">Walang QR code na nakita</translation>
+<translation id="6018824944448456809">Hakbang 1 sa 4 · Pumili ng source</translation>
+<translation id="6040143037577758943">Isara</translation>
+<translation id="6042308850641462728">Higit pa</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Data ng resulta: hanggang <ph name="BYTE_COUNT" /> byte</translation>
+<translation id="6204195547326023850">Nilo-load ang iyong Home…</translation>
+<translation id="6266039999629596120">Kailangang tingnan</translation>
+<translation id="6270944267518310103">Naghihintay</translation>
+<translation id="6299569859560607348">Nais ng Home na ito na magbukas ng external na page. Suriin ang patutunguhan bago magpatuloy.</translation>
+<translation id="6325047129563993580">Gumawa ng Dao Home ko mula sa mga kamakailan kong tema sa pagba-browse. Gamitin lamang ang privacy-minimized na materyal ng history ng Home, maikling ipaliwanag ang direksyon, pagkatapos ay buuin at i-publish ang unang bersyon.</translation>
+<translation id="642671119120438272">Mga na-import na tab</translation>
+<translation id="648743804821442565">Humihiling ng access sa window na ito ng Dao ang isang lokal na automation client.</translation>
+<translation id="6527303717912515753">Ibahagi</translation>
+<translation id="6586201961110912838">Ibalik ang bersyong ito</translation>
+<translation id="6601997535892446436">Pumili ng profile ng browser sa Mac na ito. Hiwalay na nakalista ang bawat profile para ikaw ang may kontrol sa ililipat.</translation>
 <translation id="6736243959894955139">Address</translation>
+<translation id="6764328036096492220">Access sa pagsulat</translation>
+<translation id="677387175345781299">Mga file ng proyekto</translation>
+<translation id="6786747875388722282">Mga extension</translation>
+<translation id="6801297003382412689">Mga limitasyon sa resource</translation>
 <translation id="6829876854799051628">I-clear ang Cookies</translation>
+<translation id="6832689803248022656">Ano ang gusto mong dalhin?</translation>
+<translation id="684699560760227351">I-reset ang Home</translation>
 <translation id="6896758677409633944">Kopyahin</translation>
+<translation id="6940497786570685033">Nagba-browse ka sa Incognito mode. Kapag isinara mo ang lahat ng Incognito window, hindi itatago ng Dao ang iyong history ng pagba-browse, cookies, o data ng site. Itatago ang mga download at bookmark.</translation>
+<translation id="6963772203726867701">Hindi nakita</translation>
+<translation id="6971377058826420967">Gumawa gamit ang Dao</translation>
+<translation id="7020790421915196218">Handa nang gamitin ang mga nakumpletong kategorya. Maaari mong subukang muli ang mga bahaging kailangang tingnan.</translation>
+<translation id="7401173814860935855">Na-clear ang cookies para sa site na ito</translation>
+<translation id="7465855397028934440">Naghahanap ng mga profile ng browser…</translation>
+<translation id="750760654246049420">May ibang automation client na kumokontrol sa browser na ito</translation>
 <translation id="7532108947552493901">Suriin ang mga Update...</translation>
+<translation id="7533550325431812">Payagan ang koneksyong ito</translation>
 <translation id="7604253494819481181">Pindutin ang <ph name="SHORTCUT" /> muli upang i-toggle ang sidebar</translation>
+<translation id="7615777614791709701">I-reset ang Home?</translation>
+<translation id="7626429522809774043">Payagan ang kontrol sa browser?</translation>
+<translation id="7636812263792427733">Pilitin ang dark mode</translation>
+<translation id="7658239707568436148">Kanselahin</translation>
+<translation id="7714812312719848690">Ligtas pa rin ang iyong proyekto. Subukang muli, magbalik ng bersyon, o hilingin sa Dao na ayusin ito.</translation>
 <translation id="7717845620320228976">Suriin ang mga update</translation>
+<translation id="7803931104677504532">Basahin ang mga istilo ng presentasyon</translation>
+<translation id="7974106569409739809">Alisin sa folder</translation>
+<translation id="7995663841236651667">Lokal na pinoproseso sa Mac na ito ang data ng iyong browser.</translation>
+<translation id="8028081981001403222">I-import ang proyekto</translation>
+<translation id="8041968312565730454">Source browser</translation>
+<translation id="8052762370740257987">I-export ang proyekto</translation>
+<translation id="8097718730266959883">hindi available</translation>
+<translation id="81044950628177848">Kasalukuyang bersyon</translation>
+<translation id="8131740175452115882">Kumpirmahin</translation>
 <translation id="8137559199583651773">Pamahalaan ang mga extension</translation>
+<translation id="8138892305328483863">Pinagsasama ng Dao ang mga na-import na item sa mayroon ka na. Hindi kailanman pinapalitan ang umiiral na data.</translation>
+<translation id="8175534235396780357">Mga detalye ng AI control</translation>
+<translation id="8237260373784588552">Mga kontrol ng Home</translation>
+<translation id="824895471210913946">Target: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">I-delete</translation>
+<translation id="831684326378391082">Magpatuloy nang walang live source</translation>
+<translation id="8349478524212888083">Magiging bagong bersyon ang na-import na proyekto. Mananatiling hindi nakakonekta ang access sa source hanggang aprubahan mo itong muli.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Ikonekta ang <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">History ng bersyon</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Bumalik</translation>
+<translation id="8595238918901827309">Ibalik ang bersyong ito?</translation>
+<translation id="8668072977518790485">Nakopya ang ID ng tab</translation>
+<translation id="8684229942427488970">Sentro ng site</translation>
 <translation id="8717864919010420084">Kopyahin ang Link</translation>
+<translation id="8725066075913043281">Subukang muli</translation>
+<translation id="8774154357663601701">Mababasa lamang ng source na ito ang mga naaprubahang page habang aktibo ang Home.</translation>
+<translation id="8781013843394828812">Kailangang subukang muli ang mga item na ito</translation>
+<translation id="8787633576358327637">Maaaring lumabas ang prompt ng macOS Keychain</translation>
+<translation id="8820817407110198400">Mga bookmark</translation>
+<translation id="8826852601577125903">Data ng resulta: <ph name="OLD_BYTE_COUNT" /> hanggang <ph name="NEW_BYTE_COUNT" /> byte</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidato</translation>
+<translation id="8899040626072079337">Inililipat ang iyong data sa Dao</translation>
+<translation id="8962539151725780858">Mga kinokontrol na tab: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Pinakabagong tawag sa MCP: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Mga item bawat connector: hanggang <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Na-archive ang mga hindi aktibong tab</translation>
+<translation id="9186557253975059599">Iniulat na client: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">I-toggle ang Sidebar</translation>
+<translation id="9205549548211212895">Ihinto ang paglipat</translation>
+<translation id="932327136139879170">Home</translation>
+<translation id="932413031402847895">Mag-import ng data ng browser</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Ikonekta ang napili</translation>
+<translation id="949725615797318423">Muling ini-install ang mga extension mula sa opisyal na store ng mga ito</translation>
+<translation id="962181630102348889">Hindi maipakita ang iyong Home</translation>
 </translationbundle>

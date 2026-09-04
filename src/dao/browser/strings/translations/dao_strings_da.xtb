@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="da">
+<translation id="1111094358966140566">Sammenlign version</translation>
 <translation id="1173894706177603556">Omdøb</translation>
+<translation id="1182228621215085947">Spørg Dao</translation>
+<translation id="121570799358042869">Dine browserdata bliver på denne Mac. Geninstallation af kompatible udvidelser er det eneste trin, der muligvis opretter forbindelse til internettet. Udvidelsesindstillinger og logins kopieres ikke.</translation>
+<translation id="1236455002425740182">Dao-migrering</translation>
+<translation id="1272079795634619415">Stop</translation>
 <translation id="1293177648337752319">Slå lyd til på websted</translation>
+<translation id="1349314697251468085">Dette lukker alle faner i mappen og sletter mappen.</translation>
+<translation id="1352298709666490484">Skift fane</translation>
+<translation id="1383876407941801731">Søg</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Gør internettet til dit eget</translation>
+<translation id="1530524805356937121">Rul for at indlæse mere</translation>
+<translation id="1566049601598938765">Website</translation>
+<translation id="1602287703039480507">Cache ryddet for dette website</translation>
+<translation id="1637441054828003579">Prøv mislykkede elementer igen</translation>
+<translation id="1641203463264514072">Det meste af dine data er her</translation>
 <translation id="1653598257495639807">QR-koderesultat</translation>
+<translation id="172937028082106236">Opret fra min browserhistorik</translation>
+<translation id="17513872634828108">Åbne faner</translation>
 <translation id="1809939268435598390">Slet mappe</translation>
+<translation id="1816380826555616620">Elementer pr. connector: <ph name="OLD_ITEM_COUNT" /> til <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Side</translation>
+<translation id="1844249872546141866">Vindue: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Antal ikke tilgængeligt</translation>
+<translation id="1929197983938319610">Du kan fortsætte med at bruge kildebrowseren. Hvis en datatype bliver ved med at ændre sig, beder Dao dig om at lukke den og prøve igen med kun den del.</translation>
+<translation id="1984122437277059790">Projektet kunne ikke importeres. Kontrollér pakken, og prøv igen.</translation>
+<translation id="2085323698672376231">Dette sletter det aktuelle projekt, alle versioner og kildeadgang permanent. Dette kan ikke fortrydes.</translation>
+<translation id="210592584469870355">Funktioner</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Fastgør fane</translation>
+<translation id="2175927920773552910">QR-kode</translation>
+<translation id="2199413402821420360">Denne fane kunne ikke åbnes i Mini Dao</translation>
+<translation id="2209843794360152290">Importerede elementer flettes uden at erstatte eksisterende data.</translation>
+<translation id="2254382823755510690">Dine importerede data er klar i Dao. Åbne faner bevares aflastet i en sammenfoldet mappe, indtil du har brug for dem.</translation>
+<translation id="2348199177323591972">Læs sideindhold</translation>
+<translation id="2359808026110333948">Fortsæt</translation>
+<translation id="2398703750948514961">Annulleret</translation>
+<translation id="2414886740292270097">Mørk</translation>
+<translation id="243275146591958220">Annuller download</translation>
+<translation id="2496180316473517155">Browserhistorik</translation>
+<translation id="251834402454969316">Ændringer i den aktuelle version</translation>
+<translation id="2519023533785544875">Åbn Assistent</translation>
+<translation id="2535607573648844553">Dao skal bruge den valgte browsers Safe Storage-nøgle for at dekryptere gemte adgangskoder. Hvis du afviser adgang, springes kun adgangskoder over, og resten af migreringen fortsætter.</translation>
+<translation id="2580366865845491095">Åbn dette link?</translation>
+<translation id="2612596415938768738">Kræver muligvis, at du er logget ind</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> mere</translation>
 <translation id="2703180365855369896">Luk dublerede faner</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Læser</translation>
+<translation id="2820330532305477229">Hvor flytter du fra?</translation>
+<translation id="2882207023658691113">Gendan som en ny version</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> styrer browserfaner</translation>
 <translation id="2973324205039581528">Slå lyd fra på websted</translation>
+<translation id="2976307543842414852">Kører</translation>
 <translation id="3007771295016901659">Dupliker fane</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Bekræftet proces: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao tester de valgte kilder og tilføjer dem, der virker. Hver kilde kan kun læse de sider og data, der vises nedenfor, mens startsiden er aktiv.</translation>
+<translation id="3249579521706735875">Tilgængelig, når systemet er i mørk tilstand.</translation>
+<translation id="3356580349448036450">Fuldført</translation>
+<translation id="3404183081987133644">Data, der blev importeret, før du stoppede, er klar til brug. Du kan starte en ny migrering, når du er klar.</translation>
+<translation id="3420663750132400268">Slet mappe?</translation>
+<translation id="3427713535827228685">Udvidelser på dette website</translation>
+<translation id="3435738964857648380">Sikkerhed</translation>
 <translation id="3450492919008172498">Ingen nye faner blev arkiveret</translation>
+<translation id="3509982919032226274">Opret min Dao-startside. Start med at spørge, hvad jeg ønsker, at denne personlige side skal hjælpe mig med at udforske, og opbyg og udgiv derefter den første version.</translation>
 <translation id="3551320343578183772">Luk fane</translation>
 <translation id="3657099196021255130">Åbn i Dao</translation>
 <translation id="3708693288863478389">Indtast en URL eller søg...</translation>
+<translation id="381667777775855564">Føjer til Dao</translation>
 <translation id="385051799172605136">Tilbage</translation>
 <translation id="3891466792657071243">Stop indlæsning</translation>
 <translation id="3901975710974642844">Flyt forældede faner til "forældet"</translation>
+<translation id="3909499025801874715">Undersøg den afgrænsede Dao-startsidediagnostik, forklar fejlen, og reparer det aktuelle projekt. Behold den aktuelle kørbare version, indtil reparationen er valideret, og udgiv derefter reparationen som en ny version.</translation>
+<translation id="3927932062596804919">Afvis</translation>
 <translation id="3984237987235889323">Anvender</translation>
+<translation id="3999659648104077867">Browserstyring stoppet</translation>
+<translation id="4165986682804962316">Websiteindstillinger</translation>
 <translation id="4201242995651540725">Arkiverede faner inaktive i de sidste 24 timer</translation>
+<translation id="4221615148091761714">Redigér med Dao</translation>
 <translation id="4285498937028063278">Frigør</translation>
 <translation id="4322394346347055525">Luk andre faner</translation>
+<translation id="4332876892329258166">Start migrering</translation>
 <translation id="4380677223237520064">Dekod QR-kode</translation>
+<translation id="4404136731284211429">Scan igen</translation>
+<translation id="4500440256909785690">Erstat denne startside?</translation>
 <translation id="4543782226216763900">Skift Sidebar (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Spørg AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Din flytning er fuldført</translation>
+<translation id="4652266463001779298">Ikke tilladt</translation>
+<translation id="4724836371241170775">Trin 2 af 4 · Vælg, hvad der flyttes</translation>
 <translation id="473775607612524610">Opdater</translation>
+<translation id="481205936353439293">Trin 3 af 4 · Flytter dine data</translation>
+<translation id="4854731374904470810">Kopiér fane-id</translation>
 <translation id="4881695831933465202">Åbn</translation>
+<translation id="4898928054560997780">Bed Dao om at rette det</translation>
+<translation id="49041264823677952">Afvis fuldført download</translation>
+<translation id="493638356004396067">Migrering mislykkedes</translation>
+<translation id="4968006660055392545">Der blev ikke fundet understøttede browserprofiler på denne Mac.</translation>
+<translation id="5004648724625831205">Forbereder en lokal kopi</translation>
 <translation id="501297852093417632">Ryd cache</translation>
 <translation id="5027562294707732951">Tilføj udvidelse</translation>
+<translation id="5126909118906525779">Forbind livekilder?</translation>
 <translation id="5192454087436290060">Kontrolcenter</translation>
+<translation id="5289912690346335931">Tæller…</translation>
+<translation id="5301255231518510089">Vælg en fil for at se dens kildekode.</translation>
+<translation id="5308380583665731573">Forbind</translation>
+<translation id="5322475253112112619">Hvis det tillades, kan den læse og interagere med websites ved hjælp af dit aktuelle login, herunder ved at køre JavaScript.</translation>
+<translation id="5334844597069022743">Vis kilde</translation>
+<translation id="5400726083793179041">Den valgte projekttilstand udgives som en ny version. Eksisterende historik forbliver tilgængelig.</translation>
+<translation id="5436835454512450295">Importerede browserdata</translation>
 <translation id="5450299006531484229">Luk faner ovenfor</translation>
 <translation id="5538307496474303926">Rydder...</translation>
 <translation id="5556459405103347317">Genindlæs</translation>
 <translation id="5611474372949142946">Luk faner nedenfor</translation>
+<translation id="5649936378931470828">Åbn Assistent (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Gemte adgangskoder</translation>
+<translation id="5871520043546374642">Migrering stoppet</translation>
+<translation id="5873058639175438941">Gør websites mørke med Automatisk mørk tilstand, mens systemet er i mørk tilstand.</translation>
+<translation id="5874739091759960360">Kun mens dao://home er aktiv</translation>
+<translation id="591645459245805338">Opret en privat, levende side, som Dao kan forme ud fra det, der betyder noget for dig.</translation>
+<translation id="5942499955694738574">Startsiden kunne ikke nulstilles. Det aktuelle projekt blev ikke ændret. Prøv igen.</translation>
 <translation id="5953452567010839148">Ingen QR-kode fundet</translation>
+<translation id="6018824944448456809">Trin 1 af 4 · Vælg en kilde</translation>
+<translation id="6040143037577758943">Luk</translation>
+<translation id="6042308850641462728">Mere</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Resultatdata: op til <ph name="BYTE_COUNT" /> byte</translation>
+<translation id="6204195547326023850">Indlæser din startside…</translation>
+<translation id="6266039999629596120">Kræver opmærksomhed</translation>
+<translation id="6270944267518310103">Venter</translation>
+<translation id="6299569859560607348">Denne startside vil åbne en ekstern side. Gennemse destinationen, før du fortsætter.</translation>
+<translation id="6325047129563993580">Opret min Dao-startside ud fra mine seneste browsingtemaer. Brug kun det privatlivsminimerede historikmateriale fra startsiden, forklar kort retningen, og opbyg og udgiv derefter den første version.</translation>
+<translation id="642671119120438272">Importerede faner</translation>
+<translation id="648743804821442565">En lokal automatiseringsklient anmoder om adgang til dette Dao-vindue.</translation>
+<translation id="6527303717912515753">Del</translation>
+<translation id="6586201961110912838">Gendan denne version</translation>
+<translation id="6601997535892446436">Vælg en browserprofil på denne Mac. Hver profil vises separat, så du bevarer kontrollen over, hvad der flyttes.</translation>
 <translation id="6736243959894955139">Adresse</translation>
+<translation id="6764328036096492220">Skriveadgang</translation>
+<translation id="677387175345781299">Projektfiler</translation>
+<translation id="6786747875388722282">Udvidelser</translation>
+<translation id="6801297003382412689">Ressourcegrænser</translation>
 <translation id="6829876854799051628">Ryd cookies</translation>
+<translation id="6832689803248022656">Hvad vil du medbringe?</translation>
+<translation id="684699560760227351">Nulstil startside</translation>
 <translation id="6896758677409633944">Kopiér</translation>
+<translation id="6940497786570685033">Du browser i inkognitotilstand. Når du lukker alle inkognitovinduer, gemmer Dao ikke din browserhistorik, cookies eller websitedata. Downloads og bogmærker bevares.</translation>
+<translation id="6963772203726867701">Ikke fundet</translation>
+<translation id="6971377058826420967">Opret med Dao</translation>
+<translation id="7020790421915196218">Fuldførte kategorier er klar til brug. Du kan kun prøve de dele igen, der kræver opmærksomhed.</translation>
+<translation id="7401173814860935855">Cookies ryddet for dette website</translation>
+<translation id="7465855397028934440">Søger efter browserprofiler…</translation>
+<translation id="750760654246049420">En anden automatiseringsklient styrer denne browser</translation>
 <translation id="7532108947552493901">Søg efter opdateringer...</translation>
+<translation id="7533550325431812">Tillad denne forbindelse</translation>
 <translation id="7604253494819481181">Tryk på <ph name="SHORTCUT" /> igen for at skifte sidebjælke</translation>
+<translation id="7615777614791709701">Nulstil startside?</translation>
+<translation id="7626429522809774043">Tillad browserstyring?</translation>
+<translation id="7636812263792427733">Gennemtving mørk tilstand</translation>
+<translation id="7658239707568436148">Annuller</translation>
+<translation id="7714812312719848690">Dit projekt er stadig sikkert. Prøv igen, gendan en version, eller bed Dao om at reparere det.</translation>
 <translation id="7717845620320228976">Søg efter opdateringer</translation>
+<translation id="7803931104677504532">Læs præsentationsstile</translation>
+<translation id="7974106569409739809">Ophæv mappe</translation>
+<translation id="7995663841236651667">Dine browserdata behandles lokalt på denne Mac.</translation>
+<translation id="8028081981001403222">Importér projekt</translation>
+<translation id="8041968312565730454">Kildebrowser</translation>
+<translation id="8052762370740257987">Eksportér projekt</translation>
+<translation id="8097718730266959883">ikke tilgængelig</translation>
+<translation id="81044950628177848">Aktuel version</translation>
+<translation id="8131740175452115882">Bekræft</translation>
 <translation id="8137559199583651773">Administrer udvidelser</translation>
+<translation id="8138892305328483863">Dao fletter importerede elementer med det, du allerede har. Eksisterende data erstattes aldrig.</translation>
+<translation id="8175534235396780357">Oplysninger om AI-styring</translation>
+<translation id="8237260373784588552">Startsideindstillinger</translation>
+<translation id="824895471210913946">Mål: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Slet</translation>
+<translation id="831684326378391082">Fortsæt uden livekilder</translation>
+<translation id="8349478524212888083">Det importerede projekt bliver en ny version. Kildeadgang forbliver afbrudt, indtil du godkender den igen.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Forbind <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Versionshistorik</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Tilbage</translation>
+<translation id="8595238918901827309">Gendan denne version?</translation>
+<translation id="8668072977518790485">Fane-id kopieret</translation>
+<translation id="8684229942427488970">Websitecenter</translation>
 <translation id="8717864919010420084">Kopiér link</translation>
+<translation id="8725066075913043281">Prøv igen</translation>
+<translation id="8774154357663601701">Denne kilde kan kun læse de godkendte sider, mens startsiden er aktiv.</translation>
+<translation id="8781013843394828812">Disse elementer skal prøves igen</translation>
+<translation id="8787633576358327637">En macOS-nøgleringsanmodning vises muligvis</translation>
+<translation id="8820817407110198400">Bogmærker</translation>
+<translation id="8826852601577125903">Resultatdata: <ph name="OLD_BYTE_COUNT" /> til <ph name="NEW_BYTE_COUNT" /> byte</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidater</translation>
+<translation id="8899040626072079337">Flytter dine data til Dao</translation>
+<translation id="8962539151725780858">Styrede faner: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Seneste MCP-kald: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Elementer pr. connector: op til <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Inaktive faner arkiveret</translation>
+<translation id="9186557253975059599">Angivet klient: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Skift Sidebar</translation>
+<translation id="9205549548211212895">Stop migrering</translation>
+<translation id="932327136139879170">Startside</translation>
+<translation id="932413031402847895">Importér browserdata</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Forbind valgte</translation>
+<translation id="949725615797318423">Udvidelser geninstalleres fra deres officielle butik</translation>
+<translation id="962181630102348889">Din startside kunne ikke vises</translation>
 </translationbundle>

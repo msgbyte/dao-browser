@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="lt">
+<translation id="1111094358966140566">Palyginti versiją</translation>
 <translation id="1173894706177603556">Pervadinti</translation>
+<translation id="1182228621215085947">Klausti Dao</translation>
+<translation id="121570799358042869">Jūsų naršyklės duomenys lieka šiame „Mac“. Suderinamų plėtinių įdiegimas iš naujo yra vienintelis veiksmas, kuriam gali reikėti interneto ryšio; plėtinių nustatymai ir prisijungimai nekopijuojami.</translation>
+<translation id="1236455002425740182">Dao perkėlimas</translation>
+<translation id="1272079795634619415">Stabdyti</translation>
 <translation id="1293177648337752319">Įjungti svetainės garsą</translation>
+<translation id="1349314697251468085">Bus uždaryti visi aplanke esantys skirtukai ir ištrintas aplankas.</translation>
+<translation id="1352298709666490484">Perjungti skirtuką</translation>
+<translation id="1383876407941801731">Ieškoti</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profilis: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Paverskite žiniatinklį savu</translation>
+<translation id="1530524805356937121">Slinkti, kad būtų įkelta daugiau</translation>
+<translation id="1566049601598938765">Svetainė</translation>
+<translation id="1602287703039480507">Šios svetainės podėlis išvalytas</translation>
+<translation id="1637441054828003579">Bandyti nepavykusius elementus dar kartą</translation>
+<translation id="1641203463264514072">Dauguma jūsų duomenų jau čia</translation>
 <translation id="1653598257495639807">QR kodo rezultatas</translation>
+<translation id="172937028082106236">Kurti iš mano naršymo istorijos</translation>
+<translation id="17513872634828108">Atidaryti skirtukai</translation>
 <translation id="1809939268435598390">Ištrinti aplanką</translation>
+<translation id="1816380826555616620">Elementų vienai jungčiai: nuo <ph name="OLD_ITEM_COUNT" /> iki <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Puslapis</translation>
+<translation id="1844249872546141866">Langas: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Kiekis nepasiekiamas</translation>
+<translation id="1929197983938319610">Galite toliau naudoti šaltinio naršyklę. Jei vieno tipo duomenys nuolat keičiasi, Dao paprašys jus jį uždaryti ir bandyti dar kartą tik tą dalį.</translation>
+<translation id="1984122437277059790">Nepavyko importuoti projekto. Patikrinkite paketą ir bandykite dar kartą.</translation>
+<translation id="2085323698672376231">Taip visam laikui ištrinamas dabartinis projektas, visos versijos ir prieiga prie šaltinių. Šio veiksmo negalima anuliuoti.</translation>
+<translation id="210592584469870355">Galimybės</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Prisegti kortelę</translation>
+<translation id="2175927920773552910">QR kodas</translation>
+<translation id="2199413402821420360">Nepavyko atidaryti šio skirtuko naudojant Mini Dao</translation>
+<translation id="2209843794360152290">Importuoti elementai sujungiami nepakeičiant esamų duomenų.</translation>
+<translation id="2254382823755510690">Importuoti duomenys paruošti naudoti Dao. Atidaryti skirtukai laikomi neįkelti suskleistame aplanke, kol jų prireiks.</translation>
+<translation id="2348199177323591972">Skaityti puslapio turinį</translation>
+<translation id="2359808026110333948">Tęsti</translation>
+<translation id="2398703750948514961">Atšaukta</translation>
+<translation id="2414886740292270097">Tamsus</translation>
+<translation id="243275146591958220">Atšaukti atsisiuntimą</translation>
+<translation id="2496180316473517155">Naršymo istorija</translation>
+<translation id="251834402454969316">Pakeitimai nuo dabartinės versijos</translation>
+<translation id="2519023533785544875">Atidaryti pagalbininką</translation>
+<translation id="2535607573648844553">Dao reikia pasirinktos naršyklės „Safe Storage“ rakto, kad iššifruotų išsaugotus slaptažodžius. Jei neleisite prieigos, bus praleisti tik slaptažodžiai, o likęs perkėlimas bus tęsiamas.</translation>
+<translation id="2580366865845491095">Atidaryti šią nuorodą?</translation>
+<translation id="2612596415938768738">Gali reikėti prisijungti</translation>
+<translation id="2698054069012763064">Dar <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Uždaryti pasikartojančias korteles</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Skaitoma</translation>
+<translation id="2820330532305477229">Iš kur persikeliate?</translation>
+<translation id="2882207023658691113">Atkurti kaip naują versiją</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> valdo naršyklės skirtukus</translation>
 <translation id="2973324205039581528">Nutildyti svetainę</translation>
+<translation id="2976307543842414852">Vykdymas</translation>
 <translation id="3007771295016901659">Dubliuoti kortelę</translation>
 <translation id="3062877722240966678">Dao i18n kanalas GERAI</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Patvirtintas procesas: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao išbandys pasirinktus šaltinius ir pridės veikiančius. Kiekvienas šaltinis gali skaityti tik toliau nurodytus puslapius ir duomenis, kol aktyvus pagrindinis puslapis.</translation>
+<translation id="3249579521706735875">Pasiekiama, kai sistemoje įjungtas tamsusis režimas.</translation>
+<translation id="3356580349448036450">Baigta</translation>
+<translation id="3404183081987133644">Duomenys, importuoti prieš sustabdant, paruošti naudoti. Galite pradėti kitą perkėlimą, kai būsite pasirengę.</translation>
+<translation id="3420663750132400268">Ištrinti aplanką?</translation>
+<translation id="3427713535827228685">Šios svetainės plėtiniai</translation>
+<translation id="3435738964857648380">Sauga</translation>
 <translation id="3450492919008172498">Naujų skirtukų nebuvo archyvuota</translation>
+<translation id="3509982919032226274">Sukurk mano Dao pagrindinį puslapį. Pradėk paklausdamas, ką noriu tyrinėti šiame asmeniniame puslapyje, tada sukurk ir paskelbk pirmąją versiją.</translation>
 <translation id="3551320343578183772">Uždaryti kortelę</translation>
 <translation id="3657099196021255130">Atidaryti Dao</translation>
 <translation id="3708693288863478389">Įveskite URL arba ieškokite...</translation>
+<translation id="381667777775855564">Pridedama į Dao</translation>
 <translation id="385051799172605136">Atgal</translation>
 <translation id="3891466792657071243">Sustabdyti įkėlimą</translation>
 <translation id="3901975710974642844">Perkelti neaktyvius skirtukus į "neaktyvūs"</translation>
+<translation id="3909499025801874715">Patikrink ribotos apimties Dao pagrindinio puslapio diagnostikos duomenis, paaiškink gedimą ir pataisyk dabartinį projektą. Išlaikyk dabartinę veikiančią versiją, kol pataisymas bus patvirtintas, tada paskelbk pataisymą kaip naują versiją.</translation>
+<translation id="3927932062596804919">Neleisti</translation>
 <translation id="3984237987235889323">Taikoma</translation>
+<translation id="3999659648104077867">Naršyklės valdymas sustabdytas</translation>
+<translation id="4165986682804962316">Svetainės nustatymai</translation>
 <translation id="4201242995651540725">Archyvuoti skirtukai, neaktyvūs pastarąsias 24 valandas</translation>
+<translation id="4221615148091761714">Redaguoti su Dao</translation>
 <translation id="4285498937028063278">Atsegti</translation>
 <translation id="4322394346347055525">Uždaryti kitas korteles</translation>
+<translation id="4332876892329258166">Pradėti perkėlimą</translation>
 <translation id="4380677223237520064">Dekoduoti QR kodą</translation>
+<translation id="4404136731284211429">Ieškoti dar kartą</translation>
+<translation id="4500440256909785690">Pakeisti šį pagrindinį puslapį?</translation>
 <translation id="4543782226216763900">Perjungti šoninę juostą (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Klausti AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Perkėlimas baigtas</translation>
+<translation id="4652266463001779298">Neleidžiama</translation>
+<translation id="4724836371241170775">2 iš 4 veiksmas · Pasirinkite, kas perkeliama</translation>
 <translation id="473775607612524610">Atnaujinti</translation>
+<translation id="481205936353439293">3 iš 4 veiksmas · Perkeliami duomenys</translation>
+<translation id="4854731374904470810">Kopijuoti skirtuko ID</translation>
 <translation id="4881695831933465202">Atidaryti</translation>
+<translation id="4898928054560997780">Paprašyti Dao pataisyti</translation>
+<translation id="49041264823677952">Atmesti baigtą atsisiuntimą</translation>
+<translation id="493638356004396067">Perkėlimas nepavyko</translation>
+<translation id="4968006660055392545">Šiame „Mac“ nerasta palaikomų naršyklių profilių.</translation>
+<translation id="5004648724625831205">Ruošiama vietinė kopija</translation>
 <translation id="501297852093417632">Išvalyti talpyklą</translation>
 <translation id="5027562294707732951">Pridėti plėtinį</translation>
+<translation id="5126909118906525779">Prijungti tiesioginius šaltinius?</translation>
 <translation id="5192454087436290060">Valdymo centras</translation>
+<translation id="5289912690346335931">Skaičiuojama…</translation>
+<translation id="5301255231518510089">Pasirinkite failą, kad peržiūrėtumėte jo šaltinį.</translation>
+<translation id="5308380583665731573">Prijungti</translation>
+<translation id="5322475253112112619">Jei leisite, jis galės skaityti svetaines ir su jomis sąveikauti naudodamas jūsų dabartinį prisijungimą, įskaitant JavaScript vykdymą.</translation>
+<translation id="5334844597069022743">Rodyti šaltinį</translation>
+<translation id="5400726083793179041">Pasirinkta projekto būsena bus paskelbta kaip nauja versija. Esama istorija liks pasiekiama.</translation>
+<translation id="5436835454512450295">Importuoti naršyklės duomenys</translation>
 <translation id="5450299006531484229">Uždaryti korteles viršuje</translation>
 <translation id="5538307496474303926">Valoma...</translation>
 <translation id="5556459405103347317">Perkrauti</translation>
 <translation id="5611474372949142946">Uždaryti korteles apačioje</translation>
+<translation id="5649936378931470828">Atidaryti pagalbininką (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Išsaugoti slaptažodžiai</translation>
+<translation id="5871520043546374642">Perkėlimas sustabdytas</translation>
+<translation id="5873058639175438941">Tamsinti svetaines naudojant automatinį tamsųjį režimą, kai sistemoje įjungtas tamsusis režimas.</translation>
+<translation id="5874739091759960360">Tik kol aktyvus dao://home</translation>
+<translation id="591645459245805338">Sukurkite privatų, nuolat atnaujinamą puslapį, kurį Dao gali pritaikyti prie to, kas jums svarbu.</translation>
+<translation id="5942499955694738574">Nepavyko iš naujo nustatyti pagrindinio puslapio. Dabartinis projektas nebuvo pakeistas. Bandykite dar kartą.</translation>
 <translation id="5953452567010839148">QR kodas nerastas</translation>
+<translation id="6018824944448456809">1 iš 4 veiksmas · Pasirinkite šaltinį</translation>
+<translation id="6040143037577758943">Uždaryti</translation>
+<translation id="6042308850641462728">Daugiau</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Rezultato duomenys: iki <ph name="BYTE_COUNT" /> baitų</translation>
+<translation id="6204195547326023850">Įkeliamas jūsų pagrindinis puslapis…</translation>
+<translation id="6266039999629596120">Reikia dėmesio</translation>
+<translation id="6270944267518310103">Laukiama</translation>
+<translation id="6299569859560607348">Šis pagrindinis puslapis nori atidaryti išorinį puslapį. Prieš tęsdami peržiūrėkite paskirties vietą.</translation>
+<translation id="6325047129563993580">Sukurk mano Dao pagrindinį puslapį pagal mano naujausias naršymo temas. Naudok tik privatumą tausojančią pagrindinio puslapio istorijos medžiagą, trumpai paaiškink kryptį, tada sukurk ir paskelbk pirmąją versiją.</translation>
+<translation id="642671119120438272">Importuoti skirtukai</translation>
+<translation id="648743804821442565">Vietinis automatizavimo klientas prašo prieigos prie šio Dao lango.</translation>
+<translation id="6527303717912515753">Bendrinti</translation>
+<translation id="6586201961110912838">Atkurti šią versiją</translation>
+<translation id="6601997535892446436">Pasirinkite naršyklės profilį šiame „Mac“. Kiekvienas profilis pateikiamas atskirai, kad galėtumėte valdyti, kas perkeliama.</translation>
 <translation id="6736243959894955139">Adresas</translation>
+<translation id="6764328036096492220">Rašymo prieiga</translation>
+<translation id="677387175345781299">Projekto failai</translation>
+<translation id="6786747875388722282">Plėtiniai</translation>
+<translation id="6801297003382412689">Išteklių apribojimai</translation>
 <translation id="6829876854799051628">Išvalyti slapukus</translation>
+<translation id="6832689803248022656">Ką norėtumėte perkelti?</translation>
+<translation id="684699560760227351">Iš naujo nustatyti pagrindinį puslapį</translation>
 <translation id="6896758677409633944">Kopijuoti</translation>
+<translation id="6940497786570685033">Naršote inkognito režimu. Uždaręs visus inkognito langus, Dao neišsaugos naršymo istorijos, slapukų ar svetainių duomenų. Atsisiuntimai ir žymės bus išsaugoti.</translation>
+<translation id="6963772203726867701">Neaptikta</translation>
+<translation id="6971377058826420967">Kurti su Dao</translation>
+<translation id="7020790421915196218">Baigtos kategorijos paruoštos naudoti. Galite bandyti dar kartą tik tas dalis, kurioms reikia dėmesio.</translation>
+<translation id="7401173814860935855">Šios svetainės slapukai išvalyti</translation>
+<translation id="7465855397028934440">Ieškoma naršyklių profilių…</translation>
+<translation id="750760654246049420">Kitas automatizavimo klientas valdo šią naršyklę</translation>
 <translation id="7532108947552493901">Ieškoti naujinimų...</translation>
+<translation id="7533550325431812">Leisti šį ryšį</translation>
 <translation id="7604253494819481181">Dar kartą paspauskite <ph name="SHORTCUT" />, kad perjungtumėte šoninę juostą</translation>
+<translation id="7615777614791709701">Iš naujo nustatyti pagrindinį puslapį?</translation>
+<translation id="7626429522809774043">Leisti valdyti naršyklę?</translation>
+<translation id="7636812263792427733">Priverstinis tamsusis režimas</translation>
+<translation id="7658239707568436148">Atšaukti</translation>
+<translation id="7714812312719848690">Jūsų projektas vis dar saugus. Bandykite dar kartą, atkurkite versiją arba paprašykite Dao jį pataisyti.</translation>
 <translation id="7717845620320228976">Ieškoti naujinimų</translation>
+<translation id="7803931104677504532">Skaityti pateikimo stilius</translation>
+<translation id="7974106569409739809">Iškelti iš aplanko</translation>
+<translation id="7995663841236651667">Jūsų naršyklės duomenys apdorojami vietoje šiame „Mac“.</translation>
+<translation id="8028081981001403222">Importuoti projektą</translation>
+<translation id="8041968312565730454">Šaltinio naršyklė</translation>
+<translation id="8052762370740257987">Eksportuoti projektą</translation>
+<translation id="8097718730266959883">nepasiekiama</translation>
+<translation id="81044950628177848">Dabartinė versija</translation>
+<translation id="8131740175452115882">Patvirtinti</translation>
 <translation id="8137559199583651773">Tvarkyti plėtinius</translation>
+<translation id="8138892305328483863">Dao sujungia importuotus elementus su jau turimais. Esami duomenys niekada nepakeičiami.</translation>
+<translation id="8175534235396780357">DI valdymo išsami informacija</translation>
+<translation id="8237260373784588552">Pagrindinio puslapio valdikliai</translation>
+<translation id="824895471210913946">Tikslas: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Ištrinti</translation>
+<translation id="831684326378391082">Tęsti be tiesioginių šaltinių</translation>
+<translation id="8349478524212888083">Importuotas projektas taps nauja versija. Prieiga prie šaltinių liks atjungta, kol vėl ją patvirtinsite.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Prijungti <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Versijų istorija</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Atgal</translation>
+<translation id="8595238918901827309">Atkurti šią versiją?</translation>
+<translation id="8668072977518790485">Skirtuko ID nukopijuotas</translation>
+<translation id="8684229942427488970">Svetainės centras</translation>
 <translation id="8717864919010420084">Kopijuoti nuorodą</translation>
+<translation id="8725066075913043281">Bandyti dar kartą</translation>
+<translation id="8774154357663601701">Šis šaltinis gali skaityti tik patvirtintus puslapius, kol aktyvus pagrindinis puslapis.</translation>
+<translation id="8781013843394828812">Šiuos elementus reikia bandyti perkelti dar kartą</translation>
+<translation id="8787633576358327637">Gali būti rodomas macOS raktinės prašymas</translation>
+<translation id="8820817407110198400">Žymės</translation>
+<translation id="8826852601577125903">Rezultato duomenys: nuo <ph name="OLD_BYTE_COUNT" /> iki <ph name="NEW_BYTE_COUNT" /> baitų</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidatai</translation>
+<translation id="8899040626072079337">Duomenys perkeliami į Dao</translation>
+<translation id="8962539151725780858">Valdomi skirtukai: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Naujausias MCP iškvietimas: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Elementų vienai jungčiai: iki <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Neaktyvūs skirtukai archyvuoti</translation>
+<translation id="9186557253975059599">Nurodytas klientas: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Perjungti šoninę juostą</translation>
+<translation id="9205549548211212895">Stabdyti perkėlimą</translation>
+<translation id="932327136139879170">Pagrindinis</translation>
+<translation id="932413031402847895">Importuoti naršyklės duomenis</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Prijungti pasirinktus</translation>
+<translation id="949725615797318423">Plėtiniai iš naujo įdiegiami iš oficialios parduotuvės</translation>
+<translation id="962181630102348889">Nepavyko parodyti jūsų pagrindinio puslapio</translation>
 </translationbundle>

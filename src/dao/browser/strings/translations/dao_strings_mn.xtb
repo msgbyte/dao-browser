@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="mn">
+<translation id="1111094358966140566">Хувилбар харьцуулах</translation>
 <translation id="1173894706177603556">Нэрийг өөрчлөх</translation>
+<translation id="1182228621215085947">Dao-оос асуух</translation>
+<translation id="121570799358042869">Таны хөтчийн өгөгдөл энэ Mac дээр үлдэнэ. Тохирох өргөтгөлүүдийг дахин суулгах нь интернетэд холбогдож болзошгүй цорын ганц алхам бөгөөд өргөтгөлийн тохиргоо болон нэвтрэлтүүд хуулагдахгүй.</translation>
+<translation id="1236455002425740182">Dao шилжилт</translation>
+<translation id="1272079795634619415">Зогсоох</translation>
 <translation id="1293177648337752319">Сайтыг дуугаргах</translation>
+<translation id="1349314697251468085">Энэ нь хавтсан дахь бүх табыг хааж, хавтсыг устгана.</translation>
+<translation id="1352298709666490484">Таб сэлгэх</translation>
+<translation id="1383876407941801731">Хайх</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Профайл: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Вэбийг өөрийнх мэт болго</translation>
+<translation id="1530524805356937121">Илүүг ачаалахын тулд гүйлгэх</translation>
+<translation id="1566049601598938765">Вэбсайт</translation>
+<translation id="1602287703039480507">Энэ сайтын кэш цэвэрлэгдлээ</translation>
+<translation id="1637441054828003579">Амжилтгүй зүйлсийг дахин оролдох</translation>
+<translation id="1641203463264514072">Таны өгөгдлийн ихэнх нь энд байна</translation>
 <translation id="1653598257495639807">QR кодын үр дүн</translation>
+<translation id="172937028082106236">Миний үзсэн түүхээс үүсгэх</translation>
+<translation id="17513872634828108">Нээлттэй табууд</translation>
 <translation id="1809939268435598390">Хавтсыг устгах</translation>
+<translation id="1816380826555616620">Холбогч бүрийн зүйлс: <ph name="OLD_ITEM_COUNT" />-аас <ph name="NEW_ITEM_COUNT" /> хүртэл</translation>
+<translation id="1818606096021558659">Хуудас</translation>
+<translation id="1844249872546141866">Цонх: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Тоо боломжгүй</translation>
+<translation id="1929197983938319610">Та эх хөтчийг үргэлжлүүлэн ашиглаж болно. Хэрэв нэг төрлийн өгөгдөл байнга өөрчлөгдвөл Dao танаас үүнийг хааж, зөвхөн тэр хэсгийг дахин оролдохыг хүснэ.</translation>
+<translation id="1984122437277059790">Төслийг импортолж чадсангүй. Багцыг шалгаад дахин оролдоно уу.</translation>
+<translation id="2085323698672376231">Энэ нь одоогийн төсөл, бүх хувилбар болон эх сурвалжийн хандалтыг бүрмөсөн устгана. Үүнийг буцаах боломжгүй.</translation>
+<translation id="210592584469870355">Боломжууд</translation>
+<translation id="2109761659519935228">Мини Dao</translation>
 <translation id="21133533946938348">Хавчуурга тогтоох</translation>
+<translation id="2175927920773552910">QR код</translation>
+<translation id="2199413402821420360">Энэ табыг Мини Dao-д нээж чадсангүй</translation>
+<translation id="2209843794360152290">Импортолсон зүйлс одоо байгаа өгөгдлийг солихгүйгээр нэгтгэгдэнэ.</translation>
+<translation id="2254382823755510690">Таны импортолсон өгөгдөл Dao-д бэлэн байна. Нээлттэй табууд хэрэг болох хүртэл эвхэгдсэн хавтаст ачаалагдаагүй хэвээр хадгалагдана.</translation>
+<translation id="2348199177323591972">Хуудасны агуулга унших</translation>
+<translation id="2359808026110333948">Үргэлжлүүлэх</translation>
+<translation id="2398703750948514961">Цуцлагдсан</translation>
+<translation id="2414886740292270097">Харанхуй</translation>
+<translation id="243275146591958220">Таталтыг цуцлах</translation>
+<translation id="2496180316473517155">Үзсэн түүх</translation>
+<translation id="251834402454969316">Одоогийн хувилбарт оруулсан өөрчлөлт</translation>
+<translation id="2519023533785544875">Туслахыг нээх</translation>
+<translation id="2535607573648844553">Dao хадгалсан нууц үгсийг тайлахын тулд сонгосон хөтчийн Safe Storage түлхүүр хэрэгтэй. Хандалтаас татгалзвал зөвхөн нууц үгс алгасагдаж, бусад шилжилт үргэлжилнэ.</translation>
+<translation id="2580366865845491095">Энэ холбоосыг нээх үү?</translation>
+<translation id="2612596415938768738">Нэвтрэх шаардлагатай байж болзошгүй</translation>
+<translation id="2698054069012763064">Дахин <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Давхардсан табуудыг хаах</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Уншиж байна</translation>
+<translation id="2820330532305477229">Та хаанаас шилжиж байна вэ?</translation>
+<translation id="2882207023658691113">Шинэ хувилбар болгон сэргээх</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> хөтчийн табуудыг удирдаж байна</translation>
 <translation id="2973324205039581528">Сайтыг дуугүй болгох</translation>
+<translation id="2976307543842414852">Ажиллуулалт</translation>
 <translation id="3007771295016901659">Хуулбарлах таб</translation>
 <translation id="3062877722240966678">Dao i18n pipeline БОЛЛОО</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Баталгаажсан процесс: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao сонгосон эх сурвалжуудыг шалгаж, ажиллаж буйг нь нэмнэ. Нүүр идэвхтэй байх үед эх сурвалж бүр зөвхөн доор харуулсан хуудас болон өгөгдлийг унших боломжтой.</translation>
+<translation id="3249579521706735875">Систем харанхуй горимд байх үед ашиглах боломжтой.</translation>
+<translation id="3356580349448036450">Дууссан</translation>
+<translation id="3404183081987133644">Таны зогсоохоос өмнө импортолсон өгөгдөл ашиглахад бэлэн байна. Та бэлэн болмогцоо өөр шилжилт эхлүүлж болно.</translation>
+<translation id="3420663750132400268">Хавтсыг устгах уу?</translation>
+<translation id="3427713535827228685">Энэ сайт дээрх өргөтгөлүүд</translation>
+<translation id="3435738964857648380">Аюулгүй байдал</translation>
 <translation id="3450492919008172498">Шинэ табууд архивлагдаагүй</translation>
+<translation id="3509982919032226274">Миний Dao Нүүрийг үүсгэ. Эхлээд энэ хувийн хуудас надад юуг судлахад туслахыг хүсэж байгааг асуугаад, дараа нь эхний хувилбарыг бүтээж нийтэл.</translation>
 <translation id="3551320343578183772">Хавчуургыг хаах</translation>
 <translation id="3657099196021255130">Dao-д нээх</translation>
 <translation id="3708693288863478389">URL эсвэл хайлт оруулна уу...</translation>
+<translation id="381667777775855564">Dao-д нэмж байна</translation>
 <translation id="385051799172605136">Буцах</translation>
 <translation id="3891466792657071243">Ачаалалтыг зогсоох</translation>
 <translation id="3901975710974642844">Хуучирсан табуудыг "хуучирсан" руу шилжүүлэх</translation>
+<translation id="3909499025801874715">Хязгаарлагдмал Dao Нүүрийн оношилгоог шалгаж, алдааг тайлбарлан одоогийн төслийг зас. Засвар баталгаажих хүртэл одоогийн ажиллах боломжтой хувилбарыг хадгалж, дараа нь засварыг шинэ хувилбар болгон нийтэл.</translation>
+<translation id="3927932062596804919">Татгалзах</translation>
 <translation id="3984237987235889323">Хэрэгжүүлж байна</translation>
+<translation id="3999659648104077867">Хөтчийн удирдлага зогслоо</translation>
+<translation id="4165986682804962316">Сайтын тохиргоо</translation>
 <translation id="4201242995651540725">Сүүлийн 24 цагт идэвхгүй байсан табууд архивлагдсан</translation>
+<translation id="4221615148091761714">Dao-тай засварлах</translation>
 <translation id="4285498937028063278">Тогтоосон хавчуургыг салгах</translation>
 <translation id="4322394346347055525">Бусад табуудыг хаах</translation>
+<translation id="4332876892329258166">Шилжилт эхлүүлэх</translation>
 <translation id="4380677223237520064">QR код тайлах</translation>
+<translation id="4404136731284211429">Дахин хайх</translation>
+<translation id="4500440256909785690">Энэ Нүүрийг солих уу?</translation>
 <translation id="4543782226216763900">Хажуугийн самбарыг солих (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI-аас асуу: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Таны шилжилт дууслаа</translation>
+<translation id="4652266463001779298">Зөвшөөрөгдөөгүй</translation>
+<translation id="4724836371241170775">4-ийн 2-р алхам · Шилжих зүйлсийг сонгох</translation>
 <translation id="473775607612524610">Шинэчлэх</translation>
+<translation id="481205936353439293">4-ийн 3-р алхам · Таны өгөгдлийг шилжүүлж байна</translation>
+<translation id="4854731374904470810">Табын ID хуулах</translation>
 <translation id="4881695831933465202">Нээх</translation>
+<translation id="4898928054560997780">Dao-оос засахыг хүсэх</translation>
+<translation id="49041264823677952">Дууссан таталтыг хаах</translation>
+<translation id="493638356004396067">Шилжилт амжилтгүй боллоо</translation>
+<translation id="4968006660055392545">Энэ Mac дээр дэмжигдсэн хөтчийн профайл олдсонгүй.</translation>
+<translation id="5004648724625831205">Орон нутгийн хуулбар бэлтгэж байна</translation>
 <translation id="501297852093417632">Кэшийг цэвэрлэх</translation>
 <translation id="5027562294707732951">Өргөтгөл нэмэх</translation>
+<translation id="5126909118906525779">Шууд эх сурвалжуудад холбогдох уу?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Тооцож байна…</translation>
+<translation id="5301255231518510089">Эх кодыг нь харахын тулд файл сонгоно уу.</translation>
+<translation id="5308380583665731573">Холбогдох</translation>
+<translation id="5322475253112112619">Зөвшөөрвөл таны одоогийн нэвтрэлтээр вэбсайтуудыг уншиж, харилцан үйлчилж, JavaScript ажиллуулах боломжтой.</translation>
+<translation id="5334844597069022743">Эх код харах</translation>
+<translation id="5400726083793179041">Сонгосон төслийн төлөвийг шинэ хувилбар болгон нийтэлнэ. Одоогийн түүх ашиглах боломжтой хэвээр байна.</translation>
+<translation id="5436835454512450295">Импортолсон хөтчийн өгөгдөл</translation>
 <translation id="5450299006531484229">Дээрх табуудыг хаах</translation>
 <translation id="5538307496474303926">Цэвэрлэж байна...</translation>
 <translation id="5556459405103347317">Дахин ачаалах</translation>
 <translation id="5611474372949142946">Доорх табуудыг хаах</translation>
+<translation id="5649936378931470828">Туслахыг нээх (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Хадгалсан нууц үгс</translation>
+<translation id="5871520043546374642">Шилжилт зогссон</translation>
+<translation id="5873058639175438941">Систем харанхуй горимд байх үед вэбсайтуудыг Автомат харанхуй горимоор бараан болгоно.</translation>
+<translation id="5874739091759960360">Зөвхөн dao://home идэвхтэй үед</translation>
+<translation id="591645459245805338">Dao таны сонирхдог зүйлсэд нийцүүлэн бүтээх хувийн, амьд хуудсыг үүсгээрэй.</translation>
+<translation id="5942499955694738574">Нүүрийг дахин тохируулж чадсангүй. Одоогийн төсөл өөрчлөгдөөгүй. Дахин оролдоно уу.</translation>
 <translation id="5953452567010839148">QR код олдсонгүй</translation>
+<translation id="6018824944448456809">4-ийн 1-р алхам · Эх сурвалж сонгох</translation>
+<translation id="6040143037577758943">Хаах</translation>
+<translation id="6042308850641462728">Дэлгэрэнгүй</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Үр дүнгийн өгөгдөл: <ph name="BYTE_COUNT" /> байт хүртэл</translation>
+<translation id="6204195547326023850">Таны Нүүрийг ачаалж байна…</translation>
+<translation id="6266039999629596120">Анхаарал шаардлагатай</translation>
+<translation id="6270944267518310103">Хүлээж байна</translation>
+<translation id="6299569859560607348">Энэ Нүүр гадаад хуудас нээхийг хүсэж байна. Үргэлжлүүлэхийн өмнө очих газрыг шалгана уу.</translation>
+<translation id="6325047129563993580">Миний сүүлийн үеийн үзсэн сэдвүүдээс миний Dao Нүүрийг үүсгэ. Зөвхөн нууцлалыг хангасан Нүүрийн түүхийн материалыг ашиглаж, чиглэлийг товч тайлбарлаад эхний хувилбарыг бүтээж нийтэл.</translation>
+<translation id="642671119120438272">Импортолсон табууд</translation>
+<translation id="648743804821442565">Орон нутгийн автоматжуулалтын клиент энэ Dao цонхонд хандах хүсэлт гаргаж байна.</translation>
+<translation id="6527303717912515753">Хуваалцах</translation>
+<translation id="6586201961110912838">Энэ хувилбарыг сэргээх</translation>
+<translation id="6601997535892446436">Энэ Mac дээрх хөтчийн профайлыг сонгоно уу. Та юу шилжихийг хянахын тулд профайл бүрийг тусад нь жагсаасан.</translation>
 <translation id="6736243959894955139">Хаяг</translation>
+<translation id="6764328036096492220">Бичих эрх</translation>
+<translation id="677387175345781299">Төслийн файлууд</translation>
+<translation id="6786747875388722282">Өргөтгөлүүд</translation>
+<translation id="6801297003382412689">Нөөцийн хязгаар</translation>
 <translation id="6829876854799051628">Күүкийг цэвэрлэх</translation>
+<translation id="6832689803248022656">Та юу авчрахыг хүсэж байна вэ?</translation>
+<translation id="684699560760227351">Нүүрийг дахин тохируулах</translation>
 <translation id="6896758677409633944">Хуулах</translation>
+<translation id="6940497786570685033">Та Нууц горимоор үзэж байна. Та бүх Нууц цонхыг хаасны дараа Dao таны үзсэн түүх, күүки эсвэл сайтын өгөгдлийг хадгалахгүй. Татаж авсан файл болон хавчуургууд хадгалагдана.</translation>
+<translation id="6963772203726867701">Илрээгүй</translation>
+<translation id="6971377058826420967">Dao-тай үүсгэх</translation>
+<translation id="7020790421915196218">Дууссан ангиллууд ашиглахад бэлэн. Та зөвхөн анхаарал шаардлагатай хэсгүүдийг дахин оролдож болно.</translation>
+<translation id="7401173814860935855">Энэ сайтын күүки цэвэрлэгдлээ</translation>
+<translation id="7465855397028934440">Хөтчийн профайлуудыг хайж байна…</translation>
+<translation id="750760654246049420">Өөр автоматжуулалтын клиент энэ хөтчийг удирдаж байна</translation>
 <translation id="7532108947552493901">Шинэчлэлтийг шалгах...</translation>
+<translation id="7533550325431812">Энэ холболтыг зөвшөөрөх</translation>
 <translation id="7604253494819481181">Хажуугийн самбарыг солихын тулд <ph name="SHORTCUT" /> дахин дарна уу</translation>
+<translation id="7615777614791709701">Нүүрийг дахин тохируулах уу?</translation>
+<translation id="7626429522809774043">Хөтчийн удирдлагыг зөвшөөрөх үү?</translation>
+<translation id="7636812263792427733">Харанхуй горимыг албадах</translation>
+<translation id="7658239707568436148">Цуцлах</translation>
+<translation id="7714812312719848690">Таны төсөл аюулгүй хэвээр байна. Дахин оролдох, хувилбар сэргээх эсвэл Dao-оос засахыг хүснэ үү.</translation>
 <translation id="7717845620320228976">Шинэчлэлтийг шалгах</translation>
+<translation id="7803931104677504532">Харагдах хэв маяг унших</translation>
+<translation id="7974106569409739809">Хавтаснаас гаргах</translation>
+<translation id="7995663841236651667">Таны хөтчийн өгөгдлийг энэ Mac дээр дотоодод боловсруулна.</translation>
+<translation id="8028081981001403222">Төсөл импортлох</translation>
+<translation id="8041968312565730454">Эх хөтөч</translation>
+<translation id="8052762370740257987">Төслийг экспортлох</translation>
+<translation id="8097718730266959883">боломжгүй</translation>
+<translation id="81044950628177848">Одоогийн хувилбар</translation>
+<translation id="8131740175452115882">Баталгаажуулах</translation>
 <translation id="8137559199583651773">Өргөтгөлүүдийг удирдах</translation>
+<translation id="8138892305328483863">Dao импортолсон зүйлсийг таны одоо байгаа зүйлстэй нэгтгэнэ. Одоо байгаа өгөгдөл хэзээ ч солигдохгүй.</translation>
+<translation id="8175534235396780357">AI удирдлагын дэлгэрэнгүй</translation>
+<translation id="8237260373784588552">Нүүрийн удирдлага</translation>
+<translation id="824895471210913946">Зорилт: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Устгах</translation>
+<translation id="831684326378391082">Шууд эх сурвалжгүй үргэлжлүүлэх</translation>
+<translation id="8349478524212888083">Импортолсон төсөл шинэ хувилбар болно. Таныг дахин зөвшөөрөх хүртэл эх сурвалжийн хандалт салгаатай хэвээр байна.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" />-д холбогдох</translation>
+<translation id="8549865052695885354">Хувилбарын түүх</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Буцах</translation>
+<translation id="8595238918901827309">Энэ хувилбарыг сэргээх үү?</translation>
+<translation id="8668072977518790485">Табын ID хуулагдлаа</translation>
+<translation id="8684229942427488970">Сайтын төв</translation>
 <translation id="8717864919010420084">Холбоосыг хуулбарлах</translation>
+<translation id="8725066075913043281">Дахин оролдох</translation>
+<translation id="8774154357663601701">Нүүр идэвхтэй байх үед энэ эх сурвалж зөвхөн зөвшөөрөгдсөн хуудсуудыг унших боломжтой.</translation>
+<translation id="8781013843394828812">Эдгээр зүйлсийг дахин оролдох шаардлагатай</translation>
+<translation id="8787633576358327637">macOS Keychain-н асуулт гарч болзошгүй</translation>
+<translation id="8820817407110198400">Хавчуургууд</translation>
+<translation id="8826852601577125903">Үр дүнгийн өгөгдөл: <ph name="OLD_BYTE_COUNT" />-аас <ph name="NEW_BYTE_COUNT" /> байт хүртэл</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> боломжит зүйл</translation>
+<translation id="8899040626072079337">Таны өгөгдлийг Dao руу шилжүүлж байна</translation>
+<translation id="8962539151725780858">Удирдаж буй табууд: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Сүүлийн MCP дуудлага: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Холбогч бүрийн зүйлс: <ph name="ITEM_COUNT" /> хүртэл</translation>
+<translation id="9144412711146411188">Идэвхгүй табууд архивлагдлаа</translation>
+<translation id="9186557253975059599">Мэдэгдсэн клиент: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Хажуугийн самбарыг солих</translation>
+<translation id="9205549548211212895">Шилжилтийг зогсоох</translation>
+<translation id="932327136139879170">Нүүр</translation>
+<translation id="932413031402847895">Хөтчийн өгөгдөл импортлох</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Сонгосонд холбогдох</translation>
+<translation id="949725615797318423">Өргөтгөлүүдийг албан ёсны дэлгүүрээс нь дахин суулгана</translation>
+<translation id="962181630102348889">Таны Нүүрийг харуулж чадсангүй</translation>
 </translationbundle>

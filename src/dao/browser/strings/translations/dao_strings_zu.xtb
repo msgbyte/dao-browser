@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zu">
+<translation id="1111094358966140566">Qhathanisa inguqulo</translation>
 <translation id="1173894706177603556">Qamba kabusha</translation>
+<translation id="1182228621215085947">Buza i-Dao</translation>
+<translation id="121570799358042869">Idatha yesiphequluli sakho ihlala kule Mac. Ukufaka kabusha izandiso ezihambisanayo ukuphela kwesinyathelo esingase sixhume ku-inthanethi; izilungiselelo zezandiso nokungena ngemvume akukopishwa.</translation>
+<translation id="1236455002425740182">Ukuthuthela ku-Dao</translation>
+<translation id="1272079795634619415">Misa</translation>
 <translation id="1293177648337752319">Vula Umsindo Wesayithi</translation>
+<translation id="1349314697251468085">Lokhu kuzovala wonke amathebhu akufolda futhi kususe ifolda.</translation>
+<translation id="1352298709666490484">Shintsha ithebhu</translation>
+<translation id="1383876407941801731">Sesha</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Iphrofayela: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Yenza iwebhu izwakale ingeyakho</translation>
+<translation id="1530524805356937121">Skrola ukuze kulayishwe okwengeziwe</translation>
+<translation id="1566049601598938765">Iwebhusayithi</translation>
+<translation id="1602287703039480507">Inqolobane isuliwe kule sayithi</translation>
+<translation id="1637441054828003579">Zama futhi izinto ezihlulekile</translation>
+<translation id="1641203463264514072">Iningi ledatha yakho selilapha</translation>
 <translation id="1653598257495639807">Umphumela wekhodi ye-QR</translation>
+<translation id="172937028082106236">Dala ngomlando wami wokuphequlula</translation>
+<translation id="17513872634828108">Amathebhu avuliwe</translation>
 <translation id="1809939268435598390">Susa Ifolda</translation>
+<translation id="1816380826555616620">Izinto ngesixhumi ngasinye: kusuka ku-<ph name="OLD_ITEM_COUNT" /> kuya ku-<ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Ikhasi</translation>
+<translation id="1844249872546141866">Iwindi: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Isibalo asitholakali</translation>
+<translation id="1929197983938319610">Ungaqhubeka nokusebenzisa isiphequluli somthombo. Uma uhlobo olulodwa lwedatha luqhubeka nokushintsha, i-Dao izokucela ukuba usivale bese uzama futhi leyo ngxenye kuphela.</translation>
+<translation id="1984122437277059790">Iphrojekthi ayikwazanga ukungeniswa. Hlola iphakheji bese uzama futhi.</translation>
+<translation id="2085323698672376231">Lokhu kususa unomphela iphrojekthi yamanje, zonke izinguqulo, nokufinyelela emithonjeni. Lokhu akunakuhlehliswa.</translation>
+<translation id="210592584469870355">Amakhono</translation>
+<translation id="2109761659519935228">I-Mini Dao</translation>
 <translation id="21133533946938348">Beka Ithebhu</translation>
+<translation id="2175927920773552910">Ikhodi ye-QR</translation>
+<translation id="2199413402821420360">Ayikwazanga ukuvula le thebhu ku-Mini Dao</translation>
+<translation id="2209843794360152290">Izinto ezingenisiwe ziyahlanganiswa ngaphandle kokushintsha idatha ekhona.</translation>
+<translation id="2254382823755510690">Idatha yakho engenisiwe isilungile ku-Dao. Amathebhu avuliwe agcinwa engalayishiwe kufolda egoqiwe uze uwadinge.</translation>
+<translation id="2348199177323591972">Funda okuqukethwe yikhasi</translation>
+<translation id="2359808026110333948">Qhubeka</translation>
+<translation id="2398703750948514961">Kukhanseliwe</translation>
+<translation id="2414886740292270097">Kumnyama</translation>
+<translation id="243275146591958220">Khansela ukulanda</translation>
+<translation id="2496180316473517155">Umlando wokuphequlula</translation>
+<translation id="251834402454969316">Izinguquko kunguqulo yamanje</translation>
+<translation id="2519023533785544875">Vula Umsizi</translation>
+<translation id="2535607573648844553">I-Dao idinga ukhiye we-Safe Storage wesiphequluli esikhethiwe ukuze isuse ukubethelwa kwamaphasiwedi alondoloziwe. Uma unqaba ukufinyelela, kudlulwa amaphasiwedi kuphela bese konke okunye ukuthutha kuyaqhubeka.</translation>
+<translation id="2580366865845491095">Vula lesi sixhumanisi?</translation>
+<translation id="2612596415938768738">Kungase kudinge ukuthi ungene ngemvume</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> ngaphezulu</translation>
 <translation id="2703180365855369896">Vala Amathebhu Aphindaphindiwe</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Kuyafundwa</translation>
+<translation id="2820330532305477229">Uthutha usuka kuphi?</translation>
+<translation id="2882207023658691113">Buyisela njengenguqulo entsha</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> ilawula amathebhu esiphequluli</translation>
 <translation id="2973324205039581528">Thulisa Isayithi</translation>
+<translation id="2976307543842414852">Iyasebenza</translation>
 <translation id="3007771295016901659">Phinda Ithebhu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline KULUNGILE</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Inqubo eqinisekisiwe: <ph name="PID" /></translation>
+<translation id="3229872815652336688">I-Dao izohlola imithombo ekhethiwe bese yengeza esebenzayo. Umthombo ngamunye ungafunda kuphela amakhasi nedatha eboniswe ngezansi ngenkathi Ikhaya lisebenza.</translation>
+<translation id="3249579521706735875">Kuyatholakala lapho isistimu ikumodi emnyama.</translation>
+<translation id="3356580349448036450">Kuqediwe</translation>
+<translation id="3404183081987133644">Idatha engenisiwe ngaphambi kokumisa isilungele ukusetshenziswa. Ungaqala okunye ukuthutha noma nini uma usulungile.</translation>
+<translation id="3420663750132400268">Susa ifolda?</translation>
+<translation id="3427713535827228685">Izandiso kule sayithi</translation>
+<translation id="3435738964857648380">Ukuphepha</translation>
 <translation id="3450492919008172498">Awekho amathebhu amasha agcinwe</translation>
+<translation id="3509982919032226274">Dala i-Dao Home yami. Qala ngokubuza ukuthi ngifuna leli khasi lomuntu siqu lingisize ngihlole ini, bese wakha futhi ushicilele inguqulo yokuqala.</translation>
 <translation id="3551320343578183772">Vala Ithebhu</translation>
 <translation id="3657099196021255130">Vula ku-Dao</translation>
 <translation id="3708693288863478389">Thayipha i-URL noma useshe...</translation>
+<translation id="381667777775855564">Kuyangezwa ku-Dao</translation>
 <translation id="385051799172605136">Emuva</translation>
 <translation id="3891466792657071243">Misa Ukulayisha</translation>
 <translation id="3901975710974642844">Hambisa Amathebhu Angasebenzi ku-"stale"</translation>
+<translation id="3909499025801874715">Hlola ukuxilongwa okunomkhawulo kwe-Dao Home, chaza ukwehluleka, bese ulungisa iphrojekthi yamanje. Gcina inguqulo yamanje esebenzayo kuze kuqinisekiswe ukulungiswa, bese ushicilela ukulungiswa njengenguqulo entsha.</translation>
+<translation id="3927932062596804919">Nqaba</translation>
 <translation id="3984237987235889323">Kusebenza</translation>
+<translation id="3999659648104077867">Ukulawulwa kwesiphequluli kumisiwe</translation>
+<translation id="4165986682804962316">Izilungiselelo zesayithi</translation>
 <translation id="4201242995651540725">Amathebhu agcinwe angasebenzi amahora angu-24 adlule</translation>
+<translation id="4221615148091761714">Hlela nge-Dao</translation>
 <translation id="4285498937028063278">Khipha</translation>
 <translation id="4322394346347055525">Vala Amanye Amathebhu</translation>
+<translation id="4332876892329258166">Qala ukuthutha</translation>
 <translation id="4380677223237520064">Hlaziya ikhodi ye-QR</translation>
+<translation id="4404136731284211429">Skena futhi</translation>
+<translation id="4500440256909785690">Faka esikhundleni saleli Khaya?</translation>
 <translation id="4543782226216763900">Shintsha i-Sidebar (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Buza i-AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Ukuthutha kwakho kuqediwe</translation>
+<translation id="4652266463001779298">Akuvunyelwe</translation>
+<translation id="4724836371241170775">Isinyathelo 2 kwezingu-4 · Khetha okuthuthayo</translation>
 <translation id="473775607612524610">Buyekeza</translation>
+<translation id="481205936353439293">Isinyathelo 3 kwezingu-4 · Kuhanjiswa idatha yakho</translation>
+<translation id="4854731374904470810">Kopisha i-ID yethebhu</translation>
 <translation id="4881695831933465202">Vula</translation>
+<translation id="4898928054560997780">Cela i-Dao ukuthi ilungise</translation>
+<translation id="49041264823677952">Susa okulandiwe okuqediwe</translation>
+<translation id="493638356004396067">Ukuthutha kwehlulekile</translation>
+<translation id="4968006660055392545">Awekho amaphrofayela eziphequluli asekelwayo atholakele kule Mac.</translation>
+<translation id="5004648724625831205">Kulungiselelwa ikhophi yendawo</translation>
 <translation id="501297852093417632">Sula i-Cache</translation>
 <translation id="5027562294707732951">Engeza isandiso</translation>
+<translation id="5126909118906525779">Xhuma imithombo ebukhoma?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Kuyabalwa…</translation>
+<translation id="5301255231518510089">Khetha ifayela ukuze ubuke umthombo walo.</translation>
+<translation id="5308380583665731573">Xhuma</translation>
+<translation id="5322475253112112619">Uma kuvunyelwe, lingafunda futhi lisebenzisane namawebhusayithi lisebenzisa ukungena kwakho kwamanje, kuhlanganise nokusebenzisa i-JavaScript.</translation>
+<translation id="5334844597069022743">Buka umthombo</translation>
+<translation id="5400726083793179041">Isimo sephrojekthi esikhethiwe sizoshicilelwa njengenguqulo entsha. Umlando okhona uzohlala utholakala.</translation>
+<translation id="5436835454512450295">Idatha yesiphequluli engenisiwe</translation>
 <translation id="5450299006531484229">Vala Amathebhu Angaphezulu</translation>
 <translation id="5538307496474303926">Kusula...</translation>
 <translation id="5556459405103347317">Layisha kabusha</translation>
 <translation id="5611474372949142946">Vala Amathebhu Angaphansi</translation>
+<translation id="5649936378931470828">Vula Umsizi (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Amaphasiwedi alondoloziwe</translation>
+<translation id="5871520043546374642">Ukuthutha kumisiwe</translation>
+<translation id="5873058639175438941">Yenza amawebhusayithi abe mnyama nge-Auto Dark Mode lapho isistimu ikumodi emnyama.</translation>
+<translation id="5874739091759960360">Kuphela ngenkathi i-dao://home isebenza</translation>
+<translation id="591645459245805338">Dala ikhasi eliyimfihlo, eliphilayo i-Dao engalilungisa ngokusekelwe kulokho okukhathalelayo.</translation>
+<translation id="5942499955694738574">Ikhaya alikwazanga ukusethwa kabusha. Iphrojekthi yamanje ayishintshiwe. Zama futhi.</translation>
 <translation id="5953452567010839148">Ayikho ikhodi ye-QR etholakele</translation>
+<translation id="6018824944448456809">Isinyathelo 1 kwezingu-4 · Khetha umthombo</translation>
+<translation id="6040143037577758943">Vala</translation>
+<translation id="6042308850641462728">Okuningi</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Idatha yomphumela: kufika kumabhayithi angu-<ph name="BYTE_COUNT" /></translation>
+<translation id="6204195547326023850">Kulayishwa Ikhaya lakho…</translation>
+<translation id="6266039999629596120">Kudinga ukunakwa</translation>
+<translation id="6270944267518310103">Kulindiwe</translation>
+<translation id="6299569859560607348">Leli Khaya lifuna ukuvula ikhasi langaphandle. Buyekeza indawo okuyiwa kuyo ngaphambi kokuqhubeka.</translation>
+<translation id="6325047129563993580">Dala i-Dao Home yami ngezihloko zami zakamuva zokuphequlula. Sebenzisa kuphela izinto zomlando we-Home ezinciphisa ubumfihlo, chaza kafushane indlela, bese wakha futhi ushicilele inguqulo yokuqala.</translation>
+<translation id="642671119120438272">Amathebhu angenisiwe</translation>
+<translation id="648743804821442565">Iklayenti elizenzakalelayo lendawo licela ukufinyelela kuleli windi le-Dao.</translation>
+<translation id="6527303717912515753">Yabelana</translation>
+<translation id="6586201961110912838">Buyisela le nguqulo</translation>
+<translation id="6601997535892446436">Khetha iphrofayela yesiphequluli kule Mac. Iphrofayela ngayinye ifakwe ohlwini ngokwehlukana ukuze uhlale ulawula lokho okuthuthayo.</translation>
 <translation id="6736243959894955139">Ikheli</translation>
+<translation id="6764328036096492220">Ukufinyelela kokubhala</translation>
+<translation id="677387175345781299">Amafayela ephrojekthi</translation>
+<translation id="6786747875388722282">Izandiso</translation>
+<translation id="6801297003382412689">Imikhawulo yezinsiza</translation>
 <translation id="6829876854799051628">Sula ama-Cookies</translation>
+<translation id="6832689803248022656">Yini ongathanda ukuyiletha?</translation>
+<translation id="684699560760227351">Setha kabusha Ikhaya</translation>
 <translation id="6896758677409633944">Kopisha</translation>
+<translation id="6940497786570685033">Uphequlula ngemodi ye-Incognito. Ngemva kokuvala wonke amawindi e-Incognito, i-Dao ngeke igcine umlando wakho wokuphequlula, amakhukhi, noma idatha yesayithi. Okulandiwe namabhukumaka kuyagcinwa.</translation>
+<translation id="6963772203726867701">Akutholakalanga</translation>
+<translation id="6971377058826420967">Dala nge-Dao</translation>
+<translation id="7020790421915196218">Izigaba eziqediwe sezilungele ukusetshenziswa. Ungazama futhi izingxenye ezidinga ukunakwa kuphela.</translation>
+<translation id="7401173814860935855">Amakhukhi asuliwe kule sayithi</translation>
+<translation id="7465855397028934440">Kubhekwa amaphrofayela eziphequluli…</translation>
+<translation id="750760654246049420">Elinye iklayenti elizenzakalelayo lilawula lesi siphequluli</translation>
 <translation id="7532108947552493901">Hlola Izibuyekezo...</translation>
+<translation id="7533550325431812">Vumela lokhu kuxhumana</translation>
 <translation id="7604253494819481181">Cindezela <ph name="SHORTCUT" /> futhi ukuze uguqule ibha eseceleni</translation>
+<translation id="7615777614791709701">Setha kabusha Ikhaya?</translation>
+<translation id="7626429522809774043">Vumela ukulawulwa kwesiphequluli?</translation>
+<translation id="7636812263792427733">Phoqelela imodi emnyama</translation>
+<translation id="7658239707568436148">Khansela</translation>
+<translation id="7714812312719848690">Iphrojekthi yakho isaphephile. Zama futhi, buyisela inguqulo, noma cela i-Dao ukuthi iyilungise.</translation>
 <translation id="7717845620320228976">Hlola izibuyekezo</translation>
+<translation id="7803931104677504532">Funda izitayela zokwethulwa</translation>
+<translation id="7974106569409739809">Susa kufolda</translation>
+<translation id="7995663841236651667">Idatha yesiphequluli sakho icutshungulwa endaweni kule Mac.</translation>
+<translation id="8028081981001403222">Ngenisa iphrojekthi</translation>
+<translation id="8041968312565730454">Isiphequluli somthombo</translation>
+<translation id="8052762370740257987">Khipha iphrojekthi</translation>
+<translation id="8097718730266959883">akutholakali</translation>
+<translation id="81044950628177848">Inguqulo yamanje</translation>
+<translation id="8131740175452115882">Qinisekisa</translation>
 <translation id="8137559199583651773">Phatha izandiso</translation>
+<translation id="8138892305328483863">I-Dao ihlanganisa izinto ezingenisiwe nalokho osunakho. Idatha ekhona ayishintshwa neze.</translation>
+<translation id="8175534235396780357">Imininingwane yokulawula kwe-AI</translation>
+<translation id="8237260373784588552">Izilawuli zeKhaya</translation>
+<translation id="824895471210913946">Okuqondiwe: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Susa</translation>
+<translation id="831684326378391082">Qhubeka ngaphandle kwemithombo ebukhoma</translation>
+<translation id="8349478524212888083">Iphrojekthi engenisiwe izoba inguqulo entsha. Ukufinyelela emithonjeni kuzohlala kunqanyuliwe uze ukuvumele futhi.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Xhuma <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Umlando wezinguqulo</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Emuva</translation>
+<translation id="8595238918901827309">Buyisela le nguqulo?</translation>
+<translation id="8668072977518790485">I-ID yethebhu ikopishiwe</translation>
+<translation id="8684229942427488970">Isikhungo sesayithi</translation>
 <translation id="8717864919010420084">Kopisha Isixhumanisi</translation>
+<translation id="8725066075913043281">Zama futhi</translation>
+<translation id="8774154357663601701">Lo mthombo ungafunda kuphela amakhasi avunyelwe ngenkathi Ikhaya lisebenza.</translation>
+<translation id="8781013843394828812">Lezi zinto zidinga ukuzanywa futhi</translation>
+<translation id="8787633576358327637">Umlayezo we-macOS Keychain ungase uvele</translation>
+<translation id="8820817407110198400">Amabhukumaka</translation>
+<translation id="8826852601577125903">Idatha yomphumela: kusuka kumabhayithi angu-<ph name="OLD_BYTE_COUNT" /> kuya kwangu-<ph name="NEW_BYTE_COUNT" /></translation>
+<translation id="88635502604055524">Okungase kube khona: <ph name="COUNT" /></translation>
+<translation id="8899040626072079337">Kuhanjiswa idatha yakho ku-Dao</translation>
+<translation id="8962539151725780858">Amathebhu alawulwayo: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Ikholi yakamuva ye-MCP: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Izinto ngesixhumi ngasinye: kufika ku-<ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Amathebhu angasebenzi afakwe kungobo yomlando</translation>
+<translation id="9186557253975059599">Iklayenti elibikiwe: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Shintsha i-Sidebar</translation>
+<translation id="9205549548211212895">Misa ukuthutha</translation>
+<translation id="932327136139879170">Ikhaya</translation>
+<translation id="932413031402847895">Ngenisa idatha yesiphequluli</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Xhuma okukhethiwe</translation>
+<translation id="949725615797318423">Izandiso zifakwa kabusha esitolo sazo esisemthethweni</translation>
+<translation id="962181630102348889">Ikhaya lakho alikwazanga ukuboniswa</translation>
 </translationbundle>

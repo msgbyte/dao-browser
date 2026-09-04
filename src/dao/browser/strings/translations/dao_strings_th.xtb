@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="th">
+<translation id="1111094358966140566">เปรียบเทียบเวอร์ชัน</translation>
 <translation id="1173894706177603556">เปลี่ยนชื่อ</translation>
+<translation id="1182228621215085947">ถาม Dao</translation>
+<translation id="121570799358042869">ข้อมูลเบราว์เซอร์ของคุณจะอยู่บน Mac เครื่องนี้ การติดตั้งส่วนขยายที่เข้ากันได้ใหม่เป็นขั้นตอนเดียวที่อาจเชื่อมต่ออินเทอร์เน็ต การตั้งค่าส่วนขยายและการลงชื่อเข้าใช้จะไม่ถูกคัดลอก</translation>
+<translation id="1236455002425740182">การย้ายข้อมูล Dao</translation>
+<translation id="1272079795634619415">หยุด</translation>
 <translation id="1293177648337752319">เปิดเสียงไซต์</translation>
+<translation id="1349314697251468085">การดำเนินการนี้จะปิดแท็บทั้งหมดในโฟลเดอร์และลบโฟลเดอร์</translation>
+<translation id="1352298709666490484">สลับแท็บ</translation>
+<translation id="1383876407941801731">ค้นหา</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">โปรไฟล์: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">ทำให้เว็บเป็นของคุณ</translation>
+<translation id="1530524805356937121">เลื่อนเพื่อโหลดเพิ่มเติม</translation>
+<translation id="1566049601598938765">เว็บไซต์</translation>
+<translation id="1602287703039480507">ล้างแคชสำหรับเว็บไซต์นี้แล้ว</translation>
+<translation id="1637441054828003579">ลองรายการที่ล้มเหลวอีกครั้ง</translation>
+<translation id="1641203463264514072">ข้อมูลส่วนใหญ่ของคุณอยู่ที่นี่แล้ว</translation>
 <translation id="1653598257495639807">ผลลัพธ์ QR Code</translation>
+<translation id="172937028082106236">สร้างจากประวัติการท่องเว็บของฉัน</translation>
+<translation id="17513872634828108">แท็บที่เปิดอยู่</translation>
 <translation id="1809939268435598390">ลบโฟลเดอร์</translation>
+<translation id="1816380826555616620">รายการต่อตัวเชื่อมต่อ: <ph name="OLD_ITEM_COUNT" /> ถึง <ph name="NEW_ITEM_COUNT" /> รายการ</translation>
+<translation id="1818606096021558659">หน้า</translation>
+<translation id="1844249872546141866">หน้าต่าง: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">ไม่มีจำนวน</translation>
+<translation id="1929197983938319610">คุณใช้เบราว์เซอร์ต้นทางต่อได้ หากข้อมูลประเภทหนึ่งมีการเปลี่ยนแปลงอยู่ตลอด Dao จะขอให้คุณปิดเบราว์เซอร์นั้นและลองใหม่เฉพาะส่วนนั้น</translation>
+<translation id="1984122437277059790">ไม่สามารถนำเข้าโปรเจ็กต์ได้ ตรวจสอบแพ็กเกจแล้วลองอีกครั้ง</translation>
+<translation id="2085323698672376231">การดำเนินการนี้จะลบโปรเจ็กต์ปัจจุบัน เวอร์ชันทั้งหมด และการเข้าถึงแหล่งที่มาอย่างถาวร ซึ่งไม่สามารถเลิกทำได้</translation>
+<translation id="210592584469870355">ความสามารถ</translation>
+<translation id="2109761659519935228">Dao ขนาดเล็ก</translation>
 <translation id="21133533946938348">ปักหมุดแท็บ</translation>
+<translation id="2175927920773552910">รหัส QR</translation>
+<translation id="2199413402821420360">เปิดแท็บนี้ใน Dao ขนาดเล็กไม่ได้</translation>
+<translation id="2209843794360152290">รายการที่นำเข้าจะถูกรวมโดยไม่แทนที่ข้อมูลเดิม</translation>
+<translation id="2254382823755510690">ข้อมูลที่นำเข้าของคุณพร้อมใช้งานใน Dao แท็บที่เปิดอยู่จะถูกเก็บไว้โดยไม่โหลดในโฟลเดอร์ที่ยุบอยู่จนกว่าคุณจะต้องใช้</translation>
+<translation id="2348199177323591972">อ่านเนื้อหาหน้า</translation>
+<translation id="2359808026110333948">ดำเนินการต่อ</translation>
+<translation id="2398703750948514961">ยกเลิกแล้ว</translation>
+<translation id="2414886740292270097">มืด</translation>
+<translation id="243275146591958220">ยกเลิกการดาวน์โหลด</translation>
+<translation id="2496180316473517155">ประวัติการท่องเว็บ</translation>
+<translation id="251834402454969316">การเปลี่ยนแปลงจากเวอร์ชันปัจจุบัน</translation>
+<translation id="2519023533785544875">เปิดผู้ช่วย</translation>
+<translation id="2535607573648844553">Dao ต้องใช้คีย์ Safe Storage ของเบราว์เซอร์ที่เลือกเพื่อถอดรหัสรหัสผ่านที่บันทึกไว้ หากคุณปฏิเสธการเข้าถึง จะข้ามเฉพาะรหัสผ่าน และการย้ายข้อมูลส่วนที่เหลือจะดำเนินต่อไป</translation>
+<translation id="2580366865845491095">เปิดลิงก์นี้?</translation>
+<translation id="2612596415938768738">อาจต้องลงชื่อเข้าใช้</translation>
+<translation id="2698054069012763064">อีก <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">ปิดแท็บที่ซ้ำกัน</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">กำลังอ่าน</translation>
+<translation id="2820330532305477229">คุณกำลังย้ายมาจากที่ไหน?</translation>
+<translation id="2882207023658691113">กู้คืนเป็นเวอร์ชันใหม่</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> กำลังควบคุมแท็บเบราว์เซอร์</translation>
 <translation id="2973324205039581528">ปิดเสียงไซต์</translation>
+<translation id="2976307543842414852">ทำงาน</translation>
 <translation id="3007771295016901659">ทำซ้ำแท็บ</translation>
 <translation id="3062877722240966678">ทดสอบ Dao i18n pipeline เรียบร้อย</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">กระบวนการที่ยืนยันแล้ว: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao จะทดสอบแหล่งที่มาที่เลือกและเพิ่มแหล่งที่ใช้งานได้ แต่ละแหล่งที่มาจะอ่านได้เฉพาะหน้าและข้อมูลที่แสดงด้านล่างขณะที่หน้าแรกทำงานอยู่</translation>
+<translation id="3249579521706735875">ใช้งานได้เมื่อระบบอยู่ในโหมดมืด</translation>
+<translation id="3356580349448036450">เสร็จสมบูรณ์</translation>
+<translation id="3404183081987133644">ข้อมูลที่นำเข้าก่อนคุณหยุดพร้อมใช้งานแล้ว คุณสามารถเริ่มการย้ายข้อมูลอีกครั้งได้ทุกเมื่อที่พร้อม</translation>
+<translation id="3420663750132400268">ลบโฟลเดอร์?</translation>
+<translation id="3427713535827228685">ส่วนขยายในเว็บไซต์นี้</translation>
+<translation id="3435738964857648380">ความปลอดภัย</translation>
 <translation id="3450492919008172498">ไม่มีแท็บใหม่ที่ถูกเก็บถาวร</translation>
+<translation id="3509982919032226274">สร้าง Dao Home ของฉัน เริ่มด้วยการถามว่าฉันต้องการให้หน้าส่วนตัวนี้ช่วยสำรวจอะไร จากนั้นสร้างและเผยแพร่เวอร์ชันแรก</translation>
 <translation id="3551320343578183772">ปิดแท็บ</translation>
 <translation id="3657099196021255130">เปิดใน Dao</translation>
 <translation id="3708693288863478389">พิมพ์ URL หรือค้นหา...</translation>
+<translation id="381667777775855564">กำลังเพิ่มไปยัง Dao</translation>
 <translation id="385051799172605136">กลับ</translation>
 <translation id="3891466792657071243">หยุดโหลด</translation>
 <translation id="3901975710974642844">ย้ายแท็บที่ไม่ใช้งานไปที่ "stale"</translation>
+<translation id="3909499025801874715">ตรวจสอบข้อมูลวินิจฉัย Dao Home ที่จำกัดขอบเขต อธิบายความล้มเหลว และซ่อมแซมโปรเจ็กต์ปัจจุบัน เก็บเวอร์ชันปัจจุบันที่เรียกใช้ได้ไว้จนกว่าการซ่อมแซมจะผ่านการตรวจสอบ แล้วเผยแพร่การซ่อมแซมเป็นเวอร์ชันใหม่</translation>
+<translation id="3927932062596804919">ปฏิเสธ</translation>
 <translation id="3984237987235889323">กำลังอัปเดต</translation>
+<translation id="3999659648104077867">หยุดการควบคุมเบราว์เซอร์แล้ว</translation>
+<translation id="4165986682804962316">การตั้งค่าเว็บไซต์</translation>
 <translation id="4201242995651540725">แท็บที่ไม่ได้ใช้งานใน 24 ชั่วโมงที่ผ่านมาได้ถูกเก็บถาวร</translation>
+<translation id="4221615148091761714">แก้ไขด้วย Dao</translation>
 <translation id="4285498937028063278">เลิกปักหมุด</translation>
 <translation id="4322394346347055525">ปิดแท็บอื่น</translation>
+<translation id="4332876892329258166">เริ่มการย้ายข้อมูล</translation>
 <translation id="4380677223237520064">ถอดรหัส QR Code</translation>
+<translation id="4404136731284211429">สแกนอีกครั้ง</translation>
+<translation id="4500440256909785690">แทนที่หน้าแรกนี้?</translation>
 <translation id="4543782226216763900">สลับแถบด้านข้าง (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">ถาม AI: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">การย้ายของคุณเสร็จสมบูรณ์</translation>
+<translation id="4652266463001779298">ไม่อนุญาต</translation>
+<translation id="4724836371241170775">ขั้นตอนที่ 2 จาก 4 · เลือกสิ่งที่จะย้าย</translation>
 <translation id="473775607612524610">อัปเดต</translation>
+<translation id="481205936353439293">ขั้นตอนที่ 3 จาก 4 · กำลังย้ายข้อมูลของคุณ</translation>
+<translation id="4854731374904470810">คัดลอก ID แท็บ</translation>
 <translation id="4881695831933465202">เปิด</translation>
+<translation id="4898928054560997780">ขอให้ Dao แก้ไข</translation>
+<translation id="49041264823677952">ปิดการดาวน์โหลดที่เสร็จสิ้น</translation>
+<translation id="493638356004396067">การย้ายข้อมูลล้มเหลว</translation>
+<translation id="4968006660055392545">ไม่พบโปรไฟล์เบราว์เซอร์ที่รองรับบน Mac เครื่องนี้</translation>
+<translation id="5004648724625831205">กำลังเตรียมสำเนาในเครื่อง</translation>
 <translation id="501297852093417632">ล้างแคช</translation>
 <translation id="5027562294707732951">เพิ่มส่วนขยาย</translation>
+<translation id="5126909118906525779">เชื่อมต่อแหล่งข้อมูลสด?</translation>
 <translation id="5192454087436290060">ศูนย์ควบคุม</translation>
+<translation id="5289912690346335931">กำลังนับ…</translation>
+<translation id="5301255231518510089">เลือกไฟล์เพื่อดูซอร์ส</translation>
+<translation id="5308380583665731573">เชื่อมต่อ</translation>
+<translation id="5322475253112112619">หากอนุญาต ไคลเอ็นต์จะสามารถอ่านและโต้ตอบกับเว็บไซต์โดยใช้การเข้าสู่ระบบปัจจุบันของคุณ รวมถึงเรียกใช้ JavaScript ได้</translation>
+<translation id="5334844597069022743">ดูซอร์ส</translation>
+<translation id="5400726083793179041">สถานะโปรเจ็กต์ที่เลือกจะเผยแพร่เป็นเวอร์ชันใหม่ ประวัติเดิมจะยังคงพร้อมใช้งาน</translation>
+<translation id="5436835454512450295">ข้อมูลเบราว์เซอร์ที่นำเข้า</translation>
 <translation id="5450299006531484229">ปิดแท็บด้านบน</translation>
 <translation id="5538307496474303926">กำลังล้าง...</translation>
 <translation id="5556459405103347317">โหลดใหม่</translation>
 <translation id="5611474372949142946">ปิดแท็บด้านล่าง</translation>
+<translation id="5649936378931470828">เปิดผู้ช่วย (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">รหัสผ่านที่บันทึกไว้</translation>
+<translation id="5871520043546374642">หยุดการย้ายข้อมูลแล้ว</translation>
+<translation id="5873058639175438941">ทำให้เว็บไซต์มืดลงด้วยโหมดมืดอัตโนมัติเมื่อระบบอยู่ในโหมดมืด</translation>
+<translation id="5874739091759960360">เฉพาะเมื่อ dao://home ทำงานอยู่</translation>
+<translation id="591645459245805338">สร้างหน้าส่วนตัวที่มีชีวิตชีวา ซึ่ง Dao ปรับให้เข้ากับสิ่งที่คุณสนใจได้</translation>
+<translation id="5942499955694738574">ไม่สามารถรีเซ็ตหน้าแรกได้ โปรเจ็กต์ปัจจุบันไม่มีการเปลี่ยนแปลง ลองอีกครั้ง</translation>
 <translation id="5953452567010839148">ไม่พบ QR code</translation>
+<translation id="6018824944448456809">ขั้นตอนที่ 1 จาก 4 · เลือกแหล่งที่มา</translation>
+<translation id="6040143037577758943">ปิด</translation>
+<translation id="6042308850641462728">เพิ่มเติม</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">ข้อมูลผลลัพธ์: สูงสุด <ph name="BYTE_COUNT" /> ไบต์</translation>
+<translation id="6204195547326023850">กำลังโหลดหน้าแรกของคุณ…</translation>
+<translation id="6266039999629596120">ต้องดำเนินการ</translation>
+<translation id="6270944267518310103">กำลังรอ</translation>
+<translation id="6299569859560607348">หน้าแรกนี้ต้องการเปิดหน้าภายนอก ตรวจสอบปลายทางก่อนดำเนินการต่อ</translation>
+<translation id="6325047129563993580">สร้าง Dao Home ของฉันจากหัวข้อการท่องเว็บล่าสุดของฉัน ใช้เฉพาะเนื้อหาประวัติหน้าแรกที่ลดข้อมูลส่วนบุคคลแล้ว อธิบายแนวทางโดยย่อ จากนั้นสร้างและเผยแพร่เวอร์ชันแรก</translation>
+<translation id="642671119120438272">แท็บที่นำเข้า</translation>
+<translation id="648743804821442565">ไคลเอ็นต์ระบบอัตโนมัติในเครื่องกำลังขอสิทธิ์เข้าถึงหน้าต่าง Dao นี้</translation>
+<translation id="6527303717912515753">แชร์</translation>
+<translation id="6586201961110912838">กู้คืนเวอร์ชันนี้</translation>
+<translation id="6601997535892446436">เลือกโปรไฟล์เบราว์เซอร์บน Mac เครื่องนี้ แต่ละโปรไฟล์จะแสดงแยกกันเพื่อให้คุณควบคุมสิ่งที่จะย้ายได้</translation>
 <translation id="6736243959894955139">ที่อยู่</translation>
+<translation id="6764328036096492220">สิทธิ์เขียน</translation>
+<translation id="677387175345781299">ไฟล์โปรเจ็กต์</translation>
+<translation id="6786747875388722282">ส่วนขยาย</translation>
+<translation id="6801297003382412689">ขีดจำกัดทรัพยากร</translation>
 <translation id="6829876854799051628">ล้างคุกกี้</translation>
+<translation id="6832689803248022656">คุณต้องการนำอะไรเข้ามา?</translation>
+<translation id="684699560760227351">รีเซ็ตหน้าแรก</translation>
 <translation id="6896758677409633944">คัดลอก</translation>
+<translation id="6940497786570685033">คุณกำลังท่องเว็บในโหมดไม่ระบุตัวตน หลังจากปิดหน้าต่างไม่ระบุตัวตนทั้งหมด Dao จะไม่เก็บประวัติการท่องเว็บ คุกกี้ หรือข้อมูลเว็บไซต์ของคุณ การดาวน์โหลดและบุ๊กมาร์กจะยังคงอยู่</translation>
+<translation id="6963772203726867701">ไม่พบ</translation>
+<translation id="6971377058826420967">สร้างด้วย Dao</translation>
+<translation id="7020790421915196218">หมวดหมู่ที่เสร็จสมบูรณ์พร้อมใช้งานแล้ว คุณสามารถลองใหม่เฉพาะส่วนที่ต้องดำเนินการ</translation>
+<translation id="7401173814860935855">ล้างคุกกี้สำหรับเว็บไซต์นี้แล้ว</translation>
+<translation id="7465855397028934440">กำลังค้นหาโปรไฟล์เบราว์เซอร์…</translation>
+<translation id="750760654246049420">ไคลเอ็นต์ระบบอัตโนมัติอื่นกำลังควบคุมเบราว์เซอร์นี้</translation>
 <translation id="7532108947552493901">ตรวจสอบการอัปเดต...</translation>
+<translation id="7533550325431812">อนุญาตการเชื่อมต่อนี้</translation>
 <translation id="7604253494819481181">กด <ph name="SHORTCUT" /> อีกครั้งเพื่อสลับแถบด้านข้าง</translation>
+<translation id="7615777614791709701">รีเซ็ตหน้าแรก?</translation>
+<translation id="7626429522809774043">อนุญาตให้ควบคุมเบราว์เซอร์?</translation>
+<translation id="7636812263792427733">บังคับใช้โหมดมืด</translation>
+<translation id="7658239707568436148">ยกเลิก</translation>
+<translation id="7714812312719848690">โปรเจ็กต์ของคุณยังปลอดภัย ลองใหม่ กู้คืนเวอร์ชัน หรือขอให้ Dao ซ่อมแซม</translation>
 <translation id="7717845620320228976">ตรวจสอบการอัปเดต</translation>
+<translation id="7803931104677504532">อ่านรูปแบบการนำเสนอ</translation>
+<translation id="7974106569409739809">ยกเลิกการจัดกลุ่ม</translation>
+<translation id="7995663841236651667">ข้อมูลเบราว์เซอร์ของคุณได้รับการประมวลผลภายใน Mac เครื่องนี้</translation>
+<translation id="8028081981001403222">นำเข้าโปรเจ็กต์</translation>
+<translation id="8041968312565730454">เบราว์เซอร์ต้นทาง</translation>
+<translation id="8052762370740257987">ส่งออกโปรเจ็กต์</translation>
+<translation id="8097718730266959883">ไม่พร้อมใช้งาน</translation>
+<translation id="81044950628177848">เวอร์ชันปัจจุบัน</translation>
+<translation id="8131740175452115882">ยืนยัน</translation>
 <translation id="8137559199583651773">จัดการส่วนขยาย</translation>
+<translation id="8138892305328483863">Dao จะรวมรายการที่นำเข้ากับสิ่งที่คุณมีอยู่แล้ว ข้อมูลเดิมจะไม่ถูกแทนที่</translation>
+<translation id="8175534235396780357">รายละเอียดการควบคุม AI</translation>
+<translation id="8237260373784588552">การควบคุมหน้าแรก</translation>
+<translation id="824895471210913946">เป้าหมาย: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">ลบ</translation>
+<translation id="831684326378391082">ดำเนินการต่อโดยไม่มีแหล่งข้อมูลสด</translation>
+<translation id="8349478524212888083">โปรเจ็กต์ที่นำเข้าจะกลายเป็นเวอร์ชันใหม่ การเข้าถึงแหล่งที่มาจะยังตัดการเชื่อมต่อจนกว่าคุณจะอนุมัติอีกครั้ง</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">เชื่อมต่อ <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">ประวัติเวอร์ชัน</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← กลับ</translation>
+<translation id="8595238918901827309">กู้คืนเวอร์ชันนี้?</translation>
+<translation id="8668072977518790485">คัดลอก ID แท็บแล้ว</translation>
+<translation id="8684229942427488970">ศูนย์เว็บไซต์</translation>
 <translation id="8717864919010420084">คัดลอกลิงก์</translation>
+<translation id="8725066075913043281">ลองอีกครั้ง</translation>
+<translation id="8774154357663601701">แหล่งที่มานี้อ่านได้เฉพาะหน้าที่อนุมัติขณะที่หน้าแรกทำงานอยู่</translation>
+<translation id="8781013843394828812">รายการเหล่านี้ต้องลองใหม่</translation>
+<translation id="8787633576358327637">อาจมีข้อความแจ้งจากพวงกุญแจ macOS</translation>
+<translation id="8820817407110198400">บุ๊กมาร์ก</translation>
+<translation id="8826852601577125903">ข้อมูลผลลัพธ์: <ph name="OLD_BYTE_COUNT" /> ถึง <ph name="NEW_BYTE_COUNT" /> ไบต์</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> รายการที่เป็นไปได้</translation>
+<translation id="8899040626072079337">กำลังย้ายข้อมูลของคุณไปยัง Dao</translation>
+<translation id="8962539151725780858">แท็บที่ควบคุม: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">การเรียก MCP ล่าสุด: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">รายการต่อตัวเชื่อมต่อ: สูงสุด <ph name="ITEM_COUNT" /> รายการ</translation>
+<translation id="9144412711146411188">เก็บแท็บที่ไม่ได้ใช้งานไว้ในคลังแล้ว</translation>
+<translation id="9186557253975059599">ไคลเอ็นต์ที่รายงาน: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">สลับแถบด้านข้าง</translation>
+<translation id="9205549548211212895">หยุดการย้ายข้อมูล</translation>
+<translation id="932327136139879170">หน้าแรก</translation>
+<translation id="932413031402847895">นำเข้าข้อมูลเบราว์เซอร์</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">เชื่อมต่อรายการที่เลือก</translation>
+<translation id="949725615797318423">ติดตั้งส่วนขยายใหม่จากร้านค้าอย่างเป็นทางการ</translation>
+<translation id="962181630102348889">ไม่สามารถแสดงหน้าแรกของคุณได้</translation>
 </translationbundle>

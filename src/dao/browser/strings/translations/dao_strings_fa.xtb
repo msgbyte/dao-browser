@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="fa">
+<translation id="1111094358966140566">مقایسه نسخه</translation>
 <translation id="1173894706177603556">تغییر نام</translation>
+<translation id="1182228621215085947">از Dao بپرسید</translation>
+<translation id="121570799358042869">داده‌های مرورگر شما در این Mac باقی می‌مانند. نصب دوباره افزونه‌های سازگار تنها مرحله‌ای است که ممکن است به اینترنت متصل شود؛ تنظیمات افزونه و ورودها کپی نمی‌شوند.</translation>
+<translation id="1236455002425740182">انتقال Dao</translation>
+<translation id="1272079795634619415">توقف</translation>
 <translation id="1293177648337752319">بازگرداندن صدای سایت</translation>
+<translation id="1349314697251468085">با این کار همه زبانه‌های پوشه بسته و پوشه حذف می‌شود.</translation>
+<translation id="1352298709666490484">تغییر زبانه</translation>
+<translation id="1383876407941801731">جستجو</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">نمایه: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">وب را از آنِ خودتان کنید</translation>
+<translation id="1530524805356937121">پیمایش برای بارگیری بیشتر</translation>
+<translation id="1566049601598938765">وب‌سایت</translation>
+<translation id="1602287703039480507">حافظه پنهان این سایت پاک شد</translation>
+<translation id="1637441054828003579">امتحان دوباره موارد ناموفق</translation>
+<translation id="1641203463264514072">بیشتر داده‌های شما اینجاست</translation>
 <translation id="1653598257495639807">نتیجه کد QR</translation>
+<translation id="172937028082106236">ایجاد از سابقه مرور من</translation>
+<translation id="17513872634828108">زبانه‌های باز</translation>
 <translation id="1809939268435598390">حذف پوشه</translation>
+<translation id="1816380826555616620">موارد برای هر اتصال‌دهنده: از <ph name="OLD_ITEM_COUNT" /> به <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">صفحه</translation>
+<translation id="1844249872546141866">پنجره: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">تعداد دردسترس نیست</translation>
+<translation id="1929197983938319610">می‌توانید به استفاده از مرورگر مبدأ ادامه دهید. اگر یک نوع داده پیوسته تغییر کند، Dao از شما می‌خواهد آن را ببندید و فقط همان بخش را دوباره امتحان کنید.</translation>
+<translation id="1984122437277059790">پروژه وارد نشد. بسته را بررسی کنید و دوباره تلاش کنید.</translation>
+<translation id="2085323698672376231">با این کار پروژه فعلی، همه نسخه‌ها و دسترسی منبع برای همیشه حذف می‌شوند. این کار قابل بازگشت نیست.</translation>
+<translation id="210592584469870355">قابلیت‌ها</translation>
+<translation id="2109761659519935228">Dao کوچک</translation>
 <translation id="21133533946938348">سنجاق کردن زبانه</translation>
+<translation id="2175927920773552910">کد QR</translation>
+<translation id="2199413402821420360">نمی‌توان این زبانه را در Dao کوچک باز کرد</translation>
+<translation id="2209843794360152290">موارد واردشده بدون جایگزینی داده‌های موجود ادغام می‌شوند.</translation>
+<translation id="2254382823755510690">داده‌های واردشده شما در Dao آماده‌اند. زبانه‌های باز تا زمانی که به آن‌ها نیاز داشته باشید، در یک پوشه جمع‌شده و بارگذاری‌نشده نگه داشته می‌شوند.</translation>
+<translation id="2348199177323591972">خواندن محتوای صفحه</translation>
+<translation id="2359808026110333948">ادامه</translation>
+<translation id="2398703750948514961">لغو شد</translation>
+<translation id="2414886740292270097">تیره</translation>
+<translation id="243275146591958220">لغو دانلود</translation>
+<translation id="2496180316473517155">سابقه مرور</translation>
+<translation id="251834402454969316">تغییرات نسبت به نسخه فعلی</translation>
+<translation id="2519023533785544875">باز کردن دستیار</translation>
+<translation id="2535607573648844553">Dao برای رمزگشایی گذرواژه‌های ذخیره‌شده به کلید Safe Storage مرورگر انتخاب‌شده نیاز دارد. اگر دسترسی را رد کنید، فقط گذرواژه‌ها نادیده گرفته می‌شوند و بقیه انتقال ادامه می‌یابد.</translation>
+<translation id="2580366865845491095">این پیوند باز شود؟</translation>
+<translation id="2612596415938768738">ممکن است نیاز به ورود داشته باشد</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> مورد بیشتر</translation>
 <translation id="2703180365855369896">بستن برگه‌های تکراری</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">در حال خواندن</translation>
+<translation id="2820330532305477229">از کجا منتقل می‌شوید؟</translation>
+<translation id="2882207023658691113">بازیابی به‌عنوان نسخه جدید</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> در حال کنترل زبانه‌های مرورگر است</translation>
 <translation id="2973324205039581528">بی‌صدا کردن سایت</translation>
+<translation id="2976307543842414852">اجرا می‌شود</translation>
 <translation id="3007771295016901659">تکرار زبانه</translation>
 <translation id="3062877722240966678">خط لوله i18n Dao تایید</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">فرایند تأییدشده: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao منابع انتخاب‌شده را آزمایش می‌کند و موارد کارآمد را می‌افزاید. هر منبع فقط هنگام فعال بودن خانه می‌تواند صفحه‌ها و داده‌های نمایش‌داده‌شده در زیر را بخواند.</translation>
+<translation id="3249579521706735875">هنگامی که سیستم در حالت تیره است در دسترس است.</translation>
+<translation id="3356580349448036450">تکمیل شد</translation>
+<translation id="3404183081987133644">داده‌هایی که پیش از توقف وارد شده‌اند آماده استفاده هستند. هر زمان آماده بودید می‌توانید انتقال دیگری را شروع کنید.</translation>
+<translation id="3420663750132400268">پوشه حذف شود؟</translation>
+<translation id="3427713535827228685">افزونه‌های این سایت</translation>
+<translation id="3435738964857648380">امنیت</translation>
 <translation id="3450492919008172498">زبانه جدیدی بایگانی نشد</translation>
+<translation id="3509982919032226274">خانه Dao من را ایجاد کن. ابتدا بپرس که می‌خواهم این صفحه شخصی به من در کاوش چه چیزی کمک کند، سپس اولین نسخه را بساز و منتشر کن.</translation>
 <translation id="3551320343578183772">بستن زبانه</translation>
 <translation id="3657099196021255130">باز کردن در Dao</translation>
 <translation id="3708693288863478389">یک URL یا جستجو تایپ کنید...</translation>
+<translation id="381667777775855564">در حال افزودن به Dao</translation>
 <translation id="385051799172605136">بازگشت</translation>
 <translation id="3891466792657071243">توقف بارگذاری</translation>
 <translation id="3901975710974642844">انتقال زبانه‌های قدیمی به "قدیمی"</translation>
+<translation id="3909499025801874715">داده‌های تشخیصی محدودشده خانه Dao را بررسی کن، خرابی را توضیح بده و پروژه فعلی را تعمیر کن. نسخه قابل‌اجرای فعلی را تا تأیید تعمیر نگه دار، سپس تعمیر را به‌عنوان نسخه‌ای جدید منتشر کن.</translation>
+<translation id="3927932062596804919">رد کردن</translation>
 <translation id="3984237987235889323">در حال اعمال</translation>
+<translation id="3999659648104077867">کنترل مرورگر متوقف شد</translation>
+<translation id="4165986682804962316">تنظیمات سایت</translation>
 <translation id="4201242995651540725">زبانه‌های غیرفعال در ۲۴ ساعت گذشته بایگانی شدند</translation>
+<translation id="4221615148091761714">ویرایش با Dao</translation>
 <translation id="4285498937028063278">برداشتن سنجاق</translation>
 <translation id="4322394346347055525">بستن زبانه‌های دیگر</translation>
+<translation id="4332876892329258166">شروع انتقال</translation>
 <translation id="4380677223237520064">رمزگشایی کد QR</translation>
+<translation id="4404136731284211429">اسکن دوباره</translation>
+<translation id="4500440256909785690">این خانه جایگزین شود؟</translation>
 <translation id="4543782226216763900">تغییر نوار کناری (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">پرسش از هوش مصنوعی: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">انتقال شما کامل شد</translation>
+<translation id="4652266463001779298">مجاز نیست</translation>
+<translation id="4724836371241170775">مرحله ۲ از ۴ · انتخاب موارد انتقالی</translation>
 <translation id="473775607612524610">به‌روزرسانی</translation>
+<translation id="481205936353439293">مرحله ۳ از ۴ · انتقال داده‌های شما</translation>
+<translation id="4854731374904470810">کپی شناسه زبانه</translation>
 <translation id="4881695831933465202">باز کردن</translation>
+<translation id="4898928054560997780">از Dao بخواهید تعمیر کند</translation>
+<translation id="49041264823677952">رد کردن دانلود تکمیل‌شده</translation>
+<translation id="493638356004396067">انتقال ناموفق بود</translation>
+<translation id="4968006660055392545">هیچ نمایه مرورگر پشتیبانی‌شده‌ای در این Mac پیدا نشد.</translation>
+<translation id="5004648724625831205">در حال آماده‌سازی یک کپی محلی</translation>
 <translation id="501297852093417632">پاک کردن حافظه پنهان</translation>
 <translation id="5027562294707732951">افزودن افزونه</translation>
+<translation id="5126909118906525779">منابع زنده متصل شوند؟</translation>
 <translation id="5192454087436290060">مرکز کنترل</translation>
+<translation id="5289912690346335931">در حال شمارش…</translation>
+<translation id="5301255231518510089">فایلی را برای مشاهده منبع آن انتخاب کنید.</translation>
+<translation id="5308380583665731573">اتصال</translation>
+<translation id="5322475253112112619">در صورت مجاز شدن، می‌تواند با استفاده از ورود فعلی شما، از جمله با اجرای JavaScript، وب‌سایت‌ها را بخواند و با آن‌ها تعامل کند.</translation>
+<translation id="5334844597069022743">مشاهده منبع</translation>
+<translation id="5400726083793179041">وضعیت پروژه انتخاب‌شده به‌عنوان نسخه‌ای جدید منتشر می‌شود. تاریخچه موجود همچنان دردسترس خواهد بود.</translation>
+<translation id="5436835454512450295">داده‌های مرورگر واردشده</translation>
 <translation id="5450299006531484229">بستن زبانه‌های بالا</translation>
 <translation id="5538307496474303926">در حال پاک‌سازی...</translation>
 <translation id="5556459405103347317">بارگذاری مجدد</translation>
 <translation id="5611474372949142946">بستن زبانه‌های پایین</translation>
+<translation id="5649936378931470828">باز کردن دستیار (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">گذرواژه‌های ذخیره‌شده</translation>
+<translation id="5871520043546374642">انتقال متوقف شد</translation>
+<translation id="5873058639175438941">هنگامی که سیستم در حالت تیره است، وب‌سایت‌ها را با حالت تیره خودکار تیره کنید.</translation>
+<translation id="5874739091759960360">فقط هنگام فعال بودن dao://home</translation>
+<translation id="591645459245805338">صفحه‌ای خصوصی و پویا بسازید که Dao آن را بر پایه چیزهایی که برایتان مهم است شکل دهد.</translation>
+<translation id="5942499955694738574">خانه بازنشانی نشد. پروژه فعلی تغییر نکرد. دوباره تلاش کنید.</translation>
 <translation id="5953452567010839148">هیچ کد QR یافت نشد</translation>
+<translation id="6018824944448456809">مرحله ۱ از ۴ · انتخاب منبع</translation>
+<translation id="6040143037577758943">بستن</translation>
+<translation id="6042308850641462728">بیشتر</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">داده نتیجه: تا <ph name="BYTE_COUNT" /> بایت</translation>
+<translation id="6204195547326023850">در حال بارگیری خانه شما…</translation>
+<translation id="6266039999629596120">نیازمند توجه</translation>
+<translation id="6270944267518310103">در انتظار</translation>
+<translation id="6299569859560607348">این خانه می‌خواهد یک صفحه خارجی باز کند. پیش از ادامه، مقصد را بررسی کنید.</translation>
+<translation id="6325047129563993580">خانه Dao من را از موضوع‌های اخیر مرورم ایجاد کن. فقط از مطالب سابقه خانه با حداقل‌سازی حریم خصوصی استفاده کن، جهت را به‌اختصار توضیح بده، سپس اولین نسخه را بساز و منتشر کن.</translation>
+<translation id="642671119120438272">زبانه‌های واردشده</translation>
+<translation id="648743804821442565">یک سرویس‌گیرنده اتوماسیون محلی درخواست دسترسی به این پنجره Dao را دارد.</translation>
+<translation id="6527303717912515753">اشتراک‌گذاری</translation>
+<translation id="6586201961110912838">بازیابی این نسخه</translation>
+<translation id="6601997535892446436">یک نمایه مرورگر در این Mac انتخاب کنید. هر نمایه جداگانه فهرست شده است تا کنترل آنچه منتقل می‌شود در دست شما باشد.</translation>
 <translation id="6736243959894955139">آدرس</translation>
+<translation id="6764328036096492220">دسترسی نوشتن</translation>
+<translation id="677387175345781299">فایل‌های پروژه</translation>
+<translation id="6786747875388722282">افزونه‌ها</translation>
+<translation id="6801297003382412689">محدودیت‌های منابع</translation>
 <translation id="6829876854799051628">پاک کردن کوکی‌ها</translation>
+<translation id="6832689803248022656">چه چیزی را می‌خواهید بیاورید؟</translation>
+<translation id="684699560760227351">بازنشانی خانه</translation>
 <translation id="6896758677409633944">کپی</translation>
+<translation id="6940497786570685033">در حالت ناشناس مرور می‌کنید. پس از بستن همه پنجره‌های ناشناس، Dao سابقه مرور، کوکی‌ها یا داده‌های سایت شما را نگه نمی‌دارد. دانلودها و نشانک‌ها حفظ می‌شوند.</translation>
+<translation id="6963772203726867701">شناسایی نشد</translation>
+<translation id="6971377058826420967">ایجاد با Dao</translation>
+<translation id="7020790421915196218">دسته‌های تکمیل‌شده آماده استفاده هستند. فقط بخش‌های نیازمند توجه را می‌توانید دوباره امتحان کنید.</translation>
+<translation id="7401173814860935855">کوکی‌های این سایت پاک شدند</translation>
+<translation id="7465855397028934440">در حال جست‌وجوی نمایه‌های مرورگر…</translation>
+<translation id="750760654246049420">یک سرویس‌گیرنده اتوماسیون دیگر در حال کنترل این مرورگر است</translation>
 <translation id="7532108947552493901">بررسی برای به‌روزرسانی‌ها...</translation>
+<translation id="7533550325431812">اجازه این اتصال</translation>
 <translation id="7604253494819481181">برای تغییر نوار کناری دوباره <ph name="SHORTCUT" /> را فشار دهید</translation>
+<translation id="7615777614791709701">خانه بازنشانی شود؟</translation>
+<translation id="7626429522809774043">کنترل مرورگر مجاز شود؟</translation>
+<translation id="7636812263792427733">واداشتن به حالت تیره</translation>
+<translation id="7658239707568436148">لغو</translation>
+<translation id="7714812312719848690">پروژه شما همچنان امن است. دوباره تلاش کنید، نسخه‌ای را بازیابی کنید یا از Dao بخواهید آن را تعمیر کند.</translation>
 <translation id="7717845620320228976">بررسی برای به‌روزرسانی‌ها</translation>
+<translation id="7803931104677504532">خواندن سبک‌های نمایشی</translation>
+<translation id="7974106569409739809">برداشتن از پوشه</translation>
+<translation id="7995663841236651667">داده‌های مرورگر شما به‌صورت محلی در این Mac پردازش می‌شوند.</translation>
+<translation id="8028081981001403222">درون‌ریزی پروژه</translation>
+<translation id="8041968312565730454">مرورگر مبدأ</translation>
+<translation id="8052762370740257987">برون‌بری پروژه</translation>
+<translation id="8097718730266959883">دردسترس نیست</translation>
+<translation id="81044950628177848">نسخه فعلی</translation>
+<translation id="8131740175452115882">تأیید</translation>
 <translation id="8137559199583651773">مدیریت افزونه‌ها</translation>
+<translation id="8138892305328483863">Dao موارد واردشده را با داده‌های موجود شما ادغام می‌کند. داده‌های موجود هرگز جایگزین نمی‌شوند.</translation>
+<translation id="8175534235396780357">جزئیات کنترل هوش مصنوعی</translation>
+<translation id="8237260373784588552">کنترل‌های خانه</translation>
+<translation id="824895471210913946">هدف: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">حذف</translation>
+<translation id="831684326378391082">ادامه بدون منابع زنده</translation>
+<translation id="8349478524212888083">پروژه واردشده به یک نسخه جدید تبدیل می‌شود. دسترسی منبع تا زمانی که دوباره آن را تأیید نکنید قطع می‌ماند.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">اتصال <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">تاریخچه نسخه‌ها</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> بازگشت</translation>
+<translation id="8595238918901827309">این نسخه بازیابی شود؟</translation>
+<translation id="8668072977518790485">شناسه زبانه کپی شد</translation>
+<translation id="8684229942427488970">مرکز سایت</translation>
 <translation id="8717864919010420084">کپی لینک</translation>
+<translation id="8725066075913043281">تلاش دوباره</translation>
+<translation id="8774154357663601701">این منبع فقط هنگام فعال بودن خانه می‌تواند صفحه‌های تأییدشده را بخواند.</translation>
+<translation id="8781013843394828812">این موارد باید دوباره امتحان شوند</translation>
+<translation id="8787633576358327637">ممکن است درخواست Keychain macOS نمایش داده شود</translation>
+<translation id="8820817407110198400">نشانک‌ها</translation>
+<translation id="8826852601577125903">داده نتیجه: از <ph name="OLD_BYTE_COUNT" /> به <ph name="NEW_BYTE_COUNT" /> بایت</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> مورد احتمالی</translation>
+<translation id="8899040626072079337">در حال انتقال داده‌های شما به Dao</translation>
+<translation id="8962539151725780858">زبانه‌های کنترل‌شده: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">آخرین فراخوانی MCP: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">موارد برای هر اتصال‌دهنده: تا <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">زبانه‌های غیرفعال بایگانی شدند</translation>
+<translation id="9186557253975059599">سرویس‌گیرنده گزارش‌شده: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">تغییر نوار کناری</translation>
+<translation id="9205549548211212895">توقف انتقال</translation>
+<translation id="932327136139879170">خانه</translation>
+<translation id="932413031402847895">وارد کردن داده‌های مرورگر</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">اتصال موارد انتخاب‌شده</translation>
+<translation id="949725615797318423">افزونه‌ها از فروشگاه رسمی‌شان دوباره نصب می‌شوند</translation>
+<translation id="962181630102348889">خانه شما نمایش داده نشد</translation>
 </translationbundle>

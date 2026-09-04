@@ -1,67 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="af">
+<translation id="1111094358966140566">Vergelyk weergawe</translation>
 <translation id="1173894706177603556">Hernoem</translation>
 <translation id="1182228621215085947">Vra Dao</translation>
+<translation id="121570799358042869">Jou blaaierdata bly op hierdie Mac. Die herinstallering van versoenbare uitbreidings is die enigste stap wat dalk met die internet verbind; uitbreidinginstellings en aanmeldings word nie gekopieer nie.</translation>
+<translation id="1236455002425740182">Dao-migrasie</translation>
+<translation id="1272079795634619415">Stop</translation>
 <translation id="1293177648337752319">Ontdemper Webwerf</translation>
+<translation id="1349314697251468085">Dit sal alle oortjies in die vouer sluit en die vouer skrap.</translation>
 <translation id="1352298709666490484">Wissel Tab</translation>
 <translation id="1383876407941801731">Soek</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profiel: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Maak die web jou eie</translation>
+<translation id="1530524805356937121">Rol om meer te laai</translation>
+<translation id="1566049601598938765">Webwerf</translation>
 <translation id="1602287703039480507">Kas vir hierdie webwerf skoongemaak</translation>
+<translation id="1637441054828003579">Probeer mislukte items weer</translation>
+<translation id="1641203463264514072">Meeste van jou data is hier</translation>
 <translation id="1653598257495639807">QR Kode Resultaat</translation>
+<translation id="172937028082106236">Skep uit my blaaigeskiedenis</translation>
+<translation id="17513872634828108">Oop oortjies</translation>
 <translation id="1809939268435598390">Vee vouer uit</translation>
+<translation id="1816380826555616620">Items per koppelaar: <ph name="OLD_ITEM_COUNT" /> tot <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Bladsy</translation>
+<translation id="1844249872546141866">Venster: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Telling onbeskikbaar</translation>
+<translation id="1929197983938319610">Jy kan aanhou om die bronblaaier te gebruik. As een datatipe aanhou verander, sal Dao jou vra om dit te sluit en slegs daardie deel weer te probeer.</translation>
+<translation id="1984122437277059790">Die projek kon nie ingevoer word nie. Gaan die pakket na en probeer weer.</translation>
+<translation id="2085323698672376231">Dit skrap die huidige projek, alle weergawes en brontoegang permanent. Dit kan nie ontdoen word nie.</translation>
+<translation id="210592584469870355">Vermoëns</translation>
 <translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Speld Tab aan</translation>
 <translation id="2175927920773552910">QR Kode</translation>
 <translation id="2199413402821420360">Kon nie hierdie tab in Mini Dao oopmaak nie</translation>
+<translation id="2209843794360152290">Ingevoerde items word saamgevoeg sonder om bestaande data te vervang.</translation>
+<translation id="2254382823755510690">Jou ingevoerde data is gereed in Dao. Oop oortjies word ongelaai in 'n ingevoude vouer gehou totdat jy dit benodig.</translation>
+<translation id="2348199177323591972">Lees bladsyinhoud</translation>
+<translation id="2359808026110333948">Gaan voort</translation>
+<translation id="2398703750948514961">Gekanselleer</translation>
 <translation id="2414886740292270097">Donker</translation>
 <translation id="243275146591958220">Kanselleer aflaai</translation>
+<translation id="2496180316473517155">Blaaigeskiedenis</translation>
+<translation id="251834402454969316">Veranderings aan huidige weergawe</translation>
+<translation id="2519023533785544875">Maak Assistent oop</translation>
+<translation id="2535607573648844553">Dao benodig die gekose blaaier se Safe Storage-sleutel om gestoorde wagwoorde te dekripteer. As jy toegang weier, word slegs wagwoorde oorgeslaan en die res van die migrasie gaan voort.</translation>
+<translation id="2580366865845491095">Maak hierdie skakel oop?</translation>
+<translation id="2612596415938768738">Vereis dalk dat jy aangemeld is</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> meer</translation>
 <translation id="2703180365855369896">Maak Duplikaat-oortjies toe</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Lees</translation>
+<translation id="2820330532305477229">Van waar af migreer jy?</translation>
+<translation id="2882207023658691113">Herstel as 'n nuwe weergawe</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> beheer blaaieroortjies</translation>
 <translation id="2973324205039581528">Demper Webwerf</translation>
+<translation id="2976307543842414852">Loop</translation>
 <translation id="3007771295016901659">Dupliseer Oortjie</translation>
 <translation id="3062877722240966678">Dao i18n pyplyn OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Geverifieerde proses: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao sal die gekose bronne toets en dié byvoeg wat werk. Elke bron kan slegs die bladsye en data hieronder lees terwyl Tuis aktief is.</translation>
 <translation id="3249579521706735875">Beskikbaar wanneer die stelsel in donker modus is.</translation>
+<translation id="3356580349448036450">Voltooi</translation>
+<translation id="3404183081987133644">Data wat ingevoer is voordat jy gestop het, is gereed om te gebruik. Jy kan nog 'n migrasie begin wanneer jy gereed is.</translation>
+<translation id="3420663750132400268">Skrap vouer?</translation>
 <translation id="3427713535827228685">Uitbreidings op hierdie webwerf</translation>
+<translation id="3435738964857648380">Sekuriteit</translation>
 <translation id="3450492919008172498">Geen nuwe oortjies is gearchiveer nie</translation>
+<translation id="3509982919032226274">Skep my Dao Tuis. Begin deur te vra wat ek wil hê hierdie persoonlike bladsy my moet help verken, bou en publiseer dan die eerste weergawe.</translation>
 <translation id="3551320343578183772">Maak Tab toe</translation>
 <translation id="3657099196021255130">Maak oop in Dao</translation>
 <translation id="3708693288863478389">Tik 'n URL of soek...</translation>
+<translation id="381667777775855564">Voeg by Dao</translation>
 <translation id="385051799172605136">Terug</translation>
 <translation id="3891466792657071243">Stop Laai</translation>
 <translation id="3901975710974642844">Skuif Stale-oortjies na "stale"</translation>
+<translation id="3909499025801874715">Inspekteer die begrensde Dao Tuis-diagnostiek, verduidelik die fout en herstel die huidige projek. Behou die huidige uitvoerbare weergawe totdat die herstel valideer, en publiseer dan die herstel as 'n nuwe weergawe.</translation>
+<translation id="3927932062596804919">Weier</translation>
 <translation id="3984237987235889323">Pas toe</translation>
+<translation id="3999659648104077867">Blaaierbeheer gestop</translation>
 <translation id="4165986682804962316">Webwerf instellings</translation>
 <translation id="4201242995651540725">Gearchiveerde oortjies wat die afgelope 24 uur onaktief was</translation>
+<translation id="4221615148091761714">Wysig met Dao</translation>
 <translation id="4285498937028063278">Ontspeld</translation>
 <translation id="4322394346347055525">Maak Ander Oortjies Toe</translation>
+<translation id="4332876892329258166">Begin migrasie</translation>
 <translation id="4380677223237520064">Dekodeer QR-kode</translation>
+<translation id="4404136731284211429">Skandeer weer</translation>
+<translation id="4500440256909785690">Vervang hierdie Tuis?</translation>
 <translation id="4543782226216763900">Wissel Kantbalk (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Vra AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Jou migrasie is voltooi</translation>
+<translation id="4652266463001779298">Nie toegelaat nie</translation>
+<translation id="4724836371241170775">Stap 2 van 4 · Kies wat verskuif</translation>
 <translation id="473775607612524610">Opdateer</translation>
+<translation id="481205936353439293">Stap 3 van 4 · Verskuif jou data</translation>
+<translation id="4854731374904470810">Kopieer oortjie-ID</translation>
 <translation id="4881695831933465202">Maak oop</translation>
+<translation id="4898928054560997780">Vra Dao om dit reg te stel</translation>
+<translation id="49041264823677952">Verwerp voltooide aflaai</translation>
+<translation id="493638356004396067">Migrasie het misluk</translation>
+<translation id="4968006660055392545">Geen ondersteunde blaaierprofiele is op hierdie Mac gevind nie.</translation>
+<translation id="5004648724625831205">Berei 'n plaaslike kopie voor</translation>
 <translation id="501297852093417632">Maak Kas skoon</translation>
 <translation id="5027562294707732951">Voeg uitbreiding by</translation>
+<translation id="5126909118906525779">Koppel lewendige bronne?</translation>
 <translation id="5192454087436290060">Beheer Sentrum</translation>
+<translation id="5289912690346335931">Tel…</translation>
+<translation id="5301255231518510089">Kies 'n lêer om die bron daarvan te bekyk.</translation>
+<translation id="5308380583665731573">Koppel</translation>
+<translation id="5322475253112112619">Indien dit toegelaat word, kan dit webwerwe lees en daarmee interaksie hê met jou huidige aanmelding, insluitend deur JavaScript uit te voer.</translation>
+<translation id="5334844597069022743">Bekyk bron</translation>
+<translation id="5400726083793179041">Die gekose პროექტtoestand sal as 'n nuwe weergawe gepubliseer word. Bestaande geskiedenis sal beskikbaar bly.</translation>
+<translation id="5436835454512450295">Ingevoerde blaaierdata</translation>
 <translation id="5450299006531484229">Maak Oortjies Bo Toe</translation>
 <translation id="5538307496474303926">Maak skoon...</translation>
 <translation id="5556459405103347317">Herlaai</translation>
 <translation id="5611474372949142946">Maak Oortjies Onder Toe</translation>
+<translation id="5649936378931470828">Maak Assistent oop (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Gestoorde wagwoorde</translation>
+<translation id="5871520043546374642">Migrasie gestop</translation>
 <translation id="5873058639175438941">Verduister webwerwe met Auto Donker Modus terwyl die stelsel in donker modus is.</translation>
+<translation id="5874739091759960360">Slegs terwyl dao://home aktief is</translation>
+<translation id="591645459245805338">Skep 'n privaat, lewendige bladsy wat Dao kan vorm rondom wat vir jou belangrik is.</translation>
+<translation id="5942499955694738574">Tuis kon nie teruggestel word nie. Die huidige projek is nie verander nie. Probeer weer.</translation>
 <translation id="5953452567010839148">Geen QR-kode gevind nie</translation>
+<translation id="6018824944448456809">Stap 1 van 4 · Kies 'n bron</translation>
+<translation id="6040143037577758943">Sluit</translation>
 <translation id="6042308850641462728">Meer</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Resultaatdata: tot <ph name="BYTE_COUNT" /> grepe</translation>
+<translation id="6204195547326023850">Laai jou Tuis…</translation>
+<translation id="6266039999629596120">Benodig aandag</translation>
+<translation id="6270944267518310103">Wag</translation>
+<translation id="6299569859560607348">Hierdie Tuis wil 'n eksterne bladsy oopmaak. Hersien die bestemming voordat jy voortgaan.</translation>
+<translation id="6325047129563993580">Skep my Dao Tuis uit my onlangse blaai-temas. Gebruik slegs die privaatheidsgeminimaliseerde Tuis-geskiedenismateriaal, verduidelik die rigting kortliks, bou en publiseer dan die eerste weergawe.</translation>
+<translation id="642671119120438272">Ingevoerde oortjies</translation>
+<translation id="648743804821442565">'n Plaaslike outomatiseringskliënt versoek toegang tot hierdie Dao-venster.</translation>
 <translation id="6527303717912515753">Deel</translation>
+<translation id="6586201961110912838">Herstel hierdie weergawe</translation>
+<translation id="6601997535892446436">Kies 'n blaaierprofiel op hierdie Mac. Elke profiel word afsonderlik gelys sodat jy beheer behou oor wat verskuif.</translation>
 <translation id="6736243959894955139">Adres</translation>
+<translation id="6764328036096492220">Skryftoegang</translation>
+<translation id="677387175345781299">Projeklêers</translation>
+<translation id="6786747875388722282">Uitbreidings</translation>
+<translation id="6801297003382412689">Hulpbronlimiete</translation>
 <translation id="6829876854799051628">Maak Koekies skoon</translation>
+<translation id="6832689803248022656">Wat wil jy saambring?</translation>
+<translation id="684699560760227351">Stel Tuis terug</translation>
 <translation id="6896758677409633944">Kopieer</translation>
+<translation id="6940497786570685033">Jy blaai in Incognitomodus. Nadat jy alle Incognito-vensters gesluit het, sal Dao nie jou blaaigeskiedenis, koekies of werfdata behou nie. Aflaaie en boekmerke word behou.</translation>
+<translation id="6963772203726867701">Nie bespeur nie</translation>
+<translation id="6971377058826420967">Skep met Dao</translation>
+<translation id="7020790421915196218">Voltooide kategorieë is gereed om te gebruik. Jy kan slegs die dele wat aandag benodig weer probeer.</translation>
 <translation id="7401173814860935855">Koekies vir hierdie webwerf skoongemaak</translation>
+<translation id="7465855397028934440">Soek blaaierprofiele…</translation>
+<translation id="750760654246049420">'n Ander outomatiseringskliënt beheer hierdie blaaier</translation>
 <translation id="7532108947552493901">Kyk vir Opdaterings...</translation>
+<translation id="7533550325431812">Laat hierdie verbinding toe</translation>
 <translation id="7604253494819481181">Druk <ph name="SHORTCUT" /> weer om sybalk te wissel</translation>
+<translation id="7615777614791709701">Stel Tuis terug?</translation>
+<translation id="7626429522809774043">Laat blaaierbeheer toe?</translation>
 <translation id="7636812263792427733">Dwing donker modus</translation>
+<translation id="7658239707568436148">Kanselleer</translation>
+<translation id="7714812312719848690">Jou projek is steeds veilig. Probeer weer, herstel 'n weergawe, of vra Dao om dit te herstel.</translation>
 <translation id="7717845620320228976">Kyk vir opdaterings</translation>
+<translation id="7803931104677504532">Lees aanbiedingstyle</translation>
+<translation id="7974106569409739809">Ontvou</translation>
+<translation id="7995663841236651667">Jou blaaierdata word plaaslik op hierdie Mac verwerk.</translation>
+<translation id="8028081981001403222">Voer projek in</translation>
+<translation id="8041968312565730454">Bronblaaier</translation>
+<translation id="8052762370740257987">Voer projek uit</translation>
+<translation id="8097718730266959883">onbeskikbaar</translation>
+<translation id="81044950628177848">Huidige weergawe</translation>
+<translation id="8131740175452115882">Bevestig</translation>
 <translation id="8137559199583651773">Bestuur uitbreidings</translation>
+<translation id="8138892305328483863">Dao voeg ingevoerde items saam met wat jy reeds het. Bestaande data word nooit vervang nie.</translation>
+<translation id="8175534235396780357">KI-beheerbesonderhede</translation>
+<translation id="8237260373784588552">Tuis-kontroles</translation>
+<translation id="824895471210913946">Teiken: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Skrap</translation>
+<translation id="831684326378391082">Gaan voort sonder lewendige bronne</translation>
+<translation id="8349478524212888083">Die ingevoerde projek sal 'n nuwe weergawe word. Brontoegang sal ontkoppel bly totdat jy dit weer goedkeur.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Koppel <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Weergawegeskiedenis</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Terug</translation>
+<translation id="8595238918901827309">Herstel hierdie weergawe?</translation>
+<translation id="8668072977518790485">Oortjie-ID gekopieer</translation>
 <translation id="8684229942427488970">Webwerf sentrum</translation>
 <translation id="8717864919010420084">Kopieer Skakel</translation>
+<translation id="8725066075913043281">Probeer weer</translation>
+<translation id="8774154357663601701">Hierdie bron kan slegs die goedgekeurde bladsye lees terwyl Tuis aktief is.</translation>
+<translation id="8781013843394828812">Hierdie items moet weer probeer word</translation>
+<translation id="8787633576358327637">'n macOS-sleutelbosversoek kan verskyn</translation>
+<translation id="8820817407110198400">Boekmerke</translation>
+<translation id="8826852601577125903">Resultaatdata: <ph name="OLD_BYTE_COUNT" /> tot <ph name="NEW_BYTE_COUNT" /> grepe</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidate</translation>
+<translation id="8899040626072079337">Verskuif jou data na Dao</translation>
+<translation id="8962539151725780858">Beheerde oortjies: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Nuutste MCP-oproep: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Items per koppelaar: tot <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Onaktiewe oortjies geargiveer</translation>
+<translation id="9186557253975059599">Gerapporteerde kliënt: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Wissel Kantbalk</translation>
+<translation id="9205549548211212895">Stop migrasie</translation>
+<translation id="932327136139879170">Tuis</translation>
+<translation id="932413031402847895">Voer blaaierdata in</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Koppel gekose</translation>
+<translation id="949725615797318423">Uitbreidings word vanaf hul amptelike winkel herinstalleer</translation>
+<translation id="962181630102348889">Jou Tuis kon nie vertoon word nie</translation>
 </translationbundle>

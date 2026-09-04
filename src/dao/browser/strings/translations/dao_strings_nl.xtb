@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="nl">
+<translation id="1111094358966140566">Versie vergelijken</translation>
 <translation id="1173894706177603556">Hernoemen</translation>
+<translation id="1182228621215085947">Vraag Dao</translation>
+<translation id="121570799358042869">Je browsergegevens blijven op deze Mac. Het opnieuw installeren van compatibele extensies is de enige stap die mogelijk verbinding maakt met internet; extensie-instellingen en aanmeldingen worden niet gekopieerd.</translation>
+<translation id="1236455002425740182">Dao-migratie</translation>
+<translation id="1272079795634619415">Stoppen</translation>
 <translation id="1293177648337752319">Dempen van site opheffen</translation>
+<translation id="1349314697251468085">Hiermee worden alle tabbladen in de map gesloten en wordt de map verwijderd.</translation>
+<translation id="1352298709666490484">Tabblad wisselen</translation>
+<translation id="1383876407941801731">Zoeken</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profiel: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Maak het web helemaal van jou</translation>
+<translation id="1530524805356937121">Scrollen om meer te laden</translation>
+<translation id="1566049601598938765">Website</translation>
+<translation id="1602287703039480507">Cache voor deze site gewist</translation>
+<translation id="1637441054828003579">Mislukte items opnieuw proberen</translation>
+<translation id="1641203463264514072">De meeste van je gegevens zijn beschikbaar</translation>
 <translation id="1653598257495639807">QR-code resultaat</translation>
+<translation id="172937028082106236">Maken op basis van mijn browsegeschiedenis</translation>
+<translation id="17513872634828108">Open tabbladen</translation>
 <translation id="1809939268435598390">Map verwijderen</translation>
+<translation id="1816380826555616620">Items per connector: <ph name="OLD_ITEM_COUNT" /> tot <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Pagina</translation>
+<translation id="1844249872546141866">Venster: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Aantal niet beschikbaar</translation>
+<translation id="1929197983938319610">Je kunt de bronbrowser blijven gebruiken. Als een gegevenstype blijft veranderen, vraagt Dao je deze te sluiten en alleen dat deel opnieuw te proberen.</translation>
+<translation id="1984122437277059790">Het project kon niet worden geïmporteerd. Controleer het pakket en probeer het opnieuw.</translation>
+<translation id="2085323698672376231">Hiermee worden het huidige project, alle versies en brontoegang permanent verwijderd. Dit kan niet ongedaan worden gemaakt.</translation>
+<translation id="210592584469870355">Mogelijkheden</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Tabblad vastzetten</translation>
+<translation id="2175927920773552910">QR-code</translation>
+<translation id="2199413402821420360">Dit tabblad kon niet worden geopend in Mini Dao</translation>
+<translation id="2209843794360152290">Geïmporteerde items worden samengevoegd zonder bestaande gegevens te vervangen.</translation>
+<translation id="2254382823755510690">Je geïmporteerde gegevens zijn klaar in Dao. Open tabbladen worden niet geladen bewaard in een ingeklapte map totdat je ze nodig hebt.</translation>
+<translation id="2348199177323591972">Pagina-inhoud lezen</translation>
+<translation id="2359808026110333948">Doorgaan</translation>
+<translation id="2398703750948514961">Geannuleerd</translation>
+<translation id="2414886740292270097">Donker</translation>
+<translation id="243275146591958220">Download annuleren</translation>
+<translation id="2496180316473517155">Browsegeschiedenis</translation>
+<translation id="251834402454969316">Wijzigingen ten opzichte van huidige versie</translation>
+<translation id="2519023533785544875">Assistent openen</translation>
+<translation id="2535607573648844553">Dao heeft de Safe Storage-sleutel van de geselecteerde browser nodig om opgeslagen wachtwoorden te ontsleutelen. Als je toegang weigert, worden alleen wachtwoorden overgeslagen en gaat de rest van de migratie verder.</translation>
+<translation id="2580366865845491095">Deze link openen?</translation>
+<translation id="2612596415938768738">Mogelijk moet je zijn aangemeld</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> meer</translation>
 <translation id="2703180365855369896">Dubbele tabbladen sluiten</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Lezen</translation>
+<translation id="2820330532305477229">Waar stap je vandaan over?</translation>
+<translation id="2882207023658691113">Herstellen als nieuwe versie</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> beheert browsertabbladen</translation>
 <translation id="2973324205039581528">Site dempen</translation>
+<translation id="2976307543842414852">Uitvoeringen</translation>
 <translation id="3007771295016901659">Tabblad dupliceren</translation>
 <translation id="3062877722240966678">Dao i18n-pijplijn OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Geverifieerd proces: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao test de geselecteerde bronnen en voegt de bronnen toe die werken. Elke bron kan alleen de onderstaande pagina's en gegevens lezen terwijl Home actief is.</translation>
+<translation id="3249579521706735875">Beschikbaar wanneer het systeem in de donkere modus staat.</translation>
+<translation id="3356580349448036450">Voltooid</translation>
+<translation id="3404183081987133644">Gegevens die vóór het stoppen zijn geïmporteerd, zijn klaar voor gebruik. Je kunt een nieuwe migratie starten wanneer je er klaar voor bent.</translation>
+<translation id="3420663750132400268">Map verwijderen?</translation>
+<translation id="3427713535827228685">Extensies op deze site</translation>
+<translation id="3435738964857648380">Beveiliging</translation>
 <translation id="3450492919008172498">Er zijn geen nieuwe tabbladen gearchiveerd</translation>
+<translation id="3509982919032226274">Maak mijn Dao Home. Begin door te vragen wat ik met deze persoonlijke pagina wil verkennen, bouw en publiceer daarna de eerste versie.</translation>
 <translation id="3551320343578183772">Tabblad sluiten</translation>
 <translation id="3657099196021255130">Openen in Dao</translation>
 <translation id="3708693288863478389">Typ een URL of zoek...</translation>
+<translation id="381667777775855564">Toevoegen aan Dao</translation>
 <translation id="385051799172605136">Terug</translation>
 <translation id="3891466792657071243">Stoppen met laden</translation>
 <translation id="3901975710974642844">Verplaats verouderde tabbladen naar "verouderd"</translation>
+<translation id="3909499025801874715">Inspecteer de begrensde Dao Home-diagnostiek, leg de fout uit en repareer het huidige project. Behoud de huidige uitvoerbare versie totdat de reparatie is gevalideerd en publiceer de reparatie daarna als nieuwe versie.</translation>
+<translation id="3927932062596804919">Weigeren</translation>
 <translation id="3984237987235889323">Toepassen</translation>
+<translation id="3999659648104077867">Browserbediening gestopt</translation>
+<translation id="4165986682804962316">Site-instellingen</translation>
 <translation id="4201242995651540725">Gearchiveerde tabbladen inactief gedurende de afgelopen 24 uur</translation>
+<translation id="4221615148091761714">Bewerken met Dao</translation>
 <translation id="4285498937028063278">Losmaken</translation>
 <translation id="4322394346347055525">Andere tabbladen sluiten</translation>
+<translation id="4332876892329258166">Migratie starten</translation>
 <translation id="4380677223237520064">QR-code decoderen</translation>
+<translation id="4404136731284211429">Opnieuw zoeken</translation>
+<translation id="4500440256909785690">Deze Home vervangen?</translation>
 <translation id="4543782226216763900">Zijbalk wisselen (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Vraag AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Je overstap is voltooid</translation>
+<translation id="4652266463001779298">Niet toegestaan</translation>
+<translation id="4724836371241170775">Stap 2 van 4 · Kies wat wordt overgezet</translation>
 <translation id="473775607612524610">Bijwerken</translation>
+<translation id="481205936353439293">Stap 3 van 4 · Je gegevens overzetten</translation>
+<translation id="4854731374904470810">Tab-ID kopiëren</translation>
 <translation id="4881695831933465202">Openen</translation>
+<translation id="4898928054560997780">Vraag Dao om te repareren</translation>
+<translation id="49041264823677952">Voltooide download sluiten</translation>
+<translation id="493638356004396067">Migratie mislukt</translation>
+<translation id="4968006660055392545">Er zijn geen ondersteunde browserprofielen gevonden op deze Mac.</translation>
+<translation id="5004648724625831205">Lokale kopie voorbereiden</translation>
 <translation id="501297852093417632">Cache wissen</translation>
 <translation id="5027562294707732951">Extensie toevoegen</translation>
+<translation id="5126909118906525779">Livebronnen verbinden?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Tellen…</translation>
+<translation id="5301255231518510089">Selecteer een bestand om de bron ervan te bekijken.</translation>
+<translation id="5308380583665731573">Verbinden</translation>
+<translation id="5322475253112112619">Indien toegestaan, kan deze websites lezen en ermee communiceren via je huidige aanmelding, onder meer door JavaScript uit te voeren.</translation>
+<translation id="5334844597069022743">Bron weergeven</translation>
+<translation id="5400726083793179041">De geselecteerde projectstatus wordt gepubliceerd als een nieuwe versie. Bestaande geschiedenis blijft beschikbaar.</translation>
+<translation id="5436835454512450295">Geïmporteerde browsergegevens</translation>
 <translation id="5450299006531484229">Tabbladen erboven sluiten</translation>
 <translation id="5538307496474303926">Wissen...</translation>
 <translation id="5556459405103347317">Opnieuw laden</translation>
 <translation id="5611474372949142946">Tabbladen eronder sluiten</translation>
+<translation id="5649936378931470828">Assistent openen (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Opgeslagen wachtwoorden</translation>
+<translation id="5871520043546374642">Migratie gestopt</translation>
+<translation id="5873058639175438941">Websites donkerder maken met Automatische donkere modus wanneer het systeem in de donkere modus staat.</translation>
+<translation id="5874739091759960360">Alleen wanneer dao://home actief is</translation>
+<translation id="591645459245805338">Maak een privé, dynamische pagina die Dao kan vormen rond wat jij belangrijk vindt.</translation>
+<translation id="5942499955694738574">Home kon niet worden gereset. Het huidige project is niet gewijzigd. Probeer het opnieuw.</translation>
 <translation id="5953452567010839148">Geen QR-code gevonden</translation>
+<translation id="6018824944448456809">Stap 1 van 4 · Kies een bron</translation>
+<translation id="6040143037577758943">Sluiten</translation>
+<translation id="6042308850641462728">Meer</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Resultaatgegevens: tot <ph name="BYTE_COUNT" /> bytes</translation>
+<translation id="6204195547326023850">Je Home laden…</translation>
+<translation id="6266039999629596120">Vereist aandacht</translation>
+<translation id="6270944267518310103">Wachten</translation>
+<translation id="6299569859560607348">Deze Home wil een externe pagina openen. Controleer de bestemming voordat je doorgaat.</translation>
+<translation id="6325047129563993580">Maak mijn Dao Home op basis van mijn recente browsethema's. Gebruik alleen het privacygeminimaliseerde Home-geschiedenismateriaal, leg de richting kort uit en bouw en publiceer daarna de eerste versie.</translation>
+<translation id="642671119120438272">Geïmporteerde tabbladen</translation>
+<translation id="648743804821442565">Een lokale automatiseringsclient vraagt toegang tot dit Dao-venster.</translation>
+<translation id="6527303717912515753">Delen</translation>
+<translation id="6586201961110912838">Deze versie herstellen</translation>
+<translation id="6601997535892446436">Kies een browserprofiel op deze Mac. Elk profiel wordt afzonderlijk vermeld, zodat je bepaalt wat er wordt overgezet.</translation>
 <translation id="6736243959894955139">Adres</translation>
+<translation id="6764328036096492220">Schrijftoegang</translation>
+<translation id="677387175345781299">Projectbestanden</translation>
+<translation id="6786747875388722282">Extensies</translation>
+<translation id="6801297003382412689">Resourcelimieten</translation>
 <translation id="6829876854799051628">Cookies wissen</translation>
+<translation id="6832689803248022656">Wat wil je meenemen?</translation>
+<translation id="684699560760227351">Home resetten</translation>
 <translation id="6896758677409633944">Kopiëren</translation>
+<translation id="6940497786570685033">Je browst in de incognitomodus. Nadat je alle incognitovensters hebt gesloten, bewaart Dao je browsegeschiedenis, cookies of sitegegevens niet. Downloads en bladwijzers blijven behouden.</translation>
+<translation id="6963772203726867701">Niet gedetecteerd</translation>
+<translation id="6971377058826420967">Maken met Dao</translation>
+<translation id="7020790421915196218">Voltooide categorieën zijn klaar voor gebruik. Je kunt alleen de onderdelen die aandacht vereisen opnieuw proberen.</translation>
+<translation id="7401173814860935855">Cookies voor deze site gewist</translation>
+<translation id="7465855397028934440">Browserprofielen zoeken…</translation>
+<translation id="750760654246049420">Een andere automatiseringsclient beheert deze browser</translation>
 <translation id="7532108947552493901">Controleren op updates...</translation>
+<translation id="7533550325431812">Deze verbinding toestaan</translation>
 <translation id="7604253494819481181">Druk nogmaals op <ph name="SHORTCUT" /> om de zijbalk te wisselen</translation>
+<translation id="7615777614791709701">Home resetten?</translation>
+<translation id="7626429522809774043">Browserbediening toestaan?</translation>
+<translation id="7636812263792427733">Donkere modus forceren</translation>
+<translation id="7658239707568436148">Annuleren</translation>
+<translation id="7714812312719848690">Je project is nog steeds veilig. Probeer het opnieuw, herstel een versie of vraag Dao om het te repareren.</translation>
 <translation id="7717845620320228976">Controleren op updates</translation>
+<translation id="7803931104677504532">Presentatiestijlen lezen</translation>
+<translation id="7974106569409739809">Map opheffen</translation>
+<translation id="7995663841236651667">Je browsergegevens worden lokaal op deze Mac verwerkt.</translation>
+<translation id="8028081981001403222">Project importeren</translation>
+<translation id="8041968312565730454">Bronbrowser</translation>
+<translation id="8052762370740257987">Project exporteren</translation>
+<translation id="8097718730266959883">niet beschikbaar</translation>
+<translation id="81044950628177848">Huidige versie</translation>
+<translation id="8131740175452115882">Bevestigen</translation>
 <translation id="8137559199583651773">Extensies beheren</translation>
+<translation id="8138892305328483863">Dao voegt geïmporteerde items samen met wat je al hebt. Bestaande gegevens worden nooit vervangen.</translation>
+<translation id="8175534235396780357">Details over AI-bediening</translation>
+<translation id="8237260373784588552">Home-bediening</translation>
+<translation id="824895471210913946">Doel: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Verwijderen</translation>
+<translation id="831684326378391082">Doorgaan zonder livebronnen</translation>
+<translation id="8349478524212888083">Het geïmporteerde project wordt een nieuwe versie. Brontoegang blijft verbroken totdat je deze opnieuw goedkeurt.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> verbinden</translation>
+<translation id="8549865052695885354">Versiegeschiedenis</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Terug</translation>
+<translation id="8595238918901827309">Deze versie herstellen?</translation>
+<translation id="8668072977518790485">Tab-ID gekopieerd</translation>
+<translation id="8684229942427488970">Sitecentrum</translation>
 <translation id="8717864919010420084">Link kopiëren</translation>
+<translation id="8725066075913043281">Opnieuw proberen</translation>
+<translation id="8774154357663601701">Deze bron kan alleen de goedgekeurde pagina's lezen terwijl Home actief is.</translation>
+<translation id="8781013843394828812">Deze items moeten opnieuw worden geprobeerd</translation>
+<translation id="8787633576358327637">Er kan een macOS-sleutelhangerprompt verschijnen</translation>
+<translation id="8820817407110198400">Bladwijzers</translation>
+<translation id="8826852601577125903">Resultaatgegevens: <ph name="OLD_BYTE_COUNT" /> tot <ph name="NEW_BYTE_COUNT" /> bytes</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidaten</translation>
+<translation id="8899040626072079337">Je gegevens overzetten naar Dao</translation>
+<translation id="8962539151725780858">Beheerde tabbladen: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Laatste MCP-aanroep: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Items per connector: tot <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Inactieve tabbladen gearchiveerd</translation>
+<translation id="9186557253975059599">Gemelde client: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Zijbalk wisselen</translation>
+<translation id="9205549548211212895">Migratie stoppen</translation>
+<translation id="932327136139879170">Home</translation>
+<translation id="932413031402847895">Browsergegevens importeren</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Selectie verbinden</translation>
+<translation id="949725615797318423">Extensies worden opnieuw geïnstalleerd vanuit hun officiële winkel</translation>
+<translation id="962181630102348889">Je Home kon niet worden weergegeven</translation>
 </translationbundle>

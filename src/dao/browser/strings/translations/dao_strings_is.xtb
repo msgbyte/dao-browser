@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="is">
+<translation id="1111094358966140566">Bera saman útgáfu</translation>
 <translation id="1173894706177603556">Endurnefna</translation>
+<translation id="1182228621215085947">Spyrja Dao</translation>
+<translation id="121570799358042869">Vafragögnin þín verða áfram á þessum Mac. Að setja samhæfar viðbætur upp aftur er eina skrefið sem gæti tengst internetinu; stillingar viðbóta og innskráningar eru ekki afritaðar.</translation>
+<translation id="1236455002425740182">Dao-flutningur</translation>
+<translation id="1272079795634619415">Stöðva</translation>
 <translation id="1293177648337752319">Afþagga síðu</translation>
+<translation id="1349314697251468085">Þetta lokar öllum flipum í möppunni og eyðir möppunni.</translation>
+<translation id="1352298709666490484">Skipta um flipa</translation>
+<translation id="1383876407941801731">Leita</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Notandasnið: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Gerðu vefinn að þínum</translation>
+<translation id="1530524805356937121">Skruna til að hlaða meira</translation>
+<translation id="1566049601598938765">Vefsvæði</translation>
+<translation id="1602287703039480507">Skyndiminni hreinsað fyrir þetta vefsvæði</translation>
+<translation id="1637441054828003579">Reyna aftur misheppnuð atriði</translation>
+<translation id="1641203463264514072">Flest gögnin þín eru komin</translation>
 <translation id="1653598257495639807">Niðurstaða QR kóða</translation>
+<translation id="172937028082106236">Búa til úr vafraferlinum mínum</translation>
+<translation id="17513872634828108">Opnir flipar</translation>
 <translation id="1809939268435598390">Eyða möppu</translation>
+<translation id="1816380826555616620">Atriði á hverja tengingu: <ph name="OLD_ITEM_COUNT" /> til <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Síða</translation>
+<translation id="1844249872546141866">Gluggi: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Fjöldi ekki tiltækur</translation>
+<translation id="1929197983938319610">Þú getur haldið áfram að nota upprunavafrann. Ef ein tegund gagna heldur áfram að breytast biður Dao þig um að loka honum og reyna aftur aðeins þann hluta.</translation>
+<translation id="1984122437277059790">Ekki tókst að flytja inn verkefnið. Athugaðu pakkann og reyndu aftur.</translation>
+<translation id="2085323698672376231">Þetta eyðir núverandi verkefni, öllum útgáfum og aðgangi að uppruna varanlega. Ekki er hægt að afturkalla þetta.</translation>
+<translation id="210592584469870355">Heimildir</translation>
+<translation id="2109761659519935228">Lítill Dao</translation>
 <translation id="21133533946938348">Festa flipa</translation>
+<translation id="2175927920773552910">QR-kóði</translation>
+<translation id="2199413402821420360">Ekki tókst að opna þennan flipa í Litlum Dao</translation>
+<translation id="2209843794360152290">Innflutt atriði eru sameinuð án þess að skipta út fyrirliggjandi gögnum.</translation>
+<translation id="2254382823755510690">Innfluttu gögnin þín eru tilbúin í Dao. Opnir flipar eru geymdir óhlaðnir í samanbrotinni möppu þar til þú þarft á þeim að halda.</translation>
+<translation id="2348199177323591972">Lesa efni síðu</translation>
+<translation id="2359808026110333948">Halda áfram</translation>
+<translation id="2398703750948514961">Hætt við</translation>
+<translation id="2414886740292270097">Dökkt</translation>
+<translation id="243275146591958220">Hætta við niðurhal</translation>
+<translation id="2496180316473517155">Vafraferill</translation>
+<translation id="251834402454969316">Breytingar frá núverandi útgáfu</translation>
+<translation id="2519023533785544875">Opna aðstoðarmann</translation>
+<translation id="2535607573648844553">Dao þarf Safe Storage-lykil valda vafrans til að afkóða vistuð lykilorð. Ef þú neitar aðgangi er aðeins lykilorðum sleppt og afgangur flutningsins heldur áfram.</translation>
+<translation id="2580366865845491095">Opna þennan tengil?</translation>
+<translation id="2612596415938768738">Þú gætir þurft að vera innskráð(ur)</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> í viðbót</translation>
 <translation id="2703180365855369896">Loka afritaflipum</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Les</translation>
+<translation id="2820330532305477229">Hvaðan ertu að flytja?</translation>
+<translation id="2882207023658691113">Endurheimta sem nýja útgáfu</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> stjórnar vafraflipa</translation>
 <translation id="2973324205039581528">Þagga niður síðu</translation>
+<translation id="2976307543842414852">Keyrslur</translation>
 <translation id="3007771295016901659">Afrita flipa</translation>
 <translation id="3062877722240966678">Dao i18n pípunni í lagi</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Staðfest ferli: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao mun prófa valda uppruna og bæta við þeim sem virka. Hver uppruni getur aðeins lesið síðurnar og gögnin sem sýnd eru hér að neðan meðan Heim er virkt.</translation>
+<translation id="3249579521706735875">Tiltækt þegar kerfið er í dökkri stillingu.</translation>
+<translation id="3356580349448036450">Lokið</translation>
+<translation id="3404183081987133644">Gögn sem voru flutt inn áður en þú stöðvaðir eru tilbúin til notkunar. Þú getur hafið annan flutning hvenær sem þú vilt.</translation>
+<translation id="3420663750132400268">Eyða möppu?</translation>
+<translation id="3427713535827228685">Viðbætur á þessu vefsvæði</translation>
+<translation id="3435738964857648380">Öryggi</translation>
 <translation id="3450492919008172498">Engir nýir flipar voru geymdir</translation>
+<translation id="3509982919032226274">Búðu til Dao Heim fyrir mig. Byrjaðu á að spyrja hvað ég vil að þessi persónulega síða hjálpi mér að skoða, byggðu síðan og birtu fyrstu útgáfuna.</translation>
 <translation id="3551320343578183772">Loka flipa</translation>
 <translation id="3657099196021255130">Opna í Dao</translation>
 <translation id="3708693288863478389">Sláðu inn vefslóð eða leitaðu...</translation>
+<translation id="381667777775855564">Bætir við Dao</translation>
 <translation id="385051799172605136">Til baka</translation>
 <translation id="3891466792657071243">Hætta að hlaða</translation>
 <translation id="3901975710974642844">Færa úrelt flipa í „úrelt“</translation>
+<translation id="3909499025801874715">Skoðaðu afmörkuð greiningargögn Dao Heim, útskýrðu bilunina og lagaðu núverandi verkefni. Haltu núverandi keyrsluhæfu útgáfu þar til viðgerðin hefur verið staðfest og birtu síðan viðgerðina sem nýja útgáfu.</translation>
+<translation id="3927932062596804919">Neita</translation>
 <translation id="3984237987235889323">Á að framkvæma</translation>
+<translation id="3999659648104077867">Stjórnun vafra stöðvuð</translation>
+<translation id="4165986682804962316">Stillingar vefsvæðis</translation>
 <translation id="4201242995651540725">Flipar sem hafa verið óvirkir síðustu 24 klukkustundir hafa verið geymdir</translation>
+<translation id="4221615148091761714">Breyta með Dao</translation>
 <translation id="4285498937028063278">Losna</translation>
 <translation id="4322394346347055525">Loka öðrum flipum</translation>
+<translation id="4332876892329258166">Hefja flutning</translation>
 <translation id="4380677223237520064">Afkóða QR kóða</translation>
+<translation id="4404136731284211429">Leita aftur</translation>
+<translation id="4500440256909785690">Skipta út þessu Heimi?</translation>
 <translation id="4543782226216763900">Sýna/fela hliðarstiku (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">Spyrja AI: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">Flutningi þínum er lokið</translation>
+<translation id="4652266463001779298">Ekki leyft</translation>
+<translation id="4724836371241170775">Skref 2 af 4 · Veldu hvað flyst</translation>
 <translation id="473775607612524610">Uppfæra</translation>
+<translation id="481205936353439293">Skref 3 af 4 · Flyt gögnin þín</translation>
+<translation id="4854731374904470810">Afrita flipaauðkenni</translation>
 <translation id="4881695831933465202">Opna</translation>
+<translation id="4898928054560997780">Biðja Dao um að laga</translation>
+<translation id="49041264823677952">Hunsa lokið niðurhal</translation>
+<translation id="493638356004396067">Flutningur mistókst</translation>
+<translation id="4968006660055392545">Engin studd vafranotandasnið fundust á þessum Mac.</translation>
+<translation id="5004648724625831205">Undirbýr staðbundið afrit</translation>
 <translation id="501297852093417632">Hreinsa skyndiminni</translation>
 <translation id="5027562294707732951">Bæta við viðbót</translation>
+<translation id="5126909118906525779">Tengja virka uppruna?</translation>
 <translation id="5192454087436290060">Stjórnborð</translation>
+<translation id="5289912690346335931">Tel…</translation>
+<translation id="5301255231518510089">Veldu skrá til að skoða frumkóðann hennar.</translation>
+<translation id="5308380583665731573">Tengja</translation>
+<translation id="5322475253112112619">Ef það er leyft getur hann lesið og átt samskipti við vefsvæði með núverandi innskráningu þinni, þar á meðal með því að keyra JavaScript.</translation>
+<translation id="5334844597069022743">Skoða frumkóða</translation>
+<translation id="5400726083793179041">Valið ástand verkefnisins verður birt sem ný útgáfa. Fyrirliggjandi ferill verður áfram tiltækur.</translation>
+<translation id="5436835454512450295">Innflutt vafragögn</translation>
 <translation id="5450299006531484229">Loka flipum fyrir ofan</translation>
 <translation id="5538307496474303926">Hreinsa...</translation>
 <translation id="5556459405103347317">Endurhlaða</translation>
 <translation id="5611474372949142946">Loka flipum fyrir neðan</translation>
+<translation id="5649936378931470828">Opna aðstoðarmann (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Vistað lykilorð</translation>
+<translation id="5871520043546374642">Flutningur stöðvaður</translation>
+<translation id="5873058639175438941">Dekkja vefsvæði með sjálfvirkri dökkri stillingu þegar kerfið er í dökkri stillingu.</translation>
+<translation id="5874739091759960360">Aðeins meðan dao://home er virkt</translation>
+<translation id="591645459245805338">Búðu til einkasíðu sem lifir og Dao getur mótað eftir því sem þér þykir vænt um.</translation>
+<translation id="5942499955694738574">Ekki tókst að endurstilla Heim. Núverandi verkefni var ekki breytt. Reyndu aftur.</translation>
 <translation id="5953452567010839148">Enginn QR kóði fannst</translation>
+<translation id="6018824944448456809">Skref 1 af 4 · Veldu uppruna</translation>
+<translation id="6040143037577758943">Loka</translation>
+<translation id="6042308850641462728">Meira</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Niðurstöðugögn: allt að <ph name="BYTE_COUNT" /> bæti</translation>
+<translation id="6204195547326023850">Hleð Heim…</translation>
+<translation id="6266039999629596120">Þarfnast athygli</translation>
+<translation id="6270944267518310103">Bíður</translation>
+<translation id="6299569859560607348">Þetta Heim vill opna ytri síðu. Farðu yfir áfangastaðinn áður en þú heldur áfram.</translation>
+<translation id="6325047129563993580">Búðu til Dao Heim fyrir mig út frá nýlegum þemum í vafraferlinum mínum. Notaðu aðeins persónuverndsminnkað ferilefni fyrir Heim, útskýrðu stefnuna stuttlega, byggðu síðan og birtu fyrstu útgáfuna.</translation>
+<translation id="642671119120438272">Innfluttir flipar</translation>
+<translation id="648743804821442565">Staðbundinn sjálfvirknibiðlari biður um aðgang að þessum Dao-glugga.</translation>
+<translation id="6527303717912515753">Deila</translation>
+<translation id="6586201961110912838">Endurheimta þessa útgáfu</translation>
+<translation id="6601997535892446436">Veldu vafranotandasnið á þessum Mac. Hvert notandasnið er skráð sérstaklega svo þú hafir stjórn á því sem er flutt.</translation>
 <translation id="6736243959894955139">Slóð</translation>
+<translation id="6764328036096492220">Skrifaðgangur</translation>
+<translation id="677387175345781299">Verkefnisskrár</translation>
+<translation id="6786747875388722282">Viðbætur</translation>
+<translation id="6801297003382412689">Auðlindamörk</translation>
 <translation id="6829876854799051628">Hreinsa vafrakökur</translation>
+<translation id="6832689803248022656">Hvað viltu flytja með?</translation>
+<translation id="684699560760227351">Endurstilla Heim</translation>
 <translation id="6896758677409633944">Afrita</translation>
+<translation id="6940497786570685033">Þú vafrar í huliðsstillingu. Eftir að þú lokar öllum huliðsgluggum geymir Dao ekki vafraferilinn þinn, vefkökur eða vefsvæðisgögn. Niðurhal og bókamerki eru geymd.</translation>
+<translation id="6963772203726867701">Fannst ekki</translation>
+<translation id="6971377058826420967">Búa til með Dao</translation>
+<translation id="7020790421915196218">Loknir flokkar eru tilbúnir til notkunar. Þú getur reynt aftur aðeins þá hluta sem þarfnast athygli.</translation>
+<translation id="7401173814860935855">Vefkökur hreinsaðar fyrir þetta vefsvæði</translation>
+<translation id="7465855397028934440">Leita að vafranotandasniðum…</translation>
+<translation id="750760654246049420">Annar sjálfvirknibiðlari stjórnar þessum vafra</translation>
 <translation id="7532108947552493901">Leita að uppfærslum...</translation>
+<translation id="7533550325431812">Leyfa þessa tengingu</translation>
 <translation id="7604253494819481181">Ýttu aftur á <ph name="SHORTCUT" /> til að skipta um hliðarstiku</translation>
+<translation id="7615777614791709701">Endurstilla Heim?</translation>
+<translation id="7626429522809774043">Leyfa stjórnun vafra?</translation>
+<translation id="7636812263792427733">Þvinga dökka stillingu</translation>
+<translation id="7658239707568436148">Hætta við</translation>
+<translation id="7714812312719848690">Verkefnið þitt er enn öruggt. Reyndu aftur, endurheimtu útgáfu eða biddu Dao um að laga það.</translation>
 <translation id="7717845620320228976">Leita að uppfærslum</translation>
+<translation id="7803931104677504532">Lesa framsetningarstíla</translation>
+<translation id="7974106569409739809">Taka úr möppu</translation>
+<translation id="7995663841236651667">Vafragögnin þín eru unnin staðbundið á þessum Mac.</translation>
+<translation id="8028081981001403222">Flytja inn verkefni</translation>
+<translation id="8041968312565730454">Upprunavafri</translation>
+<translation id="8052762370740257987">Flytja út verkefni</translation>
+<translation id="8097718730266959883">ekki tiltækt</translation>
+<translation id="81044950628177848">Núverandi útgáfa</translation>
+<translation id="8131740175452115882">Staðfesta</translation>
 <translation id="8137559199583651773">Stjórna viðbótum</translation>
+<translation id="8138892305328483863">Dao sameinar innflutt atriði við það sem þú átt nú þegar. Fyrirliggjandi gögnum er aldrei skipt út.</translation>
+<translation id="8175534235396780357">Upplýsingar um gervigreindarstjórnun</translation>
+<translation id="8237260373784588552">Stýringar fyrir Heim</translation>
+<translation id="824895471210913946">Markmið: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Eyða</translation>
+<translation id="831684326378391082">Halda áfram án virkra uppruna</translation>
+<translation id="8349478524212888083">Innflutta verkefnið verður ný útgáfa. Aðgangur að uppruna helst aftengdur þar til þú samþykkir hann aftur.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Tengja <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Útgáfuferill</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← Til baka</translation>
+<translation id="8595238918901827309">Endurheimta þessa útgáfu?</translation>
+<translation id="8668072977518790485">Flipaauðkenni afritað</translation>
+<translation id="8684229942427488970">Vefsvæðisstjórnun</translation>
 <translation id="8717864919010420084">Afrita hlekk</translation>
+<translation id="8725066075913043281">Reyna aftur</translation>
+<translation id="8774154357663601701">Þessi uppruni getur aðeins lesið samþykktar síður meðan Heim er virkt.</translation>
+<translation id="8781013843394828812">Reyna þarf aftur þessi atriði</translation>
+<translation id="8787633576358327637">macOS-lyklakippubeiðni gæti birst</translation>
+<translation id="8820817407110198400">Bókamerki</translation>
+<translation id="8826852601577125903">Niðurstöðugögn: <ph name="OLD_BYTE_COUNT" /> til <ph name="NEW_BYTE_COUNT" /> bæti</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> möguleg atriði</translation>
+<translation id="8899040626072079337">Flyt gögnin þín í Dao</translation>
+<translation id="8962539151725780858">Stýrðir flipar: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Nýjasta MCP-kall: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Atriði á hverja tengingu: allt að <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Óvirkir flipar settir í safn</translation>
+<translation id="9186557253975059599">Tilkynntur biðlari: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Sýna/fela hliðarstiku</translation>
+<translation id="9205549548211212895">Stöðva flutning</translation>
+<translation id="932327136139879170">Heim</translation>
+<translation id="932413031402847895">Flytja inn vafragögn</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Tengja valda</translation>
+<translation id="949725615797318423">Viðbætur eru settar upp aftur úr opinberri verslun þeirra</translation>
+<translation id="962181630102348889">Ekki tókst að birta Heim</translation>
 </translationbundle>

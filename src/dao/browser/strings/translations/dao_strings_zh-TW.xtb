@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-TW">
+<translation id="1111094358966140566">比較版本</translation>
 <translation id="1173894706177603556">重新命名</translation>
+<translation id="1182228621215085947">詢問 Dao</translation>
+<translation id="121570799358042869">您的瀏覽器資料會保留在此 Mac 上。重新安裝相容的擴充功能是唯一可能連上網際網路的步驟；不會複製擴充功能設定和登入資訊。</translation>
+<translation id="1236455002425740182">Dao 移轉</translation>
+<translation id="1272079795634619415">停止</translation>
 <translation id="1293177648337752319">取消靜音網站</translation>
+<translation id="1349314697251468085">這會關閉資料夾中的所有分頁並刪除資料夾。</translation>
+<translation id="1352298709666490484">切換分頁</translation>
+<translation id="1383876407941801731">搜尋</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">設定檔：<ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">打造專屬於您的網路</translation>
+<translation id="1530524805356937121">捲動以載入更多內容</translation>
+<translation id="1566049601598938765">網站</translation>
+<translation id="1602287703039480507">已清除此網站的快取</translation>
+<translation id="1637441054828003579">重試失敗項目</translation>
+<translation id="1641203463264514072">您的大部分資料已移轉完成</translation>
 <translation id="1653598257495639807">QR Code 結果</translation>
+<translation id="172937028082106236">從我的瀏覽記錄建立</translation>
+<translation id="17513872634828108">開啟的分頁</translation>
 <translation id="1809939268435598390">刪除資料夾</translation>
+<translation id="1816380826555616620">每個連接器的項目數：<ph name="OLD_ITEM_COUNT" /> 到 <ph name="NEW_ITEM_COUNT" /> 個</translation>
+<translation id="1818606096021558659">頁面</translation>
+<translation id="1844249872546141866">視窗：<ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">無法取得數量</translation>
+<translation id="1929197983938319610">您可以繼續使用來源瀏覽器。若某類資料持續變更，Dao 會要求您關閉該項目，並只重試該部分。</translation>
+<translation id="1984122437277059790">無法匯入專案。請檢查套件後再試一次。</translation>
+<translation id="2085323698672376231">這會永久刪除目前專案、所有版本和來源存取權。此操作無法復原。</translation>
+<translation id="210592584469870355">功能</translation>
+<translation id="2109761659519935228">迷你 Dao</translation>
 <translation id="21133533946938348">固定分頁</translation>
+<translation id="2175927920773552910">QR Code</translation>
+<translation id="2199413402821420360">無法在迷你 Dao 中開啟此分頁</translation>
+<translation id="2209843794360152290">匯入項目會合併，不會取代現有資料。</translation>
+<translation id="2254382823755510690">您匯入的資料已可在 Dao 中使用。開啟的分頁會保留在已收合的資料夾中且不載入，直到您需要時才會載入。</translation>
+<translation id="2348199177323591972">讀取頁面內容</translation>
+<translation id="2359808026110333948">繼續</translation>
+<translation id="2398703750948514961">已取消</translation>
+<translation id="2414886740292270097">深色</translation>
+<translation id="243275146591958220">取消下載</translation>
+<translation id="2496180316473517155">瀏覽記錄</translation>
+<translation id="251834402454969316">與目前版本的差異</translation>
+<translation id="2519023533785544875">開啟助理</translation>
+<translation id="2535607573648844553">Dao 需要所選瀏覽器的 Safe Storage 金鑰來解密已儲存的密碼。若您拒絕存取，將只略過密碼，其餘移轉仍會繼續。</translation>
+<translation id="2580366865845491095">要開啟此連結嗎？</translation>
+<translation id="2612596415938768738">可能需要您登入</translation>
+<translation id="2698054069012763064">還有 <ph name="COUNT" /> 個</translation>
 <translation id="2703180365855369896">關閉重複的分頁</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">讀取中</translation>
+<translation id="2820330532305477229">您要從哪裡移轉？</translation>
+<translation id="2882207023658691113">還原為新版本</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> 正在控制瀏覽器分頁</translation>
 <translation id="2973324205039581528">靜音網站</translation>
+<translation id="2976307543842414852">執行</translation>
 <translation id="3007771295016901659">重複分頁</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">已驗證的程序：<ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao 會測試所選來源並新增可用的來源。首頁啟用期間，每個來源只能讀取下方顯示的頁面和資料。</translation>
+<translation id="3249579521706735875">系統處於深色模式時可使用。</translation>
+<translation id="3356580349448036450">完成</translation>
+<translation id="3404183081987133644">您停止前已匯入的資料可以使用。您準備好後隨時可以開始另一項移轉。</translation>
+<translation id="3420663750132400268">要刪除資料夾嗎？</translation>
+<translation id="3427713535827228685">此網站上的擴充功能</translation>
+<translation id="3435738964857648380">安全性</translation>
 <translation id="3450492919008172498">沒有新的分頁被封存</translation>
+<translation id="3509982919032226274">建立我的 Dao 首頁。先詢問我希望這個個人頁面協助我探索什麼，然後建立並發佈第一個版本。</translation>
 <translation id="3551320343578183772">關閉分頁</translation>
 <translation id="3657099196021255130">在 Dao 中開啟</translation>
 <translation id="3708693288863478389">輸入網址或搜尋...</translation>
+<translation id="381667777775855564">正在新增至 Dao</translation>
 <translation id="385051799172605136">返回</translation>
 <translation id="3891466792657071243">停止載入</translation>
 <translation id="3901975710974642844">移動過期分頁到「過期」</translation>
+<translation id="3909499025801874715">檢查受限的 Dao 首頁診斷資料，說明失敗原因，並修復目前專案。在修復通過驗證前保留目前可執行的版本，然後將修復內容發佈為新版本。</translation>
+<translation id="3927932062596804919">拒絕</translation>
 <translation id="3984237987235889323">正在套用</translation>
+<translation id="3999659648104077867">已停止瀏覽器控制</translation>
+<translation id="4165986682804962316">網站設定</translation>
 <translation id="4201242995651540725">已封存過去 24 小時未使用的分頁</translation>
+<translation id="4221615148091761714">使用 Dao 編輯</translation>
 <translation id="4285498937028063278">取消固定</translation>
 <translation id="4322394346347055525">關閉其他分頁</translation>
+<translation id="4332876892329258166">開始移轉</translation>
 <translation id="4380677223237520064">解碼 QR Code</translation>
+<translation id="4404136731284211429">重新掃描</translation>
+<translation id="4500440256909785690">要取代此首頁嗎？</translation>
 <translation id="4543782226216763900">切換側邊欄 (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">詢問 AI：<ph name="PROMPT" /></translation>
+<translation id="459639509487093409">移轉完成</translation>
+<translation id="4652266463001779298">不允許</translation>
+<translation id="4724836371241170775">第 2 步，共 4 步 · 選擇要移轉的內容</translation>
 <translation id="473775607612524610">更新</translation>
+<translation id="481205936353439293">第 3 步，共 4 步 · 正在移轉資料</translation>
+<translation id="4854731374904470810">複製分頁 ID</translation>
 <translation id="4881695831933465202">開啟</translation>
+<translation id="4898928054560997780">請 Dao 修復</translation>
+<translation id="49041264823677952">關閉已完成的下載</translation>
+<translation id="493638356004396067">移轉失敗</translation>
+<translation id="4968006660055392545">在此 Mac 上找不到支援的瀏覽器設定檔。</translation>
+<translation id="5004648724625831205">正在準備本機副本</translation>
 <translation id="501297852093417632">清除快取</translation>
 <translation id="5027562294707732951">新增擴充功能</translation>
+<translation id="5126909118906525779">要連線至即時來源嗎？</translation>
 <translation id="5192454087436290060">控制中心</translation>
+<translation id="5289912690346335931">正在計算…</translation>
+<translation id="5301255231518510089">選取檔案以檢視其原始碼。</translation>
+<translation id="5308380583665731573">連線</translation>
+<translation id="5322475253112112619">若允許，它可使用您目前的登入狀態讀取及與網站互動，包括執行 JavaScript。</translation>
+<translation id="5334844597069022743">檢視原始碼</translation>
+<translation id="5400726083793179041">所選專案狀態將發佈為新版本。現有記錄將保持可用。</translation>
+<translation id="5436835454512450295">匯入的瀏覽器資料</translation>
 <translation id="5450299006531484229">關閉上方分頁</translation>
 <translation id="5538307496474303926">正在清除...</translation>
 <translation id="5556459405103347317">重新載入</translation>
 <translation id="5611474372949142946">關閉下方分頁</translation>
+<translation id="5649936378931470828">開啟助理（<ph name="SHORTCUT" />）</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">已儲存的密碼</translation>
+<translation id="5871520043546374642">已停止移轉</translation>
+<translation id="5873058639175438941">系統處於深色模式時，使用自動深色模式將網站變暗。</translation>
+<translation id="5874739091759960360">僅在 dao://home 啟用時</translation>
+<translation id="591645459245805338">建立私密且動態的頁面，讓 Dao 根據您關注的內容量身打造。</translation>
+<translation id="5942499955694738574">無法重設首頁。目前專案未變更。請再試一次。</translation>
 <translation id="5953452567010839148">找不到 QR Code</translation>
+<translation id="6018824944448456809">第 1 步，共 4 步 · 選擇來源</translation>
+<translation id="6040143037577758943">關閉</translation>
+<translation id="6042308850641462728">更多</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">結果資料：最多 <ph name="BYTE_COUNT" /> 位元組</translation>
+<translation id="6204195547326023850">正在載入您的首頁…</translation>
+<translation id="6266039999629596120">需要注意</translation>
+<translation id="6270944267518310103">等待中</translation>
+<translation id="6299569859560607348">此首頁想要開啟外部頁面。請在繼續前檢視目的地。</translation>
+<translation id="6325047129563993580">根據我最近的瀏覽主題建立我的 Dao 首頁。僅使用經隱私最小化處理的首頁記錄素材，簡要說明方向，然後建立並發佈第一個版本。</translation>
+<translation id="642671119120438272">匯入的分頁</translation>
+<translation id="648743804821442565">本機自動化用戶端正在要求存取此 Dao 視窗。</translation>
+<translation id="6527303717912515753">分享</translation>
+<translation id="6586201961110912838">還原此版本</translation>
+<translation id="6601997535892446436">選擇此 Mac 上的瀏覽器設定檔。每個設定檔會分別列出，讓您掌握要移轉的內容。</translation>
 <translation id="6736243959894955139">地址</translation>
+<translation id="6764328036096492220">寫入存取權</translation>
+<translation id="677387175345781299">專案檔案</translation>
+<translation id="6786747875388722282">擴充功能</translation>
+<translation id="6801297003382412689">資源限制</translation>
 <translation id="6829876854799051628">清除 Cookie</translation>
+<translation id="6832689803248022656">您想要帶入哪些內容？</translation>
+<translation id="684699560760227351">重設首頁</translation>
 <translation id="6896758677409633944">複製</translation>
+<translation id="6940497786570685033">您正在使用無痕模式瀏覽。關閉所有無痕視窗後，Dao 不會保留您的瀏覽記錄、Cookie 或網站資料。下載項目和書籤會保留。</translation>
+<translation id="6963772203726867701">未偵測到</translation>
+<translation id="6971377058826420967">使用 Dao 建立</translation>
+<translation id="7020790421915196218">已完成的類別可以使用。您只需重試需要注意的部分。</translation>
+<translation id="7401173814860935855">已清除此網站的 Cookie</translation>
+<translation id="7465855397028934440">正在尋找瀏覽器設定檔…</translation>
+<translation id="750760654246049420">另一個自動化用戶端正在控制此瀏覽器</translation>
 <translation id="7532108947552493901">檢查更新...</translation>
+<translation id="7533550325431812">允許此連線</translation>
 <translation id="7604253494819481181">再次按 <ph name="SHORTCUT" /> 以切換側邊欄</translation>
+<translation id="7615777614791709701">要重設首頁嗎？</translation>
+<translation id="7626429522809774043">允許瀏覽器控制嗎？</translation>
+<translation id="7636812263792427733">強制深色模式</translation>
+<translation id="7658239707568436148">取消</translation>
+<translation id="7714812312719848690">您的專案仍然安全。請重試、還原版本，或請 Dao 修復。</translation>
 <translation id="7717845620320228976">檢查更新</translation>
+<translation id="7803931104677504532">讀取呈現樣式</translation>
+<translation id="7974106569409739809">取消資料夾</translation>
+<translation id="7995663841236651667">您的瀏覽器資料會在此 Mac 上本機處理。</translation>
+<translation id="8028081981001403222">匯入專案</translation>
+<translation id="8041968312565730454">來源瀏覽器</translation>
+<translation id="8052762370740257987">匯出專案</translation>
+<translation id="8097718730266959883">無法使用</translation>
+<translation id="81044950628177848">目前版本</translation>
+<translation id="8131740175452115882">確認</translation>
 <translation id="8137559199583651773">管理擴充功能</translation>
+<translation id="8138892305328483863">Dao 會將匯入項目與您現有的內容合併，絕不會取代現有資料。</translation>
+<translation id="8175534235396780357">AI 控制詳細資料</translation>
+<translation id="8237260373784588552">首頁控制項</translation>
+<translation id="824895471210913946">目標：<ph name="TARGET" /></translation>
+<translation id="8261506727792406068">刪除</translation>
+<translation id="831684326378391082">不使用即時來源繼續</translation>
+<translation id="8349478524212888083">匯入的專案將成為新版本。在您再次核准前，來源存取權會保持中斷連線。</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">連線至 <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">版本記錄</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> 返回</translation>
+<translation id="8595238918901827309">要還原此版本嗎？</translation>
+<translation id="8668072977518790485">已複製分頁 ID</translation>
+<translation id="8684229942427488970">網站中心</translation>
 <translation id="8717864919010420084">複製連結</translation>
+<translation id="8725066075913043281">再試一次</translation>
+<translation id="8774154357663601701">首頁啟用期間，此來源只能讀取已核准的頁面。</translation>
+<translation id="8781013843394828812">這些項目需要重試</translation>
+<translation id="8787633576358327637">可能會顯示 macOS 鑰匙圈提示</translation>
+<translation id="8820817407110198400">書籤</translation>
+<translation id="8826852601577125903">結果資料：<ph name="OLD_BYTE_COUNT" /> 到 <ph name="NEW_BYTE_COUNT" /> 位元組</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> 個候選項目</translation>
+<translation id="8899040626072079337">正在將您的資料移轉至 Dao</translation>
+<translation id="8962539151725780858">受控分頁：<ph name="COUNT" /></translation>
+<translation id="9046231519826652276">最近的 MCP 呼叫：<ph name="TOOL" /></translation>
+<translation id="9115526757421297517">每個連接器的項目數：最多 <ph name="ITEM_COUNT" /> 個</translation>
+<translation id="9144412711146411188">已封存閒置分頁</translation>
+<translation id="9186557253975059599">回報的用戶端：<ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">切換側邊欄</translation>
+<translation id="9205549548211212895">停止移轉</translation>
+<translation id="932327136139879170">首頁</translation>
+<translation id="932413031402847895">匯入瀏覽器資料</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">連線至所選項目</translation>
+<translation id="949725615797318423">擴充功能會從官方商店重新安裝</translation>
+<translation id="962181630102348889">無法顯示您的首頁</translation>
 </translationbundle>

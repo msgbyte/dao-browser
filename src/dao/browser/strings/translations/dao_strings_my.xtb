@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="my">
+<translation id="1111094358966140566">ဗားရှင်း နှိုင်းယှဉ်ရန်</translation>
 <translation id="1173894706177603556">အမည်ပြောင်းရန်</translation>
+<translation id="1182228621215085947">Dao ကို မေးရန်</translation>
+<translation id="121570799358042869">သင်၏ ဘရောက်ဆာဒေတာသည် ဤ Mac တွင်သာ ရှိနေပါသည်။ တွဲဖက်အသုံးပြုနိုင်သော တိုးချဲ့မှုများကို ပြန်လည်ထည့်သွင်းခြင်းသာ အင်တာနက်သို့ ချိတ်ဆက်နိုင်သည့် အဆင့်ဖြစ်ပြီး တိုးချဲ့မှုဆက်တင်များနှင့် ဝင်ရောက်မှုများကို ကူးယူမည်မဟုတ်ပါ။</translation>
+<translation id="1236455002425740182">Dao ရွှေ့ပြောင်းမှု</translation>
+<translation id="1272079795634619415">ရပ်ရန်</translation>
 <translation id="1293177648337752319">ဆိုက်အသံဖွင့်ရန်</translation>
+<translation id="1349314697251468085">ဤလုပ်ဆောင်မှုသည် ဖိုင်တွဲရှိ တက်ဘ်အားလုံးကို ပိတ်ပြီး ဖိုင်တွဲကို ဖျက်ပါမည်။</translation>
+<translation id="1352298709666490484">တက်ဘ် ပြောင်းရန်</translation>
+<translation id="1383876407941801731">ရှာဖွေရန်</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">ပရိုဖိုင်- <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">ဝဘ်ကို သင့်အတွက်ဖြစ်အောင် ပြုလုပ်ပါ</translation>
+<translation id="1530524805356937121">နောက်ထပ်ဖွင့်ရန် လှိမ့်ရန်</translation>
+<translation id="1566049601598938765">ဝဘ်ဆိုက်</translation>
+<translation id="1602287703039480507">ဤဆိုက်အတွက် ကက်ရှ်ကို ရှင်းလင်းပြီးပါပြီ</translation>
+<translation id="1637441054828003579">မအောင်မြင်သောအရာများကို ပြန်ကြိုးစားရန်</translation>
+<translation id="1641203463264514072">သင့်ဒေတာအများစု ရောက်ရှိနေပါပြီ</translation>
 <translation id="1653598257495639807">QR ကုဒ် ရလဒ်</translation>
+<translation id="172937028082106236">ကျွန်ုပ်၏ ကြည့်ရှုမှတ်တမ်းမှ ဖန်တီးရန်</translation>
+<translation id="17513872634828108">ဖွင့်ထားသော တက်ဘ်များ</translation>
 <translation id="1809939268435598390">ဖိုင်တွဲ ဖျက်ရန်</translation>
+<translation id="1816380826555616620">ချိတ်ဆက်ကိရိယာတစ်ခုလျှင် အရာများ- <ph name="OLD_ITEM_COUNT" /> မှ <ph name="NEW_ITEM_COUNT" /> ခုအထိ</translation>
+<translation id="1818606096021558659">စာမျက်နှာ</translation>
+<translation id="1844249872546141866">ဝင်းဒိုး- <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">အရေအတွက် မရနိုင်ပါ</translation>
+<translation id="1929197983938319610">ရင်းမြစ်ဘရောက်ဆာကို ဆက်လက်အသုံးပြုနိုင်ပါသည်။ ဒေတာအမျိုးအစားတစ်ခု ဆက်လက်ပြောင်းလဲနေပါက Dao သည် ၎င်းကိုပိတ်ပြီး ထိုအပိုင်းကိုသာ ပြန်ကြိုးစားရန် တောင်းဆိုပါမည်။</translation>
+<translation id="1984122437277059790">ပရောဂျက်ကို ထည့်သွင်းမရပါ။ ပက်ကေ့ခ်ျကို စစ်ဆေးပြီး ထပ်ကြိုးစားပါ။</translation>
+<translation id="2085323698672376231">ဤလုပ်ဆောင်မှုသည် လက်ရှိပရောဂျက်၊ ဗားရှင်းအားလုံးနှင့် ရင်းမြစ်ဝင်ရောက်ခွင့်ကို အပြီးတိုင်ဖျက်ပစ်ပါမည်။ ၎င်းကို ပြန်ပြောင်း၍မရပါ။</translation>
+<translation id="210592584469870355">လုပ်ဆောင်နိုင်စွမ်းများ</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">တဘ်ကို ပူးထားပါ</translation>
+<translation id="2175927920773552910">QR ကုဒ်</translation>
+<translation id="2199413402821420360">ဤတက်ဘ်ကို Mini Dao တွင် ဖွင့်မရပါ</translation>
+<translation id="2209843794360152290">ထည့်သွင်းထားသောအရာများကို ရှိပြီးသားဒေတာ အစားမထိုးဘဲ ပေါင်းစည်းပါသည်။</translation>
+<translation id="2254382823755510690">သင်ထည့်သွင်းသော ဒေတာကို Dao တွင် အသုံးပြုရန် အဆင်သင့်ဖြစ်ပါပြီ။ ဖွင့်ထားသော တက်ဘ်များကို သင်လိုအပ်သည့်အချိန်အထိ ချုံ့ထားသော ဖိုင်တွဲတွင် မဖွင့်ဘဲ သိမ်းထားပါသည်။</translation>
+<translation id="2348199177323591972">စာမျက်နှာအကြောင်းအရာ ဖတ်ရှုရန်</translation>
+<translation id="2359808026110333948">ဆက်လုပ်ရန်</translation>
+<translation id="2398703750948514961">ပယ်ဖျက်ပြီးပါပြီ</translation>
+<translation id="2414886740292270097">အမှောင်</translation>
+<translation id="243275146591958220">ဒေါင်းလုဒ်ကို ပယ်ဖျက်ရန်</translation>
+<translation id="2496180316473517155">ကြည့်ရှုမှတ်တမ်း</translation>
+<translation id="251834402454969316">လက်ရှိဗားရှင်းနှင့် ကွာခြားချက်များ</translation>
+<translation id="2519023533785544875">အကူအညီပေးသူ ဖွင့်ရန်</translation>
+<translation id="2535607573648844553">သိမ်းဆည်းထားသော စကားဝှက်များကို စာဝှက်ဖြေဖျက်ရန် Dao သည် ရွေးချယ်ထားသော ဘရောက်ဆာ၏ Safe Storage ကီးကို လိုအပ်ပါသည်။ ဝင်ရောက်ခွင့်ကို ငြင်းပယ်ပါက စကားဝှက်များကိုသာ ကျော်သွားမည်ဖြစ်ပြီး ကျန်ရွှေ့ပြောင်းမှုကို ဆက်လက်လုပ်ဆောင်ပါမည်။</translation>
+<translation id="2580366865845491095">ဤလင့်ခ်ကို ဖွင့်မလား?</translation>
+<translation id="2612596415938768738">အကောင့်ဝင်ရန် လိုအပ်နိုင်သည်</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> ခု ထပ်မံ</translation>
 <translation id="2703180365855369896">တူညီသောတဘ်များကိုပိတ်ပါ</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">ဖတ်ရှုနေသည်</translation>
+<translation id="2820330532305477229">မည်သည့်နေရာမှ ရွှေ့ပြောင်းလာသနည်း?</translation>
+<translation id="2882207023658691113">ဗားရှင်းအသစ်အဖြစ် ပြန်လည်ရယူရန်</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> သည် ဘရောက်ဆာတက်ဘ်များကို ထိန်းချုပ်နေသည်</translation>
 <translation id="2973324205039581528">ဆိုက်အသံပိတ်ရန်</translation>
+<translation id="2976307543842414852">လုပ်ဆောင်မှုများ</translation>
 <translation id="3007771295016901659">တစ်ခုထပ်မံဖွင့်ရန်</translation>
 <translation id="3062877722240966678">Dao i18n ပိုက်လိုင်း အိုကေ</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">အတည်ပြုထားသော လုပ်ငန်းစဉ်- <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao သည် ရွေးချယ်ထားသော ရင်းမြစ်များကို စမ်းသပ်ပြီး အလုပ်လုပ်သော ရင်းမြစ်များကို ထည့်သွင်းပါမည်။ ပင်မစာမျက်နှာ အသက်ဝင်နေစဉ် ရင်းမြစ်တစ်ခုစီသည် အောက်တွင်ပြထားသော စာမျက်နှာများနှင့် ဒေတာကိုသာ ဖတ်ရှုနိုင်ပါသည်။</translation>
+<translation id="3249579521706735875">စနစ် အမှောင်မုဒ်တွင်ရှိသည့်အခါ ရနိုင်ပါသည်။</translation>
+<translation id="3356580349448036450">ပြီးစီးပါပြီ</translation>
+<translation id="3404183081987133644">သင်ရပ်တန့်မတိုင်မီ ထည့်သွင်းထားသော ဒေတာကို အသုံးပြုရန် အဆင်သင့်ဖြစ်ပါပြီ။ အဆင်သင့်ဖြစ်သည့်အခါ အခြားရွှေ့ပြောင်းမှုတစ်ခုကို စတင်နိုင်ပါသည်။</translation>
+<translation id="3420663750132400268">ဖိုင်တွဲကို ဖျက်မလား?</translation>
+<translation id="3427713535827228685">ဤဆိုက်ရှိ တိုးချဲ့မှုများ</translation>
+<translation id="3435738964857648380">လုံခြုံရေး</translation>
 <translation id="3450492919008172498">မည်သည့် တဘ်အသစ်မျှ မျှဝေထားခြင်း မရှိပါ</translation>
+<translation id="3509982919032226274">ကျွန်ုပ်၏ Dao ပင်မစာမျက်နှာကို ဖန်တီးပါ။ ဤကိုယ်ပိုင်စာမျက်နှာက ကျွန်ုပ် စူးစမ်းလိုသည့်အရာများကို မည်သို့ကူညီစေလိုကြောင်း ဦးစွာမေးမြန်းပြီးနောက် ပထမဗားရှင်းကို တည်ဆောက်၍ ထုတ်ဝေပါ။</translation>
 <translation id="3551320343578183772">တဘ်ကို ပိတ်ပါ</translation>
 <translation id="3657099196021255130">Dao တွင် ဖွင့်ပါ</translation>
 <translation id="3708693288863478389">URL သို့မဟုတ် ရှာဖွေရန် ရိုက်ထည့်ပါ...</translation>
+<translation id="381667777775855564">Dao သို့ ထည့်သွင်းနေသည်</translation>
 <translation id="385051799172605136">နောက်သို့</translation>
 <translation id="3891466792657071243">ရုပ်သိမ်းခြင်း</translation>
 <translation id="3901975710974642844">မသုံးတော့သော တဘ်များကို "stale" သို့ ရွှေ့ပါ</translation>
+<translation id="3909499025801874715">ကန့်သတ်ထားသော Dao ပင်မစာမျက်နှာ ရောဂါရှာဖွေမှုများကို စစ်ဆေးပါ၊ ချို့ယွင်းမှုကို ရှင်းပြပြီး လက်ရှိပရောဂျက်ကို ပြုပြင်ပါ။ ပြုပြင်မှု အတည်ပြုမပြီးမချင်း လက်ရှိလုပ်ဆောင်နိုင်သော ဗားရှင်းကို ထိန်းသိမ်းထားပြီးနောက် ပြုပြင်မှုကို ဗားရှင်းအသစ်အဖြစ် ထုတ်ဝေပါ။</translation>
+<translation id="3927932062596804919">ငြင်းပယ်ရန်</translation>
 <translation id="3984237987235889323">အပ်ဒိတ်လုပ်နေသည်</translation>
+<translation id="3999659648104077867">ဘရောက်ဆာ ထိန်းချုပ်မှုကို ရပ်တန့်ပြီးပါပြီ</translation>
+<translation id="4165986682804962316">ဆိုက်ဆက်တင်များ</translation>
 <translation id="4201242995651540725">ပြီးခဲ့သော ၂၄ နာရီအတွင်း မသုံးခဲ့သော တဘ်များကို မျှဝေထားသည်</translation>
+<translation id="4221615148091761714">Dao ဖြင့် ပြင်ဆင်ရန်</translation>
 <translation id="4285498937028063278">ပူးထားမှုကို ဖျက်ပါ</translation>
 <translation id="4322394346347055525">အခြားတဘ်များပိတ်ရန်</translation>
+<translation id="4332876892329258166">ရွှေ့ပြောင်းမှု စတင်ရန်</translation>
 <translation id="4380677223237520064">QR ကုဒ်ကိုဖျော်ဖြေရန်</translation>
+<translation id="4404136731284211429">ထပ်စစ်ဆေးရန်</translation>
+<translation id="4500440256909785690">ဤပင်မစာမျက်နှာကို အစားထိုးမလား?</translation>
 <translation id="4543782226216763900">ဘေးဘားကို ပြောင်းရန် (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI ကို မေးပါ: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">သင့်ရွှေ့ပြောင်းမှု ပြီးစီးပါပြီ</translation>
+<translation id="4652266463001779298">ခွင့်မပြုပါ</translation>
+<translation id="4724836371241170775">အဆင့် ၂ / ၄ · ရွှေ့ပြောင်းမည့်အရာကို ရွေးချယ်ပါ</translation>
 <translation id="473775607612524610">အပ်ဒိတ်</translation>
+<translation id="481205936353439293">အဆင့် ၃ / ၄ · သင့်ဒေတာကို ရွှေ့ပြောင်းနေသည်</translation>
+<translation id="4854731374904470810">တက်ဘ် ID ကူးယူရန်</translation>
 <translation id="4881695831933465202">ဖွင့်ပါ</translation>
+<translation id="4898928054560997780">Dao ကို ပြုပြင်ခိုင်းရန်</translation>
+<translation id="49041264823677952">ပြီးစီးသော ဒေါင်းလုဒ်ကို ဖယ်ရှားရန်</translation>
+<translation id="493638356004396067">ရွှေ့ပြောင်းမှု မအောင်မြင်ပါ</translation>
+<translation id="4968006660055392545">ဤ Mac တွင် ပံ့ပိုးထားသော ဘရောက်ဆာပရိုဖိုင်များကို မတွေ့ပါ။</translation>
+<translation id="5004648724625831205">စက်တွင်းမိတ္တူ ပြင်ဆင်နေသည်</translation>
 <translation id="501297852093417632">Cache ရှင်းပါ</translation>
 <translation id="5027562294707732951">extension ထည့်ပါ</translation>
+<translation id="5126909118906525779">တိုက်ရိုက်ရင်းမြစ်များကို ချိတ်ဆက်မလား?</translation>
 <translation id="5192454087436290060">ထိန်းချုပ်မှု ဗဟို</translation>
+<translation id="5289912690346335931">ရေတွက်နေသည်…</translation>
+<translation id="5301255231518510089">၎င်း၏ရင်းမြစ်ကို ကြည့်ရန် ဖိုင်တစ်ခု ရွေးချယ်ပါ။</translation>
+<translation id="5308380583665731573">ချိတ်ဆက်ရန်</translation>
+<translation id="5322475253112112619">ခွင့်ပြုပါက JavaScript လုပ်ဆောင်ခြင်းအပါအဝင် သင်၏ လက်ရှိဝင်ရောက်မှုကို အသုံးပြု၍ ဝဘ်ဆိုက်များကို ဖတ်ရှုနိုင်ပြီး အပြန်အလှန်လုပ်ဆောင်နိုင်ပါသည်။</translation>
+<translation id="5334844597069022743">ရင်းမြစ်ကို ကြည့်ရန်</translation>
+<translation id="5400726083793179041">ရွေးချယ်ထားသော ပရောဂျက်အခြေအနေကို ဗားရှင်းအသစ်အဖြစ် ထုတ်ဝေပါမည်။ ရှိပြီးသားမှတ်တမ်းကို ဆက်လက်ရရှိနိုင်ပါမည်။</translation>
+<translation id="5436835454512450295">ထည့်သွင်းထားသော ဘရောက်ဆာဒေတာ</translation>
 <translation id="5450299006531484229">အထက်တဘ်များပိတ်ရန်</translation>
 <translation id="5538307496474303926">ရှင်းလင်းနေသည်...</translation>
 <translation id="5556459405103347317">ပြန်လည်တင်ခြင်း</translation>
 <translation id="5611474372949142946">အောက်တဘ်များပိတ်ရန်</translation>
+<translation id="5649936378931470828">အကူအညီပေးသူ ဖွင့်ရန် (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">သိမ်းဆည်းထားသော စကားဝှက်များ</translation>
+<translation id="5871520043546374642">ရွှေ့ပြောင်းမှု ရပ်တန့်သွားပါပြီ</translation>
+<translation id="5873058639175438941">စနစ် အမှောင်မုဒ်တွင်ရှိနေစဉ် Auto Dark Mode ဖြင့် ဝဘ်ဆိုက်များကို အမှောင်ပြုလုပ်ပါ။</translation>
+<translation id="5874739091759960360">dao://home အသက်ဝင်နေချိန်တွင်သာ</translation>
+<translation id="591645459245805338">သင်ဂရုစိုက်သည့်အရာများအပေါ် မူတည်၍ Dao က ပုံဖော်ပေးနိုင်သော ကိုယ်ပိုင်၊ တက်ကြွသည့် စာမျက်နှာတစ်ခု ဖန်တီးပါ။</translation>
+<translation id="5942499955694738574">ပင်မစာမျက်နှာကို ပြန်သတ်မှတ်မရပါ။ လက်ရှိပရောဂျက်ကို မပြောင်းလဲထားပါ။ ထပ်ကြိုးစားပါ။</translation>
 <translation id="5953452567010839148">QR ကုဒ်မတွေ့ပါ</translation>
+<translation id="6018824944448456809">အဆင့် ၁ / ၄ · ရင်းမြစ် ရွေးချယ်ပါ</translation>
+<translation id="6040143037577758943">ပိတ်ရန်</translation>
+<translation id="6042308850641462728">နောက်ထပ်</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">ရလဒ်ဒေတာ- <ph name="BYTE_COUNT" /> ဘိုက်အထိ</translation>
+<translation id="6204195547326023850">သင့်ပင်မစာမျက်နှာကို ဖွင့်နေသည်…</translation>
+<translation id="6266039999629596120">စစ်ဆေးရန် လိုအပ်သည်</translation>
+<translation id="6270944267518310103">စောင့်ဆိုင်းနေသည်</translation>
+<translation id="6299569859560607348">ဤပင်မစာမျက်နှာသည် ပြင်ပစာမျက်နှာတစ်ခုကို ဖွင့်လိုပါသည်။ ဆက်လက်မလုပ်ဆောင်မီ ဦးတည်ရာကို စစ်ဆေးပါ။</translation>
+<translation id="6325047129563993580">ကျွန်ုပ်၏ မကြာသေးမီက ကြည့်ရှုမှုအကြောင်းအရာများမှ Dao ပင်မစာမျက်နှာကို ဖန်တီးပါ။ ကိုယ်ရေးလုံခြုံမှု အနည်းဆုံးဖြစ်အောင်ပြုလုပ်ထားသော ပင်မမှတ်တမ်းအကြောင်းအရာကိုသာ အသုံးပြုပါ၊ ဦးတည်ချက်ကို အတိုချုံးရှင်းပြပြီးနောက် ပထမဗားရှင်းကို တည်ဆောက်၍ ထုတ်ဝေပါ။</translation>
+<translation id="642671119120438272">ထည့်သွင်းထားသော တက်ဘ်များ</translation>
+<translation id="648743804821442565">စက်တွင်း အလိုအလျောက်လုပ်ဆောင်မှု ကလိုင်းယင့်တစ်ခုက ဤ Dao ဝင်းဒိုးသို့ ဝင်ရောက်ခွင့် တောင်းဆိုနေပါသည်။</translation>
+<translation id="6527303717912515753">မျှဝေရန်</translation>
+<translation id="6586201961110912838">ဤဗားရှင်းကို ပြန်လည်ရယူရန်</translation>
+<translation id="6601997535892446436">ဤ Mac ရှိ ဘရောက်ဆာပရိုဖိုင်တစ်ခုကို ရွေးချယ်ပါ။ မည်သည့်အရာများ ရွှေ့ပြောင်းမည်ကို သင်ထိန်းချုပ်နိုင်ရန် ပရိုဖိုင်တစ်ခုစီကို သီးခြားဖော်ပြထားပါသည်။</translation>
 <translation id="6736243959894955139">လိပ်စာ</translation>
+<translation id="6764328036096492220">ရေးသားခွင့်</translation>
+<translation id="677387175345781299">ပရောဂျက်ဖိုင်များ</translation>
+<translation id="6786747875388722282">တိုးချဲ့မှုများ</translation>
+<translation id="6801297003382412689">အရင်းအမြစ် ကန့်သတ်ချက်များ</translation>
 <translation id="6829876854799051628">Cookies ရှင်းပါ</translation>
+<translation id="6832689803248022656">မည်သည့်အရာကို ယူဆောင်လိုပါသလဲ?</translation>
+<translation id="684699560760227351">ပင်မကို ပြန်သတ်မှတ်ရန်</translation>
 <translation id="6896758677409633944">ကူးယူပါ</translation>
+<translation id="6940497786570685033">သင်သည် အမည်မသိမုဒ်ဖြင့် ကြည့်ရှုနေပါသည်။ အမည်မသိ ဝင်းဒိုးအားလုံးကို ပိတ်ပြီးနောက် Dao သည် သင်၏ ကြည့်ရှုမှတ်တမ်း၊ ကွတ်ကီးများ သို့မဟုတ် ဆိုက်ဒေတာကို မသိမ်းဆည်းပါ။ ဒေါင်းလုဒ်များနှင့် မှတ်သားချက်များကို သိမ်းဆည်းထားပါသည်။</translation>
+<translation id="6963772203726867701">မတွေ့ရှိပါ</translation>
+<translation id="6971377058826420967">Dao ဖြင့် ဖန်တီးရန်</translation>
+<translation id="7020790421915196218">ပြီးစီးသော အမျိုးအစားများကို အသုံးပြုရန် အဆင်သင့်ဖြစ်ပါပြီ။ စစ်ဆေးရန်လိုအပ်သော အပိုင်းများကိုသာ ပြန်ကြိုးစားနိုင်ပါသည်။</translation>
+<translation id="7401173814860935855">ဤဆိုက်အတွက် ကွတ်ကီးများကို ရှင်းလင်းပြီးပါပြီ</translation>
+<translation id="7465855397028934440">ဘရောက်ဆာပရိုဖိုင်များကို ရှာဖွေနေသည်…</translation>
+<translation id="750760654246049420">အခြား အလိုအလျောက်လုပ်ဆောင်မှု ကလိုင်းယင့်တစ်ခုက ဤဘရောက်ဆာကို ထိန်းချုပ်နေပါသည်</translation>
 <translation id="7532108947552493901">အပ်ဒိတ်များ စစ်ဆေးရန်...</translation>
+<translation id="7533550325431812">ဤချိတ်ဆက်မှုကို ခွင့်ပြုရန်</translation>
 <translation id="7604253494819481181">ဘားကိုပြောင်းရန် <ph name="SHORTCUT" /> ကိုထပ်နှိပ်ပါ</translation>
+<translation id="7615777614791709701">ပင်မစာမျက်နှာကို ပြန်သတ်မှတ်မလား?</translation>
+<translation id="7626429522809774043">ဘရောက်ဆာ ထိန်းချုပ်ခွင့်ပြုမလား?</translation>
+<translation id="7636812263792427733">အမှောင်မုဒ် အတင်းဖွင့်ရန်</translation>
+<translation id="7658239707568436148">မလုပ်တော့ပါ</translation>
+<translation id="7714812312719848690">သင့်ပရောဂျက်သည် လုံခြုံစွာရှိနေဆဲဖြစ်ပါသည်။ ပြန်ကြိုးစားပါ၊ ဗားရှင်းတစ်ခုကို ပြန်လည်ရယူပါ သို့မဟုတ် Dao ကို ပြုပြင်ခိုင်းပါ။</translation>
 <translation id="7717845620320228976">အပ်ဒိတ်များ စစ်ဆေးရန်</translation>
+<translation id="7803931104677504532">ဖော်ပြမှုပုံစံများ ဖတ်ရှုရန်</translation>
+<translation id="7974106569409739809">ဖိုင်တွဲမှ ဖယ်ရန်</translation>
+<translation id="7995663841236651667">သင်၏ ဘရောက်ဆာဒေတာကို ဤ Mac တွင် စက်တွင်းလုပ်ဆောင်ပါသည်။</translation>
+<translation id="8028081981001403222">ပရောဂျက် ထည့်သွင်းရန်</translation>
+<translation id="8041968312565730454">ရင်းမြစ်ဘရောက်ဆာ</translation>
+<translation id="8052762370740257987">ပရောဂျက် ထုတ်ယူရန်</translation>
+<translation id="8097718730266959883">မရနိုင်ပါ</translation>
+<translation id="81044950628177848">လက်ရှိဗားရှင်း</translation>
+<translation id="8131740175452115882">အတည်ပြုရန်</translation>
 <translation id="8137559199583651773">extension များကို စီမံပါ</translation>
+<translation id="8138892305328483863">Dao သည် ထည့်သွင်းထားသောအရာများကို သင့်တွင်ရှိပြီးသားအရာများနှင့် ပေါင်းစည်းပါသည်။ ရှိပြီးသားဒေတာကို မည်သည့်အခါမျှ အစားမထိုးပါ။</translation>
+<translation id="8175534235396780357">AI ထိန်းချုပ်မှု အသေးစိတ်</translation>
+<translation id="8237260373784588552">ပင်မ ထိန်းချုပ်မှုများ</translation>
+<translation id="824895471210913946">ပစ်မှတ်- <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">ဖျက်ရန်</translation>
+<translation id="831684326378391082">တိုက်ရိုက်ရင်းမြစ်များမပါဘဲ ဆက်လုပ်ရန်</translation>
+<translation id="8349478524212888083">ထည့်သွင်းသော ပရောဂျက်သည် ဗားရှင်းအသစ်ဖြစ်လာပါမည်။ သင် ပြန်လည်အတည်ပြုသည်အထိ ရင်းမြစ်ဝင်ရောက်ခွင့်ကို ချိတ်ဆက်မထားပါ။</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> ချိတ်ဆက်ရန်</translation>
+<translation id="8549865052695885354">ဗားရှင်းမှတ်တမ်း</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> နောက်သို့</translation>
+<translation id="8595238918901827309">ဤဗားရှင်းကို ပြန်လည်ရယူမလား?</translation>
+<translation id="8668072977518790485">တက်ဘ် ID ကို ကူးယူပြီးပါပြီ</translation>
+<translation id="8684229942427488970">ဆိုက်စင်တာ</translation>
 <translation id="8717864919010420084">လင့်ခ်ကို ကူးယူပါ</translation>
+<translation id="8725066075913043281">ထပ်ကြိုးစားရန်</translation>
+<translation id="8774154357663601701">ပင်မစာမျက်နှာ အသက်ဝင်နေစဉ် ဤရင်းမြစ်သည် အတည်ပြုထားသော စာမျက်နှာများကိုသာ ဖတ်ရှုနိုင်ပါသည်။</translation>
+<translation id="8781013843394828812">ဤအရာများကို ပြန်ကြိုးစားရန် လိုအပ်သည်</translation>
+<translation id="8787633576358327637">macOS Keychain အချက်ပြချက် ပေါ်လာနိုင်သည်</translation>
+<translation id="8820817407110198400">မှတ်သားချက်များ</translation>
+<translation id="8826852601577125903">ရလဒ်ဒေတာ- <ph name="OLD_BYTE_COUNT" /> မှ <ph name="NEW_BYTE_COUNT" /> ဘိုက်အထိ</translation>
+<translation id="88635502604055524">ရွေးချယ်နိုင်သည့်အရာ <ph name="COUNT" /> ခု</translation>
+<translation id="8899040626072079337">သင့်ဒေတာကို Dao သို့ ရွှေ့ပြောင်းနေသည်</translation>
+<translation id="8962539151725780858">ထိန်းချုပ်ထားသော တက်ဘ်များ- <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">နောက်ဆုံး MCP ခေါ်ဆိုမှု- <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">ချိတ်ဆက်ကိရိယာတစ်ခုလျှင် အရာများ- <ph name="ITEM_COUNT" /> ခုအထိ</translation>
+<translation id="9144412711146411188">မသုံးဖြစ်သော တက်ဘ်များကို သိမ်းဆည်းပြီးပါပြီ</translation>
+<translation id="9186557253975059599">ဖော်ပြထားသော ကလိုင်းယင့်- <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">ဘေးဘားကို ပြောင်းရန်</translation>
+<translation id="9205549548211212895">ရွှေ့ပြောင်းမှု ရပ်ရန်</translation>
+<translation id="932327136139879170">ပင်မ</translation>
+<translation id="932413031402847895">ဘရောက်ဆာဒေတာ ထည့်သွင်းရန်</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">ရွေးချယ်ထားသည်များကို ချိတ်ဆက်ရန်</translation>
+<translation id="949725615797318423">တိုးချဲ့မှုများကို ၎င်းတို့၏ တရားဝင်စတိုးမှ ပြန်လည်ထည့်သွင်းပါသည်</translation>
+<translation id="962181630102348889">သင့်ပင်မစာမျက်နှာကို ပြသမရပါ</translation>
 </translationbundle>

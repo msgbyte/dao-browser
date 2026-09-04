@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="es-419">
+<translation id="1111094358966140566">Comparar versión</translation>
 <translation id="1173894706177603556">Renombrar</translation>
+<translation id="1182228621215085947">Preguntar a Dao</translation>
+<translation id="121570799358042869">Tus datos del navegador permanecen en esta Mac. Reinstalar extensiones compatibles es el único paso que podría conectarse a Internet; la configuración de las extensiones y los inicios de sesión no se copian.</translation>
+<translation id="1236455002425740182">Migración de Dao</translation>
+<translation id="1272079795634619415">Detener</translation>
 <translation id="1293177648337752319">Activar sonido del sitio</translation>
+<translation id="1349314697251468085">Se cerrarán todas las pestañas de la carpeta y se eliminará la carpeta.</translation>
+<translation id="1352298709666490484">Cambiar de pestaña</translation>
+<translation id="1383876407941801731">Buscar</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Perfil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Haz que la web se sienta tuya</translation>
+<translation id="1530524805356937121">Desplazarse para cargar más</translation>
+<translation id="1566049601598938765">Sitio web</translation>
+<translation id="1602287703039480507">Caché borrada para este sitio</translation>
+<translation id="1637441054828003579">Reintentar elementos fallidos</translation>
+<translation id="1641203463264514072">La mayor parte de tus datos está aquí</translation>
 <translation id="1653598257495639807">Resultado del código QR</translation>
+<translation id="172937028082106236">Crear a partir de mi historial de navegación</translation>
+<translation id="17513872634828108">Pestañas abiertas</translation>
 <translation id="1809939268435598390">Eliminar carpeta</translation>
+<translation id="1816380826555616620">Elementos por conector: de <ph name="OLD_ITEM_COUNT" /> a <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Página</translation>
+<translation id="1844249872546141866">Ventana: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Recuento no disponible</translation>
+<translation id="1929197983938319610">Puedes seguir usando el navegador de origen. Si un tipo de datos sigue cambiando, Dao te pedirá que lo cierres y que reintentes solo esa parte.</translation>
+<translation id="1984122437277059790">No se pudo importar el proyecto. Revisa el paquete e inténtalo de nuevo.</translation>
+<translation id="2085323698672376231">Esto elimina permanentemente el proyecto actual, todas las versiones y el acceso a las fuentes. No se puede deshacer.</translation>
+<translation id="210592584469870355">Funciones</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Fijar pestaña</translation>
+<translation id="2175927920773552910">Código QR</translation>
+<translation id="2199413402821420360">No se pudo abrir esta pestaña en Mini Dao</translation>
+<translation id="2209843794360152290">Los elementos importados se combinan sin reemplazar los datos existentes.</translation>
+<translation id="2254382823755510690">Tus datos importados están listos en Dao. Las pestañas abiertas se mantienen sin cargar en una carpeta contraída hasta que las necesites.</translation>
+<translation id="2348199177323591972">Leer contenido de la página</translation>
+<translation id="2359808026110333948">Continuar</translation>
+<translation id="2398703750948514961">Cancelado</translation>
+<translation id="2414886740292270097">Oscuro</translation>
+<translation id="243275146591958220">Cancelar descarga</translation>
+<translation id="2496180316473517155">Historial de navegación</translation>
+<translation id="251834402454969316">Cambios respecto a la versión actual</translation>
+<translation id="2519023533785544875">Abrir Asistente</translation>
+<translation id="2535607573648844553">Dao necesita la clave de almacenamiento seguro del navegador seleccionado para descifrar las contraseñas guardadas. Si deniegas el acceso, solo se omitirán las contraseñas y el resto de la migración continuará.</translation>
+<translation id="2580366865845491095">¿Abrir este enlace?</translation>
+<translation id="2612596415938768738">Es posible que debas iniciar sesión</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> más</translation>
 <translation id="2703180365855369896">Cerrar pestañas duplicadas</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Leyendo</translation>
+<translation id="2820330532305477229">¿Desde dónde te mudas?</translation>
+<translation id="2882207023658691113">Restaurar como nueva versión</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> controla las pestañas del navegador</translation>
 <translation id="2973324205039581528">Silenciar sitio</translation>
+<translation id="2976307543842414852">Se ejecuta</translation>
 <translation id="3007771295016901659">Duplicar pestaña</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Proceso verificado: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao probará las fuentes seleccionadas y agregará las que funcionen. Cada fuente solo puede leer las páginas y los datos que se muestran a continuación mientras Inicio está activo.</translation>
+<translation id="3249579521706735875">Disponible cuando el sistema está en modo oscuro.</translation>
+<translation id="3356580349448036450">Completado</translation>
+<translation id="3404183081987133644">Los datos importados antes de detenerla están listos para usarse. Puedes iniciar otra migración cuando quieras.</translation>
+<translation id="3420663750132400268">¿Eliminar carpeta?</translation>
+<translation id="3427713535827228685">Extensiones en este sitio</translation>
+<translation id="3435738964857648380">Seguridad</translation>
 <translation id="3450492919008172498">No se archivaron nuevas pestañas</translation>
+<translation id="3509982919032226274">Crea mi Inicio de Dao. Comienza preguntándome qué quiero que esta página personal me ayude a explorar, luego crea y publica la primera versión.</translation>
 <translation id="3551320343578183772">Cerrar pestaña</translation>
 <translation id="3657099196021255130">Abrir en Dao</translation>
 <translation id="3708693288863478389">Escribe una URL o busca...</translation>
+<translation id="381667777775855564">Agregando a Dao</translation>
 <translation id="385051799172605136">Atrás</translation>
 <translation id="3891466792657071243">Detener carga</translation>
 <translation id="3901975710974642844">Mover pestañas inactivas a "stale"</translation>
+<translation id="3909499025801874715">Inspecciona los diagnósticos limitados de Inicio de Dao, explica el error y repara el proyecto actual. Conserva la versión ejecutable actual hasta que se valide la reparación y luego publica la reparación como una nueva versión.</translation>
+<translation id="3927932062596804919">Denegar</translation>
 <translation id="3984237987235889323">Aplicando</translation>
+<translation id="3999659648104077867">Control del navegador detenido</translation>
+<translation id="4165986682804962316">Configuración del sitio</translation>
 <translation id="4201242995651540725">Pestañas archivadas inactivas durante las últimas 24 horas</translation>
+<translation id="4221615148091761714">Editar con Dao</translation>
 <translation id="4285498937028063278">Desfijar</translation>
 <translation id="4322394346347055525">Cerrar otras pestañas</translation>
+<translation id="4332876892329258166">Iniciar migración</translation>
 <translation id="4380677223237520064">Decodificar código QR</translation>
+<translation id="4404136731284211429">Buscar de nuevo</translation>
+<translation id="4500440256909785690">¿Reemplazar este Inicio?</translation>
 <translation id="4543782226216763900">Alternar barra lateral (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Preguntar a la IA: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Tu transferencia está completa</translation>
+<translation id="4652266463001779298">No permitido</translation>
+<translation id="4724836371241170775">Paso 2 de 4 · Elige qué transferir</translation>
 <translation id="473775607612524610">Actualizar</translation>
+<translation id="481205936353439293">Paso 3 de 4 · Transfiriendo tus datos</translation>
+<translation id="4854731374904470810">Copiar ID de pestaña</translation>
 <translation id="4881695831933465202">Abrir</translation>
+<translation id="4898928054560997780">Pedir a Dao que lo repare</translation>
+<translation id="49041264823677952">Descartar descarga completada</translation>
+<translation id="493638356004396067">Error en la migración</translation>
+<translation id="4968006660055392545">No se encontraron perfiles de navegador compatibles en esta Mac.</translation>
+<translation id="5004648724625831205">Preparando una copia local</translation>
 <translation id="501297852093417632">Borrar caché</translation>
 <translation id="5027562294707732951">Agregar extensión</translation>
+<translation id="5126909118906525779">¿Conectar fuentes en vivo?</translation>
 <translation id="5192454087436290060">Centro de Control</translation>
+<translation id="5289912690346335931">Contando…</translation>
+<translation id="5301255231518510089">Selecciona un archivo para ver su código fuente.</translation>
+<translation id="5308380583665731573">Conectar</translation>
+<translation id="5322475253112112619">Si lo permites, podrá leer e interactuar con sitios web usando tu sesión actual, incluso ejecutando JavaScript.</translation>
+<translation id="5334844597069022743">Ver código fuente</translation>
+<translation id="5400726083793179041">El estado del proyecto seleccionado se publicará como una nueva versión. El historial existente seguirá disponible.</translation>
+<translation id="5436835454512450295">Datos importados del navegador</translation>
 <translation id="5450299006531484229">Cerrar pestañas arriba</translation>
 <translation id="5538307496474303926">Borrando...</translation>
 <translation id="5556459405103347317">Recargar</translation>
 <translation id="5611474372949142946">Cerrar pestañas abajo</translation>
+<translation id="5649936378931470828">Abrir Asistente (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Contraseñas guardadas</translation>
+<translation id="5871520043546374642">Migración detenida</translation>
+<translation id="5873058639175438941">Oscurece los sitios web con el modo oscuro automático mientras el sistema está en modo oscuro.</translation>
+<translation id="5874739091759960360">Solo mientras dao://home está activo</translation>
+<translation id="591645459245805338">Crea una página privada y dinámica que Dao pueda adaptar a lo que te importa.</translation>
+<translation id="5942499955694738574">No se pudo restablecer Inicio. El proyecto actual no se modificó. Inténtalo de nuevo.</translation>
 <translation id="5953452567010839148">No se encontró código QR</translation>
+<translation id="6018824944448456809">Paso 1 de 4 · Elige un origen</translation>
+<translation id="6040143037577758943">Cerrar</translation>
+<translation id="6042308850641462728">Más</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Datos de resultados: hasta <ph name="BYTE_COUNT" /> bytes</translation>
+<translation id="6204195547326023850">Cargando tu Inicio…</translation>
+<translation id="6266039999629596120">Requiere atención</translation>
+<translation id="6270944267518310103">En espera</translation>
+<translation id="6299569859560607348">Este Inicio quiere abrir una página externa. Revisa el destino antes de continuar.</translation>
+<translation id="6325047129563993580">Crea mi Inicio de Dao a partir de mis temas de navegación recientes. Usa solo el material del historial de Inicio con privacidad minimizada, explica brevemente el enfoque y luego crea y publica la primera versión.</translation>
+<translation id="642671119120438272">Pestañas importadas</translation>
+<translation id="648743804821442565">Un cliente de automatización local solicita acceso a esta ventana de Dao.</translation>
+<translation id="6527303717912515753">Compartir</translation>
+<translation id="6586201961110912838">Restaurar esta versión</translation>
+<translation id="6601997535892446436">Elige un perfil de navegador en esta Mac. Cada perfil se muestra por separado para que mantengas el control sobre lo que se transfiere.</translation>
 <translation id="6736243959894955139">Dirección</translation>
+<translation id="6764328036096492220">Acceso de escritura</translation>
+<translation id="677387175345781299">Archivos del proyecto</translation>
+<translation id="6786747875388722282">Extensiones</translation>
+<translation id="6801297003382412689">Límites de recursos</translation>
 <translation id="6829876854799051628">Borrar cookies</translation>
+<translation id="6832689803248022656">¿Qué te gustaría traer?</translation>
+<translation id="684699560760227351">Restablecer Inicio</translation>
 <translation id="6896758677409633944">Copiar</translation>
+<translation id="6940497786570685033">Estás navegando en modo incógnito. Después de cerrar todas las ventanas de incógnito, Dao no conservará tu historial de navegación, cookies ni datos de sitios. Se conservarán las descargas y los marcadores.</translation>
+<translation id="6963772203726867701">No detectado</translation>
+<translation id="6971377058826420967">Crear con Dao</translation>
+<translation id="7020790421915196218">Las categorías completadas están listas para usarse. Puedes reintentar solo las partes que requieren atención.</translation>
+<translation id="7401173814860935855">Cookies borradas para este sitio</translation>
+<translation id="7465855397028934440">Buscando perfiles de navegador…</translation>
+<translation id="750760654246049420">Otro cliente de automatización está controlando este navegador</translation>
 <translation id="7532108947552493901">Buscar actualizaciones...</translation>
+<translation id="7533550325431812">Permitir esta conexión</translation>
 <translation id="7604253494819481181">Presiona <ph name="SHORTCUT" /> nuevamente para alternar la barra lateral</translation>
+<translation id="7615777614791709701">¿Restablecer Inicio?</translation>
+<translation id="7626429522809774043">¿Permitir el control del navegador?</translation>
+<translation id="7636812263792427733">Forzar modo oscuro</translation>
+<translation id="7658239707568436148">Cancelar</translation>
+<translation id="7714812312719848690">Tu proyecto sigue seguro. Inténtalo de nuevo, restaura una versión o pide a Dao que lo repare.</translation>
 <translation id="7717845620320228976">Buscar actualizaciones</translation>
+<translation id="7803931104677504532">Leer estilos de presentación</translation>
+<translation id="7974106569409739809">Desagrupar</translation>
+<translation id="7995663841236651667">Tus datos del navegador se procesan localmente en esta Mac.</translation>
+<translation id="8028081981001403222">Importar proyecto</translation>
+<translation id="8041968312565730454">Navegador de origen</translation>
+<translation id="8052762370740257987">Exportar proyecto</translation>
+<translation id="8097718730266959883">no disponible</translation>
+<translation id="81044950628177848">Versión actual</translation>
+<translation id="8131740175452115882">Confirmar</translation>
 <translation id="8137559199583651773">Administrar extensiones</translation>
+<translation id="8138892305328483863">Dao combina los elementos importados con lo que ya tienes. Los datos existentes nunca se reemplazan.</translation>
+<translation id="8175534235396780357">Detalles del control por IA</translation>
+<translation id="8237260373784588552">Controles de Inicio</translation>
+<translation id="824895471210913946">Destino: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Eliminar</translation>
+<translation id="831684326378391082">Continuar sin fuentes en vivo</translation>
+<translation id="8349478524212888083">El proyecto importado se convertirá en una nueva versión. El acceso a las fuentes permanecerá desconectado hasta que lo apruebes de nuevo.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Conectar <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Historial de versiones</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Atrás</translation>
+<translation id="8595238918901827309">¿Restaurar esta versión?</translation>
+<translation id="8668072977518790485">ID de pestaña copiado</translation>
+<translation id="8684229942427488970">Centro del sitio</translation>
 <translation id="8717864919010420084">Copiar enlace</translation>
+<translation id="8725066075913043281">Intentar de nuevo</translation>
+<translation id="8774154357663601701">Esta fuente solo puede leer las páginas aprobadas mientras Inicio está activo.</translation>
+<translation id="8781013843394828812">Estos elementos deben reintentarse</translation>
+<translation id="8787633576358327637">Puede aparecer una solicitud del Llavero de macOS</translation>
+<translation id="8820817407110198400">Marcadores</translation>
+<translation id="8826852601577125903">Datos de resultados: de <ph name="OLD_BYTE_COUNT" /> a <ph name="NEW_BYTE_COUNT" /> bytes</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> candidatos</translation>
+<translation id="8899040626072079337">Transfiriendo tus datos a Dao</translation>
+<translation id="8962539151725780858">Pestañas controladas: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Última llamada MCP: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Elementos por conector: hasta <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Pestañas inactivas archivadas</translation>
+<translation id="9186557253975059599">Cliente informado: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Alternar barra lateral</translation>
+<translation id="9205549548211212895">Detener migración</translation>
+<translation id="932327136139879170">Inicio</translation>
+<translation id="932413031402847895">Importar datos del navegador</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Conectar seleccionadas</translation>
+<translation id="949725615797318423">Las extensiones se reinstalan desde su tienda oficial</translation>
+<translation id="962181630102348889">No se pudo mostrar tu Inicio</translation>
 </translationbundle>

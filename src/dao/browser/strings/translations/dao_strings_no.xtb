@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="no">
+<translation id="1111094358966140566">Sammenlign versjon</translation>
 <translation id="1173894706177603556">Gi nytt navn</translation>
+<translation id="1182228621215085947">Spør Dao</translation>
+<translation id="121570799358042869">Nettleserdataene dine blir på denne Macen. Å installere kompatible utvidelser på nytt er det eneste trinnet som kan koble til internett. Utvidelsesinnstillinger og pålogginger kopieres ikke.</translation>
+<translation id="1236455002425740182">Dao-migrering</translation>
+<translation id="1272079795634619415">Stopp</translation>
 <translation id="1293177648337752319">Slå på lyd for nettsted</translation>
+<translation id="1349314697251468085">Dette lukker alle faner i mappen og sletter mappen.</translation>
+<translation id="1352298709666490484">Bytt fane</translation>
+<translation id="1383876407941801731">Søk</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Gjør nettet til ditt eget</translation>
+<translation id="1530524805356937121">Rull for å laste inn mer</translation>
+<translation id="1566049601598938765">Nettsted</translation>
+<translation id="1602287703039480507">Buffer tømt for dette nettstedet</translation>
+<translation id="1637441054828003579">Prøv mislykkede elementer på nytt</translation>
+<translation id="1641203463264514072">Det meste av dataene dine er her</translation>
 <translation id="1653598257495639807">QR-koderesultat</translation>
+<translation id="172937028082106236">Opprett fra nettleserloggen min</translation>
+<translation id="17513872634828108">Åpne faner</translation>
 <translation id="1809939268435598390">Slett mappe</translation>
+<translation id="1816380826555616620">Elementer per kobling: <ph name="OLD_ITEM_COUNT" /> til <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Side</translation>
+<translation id="1844249872546141866">Vindu: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Antall utilgjengelig</translation>
+<translation id="1929197983938319610">Du kan fortsette å bruke kildenettleseren. Hvis én datatype fortsetter å endres, ber Dao deg om å lukke den og prøve bare den delen på nytt.</translation>
+<translation id="1984122437277059790">Prosjektet kunne ikke importeres. Kontroller pakken og prøv på nytt.</translation>
+<translation id="2085323698672376231">Dette sletter det gjeldende prosjektet, alle versjoner og kildetilgang permanent. Dette kan ikke angres.</translation>
+<translation id="210592584469870355">Funksjoner</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Fest fane</translation>
+<translation id="2175927920773552910">QR-kode</translation>
+<translation id="2199413402821420360">Kunne ikke åpne denne fanen i Mini Dao</translation>
+<translation id="2209843794360152290">Importerte elementer slås sammen uten å erstatte eksisterende data.</translation>
+<translation id="2254382823755510690">De importerte dataene dine er klare i Dao. Åpne faner beholdes ulastet i en sammentrukket mappe til du trenger dem.</translation>
+<translation id="2348199177323591972">Les sideinnhold</translation>
+<translation id="2359808026110333948">Fortsett</translation>
+<translation id="2398703750948514961">Avbrutt</translation>
+<translation id="2414886740292270097">Mørk</translation>
+<translation id="243275146591958220">Avbryt nedlasting</translation>
+<translation id="2496180316473517155">Nettleserlogg</translation>
+<translation id="251834402454969316">Endringer i gjeldende versjon</translation>
+<translation id="2519023533785544875">Åpne assistent</translation>
+<translation id="2535607573648844553">Dao trenger den valgte nettleserens Safe Storage-nøkkel for å dekryptere lagrede passord. Hvis du avslår tilgang, hoppes bare passord over, og resten av migreringen fortsetter.</translation>
+<translation id="2580366865845491095">Åpne denne lenken?</translation>
+<translation id="2612596415938768738">Kan kreve at du er pålogget</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> til</translation>
 <translation id="2703180365855369896">Lukk dupliserte faner</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Leser</translation>
+<translation id="2820330532305477229">Hvor flytter du fra?</translation>
+<translation id="2882207023658691113">Gjenopprett som en ny versjon</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> kontrollerer nettleserfaner</translation>
 <translation id="2973324205039581528">Demp nettsted</translation>
+<translation id="2976307543842414852">Kjøringer</translation>
 <translation id="3007771295016901659">Dupliser fane</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Verifisert prosess: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao tester de valgte kildene og legger til dem som fungerer. Hver kilde kan bare lese sidene og dataene som vises nedenfor, mens Hjem er aktiv.</translation>
+<translation id="3249579521706735875">Tilgjengelig når systemet er i mørk modus.</translation>
+<translation id="3356580349448036450">Fullført</translation>
+<translation id="3404183081987133644">Data som ble importert før du stoppet, er klare til bruk. Du kan starte en ny migrering når du er klar.</translation>
+<translation id="3420663750132400268">Slette mappe?</translation>
+<translation id="3427713535827228685">Utvidelser på dette nettstedet</translation>
+<translation id="3435738964857648380">Sikkerhet</translation>
 <translation id="3450492919008172498">Ingen nye faner ble arkivert</translation>
+<translation id="3509982919032226274">Opprett mitt Dao-hjem. Begynn med å spørre hva jeg vil at denne personlige siden skal hjelpe meg med å utforske, og bygg og publiser deretter den første versjonen.</translation>
 <translation id="3551320343578183772">Lukk fane</translation>
 <translation id="3657099196021255130">Åpne i Dao</translation>
 <translation id="3708693288863478389">Skriv inn en URL eller søk...</translation>
+<translation id="381667777775855564">Legger til i Dao</translation>
 <translation id="385051799172605136">Tilbake</translation>
 <translation id="3891466792657071243">Stopp lasting</translation>
 <translation id="3901975710974642844">Flytt utdaterte faner til "utdatert"</translation>
+<translation id="3909499025801874715">Undersøk den avgrensede diagnostikken for Dao-hjem, forklar feilen og reparer det gjeldende prosjektet. Behold den gjeldende kjørbare versjonen til reparasjonen er validert, og publiser deretter reparasjonen som en ny versjon.</translation>
+<translation id="3927932062596804919">Avslå</translation>
 <translation id="3984237987235889323">Bruker</translation>
+<translation id="3999659648104077867">Nettleserkontroll stoppet</translation>
+<translation id="4165986682804962316">Nettstedsinnstillinger</translation>
 <translation id="4201242995651540725">Arkiverte faner inaktive de siste 24 timene</translation>
+<translation id="4221615148091761714">Rediger med Dao</translation>
 <translation id="4285498937028063278">Løsne</translation>
 <translation id="4322394346347055525">Lukk andre faner</translation>
+<translation id="4332876892329258166">Start migrering</translation>
 <translation id="4380677223237520064">Dekode QR-kode</translation>
+<translation id="4404136731284211429">Søk på nytt</translation>
+<translation id="4500440256909785690">Erstatte dette Hjem?</translation>
 <translation id="4543782226216763900">Veksle sidepanel (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Spør AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Flyttingen er fullført</translation>
+<translation id="4652266463001779298">Ikke tillatt</translation>
+<translation id="4724836371241170775">Trinn 2 av 4 · Velg hva som flyttes</translation>
 <translation id="473775607612524610">Oppdater</translation>
+<translation id="481205936353439293">Trinn 3 av 4 · Flytter dataene dine</translation>
+<translation id="4854731374904470810">Kopier fane-ID</translation>
 <translation id="4881695831933465202">Åpne</translation>
+<translation id="4898928054560997780">Be Dao om å fikse</translation>
+<translation id="49041264823677952">Fjern fullført nedlasting</translation>
+<translation id="493638356004396067">Migreringen mislyktes</translation>
+<translation id="4968006660055392545">Ingen støttede nettleserprofiler ble funnet på denne Macen.</translation>
+<translation id="5004648724625831205">Forbereder en lokal kopi</translation>
 <translation id="501297852093417632">Tøm hurtigbuffer</translation>
 <translation id="5027562294707732951">Legg til utvidelse</translation>
+<translation id="5126909118906525779">Koble til livekilder?</translation>
 <translation id="5192454087436290060">Kontrollsenter</translation>
+<translation id="5289912690346335931">Teller…</translation>
+<translation id="5301255231518510089">Velg en fil for å vise kildekoden.</translation>
+<translation id="5308380583665731573">Koble til</translation>
+<translation id="5322475253112112619">Hvis dette tillates, kan den lese og samhandle med nettsteder ved å bruke din nåværende pålogging, også ved å kjøre JavaScript.</translation>
+<translation id="5334844597069022743">Vis kildekode</translation>
+<translation id="5400726083793179041">Den valgte prosjekttilstanden publiseres som en ny versjon. Eksisterende historikk forblir tilgjengelig.</translation>
+<translation id="5436835454512450295">Importerte nettleserdata</translation>
 <translation id="5450299006531484229">Lukk faner over</translation>
 <translation id="5538307496474303926">Tømmer...</translation>
 <translation id="5556459405103347317">Last inn på nytt</translation>
 <translation id="5611474372949142946">Lukk faner under</translation>
+<translation id="5649936378931470828">Åpne assistent (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Lagrede passord</translation>
+<translation id="5871520043546374642">Migreringen stoppet</translation>
+<translation id="5873058639175438941">Gjør nettsteder mørkere med automatisk mørk modus når systemet er i mørk modus.</translation>
+<translation id="5874739091759960360">Bare mens dao://home er aktiv</translation>
+<translation id="591645459245805338">Opprett en privat, levende side som Dao kan forme rundt det du bryr deg om.</translation>
+<translation id="5942499955694738574">Hjem kunne ikke tilbakestilles. Det gjeldende prosjektet ble ikke endret. Prøv på nytt.</translation>
 <translation id="5953452567010839148">Ingen QR-kode funnet</translation>
+<translation id="6018824944448456809">Trinn 1 av 4 · Velg en kilde</translation>
+<translation id="6040143037577758943">Lukk</translation>
+<translation id="6042308850641462728">Mer</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Resultatdata: opptil <ph name="BYTE_COUNT" /> byte</translation>
+<translation id="6204195547326023850">Laster inn Hjem…</translation>
+<translation id="6266039999629596120">Trenger oppmerksomhet</translation>
+<translation id="6270944267518310103">Venter</translation>
+<translation id="6299569859560607348">Dette Hjem vil åpne en ekstern side. Gå gjennom målet før du fortsetter.</translation>
+<translation id="6325047129563993580">Opprett mitt Dao-hjem fra de nylige nettlesertemaene mine. Bruk bare personvernminimert historikkmateriale fra Hjem, forklar retningen kort, og bygg og publiser deretter den første versjonen.</translation>
+<translation id="642671119120438272">Importerte faner</translation>
+<translation id="648743804821442565">En lokal automatiseringsklient ber om tilgang til dette Dao-vinduet.</translation>
+<translation id="6527303717912515753">Del</translation>
+<translation id="6586201961110912838">Gjenopprett denne versjonen</translation>
+<translation id="6601997535892446436">Velg en nettleserprofil på denne Macen. Hver profil vises separat, slik at du beholder kontrollen over hva som flyttes.</translation>
 <translation id="6736243959894955139">Adresse</translation>
+<translation id="6764328036096492220">Skrivetilgang</translation>
+<translation id="677387175345781299">Prosjektfiler</translation>
+<translation id="6786747875388722282">Utvidelser</translation>
+<translation id="6801297003382412689">Ressursgrenser</translation>
 <translation id="6829876854799051628">Tøm informasjonskapsler</translation>
+<translation id="6832689803248022656">Hva vil du ta med?</translation>
+<translation id="684699560760227351">Tilbakestill Hjem</translation>
 <translation id="6896758677409633944">Kopier</translation>
+<translation id="6940497786570685033">Du surfer i inkognitomodus. Når du lukker alle inkognitovinduer, lagrer ikke Dao nettleserloggen, informasjonskapsler eller nettsteddata. Nedlastinger og bokmerker beholdes.</translation>
+<translation id="6963772203726867701">Ikke oppdaget</translation>
+<translation id="6971377058826420967">Opprett med Dao</translation>
+<translation id="7020790421915196218">Fullførte kategorier er klare til bruk. Du kan prøve bare delene som trenger oppmerksomhet, på nytt.</translation>
+<translation id="7401173814860935855">Informasjonskapsler tømt for dette nettstedet</translation>
+<translation id="7465855397028934440">Leter etter nettleserprofiler…</translation>
+<translation id="750760654246049420">En annen automatiseringsklient kontrollerer denne nettleseren</translation>
 <translation id="7532108947552493901">Søk etter oppdateringer...</translation>
+<translation id="7533550325431812">Tillat denne tilkoblingen</translation>
 <translation id="7604253494819481181">Trykk <ph name="SHORTCUT" /> igjen for å veksle sidepanelet</translation>
+<translation id="7615777614791709701">Tilbakestille Hjem?</translation>
+<translation id="7626429522809774043">Tillate nettleserkontroll?</translation>
+<translation id="7636812263792427733">Tving mørk modus</translation>
+<translation id="7658239707568436148">Avbryt</translation>
+<translation id="7714812312719848690">Prosjektet ditt er fortsatt trygt. Prøv på nytt, gjenopprett en versjon eller be Dao om å reparere det.</translation>
 <translation id="7717845620320228976">Søk etter oppdateringer</translation>
+<translation id="7803931104677504532">Les presentasjonsstiler</translation>
+<translation id="7974106569409739809">Fjern fra mappe</translation>
+<translation id="7995663841236651667">Nettleserdataene dine behandles lokalt på denne Macen.</translation>
+<translation id="8028081981001403222">Importer prosjekt</translation>
+<translation id="8041968312565730454">Kildenettleser</translation>
+<translation id="8052762370740257987">Eksporter prosjekt</translation>
+<translation id="8097718730266959883">utilgjengelig</translation>
+<translation id="81044950628177848">Gjeldende versjon</translation>
+<translation id="8131740175452115882">Bekreft</translation>
 <translation id="8137559199583651773">Administrer utvidelser</translation>
+<translation id="8138892305328483863">Dao slår sammen importerte elementer med det du allerede har. Eksisterende data erstattes aldri.</translation>
+<translation id="8175534235396780357">Detaljer om KI-kontroll</translation>
+<translation id="8237260373784588552">Hjem-kontroller</translation>
+<translation id="824895471210913946">Mål: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Slett</translation>
+<translation id="831684326378391082">Fortsett uten livekilder</translation>
+<translation id="8349478524212888083">Det importerte prosjektet blir en ny versjon. Kildetilgang forblir frakoblet til du godkjenner den på nytt.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Koble til <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Versjonshistorikk</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Tilbake</translation>
+<translation id="8595238918901827309">Gjenopprette denne versjonen?</translation>
+<translation id="8668072977518790485">Fane-ID kopiert</translation>
+<translation id="8684229942427488970">Nettstedssenter</translation>
 <translation id="8717864919010420084">Kopier lenke</translation>
+<translation id="8725066075913043281">Prøv på nytt</translation>
+<translation id="8774154357663601701">Denne kilden kan bare lese godkjente sider mens Hjem er aktiv.</translation>
+<translation id="8781013843394828812">Disse elementene må prøves på nytt</translation>
+<translation id="8787633576358327637">En forespørsel fra macOS-nøkkelring kan vises</translation>
+<translation id="8820817407110198400">Bokmerker</translation>
+<translation id="8826852601577125903">Resultatdata: <ph name="OLD_BYTE_COUNT" /> til <ph name="NEW_BYTE_COUNT" /> byte</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidater</translation>
+<translation id="8899040626072079337">Flytter dataene dine til Dao</translation>
+<translation id="8962539151725780858">Kontrollerte faner: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Siste MCP-kall: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Elementer per kobling: opptil <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Inaktive faner arkivert</translation>
+<translation id="9186557253975059599">Oppgitt klient: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Veksle sidepanel</translation>
+<translation id="9205549548211212895">Stopp migrering</translation>
+<translation id="932327136139879170">Hjem</translation>
+<translation id="932413031402847895">Importer nettleserdata</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Koble til valgte</translation>
+<translation id="949725615797318423">Utvidelser installeres på nytt fra den offisielle butikken</translation>
+<translation id="962181630102348889">Hjem kunne ikke vises</translation>
 </translationbundle>

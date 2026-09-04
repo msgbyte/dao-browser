@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="hi">
+<translation id="1111094358966140566">संस्करण की तुलना करें</translation>
 <translation id="1173894706177603556">नाम बदलें</translation>
+<translation id="1182228621215085947">Dao से पूछें</translation>
+<translation id="121570799358042869">आपका ब्राउज़र डेटा इसी Mac पर रहता है. संगत एक्सटेंशन को फिर से इंस्टॉल करना ही एकमात्र चरण है जो इंटरनेट से कनेक्ट हो सकता है; एक्सटेंशन सेटिंग और साइन-इन कॉपी नहीं होते.</translation>
+<translation id="1236455002425740182">Dao माइग्रेशन</translation>
+<translation id="1272079795634619415">रोकें</translation>
 <translation id="1293177648337752319">साइट अनम्यूट करें</translation>
+<translation id="1349314697251468085">इससे फ़ोल्डर के सभी टैब बंद हो जाएँगे और फ़ोल्डर हट जाएगा.</translation>
+<translation id="1352298709666490484">टैब बदलें</translation>
+<translation id="1383876407941801731">खोजें</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">प्रोफ़ाइल: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">वेब को अपना बनाएँ</translation>
+<translation id="1530524805356937121">और लोड करने के लिए स्क्रॉल करें</translation>
+<translation id="1566049601598938765">वेबसाइट</translation>
+<translation id="1602287703039480507">इस साइट का कैश साफ़ किया गया</translation>
+<translation id="1637441054828003579">विफल आइटम फिर से आज़माएँ</translation>
+<translation id="1641203463264514072">आपका अधिकांश डेटा यहाँ है</translation>
 <translation id="1653598257495639807">QR कोड परिणाम</translation>
+<translation id="172937028082106236">मेरे ब्राउज़िंग इतिहास से बनाएँ</translation>
+<translation id="17513872634828108">खुले टैब</translation>
 <translation id="1809939268435598390">फ़ोल्डर हटाएँ</translation>
+<translation id="1816380826555616620">प्रति कनेक्टर आइटम: <ph name="OLD_ITEM_COUNT" /> से <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">पेज</translation>
+<translation id="1844249872546141866">विंडो: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">गिनती उपलब्ध नहीं</translation>
+<translation id="1929197983938319610">आप स्रोत ब्राउज़र का उपयोग जारी रख सकते हैं. यदि कोई डेटा प्रकार बदलता रहता है, तो Dao आपको उसे बंद करने और केवल उस भाग को फिर से आज़माने के लिए कहेगा.</translation>
+<translation id="1984122437277059790">प्रोजेक्ट आयात नहीं किया जा सका. पैकेज जाँचें और फिर से कोशिश करें.</translation>
+<translation id="2085323698672376231">इससे वर्तमान प्रोजेक्ट, सभी संस्करण और स्रोत पहुँच स्थायी रूप से हट जाएँगे. इसे पूर्ववत नहीं किया जा सकता.</translation>
+<translation id="210592584469870355">क्षमताएँ</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">टैब पिन करें</translation>
+<translation id="2175927920773552910">QR कोड</translation>
+<translation id="2199413402821420360">यह टैब Mini Dao में नहीं खोला जा सका</translation>
+<translation id="2209843794360152290">आयात की गई चीज़ें मौजूदा डेटा बदले बिना मर्ज की जाती हैं.</translation>
+<translation id="2254382823755510690">आपका आयात किया गया डेटा Dao में तैयार है. खुले टैब आपकी आवश्यकता होने तक एक संक्षिप्त फ़ोल्डर में लोड किए बिना रखे जाते हैं.</translation>
+<translation id="2348199177323591972">पेज सामग्री पढ़ें</translation>
+<translation id="2359808026110333948">जारी रखें</translation>
+<translation id="2398703750948514961">रद्द किया गया</translation>
+<translation id="2414886740292270097">डार्क</translation>
+<translation id="243275146591958220">डाउनलोड रद्द करें</translation>
+<translation id="2496180316473517155">ब्राउज़िंग इतिहास</translation>
+<translation id="251834402454969316">वर्तमान संस्करण में बदलाव</translation>
+<translation id="2519023533785544875">Assistant खोलें</translation>
+<translation id="2535607573648844553">सहेजे गए पासवर्ड डिक्रिप्ट करने के लिए Dao को चयनित ब्राउज़र की Safe Storage कुंजी चाहिए. यदि आप पहुँच अस्वीकार करते हैं, तो केवल पासवर्ड छोड़े जाएँगे और बाकी माइग्रेशन जारी रहेगा.</translation>
+<translation id="2580366865845491095">यह लिंक खोलें?</translation>
+<translation id="2612596415938768738">आपको साइन इन करना पड़ सकता है</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> और</translation>
 <translation id="2703180365855369896">डुप्लिकेट टैब बंद करें</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">पढ़ा जा रहा है</translation>
+<translation id="2820330532305477229">आप कहाँ से आ रहे हैं?</translation>
+<translation id="2882207023658691113">नए संस्करण के रूप में पुनर्स्थापित करें</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> ब्राउज़र टैब नियंत्रित कर रहा है</translation>
 <translation id="2973324205039581528">साइट म्यूट करें</translation>
+<translation id="2976307543842414852">चलता है</translation>
 <translation id="3007771295016901659">टैब डुप्लिकेट करें</translation>
 <translation id="3062877722240966678">Dao i18n पाइपलाइन ठीक है</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">सत्यापित प्रक्रिया: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao चयनित स्रोतों की जाँच करेगा और काम करने वाले स्रोत जोड़ेगा. होम सक्रिय होने पर प्रत्येक स्रोत केवल नीचे दिखाए गए पेज और डेटा पढ़ सकता है.</translation>
+<translation id="3249579521706735875">सिस्टम के डार्क मोड में होने पर उपलब्ध.</translation>
+<translation id="3356580349448036450">पूर्ण</translation>
+<translation id="3404183081987133644">रोकने से पहले आयात किया गया डेटा उपयोग के लिए तैयार है. तैयार होने पर आप दूसरा माइग्रेशन शुरू कर सकते हैं.</translation>
+<translation id="3420663750132400268">फ़ोल्डर हटाएँ?</translation>
+<translation id="3427713535827228685">इस साइट पर एक्सटेंशन</translation>
+<translation id="3435738964857648380">सुरक्षा</translation>
 <translation id="3450492919008172498">कोई नया टैब संग्रहीत नहीं किया गया</translation>
+<translation id="3509982919032226274">मेरा Dao होम बनाएँ. पहले पूछें कि मैं इस व्यक्तिगत पेज से क्या जानना चाहता हूँ, फिर पहला संस्करण बनाएँ और प्रकाशित करें.</translation>
 <translation id="3551320343578183772">टैब बंद करें</translation>
 <translation id="3657099196021255130">Dao में खोलें</translation>
 <translation id="3708693288863478389">URL टाइप करें या खोजें...</translation>
+<translation id="381667777775855564">Dao में जोड़ा जा रहा है</translation>
 <translation id="385051799172605136">वापस</translation>
 <translation id="3891466792657071243">लोडिंग रोकें</translation>
 <translation id="3901975710974642844">"stale" में निष्क्रिय टैब्स ले जाएँ</translation>
+<translation id="3909499025801874715">सीमित Dao होम डायग्नोस्टिक्स की जाँच करें, विफलता समझाएँ और वर्तमान प्रोजेक्ट ठीक करें. मरम्मत सत्यापित होने तक वर्तमान चलने योग्य संस्करण बनाए रखें, फिर मरम्मत को नए संस्करण के रूप में प्रकाशित करें.</translation>
+<translation id="3927932062596804919">अस्वीकार करें</translation>
 <translation id="3984237987235889323">लागू कर रहा है</translation>
+<translation id="3999659648104077867">ब्राउज़र नियंत्रण रोका गया</translation>
+<translation id="4165986682804962316">साइट सेटिंग</translation>
 <translation id="4201242995651540725">पिछले 24 घंटों से निष्क्रिय टैब्स संग्रहीत किए गए</translation>
+<translation id="4221615148091761714">Dao के साथ संपादित करें</translation>
 <translation id="4285498937028063278">अनपिन करें</translation>
 <translation id="4322394346347055525">अन्य टैब बंद करें</translation>
+<translation id="4332876892329258166">माइग्रेशन शुरू करें</translation>
 <translation id="4380677223237520064">क्यूआर कोड डिकोड करें</translation>
+<translation id="4404136731284211429">फिर से स्कैन करें</translation>
+<translation id="4500440256909785690">इस होम को बदलें?</translation>
 <translation id="4543782226216763900">साइडबार टॉगल करें (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">AI से पूछें: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">आपका स्थानांतरण पूर्ण हुआ</translation>
+<translation id="4652266463001779298">अनुमति नहीं है</translation>
+<translation id="4724836371241170775">4 में से चरण 2 · स्थानांतरित होने वाला डेटा चुनें</translation>
 <translation id="473775607612524610">अपडेट</translation>
+<translation id="481205936353439293">4 में से चरण 3 · आपका डेटा स्थानांतरित हो रहा है</translation>
+<translation id="4854731374904470810">टैब ID कॉपी करें</translation>
 <translation id="4881695831933465202">खोलें</translation>
+<translation id="4898928054560997780">Dao से ठीक करने के लिए कहें</translation>
+<translation id="49041264823677952">पूर्ण डाउनलोड हटाएँ</translation>
+<translation id="493638356004396067">माइग्रेशन विफल हुआ</translation>
+<translation id="4968006660055392545">इस Mac पर कोई समर्थित ब्राउज़र प्रोफ़ाइल नहीं मिली.</translation>
+<translation id="5004648724625831205">स्थानीय कॉपी तैयार हो रही है</translation>
 <translation id="501297852093417632">कैश साफ़ करें</translation>
 <translation id="5027562294707732951">एक्सटेंशन जोड़ें</translation>
+<translation id="5126909118906525779">लाइव स्रोत कनेक्ट करें?</translation>
 <translation id="5192454087436290060">कंट्रोल सेंटर</translation>
+<translation id="5289912690346335931">गिनती हो रही है…</translation>
+<translation id="5301255231518510089">उसका स्रोत देखने के लिए कोई फ़ाइल चुनें.</translation>
+<translation id="5308380583665731573">कनेक्ट करें</translation>
+<translation id="5322475253112112619">अनुमति मिलने पर, यह JavaScript चलाने सहित आपके वर्तमान लॉगिन का उपयोग करके वेबसाइट पढ़ और उनसे इंटरैक्ट कर सकता है.</translation>
+<translation id="5334844597069022743">स्रोत देखें</translation>
+<translation id="5400726083793179041">चयनित प्रोजेक्ट स्थिति नए संस्करण के रूप में प्रकाशित की जाएगी. मौजूदा इतिहास उपलब्ध रहेगा.</translation>
+<translation id="5436835454512450295">आयात किया गया ब्राउज़र डेटा</translation>
 <translation id="5450299006531484229">ऊपर के टैब बंद करें</translation>
 <translation id="5538307496474303926">साफ़ कर रहा है...</translation>
 <translation id="5556459405103347317">पुनः लोड करें</translation>
 <translation id="5611474372949142946">नीचे के टैब बंद करें</translation>
+<translation id="5649936378931470828">Assistant खोलें (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">सहेजे गए पासवर्ड</translation>
+<translation id="5871520043546374642">माइग्रेशन रोका गया</translation>
+<translation id="5873058639175438941">सिस्टम के डार्क मोड में होने पर ऑटो डार्क मोड से वेबसाइट को गहरा करें.</translation>
+<translation id="5874739091759960360">केवल जब dao://home सक्रिय हो</translation>
+<translation id="591645459245805338">एक निजी, जीवंत पेज बनाएँ जिसे Dao आपकी रुचियों के अनुसार ढाल सके.</translation>
+<translation id="5942499955694738574">होम रीसेट नहीं किया जा सका. वर्तमान प्रोजेक्ट नहीं बदला गया. फिर से कोशिश करें.</translation>
 <translation id="5953452567010839148">कोई क्यूआर कोड नहीं मिला</translation>
+<translation id="6018824944448456809">4 में से चरण 1 · स्रोत चुनें</translation>
+<translation id="6040143037577758943">बंद करें</translation>
+<translation id="6042308850641462728">और</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">परिणाम डेटा: अधिकतम <ph name="BYTE_COUNT" /> बाइट</translation>
+<translation id="6204195547326023850">आपका होम लोड हो रहा है…</translation>
+<translation id="6266039999629596120">ध्यान देने की आवश्यकता है</translation>
+<translation id="6270944267518310103">प्रतीक्षा में</translation>
+<translation id="6299569859560607348">यह होम एक बाहरी पेज खोलना चाहता है. आगे बढ़ने से पहले गंतव्य की समीक्षा करें.</translation>
+<translation id="6325047129563993580">मेरे हाल के ब्राउज़िंग विषयों से मेरा Dao होम बनाएँ. केवल गोपनीयता-न्यूनतम होम इतिहास सामग्री का उपयोग करें, दिशा को संक्षेप में समझाएँ, फिर पहला संस्करण बनाएँ और प्रकाशित करें.</translation>
+<translation id="642671119120438272">आयात किए गए टैब</translation>
+<translation id="648743804821442565">एक स्थानीय ऑटोमेशन क्लाइंट इस Dao विंडो तक पहुँच का अनुरोध कर रहा है.</translation>
+<translation id="6527303717912515753">साझा करें</translation>
+<translation id="6586201961110912838">यह संस्करण पुनर्स्थापित करें</translation>
+<translation id="6601997535892446436">इस Mac पर ब्राउज़र प्रोफ़ाइल चुनें. प्रत्येक प्रोफ़ाइल अलग से सूचीबद्ध है, ताकि आप तय कर सकें कि क्या स्थानांतरित होगा.</translation>
 <translation id="6736243959894955139">पता</translation>
+<translation id="6764328036096492220">लिखने की पहुँच</translation>
+<translation id="677387175345781299">प्रोजेक्ट फ़ाइलें</translation>
+<translation id="6786747875388722282">एक्सटेंशन</translation>
+<translation id="6801297003382412689">संसाधन सीमाएँ</translation>
 <translation id="6829876854799051628">कुकीज़ साफ़ करें</translation>
+<translation id="6832689803248022656">आप क्या लाना चाहेंगे?</translation>
+<translation id="684699560760227351">होम रीसेट करें</translation>
 <translation id="6896758677409633944">कॉपी करें</translation>
+<translation id="6940497786570685033">आप गुप्त मोड में ब्राउज़ कर रहे हैं. सभी गुप्त विंडो बंद करने के बाद, Dao आपका ब्राउज़िंग इतिहास, कुकी या साइट डेटा नहीं रखेगा. डाउनलोड और बुकमार्क रखे जाते हैं.</translation>
+<translation id="6963772203726867701">पता नहीं चला</translation>
+<translation id="6971377058826420967">Dao के साथ बनाएँ</translation>
+<translation id="7020790421915196218">पूर्ण श्रेणियाँ उपयोग के लिए तैयार हैं. आप केवल उन भागों को फिर से आज़मा सकते हैं जिन पर ध्यान देने की आवश्यकता है.</translation>
+<translation id="7401173814860935855">इस साइट की कुकी साफ़ की गईं</translation>
+<translation id="7465855397028934440">ब्राउज़र प्रोफ़ाइल खोजी जा रही हैं…</translation>
+<translation id="750760654246049420">कोई अन्य ऑटोमेशन क्लाइंट इस ब्राउज़र को नियंत्रित कर रहा है</translation>
 <translation id="7532108947552493901">अपडेट्स की जाँच करें...</translation>
+<translation id="7533550325431812">इस कनेक्शन को अनुमति दें</translation>
 <translation id="7604253494819481181">साइडबार को टॉगल करने के लिए <ph name="SHORTCUT" /> फिर से दबाएं</translation>
+<translation id="7615777614791709701">होम रीसेट करें?</translation>
+<translation id="7626429522809774043">ब्राउज़र नियंत्रण की अनुमति दें?</translation>
+<translation id="7636812263792427733">डार्क मोड बाध्य करें</translation>
+<translation id="7658239707568436148">रद्द करें</translation>
+<translation id="7714812312719848690">आपका प्रोजेक्ट अभी भी सुरक्षित है. फिर से कोशिश करें, कोई संस्करण पुनर्स्थापित करें या Dao से इसे ठीक करने के लिए कहें.</translation>
 <translation id="7717845620320228976">अपडेट्स की जाँच करें</translation>
+<translation id="7803931104677504532">प्रस्तुति शैलियाँ पढ़ें</translation>
+<translation id="7974106569409739809">फ़ोल्डर हटाएँ</translation>
+<translation id="7995663841236651667">आपका ब्राउज़र डेटा इस Mac पर स्थानीय रूप से संसाधित होता है.</translation>
+<translation id="8028081981001403222">प्रोजेक्ट आयात करें</translation>
+<translation id="8041968312565730454">स्रोत ब्राउज़र</translation>
+<translation id="8052762370740257987">प्रोजेक्ट निर्यात करें</translation>
+<translation id="8097718730266959883">अनुपलब्ध</translation>
+<translation id="81044950628177848">वर्तमान संस्करण</translation>
+<translation id="8131740175452115882">पुष्टि करें</translation>
 <translation id="8137559199583651773">एक्सटेंशन प्रबंधित करें</translation>
+<translation id="8138892305328483863">Dao आयात की गई चीज़ों को आपके मौजूदा डेटा के साथ मर्ज करता है. मौजूदा डेटा कभी बदला नहीं जाता.</translation>
+<translation id="8175534235396780357">AI नियंत्रण विवरण</translation>
+<translation id="8237260373784588552">होम नियंत्रण</translation>
+<translation id="824895471210913946">लक्ष्य: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">हटाएँ</translation>
+<translation id="831684326378391082">लाइव स्रोतों के बिना जारी रखें</translation>
+<translation id="8349478524212888083">आयात किया गया प्रोजेक्ट एक नया संस्करण बन जाएगा. स्रोत पहुँच तब तक डिस्कनेक्ट रहेगी जब तक आप उसे फिर से स्वीकृत नहीं करते.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> कनेक्ट करें</translation>
+<translation id="8549865052695885354">संस्करण इतिहास</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← वापस</translation>
+<translation id="8595238918901827309">यह संस्करण पुनर्स्थापित करें?</translation>
+<translation id="8668072977518790485">टैब ID कॉपी की गई</translation>
+<translation id="8684229942427488970">साइट केंद्र</translation>
 <translation id="8717864919010420084">लिंक कॉपी करें</translation>
+<translation id="8725066075913043281">फिर से कोशिश करें</translation>
+<translation id="8774154357663601701">होम सक्रिय होने पर यह स्रोत केवल स्वीकृत पेज पढ़ सकता है.</translation>
+<translation id="8781013843394828812">इन आइटम को फिर से आज़माना होगा</translation>
+<translation id="8787633576358327637">macOS Keychain प्रॉम्प्ट दिखाई दे सकता है</translation>
+<translation id="8820817407110198400">बुकमार्क</translation>
+<translation id="8826852601577125903">परिणाम डेटा: <ph name="OLD_BYTE_COUNT" /> से <ph name="NEW_BYTE_COUNT" /> बाइट</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> उम्मीदवार</translation>
+<translation id="8899040626072079337">आपका डेटा Dao में स्थानांतरित हो रहा है</translation>
+<translation id="8962539151725780858">नियंत्रित टैब: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">नवीनतम MCP कॉल: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">प्रति कनेक्टर आइटम: अधिकतम <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">निष्क्रिय टैब संग्रहित किए गए</translation>
+<translation id="9186557253975059599">रिपोर्ट किया गया क्लाइंट: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">साइडबार टॉगल करें</translation>
+<translation id="9205549548211212895">माइग्रेशन रोकें</translation>
+<translation id="932327136139879170">होम</translation>
+<translation id="932413031402847895">ब्राउज़र डेटा आयात करें</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">चयनित कनेक्ट करें</translation>
+<translation id="949725615797318423">एक्सटेंशन उनके आधिकारिक स्टोर से फिर से इंस्टॉल होते हैं</translation>
+<translation id="962181630102348889">आपका होम प्रदर्शित नहीं किया जा सका</translation>
 </translationbundle>

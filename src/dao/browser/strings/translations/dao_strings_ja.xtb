@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ja">
+<translation id="1111094358966140566">バージョンを比較</translation>
 <translation id="1173894706177603556">名前変更</translation>
+<translation id="1182228621215085947">Dao に質問</translation>
+<translation id="121570799358042869">ブラウザデータはこの Mac に保存されたままです。互換性のある拡張機能の再インストールのみがインターネットに接続する可能性があり、拡張機能の設定とログイン情報はコピーされません。</translation>
+<translation id="1236455002425740182">Dao 移行</translation>
+<translation id="1272079795634619415">停止</translation>
 <translation id="1293177648337752319">サイトのミュートを解除</translation>
+<translation id="1349314697251468085">フォルダ内のすべてのタブを閉じ、フォルダを削除します。</translation>
+<translation id="1352298709666490484">タブを切り替え</translation>
+<translation id="1383876407941801731">検索</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">プロフィール: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">ウェブをあなたらしく</translation>
+<translation id="1530524805356937121">スクロールしてさらに読み込む</translation>
+<translation id="1566049601598938765">ウェブサイト</translation>
+<translation id="1602287703039480507">このサイトのキャッシュを削除しました</translation>
+<translation id="1637441054828003579">失敗した項目を再試行</translation>
+<translation id="1641203463264514072">ほとんどのデータを移行しました</translation>
 <translation id="1653598257495639807">QRコードの結果</translation>
+<translation id="172937028082106236">閲覧履歴から作成</translation>
+<translation id="17513872634828108">開いているタブ</translation>
 <translation id="1809939268435598390">フォルダーを削除</translation>
+<translation id="1816380826555616620">コネクタあたりの項目数: <ph name="OLD_ITEM_COUNT" /> から <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">ページ</translation>
+<translation id="1844249872546141866">ウィンドウ: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">件数を取得できません</translation>
+<translation id="1929197983938319610">移行元のブラウザは引き続き使用できます。あるデータタイプが頻繁に変更される場合、Dao はそのブラウザを閉じて該当部分のみ再試行するよう求めます。</translation>
+<translation id="1984122437277059790">プロジェクトをインポートできませんでした。パッケージを確認して、もう一度お試しください。</translation>
+<translation id="2085323698672376231">現在のプロジェクト、すべてのバージョン、ソースアクセスが完全に削除されます。この操作は元に戻せません。</translation>
+<translation id="210592584469870355">機能</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">タブを固定</translation>
+<translation id="2175927920773552910">QR コード</translation>
+<translation id="2199413402821420360">このタブを Mini Dao で開けませんでした</translation>
+<translation id="2209843794360152290">インポートした項目は既存のデータを置き換えずに統合されます。</translation>
+<translation id="2254382823755510690">インポートしたデータを Dao で使用できます。開いているタブは、必要になるまで折りたたまれたフォルダに読み込まれない状態で保持されます。</translation>
+<translation id="2348199177323591972">ページコンテンツを読み取る</translation>
+<translation id="2359808026110333948">続行</translation>
+<translation id="2398703750948514961">キャンセル済み</translation>
+<translation id="2414886740292270097">ダーク</translation>
+<translation id="243275146591958220">ダウンロードをキャンセル</translation>
+<translation id="2496180316473517155">閲覧履歴</translation>
+<translation id="251834402454969316">現在のバージョンとの差分</translation>
+<translation id="2519023533785544875">アシスタントを開く</translation>
+<translation id="2535607573648844553">保存したパスワードを復号するには、Dao に選択したブラウザの Safe Storage キーが必要です。アクセスを拒否した場合はパスワードのみスキップされ、残りの移行は続行されます。</translation>
+<translation id="2580366865845491095">このリンクを開きますか？</translation>
+<translation id="2612596415938768738">ログインが必要な場合があります</translation>
+<translation id="2698054069012763064">他 <ph name="COUNT" /> 件</translation>
 <translation id="2703180365855369896">重複したタブを閉じる</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">読み取り中</translation>
+<translation id="2820330532305477229">どこから移行しますか？</translation>
+<translation id="2882207023658691113">新しいバージョンとして復元</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> がブラウザタブを操作しています</translation>
 <translation id="2973324205039581528">サイトをミュート</translation>
+<translation id="2976307543842414852">実行</translation>
 <translation id="3007771295016901659">タブを複製</translation>
 <translation id="3062877722240966678">Dao i18n パイプライン OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">検証済みプロセス: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao は選択したソースをテストし、利用可能なものを追加します。ホームが有効な間、各ソースは以下に示すページとデータのみを読み取れます。</translation>
+<translation id="3249579521706735875">システムがダークモードのときに利用できます。</translation>
+<translation id="3356580349448036450">完了</translation>
+<translation id="3404183081987133644">停止する前にインポートされたデータは使用できます。準備ができたらいつでも別の移行を開始できます。</translation>
+<translation id="3420663750132400268">フォルダを削除しますか？</translation>
+<translation id="3427713535827228685">このサイトの拡張機能</translation>
+<translation id="3435738964857648380">セキュリティ</translation>
 <translation id="3450492919008172498">新しいタブはアーカイブされませんでした</translation>
+<translation id="3509982919032226274">Dao ホームを作成してください。まず、このパーソナルページで何を探索したいかを質問し、最初のバージョンを作成して公開してください。</translation>
 <translation id="3551320343578183772">タブを閉じる</translation>
 <translation id="3657099196021255130">Daoで開く</translation>
 <translation id="3708693288863478389">URLを入力または検索...</translation>
+<translation id="381667777775855564">Dao に追加中</translation>
 <translation id="385051799172605136">戻る</translation>
 <translation id="3891466792657071243">読み込みを停止</translation>
 <translation id="3901975710974642844">古いタブを「stale」に移動</translation>
+<translation id="3909499025801874715">限定された Dao ホームの診断情報を調査し、障害を説明して現在のプロジェクトを修復してください。修復が検証されるまで現在の実行可能なバージョンを維持し、その後、修復版を新しいバージョンとして公開してください。</translation>
+<translation id="3927932062596804919">拒否</translation>
 <translation id="3984237987235889323">適用中</translation>
+<translation id="3999659648104077867">ブラウザの操作を停止しました</translation>
+<translation id="4165986682804962316">サイトの設定</translation>
 <translation id="4201242995651540725">過去24時間非アクティブなタブをアーカイブしました</translation>
+<translation id="4221615148091761714">Dao で編集</translation>
 <translation id="4285498937028063278">固定解除</translation>
 <translation id="4322394346347055525">他のタブを閉じる</translation>
+<translation id="4332876892329258166">移行を開始</translation>
 <translation id="4380677223237520064">QRコードをデコード</translation>
+<translation id="4404136731284211429">再スキャン</translation>
+<translation id="4500440256909785690">このホームを置き換えますか？</translation>
 <translation id="4543782226216763900">サイドバーを切り替え (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AIに質問: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">移行が完了しました</translation>
+<translation id="4652266463001779298">許可されていません</translation>
+<translation id="4724836371241170775">ステップ 2/4 · 移行する項目を選択</translation>
 <translation id="473775607612524610">更新</translation>
+<translation id="481205936353439293">ステップ 3/4 · データを移行中</translation>
+<translation id="4854731374904470810">タブ ID をコピー</translation>
 <translation id="4881695831933465202">開く</translation>
+<translation id="4898928054560997780">Dao に修復を依頼</translation>
+<translation id="49041264823677952">完了したダウンロードを閉じる</translation>
+<translation id="493638356004396067">移行に失敗しました</translation>
+<translation id="4968006660055392545">この Mac では対応するブラウザ プロフィールが見つかりませんでした。</translation>
+<translation id="5004648724625831205">ローカルコピーを準備中</translation>
 <translation id="501297852093417632">キャッシュをクリア</translation>
 <translation id="5027562294707732951">拡張機能を追加</translation>
+<translation id="5126909118906525779">ライブソースに接続しますか？</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">カウント中…</translation>
+<translation id="5301255231518510089">ソースを表示するファイルを選択してください。</translation>
+<translation id="5308380583665731573">接続</translation>
+<translation id="5322475253112112619">許可すると、JavaScript の実行を含め、現在のログイン状態でウェブサイトを読み取り、操作できます。</translation>
+<translation id="5334844597069022743">ソースを表示</translation>
+<translation id="5400726083793179041">選択したプロジェクトの状態が新しいバージョンとして公開されます。既存の履歴は引き続き利用できます。</translation>
+<translation id="5436835454512450295">インポートしたブラウザデータ</translation>
 <translation id="5450299006531484229">上のタブを閉じる</translation>
 <translation id="5538307496474303926">クリア中...</translation>
 <translation id="5556459405103347317">再読み込み</translation>
 <translation id="5611474372949142946">下のタブを閉じる</translation>
+<translation id="5649936378931470828">アシスタントを開く（<ph name="SHORTCUT" />）</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">保存したパスワード</translation>
+<translation id="5871520043546374642">移行を停止しました</translation>
+<translation id="5873058639175438941">システムがダークモードのとき、自動ダークモードでウェブサイトを暗くします。</translation>
+<translation id="5874739091759960360">dao://home が有効な間のみ</translation>
+<translation id="591645459245805338">あなたが大切にしていることに合わせて Dao が作り上げる、プライベートで生きたページを作成します。</translation>
+<translation id="5942499955694738574">ホームをリセットできませんでした。現在のプロジェクトは変更されていません。もう一度お試しください。</translation>
 <translation id="5953452567010839148">QRコードが見つかりません</translation>
+<translation id="6018824944448456809">ステップ 1/4 · 移行元を選択</translation>
+<translation id="6040143037577758943">閉じる</translation>
+<translation id="6042308850641462728">その他</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">結果データ: 最大 <ph name="BYTE_COUNT" /> バイト</translation>
+<translation id="6204195547326023850">ホームを読み込んでいます…</translation>
+<translation id="6266039999629596120">要対応</translation>
+<translation id="6270944267518310103">待機中</translation>
+<translation id="6299569859560607348">このホームは外部ページを開こうとしています。続行する前に移動先を確認してください。</translation>
+<translation id="6325047129563993580">最近の閲覧テーマから Dao ホームを作成してください。プライバシーを最小化したホーム履歴の素材のみを使用し、方針を簡潔に説明してから、最初のバージョンを作成して公開してください。</translation>
+<translation id="642671119120438272">インポートしたタブ</translation>
+<translation id="648743804821442565">ローカル自動化クライアントがこの Dao ウィンドウへのアクセスをリクエストしています。</translation>
+<translation id="6527303717912515753">共有</translation>
+<translation id="6586201961110912838">このバージョンを復元</translation>
+<translation id="6601997535892446436">この Mac 上のブラウザ プロフィールを選択してください。各プロフィールは個別に表示されるため、移行する内容を管理できます。</translation>
 <translation id="6736243959894955139">アドレス</translation>
+<translation id="6764328036096492220">書き込みアクセス</translation>
+<translation id="677387175345781299">プロジェクト ファイル</translation>
+<translation id="6786747875388722282">拡張機能</translation>
+<translation id="6801297003382412689">リソース制限</translation>
 <translation id="6829876854799051628">クッキーをクリア</translation>
+<translation id="6832689803248022656">何を移行しますか？</translation>
+<translation id="684699560760227351">ホームをリセット</translation>
 <translation id="6896758677409633944">コピー</translation>
+<translation id="6940497786570685033">シークレット モードで閲覧しています。すべてのシークレット ウィンドウを閉じると、Dao は閲覧履歴、Cookie、サイトデータを保存しません。ダウンロードとブックマークは保存されます。</translation>
+<translation id="6963772203726867701">検出されませんでした</translation>
+<translation id="6971377058826420967">Dao で作成</translation>
+<translation id="7020790421915196218">完了したカテゴリは使用できます。対応が必要な部分のみ再試行できます。</translation>
+<translation id="7401173814860935855">このサイトの Cookie を削除しました</translation>
+<translation id="7465855397028934440">ブラウザ プロフィールを検索しています…</translation>
+<translation id="750760654246049420">別の自動化クライアントがこのブラウザを操作しています</translation>
 <translation id="7532108947552493901">アップデートを確認...</translation>
+<translation id="7533550325431812">この接続を許可</translation>
 <translation id="7604253494819481181">サイドバーを切り替えるには<ph name="SHORTCUT" />をもう一度押してください</translation>
+<translation id="7615777614791709701">ホームをリセットしますか？</translation>
+<translation id="7626429522809774043">ブラウザの操作を許可しますか？</translation>
+<translation id="7636812263792427733">ダークモードを強制</translation>
+<translation id="7658239707568436148">キャンセル</translation>
+<translation id="7714812312719848690">プロジェクトは安全に保存されています。再試行するか、バージョンを復元するか、Dao に修復を依頼してください。</translation>
 <translation id="7717845620320228976">アップデートを確認</translation>
+<translation id="7803931104677504532">表示スタイルを読み取る</translation>
+<translation id="7974106569409739809">フォルダ解除</translation>
+<translation id="7995663841236651667">ブラウザデータはこの Mac 上でローカルに処理されます。</translation>
+<translation id="8028081981001403222">プロジェクトをインポート</translation>
+<translation id="8041968312565730454">移行元のブラウザ</translation>
+<translation id="8052762370740257987">プロジェクトをエクスポート</translation>
+<translation id="8097718730266959883">利用不可</translation>
+<translation id="81044950628177848">現在のバージョン</translation>
+<translation id="8131740175452115882">確認</translation>
 <translation id="8137559199583651773">拡張機能を管理</translation>
+<translation id="8138892305328483863">Dao はインポートした項目を既存のデータと統合します。既存のデータが置き換えられることはありません。</translation>
+<translation id="8175534235396780357">AI 操作の詳細</translation>
+<translation id="8237260373784588552">ホームの操作</translation>
+<translation id="824895471210913946">対象: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">削除</translation>
+<translation id="831684326378391082">ライブソースなしで続行</translation>
+<translation id="8349478524212888083">インポートしたプロジェクトは新しいバージョンになります。ソースアクセスは再度承認するまで切断されたままです。</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> に接続</translation>
+<translation id="8549865052695885354">バージョン履歴</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> 戻る</translation>
+<translation id="8595238918901827309">このバージョンを復元しますか？</translation>
+<translation id="8668072977518790485">タブ ID をコピーしました</translation>
+<translation id="8684229942427488970">サイトセンター</translation>
 <translation id="8717864919010420084">リンクをコピー</translation>
+<translation id="8725066075913043281">再試行</translation>
+<translation id="8774154357663601701">ホームが有効な間、このソースは承認されたページのみを読み取れます。</translation>
+<translation id="8781013843394828812">これらの項目を再試行してください</translation>
+<translation id="8787633576358327637">macOS キーチェーンの確認画面が表示される場合があります</translation>
+<translation id="8820817407110198400">ブックマーク</translation>
+<translation id="8826852601577125903">結果データ: <ph name="OLD_BYTE_COUNT" /> バイトから <ph name="NEW_BYTE_COUNT" /> バイト</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> 件の候補</translation>
+<translation id="8899040626072079337">データを Dao に移行しています</translation>
+<translation id="8962539151725780858">操作中のタブ: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">最新の MCP 呼び出し: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">コネクタあたりの項目数: 最大 <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">非アクティブなタブをアーカイブしました</translation>
+<translation id="9186557253975059599">申告されたクライアント: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">サイドバーを切り替え</translation>
+<translation id="9205549548211212895">移行を停止</translation>
+<translation id="932327136139879170">ホーム</translation>
+<translation id="932413031402847895">ブラウザデータをインポート</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">選択した項目に接続</translation>
+<translation id="949725615797318423">拡張機能は公式ストアから再インストールされます</translation>
+<translation id="962181630102348889">ホームを表示できませんでした</translation>
 </translationbundle>

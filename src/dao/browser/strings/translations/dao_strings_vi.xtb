@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="vi">
+<translation id="1111094358966140566">So sánh phiên bản</translation>
 <translation id="1173894706177603556">Đổi tên</translation>
+<translation id="1182228621215085947">Hỏi Dao</translation>
+<translation id="121570799358042869">Dữ liệu trình duyệt của bạn vẫn ở trên máy Mac này. Cài đặt lại các tiện ích tương thích là bước duy nhất có thể kết nối Internet; cài đặt tiện ích và thông tin đăng nhập sẽ không được sao chép.</translation>
+<translation id="1236455002425740182">Chuyển sang Dao</translation>
+<translation id="1272079795634619415">Dừng</translation>
 <translation id="1293177648337752319">Bật tiếng Trang</translation>
+<translation id="1349314697251468085">Thao tác này sẽ đóng tất cả thẻ trong thư mục và xóa thư mục.</translation>
+<translation id="1352298709666490484">Chuyển thẻ</translation>
+<translation id="1383876407941801731">Tìm kiếm</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Hồ sơ: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Biến web thành của riêng bạn</translation>
+<translation id="1530524805356937121">Cuộn để tải thêm</translation>
+<translation id="1566049601598938765">Trang web</translation>
+<translation id="1602287703039480507">Đã xóa bộ nhớ đệm cho trang web này</translation>
+<translation id="1637441054828003579">Thử lại các mục thất bại</translation>
+<translation id="1641203463264514072">Hầu hết dữ liệu của bạn đã sẵn sàng</translation>
 <translation id="1653598257495639807">Kết quả Mã QR</translation>
+<translation id="172937028082106236">Tạo từ lịch sử duyệt web của tôi</translation>
+<translation id="17513872634828108">Thẻ đang mở</translation>
 <translation id="1809939268435598390">Xóa thư mục</translation>
+<translation id="1816380826555616620">Mục mỗi trình kết nối: từ <ph name="OLD_ITEM_COUNT" /> đến <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Trang</translation>
+<translation id="1844249872546141866">Cửa sổ: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Không có số lượng</translation>
+<translation id="1929197983938319610">Bạn có thể tiếp tục sử dụng trình duyệt nguồn. Nếu một loại dữ liệu liên tục thay đổi, Dao sẽ yêu cầu bạn đóng trình duyệt đó và chỉ thử lại phần đó.</translation>
+<translation id="1984122437277059790">Không thể nhập dự án. Kiểm tra gói và thử lại.</translation>
+<translation id="2085323698672376231">Thao tác này sẽ xóa vĩnh viễn dự án hiện tại, tất cả phiên bản và quyền truy cập nguồn. Không thể hoàn tác.</translation>
+<translation id="210592584469870355">Khả năng</translation>
+<translation id="2109761659519935228">Dao Mini</translation>
 <translation id="21133533946938348">Ghim thẻ</translation>
+<translation id="2175927920773552910">Mã QR</translation>
+<translation id="2199413402821420360">Không thể mở thẻ này trong Dao Mini</translation>
+<translation id="2209843794360152290">Các mục đã nhập được hợp nhất mà không thay thế dữ liệu hiện có.</translation>
+<translation id="2254382823755510690">Dữ liệu đã nhập của bạn đã sẵn sàng trong Dao. Các thẻ đang mở được giữ ở trạng thái chưa tải trong một thư mục thu gọn cho đến khi bạn cần chúng.</translation>
+<translation id="2348199177323591972">Đọc nội dung trang</translation>
+<translation id="2359808026110333948">Tiếp tục</translation>
+<translation id="2398703750948514961">Đã hủy</translation>
+<translation id="2414886740292270097">Tối</translation>
+<translation id="243275146591958220">Hủy tải xuống</translation>
+<translation id="2496180316473517155">Lịch sử duyệt web</translation>
+<translation id="251834402454969316">Thay đổi so với phiên bản hiện tại</translation>
+<translation id="2519023533785544875">Mở Trợ lý</translation>
+<translation id="2535607573648844553">Dao cần khóa Safe Storage của trình duyệt đã chọn để giải mã mật khẩu đã lưu. Nếu bạn từ chối quyền truy cập, chỉ mật khẩu bị bỏ qua và quá trình chuyển dữ liệu còn lại vẫn tiếp tục.</translation>
+<translation id="2580366865845491095">Mở liên kết này?</translation>
+<translation id="2612596415938768738">Có thể yêu cầu bạn đăng nhập</translation>
+<translation id="2698054069012763064">Thêm <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Đóng các tab trùng lặp</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Đang đọc</translation>
+<translation id="2820330532305477229">Bạn đang chuyển từ đâu?</translation>
+<translation id="2882207023658691113">Khôi phục thành phiên bản mới</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> đang điều khiển các thẻ trình duyệt</translation>
 <translation id="2973324205039581528">Tắt tiếng Trang</translation>
+<translation id="2976307543842414852">Chạy</translation>
 <translation id="3007771295016901659">Nhân bản Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Quy trình đã xác minh: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao sẽ kiểm tra các nguồn đã chọn và thêm những nguồn hoạt động. Mỗi nguồn chỉ có thể đọc các trang và dữ liệu hiển thị bên dưới khi Trang chủ hoạt động.</translation>
+<translation id="3249579521706735875">Khả dụng khi hệ thống ở chế độ tối.</translation>
+<translation id="3356580349448036450">Hoàn tất</translation>
+<translation id="3404183081987133644">Dữ liệu được nhập trước khi bạn dừng đã sẵn sàng để sử dụng. Bạn có thể bắt đầu một lần chuyển dữ liệu khác bất cứ khi nào sẵn sàng.</translation>
+<translation id="3420663750132400268">Xóa thư mục?</translation>
+<translation id="3427713535827228685">Tiện ích trên trang web này</translation>
+<translation id="3435738964857648380">Bảo mật</translation>
 <translation id="3450492919008172498">Không có tab mới nào được lưu trữ</translation>
+<translation id="3509982919032226274">Tạo Dao Home của tôi. Hãy bắt đầu bằng cách hỏi tôi muốn trang cá nhân này giúp khám phá điều gì, sau đó xây dựng và xuất bản phiên bản đầu tiên.</translation>
 <translation id="3551320343578183772">Đóng thẻ</translation>
 <translation id="3657099196021255130">Mở trong Dao</translation>
 <translation id="3708693288863478389">Nhập URL hoặc tìm kiếm...</translation>
+<translation id="381667777775855564">Đang thêm vào Dao</translation>
 <translation id="385051799172605136">Quay lại</translation>
 <translation id="3891466792657071243">Dừng tải</translation>
 <translation id="3901975710974642844">Di chuyển các tab không hoạt động vào "stale"</translation>
+<translation id="3909499025801874715">Kiểm tra thông tin chẩn đoán Dao Home có giới hạn, giải thích lỗi và sửa dự án hiện tại. Giữ phiên bản có thể chạy hiện tại cho đến khi bản sửa được xác thực, sau đó xuất bản bản sửa thành phiên bản mới.</translation>
+<translation id="3927932062596804919">Từ chối</translation>
 <translation id="3984237987235889323">Đang áp dụng</translation>
+<translation id="3999659648104077867">Đã dừng điều khiển trình duyệt</translation>
+<translation id="4165986682804962316">Cài đặt trang web</translation>
 <translation id="4201242995651540725">Đã lưu trữ các tab không hoạt động trong 24 giờ qua</translation>
+<translation id="4221615148091761714">Chỉnh sửa bằng Dao</translation>
 <translation id="4285498937028063278">Bỏ ghim</translation>
 <translation id="4322394346347055525">Đóng các Tab khác</translation>
+<translation id="4332876892329258166">Bắt đầu chuyển dữ liệu</translation>
 <translation id="4380677223237520064">Giải mã mã QR</translation>
+<translation id="4404136731284211429">Quét lại</translation>
+<translation id="4500440256909785690">Thay thế Trang chủ này?</translation>
 <translation id="4543782226216763900">Chuyển đổi Thanh bên (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Hỏi AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Bạn đã chuyển xong</translation>
+<translation id="4652266463001779298">Không được phép</translation>
+<translation id="4724836371241170775">Bước 2/4 · Chọn nội dung cần chuyển</translation>
 <translation id="473775607612524610">Cập nhật</translation>
+<translation id="481205936353439293">Bước 3/4 · Đang chuyển dữ liệu</translation>
+<translation id="4854731374904470810">Sao chép mã nhận dạng thẻ</translation>
 <translation id="4881695831933465202">Mở</translation>
+<translation id="4898928054560997780">Yêu cầu Dao sửa</translation>
+<translation id="49041264823677952">Bỏ qua nội dung tải xuống đã hoàn tất</translation>
+<translation id="493638356004396067">Chuyển dữ liệu thất bại</translation>
+<translation id="4968006660055392545">Không tìm thấy hồ sơ trình duyệt được hỗ trợ nào trên máy Mac này.</translation>
+<translation id="5004648724625831205">Đang chuẩn bị bản sao cục bộ</translation>
 <translation id="501297852093417632">Xóa bộ nhớ đệm</translation>
 <translation id="5027562294707732951">Thêm tiện ích</translation>
+<translation id="5126909118906525779">Kết nối nguồn trực tiếp?</translation>
 <translation id="5192454087436290060">Trung tâm Điều khiển</translation>
+<translation id="5289912690346335931">Đang đếm…</translation>
+<translation id="5301255231518510089">Chọn một tệp để xem mã nguồn.</translation>
+<translation id="5308380583665731573">Kết nối</translation>
+<translation id="5322475253112112619">Nếu cho phép, ứng dụng này có thể đọc và tương tác với các trang web bằng thông tin đăng nhập hiện tại của bạn, kể cả bằng cách chạy JavaScript.</translation>
+<translation id="5334844597069022743">Xem nguồn</translation>
+<translation id="5400726083793179041">Trạng thái dự án đã chọn sẽ được xuất bản thành một phiên bản mới. Lịch sử hiện có vẫn khả dụng.</translation>
+<translation id="5436835454512450295">Dữ liệu trình duyệt đã nhập</translation>
 <translation id="5450299006531484229">Đóng các Tab phía trên</translation>
 <translation id="5538307496474303926">Đang xóa...</translation>
 <translation id="5556459405103347317">Tải lại</translation>
 <translation id="5611474372949142946">Đóng các Tab phía dưới</translation>
+<translation id="5649936378931470828">Mở Trợ lý (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Mật khẩu đã lưu</translation>
+<translation id="5871520043546374642">Đã dừng chuyển dữ liệu</translation>
+<translation id="5873058639175438941">Làm tối trang web bằng Chế độ tối tự động khi hệ thống ở chế độ tối.</translation>
+<translation id="5874739091759960360">Chỉ khi dao://home hoạt động</translation>
+<translation id="591645459245805338">Tạo một trang riêng tư, linh hoạt mà Dao có thể định hình theo những điều bạn quan tâm.</translation>
+<translation id="5942499955694738574">Không thể đặt lại Trang chủ. Dự án hiện tại không thay đổi. Hãy thử lại.</translation>
 <translation id="5953452567010839148">Không tìm thấy mã QR</translation>
+<translation id="6018824944448456809">Bước 1/4 · Chọn nguồn</translation>
+<translation id="6040143037577758943">Đóng</translation>
+<translation id="6042308850641462728">Thêm</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Dữ liệu kết quả: tối đa <ph name="BYTE_COUNT" /> byte</translation>
+<translation id="6204195547326023850">Đang tải Trang chủ của bạn…</translation>
+<translation id="6266039999629596120">Cần chú ý</translation>
+<translation id="6270944267518310103">Đang chờ</translation>
+<translation id="6299569859560607348">Trang chủ này muốn mở một trang bên ngoài. Hãy xem lại đích đến trước khi tiếp tục.</translation>
+<translation id="6325047129563993580">Tạo Dao Home của tôi từ các chủ đề duyệt web gần đây. Chỉ sử dụng tài liệu lịch sử Trang chủ đã giảm thiểu dữ liệu riêng tư, giải thích ngắn gọn định hướng, sau đó xây dựng và xuất bản phiên bản đầu tiên.</translation>
+<translation id="642671119120438272">Các thẻ đã nhập</translation>
+<translation id="648743804821442565">Một ứng dụng tự động hóa cục bộ đang yêu cầu quyền truy cập vào cửa sổ Dao này.</translation>
+<translation id="6527303717912515753">Chia sẻ</translation>
+<translation id="6586201961110912838">Khôi phục phiên bản này</translation>
+<translation id="6601997535892446436">Chọn một hồ sơ trình duyệt trên máy Mac này. Mỗi hồ sơ được liệt kê riêng để bạn kiểm soát nội dung được chuyển.</translation>
 <translation id="6736243959894955139">Địa chỉ</translation>
+<translation id="6764328036096492220">Quyền ghi</translation>
+<translation id="677387175345781299">Tệp dự án</translation>
+<translation id="6786747875388722282">Tiện ích</translation>
+<translation id="6801297003382412689">Giới hạn tài nguyên</translation>
 <translation id="6829876854799051628">Xóa cookie</translation>
+<translation id="6832689803248022656">Bạn muốn mang theo gì?</translation>
+<translation id="684699560760227351">Đặt lại Trang chủ</translation>
 <translation id="6896758677409633944">Sao chép</translation>
+<translation id="6940497786570685033">Bạn đang duyệt web ở chế độ Ẩn danh. Sau khi đóng tất cả cửa sổ Ẩn danh, Dao sẽ không lưu lịch sử duyệt web, cookie hoặc dữ liệu trang web của bạn. Nội dung tải xuống và dấu trang vẫn được lưu.</translation>
+<translation id="6963772203726867701">Không phát hiện</translation>
+<translation id="6971377058826420967">Tạo bằng Dao</translation>
+<translation id="7020790421915196218">Các danh mục đã hoàn tất sẵn sàng để sử dụng. Bạn chỉ có thể thử lại những phần cần chú ý.</translation>
+<translation id="7401173814860935855">Đã xóa cookie cho trang web này</translation>
+<translation id="7465855397028934440">Đang tìm hồ sơ trình duyệt…</translation>
+<translation id="750760654246049420">Một ứng dụng tự động hóa khác đang điều khiển trình duyệt này</translation>
 <translation id="7532108947552493901">Kiểm tra cập nhật...</translation>
+<translation id="7533550325431812">Cho phép kết nối này</translation>
 <translation id="7604253494819481181">Nhấn <ph name="SHORTCUT" /> lần nữa để chuyển đổi thanh bên</translation>
+<translation id="7615777614791709701">Đặt lại Trang chủ?</translation>
+<translation id="7626429522809774043">Cho phép điều khiển trình duyệt?</translation>
+<translation id="7636812263792427733">Buộc dùng chế độ tối</translation>
+<translation id="7658239707568436148">Hủy</translation>
+<translation id="7714812312719848690">Dự án của bạn vẫn an toàn. Hãy thử lại, khôi phục một phiên bản hoặc yêu cầu Dao sửa.</translation>
 <translation id="7717845620320228976">Kiểm tra cập nhật</translation>
+<translation id="7803931104677504532">Đọc kiểu trình bày</translation>
+<translation id="7974106569409739809">Bỏ thư mục</translation>
+<translation id="7995663841236651667">Dữ liệu trình duyệt của bạn được xử lý cục bộ trên máy Mac này.</translation>
+<translation id="8028081981001403222">Nhập dự án</translation>
+<translation id="8041968312565730454">Trình duyệt nguồn</translation>
+<translation id="8052762370740257987">Xuất dự án</translation>
+<translation id="8097718730266959883">không khả dụng</translation>
+<translation id="81044950628177848">Phiên bản hiện tại</translation>
+<translation id="8131740175452115882">Xác nhận</translation>
 <translation id="8137559199583651773">Quản lý tiện ích</translation>
+<translation id="8138892305328483863">Dao hợp nhất các mục đã nhập với dữ liệu hiện có của bạn. Dữ liệu hiện có sẽ không bao giờ bị thay thế.</translation>
+<translation id="8175534235396780357">Chi tiết điều khiển AI</translation>
+<translation id="8237260373784588552">Điều khiển Trang chủ</translation>
+<translation id="824895471210913946">Mục tiêu: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Xóa</translation>
+<translation id="831684326378391082">Tiếp tục không có nguồn trực tiếp</translation>
+<translation id="8349478524212888083">Dự án đã nhập sẽ trở thành một phiên bản mới. Quyền truy cập nguồn sẽ vẫn bị ngắt kết nối cho đến khi bạn phê duyệt lại.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Kết nối <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Lịch sử phiên bản</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Quay lại</translation>
+<translation id="8595238918901827309">Khôi phục phiên bản này?</translation>
+<translation id="8668072977518790485">Đã sao chép mã nhận dạng thẻ</translation>
+<translation id="8684229942427488970">Trung tâm trang web</translation>
 <translation id="8717864919010420084">Sao chép liên kết</translation>
+<translation id="8725066075913043281">Thử lại</translation>
+<translation id="8774154357663601701">Nguồn này chỉ có thể đọc các trang đã phê duyệt khi Trang chủ hoạt động.</translation>
+<translation id="8781013843394828812">Các mục này cần được thử lại</translation>
+<translation id="8787633576358327637">Lời nhắc Chuỗi khóa macOS có thể xuất hiện</translation>
+<translation id="8820817407110198400">Dấu trang</translation>
+<translation id="8826852601577125903">Dữ liệu kết quả: từ <ph name="OLD_BYTE_COUNT" /> đến <ph name="NEW_BYTE_COUNT" /> byte</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> mục</translation>
+<translation id="8899040626072079337">Đang chuyển dữ liệu vào Dao</translation>
+<translation id="8962539151725780858">Thẻ được điều khiển: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Lệnh gọi MCP gần nhất: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Mục mỗi trình kết nối: tối đa <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Đã lưu trữ các thẻ không hoạt động</translation>
+<translation id="9186557253975059599">Ứng dụng được báo cáo: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Chuyển đổi Thanh bên</translation>
+<translation id="9205549548211212895">Dừng chuyển dữ liệu</translation>
+<translation id="932327136139879170">Trang chủ</translation>
+<translation id="932413031402847895">Nhập dữ liệu trình duyệt</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Kết nối mục đã chọn</translation>
+<translation id="949725615797318423">Tiện ích được cài đặt lại từ cửa hàng chính thức</translation>
+<translation id="962181630102348889">Không thể hiển thị Trang chủ của bạn</translation>
 </translationbundle>

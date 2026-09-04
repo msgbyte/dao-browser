@@ -1,67 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="cs">
+<translation id="1111094358966140566">Porovnat verzi</translation>
 <translation id="1173894706177603556">Přejmenovat</translation>
 <translation id="1182228621215085947">Zeptejte se Daou</translation>
+<translation id="121570799358042869">Data prohlížeče zůstanou na tomto Macu. Opětovná instalace kompatibilních rozšíření je jediný krok, který se může připojit k internetu; nastavení rozšíření a přihlášení se nekopírují.</translation>
+<translation id="1236455002425740182">Migrace Dao</translation>
+<translation id="1272079795634619415">Zastavit</translation>
 <translation id="1293177648337752319">Zapnout zvuk webu</translation>
+<translation id="1349314697251468085">Tím se zavřou všechny karty ve složce a složka se odstraní.</translation>
 <translation id="1352298709666490484">Přepnout kartu</translation>
 <translation id="1383876407941801731">Hledat</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Udělejte si web po svém</translation>
+<translation id="1530524805356937121">Posouvat pro načtení dalšího obsahu</translation>
+<translation id="1566049601598938765">Web</translation>
 <translation id="1602287703039480507">Cache pro tento web byla vymazána</translation>
+<translation id="1637441054828003579">Opakovat neúspěšné položky</translation>
+<translation id="1641203463264514072">Většina vašich dat je tady</translation>
 <translation id="1653598257495639807">Výsledek QR kódu</translation>
+<translation id="172937028082106236">Vytvořit z mé historie prohlížení</translation>
+<translation id="17513872634828108">Otevřené karty</translation>
 <translation id="1809939268435598390">Smazat složku</translation>
+<translation id="1816380826555616620">Položky na konektor: z <ph name="OLD_ITEM_COUNT" /> na <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Stránka</translation>
+<translation id="1844249872546141866">Okno: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Počet není k dispozici</translation>
+<translation id="1929197983938319610">Zdrojový prohlížeč můžete dál používat. Pokud se některý typ dat stále mění, Dao vás požádá o jeho zavření a opakuje pouze tuto část.</translation>
+<translation id="1984122437277059790">Projekt se nepodařilo importovat. Zkontrolujte balíček a zkuste to znovu.</translation>
+<translation id="2085323698672376231">Tím se trvale odstraní aktuální projekt, všechny verze a přístup ke zdrojům. Tuto akci nelze vrátit zpět.</translation>
+<translation id="210592584469870355">Možnosti</translation>
 <translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Připnout kartu</translation>
 <translation id="2175927920773552910">QR kód</translation>
 <translation id="2199413402821420360">Nelze otevřít tuto kartu v Mini Dao</translation>
+<translation id="2209843794360152290">Importované položky se sloučí bez nahrazení stávajících dat.</translation>
+<translation id="2254382823755510690">Importovaná data jsou v Dao připravena. Otevřené karty zůstanou nenačtené ve sbalené složce, dokud je nebudete potřebovat.</translation>
+<translation id="2348199177323591972">Číst obsah stránky</translation>
+<translation id="2359808026110333948">Pokračovat</translation>
+<translation id="2398703750948514961">Zrušeno</translation>
 <translation id="2414886740292270097">Tmavý</translation>
 <translation id="243275146591958220">Zrušit stahování</translation>
+<translation id="2496180316473517155">Historie prohlížení</translation>
+<translation id="251834402454969316">Změny oproti aktuální verzi</translation>
+<translation id="2519023533785544875">Otevřít asistenta</translation>
+<translation id="2535607573648844553">Dao potřebuje klíč Bezpečného úložiště vybraného prohlížeče k dešifrování uložených hesel. Pokud přístup zamítnete, přeskočí se pouze hesla a zbytek migrace bude pokračovat.</translation>
+<translation id="2580366865845491095">Otevřít tento odkaz?</translation>
+<translation id="2612596415938768738">Může vyžadovat přihlášení</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> více</translation>
 <translation id="2703180365855369896">Zavřít duplicitní karty</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Čtení</translation>
+<translation id="2820330532305477229">Odkud přecházíte?</translation>
+<translation id="2882207023658691113">Obnovit jako novou verzi</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> ovládá karty prohlížeče</translation>
 <translation id="2973324205039581528">Ztlumit web</translation>
+<translation id="2976307543842414852">Spouštění</translation>
 <translation id="3007771295016901659">Duplikovat kartu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Ověřený proces: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao otestuje vybrané zdroje a přidá ty funkční. Každý zdroj může číst pouze níže zobrazené stránky a data, když je Domovská stránka aktivní.</translation>
 <translation id="3249579521706735875">Dostupné, když je systém v tmavém režimu.</translation>
+<translation id="3356580349448036450">Dokončeno</translation>
+<translation id="3404183081987133644">Data importovaná před zastavením jsou připravena k použití. Další migraci můžete spustit, kdykoli budete připraveni.</translation>
+<translation id="3420663750132400268">Odstranit složku?</translation>
 <translation id="3427713535827228685">Rozšíření na tomto webu</translation>
+<translation id="3435738964857648380">Zabezpečení</translation>
 <translation id="3450492919008172498">Žádné nové karty nebyly archivovány</translation>
+<translation id="3509982919032226274">Vytvoř mou Domovskou stránku Dao. Začni tím, že se zeptáš, co chci, aby mi tato osobní stránka pomáhala objevovat, potom vytvoř a publikuj první verzi.</translation>
 <translation id="3551320343578183772">Zavřít kartu</translation>
 <translation id="3657099196021255130">Otevřít v Dao</translation>
 <translation id="3708693288863478389">Zadejte URL nebo hledejte...</translation>
+<translation id="381667777775855564">Přidávání do Dao</translation>
 <translation id="385051799172605136">Zpět</translation>
 <translation id="3891466792657071243">Zastavit načítání</translation>
 <translation id="3901975710974642844">Přesunout neaktivní karty do "neaktivní"</translation>
+<translation id="3909499025801874715">Prozkoumej omezenou diagnostiku Domovské stránky Dao, vysvětli selhání a oprav aktuální projekt. Zachovej aktuální spustitelnou verzi, dokud nebude oprava ověřena, poté ji publikuj jako novou verzi.</translation>
+<translation id="3927932062596804919">Zamítnout</translation>
 <translation id="3984237987235889323">Používání</translation>
+<translation id="3999659648104077867">Ovládání prohlížeče zastaveno</translation>
 <translation id="4165986682804962316">Nastavení webu</translation>
 <translation id="4201242995651540725">Archivované karty neaktivní za posledních 24 hodin</translation>
+<translation id="4221615148091761714">Upravit s Dao</translation>
 <translation id="4285498937028063278">Odepnout</translation>
 <translation id="4322394346347055525">Zavřít ostatní karty</translation>
+<translation id="4332876892329258166">Spustit migraci</translation>
 <translation id="4380677223237520064">Dekódovat QR kód</translation>
+<translation id="4404136731284211429">Vyhledat znovu</translation>
+<translation id="4500440256909785690">Nahradit tuto Domovskou stránku?</translation>
 <translation id="4543782226216763900">Přepnout postranní panel (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">Zeptat se AI: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">Přesun je dokončen</translation>
+<translation id="4652266463001779298">Není povoleno</translation>
+<translation id="4724836371241170775">Krok 2 ze 4 · Vyberte, co se přesune</translation>
 <translation id="473775607612524610">Aktualizovat</translation>
+<translation id="481205936353439293">Krok 3 ze 4 · Přesun dat</translation>
+<translation id="4854731374904470810">Kopírovat ID karty</translation>
 <translation id="4881695831933465202">Otevřít</translation>
+<translation id="4898928054560997780">Požádat Dao o opravu</translation>
+<translation id="49041264823677952">Skrýt dokončené stahování</translation>
+<translation id="493638356004396067">Migrace se nezdařila</translation>
+<translation id="4968006660055392545">Na tomto Macu nebyly nalezeny žádné podporované profily prohlížečů.</translation>
+<translation id="5004648724625831205">Příprava místní kopie</translation>
 <translation id="501297852093417632">Vymazat mezipaměť</translation>
 <translation id="5027562294707732951">Přidat rozšíření</translation>
+<translation id="5126909118906525779">Připojit živé zdroje?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Počítání…</translation>
+<translation id="5301255231518510089">Vyberte soubor pro zobrazení jeho zdroje.</translation>
+<translation id="5308380583665731573">Připojit</translation>
+<translation id="5322475253112112619">Pokud jej povolíte, může číst weby a pracovat s nimi pomocí vašeho aktuálního přihlášení, včetně spouštění JavaScriptu.</translation>
+<translation id="5334844597069022743">Zobrazit zdroj</translation>
+<translation id="5400726083793179041">Vybraný stav projektu bude publikován jako nová verze. Stávající historie zůstane dostupná.</translation>
+<translation id="5436835454512450295">Importovaná data prohlížeče</translation>
 <translation id="5450299006531484229">Zavřít karty nahoře</translation>
 <translation id="5538307496474303926">Vymazávání...</translation>
 <translation id="5556459405103347317">Znovu načíst</translation>
 <translation id="5611474372949142946">Zavřít karty dole</translation>
+<translation id="5649936378931470828">Otevřít asistenta (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Uložená hesla</translation>
+<translation id="5871520043546374642">Migrace zastavena</translation>
 <translation id="5873058639175438941">Ztmavit webové stránky pomocí automatického tmavého režimu, když je systém v tmavém režimu.</translation>
+<translation id="5874739091759960360">Pouze když je aktivní dao://home</translation>
+<translation id="591645459245805338">Vytvořte soukromou živou stránku, kterou může Dao přizpůsobit tomu, co vás zajímá.</translation>
+<translation id="5942499955694738574">Domovskou stránku se nepodařilo obnovit. Aktuální projekt nebyl změněn. Zkuste to znovu.</translation>
 <translation id="5953452567010839148">Nenalezen žádný QR kód</translation>
+<translation id="6018824944448456809">Krok 1 ze 4 · Vyberte zdroj</translation>
+<translation id="6040143037577758943">Zavřít</translation>
 <translation id="6042308850641462728">Více</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Data výsledku: až <ph name="BYTE_COUNT" /> bajtů</translation>
+<translation id="6204195547326023850">Načítání Domovské stránky…</translation>
+<translation id="6266039999629596120">Vyžaduje pozornost</translation>
+<translation id="6270944267518310103">Čekání</translation>
+<translation id="6299569859560607348">Tato Domovská stránka chce otevřít externí stránku. Před pokračováním zkontrolujte cíl.</translation>
+<translation id="6325047129563993580">Vytvoř mou Domovskou stránku Dao z témat mého nedávného prohlížení. Použij pouze materiál z historie Domovské stránky s minimalizovanými údaji o soukromí, stručně vysvětli směr a potom vytvoř a publikuj první verzi.</translation>
+<translation id="642671119120438272">Importované karty</translation>
+<translation id="648743804821442565">Místní automatizační klient žádá o přístup k tomuto oknu Dao.</translation>
 <translation id="6527303717912515753">Sdílet</translation>
+<translation id="6586201961110912838">Obnovit tuto verzi</translation>
+<translation id="6601997535892446436">Vyberte profil prohlížeče na tomto Macu. Každý profil je uveden zvlášť, abyste měli kontrolu nad tím, co se přesune.</translation>
 <translation id="6736243959894955139">Adresa</translation>
+<translation id="6764328036096492220">Přístup k zápisu</translation>
+<translation id="677387175345781299">Soubory projektu</translation>
+<translation id="6786747875388722282">Rozšíření</translation>
+<translation id="6801297003382412689">Limity prostředků</translation>
 <translation id="6829876854799051628">Vymazat cookies</translation>
+<translation id="6832689803248022656">Co chcete přenést?</translation>
+<translation id="684699560760227351">Obnovit Domovskou stránku</translation>
 <translation id="6896758677409633944">Kopírovat</translation>
+<translation id="6940497786570685033">Prohlížíte v anonymním režimu. Po zavření všech anonymních oken nebude Dao uchovávat historii prohlížení, soubory cookie ani data webů. Stažené soubory a záložky zůstanou zachovány.</translation>
+<translation id="6963772203726867701">Nezjištěno</translation>
+<translation id="6971377058826420967">Vytvořit s Dao</translation>
+<translation id="7020790421915196218">Dokončené kategorie jsou připraveny k použití. Můžete opakovat pouze části, které vyžadují pozornost.</translation>
 <translation id="7401173814860935855">Cookies pro tento web byly vymazány</translation>
+<translation id="7465855397028934440">Hledání profilů prohlížečů…</translation>
+<translation id="750760654246049420">Tento prohlížeč ovládá jiný automatizační klient</translation>
 <translation id="7532108947552493901">Zkontrolovat aktualizace...</translation>
+<translation id="7533550325431812">Povolit toto připojení</translation>
 <translation id="7604253494819481181">Stiskněte <ph name="SHORTCUT" /> znovu pro přepnutí postranního panelu</translation>
+<translation id="7615777614791709701">Obnovit Domovskou stránku?</translation>
+<translation id="7626429522809774043">Povolit ovládání prohlížeče?</translation>
 <translation id="7636812263792427733">Vynutit tmavý režim</translation>
+<translation id="7658239707568436148">Zrušit</translation>
+<translation id="7714812312719848690">Váš projekt je stále v bezpečí. Zkuste to znovu, obnovte verzi nebo požádejte Dao o opravu.</translation>
 <translation id="7717845620320228976">Zkontrolovat aktualizace</translation>
+<translation id="7803931104677504532">Číst styly zobrazení</translation>
+<translation id="7974106569409739809">Zrušit složku</translation>
+<translation id="7995663841236651667">Data prohlížeče se zpracovávají místně na tomto Macu.</translation>
+<translation id="8028081981001403222">Importovat projekt</translation>
+<translation id="8041968312565730454">Zdrojový prohlížeč</translation>
+<translation id="8052762370740257987">Exportovat projekt</translation>
+<translation id="8097718730266959883">nedostupné</translation>
+<translation id="81044950628177848">Aktuální verze</translation>
+<translation id="8131740175452115882">Potvrdit</translation>
 <translation id="8137559199583651773">Spravovat rozšíření</translation>
+<translation id="8138892305328483863">Dao sloučí importované položky s tím, co již máte. Stávající data se nikdy nenahrazují.</translation>
+<translation id="8175534235396780357">Podrobnosti o ovládání AI</translation>
+<translation id="8237260373784588552">Ovládací prvky Domovské stránky</translation>
+<translation id="824895471210913946">Cíl: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Odstranit</translation>
+<translation id="831684326378391082">Pokračovat bez živých zdrojů</translation>
+<translation id="8349478524212888083">Importovaný projekt se stane novou verzí. Přístup ke zdrojům zůstane odpojený, dokud jej znovu neschválíte.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Připojit <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Historie verzí</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← Zpět</translation>
+<translation id="8595238918901827309">Obnovit tuto verzi?</translation>
+<translation id="8668072977518790485">ID karty zkopírováno</translation>
 <translation id="8684229942427488970">Centrum webu</translation>
 <translation id="8717864919010420084">Kopírovat odkaz</translation>
+<translation id="8725066075913043281">Zkusit znovu</translation>
+<translation id="8774154357663601701">Tento zdroj může číst pouze schválené stránky, když je Domovská stránka aktivní.</translation>
+<translation id="8781013843394828812">Tyto položky je třeba opakovat</translation>
+<translation id="8787633576358327637">Může se zobrazit výzva svazku klíčů macOS</translation>
+<translation id="8820817407110198400">Záložky</translation>
+<translation id="8826852601577125903">Data výsledku: z <ph name="OLD_BYTE_COUNT" /> na <ph name="NEW_BYTE_COUNT" /> bajtů</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidátů</translation>
+<translation id="8899040626072079337">Přesun dat do Dao</translation>
+<translation id="8962539151725780858">Ovládané karty: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Poslední volání MCP: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Položky na konektor: až <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Neaktivní karty archivovány</translation>
+<translation id="9186557253975059599">Nahlášený klient: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Přepnout postranní panel</translation>
+<translation id="9205549548211212895">Zastavit migraci</translation>
+<translation id="932327136139879170">Domovská stránka</translation>
+<translation id="932413031402847895">Importovat data prohlížeče</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Připojit vybrané</translation>
+<translation id="949725615797318423">Rozšíření se znovu nainstalují z jejich oficiálního obchodu</translation>
+<translation id="962181630102348889">Domovskou stránku se nepodařilo zobrazit</translation>
 </translationbundle>

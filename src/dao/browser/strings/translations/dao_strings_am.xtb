@@ -1,67 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="am">
+<translation id="1111094358966140566">ስሪት አወዳድር</translation>
 <translation id="1173894706177603556">እንደገና ስም ለውጥ</translation>
 <translation id="1182228621215085947">Dao አስተውል</translation>
+<translation id="121570799358042869">የአሳሽ ውሂብዎ በዚህ Mac ላይ ይቆያል። ተኳኋኝ ቅጥያዎችን እንደገና መጫን ከበይነመረብ ጋር ሊገናኝ የሚችለው ብቸኛው ደረጃ ነው፤ የቅጥያ ቅንብሮችና መግቢያዎች አይቀዱም።</translation>
+<translation id="1236455002425740182">Dao ፍልሰት</translation>
+<translation id="1272079795634619415">አቁም</translation>
 <translation id="1293177648337752319">ጣቢያ ከዝም አውጣ</translation>
+<translation id="1349314697251468085">ይህ በአቃፊው ውስጥ ያሉትን ሁሉንም ትሮች ይዘጋል እና አቃፊውን ይሰርዛል።</translation>
 <translation id="1352298709666490484">ትምህርት ለውጥ</translation>
 <translation id="1383876407941801731">ፈልግ</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">መገለጫ፦ <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">ድሩ የእርስዎ እንዲመስል ያድርጉ</translation>
+<translation id="1530524805356937121">ተጨማሪ ለመጫን አንሸራትት</translation>
+<translation id="1566049601598938765">ድረ-ገጽ</translation>
 <translation id="1602287703039480507">የዚህ ጣቢያ ካሽ ተጠርጎል</translation>
+<translation id="1637441054828003579">ያልተሳኩ ንጥሎችን እንደገና ሞክር</translation>
+<translation id="1641203463264514072">አብዛኛው ውሂብዎ እዚህ አለ</translation>
 <translation id="1653598257495639807">የQR ኮድ ውጤት</translation>
+<translation id="172937028082106236">ከአሰሳ ታሪኬ ፍጠር</translation>
+<translation id="17513872634828108">ክፍት ትሮች</translation>
 <translation id="1809939268435598390">ፎልደር ሰርዝ</translation>
+<translation id="1816380826555616620">ለእያንዳንዱ አገናኝ፦ <ph name="OLD_ITEM_COUNT" /> ወደ <ph name="NEW_ITEM_COUNT" /> ንጥሎች</translation>
+<translation id="1818606096021558659">ገጽ</translation>
+<translation id="1844249872546141866">መስኮት፦ <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">ቆጠራ አይገኝም</translation>
+<translation id="1929197983938319610">የምንጭ አሳሹን መጠቀምዎን መቀጠል ይችላሉ። አንድ የውሂብ አይነት መለወጡን ከቀጠለ፣ Dao እሱን እንዲዘጉ እና ያንን ክፍል ብቻ እንደገና እንዲሞክሩ ይጠይቅዎታል።</translation>
+<translation id="1984122437277059790">ፕሮጀክቱ ሊገባ አልቻለም። ጥቅሉን ያረጋግጡ እና እንደገና ይሞክሩ።</translation>
+<translation id="2085323698672376231">ይህ የአሁኑን ፕሮጀክት፣ ሁሉንም ስሪቶች እና የምንጭ መዳረሻን በቋሚነት ይሰርዛል። ይህ ሊቀለበስ አይችልም።</translation>
+<translation id="210592584469870355">ችሎታዎች</translation>
 <translation id="2109761659519935228">ትንሽ Dao</translation>
 <translation id="21133533946938348">ትር አስረ</translation>
 <translation id="2175927920773552910">QR ኮድ</translation>
 <translation id="2199413402821420360">ይህን ትምህርት በትንሽ Dao ማከፋፈል አልቻልኩም</translation>
+<translation id="2209843794360152290">የገቡ ንጥሎች ያለውን ውሂብ ሳይተኩ ይዋሃዳሉ።</translation>
+<translation id="2254382823755510690">የገባው ውሂብዎ በDao ውስጥ ዝግጁ ነው። ክፍት ትሮች እስኪፈልጓቸው ድረስ በተሰበሰበ አቃፊ ውስጥ ሳይጫኑ ይቀመጣሉ።</translation>
+<translation id="2348199177323591972">የገጽ ይዘት አንብብ</translation>
+<translation id="2359808026110333948">ቀጥል</translation>
+<translation id="2398703750948514961">ተሰርዟል</translation>
 <translation id="2414886740292270097">ጨለማ</translation>
 <translation id="243275146591958220">አውርድ ሰርዝ</translation>
+<translation id="2496180316473517155">የአሰሳ ታሪክ</translation>
+<translation id="251834402454969316">ከአሁኑ ስሪት የተለወጡ</translation>
+<translation id="2519023533785544875">ረዳትን ክፈት</translation>
+<translation id="2535607573648844553">Dao የተቀመጡ የይለፍ ቃሎችን ለመፍታት የተመረጠውን አሳሽ Safe Storage ቁልፍ ይፈልጋል። ፍቃድ ከከለከሉ፣ የይለፍ ቃሎች ብቻ ይዘለላሉ እና የተቀረው ፍልሰት ይቀጥላል።</translation>
+<translation id="2580366865845491095">ይህን አገናኝ ይክፈቱ?</translation>
+<translation id="2612596415938768738">መግባት ሊያስፈልግዎት ይችላል</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> ተጨማሪ</translation>
 <translation id="2703180365855369896">ተደጋጋሚ ትር ዝጋ</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">በማንበብ ላይ</translation>
+<translation id="2820330532305477229">ከየት እየተዘዋወሩ ነው?</translation>
+<translation id="2882207023658691113">እንደ አዲስ ስሪት መልስ</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> የአሳሽ ትሮችን እየቆጣጠረ ነው</translation>
 <translation id="2973324205039581528">ጣቢያ ዝም አል</translation>
+<translation id="2976307543842414852">ሩጫዎች</translation>
 <translation id="3007771295016901659">ቅጂ አድርግ ትምትም</translation>
 <translation id="3062877722240966678">Dao i18n ቅዳሜ እሺ</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">የተረጋገጠ ሂደት፦ <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao የተመረጡትን ምንጮች ይፈትናል እና የሚሠሩትን ያክላል። መነሻ ንቁ በሆነበት ጊዜ እያንዳንዱ ምንጭ ከታች የሚታዩትን ገጾችና ውሂብ ብቻ ማንበብ ይችላል።</translation>
 <translation id="3249579521706735875">ሲስተሙ በጨለማ ሞድ ላይ ሳለ ይገኛል።</translation>
+<translation id="3356580349448036450">ተጠናቋል</translation>
+<translation id="3404183081987133644">ከማቆምዎ በፊት የገባ ውሂብ ለአጠቃቀም ዝግጁ ነው። በተዘጋጁ ጊዜ ሌላ ፍልሰት መጀመር ይችላሉ።</translation>
+<translation id="3420663750132400268">አቃፊውን ይሰርዙ?</translation>
 <translation id="3427713535827228685">በዚህ ጣቢያ ላይ የተሰፈሩ እንደ ተሰፈሩ</translation>
+<translation id="3435738964857648380">ደህንነት</translation>
 <translation id="3450492919008172498">ምንም አዲስ ትር አልተተከምም</translation>
+<translation id="3509982919032226274">የእኔን Dao Home ፍጠር። ይህ የግል ገጽ ምን እንድመረምር እንዲረዳኝ እንደምፈልግ በመጠየቅ ጀምር፣ ከዚያ የመጀመሪያውን ስሪት ገንባና አትም።</translation>
 <translation id="3551320343578183772">ትር ዝጋ</translation>
 <translation id="3657099196021255130">በDao ክፈት</translation>
 <translation id="3708693288863478389">ዩአርኤል ወይም ፍለጋ ያስገቡ...</translation>
+<translation id="381667777775855564">ወደ Dao በመጨመር ላይ</translation>
 <translation id="385051799172605136">ተመለስ</translation>
 <translation id="3891466792657071243">መጫን አቁም</translation>
 <translation id="3901975710974642844">ያልተጠቀሙ ትር በ "ያልተጠቀሙ" ውስጥ ያንቀሳቅሱ</translation>
+<translation id="3909499025801874715">የተገደቡትን የDao Home ምርመራዎች መርምር፣ ውድቀቱን ግለጽ፣ እና የአሁኑን ፕሮጀክት ጠግን። ጥገናው እስኪረጋገጥ ድረስ የአሁኑን ሊሠራ የሚችል ስሪት አቆይ፣ ከዚያ ጥገናውን እንደ አዲስ ስሪት አትም።</translation>
+<translation id="3927932062596804919">ከልክል</translation>
 <translation id="3984237987235889323">በማደስ ላይ</translation>
+<translation id="3999659648104077867">የአሳሽ ቁጥጥር ቆሟል</translation>
 <translation id="4165986682804962316">የጣቢያ ቅንብሮች</translation>
 <translation id="4201242995651540725">ባለፈው 24 ሰዓታት ውስጥ ያልተጠቀሙ ትር ተተከሙ</translation>
+<translation id="4221615148091761714">በDao አርትዕ</translation>
 <translation id="4285498937028063278">አልቀም</translation>
 <translation id="4322394346347055525">ሌሎች ትምትሞችን ዝጋ</translation>
+<translation id="4332876892329258166">ፍልሰት ጀምር</translation>
 <translation id="4380677223237520064">QR ኮድ አንብብ</translation>
+<translation id="4404136731284211429">እንደገና ቃኝ</translation>
+<translation id="4500440256909785690">ይህን መነሻ ይተኩ?</translation>
 <translation id="4543782226216763900">አጠራ አገናኝ (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">AI አስተዋውቅ: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">ዝውውርዎ ተጠናቋል</translation>
+<translation id="4652266463001779298">አልተፈቀደም</translation>
+<translation id="4724836371241170775">ደረጃ 2 ከ4 · የሚዘዋወረውን ይምረጡ</translation>
 <translation id="473775607612524610">አዘምን</translation>
+<translation id="481205936353439293">ደረጃ 3 ከ4 · ውሂብዎን በማዘዋወር ላይ</translation>
+<translation id="4854731374904470810">የትር መታወቂያ ቅዳ</translation>
 <translation id="4881695831933465202">ክፈት</translation>
+<translation id="4898928054560997780">Dao እንዲጠግነው ጠይቅ</translation>
+<translation id="49041264823677952">የተጠናቀቀውን ውርድ አሰናብት</translation>
+<translation id="493638356004396067">ፍልሰት አልተሳካም</translation>
+<translation id="4968006660055392545">በዚህ Mac ላይ የሚደገፉ የአሳሽ መገለጫዎች አልተገኙም።</translation>
+<translation id="5004648724625831205">የአካባቢ ቅጂ በማዘጋጀት ላይ</translation>
 <translation id="501297852093417632">ካሽ አጽዳ</translation>
 <translation id="5027562294707732951">ኤክስቴንሽን አክል</translation>
+<translation id="5126909118906525779">ቀጥታ ምንጮችን ያገናኙ?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">በመቁጠር ላይ…</translation>
+<translation id="5301255231518510089">ምንጩን ለማየት ፋይል ይምረጡ።</translation>
+<translation id="5308380583665731573">አገናኝ</translation>
+<translation id="5322475253112112619">ከተፈቀደለት፣ JavaScript በማስኬድ ጨምሮ አሁን በገቡበት መለያ ድረ-ገጾችን ማንበብና መገናኘት ይችላል።</translation>
+<translation id="5334844597069022743">ምንጭ እይ</translation>
+<translation id="5400726083793179041">የተመረጠው የፕሮጀክት ሁኔታ እንደ አዲስ ስሪት ይታተማል። ያለው ታሪክ መገኘቱን ይቀጥላል።</translation>
+<translation id="5436835454512450295">የገባ የአሳሽ ውሂብ</translation>
 <translation id="5450299006531484229">ከላይ ያሉ ትምትሞችን ዝጋ</translation>
 <translation id="5538307496474303926">በመነጻጽር ላይ...</translation>
 <translation id="5556459405103347317">እንደገና ጫን</translation>
 <translation id="5611474372949142946">ከታች ያሉ ትምትሞችን ዝጋ</translation>
+<translation id="5649936378931470828">ረዳትን ክፈት (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">የተቀመጡ የይለፍ ቃሎች</translation>
+<translation id="5871520043546374642">ፍልሰት ቆሟል</translation>
 <translation id="5873058639175438941">ሲስተሙ በጨለማ ሞድ ላይ ሳለ ድህረ ገጾችን በራስ ሰልክ ጨለማ ሞድ ያስጨልም።</translation>
+<translation id="5874739091759960360">dao://home ንቁ በሆነበት ጊዜ ብቻ</translation>
+<translation id="591645459245805338">Dao ለሚያስቡት ነገር ዙሪያ ሊቀርጸው የሚችል የግል እና ተለዋዋጭ ገጽ ይፍጠሩ።</translation>
+<translation id="5942499955694738574">መነሻ ዳግም ሊጀመር አልቻለም። የአሁኑ ፕሮጀክት አልተቀየረም። እንደገና ይሞክሩ።</translation>
 <translation id="5953452567010839148">QR ኮድ አልተገኘም</translation>
+<translation id="6018824944448456809">ደረጃ 1 ከ4 · ምንጭ ይምረጡ</translation>
+<translation id="6040143037577758943">ዝጋ</translation>
 <translation id="6042308850641462728">ተጨማሪ</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">የውጤት ውሂብ፦ እስከ <ph name="BYTE_COUNT" /> ባይት</translation>
+<translation id="6204195547326023850">መነሻዎን በመጫን ላይ…</translation>
+<translation id="6266039999629596120">ትኩረት ያስፈልጋል</translation>
+<translation id="6270944267518310103">በመጠባበቅ ላይ</translation>
+<translation id="6299569859560607348">ይህ መነሻ ውጫዊ ገጽ መክፈት ይፈልጋል። ከመቀጠልዎ በፊት መድረሻውን ይመልከቱ።</translation>
+<translation id="6325047129563993580">ከቅርብ ጊዜ የአሰሳ ገጽታዎቼ የእኔን Dao Home ፍጠር። ለግላዊነት የተቀነሰውን የHome ታሪክ ቁሳቁስ ብቻ ተጠቀም፣ አቅጣጫውን በአጭሩ ግለጽ፣ ከዚያ የመጀመሪያውን ስሪት ገንባና አትም።</translation>
+<translation id="642671119120438272">የገቡ ትሮች</translation>
+<translation id="648743804821442565">የአካባቢ አውቶሜሽን ደንበኛ ይህን የDao መስኮት ለመድረስ እየጠየቀ ነው።</translation>
 <translation id="6527303717912515753">አጋራ</translation>
+<translation id="6586201961110912838">ይህን ስሪት መልስ</translation>
+<translation id="6601997535892446436">በዚህ Mac ላይ የአሳሽ መገለጫ ይምረጡ። ምን እንደሚዘዋወር እንዲቆጣጠሩ እያንዳንዱ መገለጫ ለየብቻው ተዘርዝሯል።</translation>
 <translation id="6736243959894955139">አድራሻ</translation>
+<translation id="6764328036096492220">የመጻፍ ፍቃድ</translation>
+<translation id="677387175345781299">የፕሮጀክት ፋይሎች</translation>
+<translation id="6786747875388722282">ቅጥያዎች</translation>
+<translation id="6801297003382412689">የሀብት ገደቦች</translation>
 <translation id="6829876854799051628">ኩኪዎችን አጽዳ</translation>
+<translation id="6832689803248022656">ምን ማምጣት ይፈልጋሉ?</translation>
+<translation id="684699560760227351">መነሻን ዳግም አስጀምር</translation>
 <translation id="6896758677409633944">ቅዳ</translation>
+<translation id="6940497786570685033">በድብቅ ሁነታ እየተቃኙ ነው። ሁሉንም የድብቅ መስኮቶች ከዘጉ በኋላ፣ Dao የአሰሳ ታሪክዎን፣ ኩኪዎችን ወይም የጣቢያ ውሂብን አያስቀምጥም። ውርዶችና ዕልባቶች ይቀመጣሉ።</translation>
+<translation id="6963772203726867701">አልተገኘም</translation>
+<translation id="6971377058826420967">በDao ይፍጠሩ</translation>
+<translation id="7020790421915196218">የተጠናቀቁ ምድቦች ለአጠቃቀም ዝግጁ ናቸው። ትኩረት የሚፈልጉትን ክፍሎች ብቻ እንደገና መሞከር ይችላሉ።</translation>
 <translation id="7401173814860935855">የዚህ ጣቢያ ኩኪዎች ተጠርገዋል</translation>
+<translation id="7465855397028934440">የአሳሽ መገለጫዎችን በመፈለግ ላይ…</translation>
+<translation id="750760654246049420">ሌላ የአውቶሜሽን ደንበኛ ይህን አሳሽ እየቆጣጠረ ነው</translation>
 <translation id="7532108947552493901">ለማደስ ይፈትሹ...</translation>
+<translation id="7533550325431812">ይህን ግንኙነት ፍቀድ</translation>
 <translation id="7604253494819481181">እንደገና ለማሰለፍ አጫው <ph name="SHORTCUT" /> ይጫኑ</translation>
+<translation id="7615777614791709701">መነሻን ዳግም ያስጀምሩ?</translation>
+<translation id="7626429522809774043">የአሳሽ ቁጥጥር ይፈቀድ?</translation>
 <translation id="7636812263792427733">ጨለማ ሞድ አስገድድ</translation>
+<translation id="7658239707568436148">ሰርዝ</translation>
+<translation id="7714812312719848690">ፕሮጀክትዎ አሁንም ደህና ነው። እንደገና ይሞክሩ፣ ስሪት ይመልሱ ወይም Dao እንዲጠግነው ይጠይቁ።</translation>
 <translation id="7717845620320228976">ለማደስ ይፈትሹ</translation>
+<translation id="7803931104677504532">የአቀራረብ ቅጦችን አንብብ</translation>
+<translation id="7974106569409739809">ከአቃፊ አውጣ</translation>
+<translation id="7995663841236651667">የአሳሽ ውሂብዎ በዚህ Mac ላይ በአካባቢው ይሠራል።</translation>
+<translation id="8028081981001403222">ፕሮጀክት አስመጣ</translation>
+<translation id="8041968312565730454">የምንጭ አሳሽ</translation>
+<translation id="8052762370740257987">ፕሮጀክት ላክ</translation>
+<translation id="8097718730266959883">አይገኝም</translation>
+<translation id="81044950628177848">የአሁኑ ስሪት</translation>
+<translation id="8131740175452115882">አረጋግጥ</translation>
 <translation id="8137559199583651773">ኤክስቴንሽኖችን አስተዳድር</translation>
+<translation id="8138892305328483863">Dao የገቡ ንጥሎችን አስቀድመው ካሉዎት ጋር ያዋህዳል። ያለ ውሂብ በፍጹም አይተካም።</translation>
+<translation id="8175534235396780357">የAI ቁጥጥር ዝርዝሮች</translation>
+<translation id="8237260373784588552">የመነሻ መቆጣጠሪያዎች</translation>
+<translation id="824895471210913946">ዒላማ፦ <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">ሰርዝ</translation>
+<translation id="831684326378391082">ያለ ቀጥታ ምንጮች ቀጥል</translation>
+<translation id="8349478524212888083">የገባው ፕሮጀክት አዲስ ስሪት ይሆናል። እንደገና እስኪፈቅዱት ድረስ የምንጭ መዳረሻ ተቋርጦ ይቆያል።</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> አገናኝ</translation>
+<translation id="8549865052695885354">የስሪት ታሪክ</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← ተመለስ</translation>
+<translation id="8595238918901827309">ይህን ስሪት ይመልሱ?</translation>
+<translation id="8668072977518790485">የትር መታወቂያ ተቀድቷል</translation>
 <translation id="8684229942427488970">የጣቢያ ማዕከል</translation>
 <translation id="8717864919010420084">አገናኝ ቅዳ</translation>
+<translation id="8725066075913043281">እንደገና ሞክር</translation>
+<translation id="8774154357663601701">መነሻ ንቁ በሆነበት ጊዜ ይህ ምንጭ የተፈቀዱትን ገጾች ብቻ ማንበብ ይችላል።</translation>
+<translation id="8781013843394828812">እነዚህ ንጥሎች እንደገና መሞከር ያስፈልጋቸዋል</translation>
+<translation id="8787633576358327637">የmacOS Keychain ጥያቄ ሊታይ ይችላል</translation>
+<translation id="8820817407110198400">ዕልባቶች</translation>
+<translation id="8826852601577125903">የውጤት ውሂብ፦ <ph name="OLD_BYTE_COUNT" /> ወደ <ph name="NEW_BYTE_COUNT" /> ባይት</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> ዕጩዎች</translation>
+<translation id="8899040626072079337">ውሂብዎን ወደ Dao በማዘዋወር ላይ</translation>
+<translation id="8962539151725780858">የሚቆጣጠሯቸው ትሮች፦ <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">የመጨረሻ MCP ጥሪ፦ <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">ለእያንዳንዱ አገናኝ፦ እስከ <ph name="ITEM_COUNT" /> ንጥሎች</translation>
+<translation id="9144412711146411188">የማይሰሩ ትሮች ወደ ማህደር ተወስደዋል</translation>
+<translation id="9186557253975059599">የተዘገበ ደንበኛ፦ <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">አጠራ አገናኝ</translation>
+<translation id="9205549548211212895">ፍልሰት አቁም</translation>
+<translation id="932327136139879170">መነሻ</translation>
+<translation id="932413031402847895">የአሳሽ ውሂብ አስመጣ</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">የተመረጡትን አገናኝ</translation>
+<translation id="949725615797318423">ቅጥያዎች ከይፋዊ መደብራቸው እንደገና ይጫናሉ</translation>
+<translation id="962181630102348889">መነሻዎ ሊታይ አልቻለም</translation>
 </translationbundle>

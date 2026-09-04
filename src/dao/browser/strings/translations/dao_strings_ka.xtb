@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ka">
+<translation id="1111094358966140566">ვერსიის შედარება</translation>
 <translation id="1173894706177603556">გადარქმევა</translation>
+<translation id="1182228621215085947">ჰკითხეთ Dao-ს</translation>
+<translation id="121570799358042869">თქვენი ბრაუზერის მონაცემები ამ Mac-ზე რჩება. თავსებადი გაფართოებების ხელახლა ინსტალაცია ერთადერთი ნაბიჯია, რომელმაც შეიძლება ინტერნეტთან კავშირი გამოიყენოს; გაფართოების პარამეტრები და შესვლები არ კოპირდება.</translation>
+<translation id="1236455002425740182">Dao მიგრაცია</translation>
+<translation id="1272079795634619415">შეჩერება</translation>
 <translation id="1293177648337752319">საიტის ხმამაღლა</translation>
+<translation id="1349314697251468085">ეს დახურავს საქაღალდეში არსებულ ყველა ჩანართს და წაშლის საქაღალდეს.</translation>
+<translation id="1352298709666490484">ჩანართზე გადასვლა</translation>
+<translation id="1383876407941801731">ძებნა</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">პროფილი: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">ვებსივრცე თქვენზე მოარგეთ</translation>
+<translation id="1530524805356937121">გადახვევა მეტის ჩასატვირთად</translation>
+<translation id="1566049601598938765">ვებსაიტი</translation>
+<translation id="1602287703039480507">ამ საიტისთვის ქეში გასუფთავდა</translation>
+<translation id="1637441054828003579">წარუმატებელი ერთეულების ხელახლა ცდა</translation>
+<translation id="1641203463264514072">თქვენი მონაცემების უმეტესობა აქაა</translation>
 <translation id="1653598257495639807">QR კოდის შედეგი</translation>
+<translation id="172937028082106236">ჩემი დათვალიერების ისტორიიდან შექმნა</translation>
+<translation id="17513872634828108">ღია ჩანართები</translation>
 <translation id="1809939268435598390">საქაღალდის წაშლა</translation>
+<translation id="1816380826555616620">ერთეულები თითო კონექტორზე: <ph name="OLD_ITEM_COUNT" />-დან <ph name="NEW_ITEM_COUNT" />-მდე</translation>
+<translation id="1818606096021558659">გვერდი</translation>
+<translation id="1844249872546141866">ფანჯარა: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">რაოდენობა მიუწვდომელია</translation>
+<translation id="1929197983938319610">შეგიძლიათ გააგრძელოთ საწყისი ბრაუზერის გამოყენება. თუ რომელიმე მონაცემის ტიპი განაგრძობს ცვლილებას, Dao მოგთხოვთ მის დახურვას და ხელახლა ცდას მხოლოდ იმ ნაწილისთვის.</translation>
+<translation id="1984122437277059790">პროექტის იმპორტი ვერ მოხერხდა. შეამოწმეთ პაკეტი და სცადეთ ხელახლა.</translation>
+<translation id="2085323698672376231">ეს სამუდამოდ წაშლის მიმდინარე პროექტს, ყველა ვერსიასა და წყაროს წვდომას. ამის გაუქმება შეუძლებელია.</translation>
+<translation id="210592584469870355">შესაძლებლობები</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">ჩამაგრება</translation>
+<translation id="2175927920773552910">QR კოდი</translation>
+<translation id="2199413402821420360">ამ ჩანართის Mini Dao-ში გახსნა ვერ მოხერხდა</translation>
+<translation id="2209843794360152290">იმპორტირებული ერთეულები ერთიანდება არსებული მონაცემების ჩანაცვლების გარეშე.</translation>
+<translation id="2254382823755510690">თქვენი იმპორტირებული მონაცემები მზადაა Dao-ში. ღია ჩანართები ჩატვირთვის გარეშე ინახება ჩაკეცილ საქაღალდეში, სანამ არ დაგჭირდებათ.</translation>
+<translation id="2348199177323591972">გვერდის შიგთავსის წაკითხვა</translation>
+<translation id="2359808026110333948">გაგრძელება</translation>
+<translation id="2398703750948514961">გაუქმებულია</translation>
+<translation id="2414886740292270097">მუქი</translation>
+<translation id="243275146591958220">ჩამოტვირთვის გაუქმება</translation>
+<translation id="2496180316473517155">დათვალიერების ისტორია</translation>
+<translation id="251834402454969316">ცვლილებები მიმდინარე ვერსიასთან შედარებით</translation>
+<translation id="2519023533785544875">ასისტენტის გახსნა</translation>
+<translation id="2535607573648844553">შენახული პაროლების გაშიფვრისთვის Dao-ს სჭირდება არჩეული ბრაუზერის Safe Storage გასაღები. თუ წვდომას უარყოფთ, გამოტოვებული იქნება მხოლოდ პაროლები, ხოლო მიგრაცია გაგრძელდება.</translation>
+<translation id="2580366865845491095">გაიხსნას ეს ბმული?</translation>
+<translation id="2612596415938768738">შეიძლება შესვლა დაგჭირდეთ</translation>
+<translation id="2698054069012763064">კიდევ <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">დახურვა დუბლირებული ჩანართების</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">წაკითხვა</translation>
+<translation id="2820330532305477229">საიდან გადმოდიხართ?</translation>
+<translation id="2882207023658691113">ახალ ვერსიად აღდგენა</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> მართავს ბრაუზერის ჩანართებს</translation>
 <translation id="2973324205039581528">საიტის ჩუმად</translation>
+<translation id="2976307543842414852">მუშაობს</translation>
 <translation id="3007771295016901659">ტაბის დუბლირება</translation>
 <translation id="3062877722240966678">Dao i18n pipeline კარგი</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">დადასტურებული პროცესი: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao შეამოწმებს არჩეულ წყაროებს და დაამატებს მოქმედებს. თითოეულ წყაროს შეუძლია წაიკითხოს მხოლოდ ქვემოთ ნაჩვენები გვერდები და მონაცემები, სანამ მთავარი აქტიურია.</translation>
+<translation id="3249579521706735875">ხელმისაწვდომია, როცა სისტემა მუქ რეჟიმშია.</translation>
+<translation id="3356580349448036450">დასრულებულია</translation>
+<translation id="3404183081987133644">თქვენს შეჩერებამდე იმპორტირებული მონაცემები მზადაა გამოსაყენებლად. სურვილისამებრ, ნებისმიერ დროს შეგიძლიათ დაიწყოთ სხვა მიგრაცია.</translation>
+<translation id="3420663750132400268">წაიშალოს საქაღალდე?</translation>
+<translation id="3427713535827228685">ამ საიტის გაფართოებები</translation>
+<translation id="3435738964857648380">უსაფრთხოება</translation>
 <translation id="3450492919008172498">ახალი ჩანართები არ დაარქივებულა</translation>
+<translation id="3509982919032226274">შექმენი ჩემი Dao მთავარი. დაიწყე კითხვით, რისი შესწავლაში მინდა დამეხმაროს ეს პირადი გვერდი, შემდეგ შექმენი და გამოაქვეყნე პირველი ვერსია.</translation>
 <translation id="3551320343578183772">დახურვა</translation>
 <translation id="3657099196021255130">გახსნა Dao-ში</translation>
 <translation id="3708693288863478389">მიუთითეთ URL ან მოძებნეთ...</translation>
+<translation id="381667777775855564">Dao-ში დამატება</translation>
 <translation id="385051799172605136">უკან</translation>
 <translation id="3891466792657071243">ჩატვირთვის შეჩერება</translation>
 <translation id="3901975710974642844">გადაიტანეთ ძველი ჩანართები "stale"-ში</translation>
+<translation id="3909499025801874715">შეამოწმე შეზღუდული Dao მთავარის დიაგნოსტიკა, ახსენი შეცდომა და შეაკეთე მიმდინარე პროექტი. შეინარჩუნე მიმდინარე გაშვებადი ვერსია, სანამ შეკეთება არ დადასტურდება, შემდეგ გამოაქვეყნე შეკეთება ახალ ვერსიად.</translation>
+<translation id="3927932062596804919">უარყოფა</translation>
 <translation id="3984237987235889323">მიმდინარეობს</translation>
+<translation id="3999659648104077867">ბრაუზერის მართვა შეჩერდა</translation>
+<translation id="4165986682804962316">საიტის პარამეტრები</translation>
 <translation id="4201242995651540725">დაარქივებული ჩანართები, რომლებიც ბოლო 24 საათის განმავლობაში არ იყო აქტიური</translation>
+<translation id="4221615148091761714">Dao-თი რედაქტირება</translation>
 <translation id="4285498937028063278">ამოღება</translation>
 <translation id="4322394346347055525">სხვა ტაბების დახურვა</translation>
+<translation id="4332876892329258166">მიგრაციის დაწყება</translation>
 <translation id="4380677223237520064">QR კოდის გაშიფვრა</translation>
+<translation id="4404136731284211429">ხელახლა სკანირება</translation>
+<translation id="4500440256909785690">ჩანაცვლდეს ეს მთავარი?</translation>
 <translation id="4543782226216763900">გვერდითი ზოლის გადართვა (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI-ს კითხვა: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">გადატანა დასრულებულია</translation>
+<translation id="4652266463001779298">დაუშვებელია</translation>
+<translation id="4724836371241170775">ნაბიჯი 2 / 4 · აირჩიეთ რა გადმოვა</translation>
 <translation id="473775607612524610">განახლება</translation>
+<translation id="481205936353439293">ნაბიჯი 3 / 4 · თქვენი მონაცემების გადატანა</translation>
+<translation id="4854731374904470810">ჩანართის ID-ის კოპირება</translation>
 <translation id="4881695831933465202">გახსნა</translation>
+<translation id="4898928054560997780">სთხოვეთ Dao-ს გამოსწორება</translation>
+<translation id="49041264823677952">დასრულებული ჩამოტვირთვის დახურვა</translation>
+<translation id="493638356004396067">მიგრაცია ვერ მოხერხდა</translation>
+<translation id="4968006660055392545">ამ Mac-ზე მხარდაჭერილი ბრაუზერის პროფილები ვერ მოიძებნა.</translation>
+<translation id="5004648724625831205">ლოკალური ასლის მომზადება</translation>
 <translation id="501297852093417632">ქეშის გასუფთავება</translation>
 <translation id="5027562294707732951">გაფართოების დამატება</translation>
+<translation id="5126909118906525779">დაკავშირდეს ცოცხალი წყაროები?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">დათვლა…</translation>
+<translation id="5301255231518510089">აირჩიეთ ფაილი მისი წყაროს სანახავად.</translation>
+<translation id="5308380583665731573">დაკავშირება</translation>
+<translation id="5322475253112112619">ნებართვის შემთხვევაში, მას შეუძლია წაიკითხოს ვებსაიტები და იმოქმედოს მათთან თქვენი მიმდინარე შესვლით, მათ შორის JavaScript-ის გაშვებით.</translation>
+<translation id="5334844597069022743">წყაროს ნახვა</translation>
+<translation id="5400726083793179041">არჩეული პროექტის მდგომარეობა ახალ ვერსიად გამოქვეყნდება. არსებული ისტორია ხელმისაწვდომი დარჩება.</translation>
+<translation id="5436835454512450295">იმპორტირებული ბრაუზერის მონაცემები</translation>
 <translation id="5450299006531484229">ზემოთ ტაბების დახურვა</translation>
 <translation id="5538307496474303926">გასუფთავება...</translation>
 <translation id="5556459405103347317">ხელახლა ჩატვირთვა</translation>
 <translation id="5611474372949142946">ქვემოთ ტაბების დახურვა</translation>
+<translation id="5649936378931470828">ასისტენტის გახსნა (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">შენახული პაროლები</translation>
+<translation id="5871520043546374642">მიგრაცია შეჩერდა</translation>
+<translation id="5873058639175438941">ვებსაიტები ავტომატური მუქი რეჟიმით გამუქდება, როცა სისტემა მუქ რეჟიმშია.</translation>
+<translation id="5874739091759960360">მხოლოდ სანამ dao://home აქტიურია</translation>
+<translation id="591645459245805338">შექმენით პირადი, ცოცხალი გვერდი, რომელსაც Dao თქვენს ინტერესებს მოარგებს.</translation>
+<translation id="5942499955694738574">მთავარის აღდგენა ვერ მოხერხდა. მიმდინარე პროექტი არ შეცვლილა. სცადეთ ხელახლა.</translation>
 <translation id="5953452567010839148">QR კოდი ვერ მოიძებნა</translation>
+<translation id="6018824944448456809">ნაბიჯი 1 / 4 · აირჩიეთ წყარო</translation>
+<translation id="6040143037577758943">დახურვა</translation>
+<translation id="6042308850641462728">მეტი</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">შედეგის მონაცემები: მაქსიმუმ <ph name="BYTE_COUNT" /> ბაიტი</translation>
+<translation id="6204195547326023850">თქვენი მთავარი იტვირთება…</translation>
+<translation id="6266039999629596120">ყურადღება სჭირდება</translation>
+<translation id="6270944267518310103">მოლოდინი</translation>
+<translation id="6299569859560607348">ამ მთავარს გარე გვერდის გახსნა სურს. გაგრძელებამდე შეამოწმეთ დანიშნულება.</translation>
+<translation id="6325047129563993580">შექმენი ჩემი Dao მთავარი ჩემი ბოლო დათვალიერების თემებიდან. გამოიყენე მხოლოდ კონფიდენციალურობისთვის მინიმიზებული მთავარის ისტორიის მასალა, მოკლედ ახსენი მიმართულება, შემდეგ შექმენი და გამოაქვეყნე პირველი ვერსია.</translation>
+<translation id="642671119120438272">იმპორტირებული ჩანართები</translation>
+<translation id="648743804821442565">ლოკალური ავტომატიზაციის კლიენტი ითხოვს წვდომას Dao-ს ამ ფანჯარაზე.</translation>
+<translation id="6527303717912515753">გაზიარება</translation>
+<translation id="6586201961110912838">ამ ვერსიის აღდგენა</translation>
+<translation id="6601997535892446436">აირჩიეთ ბრაუზერის პროფილი ამ Mac-ზე. თითოეული პროფილი ცალკეა ჩამოთვლილი, რათა აკონტროლოთ, რა გადმოვა.</translation>
 <translation id="6736243959894955139">მისამართი</translation>
+<translation id="6764328036096492220">ჩაწერის წვდომა</translation>
+<translation id="677387175345781299">პროექტის ფაილები</translation>
+<translation id="6786747875388722282">გაფართოებები</translation>
+<translation id="6801297003382412689">რესურსების ლიმიტები</translation>
 <translation id="6829876854799051628">ქუქების გასუფთავება</translation>
+<translation id="6832689803248022656">რის გადმოტანას ისურვებდით?</translation>
+<translation id="684699560760227351">მთავარის აღდგენა</translation>
 <translation id="6896758677409633944">კოპირება</translation>
+<translation id="6940497786570685033">თქვენ ათვალიერებთ ინკოგნიტო რეჟიმში. ყველა ინკოგნიტო ფანჯრის დახურვის შემდეგ Dao არ შეინახავს თქვენს დათვალიერების ისტორიას, ქუქი-ფაილებს ან საიტის მონაცემებს. ჩამოტვირთვები და სანიშნეები შენარჩუნდება.</translation>
+<translation id="6963772203726867701">ვერ მოიძებნა</translation>
+<translation id="6971377058826420967">Dao-თი შექმნა</translation>
+<translation id="7020790421915196218">დასრულებული კატეგორიები მზადაა გამოსაყენებლად. შეგიძლიათ ხელახლა სცადოთ მხოლოდ ის ნაწილები, რომლებსაც ყურადღება სჭირდება.</translation>
+<translation id="7401173814860935855">ამ საიტისთვის ქუქი-ფაილები გასუფთავდა</translation>
+<translation id="7465855397028934440">ბრაუზერის პროფილების ძიება…</translation>
+<translation id="750760654246049420">სხვა ავტომატიზაციის კლიენტი მართავს ამ ბრაუზერს</translation>
 <translation id="7532108947552493901">განახლების შემოწმება...</translation>
+<translation id="7533550325431812">ამ კავშირის დაშვება</translation>
 <translation id="7604253494819481181">დააჭირეთ <ph name="SHORTCUT" /> კიდევ ერთხელ გვერდითი პანელის ჩართვა/გამორთვისთვის</translation>
+<translation id="7615777614791709701">აღდგეს მთავარი?</translation>
+<translation id="7626429522809774043">მიეცეს ბრაუზერის მართვის უფლება?</translation>
+<translation id="7636812263792427733">მუქი რეჟიმის იძულება</translation>
+<translation id="7658239707568436148">გაუქმება</translation>
+<translation id="7714812312719848690">თქვენი პროექტი კვლავ უსაფრთხოდაა. სცადეთ ხელახლა, აღადგინეთ ვერსია ან სთხოვეთ Dao-ს გამოსწორება.</translation>
 <translation id="7717845620320228976">განახლების შემოწმება</translation>
+<translation id="7803931104677504532">წარმოდგენის სტილების წაკითხვა</translation>
+<translation id="7974106569409739809">საქაღალდიდან ამოღება</translation>
+<translation id="7995663841236651667">თქვენი ბრაუზერის მონაცემები ლოკალურად მუშავდება ამ Mac-ზე.</translation>
+<translation id="8028081981001403222">პროექტის იმპორტი</translation>
+<translation id="8041968312565730454">საწყისი ბრაუზერი</translation>
+<translation id="8052762370740257987">პროექტის ექსპორტი</translation>
+<translation id="8097718730266959883">მიუწვდომელია</translation>
+<translation id="81044950628177848">მიმდინარე ვერსია</translation>
+<translation id="8131740175452115882">დადასტურება</translation>
 <translation id="8137559199583651773">გაფართოებების მართვა</translation>
+<translation id="8138892305328483863">Dao იმპორტირებულ ერთეულებს აერთიანებს უკვე არსებულთან. არსებული მონაცემები არასდროს ჩანაცვლდება.</translation>
+<translation id="8175534235396780357">AI მართვის დეტალები</translation>
+<translation id="8237260373784588552">მთავარის მართვა</translation>
+<translation id="824895471210913946">სამიზნე: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">წაშლა</translation>
+<translation id="831684326378391082">გაგრძელება ცოცხალი წყაროების გარეშე</translation>
+<translation id="8349478524212888083">იმპორტირებული პროექტი ახალ ვერსიად იქცევა. წყაროს წვდომა გათიშული დარჩება, სანამ მას ხელახლა არ დაამტკიცებთ.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" />-ის დაკავშირება</translation>
+<translation id="8549865052695885354">ვერსიების ისტორია</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> უკან</translation>
+<translation id="8595238918901827309">აღდგეს ეს ვერსია?</translation>
+<translation id="8668072977518790485">ჩანართის ID დაკოპირებულია</translation>
+<translation id="8684229942427488970">საიტის ცენტრი</translation>
 <translation id="8717864919010420084">ბმულის კოპირება</translation>
+<translation id="8725066075913043281">ხელახლა ცდა</translation>
+<translation id="8774154357663601701">ამ წყაროს შეუძლია წაიკითხოს მხოლოდ დამტკიცებული გვერდები, სანამ მთავარი აქტიურია.</translation>
+<translation id="8781013843394828812">ეს ერთეულები ხელახლა უნდა სცადოთ</translation>
+<translation id="8787633576358327637">შეიძლება გამოჩნდეს macOS Keychain-ის მოთხოვნა</translation>
+<translation id="8820817407110198400">სანიშნეები</translation>
+<translation id="8826852601577125903">შედეგის მონაცემები: <ph name="OLD_BYTE_COUNT" />-დან <ph name="NEW_BYTE_COUNT" /> ბაიტამდე</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> კანდიდატი</translation>
+<translation id="8899040626072079337">თქვენი მონაცემების Dao-ში გადატანა</translation>
+<translation id="8962539151725780858">მართული ჩანართები: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">ბოლო MCP გამოძახება: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">ერთეულები თითო კონექტორზე: მაქსიმუმ <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">უმოქმედო ჩანართები დაარქივდა</translation>
+<translation id="9186557253975059599">მითითებული კლიენტი: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">გვერდითი ზოლის გადართვა</translation>
+<translation id="9205549548211212895">მიგრაციის შეჩერება</translation>
+<translation id="932327136139879170">მთავარი</translation>
+<translation id="932413031402847895">ბრაუზერის მონაცემების იმპორტი</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">არჩეულების დაკავშირება</translation>
+<translation id="949725615797318423">გაფართოებები ხელახლა ინსტალირდება მათი ოფიციალური მაღაზიიდან</translation>
+<translation id="962181630102348889">თქვენი მთავარი ვერ გამოჩნდა</translation>
 </translationbundle>

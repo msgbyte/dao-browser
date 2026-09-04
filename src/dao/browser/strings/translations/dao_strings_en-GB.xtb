@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="en-GB">
+<translation id="1111094358966140566">Compare version</translation>
 <translation id="1173894706177603556">Rename</translation>
+<translation id="1182228621215085947">Ask Dao</translation>
+<translation id="121570799358042869">Your browser data stays on this Mac. Reinstalling compatible extensions is the only step that may connect to the internet; extension settings and sign-ins are not copied.</translation>
+<translation id="1236455002425740182">Dao Migration</translation>
+<translation id="1272079795634619415">Stop</translation>
 <translation id="1293177648337752319">Unmute Site</translation>
+<translation id="1349314697251468085">This will close all tabs in the folder and delete the folder.</translation>
+<translation id="1352298709666490484">Switch Tab</translation>
+<translation id="1383876407941801731">Search</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profile: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Make the web feel like yours</translation>
+<translation id="1530524805356937121">Scroll to load more</translation>
+<translation id="1566049601598938765">Website</translation>
+<translation id="1602287703039480507">Cache cleared for this site</translation>
+<translation id="1637441054828003579">Retry failed items</translation>
+<translation id="1641203463264514072">Most of your data is here</translation>
 <translation id="1653598257495639807">QR Code Result</translation>
+<translation id="172937028082106236">Create from my browsing history</translation>
+<translation id="17513872634828108">Open tabs</translation>
 <translation id="1809939268435598390">Delete Folder</translation>
+<translation id="1816380826555616620">Items per connector: <ph name="OLD_ITEM_COUNT" /> to <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Page</translation>
+<translation id="1844249872546141866">Window: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Count unavailable</translation>
+<translation id="1929197983938319610">You can keep using the source browser. If one data type keeps changing, Dao will ask you to close it and retry only that part.</translation>
+<translation id="1984122437277059790">The project could not be imported. Check the package and try again.</translation>
+<translation id="2085323698672376231">This permanently deletes the current project, all versions, and source access. This cannot be undone.</translation>
+<translation id="210592584469870355">Capabilities</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Pin Tab</translation>
+<translation id="2175927920773552910">QR Code</translation>
+<translation id="2199413402821420360">Could not open this tab in Mini Dao</translation>
+<translation id="2209843794360152290">Imported items are merged without replacing existing data.</translation>
+<translation id="2254382823755510690">Your imported data is ready in Dao. Open tabs are kept unloaded in a collapsed folder until you need them.</translation>
+<translation id="2348199177323591972">Read page content</translation>
+<translation id="2359808026110333948">Continue</translation>
+<translation id="2398703750948514961">Cancelled</translation>
+<translation id="2414886740292270097">Dark</translation>
+<translation id="243275146591958220">Cancel download</translation>
+<translation id="2496180316473517155">Browsing history</translation>
+<translation id="251834402454969316">Changes to current version</translation>
+<translation id="2519023533785544875">Open Assistant</translation>
+<translation id="2535607573648844553">Dao needs the selected browser’s Safe Storage key to decrypt saved passwords. If you deny access, only passwords are skipped and the rest of the migration continues.</translation>
+<translation id="2580366865845491095">Open this link?</translation>
+<translation id="2612596415938768738">May require you to be signed in</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> more</translation>
 <translation id="2703180365855369896">Close Duplicate Tabs</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Reading</translation>
+<translation id="2820330532305477229">Where are you moving from?</translation>
+<translation id="2882207023658691113">Restore as a new version</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> is controlling browser tabs</translation>
 <translation id="2973324205039581528">Mute Site</translation>
+<translation id="2976307543842414852">Runs</translation>
 <translation id="3007771295016901659">Duplicate Tab</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Verified process: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao will test the selected sources and add the ones that work. Each source can read only the pages and data shown below while Home is active.</translation>
+<translation id="3249579521706735875">Available when the system is in dark mode.</translation>
+<translation id="3356580349448036450">Complete</translation>
+<translation id="3404183081987133644">Data imported before you stopped is ready to use. You can start another migration whenever you’re ready.</translation>
+<translation id="3420663750132400268">Delete folder?</translation>
+<translation id="3427713535827228685">Extensions on this site</translation>
+<translation id="3435738964857648380">Security</translation>
 <translation id="3450492919008172498">No new tabs were archived</translation>
+<translation id="3509982919032226274">Create my Dao Home. Start by asking what I want this personal page to help me explore, then build and publish the first version.</translation>
 <translation id="3551320343578183772">Close Tab</translation>
 <translation id="3657099196021255130">Open in Dao</translation>
 <translation id="3708693288863478389">Type a URL or search...</translation>
+<translation id="381667777775855564">Adding to Dao</translation>
 <translation id="385051799172605136">Back</translation>
 <translation id="3891466792657071243">Stop Loading</translation>
 <translation id="3901975710974642844">Move Stale Tabs to "stale"</translation>
+<translation id="3909499025801874715">Inspect the bounded Dao Home diagnostics, explain the failure, and repair the current project. Keep the current runnable version until the repair validates, then publish the repair as a new version.</translation>
+<translation id="3927932062596804919">Deny</translation>
 <translation id="3984237987235889323">Applying</translation>
+<translation id="3999659648104077867">Browser control stopped</translation>
+<translation id="4165986682804962316">Site settings</translation>
 <translation id="4201242995651540725">Archived tabs inactive for the past 24 hours</translation>
+<translation id="4221615148091761714">Edit with Dao</translation>
 <translation id="4285498937028063278">Unpin</translation>
 <translation id="4322394346347055525">Close Other Tabs</translation>
+<translation id="4332876892329258166">Start migration</translation>
 <translation id="4380677223237520064">Decode QR Code</translation>
+<translation id="4404136731284211429">Scan again</translation>
+<translation id="4500440256909785690">Replace this Home?</translation>
 <translation id="4543782226216763900">Toggle Sidebar (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Ask AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Your move is complete</translation>
+<translation id="4652266463001779298">Not allowed</translation>
+<translation id="4724836371241170775">Step 2 of 4 · Choose what moves</translation>
 <translation id="473775607612524610">Update</translation>
+<translation id="481205936353439293">Step 3 of 4 · Moving your data</translation>
+<translation id="4854731374904470810">Copy Tab ID</translation>
 <translation id="4881695831933465202">Open</translation>
+<translation id="4898928054560997780">Ask Dao to fix</translation>
+<translation id="49041264823677952">Dismiss completed download</translation>
+<translation id="493638356004396067">Migration failed</translation>
+<translation id="4968006660055392545">No supported browser profiles were found on this Mac.</translation>
+<translation id="5004648724625831205">Preparing a local copy</translation>
 <translation id="501297852093417632">Clear Cache</translation>
 <translation id="5027562294707732951">Add extension</translation>
+<translation id="5126909118906525779">Connect live sources?</translation>
 <translation id="5192454087436290060">Control Centre</translation>
+<translation id="5289912690346335931">Counting…</translation>
+<translation id="5301255231518510089">Select a file to view its source.</translation>
+<translation id="5308380583665731573">Connect</translation>
+<translation id="5322475253112112619">If allowed, it can read and interact with websites using your current login, including by running JavaScript.</translation>
+<translation id="5334844597069022743">View source</translation>
+<translation id="5400726083793179041">The selected project state will be published as a new version. Existing history will remain available.</translation>
+<translation id="5436835454512450295">Imported browser data</translation>
 <translation id="5450299006531484229">Close Tabs Above</translation>
 <translation id="5538307496474303926">Clearing...</translation>
 <translation id="5556459405103347317">Reload</translation>
 <translation id="5611474372949142946">Close Tabs Below</translation>
+<translation id="5649936378931470828">Open Assistant (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Saved passwords</translation>
+<translation id="5871520043546374642">Migration stopped</translation>
+<translation id="5873058639175438941">Darken websites with Auto Dark Mode while the system is in dark mode.</translation>
+<translation id="5874739091759960360">Only while dao://home is active</translation>
+<translation id="591645459245805338">Create a private, living page that Dao can shape around what you care about.</translation>
+<translation id="5942499955694738574">Home could not be reset. The current project was not changed. Try again.</translation>
 <translation id="5953452567010839148">No QR code found</translation>
+<translation id="6018824944448456809">Step 1 of 4 · Choose a source</translation>
+<translation id="6040143037577758943">Close</translation>
+<translation id="6042308850641462728">More</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Result data: up to <ph name="BYTE_COUNT" /> bytes</translation>
+<translation id="6204195547326023850">Loading your Home…</translation>
+<translation id="6266039999629596120">Needs attention</translation>
+<translation id="6270944267518310103">Waiting</translation>
+<translation id="6299569859560607348">This Home wants to open an external page. Review the destination before continuing.</translation>
+<translation id="6325047129563993580">Create my Dao Home from my recent browsing themes. Use only the privacy-minimised Home history material, explain the direction briefly, then build and publish the first version.</translation>
+<translation id="642671119120438272">Imported tabs</translation>
+<translation id="648743804821442565">A local automation client is requesting access to this Dao window.</translation>
+<translation id="6527303717912515753">Share</translation>
+<translation id="6586201961110912838">Restore this version</translation>
+<translation id="6601997535892446436">Choose a browser profile on this Mac. Each profile is listed separately so you stay in control of what moves.</translation>
 <translation id="6736243959894955139">Address</translation>
+<translation id="6764328036096492220">Write access</translation>
+<translation id="677387175345781299">Project files</translation>
+<translation id="6786747875388722282">Extensions</translation>
+<translation id="6801297003382412689">Resource limits</translation>
 <translation id="6829876854799051628">Clear Cookies</translation>
+<translation id="6832689803248022656">What would you like to bring?</translation>
+<translation id="684699560760227351">Reset Home</translation>
 <translation id="6896758677409633944">Copy</translation>
+<translation id="6940497786570685033">You're browsing in Incognito mode. After you close all Incognito windows, Dao won't keep your browsing history, cookies, or site data. Downloads and bookmarks are kept.</translation>
+<translation id="6963772203726867701">Not detected</translation>
+<translation id="6971377058826420967">Create with Dao</translation>
+<translation id="7020790421915196218">Completed categories are ready to use. You can retry only the parts that need attention.</translation>
+<translation id="7401173814860935855">Cookies cleared for this site</translation>
+<translation id="7465855397028934440">Looking for browser profiles…</translation>
+<translation id="750760654246049420">Another automation client is controlling this browser</translation>
 <translation id="7532108947552493901">Check for Updates...</translation>
+<translation id="7533550325431812">Allow this connection</translation>
 <translation id="7604253494819481181">Press <ph name="SHORTCUT" /> again to toggle sidebar</translation>
+<translation id="7615777614791709701">Reset Home?</translation>
+<translation id="7626429522809774043">Allow browser control?</translation>
+<translation id="7636812263792427733">Force dark mode</translation>
+<translation id="7658239707568436148">Cancel</translation>
+<translation id="7714812312719848690">Your project is still safe. Retry, restore a version, or ask Dao to repair it.</translation>
 <translation id="7717845620320228976">Check for updates</translation>
+<translation id="7803931104677504532">Read presentation styles</translation>
+<translation id="7974106569409739809">Unfolder</translation>
+<translation id="7995663841236651667">Your browser data is processed locally on this Mac.</translation>
+<translation id="8028081981001403222">Import project</translation>
+<translation id="8041968312565730454">Source browser</translation>
+<translation id="8052762370740257987">Export project</translation>
+<translation id="8097718730266959883">unavailable</translation>
+<translation id="81044950628177848">Current version</translation>
+<translation id="8131740175452115882">Confirm</translation>
 <translation id="8137559199583651773">Manage extensions</translation>
+<translation id="8138892305328483863">Dao merges imported items with what you already have. Existing data is never replaced.</translation>
+<translation id="8175534235396780357">AI control details</translation>
+<translation id="8237260373784588552">Home controls</translation>
+<translation id="824895471210913946">Target: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Delete</translation>
+<translation id="831684326378391082">Continue without live sources</translation>
+<translation id="8349478524212888083">The imported project will become a new version. Source access will stay disconnected until you approve it again.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Connect <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Version history</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Back</translation>
+<translation id="8595238918901827309">Restore this version?</translation>
+<translation id="8668072977518790485">Tab ID copied</translation>
+<translation id="8684229942427488970">Site centre</translation>
 <translation id="8717864919010420084">Copy Link</translation>
+<translation id="8725066075913043281">Try again</translation>
+<translation id="8774154357663601701">This source can read only the approved pages while Home is active.</translation>
+<translation id="8781013843394828812">These items need to be retried</translation>
+<translation id="8787633576358327637">A macOS Keychain prompt may appear</translation>
+<translation id="8820817407110198400">Bookmarks</translation>
+<translation id="8826852601577125903">Result data: <ph name="OLD_BYTE_COUNT" /> to <ph name="NEW_BYTE_COUNT" /> bytes</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> candidates</translation>
+<translation id="8899040626072079337">Moving your data into Dao</translation>
+<translation id="8962539151725780858">Controlled tabs: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Latest MCP call: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Items per connector: up to <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Archived inactive tabs</translation>
+<translation id="9186557253975059599">Reported client: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Toggle Sidebar</translation>
+<translation id="9205549548211212895">Stop migration</translation>
+<translation id="932327136139879170">Home</translation>
+<translation id="932413031402847895">Import browser data</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Connect selected</translation>
+<translation id="949725615797318423">Extensions are reinstalled from their official store</translation>
+<translation id="962181630102348889">Your Home could not be displayed</translation>
 </translationbundle>

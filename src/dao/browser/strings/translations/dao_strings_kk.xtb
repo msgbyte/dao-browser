@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="kk">
+<translation id="1111094358966140566">Нұсқаны салыстыру</translation>
 <translation id="1173894706177603556">Атауын өзгерту</translation>
+<translation id="1182228621215085947">Dao-дан сұрау</translation>
+<translation id="121570799358042869">Браузер деректеріңіз осы Mac құрылғысында қалады. Үйлесімді кеңейтімдерді қайта орнату ғана интернетке қосылуы мүмкін қадам; кеңейтім параметрлері мен кірулер көшірілмейді.</translation>
+<translation id="1236455002425740182">Dao көшіру</translation>
+<translation id="1272079795634619415">Тоқтату</translation>
 <translation id="1293177648337752319">Сайтты дыбыстау</translation>
+<translation id="1349314697251468085">Бұл қалтадағы барлық қойындыларды жауып, қалтаны жояды.</translation>
+<translation id="1352298709666490484">Қойындыға ауысу</translation>
+<translation id="1383876407941801731">Іздеу</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Профиль: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Интернетті өзіңізге лайық етіңіз</translation>
+<translation id="1530524805356937121">Көбірек жүктеу үшін айналдыру</translation>
+<translation id="1566049601598938765">Веб-сайт</translation>
+<translation id="1602287703039480507">Осы сайттың кэші тазартылды</translation>
+<translation id="1637441054828003579">Сәтсіз элементтерді қайталау</translation>
+<translation id="1641203463264514072">Деректеріңіздің көп бөлігі осында</translation>
 <translation id="1653598257495639807">QR код нәтижесі</translation>
+<translation id="172937028082106236">Шолу журналымнан жасау</translation>
+<translation id="17513872634828108">Ашық қойындылар</translation>
 <translation id="1809939268435598390">Қалтаны жою</translation>
+<translation id="1816380826555616620">Әр қосқыштағы элементтер: <ph name="OLD_ITEM_COUNT" />-тан <ph name="NEW_ITEM_COUNT" />-ге дейін</translation>
+<translation id="1818606096021558659">Бет</translation>
+<translation id="1844249872546141866">Терезе: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Саны қолжетімсіз</translation>
+<translation id="1929197983938319610">Бастапқы браузерді пайдалануды жалғастыра аласыз. Бір деректер түрі үнемі өзгеріп тұрса, Dao оны жабуды және тек сол бөлікті қайталауды сұрайды.</translation>
+<translation id="1984122437277059790">Жобаны импорттау мүмкін болмады. Пакетті тексеріп, қайталап көріңіз.</translation>
+<translation id="2085323698672376231">Бұл ағымдағы жобаны, барлық нұсқаларды және көзге кіруді біржола жояды. Мұны болдырмау мүмкін емес.</translation>
+<translation id="210592584469870355">Мүмкіндіктер</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Қойындыны бекіту</translation>
+<translation id="2175927920773552910">QR коды</translation>
+<translation id="2199413402821420360">Бұл қойындыны Mini Dao ішінде ашу мүмкін болмады</translation>
+<translation id="2209843794360152290">Импортталған элементтер бар деректерді алмастырмай біріктіріледі.</translation>
+<translation id="2254382823755510690">Импортталған деректеріңіз Dao ішінде дайын. Ашық қойындылар қажет болғанша жиырылған қалтада жүктелмеген күйде сақталады.</translation>
+<translation id="2348199177323591972">Бет мазмұнын оқу</translation>
+<translation id="2359808026110333948">Жалғастыру</translation>
+<translation id="2398703750948514961">Бас тартылды</translation>
+<translation id="2414886740292270097">Қараңғы</translation>
+<translation id="243275146591958220">Жүктеп алудан бас тарту</translation>
+<translation id="2496180316473517155">Шолу журналы</translation>
+<translation id="251834402454969316">Ағымдағы нұсқамен айырмашылықтар</translation>
+<translation id="2519023533785544875">Көмекшіні ашу</translation>
+<translation id="2535607573648844553">Сақталған құпиясөздердің шифрын ашу үшін Dao-ға таңдалған браузердің Safe Storage кілті қажет. Кіруге рұқсат бермесеңіз, тек құпиясөздер өткізіліп жіберіледі, ал көшірудің қалған бөлігі жалғасады.</translation>
+<translation id="2580366865845491095">Осы сілтемені ашу керек пе?</translation>
+<translation id="2612596415938768738">Жүйеге кіру қажет болуы мүмкін</translation>
+<translation id="2698054069012763064">тағы <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Қайталау қойындыларын жабу</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Оқылуда</translation>
+<translation id="2820330532305477229">Қайдан көшіп жатырсыз?</translation>
+<translation id="2882207023658691113">Жаңа нұсқа ретінде қалпына келтіру</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> браузер қойындыларын басқарып жатыр</translation>
 <translation id="2973324205039581528">Сайтты үнсіздендіру</translation>
+<translation id="2976307543842414852">Іске қосулар</translation>
 <translation id="3007771295016901659">Қойындыны қайталау</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Расталған процесс: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao таңдалған көздерді тексеріп, жұмыс істейтіндерін қосады. Басты бет белсенді болғанда әр көз төменде көрсетілген беттер мен деректерді ғана оқи алады.</translation>
+<translation id="3249579521706735875">Жүйе қараңғы режимде болғанда қолжетімді.</translation>
+<translation id="3356580349448036450">Аяқталды</translation>
+<translation id="3404183081987133644">Тоқтатқанға дейін импортталған деректер пайдалануға дайын. Дайын болған кезіңізде басқа көшіруді бастай аласыз.</translation>
+<translation id="3420663750132400268">Қалтаны жою керек пе?</translation>
+<translation id="3427713535827228685">Осы сайттағы кеңейтімдер</translation>
+<translation id="3435738964857648380">Қауіпсіздік</translation>
 <translation id="3450492919008172498">Жаңа қойындылар архивтелген жоқ</translation>
+<translation id="3509982919032226274">Менің Dao Home бетімді жасаңыз. Алдымен осы жеке бет маған нені зерттеуге көмектескенін қалайтынымды сұраңыз, содан кейін бірінші нұсқасын жасап, жариялаңыз.</translation>
 <translation id="3551320343578183772">Қойындыны жабу</translation>
 <translation id="3657099196021255130">Dao-да ашу</translation>
 <translation id="3708693288863478389">URL немесе іздеу енгізіңіз...</translation>
+<translation id="381667777775855564">Dao-ға қосылуда</translation>
 <translation id="385051799172605136">Артқа</translation>
 <translation id="3891466792657071243">Жүктеуді тоқтату</translation>
 <translation id="3901975710974642844">"Ескірген" қойындысына ескірген қойындыларды жылжыту</translation>
+<translation id="3909499025801874715">Шектелген Dao Home диагностикасын тексеріңіз, ақауды түсіндіріп, ағымдағы жобаны жөндеңіз. Жөндеу тексерілгенше ағымдағы орындалатын нұсқаны сақтаңыз, содан кейін жөндеуді жаңа нұсқа ретінде жариялаңыз.</translation>
+<translation id="3927932062596804919">Бас тарту</translation>
 <translation id="3984237987235889323">Қолдану</translation>
+<translation id="3999659648104077867">Браузерді басқару тоқтатылды</translation>
+<translation id="4165986682804962316">Сайт параметрлері</translation>
 <translation id="4201242995651540725">Соңғы 24 сағат ішінде белсенді болмаған қойындылар архивтелді</translation>
+<translation id="4221615148091761714">Dao көмегімен өңдеу</translation>
 <translation id="4285498937028063278">Бекітуді алып тастау</translation>
 <translation id="4322394346347055525">Басқа қойындыларды жабу</translation>
+<translation id="4332876892329258166">Көшіруді бастау</translation>
 <translation id="4380677223237520064">QR кодты декодтау</translation>
+<translation id="4404136731284211429">Қайта сканерлеу</translation>
+<translation id="4500440256909785690">Осы Басты бетті ауыстыру керек пе?</translation>
 <translation id="4543782226216763900">Бүйірлік тақтаны ауыстыру (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">AI-дан сұрау: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Көшіру аяқталды</translation>
+<translation id="4652266463001779298">Рұқсат етілмеген</translation>
+<translation id="4724836371241170775">4 қадамның 2-қадамы · Ненің көшірілетінін таңдаңыз</translation>
 <translation id="473775607612524610">Жаңарту</translation>
+<translation id="481205936353439293">4 қадамның 3-қадамы · Деректеріңіз көшірілуде</translation>
+<translation id="4854731374904470810">Қойынды идентификаторын көшіру</translation>
 <translation id="4881695831933465202">Ашу</translation>
+<translation id="4898928054560997780">Dao-дан жөндеуді сұрау</translation>
+<translation id="49041264823677952">Аяқталған жүктеп алуды жабу</translation>
+<translation id="493638356004396067">Көшіру сәтсіз аяқталды</translation>
+<translation id="4968006660055392545">Осы Mac құрылғысынан қолдау көрсетілетін браузер профильдері табылмады.</translation>
+<translation id="5004648724625831205">Жергілікті көшірме дайындалуда</translation>
 <translation id="501297852093417632">Кэшті тазалау</translation>
 <translation id="5027562294707732951">Кеңейтімді қосу</translation>
+<translation id="5126909118906525779">Тікелей көздерді қосу керек пе?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Саналуда…</translation>
+<translation id="5301255231518510089">Бастапқы кодын көру үшін файлды таңдаңыз.</translation>
+<translation id="5308380583665731573">Қосу</translation>
+<translation id="5322475253112112619">Рұқсат берілсе, ол JavaScript іске қосуды қоса алғанда, ағымдағы кіру деректеріңізді пайдаланып веб-сайттарды оқи және олармен әрекеттесе алады.</translation>
+<translation id="5334844597069022743">Бастапқы кодты көру</translation>
+<translation id="5400726083793179041">Таңдалған жоба күйі жаңа нұсқа ретінде жарияланады. Бар журнал қолжетімді күйде қалады.</translation>
+<translation id="5436835454512450295">Импортталған браузер деректері</translation>
 <translation id="5450299006531484229">Жоғарыдағы қойындыларды жабу</translation>
 <translation id="5538307496474303926">Тазалау...</translation>
 <translation id="5556459405103347317">Қайта жүктеу</translation>
 <translation id="5611474372949142946">Төмендегі қойындыларды жабу</translation>
+<translation id="5649936378931470828">Көмекшіні ашу (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Сақталған құпиясөздер</translation>
+<translation id="5871520043546374642">Көшіру тоқтатылды</translation>
+<translation id="5873058639175438941">Жүйе қараңғы режимде болғанда веб-сайттарды Автоматты қараңғы режиммен күңгірттеу.</translation>
+<translation id="5874739091759960360">Тек dao://home белсенді болғанда</translation>
+<translation id="591645459245805338">Dao сіз үшін маңызды нәрселерге сай бейімдей алатын жеке, динамикалық бет жасаңыз.</translation>
+<translation id="5942499955694738574">Басты бетті қалпына келтіру мүмкін болмады. Ағымдағы жоба өзгертілмеді. Қайталап көріңіз.</translation>
 <translation id="5953452567010839148">QR код табылмады</translation>
+<translation id="6018824944448456809">4 қадамның 1-қадамы · Көзді таңдаңыз</translation>
+<translation id="6040143037577758943">Жабу</translation>
+<translation id="6042308850641462728">Қосымша</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Нәтиже деректері: <ph name="BYTE_COUNT" /> байтқа дейін</translation>
+<translation id="6204195547326023850">Басты бетіңіз жүктелуде…</translation>
+<translation id="6266039999629596120">Назар аудару қажет</translation>
+<translation id="6270944267518310103">Күтілуде</translation>
+<translation id="6299569859560607348">Бұл Басты бет сыртқы бетті ашқысы келеді. Жалғастырмас бұрын тағайындалған орынды тексеріңіз.</translation>
+<translation id="6325047129563993580">Соңғы шолу тақырыптарымнан менің Dao Home бетімді жасаңыз. Құпиялылықты барынша сақтайтын Home журналы материалын ғана пайдаланыңыз, бағытты қысқаша түсіндіріп, содан кейін бірінші нұсқасын жасап, жариялаңыз.</translation>
+<translation id="642671119120438272">Импортталған қойындылар</translation>
+<translation id="648743804821442565">Жергілікті автоматтандыру клиенті осы Dao терезесіне кіруге рұқсат сұрап жатыр.</translation>
+<translation id="6527303717912515753">Бөлісу</translation>
+<translation id="6586201961110912838">Осы нұсқаны қалпына келтіру</translation>
+<translation id="6601997535892446436">Осы Mac құрылғысындағы браузер профилін таңдаңыз. Ненің көшірілетінін өзіңіз басқару үшін әр профиль бөлек көрсетіледі.</translation>
 <translation id="6736243959894955139">Мекенжай</translation>
+<translation id="6764328036096492220">Жазу рұқсаты</translation>
+<translation id="677387175345781299">Жоба файлдары</translation>
+<translation id="6786747875388722282">Кеңейтімдер</translation>
+<translation id="6801297003382412689">Ресурс шектеулері</translation>
 <translation id="6829876854799051628">Кукилерді тазалау</translation>
+<translation id="6832689803248022656">Нені әкелгіңіз келеді?</translation>
+<translation id="684699560760227351">Басты бетті қалпына келтіру</translation>
 <translation id="6896758677409633944">Көшіру</translation>
+<translation id="6940497786570685033">Инкогнито режимінде шолып жатырсыз. Барлық инкогнито терезелерін жапқаннан кейін Dao шолу журналыңызды, cookie файлдарын немесе сайт деректерін сақтамайды. Жүктеп алынғандар мен бетбелгілер сақталады.</translation>
+<translation id="6963772203726867701">Анықталмады</translation>
+<translation id="6971377058826420967">Dao көмегімен жасау</translation>
+<translation id="7020790421915196218">Аяқталған санаттар пайдалануға дайын. Тек назар аударуды қажет ететін бөліктерді қайталап көруге болады.</translation>
+<translation id="7401173814860935855">Осы сайттың cookie файлдары тазартылды</translation>
+<translation id="7465855397028934440">Браузер профильдері ізделуде…</translation>
+<translation id="750760654246049420">Басқа автоматтандыру клиенті осы браузерді басқарып жатыр</translation>
 <translation id="7532108947552493901">Жаңартуларды тексеру...</translation>
+<translation id="7533550325431812">Осы қосылымға рұқсат беру</translation>
 <translation id="7604253494819481181">Бүйірлік тақтаны ауыстыру үшін <ph name="SHORTCUT" /> қайта басыңыз</translation>
+<translation id="7615777614791709701">Басты бетті қалпына келтіру керек пе?</translation>
+<translation id="7626429522809774043">Браузерді басқаруға рұқсат беру керек пе?</translation>
+<translation id="7636812263792427733">Қараңғы режимді мәжбүрлеу</translation>
+<translation id="7658239707568436148">Бас тарту</translation>
+<translation id="7714812312719848690">Жобаңыз әлі де қауіпсіз. Қайталап көріңіз, нұсқаны қалпына келтіріңіз немесе Dao-дан оны жөндеуді сұраңыз.</translation>
 <translation id="7717845620320228976">Жаңартуларды тексеру</translation>
+<translation id="7803931104677504532">Көрсету стильдерін оқу</translation>
+<translation id="7974106569409739809">Қалтаны тарату</translation>
+<translation id="7995663841236651667">Браузер деректеріңіз осы Mac құрылғысында жергілікті түрде өңделеді.</translation>
+<translation id="8028081981001403222">Жобаны импорттау</translation>
+<translation id="8041968312565730454">Бастапқы браузер</translation>
+<translation id="8052762370740257987">Жобаны экспорттау</translation>
+<translation id="8097718730266959883">қолжетімсіз</translation>
+<translation id="81044950628177848">Ағымдағы нұсқа</translation>
+<translation id="8131740175452115882">Растау</translation>
 <translation id="8137559199583651773">Кеңейтімдерді басқару</translation>
+<translation id="8138892305328483863">Dao импортталған элементтерді бар деректеріңізбен біріктіреді. Бар деректер ешқашан алмастырылмайды.</translation>
+<translation id="8175534235396780357">ЖИ басқару мәліметтері</translation>
+<translation id="8237260373784588552">Басты бет басқару элементтері</translation>
+<translation id="824895471210913946">Мақсат: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Жою</translation>
+<translation id="831684326378391082">Тікелей көздерсіз жалғастыру</translation>
+<translation id="8349478524212888083">Импортталған жоба жаңа нұсқаға айналады. Қайта мақұлдамайынша, көзге кіру ажыратылған күйде қалады.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> қосу</translation>
+<translation id="8549865052695885354">Нұсқалар журналы</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Артқа</translation>
+<translation id="8595238918901827309">Осы нұсқаны қалпына келтіру керек пе?</translation>
+<translation id="8668072977518790485">Қойынды идентификаторы көшірілді</translation>
+<translation id="8684229942427488970">Сайт орталығы</translation>
 <translation id="8717864919010420084">Сілтемені көшіру</translation>
+<translation id="8725066075913043281">Қайталап көру</translation>
+<translation id="8774154357663601701">Басты бет белсенді болғанда бұл көз тек мақұлданған беттерді оқи алады.</translation>
+<translation id="8781013843394828812">Бұл элементтерді қайталау қажет</translation>
+<translation id="8787633576358327637">macOS Keychain сұрауы көрсетілуі мүмкін</translation>
+<translation id="8820817407110198400">Бетбелгілер</translation>
+<translation id="8826852601577125903">Нәтиже деректері: <ph name="OLD_BYTE_COUNT" />-тан <ph name="NEW_BYTE_COUNT" /> байтқа дейін</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> үміткер</translation>
+<translation id="8899040626072079337">Деректеріңіз Dao ішіне көшірілуде</translation>
+<translation id="8962539151725780858">Басқарылатын қойындылар: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Соңғы MCP шақыруы: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Әр қосқыштағы элементтер: <ph name="ITEM_COUNT" />-ге дейін</translation>
+<translation id="9144412711146411188">Белсенді емес қойындылар мұрағатталды</translation>
+<translation id="9186557253975059599">Көрсетілген клиент: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Бүйірлік тақтаны ауыстыру</translation>
+<translation id="9205549548211212895">Көшіруді тоқтату</translation>
+<translation id="932327136139879170">Басты бет</translation>
+<translation id="932413031402847895">Браузер деректерін импорттау</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Таңдалғандарды қосу</translation>
+<translation id="949725615797318423">Кеңейтімдер ресми дүкенінен қайта орнатылады</translation>
+<translation id="962181630102348889">Басты бетіңізді көрсету мүмкін болмады</translation>
 </translationbundle>

@@ -1,67 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="be">
+<translation id="1111094358966140566">Параўнаць версію</translation>
 <translation id="1173894706177603556">Перайменаваць</translation>
 <translation id="1182228621215085947">Спытайцеся ў Dao</translation>
+<translation id="121570799358042869">Даныя вашага браўзера застаюцца на гэтым Mac. Пераўсталёўка сумяшчальных пашырэнняў — адзіны крок, які можа падключацца да інтэрнэту; налады пашырэнняў і ўваходы не капіююцца.</translation>
+<translation id="1236455002425740182">Міграцыя Dao</translation>
+<translation id="1272079795634619415">Спыніць</translation>
 <translation id="1293177648337752319">Уключыць гук на сайце</translation>
+<translation id="1349314697251468085">Гэта закрые ўсе ўкладкі ў папцы і выдаліць папку.</translation>
 <translation id="1352298709666490484">Пераключыць укладку</translation>
 <translation id="1383876407941801731">Пошук</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Профіль: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Зрабіце інтэрнэт сваім</translation>
+<translation id="1530524805356937121">Пракручваць, каб загрузіць больш</translation>
+<translation id="1566049601598938765">Вэб-сайт</translation>
 <translation id="1602287703039480507">Кэш ачышчаны для гэтага сайта</translation>
+<translation id="1637441054828003579">Паўтарыць няўдалыя элементы</translation>
+<translation id="1641203463264514072">Большасць вашых даных тут</translation>
 <translation id="1653598257495639807">Вынік QR-кода</translation>
+<translation id="172937028082106236">Стварыць з маёй гісторыі праглядаў</translation>
+<translation id="17513872634828108">Адкрытыя ўкладкі</translation>
 <translation id="1809939268435598390">Выдаліць тэчку</translation>
+<translation id="1816380826555616620">Элементаў на канектар: ад <ph name="OLD_ITEM_COUNT" /> да <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Старонка</translation>
+<translation id="1844249872546141866">Акно: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Колькасць недаступная</translation>
+<translation id="1929197983938319610">Вы можаце працягваць карыстацца зыходным браўзерам. Калі адзін тып даных пастаянна змяняецца, Dao папросіць вас закрыць яго і паўтарыць спробу толькі для гэтай часткі.</translation>
+<translation id="1984122437277059790">Не ўдалося імпартаваць праект. Праверце пакет і паспрабуйце зноў.</translation>
+<translation id="2085323698672376231">Гэта незваротна выдаляе бягучы праект, усе версіі і доступ да крыніц. Гэта дзеянне нельга адмяніць.</translation>
+<translation id="210592584469870355">Магчымасці</translation>
 <translation id="2109761659519935228">Міні Dao</translation>
 <translation id="21133533946938348">Замцаваць укладку</translation>
 <translation id="2175927920773552910">QR-код</translation>
 <translation id="2199413402821420360">Не ўдалося адкрыць гэтую ўкладку ў Міні Dao</translation>
+<translation id="2209843794360152290">Імпартаваныя элементы аб’ядноўваюцца без замены існуючых даных.</translation>
+<translation id="2254382823755510690">Імпартаваныя даныя гатовыя ў Dao. Адкрытыя ўкладкі захоўваюцца незагружанымі ў згорнутай папцы, пакуль яны вам не спатрэбяцца.</translation>
+<translation id="2348199177323591972">Чытаць змесціва старонкі</translation>
+<translation id="2359808026110333948">Працягнуць</translation>
+<translation id="2398703750948514961">Скасавана</translation>
 <translation id="2414886740292270097">Цёмны</translation>
 <translation id="243275146591958220">Адмяніць загрузку</translation>
+<translation id="2496180316473517155">Гісторыя праглядаў</translation>
+<translation id="251834402454969316">Змены ў бягучай версіі</translation>
+<translation id="2519023533785544875">Адкрыць Памочніка</translation>
+<translation id="2535607573648844553">Dao патрабуе ключ бяспечнага сховішча выбранага браўзера, каб расшыфраваць захаваныя паролі. Калі вы забароніце доступ, будуць прапушчаны толькі паролі, а астатняя міграцыя працягнецца.</translation>
+<translation id="2580366865845491095">Адкрыць гэтую спасылку?</translation>
+<translation id="2612596415938768738">Можа спатрэбіцца ўваход</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> больш</translation>
 <translation id="2703180365855369896">Закрыць дублікаты ўкладак</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Чытанне</translation>
+<translation id="2820330532305477229">Адкуль вы пераходзіце?</translation>
+<translation id="2882207023658691113">Аднавіць як новую версію</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> кіруе ўкладкамі браўзера</translation>
 <translation id="2973324205039581528">Адключыць гук на сайце</translation>
+<translation id="2976307543842414852">Запускі</translation>
 <translation id="3007771295016901659">Дубляваць укладку</translation>
 <translation id="3062877722240966678">Dao i18n pipeline Добра</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Правераны працэс: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao праверыць выбраныя крыніцы і дадасць тыя, якія працуюць. Кожная крыніца можа чытаць толькі старонкі і даныя, паказаныя ніжэй, пакуль Галоўная актыўная.</translation>
 <translation id="3249579521706735875">Даступна, калі сістэма ў цёмным рэжыме.</translation>
+<translation id="3356580349448036450">Завершана</translation>
+<translation id="3404183081987133644">Даныя, імпартаваныя да прыпынення, гатовыя да выкарыстання. Вы можаце пачаць іншую міграцыю, калі будзеце гатовыя.</translation>
+<translation id="3420663750132400268">Выдаліць папку?</translation>
 <translation id="3427713535827228685">Пашырэнні на гэтым сайце</translation>
+<translation id="3435738964857648380">Бяспека</translation>
 <translation id="3450492919008172498">Новыя ўкладкі не былі архіваваныя</translation>
+<translation id="3509982919032226274">Ствары маю Галоўную Dao. Пачні з пытання, што я хачу даследаваць з дапамогай гэтай асабістай старонкі, затым ствары і апублікуй першую версію.</translation>
 <translation id="3551320343578183772">Закрыць укладку</translation>
 <translation id="3657099196021255130">Адкрыць у Dao</translation>
 <translation id="3708693288863478389">Увядзіце URL або пошук...</translation>
+<translation id="381667777775855564">Дадаванне ў Dao</translation>
 <translation id="385051799172605136">Назад</translation>
 <translation id="3891466792657071243">Спыніць загрузку</translation>
 <translation id="3901975710974642844">Перамясціць старыя ўкладкі ў "старыя"</translation>
+<translation id="3909499025801874715">Правер абмежаваную дыягностыку Галоўнай Dao, растлумач памылку і выправі бягучы праект. Захоўвай бягучую працаздольную версію, пакуль выпраўленне не будзе праверана, затым апублікуй выпраўленне як новую версію.</translation>
+<translation id="3927932062596804919">Забараніць</translation>
 <translation id="3984237987235889323">Прымяненне</translation>
+<translation id="3999659648104077867">Кіраванне браўзерам спынена</translation>
 <translation id="4165986682804962316">Налады сайта</translation>
 <translation id="4201242995651540725">Архіваваныя ўкладкі, неактыўныя на працягу апошніх 24 гадзін</translation>
+<translation id="4221615148091761714">Рэдагаваць з Dao</translation>
 <translation id="4285498937028063278">Адмацаваць</translation>
 <translation id="4322394346347055525">Закрыць іншыя ўкладкі</translation>
+<translation id="4332876892329258166">Пачаць міграцыю</translation>
 <translation id="4380677223237520064">Расшыфраваць QR-код</translation>
+<translation id="4404136731284211429">Сканаваць зноў</translation>
+<translation id="4500440256909785690">Замяніць гэту Галоўную?</translation>
 <translation id="4543782226216763900">Пераключыць бакавую панэль (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">Спытайце AI: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">Ваш пераход завершаны</translation>
+<translation id="4652266463001779298">Не дазволена</translation>
+<translation id="4724836371241170775">Крок 2 з 4 · Выберыце, што пераносіцца</translation>
 <translation id="473775607612524610">Абнавіць</translation>
+<translation id="481205936353439293">Крок 3 з 4 · Перанос вашых даных</translation>
+<translation id="4854731374904470810">Скапіяваць ідэнтыфікатар укладкі</translation>
 <translation id="4881695831933465202">Адкрыць</translation>
+<translation id="4898928054560997780">Папрасіць Dao выправіць</translation>
+<translation id="49041264823677952">Схаваць завершаную спампоўку</translation>
+<translation id="493638356004396067">Міграцыя не ўдалася</translation>
+<translation id="4968006660055392545">На гэтым Mac не знойдзена падтрымоўваных профіляў браўзера.</translation>
+<translation id="5004648724625831205">Падрыхтоўка лакальнай копіі</translation>
 <translation id="501297852093417632">Ачысціць кэш</translation>
 <translation id="5027562294707732951">Дадаць пашырэнне</translation>
+<translation id="5126909118906525779">Падключыць жывыя крыніцы?</translation>
 <translation id="5192454087436290060">Цэнтр кіравання</translation>
+<translation id="5289912690346335931">Падлік…</translation>
+<translation id="5301255231518510089">Выберыце файл, каб прагледзець яго зыходны код.</translation>
+<translation id="5308380583665731573">Падключыць</translation>
+<translation id="5322475253112112619">Калі дазволіць, ён зможа чытаць і ўзаемадзейнічаць з вэб-сайтамі, выкарыстоўваючы ваш бягучы ўваход, у тым ліку запускаючы JavaScript.</translation>
+<translation id="5334844597069022743">Паказаць зыходны код</translation>
+<translation id="5400726083793179041">Выбраны стан праекта будзе апублікаваны як новая версія. Існуючая гісторыя застанецца даступнай.</translation>
+<translation id="5436835454512450295">Імпартаваныя даныя браўзера</translation>
 <translation id="5450299006531484229">Закрыць укладкі зверху</translation>
 <translation id="5538307496474303926">Ачыстка...</translation>
 <translation id="5556459405103347317">Перазагрузіць</translation>
 <translation id="5611474372949142946">Закрыць укладкі знізу</translation>
+<translation id="5649936378931470828">Адкрыць Памочніка (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Захаваныя паролі</translation>
+<translation id="5871520043546374642">Міграцыя спынена</translation>
 <translation id="5873058639175438941">Зацямніць сайты з аўтаматычным цёмным рэжымам, калі сістэма ў цёмным рэжыме.</translation>
+<translation id="5874739091759960360">Толькі пакуль dao://home актыўная</translation>
+<translation id="591645459245805338">Стварыце прыватную жывую старонку, якую Dao можа наладзіць пад тое, што для вас важна.</translation>
+<translation id="5942499955694738574">Не ўдалося скінуць Галоўную. Бягучы праект не быў зменены. Паспрабуйце зноў.</translation>
 <translation id="5953452567010839148">QR-код не знойдзены</translation>
+<translation id="6018824944448456809">Крок 1 з 4 · Выберыце крыніцу</translation>
+<translation id="6040143037577758943">Закрыць</translation>
 <translation id="6042308850641462728">Больш</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Даныя выніку: да <ph name="BYTE_COUNT" /> байтаў</translation>
+<translation id="6204195547326023850">Загрузка вашай Галоўнай…</translation>
+<translation id="6266039999629596120">Патрабуе ўвагі</translation>
+<translation id="6270944267518310103">Чаканне</translation>
+<translation id="6299569859560607348">Гэта Галоўная хоча адкрыць знешнюю старонку. Праверце месца прызначэння перад працягам.</translation>
+<translation id="6325047129563993580">Ствары маю Галоўную Dao на аснове маіх нядаўніх тэм прагляду. Выкарыстоўвай толькі матэрыялы гісторыі Галоўнай з мінімізацыяй прыватнасці, коратка растлумач напрамак, затым ствары і апублікуй першую версію.</translation>
+<translation id="642671119120438272">Імпартаваныя ўкладкі</translation>
+<translation id="648743804821442565">Лакальны кліент аўтаматызацыі запытвае доступ да гэтага акна Dao.</translation>
 <translation id="6527303717912515753">Падзяліцца</translation>
+<translation id="6586201961110912838">Аднавіць гэту версію</translation>
+<translation id="6601997535892446436">Выберыце профіль браўзера на гэтым Mac. Кожны профіль пазначаны асобна, каб вы маглі кантраляваць тое, што пераносіцца.</translation>
 <translation id="6736243959894955139">Адрас</translation>
+<translation id="6764328036096492220">Доступ на запіс</translation>
+<translation id="677387175345781299">Файлы праекта</translation>
+<translation id="6786747875388722282">Пашырэнні</translation>
+<translation id="6801297003382412689">Абмежаванні рэсурсаў</translation>
 <translation id="6829876854799051628">Ачысціць кукі</translation>
+<translation id="6832689803248022656">Што вы хочаце перанесці?</translation>
+<translation id="684699560760227351">Скінуць Галоўную</translation>
 <translation id="6896758677409633944">Капіяваць</translation>
+<translation id="6940497786570685033">Вы праглядаеце сайты ў рэжыме інкогніта. Пасля закрыцця ўсіх вокнаў інкогніта Dao не будзе захоўваць гісторыю праглядаў, файлы cookie або даныя сайтаў. Спампоўкі і закладкі захоўваюцца.</translation>
+<translation id="6963772203726867701">Не выяўлена</translation>
+<translation id="6971377058826420967">Стварыць з Dao</translation>
+<translation id="7020790421915196218">Завершаныя катэгорыі гатовыя да выкарыстання. Вы можаце паўтарыць спробу толькі для частак, якія патрабуюць увагі.</translation>
 <translation id="7401173814860935855">Файлы cookie ачышчаны для гэтага сайта</translation>
+<translation id="7465855397028934440">Пошук профіляў браўзера…</translation>
+<translation id="750760654246049420">Іншы кліент аўтаматызацыі кіруе гэтым браўзерам</translation>
 <translation id="7532108947552493901">Праверыць наяўнасць абнаўленняў...</translation>
+<translation id="7533550325431812">Дазволіць гэта падключэнне</translation>
 <translation id="7604253494819481181">Націсніце <ph name="SHORTCUT" /> зноў, каб пераключыць бакавую панэль</translation>
+<translation id="7615777614791709701">Скінуць Галоўную?</translation>
+<translation id="7626429522809774043">Дазволіць кіраванне браўзерам?</translation>
 <translation id="7636812263792427733">Прымусіць цёмны рэжым</translation>
+<translation id="7658239707568436148">Скасаваць</translation>
+<translation id="7714812312719848690">Ваш праект усё яшчэ ў бяспецы. Паўтарыце спробу, аднавіце версію або папрасіце Dao выправіць яго.</translation>
 <translation id="7717845620320228976">Праверыць наяўнасць абнаўленняў</translation>
+<translation id="7803931104677504532">Чытаць стылі афармлення</translation>
+<translation id="7974106569409739809">Разгрупаваць</translation>
+<translation id="7995663841236651667">Даныя вашага браўзера апрацоўваюцца лакальна на гэтым Mac.</translation>
+<translation id="8028081981001403222">Імпартаваць праект</translation>
+<translation id="8041968312565730454">Зыходны браўзер</translation>
+<translation id="8052762370740257987">Экспартаваць праект</translation>
+<translation id="8097718730266959883">недаступна</translation>
+<translation id="81044950628177848">Бягучая версія</translation>
+<translation id="8131740175452115882">Пацвердзіць</translation>
 <translation id="8137559199583651773">Кіраваць пашырэннямі</translation>
+<translation id="8138892305328483863">Dao аб’ядноўвае імпартаваныя элементы з тым, што ў вас ужо ёсць. Існуючыя даныя ніколі не замяняюцца.</translation>
+<translation id="8175534235396780357">Падрабязнасці кіравання ШІ</translation>
+<translation id="8237260373784588552">Кіраванне Галоўнай</translation>
+<translation id="824895471210913946">Мэта: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Выдаліць</translation>
+<translation id="831684326378391082">Працягнуць без жывых крыніц</translation>
+<translation id="8349478524212888083">Імпартаваны праект стане новай версіяй. Доступ да крыніц застанецца адключаным, пакуль вы не ўхваліце яго зноў.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Падключыць <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Гісторыя версій</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← Назад</translation>
+<translation id="8595238918901827309">Аднавіць гэту версію?</translation>
+<translation id="8668072977518790485">Ідэнтыфікатар укладкі скапіяваны</translation>
 <translation id="8684229942427488970">Цэнтр сайта</translation>
 <translation id="8717864919010420084">Капіяваць спасылку</translation>
+<translation id="8725066075913043281">Паспрабаваць зноў</translation>
+<translation id="8774154357663601701">Гэта крыніца можа чытаць толькі ўхваленыя старонкі, пакуль Галоўная актыўная.</translation>
+<translation id="8781013843394828812">Гэтыя элементы трэба паўтарыць</translation>
+<translation id="8787633576358327637">Можа з’явіцца запыт Keychain macOS</translation>
+<translation id="8820817407110198400">Закладкі</translation>
+<translation id="8826852601577125903">Даныя выніку: ад <ph name="OLD_BYTE_COUNT" /> да <ph name="NEW_BYTE_COUNT" /> байтаў</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> кандыдатаў</translation>
+<translation id="8899040626072079337">Перанос вашых даных у Dao</translation>
+<translation id="8962539151725780858">Укладак пад кіраваннем: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Апошні выклік MCP: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Элементаў на канектар: да <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Неактыўныя ўкладкі архіваваны</translation>
+<translation id="9186557253975059599">Заяўлены кліент: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Пераключыць бакавую панэль</translation>
+<translation id="9205549548211212895">Спыніць міграцыю</translation>
+<translation id="932327136139879170">Галоўная</translation>
+<translation id="932413031402847895">Імпарт даных браўзера</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Падключыць выбранае</translation>
+<translation id="949725615797318423">Пашырэнні пераўсталёўваюцца з іх афіцыйнай крамы</translation>
+<translation id="962181630102348889">Не ўдалося паказаць вашу Галоўную</translation>
 </translationbundle>

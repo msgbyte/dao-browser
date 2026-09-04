@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ml">
+<translation id="1111094358966140566">പതിപ്പ് താരതമ്യം ചെയ്യുക</translation>
 <translation id="1173894706177603556">പേര് മാറ്റുക</translation>
+<translation id="1182228621215085947">Dao-യോട് ചോദിക്കുക</translation>
+<translation id="121570799358042869">നിങ്ങളുടെ ബ്രൗസർ ഡാറ്റ ഈ Mac-ൽ തന്നെ തുടരും. അനുയോജ്യമായ എക്സ്റ്റൻഷനുകൾ വീണ്ടും ഇൻസ്റ്റാൾ ചെയ്യുന്നത് മാത്രമാണ് ഇന്റർനെറ്റിലേക്ക് കണക്റ്റ് ചെയ്യാനിടയുള്ള ഘട്ടം; എക്സ്റ്റൻഷൻ ക്രമീകരണങ്ങളും സൈൻ-ഇന്നുകളും പകർത്തില്ല.</translation>
+<translation id="1236455002425740182">Dao മൈഗ്രേഷൻ</translation>
+<translation id="1272079795634619415">നിർത്തുക</translation>
 <translation id="1293177648337752319">സൈറ്റ് അൺമ്യൂട്ട് ചെയ്യുക</translation>
+<translation id="1349314697251468085">ഇത് ഫോൾഡറിലെ എല്ലാ ടാബുകളും അടയ്ക്കുകയും ഫോൾഡർ ഇല്ലാതാക്കുകയും ചെയ്യും.</translation>
+<translation id="1352298709666490484">ടാബ് മാറുക</translation>
+<translation id="1383876407941801731">തിരയുക</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">പ്രൊഫൈൽ: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">വെബിനെ നിങ്ങളുടേതായി അനുഭവപ്പെടുത്തുക</translation>
+<translation id="1530524805356937121">കൂടുതൽ ലോഡ് ചെയ്യാൻ സ്ക്രോൾ ചെയ്യുക</translation>
+<translation id="1566049601598938765">വെബ്‌സൈറ്റ്</translation>
+<translation id="1602287703039480507">ഈ സൈറ്റിനായുള്ള കാഷെ മായ്ച്ചു</translation>
+<translation id="1637441054828003579">പരാജയപ്പെട്ട ഇനങ്ങൾ വീണ്ടും ശ്രമിക്കുക</translation>
+<translation id="1641203463264514072">നിങ്ങളുടെ മിക്ക ഡാറ്റയും ഇവിടെയുണ്ട്</translation>
 <translation id="1653598257495639807">QR കോഡ് ഫലം</translation>
+<translation id="172937028082106236">എന്റെ ബ്രൗസിംഗ് ചരിത്രത്തിൽ നിന്ന് സൃഷ്ടിക്കുക</translation>
+<translation id="17513872634828108">തുറന്ന ടാബുകൾ</translation>
 <translation id="1809939268435598390">ഫോൾഡർ ഇല്ലാതാക്കുക</translation>
+<translation id="1816380826555616620">ഓരോ കണക്റ്ററിലുമുള്ള ഇനങ്ങൾ: <ph name="OLD_ITEM_COUNT" /> മുതൽ <ph name="NEW_ITEM_COUNT" /> വരെ</translation>
+<translation id="1818606096021558659">പേജ്</translation>
+<translation id="1844249872546141866">വിൻഡോ: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">എണ്ണം ലഭ്യമല്ല</translation>
+<translation id="1929197983938319610">നിങ്ങൾക്ക് ഉറവിട ബ്രൗസർ ഉപയോഗിക്കുന്നത് തുടരാം. ഒരു ഡാറ്റാ തരം മാറിക്കൊണ്ടിരുന്നാൽ, അത് അടയ്ക്കാനും ആ ഭാഗം മാത്രം വീണ്ടും ശ്രമിക്കാനും Dao നിങ്ങളോട് ആവശ്യപ്പെടും.</translation>
+<translation id="1984122437277059790">പ്രോജക്റ്റ് ഇറക്കുമതി ചെയ്യാനായില്ല. പാക്കേജ് പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.</translation>
+<translation id="2085323698672376231">ഇത് നിലവിലെ പ്രോജക്റ്റും എല്ലാ പതിപ്പുകളും ഉറവിട ആക്സസും ശാശ്വതമായി ഇല്ലാതാക്കും. ഇത് പഴയപടിയാക്കാനാകില്ല.</translation>
+<translation id="210592584469870355">കഴിവുകൾ</translation>
+<translation id="2109761659519935228">മിനി Dao</translation>
 <translation id="21133533946938348">ടാബ് പിന്‍ ചെയ്യുക</translation>
+<translation id="2175927920773552910">QR കോഡ്</translation>
+<translation id="2199413402821420360">ഈ ടാബ് മിനി Dao-യിൽ തുറക്കാനായില്ല</translation>
+<translation id="2209843794360152290">നിലവിലുള്ള ഡാറ്റ മാറ്റിസ്ഥാപിക്കാതെ ഇറക്കുമതി ചെയ്ത ഇനങ്ങൾ ലയിപ്പിക്കുന്നു.</translation>
+<translation id="2254382823755510690">നിങ്ങൾ ഇറക്കുമതി ചെയ്ത ഡാറ്റ Dao-യിൽ തയ്യാറാണ്. തുറന്ന ടാബുകൾ ആവശ്യമാകുന്നതുവരെ ചുരുക്കിയ ഫോൾഡറിൽ ലോഡ് ചെയ്യാതെ സൂക്ഷിക്കും.</translation>
+<translation id="2348199177323591972">പേജ് ഉള്ളടക്കം വായിക്കുക</translation>
+<translation id="2359808026110333948">തുടരുക</translation>
+<translation id="2398703750948514961">റദ്ദാക്കി</translation>
+<translation id="2414886740292270097">ഡാർക്ക്</translation>
+<translation id="243275146591958220">ഡൗൺലോഡ് റദ്ദാക്കുക</translation>
+<translation id="2496180316473517155">ബ്രൗസിംഗ് ചരിത്രം</translation>
+<translation id="251834402454969316">നിലവിലെ പതിപ്പിലേക്കുള്ള മാറ്റങ്ങൾ</translation>
+<translation id="2519023533785544875">അസിസ്റ്റന്റ് തുറക്കുക</translation>
+<translation id="2535607573648844553">സംരക്ഷിച്ച പാസ്‌വേഡുകൾ ഡീക്രിപ്റ്റ് ചെയ്യുന്നതിന് തിരഞ്ഞെടുത്ത ബ്രൗസറിന്റെ സേഫ് സ്റ്റോറേജ് കീ Dao-യ്ക്ക് ആവശ്യമാണ്. നിങ്ങൾ ആക്സസ് നിരസിച്ചാൽ, പാസ്‌വേഡുകൾ മാത്രം ഒഴിവാക്കുകയും ബാക്കിയുള്ള മൈഗ്രേഷൻ തുടരുകയും ചെയ്യും.</translation>
+<translation id="2580366865845491095">ഈ ലിങ്ക് തുറക്കണോ?</translation>
+<translation id="2612596415938768738">നിങ്ങൾ സൈൻ ഇൻ ചെയ്യേണ്ടി വന്നേക്കാം</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> കൂടുതൽ</translation>
 <translation id="2703180365855369896">ഒരേപോലുള്ള ടാബുകൾ അടയ്ക്കുക</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">വായിക്കുന്നു</translation>
+<translation id="2820330532305477229">നിങ്ങൾ എവിടെ നിന്നാണ് മാറുന്നത്?</translation>
+<translation id="2882207023658691113">ഒരു പുതിയ പതിപ്പായി പുനഃസ്ഥാപിക്കുക</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> ബ്രൗസർ ടാബുകൾ നിയന്ത്രിക്കുന്നു</translation>
 <translation id="2973324205039581528">സൈറ്റ് മ്യൂട്ട് ചെയ്യുക</translation>
+<translation id="2976307543842414852">പ്രവർത്തനങ്ങൾ</translation>
 <translation id="3007771295016901659">ടാബ് പകർത്തുക</translation>
 <translation id="3062877722240966678">Dao i18n പൈപ്പ്‌ലൈൻ ശരി</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">പരിശോധിച്ച പ്രക്രിയ: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao തിരഞ്ഞെടുത്ത ഉറവിടങ്ങൾ പരിശോധിച്ച് പ്രവർത്തിക്കുന്നവ ചേർക്കും. ഹോം സജീവമായിരിക്കുമ്പോൾ താഴെ കാണിച്ചിരിക്കുന്ന പേജുകളും ഡാറ്റയും മാത്രം ഓരോ ഉറവിടത്തിനും വായിക്കാനാകും.</translation>
+<translation id="3249579521706735875">സിസ്റ്റം ഡാർക്ക് മോഡിലായിരിക്കുമ്പോൾ ലഭ്യമാണ്.</translation>
+<translation id="3356580349448036450">പൂർത്തിയായി</translation>
+<translation id="3404183081987133644">നിങ്ങൾ നിർത്തുന്നതിന് മുമ്പ് ഇറക്കുമതി ചെയ്ത ഡാറ്റ ഉപയോഗിക്കാൻ തയ്യാറാണ്. തയ്യാറാകുമ്പോഴെല്ലാം നിങ്ങൾക്ക് മറ്റൊരു മൈഗ്രേഷൻ ആരംഭിക്കാം.</translation>
+<translation id="3420663750132400268">ഫോൾഡർ ഇല്ലാതാക്കണോ?</translation>
+<translation id="3427713535827228685">ഈ സൈറ്റിലെ എക്സ്റ്റൻഷനുകൾ</translation>
+<translation id="3435738964857648380">സുരക്ഷ</translation>
 <translation id="3450492919008172498">പുതിയ ടാബുകൾ ആർക്കൈവ് ചെയ്തിട്ടില്ല</translation>
+<translation id="3509982919032226274">എന്റെ Dao ഹോം സൃഷ്ടിക്കുക. ഈ വ്യക്തിഗത പേജ് എനിക്ക് എന്ത് പര്യവേക്ഷണം ചെയ്യാൻ സഹായിക്കണമെന്നാണ് ഞാൻ ആഗ്രഹിക്കുന്നതെന്ന് ആദ്യം ചോദിക്കുക, തുടർന്ന് ആദ്യ പതിപ്പ് നിർമ്മിച്ച് പ്രസിദ്ധീകരിക്കുക.</translation>
 <translation id="3551320343578183772">ടാബ് അടയ്ക്കുക</translation>
 <translation id="3657099196021255130">Daoയിൽ തുറക്കുക</translation>
 <translation id="3708693288863478389">ഒരു URL അല്ലെങ്കിൽ തിരയൽ ടൈപ്പ് ചെയ്യുക...</translation>
+<translation id="381667777775855564">Dao-യിലേക്ക് ചേർക്കുന്നു</translation>
 <translation id="385051799172605136">പിൻവാങ്ങുക</translation>
 <translation id="3891466792657071243">ലോഡിംഗ് നിർത്തുക</translation>
 <translation id="3901975710974642844">"stale" എന്നതിലേക്ക് പഴയ ടാബുകൾ നീക്കുക</translation>
+<translation id="3909499025801874715">പരിമിതപ്പെടുത്തിയ Dao ഹോം ഡയഗ്നോസ്റ്റിക്സ് പരിശോധിക്കുക, പരാജയം വിശദീകരിക്കുക, നിലവിലെ പ്രോജക്റ്റ് പരിഹരിക്കുക. പരിഹാരം സാധൂകരിക്കുന്നതുവരെ നിലവിലെ പ്രവർത്തനക്ഷമമായ പതിപ്പ് നിലനിർത്തുക, തുടർന്ന് പരിഹാരം ഒരു പുതിയ പതിപ്പായി പ്രസിദ്ധീകരിക്കുക.</translation>
+<translation id="3927932062596804919">നിരസിക്കുക</translation>
 <translation id="3984237987235889323">പ്രയോഗിക്കുന്നു</translation>
+<translation id="3999659648104077867">ബ്രൗസർ നിയന്ത്രണം നിർത്തി</translation>
+<translation id="4165986682804962316">സൈറ്റ് ക്രമീകരണങ്ങൾ</translation>
 <translation id="4201242995651540725">കഴിഞ്ഞ 24 മണിക്കൂറായി പ്രവർത്തനരഹിതമായ ടാബുകൾ ആർക്കൈവ് ചെയ്തു</translation>
+<translation id="4221615148091761714">Dao ഉപയോഗിച്ച് എഡിറ്റ് ചെയ്യുക</translation>
 <translation id="4285498937028063278">പിന്‍ നീക്കുക</translation>
 <translation id="4322394346347055525">മറ്റ് ടാബുകൾ അടയ്ക്കുക</translation>
+<translation id="4332876892329258166">മൈഗ്രേഷൻ ആരംഭിക്കുക</translation>
 <translation id="4380677223237520064">QR കോഡ് ഡികോഡ് ചെയ്യുക</translation>
+<translation id="4404136731284211429">വീണ്ടും സ്കാൻ ചെയ്യുക</translation>
+<translation id="4500440256909785690">ഈ ഹോം മാറ്റിസ്ഥാപിക്കണോ?</translation>
 <translation id="4543782226216763900">സൈഡ്ബാർ (<ph name="SHORTCUT" />) മാറ്റുക</translation>
 <translation id="4562670065683676797">AIനെ ചോദിക്കുക: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">നിങ്ങളുടെ മാറ്റം പൂർത്തിയായി</translation>
+<translation id="4652266463001779298">അനുവദനീയമല്ല</translation>
+<translation id="4724836371241170775">4-ൽ ഘട്ടം 2 · എന്താണ് മാറേണ്ടതെന്ന് തിരഞ്ഞെടുക്കുക</translation>
 <translation id="473775607612524610">അപ്ഡേറ്റ്</translation>
+<translation id="481205936353439293">4-ൽ ഘട്ടം 3 · നിങ്ങളുടെ ഡാറ്റ മാറ്റുന്നു</translation>
+<translation id="4854731374904470810">ടാബ് ഐഡി പകർത്തുക</translation>
 <translation id="4881695831933465202">തുറക്കുക</translation>
+<translation id="4898928054560997780">പരിഹരിക്കാൻ Dao-യോട് ചോദിക്കുക</translation>
+<translation id="49041264823677952">പൂർത്തിയായ ഡൗൺലോഡ് ഒഴിവാക്കുക</translation>
+<translation id="493638356004396067">മൈഗ്രേഷൻ പരാജയപ്പെട്ടു</translation>
+<translation id="4968006660055392545">ഈ Mac-ൽ പിന്തുണയ്ക്കുന്ന ബ്രൗസർ പ്രൊഫൈലുകളൊന്നും കണ്ടെത്തിയില്ല.</translation>
+<translation id="5004648724625831205">പ്രാദേശിക പകർപ്പ് തയ്യാറാക്കുന്നു</translation>
 <translation id="501297852093417632">കാഷെ മായ്ക്കുക</translation>
 <translation id="5027562294707732951">വിസ്താരം ചേർക്കുക</translation>
+<translation id="5126909118906525779">തത്സമയ ഉറവിടങ്ങൾ കണക്റ്റ് ചെയ്യണോ?</translation>
 <translation id="5192454087436290060">കൺട്രോൾ സെന്റർ</translation>
+<translation id="5289912690346335931">എണ്ണുന്നു…</translation>
+<translation id="5301255231518510089">അതിന്റെ ഉറവിടം കാണാൻ ഒരു ഫയൽ തിരഞ്ഞെടുക്കുക.</translation>
+<translation id="5308380583665731573">കണക്റ്റ് ചെയ്യുക</translation>
+<translation id="5322475253112112619">അനുവദിച്ചാൽ, JavaScript പ്രവർത്തിപ്പിക്കുന്നതടക്കം നിങ്ങളുടെ നിലവിലെ ലോഗിൻ ഉപയോഗിച്ച് വെബ്‌സൈറ്റുകൾ വായിക്കാനും അവയുമായി ഇടപഴകാനും ഇതിന് കഴിയും.</translation>
+<translation id="5334844597069022743">ഉറവിടം കാണുക</translation>
+<translation id="5400726083793179041">തിരഞ്ഞെടുത്ത പ്രോജക്റ്റ് അവസ്ഥ ഒരു പുതിയ പതിപ്പായി പ്രസിദ്ധീകരിക്കും. നിലവിലുള്ള ചരിത്രം ലഭ്യമായി തുടരും.</translation>
+<translation id="5436835454512450295">ഇറക്കുമതി ചെയ്ത ബ്രൗസർ ഡാറ്റ</translation>
 <translation id="5450299006531484229">മുകളിൽ ഉള്ള ടാബുകൾ അടയ്ക്കുക</translation>
 <translation id="5538307496474303926">മായ്ക്കുന്നു...</translation>
 <translation id="5556459405103347317">വീണ്ടും ലോഡ് ചെയ്യുക</translation>
 <translation id="5611474372949142946">താഴെ ഉള്ള ടാബുകൾ അടയ്ക്കുക</translation>
+<translation id="5649936378931470828">അസിസ്റ്റന്റ് തുറക്കുക (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">സംരക്ഷിച്ച പാസ്‌വേഡുകൾ</translation>
+<translation id="5871520043546374642">മൈഗ്രേഷൻ നിർത്തി</translation>
+<translation id="5873058639175438941">സിസ്റ്റം ഡാർക്ക് മോഡിലായിരിക്കുമ്പോൾ ഓട്ടോ ഡാർക്ക് മോഡ് ഉപയോഗിച്ച് വെബ്‌സൈറ്റുകൾ ഇരുണ്ടതാക്കുക.</translation>
+<translation id="5874739091759960360">dao://home സജീവമായിരിക്കുമ്പോൾ മാത്രം</translation>
+<translation id="591645459245805338">നിങ്ങൾ ശ്രദ്ധിക്കുന്ന കാര്യങ്ങൾക്കനുസരിച്ച് Dao രൂപപ്പെടുത്താവുന്ന സ്വകാര്യവും സജീവവുമായ ഒരു പേജ് സൃഷ്ടിക്കുക.</translation>
+<translation id="5942499955694738574">ഹോം പുനഃസജ്ജമാക്കാനായില്ല. നിലവിലെ പ്രോജക്റ്റിൽ മാറ്റമൊന്നും വരുത്തിയില്ല. വീണ്ടും ശ്രമിക്കുക.</translation>
 <translation id="5953452567010839148">QR കോഡ് കണ്ടെത്തിയില്ല</translation>
+<translation id="6018824944448456809">4-ൽ ഘട്ടം 1 · ഒരു ഉറവിടം തിരഞ്ഞെടുക്കുക</translation>
+<translation id="6040143037577758943">അടയ്ക്കുക</translation>
+<translation id="6042308850641462728">കൂടുതൽ</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">ഫല ഡാറ്റ: <ph name="BYTE_COUNT" /> ബൈറ്റുകൾ വരെ</translation>
+<translation id="6204195547326023850">നിങ്ങളുടെ ഹോം ലോഡ് ചെയ്യുന്നു…</translation>
+<translation id="6266039999629596120">ശ്രദ്ധ ആവശ്യമാണ്</translation>
+<translation id="6270944267518310103">കാത്തിരിക്കുന്നു</translation>
+<translation id="6299569859560607348">ഈ ഹോം ഒരു ബാഹ്യ പേജ് തുറക്കാൻ ആഗ്രഹിക്കുന്നു. തുടരുന്നതിന് മുമ്പ് ലക്ഷ്യസ്ഥാനം പരിശോധിക്കുക.</translation>
+<translation id="6325047129563993580">എന്റെ സമീപകാല ബ്രൗസിംഗ് വിഷയങ്ങളിൽ നിന്ന് എന്റെ Dao ഹോം സൃഷ്ടിക്കുക. സ്വകാര്യത-കുറച്ച ഹോം ചരിത്ര സാമഗ്രികൾ മാത്രം ഉപയോഗിക്കുക, ദിശ ചുരുക്കി വിശദീകരിക്കുക, തുടർന്ന് ആദ്യ പതിപ്പ് നിർമ്മിച്ച് പ്രസിദ്ധീകരിക്കുക.</translation>
+<translation id="642671119120438272">ഇറക്കുമതി ചെയ്ത ടാബുകൾ</translation>
+<translation id="648743804821442565">ഒരു പ്രാദേശിക ഓട്ടോമേഷൻ ക്ലയന്റ് ഈ Dao വിൻഡോയിലേക്കുള്ള ആക്സസ് അഭ്യർത്ഥിക്കുന്നു.</translation>
+<translation id="6527303717912515753">പങ്കിടുക</translation>
+<translation id="6586201961110912838">ഈ പതിപ്പ് പുനഃസ്ഥാപിക്കുക</translation>
+<translation id="6601997535892446436">ഈ Mac-ലെ ഒരു ബ്രൗസർ പ്രൊഫൈൽ തിരഞ്ഞെടുക്കുക. എന്താണ് മാറുന്നതെന്നതിൽ നിങ്ങൾക്ക് നിയന്ത്രണം നിലനിർത്താനായി ഓരോ പ്രൊഫൈലും പ്രത്യേകം ലിസ്റ്റ് ചെയ്തിരിക്കുന്നു.</translation>
 <translation id="6736243959894955139">വിലാസം</translation>
+<translation id="6764328036096492220">എഴുത്ത് ആക്സസ്</translation>
+<translation id="677387175345781299">പ്രോജക്റ്റ് ഫയലുകൾ</translation>
+<translation id="6786747875388722282">എക്സ്റ്റൻഷനുകൾ</translation>
+<translation id="6801297003382412689">വിഭവ പരിധികൾ</translation>
 <translation id="6829876854799051628">കുക്കികൾ മായ്ക്കുക</translation>
+<translation id="6832689803248022656">നിങ്ങൾ എന്താണ് കൊണ്ടുവരാൻ ആഗ്രഹിക്കുന്നത്?</translation>
+<translation id="684699560760227351">ഹോം പുനഃസജ്ജമാക്കുക</translation>
 <translation id="6896758677409633944">പകർത്തുക</translation>
+<translation id="6940497786570685033">നിങ്ങൾ ഇൻകോഗ്നിറ്റോ മോഡിൽ ബ്രൗസ് ചെയ്യുകയാണ്. എല്ലാ ഇൻകോഗ്നിറ്റോ വിൻഡോകളും അടച്ചതിന് ശേഷം, നിങ്ങളുടെ ബ്രൗസിംഗ് ചരിത്രം, കുക്കികൾ, സൈറ്റ് ഡാറ്റ എന്നിവ Dao സൂക്ഷിക്കില്ല. ഡൗൺലോഡുകളും ബുക്ക്മാർക്കുകളും സൂക്ഷിക്കും.</translation>
+<translation id="6963772203726867701">കണ്ടെത്തിയില്ല</translation>
+<translation id="6971377058826420967">Dao ഉപയോഗിച്ച് സൃഷ്ടിക്കുക</translation>
+<translation id="7020790421915196218">പൂർത്തിയായ വിഭാഗങ്ങൾ ഉപയോഗിക്കാൻ തയ്യാറാണ്. ശ്രദ്ധ ആവശ്യമുള്ള ഭാഗങ്ങൾ മാത്രം നിങ്ങൾക്ക് വീണ്ടും ശ്രമിക്കാം.</translation>
+<translation id="7401173814860935855">ഈ സൈറ്റിനായുള്ള കുക്കികൾ മായ്ച്ചു</translation>
+<translation id="7465855397028934440">ബ്രൗസർ പ്രൊഫൈലുകൾ തിരയുന്നു…</translation>
+<translation id="750760654246049420">മറ്റൊരു ഓട്ടോമേഷൻ ക്ലയന്റ് ഈ ബ്രൗസർ നിയന്ത്രിക്കുന്നു</translation>
 <translation id="7532108947552493901">അപ്ഡേറ്റുകൾക്കായി പരിശോധിക്കുക...</translation>
+<translation id="7533550325431812">ഈ കണക്ഷൻ അനുവദിക്കുക</translation>
 <translation id="7604253494819481181">സൈഡ്‌ബാർ ടോഗിൾ ചെയ്യാൻ <ph name="SHORTCUT" /> വീണ്ടും അമർത്തുക</translation>
+<translation id="7615777614791709701">ഹോം പുനഃസജ്ജമാക്കണോ?</translation>
+<translation id="7626429522809774043">ബ്രൗസർ നിയന്ത്രണം അനുവദിക്കണോ?</translation>
+<translation id="7636812263792427733">ഡാർക്ക് മോഡ് നിർബന്ധമാക്കുക</translation>
+<translation id="7658239707568436148">റദ്ദാക്കുക</translation>
+<translation id="7714812312719848690">നിങ്ങളുടെ പ്രോജക്റ്റ് ഇപ്പോഴും സുരക്ഷിതമാണ്. വീണ്ടും ശ്രമിക്കുക, ഒരു പതിപ്പ് പുനഃസ്ഥാപിക്കുക, അല്ലെങ്കിൽ അത് പരിഹരിക്കാൻ Dao-യോട് ആവശ്യപ്പെടുക.</translation>
 <translation id="7717845620320228976">അപ്ഡേറ്റുകൾക്കായി പരിശോധിക്കുക</translation>
+<translation id="7803931104677504532">അവതരണ ശൈലികൾ വായിക്കുക</translation>
+<translation id="7974106569409739809">ഫോൾഡർ ഒഴിവാക്കുക</translation>
+<translation id="7995663841236651667">നിങ്ങളുടെ ബ്രൗസർ ഡാറ്റ ഈ Mac-ൽ പ്രാദേശികമായി പ്രോസസ്സ് ചെയ്യുന്നു.</translation>
+<translation id="8028081981001403222">പ്രോജക്റ്റ് ഇറക്കുമതി ചെയ്യുക</translation>
+<translation id="8041968312565730454">ഉറവിട ബ്രൗസർ</translation>
+<translation id="8052762370740257987">പ്രോജക്റ്റ് കയറ്റുമതി ചെയ്യുക</translation>
+<translation id="8097718730266959883">ലഭ്യമല്ല</translation>
+<translation id="81044950628177848">നിലവിലെ പതിപ്പ്</translation>
+<translation id="8131740175452115882">സ്ഥിരീകരിക്കുക</translation>
 <translation id="8137559199583651773">വിസ്താരങ്ങൾ കൈകാര്യം ചെയ്യുക</translation>
+<translation id="8138892305328483863">ഇറക്കുമതി ചെയ്ത ഇനങ്ങളെ നിങ്ങൾക്കുള്ള നിലവിലെ ഇനങ്ങളുമായി Dao ലയിപ്പിക്കുന്നു. നിലവിലുള്ള ഡാറ്റ ഒരിക്കലും മാറ്റിസ്ഥാപിക്കില്ല.</translation>
+<translation id="8175534235396780357">AI നിയന്ത്രണ വിശദാംശങ്ങൾ</translation>
+<translation id="8237260373784588552">ഹോം നിയന്ത്രണങ്ങൾ</translation>
+<translation id="824895471210913946">ലക്ഷ്യം: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">ഇല്ലാതാക്കുക</translation>
+<translation id="831684326378391082">തത്സമയ ഉറവിടങ്ങളില്ലാതെ തുടരുക</translation>
+<translation id="8349478524212888083">ഇറക്കുമതി ചെയ്ത പ്രോജക്റ്റ് ഒരു പുതിയ പതിപ്പാകും. നിങ്ങൾ വീണ്ടും അംഗീകരിക്കുന്നതുവരെ ഉറവിട ആക്സസ് വിച്ഛേദിച്ച നിലയിൽ തുടരും.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> കണക്റ്റ് ചെയ്യുക</translation>
+<translation id="8549865052695885354">പതിപ്പ് ചരിത്രം</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> പിൻവാങ്ങുക</translation>
+<translation id="8595238918901827309">ഈ പതിപ്പ് പുനഃസ്ഥാപിക്കണോ?</translation>
+<translation id="8668072977518790485">ടാബ് ഐഡി പകർത്തി</translation>
+<translation id="8684229942427488970">സൈറ്റ് സെന്റർ</translation>
 <translation id="8717864919010420084">ലിങ്ക് പകർത്തുക</translation>
+<translation id="8725066075913043281">വീണ്ടും ശ്രമിക്കുക</translation>
+<translation id="8774154357663601701">ഹോം സജീവമായിരിക്കുമ്പോൾ ഈ ഉറവിടത്തിന് അംഗീകരിച്ച പേജുകൾ മാത്രം വായിക്കാനാകും.</translation>
+<translation id="8781013843394828812">ഈ ഇനങ്ങൾ വീണ്ടും ശ്രമിക്കേണ്ടതുണ്ട്</translation>
+<translation id="8787633576358327637">ഒരു macOS കീചെയിൻ പ്രോംപ്റ്റ് ദൃശ്യമായേക്കാം</translation>
+<translation id="8820817407110198400">ബുക്ക്മാർക്കുകൾ</translation>
+<translation id="8826852601577125903">ഫല ഡാറ്റ: <ph name="OLD_BYTE_COUNT" /> മുതൽ <ph name="NEW_BYTE_COUNT" /> ബൈറ്റുകൾ വരെ</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> സ്ഥാനാർഥികൾ</translation>
+<translation id="8899040626072079337">നിങ്ങളുടെ ഡാറ്റ Dao-യിലേക്ക് മാറ്റുന്നു</translation>
+<translation id="8962539151725780858">നിയന്ത്രിത ടാബുകൾ: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">ഏറ്റവും പുതിയ MCP കോൾ: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">ഓരോ കണക്റ്ററിലുമുള്ള ഇനങ്ങൾ: <ph name="ITEM_COUNT" /> വരെ</translation>
+<translation id="9144412711146411188">നിഷ്‌ക്രിയ ടാബുകൾ ആർക്കൈവ് ചെയ്തു</translation>
+<translation id="9186557253975059599">റിപ്പോർട്ട് ചെയ്ത ക്ലയന്റ്: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">സൈഡ്ബാർ മാറ്റുക</translation>
+<translation id="9205549548211212895">മൈഗ്രേഷൻ നിർത്തുക</translation>
+<translation id="932327136139879170">ഹോം</translation>
+<translation id="932413031402847895">ബ്രൗസർ ഡാറ്റ ഇറക്കുമതി ചെയ്യുക</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">തിരഞ്ഞെടുത്തവ കണക്റ്റ് ചെയ്യുക</translation>
+<translation id="949725615797318423">എക്സ്റ്റൻഷനുകൾ അവയുടെ ഔദ്യോഗിക സ്റ്റോറിൽ നിന്ന് വീണ്ടും ഇൻസ്റ്റാൾ ചെയ്യും</translation>
+<translation id="962181630102348889">നിങ്ങളുടെ ഹോം പ്രദർശിപ്പിക്കാനായില്ല</translation>
 </translationbundle>

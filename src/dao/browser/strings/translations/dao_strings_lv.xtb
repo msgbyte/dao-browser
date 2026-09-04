@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="lv">
+<translation id="1111094358966140566">Salīdzināt versiju</translation>
 <translation id="1173894706177603556">Pārdēvēt</translation>
+<translation id="1182228621215085947">Jautāt Dao</translation>
+<translation id="121570799358042869">Jūsu pārlūka dati paliek šajā Mac datorā. Saderīgu paplašinājumu pārinstalēšana ir vienīgā darbība, kas var izveidot savienojumu ar internetu; paplašinājumu iestatījumi un pieteikšanās dati netiek kopēti.</translation>
+<translation id="1236455002425740182">Dao migrēšana</translation>
+<translation id="1272079795634619415">Apturēt</translation>
 <translation id="1293177648337752319">Ieslēgt vietnes skaņu</translation>
+<translation id="1349314697251468085">Tiks aizvērtas visas mapē esošās cilnes un mape tiks dzēsta.</translation>
+<translation id="1352298709666490484">Pārslēgt cilni</translation>
+<translation id="1383876407941801731">Meklēt</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profils: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Padariet tīmekli par savējo</translation>
+<translation id="1530524805356937121">Ritināt, lai ielādētu vairāk</translation>
+<translation id="1566049601598938765">Vietne</translation>
+<translation id="1602287703039480507">Šīs vietnes kešatmiņa ir notīrīta</translation>
+<translation id="1637441054828003579">Mēģināt neizdevušos vienumus vēlreiz</translation>
+<translation id="1641203463264514072">Lielākā daļa jūsu datu ir šeit</translation>
 <translation id="1653598257495639807">QR koda rezultāts</translation>
+<translation id="172937028082106236">Izveidot no manas pārlūkošanas vēstures</translation>
+<translation id="17513872634828108">Atvērtās cilnes</translation>
 <translation id="1809939268435598390">Dzēst mapi</translation>
+<translation id="1816380826555616620">Vienumi katram savienotājam: no <ph name="OLD_ITEM_COUNT" /> līdz <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Lapa</translation>
+<translation id="1844249872546141866">Logs: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Skaits nav pieejams</translation>
+<translation id="1929197983938319610">Varat turpināt izmantot avota pārlūku. Ja kāds datu veids turpina mainīties, Dao lūgs to aizvērt un atkārtot tikai šo daļu.</translation>
+<translation id="1984122437277059790">Projektu nevarēja importēt. Pārbaudiet pakotni un mēģiniet vēlreiz.</translation>
+<translation id="2085323698672376231">Tādējādi neatgriezeniski tiks dzēsts pašreizējais projekts, visas versijas un piekļuve avotiem. To nevar atsaukt.</translation>
+<translation id="210592584469870355">Iespējas</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Piespraust cilni</translation>
+<translation id="2175927920773552910">QR kods</translation>
+<translation id="2199413402821420360">Neizdevās atvērt šo cilni pakalpojumā Mini Dao</translation>
+<translation id="2209843794360152290">Importētie vienumi tiek apvienoti, neaizstājot esošos datus.</translation>
+<translation id="2254382823755510690">Jūsu importētie dati ir gatavi Dao. Atvērtās cilnes tiek saglabātas neielādētas sakļautā mapē, līdz tās būs nepieciešamas.</translation>
+<translation id="2348199177323591972">Lasīt lapas saturu</translation>
+<translation id="2359808026110333948">Turpināt</translation>
+<translation id="2398703750948514961">Atcelts</translation>
+<translation id="2414886740292270097">Tumšs</translation>
+<translation id="243275146591958220">Atcelt lejupielādi</translation>
+<translation id="2496180316473517155">Pārlūkošanas vēsture</translation>
+<translation id="251834402454969316">Izmaiņas salīdzinājumā ar pašreizējo versiju</translation>
+<translation id="2519023533785544875">Atvērt palīgu</translation>
+<translation id="2535607573648844553">Dao ir nepieciešama atlasītā pārlūka Safe Storage atslēga, lai atšifrētu saglabātās paroles. Ja noraidīsiet piekļuvi, tiks izlaistas tikai paroles, bet pārējā migrēšana turpināsies.</translation>
+<translation id="2580366865845491095">Vai atvērt šo saiti?</translation>
+<translation id="2612596415938768738">Var būt nepieciešama pieteikšanās</translation>
+<translation id="2698054069012763064">Vēl <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Aizvērt dublētās cilnes</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Tiek lasīts</translation>
+<translation id="2820330532305477229">No kurienes pārejat?</translation>
+<translation id="2882207023658691113">Atjaunot kā jaunu versiju</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> vada pārlūka cilnes</translation>
 <translation id="2973324205039581528">Izslēgt vietnes skaņu</translation>
+<translation id="2976307543842414852">Palaišanas</translation>
 <translation id="3007771295016901659">Dublēt cilni</translation>
 <translation id="3062877722240966678">Dao i18n cauruļvads OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Pārbaudītais process: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao pārbaudīs atlasītos avotus un pievienos tos, kas darbojas. Katrs avots var lasīt tikai tālāk norādītās lapas un datus, kamēr sākumlapa ir aktīva.</translation>
+<translation id="3249579521706735875">Pieejams, kad sistēmā ir ieslēgts tumšais režīms.</translation>
+<translation id="3356580349448036450">Pabeigts</translation>
+<translation id="3404183081987133644">Dati, kas tika importēti pirms apturēšanas, ir gatavi lietošanai. Kad būsiet gatavs, varēsiet sākt citu migrēšanu.</translation>
+<translation id="3420663750132400268">Vai dzēst mapi?</translation>
+<translation id="3427713535827228685">Šīs vietnes paplašinājumi</translation>
+<translation id="3435738964857648380">Drošība</translation>
 <translation id="3450492919008172498">Jaunas cilnes netika arhivētas</translation>
+<translation id="3509982919032226274">Izveido manu Dao sākumlapu. Vispirms pajautā, ko vēlos izpētīt ar šīs personīgās lapas palīdzību, pēc tam izveido un publicē pirmo versiju.</translation>
 <translation id="3551320343578183772">Aizvērt cilni</translation>
 <translation id="3657099196021255130">Atvērt Dao</translation>
 <translation id="3708693288863478389">Ierakstiet URL vai meklējiet...</translation>
+<translation id="381667777775855564">Tiek pievienots Dao</translation>
 <translation id="385051799172605136">Atpakaļ</translation>
 <translation id="3891466792657071243">Apturēt ielādi</translation>
 <translation id="3901975710974642844">Pārvietot novecojušās cilnes uz "novecojušās"</translation>
+<translation id="3909499025801874715">Pārbaudi ierobežoto Dao sākumlapas diagnostiku, paskaidro kļūmi un salabo pašreizējo projektu. Saglabā pašreizējo darbspējīgo versiju, līdz labojums ir validēts, pēc tam publicē labojumu kā jaunu versiju.</translation>
+<translation id="3927932062596804919">Noraidīt</translation>
 <translation id="3984237987235889323">Pielieto</translation>
+<translation id="3999659648104077867">Pārlūka vadība apturēta</translation>
+<translation id="4165986682804962316">Vietnes iestatījumi</translation>
 <translation id="4201242995651540725">Arhivētas cilnes, kas nav aktīvas pēdējās 24 stundas</translation>
+<translation id="4221615148091761714">Rediģēt ar Dao</translation>
 <translation id="4285498937028063278">Atspraust</translation>
 <translation id="4322394346347055525">Aizvērt citas cilnes</translation>
+<translation id="4332876892329258166">Sākt migrēšanu</translation>
 <translation id="4380677223237520064">Atšifrēt QR kodu</translation>
+<translation id="4404136731284211429">Skenēt vēlreiz</translation>
+<translation id="4500440256909785690">Vai aizstāt šo sākumlapu?</translation>
 <translation id="4543782226216763900">Pārslēgt sānjoslu (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Jautāt AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Pārvietošana ir pabeigta</translation>
+<translation id="4652266463001779298">Nav atļauts</translation>
+<translation id="4724836371241170775">2. darbība no 4 · Izvēlieties pārvietojamos datus</translation>
 <translation id="473775607612524610">Atjaunināt</translation>
+<translation id="481205936353439293">3. darbība no 4 · Jūsu dati tiek pārvietoti</translation>
+<translation id="4854731374904470810">Kopēt cilnes ID</translation>
 <translation id="4881695831933465202">Atvērt</translation>
+<translation id="4898928054560997780">Lūgt Dao salabot</translation>
+<translation id="49041264823677952">Nerādīt pabeigto lejupielādi</translation>
+<translation id="493638356004396067">Migrēšana neizdevās</translation>
+<translation id="4968006660055392545">Šajā Mac datorā netika atrasti atbalstīti pārlūka profili.</translation>
+<translation id="5004648724625831205">Tiek sagatavota vietējā kopija</translation>
 <translation id="501297852093417632">Notīrīt kešatmiņu</translation>
 <translation id="5027562294707732951">Pievienot paplašinājumu</translation>
+<translation id="5126909118906525779">Vai pievienot tiešsaistes avotus?</translation>
 <translation id="5192454087436290060">Vadības centrs</translation>
+<translation id="5289912690346335931">Tiek skaitīts…</translation>
+<translation id="5301255231518510089">Atlasiet failu, lai skatītu tā pirmkodu.</translation>
+<translation id="5308380583665731573">Pievienot</translation>
+<translation id="5322475253112112619">Ja atļausiet, tas varēs lasīt vietnes un mijiedarboties ar tām, izmantojot jūsu pašreizējo pieteikšanos, tostarp palaist JavaScript.</translation>
+<translation id="5334844597069022743">Skatīt pirmkodu</translation>
+<translation id="5400726083793179041">Atlasītais projekta stāvoklis tiks publicēts kā jauna versija. Esošā vēsture paliks pieejama.</translation>
+<translation id="5436835454512450295">Importētie pārlūka dati</translation>
 <translation id="5450299006531484229">Aizvērt cilnes virs</translation>
 <translation id="5538307496474303926">Notīrīšana...</translation>
 <translation id="5556459405103347317">Pārlādēt</translation>
 <translation id="5611474372949142946">Aizvērt cilnes zem</translation>
+<translation id="5649936378931470828">Atvērt palīgu (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Saglabātās paroles</translation>
+<translation id="5871520043546374642">Migrēšana apturēta</translation>
+<translation id="5873058639175438941">Padarīt vietnes tumšākas ar automātisko tumšo režīmu, kamēr sistēmā ir ieslēgts tumšais režīms.</translation>
+<translation id="5874739091759960360">Tikai, kamēr dao://home ir aktīva</translation>
+<translation id="591645459245805338">Izveidojiet privātu, dinamisku lapu, ko Dao var pielāgot tam, kas jums rūp.</translation>
+<translation id="5942499955694738574">Sākumlapu nevarēja atiestatīt. Pašreizējais projekts netika mainīts. Mēģiniet vēlreiz.</translation>
 <translation id="5953452567010839148">QR kods nav atrasts</translation>
+<translation id="6018824944448456809">1. darbība no 4 · Izvēlieties avotu</translation>
+<translation id="6040143037577758943">Aizvērt</translation>
+<translation id="6042308850641462728">Vairāk</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Rezultāta dati: līdz <ph name="BYTE_COUNT" /> baitiem</translation>
+<translation id="6204195547326023850">Tiek ielādēta jūsu sākumlapa…</translation>
+<translation id="6266039999629596120">Nepieciešama uzmanība</translation>
+<translation id="6270944267518310103">Gaida</translation>
+<translation id="6299569859560607348">Šī sākumlapa vēlas atvērt ārēju lapu. Pirms turpināšanas pārskatiet galamērķi.</translation>
+<translation id="6325047129563993580">Izveido manu Dao sākumlapu, balstoties uz manām nesenajām pārlūkošanas tēmām. Izmanto tikai privātumu saudzējošus sākumlapas vēstures materiālus, īsi paskaidro virzienu, pēc tam izveido un publicē pirmo versiju.</translation>
+<translation id="642671119120438272">Importētās cilnes</translation>
+<translation id="648743804821442565">Vietējais automatizācijas klients pieprasa piekļuvi šim Dao logam.</translation>
+<translation id="6527303717912515753">Kopīgot</translation>
+<translation id="6586201961110912838">Atjaunot šo versiju</translation>
+<translation id="6601997535892446436">Izvēlieties pārlūka profilu šajā Mac datorā. Katrs profils ir norādīts atsevišķi, lai jūs varētu kontrolēt pārvietojamos datus.</translation>
 <translation id="6736243959894955139">Adrese</translation>
+<translation id="6764328036096492220">Rakstīšanas piekļuve</translation>
+<translation id="677387175345781299">Projekta faili</translation>
+<translation id="6786747875388722282">Paplašinājumi</translation>
+<translation id="6801297003382412689">Resursu ierobežojumi</translation>
 <translation id="6829876854799051628">Notīrīt sīkdatnes</translation>
+<translation id="6832689803248022656">Ko vēlaties pārnest?</translation>
+<translation id="684699560760227351">Atiestatīt sākumlapu</translation>
 <translation id="6896758677409633944">Kopēt</translation>
+<translation id="6940497786570685033">Jūs pārlūkojat inkognito režīmā. Kad aizvērsiet visus inkognito logus, Dao nesaglabās jūsu pārlūkošanas vēsturi, sīkfailus vai vietņu datus. Lejupielādes un grāmatzīmes tiek saglabātas.</translation>
+<translation id="6963772203726867701">Nav atrasts</translation>
+<translation id="6971377058826420967">Izveidot ar Dao</translation>
+<translation id="7020790421915196218">Pabeigtās kategorijas ir gatavas lietošanai. Varat atkārtot tikai tās daļas, kurām nepieciešama uzmanība.</translation>
+<translation id="7401173814860935855">Šīs vietnes sīkfaili ir notīrīti</translation>
+<translation id="7465855397028934440">Tiek meklēti pārlūka profili…</translation>
+<translation id="750760654246049420">Cits automatizācijas klients vada šo pārlūku</translation>
 <translation id="7532108947552493901">Pārbaudīt atjauninājumus...</translation>
+<translation id="7533550325431812">Atļaut šo savienojumu</translation>
 <translation id="7604253494819481181">Nospiediet <ph name="SHORTCUT" /> vēlreiz, lai pārslēgtu sānjoslu</translation>
+<translation id="7615777614791709701">Vai atiestatīt sākumlapu?</translation>
+<translation id="7626429522809774043">Vai atļaut pārlūka vadību?</translation>
+<translation id="7636812263792427733">Piespiedu tumšais režīms</translation>
+<translation id="7658239707568436148">Atcelt</translation>
+<translation id="7714812312719848690">Jūsu projekts joprojām ir drošībā. Mēģiniet vēlreiz, atjaunojiet versiju vai lūdziet Dao to salabot.</translation>
 <translation id="7717845620320228976">Pārbaudīt atjauninājumus</translation>
+<translation id="7803931104677504532">Lasīt noformējuma stilus</translation>
+<translation id="7974106569409739809">Noņemt no mapes</translation>
+<translation id="7995663841236651667">Jūsu pārlūka dati tiek apstrādāti lokāli šajā Mac datorā.</translation>
+<translation id="8028081981001403222">Importēt projektu</translation>
+<translation id="8041968312565730454">Avota pārlūks</translation>
+<translation id="8052762370740257987">Eksportēt projektu</translation>
+<translation id="8097718730266959883">nav pieejams</translation>
+<translation id="81044950628177848">Pašreizējā versija</translation>
+<translation id="8131740175452115882">Apstiprināt</translation>
 <translation id="8137559199583651773">Pārvaldīt paplašinājumus</translation>
+<translation id="8138892305328483863">Dao apvieno importētos vienumus ar jau esošajiem datiem. Esošie dati nekad netiek aizstāti.</translation>
+<translation id="8175534235396780357">AI vadības informācija</translation>
+<translation id="8237260373784588552">Sākumlapas vadīklas</translation>
+<translation id="824895471210913946">Mērķis: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Dzēst</translation>
+<translation id="831684326378391082">Turpināt bez tiešsaistes avotiem</translation>
+<translation id="8349478524212888083">Importētais projekts kļūs par jaunu versiju. Piekļuve avotiem paliks atvienota, līdz to atkal apstiprināsiet.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Pievienot <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Versiju vēsture</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Atpakaļ</translation>
+<translation id="8595238918901827309">Vai atjaunot šo versiju?</translation>
+<translation id="8668072977518790485">Cilnes ID ir nokopēts</translation>
+<translation id="8684229942427488970">Vietnes centrs</translation>
 <translation id="8717864919010420084">Kopēt saiti</translation>
+<translation id="8725066075913043281">Mēģināt vēlreiz</translation>
+<translation id="8774154357663601701">Šis avots var lasīt tikai apstiprinātās lapas, kamēr sākumlapa ir aktīva.</translation>
+<translation id="8781013843394828812">Šie vienumi ir jāatkārto</translation>
+<translation id="8787633576358327637">Var tikt parādīts macOS Keychain pieprasījums</translation>
+<translation id="8820817407110198400">Grāmatzīmes</translation>
+<translation id="8826852601577125903">Rezultāta dati: no <ph name="OLD_BYTE_COUNT" /> līdz <ph name="NEW_BYTE_COUNT" /> baitiem</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidāti</translation>
+<translation id="8899040626072079337">Jūsu dati tiek pārvietoti uz Dao</translation>
+<translation id="8962539151725780858">Vadītās cilnes: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Pēdējais MCP izsaukums: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Vienumi katram savienotājam: līdz <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Neaktīvās cilnes arhivētas</translation>
+<translation id="9186557253975059599">Norādītais klients: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Pārslēgt sānjoslu</translation>
+<translation id="9205549548211212895">Apturēt migrēšanu</translation>
+<translation id="932327136139879170">Sākumlapa</translation>
+<translation id="932413031402847895">Importēt pārlūka datus</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Pievienot atlasītos</translation>
+<translation id="949725615797318423">Paplašinājumi tiek pārinstalēti no to oficiālā veikala</translation>
+<translation id="962181630102348889">Jūsu sākumlapu nevarēja parādīt</translation>
 </translationbundle>

@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="sv">
+<translation id="1111094358966140566">Jämför version</translation>
 <translation id="1173894706177603556">Byt namn</translation>
+<translation id="1182228621215085947">Fråga Dao</translation>
+<translation id="121570799358042869">Dina webbläsardata stannar på den här Mac-datorn. Att installera om kompatibla tillägg är det enda steget som kan ansluta till internet; tilläggsinställningar och inloggningar kopieras inte.</translation>
+<translation id="1236455002425740182">Dao-migrering</translation>
+<translation id="1272079795634619415">Stoppa</translation>
 <translation id="1293177648337752319">Slå på ljud på webbplats</translation>
+<translation id="1349314697251468085">Detta stänger alla flikar i mappen och tar bort mappen.</translation>
+<translation id="1352298709666490484">Byt flik</translation>
+<translation id="1383876407941801731">Sök</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Gör webben till din</translation>
+<translation id="1530524805356937121">Rulla för att läsa in mer</translation>
+<translation id="1566049601598938765">Webbplats</translation>
+<translation id="1602287703039480507">Cachen har rensats för den här webbplatsen</translation>
+<translation id="1637441054828003579">Försök igen med misslyckade objekt</translation>
+<translation id="1641203463264514072">Det mesta av dina data finns här</translation>
 <translation id="1653598257495639807">QR-kodresultat</translation>
+<translation id="172937028082106236">Skapa från min webbhistorik</translation>
+<translation id="17513872634828108">Öppna flikar</translation>
 <translation id="1809939268435598390">Ta bort mapp</translation>
+<translation id="1816380826555616620">Objekt per anslutning: <ph name="OLD_ITEM_COUNT" /> till <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Sida</translation>
+<translation id="1844249872546141866">Fönster: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Antal inte tillgängligt</translation>
+<translation id="1929197983938319610">Du kan fortsätta använda källwebbläsaren. Om en datatyp fortsätter att ändras ber Dao dig att stänga den och försöka igen endast med den delen.</translation>
+<translation id="1984122437277059790">Projektet kunde inte importeras. Kontrollera paketet och försök igen.</translation>
+<translation id="2085323698672376231">Detta tar permanent bort det aktuella projektet, alla versioner och källåtkomst. Det går inte att ångra.</translation>
+<translation id="210592584469870355">Funktioner</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Fäst flik</translation>
+<translation id="2175927920773552910">QR-kod</translation>
+<translation id="2199413402821420360">Det gick inte att öppna den här fliken i Mini Dao</translation>
+<translation id="2209843794360152290">Importerade objekt sammanfogas utan att befintliga data ersätts.</translation>
+<translation id="2254382823755510690">Dina importerade data är klara i Dao. Öppna flikar hålls oladdade i en hopfälld mapp tills du behöver dem.</translation>
+<translation id="2348199177323591972">Läs sidinnehåll</translation>
+<translation id="2359808026110333948">Fortsätt</translation>
+<translation id="2398703750948514961">Avbruten</translation>
+<translation id="2414886740292270097">Mörkt</translation>
+<translation id="243275146591958220">Avbryt nedladdning</translation>
+<translation id="2496180316473517155">Webbhistorik</translation>
+<translation id="251834402454969316">Ändringar jämfört med aktuell version</translation>
+<translation id="2519023533785544875">Öppna assistenten</translation>
+<translation id="2535607573648844553">Dao behöver den valda webbläsarens Safe Storage-nyckel för att dekryptera sparade lösenord. Om du nekar åtkomst hoppas endast lösenord över och resten av migreringen fortsätter.</translation>
+<translation id="2580366865845491095">Öppna den här länken?</translation>
+<translation id="2612596415938768738">Kan kräva att du är inloggad</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> till</translation>
 <translation id="2703180365855369896">Stäng dubblettflikar</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Läser</translation>
+<translation id="2820330532305477229">Var flyttar du från?</translation>
+<translation id="2882207023658691113">Återställ som en ny version</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> styr webbläsarflikar</translation>
 <translation id="2973324205039581528">Stäng av ljud på webbplats</translation>
+<translation id="2976307543842414852">Körs</translation>
 <translation id="3007771295016901659">Duplicera flik</translation>
 <translation id="3062877722240966678">Dao i18n-pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Verifierad process: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao testar de valda källorna och lägger till de som fungerar. Varje källa kan endast läsa sidorna och data som visas nedan när Hem är aktivt.</translation>
+<translation id="3249579521706735875">Tillgängligt när systemet är i mörkt läge.</translation>
+<translation id="3356580349448036450">Slutförd</translation>
+<translation id="3404183081987133644">Data som importerades innan du stoppade är klara att använda. Du kan starta en ny migrering när du vill.</translation>
+<translation id="3420663750132400268">Ta bort mapp?</translation>
+<translation id="3427713535827228685">Tillägg på den här webbplatsen</translation>
+<translation id="3435738964857648380">Säkerhet</translation>
 <translation id="3450492919008172498">Inga nya flikar arkiverades</translation>
+<translation id="3509982919032226274">Skapa mitt Dao Hem. Börja med att fråga vad jag vill att den här personliga sidan ska hjälpa mig att utforska, bygg sedan och publicera den första versionen.</translation>
 <translation id="3551320343578183772">Stäng flik</translation>
 <translation id="3657099196021255130">Öppna i Dao</translation>
 <translation id="3708693288863478389">Skriv en URL eller sök...</translation>
+<translation id="381667777775855564">Lägger till i Dao</translation>
 <translation id="385051799172605136">Tillbaka</translation>
 <translation id="3891466792657071243">Stoppa inläsning</translation>
 <translation id="3901975710974642844">Flytta inaktiva flikar till "stale"</translation>
+<translation id="3909499025801874715">Granska den begränsade Dao Hem-diagnostiken, förklara felet och reparera det aktuella projektet. Behåll den aktuella körbara versionen tills reparationen har validerats och publicera sedan reparationen som en ny version.</translation>
+<translation id="3927932062596804919">Neka</translation>
 <translation id="3984237987235889323">Tillämpa</translation>
+<translation id="3999659648104077867">Webbläsarkontrollen har stoppats</translation>
+<translation id="4165986682804962316">Webbplatsinställningar</translation>
 <translation id="4201242995651540725">Arkiverade flikar inaktiva de senaste 24 timmarna</translation>
+<translation id="4221615148091761714">Redigera med Dao</translation>
 <translation id="4285498937028063278">Lossa</translation>
 <translation id="4322394346347055525">Stäng andra flikar</translation>
+<translation id="4332876892329258166">Starta migrering</translation>
 <translation id="4380677223237520064">Avkoda QR-kod</translation>
+<translation id="4404136731284211429">Sök igen</translation>
+<translation id="4500440256909785690">Ersätta detta Hem?</translation>
 <translation id="4543782226216763900">Växla sidofält (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Fråga AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Flytten är klar</translation>
+<translation id="4652266463001779298">Inte tillåtet</translation>
+<translation id="4724836371241170775">Steg 2 av 4 · Välj vad som flyttas</translation>
 <translation id="473775607612524610">Uppdatera</translation>
+<translation id="481205936353439293">Steg 3 av 4 · Flyttar dina data</translation>
+<translation id="4854731374904470810">Kopiera flik-ID</translation>
 <translation id="4881695831933465202">Öppna</translation>
+<translation id="4898928054560997780">Be Dao att åtgärda</translation>
+<translation id="49041264823677952">Avfärda slutförd nedladdning</translation>
+<translation id="493638356004396067">Migreringen misslyckades</translation>
+<translation id="4968006660055392545">Inga webbläsarprofiler som stöds hittades på den här Mac-datorn.</translation>
+<translation id="5004648724625831205">Förbereder en lokal kopia</translation>
 <translation id="501297852093417632">Rensa cache</translation>
 <translation id="5027562294707732951">Lägg till tillägg</translation>
+<translation id="5126909118906525779">Ansluta direkta källor?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Räknar…</translation>
+<translation id="5301255231518510089">Välj en fil för att visa dess källkod.</translation>
+<translation id="5308380583665731573">Anslut</translation>
+<translation id="5322475253112112619">Om den tillåts kan den läsa och interagera med webbplatser med din aktuella inloggning, bland annat genom att köra JavaScript.</translation>
+<translation id="5334844597069022743">Visa källa</translation>
+<translation id="5400726083793179041">Det valda projektläget publiceras som en ny version. Befintlig historik kommer fortfarande att vara tillgänglig.</translation>
+<translation id="5436835454512450295">Importerade webbläsardata</translation>
 <translation id="5450299006531484229">Stäng flikar ovan</translation>
 <translation id="5538307496474303926">Rensar...</translation>
 <translation id="5556459405103347317">Läs in igen</translation>
 <translation id="5611474372949142946">Stäng flikar nedan</translation>
+<translation id="5649936378931470828">Öppna assistenten (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Sparade lösenord</translation>
+<translation id="5871520043546374642">Migreringen stoppades</translation>
+<translation id="5873058639175438941">Gör webbplatser mörkare med automatiskt mörkt läge när systemet är i mörkt läge.</translation>
+<translation id="5874739091759960360">Endast när dao://home är aktiv</translation>
+<translation id="591645459245805338">Skapa en privat, levande sida som Dao kan forma efter det som är viktigt för dig.</translation>
+<translation id="5942499955694738574">Hem kunde inte återställas. Det aktuella projektet har inte ändrats. Försök igen.</translation>
 <translation id="5953452567010839148">Ingen QR-kod hittades</translation>
+<translation id="6018824944448456809">Steg 1 av 4 · Välj en källa</translation>
+<translation id="6040143037577758943">Stäng</translation>
+<translation id="6042308850641462728">Mer</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Resultatdata: upp till <ph name="BYTE_COUNT" /> byte</translation>
+<translation id="6204195547326023850">Läser in ditt hem…</translation>
+<translation id="6266039999629596120">Kräver åtgärd</translation>
+<translation id="6270944267518310103">Väntar</translation>
+<translation id="6299569859560607348">Detta Hem vill öppna en extern sida. Granska målet innan du fortsätter.</translation>
+<translation id="6325047129563993580">Skapa mitt Dao Hem utifrån mina senaste surfteman. Använd endast integritetsminimerat historikmaterial från Hem, förklara riktningen kort och bygg och publicera sedan den första versionen.</translation>
+<translation id="642671119120438272">Importerade flikar</translation>
+<translation id="648743804821442565">En lokal automatiseringsklient begär åtkomst till detta Dao-fönster.</translation>
+<translation id="6527303717912515753">Dela</translation>
+<translation id="6586201961110912838">Återställ den här versionen</translation>
+<translation id="6601997535892446436">Välj en webbläsarprofil på den här Mac-datorn. Varje profil visas separat så att du har kontroll över vad som flyttas.</translation>
 <translation id="6736243959894955139">Adress</translation>
+<translation id="6764328036096492220">Skrivåtkomst</translation>
+<translation id="677387175345781299">Projektfiler</translation>
+<translation id="6786747875388722282">Tillägg</translation>
+<translation id="6801297003382412689">Resursgränser</translation>
 <translation id="6829876854799051628">Rensa cookies</translation>
+<translation id="6832689803248022656">Vad vill du ta med?</translation>
+<translation id="684699560760227351">Återställ Hem</translation>
 <translation id="6896758677409633944">Kopiera</translation>
+<translation id="6940497786570685033">Du surfar i inkognitoläge. När du har stängt alla inkognitofönster sparar Dao inte din webbhistorik, dina cookies eller webbplatsdata. Nedladdningar och bokmärken sparas.</translation>
+<translation id="6963772203726867701">Hittades inte</translation>
+<translation id="6971377058826420967">Skapa med Dao</translation>
+<translation id="7020790421915196218">Slutförda kategorier är klara att använda. Du kan försöka igen endast med de delar som kräver åtgärd.</translation>
+<translation id="7401173814860935855">Cookies har rensats för den här webbplatsen</translation>
+<translation id="7465855397028934440">Söker efter webbläsarprofiler…</translation>
+<translation id="750760654246049420">En annan automatiseringsklient styr den här webbläsaren</translation>
 <translation id="7532108947552493901">Sök efter uppdateringar...</translation>
+<translation id="7533550325431812">Tillåt den här anslutningen</translation>
 <translation id="7604253494819481181">Tryck på <ph name="SHORTCUT" /> igen för att växla sidofält</translation>
+<translation id="7615777614791709701">Återställa Hem?</translation>
+<translation id="7626429522809774043">Tillåta webbläsarkontroll?</translation>
+<translation id="7636812263792427733">Tvinga mörkt läge</translation>
+<translation id="7658239707568436148">Avbryt</translation>
+<translation id="7714812312719848690">Ditt projekt är fortfarande säkert. Försök igen, återställ en version eller be Dao att reparera det.</translation>
 <translation id="7717845620320228976">Sök efter uppdateringar</translation>
+<translation id="7803931104677504532">Läs presentationsstilar</translation>
+<translation id="7974106569409739809">Ta bort från mapp</translation>
+<translation id="7995663841236651667">Dina webbläsardata behandlas lokalt på den här Mac-datorn.</translation>
+<translation id="8028081981001403222">Importera projekt</translation>
+<translation id="8041968312565730454">Källwebbläsare</translation>
+<translation id="8052762370740257987">Exportera projekt</translation>
+<translation id="8097718730266959883">inte tillgänglig</translation>
+<translation id="81044950628177848">Aktuell version</translation>
+<translation id="8131740175452115882">Bekräfta</translation>
 <translation id="8137559199583651773">Hantera tillägg</translation>
+<translation id="8138892305328483863">Dao sammanfogar importerade objekt med det du redan har. Befintliga data ersätts aldrig.</translation>
+<translation id="8175534235396780357">Information om AI-kontroll</translation>
+<translation id="8237260373784588552">Hemkontroller</translation>
+<translation id="824895471210913946">Mål: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Ta bort</translation>
+<translation id="831684326378391082">Fortsätt utan direkta källor</translation>
+<translation id="8349478524212888083">Det importerade projektet blir en ny version. Källåtkomst förblir frånkopplad tills du godkänner den igen.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Anslut <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Versionshistorik</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Tillbaka</translation>
+<translation id="8595238918901827309">Återställa den här versionen?</translation>
+<translation id="8668072977518790485">Flik-ID kopierat</translation>
+<translation id="8684229942427488970">Webbplatscenter</translation>
 <translation id="8717864919010420084">Kopiera länk</translation>
+<translation id="8725066075913043281">Försök igen</translation>
+<translation id="8774154357663601701">Den här källan kan endast läsa godkända sidor när Hem är aktivt.</translation>
+<translation id="8781013843394828812">Dessa objekt måste försökas igen</translation>
+<translation id="8787633576358327637">En macOS-nyckelringsfråga kan visas</translation>
+<translation id="8820817407110198400">Bokmärken</translation>
+<translation id="8826852601577125903">Resultatdata: <ph name="OLD_BYTE_COUNT" /> till <ph name="NEW_BYTE_COUNT" /> byte</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidater</translation>
+<translation id="8899040626072079337">Flyttar dina data till Dao</translation>
+<translation id="8962539151725780858">Styrda flikar: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Senaste MCP-anrop: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Objekt per anslutning: upp till <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Inaktiva flikar har arkiverats</translation>
+<translation id="9186557253975059599">Angiven klient: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Växla sidofält</translation>
+<translation id="9205549548211212895">Stoppa migrering</translation>
+<translation id="932327136139879170">Hem</translation>
+<translation id="932413031402847895">Importera webbläsardata</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Anslut valda</translation>
+<translation id="949725615797318423">Tillägg installeras om från deras officiella butik</translation>
+<translation id="962181630102348889">Ditt Hem kunde inte visas</translation>
 </translationbundle>

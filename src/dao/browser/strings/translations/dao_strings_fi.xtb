@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="fi">
+<translation id="1111094358966140566">Vertaa versioon</translation>
 <translation id="1173894706177603556">Nimeä uudelleen</translation>
+<translation id="1182228621215085947">Kysy Daolta</translation>
+<translation id="121570799358042869">Selaintietosi säilyvät tällä Macilla. Yhteensopivien laajennusten uudelleenasennus on ainoa vaihe, joka voi muodostaa internetyhteyden; laajennusten asetuksia ja kirjautumisia ei kopioida.</translation>
+<translation id="1236455002425740182">Dao-siirto</translation>
+<translation id="1272079795634619415">Pysäytä</translation>
 <translation id="1293177648337752319">Poista sivuston mykistys</translation>
+<translation id="1349314697251468085">Tämä sulkee kaikki kansion välilehdet ja poistaa kansion.</translation>
+<translation id="1352298709666490484">Vaihda välilehteen</translation>
+<translation id="1383876407941801731">Hae</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profiili: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Tee verkosta omasi</translation>
+<translation id="1530524805356937121">Vieritä ladataksesi lisää</translation>
+<translation id="1566049601598938765">Verkkosivusto</translation>
+<translation id="1602287703039480507">Tämän sivuston välimuisti tyhjennetty</translation>
+<translation id="1637441054828003579">Yritä epäonnistuneita kohteita uudelleen</translation>
+<translation id="1641203463264514072">Suurin osa tiedoistasi on täällä</translation>
 <translation id="1653598257495639807">QR-koodin tulos</translation>
+<translation id="172937028082106236">Luo selaushistoriastani</translation>
+<translation id="17513872634828108">Avoimet välilehdet</translation>
 <translation id="1809939268435598390">Poista kansio</translation>
+<translation id="1816380826555616620">Kohteita yhdistintä kohti: <ph name="OLD_ITEM_COUNT" />–<ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Sivu</translation>
+<translation id="1844249872546141866">Ikkuna: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Määrä ei saatavilla</translation>
+<translation id="1929197983938319610">Voit jatkaa lähdeselaimen käyttöä. Jos jokin tietotyyppi muuttuu jatkuvasti, Dao pyytää sinua sulkemaan sen ja yrittämään uudelleen vain kyseisen osan.</translation>
+<translation id="1984122437277059790">Projektia ei voitu tuoda. Tarkista paketti ja yritä uudelleen.</translation>
+<translation id="2085323698672376231">Tämä poistaa pysyvästi nykyisen projektin, kaikki versiot ja lähteiden käyttöoikeudet. Tätä ei voi kumota.</translation>
+<translation id="210592584469870355">Ominaisuudet</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Kiinnitä välilehti</translation>
+<translation id="2175927920773552910">QR-koodi</translation>
+<translation id="2199413402821420360">Tätä välilehteä ei voitu avata Mini Daossa</translation>
+<translation id="2209843794360152290">Tuodut kohteet yhdistetään korvaamatta olemassa olevia tietoja.</translation>
+<translation id="2254382823755510690">Tuodut tietosi ovat valmiina Daossa. Avoimet välilehdet pidetään lataamattomina supistetussa kansiossa, kunnes tarvitset niitä.</translation>
+<translation id="2348199177323591972">Lue sivun sisältö</translation>
+<translation id="2359808026110333948">Jatka</translation>
+<translation id="2398703750948514961">Peruutettu</translation>
+<translation id="2414886740292270097">Tumma</translation>
+<translation id="243275146591958220">Peruuta lataus</translation>
+<translation id="2496180316473517155">Selaushistoria</translation>
+<translation id="251834402454969316">Muutokset nykyiseen versioon</translation>
+<translation id="2519023533785544875">Avaa Assistant</translation>
+<translation id="2535607573648844553">Dao tarvitsee valitun selaimen Safe Storage -avaimen tallennettujen salasanojen salauksen purkamiseen. Jos estät pääsyn, vain salasanat ohitetaan ja muu siirto jatkuu.</translation>
+<translation id="2580366865845491095">Avataanko tämä linkki?</translation>
+<translation id="2612596415938768738">Saattaa edellyttää kirjautumista</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> lisää</translation>
 <translation id="2703180365855369896">Sulje kaksoiskappalevälilehdet</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Luetaan</translation>
+<translation id="2820330532305477229">Mistä olet siirtymässä?</translation>
+<translation id="2882207023658691113">Palauta uutena versiona</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> hallitsee selaimen välilehtiä</translation>
 <translation id="2973324205039581528">Mykistä sivusto</translation>
+<translation id="2976307543842414852">Suoritetaan</translation>
 <translation id="3007771295016901659">Kahdenna välilehti</translation>
 <translation id="3062877722240966678">Dao i18n-putki OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Vahvistettu prosessi: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao testaa valitut lähteet ja lisää toimivat lähteet. Kukin lähde voi lukea vain alla näkyviä sivuja ja tietoja, kun Koti on aktiivinen.</translation>
+<translation id="3249579521706735875">Käytettävissä, kun järjestelmä on tummassa tilassa.</translation>
+<translation id="3356580349448036450">Valmis</translation>
+<translation id="3404183081987133644">Ennen pysäytystä tuodut tiedot ovat käyttövalmiita. Voit aloittaa uuden siirron milloin tahansa.</translation>
+<translation id="3420663750132400268">Poistetaanko kansio?</translation>
+<translation id="3427713535827228685">Tämän sivuston laajennukset</translation>
+<translation id="3435738964857648380">Suojaus</translation>
 <translation id="3450492919008172498">Ei uusia välilehtiä arkistoitu</translation>
+<translation id="3509982919032226274">Luo Dao-Kotini. Aloita kysymällä, mitä haluan tämän henkilökohtaisen sivun auttavan minua tutkimaan, ja rakenna ja julkaise sitten ensimmäinen versio.</translation>
 <translation id="3551320343578183772">Sulje välilehti</translation>
 <translation id="3657099196021255130">Avaa Dao:ssa</translation>
 <translation id="3708693288863478389">Kirjoita URL tai hae...</translation>
+<translation id="381667777775855564">Lisätään Daoon</translation>
 <translation id="385051799172605136">Takaisin</translation>
 <translation id="3891466792657071243">Pysäytä lataus</translation>
 <translation id="3901975710974642844">Siirrä vanhentuneet välilehdet "vanhentuneet"</translation>
+<translation id="3909499025801874715">Tarkasta rajatut Dao-Kodin diagnostiikkatiedot, selitä virhe ja korjaa nykyinen projekti. Säilytä nykyinen toimiva versio, kunnes korjaus on vahvistettu, ja julkaise sitten korjaus uutena versiona.</translation>
+<translation id="3927932062596804919">Estä</translation>
 <translation id="3984237987235889323">Käytetään</translation>
+<translation id="3999659648104077867">Selaimen hallinta pysäytetty</translation>
+<translation id="4165986682804962316">Sivuston asetukset</translation>
 <translation id="4201242995651540725">Arkistoitu välilehdet, jotka ovat olleet käyttämättöminä viimeiset 24 tuntia</translation>
+<translation id="4221615148091761714">Muokkaa Daon avulla</translation>
 <translation id="4285498937028063278">Poista kiinnitys</translation>
 <translation id="4322394346347055525">Sulje muut välilehdet</translation>
+<translation id="4332876892329258166">Aloita siirto</translation>
 <translation id="4380677223237520064">Purkaa QR-koodi</translation>
+<translation id="4404136731284211429">Skannaa uudelleen</translation>
+<translation id="4500440256909785690">Korvataanko tämä Koti?</translation>
 <translation id="4543782226216763900">Vaihda sivupalkki (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Kysy tekoälyltä: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Siirtosi on valmis</translation>
+<translation id="4652266463001779298">Ei sallittu</translation>
+<translation id="4724836371241170775">Vaihe 2/4 · Valitse siirrettävät tiedot</translation>
 <translation id="473775607612524610">Päivitä</translation>
+<translation id="481205936353439293">Vaihe 3/4 · Siirretään tietojasi</translation>
+<translation id="4854731374904470810">Kopioi välilehden tunnus</translation>
 <translation id="4881695831933465202">Avaa</translation>
+<translation id="4898928054560997780">Pyydä Daoa korjaamaan</translation>
+<translation id="49041264823677952">Hylkää valmis lataus</translation>
+<translation id="493638356004396067">Siirto epäonnistui</translation>
+<translation id="4968006660055392545">Tältä Macilta ei löytynyt tuettuja selainprofiileja.</translation>
+<translation id="5004648724625831205">Valmistellaan paikallista kopiota</translation>
 <translation id="501297852093417632">Tyhjennä välimuisti</translation>
 <translation id="5027562294707732951">Lisää laajennus</translation>
+<translation id="5126909118906525779">Yhdistetäänkö reaaliaikaiset lähteet?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Lasketaan…</translation>
+<translation id="5301255231518510089">Valitse tiedosto nähdäksesi sen lähdekoodin.</translation>
+<translation id="5308380583665731573">Yhdistä</translation>
+<translation id="5322475253112112619">Jos sallitaan, se voi lukea verkkosivustoja ja olla niiden kanssa vuorovaikutuksessa nykyisellä kirjautumisellasi, myös suorittamalla JavaScriptiä.</translation>
+<translation id="5334844597069022743">Näytä lähdekoodi</translation>
+<translation id="5400726083793179041">Valittu projektin tila julkaistaan uutena versiona. Nykyinen historia säilyy käytettävissä.</translation>
+<translation id="5436835454512450295">Tuodut selaintiedot</translation>
 <translation id="5450299006531484229">Sulje ylemmät välilehdet</translation>
 <translation id="5538307496474303926">Tyhjennetään...</translation>
 <translation id="5556459405103347317">Lataa uudelleen</translation>
 <translation id="5611474372949142946">Sulje alemmat välilehdet</translation>
+<translation id="5649936378931470828">Avaa Assistant (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Tallennetut salasanat</translation>
+<translation id="5871520043546374642">Siirto pysäytetty</translation>
+<translation id="5873058639175438941">Tummenna verkkosivustot automaattisella tummalla tilalla, kun järjestelmä on tummassa tilassa.</translation>
+<translation id="5874739091759960360">Vain kun dao://home on aktiivinen</translation>
+<translation id="591645459245805338">Luo yksityinen, elävä sivu, jonka Dao voi muotoilla sinulle tärkeiden asioiden ympärille.</translation>
+<translation id="5942499955694738574">Kotia ei voitu nollata. Nykyistä projektia ei muutettu. Yritä uudelleen.</translation>
 <translation id="5953452567010839148">QR-koodia ei löytynyt</translation>
+<translation id="6018824944448456809">Vaihe 1/4 · Valitse lähde</translation>
+<translation id="6040143037577758943">Sulje</translation>
+<translation id="6042308850641462728">Lisää</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Tulostiedot: enintään <ph name="BYTE_COUNT" /> tavua</translation>
+<translation id="6204195547326023850">Ladataan Kotiasi…</translation>
+<translation id="6266039999629596120">Vaatii huomiota</translation>
+<translation id="6270944267518310103">Odottaa</translation>
+<translation id="6299569859560607348">Tämä Koti haluaa avata ulkoisen sivun. Tarkista kohde ennen jatkamista.</translation>
+<translation id="6325047129563993580">Luo Dao-Kotini viimeaikaisten selausteemojeni perusteella. Käytä vain yksityisyyttä suojaavaa Koti-historia-aineistoa, kerro suunta lyhyesti ja rakenna ja julkaise sitten ensimmäinen versio.</translation>
+<translation id="642671119120438272">Tuodut välilehdet</translation>
+<translation id="648743804821442565">Paikallinen automaatioasiakas pyytää pääsyä tähän Dao-ikkunaan.</translation>
+<translation id="6527303717912515753">Jaa</translation>
+<translation id="6586201961110912838">Palauta tämä versio</translation>
+<translation id="6601997535892446436">Valitse selainprofiili tältä Macilta. Jokainen profiili on lueteltu erikseen, jotta voit hallita siirrettäviä tietoja.</translation>
 <translation id="6736243959894955139">Osoite</translation>
+<translation id="6764328036096492220">Kirjoitusoikeus</translation>
+<translation id="677387175345781299">Projektitiedostot</translation>
+<translation id="6786747875388722282">Laajennukset</translation>
+<translation id="6801297003382412689">Resurssirajat</translation>
 <translation id="6829876854799051628">Tyhjennä evästeet</translation>
+<translation id="6832689803248022656">Mitä haluaisit tuoda?</translation>
+<translation id="684699560760227351">Nollaa Koti</translation>
 <translation id="6896758677409633944">Kopioi</translation>
+<translation id="6940497786570685033">Selaat incognito-tilassa. Kun suljet kaikki incognito-ikkunat, Dao ei säilytä selaushistoriaasi, evästeitäsi eikä sivustotietojasi. Lataukset ja kirjanmerkit säilytetään.</translation>
+<translation id="6963772203726867701">Ei havaittu</translation>
+<translation id="6971377058826420967">Luo Daon avulla</translation>
+<translation id="7020790421915196218">Valmistuneet luokat ovat käyttövalmiita. Voit yrittää uudelleen vain huomiota vaativat osat.</translation>
+<translation id="7401173814860935855">Tämän sivuston evästeet tyhjennetty</translation>
+<translation id="7465855397028934440">Etsitään selainprofiileja…</translation>
+<translation id="750760654246049420">Toinen automaatioasiakas hallitsee tätä selainta</translation>
 <translation id="7532108947552493901">Tarkista päivitykset...</translation>
+<translation id="7533550325431812">Salli tämä yhteys</translation>
 <translation id="7604253494819481181">Paina <ph name="SHORTCUT" /> uudelleen vaihtaaksesi sivupalkkia</translation>
+<translation id="7615777614791709701">Nollataanko Koti?</translation>
+<translation id="7626429522809774043">Sallitaanko selaimen hallinta?</translation>
+<translation id="7636812263792427733">Pakota tumma tila</translation>
+<translation id="7658239707568436148">Peruuta</translation>
+<translation id="7714812312719848690">Projektisi on yhä turvassa. Yritä uudelleen, palauta versio tai pyydä Daoa korjaamaan se.</translation>
 <translation id="7717845620320228976">Tarkista päivitykset</translation>
+<translation id="7803931104677504532">Lue esitystyylit</translation>
+<translation id="7974106569409739809">Poista kansio</translation>
+<translation id="7995663841236651667">Selaintietosi käsitellään paikallisesti tällä Macilla.</translation>
+<translation id="8028081981001403222">Tuo projekti</translation>
+<translation id="8041968312565730454">Lähdeselain</translation>
+<translation id="8052762370740257987">Vie projekti</translation>
+<translation id="8097718730266959883">ei käytettävissä</translation>
+<translation id="81044950628177848">Nykyinen versio</translation>
+<translation id="8131740175452115882">Vahvista</translation>
 <translation id="8137559199583651773">Hallitse laajennuksia</translation>
+<translation id="8138892305328483863">Dao yhdistää tuodut kohteet olemassa oleviin tietoihisi. Olemassa olevia tietoja ei koskaan korvata.</translation>
+<translation id="8175534235396780357">Tekoälyhallinnan tiedot</translation>
+<translation id="8237260373784588552">Kodin hallinta</translation>
+<translation id="824895471210913946">Kohde: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Poista</translation>
+<translation id="831684326378391082">Jatka ilman reaaliaikaisia lähteitä</translation>
+<translation id="8349478524212888083">Tuodusta projektista tulee uusi versio. Lähteiden käyttöoikeudet pysyvät katkaistuina, kunnes hyväksyt ne uudelleen.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Yhdistä: <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Versiohistoria</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Takaisin</translation>
+<translation id="8595238918901827309">Palautetaanko tämä versio?</translation>
+<translation id="8668072977518790485">Välilehden tunnus kopioitu</translation>
+<translation id="8684229942427488970">Sivustokeskus</translation>
 <translation id="8717864919010420084">Kopioi linkki</translation>
+<translation id="8725066075913043281">Yritä uudelleen</translation>
+<translation id="8774154357663601701">Tämä lähde voi lukea vain hyväksyttyjä sivuja, kun Koti on aktiivinen.</translation>
+<translation id="8781013843394828812">Nämä kohteet on yritettävä uudelleen</translation>
+<translation id="8787633576358327637">macOS-avainnipun kehote voi tulla näkyviin</translation>
+<translation id="8820817407110198400">Kirjanmerkit</translation>
+<translation id="8826852601577125903">Tulostiedot: <ph name="OLD_BYTE_COUNT" />–<ph name="NEW_BYTE_COUNT" /> tavua</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kohdetta</translation>
+<translation id="8899040626072079337">Siirretään tietojasi Daoon</translation>
+<translation id="8962539151725780858">Hallittuja välilehtiä: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Viimeisin MCP-kutsu: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Kohteita yhdistintä kohti: enintään <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Passiiviset välilehdet arkistoitu</translation>
+<translation id="9186557253975059599">Ilmoitettu asiakas: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Vaihda sivupalkki</translation>
+<translation id="9205549548211212895">Pysäytä siirto</translation>
+<translation id="932327136139879170">Koti</translation>
+<translation id="932413031402847895">Tuo selaintietoja</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Yhdistä valitut</translation>
+<translation id="949725615797318423">Laajennukset asennetaan uudelleen niiden virallisesta kaupasta</translation>
+<translation id="962181630102348889">Kotiasi ei voitu näyttää</translation>
 </translationbundle>

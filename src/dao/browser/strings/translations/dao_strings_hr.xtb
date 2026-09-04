@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="hr">
+<translation id="1111094358966140566">Usporedi verziju</translation>
 <translation id="1173894706177603556">Preimenuj</translation>
+<translation id="1182228621215085947">Pitaj Dao</translation>
+<translation id="121570799358042869">Podaci preglednika ostaju na ovom Macu. Ponovna instalacija kompatibilnih proširenja jedini je korak koji se može povezati s internetom; postavke proširenja i prijave ne kopiraju se.</translation>
+<translation id="1236455002425740182">Migracija Daoa</translation>
+<translation id="1272079795634619415">Zaustavi</translation>
 <translation id="1293177648337752319">Uključi zvuk na stranici</translation>
+<translation id="1349314697251468085">Time ćete zatvoriti sve kartice u mapi i izbrisati mapu.</translation>
+<translation id="1352298709666490484">Prebaci karticu</translation>
+<translation id="1383876407941801731">Pretraži</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Učinite web svojim</translation>
+<translation id="1530524805356937121">Pomicanje za učitavanje više sadržaja</translation>
+<translation id="1566049601598938765">Web-lokacija</translation>
+<translation id="1602287703039480507">Predmemorija je izbrisana za ovu web-lokaciju</translation>
+<translation id="1637441054828003579">Ponovno pokušaj neuspjele stavke</translation>
+<translation id="1641203463264514072">Većina vaših podataka je ovdje</translation>
 <translation id="1653598257495639807">Rezultat QR koda</translation>
+<translation id="172937028082106236">Stvori iz moje povijesti pregledavanja</translation>
+<translation id="17513872634828108">Otvorene kartice</translation>
 <translation id="1809939268435598390">Izbriši mapu</translation>
+<translation id="1816380826555616620">Stavke po poveznici: s <ph name="OLD_ITEM_COUNT" /> na <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Stranica</translation>
+<translation id="1844249872546141866">Prozor: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Broj nije dostupan</translation>
+<translation id="1929197983938319610">Možete nastaviti koristiti izvorni preglednik. Ako se jedna vrsta podataka neprestano mijenja, Dao će zatražiti da je zatvorite i ponovite samo taj dio.</translation>
+<translation id="1984122437277059790">Projekt nije moguće uvesti. Provjerite paket i pokušajte ponovno.</translation>
+<translation id="2085323698672376231">Time se trajno brišu trenutačni projekt, sve verzije i pristup izvoru. To se ne može poništiti.</translation>
+<translation id="210592584469870355">Mogućnosti</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Prikvači karticu</translation>
+<translation id="2175927920773552910">QR kôd</translation>
+<translation id="2199413402821420360">Nije moguće otvoriti ovu karticu u Mini Daou</translation>
+<translation id="2209843794360152290">Uvezene stavke objedinjuju se bez zamjene postojećih podataka.</translation>
+<translation id="2254382823755510690">Uvezeni podaci spremni su u Daou. Otvorene kartice ostaju neučitane u sažetoj mapi dok ih ne zatrebate.</translation>
+<translation id="2348199177323591972">Čitanje sadržaja stranice</translation>
+<translation id="2359808026110333948">Nastavi</translation>
+<translation id="2398703750948514961">Otkazano</translation>
+<translation id="2414886740292270097">Tamno</translation>
+<translation id="243275146591958220">Otkaži preuzimanje</translation>
+<translation id="2496180316473517155">Povijest pregledavanja</translation>
+<translation id="251834402454969316">Promjene u odnosu na trenutačnu verziju</translation>
+<translation id="2519023533785544875">Otvori pomoćnika</translation>
+<translation id="2535607573648844553">Dao treba ključ sigurne pohrane odabranog preglednika za dešifriranje spremljenih lozinki. Ako odbijete pristup, preskočit će se samo lozinke, a ostatak migracije nastavit će se.</translation>
+<translation id="2580366865845491095">Otvoriti ovu poveznicu?</translation>
+<translation id="2612596415938768738">Možda ćete se morati prijaviti</translation>
+<translation id="2698054069012763064">Još <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Zatvori duple kartice</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Čitanje</translation>
+<translation id="2820330532305477229">Odakle se selite?</translation>
+<translation id="2882207023658691113">Vrati kao novu verziju</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> upravlja karticama preglednika</translation>
 <translation id="2973324205039581528">Isključi zvuk na stranici</translation>
+<translation id="2976307543842414852">Pokretanja</translation>
 <translation id="3007771295016901659">Dupliciraj karticu</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Potvrđeni proces: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao će testirati odabrane izvore i dodati one koji rade. Svaki izvor može čitati samo dolje prikazane stranice i podatke dok je Početna aktivna.</translation>
+<translation id="3249579521706735875">Dostupno kada je sustav u tamnom načinu.</translation>
+<translation id="3356580349448036450">Dovršeno</translation>
+<translation id="3404183081987133644">Podaci uvezeni prije zaustavljanja spremni su za upotrebu. Možete pokrenuti drugu migraciju kad god budete spremni.</translation>
+<translation id="3420663750132400268">Izbrisati mapu?</translation>
+<translation id="3427713535827228685">Proširenja na ovoj web-lokaciji</translation>
+<translation id="3435738964857648380">Sigurnost</translation>
 <translation id="3450492919008172498">Nema novih arhiviranih kartica</translation>
+<translation id="3509982919032226274">Stvori moju Dao Početnu. Najprije pitaj što želim da mi ova osobna stranica pomogne istražiti, zatim izradi i objavi prvu verziju.</translation>
 <translation id="3551320343578183772">Zatvori karticu</translation>
 <translation id="3657099196021255130">Otvori u Dao</translation>
 <translation id="3708693288863478389">Upišite URL ili pretražujte...</translation>
+<translation id="381667777775855564">Dodavanje u Dao</translation>
 <translation id="385051799172605136">Natrag</translation>
 <translation id="3891466792657071243">Zaustavi učitavanje</translation>
 <translation id="3901975710974642844">Premjesti zastarjele kartice u "zastarjelo"</translation>
+<translation id="3909499025801874715">Pregledaj ograničenu dijagnostiku Dao Početne, objasni neuspjeh i popravi trenutačni projekt. Zadrži trenutačnu izvršivu verziju dok se popravak ne potvrdi, zatim objavi popravak kao novu verziju.</translation>
+<translation id="3927932062596804919">Odbij</translation>
 <translation id="3984237987235889323">Primjenjuje se</translation>
+<translation id="3999659648104077867">Upravljanje preglednikom zaustavljeno</translation>
+<translation id="4165986682804962316">Postavke web-lokacije</translation>
 <translation id="4201242995651540725">Arhivirane kartice neaktivne u posljednja 24 sata</translation>
+<translation id="4221615148091761714">Uredi s Daom</translation>
 <translation id="4285498937028063278">Otkvači</translation>
 <translation id="4322394346347055525">Zatvori druge kartice</translation>
+<translation id="4332876892329258166">Pokreni migraciju</translation>
 <translation id="4380677223237520064">Dekodiraj QR kod</translation>
+<translation id="4404136731284211429">Ponovno pretraži</translation>
+<translation id="4500440256909785690">Zamijeniti ovu Početnu?</translation>
 <translation id="4543782226216763900">Prebaci bočnu traku (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">Pitaj AI: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">Prijenos je dovršen</translation>
+<translation id="4652266463001779298">Nije dopušteno</translation>
+<translation id="4724836371241170775">Korak 2 od 4 · Odaberite što se prenosi</translation>
 <translation id="473775607612524610">Ažuriraj</translation>
+<translation id="481205936353439293">Korak 3 od 4 · Prijenos podataka</translation>
+<translation id="4854731374904470810">Kopiraj ID kartice</translation>
 <translation id="4881695831933465202">Otvori</translation>
+<translation id="4898928054560997780">Zatraži od Daoa popravak</translation>
+<translation id="49041264823677952">Ukloni dovršeno preuzimanje</translation>
+<translation id="493638356004396067">Migracija nije uspjela</translation>
+<translation id="4968006660055392545">Na ovom Macu nisu pronađeni podržani profili preglednika.</translation>
+<translation id="5004648724625831205">Priprema lokalne kopije</translation>
 <translation id="501297852093417632">Očisti predmemoriju</translation>
 <translation id="5027562294707732951">Dodaj proširenje</translation>
+<translation id="5126909118906525779">Povezati izvore uživo?</translation>
 <translation id="5192454087436290060">Control Center</translation>
+<translation id="5289912690346335931">Brojanje…</translation>
+<translation id="5301255231518510089">Odaberite datoteku za prikaz njezina izvora.</translation>
+<translation id="5308380583665731573">Poveži</translation>
+<translation id="5322475253112112619">Ako dopustite, može čitati web-lokacije i komunicirati s njima koristeći vašu trenutačnu prijavu, uključujući pokretanje JavaScripta.</translation>
+<translation id="5334844597069022743">Prikaži izvor</translation>
+<translation id="5400726083793179041">Odabrano stanje projekta objavit će se kao nova verzija. Postojeća povijest ostat će dostupna.</translation>
+<translation id="5436835454512450295">Uvezeni podaci preglednika</translation>
 <translation id="5450299006531484229">Zatvori kartice iznad</translation>
 <translation id="5538307496474303926">Čišćenje...</translation>
 <translation id="5556459405103347317">Ponovno učitaj</translation>
 <translation id="5611474372949142946">Zatvori kartice ispod</translation>
+<translation id="5649936378931470828">Otvori pomoćnika (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Spremljene lozinke</translation>
+<translation id="5871520043546374642">Migracija zaustavljena</translation>
+<translation id="5873058639175438941">Zatamnite web-lokacije automatskim tamnim načinom dok je sustav u tamnom načinu.</translation>
+<translation id="5874739091759960360">Samo dok je dao://home aktivan</translation>
+<translation id="591645459245805338">Stvorite privatnu, dinamičnu stranicu koju Dao može oblikovati prema onome što vam je važno.</translation>
+<translation id="5942499955694738574">Početnu nije moguće vratiti na početno stanje. Trenutačni projekt nije promijenjen. Pokušajte ponovno.</translation>
 <translation id="5953452567010839148">Nije pronađen QR kod</translation>
+<translation id="6018824944448456809">Korak 1 od 4 · Odaberite izvor</translation>
+<translation id="6040143037577758943">Zatvori</translation>
+<translation id="6042308850641462728">Više</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Podaci rezultata: do <ph name="BYTE_COUNT" /> bajtova</translation>
+<translation id="6204195547326023850">Učitavanje vaše Početne…</translation>
+<translation id="6266039999629596120">Potrebna je pažnja</translation>
+<translation id="6270944267518310103">Čekanje</translation>
+<translation id="6299569859560607348">Ova Početna želi otvoriti vanjsku stranicu. Pregledajte odredište prije nastavka.</translation>
+<translation id="6325047129563993580">Stvori moju Dao Početnu na temelju mojih nedavnih tema pregledavanja. Koristi samo materijal iz povijesti Početne s minimaliziranim podacima za privatnost, ukratko objasni smjer, zatim izradi i objavi prvu verziju.</translation>
+<translation id="642671119120438272">Uvezene kartice</translation>
+<translation id="648743804821442565">Lokalni klijent za automatizaciju traži pristup ovom prozoru Daoa.</translation>
+<translation id="6527303717912515753">Podijeli</translation>
+<translation id="6586201961110912838">Vrati ovu verziju</translation>
+<translation id="6601997535892446436">Odaberite profil preglednika na ovom Macu. Svaki je profil naveden zasebno kako biste imali kontrolu nad onim što se prenosi.</translation>
 <translation id="6736243959894955139">Adresa</translation>
+<translation id="6764328036096492220">Pristup za pisanje</translation>
+<translation id="677387175345781299">Datoteke projekta</translation>
+<translation id="6786747875388722282">Proširenja</translation>
+<translation id="6801297003382412689">Ograničenja resursa</translation>
 <translation id="6829876854799051628">Očisti kolačiće</translation>
+<translation id="6832689803248022656">Što želite prenijeti?</translation>
+<translation id="684699560760227351">Vrati Početnu na početno stanje</translation>
 <translation id="6896758677409633944">Kopiraj</translation>
+<translation id="6940497786570685033">Pregledavate u anonimnom načinu. Nakon što zatvorite sve anonimne prozore, Dao neće zadržati vašu povijest pregledavanja, kolačiće ni podatke web-lokacija. Preuzimanja i oznake ostaju sačuvani.</translation>
+<translation id="6963772203726867701">Nije otkriveno</translation>
+<translation id="6971377058826420967">Stvori s Daom</translation>
+<translation id="7020790421915196218">Dovršene kategorije spremne su za upotrebu. Možete ponovno pokušati samo dijelove koji trebaju pažnju.</translation>
+<translation id="7401173814860935855">Kolačići su izbrisani za ovu web-lokaciju</translation>
+<translation id="7465855397028934440">Traženje profila preglednika…</translation>
+<translation id="750760654246049420">Drugi klijent za automatizaciju upravlja ovim preglednikom</translation>
 <translation id="7532108947552493901">Provjeri ažuriranja...</translation>
+<translation id="7533550325431812">Dopusti ovu vezu</translation>
 <translation id="7604253494819481181">Pritisnite <ph name="SHORTCUT" /> ponovno za prebacivanje bočne trake</translation>
+<translation id="7615777614791709701">Vratiti Početnu na početno stanje?</translation>
+<translation id="7626429522809774043">Dopustiti upravljanje preglednikom?</translation>
+<translation id="7636812263792427733">Prisilni tamni način</translation>
+<translation id="7658239707568436148">Odustani</translation>
+<translation id="7714812312719848690">Vaš je projekt i dalje siguran. Pokušajte ponovno, vratite verziju ili zatražite od Daoa da ga popravi.</translation>
 <translation id="7717845620320228976">Provjeri ažuriranja</translation>
+<translation id="7803931104677504532">Čitanje stilova prikaza</translation>
+<translation id="7974106569409739809">Ukloni iz mape</translation>
+<translation id="7995663841236651667">Podaci vašeg preglednika obrađuju se lokalno na ovom Macu.</translation>
+<translation id="8028081981001403222">Uvezi projekt</translation>
+<translation id="8041968312565730454">Izvorni preglednik</translation>
+<translation id="8052762370740257987">Izvezi projekt</translation>
+<translation id="8097718730266959883">nedostupno</translation>
+<translation id="81044950628177848">Trenutačna verzija</translation>
+<translation id="8131740175452115882">Potvrdi</translation>
 <translation id="8137559199583651773">Upravljaj proširenjima</translation>
+<translation id="8138892305328483863">Dao objedinjuje uvezene stavke s onima koje već imate. Postojeći se podaci nikada ne zamjenjuju.</translation>
+<translation id="8175534235396780357">Pojedinosti AI upravljanja</translation>
+<translation id="8237260373784588552">Kontrole Početne</translation>
+<translation id="824895471210913946">Cilj: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Izbriši</translation>
+<translation id="831684326378391082">Nastavi bez izvora uživo</translation>
+<translation id="8349478524212888083">Uvezeni projekt postat će nova verzija. Pristup izvoru ostat će isključen dok ga ponovno ne odobrite.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Poveži <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Povijest verzija</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← Natrag</translation>
+<translation id="8595238918901827309">Vratiti ovu verziju?</translation>
+<translation id="8668072977518790485">ID kartice kopiran</translation>
+<translation id="8684229942427488970">Centar web-lokacije</translation>
 <translation id="8717864919010420084">Kopiraj poveznicu</translation>
+<translation id="8725066075913043281">Pokušaj ponovno</translation>
+<translation id="8774154357663601701">Ovaj izvor može čitati samo odobrene stranice dok je Početna aktivna.</translation>
+<translation id="8781013843394828812">Ove stavke treba ponovno pokušati</translation>
+<translation id="8787633576358327637">Može se pojaviti upit macOS privjeska ključeva</translation>
+<translation id="8820817407110198400">Oznake</translation>
+<translation id="8826852601577125903">Podaci rezultata: s <ph name="OLD_BYTE_COUNT" /> na <ph name="NEW_BYTE_COUNT" /> bajtova</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> kandidata</translation>
+<translation id="8899040626072079337">Prijenos podataka u Dao</translation>
+<translation id="8962539151725780858">Upravljane kartice: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Posljednji MCP poziv: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Stavke po poveznici: do <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Neaktivne kartice arhivirane</translation>
+<translation id="9186557253975059599">Prijavljeni klijent: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Prebaci bočnu traku</translation>
+<translation id="9205549548211212895">Zaustavi migraciju</translation>
+<translation id="932327136139879170">Početna</translation>
+<translation id="932413031402847895">Uvezi podatke preglednika</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Poveži odabrano</translation>
+<translation id="949725615797318423">Proširenja se ponovno instaliraju iz njihove službene trgovine</translation>
+<translation id="962181630102348889">Vaša Početna nije se mogla prikazati</translation>
 </translationbundle>

@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="km">
+<translation id="1111094358966140566">ប្រៀបធៀបកំណែ</translation>
 <translation id="1173894706177603556">ប្ដូរឈ្មោះ</translation>
+<translation id="1182228621215085947">សួរ Dao</translation>
+<translation id="121570799358042869">ទិន្នន័យកម្មវិធីរុករករបស់អ្នកនៅលើ Mac នេះដដែល។ ការដំឡើងកម្មវិធីបន្ថែមដែលឆបគ្នាឡើងវិញ គឺជាជំហានតែមួយដែលអាចភ្ជាប់អ៊ីនធឺណិតបាន ហើយការកំណត់កម្មវិធីបន្ថែម និងការចូលគណនីមិនត្រូវបានចម្លងទេ។</translation>
+<translation id="1236455002425740182">ការផ្លាស់ទី Dao</translation>
+<translation id="1272079795634619415">បញ្ឈប់</translation>
 <translation id="1293177648337752319">បើកសំឡេងតំបន់បណ្ដាញ</translation>
+<translation id="1349314697251468085">វានឹងបិទផ្ទាំងទាំងអស់ក្នុងថត ហើយលុបថត។</translation>
+<translation id="1352298709666490484">ប្ដូរផ្ទាំង</translation>
+<translation id="1383876407941801731">ស្វែងរក</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">កម្រងព័ត៌មាន៖ <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">ធ្វើឱ្យគេហទំព័រមានអារម្មណ៍ថាជារបស់អ្នក</translation>
+<translation id="1530524805356937121">រំកិលដើម្បីផ្ទុកបន្ថែម</translation>
+<translation id="1566049601598938765">គេហទំព័រ</translation>
+<translation id="1602287703039480507">បានសម្អាតឃ្លាំងសម្ងាត់សម្រាប់គេហទំព័រនេះ</translation>
+<translation id="1637441054828003579">ព្យាយាមធាតុដែលបរាជ័យម្ដងទៀត</translation>
+<translation id="1641203463264514072">ទិន្នន័យភាគច្រើនរបស់អ្នកនៅទីនេះ</translation>
 <translation id="1653598257495639807">លទ្ធផលកូដ QR</translation>
+<translation id="172937028082106236">បង្កើតពីប្រវត្តិរុករករបស់ខ្ញុំ</translation>
+<translation id="17513872634828108">ផ្ទាំងបើក</translation>
 <translation id="1809939268435598390">លុបថត</translation>
+<translation id="1816380826555616620">ធាតុក្នុងមួយឧបករណ៍ភ្ជាប់៖ <ph name="OLD_ITEM_COUNT" /> ទៅ <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">ទំព័រ</translation>
+<translation id="1844249872546141866">បង្អួច៖ <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">មិនមានចំនួន</translation>
+<translation id="1929197983938319610">អ្នកអាចបន្តប្រើកម្មវិធីរុករកប្រភពបាន។ ប្រសិនបើប្រភេទទិន្នន័យមួយបន្តផ្លាស់ប្ដូរ Dao នឹងស្នើឱ្យអ្នកបិទវា ហើយព្យាយាមម្ដងទៀតតែផ្នែកនោះ។</translation>
+<translation id="1984122437277059790">មិនអាចនាំចូលគម្រោងបានទេ។ ពិនិត្យកញ្ចប់ ហើយព្យាយាមម្ដងទៀត។</translation>
+<translation id="2085323698672376231">វាលុបគម្រោងបច្ចុប្បន្ន កំណែទាំងអស់ និងសិទ្ធិចូលប្រើប្រភពជាអចិន្ត្រៃយ៍។ មិនអាចមិនធ្វើវិញបានទេ។</translation>
+<translation id="210592584469870355">សមត្ថភាព</translation>
+<translation id="2109761659519935228">Dao ខ្នាតតូច</translation>
 <translation id="21133533946938348">បិទភ្ជាប់ផ្ទាំង</translation>
+<translation id="2175927920773552910">កូដ QR</translation>
+<translation id="2199413402821420360">មិនអាចបើកផ្ទាំងនេះក្នុង Dao ខ្នាតតូចបានទេ</translation>
+<translation id="2209843794360152290">ធាតុដែលបាននាំចូលត្រូវបានបញ្ចូលដោយមិនជំនួសទិន្នន័យដែលមានស្រាប់។</translation>
+<translation id="2254382823755510690">ទិន្នន័យដែលបាននាំចូលរបស់អ្នករួចរាល់ក្នុង Dao។ ផ្ទាំងបើកត្រូវបានរក្សាទុកដោយមិនផ្ទុក ក្នុងថតដែលបានបង្រួម រហូតដល់អ្នកត្រូវការវា។</translation>
+<translation id="2348199177323591972">អានខ្លឹមសារទំព័រ</translation>
+<translation id="2359808026110333948">បន្ត</translation>
+<translation id="2398703750948514961">បានបោះបង់</translation>
+<translation id="2414886740292270097">ងងឹត</translation>
+<translation id="243275146591958220">បោះបង់ការទាញយក</translation>
+<translation id="2496180316473517155">ប្រវត្តិរុករក</translation>
+<translation id="251834402454969316">ការផ្លាស់ប្ដូរទៅកំណែបច្ចុប្បន្ន</translation>
+<translation id="2519023533785544875">បើកជំនួយការ</translation>
+<translation id="2535607573648844553">Dao ត្រូវការសោ Safe Storage របស់កម្មវិធីរុករកដែលបានជ្រើស ដើម្បីឌិគ្រីបពាក្យសម្ងាត់ដែលបានរក្សាទុក។ ប្រសិនបើអ្នកបដិសេធសិទ្ធិចូលប្រើ នឹងរំលងតែពាក្យសម្ងាត់ប៉ុណ្ណោះ ហើយការផ្លាស់ទីនៅសល់នឹងបន្ត។</translation>
+<translation id="2580366865845491095">បើកតំណនេះ?</translation>
+<translation id="2612596415938768738">អាចតម្រូវឱ្យអ្នកចូលគណនី</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> ទៀត</translation>
 <translation id="2703180365855369896">បិទផ្ទាំងដែលស្ទួន</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">កំពុងអាន</translation>
+<translation id="2820330532305477229">អ្នកកំពុងផ្លាស់ទីពីណា?</translation>
+<translation id="2882207023658691113">ស្ដារជាកំណែថ្មី</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> កំពុងគ្រប់គ្រងផ្ទាំងកម្មវិធីរុករក</translation>
 <translation id="2973324205039581528">បិទសំឡេងតំបន់បណ្ដាញ</translation>
+<translation id="2976307543842414852">ដំណើរការ</translation>
 <translation id="3007771295016901659">ចម្លងផ្ទាំង</translation>
 <translation id="3062877722240966678">បណ្តាញ i18n របស់ Dao អូខេ</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">ដំណើរការដែលបានផ្ទៀងផ្ទាត់៖ <ph name="PID" /></translation>
+<translation id="3229872815652336688">Dao នឹងសាកល្បងប្រភពដែលបានជ្រើស ហើយបន្ថែមប្រភពដែលដំណើរការ។ ប្រភពនីមួយៗអាចអានតែទំព័រ និងទិន្នន័យដែលបង្ហាញខាងក្រោម ខណៈទំព័រដើមសកម្ម។</translation>
+<translation id="3249579521706735875">មាននៅពេលប្រព័ន្ធស្ថិតក្នុងមុខងារងងឹត។</translation>
+<translation id="3356580349448036450">បានបញ្ចប់</translation>
+<translation id="3404183081987133644">ទិន្នន័យដែលបាននាំចូលមុនពេលអ្នកបញ្ឈប់ រួចរាល់សម្រាប់ប្រើ។ អ្នកអាចចាប់ផ្ដើមការផ្លាស់ទីផ្សេងទៀតគ្រប់ពេលដែលអ្នករួចរាល់។</translation>
+<translation id="3420663750132400268">លុបថត?</translation>
+<translation id="3427713535827228685">កម្មវិធីបន្ថែមលើគេហទំព័រនេះ</translation>
+<translation id="3435738964857648380">សុវត្ថិភាព</translation>
 <translation id="3450492919008172498">គ្មានផ្ទាំងថ្មីដែលបានបញ្ចូលក្នុងបញ្ជី</translation>
+<translation id="3509982919032226274">បង្កើត Dao Home របស់ខ្ញុំ។ ចាប់ផ្ដើមដោយសួរអ្វីដែលខ្ញុំចង់ឱ្យទំព័រផ្ទាល់ខ្លួននេះជួយខ្ញុំស្វែងយល់ បន្ទាប់មកបង្កើត និងផ្សព្វផ្សាយកំណែដំបូង។</translation>
 <translation id="3551320343578183772">បិទផ្ទាំង</translation>
 <translation id="3657099196021255130">បើកក្នុង Dao</translation>
 <translation id="3708693288863478389">វាយ URL ឬស្វែងរក...</translation>
+<translation id="381667777775855564">កំពុងបន្ថែមទៅ Dao</translation>
 <translation id="385051799172605136">ថយក្រោយ</translation>
 <translation id="3891466792657071243">បញ្ឈប់ការផ្ទុក</translation>
 <translation id="3901975710974642844">ផ្លាស់ទីផ្ទាំងដែលមិនសកម្មទៅ "stale"</translation>
+<translation id="3909499025801874715">ពិនិត្យរោគវិនិច្ឆ័យ Dao Home ដែលមានដែនកំណត់ ពន្យល់ពីការបរាជ័យ ហើយជួសជុលគម្រោងបច្ចុប្បន្ន។ រក្សាកំណែដែលអាចដំណើរការបច្ចុប្បន្ន រហូតដល់ការជួសជុលត្រូវបានផ្ទៀងផ្ទាត់ បន្ទាប់មកផ្សព្វផ្សាយការជួសជុលជាកំណែថ្មី។</translation>
+<translation id="3927932062596804919">បដិសេធ</translation>
 <translation id="3984237987235889323">កំពុងអនុវត្ត</translation>
+<translation id="3999659648104077867">បានបញ្ឈប់ការគ្រប់គ្រងកម្មវិធីរុករក</translation>
+<translation id="4165986682804962316">ការកំណត់គេហទំព័រ</translation>
 <translation id="4201242995651540725">ផ្ទាំងដែលមិនសកម្មបានបញ្ចូលក្នុងបញ្ជីសម្រាប់ 24 ម៉ោងចុងក្រោយ</translation>
+<translation id="4221615148091761714">កែសម្រួលជាមួយ Dao</translation>
 <translation id="4285498937028063278">ដោះបិទភ្ជាប់</translation>
 <translation id="4322394346347055525">បិទផ្ទាំងផ្សេងទៀត</translation>
+<translation id="4332876892329258166">ចាប់ផ្ដើមការផ្លាស់ទី</translation>
 <translation id="4380677223237520064">បកប្រែ QR Code</translation>
+<translation id="4404136731284211429">ស្កេនម្ដងទៀត</translation>
+<translation id="4500440256909785690">ជំនួសទំព័រដើមនេះ?</translation>
 <translation id="4543782226216763900">បិទបើករបារចំហៀង (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">សួរ AI: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">ការផ្លាស់ទីរបស់អ្នកបានបញ្ចប់</translation>
+<translation id="4652266463001779298">មិនអនុញ្ញាត</translation>
+<translation id="4724836371241170775">ជំហានទី 2 នៃ 4 · ជ្រើសរើសអ្វីដែលត្រូវផ្លាស់ទី</translation>
 <translation id="473775607612524610">ធ្វើបច្ចុប្បន្នភាព</translation>
+<translation id="481205936353439293">ជំហានទី 3 នៃ 4 · កំពុងផ្លាស់ទីទិន្នន័យរបស់អ្នក</translation>
+<translation id="4854731374904470810">ចម្លងលេខសម្គាល់ផ្ទាំង</translation>
 <translation id="4881695831933465202">បើក</translation>
+<translation id="4898928054560997780">សួរ Dao ឱ្យជួសជុល</translation>
+<translation id="49041264823677952">បដិសេធការទាញយកដែលបានបញ្ចប់</translation>
+<translation id="493638356004396067">ការផ្លាស់ទីបានបរាជ័យ</translation>
+<translation id="4968006660055392545">រកមិនឃើញកម្រងព័ត៌មានកម្មវិធីរុករកដែលគាំទ្រនៅលើ Mac នេះទេ។</translation>
+<translation id="5004648724625831205">កំពុងរៀបចំច្បាប់ចម្លងមូលដ្ឋាន</translation>
 <translation id="501297852093417632">សម្អាតឃ្លាំងសម្ងាត់</translation>
 <translation id="5027562294707732951">បន្ថែមផ្នែកបន្ថែម</translation>
+<translation id="5126909118906525779">ភ្ជាប់ប្រភពផ្ទាល់?</translation>
 <translation id="5192454087436290060">មជ្ឈមណ្ឌលត្រួតពិនិត្យ</translation>
+<translation id="5289912690346335931">កំពុងរាប់…</translation>
+<translation id="5301255231518510089">ជ្រើសរើសឯកសារដើម្បីមើលប្រភពរបស់វា។</translation>
+<translation id="5308380583665731573">ភ្ជាប់</translation>
+<translation id="5322475253112112619">បើអនុញ្ញាត វាអាចអាន និងធ្វើអន្តរកម្មជាមួយគេហទំព័រ ដោយប្រើការចូលគណនីបច្ចុប្បន្នរបស់អ្នក រួមទាំងការដំណើរការ JavaScript។</translation>
+<translation id="5334844597069022743">មើលប្រភព</translation>
+<translation id="5400726083793179041">ស្ថានភាពគម្រោងដែលបានជ្រើសនឹងត្រូវបានផ្សព្វផ្សាយជាកំណែថ្មី។ ប្រវត្តិដែលមានស្រាប់នឹងនៅតែអាចប្រើបាន។</translation>
+<translation id="5436835454512450295">ទិន្នន័យកម្មវិធីរុករកដែលបាននាំចូល</translation>
 <translation id="5450299006531484229">បិទផ្ទាំងខាងលើ</translation>
 <translation id="5538307496474303926">កំពុងសម្អាត...</translation>
 <translation id="5556459405103347317">ផ្ទុកឡើងវិញ</translation>
 <translation id="5611474372949142946">បិទផ្ទាំងខាងក្រោម</translation>
+<translation id="5649936378931470828">បើកជំនួយការ (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">ពាក្យសម្ងាត់ដែលបានរក្សាទុក</translation>
+<translation id="5871520043546374642">ការផ្លាស់ទីបានបញ្ឈប់</translation>
+<translation id="5873058639175438941">ធ្វើឱ្យគេហទំព័រងងឹតដោយប្រើមុខងារងងឹតស្វ័យប្រវត្តិ ខណៈប្រព័ន្ធស្ថិតក្នុងមុខងារងងឹត។</translation>
+<translation id="5874739091759960360">តែនៅពេល dao://home សកម្ម</translation>
+<translation id="591645459245805338">បង្កើតទំព័រឯកជនដែលមានភាពរស់រវើក ដែល Dao អាចរៀបចំតាមអ្វីដែលអ្នកយកចិត្តទុកដាក់។</translation>
+<translation id="5942499955694738574">មិនអាចកំណត់ទំព័រដើមឡើងវិញបានទេ។ គម្រោងបច្ចុប្បន្នមិនត្រូវបានផ្លាស់ប្ដូរទេ។ ព្យាយាមម្ដងទៀត។</translation>
 <translation id="5953452567010839148">រកមិនឃើញ QR code</translation>
+<translation id="6018824944448456809">ជំហានទី 1 នៃ 4 · ជ្រើសរើសប្រភព</translation>
+<translation id="6040143037577758943">បិទ</translation>
+<translation id="6042308850641462728">ច្រើនទៀត</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">ទិន្នន័យលទ្ធផល៖ រហូតដល់ <ph name="BYTE_COUNT" /> បៃ</translation>
+<translation id="6204195547326023850">កំពុងផ្ទុកទំព័រដើមរបស់អ្នក…</translation>
+<translation id="6266039999629596120">ត្រូវការការយកចិត្តទុកដាក់</translation>
+<translation id="6270944267518310103">កំពុងរង់ចាំ</translation>
+<translation id="6299569859560607348">ទំព័រដើមនេះចង់បើកទំព័រខាងក្រៅ។ ពិនិត្យគោលដៅមុនបន្ត។</translation>
+<translation id="6325047129563993580">បង្កើត Dao Home របស់ខ្ញុំពីប្រធានបទរុករកថ្មីៗរបស់ខ្ញុំ។ ប្រើតែសម្ភារៈប្រវត្តិទំព័រដើមដែលកាត់បន្ថយទិន្នន័យឯកជន ពន្យល់ទិសដៅដោយសង្ខេប បន្ទាប់មកបង្កើត និងផ្សព្វផ្សាយកំណែដំបូង។</translation>
+<translation id="642671119120438272">ផ្ទាំងដែលបាននាំចូល</translation>
+<translation id="648743804821442565">កម្មវិធីស្វ័យប្រវត្តិកម្មមូលដ្ឋានកំពុងស្នើសុំសិទ្ធិចូលប្រើបង្អួច Dao នេះ។</translation>
+<translation id="6527303717912515753">ចែករំលែក</translation>
+<translation id="6586201961110912838">ស្ដារកំណែនេះ</translation>
+<translation id="6601997535892446436">ជ្រើសរើសកម្រងព័ត៌មានកម្មវិធីរុករកនៅលើ Mac នេះ។ កម្រងព័ត៌មាននីមួយៗត្រូវបានរាយដោយឡែក ដើម្បីឱ្យអ្នកគ្រប់គ្រងអ្វីដែលត្រូវផ្លាស់ទីបាន។</translation>
 <translation id="6736243959894955139">អាសយដ្ឋាន</translation>
+<translation id="6764328036096492220">សិទ្ធិសរសេរ</translation>
+<translation id="677387175345781299">ឯកសារគម្រោង</translation>
+<translation id="6786747875388722282">កម្មវិធីបន្ថែម</translation>
+<translation id="6801297003382412689">ដែនកំណត់ធនធាន</translation>
 <translation id="6829876854799051628">សម្អាតខូគី</translation>
+<translation id="6832689803248022656">តើអ្នកចង់នាំអ្វីមក?</translation>
+<translation id="684699560760227351">កំណត់ទំព័រដើមឡើងវិញ</translation>
 <translation id="6896758677409633944">ចម្លង</translation>
+<translation id="6940497786570685033">អ្នកកំពុងរុករកក្នុងមុខងារអនាមិក។ បន្ទាប់ពីអ្នកបិទបង្អួចអនាមិកទាំងអស់ Dao នឹងមិនរក្សាទុកប្រវត្តិរុករក ខូគី ឬទិន្នន័យគេហទំព័ររបស់អ្នកទេ។ ការទាញយក និងចំណាំត្រូវបានរក្សាទុក។</translation>
+<translation id="6963772203726867701">មិនបានរកឃើញ</translation>
+<translation id="6971377058826420967">បង្កើតជាមួយ Dao</translation>
+<translation id="7020790421915196218">ប្រភេទដែលបានបញ្ចប់រួចរាល់សម្រាប់ប្រើ។ អ្នកអាចព្យាយាមម្ដងទៀតតែផ្នែកដែលត្រូវការការយកចិត្តទុកដាក់។</translation>
+<translation id="7401173814860935855">បានសម្អាតខូគីសម្រាប់គេហទំព័រនេះ</translation>
+<translation id="7465855397028934440">កំពុងស្វែងរកកម្រងព័ត៌មានកម្មវិធីរុករក…</translation>
+<translation id="750760654246049420">កម្មវិធីស្វ័យប្រវត្តិកម្មផ្សេងទៀតកំពុងគ្រប់គ្រងកម្មវិធីរុករកនេះ</translation>
 <translation id="7532108947552493901">ពិនិត្យមើលការធ្វើបច្ចុប្បន្នភាព...</translation>
+<translation id="7533550325431812">អនុញ្ញាតការតភ្ជាប់នេះ</translation>
 <translation id="7604253494819481181">ចុច <ph name="SHORTCUT" /> ម្តងទៀតដើម្បីបិទបើករបារចំហៀង</translation>
+<translation id="7615777614791709701">កំណត់ទំព័រដើមឡើងវិញ?</translation>
+<translation id="7626429522809774043">អនុញ្ញាតការគ្រប់គ្រងកម្មវិធីរុករក?</translation>
+<translation id="7636812263792427733">បង្ខំមុខងារងងឹត</translation>
+<translation id="7658239707568436148">បោះបង់</translation>
+<translation id="7714812312719848690">គម្រោងរបស់អ្នកនៅតែមានសុវត្ថិភាព។ ព្យាយាមម្ដងទៀត ស្ដារកំណែមួយ ឬសួរ Dao ឱ្យជួសជុលវា។</translation>
 <translation id="7717845620320228976">ពិនិត្យមើលការធ្វើបច្ចុប្បន្នភាព</translation>
+<translation id="7803931104677504532">អានរចនាប័ទ្មបង្ហាញ</translation>
+<translation id="7974106569409739809">ដកចេញពីថត</translation>
+<translation id="7995663841236651667">ទិន្នន័យកម្មវិធីរុករករបស់អ្នកត្រូវបានដំណើរការក្នុងមូលដ្ឋាននៅលើ Mac នេះ។</translation>
+<translation id="8028081981001403222">នាំចូលគម្រោង</translation>
+<translation id="8041968312565730454">កម្មវិធីរុករកប្រភព</translation>
+<translation id="8052762370740257987">នាំចេញគម្រោង</translation>
+<translation id="8097718730266959883">មិនមាន</translation>
+<translation id="81044950628177848">កំណែបច្ចុប្បន្ន</translation>
+<translation id="8131740175452115882">បញ្ជាក់</translation>
 <translation id="8137559199583651773">គ្រប់គ្រងផ្នែកបន្ថែម</translation>
+<translation id="8138892305328483863">Dao បញ្ចូលធាតុដែលបាននាំចូលជាមួយអ្វីដែលអ្នកមានរួចហើយ។ ទិន្នន័យដែលមានស្រាប់មិនត្រូវបានជំនួសឡើយ។</translation>
+<translation id="8175534235396780357">ព័ត៌មានលម្អិតអំពីការគ្រប់គ្រង AI</translation>
+<translation id="8237260373784588552">ការគ្រប់គ្រងទំព័រដើម</translation>
+<translation id="824895471210913946">គោលដៅ៖ <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">លុប</translation>
+<translation id="831684326378391082">បន្តដោយគ្មានប្រភពផ្ទាល់</translation>
+<translation id="8349478524212888083">គម្រោងដែលបាននាំចូលនឹងក្លាយជាកំណែថ្មី។ សិទ្ធិចូលប្រើប្រភពនឹងនៅតែផ្ដាច់ រហូតដល់អ្នកអនុម័តវាម្ដងទៀត។</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">ភ្ជាប់ <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">ប្រវត្តិកំណែ</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← ថយក្រោយ</translation>
+<translation id="8595238918901827309">ស្ដារកំណែនេះ?</translation>
+<translation id="8668072977518790485">បានចម្លងលេខសម្គាល់ផ្ទាំង</translation>
+<translation id="8684229942427488970">មជ្ឈមណ្ឌលគេហទំព័រ</translation>
 <translation id="8717864919010420084">ចម្លងតំណ</translation>
+<translation id="8725066075913043281">ព្យាយាមម្ដងទៀត</translation>
+<translation id="8774154357663601701">ប្រភពនេះអាចអានតែទំព័រដែលបានអនុម័ត ខណៈទំព័រដើមសកម្ម។</translation>
+<translation id="8781013843394828812">ធាតុទាំងនេះត្រូវព្យាយាមម្ដងទៀត</translation>
+<translation id="8787633576358327637">ប្រអប់បញ្ចូល macOS Keychain អាចបង្ហាញឡើង</translation>
+<translation id="8820817407110198400">ចំណាំ</translation>
+<translation id="8826852601577125903">ទិន្នន័យលទ្ធផល៖ <ph name="OLD_BYTE_COUNT" /> ទៅ <ph name="NEW_BYTE_COUNT" /> បៃ</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> ធាតុដែលអាចនាំចូលបាន</translation>
+<translation id="8899040626072079337">កំពុងផ្លាស់ទីទិន្នន័យរបស់អ្នកទៅក្នុង Dao</translation>
+<translation id="8962539151725780858">ផ្ទាំងដែលគ្រប់គ្រង៖ <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">ការហៅ MCP ចុងក្រោយ៖ <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">ធាតុក្នុងមួយឧបករណ៍ភ្ជាប់៖ រហូតដល់ <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">បានទុកក្នុងប័ណ្ណសារផ្ទាំងអសកម្ម</translation>
+<translation id="9186557253975059599">កម្មវិធីភ្ញៀវដែលបានរាយការណ៍៖ <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">បិទបើករបារចំហៀង</translation>
+<translation id="9205549548211212895">បញ្ឈប់ការផ្លាស់ទី</translation>
+<translation id="932327136139879170">ទំព័រដើម</translation>
+<translation id="932413031402847895">នាំចូលទិន្នន័យកម្មវិធីរុករក</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">ភ្ជាប់ធាតុដែលបានជ្រើស</translation>
+<translation id="949725615797318423">កម្មវិធីបន្ថែមត្រូវបានដំឡើងឡើងវិញពីហាងផ្លូវការ</translation>
+<translation id="962181630102348889">មិនអាចបង្ហាញទំព័រដើមរបស់អ្នកបានទេ</translation>
 </translationbundle>

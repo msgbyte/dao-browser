@@ -1,48 +1,218 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="hu">
+<translation id="1111094358966140566">Verzió összehasonlítása</translation>
 <translation id="1173894706177603556">Átnevezés</translation>
+<translation id="1182228621215085947">Kérdezze meg a Daót</translation>
+<translation id="121570799358042869">A böngészőadatai ezen a Macen maradnak. A kompatibilis bővítmények újratelepítése az egyetlen lépés, amely internetkapcsolatot használhat; a bővítménybeállítások és a bejelentkezések nem lesznek átmásolva.</translation>
+<translation id="1236455002425740182">Dao-migrálás</translation>
+<translation id="1272079795634619415">Leállítás</translation>
 <translation id="1293177648337752319">Webhely hangosítása</translation>
+<translation id="1349314697251468085">Ezzel bezárja a mappában lévő összes lapot, és törli a mappát.</translation>
+<translation id="1352298709666490484">Váltás lapra</translation>
+<translation id="1383876407941801731">Keresés</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Profil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Tegye sajátjává a webet</translation>
+<translation id="1530524805356937121">Görgetés további tartalom betöltéséhez</translation>
+<translation id="1566049601598938765">Webhely</translation>
+<translation id="1602287703039480507">A webhely gyorsítótára törölve</translation>
+<translation id="1637441054828003579">Sikertelen elemek újrapróbálása</translation>
+<translation id="1641203463264514072">Az adatok nagy része már itt van</translation>
 <translation id="1653598257495639807">QR-kód eredménye</translation>
+<translation id="172937028082106236">Létrehozás a böngészési előzményeimből</translation>
+<translation id="17513872634828108">Nyitott lapok</translation>
 <translation id="1809939268435598390">Mappa törlése</translation>
+<translation id="1816380826555616620">Elemek csatlakozónként: <ph name="OLD_ITEM_COUNT" />–<ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Oldal</translation>
+<translation id="1844249872546141866">Ablak: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Darabszám nem érhető el</translation>
+<translation id="1929197983938319610">Továbbra is használhatja a forrásböngészőt. Ha egy adattípus folyamatosan változik, a Dao megkéri, hogy zárja be, és csak azt a részt próbálja újra.</translation>
+<translation id="1984122437277059790">A projektet nem sikerült importálni. Ellenőrizze a csomagot, és próbálja újra.</translation>
+<translation id="2085323698672376231">Ezzel véglegesen törli a jelenlegi projektet, az összes verziót és a forráshoz való hozzáférést. Ez nem vonható vissza.</translation>
+<translation id="210592584469870355">Képességek</translation>
+<translation id="2109761659519935228">Mini Dao</translation>
 <translation id="21133533946938348">Fül rögzítése</translation>
+<translation id="2175927920773552910">QR-kód</translation>
+<translation id="2199413402821420360">Nem sikerült megnyitni ezt a lapot a Mini Daóban</translation>
+<translation id="2209843794360152290">Az importált elemek a meglévő adatok lecserélése nélkül lesznek egyesítve.</translation>
+<translation id="2254382823755510690">Az importált adatai készen állnak a Daóban. A nyitott lapok egy összecsukott mappában, betöltés nélkül maradnak, amíg szüksége nem lesz rájuk.</translation>
+<translation id="2348199177323591972">Oldaltartalom olvasása</translation>
+<translation id="2359808026110333948">Folytatás</translation>
+<translation id="2398703750948514961">Megszakítva</translation>
+<translation id="2414886740292270097">Sötét</translation>
+<translation id="243275146591958220">Letöltés megszakítása</translation>
+<translation id="2496180316473517155">Böngészési előzmények</translation>
+<translation id="251834402454969316">Változások a jelenlegi verzióhoz képest</translation>
+<translation id="2519023533785544875">Asszisztens megnyitása</translation>
+<translation id="2535607573648844553">A Daónak szüksége van a kiválasztott böngésző Safe Storage-kulcsára a mentett jelszavak visszafejtéséhez. Ha megtagadja a hozzáférést, csak a jelszavak maradnak ki, a migrálás többi része folytatódik.</translation>
+<translation id="2580366865845491095">Megnyitja ezt a hivatkozást?</translation>
+<translation id="2612596415938768738">Bejelentkezésre lehet szükség</translation>
+<translation id="2698054069012763064">további <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Ismétlődő lapok bezárása</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Olvasás</translation>
+<translation id="2820330532305477229">Honnan költözik?</translation>
+<translation id="2882207023658691113">Visszaállítás új verzióként</translation>
+<translation id="2904931165000922387"><ph name="CLIENT" /> vezérli a böngészőlapokat</translation>
 <translation id="2973324205039581528">Webhely némítása</translation>
+<translation id="2976307543842414852">Futtatások</translation>
 <translation id="3007771295016901659">Lap duplikálása</translation>
 <translation id="3062877722240966678">Dao i18n pipeline OK</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Ellenőrzött folyamat: <ph name="PID" /></translation>
+<translation id="3229872815652336688">A Dao teszteli a kiválasztott forrásokat, és hozzáadja a működőket. Minden forrás csak az alább megjelenített oldalakat és adatokat olvashatja, amíg a Kezdőlap aktív.</translation>
+<translation id="3249579521706735875">Akkor érhető el, ha a rendszer sötét módban van.</translation>
+<translation id="3356580349448036450">Befejezve</translation>
+<translation id="3404183081987133644">A leállítás előtt importált adatok használatra készek. Bármikor indíthat új migrálást, amikor készen áll.</translation>
+<translation id="3420663750132400268">Törli a mappát?</translation>
+<translation id="3427713535827228685">Bővítmények ezen a webhelyen</translation>
+<translation id="3435738964857648380">Biztonság</translation>
 <translation id="3450492919008172498">Nincsenek újonnan archivált lapok</translation>
+<translation id="3509982919032226274">Hozd létre a Dao Kezdőlapomat. Először kérdezd meg, mit szeretnék felfedezni ezzel a személyes oldallal, majd készítsd el és tedd közzé az első verziót.</translation>
 <translation id="3551320343578183772">Fül bezárása</translation>
 <translation id="3657099196021255130">Megnyitás a Dao-ban</translation>
 <translation id="3708693288863478389">Írjon be egy URL-t vagy keressen...</translation>
+<translation id="381667777775855564">Hozzáadás a Daóhoz</translation>
 <translation id="385051799172605136">Vissza</translation>
 <translation id="3891466792657071243">Betöltés leállítása</translation>
 <translation id="3901975710974642844">Áthelyezés a "stale" lapokra</translation>
+<translation id="3909499025801874715">Vizsgáld meg a korlátozott Dao Kezdőlap-diagnosztikát, magyarázd el a hibát, és javítsd a jelenlegi projektet. Tartsd meg a jelenlegi futtatható verziót, amíg a javítás nem érvényesül, majd tedd közzé a javítást új verzióként.</translation>
+<translation id="3927932062596804919">Elutasítás</translation>
 <translation id="3984237987235889323">Alkalmazás</translation>
+<translation id="3999659648104077867">Böngészővezérlés leállítva</translation>
+<translation id="4165986682804962316">Webhelybeállítások</translation>
 <translation id="4201242995651540725">Az elmúlt 24 órában inaktív lapok archiválva</translation>
+<translation id="4221615148091761714">Szerkesztés a Daóval</translation>
 <translation id="4285498937028063278">Rögzítés feloldása</translation>
 <translation id="4322394346347055525">Egyéb lapok bezárása</translation>
+<translation id="4332876892329258166">Migrálás indítása</translation>
 <translation id="4380677223237520064">QR-kód dekódolása</translation>
+<translation id="4404136731284211429">Újra keresés</translation>
+<translation id="4500440256909785690">Lecseréli ezt a Kezdőlapot?</translation>
 <translation id="4543782226216763900">Oldalsáv átkapcsolása (<ph name="SHORTCUT" />⌘S)</translation>
 <translation id="4562670065683676797">Kérdezze meg az AI-t: <ph name="PROMPT" />$1</translation>
+<translation id="459639509487093409">Az átköltözés befejeződött</translation>
+<translation id="4652266463001779298">Nem engedélyezett</translation>
+<translation id="4724836371241170775">2/4. lépés · Átkerülő elemek kiválasztása</translation>
 <translation id="473775607612524610">Frissítés</translation>
+<translation id="481205936353439293">3/4. lépés · Adatok átvitele</translation>
+<translation id="4854731374904470810">Lapazonosító másolása</translation>
 <translation id="4881695831933465202">Megnyitás</translation>
+<translation id="4898928054560997780">Kérje meg a Daót a javításra</translation>
+<translation id="49041264823677952">Befejezett letöltés elvetése</translation>
+<translation id="493638356004396067">A migrálás sikertelen</translation>
+<translation id="4968006660055392545">Nem találhatók támogatott böngészőprofilok ezen a Macen.</translation>
+<translation id="5004648724625831205">Helyi másolat előkészítése</translation>
 <translation id="501297852093417632">Gyorsítótár törlése</translation>
 <translation id="5027562294707732951">Bővítmény hozzáadása</translation>
+<translation id="5126909118906525779">Csatlakoztatja az élő forrásokat?</translation>
 <translation id="5192454087436290060">Vezérlőközpont</translation>
+<translation id="5289912690346335931">Számlálás…</translation>
+<translation id="5301255231518510089">Válasszon ki egy fájlt a forrásának megtekintéséhez.</translation>
+<translation id="5308380583665731573">Csatlakoztatás</translation>
+<translation id="5322475253112112619">Engedélyezés esetén a jelenlegi bejelentkezésével olvashatja és használhatja a webhelyeket, beleértve a JavaScript futtatását is.</translation>
+<translation id="5334844597069022743">Forrás megtekintése</translation>
+<translation id="5400726083793179041">A kiválasztott projektállapot új verzióként lesz közzétéve. A meglévő előzmények továbbra is elérhetők maradnak.</translation>
+<translation id="5436835454512450295">Importált böngészőadatok</translation>
 <translation id="5450299006531484229">Felettük lévő lapok bezárása</translation>
 <translation id="5538307496474303926">Törlés...</translation>
 <translation id="5556459405103347317">Újratöltés</translation>
 <translation id="5611474372949142946">Alattuk lévő lapok bezárása</translation>
+<translation id="5649936378931470828">Asszisztens megnyitása (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Mentett jelszavak</translation>
+<translation id="5871520043546374642">A migrálás leállítva</translation>
+<translation id="5873058639175438941">Az Automatikus sötét móddal sötétíti a webhelyeket, amikor a rendszer sötét módban van.</translation>
+<translation id="5874739091759960360">Csak amíg a dao://home aktív</translation>
+<translation id="591645459245805338">Hozzon létre egy privát, élő oldalt, amelyet a Dao az Ön számára fontos dolgok köré alakíthat.</translation>
+<translation id="5942499955694738574">A Kezdőlapot nem sikerült alaphelyzetbe állítani. A jelenlegi projekt nem változott. Próbálja újra.</translation>
 <translation id="5953452567010839148">Nem található QR-kód</translation>
+<translation id="6018824944448456809">1/4. lépés · Forrás kiválasztása</translation>
+<translation id="6040143037577758943">Bezárás</translation>
+<translation id="6042308850641462728">Továbbiak</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Eredményadatok: legfeljebb <ph name="BYTE_COUNT" /> bájt</translation>
+<translation id="6204195547326023850">Kezdőlap betöltése…</translation>
+<translation id="6266039999629596120">Figyelmet igényel</translation>
+<translation id="6270944267518310103">Várakozás</translation>
+<translation id="6299569859560607348">Ez a Kezdőlap egy külső oldalt szeretne megnyitni. Folytatás előtt ellenőrizze a célhelyet.</translation>
+<translation id="6325047129563993580">Hozd létre a Dao Kezdőlapomat a közelmúltbeli böngészési témáim alapján. Csak az adatvédelem szempontjából minimalizált Kezdőlap-előzményanyagokat használd, röviden magyarázd el az irányt, majd készítsd el és tedd közzé az első verziót.</translation>
+<translation id="642671119120438272">Importált lapok</translation>
+<translation id="648743804821442565">Egy helyi automatizálási kliens hozzáférést kér ehhez a Dao-ablakhoz.</translation>
+<translation id="6527303717912515753">Megosztás</translation>
+<translation id="6586201961110912838">Verzió visszaállítása</translation>
+<translation id="6601997535892446436">Válasszon egy böngészőprofilt ezen a Macen. Minden profil külön szerepel, így Ön szabályozhatja, mi kerüljön át.</translation>
 <translation id="6736243959894955139">Cím</translation>
+<translation id="6764328036096492220">Írási hozzáférés</translation>
+<translation id="677387175345781299">Projektfájlok</translation>
+<translation id="6786747875388722282">Bővítmények</translation>
+<translation id="6801297003382412689">Erőforráskorlátok</translation>
 <translation id="6829876854799051628">Sütik törlése</translation>
+<translation id="6832689803248022656">Mit szeretne átvinni?</translation>
+<translation id="684699560760227351">Kezdőlap alaphelyzetbe állítása</translation>
 <translation id="6896758677409633944">Másolás</translation>
+<translation id="6940497786570685033">Inkognitómódban böngészik. Miután bezárta az összes inkognitóablakot, a Dao nem őrzi meg a böngészési előzményeket, a cookie-kat vagy a webhelyadatokat. A letöltések és a könyvjelzők megmaradnak.</translation>
+<translation id="6963772203726867701">Nem észlelhető</translation>
+<translation id="6971377058826420967">Létrehozás a Daóval</translation>
+<translation id="7020790421915196218">A befejezett kategóriák használatra készek. Csak a figyelmet igénylő részeket próbálhatja újra.</translation>
+<translation id="7401173814860935855">A webhely cookie-jai törölve</translation>
+<translation id="7465855397028934440">Böngészőprofilok keresése…</translation>
+<translation id="750760654246049420">Egy másik automatizálási kliens vezérli ezt a böngészőt</translation>
 <translation id="7532108947552493901">Frissítések keresése...</translation>
+<translation id="7533550325431812">Kapcsolat engedélyezése</translation>
 <translation id="7604253494819481181">Nyomja meg újra a <ph name="SHORTCUT" /> gombot az oldalsáv váltásához</translation>
+<translation id="7615777614791709701">Alaphelyzetbe állítja a Kezdőlapot?</translation>
+<translation id="7626429522809774043">Engedélyezi a böngésző vezérlését?</translation>
+<translation id="7636812263792427733">Sötét mód kényszerítése</translation>
+<translation id="7658239707568436148">Mégse</translation>
+<translation id="7714812312719848690">A projekt továbbra is biztonságban van. Próbálja újra, állítson vissza egy verziót, vagy kérje meg a Daót a javításra.</translation>
 <translation id="7717845620320228976">Frissítések keresése</translation>
+<translation id="7803931104677504532">Megjelenítési stílusok olvasása</translation>
+<translation id="7974106569409739809">Kibontás mappából</translation>
+<translation id="7995663841236651667">A böngészőadatai helyileg, ezen a Macen lesznek feldolgozva.</translation>
+<translation id="8028081981001403222">Projekt importálása</translation>
+<translation id="8041968312565730454">Forrásböngésző</translation>
+<translation id="8052762370740257987">Projekt exportálása</translation>
+<translation id="8097718730266959883">nem érhető el</translation>
+<translation id="81044950628177848">Jelenlegi verzió</translation>
+<translation id="8131740175452115882">Megerősítés</translation>
 <translation id="8137559199583651773">Bővítmények kezelése</translation>
+<translation id="8138892305328483863">A Dao egyesíti az importált elemeket a meglévőkkel. A meglévő adatok soha nem lesznek lecserélve.</translation>
+<translation id="8175534235396780357">MI-vezérlés részletei</translation>
+<translation id="8237260373784588552">Kezdőlap vezérlői</translation>
+<translation id="824895471210913946">Cél: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Törlés</translation>
+<translation id="831684326378391082">Folytatás élő források nélkül</translation>
+<translation id="8349478524212888083">Az importált projekt új verzió lesz. A forráshoz való hozzáférés lecsatlakoztatva marad, amíg újra nem hagyja jóvá.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821"><ph name="SOURCE_NAME" /> csatlakoztatása</translation>
+<translation id="8549865052695885354">Verzióelőzmények</translation>
 <translation id="8572586736757116553"><ph name="ARROW" />← Vissza</translation>
+<translation id="8595238918901827309">Visszaállítja ezt a verziót?</translation>
+<translation id="8668072977518790485">Lapazonosító másolva</translation>
+<translation id="8684229942427488970">Webhely központja</translation>
 <translation id="8717864919010420084">Hivatkozás másolása</translation>
+<translation id="8725066075913043281">Újrapróbálás</translation>
+<translation id="8774154357663601701">Ez a forrás csak a jóváhagyott oldalakat olvashatja, amíg a Kezdőlap aktív.</translation>
+<translation id="8781013843394828812">Ezeket az elemeket újra kell próbálni</translation>
+<translation id="8787633576358327637">Megjelenhet egy macOS-kulcskarika kérés</translation>
+<translation id="8820817407110198400">Könyvjelzők</translation>
+<translation id="8826852601577125903">Eredményadatok: <ph name="OLD_BYTE_COUNT" />–<ph name="NEW_BYTE_COUNT" /> bájt</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> jelölt</translation>
+<translation id="8899040626072079337">Adatok átvitele a Daóba</translation>
+<translation id="8962539151725780858">Vezérelt lapok: <ph name="COUNT" /></translation>
+<translation id="9046231519826652276">Legutóbbi MCP-hívás: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Elemek csatlakozónként: legfeljebb <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Inaktív lapok archiválva</translation>
+<translation id="9186557253975059599">Jelzett kliens: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Oldalsáv átkapcsolása</translation>
+<translation id="9205549548211212895">Migrálás leállítása</translation>
+<translation id="932327136139879170">Kezdőlap</translation>
+<translation id="932413031402847895">Böngészőadatok importálása</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Kijelöltek csatlakoztatása</translation>
+<translation id="949725615797318423">A bővítmények a hivatalos áruházukból lesznek újratelepítve</translation>
+<translation id="962181630102348889">A Kezdőlap nem jeleníthető meg</translation>
 </translationbundle>
