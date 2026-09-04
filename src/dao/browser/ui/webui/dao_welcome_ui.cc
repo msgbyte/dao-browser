@@ -15,6 +15,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "dao/browser/dao_pref_names.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 
 namespace dao {
@@ -60,6 +61,24 @@ DaoWelcomeUI::DaoWelcomeUI(content::WebUI* web_ui)
 
   source->AddResourcePaths(kDaoWelcomeResources);
   source->SetDefaultResource(IDR_DAO_WELCOME_WELCOME_HTML);
+  source->AddLocalizedStrings({
+      {"daoWelcomeTitle", IDS_DAO_WELCOME_TITLE},
+      {"daoWelcomeSubtitle", IDS_DAO_WELCOME_SUBTITLE},
+      {"daoWelcomeNewTab", IDS_DAO_WELCOME_NEW_TAB},
+      {"daoWelcomeCloseTab", IDS_DAO_WELCOME_CLOSE_TAB},
+      {"daoWelcomeCommandBar", IDS_DAO_WELCOME_COMMAND_BAR},
+      {"daoWelcomeToggleSidebar", IDS_DAO_WELCOME_TOGGLE_SIDEBAR},
+      {"daoWelcomeAgentPanel", IDS_DAO_WELCOME_AGENT_PANEL},
+      {"daoWelcomeDuplicateTab", IDS_DAO_WELCOME_DUPLICATE_TAB},
+      {"daoWelcomeCopyUrl", IDS_DAO_WELCOME_COPY_URL},
+      {"daoWelcomeSearchPlaceholder", IDS_DAO_WELCOME_SEARCH_PLACEHOLDER},
+      {"daoWelcomeAgentTitle", IDS_DAO_WELCOME_AGENT_TITLE},
+      {"daoCommandBarPlaceholder", IDS_DAO_COMMAND_BAR_PLACEHOLDER},
+      {"daoWelcomeUrlCopied", IDS_DAO_WELCOME_URL_COPIED},
+      {"daoWelcomeGithubLink", IDS_DAO_WELCOME_GITHUB_LINK},
+      {"daoImportPageTitle", IDS_DAO_IMPORT_PAGE_TITLE},
+  });
+  source->UseStringsJs();
 
   // Allow innerHTML for Lit rendering.
   source->OverrideContentSecurityPolicy(

@@ -521,6 +521,21 @@
         <ph name="COUNT">$1<ex>3</ex></ph> more
       </message>
 
+      <!-- Welcome page -->
+      <message name="IDS_DAO_WELCOME_TITLE" desc="Heading and document title of the Dao welcome page.">Welcome to Dao</message>
+      <message name="IDS_DAO_WELCOME_SUBTITLE" desc="Subtitle describing Dao's keyboard-first design on the welcome page.">An opinionated browser. Keyboard-first, shortcut-driven.</message>
+      <message name="IDS_DAO_WELCOME_NEW_TAB" desc="Welcome tutorial description for the Command+T shortcut.">Create a new tab in the sidebar</message>
+      <message name="IDS_DAO_WELCOME_CLOSE_TAB" desc="Welcome tutorial description for the Command+W shortcut.">Close the current tab</message>
+      <message name="IDS_DAO_WELCOME_COMMAND_BAR" desc="Welcome tutorial description for the Command+L shortcut.">Open the command bar for quick navigation</message>
+      <message name="IDS_DAO_WELCOME_TOGGLE_SIDEBAR" desc="Welcome tutorial description for the Command+S shortcut.">Toggle the sidebar</message>
+      <message name="IDS_DAO_WELCOME_AGENT_PANEL" desc="Welcome tutorial description for the Command+E shortcut.">Open the AI Agent panel</message>
+      <message name="IDS_DAO_WELCOME_DUPLICATE_TAB" desc="Welcome tutorial description for the Command+D shortcut.">Duplicate the current tab</message>
+      <message name="IDS_DAO_WELCOME_COPY_URL" desc="Welcome tutorial description for the Command+Shift+C shortcut.">Copy the current page URL</message>
+      <message name="IDS_DAO_WELCOME_SEARCH_PLACEHOLDER" desc="Address bar placeholder in the welcome page's browser demonstration.">Search or enter URL...</message>
+      <message name="IDS_DAO_WELCOME_AGENT_TITLE" desc="Agent panel heading in the welcome page's browser demonstration.">Dao Agent</message>
+      <message name="IDS_DAO_WELCOME_URL_COPIED" desc="Toast in the welcome page's copy URL shortcut demonstration.">URL copied to clipboard</message>
+      <message name="IDS_DAO_WELCOME_GITHUB_LINK" desc="Link asking users to star the Dao Browser repository on GitHub.">Like Dao? Give us a star!</message>
+
       <!-- Browser data migration WebUI -->
       <message name="IDS_DAO_IMPORT_PAGE_TITLE" desc="Document title of the standalone browser data migration page.">Import browser data</message>
       <message name="IDS_DAO_IMPORT_WIZARD_NAME" desc="Name of the standalone browser data migration wizard.">Dao Migration</message>

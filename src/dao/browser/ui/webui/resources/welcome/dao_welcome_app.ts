@@ -3,23 +3,24 @@
 // found in the LICENSE file.
 
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 
 import {markWelcomeShown} from './welcome_bridge.js';
 
 interface ShortcutStep {
   keys: string[];
-  text: string;
+  textKey: string;
   action: string;
 }
 
 const STEPS: ShortcutStep[] = [
-  {keys: ['\u2318', 'T'], text: 'Create a new tab in the sidebar', action: 'newTab'},
-  {keys: ['\u2318', 'W'], text: 'Close the current tab', action: 'closeTab'},
-  {keys: ['\u2318', 'L'], text: 'Open the command bar for quick navigation', action: 'commandBar'},
-  {keys: ['\u2318', 'S'], text: 'Toggle the sidebar', action: 'toggleSidebar'},
-  {keys: ['\u2318', 'E'], text: 'Open the AI Agent panel', action: 'agentPanel'},
-  {keys: ['\u2318', 'D'], text: 'Duplicate the current tab', action: 'dupTab'},
-  {keys: ['\u2318', '\u21E7', 'C'], text: 'Copy the current page URL', action: 'copyUrl'},
+  {keys: ['\u2318', 'T'], textKey: 'daoWelcomeNewTab', action: 'newTab'},
+  {keys: ['\u2318', 'W'], textKey: 'daoWelcomeCloseTab', action: 'closeTab'},
+  {keys: ['\u2318', 'L'], textKey: 'daoWelcomeCommandBar', action: 'commandBar'},
+  {keys: ['\u2318', 'S'], textKey: 'daoWelcomeToggleSidebar', action: 'toggleSidebar'},
+  {keys: ['\u2318', 'E'], textKey: 'daoWelcomeAgentPanel', action: 'agentPanel'},
+  {keys: ['\u2318', 'D'], textKey: 'daoWelcomeDuplicateTab', action: 'dupTab'},
+  {keys: ['\u2318', '\u21E7', 'C'], textKey: 'daoWelcomeCopyUrl', action: 'copyUrl'},
 ];
 
 const INTERVAL_MS = 4000;
@@ -45,6 +46,7 @@ export class DaoWelcomeApp extends CrLitElement {
   static override get styles() {
     return css`
       :host {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -70,6 +72,33 @@ export class DaoWelcomeApp extends CrLitElement {
         color: rgba(255,255,255,0.45);
         font-size: 14px;
         margin-top: 8px;
+      }
+
+      /* Browser migration */
+      .migration-link {
+        position: absolute;
+        inset-block-start: 24px;
+        inset-inline-end: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        max-width: calc(100% - 48px);
+        min-height: 32px;
+        padding: 6px 12px;
+        border: 1px solid rgba(112,158,216,0.25);
+        border-radius: 10px;
+        background: rgba(70,120,190,0.1);
+        color: rgb(151,187,234);
+        font-size: 12px;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+      }
+      .migration-link:hover { background: rgba(70,120,190,0.2); }
+      .migration-link:focus-visible {
+        outline: 2px solid rgb(112,158,216);
+        outline-offset: 4px;
       }
 
       /* Browser frame */
@@ -584,10 +613,14 @@ export class DaoWelcomeApp extends CrLitElement {
     const step = STEPS[this.currentStep_]!;
 
     return html`
+      <a class="migration-link" href="dao://import/">
+        ${loadTimeData.getString('daoImportPageTitle')}
+      </a>
+
       <div class="page">
         <div class="hero">
-          <h1>Welcome to Dao</h1>
-          <p>An opinionated browser. Keyboard-first, shortcut-driven.</p>
+          <h1>${loadTimeData.getString('daoWelcomeTitle')}</h1>
+          <p>${loadTimeData.getString('daoWelcomeSubtitle')}</p>
         </div>
 
         <div class="browser-wrapper">
@@ -595,7 +628,9 @@ export class DaoWelcomeApp extends CrLitElement {
             <div class="browser-inner">
               <div class="sk-sidebar ${this.sidebarCollapsed_ ? 'collapsed' : ''}">
                 <div class="sk-search">
-                  <span class="sk-search-text">Search or enter URL...</span>
+                  <span class="sk-search-text">
+                    ${loadTimeData.getString('daoWelcomeSearchPlaceholder')}
+                  </span>
                 </div>
                 <div class="sk-tab active">
                   <div class="sk-favicon"></div>
@@ -636,7 +671,9 @@ export class DaoWelcomeApp extends CrLitElement {
 
               <div class="agent-panel ${this.agentPanelVisible_ ? 'show' : ''}">
                 <div class="agent-inner">
-                  <div class="agent-header">Dao Agent</div>
+                  <div class="agent-header">
+                    ${loadTimeData.getString('daoWelcomeAgentTitle')}
+                  </div>
                   <div class="agent-msg" style="width:80%"></div>
                   <div class="agent-msg" style="width:60%"></div>
                   <div class="agent-msg" style="width:90%"></div>
@@ -647,14 +684,16 @@ export class DaoWelcomeApp extends CrLitElement {
               <div class="command-overlay ${this.cmdOverlayVisible_ ? 'show' : ''}">
                 <div class="command-bar">
                   <div class="command-input">
-                    <span class="command-input-text">Type a URL or search...</span>
+                    <span class="command-input-text">
+                      ${loadTimeData.getString('daoCommandBarPlaceholder')}
+                    </span>
                     <span class="typing-cursor"></span>
                   </div>
                 </div>
               </div>
 
               <div class="toast ${this.toastVisible_ ? 'show' : ''}">
-                URL copied to clipboard
+                ${loadTimeData.getString('daoWelcomeUrlCopied')}
               </div>
             </div>
           </div>
@@ -667,7 +706,9 @@ export class DaoWelcomeApp extends CrLitElement {
               <kbd>${key}</kbd>
             `)}
           </div>
-          <div class="annotation-text">${step.text}</div>
+          <div class="annotation-text">
+            ${loadTimeData.getString(step.textKey)}
+          </div>
         </div>
 
         <div class="nav-row">
@@ -687,7 +728,7 @@ export class DaoWelcomeApp extends CrLitElement {
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
         </svg>
-        Like Dao? Give us a star!
+        ${loadTimeData.getString('daoWelcomeGithubLink')}
       </a>
     `;
   }

@@ -677,6 +677,14 @@ macOS-style floating control center panel bundling extensions and utilities.
 - WebUI: `welcome.{html,css,ts}` + `dao_welcome_app.ts` + `welcome_bridge.ts` (Lit)
 - **Menu item + command handling** — User can reopen anytime
 - **First-run preference tracking** — Auto-opens only on first launch (managed via `dao_pref_names`)
+- **Localized tutorial** — The document title, welcome heading and subtitle,
+  all seven shortcut descriptions, demonstration labels and copy feedback,
+  and GitHub link use Dao's GRIT/WebUI strings. Simplified Chinese is provided;
+  untranslated locales fall back to English.
+- **Browser migration entry** — A compact localized link in the page's top
+  trailing corner opens `dao://import/` in the current tab, where users choose
+  a source browser and data categories before starting migration. It sits
+  outside the centered tutorial layout and supports visible keyboard focus.
 
 ## 6.1 Browser Data Migration
 

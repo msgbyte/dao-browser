@@ -184,4 +184,17 @@
 <translation id="6325047129563993580">根据我最近的浏览主题创建 Dao 主页。只使用经过隐私精简的主页浏览材料，先简要说明设计方向，再构建并发布第一个版本。</translation>
 <translation id="3909499025801874715">检查有界的 Dao 主页诊断信息，说明故障原因并修复当前项目。在修复通过验证前保留当前可运行版本，验证后将修复发布为新版本。</translation>
 <translation id="9046231519826652276">最新 MCP 调用：<ph name="TOOL" /></translation>
+<translation id="8819422779093237286">欢迎使用 Dao</translation>
+<translation id="8754476796133798050">一款有主张的浏览器。以键盘为先，让快捷键驱动浏览。</translation>
+<translation id="9007083469907937837">在侧边栏中新建标签页</translation>
+<translation id="3725795051337497754">关闭当前标签页</translation>
+<translation id="7941154822457232855">打开命令栏，快速跳转</translation>
+<translation id="341629834060643721">显示或隐藏侧边栏</translation>
+<translation id="8725826957868125189">打开 AI 助手面板</translation>
+<translation id="2654155183153466577">复制当前标签页</translation>
+<translation id="1180509694035129435">复制当前页面网址</translation>
+<translation id="7762651625781751842">搜索或输入网址...</translation>
+<translation id="8672485401328649039">Dao 助手</translation>
+<translation id="4828722023020978308">网址已复制到剪贴板</translation>
+<translation id="3323560495676347320">喜欢 Dao？给我们点个 Star 吧！</translation>
 </translationbundle>

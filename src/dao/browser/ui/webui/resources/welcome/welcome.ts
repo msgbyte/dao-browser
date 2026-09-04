@@ -17,3 +17,6 @@
 }
 
 import './dao_welcome_app.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
+
+document.title = loadTimeData.getString('daoWelcomeTitle');
