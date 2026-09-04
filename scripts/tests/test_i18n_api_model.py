@@ -1,10 +1,13 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
+import io
 import json
 from pathlib import Path
 import sys
 import threading
 import unittest
+from unittest.mock import patch
+import urllib.error
 
 from scripts import i18n_android
 
@@ -17,7 +20,7 @@ class _RecordingHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers["Content-Length"])
         body = json.loads(self.rfile.read(content_length))
         self.server.requests.append(  # type: ignore[attr-defined]
-            (self.path, self.headers["Authorization"], body)
+            (self.path, self.headers["Authorization"], self.headers["User-Agent"], body)
         )
         response = json.dumps(
             {"choices": [{"message": {"content": '{"hello":"Bonjour"}'}}]}
@@ -44,6 +47,27 @@ def _load_desktop_translator():
 
 
 class DefaultTranslationModelTest(unittest.TestCase):
+    def test_http_errors_include_provider_details_without_exposing_the_api_key(self) -> None:
+        for translator in (_load_desktop_translator(), i18n_android):
+            for status in (403, 500):
+                with self.subTest(translator=translator.__name__, status=status):
+                    error = urllib.error.HTTPError(
+                        "https://example.test/chat/completions", status, "Denied", {},
+                        io.BytesIO(b'{"error":"model_access_denied for test-secret"}'),
+                    )
+                    with patch.object(translator.urllib.request, "urlopen", side_effect=error) as request, \
+                         patch.object(translator.time, "sleep"):
+                        with self.assertRaises(RuntimeError) as caught:
+                            translator.call_openai("translate", "test-secret", "test-model")
+                    message = str(caught.exception)
+                    self.assertIn(str(status), message)
+                    self.assertIn("model_access_denied", message)
+                    self.assertNotIn("test-secret", message)
+                    self.assertEqual(
+                        3 if translator is i18n_android and status == 500 else 1,
+                        request.call_count,
+                    )
+
     def test_both_translators_send_gpt_5_5_to_chat_completions(self) -> None:
         server = ThreadingHTTPServer(("127.0.0.1", 0), _RecordingHandler)
         server.requests = []  # type: ignore[attr-defined]
@@ -79,9 +103,10 @@ class DefaultTranslationModelTest(unittest.TestCase):
             thread.join(timeout=2)
 
         self.assertEqual(2, len(server.requests))  # type: ignore[attr-defined]
-        for path, authorization, body in server.requests:  # type: ignore[attr-defined]
+        for path, authorization, user_agent, body in server.requests:  # type: ignore[attr-defined]
             self.assertEqual("/chat/completions", path)
             self.assertEqual("Bearer test-secret", authorization)
+            self.assertEqual("dao-i18n/1.0", user_agent)
             self.assertEqual("gpt-5.5", body["model"])
             self.assertEqual({"type": "json_object"}, body["response_format"])
 

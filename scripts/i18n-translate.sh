@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Translate Dao i18n source strings into every locale via OpenAI.
 #
-# Reads `OPENAI_API_KEY` (and optional `OPENAI_BASE_URL`,
+# Reads `OPENAI_API_KEY` or `OPENAPI_KEY` (and optional `OPENAI_BASE_URL`,
 # `OPENAI_TRANSLATE_MODEL`) from the environment. Default model: gpt-5.5.
 #
 # Forwards all flags to scripts/i18n-translate.py — see that file's

@@ -234,6 +234,7 @@ def call_openai(prompt: str, api_key: str, model: str) -> str:
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "dao-i18n/1.0",
         },
     )
     for attempt in range(1, MAX_API_ATTEMPTS + 1):
@@ -242,10 +243,9 @@ def call_openai(prompt: str, api_key: str, model: str) -> str:
                 body = json.loads(response.read())
             return body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as error:
-            if error.code != 429 and error.code < 500:
-                raise
-            if attempt == MAX_API_ATTEMPTS:
-                raise
+            if (error.code != 429 and error.code < 500) or attempt == MAX_API_ATTEMPTS:
+                detail = error.read(2048).decode("utf-8", errors="replace").replace(api_key, "[REDACTED]")
+                raise RuntimeError(f"HTTP {error.code} {error.reason}: {detail}") from None
         except urllib.error.URLError:
             if attempt == MAX_API_ATTEMPTS:
                 raise
@@ -306,7 +306,7 @@ def process_locale(
     if dry_run:
         return [f"[{locale_code}/android] would translate {len(pending)} strings"]
     if api_key is None:
-        raise ValueError("OPENAI_API_KEY is required outside dry-run")
+        raise ValueError("OPENAI_API_KEY or OPENAPI_KEY is required outside dry-run")
 
     translated = {} if force else dict(existing)
     for batch in _chunks(list(pending.items())):
@@ -348,9 +348,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         api_key = None
     else:
-        api_key = os.environ.get("OPENAI_API_KEY")
+        api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENAPI_KEY")
         if not api_key:
-            print("error: OPENAI_API_KEY is required (or pass --dry-run).", file=sys.stderr)
+            print("error: OPENAI_API_KEY or OPENAPI_KEY is required (or pass --dry-run).", file=sys.stderr)
             return 2
 
     jobs = max(1, args.jobs)

@@ -11,7 +11,7 @@ Writes:
   - src/dao/browser/ui/webui/resources/agent/i18n/locales/<lang>.ts
 
 Translation provider: OpenAI Chat Completions API, default model gpt-5.5.
-Uses OPENAI_API_KEY (and optional OPENAI_BASE_URL) from environment.
+Uses OPENAI_API_KEY or OPENAPI_KEY (and optional OPENAI_BASE_URL) from environment.
 
 Skips locales that already have translations unless --force is passed.
 Always preserves placeholder tokens: ``<ph name="X">$N</ph>`` for grd /
@@ -314,10 +314,15 @@ def call_openai(prompt: str, api_key: str, model: str) -> str:
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "dao-i18n/1.0",
         },
     )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        body = json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            body = json.loads(resp.read())
+    except urllib.error.HTTPError as error:
+        detail = error.read(2048).decode("utf-8", errors="replace").replace(api_key, "[REDACTED]")
+        raise RuntimeError(f"HTTP {error.code} {error.reason}: {detail}") from None
     return body["choices"][0]["message"]["content"]
 
 
@@ -404,9 +409,9 @@ def main() -> None:
                    "Default: 4. Set to 1 to run serially.")
     args = p.parse_args()
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENAPI_KEY")
     if not args.dry_run and not api_key:
-        print("error: OPENAI_API_KEY is required (or pass --dry-run).",
+        print("error: OPENAI_API_KEY or OPENAPI_KEY is required (or pass --dry-run).",
               file=sys.stderr)
         sys.exit(2)
 
