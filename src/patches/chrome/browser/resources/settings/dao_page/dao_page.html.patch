@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,694 @@
+@@ -0,0 +1,699 @@
 +<style include="settings-shared">
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
@@ -473,6 +473,11 @@ index 0000000000..0000000001
 +      pref="{{prefs.dao.enhanced_command_bar_suggestions_enabled}}"
 +      label="$i18n{enhancedCommandBarSuggestionsEnabledLabel}"
 +      sub-label="$i18n{enhancedCommandBarSuggestionsEnabledSubLabel}">
++  </settings-toggle-button>
++  <settings-toggle-button id="commandBarCommandModeEnabled"
++      pref="{{prefs.dao.command_bar_command_mode_enabled}}"
++      label="$i18n{commandBarCommandModeEnabledLabel}"
++      sub-label="$i18n{commandBarCommandModeEnabledSubLabel}">
 +  </settings-toggle-button>
 +  <settings-toggle-button id="askAiEnabled"
 +      pref="{{prefs.dao.ask_ai_enabled}}"

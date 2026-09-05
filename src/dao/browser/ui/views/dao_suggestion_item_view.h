@@ -11,6 +11,7 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "components/favicon_base/favicon_types.h"
 #include "components/omnibox/browser/autocomplete_match.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/views/view.h"
 
 class Profile;
@@ -54,6 +55,11 @@ class DaoSuggestionItemView : public views::View {
       const std::u16string& prompt,
       const std::u16string& intent_label = std::u16string());
 
+  void SetCommand(const std::u16string& title,
+                  LucideIcon icon,
+                  const std::u16string& disabled_reason,
+                  bool enabled);
+
   void SetSelected(bool selected);
 
   // Re-apply theme-dependent colors after a NativeTheme change. Refreshes
@@ -71,7 +77,7 @@ class DaoSuggestionItemView : public views::View {
   // Describes how the leading icon should be (re)rendered when the theme
   // changes.  Favicons override vector icons for HTTP/HTTPS matches and
   // intentionally stay theme-independent.
-  enum class IconMode { kNone, kVectorMatch, kAskAi };
+  enum class IconMode { kNone, kVectorMatch, kAskAi, kCommand };
 
   void UpdateBackground();
   void OnFaviconFetched(const GURL& page_url,
@@ -91,6 +97,7 @@ class DaoSuggestionItemView : public views::View {
   // State needed to re-rasterize the leading icon on theme change.
   IconMode icon_mode_ = IconMode::kNone;
   raw_ptr<const gfx::VectorIcon> current_vector_icon_ = nullptr;
+  LucideIcon current_lucide_icon_ = LucideIcon::kSettings;
   bool has_favicon_ = false;
 
   // Cached rendered match state for cheap no-op when an async autocomplete
@@ -104,6 +111,10 @@ class DaoSuggestionItemView : public views::View {
   std::u16string last_ask_ai_prompt_;
   std::u16string last_ask_ai_intent_label_;
   bool last_was_ask_ai_ = false;
+  std::u16string last_command_title_;
+  std::u16string last_command_disabled_reason_;
+  bool last_command_enabled_ = true;
+  bool last_was_command_ = false;
 
   // Tracks the URL for the current favicon request so stale callbacks are
   // ignored.

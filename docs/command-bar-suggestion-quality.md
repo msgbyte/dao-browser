@@ -1,8 +1,16 @@
 # Command Bar Suggestion Quality Design
 
 Status: Draft  
-Last updated: 2026-06-28  
+Last updated: 2026-09-05
+
 Owner: Dao Browser UI
+
+The September 5 update defines the first system-command batch in Phase 6.
+That section takes precedence over the broader draft's command candidates,
+ranking, and rollout dependencies. Other sections retain the June proposal;
+their findings are historical, not an inventory of current behavior. The first
+command batch is implemented in source; validation status is recorded in Phase
+6.
 
 ## Summary
 
@@ -234,41 +242,131 @@ Core fields:
 
 Once this model exists, `DaoCommandBarView` should render and execute normalized suggestions rather than manually mapping visible rows back into omnibox results.
 
-### Phase 6: Dao Command Registry
+### Phase 6: First System-Command Batch
 
-Add a command registry for browser actions.
+Status: Implemented in source on 2026-09-05; `npm run rebuild` passed after
+the final fixes. The added browser tests have not been compiled or run, and
+manual UI validation remains unverified.
 
-Proposed files:
+Add exactly eight system commands to the existing command bar. The order below
+is the initial discovery order, preserving the selected priority list and
+appending Task Manager. Matching relevance takes precedence while filtering.
 
-- `src/dao/browser/ui/views/dao_command_registry.h`
-- `src/dao/browser/ui/views/dao_command_registry.cc`
+| Order | English title | English aliases | Execution |
+|---|---|---|---|
+| 1 | Open Settings | `settings`, `preferences` | Open the existing Settings overview through `IDC_OPTIONS`. |
+| 2 | Reopen Closed Tab | `reopen closed tab`, `reopen tab`, `restore tab`, `undo close tab` | Use `IDC_RESTORE_TAB`, including the existing restoration behavior for closed windows. |
+| 3 | Copy Current Link | `copy link`, `copy url`, `copy current link` | Reuse the existing Dao copy-link action and localized `DaoToastView` feedback. |
+| 4 | Open Downloads | `downloads`, `download history` | Open the full downloads page through `IDC_SHOW_DOWNLOADS`. |
+| 5 | Open History | `history`, `browsing history` | Open browsing history through `IDC_SHOW_HISTORY`. |
+| 6 | Manage Extensions | `extensions`, `manage extensions`, `addons` | Open extension management through `IDC_MANAGE_EXTENSIONS`. |
+| 7 | Open Agent Settings | `agent settings`, `ai settings`, `model settings` | Open the existing `dao://settings/agent` page. |
+| 8 | Open Task Manager | `task manager`, `taskmanager`, `process manager` | Open or focus Chromium's browser Task Manager through `IDC_TASK_MANAGER`. |
 
-Initial command candidates:
+Task Manager uses the existing browser process UI, including its resource
+columns and process controls. This command only opens that UI; it does not
+terminate a process. Downloads opens the full record, not the sidebar flyout.
+The restore command follows Chromium's existing restore stack; if the next
+entry is a window or group, use the corresponding localized restoration title
+without menu mnemonics. The displayed title also participates in matching, so
+accepting it with Tab or Right Arrow keeps the restore command available.
 
-- Open settings.
-- Open downloads.
-- Copy current URL.
-- Copy current URL as Markdown.
-- Add right split.
-- Add left split.
-- View archive.
-- Clear archive.
-- New blank window.
-- Toggle Developer Mode for current site.
+#### Discovery and matching
 
-Matching can start with deterministic lowercased token prefix matching and common aliases:
+- Normal input mixes matching commands into the existing suggestions.
+- The **Enable > command mode** toggle in **You and Dao** settings defaults to
+  off and is independent of enhanced suggestions. When off, `>` remains
+  ordinary input and normal command suggestions remain available.
+- When the toggle is enabled, a leading `>` enters explicit command mode:
+  `>` lists all eight commands;
+  `> settings` filters commands only. Do not send command-mode input to search
+  providers or show Search / Ask AI rows in this mode.
+- Blank and whitespace-only normal input continues to show zero suggestions.
+  Keep the URL/search placeholder; explain the `>` prefix in the setting.
+- Match the complete localized title and curated aliases, with English aliases
+  available in every locale. Normalize case and surrounding/repeated whitespace.
+  Use exact and whole-phrase prefix matching, without fuzzy or AI matching.
+- In normal mode, require at least two characters for prefix suggestions.
+  `set` can suggest Settings; `task m` can suggest Task Manager;
+  `settings sync tutorial` remains a search. URL-shaped input retains navigation
+  priority and does not trigger a command from a word inside the URL.
+- Provide localized titles, aliases, intent labels, placeholders, and disabled
+  reasons through `dao_strings.grd`. Hand-author the Simplified Chinese entries;
+  keep the existing manual translation workflow for other locales.
 
-- `settings`
-- `downloads`
-- `archive`
-- `view archive`
-- `clear archive`
-- `split right`
-- `split left`
-- `developer mode`
-- `copy url`
+#### Ordering and keyboard behavior
 
-Command names and aliases that are user-visible must be localized. Non-visible matching aliases may be internal, but should be documented.
+- A complete title/alias match for one of the six UI-opening commands is first
+  and automatically selected. For example, `settings` + Enter opens Settings,
+  and `task manager` + Enter opens Task Manager.
+- Other matches appear immediately after the first existing suggestion, with
+  at most two command rows in normal mode. Keep the existing non-command rows
+  in relative order and retain the independent exact-input Search action.
+- Reopen Closed Tab and Copy Current Link do not become the automatic selection
+  in normal mode. Execute them after explicit selection or in command mode.
+- In command mode, rank exact matches before prefix matches, break ties by the
+  table order, and select the first enabled command. There is no two-row cap.
+- Reuse the current five-row scrollable viewport and row height. Each command
+  row shows a Lucide icon, localized action title, and localized `Command` label.
+- Arrow keys select; Enter or a click executes the selected enabled command
+  once; Tab / Right Arrow fills its title without executing; Escape dismisses.
+  Accepting a title keeps `>` when already in command mode.
+- Preserve explicitly selected rows during async autocomplete updates,
+  including Search, URL, and Ask AI rows. Commands use their stable command ID.
+  If the selected command becomes unavailable, do not silently substitute
+  another executable command under the selection.
+
+#### Execution and availability
+
+- Reuse existing browser command dispatch, enabled-state checks, page-opening
+  helpers, and Dao feedback. Do not build a second settings or process UI.
+- Page-opening commands follow the existing Profile, Guest, and incognito
+  routing rules. Reuse an eligible destination tab through existing helpers
+  where supported; avoid a custom cross-window tab registry. Agent Settings
+  should use the same Settings navigation helper and command availability
+  check for its subpage.
+- Bind Copy Current Link to the tab present when the command bar opened,
+  including when opened with Cmd+T. Revalidate that target at execution; if it
+  disappeared, keep the clipboard unchanged and show localized feedback.
+- Executing a command exits new-tab mode without creating an extra blank tab.
+  Clear the command bar and its sidebar highlight before opening/focusing the
+  destination, so command-bar cleanup cannot steal destination focus.
+- Hide unavailable commands in normal mode. In command mode, show them disabled
+  with a short reason, skip them in keyboard selection, and block execution.
+  Reuse Chromium's restore-service loading behavior rather than treating a
+  not-yet-loaded restore stack as empty. Recheck availability on execution.
+
+#### Implementation boundary and acceptance
+
+Use a small static command catalog with stable ID, localized title/aliases,
+icon, availability, and execution mapping. Extend the existing suggestion
+rendering and selection path only as needed. This batch works in both existing
+suggestion preference modes; it does not depend on Phase 5's general pipeline,
+site search, zero-suggest, or usage-based ranking. Normal command suggestions
+are always available; only the explicit `>` mode requires its opt-in preference.
+
+Focused acceptance cases:
+
+- Exact English and localized keywords open the intended UI; `settings` and
+  `agent settings` resolve independently; prefix and sentence queries retain
+  normal search behavior and the exact-input Search row.
+- Command mode defaults off: `> task` uses ordinary autocomplete. Enabling the
+  setting activates command mode; disabling it restores ordinary input. Verify
+  both enhanced suggestion modes and normal command matching in every state.
+- With command mode enabled, `>` exposes all eight commands within the
+  five-row scrolling viewport;
+  command-mode typing makes no autocomplete-provider request, and removing `>`
+  restores normal suggestions.
+- Copy and restore require explicit selection in normal mode; unavailable
+  commands cannot run; async results cannot change a selected command's identity.
+- Cmd+L and Cmd+T execute the intended command without an extra blank tab or
+  focus theft. Copy uses the original live tab and shows the existing toast.
+- Task Manager opens/focuses its existing window; Downloads opens the full
+  page; management commands respect existing browsing-mode restrictions.
+- Verify localized labels, keyboard navigation, and disabled reasons in light
+  and dark themes. Update `docs/features.md` and `docs/feature-checklist.md`
+  when implementing the behavior, then use the focused command-bar tests and
+  `npm run rebuild` for compile confirmation.
 
 ### Phase 7: Site Search and Context Suggestions
 
@@ -429,4 +527,3 @@ npm run test
 - Make Ask Dao conditional so AI feels helpful rather than intrusive.
 - Make the selected visible row authoritative for Enter.
 - Use localized intent labels to make action type scannable.
-

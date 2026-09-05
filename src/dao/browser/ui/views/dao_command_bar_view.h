@@ -18,14 +18,19 @@
 #include "components/favicon_base/favicon_types.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_match.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
-#include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/controls/image_view.h"
+#include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 
 class Browser;
+
+namespace content {
+class WebContents;
+}
 
 namespace views {
 class ScrollView;
@@ -118,9 +123,23 @@ class DaoCommandBarView : public views::View,
   int GetVisibleSuggestionCountForTesting() const {
     return visible_suggestion_count_;
   }
+  std::u16string GetVisibleSuggestionTitleForTesting(int index) const;
+  bool IsVisibleSuggestionCommandForTesting(int index) const;
+  bool HasVisibleCommandForTesting() const;
+  bool IsVisibleSuggestionEnabledForTesting(int index) const;
+  bool IsSelectedCommandForTesting() const;
+  int GetSelectedCommandIdForTesting() const;
 
  private:
   static constexpr int kVisibleSuggestionRows = 5;
+
+  struct SuggestionRow {
+    enum class Kind { kAutocomplete, kAskAi, kCommand };
+
+    Kind kind;
+    int index;
+    bool enabled = true;
+  };
 
   void Navigate(const std::u16string& text);
   void NavigateToMatch(const AutocompleteMatch& match);
@@ -142,6 +161,12 @@ class DaoCommandBarView : public views::View,
   void StopAutocomplete();
   void ClearSuggestions();
   void UpdateSuggestions();
+  std::vector<int> GetMatchingCommandIndices(bool command_mode) const;
+  bool IsCommandEnabled(int command_index) const;
+  std::u16string GetCommandTitle(int command_index) const;
+  std::u16string GetCommandDisabledReason(int command_index) const;
+  void ExecuteSystemCommand(int command_index);
+  int GetNextEnabledIndex(int start, int direction) const;
   void UpdateSelectionPreview();
   void ClearSelectionPreview(bool restore_user_input);
   void AcceptSelectionPreview();
@@ -169,6 +194,7 @@ class DaoCommandBarView : public views::View,
   bool ShouldShowAskAiSuggestion() const;
   int GetAutocompleteProviderTypesForCurrentMode() const;
   const AutocompleteMatch* GetSelectedVisibleAutocompleteMatch() const;
+  const SuggestionRow* GetSelectedRow() const;
   std::u16string GetIntentLabelForMatch(const AutocompleteMatch& match) const;
   GURL GetSearchUrl(const std::u16string& search_terms) const;
   AutocompleteMatch CreateExactSearchMatch(
@@ -187,6 +213,7 @@ class DaoCommandBarView : public views::View,
 
   std::vector<raw_ptr<DaoSuggestionItemView>> suggestion_views_;
   std::vector<AutocompleteMatch> visible_matches_;
+  std::vector<SuggestionRow> displayed_rows_;
 
   std::unique_ptr<AutocompleteController> autocomplete_controller_;
   std::unique_ptr<ChromeAutocompleteSchemeClassifier> scheme_classifier_;
@@ -226,6 +253,12 @@ class DaoCommandBarView : public views::View,
   // row is inserted after the top autocomplete match; Enter / click on it
   // routes to SubmitAskAi instead of NavigateToMatch.
   int ask_ai_row_index_ = -1;
+  int selected_command_id_ = -1;
+  // Keeps async updates from silently substituting a different action after
+  // the explicitly selected command disappears or becomes unavailable.
+  bool command_selection_invalidated_ = false;
+  bool command_mode_ = false;
+  base::WeakPtr<content::WebContents> command_target_;
 
   // When true, we are in "pre-new-tab" mode: no tab has been created yet.
   bool is_new_tab_mode_ = false;

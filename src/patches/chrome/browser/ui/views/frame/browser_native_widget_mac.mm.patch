@@ -10,26 +10,23 @@ index d6d2a757c2..4ac4d1a5e1 100644
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
  #import "chrome/browser/ui/cocoa/browser_window_command_handler.h"
  #import "chrome/browser/ui/cocoa/chrome_command_dispatcher_delegate.h"
-@@ -30,6 +31,18 @@
+@@ -30,6 +31,15 @@
  #include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/ui/views/frame/browser_widget.h"
  #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-+#include "base/strings/utf_string_conversions.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
 +#include "content/public/browser/web_contents.h"
 +#include "dao/browser/ui/views/dao_tab_commands.h"
-+#include "dao/browser/ui/views/dao_toast_view.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
-+#include "ui/base/clipboard/scoped_clipboard_writer.h"
 +#include "ui/events/keycodes/keyboard_codes.h"
 +#include "third_party/blink/public/common/input/web_input_event.h"
 +#include "url/gurl.h"
  #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/common/pref_names.h"
-@@ -88,6 +101,20 @@ bool ShouldHandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) {
+@@ -88,6 +98,20 @@ bool ShouldHandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) {
    return event.os_event && event.os_event.Get().type == NSEventTypeKeyDown;
  }
  
@@ -50,7 +47,7 @@ index d6d2a757c2..4ac4d1a5e1 100644
  }  // namespace
  
  // Bridge Obj-C class for WindowTouchBarDelegate and
-@@ -176,7 +203,15 @@ - (NSTouchBar*)makeTouchBar {
+@@ -176,7 +200,15 @@ - (NSTouchBar*)makeTouchBar {
                   top_element_info.toolbar_minimum_height) +
          browser_view_->browser_widget()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
@@ -67,7 +64,7 @@ index d6d2a757c2..4ac4d1a5e1 100644
      }
    } else {
      *override_titlebar_height = false;
-@@ -216,6 +251,38 @@ - (NSTouchBar*)makeTouchBar {
+@@ -216,6 +248,38 @@ - (NSTouchBar*)makeTouchBar {
  void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -106,7 +103,7 @@ index d6d2a757c2..4ac4d1a5e1 100644
    Browser* const browser = browser_view_ ? browser_view_->browser() : nullptr;
    if (!browser || !chrome::SupportsCommand(browser, tag)) {
      result->enable = false;
-@@ -446,6 +513,43 @@ - (NSTouchBar*)makeTouchBar {
+@@ -446,6 +510,36 @@ - (NSTouchBar*)makeTouchBar {
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
@@ -136,21 +133,14 @@ index d6d2a757c2..4ac4d1a5e1 100644
 +  if (command == IDC_DAO_COPY_URL) {
 +    content::WebContents* web_contents =
 +        browser_view_->browser()->tab_strip_model()->GetActiveWebContents();
-+    if (web_contents) {
-+      ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);
-+      scw.WriteText(base::UTF8ToUTF16(web_contents->GetVisibleURL().spec()));
-+      if (auto* toast = browser_view_->dao_toast()) {
-+        toast->ShowToast(u"Copied Current Url");
-+        browser_view_->InvalidateLayout();
-+      }
-+    }
++    dao::CopyTabUrl(browser_view_->browser(), web_contents);
 +    return true;
 +  }
 +
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -499,6 +603,16 @@ - (NSTouchBar*)makeTouchBar {
+@@ -499,6 +593,16 @@ - (NSTouchBar*)makeTouchBar {
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -167,7 +157,7 @@ index d6d2a757c2..4ac4d1a5e1 100644
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
-@@ -568,6 +682,12 @@ - (NSTouchBar*)makeTouchBar {
+@@ -568,6 +672,12 @@ - (NSTouchBar*)makeTouchBar {
      views::Widget::InitParams::Ownership ownership) {
    views::Widget::InitParams params(ownership);
    params.native_widget = this;
@@ -180,7 +170,7 @@ index d6d2a757c2..4ac4d1a5e1 100644
    return params;
  }
  
-@@ -592,6 +712,17 @@ - (NSTouchBar*)makeTouchBar {
+@@ -592,6 +702,17 @@ - (NSTouchBar*)makeTouchBar {
  content::KeyboardEventProcessingResult
  BrowserNativeWidgetMac::PreHandleKeyboardEvent(
      const input::NativeWebKeyboardEvent& event) {

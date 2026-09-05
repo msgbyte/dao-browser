@@ -330,6 +330,69 @@
       <message name="IDS_DAO_COMMAND_BAR_PLACEHOLDER" desc="Placeholder text shown in the Spotlight-style command bar (Cmd+L) prompting the user to type either a URL or a search query.">
         Type a URL or search...
       </message>
+      <message name="IDS_DAO_COMMAND_OPEN_SETTINGS" desc="Title of the command that opens browser settings.">
+        Open Settings
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_SETTINGS_ALIASES" desc="Pipe-delimited search aliases for the Open Settings command. Keep the pipe separators.">
+        settings|preferences
+      </message>
+      <message name="IDS_DAO_COMMAND_REOPEN_CLOSED_TAB" desc="Title of the command that restores the most recently closed tab.">
+        Reopen Closed Tab
+      </message>
+      <message name="IDS_DAO_COMMAND_REOPEN_CLOSED_TAB_ALIASES" desc="Pipe-delimited search aliases for the Reopen Closed Tab command. Keep the pipe separators.">
+        reopen closed tab|reopen tab|restore tab|undo close tab
+      </message>
+      <message name="IDS_DAO_COMMAND_COPY_CURRENT_LINK" desc="Title of the command that copies the URL of the tab that was active when the command bar opened.">
+        Copy Current Link
+      </message>
+      <message name="IDS_DAO_COMMAND_COPY_CURRENT_LINK_ALIASES" desc="Pipe-delimited search aliases for the Copy Current Link command. Keep the pipe separators.">
+        copy link|copy url|copy current link
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_DOWNLOADS" desc="Title of the command that opens the full downloads page.">
+        Open Downloads
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_DOWNLOADS_ALIASES" desc="Pipe-delimited search aliases for the Open Downloads command. Keep the pipe separators.">
+        downloads|download history
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_HISTORY" desc="Title of the command that opens browsing history.">
+        Open History
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_HISTORY_ALIASES" desc="Pipe-delimited search aliases for the Open History command. Keep the pipe separators.">
+        history|browsing history
+      </message>
+      <message name="IDS_DAO_COMMAND_MANAGE_EXTENSIONS" desc="Title of the command that opens extension management.">
+        Manage Extensions
+      </message>
+      <message name="IDS_DAO_COMMAND_MANAGE_EXTENSIONS_ALIASES" desc="Pipe-delimited search aliases for the Manage Extensions command. Keep the pipe separators.">
+        extensions|manage extensions|addons
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_AGENT_SETTINGS" desc="Title of the command that opens Dao Agent settings.">
+        Open Agent Settings
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_AGENT_SETTINGS_ALIASES" desc="Pipe-delimited search aliases for the Open Agent Settings command. Keep the pipe separators.">
+        agent settings|ai settings|model settings
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_TASK_MANAGER" desc="Title of the command that opens or focuses the browser Task Manager.">
+        Open Task Manager
+      </message>
+      <message name="IDS_DAO_COMMAND_OPEN_TASK_MANAGER_ALIASES" desc="Pipe-delimited search aliases for the Open Task Manager command. Keep the pipe separators.">
+        task manager|taskmanager|process manager
+      </message>
+      <message name="IDS_DAO_COMMAND_REOPEN_CLOSED_TAB_UNAVAILABLE" desc="Reason shown when the Reopen Closed Tab command is unavailable.">
+        No recently closed tabs
+      </message>
+      <message name="IDS_DAO_COMMAND_COPY_CURRENT_LINK_UNAVAILABLE" desc="Reason shown when the original tab link can no longer be copied.">
+        Original tab is no longer available
+      </message>
+      <message name="IDS_DAO_COMMAND_UNAVAILABLE" desc="Generic reason shown when a command is unavailable.">
+        Command unavailable
+      </message>
+      <message name="IDS_DAO_COPY_CURRENT_LINK_COPIED_TOAST" desc="Toast shown after copying the current page link.">
+        Current link copied
+      </message>
+      <message name="IDS_DAO_COPY_CURRENT_LINK_FAILED_TOAST" desc="Toast shown when the original page link cannot be copied.">
+        Could not copy the current link
+      </message>
 
       <!-- Suggestion item -->
       <message name="IDS_DAO_SUGGESTION_ASK_AI" desc="Title of a suggestion row that, when clicked, sends the user's typed text to the AI assistant. The PROMPT placeholder is the user's typed query, e.g. 'Ask AI: how do I bake bread?'.">
@@ -346,6 +409,9 @@
       </message>
       <message name="IDS_DAO_SUGGESTION_INTENT_ASK_DAO" desc="Short right-side intent label for a command bar suggestion that will send the typed prompt to the Dao assistant.">
         Ask Dao
+      </message>
+      <message name="IDS_DAO_SUGGESTION_INTENT_COMMAND" desc="Short right-side intent label for a command bar suggestion that runs a browser command.">
+        Command
       </message>
 
       <!-- Control Center -->

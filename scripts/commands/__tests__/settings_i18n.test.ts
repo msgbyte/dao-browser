@@ -111,6 +111,14 @@ const daoSettingsTranslations = [
     translation: '在命令栏中使用更丰富的标签页、命令、搜索和 Dao 建议',
   },
   {
+    id: '6967195280958776947',
+    translation: '启用 &gt; 命令模式',
+  },
+  {
+    id: '3918026601849410228',
+    translation: '在命令栏中输入 &gt;，仅显示浏览器命令',
+  },
+  {
     id: '8653714013042599949',
     translation: 'Stale 标签过期时间',
   },
