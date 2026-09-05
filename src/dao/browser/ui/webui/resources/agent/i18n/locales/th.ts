@@ -356,7 +356,7 @@ const dict: Dictionary = {
   'settings.tools.jina_api_key_placeholder': 'jina_...',
   'settings.tools.group.page': 'หน้า',
   'settings.tools.group.tabs': 'แท็บ',
-  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.devtools': 'เครื่องมือนักพัฒนา',
   'settings.tools.group.memory-skills': 'หน่วยความจำ & ทักษะ',
   'settings.tools.group.web': 'เว็บ',
   'settings.tools.group.workspace': 'พื้นที่ทำงาน',

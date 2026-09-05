@@ -3,6 +3,7 @@
 <translationbundle lang="bn">
 <translation id="1111094358966140566">সংস্করণ তুলনা করুন</translation>
 <translation id="1173894706177603556">নাম পরিবর্তন করুন</translation>
+<translation id="1180509694035129435">বর্তমান পৃষ্ঠার URL অনুলিপি করুন</translation>
 <translation id="1182228621215085947">Dao জিজ্ঞাসা করুন</translation>
 <translation id="121570799358042869">আপনার ব্রাউজার ডেটা এই Mac-এই থাকে। সামঞ্জস্যপূর্ণ এক্সটেনশন পুনরায় ইনস্টল করাই একমাত্র ধাপ যা ইন্টারনেটে সংযুক্ত হতে পারে; এক্সটেনশনের সেটিংস ও সাইন-ইন কপি করা হয় না।</translation>
 <translation id="1236455002425740182">Dao মাইগ্রেশন</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">সংরক্ষিত পাসওয়ার্ড ডিক্রিপ্ট করতে Dao-এর নির্বাচিত ব্রাউজারের Safe Storage কী প্রয়োজন। আপনি অ্যাক্সেস অস্বীকার করলে শুধু পাসওয়ার্ড বাদ যাবে এবং বাকি মাইগ্রেশন চলবে।</translation>
 <translation id="2580366865845491095">এই লিঙ্ক খুলবেন?</translation>
 <translation id="2612596415938768738">আপনাকে সাইন ইন করতে হতে পারে</translation>
+<translation id="2654155183153466577">বর্তমান ট্যাবের অনুলিপি তৈরি করুন</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> আরও</translation>
 <translation id="2703180365855369896">ডুপ্লিকেট ট্যাব বন্ধ করুন</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">যাচাইকৃত প্রক্রিয়া: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao নির্বাচিত উৎসগুলো পরীক্ষা করবে এবং যেগুলো কাজ করে সেগুলো যোগ করবে। হোম সক্রিয় থাকলে প্রতিটি উৎস শুধু নিচে দেখানো পৃষ্ঠা ও ডেটা পড়তে পারে।</translation>
 <translation id="3249579521706735875">সিস্টেম ডার্ক মোডে থাকাকালীন উপলব্ধ।</translation>
+<translation id="3323560495676347320">Dao পছন্দ হয়েছে? আমাদের একটি স্টার দিন!</translation>
 <translation id="3356580349448036450">সম্পন্ন</translation>
 <translation id="3404183081987133644">আপনি বন্ধ করার আগে আমদানি করা ডেটা ব্যবহারের জন্য প্রস্তুত। প্রস্তুত হলে যেকোনো সময় আরেকটি মাইগ্রেশন শুরু করতে পারেন।</translation>
+<translation id="341629834060643721">সাইডবার টগল করুন</translation>
 <translation id="3420663750132400268">ফোল্ডার মুছবেন?</translation>
 <translation id="3427713535827228685">এই সাইটে এক্সটেনশনগুলি</translation>
 <translation id="3435738964857648380">নিরাপত্তা</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">ট্যাব বন্ধ করুন</translation>
 <translation id="3657099196021255130">Dao-তে খুলুন</translation>
 <translation id="3708693288863478389">একটি URL টাইপ করুন বা অনুসন্ধান করুন...</translation>
+<translation id="3725795051337497754">বর্তমান ট্যাব বন্ধ করুন</translation>
 <translation id="381667777775855564">Dao-তে যোগ করা হচ্ছে</translation>
 <translation id="385051799172605136">পিছনে</translation>
 <translation id="3891466792657071243">লোডিং বন্ধ করুন</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">৪টির মধ্যে ধাপ ২ · কী স্থানান্তর হবে বেছে নিন</translation>
 <translation id="473775607612524610">আপডেট</translation>
 <translation id="481205936353439293">৪টির মধ্যে ধাপ ৩ · আপনার ডেটা স্থানান্তর করা হচ্ছে</translation>
+<translation id="4828722023020978308">URL ক্লিপবোর্ডে অনুলিপি করা হয়েছে</translation>
 <translation id="4854731374904470810">ট্যাব ID কপি করুন</translation>
 <translation id="4881695831933465202">খুলুন</translation>
 <translation id="4898928054560997780">Dao-কে ঠিক করতে বলুন</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">বাতিল করুন</translation>
 <translation id="7714812312719848690">আপনার প্রকল্প এখনও নিরাপদ আছে। আবার চেষ্টা করুন, একটি সংস্করণ পুনরুদ্ধার করুন বা Dao-কে এটি মেরামত করতে বলুন।</translation>
 <translation id="7717845620320228976">আপডেটের জন্য পরীক্ষা করুন</translation>
+<translation id="7762651625781751842">অনুসন্ধান করুন বা URL লিখুন...</translation>
 <translation id="7803931104677504532">উপস্থাপনা শৈলী পড়ুন</translation>
+<translation id="7941154822457232855">দ্রুত নেভিগেশনের জন্য কমান্ড বার খুলুন</translation>
 <translation id="7974106569409739809">ফোল্ডারমুক্ত করুন</translation>
 <translation id="7995663841236651667">আপনার ব্রাউজার ডেটা এই Mac-এ স্থানীয়ভাবে প্রক্রিয়া করা হয়।</translation>
 <translation id="8028081981001403222">প্রকল্প আমদানি করুন</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> পিছনে</translation>
 <translation id="8595238918901827309">এই সংস্করণ পুনরুদ্ধার করবেন?</translation>
 <translation id="8668072977518790485">ট্যাব ID কপি করা হয়েছে</translation>
+<translation id="8672485401328649039">Dao এজেন্ট</translation>
 <translation id="8684229942427488970">সাইট কেন্দ্র</translation>
 <translation id="8717864919010420084">লিঙ্ক কপি করুন</translation>
 <translation id="8725066075913043281">আবার চেষ্টা করুন</translation>
+<translation id="8725826957868125189">AI এজেন্ট প্যানেল খুলুন</translation>
+<translation id="8754476796133798050">একটি নিজস্ব মতাদর্শভিত্তিক ব্রাউজার। কীবোর্ড-প্রধান, শর্টকাট-চালিত।</translation>
 <translation id="8774154357663601701">হোম সক্রিয় থাকলে এই উৎস শুধু অনুমোদিত পৃষ্ঠাগুলো পড়তে পারে।</translation>
 <translation id="8781013843394828812">এই আইটেমগুলো আবার চেষ্টা করতে হবে</translation>
 <translation id="8787633576358327637">একটি macOS Keychain প্রম্পট দেখা দিতে পারে</translation>
+<translation id="8819422779093237286">Dao-তে স্বাগতম</translation>
 <translation id="8820817407110198400">বুকমার্ক</translation>
 <translation id="8826852601577125903">ফলাফলের ডেটা: <ph name="OLD_BYTE_COUNT" /> থেকে <ph name="NEW_BYTE_COUNT" /> বাইট</translation>
 <translation id="88635502604055524"><ph name="COUNT" />টি প্রার্থী</translation>
 <translation id="8899040626072079337">আপনার ডেটা Dao-তে স্থানান্তর করা হচ্ছে</translation>
 <translation id="8962539151725780858">নিয়ন্ত্রিত ট্যাব: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">সাইডবারে নতুন ট্যাব তৈরি করুন</translation>
 <translation id="9046231519826652276">সর্বশেষ MCP কল: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">প্রতি সংযোগকারীতে আইটেম: সর্বোচ্চ <ph name="ITEM_COUNT" />টি</translation>
 <translation id="9144412711146411188">নিষ্ক্রিয় ট্যাব আর্কাইভ করা হয়েছে</translation>

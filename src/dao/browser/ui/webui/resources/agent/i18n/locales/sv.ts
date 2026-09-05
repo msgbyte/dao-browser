@@ -348,7 +348,7 @@ const dict: Dictionary = {
   'settings.tools.toggle_all_aria': 'Växla alla {group} verktyg',
   'settings.tools.toggle_one_aria': 'Växla {name}',
   'settings.tools.search_source_label': 'Sök källa',
-  'settings.tools.search_auto': 'Auto',
+  'settings.tools.search_auto': 'Automatiskt',
   'settings.tools.search_provider_only': 'Endast leverantör',
   'settings.tools.search_duckduckgo_only': 'Endast DuckDuckGo',
   'settings.tools.jina_api_key_label': 'Jina API-nyckel',

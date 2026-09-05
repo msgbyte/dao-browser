@@ -3,6 +3,7 @@
 <translationbundle lang="ru">
 <translation id="1111094358966140566">Сравнить версию</translation>
 <translation id="1173894706177603556">Переименовать</translation>
+<translation id="1180509694035129435">Копировать URL текущей страницы</translation>
 <translation id="1182228621215085947">Спросить Dao</translation>
 <translation id="121570799358042869">Данные браузера остаются на этом Mac. Переустановка совместимых расширений — единственный шаг, который может потребовать подключения к интернету; настройки расширений и входы в аккаунты не копируются.</translation>
 <translation id="1236455002425740182">Перенос в Dao</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao требуется ключ Safe Storage выбранного браузера для расшифровки сохранённых паролей. Если вы запретите доступ, будут пропущены только пароли, а перенос остальных данных продолжится.</translation>
 <translation id="2580366865845491095">Открыть эту ссылку?</translation>
 <translation id="2612596415938768738">Может потребоваться вход в аккаунт</translation>
+<translation id="2654155183153466577">Дублировать текущую вкладку</translation>
 <translation id="2698054069012763064">Ещё <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Закрыть дублирующиеся вкладки</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Проверенный процесс: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao проверит выбранные источники и добавит работающие. Каждый источник может читать только указанные ниже страницы и данные, пока активна Главная.</translation>
 <translation id="3249579521706735875">Доступно, когда в системе включён тёмный режим.</translation>
+<translation id="3323560495676347320">Нравится Dao? Поставьте нам звезду!</translation>
 <translation id="3356580349448036450">Готово</translation>
 <translation id="3404183081987133644">Данные, импортированные до остановки, готовы к использованию. Вы можете начать новый перенос в любое время.</translation>
+<translation id="341629834060643721">Переключить боковую панель</translation>
 <translation id="3420663750132400268">Удалить папку?</translation>
 <translation id="3427713535827228685">Расширения на этом сайте</translation>
 <translation id="3435738964857648380">Безопасность</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Закрыть вкладку</translation>
 <translation id="3657099196021255130">Открыть в Dao</translation>
 <translation id="3708693288863478389">Введите URL или поиск...</translation>
+<translation id="3725795051337497754">Закрыть текущую вкладку</translation>
 <translation id="381667777775855564">Добавление в Dao</translation>
 <translation id="385051799172605136">Назад</translation>
 <translation id="3891466792657071243">Остановить загрузку</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Шаг 2 из 4 · Выберите данные для переноса</translation>
 <translation id="473775607612524610">Обновить</translation>
 <translation id="481205936353439293">Шаг 3 из 4 · Перенос данных</translation>
+<translation id="4828722023020978308">URL скопирован в буфер обмена</translation>
 <translation id="4854731374904470810">Копировать ID вкладки</translation>
 <translation id="4881695831933465202">Открыть</translation>
 <translation id="4898928054560997780">Попросить Dao исправить</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Отмена</translation>
 <translation id="7714812312719848690">Ваш проект в безопасности. Повторите попытку, восстановите версию или попросите Dao исправить его.</translation>
 <translation id="7717845620320228976">Проверить обновления</translation>
+<translation id="7762651625781751842">Поиск или ввод URL...</translation>
 <translation id="7803931104677504532">Чтение стилей оформления</translation>
+<translation id="7941154822457232855">Открыть командную строку для быстрой навигации</translation>
 <translation id="7974106569409739809">Разгруппировать</translation>
 <translation id="7995663841236651667">Данные браузера обрабатываются локально на этом Mac.</translation>
 <translation id="8028081981001403222">Импортировать проект</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Назад</translation>
 <translation id="8595238918901827309">Восстановить эту версию?</translation>
 <translation id="8668072977518790485">ID вкладки скопирован</translation>
+<translation id="8672485401328649039">Агент Dao</translation>
 <translation id="8684229942427488970">Центр сайта</translation>
 <translation id="8717864919010420084">Копировать ссылку</translation>
 <translation id="8725066075913043281">Повторить</translation>
+<translation id="8725826957868125189">Открыть панель ИИ-агента</translation>
+<translation id="8754476796133798050">Браузер с собственным подходом. Управление с клавиатуры, быстрые команды.</translation>
 <translation id="8774154357663601701">Этот источник может читать только одобренные страницы, пока активна Главная.</translation>
 <translation id="8781013843394828812">Эти элементы нужно перенести повторно</translation>
 <translation id="8787633576358327637">Может появиться запрос Связки ключей macOS</translation>
+<translation id="8819422779093237286">Добро пожаловать в Dao</translation>
 <translation id="8820817407110198400">Закладки</translation>
 <translation id="8826852601577125903">Данные результата: с <ph name="OLD_BYTE_COUNT" /> до <ph name="NEW_BYTE_COUNT" /> байт</translation>
 <translation id="88635502604055524">Кандидатов: <ph name="COUNT" /></translation>
 <translation id="8899040626072079337">Перенос данных в Dao</translation>
 <translation id="8962539151725780858">Управляемые вкладки: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Создать новую вкладку на боковой панели</translation>
 <translation id="9046231519826652276">Последний вызов MCP: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Элементов на коннектор: до <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Неактивные вкладки архивированы</translation>

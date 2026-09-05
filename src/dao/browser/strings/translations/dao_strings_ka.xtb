@@ -3,6 +3,7 @@
 <translationbundle lang="ka">
 <translation id="1111094358966140566">ვერსიის შედარება</translation>
 <translation id="1173894706177603556">გადარქმევა</translation>
+<translation id="1180509694035129435">მიმდინარე გვერდის URL-ის კოპირება</translation>
 <translation id="1182228621215085947">ჰკითხეთ Dao-ს</translation>
 <translation id="121570799358042869">თქვენი ბრაუზერის მონაცემები ამ Mac-ზე რჩება. თავსებადი გაფართოებების ხელახლა ინსტალაცია ერთადერთი ნაბიჯია, რომელმაც შეიძლება ინტერნეტთან კავშირი გამოიყენოს; გაფართოების პარამეტრები და შესვლები არ კოპირდება.</translation>
 <translation id="1236455002425740182">Dao მიგრაცია</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">შენახული პაროლების გაშიფვრისთვის Dao-ს სჭირდება არჩეული ბრაუზერის Safe Storage გასაღები. თუ წვდომას უარყოფთ, გამოტოვებული იქნება მხოლოდ პაროლები, ხოლო მიგრაცია გაგრძელდება.</translation>
 <translation id="2580366865845491095">გაიხსნას ეს ბმული?</translation>
 <translation id="2612596415938768738">შეიძლება შესვლა დაგჭირდეთ</translation>
+<translation id="2654155183153466577">მიმდინარე ჩანართის დუბლირება</translation>
 <translation id="2698054069012763064">კიდევ <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">დახურვა დუბლირებული ჩანართების</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">დადასტურებული პროცესი: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao შეამოწმებს არჩეულ წყაროებს და დაამატებს მოქმედებს. თითოეულ წყაროს შეუძლია წაიკითხოს მხოლოდ ქვემოთ ნაჩვენები გვერდები და მონაცემები, სანამ მთავარი აქტიურია.</translation>
 <translation id="3249579521706735875">ხელმისაწვდომია, როცა სისტემა მუქ რეჟიმშია.</translation>
+<translation id="3323560495676347320">მოგწონთ Dao? დაგვიტოვეთ ვარსკვლავი!</translation>
 <translation id="3356580349448036450">დასრულებულია</translation>
 <translation id="3404183081987133644">თქვენს შეჩერებამდე იმპორტირებული მონაცემები მზადაა გამოსაყენებლად. სურვილისამებრ, ნებისმიერ დროს შეგიძლიათ დაიწყოთ სხვა მიგრაცია.</translation>
+<translation id="341629834060643721">გვერდითი პანელის ჩართვა/გამორთვა</translation>
 <translation id="3420663750132400268">წაიშალოს საქაღალდე?</translation>
 <translation id="3427713535827228685">ამ საიტის გაფართოებები</translation>
 <translation id="3435738964857648380">უსაფრთხოება</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">დახურვა</translation>
 <translation id="3657099196021255130">გახსნა Dao-ში</translation>
 <translation id="3708693288863478389">მიუთითეთ URL ან მოძებნეთ...</translation>
+<translation id="3725795051337497754">მიმდინარე ჩანართის დახურვა</translation>
 <translation id="381667777775855564">Dao-ში დამატება</translation>
 <translation id="385051799172605136">უკან</translation>
 <translation id="3891466792657071243">ჩატვირთვის შეჩერება</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">ნაბიჯი 2 / 4 · აირჩიეთ რა გადმოვა</translation>
 <translation id="473775607612524610">განახლება</translation>
 <translation id="481205936353439293">ნაბიჯი 3 / 4 · თქვენი მონაცემების გადატანა</translation>
+<translation id="4828722023020978308">URL დაკოპირდა ბუფერში</translation>
 <translation id="4854731374904470810">ჩანართის ID-ის კოპირება</translation>
 <translation id="4881695831933465202">გახსნა</translation>
 <translation id="4898928054560997780">სთხოვეთ Dao-ს გამოსწორება</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">გაუქმება</translation>
 <translation id="7714812312719848690">თქვენი პროექტი კვლავ უსაფრთხოდაა. სცადეთ ხელახლა, აღადგინეთ ვერსია ან სთხოვეთ Dao-ს გამოსწორება.</translation>
 <translation id="7717845620320228976">განახლების შემოწმება</translation>
+<translation id="7762651625781751842">მოძებნეთ ან შეიყვანეთ URL...</translation>
 <translation id="7803931104677504532">წარმოდგენის სტილების წაკითხვა</translation>
+<translation id="7941154822457232855">ბრძანებების ზოლის გახსნა სწრაფი ნავიგაციისთვის</translation>
 <translation id="7974106569409739809">საქაღალდიდან ამოღება</translation>
 <translation id="7995663841236651667">თქვენი ბრაუზერის მონაცემები ლოკალურად მუშავდება ამ Mac-ზე.</translation>
 <translation id="8028081981001403222">პროექტის იმპორტი</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> უკან</translation>
 <translation id="8595238918901827309">აღდგეს ეს ვერსია?</translation>
 <translation id="8668072977518790485">ჩანართის ID დაკოპირებულია</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">საიტის ცენტრი</translation>
 <translation id="8717864919010420084">ბმულის კოპირება</translation>
 <translation id="8725066075913043281">ხელახლა ცდა</translation>
+<translation id="8725826957868125189">AI აგენტის პანელის გახსნა</translation>
+<translation id="8754476796133798050">ბრაუზერი მკაფიო ხედვით. უპირველესად კლავიატურისთვის, მალსახმობებზე დაფუძნებული.</translation>
 <translation id="8774154357663601701">ამ წყაროს შეუძლია წაიკითხოს მხოლოდ დამტკიცებული გვერდები, სანამ მთავარი აქტიურია.</translation>
 <translation id="8781013843394828812">ეს ერთეულები ხელახლა უნდა სცადოთ</translation>
 <translation id="8787633576358327637">შეიძლება გამოჩნდეს macOS Keychain-ის მოთხოვნა</translation>
+<translation id="8819422779093237286">კეთილი იყოს თქვენი მობრძანება Dao-ში</translation>
 <translation id="8820817407110198400">სანიშნეები</translation>
 <translation id="8826852601577125903">შედეგის მონაცემები: <ph name="OLD_BYTE_COUNT" />-დან <ph name="NEW_BYTE_COUNT" /> ბაიტამდე</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> კანდიდატი</translation>
 <translation id="8899040626072079337">თქვენი მონაცემების Dao-ში გადატანა</translation>
 <translation id="8962539151725780858">მართული ჩანართები: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">ახალი ჩანართის შექმნა გვერდით პანელში</translation>
 <translation id="9046231519826652276">ბოლო MCP გამოძახება: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">ერთეულები თითო კონექტორზე: მაქსიმუმ <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">უმოქმედო ჩანართები დაარქივდა</translation>

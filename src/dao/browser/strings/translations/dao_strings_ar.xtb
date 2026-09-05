@@ -3,6 +3,7 @@
 <translationbundle lang="ar">
 <translation id="1111094358966140566">مقارنة الإصدار</translation>
 <translation id="1173894706177603556">إعادة تسمية</translation>
+<translation id="1180509694035129435">نسخ رابط الصفحة الحالية</translation>
 <translation id="1182228621215085947">اسأل Dao</translation>
 <translation id="121570799358042869">تظل بيانات متصفحك على جهاز Mac هذا. إعادة تثبيت الإضافات المتوافقة هي الخطوة الوحيدة التي قد تتصل بالإنترنت؛ لا يتم نسخ إعدادات الإضافات وعمليات تسجيل الدخول.</translation>
 <translation id="1236455002425740182">ترحيل Dao</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">يحتاج Dao إلى مفتاح التخزين الآمن للمتصفح المحدد لفك تشفير كلمات المرور المحفوظة. إذا رفضت الوصول، سيتم تخطي كلمات المرور فقط ويستمر باقي الترحيل.</translation>
 <translation id="2580366865845491095">فتح هذا الرابط؟</translation>
 <translation id="2612596415938768738">قد يتطلب تسجيل الدخول</translation>
+<translation id="2654155183153466577">تكرار علامة التبويب الحالية</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> المزيد</translation>
 <translation id="2703180365855369896">إغلاق علامات التبويب المكررة</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">العملية التي تم التحقق منها: <ph name="PID" /></translation>
 <translation id="3229872815652336688">سيختبر Dao المصادر المحددة ويضيف المصادر التي تعمل. يمكن لكل مصدر قراءة الصفحات والبيانات المعروضة أدناه فقط أثناء نشاط الصفحة الرئيسية.</translation>
 <translation id="3249579521706735875">متاح عندما يكون النظام في الوضع الداكن.</translation>
+<translation id="3323560495676347320">هل أعجبك Dao؟ امنحنا نجمة!</translation>
 <translation id="3356580349448036450">مكتمل</translation>
 <translation id="3404183081987133644">البيانات التي تم استيرادها قبل الإيقاف جاهزة للاستخدام. يمكنك بدء ترحيل آخر عندما تكون مستعداً.</translation>
+<translation id="341629834060643721">إظهار أو إخفاء الشريط الجانبي</translation>
 <translation id="3420663750132400268">حذف المجلد؟</translation>
 <translation id="3427713535827228685">الملحقات على هذا الموقع</translation>
 <translation id="3435738964857648380">الأمان</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">إغلاق علامة التبويب</translation>
 <translation id="3657099196021255130">فتح في Dao</translation>
 <translation id="3708693288863478389">اكتب عنوان URL أو ابحث...</translation>
+<translation id="3725795051337497754">إغلاق علامة التبويب الحالية</translation>
 <translation id="381667777775855564">جارٍ الإضافة إلى Dao</translation>
 <translation id="385051799172605136">رجوع</translation>
 <translation id="3891466792657071243">إيقاف التحميل</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">الخطوة 2 من 4 · اختر ما سيتم نقله</translation>
 <translation id="473775607612524610">تحديث</translation>
 <translation id="481205936353439293">الخطوة 3 من 4 · جارٍ نقل بياناتك</translation>
+<translation id="4828722023020978308">تم نسخ الرابط إلى الحافظة</translation>
 <translation id="4854731374904470810">نسخ معرّف علامة التبويب</translation>
 <translation id="4881695831933465202">فتح</translation>
 <translation id="4898928054560997780">اطلب من Dao الإصلاح</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">إلغاء</translation>
 <translation id="7714812312719848690">لا يزال مشروعك آمناً. أعد المحاولة أو استعد إصداراً أو اطلب من Dao إصلاحه.</translation>
 <translation id="7717845620320228976">التحقق من التحديثات</translation>
+<translation id="7762651625781751842">ابحث أو أدخل رابطًا...</translation>
 <translation id="7803931104677504532">قراءة أنماط العرض</translation>
+<translation id="7941154822457232855">فتح شريط الأوامر للتنقل السريع</translation>
 <translation id="7974106569409739809">إلغاء المجلد</translation>
 <translation id="7995663841236651667">تتم معالجة بيانات متصفحك محلياً على جهاز Mac هذا.</translation>
 <translation id="8028081981001403222">استيراد المشروع</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> رجوع</translation>
 <translation id="8595238918901827309">استعادة هذا الإصدار؟</translation>
 <translation id="8668072977518790485">تم نسخ معرّف علامة التبويب</translation>
+<translation id="8672485401328649039">وكيل Dao</translation>
 <translation id="8684229942427488970">مركز الموقع</translation>
 <translation id="8717864919010420084">نسخ الرابط</translation>
 <translation id="8725066075913043281">إعادة المحاولة</translation>
+<translation id="8725826957868125189">فتح لوحة وكيل الذكاء الاصطناعي</translation>
+<translation id="8754476796133798050">متصفح ذو توجه محدد. يعتمد على لوحة المفاتيح والاختصارات.</translation>
 <translation id="8774154357663601701">يمكن لهذا المصدر قراءة الصفحات المعتمدة فقط أثناء نشاط الصفحة الرئيسية.</translation>
 <translation id="8781013843394828812">تحتاج هذه العناصر إلى إعادة المحاولة</translation>
 <translation id="8787633576358327637">قد تظهر مطالبة Keychain في macOS</translation>
+<translation id="8819422779093237286">مرحبًا بك في Dao</translation>
 <translation id="8820817407110198400">الإشارات المرجعية</translation>
 <translation id="8826852601577125903">بيانات النتيجة: من <ph name="OLD_BYTE_COUNT" /> إلى <ph name="NEW_BYTE_COUNT" /> بايت</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> عناصر مرشحة</translation>
 <translation id="8899040626072079337">جارٍ نقل بياناتك إلى Dao</translation>
 <translation id="8962539151725780858">علامات التبويب المتحكم بها: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">إنشاء علامة تبويب جديدة في الشريط الجانبي</translation>
 <translation id="9046231519826652276">أحدث استدعاء MCP: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">العناصر لكل موصل: حتى <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">تمت أرشفة علامات التبويب غير النشطة</translation>

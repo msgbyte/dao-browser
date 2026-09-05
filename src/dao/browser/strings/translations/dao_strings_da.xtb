@@ -3,6 +3,7 @@
 <translationbundle lang="da">
 <translation id="1111094358966140566">Sammenlign version</translation>
 <translation id="1173894706177603556">Omdøb</translation>
+<translation id="1180509694035129435">Kopiér den aktuelle sides URL</translation>
 <translation id="1182228621215085947">Spørg Dao</translation>
 <translation id="121570799358042869">Dine browserdata bliver på denne Mac. Geninstallation af kompatible udvidelser er det eneste trin, der muligvis opretter forbindelse til internettet. Udvidelsesindstillinger og logins kopieres ikke.</translation>
 <translation id="1236455002425740182">Dao-migrering</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao skal bruge den valgte browsers Safe Storage-nøgle for at dekryptere gemte adgangskoder. Hvis du afviser adgang, springes kun adgangskoder over, og resten af migreringen fortsætter.</translation>
 <translation id="2580366865845491095">Åbn dette link?</translation>
 <translation id="2612596415938768738">Kræver muligvis, at du er logget ind</translation>
+<translation id="2654155183153466577">Duplikér den aktuelle fane</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> mere</translation>
 <translation id="2703180365855369896">Luk dublerede faner</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Bekræftet proces: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao tester de valgte kilder og tilføjer dem, der virker. Hver kilde kan kun læse de sider og data, der vises nedenfor, mens startsiden er aktiv.</translation>
 <translation id="3249579521706735875">Tilgængelig, når systemet er i mørk tilstand.</translation>
+<translation id="3323560495676347320">Kan du lide Dao? Giv os en stjerne!</translation>
 <translation id="3356580349448036450">Fuldført</translation>
 <translation id="3404183081987133644">Data, der blev importeret, før du stoppede, er klar til brug. Du kan starte en ny migrering, når du er klar.</translation>
+<translation id="341629834060643721">Skift sidepanelet</translation>
 <translation id="3420663750132400268">Slet mappe?</translation>
 <translation id="3427713535827228685">Udvidelser på dette website</translation>
 <translation id="3435738964857648380">Sikkerhed</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Luk fane</translation>
 <translation id="3657099196021255130">Åbn i Dao</translation>
 <translation id="3708693288863478389">Indtast en URL eller søg...</translation>
+<translation id="3725795051337497754">Luk den aktuelle fane</translation>
 <translation id="381667777775855564">Føjer til Dao</translation>
 <translation id="385051799172605136">Tilbage</translation>
 <translation id="3891466792657071243">Stop indlæsning</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Trin 2 af 4 · Vælg, hvad der flyttes</translation>
 <translation id="473775607612524610">Opdater</translation>
 <translation id="481205936353439293">Trin 3 af 4 · Flytter dine data</translation>
+<translation id="4828722023020978308">URL kopieret til udklipsholderen</translation>
 <translation id="4854731374904470810">Kopiér fane-id</translation>
 <translation id="4881695831933465202">Åbn</translation>
 <translation id="4898928054560997780">Bed Dao om at rette det</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Annuller</translation>
 <translation id="7714812312719848690">Dit projekt er stadig sikkert. Prøv igen, gendan en version, eller bed Dao om at reparere det.</translation>
 <translation id="7717845620320228976">Søg efter opdateringer</translation>
+<translation id="7762651625781751842">Søg eller indtast URL...</translation>
 <translation id="7803931104677504532">Læs præsentationsstile</translation>
+<translation id="7941154822457232855">Åbn kommandolinjen for hurtig navigation</translation>
 <translation id="7974106569409739809">Ophæv mappe</translation>
 <translation id="7995663841236651667">Dine browserdata behandles lokalt på denne Mac.</translation>
 <translation id="8028081981001403222">Importér projekt</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Tilbage</translation>
 <translation id="8595238918901827309">Gendan denne version?</translation>
 <translation id="8668072977518790485">Fane-id kopieret</translation>
+<translation id="8672485401328649039">Dao-agent</translation>
 <translation id="8684229942427488970">Websitecenter</translation>
 <translation id="8717864919010420084">Kopiér link</translation>
 <translation id="8725066075913043281">Prøv igen</translation>
+<translation id="8725826957868125189">Åbn AI-agentpanelet</translation>
+<translation id="8754476796133798050">En meningsstærk browser. Tastatur-først, genvejsdrevet.</translation>
 <translation id="8774154357663601701">Denne kilde kan kun læse de godkendte sider, mens startsiden er aktiv.</translation>
 <translation id="8781013843394828812">Disse elementer skal prøves igen</translation>
 <translation id="8787633576358327637">En macOS-nøgleringsanmodning vises muligvis</translation>
+<translation id="8819422779093237286">Velkommen til Dao</translation>
 <translation id="8820817407110198400">Bogmærker</translation>
 <translation id="8826852601577125903">Resultatdata: <ph name="OLD_BYTE_COUNT" /> til <ph name="NEW_BYTE_COUNT" /> byte</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> kandidater</translation>
 <translation id="8899040626072079337">Flytter dine data til Dao</translation>
 <translation id="8962539151725780858">Styrede faner: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Opret en ny fane i sidepanelet</translation>
 <translation id="9046231519826652276">Seneste MCP-kald: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Elementer pr. connector: op til <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Inaktive faner arkiveret</translation>

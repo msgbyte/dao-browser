@@ -3,6 +3,7 @@
 <translationbundle lang="ur">
 <translation id="1111094358966140566">ورژن کا موازنہ کریں</translation>
 <translation id="1173894706177603556">نام تبدیل کریں</translation>
+<translation id="1180509694035129435">موجودہ صفحے کا URL کاپی کریں</translation>
 <translation id="1182228621215085947">Dao سے پوچھیں</translation>
 <translation id="121570799358042869">آپ کا براؤزر ڈیٹا اسی Mac پر رہتا ہے۔ موافق ایکسٹینشنز کو دوبارہ انسٹال کرنا واحد مرحلہ ہے جو انٹرنیٹ سے منسلک ہو سکتا ہے؛ ایکسٹینشن کی ترتیبات اور سائن اِنز کاپی نہیں کیے جاتے۔</translation>
 <translation id="1236455002425740182">Dao منتقلی</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao کو محفوظ کردہ پاس ورڈز کو ڈکرپٹ کرنے کے لیے منتخب براؤزر کی Safe Storage کلید درکار ہے۔ اگر آپ رسائی سے انکار کریں تو صرف پاس ورڈز چھوڑے جائیں گے اور باقی منتقلی جاری رہے گی۔</translation>
 <translation id="2580366865845491095">یہ لنک کھولیں؟</translation>
 <translation id="2612596415938768738">آپ کو سائن اِن کرنا پڑ سکتا ہے</translation>
+<translation id="2654155183153466577">موجودہ ٹیب کی نقل بنائیں</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> مزید</translation>
 <translation id="2703180365855369896">ڈپلیکیٹ ٹیبز بند کریں</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">تصدیق شدہ عمل: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao منتخب ذرائع کی جانچ کرے گا اور کام کرنے والوں کو شامل کرے گا۔ ہوم فعال ہونے کے دوران ہر ذریعہ صرف نیچے دکھائے گئے صفحات اور ڈیٹا پڑھ سکتا ہے۔</translation>
 <translation id="3249579521706735875">سسٹم کے ڈارک موڈ میں ہونے پر دستیاب ہے۔</translation>
+<translation id="3323560495676347320">Dao پسند ہے؟ ہمیں اسٹار دیں!</translation>
 <translation id="3356580349448036450">مکمل</translation>
 <translation id="3404183081987133644">آپ کے روکنے سے پہلے درآمد شدہ ڈیٹا استعمال کے لیے تیار ہے۔ جب چاہیں ایک اور منتقلی شروع کر سکتے ہیں۔</translation>
+<translation id="341629834060643721">سائڈبار ٹوگل کریں</translation>
 <translation id="3420663750132400268">فولڈر حذف کریں؟</translation>
 <translation id="3427713535827228685">اس سائٹ پر ایکسٹینشنز</translation>
 <translation id="3435738964857648380">سیکیورٹی</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">ٹیب بند کریں</translation>
 <translation id="3657099196021255130">Dao میں کھولیں</translation>
 <translation id="3708693288863478389">ایک URL یا تلاش لکھیں...</translation>
+<translation id="3725795051337497754">موجودہ ٹیب بند کریں</translation>
 <translation id="381667777775855564">Dao میں شامل ہو رہا ہے</translation>
 <translation id="385051799172605136">واپس</translation>
 <translation id="3891466792657071243">لوڈنگ روکیں</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">مرحلہ 2 از 4 · منتقل ہونے والی چیزیں منتخب کریں</translation>
 <translation id="473775607612524610">اپ ڈیٹ</translation>
 <translation id="481205936353439293">مرحلہ 3 از 4 · آپ کا ڈیٹا منتقل ہو رہا ہے</translation>
+<translation id="4828722023020978308">URL کلپ بورڈ پر کاپی ہو گیا</translation>
 <translation id="4854731374904470810">ٹیب ID کاپی کریں</translation>
 <translation id="4881695831933465202">کھولیں</translation>
 <translation id="4898928054560997780">Dao سے ٹھیک کرنے کو کہیں</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">منسوخ کریں</translation>
 <translation id="7714812312719848690">آپ کا پروجیکٹ اب بھی محفوظ ہے۔ دوبارہ کوشش کریں، کوئی ورژن بحال کریں، یا Dao سے اسے ٹھیک کرنے کو کہیں۔</translation>
 <translation id="7717845620320228976">تازہ ترین معلومات کے لیے چیک کریں</translation>
+<translation id="7762651625781751842">تلاش کریں یا URL درج کریں...</translation>
 <translation id="7803931104677504532">پیش کش کے انداز پڑھیں</translation>
+<translation id="7941154822457232855">فوری نیویگیشن کے لیے کمانڈ بار کھولیں</translation>
 <translation id="7974106569409739809">فولڈر ختم کریں</translation>
 <translation id="7995663841236651667">آپ کا براؤزر ڈیٹا اسی Mac پر مقامی طور پر پراسیس ہوتا ہے۔</translation>
 <translation id="8028081981001403222">پروجیکٹ درآمد کریں</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> واپس</translation>
 <translation id="8595238918901827309">یہ ورژن بحال کریں؟</translation>
 <translation id="8668072977518790485">ٹیب ID کاپی ہو گئی</translation>
+<translation id="8672485401328649039">Dao ایجنٹ</translation>
 <translation id="8684229942427488970">سائٹ سینٹر</translation>
 <translation id="8717864919010420084">لنک کاپی کریں</translation>
 <translation id="8725066075913043281">دوبارہ کوشش کریں</translation>
+<translation id="8725826957868125189">AI ایجنٹ پینل کھولیں</translation>
+<translation id="8754476796133798050">ایک رائے پر مبنی براؤزر۔ کی بورڈ-مرکوز، شارٹ کٹ سے چلنے والا۔</translation>
 <translation id="8774154357663601701">ہوم فعال ہونے کے دوران یہ ذریعہ صرف منظور شدہ صفحات پڑھ سکتا ہے۔</translation>
 <translation id="8781013843394828812">ان آئٹمز کو دوبارہ آزمانے کی ضرورت ہے</translation>
 <translation id="8787633576358327637">macOS Keychain کا اشارہ ظاہر ہو سکتا ہے</translation>
+<translation id="8819422779093237286">Dao میں خوش آمدید</translation>
 <translation id="8820817407110198400">بک مارکس</translation>
 <translation id="8826852601577125903">نتیجے کا ڈیٹا: <ph name="OLD_BYTE_COUNT" /> سے <ph name="NEW_BYTE_COUNT" /> بائٹس</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> امیدوار</translation>
 <translation id="8899040626072079337">آپ کا ڈیٹا Dao میں منتقل ہو رہا ہے</translation>
 <translation id="8962539151725780858">کنٹرول شدہ ٹیبز: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">سائڈبار میں نیا ٹیب بنائیں</translation>
 <translation id="9046231519826652276">تازہ ترین MCP کال: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">ہر کنیکٹر کے لیے آئٹمز: <ph name="ITEM_COUNT" /> تک</translation>
 <translation id="9144412711146411188">غیر فعال ٹیبز آرکائیو کر دیے گئے</translation>

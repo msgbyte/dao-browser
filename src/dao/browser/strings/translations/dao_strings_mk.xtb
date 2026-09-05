@@ -3,6 +3,7 @@
 <translationbundle lang="mk">
 <translation id="1111094358966140566">Спореди верзија</translation>
 <translation id="1173894706177603556">Преименувај</translation>
+<translation id="1180509694035129435">Копирај ја URL-адресата на тековната страница</translation>
 <translation id="1182228621215085947">Прашај го Dao</translation>
 <translation id="121570799358042869">Вашите податоци од прелистувачот остануваат на овој Mac. Преинсталирањето на компатибилни екстензии е единствениот чекор што може да се поврзе на интернет; поставките и најавите на екстензиите не се копираат.</translation>
 <translation id="1236455002425740182">Миграција на Dao</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">На Dao му треба клучот Safe Storage на избраниот прелистувач за да ги дешифрира зачуваните лозинки. Ако одбиете пристап, ќе се прескокнат само лозинките, а остатокот од миграцијата продолжува.</translation>
 <translation id="2580366865845491095">Да се отвори оваа врска?</translation>
 <translation id="2612596415938768738">Можеби ќе треба да бидете најавени</translation>
+<translation id="2654155183153466577">Дуплирај го тековното јазиче</translation>
 <translation id="2698054069012763064">Уште <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Затвори дупликат јазичиња</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Потврден процес: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao ќе ги тестира избраните извори и ќе ги додаде оние што работат. Секој извор може да ги чита само страниците и податоците прикажани подолу додека Почетна е активна.</translation>
 <translation id="3249579521706735875">Достапно кога системот е во темен режим.</translation>
+<translation id="3323560495676347320">Ви се допаѓа Dao? Дајте ни ѕвезда!</translation>
 <translation id="3356580349448036450">Завршено</translation>
 <translation id="3404183081987133644">Податоците увезени пред да запрете се подготвени за користење. Можете да започнете друга миграција кога ќе бидете подготвени.</translation>
+<translation id="341629834060643721">Прикажи/скриј ја страничната лента</translation>
 <translation id="3420663750132400268">Да се избрише папката?</translation>
 <translation id="3427713535827228685">Екстензии на оваа веб-локација</translation>
 <translation id="3435738964857648380">Безбедност</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Затвори јазиче</translation>
 <translation id="3657099196021255130">Отвори во Dao</translation>
 <translation id="3708693288863478389">Внеси URL или пребарувај...</translation>
+<translation id="3725795051337497754">Затвори го тековното јазиче</translation>
 <translation id="381667777775855564">Се додава во Dao</translation>
 <translation id="385051799172605136">Назад</translation>
 <translation id="3891466792657071243">Запри вчитување</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Чекор 2 од 4 · Изберете што се префрла</translation>
 <translation id="473775607612524610">Ажурирај</translation>
 <translation id="481205936353439293">Чекор 3 од 4 · Се префрлаат вашите податоци</translation>
+<translation id="4828722023020978308">URL-адресата е копирана во таблата со исечоци</translation>
 <translation id="4854731374904470810">Копирај ID на јазиче</translation>
 <translation id="4881695831933465202">Отвори</translation>
 <translation id="4898928054560997780">Побарај од Dao да поправи</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Откажи</translation>
 <translation id="7714812312719848690">Вашиот проект е сè уште безбеден. Обидете се повторно, вратете верзија или побарајте од Dao да го поправи.</translation>
 <translation id="7717845620320228976">Провери за ажурирања</translation>
+<translation id="7762651625781751842">Пребарај или внеси URL...</translation>
 <translation id="7803931104677504532">Читање стилови на приказ</translation>
+<translation id="7941154822457232855">Отвори ја командната лента за брза навигација</translation>
 <translation id="7974106569409739809">Отстрани од папка</translation>
 <translation id="7995663841236651667">Вашите податоци од прелистувачот се обработуваат локално на овој Mac.</translation>
 <translation id="8028081981001403222">Увези проект</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Назад</translation>
 <translation id="8595238918901827309">Да се врати оваа верзија?</translation>
 <translation id="8668072977518790485">ID на јазичето е копирано</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">Центар за веб-локација</translation>
 <translation id="8717864919010420084">Копирај врска</translation>
 <translation id="8725066075913043281">Обиди се повторно</translation>
+<translation id="8725826957868125189">Отвори го панелот на AI Agent</translation>
+<translation id="8754476796133798050">Прегледувач со јасни ставови. Прво тастатурата, управуван со кратенки.</translation>
 <translation id="8774154357663601701">Овој извор може да ги чита само одобрените страници додека Почетна е активна.</translation>
 <translation id="8781013843394828812">Овие ставки треба повторно да се пробаат</translation>
 <translation id="8787633576358327637">Може да се појави барање од macOS Keychain</translation>
+<translation id="8819422779093237286">Добре дојдовте во Dao</translation>
 <translation id="8820817407110198400">Обележувачи</translation>
 <translation id="8826852601577125903">Податоци за резултат: од <ph name="OLD_BYTE_COUNT" /> до <ph name="NEW_BYTE_COUNT" /> бајти</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> кандидати</translation>
 <translation id="8899040626072079337">Се префрлаат вашите податоци во Dao</translation>
 <translation id="8962539151725780858">Контролирани јазичиња: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Создај ново јазиче во страничната лента</translation>
 <translation id="9046231519826652276">Последен MCP повик: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Ставки по поврзувач: до <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Неактивните јазичиња се архивирани</translation>

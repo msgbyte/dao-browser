@@ -140,7 +140,7 @@ const dict: Dictionary = {
   'memory.result_count_filtered': '{visible} / {count} riadkov',
   'memory.result_count_filtered_truncated': '{visible} / {count} riadkov · skrátené',
   'memory.error_prefix': 'Chyba',
-  'memory.filter_placeholder': 'Filter',
+  'memory.filter_placeholder': 'Filtrovať',
   'memory.filter_button': 'Filtrovať',
   'memory.filter_button_count': 'Filtrovať ({count})',
   'memory.filter_panel_title': 'Filtre stĺpcov',

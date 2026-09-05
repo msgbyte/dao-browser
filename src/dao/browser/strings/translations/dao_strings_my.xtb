@@ -3,6 +3,7 @@
 <translationbundle lang="my">
 <translation id="1111094358966140566">ဗားရှင်း နှိုင်းယှဉ်ရန်</translation>
 <translation id="1173894706177603556">အမည်ပြောင်းရန်</translation>
+<translation id="1180509694035129435">လက်ရှိစာမျက်နှာ URL ကို ကူးယူပါ</translation>
 <translation id="1182228621215085947">Dao ကို မေးရန်</translation>
 <translation id="121570799358042869">သင်၏ ဘရောက်ဆာဒေတာသည် ဤ Mac တွင်သာ ရှိနေပါသည်။ တွဲဖက်အသုံးပြုနိုင်သော တိုးချဲ့မှုများကို ပြန်လည်ထည့်သွင်းခြင်းသာ အင်တာနက်သို့ ချိတ်ဆက်နိုင်သည့် အဆင့်ဖြစ်ပြီး တိုးချဲ့မှုဆက်တင်များနှင့် ဝင်ရောက်မှုများကို ကူးယူမည်မဟုတ်ပါ။</translation>
 <translation id="1236455002425740182">Dao ရွှေ့ပြောင်းမှု</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">သိမ်းဆည်းထားသော စကားဝှက်များကို စာဝှက်ဖြေဖျက်ရန် Dao သည် ရွေးချယ်ထားသော ဘရောက်ဆာ၏ Safe Storage ကီးကို လိုအပ်ပါသည်။ ဝင်ရောက်ခွင့်ကို ငြင်းပယ်ပါက စကားဝှက်များကိုသာ ကျော်သွားမည်ဖြစ်ပြီး ကျန်ရွှေ့ပြောင်းမှုကို ဆက်လက်လုပ်ဆောင်ပါမည်။</translation>
 <translation id="2580366865845491095">ဤလင့်ခ်ကို ဖွင့်မလား?</translation>
 <translation id="2612596415938768738">အကောင့်ဝင်ရန် လိုအပ်နိုင်သည်</translation>
+<translation id="2654155183153466577">လက်ရှိတက်ဘ်ကို မိတ္တူပွားပါ</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> ခု ထပ်မံ</translation>
 <translation id="2703180365855369896">တူညီသောတဘ်များကိုပိတ်ပါ</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">အတည်ပြုထားသော လုပ်ငန်းစဉ်- <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao သည် ရွေးချယ်ထားသော ရင်းမြစ်များကို စမ်းသပ်ပြီး အလုပ်လုပ်သော ရင်းမြစ်များကို ထည့်သွင်းပါမည်။ ပင်မစာမျက်နှာ အသက်ဝင်နေစဉ် ရင်းမြစ်တစ်ခုစီသည် အောက်တွင်ပြထားသော စာမျက်နှာများနှင့် ဒေတာကိုသာ ဖတ်ရှုနိုင်ပါသည်။</translation>
 <translation id="3249579521706735875">စနစ် အမှောင်မုဒ်တွင်ရှိသည့်အခါ ရနိုင်ပါသည်။</translation>
+<translation id="3323560495676347320">Dao ကို နှစ်သက်ပါသလား? ကြယ်ပေးပါ!</translation>
 <translation id="3356580349448036450">ပြီးစီးပါပြီ</translation>
 <translation id="3404183081987133644">သင်ရပ်တန့်မတိုင်မီ ထည့်သွင်းထားသော ဒေတာကို အသုံးပြုရန် အဆင်သင့်ဖြစ်ပါပြီ။ အဆင်သင့်ဖြစ်သည့်အခါ အခြားရွှေ့ပြောင်းမှုတစ်ခုကို စတင်နိုင်ပါသည်။</translation>
+<translation id="341629834060643721">ဘေးဘားကို ဖွင့်/ပိတ်ပါ</translation>
 <translation id="3420663750132400268">ဖိုင်တွဲကို ဖျက်မလား?</translation>
 <translation id="3427713535827228685">ဤဆိုက်ရှိ တိုးချဲ့မှုများ</translation>
 <translation id="3435738964857648380">လုံခြုံရေး</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">တဘ်ကို ပိတ်ပါ</translation>
 <translation id="3657099196021255130">Dao တွင် ဖွင့်ပါ</translation>
 <translation id="3708693288863478389">URL သို့မဟုတ် ရှာဖွေရန် ရိုက်ထည့်ပါ...</translation>
+<translation id="3725795051337497754">လက်ရှိတက်ဘ်ကို ပိတ်ပါ</translation>
 <translation id="381667777775855564">Dao သို့ ထည့်သွင်းနေသည်</translation>
 <translation id="385051799172605136">နောက်သို့</translation>
 <translation id="3891466792657071243">ရုပ်သိမ်းခြင်း</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">အဆင့် ၂ / ၄ · ရွှေ့ပြောင်းမည့်အရာကို ရွေးချယ်ပါ</translation>
 <translation id="473775607612524610">အပ်ဒိတ်</translation>
 <translation id="481205936353439293">အဆင့် ၃ / ၄ · သင့်ဒေတာကို ရွှေ့ပြောင်းနေသည်</translation>
+<translation id="4828722023020978308">URL ကို ကလစ်ဘုတ်သို့ ကူးယူပြီးပါပြီ</translation>
 <translation id="4854731374904470810">တက်ဘ် ID ကူးယူရန်</translation>
 <translation id="4881695831933465202">ဖွင့်ပါ</translation>
 <translation id="4898928054560997780">Dao ကို ပြုပြင်ခိုင်းရန်</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">မလုပ်တော့ပါ</translation>
 <translation id="7714812312719848690">သင့်ပရောဂျက်သည် လုံခြုံစွာရှိနေဆဲဖြစ်ပါသည်။ ပြန်ကြိုးစားပါ၊ ဗားရှင်းတစ်ခုကို ပြန်လည်ရယူပါ သို့မဟုတ် Dao ကို ပြုပြင်ခိုင်းပါ။</translation>
 <translation id="7717845620320228976">အပ်ဒိတ်များ စစ်ဆေးရန်</translation>
+<translation id="7762651625781751842">ရှာဖွေပါ သို့မဟုတ် URL ထည့်ပါ...</translation>
 <translation id="7803931104677504532">ဖော်ပြမှုပုံစံများ ဖတ်ရှုရန်</translation>
+<translation id="7941154822457232855">လျင်မြန်စွာ လမ်းညွှန်ရန် အမိန့်ဘားကို ဖွင့်ပါ</translation>
 <translation id="7974106569409739809">ဖိုင်တွဲမှ ဖယ်ရန်</translation>
 <translation id="7995663841236651667">သင်၏ ဘရောက်ဆာဒေတာကို ဤ Mac တွင် စက်တွင်းလုပ်ဆောင်ပါသည်။</translation>
 <translation id="8028081981001403222">ပရောဂျက် ထည့်သွင်းရန်</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> နောက်သို့</translation>
 <translation id="8595238918901827309">ဤဗားရှင်းကို ပြန်လည်ရယူမလား?</translation>
 <translation id="8668072977518790485">တက်ဘ် ID ကို ကူးယူပြီးပါပြီ</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">ဆိုက်စင်တာ</translation>
 <translation id="8717864919010420084">လင့်ခ်ကို ကူးယူပါ</translation>
 <translation id="8725066075913043281">ထပ်ကြိုးစားရန်</translation>
+<translation id="8725826957868125189">AI Agent အကန့်ကို ဖွင့်ပါ</translation>
+<translation id="8754476796133798050">စိတ်ကူးသဘောထားပါသော ဘရောက်ဆာ။ ကီးဘုတ်ဦးစားပေး၊ ဖြတ်လမ်းအခြေပြု။</translation>
 <translation id="8774154357663601701">ပင်မစာမျက်နှာ အသက်ဝင်နေစဉ် ဤရင်းမြစ်သည် အတည်ပြုထားသော စာမျက်နှာများကိုသာ ဖတ်ရှုနိုင်ပါသည်။</translation>
 <translation id="8781013843394828812">ဤအရာများကို ပြန်ကြိုးစားရန် လိုအပ်သည်</translation>
 <translation id="8787633576358327637">macOS Keychain အချက်ပြချက် ပေါ်လာနိုင်သည်</translation>
+<translation id="8819422779093237286">Dao မှ ကြိုဆိုပါသည်</translation>
 <translation id="8820817407110198400">မှတ်သားချက်များ</translation>
 <translation id="8826852601577125903">ရလဒ်ဒေတာ- <ph name="OLD_BYTE_COUNT" /> မှ <ph name="NEW_BYTE_COUNT" /> ဘိုက်အထိ</translation>
 <translation id="88635502604055524">ရွေးချယ်နိုင်သည့်အရာ <ph name="COUNT" /> ခု</translation>
 <translation id="8899040626072079337">သင့်ဒေတာကို Dao သို့ ရွှေ့ပြောင်းနေသည်</translation>
 <translation id="8962539151725780858">ထိန်းချုပ်ထားသော တက်ဘ်များ- <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">ဘေးဘားတွင် တက်ဘ်အသစ်ဖန်တီးပါ</translation>
 <translation id="9046231519826652276">နောက်ဆုံး MCP ခေါ်ဆိုမှု- <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">ချိတ်ဆက်ကိရိယာတစ်ခုလျှင် အရာများ- <ph name="ITEM_COUNT" /> ခုအထိ</translation>
 <translation id="9144412711146411188">မသုံးဖြစ်သော တက်ဘ်များကို သိမ်းဆည်းပြီးပါပြီ</translation>

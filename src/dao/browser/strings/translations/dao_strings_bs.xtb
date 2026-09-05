@@ -3,6 +3,7 @@
 <translationbundle lang="bs">
 <translation id="1111094358966140566">Uporedi verziju</translation>
 <translation id="1173894706177603556">Preimenuj</translation>
+<translation id="1180509694035129435">Kopiraj URL trenutne stranice</translation>
 <translation id="1182228621215085947">Pitaj Dao</translation>
 <translation id="121570799358042869">Podaci vašeg preglednika ostaju na ovom Macu. Ponovna instalacija kompatibilnih proširenja jedini je korak koji se može povezati s internetom; postavke proširenja i prijave se ne kopiraju.</translation>
 <translation id="1236455002425740182">Dao migracija</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Daou je potreban ključ Safe Storage odabranog preglednika za dešifriranje sačuvanih lozinki. Ako odbijete pristup, preskaču se samo lozinke, a ostatak migracije se nastavlja.</translation>
 <translation id="2580366865845491095">Otvoriti ovu vezu?</translation>
 <translation id="2612596415938768738">Možda ćete se morati prijaviti</translation>
+<translation id="2654155183153466577">Dupliciraj trenutnu karticu</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> više</translation>
 <translation id="2703180365855369896">Zatvori duple kartice</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Potvrđeni proces: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao će testirati odabrane izvore i dodati one koji rade. Svaki izvor može čitati samo dolje prikazane stranice i podatke dok je početna stranica aktivna.</translation>
 <translation id="3249579521706735875">Dostupno kada je sistem u tamnom režimu.</translation>
+<translation id="3323560495676347320">Sviđa vam se Dao? Dajte nam zvjezdicu!</translation>
 <translation id="3356580349448036450">Dovršeno</translation>
 <translation id="3404183081987133644">Podaci uvezeni prije zaustavljanja spremni su za upotrebu. Možete pokrenuti drugu migraciju kad god budete spremni.</translation>
+<translation id="341629834060643721">Uključi/isključi bočnu traku</translation>
 <translation id="3420663750132400268">Izbrisati mapu?</translation>
 <translation id="3427713535827228685">Ekstenzije na ovoj stranici</translation>
 <translation id="3435738964857648380">Sigurnost</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Zatvori karticu</translation>
 <translation id="3657099196021255130">Otvori u Dao</translation>
 <translation id="3708693288863478389">Upišite URL ili pretražujte...</translation>
+<translation id="3725795051337497754">Zatvori trenutnu karticu</translation>
 <translation id="381667777775855564">Dodavanje u Dao</translation>
 <translation id="385051799172605136">Nazad</translation>
 <translation id="3891466792657071243">Zaustavi učitavanje</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Korak 2 od 4 · Odaberite šta se prenosi</translation>
 <translation id="473775607612524610">Ažuriraj</translation>
 <translation id="481205936353439293">Korak 3 od 4 · Prijenos podataka</translation>
+<translation id="4828722023020978308">URL je kopiran u međuspremnik</translation>
 <translation id="4854731374904470810">Kopiraj ID kartice</translation>
 <translation id="4881695831933465202">Otvori</translation>
 <translation id="4898928054560997780">Zatraži od Daoa da popravi</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Odustani</translation>
 <translation id="7714812312719848690">Vaš projekt je i dalje siguran. Pokušajte ponovo, vratite verziju ili zatražite od Daoa da ga popravi.</translation>
 <translation id="7717845620320228976">Provjeri ažuriranja</translation>
+<translation id="7762651625781751842">Pretraži ili unesi URL...</translation>
 <translation id="7803931104677504532">Čitaj stilove prikaza</translation>
+<translation id="7941154822457232855">Otvori komandnu traku za brzu navigaciju</translation>
 <translation id="7974106569409739809">Ukloni iz mape</translation>
 <translation id="7995663841236651667">Podaci vašeg preglednika obrađuju se lokalno na ovom Macu.</translation>
 <translation id="8028081981001403222">Uvezi projekt</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Nazad</translation>
 <translation id="8595238918901827309">Vratiti ovu verziju?</translation>
 <translation id="8668072977518790485">ID kartice je kopiran</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">Centar stranice</translation>
 <translation id="8717864919010420084">Kopiraj link</translation>
 <translation id="8725066075913043281">Pokušaj ponovo</translation>
+<translation id="8725826957868125189">Otvori panel AI agenta</translation>
+<translation id="8754476796133798050">Preglednik s jasnim stavom. Fokusiran na tastaturu, vođen prečicama.</translation>
 <translation id="8774154357663601701">Ovaj izvor može čitati samo odobrene stranice dok je početna stranica aktivna.</translation>
 <translation id="8781013843394828812">Ove stavke treba ponovo pokušati</translation>
 <translation id="8787633576358327637">Može se prikazati upit macOS Keychaina</translation>
+<translation id="8819422779093237286">Dobro došli u Dao</translation>
 <translation id="8820817407110198400">Oznake</translation>
 <translation id="8826852601577125903">Podaci rezultata: <ph name="OLD_BYTE_COUNT" /> do <ph name="NEW_BYTE_COUNT" /> bajtova</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> kandidata</translation>
 <translation id="8899040626072079337">Prijenos podataka u Dao</translation>
 <translation id="8962539151725780858">Kontrolisane kartice: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Kreiraj novu karticu na bočnoj traci</translation>
 <translation id="9046231519826652276">Najnoviji MCP poziv: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Stavke po konektoru: do <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Neaktivne kartice su arhivirane</translation>

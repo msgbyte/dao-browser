@@ -3,6 +3,7 @@
 <translationbundle lang="cs">
 <translation id="1111094358966140566">Porovnat verzi</translation>
 <translation id="1173894706177603556">Přejmenovat</translation>
+<translation id="1180509694035129435">Kopírovat adresu URL aktuální stránky</translation>
 <translation id="1182228621215085947">Zeptejte se Daou</translation>
 <translation id="121570799358042869">Data prohlížeče zůstanou na tomto Macu. Opětovná instalace kompatibilních rozšíření je jediný krok, který se může připojit k internetu; nastavení rozšíření a přihlášení se nekopírují.</translation>
 <translation id="1236455002425740182">Migrace Dao</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao potřebuje klíč Bezpečného úložiště vybraného prohlížeče k dešifrování uložených hesel. Pokud přístup zamítnete, přeskočí se pouze hesla a zbytek migrace bude pokračovat.</translation>
 <translation id="2580366865845491095">Otevřít tento odkaz?</translation>
 <translation id="2612596415938768738">Může vyžadovat přihlášení</translation>
+<translation id="2654155183153466577">Duplikovat aktuální kartu</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> více</translation>
 <translation id="2703180365855369896">Zavřít duplicitní karty</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Ověřený proces: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao otestuje vybrané zdroje a přidá ty funkční. Každý zdroj může číst pouze níže zobrazené stránky a data, když je Domovská stránka aktivní.</translation>
 <translation id="3249579521706735875">Dostupné, když je systém v tmavém režimu.</translation>
+<translation id="3323560495676347320">Líbí se vám Dao? Dejte nám hvězdičku!</translation>
 <translation id="3356580349448036450">Dokončeno</translation>
 <translation id="3404183081987133644">Data importovaná před zastavením jsou připravena k použití. Další migraci můžete spustit, kdykoli budete připraveni.</translation>
+<translation id="341629834060643721">Přepnout postranní panel</translation>
 <translation id="3420663750132400268">Odstranit složku?</translation>
 <translation id="3427713535827228685">Rozšíření na tomto webu</translation>
 <translation id="3435738964857648380">Zabezpečení</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Zavřít kartu</translation>
 <translation id="3657099196021255130">Otevřít v Dao</translation>
 <translation id="3708693288863478389">Zadejte URL nebo hledejte...</translation>
+<translation id="3725795051337497754">Zavřít aktuální kartu</translation>
 <translation id="381667777775855564">Přidávání do Dao</translation>
 <translation id="385051799172605136">Zpět</translation>
 <translation id="3891466792657071243">Zastavit načítání</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Krok 2 ze 4 · Vyberte, co se přesune</translation>
 <translation id="473775607612524610">Aktualizovat</translation>
 <translation id="481205936353439293">Krok 3 ze 4 · Přesun dat</translation>
+<translation id="4828722023020978308">Adresa URL zkopírována do schránky</translation>
 <translation id="4854731374904470810">Kopírovat ID karty</translation>
 <translation id="4881695831933465202">Otevřít</translation>
 <translation id="4898928054560997780">Požádat Dao o opravu</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Zrušit</translation>
 <translation id="7714812312719848690">Váš projekt je stále v bezpečí. Zkuste to znovu, obnovte verzi nebo požádejte Dao o opravu.</translation>
 <translation id="7717845620320228976">Zkontrolovat aktualizace</translation>
+<translation id="7762651625781751842">Hledat nebo zadat adresu URL...</translation>
 <translation id="7803931104677504532">Číst styly zobrazení</translation>
+<translation id="7941154822457232855">Otevřít příkazový panel pro rychlou navigaci</translation>
 <translation id="7974106569409739809">Zrušit složku</translation>
 <translation id="7995663841236651667">Data prohlížeče se zpracovávají místně na tomto Macu.</translation>
 <translation id="8028081981001403222">Importovat projekt</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" />← Zpět</translation>
 <translation id="8595238918901827309">Obnovit tuto verzi?</translation>
 <translation id="8668072977518790485">ID karty zkopírováno</translation>
+<translation id="8672485401328649039">Agent Dao</translation>
 <translation id="8684229942427488970">Centrum webu</translation>
 <translation id="8717864919010420084">Kopírovat odkaz</translation>
 <translation id="8725066075913043281">Zkusit znovu</translation>
+<translation id="8725826957868125189">Otevřít panel AI agenta</translation>
+<translation id="8754476796133798050">Prohlížeč s jasným názorem. Klávesnice na prvním místě, ovládaný zkratkami.</translation>
 <translation id="8774154357663601701">Tento zdroj může číst pouze schválené stránky, když je Domovská stránka aktivní.</translation>
 <translation id="8781013843394828812">Tyto položky je třeba opakovat</translation>
 <translation id="8787633576358327637">Může se zobrazit výzva svazku klíčů macOS</translation>
+<translation id="8819422779093237286">Vítejte v Dao</translation>
 <translation id="8820817407110198400">Záložky</translation>
 <translation id="8826852601577125903">Data výsledku: z <ph name="OLD_BYTE_COUNT" /> na <ph name="NEW_BYTE_COUNT" /> bajtů</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> kandidátů</translation>
 <translation id="8899040626072079337">Přesun dat do Dao</translation>
 <translation id="8962539151725780858">Ovládané karty: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Vytvořit novou kartu v postranním panelu</translation>
 <translation id="9046231519826652276">Poslední volání MCP: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Položky na konektor: až <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Neaktivní karty archivovány</translation>

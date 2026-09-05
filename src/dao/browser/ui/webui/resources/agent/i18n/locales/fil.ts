@@ -125,7 +125,7 @@ const dict: Dictionary = {
   'settings.workspace.activity_row': '{when} · {op} · {path}',
   'settings.workspace.activity_error': 'Hindi ma-load ang kamakailang aktibidad: {error}',
   'memory.title': 'Memory',
-  'memory.subtitle': 'SQLite debug browser',
+  'memory.subtitle': 'Browser ng pag-debug ng SQLite',
   'memory.tables': 'Mga Talahanayan',
   'memory.tables_empty': 'Walang natagpuang mga talahanayan',
   'memory.tables_loading': 'Naglo-load ng mga talahanayan…',

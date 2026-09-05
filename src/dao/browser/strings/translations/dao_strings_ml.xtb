@@ -3,6 +3,7 @@
 <translationbundle lang="ml">
 <translation id="1111094358966140566">പതിപ്പ് താരതമ്യം ചെയ്യുക</translation>
 <translation id="1173894706177603556">പേര് മാറ്റുക</translation>
+<translation id="1180509694035129435">നിലവിലെ പേജിന്റെ URL പകർത്തുക</translation>
 <translation id="1182228621215085947">Dao-യോട് ചോദിക്കുക</translation>
 <translation id="121570799358042869">നിങ്ങളുടെ ബ്രൗസർ ഡാറ്റ ഈ Mac-ൽ തന്നെ തുടരും. അനുയോജ്യമായ എക്സ്റ്റൻഷനുകൾ വീണ്ടും ഇൻസ്റ്റാൾ ചെയ്യുന്നത് മാത്രമാണ് ഇന്റർനെറ്റിലേക്ക് കണക്റ്റ് ചെയ്യാനിടയുള്ള ഘട്ടം; എക്സ്റ്റൻഷൻ ക്രമീകരണങ്ങളും സൈൻ-ഇന്നുകളും പകർത്തില്ല.</translation>
 <translation id="1236455002425740182">Dao മൈഗ്രേഷൻ</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">സംരക്ഷിച്ച പാസ്‌വേഡുകൾ ഡീക്രിപ്റ്റ് ചെയ്യുന്നതിന് തിരഞ്ഞെടുത്ത ബ്രൗസറിന്റെ സേഫ് സ്റ്റോറേജ് കീ Dao-യ്ക്ക് ആവശ്യമാണ്. നിങ്ങൾ ആക്സസ് നിരസിച്ചാൽ, പാസ്‌വേഡുകൾ മാത്രം ഒഴിവാക്കുകയും ബാക്കിയുള്ള മൈഗ്രേഷൻ തുടരുകയും ചെയ്യും.</translation>
 <translation id="2580366865845491095">ഈ ലിങ്ക് തുറക്കണോ?</translation>
 <translation id="2612596415938768738">നിങ്ങൾ സൈൻ ഇൻ ചെയ്യേണ്ടി വന്നേക്കാം</translation>
+<translation id="2654155183153466577">നിലവിലെ ടാബിന്റെ പകർപ്പ് സൃഷ്ടിക്കുക</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> കൂടുതൽ</translation>
 <translation id="2703180365855369896">ഒരേപോലുള്ള ടാബുകൾ അടയ്ക്കുക</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">പരിശോധിച്ച പ്രക്രിയ: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao തിരഞ്ഞെടുത്ത ഉറവിടങ്ങൾ പരിശോധിച്ച് പ്രവർത്തിക്കുന്നവ ചേർക്കും. ഹോം സജീവമായിരിക്കുമ്പോൾ താഴെ കാണിച്ചിരിക്കുന്ന പേജുകളും ഡാറ്റയും മാത്രം ഓരോ ഉറവിടത്തിനും വായിക്കാനാകും.</translation>
 <translation id="3249579521706735875">സിസ്റ്റം ഡാർക്ക് മോഡിലായിരിക്കുമ്പോൾ ലഭ്യമാണ്.</translation>
+<translation id="3323560495676347320">Dao ഇഷ്ടമായോ? ഞങ്ങൾക്ക് ഒരു സ്റ്റാർ നൽകൂ!</translation>
 <translation id="3356580349448036450">പൂർത്തിയായി</translation>
 <translation id="3404183081987133644">നിങ്ങൾ നിർത്തുന്നതിന് മുമ്പ് ഇറക്കുമതി ചെയ്ത ഡാറ്റ ഉപയോഗിക്കാൻ തയ്യാറാണ്. തയ്യാറാകുമ്പോഴെല്ലാം നിങ്ങൾക്ക് മറ്റൊരു മൈഗ്രേഷൻ ആരംഭിക്കാം.</translation>
+<translation id="341629834060643721">സൈഡ്‌ബാർ ടോഗിൾ ചെയ്യുക</translation>
 <translation id="3420663750132400268">ഫോൾഡർ ഇല്ലാതാക്കണോ?</translation>
 <translation id="3427713535827228685">ഈ സൈറ്റിലെ എക്സ്റ്റൻഷനുകൾ</translation>
 <translation id="3435738964857648380">സുരക്ഷ</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">ടാബ് അടയ്ക്കുക</translation>
 <translation id="3657099196021255130">Daoയിൽ തുറക്കുക</translation>
 <translation id="3708693288863478389">ഒരു URL അല്ലെങ്കിൽ തിരയൽ ടൈപ്പ് ചെയ്യുക...</translation>
+<translation id="3725795051337497754">നിലവിലെ ടാബ് അടയ്ക്കുക</translation>
 <translation id="381667777775855564">Dao-യിലേക്ക് ചേർക്കുന്നു</translation>
 <translation id="385051799172605136">പിൻവാങ്ങുക</translation>
 <translation id="3891466792657071243">ലോഡിംഗ് നിർത്തുക</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">4-ൽ ഘട്ടം 2 · എന്താണ് മാറേണ്ടതെന്ന് തിരഞ്ഞെടുക്കുക</translation>
 <translation id="473775607612524610">അപ്ഡേറ്റ്</translation>
 <translation id="481205936353439293">4-ൽ ഘട്ടം 3 · നിങ്ങളുടെ ഡാറ്റ മാറ്റുന്നു</translation>
+<translation id="4828722023020978308">URL ക്ലിപ്പ്ബോർഡിലേക്ക് പകർത്തി</translation>
 <translation id="4854731374904470810">ടാബ് ഐഡി പകർത്തുക</translation>
 <translation id="4881695831933465202">തുറക്കുക</translation>
 <translation id="4898928054560997780">പരിഹരിക്കാൻ Dao-യോട് ചോദിക്കുക</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">റദ്ദാക്കുക</translation>
 <translation id="7714812312719848690">നിങ്ങളുടെ പ്രോജക്റ്റ് ഇപ്പോഴും സുരക്ഷിതമാണ്. വീണ്ടും ശ്രമിക്കുക, ഒരു പതിപ്പ് പുനഃസ്ഥാപിക്കുക, അല്ലെങ്കിൽ അത് പരിഹരിക്കാൻ Dao-യോട് ആവശ്യപ്പെടുക.</translation>
 <translation id="7717845620320228976">അപ്ഡേറ്റുകൾക്കായി പരിശോധിക്കുക</translation>
+<translation id="7762651625781751842">തിരയുക അല്ലെങ്കിൽ URL നൽകുക...</translation>
 <translation id="7803931104677504532">അവതരണ ശൈലികൾ വായിക്കുക</translation>
+<translation id="7941154822457232855">വേഗത്തിലുള്ള നാവിഗേഷനായി കമാൻഡ് ബാർ തുറക്കുക</translation>
 <translation id="7974106569409739809">ഫോൾഡർ ഒഴിവാക്കുക</translation>
 <translation id="7995663841236651667">നിങ്ങളുടെ ബ്രൗസർ ഡാറ്റ ഈ Mac-ൽ പ്രാദേശികമായി പ്രോസസ്സ് ചെയ്യുന്നു.</translation>
 <translation id="8028081981001403222">പ്രോജക്റ്റ് ഇറക്കുമതി ചെയ്യുക</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> പിൻവാങ്ങുക</translation>
 <translation id="8595238918901827309">ഈ പതിപ്പ് പുനഃസ്ഥാപിക്കണോ?</translation>
 <translation id="8668072977518790485">ടാബ് ഐഡി പകർത്തി</translation>
+<translation id="8672485401328649039">Dao ഏജന്റ്</translation>
 <translation id="8684229942427488970">സൈറ്റ് സെന്റർ</translation>
 <translation id="8717864919010420084">ലിങ്ക് പകർത്തുക</translation>
 <translation id="8725066075913043281">വീണ്ടും ശ്രമിക്കുക</translation>
+<translation id="8725826957868125189">AI ഏജന്റ് പാനൽ തുറക്കുക</translation>
+<translation id="8754476796133798050">അഭിപ്രായാധിഷ്ഠിത ബ്രൗസർ. കീബോർഡ്-പ്രഥമം, കുറുക്കുവഴി-അധിഷ്ഠിതം.</translation>
 <translation id="8774154357663601701">ഹോം സജീവമായിരിക്കുമ്പോൾ ഈ ഉറവിടത്തിന് അംഗീകരിച്ച പേജുകൾ മാത്രം വായിക്കാനാകും.</translation>
 <translation id="8781013843394828812">ഈ ഇനങ്ങൾ വീണ്ടും ശ്രമിക്കേണ്ടതുണ്ട്</translation>
 <translation id="8787633576358327637">ഒരു macOS കീചെയിൻ പ്രോംപ്റ്റ് ദൃശ്യമായേക്കാം</translation>
+<translation id="8819422779093237286">Dao-ലേക്ക് സ്വാഗതം</translation>
 <translation id="8820817407110198400">ബുക്ക്മാർക്കുകൾ</translation>
 <translation id="8826852601577125903">ഫല ഡാറ്റ: <ph name="OLD_BYTE_COUNT" /> മുതൽ <ph name="NEW_BYTE_COUNT" /> ബൈറ്റുകൾ വരെ</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> സ്ഥാനാർഥികൾ</translation>
 <translation id="8899040626072079337">നിങ്ങളുടെ ഡാറ്റ Dao-യിലേക്ക് മാറ്റുന്നു</translation>
 <translation id="8962539151725780858">നിയന്ത്രിത ടാബുകൾ: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">സൈഡ്‌ബാറിൽ പുതിയ ടാബ് സൃഷ്ടിക്കുക</translation>
 <translation id="9046231519826652276">ഏറ്റവും പുതിയ MCP കോൾ: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">ഓരോ കണക്റ്ററിലുമുള്ള ഇനങ്ങൾ: <ph name="ITEM_COUNT" /> വരെ</translation>
 <translation id="9144412711146411188">നിഷ്‌ക്രിയ ടാബുകൾ ആർക്കൈവ് ചെയ്തു</translation>

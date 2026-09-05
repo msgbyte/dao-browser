@@ -3,6 +3,7 @@
 <translationbundle lang="hy">
 <translation id="1111094358966140566">Համեմատել տարբերակը</translation>
 <translation id="1173894706177603556">Վերանվանել</translation>
+<translation id="1180509694035129435">Պատճենել ընթացիկ էջի URL-ը</translation>
 <translation id="1182228621215085947">Հարցնել Dao-ին</translation>
 <translation id="121570799358042869">Ձեր բրաուզերի տվյալները մնում են այս Mac-ում։ Համատեղելի ընդլայնումների վերատեղադրումը միակ քայլն է, որը կարող է միանալ ինտերնետին. ընդլայնումների կարգավորումներն ու մուտքերը չեն պատճենվում։</translation>
 <translation id="1236455002425740182">Dao Migration</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Պահված գաղտնաբառերը վերծանելու համար Dao-ին անհրաժեշտ է ընտրված բրաուզերի Safe Storage բանալին։ Եթե մերժեք մուտքը, միայն գաղտնաբառերը կբաց թողնվեն, իսկ տեղափոխման մնացած մասը կշարունակվի։</translation>
 <translation id="2580366865845491095">Բացե՞լ այս հղումը</translation>
 <translation id="2612596415938768738">Կարող է պահանջվել մուտք գործել</translation>
+<translation id="2654155183153466577">Կրկնօրինակել ընթացիկ ներդիրը</translation>
 <translation id="2698054069012763064">ևս <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Փակել կրկնօրինակ ներդիրները</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Ստուգված գործընթաց՝ <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao-ն կստուգի ընտրված աղբյուրները և կավելացնի աշխատողները։ Յուրաքանչյուր աղբյուր կարող է կարդալ միայն ստորև ցուցադրված էջերն ու տվյալները, մինչ Գլխավորն ակտիվ է։</translation>
 <translation id="3249579521706735875">Հասանելի է, երբ համակարգը մուգ ռեժիմում է։</translation>
+<translation id="3323560495676347320">Հավանո՞ւմ եք Dao-ն։ Աստղ տվեք մեզ!</translation>
 <translation id="3356580349448036450">Ավարտված</translation>
 <translation id="3404183081987133644">Դադարեցնելուց առաջ ներմուծված տվյալները պատրաստ են օգտագործման։ Կարող եք նոր տեղափոխում սկսել, երբ պատրաստ լինեք։</translation>
+<translation id="341629834060643721">Միացնել/անջատել կողագոտին</translation>
 <translation id="3420663750132400268">Ջնջե՞լ պանակը</translation>
 <translation id="3427713535827228685">Այս կայքի ընդլայնումները</translation>
 <translation id="3435738964857648380">Անվտանգություն</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Փակել ներդիրը</translation>
 <translation id="3657099196021255130">Բացել Dao-ում</translation>
 <translation id="3708693288863478389">Մուտքագրեք URL կամ որոնում...</translation>
+<translation id="3725795051337497754">Փակել ընթացիկ ներդիրը</translation>
 <translation id="381667777775855564">Ավելացում Dao-ում</translation>
 <translation id="385051799172605136">Հետ</translation>
 <translation id="3891466792657071243">Դադարեցնել բեռնումը</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Քայլ 2-ը 4-ից · Ընտրեք, թե ինչն է տեղափոխվում</translation>
 <translation id="473775607612524610">Թարմացնել</translation>
 <translation id="481205936353439293">Քայլ 3-ը 4-ից · Տվյալների տեղափոխում</translation>
+<translation id="4828722023020978308">URL-ը պատճենվել է փոխանակման բուֆեր</translation>
 <translation id="4854731374904470810">Պատճենել ներդիրի ID-ն</translation>
 <translation id="4881695831933465202">Բացել</translation>
 <translation id="4898928054560997780">Խնդրել Dao-ին շտկել</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Չեղարկել</translation>
 <translation id="7714812312719848690">Ձեր նախագիծը դեռ անվտանգ է։ Կրկին փորձեք, վերականգնեք տարբերակ կամ խնդրեք Dao-ին վերանորոգել այն։</translation>
 <translation id="7717845620320228976">Ստուգել թարմացումները</translation>
+<translation id="7762651625781751842">Որոնել կամ մուտքագրել URL...</translation>
 <translation id="7803931104677504532">Կարդալ ներկայացման ոճերը</translation>
+<translation id="7941154822457232855">Բացել հրամանների տողը արագ նավարկման համար</translation>
 <translation id="7974106569409739809">Ապախմբավորել</translation>
 <translation id="7995663841236651667">Ձեր բրաուզերի տվյալները մշակվում են տեղային՝ այս Mac-ում։</translation>
 <translation id="8028081981001403222">Ներմուծել նախագիծը</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Հետ</translation>
 <translation id="8595238918901827309">Վերականգնել այս տարբերա՞կը</translation>
 <translation id="8668072977518790485">Ներդիրի ID-ն պատճենվեց</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">Կայքի կենտրոն</translation>
 <translation id="8717864919010420084">Պատճենել հղումը</translation>
 <translation id="8725066075913043281">Կրկին փորձել</translation>
+<translation id="8725826957868125189">Բացել AI գործակալի վահանակը</translation>
+<translation id="8754476796133798050">Կարծիքային դիտարկիչ։ Նախ՝ ստեղնաշար, արագ հրամաններով։</translation>
 <translation id="8774154357663601701">Այս աղբյուրը կարող է կարդալ միայն հաստատված էջերը, մինչ Գլխավորն ակտիվ է։</translation>
 <translation id="8781013843394828812">Այս տարրերը պետք է կրկնել</translation>
 <translation id="8787633576358327637">Կարող է հայտնվել macOS Keychain-ի հարցում</translation>
+<translation id="8819422779093237286">Բարի գալուստ Dao</translation>
 <translation id="8820817407110198400">Էջանիշներ</translation>
 <translation id="8826852601577125903">Արդյունքի տվյալներ՝ <ph name="OLD_BYTE_COUNT" />-ից <ph name="NEW_BYTE_COUNT" /> բայթ</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> թեկնածու</translation>
 <translation id="8899040626072079337">Տվյալների տեղափոխում Dao</translation>
 <translation id="8962539151725780858">Կառավարվող ներդիրներ՝ <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Ստեղծել նոր ներդիր կողագոտում</translation>
 <translation id="9046231519826652276">Վերջին MCP կանչ՝ <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Տարրեր մեկ միակցիչի համար՝ մինչև <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Ոչ ակտիվ ներդիրներն արխիվացվել են</translation>

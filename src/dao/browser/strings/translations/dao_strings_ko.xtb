@@ -3,6 +3,7 @@
 <translationbundle lang="ko">
 <translation id="1111094358966140566">버전 비교</translation>
 <translation id="1173894706177603556">이름 변경</translation>
+<translation id="1180509694035129435">현재 페이지 URL 복사</translation>
 <translation id="1182228621215085947">Dao에게 묻기</translation>
 <translation id="121570799358042869">브라우저 데이터는 이 Mac에 유지됩니다. 호환되는 확장 프로그램을 다시 설치하는 경우에만 인터넷에 연결될 수 있으며, 확장 프로그램 설정과 로그인 정보는 복사되지 않습니다.</translation>
 <translation id="1236455002425740182">Dao 마이그레이션</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao에서 저장된 비밀번호를 복호화하려면 선택한 브라우저의 Safe Storage 키가 필요합니다. 액세스를 거부하면 비밀번호만 건너뛰고 나머지 마이그레이션은 계속됩니다.</translation>
 <translation id="2580366865845491095">이 링크를 여시겠습니까?</translation>
 <translation id="2612596415938768738">로그인이 필요할 수 있음</translation>
+<translation id="2654155183153466577">현재 탭 복제</translation>
 <translation id="2698054069012763064"><ph name="COUNT" />개 더</translation>
 <translation id="2703180365855369896">중복 탭 닫기</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">확인된 프로세스: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao에서 선택한 소스를 테스트하고 작동하는 소스를 추가합니다. 홈이 활성화된 동안 각 소스는 아래에 표시된 페이지와 데이터만 읽을 수 있습니다.</translation>
 <translation id="3249579521706735875">시스템이 다크 모드일 때 사용할 수 있습니다.</translation>
+<translation id="3323560495676347320">Dao가 마음에 드시나요? 별표를 눌러 주세요!</translation>
 <translation id="3356580349448036450">완료</translation>
 <translation id="3404183081987133644">중지하기 전에 가져온 데이터는 사용할 준비가 되었습니다. 준비되면 언제든지 다른 마이그레이션을 시작할 수 있습니다.</translation>
+<translation id="341629834060643721">사이드바 전환</translation>
 <translation id="3420663750132400268">폴더를 삭제하시겠습니까?</translation>
 <translation id="3427713535827228685">이 사이트의 확장 프로그램</translation>
 <translation id="3435738964857648380">보안</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">탭 닫기</translation>
 <translation id="3657099196021255130">Dao에서 열기</translation>
 <translation id="3708693288863478389">URL 또는 검색어 입력...</translation>
+<translation id="3725795051337497754">현재 탭 닫기</translation>
 <translation id="381667777775855564">Dao에 추가 중</translation>
 <translation id="385051799172605136">뒤로</translation>
 <translation id="3891466792657071243">로딩 중지</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">4단계 중 2단계 · 이동할 항목 선택</translation>
 <translation id="473775607612524610">업데이트</translation>
 <translation id="481205936353439293">4단계 중 3단계 · 데이터 이동 중</translation>
+<translation id="4828722023020978308">URL이 클립보드에 복사되었습니다</translation>
 <translation id="4854731374904470810">탭 ID 복사</translation>
 <translation id="4881695831933465202">열기</translation>
 <translation id="4898928054560997780">Dao에게 수정 요청</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">취소</translation>
 <translation id="7714812312719848690">프로젝트는 안전하게 보존되어 있습니다. 다시 시도하거나 버전을 복원하거나 Dao에게 수정을 요청하세요.</translation>
 <translation id="7717845620320228976">업데이트 확인</translation>
+<translation id="7762651625781751842">검색 또는 URL 입력...</translation>
 <translation id="7803931104677504532">표현 스타일 읽기</translation>
+<translation id="7941154822457232855">빠른 탐색을 위해 명령 모음 열기</translation>
 <translation id="7974106569409739809">폴더 해제</translation>
 <translation id="7995663841236651667">브라우저 데이터는 이 Mac에서 로컬로 처리됩니다.</translation>
 <translation id="8028081981001403222">프로젝트 가져오기</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> 뒤로</translation>
 <translation id="8595238918901827309">이 버전을 복원하시겠습니까?</translation>
 <translation id="8668072977518790485">탭 ID가 복사됨</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">사이트 센터</translation>
 <translation id="8717864919010420084">링크 복사</translation>
 <translation id="8725066075913043281">다시 시도</translation>
+<translation id="8725826957868125189">AI Agent 패널 열기</translation>
+<translation id="8754476796133798050">의견이 담긴 브라우저. 키보드 우선, 단축키 기반.</translation>
 <translation id="8774154357663601701">홈이 활성화된 동안 이 소스는 승인된 페이지만 읽을 수 있습니다.</translation>
 <translation id="8781013843394828812">다음 항목을 다시 시도해야 합니다</translation>
 <translation id="8787633576358327637">macOS 키체인 메시지가 표시될 수 있습니다</translation>
+<translation id="8819422779093237286">Dao에 오신 것을 환영합니다</translation>
 <translation id="8820817407110198400">북마크</translation>
 <translation id="8826852601577125903">결과 데이터: <ph name="OLD_BYTE_COUNT" />바이트에서 <ph name="NEW_BYTE_COUNT" />바이트로</translation>
 <translation id="88635502604055524">후보 <ph name="COUNT" />개</translation>
 <translation id="8899040626072079337">데이터를 Dao로 이동 중</translation>
 <translation id="8962539151725780858">제어 중인 탭: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">사이드바에서 새 탭 만들기</translation>
 <translation id="9046231519826652276">최근 MCP 호출: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">커넥터당 항목: 최대 <ph name="ITEM_COUNT" />개</translation>
 <translation id="9144412711146411188">비활성 탭이 보관됨</translation>

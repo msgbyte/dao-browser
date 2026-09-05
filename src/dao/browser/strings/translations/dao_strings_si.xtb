@@ -3,6 +3,7 @@
 <translationbundle lang="si">
 <translation id="1111094358966140566">අනුවාදය සසඳන්න</translation>
 <translation id="1173894706177603556">නම් වෙනස් කරන්න</translation>
+<translation id="1180509694035129435">වත්මන් පිටුවේ URL පිටපත් කරන්න</translation>
 <translation id="1182228621215085947">Dao ගෙන් අසන්න</translation>
 <translation id="121570799358042869">ඔබගේ බ්‍රවුසර දත්ත මෙම Mac මතම පවතී. අනුකූල දිගු නැවත ස්ථාපනය කිරීම අන්තර්ජාලයට සම්බන්ධ විය හැකි එකම පියවරයි; දිගු සැකසුම් සහ පිවිසුම් පිටපත් නොකෙරේ.</translation>
 <translation id="1236455002425740182">Dao සංක්‍රමණය</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">සුරකින ලද මුරපද විකේතනය කිරීමට Dao හට තෝරාගත් බ්‍රවුසරයේ Safe Storage යතුර අවශ්‍ය වේ. ඔබ ප්‍රවේශය ප්‍රතික්ෂේප කළහොත්, මුරපද පමණක් මඟ හැරෙන අතර ඉතිරි සංක්‍රමණය දිගටම සිදු වේ.</translation>
 <translation id="2580366865845491095">මෙම සබැඳිය විවෘත කරන්නද?</translation>
 <translation id="2612596415938768738">ඔබට පුරනය වීමට අවශ්‍ය විය හැක</translation>
+<translation id="2654155183153466577">වත්මන් ටැබය අනුපිටපත් කරන්න</translation>
 <translation id="2698054069012763064">තවත් <ph name="COUNT" />ක්</translation>
 <translation id="2703180365855369896">අනුපිටපත් ටැබ් වසා දමන්න</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">සත්‍යාපිත ක්‍රියාවලිය: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao තෝරාගත් මූලාශ්‍ර පරීක්ෂා කර ක්‍රියා කරන ඒවා එක් කරයි. මුල් පිටුව සක්‍රියව ඇති විට සෑම මූලාශ්‍රයකටම පහත පෙන්වා ඇති පිටු සහ දත්ත පමණක් කියවිය හැක.</translation>
 <translation id="3249579521706735875">පද්ධතිය අඳුරු මාදිලියේ ඇති විට ලබා ගත හැක.</translation>
+<translation id="3323560495676347320">Dao ට කැමතිද? අපට තරුවක් දෙන්න!</translation>
 <translation id="3356580349448036450">සම්පූර්ණයි</translation>
 <translation id="3404183081987133644">ඔබ නැවැත්වීමට පෙර ආයාත කළ දත්ත භාවිතයට සූදානම්ය. ඔබ සූදානම් වූ ඕනෑම වෙලාවක වෙනත් සංක්‍රමණයක් ආරම්භ කළ හැක.</translation>
+<translation id="341629834060643721">පැති තීරුව මාරු කරන්න</translation>
 <translation id="3420663750132400268">ෆෝල්ඩරය මකන්නද?</translation>
 <translation id="3427713535827228685">මෙම අඩවියේ දිගු</translation>
 <translation id="3435738964857648380">ආරක්ෂාව</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">ටැබය වසන්න</translation>
 <translation id="3657099196021255130">Dao තුළ විවෘත කරන්න</translation>
 <translation id="3708693288863478389">URL එකක් හෝ සෙවීමක් ටයිප් කරන්න...</translation>
+<translation id="3725795051337497754">වත්මන් ටැබය වසන්න</translation>
 <translation id="381667777775855564">Dao වෙත එක් කරමින්</translation>
 <translation id="385051799172605136">ආපසු</translation>
 <translation id="3891466792657071243">නැවතීම</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">4න් පියවර 2 · ගමන් කරන දේ තෝරන්න</translation>
 <translation id="473775607612524610">යාවත්කාලීන කරන්න</translation>
 <translation id="481205936353439293">4න් පියවර 3 · ඔබගේ දත්ත ගෙන යමින්</translation>
+<translation id="4828722023020978308">URL පසුරුපුවරුවට පිටපත් කරන ලදී</translation>
 <translation id="4854731374904470810">ටැබ් ID පිටපත් කරන්න</translation>
 <translation id="4881695831933465202">විවෘත කරන්න</translation>
 <translation id="4898928054560997780">සවි කිරීමට Dao ගෙන් අසන්න</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">අවලංගු කරන්න</translation>
 <translation id="7714812312719848690">ඔබගේ ව්‍යාපෘතිය තවමත් ආරක්ෂිතයි. නැවත උත්සාහ කරන්න, අනුවාදයක් ප්‍රතිසාධනය කරන්න, නැතහොත් එය අලුත්වැඩියා කිරීමට Dao ගෙන් අසන්න.</translation>
 <translation id="7717845620320228976">යාවත්කාලීන කිරීම් සඳහා පරීක්ෂා කරන්න</translation>
+<translation id="7762651625781751842">සොයන්න හෝ URL ඇතුළත් කරන්න...</translation>
 <translation id="7803931104677504532">ඉදිරිපත් කිරීමේ ශෛලීන් කියවන්න</translation>
+<translation id="7941154822457232855">ඉක්මන් සංචලනය සඳහා විධාන තීරුව විවෘත කරන්න</translation>
 <translation id="7974106569409739809">ෆෝල්ඩරයෙන් ඉවත් කරන්න</translation>
 <translation id="7995663841236651667">ඔබගේ බ්‍රවුසර දත්ත මෙම Mac හි දේශීයව සකසනු ලැබේ.</translation>
 <translation id="8028081981001403222">ව්‍යාපෘතිය ආයාත කරන්න</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> ආපසු</translation>
 <translation id="8595238918901827309">මෙම අනුවාදය ප්‍රතිසාධනය කරන්නද?</translation>
 <translation id="8668072977518790485">ටැබ් ID පිටපත් කරන ලදි</translation>
+<translation id="8672485401328649039">Dao නියෝජිතයා</translation>
 <translation id="8684229942427488970">අඩවි මධ්‍යස්ථානය</translation>
 <translation id="8717864919010420084">සබැඳිය පිටපත් කරන්න</translation>
 <translation id="8725066075913043281">නැවත උත්සාහ කරන්න</translation>
+<translation id="8725826957868125189">AI නියෝජිත පැනලය විවෘත කරන්න</translation>
+<translation id="8754476796133798050">තීරණාත්මක බ්‍රවුසරයක්. යතුරුපුවරුව-ප්‍රමුඛ, කෙටිමං-මඟින් මෙහෙයවෙන.</translation>
 <translation id="8774154357663601701">මුල් පිටුව සක්‍රියව ඇති විට මෙම මූලාශ්‍රයට අනුමත පිටු පමණක් කියවිය හැක.</translation>
 <translation id="8781013843394828812">මෙම අයිතම නැවත උත්සාහ කළ යුතුය</translation>
 <translation id="8787633576358327637">macOS Keychain විමසුමක් දිස් විය හැක</translation>
+<translation id="8819422779093237286">Dao වෙත සාදරයෙන් පිළිගනිමු</translation>
 <translation id="8820817407110198400">පිටු සලකුණු</translation>
 <translation id="8826852601577125903">ප්‍රතිඵල දත්ත: බයිට් <ph name="OLD_BYTE_COUNT" /> සිට <ph name="NEW_BYTE_COUNT" /> දක්වා</translation>
 <translation id="88635502604055524">අපේක්ෂක <ph name="COUNT" />ක්</translation>
 <translation id="8899040626072079337">ඔබගේ දත්ත Dao වෙත ගෙන යමින්</translation>
 <translation id="8962539151725780858">පාලිත ටැබ්: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">පැති තීරුවේ නව ටැබයක් සාදන්න</translation>
 <translation id="9046231519826652276">නවතම MCP ඇමතුම: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">සම්බන්ධකයකට අයිතම: <ph name="ITEM_COUNT" />ක් දක්වා</translation>
 <translation id="9144412711146411188">අක්‍රිය ටැබ් සංරක්ෂිත කරන ලදි</translation>

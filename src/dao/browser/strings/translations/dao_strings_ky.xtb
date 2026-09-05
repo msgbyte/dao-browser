@@ -3,6 +3,7 @@
 <translationbundle lang="ky">
 <translation id="1111094358966140566">Версияны салыштыруу</translation>
 <translation id="1173894706177603556">Атын өзгөртүү</translation>
+<translation id="1180509694035129435">Учурдагы барактын URL дарегин көчүрүү</translation>
 <translation id="1182228621215085947">Dao'дон суроо</translation>
 <translation id="121570799358042869">Браузер дайындарыңыз ушул Mac'та калат. Шайкеш кеңейтүүлөрдү кайра орнотуу гана интернетке туташуусу мүмкүн; кеңейтүү жөндөөлөрү жана кирүүлөрү көчүрүлбөйт.</translation>
 <translation id="1236455002425740182">Dao көчүрүү</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao'го сакталган сырсөздөрдү чечмелөө үчүн тандалган браузердин Safe Storage ачкычы керек. Эгер кирүүгө тыюу салсаңыз, сырсөздөр гана өткөрүлүп жиберилип, көчүрүүнүн калган бөлүгү уланат.</translation>
 <translation id="2580366865845491095">Бул шилтеме ачылсынбы?</translation>
 <translation id="2612596415938768738">Кирүү талап кылынышы мүмкүн</translation>
+<translation id="2654155183153466577">Учурдагы өтмөктү көчүрмөлөө</translation>
 <translation id="2698054069012763064">Дагы <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Кайталанган өтмөктөрдү жабуу</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Текшерилген процесс: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao тандалган булактарды текшерип, иштегендерин кошот. Башкы бет активдүү болгондо ар бир булак төмөндө көрсөтүлгөн барактарды жана дайындарды гана окуй алат.</translation>
 <translation id="3249579521706735875">Тутум караңгы режимде болгондо жеткиликтүү.</translation>
+<translation id="3323560495676347320">Dao жактыбы? Бизге жылдызча бериңиз!</translation>
 <translation id="3356580349448036450">Аяктады</translation>
 <translation id="3404183081987133644">Токтотконго чейин импорттолгон дайындар колдонууга даяр. Каалаган убакта башка көчүрүүнү баштасаңыз болот.</translation>
+<translation id="341629834060643721">Каптал тилкесин көрсөтүү/жашыруу</translation>
 <translation id="3420663750132400268">Папка жок кылынсынбы?</translation>
 <translation id="3427713535827228685">Бул сайттагы кеңейтүүлөр</translation>
 <translation id="3435738964857648380">Коопсуздук</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Табды жабуу</translation>
 <translation id="3657099196021255130">Dao'до ачуу</translation>
 <translation id="3708693288863478389">URL же издөө жазыңыз...</translation>
+<translation id="3725795051337497754">Учурдагы өтмөктү жабуу</translation>
 <translation id="381667777775855564">Dao'го кошулууда</translation>
 <translation id="385051799172605136">Артка</translation>
 <translation id="3891466792657071243">Жүктөөнү токтотуу</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">4 кадамдын 2-кадамы · Эмне көчүрүлөрүн тандаңыз</translation>
 <translation id="473775607612524610">Жаңыртуу</translation>
 <translation id="481205936353439293">4 кадамдын 3-кадамы · Дайындарыңыз көчүрүлүүдө</translation>
+<translation id="4828722023020978308">URL алмашуу буферине көчүрүлдү</translation>
 <translation id="4854731374904470810">Өтмөктүн ID'син көчүрүү</translation>
 <translation id="4881695831933465202">Ачуу</translation>
 <translation id="4898928054560997780">Dao'дон оңдоону суроо</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Жокко чыгаруу</translation>
 <translation id="7714812312719848690">Долбооруңуз дагы эле коопсуз. Кайра аракет кылыңыз, версияны калыбына келтириңиз же Dao'дон оңдоону сураныңыз.</translation>
 <translation id="7717845620320228976">Жаңыртууларды текшерүү</translation>
+<translation id="7762651625781751842">Издөө же URL киргизүү...</translation>
 <translation id="7803931104677504532">Көрсөтүү стилдерин окуу</translation>
+<translation id="7941154822457232855">Тез чабыттоо үчүн буйрук тилкесин ачуу</translation>
 <translation id="7974106569409739809">Папкадан чыгаруу</translation>
 <translation id="7995663841236651667">Браузер дайындарыңыз ушул Mac'та жергиликтүү иштетилет.</translation>
 <translation id="8028081981001403222">Долбоорду импорттоо</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" />← Артка</translation>
 <translation id="8595238918901827309">Бул версия калыбына келтирилсинби?</translation>
 <translation id="8668072977518790485">Өтмөктүн ID'си көчүрүлдү</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">Сайт борбору</translation>
 <translation id="8717864919010420084">Шилтемени көчүрүү</translation>
 <translation id="8725066075913043281">Кайра аракет кылуу</translation>
+<translation id="8725826957868125189">AI Agent панелин ачуу</translation>
+<translation id="8754476796133798050">Көз карашы так браузер. Баскычтопко багытталган, жарлыктар менен башкарылат.</translation>
 <translation id="8774154357663601701">Башкы бет активдүү болгондо бул булак уруксат берилген барактарды гана окуй алат.</translation>
 <translation id="8781013843394828812">Бул нерселерди кайра аракет кылуу керек</translation>
 <translation id="8787633576358327637">macOS Keychain сурамы көрсөтүлүшү мүмкүн</translation>
+<translation id="8819422779093237286">Dao'го кош келиңиз</translation>
 <translation id="8820817407110198400">Кыстармалар</translation>
 <translation id="8826852601577125903">Натыйжа дайындары: <ph name="OLD_BYTE_COUNT" /> байттан <ph name="NEW_BYTE_COUNT" /> байтка чейин</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> талапкер</translation>
 <translation id="8899040626072079337">Дайындарыңыз Dao'го көчүрүлүүдө</translation>
 <translation id="8962539151725780858">Башкарылган өтмөктөр: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Каптал тилкеде жаңы өтмөк түзүү</translation>
 <translation id="9046231519826652276">Акыркы MCP чакыруусу: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Туташтыргычка элементтер: <ph name="ITEM_COUNT" /> чейин</translation>
 <translation id="9144412711146411188">Жигерсиз өтмөктөр архивделди</translation>

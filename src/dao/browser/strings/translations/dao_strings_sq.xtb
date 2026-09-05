@@ -3,6 +3,7 @@
 <translationbundle lang="sq">
 <translation id="1111094358966140566">Krahaso versionin</translation>
 <translation id="1173894706177603556">Riemërto</translation>
+<translation id="1180509694035129435">Kopjo URL-në e faqes aktuale</translation>
 <translation id="1182228621215085947">Pyet Dao</translation>
 <translation id="121570799358042869">Të dhënat e shfletuesit tuaj qëndrojnë në këtë Mac. Riinstalimi i shtesave të përputhshme është i vetmi hap që mund të lidhet me internetin; cilësimet e shtesave dhe hyrjet nuk kopjohen.</translation>
 <translation id="1236455002425740182">Migrimi i Dao</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao ka nevojë për çelësin Safe Storage të shfletuesit të zgjedhur për të deshifruar fjalëkalimet e ruajtura. Nëse refuzoni qasjen, anashkalohen vetëm fjalëkalimet dhe pjesa tjetër e migrimit vazhdon.</translation>
 <translation id="2580366865845491095">Të hapet kjo lidhje?</translation>
 <translation id="2612596415938768738">Mund të kërkojë që të jeni identifikuar</translation>
+<translation id="2654155183153466577">Dubliko skedën aktuale</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> të tjera</translation>
 <translation id="2703180365855369896">Mbyll Skedat e Kopjuara</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Procesi i verifikuar: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao do të testojë burimet e zgjedhura dhe do të shtojë ato që funksionojnë. Çdo burim mund të lexojë vetëm faqet dhe të dhënat e shfaqura më poshtë kur Kreu është aktiv.</translation>
 <translation id="3249579521706735875">Ofrohet kur sistemi është në modalitet të errët.</translation>
+<translation id="3323560495676347320">Të pëlqen Dao? Na jep një yll!</translation>
 <translation id="3356580349448036450">Përfunduar</translation>
 <translation id="3404183081987133644">Të dhënat e importuara para se të ndalonit janë gati për përdorim. Mund të filloni një migrim tjetër kur të jeni gati.</translation>
+<translation id="341629834060643721">Shfaq/fshih panelin anësor</translation>
 <translation id="3420663750132400268">Të fshihet dosja?</translation>
 <translation id="3427713535827228685">Shtesat në këtë sajt</translation>
 <translation id="3435738964857648380">Siguria</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Mbyll Tab</translation>
 <translation id="3657099196021255130">Hap në Dao</translation>
 <translation id="3708693288863478389">Shkruani një URL ose kërkoni...</translation>
+<translation id="3725795051337497754">Mbyll skedën aktuale</translation>
 <translation id="381667777775855564">Po shtohet në Dao</translation>
 <translation id="385051799172605136">Kthehu</translation>
 <translation id="3891466792657071243">Ndalo Ngarkimin</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Hapi 2 nga 4 · Zgjidh çfarë zhvendoset</translation>
 <translation id="473775607612524610">Përditëso</translation>
 <translation id="481205936353439293">Hapi 3 nga 4 · Po zhvendosen të dhënat tuaja</translation>
+<translation id="4828722023020978308">URL-ja u kopjua në kujtesën e fragmenteve</translation>
 <translation id="4854731374904470810">Kopjo ID-në e skedës</translation>
 <translation id="4881695831933465202">Hap</translation>
 <translation id="4898928054560997780">Kërkoji Dao ta rregullojë</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Anulo</translation>
 <translation id="7714812312719848690">Projekti juaj është ende i sigurt. Riprovo, rikthe një version ose kërkoji Dao ta riparojë.</translation>
 <translation id="7717845620320228976">Kontrollo për përditësime</translation>
+<translation id="7762651625781751842">Kërko ose vendos URL...</translation>
 <translation id="7803931104677504532">Lexo stilet e paraqitjes</translation>
+<translation id="7941154822457232855">Hap shiritin e komandave për navigim të shpejtë</translation>
 <translation id="7974106569409739809">Hiq nga dosja</translation>
 <translation id="7995663841236651667">Të dhënat e shfletuesit tuaj përpunohen lokalisht në këtë Mac.</translation>
 <translation id="8028081981001403222">Importo projektin</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Kthehu</translation>
 <translation id="8595238918901827309">Të rikthehet ky version?</translation>
 <translation id="8668072977518790485">ID-ja e skedës u kopjua</translation>
+<translation id="8672485401328649039">Agjenti Dao</translation>
 <translation id="8684229942427488970">Qendra e sajtit</translation>
 <translation id="8717864919010420084">Kopjo Lidhjen</translation>
 <translation id="8725066075913043281">Provo përsëri</translation>
+<translation id="8725826957868125189">Hap panelin e Agjentit të IA-së</translation>
+<translation id="8754476796133798050">Një shfletues me mendime të forta. Me tastierë në qendër, i drejtuar nga shkurtoret.</translation>
 <translation id="8774154357663601701">Ky burim mund të lexojë vetëm faqet e miratuara kur Kreu është aktiv.</translation>
 <translation id="8781013843394828812">Këta artikuj duhet të riprovohen</translation>
 <translation id="8787633576358327637">Mund të shfaqet një kërkesë nga Keychain i macOS</translation>
+<translation id="8819422779093237286">Mirë se vini në Dao</translation>
 <translation id="8820817407110198400">Faqeshënuesit</translation>
 <translation id="8826852601577125903">Të dhënat e rezultatit: nga <ph name="OLD_BYTE_COUNT" /> në <ph name="NEW_BYTE_COUNT" /> bajt</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> kandidatë</translation>
 <translation id="8899040626072079337">Po zhvendosen të dhënat tuaja në Dao</translation>
 <translation id="8962539151725780858">Skedat e kontrolluara: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Krijo një skedë të re në panelin anësor</translation>
 <translation id="9046231519826652276">Thirrja më e fundit MCP: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Artikuj për lidhës: deri në <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Skedat joaktive u arkivuan</translation>

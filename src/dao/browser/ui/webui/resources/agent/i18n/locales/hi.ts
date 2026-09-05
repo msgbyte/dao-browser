@@ -311,7 +311,7 @@ const dict: Dictionary = {
   'dream.page.copy_image_copied': 'छवि कॉपी हो गई',
   'dream.page.copy_image_failed': 'कॉपी विफल',
   'dream.page.rerun_report': 'रिपोर्ट फिर से चलाएं',
-  'dream.page.rerun_running': 'Dreaming…',
+  'dream.page.rerun_running': 'स्वप्न देख रहा है…',
   'dream.page.rerun_failed': 'फिर से चलाना विफल रहा: {error}',
   'dream.page.source_domains_title': 'इस रिपोर्ट में उपयोग किए गए डोमेन',
   'dream.page.source_domains_add': 'ब्लैकलिस्ट में जोड़ें',

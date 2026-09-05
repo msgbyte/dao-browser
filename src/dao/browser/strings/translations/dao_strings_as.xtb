@@ -3,6 +3,7 @@
 <translationbundle lang="as">
 <translation id="1111094358966140566">সংস্কৰণ তুলনা কৰক</translation>
 <translation id="1173894706177603556">পুনৰ নামকৰণ কৰক</translation>
+<translation id="1180509694035129435">বৰ্তমান পৃষ্ঠাৰ URL কপি কৰক</translation>
 <translation id="1182228621215085947">Daoক সোধক</translation>
 <translation id="121570799358042869">আপোনাৰ ব্ৰাউজাৰ ডাটা এই Mac-তেই থাকে। সুসংগত এক্সটেনচন পুনৰ ইনষ্টল কৰাটোৱেই একমাত্ৰ পদক্ষেপ যিয়ে ইণ্টাৰনেটৰ সৈতে সংযোগ কৰিব পাৰে; এক্সটেনচন ছেটিংছ আৰু ছাইন-ইন কপি কৰা নহয়।</translation>
 <translation id="1236455002425740182">Dao মাইগ্ৰেচন</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">সংৰক্ষিত পাছৱৰ্ড ডিক্ৰিপ্ট কৰিবলৈ Dao-ক বাছনি কৰা ব্ৰাউজাৰৰ Safe Storage কী লাগে। আপুনি প্ৰৱেশাধিকাৰ অস্বীকাৰ কৰিলে, কেৱল পাছৱৰ্ড এৰি দিয়া হ'ব আৰু বাকী মাইগ্ৰেচন চলি থাকিব।</translation>
 <translation id="2580366865845491095">এই লিংক খোলিবনে?</translation>
 <translation id="2612596415938768738">আপোনাক ছাইন ইন কৰিব লাগিব পাৰে</translation>
+<translation id="2654155183153466577">বৰ্তমান টেবৰ প্ৰতিলিপি কৰক</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> অধিক</translation>
 <translation id="2703180365855369896">নকল টেবসমূহ বন্ধ কৰক</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">যাচাইকৃত প্ৰক্ৰিয়া: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao-এ বাছনি কৰা উৎসসমূহ পৰীক্ষা কৰিব আৰু কাম কৰাবোৰ যোগ কৰিব। হোম সক্ৰিয় থকাৰ সময়ত প্ৰতিটো উৎসই কেৱল তলত দেখুওৱা পৃষ্ঠা আৰু ডাটা পঢ়িব পাৰে।</translation>
 <translation id="3249579521706735875">চিষ্টেম ডাৰ্ক ম'ডত থাকিলে উপলব্ধ।</translation>
+<translation id="3323560495676347320">Dao ভাল লাগে? আমাক এটা তাৰকা দিয়ক!</translation>
 <translation id="3356580349448036450">সম্পূৰ্ণ</translation>
 <translation id="3404183081987133644">আপুনি বন্ধ কৰাৰ আগতে আমদানি কৰা ডাটা ব্যৱহাৰৰ বাবে সাজু। আপুনি সাজু হ'লে আন এটা মাইগ্ৰেচন আৰম্ভ কৰিব পাৰে।</translation>
+<translation id="341629834060643721">ছাইডবাৰ টগল কৰক</translation>
 <translation id="3420663750132400268">ফ'ল্ডাৰ মচিবনে?</translation>
 <translation id="3427713535827228685">এই ছাইটত এক্সটেনচনসমূহ</translation>
 <translation id="3435738964857648380">সুৰক্ষা</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">টেব বন্ধ কৰক</translation>
 <translation id="3657099196021255130">Dao ত খোলক</translation>
 <translation id="3708693288863478389">এটা URL টাইপ কৰক বা সন্ধান কৰক...</translation>
+<translation id="3725795051337497754">বৰ্তমান টেব বন্ধ কৰক</translation>
 <translation id="381667777775855564">Dao-ত যোগ কৰা হৈছে</translation>
 <translation id="385051799172605136">পিছুৱাই লওক</translation>
 <translation id="3891466792657071243">ল'ডিং ৰখাওক</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">৪ৰ ২য় ধাপ · কি স্থানান্তৰ হয় বাছনি কৰক</translation>
 <translation id="473775607612524610">আপডেট</translation>
 <translation id="481205936353439293">৪ৰ ৩য় ধাপ · আপোনাৰ ডাটা স্থানান্তৰ কৰা হৈছে</translation>
+<translation id="4828722023020978308">URL ক্লিপব'ৰ্ডলৈ কপি কৰা হৈছে</translation>
 <translation id="4854731374904470810">টেব ID কপি কৰক</translation>
 <translation id="4881695831933465202">খোলক</translation>
 <translation id="4898928054560997780">Dao-ক ঠিক কৰিবলৈ কওক</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">বাতিল</translation>
 <translation id="7714812312719848690">আপোনাৰ প্ৰকল্প এতিয়াও সুৰক্ষিত। পুনৰ চেষ্টা কৰক, এটা সংস্কৰণ পুনৰুদ্ধাৰ কৰক, বা Dao-ক ইয়াক মেৰামতি কৰিবলৈ কওক।</translation>
 <translation id="7717845620320228976">আপডেটৰ বাবে পৰীক্ষা কৰক</translation>
+<translation id="7762651625781751842">সন্ধান কৰক বা URL দিয়ক...</translation>
 <translation id="7803931104677504532">উপস্থাপনা শৈলী পঢ়ক</translation>
+<translation id="7941154822457232855">দ্ৰুত নেভিগেচনৰ বাবে কমাণ্ড বাৰ খোলক</translation>
 <translation id="7974106569409739809">ফ'ল্ডাৰৰ পৰা আঁতৰাওক</translation>
 <translation id="7995663841236651667">আপোনাৰ ব্ৰাউজাৰ ডাটা এই Mac-ত স্থানীয়ভাৱে প্ৰক্ৰিয়াকৰণ কৰা হয়।</translation>
 <translation id="8028081981001403222">প্ৰকল্প আমদানি কৰক</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" />← পিছুৱাই লওক</translation>
 <translation id="8595238918901827309">এই সংস্কৰণ পুনৰুদ্ধাৰ কৰিবনে?</translation>
 <translation id="8668072977518790485">টেব ID কপি কৰা হ'ল</translation>
+<translation id="8672485401328649039">Dao এজেণ্ট</translation>
 <translation id="8684229942427488970">ছাইট চেণ্টাৰ</translation>
 <translation id="8717864919010420084">লিংক কপি কৰক</translation>
 <translation id="8725066075913043281">আকৌ চেষ্টা কৰক</translation>
+<translation id="8725826957868125189">AI এজেণ্ট পেনেল খোলক</translation>
+<translation id="8754476796133798050">এটা মতামত-নিৰ্দেশিত ব্ৰাউজাৰ। কীব'ৰ্ড-প্ৰথম, চৰ্টকাট-চালিত।</translation>
 <translation id="8774154357663601701">হোম সক্ৰিয় থকাৰ সময়ত এই উৎসই কেৱল অনুমোদিত পৃষ্ঠাসমূহ পঢ়িব পাৰে।</translation>
 <translation id="8781013843394828812">এই বস্তুসমূহ পুনৰ চেষ্টা কৰিব লাগিব</translation>
 <translation id="8787633576358327637">এটা macOS Keychain প্ৰমপ্ট দেখা দিব পাৰে</translation>
+<translation id="8819422779093237286">Dao-লৈ স্বাগতম</translation>
 <translation id="8820817407110198400">বুকমাৰ্ক</translation>
 <translation id="8826852601577125903">ফলাফল ডাটা: <ph name="OLD_BYTE_COUNT" />ৰ পৰা <ph name="NEW_BYTE_COUNT" /> বাইটলৈ</translation>
 <translation id="88635502604055524"><ph name="COUNT" />টা প্ৰাৰ্থী</translation>
 <translation id="8899040626072079337">আপোনাৰ ডাটা Dao-লৈ স্থানান্তৰ কৰা হৈছে</translation>
 <translation id="8962539151725780858">নিয়ন্ত্ৰিত টেব: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">ছাইডবাৰত নতুন টেব সৃষ্টি কৰক</translation>
 <translation id="9046231519826652276">শেহতীয়া MCP কল: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">প্ৰতি সংযোগকৰ্তাত বস্তু: সৰ্বাধিক <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">নিষ্ক্ৰিয় টেবসমূহ আৰ্কাইভ কৰা হ'ল</translation>

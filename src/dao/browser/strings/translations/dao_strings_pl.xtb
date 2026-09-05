@@ -3,6 +3,7 @@
 <translationbundle lang="pl">
 <translation id="1111094358966140566">Porównaj wersję</translation>
 <translation id="1173894706177603556">Zmień nazwę</translation>
+<translation id="1180509694035129435">Skopiuj adres URL bieżącej strony</translation>
 <translation id="1182228621215085947">Zapytaj Dao</translation>
 <translation id="121570799358042869">Dane przeglądarki pozostają na tym Macu. Ponowna instalacja zgodnych rozszerzeń jest jedynym krokiem, który może wymagać połączenia z internetem; ustawienia rozszerzeń i logowania nie są kopiowane.</translation>
 <translation id="1236455002425740182">Migracja Dao</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao potrzebuje klucza Safe Storage wybranej przeglądarki, aby odszyfrować zapisane hasła. Jeśli odmówisz dostępu, pominięte zostaną tylko hasła, a reszta migracji będzie kontynuowana.</translation>
 <translation id="2580366865845491095">Otworzyć ten link?</translation>
 <translation id="2612596415938768738">Może wymagać zalogowania</translation>
+<translation id="2654155183153466577">Zduplikuj bieżącą kartę</translation>
 <translation id="2698054069012763064">Jeszcze <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Zamknij zduplikowane karty</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Zweryfikowany proces: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao przetestuje wybrane źródła i doda te, które działają. Każde źródło może odczytywać tylko strony i dane pokazane poniżej, gdy strona główna jest aktywna.</translation>
 <translation id="3249579521706735875">Dostępne, gdy system używa ciemnego motywu.</translation>
+<translation id="3323560495676347320">Podoba Ci się Dao? Daj nam gwiazdkę!</translation>
 <translation id="3356580349448036450">Ukończono</translation>
 <translation id="3404183081987133644">Dane zaimportowane przed zatrzymaniem są gotowe do użycia. Możesz rozpocząć kolejną migrację, gdy zechcesz.</translation>
+<translation id="341629834060643721">Przełącz pasek boczny</translation>
 <translation id="3420663750132400268">Usunąć folder?</translation>
 <translation id="3427713535827228685">Rozszerzenia w tej witrynie</translation>
 <translation id="3435738964857648380">Bezpieczeństwo</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Zamknij kartę</translation>
 <translation id="3657099196021255130">Otwórz w Dao</translation>
 <translation id="3708693288863478389">Wpisz adres URL lub wyszukaj...</translation>
+<translation id="3725795051337497754">Zamknij bieżącą kartę</translation>
 <translation id="381667777775855564">Dodawanie do Dao</translation>
 <translation id="385051799172605136">Wstecz</translation>
 <translation id="3891466792657071243">Zatrzymaj ładowanie</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Krok 2 z 4 · Wybierz przenoszone dane</translation>
 <translation id="473775607612524610">Aktualizuj</translation>
 <translation id="481205936353439293">Krok 3 z 4 · Przenoszenie danych</translation>
+<translation id="4828722023020978308">Adres URL skopiowany do schowka</translation>
 <translation id="4854731374904470810">Kopiuj identyfikator karty</translation>
 <translation id="4881695831933465202">Otwórz</translation>
 <translation id="4898928054560997780">Poproś Dao o naprawę</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Anuluj</translation>
 <translation id="7714812312719848690">Twój projekt jest nadal bezpieczny. Spróbuj ponownie, przywróć wersję lub poproś Dao o naprawę.</translation>
 <translation id="7717845620320228976">Sprawdź aktualizacje</translation>
+<translation id="7762651625781751842">Wyszukaj lub wpisz adres URL...</translation>
 <translation id="7803931104677504532">Odczytywanie stylów prezentacji</translation>
+<translation id="7941154822457232855">Otwórz pasek poleceń, aby szybko nawigować</translation>
 <translation id="7974106569409739809">Usuń z folderu</translation>
 <translation id="7995663841236651667">Dane przeglądarki są przetwarzane lokalnie na tym Macu.</translation>
 <translation id="8028081981001403222">Importuj projekt</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Wstecz</translation>
 <translation id="8595238918901827309">Przywrócić tę wersję?</translation>
 <translation id="8668072977518790485">Skopiowano identyfikator karty</translation>
+<translation id="8672485401328649039">Agent Dao</translation>
 <translation id="8684229942427488970">Centrum witryny</translation>
 <translation id="8717864919010420084">Kopiuj link</translation>
 <translation id="8725066075913043281">Spróbuj ponownie</translation>
+<translation id="8725826957868125189">Otwórz panel agenta AI</translation>
+<translation id="8754476796133798050">Przeglądarka z wyraźną wizją. Klawiatura na pierwszym miejscu, oparta na skrótach.</translation>
 <translation id="8774154357663601701">To źródło może odczytywać tylko zatwierdzone strony, gdy strona główna jest aktywna.</translation>
 <translation id="8781013843394828812">Te elementy wymagają ponowienia</translation>
 <translation id="8787633576358327637">Może pojawić się monit pęku kluczy macOS</translation>
+<translation id="8819422779093237286">Witamy w Dao</translation>
 <translation id="8820817407110198400">Zakładki</translation>
 <translation id="8826852601577125903">Dane wyniku: z <ph name="OLD_BYTE_COUNT" /> do <ph name="NEW_BYTE_COUNT" /> bajtów</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> kandydatów</translation>
 <translation id="8899040626072079337">Przenoszenie danych do Dao</translation>
 <translation id="8962539151725780858">Sterowane karty: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Utwórz nową kartę na pasku bocznym</translation>
 <translation id="9046231519826652276">Ostatnie wywołanie MCP: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Elementy na łącznik: do <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Zarchiwizowano nieaktywne karty</translation>

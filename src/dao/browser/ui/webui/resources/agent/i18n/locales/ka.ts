@@ -356,7 +356,7 @@ const dict: Dictionary = {
   'settings.tools.jina_api_key_placeholder': 'jina_...',
   'settings.tools.group.page': 'გვერდი',
   'settings.tools.group.tabs': 'ტაბები',
-  'settings.tools.group.devtools': 'DevTools',
+  'settings.tools.group.devtools': 'დეველოპერის ხელსაწყოები',
   'settings.tools.group.memory-skills': 'მეხსიერება და უნარები',
   'settings.tools.group.web': 'ვებ',
   'settings.tools.group.workspace': 'სამუშაო სივრცე',

@@ -3,6 +3,7 @@
 <translationbundle lang="zu">
 <translation id="1111094358966140566">Qhathanisa inguqulo</translation>
 <translation id="1173894706177603556">Qamba kabusha</translation>
+<translation id="1180509694035129435">Kopisha i-URL yekhasi lamanje</translation>
 <translation id="1182228621215085947">Buza i-Dao</translation>
 <translation id="121570799358042869">Idatha yesiphequluli sakho ihlala kule Mac. Ukufaka kabusha izandiso ezihambisanayo ukuphela kwesinyathelo esingase sixhume ku-inthanethi; izilungiselelo zezandiso nokungena ngemvume akukopishwa.</translation>
 <translation id="1236455002425740182">Ukuthuthela ku-Dao</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">I-Dao idinga ukhiye we-Safe Storage wesiphequluli esikhethiwe ukuze isuse ukubethelwa kwamaphasiwedi alondoloziwe. Uma unqaba ukufinyelela, kudlulwa amaphasiwedi kuphela bese konke okunye ukuthutha kuyaqhubeka.</translation>
 <translation id="2580366865845491095">Vula lesi sixhumanisi?</translation>
 <translation id="2612596415938768738">Kungase kudinge ukuthi ungene ngemvume</translation>
+<translation id="2654155183153466577">Phinda ithebhu yamanje</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> ngaphezulu</translation>
 <translation id="2703180365855369896">Vala Amathebhu Aphindaphindiwe</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Inqubo eqinisekisiwe: <ph name="PID" /></translation>
 <translation id="3229872815652336688">I-Dao izohlola imithombo ekhethiwe bese yengeza esebenzayo. Umthombo ngamunye ungafunda kuphela amakhasi nedatha eboniswe ngezansi ngenkathi Ikhaya lisebenza.</translation>
 <translation id="3249579521706735875">Kuyatholakala lapho isistimu ikumodi emnyama.</translation>
+<translation id="3323560495676347320">Uyayithanda i-Dao? Sinikeze inkanyezi!</translation>
 <translation id="3356580349448036450">Kuqediwe</translation>
 <translation id="3404183081987133644">Idatha engenisiwe ngaphambi kokumisa isilungele ukusetshenziswa. Ungaqala okunye ukuthutha noma nini uma usulungile.</translation>
+<translation id="341629834060643721">Guqula ibha eseceleni</translation>
 <translation id="3420663750132400268">Susa ifolda?</translation>
 <translation id="3427713535827228685">Izandiso kule sayithi</translation>
 <translation id="3435738964857648380">Ukuphepha</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Vala Ithebhu</translation>
 <translation id="3657099196021255130">Vula ku-Dao</translation>
 <translation id="3708693288863478389">Thayipha i-URL noma useshe...</translation>
+<translation id="3725795051337497754">Vala ithebhu yamanje</translation>
 <translation id="381667777775855564">Kuyangezwa ku-Dao</translation>
 <translation id="385051799172605136">Emuva</translation>
 <translation id="3891466792657071243">Misa Ukulayisha</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">Isinyathelo 2 kwezingu-4 · Khetha okuthuthayo</translation>
 <translation id="473775607612524610">Buyekeza</translation>
 <translation id="481205936353439293">Isinyathelo 3 kwezingu-4 · Kuhanjiswa idatha yakho</translation>
+<translation id="4828722023020978308">I-URL ikopishelwe ebhodini lokunamathisela</translation>
 <translation id="4854731374904470810">Kopisha i-ID yethebhu</translation>
 <translation id="4881695831933465202">Vula</translation>
 <translation id="4898928054560997780">Cela i-Dao ukuthi ilungise</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Khansela</translation>
 <translation id="7714812312719848690">Iphrojekthi yakho isaphephile. Zama futhi, buyisela inguqulo, noma cela i-Dao ukuthi iyilungise.</translation>
 <translation id="7717845620320228976">Hlola izibuyekezo</translation>
+<translation id="7762651625781751842">Sesha noma faka i-URL...</translation>
 <translation id="7803931104677504532">Funda izitayela zokwethulwa</translation>
+<translation id="7941154822457232855">Vula ibha yemiyalo ukuze uzulazule ngokushesha</translation>
 <translation id="7974106569409739809">Susa kufolda</translation>
 <translation id="7995663841236651667">Idatha yesiphequluli sakho icutshungulwa endaweni kule Mac.</translation>
 <translation id="8028081981001403222">Ngenisa iphrojekthi</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Emuva</translation>
 <translation id="8595238918901827309">Buyisela le nguqulo?</translation>
 <translation id="8668072977518790485">I-ID yethebhu ikopishiwe</translation>
+<translation id="8672485401328649039">I-Agent ye-Dao</translation>
 <translation id="8684229942427488970">Isikhungo sesayithi</translation>
 <translation id="8717864919010420084">Kopisha Isixhumanisi</translation>
 <translation id="8725066075913043281">Zama futhi</translation>
+<translation id="8725826957868125189">Vula iphaneli ye-AI Agent</translation>
+<translation id="8754476796133798050">Isiphequluli esinemibono eqinile. Sigxile kukhibhodi, siqhutshwa izinqamuleli.</translation>
 <translation id="8774154357663601701">Lo mthombo ungafunda kuphela amakhasi avunyelwe ngenkathi Ikhaya lisebenza.</translation>
 <translation id="8781013843394828812">Lezi zinto zidinga ukuzanywa futhi</translation>
 <translation id="8787633576358327637">Umlayezo we-macOS Keychain ungase uvele</translation>
+<translation id="8819422779093237286">Siyakwamukela ku-Dao</translation>
 <translation id="8820817407110198400">Amabhukumaka</translation>
 <translation id="8826852601577125903">Idatha yomphumela: kusuka kumabhayithi angu-<ph name="OLD_BYTE_COUNT" /> kuya kwangu-<ph name="NEW_BYTE_COUNT" /></translation>
 <translation id="88635502604055524">Okungase kube khona: <ph name="COUNT" /></translation>
 <translation id="8899040626072079337">Kuhanjiswa idatha yakho ku-Dao</translation>
 <translation id="8962539151725780858">Amathebhu alawulwayo: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Dala ithebhu entsha kubha eseceleni</translation>
 <translation id="9046231519826652276">Ikholi yakamuva ye-MCP: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Izinto ngesixhumi ngasinye: kufika ku-<ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">Amathebhu angasebenzi afakwe kungobo yomlando</translation>

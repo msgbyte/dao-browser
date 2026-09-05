@@ -3,6 +3,7 @@
 <translationbundle lang="kk">
 <translation id="1111094358966140566">Нұсқаны салыстыру</translation>
 <translation id="1173894706177603556">Атауын өзгерту</translation>
+<translation id="1180509694035129435">Ағымдағы беттің URL мекенжайын көшіру</translation>
 <translation id="1182228621215085947">Dao-дан сұрау</translation>
 <translation id="121570799358042869">Браузер деректеріңіз осы Mac құрылғысында қалады. Үйлесімді кеңейтімдерді қайта орнату ғана интернетке қосылуы мүмкін қадам; кеңейтім параметрлері мен кірулер көшірілмейді.</translation>
 <translation id="1236455002425740182">Dao көшіру</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Сақталған құпиясөздердің шифрын ашу үшін Dao-ға таңдалған браузердің Safe Storage кілті қажет. Кіруге рұқсат бермесеңіз, тек құпиясөздер өткізіліп жіберіледі, ал көшірудің қалған бөлігі жалғасады.</translation>
 <translation id="2580366865845491095">Осы сілтемені ашу керек пе?</translation>
 <translation id="2612596415938768738">Жүйеге кіру қажет болуы мүмкін</translation>
+<translation id="2654155183153466577">Ағымдағы қойындыны көшірмелеу</translation>
 <translation id="2698054069012763064">тағы <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Қайталау қойындыларын жабу</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Расталған процесс: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao таңдалған көздерді тексеріп, жұмыс істейтіндерін қосады. Басты бет белсенді болғанда әр көз төменде көрсетілген беттер мен деректерді ғана оқи алады.</translation>
 <translation id="3249579521706735875">Жүйе қараңғы режимде болғанда қолжетімді.</translation>
+<translation id="3323560495676347320">Dao ұнай ма? Бізге жұлдызша беріңіз!</translation>
 <translation id="3356580349448036450">Аяқталды</translation>
 <translation id="3404183081987133644">Тоқтатқанға дейін импортталған деректер пайдалануға дайын. Дайын болған кезіңізде басқа көшіруді бастай аласыз.</translation>
+<translation id="341629834060643721">Бүйірлік панельді көрсету/жасыру</translation>
 <translation id="3420663750132400268">Қалтаны жою керек пе?</translation>
 <translation id="3427713535827228685">Осы сайттағы кеңейтімдер</translation>
 <translation id="3435738964857648380">Қауіпсіздік</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Қойындыны жабу</translation>
 <translation id="3657099196021255130">Dao-да ашу</translation>
 <translation id="3708693288863478389">URL немесе іздеу енгізіңіз...</translation>
+<translation id="3725795051337497754">Ағымдағы қойындыны жабу</translation>
 <translation id="381667777775855564">Dao-ға қосылуда</translation>
 <translation id="385051799172605136">Артқа</translation>
 <translation id="3891466792657071243">Жүктеуді тоқтату</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">4 қадамның 2-қадамы · Ненің көшірілетінін таңдаңыз</translation>
 <translation id="473775607612524610">Жаңарту</translation>
 <translation id="481205936353439293">4 қадамның 3-қадамы · Деректеріңіз көшірілуде</translation>
+<translation id="4828722023020978308">URL алмасу буферіне көшірілді</translation>
 <translation id="4854731374904470810">Қойынды идентификаторын көшіру</translation>
 <translation id="4881695831933465202">Ашу</translation>
 <translation id="4898928054560997780">Dao-дан жөндеуді сұрау</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Бас тарту</translation>
 <translation id="7714812312719848690">Жобаңыз әлі де қауіпсіз. Қайталап көріңіз, нұсқаны қалпына келтіріңіз немесе Dao-дан оны жөндеуді сұраңыз.</translation>
 <translation id="7717845620320228976">Жаңартуларды тексеру</translation>
+<translation id="7762651625781751842">Іздеу немесе URL енгізу...</translation>
 <translation id="7803931104677504532">Көрсету стильдерін оқу</translation>
+<translation id="7941154822457232855">Жылдам шарлау үшін пәрмендер жолағын ашу</translation>
 <translation id="7974106569409739809">Қалтаны тарату</translation>
 <translation id="7995663841236651667">Браузер деректеріңіз осы Mac құрылғысында жергілікті түрде өңделеді.</translation>
 <translation id="8028081981001403222">Жобаны импорттау</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Артқа</translation>
 <translation id="8595238918901827309">Осы нұсқаны қалпына келтіру керек пе?</translation>
 <translation id="8668072977518790485">Қойынды идентификаторы көшірілді</translation>
+<translation id="8672485401328649039">Dao агенті</translation>
 <translation id="8684229942427488970">Сайт орталығы</translation>
 <translation id="8717864919010420084">Сілтемені көшіру</translation>
 <translation id="8725066075913043281">Қайталап көру</translation>
+<translation id="8725826957868125189">ЖИ агенті панелін ашу</translation>
+<translation id="8754476796133798050">Өзіндік ұстанымы бар браузер. Пернетақтаға негізделген, пернелер тіркесімімен басқарылатын.</translation>
 <translation id="8774154357663601701">Басты бет белсенді болғанда бұл көз тек мақұлданған беттерді оқи алады.</translation>
 <translation id="8781013843394828812">Бұл элементтерді қайталау қажет</translation>
 <translation id="8787633576358327637">macOS Keychain сұрауы көрсетілуі мүмкін</translation>
+<translation id="8819422779093237286">Dao жүйесіне қош келдіңіз</translation>
 <translation id="8820817407110198400">Бетбелгілер</translation>
 <translation id="8826852601577125903">Нәтиже деректері: <ph name="OLD_BYTE_COUNT" />-тан <ph name="NEW_BYTE_COUNT" /> байтқа дейін</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> үміткер</translation>
 <translation id="8899040626072079337">Деректеріңіз Dao ішіне көшірілуде</translation>
 <translation id="8962539151725780858">Басқарылатын қойындылар: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Бүйірлік панельде жаңа қойынды ашу</translation>
 <translation id="9046231519826652276">Соңғы MCP шақыруы: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Әр қосқыштағы элементтер: <ph name="ITEM_COUNT" />-ге дейін</translation>
 <translation id="9144412711146411188">Белсенді емес қойындылар мұрағатталды</translation>

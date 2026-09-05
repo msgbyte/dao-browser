@@ -1,48 +1,231 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="cy">
+<translation id="1111094358966140566">Cymharu fersiwn</translation>
 <translation id="1173894706177603556">Ailenwi</translation>
+<translation id="1180509694035129435">Copïo URL y dudalen bresennol</translation>
+<translation id="1182228621215085947">Gofyn i Dao</translation>
+<translation id="121570799358042869">Mae data eich porwr yn aros ar y Mac hwn. Ailosod estyniadau cydnaws yw'r unig gam a all gysylltu â'r rhyngrwyd; ni chaiff gosodiadau estyniadau na mewngofnodiadau eu copïo.</translation>
+<translation id="1236455002425740182">Mudo Dao</translation>
+<translation id="1272079795634619415">Stopio</translation>
 <translation id="1293177648337752319">Dad-ddistaw Safle</translation>
+<translation id="1349314697251468085">Bydd hyn yn cau pob tab yn y ffolder ac yn dileu'r ffolder.</translation>
+<translation id="1352298709666490484">Newid Tab</translation>
+<translation id="1383876407941801731">Chwilio</translation>
+<translation id="1421841264801017437">Dao</translation>
+<translation id="1425434109905752720">Proffil: <ph name="PROFILE" /></translation>
+<translation id="1526981372643266878">Gwnewch i'r we deimlo'n un chi</translation>
+<translation id="1530524805356937121">Sgrolio i lwytho mwy</translation>
+<translation id="1566049601598938765">Gwefan</translation>
+<translation id="1602287703039480507">Cliriwyd y storfa ar gyfer y wefan hon</translation>
+<translation id="1637441054828003579">Ailgeisio eitemau a fethodd</translation>
+<translation id="1641203463264514072">Mae'r rhan fwyaf o'ch data yma</translation>
 <translation id="1653598257495639807">Canlyniad Cod QR</translation>
+<translation id="172937028082106236">Creu o'm hanes pori</translation>
+<translation id="17513872634828108">Tabiau agored</translation>
 <translation id="1809939268435598390">Dileu Ffolder</translation>
+<translation id="1816380826555616620">Eitemau fesul cysylltydd: <ph name="OLD_ITEM_COUNT" /> i <ph name="NEW_ITEM_COUNT" /></translation>
+<translation id="1818606096021558659">Tudalen</translation>
+<translation id="1844249872546141866">Ffenestr: <ph name="WINDOW" /></translation>
+<translation id="1875293050808282764">Nid yw'r cyfrif ar gael</translation>
+<translation id="1929197983938319610">Gallwch barhau i ddefnyddio'r porwr ffynhonnell. Os yw un math o ddata'n parhau i newid, bydd Dao yn gofyn i chi ei gau ac ailgeisio'r rhan honno'n unig.</translation>
+<translation id="1984122437277059790">Ni ellid mewnforio'r prosiect. Gwiriwch y pecyn a rhowch gynnig arall.</translation>
+<translation id="2085323698672376231">Mae hyn yn dileu'r prosiect cyfredol, pob fersiwn a mynediad at ffynonellau yn barhaol. Ni ellir dadwneud hyn.</translation>
+<translation id="210592584469870355">Galluoedd</translation>
+<translation id="2109761659519935228">Dao Bach</translation>
 <translation id="21133533946938348">Pinio Tab</translation>
+<translation id="2175927920773552910">Cod QR</translation>
+<translation id="2199413402821420360">Methu agor y tab hwn yn Dao Bach</translation>
+<translation id="2209843794360152290">Caiff eitemau a fewnforir eu cyfuno heb ddisodli data presennol.</translation>
+<translation id="2254382823755510690">Mae eich data a fewnforiwyd yn barod yn Dao. Cedwir tabiau agored heb eu llwytho mewn ffolder wedi'i chrebachu nes bydd eu hangen arnoch.</translation>
+<translation id="2348199177323591972">Darllen cynnwys tudalen</translation>
+<translation id="2359808026110333948">Parhau</translation>
+<translation id="2398703750948514961">Wedi'i ganslo</translation>
+<translation id="2414886740292270097">Tywyll</translation>
+<translation id="243275146591958220">Canslo lawrlwythiad</translation>
+<translation id="2496180316473517155">Hanes pori</translation>
+<translation id="251834402454969316">Newidiadau i'r fersiwn gyfredol</translation>
+<translation id="2519023533785544875">Agor Cynorthwyydd</translation>
+<translation id="2535607573648844553">Mae angen allwedd Safe Storage y porwr a ddewiswyd ar Dao i ddadgryptio cyfrineiriau a gadwyd. Os gwrthodwch fynediad, dim ond cyfrineiriau sy'n cael eu hepgor a bydd gweddill y mudo'n parhau.</translation>
+<translation id="2580366865845491095">Agor y ddolen hon?</translation>
+<translation id="2612596415938768738">Efallai y bydd angen i chi fewngofnodi</translation>
+<translation id="2654155183153466577">Dyblygu'r tab presennol</translation>
+<translation id="2698054069012763064"><ph name="COUNT" /> arall</translation>
 <translation id="2703180365855369896">Cau Tabiau Dyblyg</translation>
+<translation id="2721334646575696520">Microsoft Edge</translation>
+<translation id="2809346626032021864">Yn darllen</translation>
+<translation id="2820330532305477229">O ble rydych chi'n symud?</translation>
+<translation id="2882207023658691113">Adfer fel fersiwn newydd</translation>
+<translation id="2904931165000922387">Mae <ph name="CLIENT" /> yn rheoli tabiau porwr</translation>
 <translation id="2973324205039581528">Distaw Safle</translation>
+<translation id="2976307543842414852">Rhediadau</translation>
 <translation id="3007771295016901659">Dyblygu Tab</translation>
 <translation id="3062877722240966678">Piblinell i18n Dao IAWN</translation>
+<translation id="3131120041041402952">Arc</translation>
+<translation id="3177496604520468347">Proses wedi'i dilysu: <ph name="PID" /></translation>
+<translation id="3229872815652336688">Bydd Dao yn profi'r ffynonellau a ddewiswyd ac yn ychwanegu'r rhai sy'n gweithio. Gall pob ffynhonnell ddarllen y tudalennau a'r data a ddangosir isod yn unig tra bo Cartref yn weithredol.</translation>
+<translation id="3249579521706735875">Ar gael pan fo'r system yn y modd tywyll.</translation>
+<translation id="3323560495676347320">Hoffi Dao? Rhowch seren i ni!</translation>
+<translation id="3356580349448036450">Wedi'i gwblhau</translation>
+<translation id="3404183081987133644">Mae data a fewnforiwyd cyn i chi stopio yn barod i'w ddefnyddio. Gallwch ddechrau mudo arall pryd bynnag y byddwch yn barod.</translation>
+<translation id="341629834060643721">Toglo'r bar ochr</translation>
+<translation id="3420663750132400268">Dileu ffolder?</translation>
+<translation id="3427713535827228685">Estyniadau ar y wefan hon</translation>
+<translation id="3435738964857648380">Diogelwch</translation>
 <translation id="3450492919008172498">Ni chafodd unrhyw dabiau newydd eu harchifo</translation>
+<translation id="3509982919032226274">Crëwch fy Nghartref Dao. Dechreuwch drwy ofyn beth rwyf am i'r dudalen bersonol hon fy helpu i'w archwilio, yna adeiladwch a chyhoeddwch y fersiwn gyntaf.</translation>
 <translation id="3551320343578183772">Cau Tab</translation>
 <translation id="3657099196021255130">Agor yn Dao</translation>
 <translation id="3708693288863478389">Teipiwch URL neu chwiliwch...</translation>
+<translation id="3725795051337497754">Cau'r tab presennol</translation>
+<translation id="381667777775855564">Yn ychwanegu at Dao</translation>
 <translation id="385051799172605136">Yn ôl</translation>
 <translation id="3891466792657071243">Atal Llwytho</translation>
 <translation id="3901975710974642844">Symud Tabiau Henaidd i "henaidd"</translation>
+<translation id="3909499025801874715">Archwiliwch ddiagnosteg gyfyngedig Dao Home, esboniwch y methiant, a thrwsiwch y prosiect cyfredol. Cadwch y fersiwn gyfredol y gellir ei rhedeg nes bod y trwsio wedi'i ddilysu, yna cyhoeddwch y trwsio fel fersiwn newydd.</translation>
+<translation id="3927932062596804919">Gwrthod</translation>
 <translation id="3984237987235889323">Yn gymwys</translation>
+<translation id="3999659648104077867">Stopiwyd rheolaeth y porwr</translation>
+<translation id="4165986682804962316">Gosodiadau'r wefan</translation>
 <translation id="4201242995651540725">Tabiau wedi'u harchifo'n anweithredol am y 24 awr ddiwethaf</translation>
+<translation id="4221615148091761714">Golygu gyda Dao</translation>
 <translation id="4285498937028063278">Dad-binio</translation>
 <translation id="4322394346347055525">Cau Tabiau Eraill</translation>
+<translation id="4332876892329258166">Dechrau mudo</translation>
 <translation id="4380677223237520064">Dadgodio Cod QR</translation>
+<translation id="4404136731284211429">Sganio eto</translation>
+<translation id="4500440256909785690">Disodli'r Cartref hwn?</translation>
 <translation id="4543782226216763900">Toglo Bar Ochr (<ph name="SHORTCUT" />)</translation>
 <translation id="4562670065683676797">Gofyn i AI: <ph name="PROMPT" /></translation>
+<translation id="459639509487093409">Mae eich symudiad wedi'i gwblhau</translation>
+<translation id="4652266463001779298">Heb ganiatâd</translation>
+<translation id="4724836371241170775">Cam 2 o 4 · Dewis beth sy'n symud</translation>
 <translation id="473775607612524610">Diweddaru</translation>
+<translation id="481205936353439293">Cam 3 o 4 · Symud eich data</translation>
+<translation id="4828722023020978308">Copïwyd URL i'r clipfwrdd</translation>
+<translation id="4854731374904470810">Copïo ID Tab</translation>
 <translation id="4881695831933465202">Agor</translation>
+<translation id="4898928054560997780">Gofyn i Dao drwsio</translation>
+<translation id="49041264823677952">Diystyru'r lawrlwythiad gorffenedig</translation>
+<translation id="493638356004396067">Methodd y mudo</translation>
+<translation id="4968006660055392545">Ni chanfuwyd proffiliau porwr a gefnogir ar y Mac hwn.</translation>
+<translation id="5004648724625831205">Paratoi copi lleol</translation>
 <translation id="501297852093417632">Clirio Cache</translation>
 <translation id="5027562294707732951">Ychwanegu estyniad</translation>
+<translation id="5126909118906525779">Cysylltu ffynonellau byw?</translation>
 <translation id="5192454087436290060">Canolfan Reoli</translation>
+<translation id="5289912690346335931">Yn cyfrif…</translation>
+<translation id="5301255231518510089">Dewiswch ffeil i weld ei chod ffynhonnell.</translation>
+<translation id="5308380583665731573">Cysylltu</translation>
+<translation id="5322475253112112619">Os caiff ei ganiatáu, gall ddarllen gwefannau a rhyngweithio â nhw gan ddefnyddio eich mewngofnodiad presennol, gan gynnwys drwy redeg JavaScript.</translation>
+<translation id="5334844597069022743">Gweld y cod ffynhonnell</translation>
+<translation id="5400726083793179041">Caiff cyflwr y prosiect a ddewiswyd ei gyhoeddi fel fersiwn newydd. Bydd yr hanes presennol ar gael o hyd.</translation>
+<translation id="5436835454512450295">Data porwr wedi'i fewnforio</translation>
 <translation id="5450299006531484229">Cau Tabiau Uchod</translation>
 <translation id="5538307496474303926">Yn clirio...</translation>
 <translation id="5556459405103347317">Ail-lwytho</translation>
 <translation id="5611474372949142946">Cau Tabiau Isod</translation>
+<translation id="5649936378931470828">Agor Cynorthwyydd (<ph name="SHORTCUT" />)</translation>
+<translation id="5827266244928330802">Safari</translation>
+<translation id="5869522115854928033">Cyfrineiriau wedi'u cadw</translation>
+<translation id="5871520043546374642">Stopiwyd y mudo</translation>
+<translation id="5873058639175438941">Tywyllu gwefannau gyda Modd Tywyll Awtomatig tra bod y system yn y modd tywyll.</translation>
+<translation id="5874739091759960360">Dim ond tra bo dao://home yn weithredol</translation>
+<translation id="591645459245805338">Crëwch dudalen breifat, fyw y gall Dao ei llunio o amgylch yr hyn sy'n bwysig i chi.</translation>
+<translation id="5942499955694738574">Ni ellid ailosod Cartref. Ni newidiwyd y prosiect cyfredol. Rhowch gynnig arall.</translation>
 <translation id="5953452567010839148">Heb ddod o hyd i god QR</translation>
+<translation id="6018824944448456809">Cam 1 o 4 · Dewis ffynhonnell</translation>
+<translation id="6040143037577758943">Cau</translation>
+<translation id="6042308850641462728">Mwy</translation>
 <translation id="6100906629904366438">This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.</translation>
+<translation id="6119407933322978843">Data canlyniad: hyd at <ph name="BYTE_COUNT" /> beit</translation>
+<translation id="6204195547326023850">Yn llwytho eich Cartref…</translation>
+<translation id="6266039999629596120">Angen sylw</translation>
+<translation id="6270944267518310103">Yn aros</translation>
+<translation id="6299569859560607348">Mae'r Cartref hwn eisiau agor tudalen allanol. Adolygwch y cyrchfan cyn parhau.</translation>
+<translation id="6325047129563993580">Crëwch fy Nghartref Dao o'm themâu pori diweddar. Defnyddiwch ddeunydd hanes Cartref sy'n lleihau preifatrwydd yn unig, esboniwch y cyfeiriad yn fyr, yna adeiladwch a chyhoeddwch y fersiwn gyntaf.</translation>
+<translation id="642671119120438272">Tabiau wedi'u mewnforio</translation>
+<translation id="648743804821442565">Mae cleient awtomeiddio lleol yn gofyn am fynediad i'r ffenestr Dao hon.</translation>
+<translation id="6527303717912515753">Rhannu</translation>
+<translation id="6586201961110912838">Adfer y fersiwn hon</translation>
+<translation id="6601997535892446436">Dewiswch broffil porwr ar y Mac hwn. Rhestrir pob proffil ar wahân fel eich bod yn rheoli'r hyn sy'n symud.</translation>
 <translation id="6736243959894955139">Cyfeiriad</translation>
+<translation id="6764328036096492220">Mynediad ysgrifennu</translation>
+<translation id="677387175345781299">Ffeiliau prosiect</translation>
+<translation id="6786747875388722282">Estyniadau</translation>
+<translation id="6801297003382412689">Terfynau adnoddau</translation>
 <translation id="6829876854799051628">Clirio Cwcis</translation>
+<translation id="6832689803248022656">Beth hoffech chi ei ddod?</translation>
+<translation id="684699560760227351">Ailosod Cartref</translation>
 <translation id="6896758677409633944">Copïo</translation>
+<translation id="6940497786570685033">Rydych yn pori yn y modd Anhysbys. Ar ôl i chi gau pob ffenestr Anhysbys, ni fydd Dao yn cadw eich hanes pori, cwcis na data gwefannau. Cedwir lawrlwythiadau a nodau tudalen.</translation>
+<translation id="6963772203726867701">Heb ei ganfod</translation>
+<translation id="6971377058826420967">Creu gyda Dao</translation>
+<translation id="7020790421915196218">Mae categorïau a gwblhawyd yn barod i'w defnyddio. Gallwch ailgeisio'r rhannau sydd angen sylw yn unig.</translation>
+<translation id="7401173814860935855">Cliriwyd cwcis ar gyfer y wefan hon</translation>
+<translation id="7465855397028934440">Yn chwilio am broffiliau porwr…</translation>
+<translation id="750760654246049420">Mae cleient awtomeiddio arall yn rheoli'r porwr hwn</translation>
 <translation id="7532108947552493901">Gwirio am Ddiweddariadau...</translation>
+<translation id="7533550325431812">Caniatáu'r cysylltiad hwn</translation>
 <translation id="7604253494819481181">Pwyswch <ph name="SHORTCUT" /> eto i newid ochr</translation>
+<translation id="7615777614791709701">Ailosod Cartref?</translation>
+<translation id="7626429522809774043">Caniatáu rheolaeth porwr?</translation>
+<translation id="7636812263792427733">Gorfodi modd tywyll</translation>
+<translation id="7658239707568436148">Canslo</translation>
+<translation id="7714812312719848690">Mae eich prosiect yn ddiogel o hyd. Ailgeisiwch, adferwch fersiwn, neu gofynnwch i Dao ei drwsio.</translation>
 <translation id="7717845620320228976">Gwirio am ddiweddariadau</translation>
+<translation id="7762651625781751842">Chwilio neu nodi URL...</translation>
+<translation id="7803931104677504532">Darllen arddulliau cyflwyno</translation>
+<translation id="7941154822457232855">Agor y bar gorchymyn ar gyfer llywio cyflym</translation>
+<translation id="7974106569409739809">Dadffolderu</translation>
+<translation id="7995663841236651667">Caiff data eich porwr ei brosesu'n lleol ar y Mac hwn.</translation>
+<translation id="8028081981001403222">Mewnforio prosiect</translation>
+<translation id="8041968312565730454">Porwr ffynhonnell</translation>
+<translation id="8052762370740257987">Allforio prosiect</translation>
+<translation id="8097718730266959883">ddim ar gael</translation>
+<translation id="81044950628177848">Fersiwn gyfredol</translation>
+<translation id="8131740175452115882">Cadarnhau</translation>
 <translation id="8137559199583651773">Rheoli estyniadau</translation>
+<translation id="8138892305328483863">Mae Dao yn cyfuno eitemau a fewnforiwyd â'r hyn sydd gennych eisoes. Ni chaiff data presennol byth ei ddisodli.</translation>
+<translation id="8175534235396780357">Manylion rheolaeth AI</translation>
+<translation id="8237260373784588552">Rheolyddion Cartref</translation>
+<translation id="824895471210913946">Targed: <ph name="TARGET" /></translation>
+<translation id="8261506727792406068">Dileu</translation>
+<translation id="831684326378391082">Parhau heb ffynonellau byw</translation>
+<translation id="8349478524212888083">Bydd y prosiect a fewnforiwyd yn dod yn fersiwn newydd. Bydd mynediad at ffynonellau wedi'i ddatgysylltu nes i chi ei gymeradwyo eto.</translation>
+<translation id="8520668773617044689">Firefox</translation>
+<translation id="8540666473246803645">Google Chrome</translation>
+<translation id="8541190477675392821">Cysylltu <ph name="SOURCE_NAME" /></translation>
+<translation id="8549865052695885354">Hanes fersiynau</translation>
 <translation id="8572586736757116553"><ph name="ARROW" /> Yn ôl</translation>
+<translation id="8595238918901827309">Adfer y fersiwn hon?</translation>
+<translation id="8668072977518790485">Copïwyd ID y tab</translation>
+<translation id="8672485401328649039">Asiant Dao</translation>
+<translation id="8684229942427488970">Canolfan y wefan</translation>
 <translation id="8717864919010420084">Copïo Dolen</translation>
+<translation id="8725066075913043281">Rhoi cynnig arall</translation>
+<translation id="8725826957868125189">Agor panel yr Asiant AI</translation>
+<translation id="8754476796133798050">Porwr pendant. Bysellfwrdd yn gyntaf, wedi'i yrru gan lwybrau byr.</translation>
+<translation id="8774154357663601701">Gall y ffynhonnell hon ddarllen y tudalennau a gymeradwywyd yn unig tra bo Cartref yn weithredol.</translation>
+<translation id="8781013843394828812">Mae angen ailgeisio'r eitemau hyn</translation>
+<translation id="8787633576358327637">Efallai y bydd anogwr Keychain macOS yn ymddangos</translation>
+<translation id="8819422779093237286">Croeso i Dao</translation>
+<translation id="8820817407110198400">Nodau tudalen</translation>
+<translation id="8826852601577125903">Data canlyniad: <ph name="OLD_BYTE_COUNT" /> i <ph name="NEW_BYTE_COUNT" /> beit</translation>
+<translation id="88635502604055524"><ph name="COUNT" /> ymgeisydd</translation>
+<translation id="8899040626072079337">Symud eich data i Dao</translation>
+<translation id="8962539151725780858">Tabiau a reolir: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Creu tab newydd yn y bar ochr</translation>
+<translation id="9046231519826652276">Galwad MCP ddiweddaraf: <ph name="TOOL" /></translation>
+<translation id="9115526757421297517">Eitemau fesul cysylltydd: hyd at <ph name="ITEM_COUNT" /></translation>
+<translation id="9144412711146411188">Archifwyd tabiau anweithredol</translation>
+<translation id="9186557253975059599">Cleient a adroddwyd: <ph name="CLIENT" /> <ph name="VERSION" /></translation>
 <translation id="9191338038518226120">Toglo Bar Ochr</translation>
+<translation id="9205549548211212895">Stopio mudo</translation>
+<translation id="932327136139879170">Cartref</translation>
+<translation id="932413031402847895">Mewnforio data porwr</translation>
+<translation id="94779342469414120"><ph name="VALUE" /> - <ph name="DETAIL" /></translation>
+<translation id="94889370059095136">Cysylltu'r rhai a ddewiswyd</translation>
+<translation id="949725615797318423">Caiff estyniadau eu hailosod o'u siop swyddogol</translation>
+<translation id="962181630102348889">Ni ellid dangos eich Cartref</translation>
 </translationbundle>

@@ -3,6 +3,7 @@
 <translationbundle lang="mn">
 <translation id="1111094358966140566">Хувилбар харьцуулах</translation>
 <translation id="1173894706177603556">Нэрийг өөрчлөх</translation>
+<translation id="1180509694035129435">Одоогийн хуудасны URL-г хуулах</translation>
 <translation id="1182228621215085947">Dao-оос асуух</translation>
 <translation id="121570799358042869">Таны хөтчийн өгөгдөл энэ Mac дээр үлдэнэ. Тохирох өргөтгөлүүдийг дахин суулгах нь интернетэд холбогдож болзошгүй цорын ганц алхам бөгөөд өргөтгөлийн тохиргоо болон нэвтрэлтүүд хуулагдахгүй.</translation>
 <translation id="1236455002425740182">Dao шилжилт</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">Dao хадгалсан нууц үгсийг тайлахын тулд сонгосон хөтчийн Safe Storage түлхүүр хэрэгтэй. Хандалтаас татгалзвал зөвхөн нууц үгс алгасагдаж, бусад шилжилт үргэлжилнэ.</translation>
 <translation id="2580366865845491095">Энэ холбоосыг нээх үү?</translation>
 <translation id="2612596415938768738">Нэвтрэх шаардлагатай байж болзошгүй</translation>
+<translation id="2654155183153466577">Одоогийн табыг хуулбарлах</translation>
 <translation id="2698054069012763064">Дахин <ph name="COUNT" /></translation>
 <translation id="2703180365855369896">Давхардсан табуудыг хаах</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">Баталгаажсан процесс: <ph name="PID" /></translation>
 <translation id="3229872815652336688">Dao сонгосон эх сурвалжуудыг шалгаж, ажиллаж буйг нь нэмнэ. Нүүр идэвхтэй байх үед эх сурвалж бүр зөвхөн доор харуулсан хуудас болон өгөгдлийг унших боломжтой.</translation>
 <translation id="3249579521706735875">Систем харанхуй горимд байх үед ашиглах боломжтой.</translation>
+<translation id="3323560495676347320">Dao таалагдаж байна уу? Бидэнд од өгөөч!</translation>
 <translation id="3356580349448036450">Дууссан</translation>
 <translation id="3404183081987133644">Таны зогсоохоос өмнө импортолсон өгөгдөл ашиглахад бэлэн байна. Та бэлэн болмогцоо өөр шилжилт эхлүүлж болно.</translation>
+<translation id="341629834060643721">Хажуугийн самбарыг асаах/унтраах</translation>
 <translation id="3420663750132400268">Хавтсыг устгах уу?</translation>
 <translation id="3427713535827228685">Энэ сайт дээрх өргөтгөлүүд</translation>
 <translation id="3435738964857648380">Аюулгүй байдал</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">Хавчуургыг хаах</translation>
 <translation id="3657099196021255130">Dao-д нээх</translation>
 <translation id="3708693288863478389">URL эсвэл хайлт оруулна уу...</translation>
+<translation id="3725795051337497754">Одоогийн табыг хаах</translation>
 <translation id="381667777775855564">Dao-д нэмж байна</translation>
 <translation id="385051799172605136">Буцах</translation>
 <translation id="3891466792657071243">Ачаалалтыг зогсоох</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">4-ийн 2-р алхам · Шилжих зүйлсийг сонгох</translation>
 <translation id="473775607612524610">Шинэчлэх</translation>
 <translation id="481205936353439293">4-ийн 3-р алхам · Таны өгөгдлийг шилжүүлж байна</translation>
+<translation id="4828722023020978308">URL санах ойд хуулагдлаа</translation>
 <translation id="4854731374904470810">Табын ID хуулах</translation>
 <translation id="4881695831933465202">Нээх</translation>
 <translation id="4898928054560997780">Dao-оос засахыг хүсэх</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">Цуцлах</translation>
 <translation id="7714812312719848690">Таны төсөл аюулгүй хэвээр байна. Дахин оролдох, хувилбар сэргээх эсвэл Dao-оос засахыг хүснэ үү.</translation>
 <translation id="7717845620320228976">Шинэчлэлтийг шалгах</translation>
+<translation id="7762651625781751842">Хайх эсвэл URL оруулах...</translation>
 <translation id="7803931104677504532">Харагдах хэв маяг унших</translation>
+<translation id="7941154822457232855">Хурдан шилжихийн тулд тушаалын мөрийг нээх</translation>
 <translation id="7974106569409739809">Хавтаснаас гаргах</translation>
 <translation id="7995663841236651667">Таны хөтчийн өгөгдлийг энэ Mac дээр дотоодод боловсруулна.</translation>
 <translation id="8028081981001403222">Төсөл импортлох</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" /> Буцах</translation>
 <translation id="8595238918901827309">Энэ хувилбарыг сэргээх үү?</translation>
 <translation id="8668072977518790485">Табын ID хуулагдлаа</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">Сайтын төв</translation>
 <translation id="8717864919010420084">Холбоосыг хуулбарлах</translation>
 <translation id="8725066075913043281">Дахин оролдох</translation>
+<translation id="8725826957868125189">AI Agent самбарыг нээх</translation>
+<translation id="8754476796133798050">Өөрийн үзэл баримтлалтай хөтөч. Гарнаас удирдаж, товчлолд суурилсан.</translation>
 <translation id="8774154357663601701">Нүүр идэвхтэй байх үед энэ эх сурвалж зөвхөн зөвшөөрөгдсөн хуудсуудыг унших боломжтой.</translation>
 <translation id="8781013843394828812">Эдгээр зүйлсийг дахин оролдох шаардлагатай</translation>
 <translation id="8787633576358327637">macOS Keychain-н асуулт гарч болзошгүй</translation>
+<translation id="8819422779093237286">Dao-д тавтай морилно уу</translation>
 <translation id="8820817407110198400">Хавчуургууд</translation>
 <translation id="8826852601577125903">Үр дүнгийн өгөгдөл: <ph name="OLD_BYTE_COUNT" />-аас <ph name="NEW_BYTE_COUNT" /> байт хүртэл</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> боломжит зүйл</translation>
 <translation id="8899040626072079337">Таны өгөгдлийг Dao руу шилжүүлж байна</translation>
 <translation id="8962539151725780858">Удирдаж буй табууд: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">Хажуугийн самбарт шинэ таб үүсгэх</translation>
 <translation id="9046231519826652276">Сүүлийн MCP дуудлага: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">Холбогч бүрийн зүйлс: <ph name="ITEM_COUNT" /> хүртэл</translation>
 <translation id="9144412711146411188">Идэвхгүй табууд архивлагдлаа</translation>

@@ -3,6 +3,7 @@
 <translationbundle lang="ta">
 <translation id="1111094358966140566">பதிப்பை ஒப்பிடு</translation>
 <translation id="1173894706177603556">மறுபெயரிடு</translation>
+<translation id="1180509694035129435">தற்போதைய பக்கத்தின் URL-ஐ நகலெடு</translation>
 <translation id="1182228621215085947">Dao-விடம் கேள்</translation>
 <translation id="121570799358042869">உங்கள் உலாவித் தரவு இந்த Mac-இலேயே இருக்கும். இணக்கமான நீட்டிப்புகளை மீண்டும் நிறுவுவது மட்டுமே இணையத்துடன் இணைக்கக்கூடிய படியாகும்; நீட்டிப்பு அமைப்புகளும் உள்நுழைவுகளும் நகலெடுக்கப்படாது.</translation>
 <translation id="1236455002425740182">Dao இடமாற்றம்</translation>
@@ -48,6 +49,7 @@
 <translation id="2535607573648844553">சேமித்த கடவுச்சொற்களை மறைகுறிநீக்க, தேர்ந்தெடுத்த உலாவியின் Safe Storage விசை Dao-வுக்குத் தேவை. அணுகலை மறுத்தால், கடவுச்சொற்கள் மட்டும் தவிர்க்கப்பட்டு மற்ற இடமாற்றம் தொடரும்.</translation>
 <translation id="2580366865845491095">இந்த இணைப்பைத் திறக்கவா?</translation>
 <translation id="2612596415938768738">நீங்கள் உள்நுழைந்திருக்க வேண்டியிருக்கலாம்</translation>
+<translation id="2654155183153466577">தற்போதைய தாவலை நகலெடு</translation>
 <translation id="2698054069012763064"><ph name="COUNT" /> மேலும்</translation>
 <translation id="2703180365855369896">நகல் தாவல்கள் மூடு</translation>
 <translation id="2721334646575696520">Microsoft Edge</translation>
@@ -63,8 +65,10 @@
 <translation id="3177496604520468347">சரிபார்க்கப்பட்ட செயல்முறை: <ph name="PID" /></translation>
 <translation id="3229872815652336688">தேர்ந்தெடுக்கப்பட்ட மூலங்களை Dao சோதித்து, செயல்படுபவற்றைச் சேர்க்கும். முகப்பு செயலில் இருக்கும்போது ஒவ்வொரு மூலமும் கீழே காட்டப்பட்டுள்ள பக்கங்களையும் தரவையும் மட்டுமே படிக்க முடியும்.</translation>
 <translation id="3249579521706735875">கணினி இருண்ட பயன்முறையில் இருக்கும்போது கிடைக்கும்.</translation>
+<translation id="3323560495676347320">Dao பிடிக்குமா? எங்களுக்கு நட்சத்திரமிடுங்கள்!</translation>
 <translation id="3356580349448036450">முடிந்தது</translation>
 <translation id="3404183081987133644">நீங்கள் நிறுத்துவதற்கு முன் இறக்குமதி செய்யப்பட்ட தரவு பயன்படுத்தத் தயாராக உள்ளது. நீங்கள் தயாரானதும் மற்றொரு இடமாற்றத்தைத் தொடங்கலாம்.</translation>
+<translation id="341629834060643721">பக்கப்பட்டியைக் காட்டு/மறை</translation>
 <translation id="3420663750132400268">கோப்புறையை நீக்கவா?</translation>
 <translation id="3427713535827228685">இந்தத் தளத்தில் உள்ள நீட்டிப்புகள்</translation>
 <translation id="3435738964857648380">பாதுகாப்பு</translation>
@@ -73,6 +77,7 @@
 <translation id="3551320343578183772">தாவலை மூடவும்</translation>
 <translation id="3657099196021255130">Dao-இல் திறக்கவும்</translation>
 <translation id="3708693288863478389">ஒரு URL அல்லது தேடலை உள்ளிடவும்...</translation>
+<translation id="3725795051337497754">தற்போதைய தாவலை மூடு</translation>
 <translation id="381667777775855564">Dao-வில் சேர்க்கிறது</translation>
 <translation id="385051799172605136">பின்</translation>
 <translation id="3891466792657071243">ஏற்றுதலை நிறுத்தவும்</translation>
@@ -97,6 +102,7 @@
 <translation id="4724836371241170775">4-இல் படி 2 · நகர்த்துவதைத் தேர்ந்தெடுக்கவும்</translation>
 <translation id="473775607612524610">புதுப்பிக்கவும்</translation>
 <translation id="481205936353439293">4-இல் படி 3 · உங்கள் தரவை நகர்த்துகிறது</translation>
+<translation id="4828722023020978308">URL கிளிப்போர்டுக்கு நகலெடுக்கப்பட்டது</translation>
 <translation id="4854731374904470810">தாவல் ID-ஐ நகலெடு</translation>
 <translation id="4881695831933465202">திறக்கவும்</translation>
 <translation id="4898928054560997780">சரிசெய்ய Dao-விடம் கேள்</translation>
@@ -168,7 +174,9 @@
 <translation id="7658239707568436148">ரத்துசெய்</translation>
 <translation id="7714812312719848690">உங்கள் திட்டம் இன்னும் பாதுகாப்பாக உள்ளது. மீண்டும் முயற்சிக்கவும், ஒரு பதிப்பை மீட்டமைக்கவும் அல்லது அதைச் சரிசெய்ய Dao-விடம் கேட்கவும்.</translation>
 <translation id="7717845620320228976">புதுப்பிப்புகளை சரிபார்க்கவும்</translation>
+<translation id="7762651625781751842">தேடுக அல்லது URL-ஐ உள்ளிடுக...</translation>
 <translation id="7803931104677504532">காட்சி பாணிகளைப் படி</translation>
+<translation id="7941154822457232855">விரைவு வழிசெலுத்தலுக்கான கட்டளைப் பட்டியைத் திற</translation>
 <translation id="7974106569409739809">கோப்புறையிலிருந்து நீக்கு</translation>
 <translation id="7995663841236651667">உங்கள் உலாவித் தரவு இந்த Mac-இல் உள்ளூராகச் செயலாக்கப்படுகிறது.</translation>
 <translation id="8028081981001403222">திட்டத்தை இறக்குமதி செய்</translation>
@@ -192,17 +200,22 @@
 <translation id="8572586736757116553"><ph name="ARROW" />← பின்</translation>
 <translation id="8595238918901827309">இந்தப் பதிப்பை மீட்டமைக்கவா?</translation>
 <translation id="8668072977518790485">தாவல் ID நகலெடுக்கப்பட்டது</translation>
+<translation id="8672485401328649039">Dao Agent</translation>
 <translation id="8684229942427488970">தள மையம்</translation>
 <translation id="8717864919010420084">இணைப்பை நகலெடுக்கவும்</translation>
 <translation id="8725066075913043281">மீண்டும் முயற்சி செய்</translation>
+<translation id="8725826957868125189">AI முகவர் பலகத்தைத் திற</translation>
+<translation id="8754476796133798050">தெளிவான அணுகுமுறையுடன் கூடிய உலாவி. விசைப்பலகை-முதன்மை, குறுக்குவழி-சார்ந்தது.</translation>
 <translation id="8774154357663601701">முகப்பு செயலில் இருக்கும்போது, இந்த மூலம் அங்கீகரிக்கப்பட்ட பக்கங்களை மட்டுமே படிக்க முடியும்.</translation>
 <translation id="8781013843394828812">இந்த உருப்படிகளை மீண்டும் முயற்சிக்க வேண்டும்</translation>
 <translation id="8787633576358327637">macOS Keychain அறிவுறுத்தல் தோன்றலாம்</translation>
+<translation id="8819422779093237286">Dao-க்கு வரவேற்கிறோம்</translation>
 <translation id="8820817407110198400">புத்தகக்குறிகள்</translation>
 <translation id="8826852601577125903">முடிவுத் தரவு: <ph name="OLD_BYTE_COUNT" /> முதல் <ph name="NEW_BYTE_COUNT" /> பைட்டுகள் வரை</translation>
 <translation id="88635502604055524"><ph name="COUNT" /> தேர்வுகள்</translation>
 <translation id="8899040626072079337">உங்கள் தரவை Dao-வுக்கு நகர்த்துகிறது</translation>
 <translation id="8962539151725780858">கட்டுப்படுத்தப்பட்ட தாவல்கள்: <ph name="COUNT" /></translation>
+<translation id="9007083469907937837">பக்கப்பட்டியில் புதிய தாவலை உருவாக்கு</translation>
 <translation id="9046231519826652276">சமீபத்திய MCP அழைப்பு: <ph name="TOOL" /></translation>
 <translation id="9115526757421297517">ஒவ்வொரு இணைப்பானுக்கும் உருப்படிகள்: அதிகபட்சம் <ph name="ITEM_COUNT" /></translation>
 <translation id="9144412711146411188">செயலற்ற தாவல்கள் காப்பகப்படுத்தப்பட்டன</translation>
