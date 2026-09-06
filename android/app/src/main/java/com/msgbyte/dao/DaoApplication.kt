@@ -8,6 +8,7 @@ import com.msgbyte.dao.browser.AmoCatalogRepository
 import com.msgbyte.dao.browser.ExtensionRepository
 import com.msgbyte.dao.browser.SystemDownloadRepository
 import mozilla.components.browser.engine.gecko.GeckoEngine
+import mozilla.components.concept.engine.DefaultSettings
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 
@@ -37,8 +38,12 @@ class DaoApplication : Application() {
         )
     }
 
+    val engineSettings = DefaultSettings()
+
     val browserRuntime = BrowserRuntime(
-        createEngine = { GeckoEngine(applicationContext, runtime = geckoRuntime) },
+        createEngine = {
+            GeckoEngine(applicationContext, defaultSettings = engineSettings, runtime = geckoRuntime)
+        },
         setRemoteDebugging = { enabled ->
             geckoRuntime.settings.setRemoteDebuggingEnabled(enabled)
         },

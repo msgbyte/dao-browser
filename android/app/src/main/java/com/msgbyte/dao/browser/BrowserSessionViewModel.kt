@@ -19,8 +19,7 @@ class BrowserSessionViewModel(application: Application) : AndroidViewModel(appli
     private val defaultPrivateBrowsing = initialPreferences.defaultPrivateBrowsing
 
     private val engine = daoApplication.browserRuntime.run {
-        setRemoteDebuggingEnabled(initialPreferences.remoteDebuggingEnabled)
-        engine
+        engine.also { setRemoteDebuggingEnabled(initialPreferences.remoteDebuggingEnabled) }
     }
     private val snapshotStorage = MozillaBrowserSessionSnapshotStorage(application, engine)
     val thumbnailRepository = TabThumbnailRepository(application)
@@ -43,7 +42,10 @@ class BrowserSessionViewModel(application: Application) : AndroidViewModel(appli
         },
     )
 
+    val appLinks = BrowserAppLinksInterceptor(application, controller.store)
+
     init {
+        daoApplication.engineSettings.requestInterceptor = appLinks
         snapshotStorage.startAutoSave(controller.store, viewModelScope)
         viewModelScope.launch { controller.initialize() }
     }
