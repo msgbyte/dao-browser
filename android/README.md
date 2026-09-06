@@ -56,6 +56,56 @@ extension-install status; after the user dismisses the result with Done, the
 add-on's Install action is available again. A dedicated Dao ad-blocking
 preference is not implemented.
 
+## GitHub Actions APK build
+
+The `Build Android APK` workflow runs for pull requests and pushes to `main`
+that change `android/**` or the workflow itself. It can also be started manually
+from **Actions > Build Android APK > Run workflow**.
+
+The workflow uses JDK 17, Android SDK 36, and the checked-in Gradle wrapper,
+including the existing pre-build asset checks:
+
+- Pull requests run `:app:assembleDebug` without secrets and upload
+  `dao-android-debug-<commit SHA>` containing `app-debug.apk`.
+- Pushes to `main` and manual runs require signing secrets, run
+  `:app:assembleRelease`, and upload `dao-android-release-<commit SHA>` containing
+  `app-release.apk`.
+
+Download and extract the artifact from the completed run. Artifacts are retained
+for 14 days. Debug APKs may use a different key on each fresh runner; release
+APKs use the configured persistent key. An existing debug installation signed
+with another key must be uninstalled before installing a release APK, which
+removes its local data.
+
+### Release signing setup
+
+Keep the release keystore at `android/dao-release.jks` locally. This path is
+ignored by Git. Back up the keystore and passwords; retain the same signing key
+for future updates.
+
+In **Settings > Secrets and variables > Actions**, add these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded contents of `android/dao-release.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_PASSWORD` | Key password, usually the same as the keystore password |
+
+On macOS, copy the encoded keystore from the repository root:
+
+```bash
+base64 -i android/dao-release.jks | tr -d '\n' | pbcopy
+```
+
+Paste the clipboard into `ANDROID_KEYSTORE_BASE64`. Base64 is encoding, not
+encryption; keep this value in GitHub Secrets. The workflow fails if a signing
+secret is missing and removes its temporary keystore when the build step exits.
+
+The signing key alias is fixed to `dao-release` in `app/build.gradle.kts`.
+For local release builds, the signing configuration reads the two password
+environment variables above and uses `android/dao-release.jks`.
+Without `ANDROID_KEYSTORE_PASSWORD`, local release builds remain unsigned.
+
 ## Localization
 
 Android uses English as its unqualified source catalog and follows the system

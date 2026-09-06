@@ -27,6 +27,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull?.let { password ->
+        val releaseSigning = signingConfigs.create("release") {
+            storeFile = rootProject.file("dao-release.jks")
+            storePassword = password
+            keyAlias = "dao-release"
+            keyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").get()
+        }
+        buildTypes.getByName("release").signingConfig = releaseSigning
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

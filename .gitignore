@@ -31,3 +31,5 @@ android/local.properties
 android/**/build/
 android/captures/
 android/.kotlin/
+
+/android/*.jks

@@ -1,4 +1,6 @@
-import {existsSync, readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 
 import {describe, expect, it} from 'vitest';
@@ -8,6 +10,52 @@ function read(relativePath: string): string {
 }
 
 describe('CI workflows', () => {
+  it('requires Android signing secrets and cleans up the restored key', () => {
+    const workflow = read('.github/workflows/build-android-apk.yml');
+    const releaseStep = workflow.match(
+        /      - name: Build release APK\n([\s\S]*?)(?=\n      - name:)/u)?.[1];
+    expect(releaseStep).toContain("if: github.event_name != 'pull_request'");
+    const script = releaseStep!.split('run: |\n')[1]
+        .replace(/^          /gmu, '');
+    const directory = mkdtempSync(path.join(tmpdir(), 'dao-android-signing-'));
+    const signingEnv = {
+      ANDROID_KEYSTORE_BASE64: Buffer.from('test-keystore').toString('base64'),
+      ANDROID_KEYSTORE_PASSWORD: 'test-password',
+      ANDROID_KEY_PASSWORD: 'test-password',
+    };
+    const run = (env: NodeJS.ProcessEnv) => spawnSync(
+        'bash', ['-e', '-u', '-o', 'pipefail', '-c', script], {
+          cwd: directory,
+          env: {PATH: process.env.PATH, ...env},
+          encoding: 'utf-8',
+        });
+
+    try {
+      writeFileSync(path.join(directory, 'gradlew'), [
+        '#!/bin/bash',
+        'test "$(cat dao-release.jks)" = "test-keystore" || exit 2',
+        'printf "%s\\n" "$@"',
+        'exit "$GRADLE_EXIT_CODE"',
+      ].join('\n'), {mode: 0o700});
+
+      for (const name of Object.keys(signingEnv)) {
+        const result = run({...signingEnv, [name]: ''});
+        expect(result.status).toBe(1);
+        expect(result.stdout + result.stderr).toContain(name);
+        expect(existsSync(path.join(directory, 'dao-release.jks'))).toBe(false);
+      }
+
+      for (const exitCode of [0, 1]) {
+        const result = run({...signingEnv, GRADLE_EXIT_CODE: String(exitCode)});
+        expect(result.status).toBe(exitCode);
+        expect(result.stdout).toContain(':app:assembleRelease');
+        expect(existsSync(path.join(directory, 'dao-release.jks'))).toBe(false);
+      }
+    } finally {
+      rmSync(directory, {recursive: true, force: true});
+    }
+  });
+
   it('exposes a non-Chromium TypeScript check', () => {
     const packageJson = JSON.parse(read('package.json')) as {
       scripts?: Record<string, string>;
