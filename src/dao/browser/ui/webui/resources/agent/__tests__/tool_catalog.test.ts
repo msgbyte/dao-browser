@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import browserToolCatalog from '../browser_tool_catalog.json';
 import {
   TOOL_GROUPS,
   countEnabled,
@@ -25,13 +26,15 @@ afterEach(() => {
 });
 
 describe('tool_catalog: enable/disable semantics', () => {
-  it('keeps the settings browser groups aligned with the 30-tool catalog', () => {
+  it('keeps the settings browser groups aligned with the Dao Agent catalog', () => {
     const browserGroups = TOOL_GROUPS.filter(
         group => ['page', 'tabs', 'devtools'].includes(group.id));
     const browserTools = browserGroups.flatMap(group => group.toolNames);
+    const catalogTools = browserToolCatalog.tools
+        .filter(tool => tool.clients.includes('dao_agent'))
+        .map(tool => tool.name);
 
-    expect(browserTools).toHaveLength(30);
-    expect(new Set(browserTools).size).toBe(30);
+    expect(browserTools.sort()).toEqual(catalogTools.sort());
     expect(browserTools).toContain('resolve_element_context');
   });
 
