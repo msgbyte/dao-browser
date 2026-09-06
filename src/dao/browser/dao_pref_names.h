@@ -75,6 +75,11 @@ inline constexpr char kDaoForceDarkModeEnabled[] =
 inline constexpr char kDaoEnhancedCommandBarSuggestionsEnabled[] =
     "dao.enhanced_command_bar_suggestions_enabled";
 
+// Boolean pref that enables the optional leading ">" command mode. Off by
+// default; normal command suggestions do not depend on this pref.
+inline constexpr char kDaoCommandBarCommandModeEnabled[] =
+    "dao.command_bar_command_mode_enabled";
+
 // Boolean pref that controls whether the command bar surfaces the "Ask AI"
 // suggestion. When true (the default), Ask AI is offered in both default and
 // enhanced suggestion modes; when false it is never shown.

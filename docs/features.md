@@ -83,8 +83,28 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 ### 1.5 Command Bar (Spotlight-style)
 - **DaoCommandBarView** (`dao_command_bar_view.{h,cc}`) — Translucent scrim + frosted floating panel + layered shadows
   - Cmd+L → `Show()` pre-fills current URL (`SetFocusToLocationBar(is_user_initiated=true)`)
-  - Cmd+T → `ShowForNewTab(prev)` opens blank tab, remembers previous tab; Esc / click-outside calls `CancelNewTab()` to close the blank and return
+  - Cmd+T → `ShowForNewTab()` opens the Command Bar without creating a tab;
+    navigation creates the destination tab only after submission
   - **Ask AI** — Submits prompt directly to the Agent
+  - **System commands** — Normal input supplements Chromium results with at
+    most two whole-title or alias prefix matches; an exact safe UI command is
+    promoted to the front. The **Enable > command mode** toggle in
+    **You and Dao** settings is off by default and independent of enhanced
+    suggestions. When enabled, `>` switches to provider-free command mode and
+    lists or filters all eight commands: Open Settings, Reopen Closed Tab,
+    Copy Current Link, Open Downloads, Open History, Manage Extensions, Open
+    Agent Settings, and Open Task Manager. Localized aliases augment the
+    English matching vocabulary. When disabled, `>` remains ordinary input;
+    normal command suggestions remain available.
+  - Command rows use localized titles, native Lucide icons, a `Command` intent,
+    availability checks, and disabled reasons. Arrow keys skip disabled rows;
+    Tab and Right Arrow fill the title without executing it; Enter and clicks
+    recheck availability before dispatch. Copy Current Link remains bound to
+    the tab that was active when the bar opened, and Task Manager reuses its
+    existing native window.
+  - Asynchronous results preserve explicitly selected rows. Restore uses the
+    current tab, window, or group title for display and completion; Agent
+    Settings follows the browser's existing Settings availability checks.
   - URL-vs-query detection heuristics + provider inline completion when no
     selection preview is active; the native textfield contains the typed prefix
     plus a selected completion suffix, so Select All, copy, and replacement
@@ -106,7 +126,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     previewed row without navigating, Enter submits the selected result, and
     Esc dismisses
 - **DaoSuggestionItemView** (`dao_suggestion_item_view.{h,cc}`) — Suggestion row
-- **DaoNewTabButton** also routes through `ShowForNewTab()` with the recorded previous index
+  for autocomplete matches, Ask AI, and accessible enabled or disabled commands
+- **DaoNewTabButton** also routes through `ShowForNewTab()` without creating a
+  tab until the user navigates
 
 ### 1.6 Downloads (sidebar-anchored)
 - **DaoDownloadFlyoutView** (`sidebar/dao_download_flyout_view.{h,cc}`) — Anchored flyout panel

@@ -12,12 +12,14 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
+#include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -34,6 +36,8 @@ DaoSuggestionItemView::DaoSuggestionItemView(int index,
     : index_(index),
       click_callback_(std::move(click_callback)),
       profile_(profile) {
+  GetViewAccessibility().SetRole(ax::mojom::Role::kListBoxOption);
+
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal,
       gfx::Insets::TLBR(0, 12, 0, 12), 10));
@@ -101,7 +105,8 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
   // same row. Bail out early when the visible content is unchanged to
   // avoid redundant text relayout, vector icon rasterization, and
   // favicon fetches that would otherwise fire on every tick.
-  if (!last_was_ask_ai_ && last_match_url_ == match.destination_url &&
+  if (!last_was_ask_ai_ && !last_was_command_ &&
+      last_match_url_ == match.destination_url &&
       last_match_contents_ == match.contents &&
       last_match_description_ == match.description &&
       last_match_intent_label_ == intent_label &&
@@ -109,6 +114,7 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
     return;
   }
   last_was_ask_ai_ = false;
+  last_was_command_ = false;
   last_match_url_ = match.destination_url;
   last_match_contents_ = match.contents;
   last_match_description_ = match.description;
@@ -116,6 +122,13 @@ void DaoSuggestionItemView::SetMatch(const AutocompleteMatch& match,
   last_match_is_bookmark_ = is_bookmark;
   last_ask_ai_prompt_.clear();
   last_ask_ai_intent_label_.clear();
+  last_command_title_.clear();
+  last_command_disabled_reason_.clear();
+  SetEnabled(true);
+  title_label_->SetEnabledColor(SuggestionTitleColor());
+  GetViewAccessibility().SetIsEnabled(true);
+  GetViewAccessibility().SetName(match.contents);
+  GetViewAccessibility().RemoveDescription();
 
   // Always set the vector icon first as immediate fallback
   const gfx::VectorIcon& vector_icon = match.GetVectorIcon(is_bookmark);
@@ -163,11 +176,12 @@ void DaoSuggestionItemView::SetAskAiPrompt(
     const std::u16string& prompt,
     const std::u16string& intent_label) {
   // Cheap no-op when the rendered Ask-AI prompt is unchanged across ticks.
-  if (last_was_ask_ai_ && last_ask_ai_prompt_ == prompt &&
+  if (last_was_ask_ai_ && !last_was_command_ && last_ask_ai_prompt_ == prompt &&
       last_ask_ai_intent_label_ == intent_label) {
     return;
   }
   last_was_ask_ai_ = true;
+  last_was_command_ = false;
   last_ask_ai_prompt_ = prompt;
   last_ask_ai_intent_label_ = intent_label;
   last_match_url_ = GURL();
@@ -175,6 +189,11 @@ void DaoSuggestionItemView::SetAskAiPrompt(
   last_match_description_.clear();
   last_match_intent_label_.clear();
   last_match_is_bookmark_ = false;
+  last_command_title_.clear();
+  last_command_disabled_reason_.clear();
+  SetEnabled(true);
+  title_label_->SetEnabledColor(SuggestionTitleColor());
+  GetViewAccessibility().SetIsEnabled(true);
 
   favicon_tracker_.TryCancelAll();
   pending_favicon_url_ = GURL();
@@ -187,9 +206,58 @@ void DaoSuggestionItemView::SetAskAiPrompt(
 
   title_label_->SetText(
       l10n_util::GetStringFUTF16(IDS_DAO_SUGGESTION_ASK_AI, prompt));
+  GetViewAccessibility().SetName(std::u16string(title_label_->GetText()));
+  GetViewAccessibility().RemoveDescription();
   description_label_->SetVisible(false);
   intent_label_->SetText(intent_label);
   intent_label_->SetVisible(!intent_label.empty());
+}
+
+void DaoSuggestionItemView::SetCommand(const std::u16string& title,
+                                       LucideIcon icon,
+                                       const std::u16string& disabled_reason,
+                                       bool enabled) {
+  if (last_was_command_ && last_command_title_ == title &&
+      last_command_disabled_reason_ == disabled_reason &&
+      last_command_enabled_ == enabled && current_lucide_icon_ == icon) {
+    return;
+  }
+  last_was_command_ = true;
+  last_was_ask_ai_ = false;
+  last_command_title_ = title;
+  last_command_disabled_reason_ = disabled_reason;
+  last_command_enabled_ = enabled;
+  last_match_url_ = GURL();
+  last_match_contents_.clear();
+  last_match_description_.clear();
+  last_match_intent_label_.clear();
+  last_ask_ai_prompt_.clear();
+  last_ask_ai_intent_label_.clear();
+
+  favicon_tracker_.TryCancelAll();
+  pending_favicon_url_ = GURL();
+  icon_mode_ = IconMode::kCommand;
+  current_vector_icon_ = nullptr;
+  current_lucide_icon_ = icon;
+  has_favicon_ = false;
+  icon_view_->SetImage(ui::ImageModel::FromImageSkia(CreateLucideImageSkia(
+      icon, 18, enabled ? SuggestionIconColor() : TextMuted())));
+
+  title_label_->SetText(title);
+  title_label_->SetEnabledColor(enabled ? SuggestionTitleColor() : TextMuted());
+  description_label_->SetText(disabled_reason);
+  description_label_->SetVisible(!disabled_reason.empty());
+  intent_label_->SetText(
+      l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_INTENT_COMMAND));
+  intent_label_->SetVisible(true);
+  SetEnabled(enabled);
+  GetViewAccessibility().SetIsEnabled(enabled);
+  GetViewAccessibility().SetName(title);
+  if (disabled_reason.empty()) {
+    GetViewAccessibility().RemoveDescription();
+  } else {
+    GetViewAccessibility().SetDescription(disabled_reason);
+  }
 }
 
 void DaoSuggestionItemView::OnFaviconFetched(
@@ -218,7 +286,9 @@ void DaoSuggestionItemView::RefreshTheme() {
   // Labels cache their color via SetEnabledColor; reapply with the current
   // theme.
   if (title_label_) {
-    title_label_->SetEnabledColor(SuggestionTitleColor());
+    title_label_->SetEnabledColor(last_was_command_ && !last_command_enabled_
+                                      ? TextMuted()
+                                      : SuggestionTitleColor());
   }
   if (description_label_) {
     description_label_->SetEnabledColor(TextMuted());
@@ -240,6 +310,10 @@ void DaoSuggestionItemView::RefreshTheme() {
   } else if (icon_mode_ == IconMode::kAskAi) {
     icon_view_->SetImage(ui::ImageModel::FromImageSkia(
         CreateLucideImageSkia(LucideIcon::kSparkles, 18, icon_color)));
+  } else if (icon_mode_ == IconMode::kCommand) {
+    icon_view_->SetImage(ui::ImageModel::FromImageSkia(CreateLucideImageSkia(
+        current_lucide_icon_, 18,
+        last_command_enabled_ ? icon_color : TextMuted())));
   }
 }
 
@@ -252,7 +326,7 @@ void DaoSuggestionItemView::SetSelected(bool selected) {
 }
 
 void DaoSuggestionItemView::OnMouseEntered(const ui::MouseEvent& event) {
-  is_hovered_ = true;
+  is_hovered_ = GetEnabled();
   UpdateBackground();
 }
 
@@ -262,7 +336,7 @@ void DaoSuggestionItemView::OnMouseExited(const ui::MouseEvent& event) {
 }
 
 bool DaoSuggestionItemView::OnMousePressed(const ui::MouseEvent& event) {
-  if (click_callback_) {
+  if (GetEnabled() && click_callback_) {
     click_callback_.Run(index_);
   }
   return true;

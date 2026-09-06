@@ -45,7 +45,9 @@
 #include "chrome/browser/sessions/session_service.h"
 #include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/sessions/session_service_test_helper.h"
+#include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -56,12 +58,12 @@
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
-#include "chrome/browser/ui/startup/startup_browser_creator.h"
-#include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
-#include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_native_view.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/startup/startup_browser_creator.h"
+#include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
+#include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
@@ -74,6 +76,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
+#include "chrome/browser/ui/views/task_manager_view.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/generated_resources.h"
@@ -92,10 +95,11 @@
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_service.h"
-#include "components/strings/grit/components_strings.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/base_session_service_commands.h"
 #include "components/sessions/core/command_storage_manager.h"
+#include "components/sessions/core/tab_restore_service.h"
+#include "components/strings/grit/components_strings.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/page_navigator.h"
@@ -103,10 +107,12 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_clipboard_scope.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/download_test_observer.h"
 #include "content/public/test/slow_download_http_response.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "content/public/test/test_utils.h"
 #include "content/public/test/test_web_ui.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
@@ -186,6 +192,9 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/clipboard/clipboard.h"
+#include "ui/base/clipboard/clipboard_test_util.h"
+#include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
@@ -5010,6 +5019,458 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
       AutocompleteController::UpdateType::kLastAsyncPassExceptDoc);
 
   EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandModeDefaultsOffAndFollowsPref) {
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  ASSERT_NE(nullptr,
+            prefs->FindPreference(dao::prefs::kDaoCommandBarCommandModeEnabled));
+  EXPECT_FALSE(prefs->GetBoolean(dao::prefs::kDaoCommandBarCommandModeEnabled));
+
+  for (bool enhanced : {false, true}) {
+    prefs->SetBoolean(dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled,
+                      enhanced);
+    for (bool enabled : {false, true, false}) {
+      prefs->SetBoolean(dao::prefs::kDaoCommandBarCommandModeEnabled, enabled);
+      command_bar->ShowForNewTab();
+      const int starts = command_bar->GetAutocompleteStartCountForTesting();
+      command_bar->ContentsChanged(nullptr, u"> task");
+      EXPECT_EQ(starts + (enabled ? 0 : 1),
+                command_bar->GetAutocompleteStartCountForTesting());
+      EXPECT_EQ(enabled, command_bar->HasVisibleCommandForTesting());
+      if (enabled) {
+        EXPECT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+        EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
+      }
+      command_bar->ContentsChanged(nullptr, u"settings");
+      EXPECT_TRUE(command_bar->HasVisibleCommandForTesting());
+      command_bar->Hide();
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandsBypassAutocompleteProviders) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  for (bool enhanced : {false, true}) {
+    browser()->profile()->GetPrefs()->SetBoolean(
+        dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, enhanced);
+    command_bar->ShowForNewTab();
+    const int starts = command_bar->GetAutocompleteStartCountForTesting();
+    command_bar->ContentsChanged(nullptr, u">");
+    EXPECT_EQ(starts, command_bar->GetAutocompleteStartCountForTesting());
+    EXPECT_EQ(8, command_bar->GetVisibleSuggestionCountForTesting());
+    EXPECT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
+    command_bar->ContentsChanged(nullptr, u"> task");
+    EXPECT_EQ(starts, command_bar->GetAutocompleteStartCountForTesting());
+    EXPECT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+    EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_COMMAND_OPEN_TASK_MANAGER),
+              command_bar->GetVisibleSuggestionTitleForTesting(0));
+    command_bar->Hide();
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandsMatchNormalizedExactAndPrefixOnly) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+
+  command_bar->ContentsChanged(nullptr, u">   TASK   MANAGER  ");
+  EXPECT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_COMMAND_OPEN_TASK_MANAGER),
+            command_bar->GetVisibleSuggestionTitleForTesting(0));
+
+  command_bar->ContentsChanged(nullptr, u"set");
+  EXPECT_TRUE(command_bar->HasVisibleCommandForTesting());
+  EXPECT_TRUE(HasDescendantLabelText(
+      command_bar, l10n_util::GetStringUTF16(IDS_DAO_COMMAND_OPEN_SETTINGS)));
+
+  const std::u16string localized_aliases =
+      l10n_util::GetStringUTF16(IDS_DAO_COMMAND_OPEN_SETTINGS_ALIASES);
+  const size_t separator = localized_aliases.find(u'|');
+  command_bar->ContentsChanged(nullptr, localized_aliases.substr(0, separator));
+  EXPECT_TRUE(command_bar->HasVisibleCommandForTesting());
+
+  command_bar->ContentsChanged(nullptr, u"settings sync tutorial");
+  EXPECT_FALSE(command_bar->HasVisibleCommandForTesting());
+  command_bar->ContentsChanged(nullptr, u"https://settings.example.com");
+  EXPECT_FALSE(command_bar->HasVisibleCommandForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandsPreserveExactSearchAndSafeDefaults) {
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"settings", u"");
+
+  AutocompleteMatch search(nullptr, 1000, false,
+                           AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED);
+  search.allowed_to_be_default_match = true;
+  search.fill_into_edit = u"settings";
+  search.contents = u"settings";
+  search.destination_url = GURL("https://example.test/search?q=settings");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{search});
+
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_COMMAND_OPEN_SETTINGS),
+            command_bar->GetVisibleSuggestionTitleForTesting(0));
+  EXPECT_TRUE(HasDescendantLabelText(command_bar, u"settings"));
+  EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+
+  for (const auto& query : {u"downloads", u"history", u"extensions",
+                            u"agent settings", u"task manager"}) {
+    command_bar->ContentsChanged(nullptr, query);
+    EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  }
+  for (const auto& query : {u"copy link", u"reopen tab"}) {
+    command_bar->ContentsChanged(nullptr, query);
+    EXPECT_FALSE(command_bar->IsSelectedCommandForTesting());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandAcceptanceDoesNotExecute) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  auto* widget = GetBrowserView(browser())->GetWidget();
+  const int initial_tabs = browser()->tab_strip_model()->count();
+
+  command_bar->ShowForNewTab();
+  command_bar->ContentsChanged(nullptr, u"> sett");
+  SendDialogKey(widget, ui::VKEY_TAB);
+  EXPECT_TRUE(command_bar->GetVisible());
+  EXPECT_EQ(u"> Open Settings", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(initial_tabs, browser()->tab_strip_model()->count());
+
+  command_bar->ContentsChanged(nullptr, u"> task m");
+  SendDialogKey(widget, ui::VKEY_RIGHT);
+  EXPECT_TRUE(command_bar->GetVisible());
+  EXPECT_EQ(u"> Open Task Manager", command_bar->GetUserInputTextForTesting());
+  EXPECT_EQ(initial_tabs, browser()->tab_strip_model()->count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandSelectionUsesStableIdentity) {
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"task m", u"");
+  AutocompleteMatch search(nullptr, 1000, false,
+                           AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED);
+  search.allowed_to_be_default_match = true;
+  search.fill_into_edit = u"task m";
+  search.contents = u"task m";
+  search.destination_url = GURL("https://example.test/search?q=task-m");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{search});
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  ASSERT_TRUE(command_bar->IsSelectedCommandForTesting());
+  const int command_id = command_bar->GetSelectedCommandIdForTesting();
+
+  AutocompleteMatch match(nullptr, 1200, false,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.fill_into_edit = u"task manager docs";
+  match.contents = u"task manager docs";
+  match.destination_url = GURL("https://example.test/task-manager");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+
+  EXPECT_TRUE(command_bar->IsSelectedCommandForTesting());
+  EXPECT_EQ(command_id, command_bar->GetSelectedCommandIdForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoCommandBarBrowserTest,
+    SystemCommandProviderTicksPreserveExplicitNonCommandSelection) {
+  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+                                               false);
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  auto* widget = GetBrowserView(browser())->GetWidget();
+  command_bar->ShowForNewTab();
+
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"settings", u"");
+  AutocompleteMatch settings_history(nullptr, 1000, false,
+                                     AutocompleteMatchType::HISTORY_URL);
+  settings_history.allowed_to_be_default_match = true;
+  settings_history.fill_into_edit = u"settings.example/docs";
+  settings_history.contents = u"settings.example/docs";
+  settings_history.destination_url = GURL("https://settings.example/docs");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{settings_history},
+                                                false);
+  SendDialogKey(widget, ui::VKEY_DOWN);
+  SendDialogKey(widget, ui::VKEY_DOWN);
+  ASSERT_EQ(2, command_bar->GetSelectedIndexForTesting());
+  ASSERT_FALSE(command_bar->IsSelectedCommandForTesting());
+  ASSERT_EQ(u"settings", command_bar->GetSelectionPreviewTextForTesting());
+
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{settings_history},
+                                                true);
+  EXPECT_EQ(2, command_bar->GetSelectedIndexForTesting());
+  EXPECT_FALSE(command_bar->IsSelectedCommandForTesting());
+  EXPECT_EQ(u"settings", command_bar->GetSelectionPreviewTextForTesting());
+
+  command_bar->ContentsChanged(nullptr, u"git");
+  AutocompleteMatch first_url(nullptr, 1100, false,
+                              AutocompleteMatchType::HISTORY_URL);
+  first_url.allowed_to_be_default_match = true;
+  first_url.fill_into_edit = u"github.com";
+  first_url.contents = u"github.com";
+  first_url.destination_url = GURL("https://github.com/");
+  AutocompleteMatch selected_url(nullptr, 1000, false,
+                                 AutocompleteMatchType::HISTORY_URL);
+  selected_url.fill_into_edit = u"gitlab.com";
+  selected_url.contents = u"gitlab.com";
+  selected_url.destination_url = GURL("https://gitlab.com/");
+  command_bar->SetAutocompleteMatchesForTesting(
+      ACMatches{first_url, selected_url}, false);
+  SendDialogKey(widget, ui::VKEY_DOWN);
+  ASSERT_EQ(1, command_bar->GetSelectedIndexForTesting());
+  ASSERT_EQ(u"gitlab.com", command_bar->GetSelectionPreviewTextForTesting());
+
+  AutocompleteMatch new_first_url(nullptr, 1200, false,
+                                  AutocompleteMatchType::HISTORY_URL);
+  new_first_url.allowed_to_be_default_match = true;
+  new_first_url.fill_into_edit = u"git-scm.com";
+  new_first_url.contents = u"git-scm.com";
+  new_first_url.destination_url = GURL("https://git-scm.com/");
+  command_bar->SetAutocompleteMatchesForTesting(
+      ACMatches{new_first_url, first_url, selected_url}, true);
+  EXPECT_EQ(2, command_bar->GetSelectedIndexForTesting());
+  EXPECT_FALSE(command_bar->IsSelectedCommandForTesting());
+  EXPECT_EQ(u"gitlab.com", command_bar->GetSelectionPreviewTextForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandReopensWindowAfterTitleAcceptance) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  sessions::TabRestoreService* restore_service =
+      TabRestoreServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_NE(nullptr, restore_service);
+  restore_service->ClearEntries();
+
+  Browser* closing_browser = CreateBrowser(browser()->profile());
+  chrome::AddTabAt(closing_browser, GURL("about:blank#restore-window"), -1,
+                   true);
+  CloseBrowserSynchronously(closing_browser);
+  ASSERT_FALSE(restore_service->entries().empty());
+  ASSERT_EQ(sessions::tab_restore::Type::WINDOW,
+            restore_service->entries().front()->type);
+
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->ContentsChanged(nullptr, u"> reopen tab");
+  const std::u16string title =
+      gfx::RemoveAccelerator(l10n_util::GetStringUTF16(IDS_REOPEN_WINDOW));
+  ASSERT_EQ(title, command_bar->GetVisibleSuggestionTitleForTesting(0));
+  EXPECT_EQ(std::u16string::npos, title.find(u'&'));
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_TAB);
+  EXPECT_EQ(u"> " + title, command_bar->GetUserInputTextForTesting());
+  ASSERT_TRUE(command_bar->IsSelectedCommandForTesting());
+
+  ui_test_utils::BrowserCreatedObserver restored_browser_observer;
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  EXPECT_NE(nullptr, restored_browser_observer.Wait());
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandReopensGroupAfterTitleAcceptance) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  sessions::TabRestoreService* restore_service =
+      TabRestoreServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_NE(nullptr, restore_service);
+  restore_service->ClearEntries();
+
+  TabStripModel* tab_strip = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank#restore-group-one"), -1, true);
+  chrome::AddTabAt(browser(), GURL("about:blank#restore-group-two"), -1, true);
+  const tab_groups::TabGroupId group = tab_strip->AddToNewGroup(
+      {tab_strip->count() - 2, tab_strip->count() - 1});
+  content::WebContentsDestroyedWatcher destroyed_watcher(
+      tab_strip->GetWebContentsAt(tab_strip->count() - 2));
+  tab_strip->CloseAllTabsInGroup(group);
+  destroyed_watcher.Wait();
+  ASSERT_FALSE(restore_service->entries().empty());
+  ASSERT_EQ(sessions::tab_restore::Type::GROUP,
+            restore_service->entries().front()->type);
+  const int tabs_after_close = tab_strip->count();
+
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->ContentsChanged(nullptr, u"> reopen tab");
+  const std::u16string title =
+      gfx::RemoveAccelerator(l10n_util::GetStringUTF16(IDS_REOPEN_GROUP));
+  ASSERT_EQ(title, command_bar->GetVisibleSuggestionTitleForTesting(0));
+  EXPECT_EQ(std::u16string::npos, title.find(u'&'));
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RIGHT);
+  EXPECT_EQ(u"> " + title, command_bar->GetUserInputTextForTesting());
+  ASSERT_TRUE(command_bar->IsSelectedCommandForTesting());
+
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return tab_strip->count() == tabs_after_close + 2; }));
+  EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandAgentSettingsUsesSettingsAvailability) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  chrome::BrowserCommandController* command_controller =
+      browser()->command_controller();
+  ASSERT_NE(nullptr, command_controller);
+  command_controller->UpdateCommandEnabled(IDC_OPTIONS, false);
+
+  command_bar->ShowForNewTab();
+  command_bar->ContentsChanged(nullptr, u"agent settings");
+  EXPECT_FALSE(command_bar->HasVisibleCommandForTesting());
+
+  command_bar->ContentsChanged(nullptr, u"> agent settings");
+  EXPECT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_TRUE(command_bar->IsVisibleSuggestionCommandForTesting(0));
+  EXPECT_FALSE(command_bar->IsVisibleSuggestionEnabledForTesting(0));
+  EXPECT_EQ(-1, command_bar->GetSelectedIndexForTesting());
+
+  command_controller->UpdateCommandEnabled(IDC_OPTIONS, true);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandKeyboardSkipsDisabledRows) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->ContentsChanged(nullptr, u"> reopen tab");
+  ASSERT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
+  ASSERT_FALSE(command_bar->IsVisibleSuggestionEnabledForTesting(0));
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  EXPECT_EQ(-1, command_bar->GetSelectedIndexForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       SystemCommandExecutionDoesNotCreateExtraTab) {
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  const int initial_tabs = browser()->tab_strip_model()->count();
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(u"settings",
+                                                             u".example/path");
+
+  AutocompleteMatch history_url(nullptr, 1200, false,
+                                AutocompleteMatchType::HISTORY_URL);
+  history_url.allowed_to_be_default_match = true;
+  history_url.inline_autocompletion = u".example/path";
+  history_url.fill_into_edit = u"settings.example/path";
+  history_url.contents = u"settings.example/path";
+  history_url.destination_url = GURL("https://settings.example/path");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{history_url});
+
+  auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  ASSERT_TRUE(command_bar->IsSelectedCommandForTesting());
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+  EXPECT_EQ(u"settings", textfield->GetText());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+
+  EXPECT_EQ(initial_tabs, browser()->tab_strip_model()->count());
+  EXPECT_FALSE(command_bar->GetVisible());
+  EXPECT_EQ(GURL("chrome://settings/"),
+            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       CopySystemCommandUsesOpeningTabAndRejectsLostTarget) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  content::BrowserTestClipboardScope clipboard_scope;
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  auto* tab_strip = browser()->tab_strip_model();
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("data:text/html,original")));
+  content::WebContents* original = tab_strip->GetActiveWebContents();
+  chrome::AddTabAt(browser(), GURL("data:text/html,other"), -1, true);
+  const int other_index = tab_strip->active_index();
+  tab_strip->ActivateTabAt(tab_strip->GetIndexOfWebContents(original));
+
+  command_bar->Show();
+  tab_strip->ActivateTabAt(other_index);
+  command_bar->ContentsChanged(nullptr, u"> copy link");
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  EXPECT_EQ(u"data:text/html,original",
+            ui::clipboard_test_util::ReadText(
+                ui::Clipboard::GetForCurrentThread(),
+                ui::ClipboardBuffer::kCopyPaste, nullptr));
+
+  {
+    ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
+    writer.WriteText(u"unchanged");
+  }
+  tab_strip->ActivateTabAt(tab_strip->GetIndexOfWebContents(original));
+  command_bar->Show();
+  command_bar->ContentsChanged(nullptr, u"> copy link");
+  ASSERT_TRUE(command_bar->IsSelectedCommandForTesting());
+  tab_strip->CloseWebContentsAt(tab_strip->GetIndexOfWebContents(original),
+                                TabCloseTypes::CLOSE_NONE);
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{});
+  EXPECT_EQ(-1, command_bar->GetSelectedIndexForTesting());
+  EXPECT_FALSE(command_bar->IsVisibleSuggestionEnabledForTesting(0));
+  EXPECT_TRUE(HasDescendantLabelText(
+      command_bar, l10n_util::GetStringUTF16(
+                       IDS_DAO_COMMAND_COPY_CURRENT_LINK_UNAVAILABLE)));
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{});
+  EXPECT_EQ(-1, command_bar->GetSelectedIndexForTesting());
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  EXPECT_EQ(u"unchanged", ui::clipboard_test_util::ReadText(
+                              ui::Clipboard::GetForCurrentThread(),
+                              ui::ClipboardBuffer::kCopyPaste, nullptr));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       TaskManagerSystemCommandReusesExistingWindow) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoCommandBarCommandModeEnabled, true);
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  ASSERT_EQ(nullptr, task_manager::TaskManagerView::GetInstanceForTests());
+  command_bar->ShowForNewTab();
+  command_bar->ContentsChanged(nullptr, u"> task manager");
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  task_manager::TaskManagerView* first_view =
+      task_manager::TaskManagerView::GetInstanceForTests();
+  ASSERT_NE(nullptr, first_view);
+  EXPECT_FALSE(command_bar->GetVisible());
+
+  command_bar->ShowForNewTab();
+  command_bar->ContentsChanged(nullptr, u"> task manager");
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  EXPECT_EQ(first_view, task_manager::TaskManagerView::GetInstanceForTests());
+  EXPECT_TRUE(first_view->GetWidget()->IsVisible());
+  EXPECT_FALSE(command_bar->GetVisible());
+  task_manager::TaskManagerView::Hide();
+  content::RunAllPendingInMessageLoop();
+  EXPECT_EQ(nullptr, task_manager::TaskManagerView::GetInstanceForTests());
 }
 
 // =============================================================================

@@ -5,33 +5,39 @@
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 
 #include <algorithm>
+#include <array>
+#include <optional>
 #include <utility>
 
-#include "base/strings/utf_string_conversions.h"
-#include "base/strings/escape.h"
-#include "base/strings/string_util.h"
+#include "base/i18n/case_conversion.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/escape.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
-#include "components/omnibox/browser/autocomplete_classifier.h"
-#include "dao/browser/strings/grit/dao_strings.h"
-#include "dao/browser/dao_pref_names.h"
-#include "ui/base/l10n/l10n_util.h"
+#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
+#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
+#include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/favicon/favicon_utils.h"
-#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
-#include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
-#include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/keyed_service/core/service_access_type.h"
+#include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_controller_config.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_input.h"
@@ -39,34 +45,40 @@
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/shortcuts_backend.h"
-#include "components/search_engines/template_url.h"
-#include "components/search_engines/template_url_service.h"
-#include "components/url_formatter/url_fixer.h"
-#include "content/public/browser/web_contents.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/prefs/pref_service.h"
+#include "components/search_engines/template_url.h"
+#include "components/search_engines/template_url_service.h"
+#include "components/sessions/core/tab_restore_service.h"
+#include "components/url_formatter/url_fixer.h"
 #include "components/vector_icons/vector_icons.h"
+#include "content/public/browser/web_contents.h"
+#include "dao/browser/dao_pref_names.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/dao_suggestion_item_view.h"
+#include "dao/browser/ui/views/dao_tab_commands.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/metrics_proto/omnibox_focus_type.pb.h"
-#include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/shadow_value.h"
-#include "ui/gfx/skia_paint_util.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/range/range.h"
+#include "ui/gfx/shadow_value.h"
+#include "ui/gfx/skia_paint_util.h"
+#include "ui/gfx/text_utils.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/scroll_view.h"
@@ -78,6 +90,58 @@ namespace dao {
 namespace {
 
 constexpr int kCommandBarTextFontSize = 17;
+
+enum class CommandAction {
+  kBrowserCommand,
+  kCopyCurrentLink,
+  kAgentSettings,
+};
+
+struct CommandDefinition {
+  int title_id;
+  int aliases_id;
+  const char16_t* english_title;
+  const char16_t* english_aliases;
+  LucideIcon icon;
+  CommandAction action;
+  int command_id;
+  bool safe_default;
+};
+
+constexpr std::array<CommandDefinition, 8> kCommands = {{
+    {IDS_DAO_COMMAND_OPEN_SETTINGS, IDS_DAO_COMMAND_OPEN_SETTINGS_ALIASES,
+     u"Open Settings", u"settings|preferences", LucideIcon::kSettings,
+     CommandAction::kBrowserCommand, IDC_OPTIONS, true},
+    {IDS_DAO_COMMAND_REOPEN_CLOSED_TAB,
+     IDS_DAO_COMMAND_REOPEN_CLOSED_TAB_ALIASES, u"Reopen Closed Tab",
+     u"reopen closed tab|reopen tab|restore tab|undo close tab",
+     LucideIcon::kRotateCw, CommandAction::kBrowserCommand, IDC_RESTORE_TAB,
+     false},
+    {IDS_DAO_COMMAND_COPY_CURRENT_LINK,
+     IDS_DAO_COMMAND_COPY_CURRENT_LINK_ALIASES, u"Copy Current Link",
+     u"copy link|copy url|copy current link", LucideIcon::kShare,
+     CommandAction::kCopyCurrentLink, 0, false},
+    {IDS_DAO_COMMAND_OPEN_DOWNLOADS, IDS_DAO_COMMAND_OPEN_DOWNLOADS_ALIASES,
+     u"Open Downloads", u"downloads|download history",
+     LucideIcon::kSquareArrowDownLeft, CommandAction::kBrowserCommand,
+     IDC_SHOW_DOWNLOADS, true},
+    {IDS_DAO_COMMAND_OPEN_HISTORY, IDS_DAO_COMMAND_OPEN_HISTORY_ALIASES,
+     u"Open History", u"history|browsing history", LucideIcon::kRotateCw,
+     CommandAction::kBrowserCommand, IDC_SHOW_HISTORY, true},
+    {IDS_DAO_COMMAND_MANAGE_EXTENSIONS,
+     IDS_DAO_COMMAND_MANAGE_EXTENSIONS_ALIASES, u"Manage Extensions",
+     u"extensions|manage extensions|addons", LucideIcon::kSlidersHorizontal,
+     CommandAction::kBrowserCommand, IDC_MANAGE_EXTENSIONS, true},
+    {IDS_DAO_COMMAND_OPEN_AGENT_SETTINGS,
+     IDS_DAO_COMMAND_OPEN_AGENT_SETTINGS_ALIASES, u"Open Agent Settings",
+     u"agent settings|ai settings|model settings", LucideIcon::kBot,
+     CommandAction::kAgentSettings, 0, true},
+    {IDS_DAO_COMMAND_OPEN_TASK_MANAGER,
+     IDS_DAO_COMMAND_OPEN_TASK_MANAGER_ALIASES, u"Open Task Manager",
+     u"task manager|taskmanager|process manager",
+     LucideIcon::kSlidersHorizontal, CommandAction::kBrowserCommand,
+     IDC_TASK_MANAGER, true},
+}};
 
 void SetTextAndSelectedRangeKeepingCaretVisible(
     views::Textfield* textfield,
@@ -104,6 +168,26 @@ bool LooksLikeLocalFilePath(const std::string& text) {
 
 std::u16string NormalizeSearchTerms(const std::u16string& text) {
   return std::u16string(base::TrimWhitespace(text, base::TRIM_ALL));
+}
+
+std::u16string NormalizeCommandText(const std::u16string& text) {
+  return base::i18n::ToLower(
+      base::CollapseWhitespace(text, /*trim_sequences_with_line_breaks=*/true));
+}
+
+std::vector<std::u16string> CommandTerms(const CommandDefinition& command) {
+  std::vector<std::u16string> terms = {
+      NormalizeCommandText(l10n_util::GetStringUTF16(command.title_id)),
+      NormalizeCommandText(command.english_title)};
+  for (const std::u16string& aliases :
+       {l10n_util::GetStringUTF16(command.aliases_id),
+        std::u16string(command.english_aliases)}) {
+    for (const auto& alias : base::SplitString(
+             aliases, u"|", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+      terms.push_back(NormalizeCommandText(alias));
+    }
+  }
+  return terms;
 }
 
 }  // namespace
@@ -374,9 +458,17 @@ void DaoCommandBarView::Show() {
     return;
   }
 
+  content::WebContents* contents =
+      browser_->tab_strip_model()->GetActiveWebContents();
+  command_target_ =
+      contents ? contents->GetWeakPtr() : base::WeakPtr<content::WebContents>();
+
   ClearSelectionPreview(false);
   is_new_tab_mode_ = false;
   selected_index_ = -1;
+  selected_command_id_ = -1;
+  command_selection_invalidated_ = false;
+  command_mode_ = false;
   selection_explicitly_changed_ = false;
   inline_autocompletion_.clear();
   rejected_selection_preview_text_.clear();
@@ -413,7 +505,6 @@ void DaoCommandBarView::Show() {
   SetWebContentEventProcessing(false);
 
   // Pre-fill with current tab URL and set favicon
-  auto* contents = browser_->tab_strip_model()->GetActiveWebContents();
   if (contents) {
     GURL url = contents->GetVisibleURL();
     if (url.is_valid() && !url.IsAboutBlank()) {
@@ -464,9 +555,17 @@ void DaoCommandBarView::ShowForNewTab() {
     return;
   }
 
+  content::WebContents* contents =
+      browser_->tab_strip_model()->GetActiveWebContents();
+  command_target_ =
+      contents ? contents->GetWeakPtr() : base::WeakPtr<content::WebContents>();
+
   ClearSelectionPreview(false);
   is_new_tab_mode_ = true;
   selected_index_ = -1;
+  selected_command_id_ = -1;
+  command_selection_invalidated_ = false;
+  command_mode_ = false;
   selection_explicitly_changed_ = false;
   inline_autocompletion_.clear();
   user_input_text_.clear();
@@ -529,6 +628,8 @@ void DaoCommandBarView::Hide() {
 
   StopAutocomplete();
   ClearSuggestions();
+  command_mode_ = false;
+  command_target_.reset();
 
   SetVisible(false);
 
@@ -678,6 +779,8 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
   user_input_text_ = new_contents;
   last_text_length_ = new_len;
   selected_index_ = -1;
+  selected_command_id_ = -1;
+  command_selection_invalidated_ = false;
   selection_explicitly_changed_ = false;
 
   // Scope Chromium's provider-level inline suppression to deletion requests.
@@ -686,11 +789,22 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
   suppress_ghost_for_current_query_ = is_deletion;
   inline_autocompletion_.clear();
 
+  const std::u16string trimmed = NormalizeSearchTerms(new_contents);
+  command_mode_ = browser_->profile()->GetPrefs()->GetBoolean(
+                      dao::prefs::kDaoCommandBarCommandModeEnabled) &&
+                  !trimmed.empty() && trimmed.front() == u'>';
+
   UpdateInputIcon();
 
-  if (NormalizeSearchTerms(new_contents).empty()) {
+  if (trimmed.empty()) {
     StopAutocomplete();
     ClearSuggestions();
+    return;
+  }
+
+  if (command_mode_) {
+    StopAutocomplete();
+    UpdateSuggestions();
     return;
   }
 
@@ -747,10 +861,7 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
 
   if (key_event.key_code() == ui::VKEY_DOWN) {
     if (visible_suggestion_count_ > 0) {
-      int next = selected_index_ + 1;
-      if (next >= visible_suggestion_count_) {
-        next = 0;
-      }
+      int next = GetNextEnabledIndex(selected_index_, 1);
       SetSelectedIndex(next, true);
     }
     return true;
@@ -758,10 +869,7 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
 
   if (key_event.key_code() == ui::VKEY_UP) {
     if (visible_suggestion_count_ > 0) {
-      int prev = selected_index_ - 1;
-      if (prev < 0) {
-        prev = visible_suggestion_count_ - 1;
-      }
+      int prev = GetNextEnabledIndex(selected_index_, -1);
       SetSelectedIndex(prev, true);
     }
     return true;
@@ -818,7 +926,8 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
 
 void DaoCommandBarView::FillInput(const std::u16string& text) {
   ClearSelectionPreview(false);
-  user_input_text_ = text;
+  const bool retain_command_prefix = command_mode_;
+  user_input_text_ = retain_command_prefix ? u"> " + text : text;
   inline_autocompletion_.clear();
   updating_textfield_ = true;
   textfield_->SetText(user_input_text_);
@@ -829,11 +938,19 @@ void DaoCommandBarView::FillInput(const std::u16string& text) {
   selection_explicitly_changed_ = false;
   rejected_selection_preview_text_.clear();
   suppress_ghost_for_current_query_ = false;
-  StartAutocomplete(user_input_text_);
+  command_mode_ = retain_command_prefix;
+  if (command_mode_) {
+    UpdateSuggestions();
+  } else {
+    StartAutocomplete(user_input_text_);
+  }
 }
 
 void DaoCommandBarView::OnResultChanged(AutocompleteController* controller,
                                         bool default_match_changed) {
+  if (command_mode_) {
+    return;
+  }
   UpdateSuggestions();
   // Inline text must update on every tick — providers may publish a valid
   // inline_autocompletion without flipping the default match.
@@ -901,12 +1018,106 @@ void DaoCommandBarView::ClearSuggestions() {
     suggestion_view->SetSelected(false);
   }
   visible_matches_.clear();
+  displayed_rows_.clear();
   dropdown_scroll_view_->SetVisible(false);
   visible_suggestion_count_ = 0;
   selected_index_ = -1;
+  selected_command_id_ = -1;
+  command_selection_invalidated_ = false;
   selection_explicitly_changed_ = false;
   ask_ai_row_index_ = -1;
   InvalidateLayout();
+}
+
+std::vector<int> DaoCommandBarView::GetMatchingCommandIndices(
+    bool command_mode) const {
+  std::u16string query = NormalizeSearchTerms(user_input_text_);
+  if (command_mode && !query.empty() && query.front() == u'>') {
+    query = NormalizeCommandText(query.substr(1));
+  } else {
+    query = NormalizeCommandText(query);
+  }
+
+  if (!command_mode && (query.size() < 2 || LooksLikeURL(user_input_text_) ||
+                        LooksLikeLocalFilePath(base::UTF16ToUTF8(query)))) {
+    return {};
+  }
+
+  std::vector<int> exact;
+  std::vector<int> prefixes;
+  for (size_t i = 0; i < kCommands.size(); ++i) {
+    bool is_exact = query.empty();
+    bool is_prefix = query.empty();
+    std::vector<std::u16string> terms = CommandTerms(kCommands[i]);
+    terms.push_back(NormalizeCommandText(GetCommandTitle(i)));
+    for (const std::u16string& term : terms) {
+      is_exact = is_exact || term == query;
+      is_prefix = is_prefix ||
+                  base::StartsWith(term, query, base::CompareCase::SENSITIVE);
+    }
+    if (is_exact) {
+      exact.push_back(static_cast<int>(i));
+    } else if (is_prefix) {
+      prefixes.push_back(static_cast<int>(i));
+    }
+  }
+  exact.insert(exact.end(), prefixes.begin(), prefixes.end());
+  return exact;
+}
+
+bool DaoCommandBarView::IsCommandEnabled(int command_index) const {
+  if (command_index < 0 ||
+      command_index >= static_cast<int>(kCommands.size())) {
+    return false;
+  }
+  const CommandDefinition& command = kCommands[command_index];
+  switch (command.action) {
+    case CommandAction::kBrowserCommand:
+      return chrome::IsCommandEnabled(browser_, command.command_id);
+    case CommandAction::kCopyCurrentLink:
+      return command_target_ && !command_target_->IsBeingDestroyed() &&
+             command_target_->GetVisibleURL().is_valid() &&
+             !command_target_->GetVisibleURL().is_empty();
+    case CommandAction::kAgentSettings:
+      return chrome::IsCommandEnabled(browser_, IDC_OPTIONS);
+  }
+  return false;
+}
+
+std::u16string DaoCommandBarView::GetCommandTitle(int command_index) const {
+  if (command_index == 1 && IsCommandEnabled(command_index)) {
+    sessions::TabRestoreService* restore_service =
+        TabRestoreServiceFactory::GetForProfile(browser_->profile());
+    if (restore_service) {
+      restore_service->LoadTabsFromLastSession();
+      if (!restore_service->entries().empty()) {
+        const sessions::tab_restore::Type type =
+            restore_service->entries().front()->type;
+        if (type == sessions::tab_restore::Type::WINDOW) {
+          return gfx::RemoveAccelerator(
+              l10n_util::GetStringUTF16(IDS_REOPEN_WINDOW));
+        }
+        if (type == sessions::tab_restore::Type::GROUP) {
+          return gfx::RemoveAccelerator(
+              l10n_util::GetStringUTF16(IDS_REOPEN_GROUP));
+        }
+      }
+    }
+  }
+  return l10n_util::GetStringUTF16(kCommands[command_index].title_id);
+}
+
+std::u16string DaoCommandBarView::GetCommandDisabledReason(
+    int command_index) const {
+  if (command_index == 1) {
+    return l10n_util::GetStringUTF16(
+        IDS_DAO_COMMAND_REOPEN_CLOSED_TAB_UNAVAILABLE);
+  }
+  if (command_index == 2) {
+    return l10n_util::GetStringUTF16(
+        IDS_DAO_COMMAND_COPY_CURRENT_LINK_UNAVAILABLE);
+  }
+  return l10n_util::GetStringUTF16(IDS_DAO_COMMAND_UNAVAILABLE);
 }
 
 void DaoCommandBarView::UpdateSuggestions() {
@@ -920,16 +1131,37 @@ void DaoCommandBarView::UpdateSuggestions() {
     return;
   }
 
+  const int previously_selected_command = selected_command_id_;
+  std::optional<SuggestionRow::Kind> previously_selected_non_command_kind;
+  GURL previously_selected_destination;
+  std::u16string previously_selected_fill_into_edit;
+  if (selection_explicitly_changed_ && previously_selected_command < 0) {
+    const SuggestionRow* selected_row = GetSelectedRow();
+    if (selected_row && selected_row->kind != SuggestionRow::Kind::kCommand) {
+      previously_selected_non_command_kind = selected_row->kind;
+      if (selected_row->kind == SuggestionRow::Kind::kAutocomplete &&
+          selected_row->index >= 0 &&
+          selected_row->index < static_cast<int>(visible_matches_.size())) {
+        const AutocompleteMatch& match = visible_matches_[selected_row->index];
+        previously_selected_destination = match.destination_url;
+        previously_selected_fill_into_edit = match.fill_into_edit;
+      }
+    }
+  }
   const bool enhanced_suggestions_enabled = EnhancedSuggestionsEnabled();
   const AutocompleteResult& result = autocomplete_controller_->result();
-  const bool show_ask_ai = ShouldShowAskAiSuggestion();
+  const bool show_ask_ai = !command_mode_ && ShouldShowAskAiSuggestion();
   visible_matches_.clear();
-  visible_matches_.reserve(result.size() + 1);
-  for (size_t i = 0; i < result.size(); ++i) {
-    visible_matches_.push_back(result.match_at(i));
+  displayed_rows_.clear();
+  if (!command_mode_) {
+    visible_matches_.reserve(result.size() + 1);
+    for (size_t i = 0; i < result.size(); ++i) {
+      visible_matches_.push_back(result.match_at(i));
+    }
   }
 
   const bool exact_search_is_visible =
+      command_mode_ ||
       std::any_of(visible_matches_.begin(), visible_matches_.end(),
                   [&](const AutocompleteMatch& match) {
                     return IsExactSearchMatch(match, search_terms);
@@ -938,13 +1170,75 @@ void DaoCommandBarView::UpdateSuggestions() {
     visible_matches_.push_back(CreateExactSearchMatch(search_terms));
   }
 
-  // Keep Ask AI in the same slot across default and enhanced modes: after the
-  // top autocomplete match when one exists, otherwise as the first row.
-  ask_ai_row_index_ =
-      show_ask_ai ? std::min(1, static_cast<int>(visible_matches_.size())) : -1;
+  std::vector<SuggestionRow> non_command_rows;
+  non_command_rows.reserve(visible_matches_.size() + 1);
+  for (size_t i = 0; i < visible_matches_.size(); ++i) {
+    non_command_rows.push_back(
+        {SuggestionRow::Kind::kAutocomplete, static_cast<int>(i)});
+    if (show_ask_ai && i == 0) {
+      non_command_rows.push_back({SuggestionRow::Kind::kAskAi, 0});
+    }
+  }
+  if (show_ask_ai && visible_matches_.empty()) {
+    non_command_rows.push_back({SuggestionRow::Kind::kAskAi, 0});
+  }
 
-  visible_suggestion_count_ = static_cast<int>(visible_matches_.size()) +
-                              (ask_ai_row_index_ >= 0 ? 1 : 0);
+  const std::vector<int> matching_commands =
+      GetMatchingCommandIndices(command_mode_);
+  std::vector<SuggestionRow> front_commands;
+  std::vector<SuggestionRow> remaining_commands;
+  const std::u16string normalized_query = NormalizeCommandText(search_terms);
+  for (int command_index : matching_commands) {
+    bool exact = false;
+    std::vector<std::u16string> terms = CommandTerms(kCommands[command_index]);
+    terms.push_back(NormalizeCommandText(GetCommandTitle(command_index)));
+    for (const auto& term : terms) {
+      exact = exact || term == normalized_query;
+    }
+    SuggestionRow row{SuggestionRow::Kind::kCommand, command_index,
+                      IsCommandEnabled(command_index)};
+    if (!command_mode_ && exact && kCommands[command_index].safe_default &&
+        row.enabled) {
+      front_commands.push_back(row);
+    } else if (command_mode_ || row.enabled) {
+      remaining_commands.push_back(row);
+    }
+  }
+  if (!command_mode_) {
+    if (front_commands.size() >= 2) {
+      front_commands.resize(2);
+      remaining_commands.clear();
+    } else {
+      remaining_commands.resize(
+          std::min(remaining_commands.size(), 2 - front_commands.size()));
+    }
+  }
+
+  displayed_rows_.insert(displayed_rows_.end(), front_commands.begin(),
+                         front_commands.end());
+  if (command_mode_) {
+    displayed_rows_.insert(displayed_rows_.end(), remaining_commands.begin(),
+                           remaining_commands.end());
+  } else {
+    if (!non_command_rows.empty()) {
+      displayed_rows_.push_back(non_command_rows.front());
+    }
+    displayed_rows_.insert(displayed_rows_.end(), remaining_commands.begin(),
+                           remaining_commands.end());
+    displayed_rows_.insert(
+        displayed_rows_.end(),
+        non_command_rows.begin() + std::min<size_t>(1, non_command_rows.size()),
+        non_command_rows.end());
+  }
+
+  ask_ai_row_index_ = -1;
+  for (size_t i = 0; i < displayed_rows_.size(); ++i) {
+    if (displayed_rows_[i].kind == SuggestionRow::Kind::kAskAi) {
+      ask_ai_row_index_ = static_cast<int>(i);
+      break;
+    }
+  }
+  visible_suggestion_count_ = static_cast<int>(displayed_rows_.size());
   while (suggestion_views_.size() <
          static_cast<size_t>(visible_suggestion_count_)) {
     const int index = static_cast<int>(suggestion_views_.size());
@@ -961,16 +1255,13 @@ void DaoCommandBarView::UpdateSuggestions() {
       BookmarkModelFactory::GetForBrowserContext(browser_->profile());
 
   for (int i = 0; i < static_cast<int>(suggestion_views_.size()); ++i) {
-    // Map a display slot to the corresponding autocomplete match index.
-    // Slots before the Ask-AI row are 1:1; slots after it shift down by
-    // one because the Ask-AI row displaces one real match downward.
-    const bool is_ask_ai_slot = (i == ask_ai_row_index_);
-    int match_index = i;
-    if (ask_ai_row_index_ >= 0 && i > ask_ai_row_index_) {
-      match_index = i - 1;
+    if (i >= visible_suggestion_count_) {
+      suggestion_views_[i]->SetVisible(false);
+      suggestion_views_[i]->SetSelected(false);
+      continue;
     }
-
-    if (is_ask_ai_slot) {
+    const SuggestionRow& row = displayed_rows_[i];
+    if (row.kind == SuggestionRow::Kind::kAskAi) {
       suggestion_views_[i]->SetAskAiPrompt(
           user_input_text_,
           enhanced_suggestions_enabled
@@ -978,8 +1269,15 @@ void DaoCommandBarView::UpdateSuggestions() {
               : std::u16string());
       suggestion_views_[i]->SetVisible(true);
       suggestion_views_[i]->SetSelected(i == selected_index_);
-    } else if (match_index < static_cast<int>(visible_matches_.size())) {
-      const AutocompleteMatch& match = visible_matches_[match_index];
+    } else if (row.kind == SuggestionRow::Kind::kCommand) {
+      suggestion_views_[i]->SetCommand(
+          GetCommandTitle(row.index), kCommands[row.index].icon,
+          row.enabled ? std::u16string() : GetCommandDisabledReason(row.index),
+          row.enabled);
+      suggestion_views_[i]->SetVisible(true);
+      suggestion_views_[i]->SetSelected(i == selected_index_);
+    } else {
+      const AutocompleteMatch& match = visible_matches_[row.index];
       bool is_bookmark =
           bookmark_model && bookmark_model->IsBookmarked(match.destination_url);
       suggestion_views_[i]->SetMatch(match, is_bookmark,
@@ -988,21 +1286,52 @@ void DaoCommandBarView::UpdateSuggestions() {
                                          : std::u16string());
       suggestion_views_[i]->SetVisible(true);
       suggestion_views_[i]->SetSelected(i == selected_index_);
-    } else {
-      suggestion_views_[i]->SetVisible(false);
-      suggestion_views_[i]->SetSelected(false);
     }
   }
 
   if (visible_suggestion_count_ > 0) {
     dropdown_scroll_view_->SetVisible(true);
-    int next_selected_index = selected_index_;
-    if (next_selected_index < 0) {
-      next_selected_index = 0;
-    } else if (next_selected_index >= visible_suggestion_count_) {
-      // Previously-selected index is no longer visible (e.g. results
-      // shrank while the user was typing); clamp back onto the list.
-      next_selected_index = visible_suggestion_count_ - 1;
+    int next_selected_index = -1;
+    if (previously_selected_command >= 0) {
+      for (size_t i = 0; i < displayed_rows_.size(); ++i) {
+        const auto& row = displayed_rows_[i];
+        if (row.kind == SuggestionRow::Kind::kCommand &&
+            row.index == previously_selected_command && row.enabled) {
+          next_selected_index = static_cast<int>(i);
+          break;
+        }
+      }
+      if (next_selected_index < 0) {
+        command_selection_invalidated_ = true;
+      }
+    } else if (previously_selected_non_command_kind.has_value()) {
+      for (size_t i = 0; i < displayed_rows_.size(); ++i) {
+        const SuggestionRow& row = displayed_rows_[i];
+        if (row.kind != *previously_selected_non_command_kind) {
+          continue;
+        }
+        if (row.kind == SuggestionRow::Kind::kAskAi) {
+          next_selected_index = static_cast<int>(i);
+          break;
+        }
+        const AutocompleteMatch& match = visible_matches_[row.index];
+        if (match.destination_url == previously_selected_destination &&
+            match.fill_into_edit == previously_selected_fill_into_edit) {
+          next_selected_index = static_cast<int>(i);
+          break;
+        }
+      }
+      if (next_selected_index < 0) {
+        selection_explicitly_changed_ = false;
+      }
+    }
+    if (next_selected_index < 0 && previously_selected_command < 0 &&
+        !command_selection_invalidated_) {
+      if (command_mode_) {
+        next_selected_index = GetNextEnabledIndex(-1, 1);
+      } else if (!front_commands.empty() || !displayed_rows_.empty()) {
+        next_selected_index = 0;
+      }
     }
 
     // Refresh even when the selected index is unchanged because async
@@ -1084,6 +1413,11 @@ std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
     return std::u16string();
   }
 
+  const SuggestionRow* selected_row = GetSelectedRow();
+  if (selected_row && selected_row->kind == SuggestionRow::Kind::kCommand) {
+    return std::u16string();
+  }
+
   const AutocompleteResult& result = autocomplete_controller_->result();
 
   const AutocompleteMatch* default_match = result.default_match();
@@ -1160,21 +1494,25 @@ DaoCommandBarView::GetVisibleInlineAutocompletionMatch() const {
 
 const AutocompleteMatch*
 DaoCommandBarView::GetSelectedVisibleAutocompleteMatch() const {
-  if (selected_index_ < 0 || selected_index_ == ask_ai_row_index_) {
+  const SuggestionRow* row = GetSelectedRow();
+  if (!row || row->kind != SuggestionRow::Kind::kAutocomplete) {
     return nullptr;
   }
-
-  int match_index = selected_index_;
-  if (ask_ai_row_index_ >= 0 && selected_index_ > ask_ai_row_index_) {
-    match_index = selected_index_ - 1;
-  }
-
-  if (match_index >= 0 &&
-      match_index < static_cast<int>(visible_matches_.size())) {
-    return &visible_matches_[match_index];
+  if (row->index >= 0 &&
+      row->index < static_cast<int>(visible_matches_.size())) {
+    return &visible_matches_[row->index];
   }
 
   return nullptr;
+}
+
+const DaoCommandBarView::SuggestionRow* DaoCommandBarView::GetSelectedRow()
+    const {
+  if (selected_index_ < 0 ||
+      selected_index_ >= static_cast<int>(displayed_rows_.size())) {
+    return nullptr;
+  }
+  return &displayed_rows_[selected_index_];
 }
 
 std::u16string DaoCommandBarView::GetSelectionPreviewText() const {
@@ -1183,8 +1521,15 @@ std::u16string DaoCommandBarView::GetSelectionPreviewText() const {
     return std::u16string();
   }
 
-  if (selected_index_ == ask_ai_row_index_) {
+  const SuggestionRow* row = GetSelectedRow();
+  if (!row) {
+    return std::u16string();
+  }
+  if (row->kind == SuggestionRow::Kind::kAskAi) {
     return user_input_text_;
+  }
+  if (row->kind == SuggestionRow::Kind::kCommand) {
+    return GetCommandTitle(row->index);
   }
 
   const AutocompleteMatch* selected_match =
@@ -1335,6 +1680,14 @@ void DaoCommandBarView::UpdateInputIcon() {
 
   const SkColor icon_color = SuggestionIconColor();
 
+  if (const SuggestionRow* row = GetSelectedRow();
+      row && row->kind == SuggestionRow::Kind::kCommand) {
+    favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(
+        CreateLucideImageSkia(kCommands[row->index].icon, 18, icon_color)));
+    favicon_icon_->SetVisible(true);
+    return;
+  }
+
   // Ask-AI row is selected: mirror the sparkle icon shown on that row into
   // the input-field icon so the glyph the user is about to commit is
   // visible before they press Enter.
@@ -1477,8 +1830,97 @@ void DaoCommandBarView::SetAutocompleteMatchesForTesting(
   UpdateInlineAutocompletion();
 }
 
+std::u16string DaoCommandBarView::GetVisibleSuggestionTitleForTesting(
+    int index) const {
+  if (index < 0 || index >= static_cast<int>(displayed_rows_.size())) {
+    return std::u16string();
+  }
+  const SuggestionRow& row = displayed_rows_[index];
+  if (row.kind == SuggestionRow::Kind::kCommand) {
+    return GetCommandTitle(row.index);
+  }
+  if (row.kind == SuggestionRow::Kind::kAutocomplete) {
+    return visible_matches_[row.index].contents;
+  }
+  return l10n_util::GetStringFUTF16(IDS_DAO_SUGGESTION_ASK_AI,
+                                    user_input_text_);
+}
+
+bool DaoCommandBarView::IsVisibleSuggestionCommandForTesting(int index) const {
+  return index >= 0 && index < static_cast<int>(displayed_rows_.size()) &&
+         displayed_rows_[index].kind == SuggestionRow::Kind::kCommand;
+}
+
+bool DaoCommandBarView::HasVisibleCommandForTesting() const {
+  return std::any_of(displayed_rows_.begin(), displayed_rows_.end(),
+                     [](const SuggestionRow& row) {
+                       return row.kind == SuggestionRow::Kind::kCommand;
+                     });
+}
+
+bool DaoCommandBarView::IsVisibleSuggestionEnabledForTesting(int index) const {
+  return index >= 0 && index < static_cast<int>(displayed_rows_.size()) &&
+         displayed_rows_[index].enabled;
+}
+
+bool DaoCommandBarView::IsSelectedCommandForTesting() const {
+  const SuggestionRow* row = GetSelectedRow();
+  return row && row->kind == SuggestionRow::Kind::kCommand;
+}
+
+int DaoCommandBarView::GetSelectedCommandIdForTesting() const {
+  return selected_command_id_;
+}
+
+int DaoCommandBarView::GetNextEnabledIndex(int start, int direction) const {
+  if (displayed_rows_.empty()) {
+    return -1;
+  }
+  int index = start;
+  for (size_t i = 0; i < displayed_rows_.size(); ++i) {
+    index = (index + direction + static_cast<int>(displayed_rows_.size())) %
+            static_cast<int>(displayed_rows_.size());
+    if (displayed_rows_[index].enabled) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+void DaoCommandBarView::ExecuteSystemCommand(int command_index) {
+  if (command_index < 0 ||
+      command_index >= static_cast<int>(kCommands.size())) {
+    return;
+  }
+
+  const CommandDefinition& command = kCommands[command_index];
+  base::WeakPtr<content::WebContents> target = command_target_;
+  const bool enabled = IsCommandEnabled(command_index);
+  if (!enabled && command.action != CommandAction::kCopyCurrentLink) {
+    return;
+  }
+
+  Hide();
+  switch (command.action) {
+    case CommandAction::kBrowserCommand:
+      chrome::ExecuteCommand(browser_, command.command_id);
+      return;
+    case CommandAction::kCopyCurrentLink:
+      CopyTabUrl(browser_, target.get());
+      return;
+    case CommandAction::kAgentSettings:
+      chrome::ShowSettingsSubPage(browser_, "agent");
+      return;
+  }
+}
+
 void DaoCommandBarView::SetSelectedIndex(int index, bool user_initiated) {
+  if (index >= 0 && (index >= static_cast<int>(displayed_rows_.size()) ||
+                     !displayed_rows_[index].enabled)) {
+    index = -1;
+  }
   if (user_initiated) {
+    command_selection_invalidated_ = false;
     selection_explicitly_changed_ = true;
     suppress_ghost_for_current_query_ = false;
     rejected_selection_preview_text_.clear();
@@ -1501,6 +1943,12 @@ void DaoCommandBarView::SetSelectedIndex(int index, bool user_initiated) {
     }
   }
 
+  selected_command_id_ = -1;
+  if (const SuggestionRow* row = GetSelectedRow();
+      row && row->kind == SuggestionRow::Kind::kCommand) {
+    selected_command_id_ = row->index;
+  }
+
   if (selection_explicitly_changed_) {
     UpdateSelectionPreview();
   } else {
@@ -1518,6 +1966,15 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
   // Empty input: Enter only dismisses the bar.
   if (user_input_text_.empty()) {
     Navigate(std::u16string());
+    return;
+  }
+
+  if (const SuggestionRow* row = GetSelectedRow();
+      row && row->kind == SuggestionRow::Kind::kCommand && row->enabled) {
+    ExecuteSystemCommand(row->index);
+    return;
+  }
+  if (command_mode_) {
     return;
   }
 

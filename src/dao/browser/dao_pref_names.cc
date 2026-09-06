@@ -37,6 +37,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoForceDarkModeEnabled, false);
   registry->RegisterBooleanPref(kDaoEnhancedCommandBarSuggestionsEnabled,
                                 false);
+  registry->RegisterBooleanPref(kDaoCommandBarCommandModeEnabled, false);
   registry->RegisterBooleanPref(kDaoAskAiEnabled, true);
   registry->RegisterIntegerPref(kDaoStaleTabExpirationHours, 24);
   registry->RegisterDictionaryPref(kDaoLittleDaoWindowSize);
