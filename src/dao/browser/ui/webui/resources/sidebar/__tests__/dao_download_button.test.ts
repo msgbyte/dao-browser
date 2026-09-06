@@ -72,6 +72,8 @@ describe('dao-download-button', () => {
     document.body.innerHTML = '';
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (Element.prototype as unknown as {animate?: unknown}).animate;
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
   });
 
@@ -192,5 +194,70 @@ describe('dao-download-button', () => {
     zone.dispatchEvent(new MouseEvent('mouseleave'));
     await el.updateComplete;
     expect(el.shadowRoot!.querySelector('.completed-download')).toBeNull();
+  });
+
+  it('targets the rendered icon even when a download completes immediately', async () => {
+    const {el, send} = await renderDownloadButton();
+    const notify = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, value?: unknown) => void};
+    }).cr.webUIListenerCallback;
+    const measure = vi.spyOn(Element.prototype, 'getBoundingClientRect')
+        .mockReturnValue(new DOMRect(10, 500, 14, 14));
+    const animate = vi.fn((_frames: Keyframe[], _options: KeyframeAnimationOptions) =>
+        ({cancel: vi.fn()}));
+    vi.stubGlobal('matchMedia', () => ({matches: false}));
+    Object.defineProperty(Element.prototype, 'animate', {
+      configurable: true, value: animate,
+    });
+
+    notify('downloadStarted', 42);
+    notify('downloadCompleted', {id: 42, name: 'tiny.txt'});
+    notify('activeDownloadsChanged', []);
+    await el.updateComplete;
+    await Promise.resolve();
+    expect(send).toHaveBeenCalledWith(
+        'showDownloadStartedAnimation', [42, 17, 507, false]);
+    expect(measure.mock.instances.at(-1)).toBe(
+        el.shadowRoot!.querySelector('.completed-open svg'));
+    expect(animate).not.toHaveBeenCalled();
+
+    notify('downloadAnimationFinished');
+    expect(animate).toHaveBeenCalledOnce();
+    const cancel = animate.mock.results[0]!.value.cancel;
+    notify('downloadAnimationFinished');
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(animate).toHaveBeenCalledTimes(2);
+
+    el.remove();
+    send.mockClear();
+    notify('downloadStarted', 43);
+    notify('downloadAnimationFinished');
+    await Promise.resolve();
+    expect(send).not.toHaveBeenCalled();
+    expect(animate).toHaveBeenCalledTimes(2);
+  });
+
+  it('requests reduced motion and highlights without moving the icon', async () => {
+    const {el, send} = await renderDownloadButton();
+    const notify = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, value?: unknown) => void};
+    }).cr.webUIListenerCallback;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect')
+        .mockReturnValue(new DOMRect(10, 500, 14, 14));
+    vi.stubGlobal('matchMedia', () => ({matches: true}));
+    const animate = vi.fn((_frames: Keyframe[], _options: KeyframeAnimationOptions) =>
+        ({cancel: vi.fn()}));
+    Object.defineProperty(Element.prototype, 'animate', {
+      configurable: true, value: animate,
+    });
+    notify('downloadStarted', 7);
+    await el.updateComplete;
+    await Promise.resolve();
+    expect(send).toHaveBeenCalledWith(
+        'showDownloadStartedAnimation', [7, 17, 507, true]);
+    notify('downloadAnimationFinished');
+    expect(animate).toHaveBeenCalledOnce();
+    expect(animate.mock.calls[0]![0]).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({transform: expect.anything()})]));
   });
 });

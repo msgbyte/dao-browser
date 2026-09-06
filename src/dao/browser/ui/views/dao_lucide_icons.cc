@@ -395,6 +395,13 @@ void DrawLucideIcon(gfx::Canvas* canvas,
     case LucideIcon::kPlus:
       DrawPlus(canvas, s, ox, oy, flags);
       break;
+    case LucideIcon::kDownload:
+      // https://github.com/lucide-icons/lucide/blob/main/icons/download.svg
+      DrawSvgPath(canvas, "M12 15V3", s, ox, oy, flags);
+      DrawSvgPath(canvas, "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",
+                  s, ox, oy, flags);
+      DrawSvgPath(canvas, "m7 10 5 5 5-5", s, ox, oy, flags);
+      break;
     case LucideIcon::kSettings:
       DrawSettings(canvas, s, ox, oy, flags);
       break;

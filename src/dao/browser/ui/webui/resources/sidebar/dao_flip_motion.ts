@@ -160,7 +160,7 @@ function isVisibleFlipElement(element: HTMLElement): boolean {
   return style.display !== 'none' && style.visibility !== 'hidden';
 }
 
-function prefersReducedMotion(): boolean {
+export function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ??
       false;
 }
