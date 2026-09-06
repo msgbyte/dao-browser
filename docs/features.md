@@ -131,6 +131,15 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   tab until the user navigates
 
 ### 1.6 Downloads (sidebar-anchored)
+- **Download-start feedback** — A blue download icon pops out at the pointer
+  position captured when a new download is created, follows a 560ms upward
+  quadratic throw into the sidebar button, and shrinks/fades on arrival. The
+  button briefly pulses and highlights. Feedback is independent of progress,
+  including files that complete immediately, and only runs in the active source
+  window. Bursts before the sidebar replies coalesce into the latest flight.
+  Reduced motion uses a highlight without flight or scaling; a collapsed sidebar
+  uses the shared localized Dao toast. Restored and transient downloads do not
+  trigger the animation.
 - **DaoDownloadFlyoutView** (`sidebar/dao_download_flyout_view.{h,cc}`) — Anchored flyout panel
 - **DaoFileIconUtilMac** (`sidebar/dao_file_icon_util_mac.{h,mm}`) — Native macOS file icon retrieval
 - **Active-download hover details** — After a settled 400ms hover, an active

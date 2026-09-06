@@ -5,6 +5,7 @@
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <map>
 #include <set>
@@ -44,6 +45,7 @@
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/download/download_started_animation_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/dao_sidebar_resources.h"
@@ -53,6 +55,7 @@
 #include "components/download/public/common/download_item.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -63,8 +66,10 @@
 #include "dao/browser/pip/dao_pip_interceptor.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/updater/dao_updater_service.h"
+#include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
@@ -78,15 +83,18 @@
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/menu_source_type.mojom-shared.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/controls/label.h"
@@ -133,6 +141,77 @@ namespace {
 
 constexpr char kDaoWelcomeHost[] = "welcome";
 constexpr char kDaoWelcomeURL[] = "dao://welcome/";
+
+// Reuse Chromium's non-interactive, self-deleting native popup so the icon
+// can travel across the page and sidebar WebContents without clipping.
+class DaoDownloadStartedAnimation : public DownloadStartedAnimationViews {
+  METADATA_HEADER(DaoDownloadStartedAnimation, DownloadStartedAnimationViews)
+
+ public:
+  DaoDownloadStartedAnimation(content::WebContents* contents,
+                              const gfx::Point& start,
+                              const gfx::Point& end,
+                              const gfx::Rect& window_bounds,
+                              base::OnceClosure landed)
+      : DownloadStartedAnimationViews(
+            contents, base::Milliseconds(560),
+            ui::ImageModel::FromImageSkia(
+                gfx::ImageSkiaOperations::CreateImageWithCircleBackground(
+                    18, SpaceActive(),
+                    CreateLucideImageSkia(LucideIcon::kDownload, 20,
+                                         SK_ColorWHITE)))),
+        start_(start),
+        end_(end),
+        control_(
+            std::clamp(start.x() + 80, window_bounds.x() + 18,
+                       window_bounds.right() - 18),
+            std::max(window_bounds.y() + 18,
+                     std::min(start.y(), end.y()) - 160)),
+        landed_(std::move(landed)) {}
+
+  ~DaoDownloadStartedAnimation() override {
+    if (GetCurrentValue() >= 1.0) {
+      std::move(landed_).Run();
+    }
+  }
+
+ private:
+  int Coordinate(int start, int control, int end) const {
+    const double t = GetCurrentValue();
+    const double u = 1.0 - t;
+    // A quadratic Bezier: initially throw upward, then fall into the button.
+    return std::lround(u * u * start + 2 * u * t * control + t * t * end);
+  }
+
+  int GetX() const override {
+    return Coordinate(start_.x(), control_.x(), end_.x()) - GetWidth() / 2;
+  }
+  int GetY() const override {
+    return Coordinate(start_.y(), control_.y(), end_.y()) - GetHeight() / 2;
+  }
+  int GetWidth() const override {
+    const double t = GetCurrentValue();
+    return std::lround(t < 0.15 ? 28 + 8 * t / 0.15
+                              : 36 - 20 * (t - 0.15) / 0.85);
+  }
+  int GetHeight() const override { return GetWidth(); }
+  float GetOpacity() const override {
+    const double t = GetCurrentValue();
+    return std::min({1.0, t / 0.08, (1.0 - t) / 0.18});
+  }
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override {
+    SetImageSize(size());
+    DownloadStartedAnimationViews::OnBoundsChanged(previous_bounds);
+  }
+
+  const gfx::Point start_;
+  const gfx::Point end_;
+  const gfx::Point control_;
+  base::OnceClosure landed_;
+};
+
+BEGIN_METADATA(DaoDownloadStartedAnimation)
+END_METADATA
 
 struct PinnedItemsProfileState {
   std::set<DaoSidebarUIHandler*> handlers;
@@ -491,6 +570,7 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
     reopening_pinned_item_ids_.clear();
     persisted_identity_session_tab_ids_.clear();
     in_progress_download_ids_.clear();
+    pending_download_animation_.reset();
     stale_tab_ids_.clear();
     saw_web_contents_replacement_ = false;
   }
@@ -699,6 +779,11 @@ void DaoSidebarUIHandler::RegisterMessages() {
       base::BindRepeating(&DaoSidebarUIHandler::HandleOpenDownloadsFolder,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "showDownloadStartedAnimation",
+      base::BindRepeating(
+          &DaoSidebarUIHandler::HandleShowDownloadStartedAnimation,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "openRecentFile",
       base::BindRepeating(&DaoSidebarUIHandler::HandleOpenRecentFile,
                           base::Unretained(this)));
@@ -822,7 +907,9 @@ void DaoSidebarUIHandler::OnJavascriptAllowed() {
   PushUpdateState();
 }
 
-void DaoSidebarUIHandler::OnJavascriptDisallowed() {}
+void DaoSidebarUIHandler::OnJavascriptDisallowed() {
+  pending_download_animation_.reset();
+}
 
 void DaoSidebarUIHandler::OnDaoUpdateStatusChanged(const DaoUpdateStatus&) {
   PushUpdateState();
@@ -2072,6 +2159,83 @@ void DaoSidebarUIHandler::OnDownloadCreated(content::DownloadManager* manager,
   }
   if (IsJavascriptAllowed()) {
     PushActiveDownloads();
+  }
+  ShowDownloadStartedFeedback(item);
+}
+
+void DaoSidebarUIHandler::ShowDownloadStartedFeedback(
+    download::DownloadItem* item) {
+  if (!browser_ || item->IsTransient() ||
+      item->GetDownloadCreationType() !=
+          download::DownloadItem::TYPE_ACTIVE_DOWNLOAD ||
+      item->GetState() != download::DownloadItem::IN_PROGRESS) {
+    return;
+  }
+  auto* source = content::DownloadItemUtils::GetOriginalWebContents(item);
+  // All windows observe the profile's manager; only the source window reacts.
+  if (!source || browser_->tab_strip_model()->GetIndexOfWebContents(source) ==
+                     TabStripModel::kNoTab) {
+    return;
+  }
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!view || !view->GetWidget()->IsActive() || !view->dao_sidebar()) {
+    return;
+  }
+  if (view->dao_sidebar()->collapsed() || !IsJavascriptAllowed()) {
+    if (view->dao_toast()) {
+      view->dao_toast()->ShowToast(
+          l10n_util::GetStringUTF16(IDS_DAO_DOWNLOAD_STARTED));
+    }
+    return;
+  }
+  // Keep the pointer at creation time, even if it moves during the WebUI reply.
+  const int id = static_cast<int>(item->GetId());
+  pending_download_animation_ =
+      std::make_pair(id, display::Screen::Get()->GetCursorScreenPoint());
+  FireWebUIListener("downloadStarted", id);
+}
+
+void DaoSidebarUIHandler::HandleShowDownloadStartedAnimation(
+    const base::ListValue& args) {
+  if (!browser_ || !IsJavascriptAllowed() || args.size() != 4 ||
+      !args[0].is_int() || !args[1].is_int() || !args[2].is_int() ||
+      !args[3].is_bool() || !pending_download_animation_ ||
+      pending_download_animation_->first != args[0].GetInt()) {
+    return;
+  }
+  const gfx::Point start = pending_download_animation_->second;
+  pending_download_animation_.reset();
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!view || !view->GetWidget()->IsActive() || !view->dao_sidebar()) {
+    return;
+  }
+  auto* contents = web_ui()->GetWebContents();
+  const gfx::Rect bounds = contents->GetContainerBounds();
+  const gfx::Point local_target(args[1].GetInt(), args[2].GetInt());
+  if (view->dao_sidebar()->collapsed() ||
+      !gfx::Rect(bounds.size()).Contains(local_target)) {
+    if (view->dao_toast()) {
+      view->dao_toast()->ShowToast(
+          l10n_util::GetStringUTF16(IDS_DAO_DOWNLOAD_STARTED));
+    }
+    return;
+  }
+  const gfx::Rect window_bounds = view->GetWidget()->GetWindowBoundsInScreen();
+  if (args[3].GetBool() || !gfx::Animation::ShouldRenderRichAnimation() ||
+      !window_bounds.Contains(start) || bounds.height() < 36) {
+    OnDownloadAnimationFinished();
+    return;
+  }
+  const gfx::Point end = bounds.origin() + local_target.OffsetFromOrigin();
+  new DaoDownloadStartedAnimation(
+      contents, start, end, window_bounds,
+      base::BindOnce(&DaoSidebarUIHandler::OnDownloadAnimationFinished,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void DaoSidebarUIHandler::OnDownloadAnimationFinished() {
+  if (IsJavascriptAllowed()) {
+    FireWebUIListener("downloadAnimationFinished");
   }
 }
 

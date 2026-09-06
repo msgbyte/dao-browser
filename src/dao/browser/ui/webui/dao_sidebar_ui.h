@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -27,6 +28,7 @@
 #include "dao/browser/ui/webui/dao_pinned_tab_model.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
+#include "ui/gfx/geometry/point.h"
 #include "ui/menus/simple_menu_model.h"
 
 class Browser;
@@ -225,6 +227,9 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleFileDrop(const base::ListValue& args);
   void HandleSetDropInsertIndex(const base::ListValue& args);
   void HandleRequestDownloadState(const base::ListValue& args);
+  void HandleShowDownloadStartedAnimation(const base::ListValue& args);
+  void ShowDownloadStartedFeedback(download::DownloadItem* item);
+  void OnDownloadAnimationFinished();
   void HandleRequestUpdateState(const base::ListValue& args);
   void HandleApplyReadyUpdate(const base::ListValue& args);
   void HandleOpenDownloadsFolder(const base::ListValue& args);
@@ -315,6 +320,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
       media_session_observer_receiver_{this};
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
   std::set<uint32_t> in_progress_download_ids_;
+  std::optional<std::pair<int, gfx::Point>> pending_download_animation_;
   std::vector<base::FilePath> recent_file_paths_;
   std::string folder_json_;  // Per-window folder data (in-memory)
   std::set<std::string> stale_tab_ids_;

@@ -5,7 +5,8 @@
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {sendNative, addListener} from './sidebar_bridge.js';
+import {sendNative, addListener, removeListener} from './sidebar_bridge.js';
+import {prefersReducedMotion} from './dao_flip_motion.js';
 import type {
   RecentFileData, ActiveDownloadData, DownloadState
 } from './sidebar_bridge.js';
@@ -324,6 +325,8 @@ export class DaoDownloadButton extends CrLitElement {
   private lastMouseX_: number = 0;
   private lastMouseY_: number = 0;
   private completedListOpenedByHover_: boolean = false;
+  private listeners_: Array<ReturnType<typeof addListener>> = [];
+  private landingAnimation_: Animation|null = null;
 
   constructor() {
     super();
@@ -335,24 +338,34 @@ export class DaoDownloadButton extends CrLitElement {
   override connectedCallback() {
     super.connectedCallback();
 
-    addListener('downloadStateChanged', (...args: unknown[]) => {
+    this.listeners_.push(addListener('downloadStateChanged', (...args: unknown[]) => {
       const state = args[0] as DownloadState;
       this.recentFiles_ = state.recentFiles;
       this.setActiveDownloads_(state.activeDownloads);
-    });
+    }));
 
-    addListener('activeDownloadsChanged', (...args: unknown[]) => {
+    this.listeners_.push(addListener('activeDownloadsChanged', (...args: unknown[]) => {
       const downloads = args[0] as ActiveDownloadData[];
       this.setActiveDownloads_(downloads);
-    });
+    }));
 
-    addListener('downloadCompleted', (...args: unknown[]) => {
+    this.listeners_.push(addListener('downloadCompleted', (...args: unknown[]) => {
       this.completedDownload_ = args[0] as CompletedDownloadData;
       this.completedListOpenedByHover_ = false;
-    });
+    }));
+    this.listeners_.push(addListener('downloadStarted', (...args: unknown[]) => {
+      void this.onDownloadStarted_(args[0] as number);
+    }));
+    this.listeners_.push(addListener('downloadAnimationFinished', () => {
+      this.onDownloadLanded_();
+    }));
   }
 
   override disconnectedCallback() {
+    this.listeners_.forEach(removeListener);
+    this.listeners_ = [];
+    this.landingAnimation_?.cancel();
+    this.landingAnimation_ = null;
     this.clearDownloadTooltip_(true);
     super.disconnectedCallback?.();
   }
@@ -550,6 +563,38 @@ export class DaoDownloadButton extends CrLitElement {
       this.clearDownloadTooltip_(true);
     }
     this.activeDownloads_ = downloads;
+  }
+
+  private async onDownloadStarted_(id: number) {
+    // Let the progress rows and an immediate completion settle before measuring.
+    await Promise.resolve();
+    await this.updateComplete;
+    if (!this.isConnected) {
+      return;
+    }
+    const icon = this.shadowRoot!.querySelector(
+        '.download-btn svg, .completed-open svg');
+    const bounds = icon?.getBoundingClientRect();
+    sendNative('showDownloadStartedAnimation', id,
+        bounds ? Math.round(bounds.left + bounds.width / 2) : -1,
+        bounds ? Math.round(bounds.top + bounds.height / 2) : -1,
+        prefersReducedMotion());
+  }
+
+  private onDownloadLanded_() {
+    const button = this.shadowRoot!.querySelector<HTMLElement>(
+        '.download-btn, .completed-open');
+    this.landingAnimation_?.cancel();
+    const highlight = [
+      {backgroundColor: 'rgba(70, 120, 190, 0.3)'},
+      {backgroundColor: 'rgba(70, 120, 190, 0)'},
+    ];
+    this.landingAnimation_ = button?.animate(
+        prefersReducedMotion() ? highlight : [
+          {...highlight[0], transform: 'scale(1)'},
+          {...highlight[0], transform: 'scale(1.16)', offset: 0.3},
+          {...highlight[1], transform: 'scale(1)'},
+        ], {duration: 380, easing: 'ease-out'}) ?? null;
   }
 
   private onDownloadMouseMove_(e: MouseEvent, id: number) {
