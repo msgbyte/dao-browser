@@ -267,6 +267,8 @@ dependencies {
     implementation(libs.mozilla.browser.engine.gecko)
     implementation(libs.mozilla.browser.state)
     implementation(libs.mozilla.browser.session.storage)
+    implementation(libs.mozilla.feature.app.links)
+    implementation(libs.mozilla.feature.session)
     implementation(libs.zxing.core)
 
     debugImplementation(libs.compose.ui.tooling)

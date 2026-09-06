@@ -260,4 +260,5 @@
     <string name="amo_failure">无法加载扩展</string>
     <string name="amo_retry">重试</string>
     <string name="amo_load_more">加载更多</string>
+    <string name="external_app_unavailable">无法打开外部应用</string>
 </resources>

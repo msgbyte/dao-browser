@@ -43,6 +43,8 @@ mozilla-concept-engine = { module = "org.mozilla.components:concept-engine", ver
 mozilla-browser-engine-gecko = { module = "org.mozilla.components:browser-engine-gecko", version.ref = "mozilla-components" }
 mozilla-browser-state = { module = "org.mozilla.components:browser-state", version.ref = "mozilla-components" }
 mozilla-browser-session-storage = { module = "org.mozilla.components:browser-session-storage", version.ref = "mozilla-components" }
+mozilla-feature-app-links = { module = "org.mozilla.components:feature-app-links", version.ref = "mozilla-components" }
+mozilla-feature-session = { module = "org.mozilla.components:feature-session", version.ref = "mozilla-components" }
 lucide-icons = { module = "com.composables:icons-lucide", version.ref = "lucide-icons" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidx-datastore" }
 androidx-swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "androidx-swiperefreshlayout" }

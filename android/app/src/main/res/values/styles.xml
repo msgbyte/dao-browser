@@ -6,4 +6,6 @@
         <item name="android:navigationBarColor">#E7EEF5</item>
         <item name="android:statusBarColor">#E7EEF5</item>
     </style>
+    <style name="Theme.Dao.AppLinkDialog" parent="Theme.MaterialComponents.Light.Dialog.Alert" />
+    <style name="Theme.Dao.AppLinkDialog.Dark" parent="Theme.MaterialComponents.Dialog.Alert" />
 </resources>

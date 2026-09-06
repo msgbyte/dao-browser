@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Dao</string>
     <string name="dao_logo_content_description">Dao logo</string>
     <string name="new_tab_date_format">EEE · MMM d</string>
@@ -260,4 +260,6 @@
     <string name="amo_failure">Couldn\'t load extensions</string>
     <string name="amo_retry">Retry</string>
     <string name="amo_load_more">Load more</string>
+    <!-- Other locales use English until the manual Android translation pass. -->
+    <string name="external_app_unavailable" tools:ignore="MissingTranslation">Unable to open the external app</string>
 </resources>

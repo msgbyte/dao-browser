@@ -12,7 +12,13 @@
         android:name="android.permission.POST_NOTIFICATIONS"
         tools:node="remove" />
 
-    <queries tools:node="remove" />
+    <queries tools:node="replace">
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="*" />
+        </intent>
+    </queries>
 
     <application
         android:name=".DaoApplication"

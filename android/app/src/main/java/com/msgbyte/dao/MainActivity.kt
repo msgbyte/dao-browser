@@ -2,7 +2,6 @@ package com.msgbyte.dao
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -15,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.core.view.WindowCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -27,8 +27,11 @@ import com.msgbyte.dao.ui.theme.DaoTheme
 import kotlinx.coroutines.launch
 import mozilla.components.concept.engine.EngineSession
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val browserSessionViewModel by viewModels<BrowserSessionViewModel>()
+    private val appLinksFeature by lazy {
+        browserSessionViewModel.appLinks.createFeature(this) { darkThemeEnabled }
+    }
     private val amoStoreViewModel by viewModels<AmoStoreViewModel> {
         viewModelFactory {
             initializer {
@@ -130,6 +133,16 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intent.httpNavigationUrl()?.let { externalNavigationUrl = it }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        appLinksFeature.start()
+    }
+
+    override fun onStop() {
+        appLinksFeature.stop()
+        super.onStop()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
