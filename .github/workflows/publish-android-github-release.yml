@@ -1,0 +1,132 @@
+name: Publish Android GitHub Release
+
+on:
+  push:
+    tags:
+      - 'android-v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-android-github-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Validate release
+        id: release
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          tag = os.environ['GITHUB_REF_NAME']
+          if not re.fullmatch(r'android-v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', tag):
+              raise SystemExit('Invalid Android release tag')
+          source = pathlib.Path('android/app/build.gradle.kts').read_text()
+          name = re.search(r'^\s*versionName\s*=\s*"([^"\r\n]+)"[ \t]*$', source, re.M)
+          code = re.search(r'^\s*versionCode\s*=\s*(\d+)[ \t]*$', source, re.M)
+          if not name or not code or name[1] != tag.removeprefix('android-v') or not 1 <= int(code[1]) <= 2100000000:
+              raise SystemExit('Tag and committed Android versions do not match')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'version={name[1]}\nversion_code={int(code[1])}\n')
+          PY
+          # shellcheck disable=SC2016
+          state=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -f tag="$GITHUB_REF_NAME" \
+            -f query='query($owner: String!, $name: String!, $tag: String!) { repository(owner: $owner, name: $name) { release(tagName: $tag) { isDraft } } }' \
+            --jq 'if .data.repository.release == null then "missing" elif .data.repository.release.isDraft then "draft" else "published" end')
+          case "$state" in
+            published) echo 'build=false' >> "$GITHUB_OUTPUT"; echo 'Release already published; preserving its APK.' ;;
+            missing|draft) echo 'build=true' >> "$GITHUB_OUTPUT" ;;
+            *) echo '::error::Unexpected GitHub release state'; exit 1 ;;
+          esac
+
+      - name: Setup Java
+        if: steps.release.outputs.build == 'true'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        if: steps.release.outputs.build == 'true'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Setup Gradle
+        if: steps.release.outputs.build == 'true'
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build release APK
+        if: steps.release.outputs.build == 'true'
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret: $name"
+              exit 1
+            fi
+          done
+          umask 077
+          trap 'rm -f dao-release.jks' EXIT
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > dao-release.jks
+          ./gradlew --no-daemon --stacktrace :app:assembleRelease
+
+      - name: Verify and package APK
+        if: steps.release.outputs.build == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          VERSION_CODE: ${{ steps.release.outputs.version_code }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib, re, shutil, subprocess
+          apk = pathlib.Path('android/app/build/outputs/apk/release/app-release.apk')
+          tools = pathlib.Path(os.environ['ANDROID_HOME']) / 'build-tools/36.0.0'
+          subprocess.run([str(tools / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], check=True)
+          badging = subprocess.check_output([str(tools / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
+          package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.M)
+          if not package or package.groups() != ('com.msgbyte.dao', os.environ['VERSION_CODE'], os.environ['VERSION']):
+              raise SystemExit('APK package or version does not match the release')
+          if re.search(r'^application-debuggable(?:\s|$)', badging, re.M):
+              raise SystemExit('Refusing to publish a debuggable APK')
+          directory = pathlib.Path('dist')
+          directory.mkdir(exist_ok=True)
+          target = directory / f"dao-browser-{os.environ['VERSION']}-android.apk"
+          shutil.copyfile(apk, target)
+          with target.open('rb') as content:
+              digest = hashlib.file_digest(content, 'sha256').hexdigest()
+          (directory / 'SHA256SUMS').write_text(f'{digest}  {target.name}\n')
+          PY
+
+      - name: Publish GitHub Release
+        if: steps.release.outputs.build == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          # shellcheck disable=SC2016
+          state=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -f tag="$GITHUB_REF_NAME" \
+            -f query='query($owner: String!, $name: String!, $tag: String!) { repository(owner: $owner, name: $name) { release(tagName: $tag) { isDraft } } }' \
+            --jq 'if .data.repository.release == null then "missing" elif .data.repository.release.isDraft then "draft" else "published" end')
+          case "$state" in
+            published) echo 'Release already published; preserving its APK.'; exit 0 ;;
+            missing) gh release create "$GITHUB_REF_NAME" --verify-tag --draft --latest=false --title "Dao Browser Android v$VERSION" --notes '' ;;
+            draft) ;;
+            *) echo '::error::Unexpected GitHub release state'; exit 1 ;;
+          esac
+          gh release upload "$GITHUB_REF_NAME" "dist/dao-browser-$VERSION-android.apk" dist/SHA256SUMS --clobber
+          gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease=false --latest=false

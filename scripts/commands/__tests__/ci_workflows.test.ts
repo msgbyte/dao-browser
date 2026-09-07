@@ -10,11 +10,14 @@ function read(relativePath: string): string {
 }
 
 describe('CI workflows', () => {
-  it('requires Android signing secrets and cleans up the restored key', () => {
-    const workflow = read('.github/workflows/build-android-apk.yml');
+  it.each(['build-android-apk.yml', 'publish-android-github-release.yml'])
+    ('requires signing secrets and cleans up the key in %s', (file) => {
+    const workflow = read(`.github/workflows/${file}`);
     const releaseStep = workflow.match(
         /      - name: Build release APK\n([\s\S]*?)(?=\n      - name:)/u)?.[1];
-    expect(releaseStep).toContain("if: github.event_name != 'pull_request'");
+    expect(releaseStep).toContain(file === 'build-android-apk.yml'
+        ? "if: github.event_name != 'pull_request'"
+        : "if: steps.release.outputs.build == 'true'");
     const script = releaseStep!.split('run: |\n')[1]
         .replace(/^          /gmu, '');
     const directory = mkdtempSync(path.join(tmpdir(), 'dao-android-signing-'));

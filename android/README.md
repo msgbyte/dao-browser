@@ -106,6 +106,73 @@ For local release builds, the signing configuration reads the two password
 environment variables above and uses `android/dao-release.jks`.
 Without `ANDROID_KEYSTORE_PASSWORD`, local release builds remain unsigned.
 
+## Publish an Android release
+
+From a clean `main` checkout at the repository root:
+
+```bash
+npm run release:android
+```
+
+The command reads `versionName` and `versionCode` from
+`android/app/build.gradle.kts`, prompts for the next values, and suggests a patch
+increment plus the next integer. Press Enter to accept either suggestion. Both
+values must increase. It then:
+
+1. Updates those two Gradle values.
+2. Commits only the version file as `chore(android): release <version>`.
+3. Creates `android-v<version>` at the new commit.
+4. Atomically pushes `main` and the tag to `origin`.
+
+The checkout must contain remote `main`; already committed local changes are
+included in the push. Existing local or remote release tags are rejected before
+editing. Configure your Git identity and push access, and finish any uncommitted
+work first. Local publishing needs the repository's Node dependencies and Git;
+Android builds and signing run in GitHub Actions.
+
+Explicit arguments work without prompts:
+
+```bash
+npm run release:android -- --version 0.1.1 --version-code 2
+```
+
+Preview the version changes, commit, tag, and push without modifying files or
+contacting the remote:
+
+```bash
+npm run release:android -- --dry-run
+npm run release:android -- --version 0.1.1 --version-code 2 --dry-run
+```
+
+Pushing `android-v*` triggers **Publish Android GitHub Release**. It validates the
+tag against the committed Gradle versions, builds with the three existing
+[Android signing secrets](#release-signing-setup), verifies the APK signature,
+package, versions, and non-debuggable flag, and publishes these GitHub assets:
+
+- `dao-browser-<version>-android.apk`
+- `SHA256SUMS`
+
+The release uses the pushed tag, title `Dao Browser Android v<version>`, and
+`--latest=false`. Android releases do not replace desktop Latest. The workflow
+uses its built-in `GITHUB_TOKEN`; it does not upload to R2 or need R2 credentials.
+
+If a Git step fails, the command preserves local work and prints recovery
+instructions. In particular, a failed atomic push leaves the release commit and
+tag locally; resolve the failure and retry the printed push command instead of
+bumping the version again:
+
+```bash
+git push --atomic --no-follow-tags origin refs/heads/main:refs/heads/main refs/tags/android-v0.1.1:refs/tags/android-v0.1.1
+```
+
+If the workflow fails, rerun it in GitHub Actions. Uploads finish in a draft
+before publication; reruns rebuild and replace draft assets, including empty
+assets left by failed uploads. Already published releases are skipped so their
+APK bytes are preserved. Keep the same signing key for every release.
+
+The daily `Build Android APK` workflow remains an artifact build. Desktop
+version metadata and release workflows are independent of Android publishing.
+
 ## Localization
 
 Android uses English as its unqualified source catalog and follows the system

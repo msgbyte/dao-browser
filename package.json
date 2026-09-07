@@ -48,6 +48,7 @@
     "upload:release": "tsx scripts/cli.ts upload",
     "upload:cleanup": "tsx scripts/cli.ts upload cleanup",
     "release": "tsx scripts/cli.ts release",
+    "release:android": "tsx scripts/cli.ts release-android",
     "release:github": "tsx scripts/cli.ts github-release publish",
     "release:github:backfill": "tsx scripts/cli.ts github-release backfill",
     "release:minor": "tsx scripts/cli.ts release --bump minor",

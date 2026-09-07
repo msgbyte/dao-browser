@@ -8,6 +8,7 @@ import { vendorCommand } from "./commands/vendor.js";
 import { sparkleCommand } from "./commands/sparkle.js";
 import { uploadCommand } from "./commands/upload.js";
 import { releaseCommand } from "./commands/release.js";
+import { releaseAndroidCommand } from "./commands/release-android.js";
 import { githubReleaseCommand } from "./commands/github-release.js";
 import { worktreeCommand } from "./commands/worktree.js";
 
@@ -15,6 +16,7 @@ const program = new Command();
 
 program
   .name("dao")
+  .enablePositionalOptions()
   .description("Dao Browser build toolchain")
   .version("0.1.0");
 
@@ -27,6 +29,7 @@ program.addCommand(vendorCommand);
 program.addCommand(sparkleCommand);
 program.addCommand(uploadCommand);
 program.addCommand(releaseCommand);
+program.addCommand(releaseAndroidCommand);
 program.addCommand(githubReleaseCommand);
 program.addCommand(worktreeCommand);
 
