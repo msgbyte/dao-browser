@@ -2,6 +2,7 @@ package com.msgbyte.dao.browser
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -9,7 +10,149 @@ import org.junit.Test
 class SystemDownloadRepositoryTest {
     private val gateway = FakeDownloadGateway()
     private val store = InMemoryDownloadMetadataStore()
-    private val repository = SystemDownloadRepository(gateway, store)
+    private var now = 1_000L
+    private val repository = SystemDownloadRepository(gateway, store, elapsedRealtime = { now })
+
+    @Test
+    fun speedUsesEachDownloadsByteDeltaAndActualElapsedTime() = runBlocking {
+        val first = repository.enqueue(DownloadRequestData("https://example.com/a", "a"))
+        val second = repository.enqueue(DownloadRequestData("https://example.com/b", "b"))
+        gateway.records[first] = runningRecord(first, 10_000)
+        gateway.records[second] = runningRecord(second, 20_000)
+        repository.refresh()
+        assertNull(repository.find(first)?.bytesPerSecond)
+
+        now += 2_000
+        gateway.records[first] = runningRecord(first, 14_000)
+        gateway.records[second] = runningRecord(second, 21_000)
+        repository.refresh()
+        assertEquals(2_000L, repository.find(first)?.bytesPerSecond)
+        assertEquals(500L, repository.find(second)?.bytesPerSecond)
+
+        now += 1_000
+        repository.refresh()
+        assertEquals(2_000L, repository.find(first)?.bytesPerSecond)
+
+        repeat(4) {
+            now += 1_000
+            repository.refresh()
+        }
+        assertEquals(0L, repository.find(first)?.bytesPerSecond)
+
+        now += 1_000
+        gateway.records[first] = runningRecord(first, 20_000)
+        repository.refresh()
+        assertEquals(1_000L, repository.find(first)?.bytesPerSecond)
+    }
+
+    @Test
+    fun speedIgnoresUnchangedProviderSnapshots() = runBlocking {
+        val id = repository.enqueue(DownloadRequestData("https://example.com/a", "a"))
+        val bytesPerSecond = 1_048_576L
+        gateway.records[id] = runningRecord(id, 0)
+        repository.refresh()
+
+        for (second in 1..9) {
+            now += 1_000
+            if (second % 3 == 0) {
+                gateway.records[id] = runningRecord(id, second * bytesPerSecond)
+            }
+            repository.refresh()
+            assertEquals(
+                "Speed at second $second",
+                if (second < 3) null else bytesPerSecond,
+                repository.find(id)?.bytesPerSecond,
+            )
+        }
+    }
+
+    @Test
+    fun queryFailureClearsSpeedAndRestartsSampling() = runBlocking {
+        val id = repository.enqueue(DownloadRequestData("https://example.com/a", "a"))
+        gateway.records[id] = runningRecord(id, 1_000)
+        repository.refresh()
+        now += 1_000
+        gateway.records[id] = runningRecord(id, 3_000)
+        repository.refresh()
+        assertEquals(2_000L, repository.find(id)?.bytesPerSecond)
+
+        val failure = IllegalStateException("Download provider unavailable")
+        gateway.queryFailure = failure
+        repeat(2) {
+            now += 1_000
+            val error = runCatching { repository.refresh() }.exceptionOrNull()
+            assertTrue(error is IllegalStateException)
+            assertEquals(failure.message, error?.message)
+            assertNull(repository.find(id)?.bytesPerSecond)
+        }
+
+        gateway.queryFailure = null
+        now += 1_000
+        gateway.records[id] = runningRecord(id, 50_000)
+        repository.refresh()
+        assertNull(repository.find(id)?.bytesPerSecond)
+        now += 1_000
+        gateway.records[id] = runningRecord(id, 51_000)
+        repository.refresh()
+        assertEquals(1_000L, repository.find(id)?.bytesPerSecond)
+    }
+
+    @Test
+    fun speedResetsAcrossInactiveStatesAndResumesFromANewSample() = runBlocking {
+        val id = repository.enqueue(DownloadRequestData("https://example.com/a", "a"))
+        for (status in DownloadGatewayStatus.entries.filter { it != DownloadGatewayStatus.RUNNING }) {
+            gateway.records[id] = runningRecord(id, 1_000)
+            repository.refresh()
+            now += 1_000
+            gateway.records[id] = runningRecord(id, 2_000)
+            repository.refresh()
+            assertEquals(1_000L, repository.find(id)?.bytesPerSecond)
+
+            now += 1_000
+            gateway.records[id] = runningRecord(id, 2_000).copy(status = status)
+            repository.refresh()
+            assertNull(repository.find(id)?.bytesPerSecond)
+
+            now += 1_000
+            gateway.records[id] = runningRecord(id, 3_000)
+            repository.refresh()
+            assertNull(repository.find(id)?.bytesPerSecond)
+            now += 1_000
+        }
+    }
+
+    @Test
+    fun speedDiscardsStaleMissingAndResetSamples() = runBlocking {
+        val id = repository.enqueue(DownloadRequestData("https://example.com/a", "a"))
+        gateway.records[id] = runningRecord(id, 1_000)
+        repository.refresh()
+
+        now += 60_000
+        gateway.records[id] = runningRecord(id, 50_000)
+        repository.refresh()
+        assertNull(repository.find(id)?.bytesPerSecond)
+
+        now += 1_000
+        gateway.records[id] = runningRecord(id, 51_000)
+        repository.refresh()
+        assertEquals(1_000L, repository.find(id)?.bytesPerSecond)
+
+        repository.refresh()
+        assertNull(repository.find(id)?.bytesPerSecond)
+        now += 1_000
+        gateway.records[id] = runningRecord(id, 0)
+        repository.refresh()
+        assertNull(repository.find(id)?.bytesPerSecond)
+
+        now += 1_000
+        gateway.records.clear()
+        repository.refresh()
+        assertNull(repository.find(id)?.bytesPerSecond)
+        now += 1_000
+        gateway.records[id] = runningRecord(id, 2_000)
+        repository.refresh()
+        assertNull(repository.find(id)?.bytesPerSecond)
+    }
 
     @Test
     fun enqueuePreservesTheGeckoRequestAndPublishesRunningProgress() = runBlocking {
@@ -85,10 +228,21 @@ class SystemDownloadRepositoryTest {
     }
 }
 
+private fun runningRecord(id: Long, bytes: Long) = DownloadGatewayRecord(
+    id = id,
+    status = DownloadGatewayStatus.RUNNING,
+    bytesDownloaded = bytes,
+    totalBytes = -1,
+    localUri = null,
+    reason = 0,
+    lastModified = 50,
+)
+
 private class FakeDownloadGateway : DownloadGateway {
     val enqueued = mutableListOf<DownloadRequestData>()
     val records = mutableMapOf<Long, DownloadGatewayRecord>()
     val removed = mutableListOf<Long>()
+    var queryFailure: Exception? = null
     private var nextId = 1L
 
     override fun enqueue(request: DownloadRequestData): Long {
@@ -96,7 +250,10 @@ private class FakeDownloadGateway : DownloadGateway {
         return nextId++
     }
 
-    override fun query(ids: Set<Long>): List<DownloadGatewayRecord> = ids.mapNotNull(records::get)
+    override fun query(ids: Set<Long>): List<DownloadGatewayRecord> {
+        queryFailure?.let { throw it }
+        return ids.mapNotNull(records::get)
+    }
 
     override fun remove(id: Long) {
         removed += id

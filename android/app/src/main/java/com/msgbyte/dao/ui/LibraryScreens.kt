@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -112,7 +113,6 @@ import java.net.URI
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -872,6 +872,9 @@ private fun RealDownloadRow(
         type = download.request.fileName.substringAfterLast('.', stringResource(R.string.file_type)).uppercase().take(4),
         name = download.request.fileName,
         meta = downloadMeta(download),
+        speed = download.bytesPerSecond?.takeIf { download.status == DownloadStatus.RUNNING }?.let {
+            stringResource(R.string.download_speed, Formatter.formatShortFileSize(LocalContext.current, it))
+        },
         actionIcon = action.icon,
         actionDescription = action.description,
         progress = download.progress.takeUnless { download.status == DownloadStatus.FAILED },
@@ -883,9 +886,10 @@ private data class DownloadAction(val icon: ImageVector, val description: String
 
 @Composable
 private fun downloadMeta(download: BrowserDownload): String {
+    val context = LocalContext.current
     val size = buildString {
-        append(formatBytes(download.bytesDownloaded))
-        download.totalBytes?.let { append(" / ").append(formatBytes(it)) }
+        append(Formatter.formatShortFileSize(context, download.bytesDownloaded))
+        download.totalBytes?.let { append(" / ").append(Formatter.formatShortFileSize(context, it)) }
     }
     val status = stringResource(
         when (download.status) {
@@ -899,23 +903,12 @@ private fun downloadMeta(download: BrowserDownload): String {
     return "$size · $status"
 }
 
-private fun formatBytes(bytes: Long): String {
-    if (bytes < 1_024) return "$bytes B"
-    val units = arrayOf("KB", "MB", "GB", "TB")
-    var value = bytes.toDouble() / 1_024.0
-    var unitIndex = 0
-    while (value >= 1_024 && unitIndex < units.lastIndex) {
-        value /= 1_024.0
-        unitIndex++
-    }
-    return String.format(Locale.ROOT, "%.1f %s", value, units[unitIndex])
-}
-
 @Composable
 private fun DownloadRow(
     type: String,
     name: String,
     meta: String,
+    speed: String?,
     actionIcon: ImageVector,
     actionDescription: String,
     progress: Float? = null,
@@ -931,6 +924,9 @@ private fun DownloadRow(
         Column(Modifier.weight(1f)) {
             Text(name, color = colors.foreground, fontSize = 14.5.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(meta, color = colors.muted, fontSize = 12.sp, maxLines = 1)
+            if (speed != null) {
+                Text(speed, color = colors.muted, fontSize = 12.sp)
+            }
             if (progress != null) {
                 Spacer(Modifier.height(7.dp))
                 LinearProgressIndicator(

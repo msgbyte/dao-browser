@@ -26,6 +26,7 @@ data class BrowserDownload(
     val localUri: String?,
     val reason: Int,
     val lastModified: Long,
+    val bytesPerSecond: Long? = null,
 ) {
     val progress: Float?
         get() = totalBytes?.takeIf { it > 0 }?.let { total ->

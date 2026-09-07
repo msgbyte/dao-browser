@@ -152,6 +152,7 @@
     <string name="cancel_download">Cancel download</string>
     <string name="download_pending">Pending</string>
     <string name="downloading">Downloading</string>
+    <string name="download_speed" tools:ignore="MissingTranslation">%1$s/s</string>
     <string name="download_waiting">Waiting for network</string>
     <string name="download_complete">Download complete</string>
     <string name="download_failed">Download failed</string>

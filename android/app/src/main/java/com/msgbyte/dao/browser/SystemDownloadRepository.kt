@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import java.net.URI
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,7 @@ class SystemDownloadRepository internal constructor(
     private val gateway: DownloadGateway,
     private val metadataStore: DownloadMetadataStore,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val elapsedRealtime: () -> Long = SystemClock::elapsedRealtime,
 ) {
     constructor(context: Context) : this(
         gateway = AndroidDownloadGateway(context.applicationContext),
@@ -27,6 +29,8 @@ class SystemDownloadRepository internal constructor(
     )
 
     private var metadata = metadataStore.readAll().toMutableMap()
+    private var lastRefreshTime: Long? = null
+    private val lastProgressTimes = mutableMapOf<Long, Long>()
     private val mutableDownloads = MutableStateFlow(
         metadata.map { (id, request) -> request.toPendingDownload(id) },
     )
@@ -49,13 +53,54 @@ class SystemDownloadRepository internal constructor(
         withContext(ioDispatcher) {
             if (metadata.isEmpty()) {
                 mutableDownloads.value = emptyList()
+                lastRefreshTime = null
+                lastProgressTimes.clear()
                 return@withContext
             }
-            val records = gateway.query(metadata.keys)
+            val records = try {
+                gateway.query(metadata.keys)
+            } catch (error: Exception) {
+                lastRefreshTime = null
+                lastProgressTimes.clear()
+                mutableDownloads.value = mutableDownloads.value.map { it.copy(bytesPerSecond = null) }
+                throw error
+            }
+            val now = elapsedRealtime()
+            val elapsed = lastRefreshTime?.let { now - it }
+            val previousDownloads = mutableDownloads.value.associateBy { it.id }
             val recordsById = records.associateBy { it.id }
             mutableDownloads.value = metadata.map { (id, request) ->
-                recordsById[id]?.toBrowserDownload(request) ?: request.toPendingDownload(id)
+                val download = recordsById[id]?.toBrowserDownload(request) ?: request.toPendingDownload(id)
+                val previous = previousDownloads[id]
+                val progressElapsed = lastProgressTimes[id]?.let { now - it }
+                val speed = if (
+                    download.status == DownloadStatus.RUNNING &&
+                    previous?.status == DownloadStatus.RUNNING &&
+                    elapsed != null && elapsed in 1..5_000L &&
+                    progressElapsed != null && progressElapsed > 0 &&
+                    download.bytesDownloaded >= previous.bytesDownloaded
+                ) {
+                    // DownloadManager batches byte updates; unchanged polls must keep the baseline.
+                    when {
+                        download.bytesDownloaded > previous.bytesDownloaded -> {
+                            lastProgressTimes[id] = now
+                            ((download.bytesDownloaded - previous.bytesDownloaded).toDouble() *
+                                1_000 / progressElapsed).toLong()
+                        }
+                        progressElapsed >= 5_000L -> 0L
+                        else -> previous.bytesPerSecond
+                    }
+                } else {
+                    if (download.status == DownloadStatus.RUNNING) {
+                        lastProgressTimes[id] = now
+                    } else {
+                        lastProgressTimes.remove(id)
+                    }
+                    null
+                }
+                download.copy(bytesPerSecond = speed)
             }.sortedByDescending { it.lastModified }
+            lastRefreshTime = now
         }
     }
 
@@ -67,6 +112,7 @@ class SystemDownloadRepository internal constructor(
         withContext(ioDispatcher) {
             gateway.remove(id)
             metadata.remove(id)
+            lastProgressTimes.remove(id)
             persistMetadata()
             mutableDownloads.value = mutableDownloads.value.filterNot { it.id == id }
         }
