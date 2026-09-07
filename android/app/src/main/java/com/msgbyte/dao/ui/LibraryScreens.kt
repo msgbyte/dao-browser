@@ -830,19 +830,7 @@ fun DownloadsScreen(repository: SystemDownloadRepository, onBack: () -> Unit) {
                                 onCancel = {},
                                 onRetry = {},
                                 onRemove = { scope.launch { repository.remove(download.id) } },
-                                onOpen = {
-                                    download.localUri?.let { rawUri ->
-                                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                                            setDataAndType(Uri.parse(rawUri), download.request.contentType ?: "*/*")
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        try {
-                                            context.startActivity(intent)
-                                        } catch (_: ActivityNotFoundException) {
-                                            // The file remains available in the system Downloads app.
-                                        }
-                                    }
-                                },
+                                onOpen = { openCompletedDownload(context, download) },
                             )
                             if (index != complete.lastIndex) RowDivider()
                         }
@@ -851,6 +839,30 @@ fun DownloadsScreen(repository: SystemDownloadRepository, onBack: () -> Unit) {
             }
         }
     }
+}
+
+internal fun openCompletedDownload(context: Context, download: BrowserDownload) {
+    val uri = download.localUri?.let(Uri::parse)
+    if (uri?.scheme == "content") {
+        val mimeType = if (download.request.fileName.endsWith(".apk", ignoreCase = true)) {
+            "application/vnd.android.package-archive"
+        } else {
+            download.request.contentType?.takeIf(String::isNotBlank) ?: "*/*"
+        }
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            context.startActivity(intent)
+            return
+        } catch (_: ActivityNotFoundException) {
+            // Fall through to the localized failure feedback.
+        } catch (_: SecurityException) {
+            // Access may have been revoked since the last download refresh.
+        }
+    }
+    Toast.makeText(context, R.string.download_open_failed, Toast.LENGTH_SHORT).show()
 }
 
 @Composable

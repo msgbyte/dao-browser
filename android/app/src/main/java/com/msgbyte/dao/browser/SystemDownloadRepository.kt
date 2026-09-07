@@ -174,13 +174,16 @@ private class AndroidDownloadGateway(context: Context) : DownloadGateway {
             DownloadManager.STATUS_SUCCESSFUL -> DownloadGatewayStatus.SUCCESSFUL
             else -> DownloadGatewayStatus.FAILED
         }
-        val uriIndex = getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
         return DownloadGatewayRecord(
             id = id,
             status = status,
             bytesDownloaded = getLong(getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)),
             totalBytes = getLong(getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)),
-            localUri = uriIndex.takeIf { it >= 0 && !isNull(it) }?.let(::getString),
+            localUri = if (status == DownloadGatewayStatus.SUCCESSFUL) {
+                manager.getUriForDownloadedFile(id)?.toString()
+            } else {
+                null
+            },
             reason = getInt(getColumnIndexOrThrow(DownloadManager.COLUMN_REASON)),
             lastModified = getLong(getColumnIndexOrThrow(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)),
         )

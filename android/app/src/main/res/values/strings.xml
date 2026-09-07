@@ -156,6 +156,7 @@
     <string name="download_waiting">Waiting for network</string>
     <string name="download_complete">Download complete</string>
     <string name="download_failed">Download failed</string>
+    <string name="download_open_failed" tools:ignore="MissingTranslation">Unable to open this download.</string>
     <string name="file_type">File</string>
     <string name="earlier">Earlier</string>
     <string name="pause">Pause</string>
