@@ -12,6 +12,7 @@
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/accessibility/view_accessibility.h"
 
@@ -25,14 +26,22 @@ DaoSplitDividerView::DaoSplitDividerView(DaoSplitBranchNode* branch_node,
     : branch_node_(branch_node), split_view_(split_view) {
   GetViewAccessibility().SetRole(ax::mojom::Role::kSplitter);
   SetPaintToLayer();
-  layer()->SetFillsBoundsOpaquely(false);
+  layer()->SetFillsBoundsOpaquely(true);
 }
 
 DaoSplitDividerView::~DaoSplitDividerView() = default;
 
+void DaoSplitDividerView::OnThemeChanged() {
+  views::View::OnThemeChanged();
+  SchedulePaint();
+}
+
 void DaoSplitDividerView::OnPaint(gfx::Canvas* canvas) {
-  SkColor color = is_hovered_ || is_dragging_ ? DividerHoverColor()
-                                               : DividerColor();
+  const SkColor background = DividerColor(split_view_->browser());
+  const SkColor color = is_hovered_ || is_dragging_
+                            ? color_utils::GetResultingPaintColor(
+                                  DividerHoverColor(), background)
+                            : background;
   canvas->FillRect(GetLocalBounds(), color);
 }
 

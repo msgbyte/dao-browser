@@ -57,7 +57,7 @@ index bcb1930a86dd2..20acaf3489516 100644
 +    contents_container_->SetPaintToLayer();
 +    contents_container_->layer()->SetFillsBoundsOpaquely(false);
 +    contents_container_->SetBackground(
-+        views::CreateSolidBackground(SK_ColorWHITE));
++        views::CreateSolidBackground(dao::SidebarBackground(browser_.get())));
 +
 +    // Dao: Add left sidebar before the contents area
 +    dao_sidebar_ = AddChildViewAt(
@@ -375,7 +375,7 @@ index bcb1930a86dd2..20acaf3489516 100644
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -5110,6 +5409,18 @@ void BrowserView::OnThemeChanged() {
+@@ -5110,6 +5409,20 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();
@@ -389,6 +389,8 @@ index bcb1930a86dd2..20acaf3489516 100644
 +  if (dao_sidebar_) {
 +    SetBackground(views::CreateSolidBackground(
 +        dao::SidebarBackground(browser_.get())));
++    contents_container_->SetBackground(
++        views::CreateSolidBackground(dao::SidebarBackground(browser_.get())));
 +    SchedulePaint();
 +  }
  }

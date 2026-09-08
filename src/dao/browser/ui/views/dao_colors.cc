@@ -6,6 +6,7 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/native_theme/native_theme.h"
 
 namespace dao {
@@ -126,8 +127,15 @@ SkColor GhostTextSelectedBackground() {
   return SuggestionSelected();
 }
 
-SkColor DividerColor() {
-  return ActiveTabBackground();  // alias
+SkColor DividerColor(const Browser* browser) {
+  // Match the frame next to the content, where every shadow ring overlaps.
+  SkColor color = SidebarBackground(browser);
+  for (int step = 1; step <= kContentShadowSteps; ++step) {
+    const int alpha = CornerShadowAlphaBase() * step / kContentShadowSteps;
+    color = color_utils::GetResultingPaintColor(
+        SkColorSetARGB(alpha, 0, 0, 0), color);
+  }
+  return color;
 }
 
 SkColor DividerHoverColor() {

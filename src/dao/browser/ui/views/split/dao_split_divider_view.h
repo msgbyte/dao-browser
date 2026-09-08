@@ -32,6 +32,7 @@ class DaoSplitDividerView : public views::View {
   DaoSplitBranchNode* branch_node() const { return branch_node_; }
 
   // views::View:
+  void OnThemeChanged() override;
   void OnPaint(gfx::Canvas* canvas) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
   bool OnMouseDragged(const ui::MouseEvent& event) override;

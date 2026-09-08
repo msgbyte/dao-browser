@@ -676,9 +676,14 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 
 ## 4. Split View
 
-- **DaoSplitView** (`split/dao_split_view.{h,cc}`) — Split container
+- **DaoSplitView** (`split/dao_split_view.{h,cc}`) — Split container whose rounded
+  backing matches the dividers through inner pane corner cutouts, preserves
+  the outer frame shadow, and remains transparent in single-pane mode
 - **DaoSplitNode** / **DaoSplitPaneView** — Split tree nodes and panes
-- **DaoSplitDividerView** — Draggable divider
+- **DaoSplitDividerView** — Draggable divider with an opaque fill matching the
+  shadowed content-frame edge in light/dark and incognito windows, including
+  appearance changes; blue hover/drag feedback stays visible, and the content
+  backing uses the Dao-themed surface
 - **Native tab-drag cleanup** — Successful and cancelled macOS tab drags reset
   drag-only Split View hit testing in every browser window, so WebContents
   mouse interaction cannot remain blocked when WebUI `dragend` is skipped

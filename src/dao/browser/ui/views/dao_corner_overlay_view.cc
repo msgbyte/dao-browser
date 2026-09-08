@@ -37,11 +37,11 @@ void DaoCornerOverlayView::OnPaint(gfx::Canvas* canvas) {
 
   // Simulate a soft drop shadow by painting multiple expanding rings
   // with decreasing opacity around the content area.
-  constexpr int kShadowSteps = 6;
-  for (int i = kShadowSteps; i >= 1; --i) {
+  for (int i = kContentShadowSteps; i >= 1; --i) {
     float expand = static_cast<float>(i) * 1.2f;
     float alpha =
-        CornerShadowAlphaBase() * (kShadowSteps - i + 1) / kShadowSteps;
+        CornerShadowAlphaBase() * (kContentShadowSteps - i + 1) /
+        kContentShadowSteps;
     gfx::RectF shadow_rect(m - expand, m - expand + 1.0f,
                            width() - 2 * m + 2 * expand,
                            height() - 2 * m + 2 * expand);

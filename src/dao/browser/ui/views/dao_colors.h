@@ -48,12 +48,13 @@ SkColor GhostTextSelectedBackground();
 // Content area styling
 constexpr int kContentCornerRadius = 10;
 constexpr int kContentShadowMargin = 8;
+constexpr int kContentShadowSteps = 6;
 constexpr int kContentInsetTop = 6;
 constexpr int kContentInsetRight = 6;
 constexpr int kContentInsetBottom = 6;
 
 // Split view styling
-SkColor DividerColor();
+SkColor DividerColor(const Browser* browser);
 SkColor DividerHoverColor();
 SkColor DropZoneOverlay();
 constexpr int kDividerWidth = 4;

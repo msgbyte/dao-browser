@@ -65,6 +65,8 @@ class DaoSplitView : public views::View,
   DaoSplitView& operator=(const DaoSplitView&) = delete;
   ~DaoSplitView() override;
 
+  Browser* browser() const { return browser_; }
+
   // Whether split mode is active (>1 leaf in tree).
   bool IsSplitActive() const;
 
@@ -164,6 +166,8 @@ class DaoSplitView : public views::View,
 
   // views::View:
   void Layout(PassKey) override;
+  void OnThemeChanged() override;
+  void OnPaint(gfx::Canvas* canvas) override;
   bool GetCanProcessEventsWithinSubtree() const override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseMoved(const ui::MouseEvent& event) override;

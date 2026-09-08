@@ -16,6 +16,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -49,6 +50,7 @@
 #include "ui/display/screen.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/rect_f.h"
 
 namespace dao {
 
@@ -1097,6 +1099,24 @@ void DaoSplitView::Layout(PassKey) {
   }
 
   UpdateDividerPositions();
+}
+
+void DaoSplitView::OnThemeChanged() {
+  views::View::OnThemeChanged();
+  SchedulePaint();
+}
+
+void DaoSplitView::OnPaint(gfx::Canvas* canvas) {
+  views::View::OnPaint(canvas);
+  if (!IsSplitActive()) {
+    return;
+  }
+
+  // Fill inner pane corner cutouts without darkening the outer frame shadow.
+  cc::PaintFlags flags;
+  flags.setColor(DividerColor(browser_));
+  flags.setAntiAlias(true);
+  canvas->DrawRoundRect(gfx::RectF(GetLocalBounds()), kContentCornerRadius, flags);
 }
 
 // --- Drop target -------------------------------------------------------------

@@ -9764,6 +9764,54 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, SidebarBackgroundDark) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
+                       SplitBackgroundMatchesDividerAndContentShadowEdge) {
+  auto* split_view = GetBrowserView(browser())->dao_split_view();
+  ASSERT_NE(nullptr, split_view);
+  ASSERT_FALSE(split_view->IsSplitActive());
+  gfx::Canvas inactive_canvas(split_view->size(), 1.0f, false);
+  split_view->OnPaint(&inactive_canvas);
+  EXPECT_EQ(SK_ColorTRANSPARENT, inactive_canvas.GetBitmap().getColor(
+                                    split_view->width() / 2, 0));
+
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  TabStripModel* model = browser()->tab_strip_model();
+  model->ActivateTabAt(0);
+  ASSERT_TRUE(split_view->SplitPane(model->GetWebContentsAt(0),
+                                   SplitDirection::kHorizontal, false,
+                                   model->GetWebContentsAt(1)));
+
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  for (auto scheme : {ui::NativeTheme::PreferredColorScheme::kLight,
+                      ui::NativeTheme::PreferredColorScheme::kDark}) {
+    theme->set_preferred_color_scheme(scheme);
+    theme->NotifyOnNativeThemeUpdated();
+
+    dao::DaoCornerOverlayView overlay;
+    overlay.SetSize(gfx::Size(100, 100));
+    gfx::Canvas canvas(overlay.size(), 1.0f, false);
+    canvas.FillRect(overlay.GetLocalBounds(), dao::SidebarBackground(browser()));
+    overlay.OnPaint(&canvas);
+
+    const SkColor edge = canvas.GetBitmap().getColor(
+        dao::kContentShadowMargin - 1, overlay.height() / 2);
+    EXPECT_EQ(edge, dao::DividerColor(browser()));
+    EXPECT_EQ(SK_AlphaOPAQUE, SkColorGetA(dao::DividerColor(browser())));
+
+    gfx::Canvas split_canvas(split_view->size(), 1.0f, false);
+    split_view->OnPaint(&split_canvas);
+    const SkBitmap bitmap = split_canvas.GetBitmap();
+    // The backing exposed by both inner pane corners matches the divider.
+    for (int offset : {-dao::kContentCornerRadius, dao::kContentCornerRadius}) {
+      EXPECT_EQ(edge, bitmap.getColor(split_view->width() / 2 + offset, 0));
+    }
+    // Outer corners retain the frame's existing shadow and background.
+    EXPECT_EQ(SK_ColorTRANSPARENT, bitmap.getColor(0, 0));
+    EXPECT_EQ(SK_ColorTRANSPARENT,
+              bitmap.getColor(split_view->width() - 1, 0));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
                        IncognitoSidebarUsesDarkPaletteOnLightSystem) {
   auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
   theme->set_preferred_color_scheme(
