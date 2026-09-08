@@ -1,0 +1,3 @@
+"CFBundleDisplayName" = "Dao";
+"NSCameraUsageDescription" = "扫描二维码，并在获得你的许可后允许网站使用相机。";
+"NSMicrophoneUsageDescription" = "在获得你的许可后允许网站使用麦克风。";

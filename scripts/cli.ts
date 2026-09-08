@@ -11,6 +11,7 @@ import { releaseCommand } from "./commands/release.js";
 import { releaseAndroidCommand } from "./commands/release-android.js";
 import { githubReleaseCommand } from "./commands/github-release.js";
 import { worktreeCommand } from "./commands/worktree.js";
+import { iosCommand } from "./commands/ios.js";
 
 const program = new Command();
 
@@ -32,5 +33,6 @@ program.addCommand(releaseCommand);
 program.addCommand(releaseAndroidCommand);
 program.addCommand(githubReleaseCommand);
 program.addCommand(worktreeCommand);
+program.addCommand(iosCommand);
 
 program.parse();

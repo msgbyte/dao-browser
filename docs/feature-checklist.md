@@ -10,6 +10,44 @@
 > rebase) and [`features.md`](features.md) (the prose feature tour). This file is the
 > *checkbox* view.
 
+## iOS native browser
+
+The independent `ios/` app uses system WebKit, not Chromium patches. See
+[`features-ios.md`](features-ios.md). Run `npm run rebuild` from `ios/` for
+compile confirmation and portable browser-state checks, then verify on an
+iPhone Simulator/device. These boxes are acceptance steps, not completed results.
+
+- [ ] Compare Android Nova and iOS at matching logical sizes: new tab, focused
+  address, browsing drawer, tabs, library and settings; check light/dark mode,
+  keyboard, landscape, Dynamic Type, VoiceOver and reduced motion.
+- [ ] On the iOS new tab, keep the search pill 32 points below the banner. Tap
+  once: the same input moves upward without a duplicate placeholder and then
+  receives keyboard focus. Clear/cancel and reopen; verify reduced motion and
+  editing/canceling an existing page address preserve the selected page.
+- [ ] Open the iOS browsing drawer: home, bookmark, read-later, share, page QR and
+  find form exactly three columns and two rows with matching tile styling and
+  readable localized labels. Verify sharing opens the native sheet; library and
+  settings remain list rows below the grid.
+- [ ] Search with all four engines; navigate local/HTTPS URLs; reject executable
+  address schemes; receive valid and invalid cold/warm `dao://open` links.
+- [ ] Navigate A → B, switch tabs, open/close a popup, close the final tab, then
+  restart and verify normal-tab order, selection, back-forward list and scroll.
+- [ ] Browse in private mode; inspect session/history/download metadata and app
+  switcher snapshots; confirm no private automatic persistence, and verify that
+  explicitly saved bookmarks and confirmed download files remain.
+- [ ] Bookmark, rename, assign/move folders, search, remove entries, clear history
+  and restart; confirm changes persist without resetting unrelated data.
+- [ ] Download an authenticated file and blob, cancel/resume, terminate/relaunch,
+  preview/share/delete; verify failed resumes explain restarting from the page.
+- [ ] Test pull refresh, find, JS dialogs, media permission denial, external-app
+  confirmation, certificate information and network/process-termination errors.
+- [ ] Scan a QR code on supported hardware; share and rescan a generated page QR.
+- [ ] Verify theme and search-engine labels remain visible beside their selected
+  values. Toggle theme, page scale and private startup; clear website data and verify
+  sign-out; confirm Web Inspector is opt-in and unavailable for private tabs.
+- [ ] Verify the browser drawer and Settings contain no Extensions entry or
+  unsupported-extension placeholder page.
+
 ## How to use this document
 
 1. Before starting, confirm the current baseline builds and all features here pass (this
