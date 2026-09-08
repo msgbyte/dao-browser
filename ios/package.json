@@ -1,0 +1,7 @@
+{
+  "name": "dao-browser-ios",
+  "private": true,
+  "scripts": {
+    "rebuild": "tsx ../scripts/cli.ts ios rebuild"
+  }
+}

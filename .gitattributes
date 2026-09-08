@@ -6,3 +6,6 @@
 # inside JavaScript template literals. They are generated and must not be
 # normalized independently from their source packages.
 src/dao/browser/ui/webui/resources/agent/vendor/pi_runtime_bundle.ts whitespace=-blank-at-eol
+
+# Treat vector image assets as binary to preserve their PDF byte offsets.
+ios/DaoBrowser/Resources/Images.xcassets/**/*.pdf binary

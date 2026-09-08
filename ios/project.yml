@@ -1,0 +1,50 @@
+name: DaoBrowser
+options:
+  bundleIdPrefix: com.msgbyte.dao
+  deploymentTarget:
+    iOS: '18.4'
+  developmentLanguage: en
+  knownRegions: [en, zh-Hans]
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    TARGETED_DEVICE_FAMILY: '1'
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: '1'
+targets:
+  DaoBrowser:
+    type: application
+    platform: iOS
+    sources:
+      - path: DaoBrowser
+      - path: CoreTests/Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.msgbyte.dao.ios
+        TARGETED_DEVICE_FAMILY: '1'
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+    info:
+      path: DaoBrowser/Info.plist
+      properties:
+        CFBundleDisplayName: Dao
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSCameraUsageDescription: Scan QR codes and allow websites to use the camera with your permission.
+        NSMicrophoneUsageDescription: Allow websites to use the microphone with your permission.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoadsInWebContent: true
+        CFBundleURLTypes:
+          - CFBundleURLName: com.msgbyte.dao.open
+            CFBundleURLSchemes: [dao]
+schemes:
+  DaoBrowser:
+    build:
+      targets:
+        DaoBrowser: all
+    run:
+      config: Debug

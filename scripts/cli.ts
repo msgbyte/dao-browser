@@ -10,6 +10,7 @@ import { uploadCommand } from "./commands/upload.js";
 import { releaseCommand } from "./commands/release.js";
 import { githubReleaseCommand } from "./commands/github-release.js";
 import { worktreeCommand } from "./commands/worktree.js";
+import { iosCommand } from "./commands/ios.js";
 
 const program = new Command();
 
@@ -29,5 +30,6 @@ program.addCommand(uploadCommand);
 program.addCommand(releaseCommand);
 program.addCommand(githubReleaseCommand);
 program.addCommand(worktreeCommand);
+program.addCommand(iosCommand);
 
 program.parse();

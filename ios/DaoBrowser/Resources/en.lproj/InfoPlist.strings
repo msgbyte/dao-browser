@@ -1,0 +1,3 @@
+"CFBundleDisplayName" = "Dao";
+"NSCameraUsageDescription" = "Scan QR codes and allow websites to use the camera with your permission.";
+"NSMicrophoneUsageDescription" = "Allow websites to use the microphone with your permission.";
