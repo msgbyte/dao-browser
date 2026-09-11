@@ -103,6 +103,7 @@ struct BrowserView: View {
                 }
             }
         }
+        .ignoresSafeArea(.container, edges: .bottom)
     }
 
     private var drawer: some View {

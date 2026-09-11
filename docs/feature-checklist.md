@@ -20,6 +20,10 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
 - [ ] Compare Android Nova and iOS at matching logical sizes: new tab, focused
   address, browsing drawer, tabs, library and settings; check light/dark mode,
   keyboard, landscape, Dynamic Type, VoiceOver and reduced motion.
+- [ ] Browse light and dark pages in portrait and landscape: the web surface
+  extends behind the home indicator without an app-colored bottom strip. Keep
+  the address bar within the top safe area; focus a page input and dismiss the
+  keyboard to verify viewport resizing and bottom content remain usable.
 - [ ] On the iOS new tab, keep the search pill 32 points below the banner. Tap
   once: the same input moves upward without a duplicate placeholder and then
   receives keyboard focus. Clear/cancel and reopen; verify reduced motion and

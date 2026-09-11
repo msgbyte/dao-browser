@@ -6,7 +6,7 @@ iOS 18.4+. It is not a claim of Android feature parity or completed device QA.
 | Surface | Implemented behavior | Source |
 | --- | --- | --- |
 | New tab | Dao branding, localized greeting/date, search pill 32 points below the banner, one persistent input that moves upward before receiving focus, saved-page suggestions, scanner entry | `NewTabView.swift` |
-| Browser | WKWebView, URL/loading chrome, history gestures, pull to refresh, native page find, sharing, page QR, certificate chain/fingerprints, failure/reload view | `BrowserView.swift`, `BrowserSheets.swift`, `BrowserSession.swift` |
+| Browser | WKWebView extending behind the home indicator without an app-colored bottom strip, keyboard-safe layout, URL/loading chrome, history gestures, pull to refresh, native page find, sharing, page QR, certificate chain/fingerprints, failure/reload view | `BrowserView.swift`, `BrowserSheets.swift`, `BrowserSession.swift` |
 | Right drawer | Back/forward/reload; a three-column, two-row grid for home, bookmark, read-later, share, page QR and find with consistent tile styling; library and settings remain list rows | `BrowserView.swift` |
 | Tabs | Two-column snapshot grid, select, add regular/private tab, close button and swipe right, last-tab replacement | `NewTabView.swift`, `BrowserModel.swift` |
 | Sessions | Lazy WebKit sessions, normal tab metadata and interaction-state archive, memory-pressure eviction of inactive normal tabs | `BrowserModel.swift`, `BrowserSession.swift` |
