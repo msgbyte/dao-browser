@@ -364,7 +364,7 @@ const dict: Dictionary = {
   // -------- chat.dream (dao_chat_view.ts → renderDreamCard_) --------
   'chat.dream.card_title': 'Last night\'s dream report',
   'chat.dream.card_date': 'About your day on {date}',
-  'chat.dream.expand': 'Read the report',
+  'chat.dream.expand': 'Read simulation report',
   'chat.dream.collapse': 'Collapse',
   'chat.dream.dismiss': 'Dismiss dream report',
   'chat.dream.habits_title': 'I think I noticed…',

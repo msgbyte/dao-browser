@@ -81,6 +81,38 @@ function escapeHtml(s: string): string {
       .replace(/'/g, '&#39;');
 }
 
+export function markdownSections(markdown: string):
+    Array<{title: string; body: string}> {
+  const sections: Array<{title: string; body: string}> = [];
+  let title = '';
+  let body: string[] = [];
+  const flush = () => {
+    const text = body.join(' ').replace(/\s+/g, ' ').trim();
+    if (text) {
+      sections.push({title, body: text});
+    }
+    body = [];
+  };
+  for (const line of markdown.split(/\r?\n/)) {
+    const heading = line.match(/^#{1,6}\s+(.+)$/);
+    if (heading) {
+      flush();
+      title = heading[1]!.trim();
+      continue;
+    }
+    const clean = line
+                      .replace(/^\s*[-*+]\s+/, '')
+                      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+                      .replace(/[*_`>#]/g, '')
+                      .trim();
+    if (clean) {
+      body.push(clean);
+    }
+  }
+  flush();
+  return sections;
+}
+
 export function renderDaoMarkdown(markdown: string): string {
   const m = defaultMarked as MarkedLike;
   const markedFn =

@@ -6,7 +6,7 @@ import {CrLitElement, html, css, nothing} from '//resources/lit/v3_0/lit.rollup.
 
 import {callNative, callNativeArgs} from './dream_bridge.js';
 import {currentLocale, initI18n, t} from './i18n/i18n.js';
-import {renderDaoMarkdown} from './dao_markdown.js';
+import {markdownSections, renderDaoMarkdown} from './dao_markdown.js';
 import {
   copyPngBlobToClipboard,
   renderDreamReportShareImage,
@@ -1529,38 +1529,6 @@ export class DaoDreamApp extends CrLitElement {
         Math.min(Math.max(Math.round(value), 0), max) : 0;
   }
 
-  private markdownSections_(markdown: string):
-      Array<{title: string; body: string}> {
-    const sections: Array<{title: string; body: string}> = [];
-    let title = '';
-    let body: string[] = [];
-    const flush = () => {
-      const text = body.join(' ').replace(/\s+/g, ' ').trim();
-      if (text) {
-        sections.push({title, body: text});
-      }
-      body = [];
-    };
-    for (const line of markdown.split(/\r?\n/)) {
-      const heading = line.match(/^#{1,6}\s+(.+)$/);
-      if (heading) {
-        flush();
-        title = heading[1]!.trim();
-        continue;
-      }
-      const clean = line
-                        .replace(/^\s*[-*+]\s+/, '')
-                        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-                        .replace(/[*_`>#]/g, '')
-                        .trim();
-      if (clean) {
-        body.push(clean);
-      }
-    }
-    flush();
-    return sections;
-  }
-
   private normalizeMaterialStats_(
       raw: string, reportMarkdown: string): DreamMaterialStats {
     let parsed: Record<string, unknown> = {};
@@ -1612,7 +1580,7 @@ export class DaoDreamApp extends CrLitElement {
       return hasRecapBuckets ?
           this.boundedNumber_(rawBuckets[recapName], 1440) : 0;
     };
-    const sections = this.markdownSections_(reportMarkdown);
+    const sections = markdownSections(reportMarkdown);
     const themes: DreamTheme[] = [];
     if (Array.isArray(recap['themes'])) {
       for (const rawTheme of recap['themes']) {

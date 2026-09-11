@@ -6110,33 +6110,83 @@ describe('dao-chat-view element picker', () => {
     }
   });
 
-  it('opens the standalone dream page instead of expanding the report', async () => {
+  it('shows the dream summary above the report action instead of generic metadata',
+     async () => {
+       vi.useFakeTimers();
+       try {
+         vi.setSystemTime(new Date('2026-06-12T12:00:00'));
+         const summary = 'You moved the content experience forward and focused most deeply at night.';
+         pickerMocks.callNative.mockResolvedValue({
+           id: 7, dreamDate: '2026-06-11',
+           reportMarkdown: '# Full report\n\nDetailed report content.',
+           materialStats: JSON.stringify({recap: {summary}}),
+         });
+         const view = document.createElement('dao-chat-view') as HTMLElement & {
+           loadDreamReport_: () => Promise<void>;
+           renderDreamCard_: () => unknown;
+         };
+         await view.loadDreamReport_();
+         const card = document.createElement('div');
+         card.innerHTML = templateText(view.renderDreamCard_());
+         expect(card.querySelector('.dao-dream-summary')?.textContent).toBe(summary);
+         expect(card.querySelector('.dao-dream-summary + button')?.textContent)
+             .toContain('chat.dream.expand');
+         expect(card.textContent).not.toContain('chat.dream.card_title');
+         expect(card.textContent).not.toContain('chat.dream.card_date');
+         expect(card.textContent).not.toContain('Detailed report content.');
+         expect(card.querySelector('.dao-dream-close')?.getAttribute('aria-label'))
+             .toBe('chat.dream.dismiss');
+       } finally {
+         vi.useRealTimers();
+       }
+     });
+
+  it.each(['', '{invalid', 'null', '{"recap":{"summary":42}}'])(
+      'derives a useful dream summary when structured stats are unavailable: %s',
+      async materialStats => {
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(new Date('2026-06-12T12:00:00'));
+          pickerMocks.callNative.mockResolvedValue({
+            id: 7, dreamDate: '2026-06-11', materialStats,
+            reportMarkdown: '# Your day\n\nYou focused on **content** and [testing](https://example.com).\n\n## Later\nMore details.',
+          });
+          const view = document.createElement('dao-chat-view') as HTMLElement & {
+            loadDreamReport_: () => Promise<void>;
+            renderDreamCard_: () => unknown;
+          };
+          await view.loadDreamReport_();
+          const card = document.createElement('div');
+          card.innerHTML = templateText(view.renderDreamCard_());
+          expect(card.querySelector('.dao-dream-summary')?.textContent)
+              .toBe('You focused on content and testing.');
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+  it('opens the standalone dream page and immediately dismisses the card', () => {
     pickerMocks.callNative.mockResolvedValue({success: true, turnId: 'test-turn'});
     const view = document.createElement('dao-chat-view') as HTMLElement & {
       dreamReport_: {
         id: number;
-        dreamDate: string;
-        reportMarkdown: string;
-        habits: unknown[];
-        debugMaterialJson: string;
-      };
-      dreamExpanded_: boolean;
-      toggleDreamExpanded_: () => void;
+        summary: string;
+      } | null;
+      openDreamReport_: () => void;
     };
     view.dreamReport_ = {
       id: 7,
-      dreamDate: '2026-06-11',
-      reportMarkdown: 'Report body should stay outside the agent panel',
-      habits: [],
-      debugMaterialJson: '',
+      summary: 'You focused on content and testing.',
     };
 
-    view.toggleDreamExpanded_();
-    await Promise.resolve();
+    view.openDreamReport_();
 
+    expect(view.dreamReport_).toBeNull();
     expect(pickerMocks.chromeSend).toHaveBeenCalledWith(
         'openDreamReport', []);
-    expect(view.dreamExpanded_).toBe(false);
+    expect(JSON.parse(
+        localStorage.getItem('dao_dismissed_dream_report_ids') || '[]'))
+        .toContain(7);
     expect(pickerMocks.callNativeArgs).not.toHaveBeenCalledWith(
         'markDreamReportViewed', 7);
   });
@@ -6145,19 +6195,13 @@ describe('dao-chat-view element picker', () => {
     const view = document.createElement('dao-chat-view') as HTMLElement & {
       dreamReport_: {
         id: number;
-        dreamDate: string;
-        reportMarkdown: string;
-        habits: unknown[];
-        debugMaterialJson: string;
+        summary: string;
       } | null;
       dismissDreamReport_: () => void;
     };
     view.dreamReport_ = {
       id: 7,
-      dreamDate: '2026-06-11',
-      reportMarkdown: 'Report body should stay in history',
-      habits: [],
-      debugMaterialJson: '',
+      summary: 'You focused on content and testing.',
     };
 
     view.dismissDreamReport_();
@@ -6172,9 +6216,11 @@ describe('dao-chat-view element picker', () => {
   });
 
   it('does not show a locally dismissed unviewed dream report again', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
     pickerMocks.callNative.mockResolvedValue({
       id: 7,
-      dreamDate: '2026-06-11',
+      dreamDate: `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`,
       reportMarkdown: 'Report body should stay in history',
       habitCandidates: '[]',
       debugMaterialJson: '',

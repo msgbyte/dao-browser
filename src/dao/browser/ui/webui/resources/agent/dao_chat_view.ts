@@ -25,6 +25,7 @@ import {CrLitElement, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 import {addWebUIListener, BASE_SYSTEM_PROMPT, callNative, callNativeArgs, currentSoulContent, recordApiCall, refreshSoulContent, removeWebUIListener, soulChannel, type ProactiveSuggestionData} from './agent_bridge.js';
 import {compactAgentMessages, estimateMessagesTokens} from './dao_compact.js';
 import {addReusableElementContext, buildElementContextAttachment, consumeReusableElementContexts, getReusableElementContexts, removeReusableElementContext, type ElementContextCapture} from './dao_element_context.js';
+import {markdownSections} from './dao_markdown.js';
 import {buildMemoryContextText, hasMemoryContextPayload, type NativeMemoryContext} from './dao_memory_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {clearHomeToolContext, getHomeSystemPrompt, setHomeToolContext, type HomeToolContext} from './home_tools.js';
@@ -53,13 +54,7 @@ import * as pi from './vendor/pi_runtime_bundle.js';
 // rendered as a card at the top of the chat view.
 interface DreamReportData {
   id: number;
-  dreamDate: string;
-  reportMarkdown: string;
-  habits: Array<{
-    key: string; value: string; confidence: number; evidence: string;
-    relation: 'new'|'reinforce'|'contradict';
-  }>;
-  debugMaterialJson: string;
+  summary: string;
 }
 
 interface DaoMessageMetadata {
@@ -316,7 +311,6 @@ export class DaoChatView extends CrLitElement {
       historyOpen_: {type: Boolean, state: true},
       currentSessionId_: {type: String, state: true},
       dreamReport_: {type: Object, state: true},
-      dreamExpanded_: {type: Boolean, state: true},
       proactiveSuggestion_: {type: Object, state: true},
       proactiveRunning_: {type: Boolean, state: true},
     };
@@ -354,7 +348,6 @@ export class DaoChatView extends CrLitElement {
     this.currentSessionId_ = '';
     this.messageCount_ = 0;
     this.dreamReport_ = null;
-    this.dreamExpanded_ = false;
     this.proactiveSuggestion_ = null;
     this.proactiveSuggestionReceivedAtMs_ = 0;
     this.proactiveRunning_ = false;
@@ -520,11 +513,8 @@ export class DaoChatView extends CrLitElement {
   declare protected currentSessionId_: string;
   private saveSessionScheduled_ = false;
 
-  // Dream Analysis morning-report card state. `dreamReport_` holds the
-  // latest unviewed report (null = no card); habit rows track per-index
-  // confirm/reject so the buttons collapse into a status label.
+  // Latest unviewed Dream Analysis report summary (null = no card).
   declare protected dreamReport_: DreamReportData|null;
-  declare protected dreamExpanded_: boolean;
   private onDreamReportUpdated_: (() => void)|null = null;
   declare protected proactiveSuggestion_: ProactiveSuggestionData|null;
   declare protected proactiveRunning_: boolean;
@@ -4202,7 +4192,7 @@ export class DaoChatView extends CrLitElement {
     try {
       const raw = await callNative('getUnviewedDreamReport') as {
         id?: number; dreamDate?: string; reportMarkdown?: string;
-        habitCandidates?: string; debugMaterialJson?: string;
+        materialStats?: string;
       } | null;
       if (!raw || typeof raw.id !== 'number') {
         this.dreamReport_ = null;
@@ -4213,29 +4203,31 @@ export class DaoChatView extends CrLitElement {
         this.dreamReport_ = null;
         return;
       }
-      let habits: DreamReportData['habits'] = [];
+      let summary = '';
       try {
-        const parsed = JSON.parse(raw.habitCandidates || '[]');
-        if (Array.isArray(parsed)) habits = parsed;
+        const stats: unknown = JSON.parse(raw.materialStats || '{}');
+        if (isRecord(stats) && isRecord(stats['recap']) &&
+            typeof stats['recap']['summary'] === 'string') {
+          summary = stats['recap']['summary'].trim();
+        }
       } catch {}
+      const markdown = raw.reportMarkdown || '';
       this.dreamReport_ = {
         id: raw.id,
-        dreamDate: raw.dreamDate || '',
-        reportMarkdown: raw.reportMarkdown || '',
-        habits,
-        debugMaterialJson: raw.debugMaterialJson || '',
+        summary: summary || markdownSections(markdown)[0]?.body ||
+            markdown.trim(),
       };
-      this.dreamExpanded_ = false;
     } catch {
       this.dreamReport_ = null;
     }
   }
 
-  private toggleDreamExpanded_() {
+  private openDreamReport_() {
     if (!this.dreamReport_) {
       return;
     }
     chrome.send('openDreamReport', []);
+    this.dismissDreamReport_();
   }
 
   private dismissDreamReport_() {
@@ -4254,81 +4246,74 @@ export class DaoChatView extends CrLitElement {
     return html`
       <style>
         .dao-dream-card {
+          position: relative;
           border: 1px solid rgba(127,127,127,0.18);
           border-radius: 12px;
-          padding: 12px 14px;
-          margin: 8px 12px 0;
+          background: var(--card);
+          padding: 16px;
+          margin: 16px 20px 0;
           flex-shrink: 0;
-          font-size: 13px;
           color: var(--text, inherit);
+        }
+        .dao-dream-summary {
+          margin: 0 0 12px;
+          font-size: 14px;
+          font-weight: 500;
+          line-height: 1.6;
+          overflow-wrap: anywhere;
         }
         .dao-dream-btn {
           font: inherit;
-          font-size: 11px;
-          color: var(--text-secondary, inherit);
-          background: rgba(127,127,127,0.10);
-          border: 1px solid rgba(127,127,127,0.20);
+          font-size: 12px;
+          color: var(--secondary-foreground);
+          background: var(--secondary);
+          border: 1px solid rgba(127,127,127,0.18);
           border-radius: 8px;
-          padding: 2px 10px;
+          padding: 6px 12px;
           cursor: pointer;
-          flex-shrink: 0;
         }
         .dao-dream-btn:hover { background: rgba(127,127,127,0.18); }
+        .dao-dream-btn:focus-visible {
+          outline: 2px solid var(--primary);
+          outline-offset: 2px;
+        }
         .dao-dream-close {
+          position: absolute;
+          top: 0;
+          right: 0;
+          transform: translate(50%, -50%);
           width: 24px;
           height: 24px;
           padding: 0;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          border-radius: 8px;
+          border-radius: 50%;
+          color: var(--text-secondary, inherit);
+          background: var(--popover);
         }
         .dao-dream-close svg {
           width: 14px;
           height: 14px;
         }
-        .dao-dream-md { margin-top: 10px; font-size: 13px; }
-        .dao-dream-debug-pre {
-          font-size: 11px;
-          max-height: 300px;
-          overflow: auto;
-          background: rgba(127,127,127,0.08);
-          border-radius: 8px;
-          padding: 8px;
-          white-space: pre-wrap;
-          word-break: break-all;
-        }
       </style>
       <div class="dao-dream-card">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" aria-hidden="true"
-              style="flex-shrink:0;">
-            <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
+        <p class="dao-dream-summary">${r.summary}</p>
+        <button class="dao-dream-btn" @click=${this.openDreamReport_}>
+          ${t('chat.dream.expand')}
+        </button>
+        <button class="dao-dream-btn dao-dream-close"
+            title=${t('chat.dream.dismiss')}
+            aria-label=${t('chat.dream.dismiss')}
+            @click=${this.dismissDreamReport_}>
+          <svg viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
           </svg>
-          <span style="font-weight:600;">${t('chat.dream.card_title')}</span>
-          <span style="font-size:11px;opacity:.6;white-space:nowrap;
-              overflow:hidden;text-overflow:ellipsis;">
-            ${t('chat.dream.card_date', {date: r.dreamDate})}</span>
-          <span style="flex:1"></span>
-          <button class="dao-dream-btn"
-              @click=${this.toggleDreamExpanded_}>
-            ${t('chat.dream.expand')}
-          </button>
-          <button class="dao-dream-btn dao-dream-close"
-              title=${t('chat.dream.dismiss')}
-              aria-label=${t('chat.dream.dismiss')}
-              @click=${this.dismissDreamReport_}>
-            <svg viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round"
-                aria-hidden="true">
-              <path d="M18 6 6 18"></path>
-              <path d="m6 6 12 12"></path>
-            </svg>
-          </button>
-        </div>
+        </button>
       </div>`;
   }
 

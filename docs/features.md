@@ -385,6 +385,13 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   existing preference. The report is archived in the `dream_reports` table,
   with a morning report card in the Agent panel, per-candidate confirm/reject,
   and an optional debug view of the exact LLM input (`dao.dream_debug`).
+- **Agent morning report card** — yesterday's unviewed report shows its
+  one-sentence recap directly above the chat, with a localized read-report
+  button below and a close button halfway outside the top-right corner.
+  Legacy reports reuse the report page's markdown-summary fallback. Reading
+  opens the standalone report and immediately dismisses the card locally;
+  closing also persists the dismissal without marking the report viewed or
+  removing it from history.
 - **`dao://dream` one-minute recap** — responsive two-column report with a
   53-week real-report activity heatmap, compact daily-and-weekly history rail,
   localized date-and-active-duration tooltips for report-bearing heatmap cells

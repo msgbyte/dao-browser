@@ -247,7 +247,7 @@ const dict: Dictionary = {
   'settings.dream.no_key_toast': '请先配置 AI 服务商和 API Key',
   'chat.dream.card_title': '昨晚的梦境报告',
   'chat.dream.card_date': '关于你 {date} 的一天',
-  'chat.dream.expand': '阅读报告',
+  'chat.dream.expand': '阅读模拟报告',
   'chat.dream.collapse': '收起',
   'chat.dream.dismiss': '关闭梦境报告',
   'chat.dream.habits_title': '我好像注意到…',

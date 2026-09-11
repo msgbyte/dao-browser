@@ -115,10 +115,6 @@ vi.mock('../i18n/i18n.js', () => ({
   },
 }));
 
-vi.mock('../dao_markdown.js', () => ({
-  renderDaoMarkdown: (markdown: string) => markdown,
-}));
-
 vi.mock('../vendor/pi_runtime_bundle.js', () => ({
   marked: {parse: (markdown: string) => markdown},
 }));
