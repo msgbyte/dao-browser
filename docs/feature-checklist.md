@@ -28,6 +28,10 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   once: the same input moves upward without a duplicate placeholder and then
   receives keyboard focus. Clear/cancel and reopen; verify reduced motion and
   editing/canceling an existing page address preserve the selected page.
+- [ ] On a loaded page, tap the address text, the empty area to its right and
+  above/below it, and the private indicator: each opens address editing with
+  keyboard focus. Verify regular/private tabs and short/long hosts; the separate
+  site-information button still opens security details without entering editing.
 - [ ] Open the iOS browsing drawer: home, bookmark, read-later, share, page QR and
   find form exactly three columns and two rows with matching tile styling and
   readable localized labels. Verify sharing opens the native sheet; library and

@@ -68,10 +68,12 @@ struct BrowserView: View {
                 HStack(spacing: 0) {
                     IconButton(icon: model.selected.secure ? "lock-keyhole" : "info", label: "site_information") { showSecurity = true }
                     Button { model.addressEditing = true } label: {
-                        Text(URL(string: model.selected.record.url)?.host ?? model.selected.record.url)
-                            .font(.subheadline).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 44)
+                        HStack(spacing: 0) {
+                            Text(URL(string: model.selected.record.url)?.host ?? model.selected.record.url)
+                                .font(.subheadline).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                            if model.selected.record.isPrivate { DaoIcon(name: "venetian-mask", size: 16).padding(.trailing, 8) }
+                        }.frame(minHeight: 44).contentShape(Rectangle())
                     }.buttonStyle(.plain).accessibilityLabel(L("edit_address"))
-                    if model.selected.record.isPrivate { DaoIcon(name: "venetian-mask", size: 16).padding(.trailing, 8) }
                 }
                 .background(Nova.secondary, in: .rect(cornerRadius: 12))
                 .overlay(alignment: .bottomLeading) {
