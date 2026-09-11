@@ -223,6 +223,13 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 
 **Chat surface**
 - `dao_chat_view.ts` — Main conversation view (session resume, skill picker, dynamic chips, composer height tracking, cost stats / usage)
+- **Historical message editing** — After stopping a response, use the user
+  message's More actions > Edit menu to change its text and remove individual
+  page, selection, element, PDF, image, or file attachments. Cancel keeps the
+  original message intact. Save and resend persists the edited message,
+  excludes removed context from the model request, and replaces all later
+  messages while preserving earlier conversation history. Attachment-only
+  messages remain valid while at least one attachment is kept.
 - **Latest Agent error retry** — A terminal provider error exposes a retry
   action that reuses the original user submission, replaces only its failed
   assistant/tool branch, and preserves every earlier timeline entry; cancelled

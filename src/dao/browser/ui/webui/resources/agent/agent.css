@@ -836,12 +836,44 @@ attachment-tile[data-dao-decorated="1"] {
   gap: 6px;
   margin-top: 6px;
 }
+.dao-user-edit-context-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.dao-user-edit-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.dao-user-edit-context > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dao-user-edit-context button {
+  flex-shrink: 0;
+}
+.dao-user-edit-context-url,
+.dao-user-edit-hint {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.dao-user-edit-hint {
+  margin-top: 6px;
+}
 .dao-user-edit-error {
   margin-top: 5px;
   color: var(--destructive);
   font-size: 11px;
 }
-.dao-user-edit-actions button {
+.dao-user-edit-actions button,
+.dao-user-edit-context button {
   border: 1px solid rgba(70, 120, 190, 0.24);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.42);

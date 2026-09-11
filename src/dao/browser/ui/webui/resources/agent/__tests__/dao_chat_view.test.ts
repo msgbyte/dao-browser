@@ -406,6 +406,8 @@ describe('dao-chat-view message metadata helpers', () => {
           (assistantId: string) => Promise<void>;
       _daoTestApplyUserMessageEdit:
           (messageId: string, content: string) => Promise<void>;
+      beginEditUserMessage_: (id: string) => void;
+      cancelEditUserMessage_: () => void;
       _daoTestRefreshAssistantActions: () => void;
       _daoTestRewindAssistantById: (assistantId: string) => Promise<void>;
       _daoTestMaybeAutoCompactAfterTurn: () => Promise<void>;
@@ -1318,6 +1320,129 @@ describe('dao-chat-view message metadata helpers', () => {
        expect(editedMessage.dao.editHistory).toBeUndefined();
        expect(iface.requestUpdate).toHaveBeenCalled();
        expect(view.agent_.continue).toHaveBeenCalled();
+     });
+
+  it('removes any attached context only on save and keeps removals across editor refreshes',
+     async () => {
+       const attachments = [
+         {id: 'page', fileName: 'Page.md', extractedText: 'page context'},
+         {id: 'selection', fileName: 'Selection.md', extractedText: 'selection'},
+         {id: 'element', fileName: 'Element.md', extractedText: 'element'},
+         {id: 'pdf', fileName: 'Report.pdf', extractedText: 'pdf context'},
+         {id: 'image', type: 'image', fileName: 'Screenshot.png', content: 'aGVsbG8='},
+         {id: 'file', fileName: 'Notes.txt', extractedText: 'keep these notes'},
+       ];
+       const original = {
+         role: 'user-with-attachments', content: 'original prompt',
+         attachments, dao: {id: 'u1'},
+       };
+       const view = viewWithMessages([original]);
+       const {panel} = attachMessageHosts(view);
+       view.beginEditUserMessage_('u1');
+       expect(panel.querySelectorAll('.dao-user-edit-context')).toHaveLength(6);
+       expect(panel.querySelector('.dao-user-edit-context')?.textContent)
+           .toContain('Page.md');
+       (panel.querySelector('.dao-user-edit-context button') as HTMLButtonElement)
+           .click();
+       expect(original.attachments).toHaveLength(6);
+       view.cancelEditUserMessage_();
+       view.beginEditUserMessage_('u1');
+       expect(panel.querySelectorAll('.dao-user-edit-context')).toHaveLength(6);
+
+       const input = panel.querySelector('textarea') as HTMLTextAreaElement;
+       input.value = 'corrected prompt';
+       input.dispatchEvent(new Event('input'));
+       for (let i = 0; i < 5; i++) {
+         (panel.querySelector('.dao-user-edit-context button') as HTMLButtonElement)
+             .click();
+       }
+       view._daoTestRefreshAssistantActions();
+       expect(panel.querySelectorAll('.dao-user-edit-context')).toHaveLength(1);
+       expect((panel.querySelector('textarea') as HTMLTextAreaElement).value)
+           .toBe('corrected prompt');
+       await view._daoTestApplyUserMessageEdit('u1', 'corrected prompt');
+       expect(view.agent_.state.messages[0].attachments).toEqual([attachments[5]]);
+       expect(original.attachments).toHaveLength(6);
+       expect(view.agent_.continue).toHaveBeenCalledOnce();
+       expect(storageMocks.saveSession).toHaveBeenCalledOnce();
+       expect(JSON.stringify(storageMocks.saveSession.mock.calls)).toContain('keep these notes');
+       expect(JSON.stringify(storageMocks.saveSession.mock.calls)).not.toContain('page context');
+     });
+
+  it('waits for a stopped run and resends without deleted context or stale memory',
+     async () => {
+       const originalSend = vi.fn();
+       const {view: mounted} = await mountChatViewWithSend(originalSend);
+       const view = mounted as ReturnType<typeof viewWithMessages> & {
+         agent_: {waitForIdle: () => Promise<void>;
+                  convertToLlm: (msgs: any[]) => any[]};
+       };
+       const earlier = {role: 'user', content: 'earlier prompt', dao: {id: 'u0'}};
+       const original = {
+         role: 'user-with-attachments', content: 'wrong prompt', dao: {id: 'u1'},
+         attachments: [{fileName: 'Wrong page.md', extractedText: 'unwanted page'}],
+       };
+       view.agent_.state.messages = [earlier, original];
+       attachMessageHosts(view);
+       let finishStop!: () => void;
+       vi.spyOn(view.agent_, 'waitForIdle').mockImplementation(
+           () => new Promise<void>(resolve => { finishStop = resolve; }));
+       const abort = vi.spyOn(view.agent_, 'abort');
+       let llmMessages: any[] = [];
+       const resume = vi.spyOn(view.agent_, 'continue').mockImplementation(async () => {
+         llmMessages = view.agent_.convertToLlm(view.agent_.state.messages);
+       });
+       try {
+         view.beginEditUserMessage_('u1');
+         (view.panel_!.querySelector('.dao-user-edit-context button') as HTMLButtonElement)
+             .click();
+         view.agent_.state.isStreaming = true;
+         Object.assign(view, {pendingMemoryContextText_: 'stale page memory'});
+         const applying = view._daoTestApplyUserMessageEdit('u1', 'correct prompt');
+         expect(abort).toHaveBeenCalledOnce();
+         expect(resume).not.toHaveBeenCalled();
+         view.agent_.state.messages.push({role: 'assistant', content: 'late aborted reply'});
+         finishStop();
+         await applying;
+         expect(view.agent_.state.messages).toHaveLength(2);
+         expect(view.agent_.state.messages[0]).toBe(earlier);
+         expect(view.agent_.state.messages[1].attachments).toEqual([]);
+         expect(llmMessages.map(m => m.content)).toEqual(['earlier prompt', 'correct prompt']);
+         expect(original.attachments).toHaveLength(1);
+         expect(originalSend).not.toHaveBeenCalled();
+         expect(storageMocks.saveSession).toHaveBeenCalled();
+       } finally {
+         clearTabWatchTimer(view);
+       }
+     });
+
+  it('preserves inline images when editing text and supports removing an image-only prompt',
+     async () => {
+       const image = {type: 'image', mimeType: 'image/png', data: 'aGVsbG8='};
+       const view = viewWithMessages([{
+         role: 'user', content: [image], dao: {id: 'u1'},
+       }]);
+       const {panel} = attachMessageHosts(view);
+       view.beginEditUserMessage_('u1');
+       expect(panel.querySelectorAll('.dao-user-edit-context')).toHaveLength(1);
+       await view._daoTestApplyUserMessageEdit('u1', '');
+       expect(view.agent_.state.messages[0].content).toEqual([image]);
+       expect(view.agent_.continue).toHaveBeenCalledOnce();
+
+       view.beginEditUserMessage_('u1');
+       await view._daoTestApplyUserMessageEdit('u1', 'describe this');
+       expect(view.agent_.state.messages[0].content).toEqual([
+         {type: 'text', text: 'describe this'}, image,
+       ]);
+       view.beginEditUserMessage_('u1');
+       (panel.querySelector('.dao-user-edit-context button') as HTMLButtonElement)
+           .click();
+       await view._daoTestApplyUserMessageEdit('u1', '');
+       expect(panel.querySelector('.dao-user-edit-error')?.textContent)
+           .toBe('chat.message_actions.empty_edit');
+       expect(view.agent_.continue).toHaveBeenCalledTimes(2);
+       await view._daoTestApplyUserMessageEdit('u1', 'text only');
+       expect(view.agent_.state.messages[0].content).toBe('text only');
      });
 
   it('clears a deferred proactive suggestion when applying a user edit',

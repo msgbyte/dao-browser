@@ -138,7 +138,11 @@ const dict: Dictionary = {
   'chat.message_actions.view_context': 'View context',
   'chat.message_actions.context_title': 'Message context',
   'chat.message_actions.context_close': 'Close context',
-  'chat.message_actions.save_edit': 'Save',
+  'chat.message_actions.save_edit': 'Save and resend',
+  'chat.message_actions.edit_hint': 'Resending replaces all replies and messages after this one.',
+  'chat.message_actions.context_item': 'Attachment {index}',
+  'chat.message_actions.remove_context': 'Remove',
+  'chat.message_actions.remove_context_tooltip': 'Remove {name}',
   'chat.message_actions.cancel_edit': 'Cancel',
   'chat.message_actions.regenerating': 'Regenerating',
   // Transient labels flashed on the action buttons.

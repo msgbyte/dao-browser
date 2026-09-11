@@ -439,6 +439,7 @@ export class DaoChatView extends CrLitElement {
   declare protected editingMessageId_: string;
   declare protected editingDraft_: string;
   declare protected editingError_: string;
+  private editingRemovedContext_ = new Set<unknown>();
   declare protected userActionMenuMessageId_: string;
   declare protected debugMode_: boolean;
   declare protected debugContextMessageId_: string;
@@ -2054,6 +2055,7 @@ export class DaoChatView extends CrLitElement {
     wrap.className = 'dao-user-edit-wrap';
     const textarea = document.createElement('textarea');
     textarea.className = 'dao-user-edit-input';
+    textarea.setAttribute('aria-label', t('chat.message_actions.edit_tooltip'));
     textarea.value = this.editingDraft_;
     textarea.rows = Math.min(
         8, Math.max(2, this.editingDraft_.split('\n').length));
@@ -2073,6 +2075,55 @@ export class DaoChatView extends CrLitElement {
         'click', () => void this.applyUserMessageEdit_(id, textarea.value));
     actions.append(cancel, save);
     wrap.append(textarea);
+    const msg = this.currentMessages_()[this.findMessageIndexByDaoId_(id)];
+    const context = [
+      ...(Array.isArray(msg?.attachments) ? msg.attachments : []),
+      ...(Array.isArray(msg?.content) ? msg.content.filter(
+          part => isRecord(part) && part['type'] !== 'text') : []),
+    ];
+    const list = document.createElement('div');
+    list.className = 'dao-user-edit-context-list';
+    list.setAttribute('role', 'list');
+    list.setAttribute('aria-label', t('chat.message_actions.context_title'));
+    for (const [index, item] of context.entries()) {
+      if (this.editingRemovedContext_.has(item)) continue;
+      const data = isRecord(item) ? item : {};
+      const name = [data['fileName'], data['daoPageTitle']].find(
+          value => typeof value === 'string' && value.trim());
+      const label = typeof name === 'string' ? name :
+          t('chat.message_actions.context_item', {index: index + 1});
+      const row = document.createElement('div');
+      row.className = 'dao-user-edit-context';
+      row.setAttribute('role', 'listitem');
+      const details = document.createElement('div');
+      const title = document.createElement('div');
+      title.textContent = label;
+      details.append(title);
+      if (typeof data['daoPageUrl'] === 'string' && data['daoPageUrl']) {
+        const url = document.createElement('div');
+        url.className = 'dao-user-edit-context-url';
+        url.textContent = data['daoPageUrl'];
+        details.append(url);
+      }
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = t('chat.message_actions.remove_context');
+      remove.setAttribute('aria-label',
+          t('chat.message_actions.remove_context_tooltip', {name: label}));
+      remove.addEventListener('click', () => {
+        this.editingRemovedContext_.add(item);
+        const next = row.nextElementSibling || row.previousElementSibling;
+        row.remove();
+        (next?.querySelector('button') || textarea).focus();
+      });
+      row.append(details, remove);
+      list.append(row);
+    }
+    if (list.childElementCount) wrap.append(list);
+    const hint = document.createElement('div');
+    hint.className = 'dao-user-edit-hint';
+    hint.textContent = t('chat.message_actions.edit_hint');
+    wrap.append(hint);
     if (this.editingError_) {
       const error = document.createElement('div');
       error.className = 'dao-user-edit-error';
@@ -2130,6 +2181,7 @@ export class DaoChatView extends CrLitElement {
     this.editingMessageId_ = '';
     this.editingDraft_ = '';
     this.editingError_ = '';
+    this.editingRemovedContext_.clear();
     this.closeUserActionMenu_(false);
     this.refreshMessageActions_();
     this.activateProactiveSuggestionIfVisible_();
@@ -2531,6 +2583,7 @@ export class DaoChatView extends CrLitElement {
     this.editingMessageId_ = '';
     this.editingDraft_ = '';
     this.editingError_ = '';
+    this.editingRemovedContext_.clear();
     this.debugContextMessageId_ = '';
     this.closeUserActionMenu_(false);
 
@@ -2639,6 +2692,7 @@ export class DaoChatView extends CrLitElement {
     this.editingMessageId_ = userId;
     this.editingDraft_ = this.extractVisibleText_(msg);
     this.editingError_ = '';
+    this.editingRemovedContext_.clear();
     this.closeUserActionMenu_(false);
     this.debugContextMessageId_ = '';
     this.refreshMessageActions_();
@@ -2648,6 +2702,7 @@ export class DaoChatView extends CrLitElement {
     this.editingMessageId_ = '';
     this.editingDraft_ = '';
     this.editingError_ = '';
+    this.editingRemovedContext_.clear();
     this.closeUserActionMenu_(false, reactivateProactive);
     this.refreshMessageActions_();
     if (reactivateProactive) {
@@ -2683,11 +2738,8 @@ export class DaoChatView extends CrLitElement {
     const agent = this.agent_;
     if (!agent) return;
     const trimmed = nextText.trim();
-    if (!trimmed) {
-      this.editingError_ = t('chat.message_actions.empty_edit');
-      this.refreshMessageActions_();
-      return;
-    }
+    const removedContext = new Set(
+        this.editingMessageId_ === userId ? this.editingRemovedContext_ : []);
     let userIdx = this.findMessageIndexByDaoId_(userId);
     let msg = agent.state.messages[userIdx] as DaoChatMessage | undefined;
     if (userIdx < 0 || !this.isUserMessage_(msg)) return;
@@ -2713,6 +2765,19 @@ export class DaoChatView extends CrLitElement {
     msg = messages[userIdx] as DaoChatMessage | undefined;
     if (userIdx < 0 || !this.isUserMessage_(msg)) return;
 
+    const attachments = Array.isArray(msg.attachments) ?
+        msg.attachments.filter(item => !removedContext.has(item)) : [];
+    const contentParts = Array.isArray(msg.content) ? msg.content.filter(
+        part => isRecord(part) && part['type'] !== 'text' &&
+            !removedContext.has(part)) : [];
+    if (!trimmed && !attachments.length && !contentParts.length) {
+      this.editingError_ = t('chat.message_actions.empty_edit');
+      this.refreshMessageActions_();
+      return;
+    }
+    if (trimmed && contentParts.length) {
+      contentParts.unshift({type: 'text', text: trimmed});
+    }
     const now = new Date().toISOString();
     const daoMeta = {
       ...(msg.dao ?? {}),
@@ -2720,7 +2785,8 @@ export class DaoChatView extends CrLitElement {
     delete daoMeta.editHistory;
     const editedMessage: DaoChatMessage = {
       ...msg,
-      content: trimmed,
+      content: contentParts.length ? contentParts : trimmed,
+      ...(Array.isArray(msg.attachments) ? {attachments} : {}),
       dao: {
         ...daoMeta,
         id: userId,
@@ -2738,6 +2804,7 @@ export class DaoChatView extends CrLitElement {
     await this.clearProactiveSuggestionForManualSend_();
     this.cancelEditUserMessage_(false);
     await this.saveCurrentSession_();
+    this.pendingMemoryContextText_ = null;
     try {
       await agent.continue();
     } catch (e) {
