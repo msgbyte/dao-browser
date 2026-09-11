@@ -1,0 +1,12 @@
+diff --git a/components/download/internal/common/download_job_factory.cc b/components/download/internal/common/download_job_factory.cc
+--- a/components/download/internal/common/download_job_factory.cc
++++ b/components/download/internal/common/download_job_factory.cc
+@@ -120,7 +120,7 @@
+ 
+   bool is_parallelizable = IsParallelizableDownload(create_info, download_item);
+   // Build parallel download job.
+-  if (IsParallelDownloadEnabled() && is_parallelizable) {
++  if (download_item->IsParallelDownloadEnabledForItem() && is_parallelizable) {
+     return std::make_unique<ParallelDownloadJob>(
+         download_item, std::move(cancel_request_callback), create_info,
+         std::move(url_loader_factory_provider),

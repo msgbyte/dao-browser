@@ -740,6 +740,10 @@
       <message name="IDS_DAO_INSTALL_PROMPT_LEGACY_MV2_NOTICE" desc="One-line notice shown above the permission list in the extension install dialog when the extension being installed is a legacy Manifest V2 extension. Tells the user that Dao still supports MV2 but most other browsers do not. Plain text, no link.">
         This is a legacy (Manifest V2) extension. Dao supports it; Chrome and most other browsers no longer do.
       </message>
+
+      <!-- Downloads settings -->
+      <message name="IDS_DAO_PARALLEL_DOWNLOADING" desc="Label for the parallel downloading switch in You and Dao settings.">Parallel downloading</message>
+      <message name="IDS_DAO_PARALLEL_DOWNLOADING_DESCRIPTION" desc="Description explaining parallel downloading and when changes take effect.">Use multiple connections to download supported files faster. Changes apply to new downloads immediately.</message>
     </messages>
   </release>
 </grit>

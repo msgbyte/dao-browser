@@ -131,6 +131,25 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   tab until the user navigates
 
 ### 1.6 Downloads (sidebar-anchored)
+- **Parallel downloading** — Settings > You and Dao exposes the profile-scoped
+  `dao.parallel_downloading_enabled` preference, explicitly **off by default**.
+  Changes apply immediately to new downloads without restarting Dao. Each item
+  captures the choice before its job and file writer start; active downloads and
+  same-session resumptions retain that choice. Restored downloads with persisted
+  parallel slices retain parallel mode so partial files can resume safely.
+  Chromium's native eligibility checks, request splitting, retry, and assembly
+  remain in charge; unsupported downloads stay serial. Dao's preference is the
+  desktop source of truth, independent of `chrome://flags` and its restart state.
+  **Upstream tracking:** this reuses Chromium's experimental `ParallelDownloading`
+  implementation (flag `enable-parallel-downloading`), not a Dao download engine.
+  On each Chromium upgrade, track whether that experiment ships, changes default,
+  gains runtime configuration, or is removed; review its Finch parameters,
+  protocol eligibility, job selection, resume/slice handling, and file
+  obfuscation checks. Adapt or retire these integration patches when upstream
+  provides an equivalent runtime setting. Source entry points are
+  `components/download/internal/common/{parallel_download_utils,download_job_factory,
+  download_item_impl,download_file_impl}.cc` and
+  `chrome/browser/download/chrome_download_manager_delegate.cc`.
 - **Download-start feedback** — A blue download icon pops out at the pointer
   position captured when a new download is created, follows a 560ms upward
   quadratic throw into the sidebar button, and shrinks/fades on arrival. The

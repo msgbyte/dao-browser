@@ -60,6 +60,11 @@ inline constexpr char kDaoEnhancedPipEnabled[] = "dao.enhanced_pip_enabled";
 // When false (the default), dao://welcome is opened on first launch.
 inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";
 
+// Profile-scoped parallel downloading switch. Off by default; new downloads
+// snapshot this choice so changing it does not require a browser restart.
+inline constexpr char kDaoParallelDownloadingEnabled[] =
+    "dao.parallel_downloading_enabled";
+
 // Boolean pref that controls whether external links open in Little Dao.
 // When false, external links use the regular full browser window.
 inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";

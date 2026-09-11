@@ -1,0 +1,58 @@
+diff --git a/components/download/internal/common/download_item_impl.cc b/components/download/internal/common/download_item_impl.cc
+--- a/components/download/internal/common/download_item_impl.cc
++++ b/components/download/internal/common/download_item_impl.cc
+@@ -1215,7 +1215,7 @@
+ 
+ bool DownloadItemImpl::IsParallelDownload() const {
+   return job_ && job_->IsParallelizable() &&
+-         download::IsParallelDownloadEnabled();
++         IsParallelDownloadEnabledForItem();
+ }
+ 
+ DownloadItem::DownloadCreationType DownloadItemImpl::GetDownloadCreationType()
+@@ -1632,7 +1632,8 @@
+       base::BindRepeating(&DownloadItemImpl::BindWakeLockProvider,
+                           weak_ptr_factory_.GetWeakPtr()));
+   if (job_->IsParallelizable()) {
+-    RecordParallelizableDownloadCount(START_COUNT, IsParallelDownloadEnabled());
++    RecordParallelizableDownloadCount(START_COUNT,
++                                      IsParallelDownloadEnabledForItem());
+   }
+ 
+   deferred_interrupt_reason_ = DOWNLOAD_INTERRUPT_REASON_NONE;
+@@ -1688,7 +1689,7 @@
+                              download_source_);
+     if (job_->IsParallelizable()) {
+       RecordParallelizableDownloadCount(NEW_DOWNLOAD_COUNT,
+-                                        IsParallelDownloadEnabled());
++                                        IsParallelDownloadEnabledForItem());
+     }
+     RecordDownloadMimeType(mime_type_, transient_);
+ 
+@@ -2096,7 +2097,7 @@
+   }
+   if (is_parallelizable) {
+     RecordParallelizableDownloadCount(COMPLETED_COUNT,
+-                                      IsParallelDownloadEnabled());
++                                      IsParallelDownloadEnabledForItem());
+   }
+ 
+   if (auto_opened_) {
+@@ -2240,7 +2241,7 @@
+     RecordDownloadCountWithSource(CANCELLED_COUNT, download_source_);
+     if (job_ && job_->IsParallelizable()) {
+       RecordParallelizableDownloadCount(CANCELLED_COUNT,
+-                                        IsParallelDownloadEnabled());
++                                        IsParallelDownloadEnabledForItem());
+     }
+     DCHECK_EQ(last_reason_, reason);
+     TransitionTo(CANCELLED_INTERNAL);
+@@ -2249,7 +2250,7 @@
+ 
+   RecordDownloadInterrupted(reason, GetReceivedBytes(), total_bytes_,
+                             job_ && job_->IsParallelizable(),
+-                            IsParallelDownloadEnabled(), download_source_);
++                            IsParallelDownloadEnabledForItem(), download_source_);
+ 
+   base::TimeDelta time_since_start = base::Time::Now() - GetStartTime();
+   int resulting_file_size = GetReceivedBytes();
