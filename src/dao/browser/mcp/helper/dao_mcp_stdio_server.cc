@@ -316,6 +316,9 @@ void DaoMcpStdioServer::HandleInitialize(const base::DictValue& request,
                                 base::DictValue().Set("cacheable", false))))
               .Set(
                   "instructions",
+                  "Include a non-blank reason explaining why browser access "
+                  "is needed in the first tool call's arguments (up to 1024 "
+                  "UTF-8 bytes). Dao shows it in the permission dialog. "
                   "Use this server whenever the user asks to inspect or "
                   "operate Dao Browser, including the current page, tabs, "
                   "navigation, or page interaction. Prefer these tools over "

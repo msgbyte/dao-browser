@@ -67,6 +67,12 @@ struct DaoMcpClientInfo {
   std::optional<base::ProcessId> verified_pid;
 };
 
+struct DaoMcpApprovalRequest {
+  DaoMcpClientInfo client;
+  std::string reason;
+  base::Time requested_at;
+};
+
 struct DaoMcpServiceStatus {
   DaoMcpServiceStatus();
   ~DaoMcpServiceStatus();
@@ -85,7 +91,7 @@ class DaoMcpApprovalDelegate {
  public:
   virtual ~DaoMcpApprovalDelegate() = default;
 
-  virtual void RequestApproval(const DaoMcpClientInfo& client,
+  virtual void RequestApproval(const DaoMcpApprovalRequest& request,
                                Browser* browser,
                                std::string_view connection_id,
                                base::OnceCallback<void(bool)> callback) = 0;
@@ -206,7 +212,9 @@ class DaoMcpService {
 
   base::expected<Browser*, DaoToolError> PrepareApprovalSession(
       ConnectionState& connection);
-  void RequestApproval(ConnectionState& connection, Browser* browser);
+  void RequestApproval(ConnectionState& connection,
+                       Browser* browser,
+                       std::string reason);
   void OnApprovalResult(uint64_t connection_generation,
                         std::string connection_id,
                         bool allowed);

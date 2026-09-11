@@ -105,6 +105,7 @@
 <translation id="4828722023020978308">网址已复制到剪贴板</translation>
 <translation id="4854731374904470810">复制 Tab ID</translation>
 <translation id="4881695831933465202">打开</translation>
+<translation id="4893338078847725794">请求原因（客户端提供）：<ph name="REASON" /></translation>
 <translation id="4898928054560997780">让 Dao 修复</translation>
 <translation id="49041264823677952">关闭已完成的下载</translation>
 <translation id="493638356004396067">迁移失败</translation>
@@ -176,6 +177,7 @@
 <translation id="7717845620320228976">检查更新</translation>
 <translation id="7762651625781751842">搜索或输入网址...</translation>
 <translation id="7803931104677504532">读取页面样式</translation>
+<translation id="7880966286940739512">请求时间：<ph name="TIME" /></translation>
 <translation id="7941154822457232855">打开命令栏，快速跳转</translation>
 <translation id="7974106569409739809">解散文件夹</translation>
 <translation id="7995663841236651667">浏览器数据只会在这台 Mac 上本地处理。</translation>

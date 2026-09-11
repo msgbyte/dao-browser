@@ -19,6 +19,8 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
@@ -1022,12 +1024,24 @@ void DaoMcpService::HandleToolsList(ConnectionState& connection,
   for (const DaoBrowserToolDefinition* definition :
        DaoBrowserToolCatalog::Get()->List(DaoToolClient::kMcp)) {
     base::DictValue input_schema = definition->input_schema.Clone();
+    base::DictValue* properties = input_schema.FindDict("properties");
+    if (!properties) {
+      input_schema.Set("properties", base::DictValue());
+      properties = input_schema.FindDict("properties");
+    }
+    properties->Set(
+        "reason",
+        base::DictValue()
+            .Set("type", "string")
+            .Set("minLength", 1)
+            .Set("maxLength", 1024)
+            .Set("description",
+                 "Required on the first tool call of each connection. Explain "
+                 "why you need browser access for the user's task; Dao shows "
+                 "this reason in the permission dialog. Use non-blank text "
+                 "within 1024 UTF-8 bytes. May be omitted after requesting "
+                 "permission."));
     if (definition->group != DaoBrowserToolGroup::kTabs) {
-      base::DictValue* properties = input_schema.FindDict("properties");
-      if (!properties) {
-        input_schema.Set("properties", base::DictValue());
-        properties = input_schema.FindDict("properties");
-      }
       properties->Set(
           "tab_id",
           base::DictValue()
@@ -1099,6 +1113,20 @@ void DaoMcpService::HandleToolsCall(ConnectionState& connection,
     return;
   }
 
+  const std::string* reason = arguments->FindString("reason");
+  if ((arguments->contains("reason") ||
+       connection.approval_state == ApprovalState::kNotRequested) &&
+      (!reason || reason->size() > 1024 || !base::IsStringUTF8(*reason) ||
+       base::CollapseWhitespace(base::UTF8ToUTF16(*reason), false).empty())) {
+    SendError(
+        connection, request.id,
+        InvalidRequest("The first tool call requires a non-blank reason "
+                       "explaining why browser access is needed, within "
+                       "1024 UTF-8 bytes. Include it in arguments.reason; "
+                       "it will be shown in the permission dialog."));
+    return;
+  }
+
   std::string serialized_arguments;
   if (!base::JSONWriter::Write(*arguments, &serialized_arguments) ||
       serialized_arguments.size() >
@@ -1116,7 +1144,7 @@ void DaoMcpService::HandleToolsCall(ConnectionState& connection,
       SendError(connection, request.id, std::move(approval_browser).error());
       return;
     }
-    RequestApproval(connection, *approval_browser);
+    RequestApproval(connection, *approval_browser, *reason);
     if (connection.closing || !connection.client_info ||
         connection.target_contexts.empty() ||
         connection.approval_state == ApprovalState::kDenied) {
@@ -1128,6 +1156,7 @@ void DaoMcpService::HandleToolsCall(ConnectionState& connection,
   pending.call.request_id = *request.id;
   pending.call.name = *name;
   pending.call.arguments = arguments->Clone();
+  pending.call.arguments.Remove("reason");
   pending.call.timeout = definition->timeout;
   pending.group = definition->group;
   pending.target_id = connection.default_target_id;
@@ -1274,8 +1303,12 @@ DaoMcpService::PrepareApprovalSession(ConnectionState& connection) {
 }
 
 void DaoMcpService::RequestApproval(ConnectionState& connection,
-                                    Browser* browser) {
+                                    Browser* browser,
+                                    std::string reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DaoMcpApprovalRequest request{.client = *connection.client_info,
+                                .reason = std::move(reason),
+                                .requested_at = base::Time::Now()};
   connection.approval_state = ApprovalState::kPending;
   connection.approval_deadline = base::TimeTicks::Now() + approval_timeout_;
   UpdateStatus();
@@ -1305,9 +1338,8 @@ void DaoMcpService::RequestApproval(ConnectionState& connection,
     RejectConnection(connection, AuthorizationDenied());
     return;
   }
-  DaoMcpClientInfo client = *connection.client_info;
   approval_delegate_->RequestApproval(
-      client, approval_browser, connection_id,
+      request, approval_browser, connection_id,
       base::BindOnce(&DaoMcpService::OnApprovalResult,
                      weak_factory_.GetWeakPtr(), connection_generation,
                      connection_id));

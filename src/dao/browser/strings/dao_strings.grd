@@ -515,6 +515,12 @@
       <message name="IDS_DAO_MCP_APPROVAL_PROCESS_UNAVAILABLE" desc="Value shown when the local MCP helper process ID could not be verified.">
         unavailable
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_REASON" desc="Reason shown in the MCP approval dialog. REASON is untrusted client-reported text explaining why browser access is requested.">
+        Reason (provided by client): <ph name="REASON">$1<ex>Read the page to answer your question.</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_TIME" desc="Time the browser received the permission request, shown in the MCP approval dialog. TIME is a localized date and time with time zone.">
+        Requested at: <ph name="TIME">$1<ex>9/11/26 10:15:30 AM GMT+8</ex></ph>
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_WINDOW" desc="Browser window that will be controlled, shown in the MCP approval dialog. WINDOW is the current window title.">
         Window: <ph name="WINDOW">$1<ex>Dao Browser</ex></ph>
       </message>

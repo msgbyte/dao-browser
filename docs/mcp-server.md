@@ -79,6 +79,24 @@ after target selection does not move the approved target. Approval is required
 before every connection can execute tools, and Allow is not the default dialog
 action.
 
+The first tool call must include `reason` in its arguments, for example:
+
+```json
+{"name":"list_tabs","arguments":{"reason":"Find the documentation tab to answer your question."}}
+```
+
+Use non-blank text within 1024 UTF-8 bytes. Missing, blank, or invalid reasons
+return `INVALID_ARGUMENT` without opening a dialog; retry with a valid reason.
+The tool schemas and server instructions advertise this requirement. Calls on
+that connection may omit `reason` once approval has been requested. The reason
+is permission metadata and is removed before executing the browser tool.
+
+The dialog shows the reported client name/version, verified local process ID
+when available, the browser-recorded request date/time with time zone, and the
+reason labeled as client-provided, alongside the selected window and Profile.
+Queued dialogs retain each request's original time and reason. Long reasons
+scroll within the dialog so the approval controls remain accessible.
+
 ## Tool scope
 
 MCP exposes 31 native browser tools from the same versioned catalog used by Dao

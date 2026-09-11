@@ -22,7 +22,7 @@ namespace dao {
 
 class DaoMcpApprovalDialog final : public views::DialogDelegate {
  public:
-  DaoMcpApprovalDialog(const DaoMcpClientInfo& client,
+  DaoMcpApprovalDialog(const DaoMcpApprovalRequest& request,
                        Browser* browser,
                        base::OnceCallback<void(bool)> callback);
   ~DaoMcpApprovalDialog() override;
@@ -34,8 +34,9 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
   base::WeakPtr<DaoMcpApprovalDialog> GetWeakPtr();
 
  private:
-  std::unique_ptr<views::View> BuildContents(const DaoMcpClientInfo& client,
-                                             Browser* browser);
+  std::unique_ptr<views::View> BuildContents(
+      const DaoMcpApprovalRequest& request,
+      Browser* browser);
   void Resolve(bool allowed);
 
   base::OnceCallback<void(bool)> callback_;
@@ -51,7 +52,7 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
   DaoMcpApprovalDialogController& operator=(
       const DaoMcpApprovalDialogController&) = delete;
 
-  void RequestApproval(const DaoMcpClientInfo& client,
+  void RequestApproval(const DaoMcpApprovalRequest& request,
                        Browser* browser,
                        std::string_view connection_id,
                        base::OnceCallback<void(bool)> callback) override;
@@ -68,7 +69,7 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
   ~DaoMcpApprovalDialogController() override;
 
   struct PendingRequest {
-    PendingRequest(const DaoMcpClientInfo& client,
+    PendingRequest(const DaoMcpApprovalRequest& request,
                    Browser* browser,
                    std::string connection_id,
                    base::OnceCallback<void(bool)> callback);
@@ -79,7 +80,7 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
     PendingRequest(const PendingRequest&) = delete;
     PendingRequest& operator=(const PendingRequest&) = delete;
 
-    DaoMcpClientInfo client;
+    DaoMcpApprovalRequest approval;
     raw_ptr<Browser> browser;
     std::string connection_id;
     base::OnceCallback<void(bool)> callback;

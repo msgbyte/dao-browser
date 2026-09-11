@@ -9,6 +9,7 @@
 
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
+#include "base/i18n/time_formatting.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -28,6 +29,7 @@
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/controls/scroll_view.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
@@ -74,7 +76,7 @@ bool IsEligibleApprovalBrowser(Browser* browser) {
 }  // namespace
 
 DaoMcpApprovalDialog::DaoMcpApprovalDialog(
-    const DaoMcpClientInfo& client,
+    const DaoMcpApprovalRequest& request,
     Browser* browser,
     base::OnceCallback<void(bool)> callback)
     : callback_(std::move(callback)) {
@@ -101,7 +103,7 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
       this, {.show_enter_for_default = false,
              .show_esc_for_cancel = true,
              .center_in_web_contents = true});
-  SetContentsView(BuildContents(client, browser));
+  SetContentsView(BuildContents(request, browser));
 }
 
 DaoMcpApprovalDialog::~DaoMcpApprovalDialog() {
@@ -120,7 +122,7 @@ base::WeakPtr<DaoMcpApprovalDialog> DaoMcpApprovalDialog::GetWeakPtr() {
 }
 
 std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
-    const DaoMcpClientInfo& client,
+    const DaoMcpApprovalRequest& request,
     Browser* browser) {
   auto contents = std::make_unique<views::View>();
   auto* layout =
@@ -147,17 +149,33 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
 
   details->AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_CLIENT,
-                                 SanitizeLabel(client.name),
-                                 SanitizeLabel(client.version)),
+                                 SanitizeLabel(request.client.name),
+                                 SanitizeLabel(request.client.version)),
       TextPrimary(), false));
   const std::u16string pid =
-      client.verified_pid
-          ? base::NumberToString16(*client.verified_pid)
-          : l10n_util::GetStringUTF16(
-                IDS_DAO_MCP_APPROVAL_PROCESS_UNAVAILABLE);
+      request.client.verified_pid
+          ? base::NumberToString16(*request.client.verified_pid)
+          : l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_PROCESS_UNAVAILABLE);
   details->AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_PROCESS, pid),
       TextSecondary(), false));
+
+  details->AddChildView(CreateLabel(
+      l10n_util::GetStringFUTF16(
+          IDS_DAO_MCP_APPROVAL_TIME,
+          base::TimeFormatShortDateAndTimeWithTimeZone(request.requested_at)),
+      TextSecondary(), true));
+  auto* reason_scroll =
+      details->AddChildView(std::make_unique<views::ScrollView>());
+  reason_scroll->SetHorizontalScrollBarMode(
+      views::ScrollView::ScrollBarMode::kDisabled);
+  reason_scroll->ClipHeightTo(0, 120);
+  reason_scroll
+      ->SetContents(CreateLabel(
+          l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_REASON,
+                                   SanitizeLabel(request.reason)),
+          TextPrimary(), true))
+      ->SetSubpixelRenderingEnabled(false);
 
   std::u16string window_title =
       browser ? browser->GetWindowTitleForCurrentTab(false) : std::u16string();
@@ -183,6 +201,7 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
 
   contents->SetPreferredSize(
       gfx::Size(kDialogWidth, contents->GetPreferredSize().height()));
+  ConfigureDaoSystemDialogContent(contents.get());
   return contents;
 }
 
@@ -202,11 +221,11 @@ DaoMcpApprovalDialogController::DaoMcpApprovalDialogController() = default;
 DaoMcpApprovalDialogController::~DaoMcpApprovalDialogController() = default;
 
 DaoMcpApprovalDialogController::PendingRequest::PendingRequest(
-    const DaoMcpClientInfo& client,
+    const DaoMcpApprovalRequest& request,
     Browser* browser,
     std::string connection_id,
     base::OnceCallback<void(bool)> callback)
-    : client(client),
+    : approval(request),
       browser(browser),
       connection_id(std::move(connection_id)),
       callback(std::move(callback)) {}
@@ -219,7 +238,7 @@ DaoMcpApprovalDialogController::PendingRequest::operator=(PendingRequest&&) =
     default;
 
 void DaoMcpApprovalDialogController::RequestApproval(
-    const DaoMcpClientInfo& client,
+    const DaoMcpApprovalRequest& request,
     Browser* browser,
     std::string_view connection_id,
     base::OnceCallback<void(bool)> callback) {
@@ -228,7 +247,7 @@ void DaoMcpApprovalDialogController::RequestApproval(
     return;
   }
 
-  pending_requests_.emplace_back(client, browser, std::string(connection_id),
+  pending_requests_.emplace_back(request, browser, std::string(connection_id),
                                  std::move(callback));
   ShowNextApproval();
 }
@@ -247,7 +266,7 @@ void DaoMcpApprovalDialogController::ShowNextApproval() {
   }
 
   auto dialog = std::make_unique<DaoMcpApprovalDialog>(
-      request.client, request.browser,
+      request.approval, request.browser,
       base::BindOnce(&DaoMcpApprovalDialogController::OnDialogResult,
                      base::Unretained(this), request.connection_id,
                      std::move(request.callback)));

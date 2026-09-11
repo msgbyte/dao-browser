@@ -685,11 +685,11 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
     base::OnceCallback<void(bool)> callback;
   };
 
-  void RequestApproval(const DaoMcpClientInfo& client,
+  void RequestApproval(const DaoMcpApprovalRequest& request,
                        Browser* browser,
                        std::string_view connection_id,
                        base::OnceCallback<void(bool)> callback) override {
-    client_ = client;
+    request_ = request;
     browser_ = browser;
     requests_.push_back({.connection_id = std::string(connection_id),
                          .callback = std::move(callback)});
@@ -705,6 +705,7 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
     });
   }
   size_t request_count() const { return requests_.size(); }
+  const DaoMcpApprovalRequest& request() const { return request_; }
   Browser* browser() const { return browser_; }
   const std::vector<std::string>& cancelled_connection_ids() const {
     return cancelled_connection_ids_;
@@ -722,7 +723,7 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
   }
 
  private:
-  DaoMcpClientInfo client_;
+  DaoMcpApprovalRequest request_;
   raw_ptr<Browser> browser_ = nullptr;
   std::vector<Request> requests_;
   std::vector<std::string> cancelled_connection_ids_;
@@ -730,7 +731,7 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
 
 class AllowDuringCancelApprovalDelegate : public DaoMcpApprovalDelegate {
  public:
-  void RequestApproval(const DaoMcpClientInfo&,
+  void RequestApproval(const DaoMcpApprovalRequest&,
                        Browser*,
                        std::string_view,
                        base::OnceCallback<void(bool)> callback) override {
@@ -833,6 +834,9 @@ class DaoMcpServiceBrowserTest : public InProcessBrowserTest {
   base::DictValue ToolCall(std::string id,
                            std::string name = "get_page_info",
                            base::DictValue arguments = {}) {
+    if (!arguments.contains("reason")) {
+      arguments.Set("reason", "Inspect the page for the requested task.");
+    }
     return base::DictValue()
         .Set("version", kDaoMcpIpcVersion)
         .Set("id", std::move(id))
@@ -1027,6 +1031,15 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   const base::ListValue* tools = result->FindList("tools");
   ASSERT_TRUE(tools);
   EXPECT_EQ(31u, tools->size());
+  for (const base::Value& tool : *tools) {
+    const base::DictValue* reason =
+        tool.GetDict().FindDictByDottedPath("inputSchema.properties.reason");
+    ASSERT_TRUE(reason);
+    EXPECT_EQ("string", *reason->FindString("type"));
+    EXPECT_EQ(1, reason->FindInt("minLength"));
+    EXPECT_EQ(1024, reason->FindInt("maxLength"));
+  }
+
   auto find_tool = [](const base::ListValue& tool_list,
                       std::string_view name) -> const base::DictValue* {
     for (const base::Value& value : tool_list) {
@@ -1137,6 +1150,79 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       ApprovalRequiresReasonAndPreservesRequestMetadata) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  std::unique_ptr<TestMcpClient> client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+
+  base::ListValue invalid_reasons;
+  invalid_reasons.Append(base::Value());
+  invalid_reasons.Append(42);
+  invalid_reasons.Append("");
+  invalid_reasons.Append(" \t\n\xE3\x80\x80");
+  invalid_reasons.Append(std::string(1025, 'x'));
+  for (const base::Value& reason : invalid_reasons) {
+    auto call = ToolCall("invalid-reason");
+    auto* arguments = call.FindDictByDottedPath("params.arguments");
+    if (reason.is_none()) {
+      arguments->Remove("reason");
+    } else {
+      arguments->Set("reason", reason.Clone());
+    }
+    ASSERT_TRUE(client->Send(std::move(call)));
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    EXPECT_EQ("INVALID_ARGUMENT",
+              *response->FindStringByDottedPath("error.code"));
+    EXPECT_EQ(0u, approval.request_count());
+    EXPECT_EQ(0u, service_->active_tool_call_count_for_testing());
+    EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
+  }
+
+  const base::Time before_request = base::Time::Now();
+  ASSERT_TRUE(client->Send(
+      ToolCall("first", "get_page_info",
+               base::DictValue().Set(
+                   "reason", "Read the page to answer the user's question."))));
+  WaitForApprovalRequestCount(&approval, 1);
+  EXPECT_EQ("Test MCP Client", approval.request().client.name);
+  EXPECT_EQ("1.0", approval.request().client.version);
+  EXPECT_EQ("Read the page to answer the user's question.",
+            approval.request().reason);
+  const base::Time requested_at = approval.request().requested_at;
+  EXPECT_GE(requested_at, before_request);
+  EXPECT_LE(requested_at, base::Time::Now());
+
+  ASSERT_TRUE(client->Send(
+      ToolCall("queued", "get_page_info",
+               base::DictValue().Set("reason", "A different reason."))));
+  ASSERT_TRUE(base::test::RunUntil(
+      [this] { return service_->active_tool_call_count_for_testing() == 2; }));
+  EXPECT_EQ(1u, approval.request_count());
+  EXPECT_EQ(requested_at, approval.request().requested_at);
+  EXPECT_EQ("Read the page to answer the user's question.",
+            approval.request().reason);
+  approval.Resolve(true);
+  for (int i = 0; i < 2; ++i) {
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    EXPECT_TRUE(response->FindDict("result"));
+  }
+
+  auto follow_up = ToolCall("follow-up");
+  follow_up.FindDictByDottedPath("params.arguments")->Remove("reason");
+  ASSERT_TRUE(client->Send(std::move(follow_up)));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindDict("result"));
+  EXPECT_EQ(1u, approval.request_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        ToolCallWaitsForApprovalAndUsesExternalLease) {
   PrefService* profile_prefs = browser()->profile()->GetPrefs();
   ResetDaoMcpUsageStats(profile_prefs, base::Time::Now());
@@ -1152,9 +1238,13 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
           .Set("version", kDaoMcpIpcVersion)
           .Set("id", "call-1")
           .Set("method", "tools/call")
-          .Set("params", base::DictValue()
-                             .Set("name", "get_page_info")
-                             .Set("arguments", base::DictValue()))));
+          .Set("params",
+               base::DictValue()
+                   .Set("name", "get_page_info")
+                   .Set("arguments",
+                        base::DictValue().Set(
+                            "reason",
+                            "Inspect the page for the requested task.")))));
 
   ASSERT_TRUE(base::test::RunUntil(
       [&approval] { return approval.has_pending_request(); }));
@@ -1347,9 +1437,13 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
           .Set("version", kDaoMcpIpcVersion)
           .Set("id", "call-original-window")
           .Set("method", "tools/call")
-          .Set("params", base::DictValue()
-                             .Set("name", "get_page_info")
-                             .Set("arguments", base::DictValue()))));
+          .Set("params",
+               base::DictValue()
+                   .Set("name", "get_page_info")
+                   .Set("arguments",
+                        base::DictValue().Set(
+                            "reason",
+                            "Inspect the page for the requested task.")))));
   std::optional<base::DictValue> response = client->Read();
   ASSERT_TRUE(response);
   const base::DictValue* result = response->FindDict("result");
@@ -2006,9 +2100,13 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
           .Set("jsonrpc", "2.0")
           .Set("id", "call-e2e")
           .Set("method", "tools/call")
-          .Set("params", base::DictValue()
-                             .Set("name", "get_page_info")
-                             .Set("arguments", base::DictValue()))));
+          .Set("params",
+               base::DictValue()
+                   .Set("name", "get_page_info")
+                   .Set("arguments",
+                        base::DictValue().Set(
+                            "reason",
+                            "Inspect the page for the requested task.")))));
   ASSERT_TRUE(base::test::RunUntil(
       [&approval] { return approval.has_pending_request(); }));
   approval.Resolve(true);
