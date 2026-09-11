@@ -223,6 +223,12 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 
 **Chat surface**
 - `dao_chat_view.ts` — Main conversation view (session resume, skill picker, dynamic chips, composer height tracking, cost stats / usage)
+- **Agent browser-turn lifecycle** — New sends, retries, regeneration, and
+  edited-message resends each acquire their own native turn before execution
+  and release it on completion or failure. Editing an active response waits
+  for both model cancellation and native cleanup before starting the next turn.
+  Agent and MCP share the native browser tools and per-tab lease coordinator;
+  their sessions, authorization, and turn lifecycles remain independent.
 - **Historical message editing** — After stopping a response, use the user
   message's More actions > Edit menu to change its text and remove individual
   page, selection, element, PDF, image, or file attachments. Cancel keeps the

@@ -371,6 +371,9 @@ describe('dao-chat-view message metadata helpers', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
+    pickerMocks.callNative.mockReset();
+    pickerMocks.callNative.mockResolvedValue(
+        {success: true, turnId: 'test-turn'});
     vi.mocked(compactAgentMessages).mockReset();
     vi.mocked(estimateMessagesTokens).mockReset();
     vi.mocked(estimateMessagesTokens).mockReturnValue(0);
@@ -1916,6 +1919,98 @@ describe('dao-chat-view element picker', () => {
       expect(pickerMocks.callNative).toHaveBeenCalledWith(
           'endAgentTurn', {turnId: 'test-turn'});
     } finally {
+      clearTabWatchTimer(view);
+    }
+  });
+
+  it.each(['regenerate', 'retry', 'edit'])(
+      'keeps browser control active throughout %s', async action => {
+        const {view} = await mountChatViewWithSend(vi.fn());
+        const chat = view as any;
+        chat.agent_.state.messages = [
+          {role: 'user', content: 'Read this page', dao: {id: 'u1'}},
+          {
+            role: 'assistant', content: [], dao: {id: 'a1'},
+            stopReason: 'error', errorMessage: 'Request failed',
+          },
+        ];
+        let finish!: () => void;
+        chat.agent_.continue = vi.fn(() => new Promise<void>(resolve => {
+          finish = resolve;
+        }));
+
+        try {
+          const run = action === 'edit' ?
+              chat.applyUserMessageEdit_('u1', 'Read it again') :
+              action === 'retry' ? chat.retryErrorById_('a1') :
+                                   chat.regenerateAssistantById_('a1');
+          await vi.waitFor(() =>
+              expect(chat.agent_.continue).toHaveBeenCalledOnce());
+          expect(pickerMocks.callNative).toHaveBeenCalledWith(
+              'beginAgentTurn', undefined,
+              {cancelMethod: 'cancelBeginAgentTurn'});
+          expect(pickerMocks.callNative).not.toHaveBeenCalledWith(
+              'endAgentTurn', expect.anything());
+
+          finish();
+          await run;
+          expect(pickerMocks.callNative).toHaveBeenCalledWith(
+              'endAgentTurn', {turnId: 'test-turn'});
+        } finally {
+          finish?.();
+          clearTabWatchTimer(view);
+        }
+      });
+
+  it('finishes native cleanup before starting an edit after abort', async () => {
+    let stop!: () => void;
+    const originalSend = vi.fn(() => new Promise<void>(resolve => stop = resolve));
+    const {view, iface} = await mountChatViewWithSend(originalSend);
+    const chat = view as any;
+    chat.agent_.state.messages = [
+      {role: 'user', content: 'Read this page', dao: {id: 'u1'}},
+    ];
+    chat.agent_.abort = vi.fn(() => {
+      chat.agent_.state.isStreaming = false;
+      stop();
+    });
+    chat.agent_.continue = vi.fn(async () => undefined);
+    let release!: () => void;
+    const cleanup = new Promise<void>(resolve => release = resolve);
+    pickerMocks.callNative.mockImplementation(async (method, params) => {
+      if (method === 'endAgentTurn' && params.turnId === 'test-turn') {
+        await cleanup;
+      }
+      return {success: true, turnId: 'edit-turn'};
+    });
+    pickerMocks.callNative.mockResolvedValueOnce(
+        {success: true, turnId: 'test-turn'});
+
+    try {
+      const sending = iface.sendMessage('Read this page', []);
+      await vi.waitFor(() => expect(originalSend).toHaveBeenCalledOnce());
+      chat.agent_.state.isStreaming = true;
+      const editing = chat.applyUserMessageEdit_('u1', 'Read it again');
+      await vi.waitFor(() => expect(pickerMocks.callNative).toHaveBeenCalledWith(
+          'endAgentTurn', {turnId: 'test-turn'}));
+      expect(chat.agent_.continue).not.toHaveBeenCalled();
+      expect(pickerMocks.callNative.mock.calls.filter(
+                 call => call[0] === 'beginAgentTurn')).toHaveLength(1);
+
+      release();
+      await Promise.all([sending, editing]);
+      expect(chat.agent_.continue).toHaveBeenCalledOnce();
+      expect(pickerMocks.callNative.mock.calls.filter(
+                 call => call[0] === 'beginAgentTurn' ||
+                     call[0] === 'endAgentTurn')).toEqual([
+        ['beginAgentTurn', undefined, {cancelMethod: 'cancelBeginAgentTurn'}],
+        ['endAgentTurn', {turnId: 'test-turn'}],
+        ['beginAgentTurn', undefined, {cancelMethod: 'cancelBeginAgentTurn'}],
+        ['endAgentTurn', {turnId: 'edit-turn'}],
+      ]);
+    } finally {
+      stop?.();
+      release();
       clearTabWatchTimer(view);
     }
   });

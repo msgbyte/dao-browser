@@ -407,10 +407,8 @@ export class DaoChatView extends CrLitElement {
   // across its `await getAllMetadata()`.
   private externalSubmitInFlight_ = false;
   private externalSubmitHistoryClaimToken_ = '';
-  // Covers the native-turn setup window before Pi marks the agent streaming.
-  // A re-entrant send in that window would replace the active native turn and
-  // invalidate any Home mutation lease owned by the original request.
-  private sendInFlight_ = false;
+  // Includes native setup and cleanup, beyond Pi's streaming lifetime.
+  private agentTurn_: Promise<unknown>|null = null;
   // One-shot flag consumed by the monkey-patched sendMessage to skip
   // maybeAttachPage_/maybeAttachSelection_ on the first turn of a Cmd+T
   // session — the user asked a standalone question, not one about the page
@@ -1358,39 +1356,7 @@ export class DaoChatView extends CrLitElement {
         iface.sendMessage = async (
             text: string, attachments: any[],
             options?: {historyClaimToken?: string}) => {
-          if (this.sendInFlight_ || this.agent_?.state.isStreaming) return;
-          this.sendInFlight_ = true;
-          let turnId: string|null = null;
-          this.pendingMemoryContextText_ = null;
-          try {
-            const historyClaimToken =
-                typeof options?.historyClaimToken === 'string' &&
-                    options.historyClaimToken ?
-                options.historyClaimToken :
-                undefined;
-            const beginResult = await callNative(
-                'beginAgentTurn', historyClaimToken ? {historyClaimToken} :
-                                                     undefined,
-                {cancelMethod: 'cancelBeginAgentTurn'}) as {
-              success?: boolean;
-              turnId?: string;
-              error?: string;
-              code?: string;
-              homeContext?: HomeToolContext;
-            };
-            if (!beginResult?.success || !beginResult.turnId) {
-              throw new Error(
-                  beginResult?.error ||
-                  beginResult?.code ||
-                  'Unable to start the Dao Agent turn.');
-            }
-            turnId = beginResult.turnId;
-            setHomeToolContext(beginResult.homeContext ?? {
-              active: false,
-              revision: '',
-            });
-            this.refreshTools_();
-
+          return this.runAgentTurn_(async () => {
             reportTelemetryEvent('agent_message_send', {
               textLength: text?.length ?? 0,
               attachmentCount: attachments?.length ?? 0,
@@ -1423,19 +1389,7 @@ export class DaoChatView extends CrLitElement {
             const result = await this.origSendMessage_!(text, merged);
             await this.clearProactiveSuggestionForManualSend_();
             return result;
-          } finally {
-            this.pendingMemoryContextText_ = null;
-            if (turnId) {
-              try {
-                await callNative('endAgentTurn', {turnId});
-              } catch (e) {
-                console.warn('[dao-agent] endAgentTurn failed', e);
-              }
-            }
-            clearHomeToolContext();
-            this.refreshTools_();
-            this.sendInFlight_ = false;
-          }
+          }, options?.historyClaimToken);
         };
       }
     }
@@ -2733,6 +2687,55 @@ export class DaoChatView extends CrLitElement {
     }
   }
 
+  private runAgentTurn_(
+      run: () => Promise<unknown>, historyClaimToken?: string): Promise<unknown> {
+    if (this.agentTurn_ || this.agent_?.state.isStreaming) {
+      return Promise.resolve();
+    }
+    this.agentTurn_ = (async () => {
+      let turnId: string|null = null;
+      this.pendingMemoryContextText_ = null;
+      try {
+        const beginResult = await callNative(
+            'beginAgentTurn',
+            typeof historyClaimToken === 'string' && historyClaimToken ?
+                {historyClaimToken} : undefined,
+            {cancelMethod: 'cancelBeginAgentTurn'}) as {
+          success?: boolean;
+          turnId?: string;
+          error?: string;
+          code?: string;
+          homeContext?: HomeToolContext;
+        };
+        if (!beginResult?.success || !beginResult.turnId) {
+          throw new Error(
+              beginResult?.error || beginResult?.code ||
+              'Unable to start the Dao Agent turn.');
+        }
+        turnId = beginResult.turnId;
+        setHomeToolContext(beginResult.homeContext ?? {
+          active: false,
+          revision: '',
+        });
+        this.refreshTools_();
+        return await run();
+      } finally {
+        this.pendingMemoryContextText_ = null;
+        if (turnId) {
+          try {
+            await callNative('endAgentTurn', {turnId});
+          } catch (e) {
+            console.warn('[dao-agent] endAgentTurn failed', e);
+          }
+        }
+        clearHomeToolContext();
+        this.refreshTools_();
+        this.agentTurn_ = null;
+      }
+    })();
+    return this.agentTurn_;
+  }
+
   private async applyUserMessageEdit_(
       userId: string, nextText: string): Promise<void> {
     const agent = this.agent_;
@@ -2755,6 +2758,13 @@ export class DaoChatView extends CrLitElement {
         await agent.waitForIdle();
       } catch (_) {
         // The run may already be idle or tearing down; re-check messages below.
+      }
+      // Pi becomes idle before the enclosing native turn finishes cleanup.
+      // Finish releasing the old target before acquiring the edit's target.
+      try {
+        await this.agentTurn_;
+      } catch (_) {
+        // A failed send still releases its native turn in finally.
       }
       agent.state.isStreaming = false;
       this.isStreaming_ = false;
@@ -2796,17 +2806,18 @@ export class DaoChatView extends CrLitElement {
 
     const nextMessages = messages.slice(0, userIdx + 1);
     nextMessages[userIdx] = editedMessage;
-    agent.state.messages = nextMessages;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const iface = this.panel_?.querySelector('agent-interface') as any;
-    iface?.requestUpdate?.();
-    this.syncMeta_();
-    await this.clearProactiveSuggestionForManualSend_();
-    this.cancelEditUserMessage_(false);
-    await this.saveCurrentSession_();
-    this.pendingMemoryContextText_ = null;
     try {
-      await agent.continue();
+      await this.runAgentTurn_(async () => {
+        agent.state.messages = nextMessages;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const iface = this.panel_?.querySelector('agent-interface') as any;
+        iface?.requestUpdate?.();
+        this.syncMeta_();
+        await this.clearProactiveSuggestionForManualSend_();
+        this.cancelEditUserMessage_(false);
+        await this.saveCurrentSession_();
+        await agent.continue();
+      });
     } catch (e) {
       console.warn('[dao] edit retry failed', e);
       this.scheduleSaveSession_();
@@ -2821,17 +2832,19 @@ export class DaoChatView extends CrLitElement {
         !this.isUserMessage_(messages[userIdx])) {
       return;
     }
-    // Keep the user message, drop all assistant / toolResult messages
-    // that came after it. Replace the array (not mutate in place) so
-    // pi-web-ui's reference-equality change detector picks it up.
-    agent.state.messages = messages.slice(0, userIdx + 1);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const iface = this.panel_?.querySelector('agent-interface') as any;
-    iface?.requestUpdate?.();
-    this.syncMeta_();
-    await this.clearProactiveSuggestionForManualSend_();
     try {
-      await agent.continue();
+      await this.runAgentTurn_(async () => {
+        // Keep the user message, drop all assistant / toolResult messages
+        // that came after it. Replace the array (not mutate in place) so
+        // pi-web-ui's reference-equality change detector picks it up.
+        agent.state.messages = messages.slice(0, userIdx + 1);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const iface = this.panel_?.querySelector('agent-interface') as any;
+        iface?.requestUpdate?.();
+        this.syncMeta_();
+        await this.clearProactiveSuggestionForManualSend_();
+        await agent.continue();
+      });
     } catch (e) {
       console.warn('[dao] retry failed', e);
       this.scheduleSaveSession_();
