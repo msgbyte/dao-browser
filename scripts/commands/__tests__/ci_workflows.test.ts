@@ -52,6 +52,7 @@ describe('CI workflows', () => {
         const result = run({...signingEnv, GRADLE_EXIT_CODE: String(exitCode)});
         expect(result.status).toBe(exitCode);
         expect(result.stdout).toContain(':app:assembleRelease');
+        expect(result.stdout).toContain('-PsplitApks=true');
         expect(existsSync(path.join(directory, 'dao-release.jks'))).toBe(false);
       }
     } finally {

@@ -85,7 +85,7 @@ jobs:
           umask 077
           trap 'rm -f dao-release.jks' EXIT
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > dao-release.jks
-          ./gradlew --no-daemon --stacktrace :app:assembleRelease
+          ./gradlew --no-daemon --stacktrace -PsplitApks=true :app:assembleRelease
 
       - name: Verify and package APK
         if: steps.release.outputs.build == 'true'
@@ -94,23 +94,31 @@ jobs:
           VERSION_CODE: ${{ steps.release.outputs.version_code }}
         run: |
           python3 - <<'PY'
-          import hashlib, os, pathlib, re, shutil, subprocess
-          apk = pathlib.Path('android/app/build/outputs/apk/release/app-release.apk')
+          import hashlib, os, pathlib, re, shutil, subprocess, zipfile
           tools = pathlib.Path(os.environ['ANDROID_HOME']) / 'build-tools/36.0.0'
-          subprocess.run([str(tools / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], check=True)
-          badging = subprocess.check_output([str(tools / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
-          package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.M)
-          if not package or package.groups() != ('com.msgbyte.dao', os.environ['VERSION_CODE'], os.environ['VERSION']):
-              raise SystemExit('APK package or version does not match the release')
-          if re.search(r'^application-debuggable(?:\s|$)', badging, re.M):
-              raise SystemExit('Refusing to publish a debuggable APK')
           directory = pathlib.Path('dist')
           directory.mkdir(exist_ok=True)
-          target = directory / f"dao-browser-{os.environ['VERSION']}-android.apk"
-          shutil.copyfile(apk, target)
-          with target.open('rb') as content:
-              digest = hashlib.file_digest(content, 'sha256').hexdigest()
-          (directory / 'SHA256SUMS').write_text(f'{digest}  {target.name}\n')
+          checksums = []
+          for abi in ('arm64-v8a', 'armeabi-v7a', 'x86_64'):
+              apk = pathlib.Path(f'android/app/build/outputs/apk/release/app-{abi}-release.apk')
+              subprocess.run([str(tools / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], check=True)
+              badging = subprocess.check_output([str(tools / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
+              package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.M)
+              if not package or package.groups() != ('com.msgbyte.dao', os.environ['VERSION_CODE'], os.environ['VERSION']):
+                  raise SystemExit(f'APK package or version does not match the release: {apk.name}')
+              if re.search(r'^application-debuggable(?:\s|$)', badging, re.M):
+                  raise SystemExit(f'Refusing to publish a debuggable APK: {apk.name}')
+              with zipfile.ZipFile(apk) as content:
+                  names = content.namelist()
+              native_abis = {name.split('/')[1] for name in names if name.startswith('lib/') and name.endswith('.so')}
+              if native_abis != {abi} or f'lib/{abi}/libxul.so' not in names:
+                  raise SystemExit(f'APK must contain only its declared ABI and Gecko engine: {apk.name}')
+              target = directory / f"dao-browser-{os.environ['VERSION']}-android-{abi}.apk"
+              shutil.copyfile(apk, target)
+              with target.open('rb') as content:
+                  digest = hashlib.file_digest(content, 'sha256').hexdigest()
+              checksums.append(f'{digest}  {target.name}\n')
+          (directory / 'SHA256SUMS').write_text(''.join(checksums))
           PY
 
       - name: Publish GitHub Release
@@ -128,5 +136,5 @@ jobs:
             draft) ;;
             *) echo '::error::Unexpected GitHub release state'; exit 1 ;;
           esac
-          gh release upload "$GITHUB_REF_NAME" "dist/dao-browser-$VERSION-android.apk" dist/SHA256SUMS --clobber
+          gh release upload "$GITHUB_REF_NAME" dist/dao-browser-"$VERSION"-android-*.apk dist/SHA256SUMS --clobber
           gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease=false --latest=false

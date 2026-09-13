@@ -27,6 +27,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    splits {
+        abi {
+            // Release workflows opt in; local debug installs keep a single APK.
+            isEnable = providers.gradleProperty("splitApks").orNull == "true"
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull?.let { password ->
         val releaseSigning = signingConfigs.create("release") {
             storeFile = rootProject.file("dao-release.jks")

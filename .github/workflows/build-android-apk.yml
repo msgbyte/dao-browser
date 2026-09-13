@@ -68,7 +68,7 @@ jobs:
           umask 077
           trap 'rm -f dao-release.jks' EXIT
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > dao-release.jks
-          ./gradlew --no-daemon --stacktrace :app:assembleRelease
+          ./gradlew --no-daemon --stacktrace -PsplitApks=true :app:assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v7

@@ -1,12 +1,14 @@
 // @vitest-environment node
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, expect, it} from 'vitest';
 
 const workflow = readFileSync('.github/workflows/publish-android-github-release.yml', 'utf8');
+const abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64'];
+const assetName = (abi: string) => `dao-browser-0.1.1-android-${abi}.apk`;
 function script(name: string) {
   const step = workflow.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
   if (!step?.includes('run: |\n')) throw new Error(`Missing workflow script: ${name}`);
@@ -32,14 +34,14 @@ if (args[1] === 'create') {
   state.release = 'draft';
 } else if (args[1] === 'upload') {
   if (state.release !== 'draft' || !args.includes('--clobber')) fail('Unsafe replacement');
-  if (state.failUpload) {state.assets = {'dao-browser-0.1.1-android.apk': ''}; fail('HTTP 502');}
+  if (state.failUpload) {state.assets = {'dao-browser-0.1.1-android-arm64-v8a.apk': ''}; fail('HTTP 502');}
   state.assets = {};
   for (const file of args.slice(3).filter(arg => !arg.startsWith('--'))) {
     state.assets[require('node:path').basename(file)] = fs.readFileSync(file, 'utf8');
   }
 } else if (args[1] === 'edit') {
   if (state.release !== 'draft' || !args.includes('--draft=false') || !args.includes('--latest=false') || !args.includes('--prerelease=false')) fail('Unsafe publish');
-  if (Object.keys(state.assets || {}).length !== 2) fail('Published before upload');
+  if (Object.keys(state.assets || {}).length !== 4) fail('Published before upload');
   state.release = 'published';
 } else fail('Unexpected release command');
 save();
@@ -65,7 +67,9 @@ beforeEach(() => {
   mkdirSync(path.join(directory, 'dist'));
   writeFileSync(path.join(directory, 'android/app/build.gradle.kts'), 'versionName = "0.1.1"\nversionCode = 2\n');
   writeFileSync(path.join(directory, 'bin/gh'), fakeGh, {mode: 0o755});
-  writeFileSync(path.join(directory, 'dist/dao-browser-0.1.1-android.apk'), 'verified signed APK');
+  for (const abi of abis) {
+    writeFileSync(path.join(directory, 'dist', assetName(abi)), `verified signed ${abi} APK`);
+  }
   writeFileSync(path.join(directory, 'dist/SHA256SUMS'), 'checksum');
   save({release: 'missing', calls: [], assets: {}});
 });
@@ -86,45 +90,78 @@ it('skips published tags and stops on GitHub access errors before building', () 
   save({...state(), deny: true});
   expect(run('Validate release').status).not.toBe(0);
 });
-it('checks the APK signature, package, version and debug flag before packaging its checksum', () => {
+it('checks every ABI APK before packaging all three APKs and their checksums', () => {
   const sdk = path.join(directory, 'sdk');
   const tools = path.join(sdk, 'build-tools/36.0.0');
-  const apk = path.join(directory, 'android/app/build/outputs/apk/release/app-release.apk');
+  const apkDirectory = path.join(directory, 'android/app/build/outputs/apk/release');
   mkdirSync(tools, {recursive: true});
-  mkdirSync(path.dirname(apk), {recursive: true});
-  writeFileSync(apk, 'built signed APK');
-  writeFileSync(path.join(tools, 'apksigner'), '#!/bin/sh\ntest "$1" = verify || exit 2\nexit "${SIGNATURE_EXIT:-0}"\n', {mode: 0o755});
-  writeFileSync(path.join(tools, 'aapt2'), '#!/bin/sh\nprintf "%s\\n" "$BADGING"\n', {mode: 0o755});
+  mkdirSync(apkDirectory, {recursive: true});
+  const fixtures = spawnSync('python3', ['-c', String.raw`
+import pathlib, sys, zipfile
+for abi in ('arm64-v8a', 'armeabi-v7a', 'x86_64'):
+    with zipfile.ZipFile(pathlib.Path(sys.argv[1]) / f'app-{abi}-release.apk', 'w') as apk:
+        apk.writestr(f'lib/{abi}/libxul.so', f'{abi} engine')
+        apk.writestr('classes.dex', 'app code')
+`, apkDirectory], {encoding: 'utf8'});
+  expect(fixtures.status, fixtures.stderr).toBe(0);
+  writeFileSync(path.join(tools, 'apksigner'), '#!/bin/sh\ntest "$1" = verify || exit 2\ncase "$*" in *x86_64*) exit "${SIGNATURE_EXIT:-0}";; esac\n', {mode: 0o755});
+  writeFileSync(path.join(tools, 'aapt2'), '#!/bin/sh\ncase "$3" in *x86_64*) printf "%s\\n" "${BADGING_OVERRIDE:-$BADGING}";; *) printf "%s\\n" "$BADGING";; esac\n', {mode: 0o755});
   const badging = "package: name='com.msgbyte.dao' versionCode='2' versionName='0.1.1'";
   const env = {ANDROID_HOME: sdk, BADGING: badging};
   const valid = run('Verify and package APK', env);
   expect(valid.status, valid.stderr).toBe(0);
-  expect(readFileSync(path.join(directory, 'dist/dao-browser-0.1.1-android.apk'), 'utf8')).toBe('built signed APK');
-  const digest = createHash('sha256').update('built signed APK').digest('hex');
-  expect(readFileSync(path.join(directory, 'dist/SHA256SUMS'), 'utf8')).toBe(`${digest}  dao-browser-0.1.1-android.apk\n`);
+  expect(readdirSync(path.join(directory, 'dist')).sort()).toEqual(['SHA256SUMS', ...abis.map(assetName)].sort());
+  const checksums = abis.map(abi => {
+    const original = readFileSync(path.join(apkDirectory, `app-${abi}-release.apk`));
+    expect(readFileSync(path.join(directory, 'dist', assetName(abi)))).toEqual(original);
+    return `${createHash('sha256').update(original).digest('hex')}  ${assetName(abi)}\n`;
+  }).join('');
+  expect(readFileSync(path.join(directory, 'dist/SHA256SUMS'), 'utf8')).toBe(checksums);
   for (const invalid of [
     {SIGNATURE_EXIT: '1'},
-    {BADGING: badging.replace('com.msgbyte.dao', 'other.app')},
-    {BADGING: badging.replace("versionCode='2'", "versionCode='1'")},
-    {BADGING: badging.replace('0.1.1', '0.1.0')},
-    {BADGING: `${badging}\napplication-debuggable`},
+    {BADGING_OVERRIDE: badging.replace('com.msgbyte.dao', 'other.app')},
+    {BADGING_OVERRIDE: badging.replace("versionCode='2'", "versionCode='1'")},
+    {BADGING_OVERRIDE: badging.replace('0.1.1', '0.1.0')},
+    {BADGING_OVERRIDE: `${badging}\napplication-debuggable`},
   ]) expect(run('Verify and package APK', {...env, ...invalid}).status).not.toBe(0);
+
+  const lastApk = path.join(apkDirectory, 'app-x86_64-release.apk');
+  const original = readFileSync(lastApk);
+  writeFileSync(lastApk, readFileSync(path.join(apkDirectory, 'app-arm64-v8a-release.apk')));
+  const wrongAbi = run('Verify and package APK', env);
+  expect(wrongAbi.status).not.toBe(0);
+  expect(wrongAbi.stderr).toContain('ABI');
+  writeFileSync(lastApk, original);
+  const mixed = spawnSync('python3', ['-c', String.raw`
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], 'a') as apk:
+    apk.writestr('lib/arm64-v8a/libxul.so', 'unexpected second engine')
+`, lastApk], {encoding: 'utf8'});
+  expect(mixed.status, mixed.stderr).toBe(0);
+  expect(run('Verify and package APK', env).status).not.toBe(0);
+  rmSync(lastApk);
+  expect(run('Verify and package APK', env).status).not.toBe(0);
 });
 it('recovers an interrupted draft but never overwrites published APK bytes', () => {
   save({...state(), failUpload: true});
   expect(run('Publish GitHub Release').status).not.toBe(0);
   expect(state().release).toBe('draft');
-  expect(state().assets['dao-browser-0.1.1-android.apk']).toBe('');
+  expect(state().assets[assetName('arm64-v8a')]).toBe('');
   save({...state(), failUpload: false});
   const resumed = run('Publish GitHub Release');
   expect(resumed.status, resumed.stderr).toBe(0);
   expect(state().release).toBe('published');
-  expect(state().assets).toEqual({'dao-browser-0.1.1-android.apk': 'verified signed APK', SHA256SUMS: 'checksum'});
-  writeFileSync(path.join(directory, 'dist/dao-browser-0.1.1-android.apk'), 'rebuilt different bytes');
+  expect(state().assets).toEqual({
+    'dao-browser-0.1.1-android-arm64-v8a.apk': 'verified signed arm64-v8a APK',
+    'dao-browser-0.1.1-android-armeabi-v7a.apk': 'verified signed armeabi-v7a APK',
+    'dao-browser-0.1.1-android-x86_64.apk': 'verified signed x86_64 APK',
+    SHA256SUMS: 'checksum',
+  });
+  writeFileSync(path.join(directory, 'dist', assetName('arm64-v8a')), 'rebuilt different bytes');
   save({...state(), calls: []});
   expect(run('Publish GitHub Release').status).toBe(0);
   expect(state().calls).toHaveLength(1);
-  expect(state().assets['dao-browser-0.1.1-android.apk']).toBe('verified signed APK');
+  expect(state().assets[assetName('arm64-v8a')]).toBe('verified signed arm64-v8a APK');
 });
 it('does not create a release after a failed lookup', () => {
   save({...state(), deny: true});
