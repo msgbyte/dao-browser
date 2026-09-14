@@ -161,6 +161,10 @@ export class DaoSidebarApp extends CrLitElement {
         gap: 6px;
       }
 
+      .toolbar-end-actions dao-update-button {
+        margin-left: 6px;
+      }
+
       .plus-btn {
         width: 26px;
         height: 26px;
