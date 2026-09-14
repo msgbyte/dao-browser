@@ -270,7 +270,7 @@ function ArticlePage({
         <AddressBar host={host} path={path} />
         <article className={styles.article}>
           <div className={styles.articleEyebrow}>ESSAY · 8 MIN READ</div>
-          <h1 className={styles.articleTitle}>Why we still build browsers</h1>
+          <p className={styles.articleTitle}>Why we still build browsers</p>
           <div className={styles.articleByline}>by Lyon Chen · April 2026</div>
           <p className={styles.articleBody}>
             The browser has been with us for thirty years, and somehow it has never
@@ -401,7 +401,7 @@ function AgentMockup() {
           <AddressBar host="dao.msgbyte.com" path="/essay/why-we-still-build-browsers" />
           <article className={styles.article}>
             <div className={styles.articleEyebrow}>ESSAY · 8 MIN READ</div>
-            <h1 className={styles.articleTitle}>Why we still build browsers</h1>
+            <p className={styles.articleTitle}>Why we still build browsers</p>
             <div className={styles.articleByline}>by Lyon Chen · April 2026</div>
             <p className={styles.articleBody}>
               The browser has been with us for thirty years, and somehow it has never

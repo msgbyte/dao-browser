@@ -146,7 +146,7 @@ export const SOFTWARE_APPLICATION_JSON_LD: JsonLd = {
   name: SITE_NAME,
   url: SITE_URL,
   description: DEFAULT_DESCRIPTION,
-  applicationCategory: 'WebBrowser',
+  applicationCategory: 'BrowserApplication',
   operatingSystem: 'macOS',
   softwareVersion: PRODUCT_VERSION,
   datePublished: PRODUCT_RELEASED_AT,

@@ -7,7 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/download', '/download-browser'],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

@@ -12,7 +12,7 @@ import styles from './TopNav.module.css';
 export function TopNav() {
   return (
     <nav className={styles.nav} aria-label="Primary">
-      <a href="#top" className={styles.brand} aria-label="Dao Browser, back to top">
+      <Link href="/" className={styles.brand}>
         {/*
           Two logos, one shown per color scheme. Uses CSS @media in TopNav.module.css.
           - Light logo (`dao_logo.svg`) ships as a 256×256 PNG (`dao-logo-light.png`).
@@ -33,7 +33,7 @@ export function TopNav() {
           className={`${styles.brandLogo} ${styles.brandLogoDark}`}
         />
         <span className={styles.brandWord}>Dao</span>
-      </a>
+      </Link>
       <div className={styles.links}>
         <Link
           href="/#features"

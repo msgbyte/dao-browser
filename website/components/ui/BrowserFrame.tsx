@@ -14,7 +14,7 @@ export interface BrowserFrameProps {
  */
 export function BrowserFrame({ children }: BrowserFrameProps) {
   return (
-    <div className={styles.frame} aria-hidden="true">
+    <div className={styles.frame} aria-hidden="true" data-nosnippet>
       <div className={styles.body}>{children}</div>
     </div>
   );
