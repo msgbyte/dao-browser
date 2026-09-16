@@ -131,6 +131,7 @@ fun SettingsScreen(
     onRemoteDebuggingChange: (Boolean) -> Unit,
     onEnableRemoteDebuggingWithAcknowledgement: () -> Unit,
     onOpenAbout: () -> Unit = {},
+    updateAvailable: Boolean = false,
     onBack: () -> Unit,
 ) {
     val colors = LocalNovaColors.current
@@ -295,8 +296,9 @@ fun SettingsScreen(
                         onClick = onOpenAbout,
                     ) {
                         Text(
-                            text = readAboutAppInfo(context).appVersion,
-                            color = colors.muted,
+                            text = if (updateAvailable) stringResource(R.string.update_available)
+                                else readAboutAppInfo(context).appVersion,
+                            color = if (updateAvailable) colors.success else colors.muted,
                             fontSize = 13.5.sp,
                             modifier = Modifier.testTag("settings-about-version"),
                         )
@@ -774,11 +776,14 @@ private fun siteLetter(url: String, title: String): String =
         ?: "?"
 
 @Composable
-fun DownloadsScreen(repository: SystemDownloadRepository, onBack: () -> Unit) {
+fun DownloadsScreen(
+    repository: SystemDownloadRepository,
+    onOpenDownload: (BrowserDownload) -> Unit,
+    onBack: () -> Unit,
+) {
     val colors = LocalNovaColors.current
     val downloads by repository.downloads.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     var editMode by remember { mutableStateOf(false) }
     val active = downloads.filter { it.status != DownloadStatus.SUCCESSFUL }
     val complete = downloads.filter { it.status == DownloadStatus.SUCCESSFUL }
@@ -830,7 +835,7 @@ fun DownloadsScreen(repository: SystemDownloadRepository, onBack: () -> Unit) {
                                 onCancel = {},
                                 onRetry = {},
                                 onRemove = { scope.launch { repository.remove(download.id) } },
-                                onOpen = { openCompletedDownload(context, download) },
+                                onOpen = { onOpenDownload(download) },
                             )
                             if (index != complete.lastIndex) RowDivider()
                         }
@@ -842,6 +847,11 @@ fun DownloadsScreen(repository: SystemDownloadRepository, onBack: () -> Unit) {
 }
 
 internal fun openCompletedDownload(context: Context, download: BrowserDownload) {
+    // Update APKs must go through prepareAppUpdate, never the ordinary file opener.
+    if (download.request.updateVersion != null || download.request.updateSha256 != null) {
+        Toast.makeText(context, R.string.update_install_failed, Toast.LENGTH_SHORT).show()
+        return
+    }
     val uri = download.localUri?.let(Uri::parse)
     if (uri?.scheme == "content") {
         val mimeType = if (download.request.fileName.endsWith(".apk", ignoreCase = true)) {

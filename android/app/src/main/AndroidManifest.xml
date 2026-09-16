@@ -30,6 +30,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Dao">
         <provider
+            android:name=".browser.AppUpdateFileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
+        <provider
             android:name="mozilla.components.support.utils.provider.FileProvider"
             tools:ignore="MissingClass"
             tools:node="remove" />

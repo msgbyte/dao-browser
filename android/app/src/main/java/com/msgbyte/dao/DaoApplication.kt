@@ -1,12 +1,14 @@
 package com.msgbyte.dao
 
 import android.app.Application
+import android.os.Build
 import com.msgbyte.dao.browser.BrowserLibraryRepository
 import com.msgbyte.dao.browser.BrowserPreferences
 import com.msgbyte.dao.browser.BrowserRuntime
 import com.msgbyte.dao.browser.AmoCatalogRepository
 import com.msgbyte.dao.browser.ExtensionRepository
 import com.msgbyte.dao.browser.SystemDownloadRepository
+import com.msgbyte.dao.browser.AppUpdateManager
 import mozilla.components.browser.engine.gecko.GeckoEngine
 import mozilla.components.concept.engine.DefaultSettings
 import org.mozilla.geckoview.GeckoRuntime
@@ -29,6 +31,15 @@ class DaoApplication : Application() {
         BrowserPreferences(applicationContext)
     }
 
+    val appUpdates by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        AppUpdateManager(
+            browserPreferences,
+            downloadRepository,
+            packageManager.getPackageInfo(packageName, 0).versionName.orEmpty(),
+            Build.SUPPORTED_ABIS.toList(),
+        )
+    }
+
     private val geckoRuntime by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         GeckoRuntime.create(
             applicationContext,
@@ -38,7 +49,7 @@ class DaoApplication : Application() {
         )
     }
 
-    val engineSettings = DefaultSettings()
+    val engineSettings = DefaultSettings(automaticFontSizeAdjustment = false)
 
     val browserRuntime = BrowserRuntime(
         createEngine = {

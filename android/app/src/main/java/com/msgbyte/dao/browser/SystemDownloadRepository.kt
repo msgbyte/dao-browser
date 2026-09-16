@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -29,6 +31,7 @@ class SystemDownloadRepository internal constructor(
     )
 
     private var metadata = metadataStore.readAll().toMutableMap()
+    private val mutex = Mutex()
     private var lastRefreshTime: Long? = null
     private val lastProgressTimes = mutableMapOf<Long, Long>()
     private val mutableDownloads = MutableStateFlow(
@@ -37,19 +40,21 @@ class SystemDownloadRepository internal constructor(
 
     val downloads: StateFlow<List<BrowserDownload>> = mutableDownloads.asStateFlow()
 
-    suspend fun enqueue(request: DownloadRequestData): Long {
+    suspend fun enqueue(request: DownloadRequestData): Long = mutex.withLock {
         require(isHttpUrl(request.url)) { "Only HTTP and HTTPS resources can be downloaded" }
         val normalized = request.copy(fileName = sanitizeFileName(request.fileName, request.url))
-        return withContext(ioDispatcher) {
-            val id = gateway.enqueue(normalized)
-            metadata[id] = normalized
-            persistMetadata()
-            mutableDownloads.value = listOf(normalized.toPendingDownload(id)) + mutableDownloads.value
-            id
-        }
+        withContext(ioDispatcher) { enqueueLocked(normalized) }
     }
 
-    suspend fun refresh() {
+    private fun enqueueLocked(request: DownloadRequestData): Long {
+        val id = gateway.enqueue(request)
+        metadata[id] = request
+        persistMetadata()
+        mutableDownloads.value = listOf(request.toPendingDownload(id)) + mutableDownloads.value
+        return id
+    }
+
+    suspend fun refresh() = mutex.withLock {
         withContext(ioDispatcher) {
             if (metadata.isEmpty()) {
                 mutableDownloads.value = emptyList()
@@ -70,7 +75,9 @@ class SystemDownloadRepository internal constructor(
             val previousDownloads = mutableDownloads.value.associateBy { it.id }
             val recordsById = records.associateBy { it.id }
             mutableDownloads.value = metadata.map { (id, request) ->
-                val download = recordsById[id]?.toBrowserDownload(request) ?: request.toPendingDownload(id)
+                val download = recordsById[id]?.toBrowserDownload(request) ?: request.toPendingDownload(id).let {
+                    if (request.updateVersion != null) it.copy(status = DownloadStatus.FAILED) else it
+                }
                 val previous = previousDownloads[id]
                 val progressElapsed = lastProgressTimes[id]?.let { now - it }
                 val speed = if (
@@ -108,20 +115,24 @@ class SystemDownloadRepository internal constructor(
         remove(id)
     }
 
-    suspend fun remove(id: Long) {
-        withContext(ioDispatcher) {
-            gateway.remove(id)
-            metadata.remove(id)
-            lastProgressTimes.remove(id)
-            persistMetadata()
-            mutableDownloads.value = mutableDownloads.value.filterNot { it.id == id }
-        }
+    suspend fun remove(id: Long) = mutex.withLock {
+        withContext(ioDispatcher) { removeLocked(id) }
     }
 
-    suspend fun retry(id: Long): Long {
-        val request = requireNotNull(metadata[id]) { "Download does not exist" }
-        remove(id)
-        return enqueue(request)
+    private fun removeLocked(id: Long) {
+        gateway.remove(id)
+        metadata.remove(id)
+        lastProgressTimes.remove(id)
+        persistMetadata()
+        mutableDownloads.value = mutableDownloads.value.filterNot { it.id == id }
+    }
+
+    suspend fun retry(id: Long): Long = mutex.withLock {
+        withContext(ioDispatcher) {
+            val request = requireNotNull(metadata[id]) { "Download does not exist" }
+            removeLocked(id)
+            enqueueLocked(request)
+        }
     }
 
     fun find(id: Long): BrowserDownload? = downloads.value.firstOrNull { it.id == id }
@@ -139,7 +150,9 @@ private class AndroidDownloadGateway(context: Context) : DownloadGateway {
         val systemRequest = DownloadManager.Request(Uri.parse(request.url)).apply {
             setTitle(request.fileName)
             setDescription(request.url)
-            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            // Update installation must return through Dao's checksum and package verification.
+            setNotificationVisibility(if (request.updateVersion != null) DownloadManager.Request.VISIBILITY_VISIBLE
+                else DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             request.contentType?.takeIf(String::isNotBlank)?.let(::setMimeType)
             request.cookie?.takeIf(String::isNotBlank)?.let { addRequestHeader("Cookie", it) }
             request.userAgent?.takeIf(String::isNotBlank)?.let { addRequestHeader("User-Agent", it) }
@@ -209,6 +222,8 @@ private class SharedPreferencesDownloadMetadataStore(context: Context) : Downloa
                             contentType = value.optNullableString("contentType"),
                             cookie = value.optNullableString("cookie"),
                             userAgent = value.optNullableString("userAgent"),
+                            updateVersion = value.optNullableString("updateVersion"),
+                            updateSha256 = value.optNullableString("updateSha256"),
                         ),
                     )
                 }
@@ -228,6 +243,8 @@ private class SharedPreferencesDownloadMetadataStore(context: Context) : Downloa
                     put("contentType", request.contentType ?: JSONObject.NULL)
                     put("cookie", request.cookie ?: JSONObject.NULL)
                     put("userAgent", request.userAgent ?: JSONObject.NULL)
+                    put("updateVersion", request.updateVersion ?: JSONObject.NULL)
+                    put("updateSha256", request.updateSha256 ?: JSONObject.NULL)
                 },
             )
         }

@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import java.io.IOException
@@ -36,6 +37,11 @@ data class BrowserPreferenceState(
     val defaultPrivateBrowsing: Boolean = false,
     val remoteDebuggingEnabled: Boolean = false,
     val remoteDebuggingWarningAcknowledged: Boolean = false,
+    val automaticUpdateChecks: Boolean = true,
+    val lastUpdateCheckAttempt: Long = 0,
+    val lastUpdateCheckSuccess: Long = 0,
+    val updateRetryAt: Long = 0,
+    val cachedAppUpdate: String = "",
 )
 
 class BrowserPreferences(
@@ -63,10 +69,33 @@ class BrowserPreferences(
                 remoteDebuggingEnabled = preferences[RemoteDebuggingEnabledKey] ?: false,
                 remoteDebuggingWarningAcknowledged =
                     preferences[RemoteDebuggingWarningAcknowledgedKey] ?: false,
+                automaticUpdateChecks = preferences[AutomaticUpdateChecksKey] ?: true,
+                lastUpdateCheckAttempt = preferences[LastUpdateCheckAttemptKey] ?: 0,
+                lastUpdateCheckSuccess = preferences[LastUpdateCheckSuccessKey] ?: 0,
+                updateRetryAt = preferences[UpdateRetryAtKey] ?: 0,
+                cachedAppUpdate = preferences[CachedAppUpdateKey] ?: "",
             )
         }
 
     suspend fun setDarkTheme(enabled: Boolean) = update(DarkThemeKey, enabled)
+
+    suspend fun setAutomaticUpdateChecks(enabled: Boolean) = update(AutomaticUpdateChecksKey, enabled)
+
+    suspend fun recordUpdateCheckAttempt(time: Long) {
+        dataStore.edit { it[LastUpdateCheckAttemptKey] = time }
+    }
+
+    suspend fun recordUpdateCheckResult(time: Long, release: String) {
+        dataStore.edit {
+            it[LastUpdateCheckSuccessKey] = time
+            it[CachedAppUpdateKey] = release
+            it[UpdateRetryAtKey] = 0
+        }
+    }
+
+    suspend fun setUpdateRetryAt(time: Long) {
+        dataStore.edit { it[UpdateRetryAtKey] = time }
+    }
 
     suspend fun setFontScale(scale: BrowserFontScale) = update(FontScaleKey, scale.name)
 
@@ -97,6 +126,11 @@ class BrowserPreferences(
     }
 
     private companion object {
+        val AutomaticUpdateChecksKey = booleanPreferencesKey("automatic_update_checks")
+        val LastUpdateCheckAttemptKey = longPreferencesKey("last_update_check_attempt")
+        val LastUpdateCheckSuccessKey = longPreferencesKey("last_update_check_success")
+        val UpdateRetryAtKey = longPreferencesKey("update_retry_at")
+        val CachedAppUpdateKey = stringPreferencesKey("cached_app_update")
         val DarkThemeKey = booleanPreferencesKey("dark_theme")
         val FontScaleKey = stringPreferencesKey("font_scale")
         val SearchEngineKey = stringPreferencesKey("search_engine")

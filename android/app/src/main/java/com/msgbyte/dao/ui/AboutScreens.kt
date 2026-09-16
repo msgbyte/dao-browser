@@ -60,6 +60,7 @@ fun AboutScreen(
     appInfo: AboutAppInfo,
     onOpenLicenses: () -> Unit,
     onBack: () -> Unit,
+    updateContent: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalNovaColors.current
 
@@ -111,6 +112,10 @@ fun AboutScreen(
                 )
             }
             Spacer(Modifier.height(14.dp))
+            if (updateContent != null) {
+                updateContent()
+                Spacer(Modifier.height(14.dp))
+            }
             NovaCard(modifier = Modifier.fillMaxWidth()) {
                 SettingsRow(
                     modifier = Modifier.testTag("open-source-licenses-entry"),

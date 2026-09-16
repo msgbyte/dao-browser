@@ -101,6 +101,7 @@ class MainActivity : FragmentActivity() {
                     thumbnailRepository = browserSessionViewModel.thumbnailRepository,
                     library = application.browserLibrary,
                     downloads = application.downloadRepository,
+                    updates = application.appUpdates,
                     extensions = application.extensionRepository,
                     amoStoreViewModel = amoStoreViewModel,
                     resolver = resolver,
@@ -138,6 +139,7 @@ class MainActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         appLinksFeature.start()
+        (application as DaoApplication).appUpdates.check()
     }
 
     override fun onStop() {

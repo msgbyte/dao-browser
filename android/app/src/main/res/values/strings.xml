@@ -264,4 +264,25 @@
     <string name="amo_load_more">Load more</string>
     <!-- Other locales use English until the manual Android translation pass. -->
     <string name="external_app_unavailable" tools:ignore="MissingTranslation">Unable to open the external app</string>
+    <string name="app_updates" tools:ignore="MissingTranslation">App updates</string>
+    <string name="update_available" tools:ignore="MissingTranslation">Update available</string>
+    <string name="update_available_version" tools:ignore="MissingTranslation">Version %1$s is available</string>
+    <string name="update_check" tools:ignore="MissingTranslation">Check for updates</string>
+    <string name="update_checking" tools:ignore="MissingTranslation">Checking for updates…</string>
+    <string name="update_current" tools:ignore="MissingTranslation">The app is up to date.</string>
+    <string name="update_not_checked" tools:ignore="MissingTranslation">Updates have not been checked yet.</string>
+    <string name="update_check_failed" tools:ignore="MissingTranslation">Unable to check for updates. Check your connection and try again.</string>
+    <string name="update_rate_limited" tools:ignore="MissingTranslation">Too many update checks. Please try again later.</string>
+    <string name="update_incompatible" tools:ignore="MissingTranslation">The latest version has no update package for this device.</string>
+    <string name="update_download_failed" tools:ignore="MissingTranslation">Unable to access the download. Please try again.</string>
+    <string name="update_download" tools:ignore="MissingTranslation">Download update</string>
+    <string name="update_download_again" tools:ignore="MissingTranslation">Download again</string>
+    <string name="update_install" tools:ignore="MissingTranslation">Install update</string>
+    <string name="update_verifying" tools:ignore="MissingTranslation">Verifying update…</string>
+    <string name="update_install_failed" tools:ignore="MissingTranslation">Unable to verify or install this update. Download it again or check your installation settings.</string>
+    <string name="update_install_permission" tools:ignore="MissingTranslation">Allow Dao Browser to install apps, then try again.</string>
+    <string name="update_download_progress" tools:ignore="MissingTranslation">%1$s / %2$s</string>
+    <string name="update_last_checked" tools:ignore="MissingTranslation">Last successful check: %1$s</string>
+    <string name="update_automatic" tools:ignore="MissingTranslation">Check automatically</string>
+    <string name="update_automatic_summary" tools:ignore="MissingTranslation">Check at most once a day. Updates download only when you choose.</string>
 </resources>

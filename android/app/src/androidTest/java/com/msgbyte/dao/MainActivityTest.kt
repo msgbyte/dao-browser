@@ -28,6 +28,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -234,7 +235,10 @@ class MainActivityTest {
         )
         composeRule.onNodeWithText(expectedInfo.appVersion).assertIsDisplayed()
         composeRule.onNodeWithText(expectedEngine).assertIsDisplayed()
+        composeRule.onNodeWithTag("app-update-card").assertIsDisplayed()
+        composeRule.onNodeWithTag("check-app-update").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("open-source-licenses-entry", useUnmergedTree = true)
+            .performScrollTo()
             .performClick()
         composeRule.onNodeWithTag("open-source-licenses-screen").assertIsDisplayed()
         composeRule.onNodeWithTag("bundled-license-u_block_origin", useUnmergedTree = true)
@@ -249,6 +253,7 @@ class MainActivityTest {
         openSettings()
         openAbout()
         composeRule.onNodeWithTag("open-source-licenses-entry", useUnmergedTree = true)
+            .performScrollTo()
             .performClick()
         pressSystemBack()
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
@@ -292,6 +297,11 @@ class MainActivityTest {
         val preferences = (composeRule.activity.application as DaoApplication).browserPreferences
         composeRule.waitUntil(timeoutMillis = 5_000) {
             runBlocking { preferences.state.first().fontScale == BrowserFontScale.LARGE }
+        }
+        composeRule.runOnIdle {
+            val engine = (composeRule.activity.application as DaoApplication).browserRuntime.engine
+            assertFalse(engine.settings.automaticFontSizeAdjustment)
+            assertEquals(BrowserFontScale.LARGE.factor, engine.settings.fontSizeFactor)
         }
     }
 

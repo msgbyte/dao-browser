@@ -7,6 +7,8 @@ data class DownloadRequestData(
     val contentType: String? = null,
     val cookie: String? = null,
     val userAgent: String? = null,
+    val updateVersion: String? = null,
+    val updateSha256: String? = null,
 )
 
 enum class DownloadStatus {

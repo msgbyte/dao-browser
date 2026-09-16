@@ -266,6 +266,7 @@ fun BrowserScreen(
     thumbnailRepository: TabThumbnailRepository,
     library: BrowserLibraryRepository,
     downloads: SystemDownloadRepository,
+    updates: com.msgbyte.dao.browser.AppUpdateManager,
     extensions: com.msgbyte.dao.browser.ExtensionRepository,
     amoStoreViewModel: AmoStoreViewModel,
     resolver: NavigationTargetResolver,
@@ -281,6 +282,8 @@ fun BrowserScreen(
     onExternalNavigationConsumed: () -> Unit = {},
 ) {
     val browserState by controller.state.collectAsStateWithLifecycle()
+    val updateState by updates.state.collectAsStateWithLifecycle()
+    val downloadOpener = rememberDownloadOpenAction(downloads)
     val selectedTab = browserState.tabs.firstOrNull { it.id == browserState.selectedTabId }
     val thumbnailCapture = remember { BrowserThumbnailCapture() }
     var animatedDestination by remember {
@@ -537,6 +540,7 @@ fun BrowserScreen(
                     )
                     BrowserDestination.Settings -> SettingsScreen(
                         preferences = preferences,
+                        updateAvailable = updateState.release != null,
                         onDarkThemeChange = onDarkThemeChange,
                         onFontScaleChange = onFontScaleChange,
                         onSearchEngineChange = onSearchEngineChange,
@@ -552,6 +556,9 @@ fun BrowserScreen(
                     )
                     BrowserDestination.About -> AboutScreen(
                         appInfo = readAboutAppInfo(LocalContext.current),
+                        updateContent = {
+                            AppUpdateCard(updates, preferences.automaticUpdateChecks, downloadOpener)
+                        },
                         onOpenLicenses = {
                             navigateTo(
                                 BrowserDestination.OpenSourceLicenses,
@@ -585,7 +592,11 @@ fun BrowserScreen(
                         onBack = closeUtility,
                         onNavigate = navigate,
                     )
-                    BrowserDestination.Downloads -> DownloadsScreen(repository = downloads, onBack = closeUtility)
+                    BrowserDestination.Downloads -> DownloadsScreen(
+                        repository = downloads,
+                        onOpenDownload = downloadOpener.open,
+                        onBack = closeUtility,
+                    )
                     BrowserDestination.Extensions -> ExtensionsScreen(
                         repository = extensions,
                         onOpenStore = {

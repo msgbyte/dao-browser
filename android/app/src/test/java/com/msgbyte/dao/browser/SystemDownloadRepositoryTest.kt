@@ -216,6 +216,19 @@ class SystemDownloadRepositoryTest {
     }
 
     @Test
+    fun missingUpdateTaskCanRetryWithItsOriginalVerificationMetadata() = runBlocking {
+        val request = DownloadRequestData("https://example.com/dao.apk", "dao.apk", 123,
+            updateVersion = "0.2.0", updateSha256 = "ab".repeat(32))
+        val id = repository.enqueue(request)
+        val restored = SystemDownloadRepository(gateway, store, elapsedRealtime = { now })
+        restored.refresh()
+        assertEquals(DownloadStatus.FAILED, restored.find(id)?.status)
+        val replacement = restored.retry(id)
+        assertEquals(request, restored.find(replacement)?.request)
+        assertEquals(setOf(replacement), store.readAll().keys)
+    }
+
+    @Test
     fun nonHttpDownloadsAreRejectedBeforeReachingAndroid() = runBlocking {
         try {
             repository.enqueue(DownloadRequestData("file:///tmp/private.txt", "private.txt"))
