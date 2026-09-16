@@ -84,14 +84,6 @@ DaoMcpControlBannerView::DaoMcpControlBannerView(
                                  SanitizeLabel(client.name),
                                  SanitizeLabel(client.version)),
       TextPrimary()));
-  const std::u16string pid =
-      client.verified_pid
-          ? base::NumberToString16(*client.verified_pid)
-          : l10n_util::GetStringUTF16(
-                IDS_DAO_MCP_APPROVAL_PROCESS_UNAVAILABLE);
-  AddChildView(CreateLabel(
-      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_PROCESS, pid),
-      TextSecondary()));
   AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(
           IDS_DAO_MCP_CONTROL_TARGET,

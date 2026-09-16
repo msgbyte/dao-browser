@@ -12453,9 +12453,6 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
       dialog.GetContentsView(),
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_CLIENT,
                                  u"Reported Client", u"1.2.3")));
-  EXPECT_TRUE(HasDescendantLabelText(
-      dialog.GetContentsView(),
-      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_PROCESS, u"4242")));
   std::u16string reason = u"Read the page to answer the user's question.";
   base::i18n::SanitizeUserSuppliedString(&reason);
   EXPECT_TRUE(HasDescendantLabelText(

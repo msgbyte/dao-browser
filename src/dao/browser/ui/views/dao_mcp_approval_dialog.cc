@@ -11,7 +11,6 @@
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
 #include "base/no_destructor.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/profiles/profile.h"
@@ -152,13 +151,6 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
                                  SanitizeLabel(request.client.name),
                                  SanitizeLabel(request.client.version)),
       TextPrimary(), false));
-  const std::u16string pid =
-      request.client.verified_pid
-          ? base::NumberToString16(*request.client.verified_pid)
-          : l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_PROCESS_UNAVAILABLE);
-  details->AddChildView(CreateLabel(
-      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_PROCESS, pid),
-      TextSecondary(), false));
 
   details->AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(
