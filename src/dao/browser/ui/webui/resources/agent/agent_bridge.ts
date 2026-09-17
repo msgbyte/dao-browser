@@ -351,12 +351,14 @@ You have the following browser tools at your disposal — use them proactively w
 - **get_accessibility_tree** — Get the full semantic accessibility tree of the current page. Returns \`document_id\`, \`snapshot_id\`, and element \`ref_id\` values for guarded interaction.
 - **query_elements** — Find a small, scoped set of semantic elements by selector/ref, role, name, text, visibility, and enabled state. Prefer this over the full tree for page interaction. Returns \`document_id\`, \`snapshot_id\`, and match \`ref_id\` values. When scoping by a returned \`ref_id\`, include its source \`document_id\` and \`snapshot_id\` inside \`scope\`.
 - **click_by_ref** — Atomically validate and click a query/tree result. Pass its \`ref_id\`, \`document_id\`, and \`snapshot_id\`; add URL, visibility, enabled, text, role, or ancestor preconditions when they matter. A stale or changed target fails instead of clicking a replacement.
+- **fill_by_ref** — Replace a referenced text input or textarea value, including clearing with empty text. Requires the document/snapshot/ref tokens and accepts the same preconditions as click_by_ref. Fails if the field is stale, hidden, disabled, readonly, or loses focus. Success confirms only the local field value.
+- **wait_for_element** — Wait up to 30 seconds for semantic query conditions without repeated model calls. Returns a fresh snapshot when at least one match appears, or when require_count matches exactly (including zero inside an existing scope). Pending waits preserve existing refs and stop on cancellation or navigation.
 - **resolve_element_context** — Resolve a reusable element selected by the user in the current page. Pass \`context_id\` when multiple \`<element-context>\` chips are attached. Returns a temporary selector, usually \`[data-dao-element-context="current"]\`, that can be passed to \`click_element\`, \`agent_click\`, \`highlight_element\`, or \`scroll_to_element\`.
 - **capture_screenshot** — Capture a screenshot of the current page viewport. **Expensive — avoid unless necessary.** Each screenshot is a full base64-encoded image that balloons the conversation context. Only call when: (a) the user explicitly asks what the page looks like / to see something, (b) you need visual layout info that text tools cannot provide (e.g. colors, relative positions, image contents), or (c) a prior text tool returned ambiguous / empty output and a visual check is the only way forward. **Do NOT** screenshot to "verify" a click, scroll, or form fill — the tool already returns structured success info. **Do NOT** screenshot at the start of a task "to get oriented" — use \`get_accessibility_tree\` or the \`<current-webpage>\` block the user message already contains. **Do NOT** screenshot after every navigation; one per task at most unless the user asks for more.
 - **scroll_down** / **scroll_up** — Scroll the page down or up by one viewport height. Returns scroll position info.
 - **scroll_to_element** — Scroll a specific element into view. Accepts either a CSS selector or a ref_id from the accessibility tree.
-- **press_key_chord** — Simulate a keyboard shortcut on the current page (e.g. "ctrl+a", "cmd+c", "Enter", "Tab", "Escape"). Use for form submission, copy/paste, navigation shortcuts, etc.
-- **type_text** — Type text character-by-character into the currently focused element using CDP Input.insertText. Set clear=true to select-all and replace existing content first. Use this instead of execute_script for filling form fields.
+- **press_key_chord** — Send trusted Chromium keyboard events to the current page (e.g. "cmd+a", "Enter", "Tab", "Escape"). Supports page editing and form submission with US-layout key names; use type_text or fill_by_ref for arbitrary text.
+- **type_text** — Insert text in one operation into the currently focused element using CDP Input.insertText. Set clear=true to select-all and replace existing content first. Use this instead of execute_script for filling form fields.
 - **list_tabs** — List tabs in the authorized browser window with stable tab_id values, current indices, URLs, titles, and active status.
 - **switch_tab** — Switch the session target by stable tab_id (preferred) or current index from list_tabs.
 - **open_tab** — Open a new tab in the authorized window and make it the session target.
@@ -393,8 +395,9 @@ You have the following browser tools at your disposal — use them proactively w
 - **Recommended workflow for page interaction:**
   1. If the user selected reusable \`<element-context>\` chip(s), call \`resolve_element_context\` first. When there are multiple chips, pass the \`context_id\` from the matching \`<element-context>\` block.
   2. Otherwise, call \`query_elements\` with the narrowest useful scope and semantic filters. Use \`get_accessibility_tree\` only when the target cannot be expressed as a focused query.
-  3. Pass the returned document/snapshot/ref tokens to \`click_by_ref\`, plus semantic preconditions for ambiguous or consequential actions.
-  4. Trust the tool's return value as proof the action happened. Only query again if you need to see a *new* state; never screenshot just to "verify". The user can see their own screen.
+  3. Pass the returned document/snapshot/ref tokens to \`click_by_ref\` or \`fill_by_ref\`, plus semantic preconditions for ambiguous or consequential actions. Prefer \`fill_by_ref\` for replacing form values; \`press_key_chord\` sends trusted page keyboard events.
+  4. Bundle browser calls in one response when every target and argument is already known. Calls run in order; an earlier failure skips remaining browser actions in that batch. Never guess refs or results of an earlier call. A successful query/tree/wait creates a new snapshot and invalidates older refs.
+  5. Observe at decision boundaries. Use \`wait_for_element\` for a known DOM state, or the existing network response wait for a known request. Do not alternate every action with a full tree or screenshot. A successful click/fill proves only that local action; verify the task's meaningful outcome once using the smallest relevant state.
 - **Tool cost ladder (cheapest → most expensive), pick the lowest rung that answers the question:** \`<current-webpage>\` attachment (free, already in context) → \`resolve_element_context\` (if the user selected an element) → \`get_page_info\` (a few hundred bytes) → \`query_elements\` (small scoped result) → \`get_accessibility_tree\` (full interactive tree) → \`search_in_resources\` / targeted \`execute_script\` (one regex hit or one querySelector value) → \`list_page_resources\` + \`get_resource_content\` (one specific file) → \`get_page_html\` (up to 512 KiB, last resort) → \`capture_screenshot\` (full base64 image).
 - When the user attaches a document named \`<title>.md\` containing a \`<current-webpage url="..." title="...">\` block (or such a block appears inline in the user text), treat the block as the authoritative snapshot of the active tab at send time — answer from it directly instead of trying to re-read the page.
 - Prefer \`query_elements\` plus guarded \`click_by_ref\` over CSS selectors. Fall back to \`click_element\` only when semantic querying is unavailable.
@@ -1092,7 +1095,7 @@ export async function executeTool(
         `Tool ${name} is not authorized for legacy UI one-shot execution.`);
   }
   const callBrowserNative = (
-      method: string, params?: Record<string, unknown>) =>
+      method: string, params?: Record<string, unknown>, timeoutMs?: number) =>
       callNative(
           method,
           context === 'legacy_ui_one_shot' ?
@@ -1101,7 +1104,7 @@ export async function executeTool(
                 [LEGACY_UI_CONTEXT_MARKER]: context,
               } :
           params,
-          {signal: options.signal, cancelMethod: 'cancelBrowserTool'});
+          {signal: options.signal, cancelMethod: 'cancelBrowserTool', timeoutMs});
   if (isHomeTool(name)) {
     return await callNative('executeHomeTool', {name, arguments: args}, {
       signal: options.signal,
@@ -1219,6 +1222,10 @@ export async function executeTool(
       });
     case 'query_elements':
       return await callBrowserNative('queryElements', args);
+    case 'wait_for_element':
+      return await callBrowserNative('waitForElement', args, 35000);
+    case 'fill_by_ref':
+      return await callBrowserNative('fillByRef', args);
     case 'click_by_ref':
       return await callBrowserNative('clickByRef', args);
     case 'resolve_element_context': {
@@ -1325,7 +1332,7 @@ export async function executeTool(
     case 'get_network_requests':
       return await callBrowserNative('getNetworkRequests');
     case 'wait_for_network_response':
-      return await callBrowserNative('waitForNetworkResponse', args);
+      return await callBrowserNative('waitForNetworkResponse', args, 185000);
     case 'clear_network_requests':
       return await callBrowserNative('clearNetworkRequests');
     case 'enable_console_tracking':

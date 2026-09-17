@@ -1030,7 +1030,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(result);
   const base::ListValue* tools = result->FindList("tools");
   ASSERT_TRUE(tools);
-  EXPECT_EQ(31u, tools->size());
+  EXPECT_EQ(33u, tools->size());
   for (const base::Value& tool : *tools) {
     const base::DictValue* reason =
         tool.GetDict().FindDictByDottedPath("inputSchema.properties.reason");
@@ -1109,7 +1109,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   const base::ListValue* tools =
       list_response->FindListByDottedPath("result.tools");
   ASSERT_TRUE(tools);
-  EXPECT_EQ(31u, tools->size());
+  EXPECT_EQ(33u, tools->size());
   EXPECT_FALSE(approval.has_pending_request());
 
   ASSERT_TRUE(
@@ -2092,7 +2092,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   const base::ListValue* tools =
       tools_response->FindListByDottedPath("result.tools");
   ASSERT_NE(nullptr, tools);
-  EXPECT_EQ(31u, tools->size());
+  EXPECT_EQ(33u, tools->size());
   EXPECT_EQ(DaoMcpStatus::kListening, service_->GetStatus().state);
 
   ASSERT_TRUE(helper.Send(

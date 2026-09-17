@@ -41,7 +41,7 @@
     },
     {
       "name": "get_page_html",
-      "description": "EXPENSIVE — last-resort tool that returns the full page outerHTML (up to 512 KiB) and balloons the context. Do NOT call this to summarize a page, find a link/button, or \"see what is on the page\" — the <current-webpage> markdown block already attached to the user message answers those, and get_accessibility_tree is far cheaper for interactive structure. Only use when you specifically need raw markup the other tools cannot give you (e.g. reading an inline __NEXT_DATA__ / JSON-LD script, or inspecting <meta>/<head> attributes Readability strips). Prefer a targeted execute_script that returns only the substring you need over downloading the whole document.",
+      "description": "EXPENSIVE \u2014 last-resort tool that returns the full page outerHTML (up to 512 KiB) and balloons the context. Do NOT call this to summarize a page, find a link/button, or \"see what is on the page\" \u2014 the <current-webpage> markdown block already attached to the user message answers those, and get_accessibility_tree is far cheaper for interactive structure. Only use when you specifically need raw markup the other tools cannot give you (e.g. reading an inline __NEXT_DATA__ / JSON-LD script, or inspecting <meta>/<head> attributes Readability strips). Prefer a targeted execute_script that returns only the substring you need over downloading the whole document.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -78,7 +78,7 @@
     },
     {
       "name": "query_elements",
-      "description": "Query a compact set of page elements by scope and semantic filters. Returns document_id, snapshot_id, and stable ref_ids for guarded click_by_ref calls. A scope ref_id must include the document_id and snapshot_id returned with that ref.",
+      "description": "Query a compact set of page elements by scope and semantic filters. Returns document_id, snapshot_id, and stable ref_ids for guarded click_by_ref and fill_by_ref calls. A scope ref_id must include the document_id and snapshot_id returned with that ref.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -93,8 +93,12 @@
             "type": "object",
             "description": "Optional search root selected by CSS selector, prior ref_id, or semantic role/name; use nth or index to disambiguate. A ref_id scope also requires its source document_id and snapshot_id.",
             "properties": {
-              "selector": { "type": "string" },
-              "ref_id": { "type": "string" },
+              "selector": {
+                "type": "string"
+              },
+              "ref_id": {
+                "type": "string"
+              },
               "document_id": {
                 "type": "string",
                 "description": "The document_id returned with the scope ref_id."
@@ -103,24 +107,50 @@
                 "type": "string",
                 "description": "The snapshot_id returned with the scope ref_id."
               },
-              "role": { "type": "string" },
-              "name": { "type": "string" },
-              "nth": { "type": "string", "enum": ["first", "last"] },
-              "index": { "type": "integer", "minimum": 0 }
+              "role": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "nth": {
+                "type": "string",
+                "enum": [
+                  "first",
+                  "last"
+                ]
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              }
             },
             "additionalProperties": false,
             "required": []
           },
-          "role": { "type": "string" },
-          "name": { "type": "string" },
-          "text": { "type": "string" },
+          "role": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
           "text_match": {
             "type": "string",
-            "enum": ["exact", "contains"],
+            "enum": [
+              "exact",
+              "contains"
+            ],
             "description": "Text matching mode; defaults to exact."
           },
-          "visible": { "type": "boolean" },
-          "enabled": { "type": "boolean" },
+          "visible": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
           "max_results": {
             "type": "integer",
             "minimum": 1,
@@ -131,6 +161,102 @@
             "type": "integer",
             "minimum": 0,
             "description": "Fail unless the total match count equals this value."
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "wait_for_element",
+      "description": "Wait for semantic element filters to match, then return a fresh query snapshot. Defaults to at least one match; require_count waits for an exact count (0 waits for absence within an existing scope). Polling preserves current refs until success. Cancellable and bounded to 30 seconds.",
+      "group": "page",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "read",
+      "timeoutMs": 35000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "object",
+            "description": "Optional search root selected by CSS selector, prior ref_id, or semantic role/name; use nth or index to disambiguate. A ref_id scope also requires its source document_id and snapshot_id.",
+            "properties": {
+              "selector": {
+                "type": "string"
+              },
+              "ref_id": {
+                "type": "string"
+              },
+              "document_id": {
+                "type": "string",
+                "description": "The document_id returned with the scope ref_id."
+              },
+              "snapshot_id": {
+                "type": "string",
+                "description": "The snapshot_id returned with the scope ref_id."
+              },
+              "role": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "nth": {
+                "type": "string",
+                "enum": [
+                  "first",
+                  "last"
+                ]
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "required": []
+          },
+          "role": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "text_match": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "contains"
+            ],
+            "description": "Text matching mode; defaults to exact."
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "max_results": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Maximum matches to return; defaults to 20 and is capped at 100."
+          },
+          "require_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Wait until the total match count equals this value; defaults to at least one match."
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30000,
+            "description": "Wait timeout in milliseconds; defaults to 10000."
           }
         },
         "required": []
@@ -262,12 +388,24 @@
           "preconditions": {
             "type": "object",
             "properties": {
-              "url": { "type": "string" },
-              "visible": { "type": "boolean" },
-              "enabled": { "type": "boolean" },
-              "text": { "type": "string" },
-              "role": { "type": "string" },
-              "ancestor_ref": { "type": "string" }
+              "url": {
+                "type": "string"
+              },
+              "visible": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "text": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "ancestor_ref": {
+                "type": "string"
+              }
             },
             "additionalProperties": false,
             "required": []
@@ -277,6 +415,73 @@
           "ref_id",
           "document_id",
           "snapshot_id"
+        ]
+      }
+    },
+    {
+      "name": "fill_by_ref",
+      "description": "Replace the entire value of a visible, enabled, writable text input or textarea identified by current document/snapshot/ref tokens. Checks focus and semantic preconditions before native editing; empty text clears the field. Returns filled only if the field contains the requested value, not proof of form submission.",
+      "group": "page",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "interaction",
+      "timeoutMs": 5000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref_id": {
+            "type": "string",
+            "description": "The ref_id from the accessibility tree (e.g. \"ref_3\")"
+          },
+          "document_id": {
+            "type": "string",
+            "description": "The document_id returned with the ref_id."
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "The snapshot_id returned with the ref_id."
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the fill action"
+          },
+          "preconditions": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "visible": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "text": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "ancestor_ref": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": []
+          },
+          "text": {
+            "type": "string",
+            "description": "Complete replacement value; an empty string clears the field."
+          }
+        },
+        "required": [
+          "ref_id",
+          "document_id",
+          "snapshot_id",
+          "text"
         ]
       }
     },
@@ -400,7 +605,7 @@
     },
     {
       "name": "press_key_chord",
-      "description": "Simulate a keyboard shortcut (e.g. \"ctrl+a\", \"cmd+c\", \"Enter\", \"Tab\", \"Escape\", \"Backspace\"). Dispatches keydown/keyup events on the focused element.",
+      "description": "Send trusted Chromium key-down/key-up events to the target page. Supports Enter, Tab, Escape, Backspace, arrows, function keys, and modifier chords such as cmd+a or shift+Tab. Uses US key mapping; use type_text or fill_by_ref for arbitrary text. Does not operate browser chrome shortcuts.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -616,8 +821,12 @@
             "type": "string",
             "description": "URL pattern with optional * wildcards."
           },
-          "method": { "type": "string" },
-          "status": { "type": "integer" },
+          "method": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
           "json_path": {
             "type": "string",
             "description": "Simple JSON path such as $.status."
@@ -625,12 +834,16 @@
           "any_of": {
             "type": "array",
             "description": "Accepted values at json_path.",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
           "select": {
             "type": "array",
             "description": "Simple JSON paths to return instead of the full body.",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
           "timeout_ms": {
             "type": "integer",

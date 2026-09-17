@@ -290,6 +290,33 @@ describe('callNative', () => {
     });
   });
 
+  it.each([
+    ['fill_by_ref', 'fillByRef', {ref_id: 'ref-1', document_id: 'doc-1',
+      snapshot_id: 'snap-1', text: ''}],
+    ['wait_for_element', 'waitForElement', {role: 'button', timeout_ms: 30000}],
+    ['wait_for_network_response', 'waitForNetworkResponse', {timeout_ms: 180000}],
+  ])('forwards %s with cancellation and its full wait budget', async (name, method, args) => {
+    vi.useFakeTimers();
+    const send = vi.fn();
+    vi.stubGlobal('chrome', {send});
+    const controller = new AbortController();
+    const promise = executeTool(name as string, args as Record<string, unknown>, {
+      signal: controller.signal,
+    });
+    const [callbackId, params] = send.mock.calls[0][1];
+    expect(send.mock.calls[0][0]).toBe(method);
+    expect(params).toEqual(args);
+    if (name !== 'fill_by_ref') {
+      await vi.advanceTimersByTimeAsync(name === 'wait_for_element' ? 30000 : 180000);
+      expect(send).toHaveBeenCalledTimes(1);
+    }
+    const rejected = expect(promise).rejects.toMatchObject({name: 'AbortError'});
+    controller.abort();
+    await rejected;
+    expect(send).toHaveBeenLastCalledWith('cancelBrowserTool', [callbackId]);
+    cr.webUIResponse(callbackId, true, {late: true});
+  });
+
   it('forwards the safe page and network workflow unchanged', async () => {
     const send = vi.fn();
     vi.stubGlobal('chrome', {send});

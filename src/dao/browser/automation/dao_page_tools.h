@@ -124,10 +124,11 @@ class DaoPageTools {
   void ExecuteGetPageHtml(std::string_view request_id);
   void ExecuteAccessibilityTree(std::string_view request_id);
   void ExecuteQueryElements(std::string_view request_id);
+  void ExecuteWaitForElement(std::string_view request_id);
   void ExecuteAccessibilitySnapshot(std::string_view request_id, bool query);
   void ExecuteCaptureScreenshot(std::string_view request_id);
   void ExecuteClickElement(std::string_view request_id);
-  void ExecuteClickByRef(std::string_view request_id);
+  void ExecuteRefAction(std::string_view request_id);
   void ExecuteAnimatedClick(std::string_view request_id, std::string selector);
   void OnAnimatedClickBounds(std::string request_id,
                              DaoDevToolsClient::CommandResult result);

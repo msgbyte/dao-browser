@@ -52,15 +52,15 @@ describe('browser_tool_catalog', () => {
     await initializeBrowserToolCatalog();
 
     expect(injectedCatalog.getString).toHaveBeenCalledTimes(2);
-    expect(getBrowserToolDefinitions('mcp')).toHaveLength(31);
+    expect(getBrowserToolDefinitions('mcp')).toHaveLength(33);
   });
 
-  it('exposes exactly 31 browser tools to MCP', async () => {
+  it('exposes exactly 33 browser tools to MCP', async () => {
     await initializeBrowserToolCatalog();
     const names = getBrowserToolDefinitions('mcp').map(
         tool => tool.function.name);
 
-    expect(names).toHaveLength(31);
+    expect(names).toHaveLength(33);
     expect(names).not.toContain('resolve_element_context');
     expect([...names].sort()).toEqual([
       'agent_click',
@@ -73,6 +73,7 @@ describe('browser_tool_catalog', () => {
       'enable_console_tracking',
       'enable_network_tracking',
       'execute_script',
+      'fill_by_ref',
       'get_accessibility_tree',
       'get_console_messages',
       'get_network_body',
@@ -93,6 +94,7 @@ describe('browser_tool_catalog', () => {
       'search_in_resources',
       'switch_tab',
       'type_text',
+      'wait_for_element',
       'wait_for_network_response',
     ]);
     expect([...new Set(getCatalogEntries('mcp').map(entry => entry.group))]
@@ -104,6 +106,8 @@ describe('browser_tool_catalog', () => {
     const entries = validateBrowserToolCatalog(loadCatalogResource()).tools;
     const query = entries.find(entry => entry.name === 'query_elements');
     const click = entries.find(entry => entry.name === 'click_by_ref');
+    const fill = entries.find(entry => entry.name === 'fill_by_ref');
+    const elementWait = entries.find(entry => entry.name === 'wait_for_element');
     const enableNetwork =
         entries.find(entry => entry.name === 'enable_network_tracking');
     const wait =
@@ -122,6 +126,11 @@ describe('browser_tool_catalog', () => {
         expect.arrayContaining(['ref_id', 'document_id', 'snapshot_id']));
     expect(click?.inputSchema.properties).toHaveProperty('preconditions');
     expect(click?.inputSchema.properties.preconditions.required).toEqual([]);
+    expect(fill?.inputSchema.required).toEqual(
+        expect.arrayContaining(['ref_id', 'document_id', 'snapshot_id', 'text']));
+    expect(elementWait?.inputSchema.properties).toHaveProperty('enabled');
+    expect(elementWait?.inputSchema.properties.timeout_ms)
+        .toMatchObject({maximum: 30000});
     expect(enableNetwork?.description).toContain('cursor');
     expect(wait?.inputSchema.properties).toHaveProperty('cursor');
     expect(wait?.inputSchema.properties).toHaveProperty('json_path');

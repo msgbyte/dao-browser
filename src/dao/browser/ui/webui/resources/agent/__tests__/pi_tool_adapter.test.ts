@@ -38,9 +38,106 @@ vi.mock('../tool_catalog.js', () => ({
   isToolEnabled: (name: string) => !mocks.disabled.has(name),
 }));
 
-import {buildAgentTools} from '../pi_tool_adapter.js';
+vi.mock('../browser_tool_catalog.js', () => ({
+  getCatalogEntries: () => [{name: 'close_tab'}],
+}));
+
+import {buildAgentTools, createBrowserToolExecutionHooks} from '../pi_tool_adapter.js';
 
 describe('pi_tool_adapter', () => {
+  it('serializes browser calls without changing independent tool execution', () => {
+    const adapted = buildAgentTools();
+    expect(adapted.find(t => t.name === 'close_tab').executionMode)
+        .toBe('sequential');
+    expect(adapted.find(t => t.name === 'web_search').executionMode)
+        .toBeUndefined();
+  });
+
+  it('skips browser actions after execution or validation errors in the same batch', () => {
+    const hooks = createBrowserToolExecutionHooks();
+    const first = {type: 'toolCall', name: 'web_search'};
+    const second = {type: 'toolCall', name: 'close_tab'};
+    const assistantMessage = {content: [first, second]};
+    const context = {assistantMessage, toolCall: second};
+
+    // Schema failures bypass both hooks in pi, so an unfinished call is unsafe.
+    expect(hooks.beforeToolCall(context)?.block).toBe(true);
+    hooks.afterToolCall({assistantMessage, toolCall: first, isError: true});
+    expect(hooks.beforeToolCall(context)?.block).toBe(true);
+    hooks.afterToolCall({assistantMessage, toolCall: first, isError: false});
+    expect(hooks.beforeToolCall(context)).toBeUndefined();
+    expect(hooks.beforeToolCall({
+      assistantMessage: {content: [second]}, toolCall: second,
+    })).toBeUndefined();
+  });
+
+  it.each([
+    'success', 'execution error', 'bare error', 'coded error', 'invalid arguments',
+  ])(
+      'runs the bundled Agent with ordered browser calls: %s', async mode => {
+        const {Agent, getModel} = await import('../vendor/pi_runtime_bundle.js');
+        const executed: string[] = [];
+        mocks.executeTool.mockImplementation(async (_name, args) => {
+          executed.push(args.step + ':start');
+          await Promise.resolve();
+          if (mode === 'execution error') throw new Error('target changed');
+          if (mode === 'bare error') {
+            return {error: 'No reusable element context selected.'};
+          }
+          if (mode === 'coded error') {
+            return {
+              error: 'Another automation client is active.',
+              code: 'AGENT_CONTROL_BUSY',
+              retryable: true,
+            };
+          }
+          executed.push(args.step + ':end');
+          return {success: true};
+        });
+        let response = 0;
+        const agent = new Agent({
+          initialState: {
+            model: getModel('openai', 'gpt-4.1-mini'),
+            tools: buildAgentTools(),
+          },
+          ...createBrowserToolExecutionHooks(),
+          streamFn: () => {
+            const first = response++ === 0;
+            const message = {
+              role: 'assistant', api: 'openai-responses', provider: 'openai',
+              model: 'gpt-4.1-mini', timestamp: 1,
+              usage: {input: 0, output: 0, totalTokens: 0},
+              stopReason: first ? 'toolUse' : 'stop',
+              content: first ? [
+                {type: 'toolCall', id: 'first', name: 'close_tab',
+                 arguments: mode === 'invalid arguments' ? [] : {step: 'first'}},
+                {type: 'toolCall', id: 'second', name: 'close_tab',
+                 arguments: {step: 'second'}},
+              ] : [{type: 'text', text: 'Done'}],
+            };
+            return {
+              async *[Symbol.asyncIterator]() { yield {type: 'done'}; },
+              result: async () => message,
+            };
+          },
+        });
+        await agent.prompt('Run the browser actions.', []);
+        expect(executed).toEqual(mode === 'success' ?
+            ['first:start', 'first:end', 'second:start', 'second:end'] :
+            mode === 'invalid arguments' ? [] : ['first:start']);
+        const results = agent.state.messages.filter((m: {role: string}) => m.role === 'toolResult');
+        expect(results).toHaveLength(2);
+        expect(results[0].isError).toBe(mode !== 'success');
+        expect(results[1].isError).toBe(mode !== 'success');
+        if (mode === 'bare error') {
+          expect(results[0].content[0].text)
+              .toContain('No reusable element context selected.');
+        }
+        if (mode !== 'success') {
+          expect(results[1].content[0].text).toContain('Skipped browser action');
+        }
+      });
+
   beforeEach(() => {
     mocks.executeTool.mockReset();
     mocks.recordToolCall.mockReset();
@@ -58,8 +155,11 @@ describe('pi_tool_adapter', () => {
         ['web_search', 'close_tab', 'activate_skill']);
   });
 
-  it('executes the Dao tool and preserves raw details', async () => {
-    mocks.executeTool.mockResolvedValue({ok: true, answer: 42});
+  it.each([
+    {ok: true, answer: 42},
+    {result: '{"error":"Page response data"}'},
+  ])('executes the Dao tool and preserves raw details: %j', async raw => {
+    mocks.executeTool.mockResolvedValue(raw);
     const [adapted] = buildAgentTools();
 
     const result = await adapted.execute('call-1', {query: 'dao'});
@@ -70,9 +170,9 @@ describe('pi_tool_adapter', () => {
     expect(result).toEqual({
       content: [{
         type: 'text',
-        text: JSON.stringify({ok: true, answer: 42}, null, 2),
+        text: JSON.stringify(raw, null, 2),
       }],
-      details: {ok: true, answer: 42},
+      details: raw,
     });
   });
 

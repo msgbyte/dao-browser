@@ -9,22 +9,31 @@
 #include <cmath>
 #include <optional>
 #include <set>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/uuid.h"
+#include "build/build_config.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
+#include "ui/events/event_constants.h"
+#include "ui/events/keycodes/dom/dom_code.h"
+#include "ui/events/keycodes/dom/keycode_converter.h"
+#include "ui/events/keycodes/keyboard_code_conversion.h"
 
 namespace dao {
 namespace {
@@ -95,7 +104,7 @@ constexpr char kHighlightInjectScript[] = R"js(
 // assigns stable-for-the-current-snapshot data-dao-ref attributes and returns a
 // compact textual tree rather than the very large raw CDP AX payload.
 constexpr char kAccessibilityTreeScript[] = R"js(
-(function(filterMode, query, snapshotId) {
+(function(filterMode, query, snapshotId, waiting) {
   var MAX_DEPTH = 15;
   var MAX_CHARS = 50000;
   var refCounter = 0;
@@ -109,14 +118,16 @@ constexpr char kAccessibilityTreeScript[] = R"js(
     return JSON.stringify({error: 'The scope ref snapshot is stale.'});
   }
 
-  // Clear old refs.
+  // Preserve refs while a query is invalid or a wait is pending.
   var oldRefs = document.querySelectorAll('[data-dao-ref]');
   var oldRefMap = new Map();
   for (var i = 0; i < oldRefs.length; i++) {
     oldRefMap.set(oldRefs[i].getAttribute('data-dao-ref'), oldRefs[i]);
-    oldRefs[i].removeAttribute('data-dao-ref');
   }
-  document.documentElement.setAttribute('data-dao-snapshot', snapshotId);
+  function resetRefs() {
+    oldRefs.forEach(function(el) { el.removeAttribute('data-dao-ref'); });
+    document.documentElement.setAttribute('data-dao-snapshot', snapshotId);
+  }
 
   var SKIP_TAGS = {
     SCRIPT:1, STYLE:1, NOSCRIPT:1, TEMPLATE:1, IFRAME:1,
@@ -226,9 +237,10 @@ constexpr char kAccessibilityTreeScript[] = R"js(
       return JSON.stringify({error: 'Scope matched multiple elements; use nth or index.'});
     }
     var root = scopeCandidates[scopeIndex === undefined ? 0 : scopeIndex];
-    if (!root) return JSON.stringify({error: 'Scope element was not found.'});
-    var scopeRefId = 'ref_' + (++refCounter);
-    root.setAttribute('data-dao-ref', scopeRefId);
+    if (!root) {
+      return JSON.stringify(waiting && !scope.ref_id ? {pending: true} :
+          {error: 'Scope element was not found.'});
+    }
 
     var candidates = [root].concat(Array.from(root.querySelectorAll('*')));
     var textMode = query.text_match || 'exact';
@@ -244,12 +256,19 @@ constexpr char kAccessibilityTreeScript[] = R"js(
       if (query.enabled !== undefined && isEnabled(el) !== query.enabled) return false;
       return true;
     });
+    if (waiting && (query.require_count === undefined ? matches.length === 0 :
+        matches.length !== query.require_count)) {
+      return JSON.stringify({pending: true});
+    }
     if (query.require_count !== undefined && matches.length !== query.require_count) {
       return JSON.stringify({
         error: 'Expected ' + query.require_count + ' matches but found ' + matches.length + '.'
       });
     }
 
+    resetRefs();
+    var scopeRefId = 'ref_' + (++refCounter);
+    root.setAttribute('data-dao-ref', scopeRefId);
     var maxResults = query.max_results === undefined ? 20 : query.max_results;
     var result = matches.slice(0, maxResults).map(function(el) {
       var refId = el.getAttribute('data-dao-ref') || 'ref_' + (++refCounter);
@@ -269,6 +288,8 @@ constexpr char kAccessibilityTreeScript[] = R"js(
       scope_ref_id: scopeRefId
     });
   }
+
+  resetRefs();
 
   function getExtras(el) {
     var parts = [];
@@ -674,6 +695,8 @@ struct DaoPageTools::Operation : public content::WebContentsObserver {
   std::set<int> command_ids;
   std::string document_id;
   std::string snapshot_id;
+  base::OneShotTimer wait_deadline;
+  base::OneShotTimer wait_poll;
   int pending_background_click_commands = 0;
   bool owns_lock = false;
   bool temporary_highlight = false;
@@ -741,13 +764,13 @@ void DaoPageTools::TrackCursorForTesting(content::WebContents* target) {
 }
 
 bool DaoPageTools::Handles(std::string_view name) {
-  constexpr std::array<std::string_view, 16> kNames = {
+  constexpr std::array<std::string_view, 18> kNames = {
       "get_page_info",     "get_page_html",      "get_accessibility_tree",
       "query_elements",    "capture_screenshot", "click_element",
       "agent_click",       "click_by_ref",       "move_cursor",
       "highlight_element", "scroll_down",        "scroll_up",
       "scroll_to_element", "press_key_chord",    "type_text",
-      "execute_script",
+      "execute_script",    "fill_by_ref",        "wait_for_element",
   };
   return std::ranges::find(kNames, name) != kNames.end();
 }
@@ -843,6 +866,8 @@ void DaoPageTools::Execute(std::string request_id,
     ExecuteAccessibilityTree(request_id);
   } else if (name == "query_elements") {
     ExecuteQueryElements(request_id);
+  } else if (name == "wait_for_element") {
+    ExecuteWaitForElement(request_id);
   } else if (name == "capture_screenshot") {
     ExecuteCaptureScreenshot(request_id);
   } else if (name == "click_element") {
@@ -855,8 +880,8 @@ void DaoPageTools::Execute(std::string request_id,
       return;
     }
     ExecuteAnimatedClick(request_id, *selector);
-  } else if (name == "click_by_ref") {
-    ExecuteClickByRef(request_id);
+  } else if (name == "click_by_ref" || name == "fill_by_ref") {
+    ExecuteRefAction(request_id);
   } else if (name == "move_cursor") {
     ExecuteMoveCursor(request_id);
   } else if (name == "highlight_element") {
@@ -1328,6 +1353,23 @@ void DaoPageTools::ExecuteQueryElements(std::string_view request_id) {
   ExecuteAccessibilitySnapshot(request_id, true);
 }
 
+void DaoPageTools::ExecuteWaitForElement(std::string_view request_id) {
+  Operation* operation = FindOperation(request_id);
+  const int timeout_ms =
+      operation->arguments.FindInt("timeout_ms").value_or(10000);
+  if (timeout_ms < 1 || timeout_ms > 30000) {
+    FinishError(request_id, InvalidArgument("Invalid element wait timeout."));
+    return;
+  }
+  operation->wait_deadline.Start(
+      FROM_HERE, base::Milliseconds(timeout_ms),
+      base::BindOnce(&DaoPageTools::FinishError, weak_factory_.GetWeakPtr(),
+                     std::string(request_id),
+                     MakeDaoToolError(DaoToolErrorCode::kToolTimeout,
+                                      "Element wait timed out.")));
+  ExecuteAccessibilitySnapshot(request_id, true);
+}
+
 void DaoPageTools::ExecuteAccessibilitySnapshot(std::string_view request_id,
                                                 bool query) {
   Operation* operation = FindOperation(request_id);
@@ -1380,7 +1422,9 @@ void DaoPageTools::ExecuteAccessibilitySnapshot(std::string_view request_id,
   params.Set("expression",
              std::string(kAccessibilityTreeScript) + "(" +
                  QuoteForJavaScript(filter) + "," + query_json + "," +
-                 QuoteForJavaScript(operation->snapshot_id) + ")");
+                 QuoteForJavaScript(operation->snapshot_id) + "," +
+                 (operation->name == "wait_for_element" ? "true" : "false") +
+                 ")");
   params.Set("returnByValue", true);
   SendCommand(
       request_id, "Runtime.evaluate", std::move(params),
@@ -1413,6 +1457,16 @@ void DaoPageTools::ExecuteAccessibilitySnapshot(std::string_view request_id,
               if (!operation) {
                 return;
               }
+              if (operation->name == "wait_for_element" &&
+                  parsed->GetDict().FindBool("pending").value_or(false)) {
+                // ponytail: bounded 100 ms polling; use DOM events if profiling
+                // shows repeated semantic scans dominate wait cost.
+                operation->wait_poll.Start(
+                    FROM_HERE, base::Milliseconds(100),
+                    base::BindOnce(&DaoPageTools::ExecuteAccessibilitySnapshot,
+                                   self, request_id, true));
+                return;
+              }
               parsed->GetDict().Set("document_id", operation->document_id);
               parsed->GetDict().Set("snapshot_id", operation->snapshot_id);
               self->FinishSuccess(request_id, std::move(*parsed));
@@ -1424,7 +1478,7 @@ void DaoPageTools::ExecuteAccessibilitySnapshot(std::string_view request_id,
           weak_factory_.GetWeakPtr(), std::string(request_id)));
 }
 
-void DaoPageTools::ExecuteClickByRef(std::string_view request_id) {
+void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
   Operation* operation = FindOperation(request_id);
   if (!operation) {
     return;
@@ -1445,6 +1499,12 @@ void DaoPageTools::ExecuteClickByRef(std::string_view request_id) {
             "A current ref_id, document_id, and snapshot_id are required."));
     return;
   }
+  const bool fill = operation->name == "fill_by_ref";
+  const std::string* text = operation->arguments.FindString("text");
+  if (fill && !text) {
+    FinishError(request_id, InvalidArgument("Fill text is required."));
+    return;
+  }
   std::string preconditions_json = "{}";
   if (const base::DictValue* preconditions =
           operation->arguments.FindDict("preconditions")) {
@@ -1452,7 +1512,7 @@ void DaoPageTools::ExecuteClickByRef(std::string_view request_id) {
                             &preconditions_json);
   }
   const std::string script = R"js(
-(function(refId, snapshotId, preconditions) {
+(function(refId, snapshotId, preconditions, fill, text) {
   function fail(message) { return JSON.stringify({error: message}); }
   function visible(el) {
     if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
@@ -1484,36 +1544,100 @@ void DaoPageTools::ExecuteClickByRef(std::string_view request_id) {
     return candidate.getAttribute('data-dao-ref') === refId;
   });
   if (!el) return fail('The referenced element was not found.');
-  if (preconditions.url !== undefined && location.href !== preconditions.url) {
-    return fail('The URL precondition failed.');
-  }
-  if (preconditions.visible !== undefined && visible(el) !== preconditions.visible) {
-    return fail('The visibility precondition failed.');
-  }
-  var enabled = !el.disabled && el.getAttribute('aria-disabled') !== 'true';
-  if (preconditions.enabled !== undefined && enabled !== preconditions.enabled) {
-    return fail('The enabled precondition failed.');
-  }
-  if (preconditions.text !== undefined &&
-      (el.textContent || '').trim() !== preconditions.text) {
-    return fail('The text precondition failed.');
-  }
-  if (preconditions.role !== undefined && role(el) !== preconditions.role) {
-    return fail('The role precondition failed.');
-  }
-  if (preconditions.ancestor_ref !== undefined) {
-    var ancestor = el.parentElement;
-    while (ancestor && ancestor.getAttribute('data-dao-ref') !== preconditions.ancestor_ref) {
-      ancestor = ancestor.parentElement;
+  function checkPreconditions() {
+    if (preconditions.url !== undefined && location.href !== preconditions.url) {
+      return fail('The URL precondition failed.');
     }
-    if (!ancestor) return fail('The ancestor precondition failed.');
+    if (preconditions.visible !== undefined && visible(el) !== preconditions.visible) {
+      return fail('The visibility precondition failed.');
+    }
+    var enabled = !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+    if (preconditions.enabled !== undefined && enabled !== preconditions.enabled) {
+      return fail('The enabled precondition failed.');
+    }
+    if (preconditions.text !== undefined &&
+        (el.textContent || '').trim() !== preconditions.text) {
+      return fail('The text precondition failed.');
+    }
+    if (preconditions.role !== undefined && role(el) !== preconditions.role) {
+      return fail('The role precondition failed.');
+    }
+    if (preconditions.ancestor_ref !== undefined) {
+      var ancestor = el.parentElement;
+      while (ancestor && ancestor.getAttribute('data-dao-ref') !== preconditions.ancestor_ref) {
+        ancestor = ancestor.parentElement;
+      }
+      if (!ancestor) return fail('The ancestor precondition failed.');
+    }
+    return null;
+  }
+  var failed = checkPreconditions();
+  if (failed) return failed;
+  if (fill) {
+    // ponytail: text inputs and textarea only; add rich-editor support when
+    // a concrete editor requires its own selection and value semantics.
+    function isTextField() {
+      return el instanceof HTMLTextAreaElement ||
+          (el instanceof HTMLInputElement &&
+           ['text', 'search', 'tel', 'url', 'password', 'email'].includes(el.type));
+    }
+    if (!isTextField()) {
+      return fail('Fill requires a text input or textarea.');
+    }
+    if (!visible(el) || el.disabled || el.readOnly ||
+        el.getAttribute('aria-disabled') === 'true') {
+      return fail('The field must be visible, enabled, and writable.');
+    }
+    el.focus();
+    if (document.activeElement !== el) {
+      return fail('The field lost focus before filling.');
+    }
+    el.select();
+    function checkField() {
+      if (!el.isConnected || document.activeElement !== el || !isTextField() ||
+          el.getAttribute('data-dao-ref') !== refId ||
+          document.documentElement.getAttribute('data-dao-snapshot') !== snapshotId ||
+          !visible(el) || el.disabled || el.readOnly ||
+          el.getAttribute('aria-disabled') === 'true') {
+        return fail('The field changed or lost focus before filling.');
+      }
+      return checkPreconditions();
+    }
+    failed = checkField();
+    if (failed) return failed;
+    // Use Chromium's editor so input events and controlled form state update.
+    // Keep validation and editing in one task: a second CDP call could type
+    // into a different field after a focus handler or timer redirects focus.
+    if (el.value !== text) {
+      // execCommand emits trusted input, but no beforeinput. Give the page a
+      // cancelable notification before editing; this notification is synthetic.
+      if (!el.dispatchEvent(new InputEvent('beforeinput', {
+        bubbles: true, cancelable: true, composed: true,
+        inputType: text ? 'insertText' : 'deleteContentBackward',
+        data: text || null
+      }))) {
+        return fail('The page canceled filling the field.');
+      }
+      failed = checkField();
+      if (failed) return failed;
+      el.select();
+      failed = checkField();
+      if (failed) return failed;
+      document.execCommand(text ? 'insertText' : 'delete', false, text);
+    }
+    if (!el.isConnected || el.value !== text) {
+      return fail('The field did not retain the requested value.');
+    }
+    return JSON.stringify({filled: true, ref_id: refId});
   }
   el.click();
   return JSON.stringify({clicked: true, ref_id: refId});
 })
 )js" + std::string("(") + QuoteForJavaScript(*ref_id) +
                              "," + QuoteForJavaScript(*snapshot_id) + "," +
-                             preconditions_json + ")";
+                             preconditions_json + "," +
+                             (fill ? "true" : "false") + "," +
+                             QuoteForJavaScript(text ? *text : "") + ")";
   base::DictValue params;
   params.Set("expression", script);
   params.Set("returnByValue", true);
@@ -1536,7 +1660,7 @@ void DaoPageTools::ExecuteClickByRef(std::string_view request_id) {
                     if (!parsed || !parsed->is_dict()) {
                       self->FinishError(
                           request_id,
-                          InternalError("Guarded click evaluation failed."));
+                          InternalError("Guarded action evaluation failed."));
                       return;
                     }
                     if (const std::string* error =
@@ -2059,29 +2183,156 @@ void DaoPageTools::ExecutePressKeyChord(std::string_view request_id) {
     FinishError(request_id, InvalidArgument("Key chord must not be empty."));
     return;
   }
-  const std::string script =
-      "(() => { const combo=" + QuoteForJavaScript(*keys) +
-      ".toLowerCase(); const parts=combo.split('+');"
-      "const key=parts[parts.length-1].trim();"
-      "const opts={bubbles:true,cancelable:true,"
-      "ctrlKey:combo.includes('ctrl'),"
-      "metaKey:combo.includes('cmd')||combo.includes('meta'),"
-      "shiftKey:combo.includes('shift'),altKey:combo.includes('alt')};"
-      "const map={enter:'Enter',tab:'Tab',escape:'Escape',esc:'Escape',"
-      "backspace:'Backspace',delete:'Delete',space:' ',up:'ArrowUp',"
-      "down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'};"
-      "opts.key=map[key]||key; const el=document.activeElement||document.body;"
-      "el.dispatchEvent(new KeyboardEvent('keydown',opts));"
-      "el.dispatchEvent(new KeyboardEvent('keyup',opts));"
-      "if(opts.key.length===1&&!opts.ctrlKey&&!opts.metaKey)"
-      "el.dispatchEvent(new InputEvent('input',{data:opts.key,"
-      "inputType:'insertText',bubbles:true}));"
-      "return 'pressed: '+combo; })()";
+  std::vector<std::string> parts = base::SplitString(
+      *keys, "+", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  int modifiers = 0;
+  for (size_t i = 0; i + 1 < parts.size(); ++i) {
+    const std::string modifier = base::ToLowerASCII(parts[i]);
+    int bit = 0;
+    if (modifier == "alt" || modifier == "option") {
+      bit = 1;
+    }
+    if (modifier == "ctrl" || modifier == "control") {
+      bit = 2;
+    }
+    if (modifier == "cmd" || modifier == "meta" || modifier == "command") {
+      bit = 4;
+    }
+    if (modifier == "shift") {
+      bit = 8;
+    }
+    if (!bit || (modifiers & bit)) {
+      FinishError(request_id, InvalidArgument("Invalid key chord modifier."));
+      return;
+    }
+    modifiers |= bit;
+  }
+  std::string key = parts.back();
+  const std::string lower_key = base::ToLowerASCII(key);
+  // Shortcut letters are case-insensitive; only an explicit Shift modifies
+  // their case. Preserve uppercase characters when pressing a key by itself.
+  if ((modifiers & 7) && key.size() == 1 && base::IsAsciiAlpha(key[0])) {
+    key = lower_key;
+  }
+  constexpr auto kAliases =
+      std::to_array<std::pair<std::string_view, std::string_view>>({
+          {"enter", "Enter"},
+          {"tab", "Tab"},
+          {"escape", "Escape"},
+          {"esc", "Escape"},
+          {"backspace", "Backspace"},
+          {"delete", "Delete"},
+          {"space", " "},
+          {"plus", "+"},
+          {"up", "ArrowUp"},
+          {"down", "ArrowDown"},
+          {"left", "ArrowLeft"},
+          {"right", "ArrowRight"},
+          {"arrowup", "ArrowUp"},
+          {"arrowdown", "ArrowDown"},
+          {"arrowleft", "ArrowLeft"},
+          {"arrowright", "ArrowRight"},
+          {"home", "Home"},
+          {"end", "End"},
+          {"pageup", "PageUp"},
+          {"pagedown", "PageDown"},
+          {"insert", "Insert"},
+      });
+  for (const auto& [alias, value] : kAliases) {
+    if (lower_key == alias) {
+      key = value;
+    }
+  }
+  if (lower_key.size() > 1 && lower_key[0] == 'f') {
+    key = base::ToUpperASCII(key);
+  }
+  ui::DomKey dom_key = ui::KeycodeConverter::KeyStringToDomKey(key);
+  const ui::DomCode code = ui::UsLayoutDomKeyToDomCode(dom_key);
+  if (code == ui::DomCode::NONE ||
+      ui::KeycodeConverter::IsDomKeyForModifier(dom_key)) {
+    FinishError(request_id,
+                InvalidArgument("Unsupported key. Use type_text for text."));
+    return;
+  }
+  const ui::KeyboardCode virtual_key = ui::DomCodeToUsLayoutKeyboardCode(code);
+  if (dom_key.IsCharacter()) {
+    ui::DomKey unshifted;
+    ui::KeyboardCode unused;
+    if (ui::DomCodeToUsLayoutDomKey(code, 0, &unshifted, &unused) &&
+        dom_key != unshifted) {
+      modifiers |= 8;
+    }
+    if ((modifiers & 8) && ui::DomCodeToUsLayoutDomKey(code, ui::EF_SHIFT_DOWN,
+                                                       &dom_key, &unused)) {
+      key = ui::KeycodeConverter::DomKeyToKeyString(dom_key);
+    }
+  }
+  std::string text;
+  if (!(modifiers & 7)) {
+    if (key == "Enter") {
+      text = "\r";
+    } else if (dom_key.IsCharacter() && dom_key.ToCharacter() >= 0x20 &&
+               dom_key.ToCharacter() != 0x7f) {
+      text = key;
+    }
+  }
   base::DictValue params;
-  params.Set("expression", script);
-  params.Set("returnByValue", true);
+  params.Set("type", text.empty() ? "rawKeyDown" : "keyDown");
+  params.Set("key", key);
+  params.Set("code", ui::KeycodeConverter::DomCodeToCodeString(code));
+  params.Set("windowsVirtualKeyCode", static_cast<int>(virtual_key));
+  params.Set("modifiers", modifiers);
+  base::DictValue key_up = params.Clone();
+  key_up.Set("type", "keyUp");
+  if (!text.empty()) {
+    params.Set("text", text);
+  }
+  // CDP has no native OS event for macOS editing shortcuts.
+#if BUILDFLAG(IS_MAC)
+  constexpr auto kEditingCommands =
+      std::to_array<std::tuple<int, ui::KeyboardCode, std::string_view>>({
+          {4, ui::VKEY_A, "selectAll"},
+          {4, ui::VKEY_LEFT, "moveToLeftEndOfLine"},
+          {4, ui::VKEY_RIGHT, "moveToRightEndOfLine"},
+          {4, ui::VKEY_UP, "moveToBeginningOfDocument"},
+          {4, ui::VKEY_DOWN, "moveToEndOfDocument"},
+          {12, ui::VKEY_LEFT, "moveToLeftEndOfLineAndModifySelection"},
+          {12, ui::VKEY_RIGHT, "moveToRightEndOfLineAndModifySelection"},
+          {12, ui::VKEY_UP, "moveToBeginningOfDocumentAndModifySelection"},
+          {12, ui::VKEY_DOWN, "moveToEndOfDocumentAndModifySelection"},
+          {4, ui::VKEY_BACK, "deleteToBeginningOfLine"},
+          {4, ui::VKEY_Z, "undo"},
+          {12, ui::VKEY_Z, "redo"},
+      });
+  for (const auto& [command_modifiers, command_key, command] : kEditingCommands) {
+    if (modifiers == command_modifiers && virtual_key == command_key) {
+      params.Set("commands", base::ListValue().Append(command));
+      break;
+    }
+  }
+#else
+  if (modifiers == 2 && lower_key == "a") {
+    params.Set("commands", base::ListValue().Append("selectAll"));
+  }
+#endif
+  // Queue both events before waiting for renderer acknowledgements. Cancelling
+  // the operation must not strand a key while its keydown handler is running.
+  base::WeakPtr<DaoPageTools> weak_this = weak_factory_.GetWeakPtr();
   SendCommand(
-      request_id, "Runtime.evaluate", std::move(params),
+      request_id, "Input.dispatchKeyEvent", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoPageTools> self, std::string request_id,
+             DaoDevToolsClient::CommandResult result) {
+            if (self && !result.has_value()) {
+              self->FinishError(request_id, std::move(result).error());
+            }
+          },
+          weak_this, std::string(request_id)));
+  if (!weak_this) {
+    return;
+  }
+  weak_this->SendCommand(
+      request_id, "Input.dispatchKeyEvent", std::move(key_up),
       base::BindOnce(
           [](base::WeakPtr<DaoPageTools> self, std::string request_id,
              DaoDevToolsClient::CommandResult result) {
@@ -2092,12 +2343,10 @@ void DaoPageTools::ExecutePressKeyChord(std::string_view request_id) {
               self->FinishError(request_id, std::move(result).error());
               return;
             }
-            base::DictValue data;
-            data.Set("success", true);
-            data.Set("result", RemoteString(result).value_or(std::string()));
-            self->FinishSuccess(request_id, base::Value(std::move(data)));
+            self->FinishSuccess(
+                request_id, base::Value(base::DictValue().Set("success", true)));
           },
-          weak_factory_.GetWeakPtr(), std::string(request_id)));
+          weak_this, std::string(request_id)));
 }
 
 void DaoPageTools::ExecuteTypeText(std::string_view request_id) {

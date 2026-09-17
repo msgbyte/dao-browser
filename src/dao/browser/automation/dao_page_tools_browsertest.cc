@@ -23,6 +23,7 @@
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser.h"
@@ -286,14 +287,14 @@ protected:
 };
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
-                       RegistersExactlyTheSixteenSharedPageTools) {
-  constexpr std::array<std::string_view, 16> kSharedPageTools = {
+                       RegistersExactlyTheEighteenSharedPageTools) {
+  constexpr std::array<std::string_view, 18> kSharedPageTools = {
       "get_page_info",     "get_page_html",      "get_accessibility_tree",
       "query_elements",    "capture_screenshot", "click_element",
       "agent_click",       "click_by_ref",       "move_cursor",
       "highlight_element", "scroll_down",        "scroll_up",
       "scroll_to_element", "press_key_chord",    "type_text",
-      "execute_script",
+      "execute_script",    "fill_by_ref",        "wait_for_element",
   };
 
   for (std::string_view name : kSharedPageTools) {
@@ -364,6 +365,263 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   EXPECT_EQ(DaoToolErrorCode::kInvalidArgument, guarded.error->code);
   EXPECT_EQ(
       1, content::EvalJs(target, "window.__dao_guarded_clicks").ExtractInt());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       FillByRefReplacesTextAndRejectsChangedTargets) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<input id="field" value="old"><input id="other">';
+    window.inputs = [];
+    document.getElementById('field').addEventListener('input', e => {
+      window.inputs.push({value: e.target.value, trusted: e.isTrusted});
+    });
+  )"));
+  auto query =
+      Execute(session.get(), "query_elements",
+              base::DictValue()
+                  .Set("scope", base::DictValue().Set("selector", "#field"))
+                  .Set("role", "textbox")
+                  .Set("require_count", 1));
+  ASSERT_TRUE(query.ok) << query.error->message;
+  const auto& data = query.data.GetDict();
+  base::DictValue args;
+  args.Set("ref_id",
+           *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"));
+  args.Set("document_id", *data.FindString("document_id"));
+  args.Set("snapshot_id", *data.FindString("snapshot_id"));
+  args.Set("text", "new text");
+  args.Set("preconditions", base::DictValue().Set("role", "textbox"));
+  auto filled = Execute(session.get(), "fill_by_ref", args.Clone());
+  ASSERT_TRUE(filled.ok) << filled.error->message;
+  EXPECT_TRUE(content::EvalJs(target, R"(
+    document.getElementById('field').value === 'new text' &&
+    window.inputs.length === 1 && window.inputs[0].trusted
+  )")
+                  .ExtractBool());
+  args.Set("text", "");
+  EXPECT_TRUE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+  EXPECT_EQ("",
+            content::EvalJs(target, "document.getElementById('field').value"));
+
+  ASSERT_TRUE(content::ExecJs(
+      target, "document.getElementById('field').readOnly = true;"));
+  args.Set("text", "blocked");
+  EXPECT_FALSE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    const field = document.getElementById('field');
+    field.readOnly = false;
+    document.getElementById('other').focus();
+    field.onfocus = () => document.getElementById('other').focus();
+  )"));
+  EXPECT_FALSE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+  EXPECT_EQ("",
+            content::EvalJs(target, "document.getElementById('other').value"));
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.getElementById('field').onfocus = e => e.target.setAttribute('role', 'button');
+  )"));
+  EXPECT_FALSE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+  EXPECT_EQ("",
+            content::EvalJs(target, "document.getElementById('field').value"));
+  ASSERT_TRUE(Execute(session.get(), "get_accessibility_tree").ok);
+  EXPECT_FALSE(Execute(session.get(), "fill_by_ref", std::move(args)).ok);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       FillByRefHonorsBeforeInputCancellation) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<input id="field" value="old">';
+    window.beforeInputs = [];
+    window.inputs = [];
+    const field = document.getElementById('field');
+    field.onbeforeinput = e => {
+      window.beforeInputs.push({
+        cancelable: e.cancelable, inputType: e.inputType, data: e.data
+      });
+      e.preventDefault();
+    };
+    field.oninput = e => window.inputs.push(e.isTrusted);
+  )"));
+  auto query =
+      Execute(session.get(), "query_elements",
+              base::DictValue()
+                  .Set("scope", base::DictValue().Set("selector", "#field"))
+                  .Set("role", "textbox")
+                  .Set("require_count", 1));
+  ASSERT_TRUE(query.ok) << query.error->message;
+  const auto& data = query.data.GetDict();
+  base::DictValue args;
+  args.Set("ref_id",
+           *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"));
+  args.Set("document_id", *data.FindString("document_id"));
+  args.Set("snapshot_id", *data.FindString("snapshot_id"));
+
+  for (const char* text : {"replacement", ""}) {
+    SCOPED_TRACE(text);
+    args.Set("text", text);
+    EXPECT_FALSE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+    EXPECT_EQ("old", content::EvalJs(target,
+                                     "document.getElementById('field').value"));
+    EXPECT_EQ(0, content::EvalJs(target, "window.inputs.length"));
+  }
+  // The cancelable beforeinput hook is synthetic; editor input stays trusted.
+  EXPECT_TRUE(content::EvalJs(target, R"(
+    window.beforeInputs.length === 2 &&
+    window.beforeInputs.every(e => e.cancelable) &&
+    window.beforeInputs[0].inputType === 'insertText' &&
+    window.beforeInputs[0].data === 'replacement' &&
+    window.beforeInputs[1].inputType === 'deleteContentBackward' &&
+    window.beforeInputs[1].data === null
+  )")
+                  .ExtractBool());
+
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.getElementById('field').onbeforeinput = e => {
+      e.target.setSelectionRange(0, 0);
+    };
+  )"));
+  args.Set("text", "replacement");
+  auto filled = Execute(session.get(), "fill_by_ref", args.Clone());
+  ASSERT_TRUE(filled.ok) << filled.error->message;
+  EXPECT_EQ("replacement",
+            content::EvalJs(target, "document.getElementById('field').value"));
+  args.Set("text", "");
+  auto cleared = Execute(session.get(), "fill_by_ref", std::move(args));
+  ASSERT_TRUE(cleared.ok) << cleared.error->message;
+  EXPECT_EQ("",
+            content::EvalJs(target, "document.getElementById('field').value"));
+  EXPECT_TRUE(content::EvalJs(target, R"(
+    window.inputs.length === 2 && window.inputs.every(Boolean)
+  )")
+                  .ExtractBool());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       FillByRefRevalidatesAfterBeforeInput) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  for (const char* change :
+       {"focus", "readonly", "disabled", "type", "role", "detach"}) {
+    SCOPED_TRACE(change);
+    ASSERT_TRUE(content::ExecJs(target, content::JsReplace(R"(
+      document.body.innerHTML = '<input id="field" value="old">' +
+          '<input id="other" value="untouched">';
+      window.field = document.getElementById('field');
+      window.beforeInputCount = 0;
+      window.inputCount = 0;
+      window.field.oninput = () => ++window.inputCount;
+      window.field.onbeforeinput = e => {
+        ++window.beforeInputCount;
+        switch ($1) {
+          case 'focus': document.getElementById('other').focus(); break;
+          case 'readonly': e.target.readOnly = true; break;
+          case 'disabled': e.target.disabled = true; break;
+          case 'type': e.target.type = 'button'; break;
+          case 'role': e.target.setAttribute('role', 'button'); break;
+          case 'detach': e.target.remove(); break;
+        }
+      };
+    )",
+                                                           change)));
+    auto query =
+        Execute(session.get(), "query_elements",
+                base::DictValue()
+                    .Set("scope", base::DictValue().Set("selector", "#field"))
+                    .Set("role", "textbox")
+                    .Set("require_count", 1));
+    ASSERT_TRUE(query.ok) << query.error->message;
+    const auto& data = query.data.GetDict();
+    base::DictValue args;
+    args.Set("ref_id",
+             *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"));
+    args.Set("document_id", *data.FindString("document_id"));
+    args.Set("snapshot_id", *data.FindString("snapshot_id"));
+    args.Set("text", "replacement");
+    args.Set("preconditions", base::DictValue().Set("role", "textbox"));
+    EXPECT_FALSE(Execute(session.get(), "fill_by_ref", std::move(args)).ok);
+    EXPECT_EQ(1, content::EvalJs(target, "window.beforeInputCount"));
+    EXPECT_EQ(0, content::EvalJs(target, "window.inputCount"));
+    EXPECT_EQ("old", content::EvalJs(target, "window.field.value"));
+    EXPECT_EQ(
+        "untouched",
+        content::EvalJs(target, "document.getElementById('other').value"));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       WaitForElementPreservesRefsUntilMatched) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<button id="later" disabled>Ready</button>';
+    setTimeout(() => document.getElementById('later').disabled = false, 250);
+  )"));
+  auto waited = Execute(session.get(), "wait_for_element",
+                        base::DictValue()
+                            .Set("role", "button")
+                            .Set("text", "Ready")
+                            .Set("visible", true)
+                            .Set("enabled", true)
+                            .Set("timeout_ms", 2000));
+  ASSERT_TRUE(waited.ok) << waited.error->message;
+  EXPECT_EQ(1, waited.data.GetDict().FindInt("count"));
+  const std::string snapshot = *waited.data.GetDict().FindString("snapshot_id");
+  auto timed_out = Execute(session.get(), "wait_for_element",
+                           base::DictValue()
+                               .Set("role", "button")
+                               .Set("text", "Missing")
+                               .Set("timeout_ms", 150));
+  ASSERT_FALSE(timed_out.ok);
+  EXPECT_EQ(DaoToolErrorCode::kToolTimeout, timed_out.error->code);
+  EXPECT_EQ(snapshot,
+            content::EvalJs(
+                target,
+                "document.documentElement.getAttribute('data-dao-snapshot')"));
+  ASSERT_TRUE(content::ExecJs(
+      target,
+      "setTimeout(() => document.getElementById('later').remove(), 250);"));
+  auto absent = Execute(session.get(), "wait_for_element",
+                        base::DictValue()
+                            .Set("role", "button")
+                            .Set("text", "Ready")
+                            .Set("require_count", 0)
+                            .Set("timeout_ms", 2000));
+  ASSERT_TRUE(absent.ok) << absent.error->message;
+  EXPECT_EQ(0, absent.data.GetDict().FindInt("count"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       WaitForElementCancelsOnStopAndNavigation) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  for (bool navigate : {false, true}) {
+    DaoBrowserToolCall call;
+    call.request_id = "pending-element-wait";
+    call.name = "wait_for_element";
+    call.arguments = base::DictValue()
+                         .Set("role", "button")
+                         .Set("text", "Missing")
+                         .Set("timeout_ms", 30000);
+    base::test::TestFuture<DaoBrowserToolResult> future;
+    ASSERT_TRUE(executor_->Execute(session.get(), DaoToolClient::kMcp,
+                                   std::move(call), future.GetCallback()));
+    if (navigate) {
+      ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), second_url()));
+    } else {
+      executor_->Cancel("pending-element-wait");
+    }
+    auto result = future.Take();
+    EXPECT_FALSE(result.ok);
+    EXPECT_EQ(0u, executor_->pending_count_for_testing());
+    EXPECT_EQ(0u, executor_->page_operation_count_for_testing());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
@@ -1036,6 +1294,54 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       KeyChordSynchronousSendMayDestroyOwnerExactlyOnce) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  content::WebContents *target =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  auto session = MakeSessionForActiveTab();
+  auto page_tools =
+      std::make_unique<DaoPageTools>(devtools_client_.get(), &ui_delegate_);
+  DaoPageTools *raw_page_tools = page_tools.get();
+  int command_count = 0;
+  int callback_count = 0;
+  devtools_client_->SetCommandCallbackForTesting(base::BindRepeating(
+      [](std::unique_ptr<DaoPageTools> *owner, int *count,
+         const std::string &method) {
+        if (method == "Input.dispatchKeyEvent") {
+          ++*count;
+          owner->reset();
+        }
+      },
+      &page_tools, &command_count));
+  auto resolver = base::BindRepeating(
+      [](content::WebContents *target)
+          -> base::expected<content::WebContents *, DaoToolError> {
+        return target;
+      },
+      target);
+
+  raw_page_tools->Execute(
+      "key-chord-send-destroys-owner", "press_key_chord", target,
+      session->committed_origin(), session->document_sequence_number(),
+      resolver, base::DictValue().Set("keys", "ArrowLeft"),
+      base::BindOnce(
+          [](int *count, DaoBrowserToolResult result) {
+            ++*count;
+            EXPECT_FALSE(result.ok);
+            ASSERT_TRUE(result.error.has_value());
+            EXPECT_EQ(DaoToolErrorCode::kToolCancelled, result.error->code);
+          },
+          &callback_count));
+  devtools_client_->SetCommandCallbackForTesting(
+      DaoDevToolsClient::CommandCallbackForTesting());
+
+  EXPECT_FALSE(page_tools);
+  EXPECT_EQ(1, command_count);
+  EXPECT_EQ(1, callback_count);
+  EXPECT_EQ(0u, devtools_client_->pending_command_count_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
                        PageToolsCancelReentrantExecuteIsRejected) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   content::WebContents *target =
@@ -1563,27 +1869,221 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
-                       KeyRuntimeExceptionIsTypedFailure) {
+                       KeyChordUsesTrustedEventsAndDefaultEditing) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   auto session = MakeSessionForActiveTab();
-  content::WebContents *target = session->ResolveTarget().value();
-  ASSERT_TRUE(content::EvalJs(target, R"(
-    (() => {
-      document.body.dispatchEvent = () => {
-        throw new Error('keyboard dispatch failed');
-      };
-      return true;
-    })()
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<form><input id="first"><input id="second">' +
+        '<button type="submit">Submit</button></form>';
+    window.submitted = 0;
+    window.keys = [];
+    document.querySelector('form').onsubmit = e => { e.preventDefault(); ++window.submitted; };
+    document.addEventListener('keydown', e => window.keys.push(e.isTrusted));
+    document.body.dispatchEvent = () => { throw new Error('synthetic dispatch'); };
+    document.getElementById('first').focus();
+  )"));
+  for (const char* chord : {"a", "shift+b", "Backspace", "Tab"}) {
+    auto result = Execute(session.get(), "press_key_chord",
+                          base::DictValue().Set("keys", chord));
+    ASSERT_TRUE(result.ok) << result.error->message;
+  }
+  EXPECT_EQ("a",
+            content::EvalJs(target, "document.getElementById('first').value"));
+  EXPECT_EQ("second", content::EvalJs(target, "document.activeElement.id"));
+  EXPECT_TRUE(Execute(session.get(), "press_key_chord",
+                      base::DictValue().Set("keys", "shift+Tab"))
+                  .ok);
+  EXPECT_EQ("first", content::EvalJs(target, "document.activeElement.id"));
+#if BUILDFLAG(IS_MAC)
+  const char* select_all = "cmd+a";
+#else
+  const char* select_all = "ctrl+a";
+#endif
+  EXPECT_TRUE(Execute(session.get(), "press_key_chord",
+                      base::DictValue().Set("keys", select_all))
+                  .ok);
+  EXPECT_TRUE(Execute(session.get(), "press_key_chord",
+                      base::DictValue().Set("keys", "Backspace"))
+                  .ok);
+  EXPECT_EQ("",
+            content::EvalJs(target, "document.getElementById('first').value"));
+  EXPECT_TRUE(Execute(session.get(), "press_key_chord",
+                      base::DictValue().Set("keys", "Enter"))
+                  .ok);
+  EXPECT_EQ(1, content::EvalJs(target, "window.submitted"));
+  EXPECT_TRUE(
+      content::EvalJs(target, "window.keys.every(Boolean)").ExtractBool());
+  EXPECT_FALSE(Execute(session.get(), "press_key_chord",
+                       base::DictValue().Set("keys", "bad+Enter"))
+                   .ok);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       KeyChordReleasesKeyAfterCancellation) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<input id="field">';
+    window.keyEvents = [];
+    field.focus();
+    field.onkeydown = e => {
+      e.preventDefault();
+      keyEvents.push('down');
+      domAutomationController.send('keydown');
+      const deadline = performance.now() + 1000;
+      while (performance.now() < deadline) {}
+    };
+    field.onkeyup = () => keyEvents.push('up');
+  )"));
+  content::DOMMessageQueue messages(target);
+  DaoBrowserToolCall call;
+  call.request_id = "cancel-key-chord";
+  call.name = "press_key_chord";
+  call.arguments = base::DictValue().Set("keys", "ArrowDown");
+  call.timeout = base::Seconds(5);
+  base::test::TestFuture<DaoBrowserToolResult> future;
+  executor_->Execute(session.get(), DaoToolClient::kMcp, std::move(call),
+                     future.GetCallback());
+  std::string message;
+  ASSERT_TRUE(messages.WaitForMessage(&message));
+  ASSERT_EQ("\"keydown\"", message);
+  executor_->Cancel("cancel-key-chord");
+  auto result = future.Take();
+  ASSERT_TRUE(result.error);
+  EXPECT_EQ(DaoToolErrorCode::kToolCancelled, result.error->code);
+  EXPECT_EQ("down,up", content::EvalJs(target, R"(
+    new Promise(resolve => setTimeout(() => resolve(keyEvents.join(',')), 100))
+  )"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       KeyChordPreservesShortcutCaseAndExplicitShift) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<input id="field" value="abc">';
+    window.field = document.getElementById('field');
+    window.keys = [];
+    window.field.onkeydown = e => window.keys.push({
+      key: e.key, shift: e.shiftKey, trusted: e.isTrusted
+    });
+    window.field.focus();
+  )"));
+#if BUILDFLAG(IS_MAC)
+  const std::array<const char*, 2> select_all = {"cmd+a", "Cmd+A"};
+  const char* shifted_shortcut = "Cmd+Shift+A";
+#else
+  const std::array<const char*, 2> select_all = {"ctrl+a", "Ctrl+A"};
+  const char* shifted_shortcut = "Ctrl+Shift+A";
+#endif
+  for (const char* chord : select_all) {
+    SCOPED_TRACE(chord);
+    ASSERT_TRUE(content::ExecJs(target, R"(
+      window.field.setSelectionRange(1, 1);
+      window.keys = [];
+    )"));
+    auto result = Execute(session.get(), "press_key_chord",
+                          base::DictValue().Set("keys", chord));
+    ASSERT_TRUE(result.ok) << result.error->message;
+    EXPECT_TRUE(content::EvalJs(target, R"(
+      window.field.selectionStart === 0 && window.field.selectionEnd === 3 &&
+      window.keys.length === 1 && window.keys[0].key === 'a' &&
+      !window.keys[0].shift && window.keys[0].trusted
+    )")
+                    .ExtractBool());
+  }
+  ASSERT_TRUE(content::ExecJs(target, "window.keys = [];"));
+  auto shifted = Execute(session.get(), "press_key_chord",
+                         base::DictValue().Set("keys", shifted_shortcut));
+  ASSERT_TRUE(shifted.ok) << shifted.error->message;
+  EXPECT_TRUE(content::EvalJs(target, R"(
+    window.keys.length === 1 && window.keys[0].key === 'A' &&
+    window.keys[0].shift && window.keys[0].trusted
   )")
                   .ExtractBool());
 
-  DaoBrowserToolResult result = Execute(session.get(), "press_key_chord",
-                                        base::DictValue().Set("keys", "Enter"));
-
-  ASSERT_FALSE(result.ok);
-  ASSERT_TRUE(result.error.has_value());
-  EXPECT_EQ(DaoToolErrorCode::kInternalError, result.error->code);
+  for (const char* chord : {"A", "shift+a"}) {
+    SCOPED_TRACE(chord);
+    ASSERT_TRUE(content::ExecJs(target, R"(
+      window.field.value = '';
+      window.keys = [];
+    )"));
+    auto result = Execute(session.get(), "press_key_chord",
+                          base::DictValue().Set("keys", chord));
+    ASSERT_TRUE(result.ok) << result.error->message;
+    EXPECT_EQ("A", content::EvalJs(target, "window.field.value"));
+    EXPECT_TRUE(content::EvalJs(target, R"(
+      window.keys.length === 1 && window.keys[0].key === 'A' &&
+      window.keys[0].shift && window.keys[0].trusted
+    )")
+                    .ExtractBool());
+  }
 }
+
+#if BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       KeyChordUsesMacLineEditingCommands) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<textarea id="field"></textarea>';
+    window.field = document.getElementById('field');
+    window.field.value = 'first\nsecond';
+    window.keys = [];
+    window.field.onkeydown = e => window.keys.push(e.isTrusted);
+    window.field.focus();
+  )"));
+  const std::array<std::tuple<const char*, int, int>, 8> movements = {{
+      {"Cmd+ArrowLeft", 6, 6},
+      {"Cmd+ArrowRight", 12, 12},
+      {"Cmd+Shift+ArrowLeft", 6, 9},
+      {"Cmd+Shift+ArrowRight", 9, 12},
+      {"Cmd+ArrowUp", 0, 0},
+      {"Cmd+ArrowDown", 12, 12},
+      {"Cmd+Shift+ArrowUp", 0, 9},
+      {"Cmd+Shift+ArrowDown", 9, 12},
+  }};
+  for (const auto& [chord, start, end] : movements) {
+    SCOPED_TRACE(chord);
+    ASSERT_TRUE(
+        content::ExecJs(target, "window.field.setSelectionRange(9, 9);"));
+    auto result = Execute(session.get(), "press_key_chord",
+                          base::DictValue().Set("keys", chord));
+    ASSERT_TRUE(result.ok) << result.error->message;
+    EXPECT_EQ(start, content::EvalJs(target, "window.field.selectionStart"));
+    EXPECT_EQ(end, content::EvalJs(target, "window.field.selectionEnd"));
+    EXPECT_EQ("first\nsecond", content::EvalJs(target, "window.field.value"));
+  }
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    window.field.setSelectionRange(9, 9);
+    window.inputs = [];
+    window.field.oninput = e => window.inputs.push(e.isTrusted);
+  )"));
+  auto deleted = Execute(session.get(), "press_key_chord",
+                         base::DictValue().Set("keys", "Cmd+Backspace"));
+  ASSERT_TRUE(deleted.ok) << deleted.error->message;
+  EXPECT_EQ("first\nond", content::EvalJs(target, "window.field.value"));
+  EXPECT_EQ(6, content::EvalJs(target, "window.field.selectionStart"));
+  EXPECT_EQ(6, content::EvalJs(target, "window.field.selectionEnd"));
+  EXPECT_TRUE(content::EvalJs(target, R"(
+    window.keys.length === 9 && window.keys.every(Boolean) &&
+    window.inputs.length === 1 && window.inputs[0]
+  )")
+                  .ExtractBool());
+  auto undone = Execute(session.get(), "press_key_chord",
+                        base::DictValue().Set("keys", "Cmd+Z"));
+  ASSERT_TRUE(undone.ok) << undone.error->message;
+  EXPECT_EQ("first\nsecond", content::EvalJs(target, "window.field.value"));
+  auto redone = Execute(session.get(), "press_key_chord",
+                        base::DictValue().Set("keys", "Cmd+Shift+Z"));
+  ASSERT_TRUE(redone.ok) << redone.error->message;
+  EXPECT_EQ("first\nond", content::EvalJs(target, "window.field.value"));
+}
+#endif
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
                        ScriptRuntimeExceptionIsTypedFailureAndUnlocks) {

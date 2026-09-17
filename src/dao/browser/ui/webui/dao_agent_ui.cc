@@ -472,6 +472,13 @@ void DaoAgentUIHandler::RegisterMessages() {
       "clickByRef", base::BindRepeating(&DaoAgentUIHandler::HandleClickByRef,
                                         base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "fillByRef", base::BindRepeating(&DaoAgentUIHandler::HandleFillByRef,
+                                       base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "waitForElement",
+      base::BindRepeating(&DaoAgentUIHandler::HandleWaitForElement,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "captureScreenshot",
       base::BindRepeating(&DaoAgentUIHandler::HandleCaptureScreenshot,
                           base::Unretained(this)));
@@ -1577,6 +1584,26 @@ void DaoAgentUIHandler::HandleClickByRef(const base::ListValue& args) {
   }
   ExecutePageTool(
       args[0].GetString(), "click_by_ref",
+      args[1].is_dict() ? args[1].GetDict().Clone() : base::DictValue());
+}
+
+void DaoAgentUIHandler::HandleFillByRef(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  ExecutePageTool(
+      args[0].GetString(), "fill_by_ref",
+      args[1].is_dict() ? args[1].GetDict().Clone() : base::DictValue());
+}
+
+void DaoAgentUIHandler::HandleWaitForElement(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  ExecutePageTool(
+      args[0].GetString(), "wait_for_element",
       args[1].is_dict() ? args[1].GetDict().Clone() : base::DictValue());
 }
 

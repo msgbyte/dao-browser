@@ -176,6 +176,8 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void HandleGetAccessibilityTree(const base::ListValue& args);
   void HandleQueryElements(const base::ListValue& args);
   void HandleClickByRef(const base::ListValue& args);
+  void HandleFillByRef(const base::ListValue& args);
+  void HandleWaitForElement(const base::ListValue& args);
   void HandleCaptureScreenshot(const base::ListValue& args);
   void HandleScrollPage(const base::ListValue& args);
   void HandleScrollToElement(const base::ListValue& args);

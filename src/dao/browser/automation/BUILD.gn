@@ -49,5 +49,6 @@ source_set("browser_automation") {
     "//dao/browser/ui/webui/resources/agent:resources",
     "//third_party/re2",
     "//ui/base",
+    "//ui/events:events_base",
   ]
 }

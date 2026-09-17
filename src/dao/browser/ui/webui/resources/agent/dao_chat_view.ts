@@ -37,7 +37,7 @@ import {
 } from './dao_share_image.js';
 import {reportTelemetryEvent} from './dao_telemetry.js';
 import {lookupCostByModelId} from './llm_cost.js';
-import {buildAgentTools} from './pi_tool_adapter.js';
+import {buildAgentTools, createBrowserToolExecutionHooks} from './pi_tool_adapter.js';
 import {initializeBrowserToolCatalog} from './browser_tool_catalog.js';
 import {toolConfigChannel} from './tool_catalog.js';
 import './dao_chat_history_panel.js';
@@ -1194,6 +1194,7 @@ export class DaoChatView extends CrLitElement {
         model.reasoning ? 'medium' : 'off';
 
     this.agent_ = new Agent({
+      ...createBrowserToolExecutionHooks(),
       initialState: {
         systemPrompt: this.buildSystemPrompt_(),
         model,

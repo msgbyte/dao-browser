@@ -143,6 +143,7 @@ vi.mock('../dao_telemetry.js', () => ({
 
 vi.mock('../pi_tool_adapter.js', () => ({
   buildAgentTools: () => [],
+  createBrowserToolExecutionHooks: () => ({}),
 }));
 
 vi.mock('../browser_tool_catalog.js', () => ({

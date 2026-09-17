@@ -4,7 +4,7 @@
 
 // Bridges Dao's existing `ToolDefinition[]` (JSON Schema) into pi-agent-core's
 // `AgentTool<TSchema>[]` contract so pi-web-ui's ChatPanel can consume the
-// same 30 tools that PR1/PR2 shipped. Every `execute()` delegates to the
+// Dao tools. Every `execute()` delegates to the
 // existing `executeTool(name, args)` in agent_bridge so side effects like
 // `lock_tab`, `save_memory`, and `save_skill` continue to work unchanged.
 
@@ -14,6 +14,7 @@ import {
   recordToolCall,
 } from './agent_bridge.js';
 import type {ToolDefinition} from './agent_bridge.js';
+import {getCatalogEntries} from './browser_tool_catalog.js';
 import {registerDaoToolRenderers} from './dao_tool_renderer.js';
 import {isToolEnabled} from './tool_catalog.js';
 
@@ -55,11 +56,11 @@ function nativeToolError(result: unknown): Error|null {
     return null;
   }
   const record = result as Record<string, unknown>;
-  if (typeof record['error'] !== 'string' ||
-      typeof record['code'] !== 'string') {
+  if (typeof record['error'] !== 'string') {
     return null;
   }
   const code = record['code'];
+  if (typeof code !== 'string') return new Error(record['error']);
   return Object.assign(new Error(`${record['error']} [code: ${code}]`), {
     code,
     retryable: record['retryable'] === true,
@@ -70,13 +71,14 @@ function nativeToolError(result: unknown): Error|null {
 // runtime. The JSON Schema parameters object is passed through verbatim —
 // TypeBox schemas are structurally compatible with JSON Schema at runtime,
 // and pi-agent-core only inspects the schema when validating arguments.
-function adaptOne(def: ToolDefinition): AgentTool {
+function adaptOne(def: ToolDefinition, browserTools: Set<string>): AgentTool {
   const name = def.function.name;
   return {
     name,
     description: def.function.description,
     parameters: def.function.parameters,
     label: name.replace(/_/g, ' '),
+    executionMode: browserTools.has(name) ? 'sequential' : undefined,
     execute: async (
         _toolCallId: string,
         params: Record<string, unknown>,
@@ -145,9 +147,46 @@ export function buildAgentTools(): AgentTool[] {
   // are still registered for every known tool name (cheap, idempotent) so a
   // re-enabled tool renders correctly on the next turn without re-init.
   const definitions = getAgentToolDefinitions();
+  const browserTools = new Set(getCatalogEntries('dao_agent').map(t => t.name));
   const adapted = definitions
       .filter(t => isToolEnabled(t.function.name))
-      .map(adaptOne);
+      .map(def => adaptOne(def, browserTools));
   registerDaoToolRenderers(definitions.map(t => t.function.name));
   return adapted;
+}
+
+type ToolCallContext = {
+  assistantMessage: {content: Array<{type: string}>};
+  toolCall: {type: string; name: string};
+};
+
+export function createBrowserToolExecutionHooks() {
+  const browserTools = new Set(getCatalogEntries('dao_agent').map(t => t.name));
+  const completed = new WeakMap<object, Set<object>>();
+  return {
+    beforeToolCall({assistantMessage, toolCall}: ToolCallContext) {
+      if (!browserTools.has(toolCall.name)) return undefined;
+      const succeeded = completed.get(assistantMessage);
+      for (const part of assistantMessage.content) {
+        if (part === toolCall) break;
+        // Validation failures bypass afterToolCall in pi. Require evidence of
+        // success for every preceding call before acting on the browser.
+        if (part.type === 'toolCall' && !succeeded?.has(part)) {
+          return {
+            block: true,
+            reason: 'Skipped browser action because an earlier tool call in ' +
+                'this batch failed. Inspect the error and replan.',
+          };
+        }
+      }
+      return undefined;
+    },
+    afterToolCall({assistantMessage, toolCall, isError}:
+        ToolCallContext&{isError: boolean}) {
+      if (isError) return;
+      let succeeded = completed.get(assistantMessage);
+      if (!succeeded) completed.set(assistantMessage, succeeded = new Set());
+      succeeded.add(toolCall);
+    },
+  };
 }
