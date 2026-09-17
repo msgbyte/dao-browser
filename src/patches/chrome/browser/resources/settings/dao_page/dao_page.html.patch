@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,704 @@
+@@ -0,0 +1,706 @@
 +<style include="settings-shared">
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
@@ -183,6 +183,8 @@ index 0000000000..0000000001
 +    display: grid;
 +    gap: 8px;
 +    margin-top: 12px;
++    max-height: 240px;
++    overflow-y: auto;
 +  }
 +
 +  .dao-mcp-usage-count {
