@@ -60,11 +60,7 @@ struct NewTabView: View {
                     ZStack(alignment: .trailing) {
                         IconButton(icon: "x", label: query.isEmpty ? "cancel" : "clear") {
                             if !query.isEmpty { query = "" }
-                            else {
-                                focused = false
-                                withAnimation(reduceMotion ? nil : Nova.animation) { expanded = false }
-                                model.addressEditing = false
-                            }
+                            else { cancelEditing() }
                         }
                         .opacity(expanded ? 1 : 0).allowsHitTesting(expanded).accessibilityHidden(!expanded)
                         HStack(spacing: 4) {
@@ -91,8 +87,14 @@ struct NewTabView: View {
                         }
                     }.padding(.top, 16)
                 }.scrollDismissesKeyboard(.interactively)
+                    .contentShape(Rectangle())
+                    .onTapGesture { cancelEditing() }
                     .opacity(expanded ? 1 : 0).allowsHitTesting(expanded).accessibilityHidden(!expanded)
             }
+        }.background {
+            Color.clear.contentShape(Rectangle())
+                .onTapGesture { cancelEditing() }
+                .allowsHitTesting(expanded)
         }.onAppear {
             if model.addressEditing {
                 query = model.selected.record.url
@@ -111,6 +113,13 @@ struct NewTabView: View {
         withAnimation(reduceMotion ? nil : Nova.animation) { expanded = true } completion: {
             if expanded { focused = true }
         }
+    }
+
+    private func cancelEditing() {
+        focused = false
+        query = ""
+        withAnimation(reduceMotion ? nil : Nova.animation) { expanded = false }
+        model.addressEditing = false
     }
 }
 

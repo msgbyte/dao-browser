@@ -5,7 +5,7 @@ iOS 18.4+. It is not a claim of Android feature parity or completed device QA.
 
 | Surface | Implemented behavior | Source |
 | --- | --- | --- |
-| New tab | Dao branding, localized greeting/date, search pill 32 points below the banner, one persistent input that moves upward before receiving focus, saved-page suggestions, scanner entry | `NewTabView.swift` |
+| New tab | Dao branding, localized greeting/date, search pill 32 points below the banner, one persistent input that moves upward before receiving focus, saved-page suggestions, scanner entry; tapping blank space cancels editing, discards unsubmitted input and hides the keyboard and suggestions, restoring the new tab or the previously browsed page | `NewTabView.swift` |
 | Browser | WKWebView extending behind the home indicator without an app-colored bottom strip, keyboard-safe layout, URL/loading chrome with an address-edit hit area covering text, surrounding space and the private indicator; independent site-information button; history gestures, pull to refresh, native page find, sharing, page QR, certificate chain/fingerprints, failure/reload view | `BrowserView.swift`, `BrowserSheets.swift`, `BrowserSession.swift` |
 | Right drawer | Back/forward/reload; a three-column, two-row grid for home, bookmark, read-later, share, page QR and find with consistent tile styling; library and settings remain list rows; slides in/out above the page unless Reduce Motion is enabled; dismiss by tapping outside or using VoiceOver escape, with no dedicated close button | `BrowserView.swift` |
 | Tabs | Two-column snapshot grid, select, add regular/private tab, close button and swipe right, last-tab replacement | `NewTabView.swift`, `BrowserModel.swift` |

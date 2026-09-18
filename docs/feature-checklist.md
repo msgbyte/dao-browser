@@ -32,6 +32,13 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   above/below it, and the private indicator: each opens address editing with
   keyboard focus. Verify regular/private tabs and short/long hosts; the separate
   site-information button still opens security details without entering editing.
+- [ ] Expand address editing on a loaded page, change or clear the input, then
+  tap blank space beside the input or below the suggestions: the keyboard and
+  suggestions close without navigating, preserving the selected tab, page and
+  scroll position. Repeat with no matching suggestions and after scrolling to
+  dismiss the keyboard. On a new tab, blank-space taps restore the collapsed
+  search pill and discard unsubmitted input. Input taps, clear and suggestion
+  selection still work; reopening a page address shows its current URL.
 - [ ] Open the iOS browsing drawer: home, bookmark, read-later, share, page QR and
   find form exactly three columns and two rows with matching tile styling and
   readable localized labels. Verify sharing opens the native sheet; library and
