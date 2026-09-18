@@ -75,6 +75,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 ### 1.4 Address Bar and Active-Tab URL
 - **DaoAddressBarView** (`dao_address_bar_view.{h,cc}`) — Embedded URL pill (14px radius), referenced by sidebar / command bar / control center; adapts text color to background luminance
   - Shows a separately clickable red Lucide `ShieldOff` before the URL pill when Chromium reports a warning or dangerous connection state; clicking it opens native Page Info
+  - The stop/reload button and page-load glow follow Chromium's loading UI
+    state. Late iframe loads and same-document navigation stay quiet, including
+    when switching tabs; normal page navigation still shows loading feedback.
 - Active-tab URL display is rendered inline in the dual-line tab item
 - **Native Side Panel compatibility** — Chromium Side Panel content and its
   40px header remain client-hit-testable where they overlap Dao's macOS

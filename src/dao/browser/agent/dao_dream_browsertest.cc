@@ -50,6 +50,7 @@
 #include "dao/browser/agent/dao_weekly_dream_material_collector.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/ui/webui/dao_agent_ui.h"
+#include "net/dns/mock_host_resolver.h"
 #include "url/gurl.h"
 
 namespace dao {

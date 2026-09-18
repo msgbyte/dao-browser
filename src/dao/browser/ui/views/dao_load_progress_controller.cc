@@ -38,13 +38,9 @@ void DaoLoadProgressController::AttachToWebContents(
     content::WebContents* new_contents) {
   // Detach from previous (no-op if same).
   Observe(new_contents);
+  showing_loading_ui_ = new_contents && new_contents->ShouldShowLoadingUI();
 
-  if (!new_contents) {
-    view_->HideImmediately();
-    return;
-  }
-
-  if (new_contents->IsLoading()) {
+  if (showing_loading_ui_) {
     // Sync the view to the new tab's current progress without animating.
     view_->StartLoading();
     view_->SetTargetProgress(new_contents->GetLoadProgress(),
@@ -54,19 +50,36 @@ void DaoLoadProgressController::AttachToWebContents(
   }
 }
 
+void DaoLoadProgressController::OnTabChangedAt(tabs::TabInterface* tab,
+                                               int index,
+                                               TabChangeType change_type) {
+  if (change_type != TabChangeType::kLoadingOnly ||
+      index != tab_strip_model_->active_index() || !web_contents()) {
+    return;
+  }
+
+  // Unlike DidStartLoading/DidStopLoading, this also reports transitions
+  // between a background subframe load and a navigation that needs UI.
+  const bool show_loading_ui = web_contents()->ShouldShowLoadingUI();
+  if (showing_loading_ui_ == show_loading_ui) {
+    return;
+  }
+  showing_loading_ui_ = show_loading_ui;
+  if (showing_loading_ui_) {
+    view_->StartLoading();
+  } else {
+    view_->FinishLoading();
+  }
+}
+
 void DaoLoadProgressController::LoadProgressChanged(double progress) {
-  view_->SetTargetProgress(progress, /*animate=*/true);
-}
-
-void DaoLoadProgressController::DidStartLoading() {
-  view_->StartLoading();
-}
-
-void DaoLoadProgressController::DidStopLoading() {
-  view_->FinishLoading();
+  if (showing_loading_ui_) {
+    view_->SetTargetProgress(progress, /*animate=*/true);
+  }
 }
 
 void DaoLoadProgressController::WebContentsDestroyed() {
+  showing_loading_ui_ = false;
   view_->HideImmediately();
 }
 

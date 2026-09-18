@@ -416,7 +416,8 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   auto stop_refresh_btn = std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnStopRefreshButtonPressed,
                           base::Unretained(this)),
-      LucideIcon::kRotateCw, u"Reload");
+      LucideIcon::kRotateCw,
+      l10n_util::GetStringUTF16(IDS_DAO_ADDRESS_BAR_RELOAD_ACCESSIBLE_NAME));
   stop_refresh_btn->SetAnimateOnPress(true);
   stop_refresh_button_ = AddChildView(std::move(stop_refresh_btn));
 
@@ -542,6 +543,10 @@ void DaoAddressBarView::OnTabChangedAt(tabs::TabInterface* tab,
                                        TabChangeType change_type) {
   // Only update if the changed tab is the active one
   if (tab_strip_model_ && index == tab_strip_model_->active_index()) {
+    if (change_type == TabChangeType::kLoadingOnly) {
+      UpdateStopRefreshButton();
+      return;
+    }
     UpdateURL();
     UpdateBackgroundColor();
   }
@@ -1018,7 +1023,11 @@ void DaoAddressBarView::UpdateStopRefreshButton() {
     return;
   }
   content::WebContents* contents = tab_strip_model_->GetActiveWebContents();
-  is_loading_ = contents && contents->IsLoading();
+  const bool is_loading = contents && contents->ShouldShowLoadingUI();
+  if (is_loading_ == is_loading) {
+    return;
+  }
+  is_loading_ = is_loading;
 
   auto* btn = static_cast<NavIconButton*>(stop_refresh_button_.get());
   if (is_loading_) {

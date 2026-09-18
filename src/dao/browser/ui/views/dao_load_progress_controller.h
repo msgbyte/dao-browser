@@ -36,11 +36,12 @@ class DaoLoadProgressController : public TabStripModelObserver,
       TabStripModel* tab_strip_model,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
+  void OnTabChangedAt(tabs::TabInterface* tab,
+                      int index,
+                      TabChangeType change_type) override;
 
   // content::WebContentsObserver:
   void LoadProgressChanged(double progress) override;
-  void DidStartLoading() override;
-  void DidStopLoading() override;
   void WebContentsDestroyed() override;
 
  private:
@@ -49,6 +50,7 @@ class DaoLoadProgressController : public TabStripModelObserver,
 
   raw_ptr<TabStripModel> tab_strip_model_;
   raw_ptr<DaoLoadProgressView> view_;
+  bool showing_loading_ui_ = false;
 };
 
 }  // namespace dao

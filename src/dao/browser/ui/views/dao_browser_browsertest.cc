@@ -109,7 +109,6 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
-#include "content/public/test/browser_test_clipboard_scope.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/download_test_observer.h"
 #include "content/public/test/slow_download_http_response.h"
@@ -195,8 +194,8 @@
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/clipboard/clipboard.h"
-#include "ui/base/clipboard/clipboard_test_util.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
@@ -7898,7 +7897,7 @@ IN_PROC_BROWSER_TEST_F(DaoAutoPipVisibilityHelperBrowserTest,
   EXPECT_EQ(helper, dao::DaoAutoPipVisibilityHelper::FromWebContents(contents));
 }
 
-namespace dao {
+}  // namespace
 
 using DaoAutoPipContentSettingBrowserTest = InProcessBrowserTest;
 
@@ -7921,7 +7920,7 @@ IN_PROC_BROWSER_TEST_F(DaoAutoPipContentSettingBrowserTest,
   EXPECT_TRUE(helper->IsAutoPictureInPictureAllowed());
 }
 
-}  // namespace dao
+namespace {
 
 // =============================================================================
 // DaoWebstoreBrandingTabHelperBrowserTest
@@ -12143,6 +12142,95 @@ IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest, StopCommandHidesBar) {
 
   EXPECT_LE(progress->layer()->opacity(), 0.01f);
   EXPECT_FALSE(progress->is_loading_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest,
+                       LateSubframeLoadDoesNotShowLoadingUI) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* progress = browser_view->dao_load_progress();
+  auto* address_bar = browser_view->dao_address_bar();
+  ASSERT_TRUE(progress);
+  ASSERT_TRUE(address_bar);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/title1.html")));
+  ASSERT_TRUE(AddTabAtIndex(1, embedded_test_server()->GetURL("/title2.html"),
+                            ui::PAGE_TRANSITION_TYPED));
+  auto* tab_strip = browser()->tab_strip_model();
+  tab_strip->ActivateTabAt(0);
+  ASSERT_EQ(progress->layer()->opacity(), 0.0f);
+
+  auto* contents = tab_strip->GetActiveWebContents();
+  const GURL iframe_url = embedded_test_server()->GetURL("/title2.html?iframe");
+  content::TestNavigationManager iframe_navigation(contents, iframe_url);
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(R"(
+    const iframe = document.createElement('iframe');
+    iframe.src = $1;
+    document.body.appendChild(iframe);
+  )",
+                                                           iframe_url)));
+  ASSERT_TRUE(iframe_navigation.WaitForRequestStart());
+  ASSERT_TRUE(contents->IsLoading());
+  ASSERT_FALSE(contents->ShouldShowLoadingUI());
+  EXPECT_FALSE(progress->is_loading_for_testing());
+  EXPECT_EQ(progress->layer()->opacity(), 0.0f);
+  EXPECT_TRUE(FindButtonWithAccessibleName(
+      address_bar,
+      l10n_util::GetStringUTF16(IDS_DAO_ADDRESS_BAR_RELOAD_ACCESSIBLE_NAME)));
+
+  // Attaching to a tab with a pending background load must also stay quiet.
+  tab_strip->ActivateTabAt(1);
+  tab_strip->ActivateTabAt(0);
+  EXPECT_FALSE(progress->is_loading_for_testing());
+  EXPECT_EQ(progress->layer()->opacity(), 0.0f);
+  EXPECT_TRUE(FindButtonWithAccessibleName(
+      address_bar,
+      l10n_util::GetStringUTF16(IDS_DAO_ADDRESS_BAR_RELOAD_ACCESSIBLE_NAME)));
+
+  // A main-frame navigation still needs UI even though IsLoading was true.
+  const GURL main_url = embedded_test_server()->GetURL("/title3.html");
+  content::TestNavigationManager main_navigation(contents, main_url);
+  browser()->OpenURL(content::OpenURLParams(main_url, content::Referrer(),
+                                            WindowOpenDisposition::CURRENT_TAB,
+                                            ui::PAGE_TRANSITION_TYPED,
+                                            /*is_renderer_initiated=*/false),
+                     /*navigation_handle_callback=*/{});
+  ASSERT_TRUE(main_navigation.WaitForRequestStart());
+  ASSERT_TRUE(contents->ShouldShowLoadingUI());
+  EXPECT_TRUE(progress->is_loading_for_testing());
+  EXPECT_GT(progress->layer()->opacity(), 0.0f);
+  EXPECT_TRUE(FindButtonWithAccessibleName(
+      address_bar, l10n_util::GetStringUTF16(
+                       IDS_DAO_ADDRESS_BAR_STOP_LOADING_ACCESSIBLE_NAME)));
+
+  ASSERT_TRUE(main_navigation.WaitForNavigationFinished());
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return progress->layer()->opacity() == 0.0f; }));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest,
+                       SameDocumentNavigationDoesNotShowLoadingUI) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* progress = browser_view->dao_load_progress();
+  ASSERT_TRUE(progress);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/title1.html")));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return progress->layer()->opacity() == 0.0f; }));
+
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  content::TestNavigationObserver navigation(contents);
+  ASSERT_TRUE(
+      content::ExecJs(contents, "history.pushState({}, '', '#updated')"));
+  navigation.Wait();
+
+  EXPECT_FALSE(contents->ShouldShowLoadingUI());
+  EXPECT_FALSE(progress->is_loading_for_testing());
+  EXPECT_EQ(progress->layer()->opacity(), 0.0f);
+  EXPECT_TRUE(FindButtonWithAccessibleName(
+      browser_view->dao_address_bar(),
+      l10n_util::GetStringUTF16(IDS_DAO_ADDRESS_BAR_RELOAD_ACCESSIBLE_NAME)));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLoadProgressBrowserTest,
