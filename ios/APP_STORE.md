@@ -164,8 +164,11 @@ Screenshot capture and visual acceptance are still pending; no UI automation was
   still require the first CI signing/upload run).
 - [ ] Complete a hosted Xcode 26+ signed build and Apple processing. The local
   Xcode 16.3 unsigned build is development evidence only.
-- [ ] Resolve export compliance based on the actual WebKit/CryptoKit usage; do
-  not add an encryption-exemption declaration without checking its applicability.
+- [ ] Confirm the uploaded build includes `ITSAppUsesNonExemptEncryption=false`
+  and clears export compliance. This declaration covers the current system
+  WebKit networking and CryptoKit certificate fingerprints; reassess it before
+  adding custom or third-party cryptography. Older uploads missing the key still
+  require the per-build questionnaire in App Store Connect.
 - [ ] Install from TestFlight on a real iPhone. Run the
   [iOS regression checklist](../docs/feature-checklist.md#ios-native-browser),
   including the oldest supported iOS and the current iOS, permissions, privacy,

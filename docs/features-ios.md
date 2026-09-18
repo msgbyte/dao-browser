@@ -40,3 +40,7 @@ success does not prove TestFlight acceptance or App Store approval. The same
 tested build can be selected for App Store review. See the
 [setup and release guide](../ios/README.md#testflight-and-app-store-distribution).
 The app includes a privacy manifest for its app-local UserDefaults access.
+Builds declare `ITSAppUsesNonExemptEncryption=false` for the current system
+WebKit networking and CryptoKit certificate fingerprints to avoid repeated
+App Store Connect encryption questions. Reassess this declaration if adding
+custom or third-party cryptography.

@@ -170,9 +170,14 @@ A successful workflow means Apple accepted the upload, not that processing,
 testing, or review succeeded. In App Store Connect → the app → TestFlight:
 
 1. Wait for the matching version/build to finish processing. Resolve any build
-   validation errors and answer the export-compliance questions accurately.
-   The app uses WebKit networking and CryptoKit for certificate fingerprints;
-   the workflow does not pre-answer the encryption declaration.
+   validation errors. `project.yml` sets `ITSAppUsesNonExemptEncryption` to
+   `false` in the generated Info.plist: the app uses system WebKit networking
+   and CryptoKit SHA-256 certificate fingerprints, with no bundled third-party
+   encryption implementation. Apple's [export-compliance guidance](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations)
+   allows this declaration for exempt encryption, avoiding repeated questions
+   for new builds. Older uploads showing **Missing Compliance** still need
+   **Manage** answered once for that build. Reassess the declaration if adding
+   custom or third-party cryptography.
 2. Create an internal testing group, add yourself, and enable automatic build
    distribution for that group if desired. Install through TestFlight on a real
    iPhone. External testers require TestFlight test information and, when Apple

@@ -69,8 +69,10 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   unsupported-extension placeholder page.
 - [ ] Run **Publish iOS to TestFlight** on `main` with valid, unexpired App Store
   signing credentials for `com.msgbyte.dao` and a new build number. Confirm the
-  Release IPA has that bundle ID and contains
-  the app icon and `PrivacyInfo.xcprivacy`; confirm the workflow cleans up its
+  Release IPA has that bundle ID, contains the app icon and
+  `PrivacyInfo.xcprivacy`, and declares the Boolean
+  `ITSAppUsesNonExemptEncryption=false` in its Info.plist for the current
+  system-only cryptography; confirm the workflow cleans up its
   temporary signing credentials even on failure.
 - [ ] Confirm that exact build finishes App Store Connect processing, resolve
   export compliance, and install it from TestFlight on a real iPhone. Run the
