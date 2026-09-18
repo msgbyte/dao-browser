@@ -140,6 +140,7 @@ class DaoMcpService {
     return tool_call_completion_count_for_testing_;
   }
   bool connection_active_for_testing() const { return !connections_.empty(); }
+  size_t connection_count_for_testing() const { return connections_.size(); }
 
  private:
   friend class base::NoDestructor<DaoMcpService>;
@@ -196,6 +197,7 @@ class DaoMcpService {
   const ConnectionState* GetDisplayConnection() const;
   void ResetConnectionState(ConnectionState& connection);
   void OnHelloTimeout(uint64_t connection_generation);
+  bool MakeRoomForConnection(const ConnectionState& connection);
 
   void OnRequest(ConnectionState& connection, DaoMcpRequest request);
   void HandleHello(ConnectionState& connection, DaoMcpRequest request);

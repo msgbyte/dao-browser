@@ -177,7 +177,8 @@ before allowing access.
 | `MCP_DISABLED` | Dao is disabled, unavailable, or the browser connection was lost. |
 | `AUTHORIZATION_DENIED` | Approval, nonce, or client authorization failed. |
 | `AUTHORIZATION_TIMEOUT` | Hello or user approval did not finish in time. |
-| `LEASE_BUSY` | The admitted external client could not acquire the shared browser-control lease. A second external socket is rejected by the one-client admission gate. |
+| `TOO_MANY_CLIENTS` | Dao already has 32 MCP clients admitted and every one of them is busy with an approval or a tool call, so nothing idle could be evicted. Retry later or close unused MCP sessions. |
+| `LEASE_BUSY` | The admitted external client could not acquire the shared browser-control lease for its target tab. |
 | `AGENT_CONTROL_BUSY` | Dao Agent attempted a browser tool while MCP held the lease. |
 | `TARGET_FORBIDDEN` | The exact window, Profile, URL, or switch candidate is ineligible. |
 | `TARGET_GONE` | The exact approved window, tab, Profile, or owner no longer exists. |

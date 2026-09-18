@@ -136,7 +136,11 @@ describe('pi_tool_adapter', () => {
         if (mode !== 'success') {
           expect(results[1].content[0].text).toContain('Skipped browser action');
         }
-      });
+      },
+      // The first case pays for importing the vendor bundle, which exceeds the
+      // default 5s on loaded CI runners. A timed-out agent keeps running and
+      // pollutes the next case's mock, so give the whole group headroom.
+      30_000);
 
   beforeEach(() => {
     mocks.executeTool.mockReset();

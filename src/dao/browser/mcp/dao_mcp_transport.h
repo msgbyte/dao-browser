@@ -28,6 +28,11 @@ class UnixDomainServerSocket;
 
 namespace dao {
 
+// Number of clients DaoMcpService keeps admitted at once. When a new client
+// completes hello beyond this count, the service evicts the least recently
+// active idle connection or rejects the newcomer with TOO_MANY_CLIENTS.
+inline constexpr size_t kDaoMcpMaxConnections = 32;
+
 // Owns the Unix socket listener and accepted connections. Every method and
 // callback runs on the browser IO thread.
 class DaoMcpTransport {
@@ -84,6 +89,7 @@ class DaoMcpTransport {
   uint64_t next_connection_generation_ = 1;
   size_t total_pending_request_count_ = 0;
   size_t total_pending_request_bytes_ = 0;
+  bool overflow_logged_ = false;
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<DaoMcpTransport> weak_factory_{this};
 };

@@ -185,6 +185,7 @@ struct DaoMcpService::TargetContext {
 struct DaoMcpService::ConnectionState {
   uint64_t generation = 0;
   bool closing = false;
+  base::TimeTicks last_activity;
   std::optional<base::ProcessId> verified_pid;
   ApprovalState approval_state = ApprovalState::kNotRequested;
   base::TimeTicks approval_deadline;
@@ -785,6 +786,7 @@ void DaoMcpService::OnTransportAccepted(
   }
   auto connection = std::make_unique<ConnectionState>();
   connection->generation = connection_generation;
+  connection->last_activity = base::TimeTicks::Now();
   connection->verified_pid = verified_pid;
   connection->tab_tool_devtools_client = std::make_unique<DaoDevToolsClient>();
   connection->tab_tool_devtools_client->SetCommandCallbackForTesting(
@@ -931,9 +933,54 @@ void DaoMcpService::OnHelloTimeout(uint64_t connection_generation) {
   CloseConnectionAfterWrites(*connection);
 }
 
+bool DaoMcpService::MakeRoomForConnection(const ConnectionState& connection) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Only sockets that completed hello count. Pre-hello sockets are bounded by
+  // the hello timeout and must not be evicted before their hello is handled.
+  size_t admitted = 0;
+  ConnectionState* victim = nullptr;
+  for (auto& [_, candidate] : connections_) {
+    if (candidate.get() == &connection || candidate->closing ||
+        !candidate->client_info) {
+      continue;
+    }
+    ++admitted;
+    const bool busy = candidate->approval_state == ApprovalState::kPending ||
+                      !candidate->pending_tool_calls.empty() ||
+                      !candidate->active_tool_calls.empty();
+    if (busy) {
+      continue;
+    }
+    // Evicting an approved client costs the user another approval prompt, so
+    // never-approved idle sockets go first, then the least recently active.
+    const auto rank = [](const ConnectionState& state) {
+      return std::pair(state.approval_state == ApprovalState::kAllowed,
+                       state.last_activity);
+    };
+    if (!victim || rank(*candidate) < rank(*victim)) {
+      victim = candidate.get();
+    }
+  }
+  if (admitted < kDaoMcpMaxConnections) {
+    return true;
+  }
+  if (!victim) {
+    return false;
+  }
+  // Helpers reconnect lazily on their next request. An evicted approved
+  // client releases its tab leases now and is prompted for approval again.
+  RejectConnection(*victim,
+                   MakeDaoToolError(DaoToolErrorCode::kTooManyClients,
+                                    "The idle MCP connection was closed to "
+                                    "admit a newer client.",
+                                    true));
+  return true;
+}
+
 void DaoMcpService::OnRequest(ConnectionState& connection,
                               DaoMcpRequest request) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  connection.last_activity = base::TimeTicks::Now();
   if (!connection.client_info && request.method != "hello") {
     SendError(connection, request.id,
               InvalidRequest("hello must be the first IPC request."));
@@ -988,6 +1035,15 @@ void DaoMcpService::HandleHello(ConnectionState& connection,
     SendError(
         connection, request.id,
         InvalidRequest("hello requires bounded client name and version."));
+    CloseConnectionAfterWrites(connection);
+    return;
+  }
+  if (!MakeRoomForConnection(connection)) {
+    SendError(connection, request.id,
+              MakeDaoToolError(DaoToolErrorCode::kTooManyClients,
+                               "Too many MCP clients are connected to Dao "
+                               "Browser and all of them are busy.",
+                               true));
     CloseConnectionAfterWrites(connection);
     return;
   }
@@ -1630,6 +1686,7 @@ void DaoMcpService::OnTargetInvalidated(uint64_t connection_generation,
 void DaoMcpService::FailPendingCalls(ConnectionState& connection,
                                      const DaoToolError& error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  connection.last_activity = base::TimeTicks::Now();
   std::vector<std::string> request_ids;
   request_ids.reserve(connection.pending_tool_calls.size());
   for (const auto& [request_id, _] : connection.pending_tool_calls) {
@@ -1652,6 +1709,7 @@ void DaoMcpService::FailPendingCallsForTarget(
     ConnectionState& connection,
     std::string_view target_id,
     const DaoToolError& error) {
+  connection.last_activity = base::TimeTicks::Now();
   std::vector<std::string> request_ids;
   for (const auto& [request_id, pending] : connection.pending_tool_calls) {
     if (pending.target_id == target_id) {
@@ -1768,6 +1826,7 @@ void DaoMcpService::OnToolCallComplete(uint64_t connection_generation,
   if (!connection || !connection->active_tool_calls.erase(request_id)) {
     return;
   }
+  connection->last_activity = base::TimeTicks::Now();
   connection->active_tool_targets.erase(request_id);
   auto bytes = connection->active_tool_call_bytes.find(request_id);
   if (bytes != connection->active_tool_call_bytes.end()) {
