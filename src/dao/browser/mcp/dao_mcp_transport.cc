@@ -22,14 +22,20 @@
 namespace dao {
 namespace {
 
-constexpr size_t kMaxConnections = 32;
-constexpr int kListenerBacklog = static_cast<int>(kMaxConnections);
+// Hard IO-thread ceiling. Admission is enforced by DaoMcpService at hello
+// time (see kDaoMcpMaxConnections), which needs the socket accepted so it can
+// answer with an id-bound error or evict an idle peer. This only bounds
+// sockets while those evictions drain.
+constexpr size_t kMaxConnections = kDaoMcpMaxConnections * 4;
+constexpr int kListenerBacklog = static_cast<int>(kDaoMcpMaxConnections);
 constexpr size_t kMaxPendingRequests = 64;
 constexpr size_t kMaxPendingRequestBytes = kDaoMcpMaxLineBytes + 1;
+// Aggregate credits stay sized for admitted clients: pre-hello sockets send a
+// single hello, so they never need the extra headroom.
 constexpr size_t kMaxTotalPendingRequests =
-    kMaxConnections * kMaxPendingRequests;
+    kDaoMcpMaxConnections * kMaxPendingRequests;
 constexpr size_t kMaxTotalPendingRequestBytes =
-    kMaxConnections * kMaxPendingRequestBytes;
+    kDaoMcpMaxConnections * kMaxPendingRequestBytes;
 constexpr base::TimeDelta kPendingRequestDrainTimeout = base::Seconds(1);
 
 }  // namespace
@@ -98,6 +104,7 @@ void DaoMcpTransport::Stop() {
   connections_.clear();
   total_pending_request_count_ = 0;
   total_pending_request_bytes_ = 0;
+  overflow_logged_ = false;
   accepted_verified_pid_.reset();
   socket_path_.clear();
 }
@@ -207,6 +214,11 @@ void DaoMcpTransport::OnAccepted(int result) {
   }
 
   if (connections_.size() >= kMaxConnections) {
+    if (!overflow_logged_) {
+      overflow_logged_ = true;
+      LOG(ERROR) << "Dao MCP dropped a local connection: "
+                 << connections_.size() << " sockets are already open.";
+    }
     accepted_socket_->Disconnect();
     accepted_socket_.reset();
     AcceptNext();

@@ -31,6 +31,8 @@ std::string_view DaoToolErrorCodeToString(DaoToolErrorCode code) {
   switch (code) {
     case DaoToolErrorCode::kMcpDisabled:
       return "MCP_DISABLED";
+    case DaoToolErrorCode::kTooManyClients:
+      return "TOO_MANY_CLIENTS";
     case DaoToolErrorCode::kAuthorizationDenied:
       return "AUTHORIZATION_DENIED";
     case DaoToolErrorCode::kAuthorizationTimeout:

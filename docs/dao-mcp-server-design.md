@@ -167,10 +167,12 @@ When an external lease is active, Dao Agent may continue non-browser work and
 chat, but browser tool calls fail with `AGENT_CONTROL_BUSY`.
 
 When Dao Agent is completing a browser tool call, external authorization waits
-for that call to finish before acquiring the lease. The transport admits only
-one external socket; a second external connection is closed before MCP
-initialization. `LEASE_BUSY` applies when the admitted external client cannot
-acquire the shared automation lease.
+for that call to finish before acquiring the lease. The service keeps up to 32
+external clients admitted; when another completes `hello`, the least recently
+active idle client (no pending approval or tool call) is closed and its leases
+are released so the newcomer is admitted, and `TOO_MANY_CLIENTS` is returned
+only when every admitted client is busy. `LEASE_BUSY` applies when the
+admitted external client cannot acquire the shared automation lease.
 
 #### Browser Tool Executor
 
@@ -438,6 +440,7 @@ request.
 Required stable errors include:
 
 - `MCP_DISABLED`
+- `TOO_MANY_CLIENTS`
 - `AUTHORIZATION_DENIED`
 - `AUTHORIZATION_TIMEOUT`
 - `AGENT_CONTROL_BUSY`
@@ -470,9 +473,10 @@ tool-result errors rather than falsely reporting success.
 
 - Dao Agent and external Agent cannot hold the lease concurrently.
 - An in-flight tool completes before a lease changes owner.
-- A second external socket is rejected by the one-client transport admission
-  gate; an admitted external client blocked on the shared lease receives
-  `LEASE_BUSY`.
+- Beyond 32 admitted external clients, the least recently active idle client
+  is evicted and its leases released; when none is idle the newcomer receives
+  `TOO_MANY_CLIENTS`. An admitted external client blocked on the shared lease
+  receives `LEASE_BUSY`.
 - Denial, approval timeout, revoke, disconnect, and toggle-off release state.
 - Browser, Profile, and tab destruction never cause last-active fallback.
 - User interaction remains available outside brief per-operation tab locks.

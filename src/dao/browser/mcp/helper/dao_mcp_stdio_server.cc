@@ -18,6 +18,7 @@
 #include "base/containers/span.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/strings/strcat.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
 #include "dao/browser/mcp/helper/dao_mcp_browser_client.h"
 
@@ -481,17 +482,28 @@ void DaoMcpStdioServer::FailBrowser(std::string_view reason,
   if (browser_) {
     browser_->Disconnect();
   }
-  LogUnavailableOnce();
   if (!browser_error) {
+    // An idle socket the browser closed on purpose (for example to admit a
+    // newer client) is not an outage. The next request reconnects lazily and
+    // reports unavailability itself if that fails.
+    if (!pending_.empty()) {
+      LogUnavailableOnce();
+    }
     FailAllPending();
     return;
   }
 
   const std::string* code = browser_error->FindString("code");
   const std::string* message = browser_error->FindString("message");
+  const std::string shown_message =
+      message && !message->empty() ? *message : std::string(reason);
+  // The browser is reachable and explained the failure, so surface its
+  // message instead of the unavailability notice.
+  const std::string line = base::StrCat({"dao-mcp: ", shown_message, "\n"});
+  std::ignore = write(STDERR_FILENO, line.data(), line.size());
   base::DictValue normalized_error =
       ErrorPayload(code && !code->empty() ? *code : "INTERNAL_ERROR",
-                   message && !message->empty() ? *message : reason,
+                   shown_message,
                    browser_error->FindBool("retryable").value_or(false));
   FailAllPending(&normalized_error);
 }

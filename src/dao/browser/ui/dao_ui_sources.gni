@@ -283,6 +283,7 @@ dao_browser_ui_test_deps = [
   "//components/qr_code_generator",
   "//dao/browser/mcp:browser_mcp",
   "//dao/browser/updater:dao_updater",
+  "//ui/base/clipboard:clipboard_test_support",
 ]
 
 if (is_mac) {

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "dao/browser/mcp/dao_mcp_service.h"
+#include "dao/browser/mcp/dao_mcp_transport.h"
 
 #include <poll.h>
 #include <sys/socket.h>
@@ -878,6 +879,14 @@ class DaoMcpServiceBrowserTest : public InProcessBrowserTest {
       return approval->request_count() == expected_count &&
              approval->has_pending_request();
     }));
+  }
+
+  base::DictValue ToolsListRequest(std::string id) {
+    return base::DictValue()
+        .Set("version", kDaoMcpIpcVersion)
+        .Set("id", std::move(id))
+        .Set("method", "tools/list")
+        .Set("params", base::DictValue());
   }
 
   base::DictValue HelloRequest(const std::string& nonce,
@@ -1865,6 +1874,124 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest, IdleHelloCandidateIsEvicted) {
   ASSERT_TRUE(replacement->Send(ToolCall("replacement-call")));
   WaitForApprovalRequestCount(&approval, 1u);
   approval.Resolve(false);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       EvictsLeastRecentlyActiveIdleClientAtCapacity) {
+  EnableService();
+  std::vector<std::unique_ptr<TestMcpClient>> clients;
+  for (size_t index = 0; index < kDaoMcpMaxConnections; ++index) {
+    std::unique_ptr<TestMcpClient> client = ConnectClient();
+    ASSERT_TRUE(client);
+    ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+    std::optional<base::DictValue> hello_response = client->Read();
+    ASSERT_TRUE(hello_response);
+    ASSERT_TRUE(hello_response->FindDict("result"));
+    clients.push_back(std::move(client));
+  }
+  // Touch the oldest connection so the second one becomes the least recently
+  // active idle candidate.
+  ASSERT_TRUE(clients[0]->Send(ToolsListRequest("keep-alive")));
+  ASSERT_TRUE(clients[0]->Read());
+
+  std::unique_ptr<TestMcpClient> newcomer = ConnectClient();
+  ASSERT_TRUE(newcomer);
+  ASSERT_TRUE(newcomer->Send(HelloRequest(nonce(), "newcomer-hello")));
+  std::optional<base::DictValue> newcomer_hello = newcomer->Read();
+  ASSERT_TRUE(newcomer_hello);
+  EXPECT_TRUE(newcomer_hello->FindDict("result"));
+  ASSERT_TRUE(base::test::RunUntil([this] {
+    return service_->connection_count_for_testing() == kDaoMcpMaxConnections;
+  }));
+
+  // If the wrong client were evicted this request would be answered instead
+  // of hitting EOF, so the read cannot block forever.
+  clients[1]->Send(ToolsListRequest("evicted"));
+  EXPECT_FALSE(clients[1]->Read());
+  ASSERT_TRUE(clients[0]->Send(ToolsListRequest("still-alive")));
+  std::optional<base::DictValue> list_response = clients[0]->Read();
+  ASSERT_TRUE(list_response);
+  EXPECT_TRUE(list_response->FindDict("result"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       EvictsIdleApprovedClientAndReleasesLease) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  std::unique_ptr<TestMcpClient> approved = ConnectClient();
+  ASSERT_TRUE(approved);
+  ASSERT_TRUE(approved->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(approved->Read());
+  ApproveFirstToolCall(approved.get(), &approval);
+  EXPECT_EQ(1u, service_->GetControlledTargetCount());
+
+  // Fill the remaining slots with clients blocked on approval. Never-approved
+  // idle sockets would be evicted first, so every other client must be busy
+  // for the approved idle one to become the only candidate.
+  std::vector<std::unique_ptr<TestMcpClient>> busy;
+  for (size_t index = 1; index < kDaoMcpMaxConnections; ++index) {
+    std::unique_ptr<TestMcpClient> client = ConnectClient();
+    ASSERT_TRUE(client);
+    ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(client->Read());
+    ASSERT_TRUE(client->Send(ToolCall("busy-" + std::to_string(index))));
+    busy.push_back(std::move(client));
+  }
+  ASSERT_TRUE(base::test::RunUntil([&approval] {
+    return approval.request_count() == kDaoMcpMaxConnections;
+  }));
+
+  std::unique_ptr<TestMcpClient> newcomer = ConnectClient();
+  ASSERT_TRUE(newcomer);
+  ASSERT_TRUE(newcomer->Send(HelloRequest(nonce(), "newcomer-hello")));
+  std::optional<base::DictValue> newcomer_hello = newcomer->Read();
+  ASSERT_TRUE(newcomer_hello);
+  EXPECT_TRUE(newcomer_hello->FindDict("result"));
+
+  ASSERT_TRUE(base::test::RunUntil([this] {
+    return service_->connection_count_for_testing() == kDaoMcpMaxConnections;
+  }));
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+  EXPECT_NE(DaoMcpStatus::kLeaseActive, service_->GetStatus().state);
+  approved->Send(ToolsListRequest("evicted"));
+  EXPECT_FALSE(approved->Read());
+  ASSERT_TRUE(newcomer->Send(ToolsListRequest("admitted")));
+  std::optional<base::DictValue> list_response = newcomer->Read();
+  ASSERT_TRUE(list_response);
+  EXPECT_TRUE(list_response->FindDict("result"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       RejectsHelloWithTooManyClientsWhenAllAreBusy) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  std::vector<std::unique_ptr<TestMcpClient>> clients;
+  for (size_t index = 0; index < kDaoMcpMaxConnections; ++index) {
+    std::unique_ptr<TestMcpClient> client = ConnectClient();
+    ASSERT_TRUE(client);
+    ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(client->Read());
+    ASSERT_TRUE(client->Send(ToolCall("busy-" + std::to_string(index))));
+    clients.push_back(std::move(client));
+  }
+  ASSERT_TRUE(base::test::RunUntil([&approval] {
+    return approval.request_count() == kDaoMcpMaxConnections;
+  }));
+
+  std::unique_ptr<TestMcpClient> newcomer = ConnectClient();
+  ASSERT_TRUE(newcomer);
+  ASSERT_TRUE(newcomer->Send(HelloRequest(nonce(), "newcomer-hello")));
+  std::optional<base::DictValue> response = newcomer->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("newcomer-hello", *response->FindString("id"));
+  const base::DictValue* error = response->FindDict("error");
+  ASSERT_TRUE(error);
+  EXPECT_EQ("TOO_MANY_CLIENTS", *error->FindString("code"));
+  EXPECT_TRUE(error->FindBool("retryable").value_or(false));
+  EXPECT_FALSE(newcomer->Read());
+  EXPECT_EQ(kDaoMcpMaxConnections, approval.request_count());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest, BoundsOutstandingToolCalls) {

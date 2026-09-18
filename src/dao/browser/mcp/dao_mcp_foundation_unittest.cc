@@ -110,6 +110,7 @@ std::string MakeCatalogJson(std::string_view output_schema) {
 TEST(DaoMcpTypesTest, ExposesEveryStableErrorCode) {
   constexpr std::array expected = {
       std::pair{DaoToolErrorCode::kMcpDisabled, "MCP_DISABLED"},
+      std::pair{DaoToolErrorCode::kTooManyClients, "TOO_MANY_CLIENTS"},
       std::pair{DaoToolErrorCode::kAuthorizationDenied, "AUTHORIZATION_DENIED"},
       std::pair{DaoToolErrorCode::kAuthorizationTimeout,
                 "AUTHORIZATION_TIMEOUT"},

@@ -27,6 +27,7 @@ struct DaoAgentClientId {
 
 enum class DaoToolErrorCode {
   kMcpDisabled,
+  kTooManyClients,
   kAuthorizationDenied,
   kAuthorizationTimeout,
   kAgentControlBusy,
