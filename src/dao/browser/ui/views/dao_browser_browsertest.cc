@@ -90,6 +90,8 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/download/public/common/download_item.h"
+#include "components/javascript_dialogs/app_modal_dialog_controller.h"
+#include "components/javascript_dialogs/app_modal_dialog_view.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/prefs/pref_service.h"
@@ -1964,6 +1966,13 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 
   EXPECT_EQ(1, handler.CloseDuplicateTabsForTesting());
 
+  auto* toast = GetBrowserView(browser())->dao_toast();
+  ASSERT_NE(nullptr, toast);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return toast->IsShowingToast(l10n_util::GetPluralStringFUTF16(
+        IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST, 1));
+  }));
+
   TabStripModel* model = browser()->tab_strip_model();
   EXPECT_EQ(2, model->count());
   EXPECT_EQ(TabStripModel::kNoTab,
@@ -1972,6 +1981,72 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
             model->GetIndexOfWebContents(recent_duplicate));
   EXPECT_EQ(duplicate_url, recent_duplicate->GetLastCommittedURL());
   EXPECT_NE(TabStripModel::kNoTab, FindTabIndexByUrl(browser(), unique_url));
+
+  chrome::AddTabAt(browser(), duplicate_url, -1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+  chrome::AddTabAt(browser(), unique_url, -1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+
+  EXPECT_EQ(2, handler.CloseDuplicateTabsForTesting());
+  EXPECT_EQ(2, model->count());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return toast->IsShowingToast(l10n_util::GetPluralStringFUTF16(
+        IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST, 2));
+  }));
+
+  toast->HideToast();
+  EXPECT_EQ(0, handler.CloseDuplicateTabsForTesting());
+  EXPECT_FALSE(toast->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       CloseDuplicateTabsWaitsForBeforeUnloadResult) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* guarded_tab = model->GetActiveWebContents();
+  ASSERT_TRUE(content::ExecJs(
+      guarded_tab, "window.onbeforeunload = () => 'Keep this tab?';"));
+  content::PrepContentsForBeforeUnloadTest(guarded_tab);
+
+  for (int i = 0; i < 2; ++i) {
+    chrome::AddTabAt(browser(), url, -1, true);
+    ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+  }
+  content::WebContents* kept_tab = model->GetActiveWebContents();
+
+  dao::DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  auto* toast = GetBrowserView(browser())->dao_toast();
+  ASSERT_NE(nullptr, toast);
+  toast->HideToast();
+
+  EXPECT_EQ(2, handler.CloseDuplicateTabsForTesting());
+  auto* dialog = ui_test_utils::WaitForAppModalDialog();
+  EXPECT_EQ(2, model->count());
+  EXPECT_FALSE(toast->GetVisible());
+  dialog->view()->CancelAppModalDialog();
+
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return toast->IsShowingToast(l10n_util::GetPluralStringFUTF16(
+        IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST, 1));
+  }));
+  EXPECT_EQ(2, model->count());
+  ASSERT_TRUE(content::ExecJs(guarded_tab, "true"));
+  model->ActivateTabAt(model->GetIndexOfWebContents(kept_tab));
+
+  toast->HideToast();
+  EXPECT_EQ(1, handler.CloseDuplicateTabsForTesting());
+  dialog = ui_test_utils::WaitForAppModalDialog();
+  EXPECT_FALSE(toast->GetVisible());
+  dialog->view()->AcceptAppModalDialog();
+
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return toast->IsShowingToast(l10n_util::GetPluralStringFUTF16(
+        IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST, 1));
+  }));
+  EXPECT_EQ(1, model->count());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, CloseTabsByStableIdentity) {

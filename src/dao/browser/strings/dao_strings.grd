@@ -277,6 +277,9 @@
       <message name="IDS_DAO_TAB_CONTEXT_CLOSE_DUPLICATE_TABS" desc="Context menu item that closes open tabs whose URLs duplicate another open tab in the same Dao Browser window, keeping the most recently active tab for each URL.">
         Close Duplicate Tabs
       </message>
+      <message name="IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST" desc="Toast shown after closing duplicate tabs, with the number actually closed. Tabs whose closure was cancelled are not counted.">
+        {COUNT, plural, =1 {Closed # duplicate tab} other {Closed # duplicate tabs}}
+      </message>
       <message name="IDS_DAO_TAB_CONTEXT_CLOSE_OTHER_TABS" desc="Context menu item that closes all regular tabs except the selected tab in the Dao sidebar.">
         Close Other Tabs
       </message>

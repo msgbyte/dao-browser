@@ -276,6 +276,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void OnDeleteFolderDialogAccepted(std::string folder_id);
   int CountDuplicateTabsToClose() const;
   int CloseDuplicateTabs();
+  void OnDuplicateTabsClosed(std::vector<bool> closed);
   void ClearContextMenuState();
 
   void OnScanResultReady(base::ListValue file_entries,
@@ -306,6 +307,10 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   };
 
   raw_ptr<Browser> browser_ = nullptr;
+
+  class DuplicateTabCloseObserver;
+  std::vector<std::unique_ptr<DuplicateTabCloseObserver>>
+      duplicate_tab_close_observers_;
 
   // Media widget state.
   int media_widget_tab_index_ = -1;

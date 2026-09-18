@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/barrier_callback.h"
 #include "base/base64.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
@@ -20,6 +21,7 @@
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
@@ -51,13 +53,13 @@
 #include "chrome/grit/dao_sidebar_resources.h"
 #include "chrome/grit/dao_sidebar_resources_map.h"
 #include "components/constrained_window/constrained_window_views.h"
-#include "dao/browser/ui/views/dao_tab_commands.h"
 #include "components/download/public/common/download_item.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
@@ -65,12 +67,12 @@
 #include "dao/browser/mcp/dao_mcp_service.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
 #include "dao/browser/strings/grit/dao_strings.h"
-#include "dao/browser/updater/dao_updater_service.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
+#include "dao/browser/ui/views/dao_tab_commands.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/sidebar/dao_download_hover_details.h"
@@ -79,6 +81,7 @@
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "dao/browser/ui/webui/dao_pinned_tab_storage.h"
+#include "dao/browser/updater/dao_updater_service.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
@@ -104,6 +107,33 @@
 #include "url/url_constants.h"
 
 namespace dao {
+
+class DaoSidebarUIHandler::DuplicateTabCloseObserver
+    : public content::WebContentsObserver {
+ public:
+  DuplicateTabCloseObserver(content::WebContents* contents,
+                            base::OnceCallback<void(bool)> callback)
+      : content::WebContentsObserver(contents),
+        callback_(std::move(callback)) {}
+
+  void WebContentsDestroyed() override { Finish(true); }
+
+  void BeforeUnloadFired(bool proceed) override {
+    if (!proceed) {
+      Finish(false);
+    }
+  }
+
+  void BeforeUnloadDialogCancelled() override { Finish(false); }
+
+ private:
+  void Finish(bool closed) {
+    Observe(nullptr);
+    std::move(callback_).Run(closed);
+  }
+
+  base::OnceCallback<void(bool)> callback_;
+};
 
 class DeleteFolderDialog : public views::DialogDelegate {
  public:
@@ -559,6 +589,7 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
   if (browser_changed) {
     UnregisterPinnedItemsProfileHandler();
     weak_factory_.InvalidateWeakPtrs();
+    duplicate_tab_close_observers_.clear();
     pinned_tab_model_.LoadFromJson(std::string());
     pinned_items_loaded_ = false;
     pinned_items_load_pending_ = false;
@@ -3548,7 +3579,7 @@ int DaoSidebarUIHandler::CountDuplicateTabsToClose() const {
 }
 
 int DaoSidebarUIHandler::CloseDuplicateTabs() {
-  if (!browser_) {
+  if (!browser_ || !duplicate_tab_close_observers_.empty()) {
     return 0;
   }
 
@@ -3582,14 +3613,44 @@ int DaoSidebarUIHandler::CloseDuplicateTabs() {
     }
   }
 
-  std::vector<int> to_close(duplicate_indices.begin(),
-                            duplicate_indices.end());
+  std::vector<int> to_close(duplicate_indices.begin(), duplicate_indices.end());
   std::sort(to_close.begin(), to_close.end(), std::greater<int>());
+  const int closing_count = static_cast<int>(to_close.size());
+  if (closing_count == 0) {
+    return 0;
+  }
+
+  // Wait for every close or cancellation, including asynchronous beforeunload
+  // dialogs. Post completion so observers outlive their notification callbacks.
+  auto on_closed = base::BarrierCallback<bool>(
+      to_close.size(), base::BindPostTaskToCurrentDefault(base::BindOnce(
+                           &DaoSidebarUIHandler::OnDuplicateTabsClosed,
+                           weak_factory_.GetWeakPtr())));
   for (int index : to_close) {
+    if (model->IsTabClosable(index)) {
+      duplicate_tab_close_observers_.push_back(
+          std::make_unique<DuplicateTabCloseObserver>(
+              model->GetWebContentsAt(index), on_closed));
+    } else {
+      on_closed.Run(false);
+    }
     model->CloseWebContentsAt(index, TabCloseTypes::CLOSE_USER_GESTURE);
   }
 
-  return static_cast<int>(to_close.size());
+  return closing_count;
+}
+
+void DaoSidebarUIHandler::OnDuplicateTabsClosed(std::vector<bool> closed) {
+  duplicate_tab_close_observers_.clear();
+  if (!browser_ || browser_->IsAttemptingToCloseBrowser()) {
+    return;
+  }
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (browser_view && browser_view->dao_toast()) {
+    browser_view->dao_toast()->ShowToast(l10n_util::GetPluralStringFUTF16(
+        IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST,
+        static_cast<int>(std::count(closed.begin(), closed.end(), true))));
+  }
 }
 
 void DaoSidebarUIHandler::ClearContextMenuState() {
@@ -3611,7 +3672,8 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
     return true;
   }
   if (command_id == kCloseDuplicateTabs) {
-    return CountDuplicateTabsToClose() > 0;
+    return duplicate_tab_close_observers_.empty() &&
+           CountDuplicateTabsToClose() > 0;
   }
   if (command_id == kFolderRename || command_id == kFolderUnfolder ||
       command_id == kFolderDelete) {

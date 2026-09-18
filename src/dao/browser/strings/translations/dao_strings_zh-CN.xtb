@@ -186,6 +186,7 @@
 <translation id="8028081981001403222">导入项目</translation>
 <translation id="8041968312565730454">来源浏览器</translation>
 <translation id="8052762370740257987">导出项目</translation>
+<translation id="8081685623228342096">{COUNT, plural, other {已关闭 # 个重复标签页}}</translation>
 <translation id="8097718730266959883">不可用</translation>
 <translation id="81044950628177848">当前版本</translation>
 <translation id="8131740175452115882">确认</translation>
