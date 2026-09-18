@@ -15,7 +15,7 @@ iOS 18.4+. It is not a claim of Android feature parity or completed device QA.
 | Downloads | Explicit confirmation before file writes, progress, cancel, memory-only resume, persistent normal records, Quick Look, share and confirmed deletion | `DownloadStore.swift`, `DownloadsView.swift` |
 | Preferences | System/light/dark theme, Google/Baidu/Bing/DuckDuckGo, page scale, private startup, opt-in Safari Web Inspector, website-data clearing | `SettingsView.swift`, `Storage.swift` |
 | System integration | Camera QR scanner, native JS dialogs and media permission prompts, confirmed external-app links, `dao://open` cold/warm links | `BrowserSheets.swift`, `BrowserSession.swift`, `DaoBrowserApp.swift` |
-| Resources | English and Simplified Chinese, dynamic colors, reduced motion, VoiceOver labels, local license text and upstream Lucide icons | `Resources/`, `NovaTheme.swift` |
+| Resources | English source strings with hand-authored Simplified Chinese; other system locales generated into `<lang>.lproj` by `sh ./i18n.sh --only ios`, falling back to English; dynamic colors, reduced motion, VoiceOver labels, local license text and upstream Lucide icons | `Resources/`, `NovaTheme.swift`, `scripts/i18n_ios.py` |
 
 Known differences: iPhone-only, no Agent/MCP/sync, password manager, default-browser
 entitlement, AMO/XPI installation, uBlock or KISS Translator. There is no Extensions

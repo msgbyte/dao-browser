@@ -133,8 +133,9 @@ Never hardcode user-facing copy in Dao-owned UI. All user-visible text must have
 - Sidebar WebUI strings go in `src/dao/browser/strings/dao_strings.grd`, are registered on the sidebar `WebUIDataSource` with `AddLocalizedString` / `UseStringsJs`, and are read from TypeScript through `loadTimeData.getString(...)`.
 - Agent WebUI strings go in `src/dao/browser/ui/webui/resources/agent/i18n/locales/en.ts` and are read with `t('key', { var: 'x' })`.
 - Android strings use `android/app/src/main/res/values/strings.xml` as the English source and qualified `values-*/strings.xml` files for translations. Android follows the system locale and falls back to English.
+- iOS strings use `ios/DaoBrowser/Resources/en.lproj/*.strings` as the English source, are read in Swift with `L("key")`, and have translations in `<lang>.lproj/` (`zh-CN` → `zh-Hans`). iOS follows the system locale and falls back to English. New `.lproj` folders are picked up by xcodegen automatically.
 - `zh-CN` is hand-authored and treated as the tone reference.
-- Other desktop and Android locales are generated manually by the user via `OPENAI_API_KEY=... sh ./i18n.sh`; do not run it automatically. The root command dispatches independent platform translators, and `--only desktop` or `--only android` limits the run.
+- Other desktop, Android, and iOS locales are generated manually by the user via `OPENAI_API_KEY=... sh ./i18n.sh`; do not run it automatically. The root command dispatches independent platform translators, and `--only desktop`, `--only android`, or `--only ios` limits the run.
 
 ## Native Toast Feedback
 

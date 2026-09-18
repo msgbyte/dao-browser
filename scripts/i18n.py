@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Dao desktop and Android translation workflows independently."""
+"""Run Dao desktop, Android, and iOS translation workflows independently."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 DESKTOP_TRANSLATOR = ROOT / "scripts" / "i18n-translate.py"
 ANDROID_TRANSLATOR = ROOT / "scripts" / "i18n_android.py"
+IOS_TRANSLATOR = ROOT / "scripts" / "i18n_ios.py"
 
 
 def _shared_arguments(args: argparse.Namespace) -> list[str]:
@@ -42,13 +43,15 @@ def build_commands(
         commands.append(desktop)
     if args.only in (None, "android"):
         commands.append([python, str(ANDROID_TRANSLATOR), *shared])
+    if args.only in (None, "ios"):
+        commands.append([python, str(IOS_TRANSLATOR), *shared])
     return commands
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Translate Dao desktop and Android resources independently via OpenAI."
+            "Translate Dao desktop, Android, and iOS resources independently via OpenAI."
         )
     )
     parser.add_argument("--langs", help="Comma-separated locale list. Default: all configured locales.")
@@ -58,7 +61,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--jobs", type=int, default=4, help="Locales translated in parallel. Default: 4.")
     parser.add_argument(
         "--only",
-        choices=["desktop", "android", "grd", "webui"],
+        choices=["desktop", "android", "ios", "grd", "webui"],
         help="Run one platform or one desktop resource format.",
     )
     return parser.parse_args(argv)

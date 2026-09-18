@@ -53,6 +53,12 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
 - [ ] Verify theme and search-engine labels remain visible beside their selected
   values. Toggle theme, page scale and private startup; clear website data and verify
   sign-out; confirm Web Inspector is opt-in and unavailable for private tabs.
+- [ ] Run `python3 -m unittest discover -s scripts/tests -p 'test_i18n*.py' -v`
+  and `sh ./i18n.sh --only ios --langs zh-CN,ja --dry-run --jobs 1`: dry-run makes
+  no API request or write, and generated `.strings` tables keep exact keys and iOS
+  placeholders. Switch the device language to English, Simplified Chinese, one
+  generated locale and one unsupported locale; UI and permission prompts follow
+  it, and the unsupported locale falls back to English.
 - [ ] Verify the browser drawer and Settings contain no Extensions entry or
   unsupported-extension placeholder page.
 - [ ] Run **Publish iOS to TestFlight** on `main` with valid, unexpired App Store

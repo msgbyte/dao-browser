@@ -9,6 +9,7 @@ from scripts.i18n import build_commands
 ROOT = Path(__file__).resolve().parents[2]
 DESKTOP = str(ROOT / "scripts" / "i18n-translate.py")
 ANDROID = str(ROOT / "scripts" / "i18n_android.py")
+IOS = str(ROOT / "scripts" / "i18n_ios.py")
 
 
 def arguments(
@@ -31,7 +32,7 @@ def arguments(
 
 
 class I18nOrchestratorTest(unittest.TestCase):
-    def test_builds_independent_desktop_and_android_commands(self) -> None:
+    def test_builds_independent_desktop_android_and_ios_commands(self) -> None:
         commands = build_commands(
             arguments(langs="zh-CN,ja", dry_run=True, jobs=1),
             python=sys.executable,
@@ -42,6 +43,7 @@ class I18nOrchestratorTest(unittest.TestCase):
             [
                 [sys.executable, DESKTOP, *shared],
                 [sys.executable, ANDROID, *shared],
+                [sys.executable, IOS, *shared],
             ],
             commands,
         )
@@ -55,10 +57,15 @@ class I18nOrchestratorTest(unittest.TestCase):
             arguments(only="desktop", force=True, model="gpt-test"),
             python=sys.executable,
         )
+        ios = build_commands(
+            arguments(only="ios", force=True, model="gpt-test"),
+            python=sys.executable,
+        )
 
         shared = ["--force", "--model", "gpt-test", "--jobs", "4"]
         self.assertEqual([[sys.executable, ANDROID, *shared]], android)
         self.assertEqual([[sys.executable, DESKTOP, *shared]], desktop)
+        self.assertEqual([[sys.executable, IOS, *shared]], ios)
 
     def test_routes_grd_and_webui_only_to_the_desktop_translator(self) -> None:
         grd = build_commands(arguments(only="grd"), python=sys.executable)
