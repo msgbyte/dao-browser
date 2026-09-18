@@ -31,3 +31,12 @@ search transition follow Android Nova source values. Screenshot parity, actual
 WebKit back-forward/scroll restoration, website compatibility and physical camera
 scanning require Simulator/device acceptance. Restoring
 an archive can reload network content; it is not an offline page snapshot.
+
+Distribution uses the manual **Publish iOS to TestFlight** GitHub workflow:
+portable tests → signed Release archive → App Store IPA → App Store Connect
+upload. The bundle ID is `com.msgbyte.dao`, matching Android's application ID.
+Credentials and the Apple app record must be configured first; upload
+success does not prove TestFlight acceptance or App Store approval. The same
+tested build can be selected for App Store review. See the
+[setup and release guide](../ios/README.md#testflight-and-app-store-distribution).
+The app includes a privacy manifest for its app-local UserDefaults access.

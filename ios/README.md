@@ -73,7 +73,154 @@ download without resume data must be restarted from its source page, avoiding
 incorrect replay of authenticated requests or POST/blob downloads.
 
 Deep links use `dao://open?url=<percent-encoded-http-or-https-url>`. Default-browser
-entitlements, signing, App Store distribution and universal links are not set up.
+entitlements and universal links are not set up. Distribution signing and
+TestFlight uploads use the workflow below after the account credentials are configured.
+
+## TestFlight and App Store distribution
+
+`.github/workflows/publish-ios-testflight.yml` is manually dispatched on `main`.
+It uses the hosted `macos-26` runner with an iOS 26+ SDK, runs the portable tests,
+creates a signed Release archive, exports an IPA, and uploads the same archive to
+App Store Connect. It does not submit an app for review or release it publicly.
+Apple requires Xcode 26+ and the iOS 26 SDK for current uploads; the Xcode 16.3
+development build described above cannot be used for a current store submission.
+
+### One-time Apple setup
+
+1. Confirm an active paid Apple Developer Program membership and access to
+   [App Store Connect](https://appstoreconnect.apple.com/). The Account Holder
+   must resolve any pending agreements. Use the same team throughout this setup.
+2. In [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list),
+   register an explicit App ID with bundle ID `com.msgbyte.dao`. Android uses the
+   same identifier; each platform keeps its own signing and store configuration.
+3. In App Store Connect, create an iOS app using that bundle ID. Choose an
+   available display name, primary language, and a unique SKU such as
+   `dao-browser-ios`. If the bundle ID already belongs to another team, stop
+   and resolve ownership before changing the project identifier.
+4. Create or reuse an **Apple Distribution** certificate with its private key.
+   If creating one, generate a certificate signing request in Keychain Access,
+   upload it in the developer portal, and install the downloaded certificate.
+   Export the certificate **and private key together** as a password-protected
+   `.p12`. A `.cer` alone cannot sign an app. Do not revoke existing certificates.
+5. Create an **App Store Connect** distribution provisioning profile for
+   `com.msgbyte.dao`, selecting that distribution certificate. Download the
+   `.mobileprovision` file. Development, Ad Hoc, and Enterprise profiles do not work.
+6. Under App Store Connect → Users and Access → Integrations → App Store Connect
+   API, have the Account Holder enable API access if necessary. An Account Holder
+   or Admin can create a **Team API key** with the **Developer** role, which is
+   sufficient for this workflow's build uploads. Save its
+   Key ID, Issuer ID, and downloaded `.p8` private key. Team keys apply across the
+   team's apps, and the private key can only be downloaded once.
+
+Keep `.p12`, `.mobileprovision`, and `.p8` files outside this repository. Do not
+paste private keys or passwords into chat, commit them, or put them in Actions logs.
+
+### GitHub secrets
+
+Add these **repository secrets** in `msgbyte/dao-browser` → Settings → Secrets
+and variables → Actions. The workflow reads the team and profile UUID from the
+profile, so no separate team variable is necessary.
+
+| Secret | Value |
+| --- | --- |
+| `IOS_DISTRIBUTION_P12_BASE64` | Base64 of the certificate/private-key `.p12` |
+| `IOS_DISTRIBUTION_P12_PASSWORD` | Password used to export that `.p12` |
+| `IOS_PROVISION_PROFILE_BASE64` | Base64 of the App Store Connect `.mobileprovision` |
+| `ASC_KEY_ID` | Team API key ID |
+| `ASC_ISSUER_ID` | Team API issuer ID |
+| `ASC_PRIVATE_KEY` | Entire `.p8` file, including PEM headers and line breaks |
+
+With the GitHub CLI authenticated, the following keeps the secret values out of
+shell history and terminal output. Replace file paths with your downloaded files;
+the commands without redirected input prompt for the value.
+
+```sh
+base64 < /path/to/distribution.p12 | gh secret set IOS_DISTRIBUTION_P12_BASE64 --repo msgbyte/dao-browser
+gh secret set IOS_DISTRIBUTION_P12_PASSWORD --repo msgbyte/dao-browser
+base64 < /path/to/appstore.mobileprovision | gh secret set IOS_PROVISION_PROFILE_BASE64 --repo msgbyte/dao-browser
+gh secret set ASC_KEY_ID --repo msgbyte/dao-browser
+gh secret set ASC_ISSUER_ID --repo msgbyte/dao-browser
+gh secret set ASC_PRIVATE_KEY --repo msgbyte/dao-browser < /path/to/AuthKey.p8
+```
+
+The workflow installs signing material into a temporary keychain and profile
+directory on the hosted runner, then removes it even when a step fails. Renew
+the certificate/profile secrets before expiry or after changing app capabilities.
+
+### First TestFlight run
+
+Once the workflow is committed and pushed to `main`, open Actions → **Publish
+iOS to TestFlight** → Run workflow. Start with version `0.1.0`. Normally leave
+`build_number` empty: CI uses `run_number.run_attempt`, including a new number
+on reruns. If an earlier upload already has a greater build number, supply a
+greater override. Version numbers have three numeric components; build numbers
+allow up to four digits in the first component and two in each of the next two.
+If using overrides repeatedly, keep them increasing for that app version.
+
+The equivalent command is:
+
+```sh
+gh workflow run publish-ios-testflight.yml --repo msgbyte/dao-browser --ref main -f version=0.1.0
+gh run list --repo msgbyte/dao-browser --workflow publish-ios-testflight.yml --limit 5
+gh run watch RUN_ID --repo msgbyte/dao-browser --exit-status
+```
+
+A successful workflow means Apple accepted the upload, not that processing,
+testing, or review succeeded. In App Store Connect → the app → TestFlight:
+
+1. Wait for the matching version/build to finish processing. Resolve any build
+   validation errors and answer the export-compliance questions accurately.
+   The app uses WebKit networking and CryptoKit for certificate fingerprints;
+   the workflow does not pre-answer the encryption declaration.
+2. Create an internal testing group, add yourself, and enable automatic build
+   distribution for that group if desired. Install through TestFlight on a real
+   iPhone. External testers require TestFlight test information and, when Apple
+   requires it, Beta App Review.
+3. Verify browsing, tabs, private mode, downloads, permissions, relaunch, and
+   upgrades against the [iOS checklist](../docs/feature-checklist.md#ios-native-browser).
+
+The IPA and dSYMs remain in the run's artifacts for 14 days. Retain release
+symbols longer separately if needed for crash diagnosis. The build is not marked
+`testFlightInternalTestingOnly`, so it is eligible for subsequent App Store review.
+
+### Promote the tested build to the App Store
+
+Use the [store preparation packet](APP_STORE.md) for draft metadata, review notes,
+privacy evidence, screenshot planning, and the remaining release prerequisites.
+
+In App Store Connect, create the matching iOS version and select the exact
+TestFlight build that passed acceptance; do not rebuild merely to submit it.
+Complete the app name/subtitle, description/keywords, category, screenshots,
+support URL, privacy-policy URL, app-privacy answers, age rating, content rights,
+availability/pricing, and review contact/instructions. Supply demo credentials
+only if a feature requires login. The privacy manifest included in the app
+declares its UserDefaults access; it does not replace the store privacy answers.
+
+Choose the release option deliberately. **Manually release this version** allows
+a final smoke check after approval. Add the version for review and submit it;
+after Apple's approval, release it according to the selected option. Apple review
+and account-specific requests remain outside the build workflow.
+
+### Local signed archive
+
+On a Mac with a supported Xcode, an installed Apple Distribution identity, and
+the matching provisioning profile, run from **`ios/`**:
+
+```sh
+IOS_TEAM_ID=YOURTEAMID \
+IOS_PROFILE_UUID=00000000-0000-0000-0000-000000000000 \
+IOS_VERSION=0.1.0 IOS_BUILD_NUMBER=1 \
+npm run rebuild -- --archive
+```
+
+This produces `build/Release/DaoBrowser.xcarchive` and an IPA under
+`build/Release/export/`. It does not upload. `--archive` cannot be combined with
+`--simulator`, `--core-only`, or `--sources-only`.
+
+References: [Apple upload requirements](https://developer.apple.com/news/upcoming-requirements/),
+[uploading builds](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds),
+[API access](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api),
+[GitHub signing setup](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications).
 
 ## Extension boundary
 

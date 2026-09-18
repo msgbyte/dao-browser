@@ -20,7 +20,7 @@ targets:
       - path: CoreTests/Sources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.msgbyte.dao.ios
+        PRODUCT_BUNDLE_IDENTIFIER: com.msgbyte.dao
         TARGETED_DEVICE_FAMILY: '1'
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
@@ -48,3 +48,5 @@ schemes:
         DaoBrowser: all
     run:
       config: Debug
+    archive:
+      config: Release

@@ -1,0 +1,147 @@
+name: Publish iOS to TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'App Store version (for example, 0.1.0)'
+        required: true
+        default: '0.1.0'
+        type: string
+      build_number:
+        description: 'Optional build number override; otherwise run_number.run_attempt'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      IOS_VERSION: ${{ inputs.version }}
+      IOS_BUILD_NUMBER: ${{ inputs.build_number || format('{0}.{1}', github.run_number, github.run_attempt) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          xcodebuild -version
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          test "${sdk_version%%.*}" -ge 26
+          brew install xcodegen
+          npm ci
+
+      - name: Install signing credentials
+        env:
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          for name in IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_PROVISION_PROFILE_BASE64 ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret: $name"
+              exit 1
+            fi
+          done
+          umask 077
+          signing_dir="$RUNNER_TEMP/dao-ios-signing"
+          mkdir -p "$signing_dir"
+          printf '%s' "$IOS_DISTRIBUTION_P12_BASE64" | base64 --decode > "$signing_dir/distribution.p12"
+          printf '%s' "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode > "$signing_dir/profile.mobileprovision"
+          printf '%s' "$ASC_PRIVATE_KEY" > "$signing_dir/AuthKey.p8"
+          security cms -D -i "$signing_dir/profile.mobileprovision" -o "$signing_dir/profile.plist"
+          python3 - <<'PY'
+          import datetime, os, pathlib, plistlib, re, shutil
+          directory = pathlib.Path(os.environ['RUNNER_TEMP']) / 'dao-ios-signing'
+          with (directory / 'profile.plist').open('rb') as source:
+              profile = plistlib.load(source)
+          team = profile['TeamIdentifier'][0]
+          uuid = profile['UUID']
+          entitlements = profile['Entitlements']
+          assert re.fullmatch(r'[A-Z0-9]{10}', team), 'Invalid team ID'
+          assert re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}', uuid), 'Invalid profile UUID'
+          assert entitlements['application-identifier'] == profile['ApplicationIdentifierPrefix'][0] + '.com.msgbyte.dao', 'Wrong bundle ID'
+          assert not profile.get('ProvisionedDevices') and not profile.get('ProvisionsAllDevices'), 'Use an App Store Connect profile'
+          assert not entitlements.get('get-task-allow') and entitlements.get('beta-reports-active'), 'Use an App Store Connect profile'
+          assert profile['ExpirationDate'].replace(tzinfo=datetime.timezone.utc) > datetime.datetime.now(datetime.timezone.utc), 'Expired profile'
+          target = pathlib.Path.home() / 'Library/Developer/Xcode/UserData/Provisioning Profiles'
+          target.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(directory / 'profile.mobileprovision', target / (uuid + '.mobileprovision'))
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'IOS_TEAM_ID={team}\nIOS_PROFILE_UUID={uuid}\n')
+          PY
+          keychain="$signing_dir/signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$keychain_password"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$signing_dir/distribution.p12" -P "$IOS_DISTRIBUTION_P12_PASSWORD" -k "$keychain" -t cert -f pkcs12 -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+
+      - name: Archive and export IPA
+        working-directory: ios
+        run: npm run rebuild -- --archive
+
+      - name: Preserve IPA and symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: dao-ios-${{ env.IOS_VERSION }}-${{ env.IOS_BUILD_NUMBER }}
+          path: |
+            ios/build/Release/export/*.ipa
+            ios/build/Release/DaoBrowser.xcarchive/dSYMs
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          python3 - <<'PY'
+          import plistlib
+          with open('ios/build/Release/ExportOptions.plist', 'rb') as source:
+              options = plistlib.load(source)
+          options['destination'] = 'upload'
+          with open('ios/build/Release/UploadOptions.plist', 'wb') as output:
+              plistlib.dump(options, output)
+          PY
+          xcodebuild -exportArchive \
+            -archivePath ios/build/Release/DaoBrowser.xcarchive \
+            -exportOptionsPlist ios/build/Release/UploadOptions.plist \
+            -exportPath ios/build/Release/upload \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/dao-ios-signing/AuthKey.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo 'Uploaded to App Store Connect. Check processing, export compliance, and tester access in TestFlight.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/dao-ios-signing/signing.keychain-db" || true
+          if [ -n "${IOS_PROFILE_UUID:-}" ]; then
+            rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/$IOS_PROFILE_UUID.mobileprovision"
+          fi
+          rm -rf "$RUNNER_TEMP/dao-ios-signing"

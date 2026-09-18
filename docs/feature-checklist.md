@@ -55,6 +55,18 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   sign-out; confirm Web Inspector is opt-in and unavailable for private tabs.
 - [ ] Verify the browser drawer and Settings contain no Extensions entry or
   unsupported-extension placeholder page.
+- [ ] Run **Publish iOS to TestFlight** on `main` with valid, unexpired App Store
+  signing credentials for `com.msgbyte.dao` and a new build number. Confirm the
+  Release IPA has that bundle ID and contains
+  the app icon and `PrivacyInfo.xcprivacy`; confirm the workflow cleans up its
+  temporary signing credentials even on failure.
+- [ ] Confirm that exact build finishes App Store Connect processing, resolve
+  export compliance, and install it from TestFlight on a real iPhone. Run the
+  iOS acceptance checks above, including upgrading without losing saved data.
+- [ ] Select the tested build for App Store review, complete screenshots and
+  store/privacy/review information from the [preparation packet](../ios/APP_STORE.md),
+  verify public support/privacy URLs and the in-app policy entry, and verify the
+  intended release option.
 
 ## How to use this document
 
