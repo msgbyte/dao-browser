@@ -19,10 +19,14 @@ struct BrowserView: View {
             if model.drawerOpen {
                 Color.black.opacity(0.25).ignoresSafeArea().onTapGesture { model.drawerOpen = false }
                     .accessibilityLabel(L("close_menu")).accessibilityAddTraits(.isButton)
-                drawer.transition(.move(edge: .trailing))
+                    .zIndex(1)
+                // Keep the drawer above the page throughout its removal transition.
+                drawer.transition(.move(edge: .trailing)).zIndex(2)
+                    .accessibilityAction(.escape) { model.drawerOpen = false }
             }
             if scenePhase != .active && (model.tabs.contains { $0.record.isPrivate } || model.downloads.items.contains { $0.isPrivate }) {
                 Nova.background.ignoresSafeArea().overlay(Text(L("private_browsing")))
+                    .zIndex(3)
             }
         }
         .foregroundStyle(Nova.foreground)
@@ -120,7 +124,6 @@ struct BrowserView: View {
                     model.drawerOpen = false
                 }
                 Spacer()
-                IconButton(icon: "x", label: "close_menu") { model.drawerOpen = false }
             }.padding(.horizontal, 8)
             ScrollView {
                 VStack(spacing: 0) {

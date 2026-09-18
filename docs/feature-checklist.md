@@ -36,6 +36,12 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   find form exactly three columns and two rows with matching tile styling and
   readable localized labels. Verify sharing opens the native sheet; library and
   settings remain list rows below the grid.
+- [ ] Open and dismiss the iOS drawer by tapping outside and by choosing menu
+  actions: the drawer stays above the page while sliding out and the backdrop
+  fades. Verify repeated open/close, light/dark mode and Reduce Motion; no
+  dedicated close button appears, and VoiceOver escape dismisses the drawer.
+  With a private tab open, background the app while the drawer is visible and
+  confirm the privacy cover hides both the page and drawer.
 - [ ] Search with all four engines; navigate local/HTTPS URLs; reject executable
   address schemes; receive valid and invalid cold/warm `dao://open` links.
 - [ ] Navigate A → B, switch tabs, open/close a popup, close the final tab, then
