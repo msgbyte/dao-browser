@@ -31,12 +31,21 @@ describe('Android release CLI', () => {
     ]) expect(() => validateAndroidVersion(next, {version: '0.1.0', versionCode: 1})).toThrow();
   });
 
-  it('previews an explicit version without credentials or publication', () => {
-    const result = runCli('--version', '0.1.1', '--version-code', '2', '--dry-run');
+  it('previews an explicit version without credentials or publication', async () => {
+    // The CLI reads the checked-in Gradle file, so derive the target from it
+    // instead of hardcoding a version that every Android release invalidates.
+    const gradle = readFileSync('android/app/build.gradle.kts', 'utf8');
+    const current = {
+      version: /versionName\s*=\s*"([^"]+)"/.exec(gradle)![1],
+      versionCode: Number(/versionCode\s*=\s*(\d+)/.exec(gradle)![1]),
+    };
+    const next = await resolveAndroidVersion(current, {}, async () => '');
+    const result = runCli(
+        '--version', next.version, '--version-code', String(next.versionCode), '--dry-run');
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('android-v0.1.1');
-    expect(result.stdout).toContain('versionCode: 1 -> 2');
-    expect(result.stdout).toContain('chore(android): release 0.1.1');
+    expect(result.stdout).toContain(`android-v${next.version}`);
+    expect(result.stdout).toContain(`versionCode: ${current.versionCode} -> ${next.versionCode}`);
+    expect(result.stdout).toContain(`chore(android): release ${next.version}`);
     expect(result.stdout).toContain('git push --atomic');
   });
 
