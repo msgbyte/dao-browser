@@ -46,7 +46,10 @@ struct BrowserView: View {
             promptShown = false
             if id != nil { Task { @MainActor in promptShown = model.prompt != nil } }
         }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { model.saveNow() } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .inactive { model.captureSelected() }
+            if phase != .active { model.saveNow() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in model.reduceMemory() }
         .onChange(of: model.preferences.fontScale) { _, _ in model.applyPreferences() }
         .onChange(of: model.preferences.inspectable) { _, _ in model.applyPreferences() }

@@ -53,6 +53,13 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   address schemes; receive valid and invalid cold/warm `dao://open` links.
 - [ ] Navigate A → B, switch tabs, open/close a popup, close the final tab, then
   restart and verify normal-tab order, selection, back-forward list and scroll.
+- [ ] Load multiple normal tabs, open the tab grid, terminate and relaunch: cached
+  previews appear without reloading inactive tabs, and tapping each opens its page.
+  Repeat after backgrounding and memory pressure; failed captures must preserve
+  existing previews. Close a tab, return it home or clear website data, then restart
+  and confirm its old preview is gone. Check older archives without thumbnails and
+  confirm private previews never enter the session archive; late snapshot callbacks
+  after closing, returning home or clearing data must not restore deleted previews.
 - [ ] Browse in private mode; inspect session/history/download metadata and app
   switcher snapshots; confirm no private automatic persistence, and verify that
   explicitly saved bookmarks and confirmed download files remain.

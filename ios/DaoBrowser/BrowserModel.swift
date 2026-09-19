@@ -147,6 +147,7 @@ struct WebPrompt: Identifiable {
         selected.record.url = ""
         selected.record.title = ""
         selected.record.interactionState = nil
+        selected.record.thumbnailData = nil
         selected.thumbnail = nil
         selected.error = nil
         selected.canGoBack = false
@@ -164,12 +165,22 @@ struct WebPrompt: Identifiable {
     }
 
     func captureSelected() {
-        guard let session = currentSession, !selected.record.url.isEmpty else { return }
+        guard let session = currentSession, !selected.record.url.isEmpty,
+              selected.error == nil, !session.webView.isLoading,
+              session.webView.window != nil, !session.webView.bounds.isEmpty else { return }
         let tab = selected
+        let url = tab.record.url
         let configuration = WKSnapshotConfiguration()
         configuration.snapshotWidth = 400
-        session.webView.takeSnapshot(with: configuration) { [weak tab] image, _ in
-            tab?.thumbnail = image
+        session.webView.takeSnapshot(with: configuration) { [weak self, weak tab, weak session] image, _ in
+            // A failed or retired capture must not erase a restored preview or revive cleared data.
+            guard let self, let tab, let session, let image,
+                  self.sessions[tab.id] === session, tab.record.url == url else { return }
+            tab.thumbnail = image
+            if !tab.record.isPrivate, let data = image.jpegData(compressionQuality: 0.65) {
+                tab.record.thumbnailData = data
+                self.saveNow()
+            }
         }
     }
 
@@ -237,7 +248,12 @@ struct WebPrompt: Identifiable {
         for session in sessions.values { session.dispose() }
         sessions.removeAll()
         privateData = .nonPersistent()
-        for tab in tabs { tab.record.interactionState = nil; tab.thumbnail = nil }
+        for tab in tabs {
+            tab.record.interactionState = nil
+            tab.record.thumbnailData = nil
+            tab.thumbnail = nil
+        }
+        saveNow()
         WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) { [weak self] in
             self?.notify(L("site_data_cleared"))
             self?.scheduleSave()

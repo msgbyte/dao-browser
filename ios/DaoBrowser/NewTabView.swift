@@ -140,7 +140,9 @@ struct TabsView: View {
                             Button { model.select(tab) } label: {
                                 ZStack {
                                     Nova.secondary
-                                    if let image = tab.thumbnail { Image(uiImage: image).resizable().scaledToFill() }
+                                    if let image = tab.thumbnail ?? tab.record.thumbnailData.flatMap({ UIImage(data: $0) }) {
+                                        Image(uiImage: image).resizable().scaledToFill()
+                                    }
                                     else { Image("DaoLogo").resizable().scaledToFit().frame(width: 40, height: 40) }
                                 }.frame(height: 190).clipped().contentShape(Rectangle())
                             }.buttonStyle(.plain).accessibilityLabel(tab.title)

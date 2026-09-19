@@ -62,6 +62,7 @@ public struct TabRecord: Identifiable, Codable, Equatable, Sendable {
     public var title = ""
     public var isPrivate = false
     public var interactionState: Data?
+    public var thumbnailData: Data?
 
     public init(id: UUID = UUID(), url: String = "", title: String = "", isPrivate: Bool = false, interactionState: Data? = nil) {
         self.id = id

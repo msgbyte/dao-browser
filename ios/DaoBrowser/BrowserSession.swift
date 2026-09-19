@@ -105,6 +105,7 @@ import WebKit
         tab.error = nil
         update()
         model?.visited(tab)
+        if model?.selectedID == tab.id { model?.captureSelected() }
         model?.scheduleSave()
     }
 

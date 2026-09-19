@@ -8,8 +8,8 @@ iOS 18.4+. It is not a claim of Android feature parity or completed device QA.
 | New tab | Dao branding, localized greeting/date, search pill 32 points below the banner, one persistent input that moves upward before receiving focus, saved-page suggestions, scanner entry; tapping blank space cancels editing, discards unsubmitted input and hides the keyboard and suggestions, restoring the new tab or the previously browsed page | `NewTabView.swift` |
 | Browser | WKWebView extending behind the home indicator without an app-colored bottom strip, keyboard-safe layout, URL/loading chrome with an address-edit hit area covering text, surrounding space and the private indicator; independent site-information button; history gestures, pull to refresh, native page find, sharing, page QR, certificate chain/fingerprints, failure view whose retry reloads the URL that failed; drawer bookmark, read-later and page QR disabled until a popup has a web URL | `BrowserView.swift`, `BrowserSheets.swift`, `BrowserSession.swift` |
 | Right drawer | Back/forward/reload; a three-column, two-row grid for home, bookmark, read-later, share, page QR and find with consistent tile styling; library and settings remain list rows; slides in/out above the page unless Reduce Motion is enabled; dismiss by tapping outside or using VoiceOver escape, with no dedicated close button | `BrowserView.swift` |
-| Tabs | Two-column snapshot grid, select, add regular/private tab, close button and swipe right, last-tab replacement | `NewTabView.swift`, `BrowserModel.swift` |
-| Sessions | Lazy WebKit sessions, normal tab metadata and interaction-state archive, memory-pressure eviction of inactive normal tabs | `BrowserModel.swift`, `BrowserSession.swift` |
+| Tabs | Two-column snapshot grid with normal-tab previews restored after relaunch, select, add regular/private tab, close button and swipe right, last-tab replacement | `NewTabView.swift`, `BrowserModel.swift` |
+| Sessions | Lazy WebKit sessions, normal tab metadata, interaction state and compressed thumbnails in the protected session archive; capture after page load, before switching surfaces and when becoming inactive; memory-pressure eviction preserves archived previews | `BrowserModel.swift`, `BrowserSession.swift` |
 | Privacy | Shared nonpersistent store for private tabs, no private session/history/thumbnail persistence, background privacy cover, inspector disabled for private pages | `BrowserModel.swift`, `BrowserView.swift` |
 | Library | Persistent history/bookmarks/reading list, search, clear history, edit saved page, folder names/filtering, move or remove folder assignment, delete entries | `LibraryView.swift`, `Storage.swift` |
 | Downloads | Explicit confirmation before file writes, progress, cancel, memory-only resume, reopening the originating page when a transfer cannot resume, persistent normal records, Quick Look, share and confirmed deletion | `DownloadStore.swift`, `DownloadsView.swift` |
@@ -22,8 +22,11 @@ entitlement, AMO/XPI installation, uBlock or KISS Translator. There is no Extens
 page or entry in the browser drawer or Settings. Folder membership is stored on
 saved pages; empty or nested folders are not modeled. Downloads are
 WebKit-managed without an independent background transfer service; resume data
-does not survive process termination. Normal thumbnails are captured in memory,
-not restored from disk. Text and permission/keyboard/share sheets use native iOS
+does not survive process termination. Normal thumbnails restore from the session
+archive without loading inactive pages; closing a tab, returning it home or clearing
+website data removes its cached preview. Private thumbnails stay in memory. Older
+archives without thumbnails remain readable and gain previews as pages are visited.
+Text and permission/keyboard/share sheets use native iOS
 rendering. Tracking-protection controls are not ported from GeckoView.
 
 The visual tokens, rounded shapes, custom rows, two-column tabs, right drawer and
