@@ -1,0 +1,15 @@
+diff --git a/content/public/browser/web_contents_view_delegate.cc b/content/public/browser/web_contents_view_delegate.cc
+--- a/content/public/browser/web_contents_view_delegate.cc
++++ b/content/public/browser/web_contents_view_delegate.cc
+@@ -70,7 +70,10 @@
+   return std::move(callback).Run(drop_data);
+ }
+ 
+-void WebContentsViewDelegate::WebContentsDragEnded() {}
++void WebContentsViewDelegate::WebContentsDragEnded(
++    const gfx::PointF& screen_point,
++    ui::mojom::DragOperation operation,
++    bool ended_by_mouse_release) {}
+ 
+ #if BUILDFLAG(IS_ANDROID)
+ bool WebContentsViewDelegate::ShouldShowBlurTransitionAnimation(

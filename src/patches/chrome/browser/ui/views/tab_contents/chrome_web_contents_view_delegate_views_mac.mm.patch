@@ -1,0 +1,37 @@
+diff --git a/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm b/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm
+--- a/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm
++++ b/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm
+@@ -20,6 +20,7 @@
+ #include "chrome/browser/ui/views/tab_contents/chrome_web_contents_view_focus_helper.h"
+ #include "components/remote_cocoa/browser/window.h"
+ #include "components/tabs/public/tab_interface.h"
++#include "dao/browser/ui/views/dao_native_util_mac.h"
+ #include "content/public/browser/browser_context.h"
+ #include "content/public/browser/render_frame_host.h"
+ #include "content/public/browser/render_widget_host_view.h"
+@@ -40,7 +41,9 @@
+ }
+ 
+ ChromeWebContentsViewDelegateViewsMac::
+-    ~ChromeWebContentsViewDelegateViewsMac() = default;
++    ~ChromeWebContentsViewDelegateViewsMac() {
++  dao::CancelTabDragNativeCompletion(web_contents_);
++}
+ 
+ gfx::NativeWindow ChromeWebContentsViewDelegateViewsMac::GetNativeWindow() {
+   BrowserWindowInterface* browser =
+@@ -125,6 +128,14 @@
+   HandleOnPerformingDrop(web_contents_, drop_data, std::move(callback));
+ }
+ 
++void ChromeWebContentsViewDelegateViewsMac::WebContentsDragEnded(
++    const gfx::PointF& screen_point,
++    ui::mojom::DragOperation operation,
++    bool ended_by_mouse_release) {
++  dao::CompleteTabDragNativeCompletion(
++      web_contents_, screen_point, operation, ended_by_mouse_release);
++}
++
+ std::unique_ptr<RenderViewContextMenuBase>
+ ChromeWebContentsViewDelegateViewsMac::BuildMenu(
+     content::RenderFrameHost& render_frame_host,

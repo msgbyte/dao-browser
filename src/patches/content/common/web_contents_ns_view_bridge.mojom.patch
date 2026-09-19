@@ -1,0 +1,12 @@
+diff --git a/content/common/web_contents_ns_view_bridge.mojom b/content/common/web_contents_ns_view_bridge.mojom
+index aca5e10365..e30fc4e9b8 100644
+--- a/content/common/web_contents_ns_view_bridge.mojom
++++ b/content/common/web_contents_ns_view_bridge.mojom
+@@ -160,5 +160,6 @@
+   // Called in to the -draggedImage: method being called on the NSView.
+   EndDrag(uint32 drag_operation,
+           gfx.mojom.PointF local_point,
+-          gfx.mojom.PointF screen_point);
++          gfx.mojom.PointF screen_point,
++          bool ended_by_mouse_release);
+ };

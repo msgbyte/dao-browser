@@ -401,7 +401,8 @@ export class DaoTabItem extends CrLitElement {
     if (!e.dataTransfer) return;
     this.clearTooltip_(this.tooltipVisible_);
     const payload =
-        `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}`;
+        `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}:` +
+        this.tabData.tabId;
     console.error('[Dao-Xwin-JS] dragstart: payload=' +
         JSON.stringify(payload) + ' sessionId=' + this.sessionId);
     e.dataTransfer.setData(TAB_DRAG_MIME_TYPE, payload);

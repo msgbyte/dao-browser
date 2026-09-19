@@ -1,0 +1,110 @@
+diff --git a/content/app_shim_remote_cocoa/web_contents_view_cocoa.mm b/content/app_shim_remote_cocoa/web_contents_view_cocoa.mm
+index da2786e0c5..6fc8a28b91 100644
+--- a/content/app_shim_remote_cocoa/web_contents_view_cocoa.mm
++++ b/content/app_shim_remote_cocoa/web_contents_view_cocoa.mm
+@@ -5,6 +5,7 @@
+ #import "content/app_shim_remote_cocoa/web_contents_view_cocoa.h"
+ 
+ #include <AppKit/AppKit.h>
++#import <Carbon/Carbon.h>
+ 
+ #include "base/files/file_util.h"
+ #include "base/files/scoped_temp_dir.h"
+@@ -121,6 +122,9 @@
+   // Drag variables.
+   WebDragSource* __strong _dragSource;
+   NSDragOperation _dragOperation;
++  id __strong _dragTerminationEventMonitor;
++  BOOL _dragSawEscape;
++  BOOL _dragSawLeftMouseUp;
+ 
+   BOOL _willSetWebContentsOccludedAfterDelay;
+ }
+@@ -151,6 +155,7 @@
+ 
+   [[NSNotificationCenter defaultCenter] removeObserver:self];
+   [self cancelDelayedSetWebContentsOccluded];
++  [self stopDragTerminationEventMonitor];
+ }
+ 
+ - (void)enableDroppedScreenShotCopier {
+@@ -221,6 +226,36 @@
+   // saves us the effort of overriding this method in every possible
+   // subview.
+   return _mouseDownCanMoveWindow;
++}
++
++- (void)recordDragTerminationEvent:(NSEvent*)event {
++  if (event.type == NSEventTypeKeyDown && event.keyCode == kVK_Escape) {
++    _dragSawEscape = YES;
++  } else if (event.type == NSEventTypeLeftMouseUp) {
++    _dragSawLeftMouseUp = YES;
++  }
++}
++
++- (void)startDragTerminationEventMonitor {
++  [self stopDragTerminationEventMonitor];
++  _dragSawEscape = NO;
++  _dragSawLeftMouseUp = NO;
++  WebContentsViewCocoa* __weak weakSelf = self;
++  _dragTerminationEventMonitor = [NSEvent
++      addLocalMonitorForEventsMatchingMask:(NSEventMaskKeyDown |
++                                            NSEventMaskLeftMouseUp)
++                                   handler:^NSEvent*(NSEvent* event) {
++                                     [weakSelf
++                                         recordDragTerminationEvent:event];
++                                     return event;
++                                   }];
++}
++
++- (void)stopDragTerminationEventMonitor {
++  if (_dragTerminationEventMonitor) {
++    [NSEvent removeMonitor:_dragTerminationEventMonitor];
++    _dragTerminationEventMonitor = nil;
++  }
+ }
+ 
+ - (void)startDragWithDropData:(const DropData&)dropData
+@@ -273,6 +308,9 @@
+ 
+   _dragOperation = operationMask;
+ 
++  // Observe termination in the process that owns the AppKit drag session.
++  [self startDragTerminationEventMonitor];
++
+   // Run the drag operation.
+   [self beginDraggingSessionWithItems:@[ draggingItem ]
+                                 event:dragEvent
+@@ -290,6 +328,9 @@
+ - (void)draggingSession:(NSDraggingSession*)session
+            endedAtPoint:(NSPoint)screenPoint
+               operation:(NSDragOperation)operation {
++  [self recordDragTerminationEvent:NSApp.currentEvent];
++  const bool endedByMouseRelease = _dragSawLeftMouseUp && !_dragSawEscape;
++  [self stopDragTerminationEventMonitor];
+   if (!_host) {
+     return;
+   }
+@@ -303,10 +344,12 @@
+   // Flip the two points as per Cocoa's coordinate system.
+   NSRect viewFrame = self.frame;
+-  NSRect screenFrame = self.window.screen.frame;
++  // Global screen coordinates use the primary display's top edge.
+   _host->EndDrag(
+       operation,
+       gfx::PointF(localPoint.x, viewFrame.size.height - localPoint.y),
+-      gfx::PointF(screenPoint.x, screenFrame.size.height - screenPoint.y));
++      gfx::PointF(screenPoint.x,
++                  NSMaxY(NSScreen.screens.firstObject.frame) - screenPoint.y),
++      endedByMouseRelease);
+ 
+   // The drag is complete. Disconnect the drag source.
+   [_dragSource webContentsIsGone];
+@@ -369,6 +412,7 @@
+ 
+ - (void)setHost:(remote_cocoa::mojom::WebContentsNSViewHost*)host {
+   if (!host) {
++    [self stopDragTerminationEventMonitor];
+     [_dragSource webContentsIsGone];
+   }
+   _host = host;

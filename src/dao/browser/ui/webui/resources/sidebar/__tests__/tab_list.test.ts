@@ -521,6 +521,22 @@ describe('dao-tab-list', () => {
     expect(send).toHaveBeenCalledWith('unpinPinnedItem', ['pin-docs', 2]);
   });
 
+  it.each(['pin-docs', 'dao-tab-drag:8:0:source'])(
+      'moves a pinned item into an empty normal tab list (%s)', async payload => {
+        const {el, send} = createList();
+        el.tabs = [];
+        await el.updateComplete;
+        const dataTransfer = fakeDataTransfer({
+          [PINNED_ITEM_DRAG_MIME_TYPE]: 'pin-docs',
+          'text/plain': payload,
+        });
+
+        el.dispatchEvent(dragEvent('dragover', dataTransfer, {clientY: 0}));
+        el.dispatchEvent(dragEvent('drop', dataTransfer));
+
+        expect(send).toHaveBeenCalledWith('unpinPinnedItem', ['pin-docs', 0]);
+      });
+
   it('unpins a pinned item when drag data hides the custom MIME payload',
       async () => {
         const {el, send} = createList();
@@ -558,11 +574,101 @@ describe('dao-tab-list', () => {
     const dataTransfer = fakeDataTransfer({'text/plain': 'dao-tab-drag:7:1'});
     tabItem.dispatchEvent(dragEvent('dragstart', dataTransfer));
 
-    expect(send).toHaveBeenCalledWith('tabDragActive', [true]);
+    expect(send).toHaveBeenCalledWith('tabDragActive', [true, 'tab-a']);
 
     tabItem.dispatchEvent(dragEvent('dragend', dataTransfer));
     expect(send).toHaveBeenCalledWith('tabDragActive', [false]);
   });
+
+  it('leaves canceled drag detachment and folder cleanup to native completion',
+      async () => {
+        const source = tab({tabId: 'tab-a', index: 1});
+        const model = createFolderModel([{
+          type: 'folder', id: 'folder-a', name: 'Work', collapsed: false,
+          children: [{type: 'tab', ...source}],
+        }]);
+        const {el, send} = createModelList(model, [source]);
+        await el.updateComplete;
+        const actions = vi.fn();
+        el.addEventListener('folder-action', actions);
+        // Folder children live in a nested shadow root.
+        const tabItem = document.createElement('dao-tab-item') as
+            HTMLElement & {tabData: TabData};
+        tabItem.tabData = source;
+        el.appendChild(tabItem);
+        const dataTransfer = fakeDataTransfer({});
+        dataTransfer.dropEffect = 'none';
+        tabItem.dispatchEvent(dragEvent('dragstart', dataTransfer));
+        tabItem.dispatchEvent(dragEvent('dragend', dataTransfer, {
+          clientX: -100, clientY: -100, screenX: 800, screenY: 500,
+        }));
+
+        expect(send.mock.calls.some(call =>
+          call[0] === 'detachTabToNewWindow')).toBe(false);
+        expect(actions).not.toHaveBeenCalled();
+        expect(model.findTabFolder(source)).toBe('folder-a');
+      });
+
+  it.each(['', ':source'])(
+      'moves a foreign tab without changing local folder membership (%s)',
+      async suffix => {
+        const target = tab({tabId: 'target', index: 1});
+        const loose = tab({tabId: 'loose', index: 2});
+        const model = createFolderModel([{
+          type: 'folder', id: 'folder-a', name: 'Work', collapsed: false,
+          children: [{type: 'tab', ...target}],
+        }, {type: 'tab', ...loose}]);
+        const {el, send} = createModelList(model, [target, loose]);
+        await el.updateComplete;
+        const actions = vi.fn();
+        el.addEventListener('folder-action', actions);
+        const dataTransfer = fakeDataTransfer({
+          'text/plain': `dao-tab-drag:8:1${suffix}`,
+        });
+        el.dispatchEvent(dragEvent('dragover', dataTransfer, {clientY: 100}));
+        el.dispatchEvent(dragEvent('drop', dataTransfer));
+
+        expect(send).toHaveBeenCalledWith(
+            'moveTabCrossWindow', [8, 1, 3, suffix ? 'source' : '']);
+        expect(actions).not.toHaveBeenCalled();
+        expect(model.findTabFolder(target)).toBe('folder-a');
+      });
+
+  it('accepts a foreign tab when the target list is empty', async () => {
+    const {el, send} = createList();
+    el.tabs = [];
+    await el.updateComplete;
+    const dataTransfer = fakeDataTransfer({
+      'text/plain': 'dao-tab-drag:8:0:source',
+    });
+    el.dispatchEvent(dragEvent('dragover', dataTransfer, {clientY: 0}));
+    el.dispatchEvent(dragEvent('drop', dataTransfer));
+
+    expect(send).toHaveBeenCalledWith(
+        'moveTabCrossWindow', [8, 0, -1, 'source']);
+  });
+
+  it('resolves a same-window tab by identity after its index changes',
+      async () => {
+        const {el, send} = createList();
+        await el.updateComplete;
+        const dataTransfer = fakeDataTransfer({
+          'text/plain': 'dao-tab-drag:7:1:tab-b',
+        });
+        const first = el.shadowRoot!.querySelector('dao-tab-item') as HTMLElement;
+        setTabItemBounds(first, 30, 36);
+        first.dispatchEvent(dragEvent('dragover', dataTransfer, {clientY: 0}));
+        first.dispatchEvent(dragEvent('drop', dataTransfer));
+
+        expect(send).toHaveBeenCalledWith('moveTab', [2, 1]);
+        send.mockClear();
+        const removed = fakeDataTransfer({
+          'text/plain': 'dao-tab-drag:7:1:removed',
+        });
+        first.dispatchEvent(dragEvent('dragover', removed, {clientY: 0}));
+        first.dispatchEvent(dragEvent('drop', removed));
+        expect(send.mock.calls.some(call => call[0] === 'moveTab')).toBe(false);
+      });
 
   it('keeps duplicate URL tabs distinct when computing context menu order',
       async () => {
@@ -720,7 +826,7 @@ describe('dao-tab-list', () => {
         'showFolderContextMenu', ['ordinary-id', 20, 30]);
   });
 
-  it('activates native tab drag when leaving at the viewport edge', async () => {
+  it('does not activate a native tab drag for an unrelated dragleave', async () => {
     const {el, send} = createList();
     await el.updateComplete;
 
@@ -740,6 +846,6 @@ describe('dao-tab-list', () => {
     }));
 
     expect(send).toHaveBeenCalledWith('setDropInsertIndex', [-1]);
-    expect(send).toHaveBeenCalledWith('tabDragActive', [true]);
+    expect(send.mock.calls.some(call => call[0] === 'tabDragActive')).toBe(false);
   });
 });

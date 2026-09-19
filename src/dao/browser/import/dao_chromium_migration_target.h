@@ -20,6 +20,7 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "base/values.h"
 #include "components/password_manager/core/browser/password_store/password_store_consumer.h"
+#include "components/sessions/core/session_id.h"
 #include "dao/browser/import/dao_migration_writer.h"
 
 class Profile;
@@ -112,9 +113,11 @@ class DaoChromiumMigrationTarget
   ItemWriteCallback pending_password_callback_;
   std::map<std::string, raw_ptr<const bookmarks::BookmarkNode>>
       bookmark_folders_;
+  std::string folder_snapshot_id_;
   base::DictValue folder_data_;
   raw_ptr<base::ListValue> folder_items_ = nullptr;
   raw_ptr<base::DictValue> pending_folder_ = nullptr;
+  std::optional<SessionID> pending_folder_window_id_;
   std::vector<std::string> pending_folder_tab_ids_;
   std::deque<ExtensionEntry> extension_queue_;
   scoped_refptr<extensions::WebstoreInstallWithPrompt> extension_installer_;

@@ -131,9 +131,9 @@ describe('dao-tab-item', () => {
         .onDragStart_(event);
 
     expect(dataTransfer.setData).toHaveBeenCalledWith(
-        TAB_DRAG_MIME_TYPE, 'dao-tab-drag:7:3');
+        TAB_DRAG_MIME_TYPE, 'dao-tab-drag:7:3:tab-1');
     expect(dataTransfer.setData).toHaveBeenCalledWith(
-        'text/plain', 'dao-tab-drag:7:3');
+        'text/plain', 'dao-tab-drag:7:3:tab-1');
     expect(dataTransfer.effectAllowed).toBe('move');
   });
 

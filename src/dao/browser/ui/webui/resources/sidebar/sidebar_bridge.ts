@@ -96,6 +96,7 @@ export interface PinnedItemData {
   faviconUrl: string;
   isOpen: boolean;
   openTabIndex: number;
+  openTabId?: string;
   isActive: boolean;
   isFaviconLight?: boolean;
 }
@@ -202,31 +203,23 @@ export function clearActivePinnedItemDragId() {
 }
 
 /**
- * Returns true when a drag event point has left a viewport.
+ * Parse a window/tab drag, optionally carrying its stable tab identity.
  */
-export function isPointOutsideViewport(
-    clientX: number, clientY: number, viewportWidth: number,
-    viewportHeight: number): boolean {
-  if (clientX < 0 || clientY < 0) return true;
-  if (clientX >= viewportWidth || clientY >= viewportHeight) {
-    return true;
-  }
-  return false;
-}
-
-/**
- * Parse a tab drag data string ("dao-tab-drag:<sessionId>:<tabIndex>").
- * Returns {sessionId, tabIndex} or null if the format is invalid.
- */
-export function parseTabDragData(
-    data: string): {sessionId: number; tabIndex: number} | null {
+export function parseTabDragData(data: string):
+    {sessionId: number; tabIndex: number; tabId?: string} | null {
   if (!data.startsWith(TAB_DRAG_PREFIX)) return null;
   const parts = data.substring(TAB_DRAG_PREFIX.length).split(':');
-  if (parts.length < 2) return null;
-  const sessionId = parseInt(parts[0]!, 10);
-  const tabIndex = parseInt(parts[1]!, 10);
-  if (isNaN(sessionId) || isNaN(tabIndex)) return null;
-  return {sessionId, tabIndex};
+  if (parts.length !== 2 && parts.length !== 3) return null;
+  if (!/^\d+$/.test(parts[0]!) || !/^\d+$/.test(parts[1]!)) return null;
+  const sessionId = Number(parts[0]);
+  const tabIndex = Number(parts[1]);
+  if (sessionId <= 0 || sessionId > 0x7fffffff || tabIndex > 0x7fffffff) {
+    return null;
+  }
+  const tabId = parts[2];
+  if (tabId !== undefined && (!tabId || /\s/.test(tabId))) return null;
+  return tabId === undefined ? {sessionId, tabIndex} :
+      {sessionId, tabIndex, tabId};
 }
 
 // ---- Folder Action Types (discriminated union) ----

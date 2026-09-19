@@ -1,8 +1,44 @@
 diff --git a/content/browser/web_contents/web_contents_view_mac.mm b/content/browser/web_contents/web_contents_view_mac.mm
-index 7927a3920f..af58648aef 100644
+index 712da37eaef7c..e4d6564192228 100644
 --- a/content/browser/web_contents/web_contents_view_mac.mm
 +++ b/content/browser/web_contents/web_contents_view_mac.mm
-@@ -777,7 +777,16 @@ ClipboardEndpoint source_endpoint(
+@@ -656,16 +656,19 @@ void SetReadWritePermissionsForFile(base::File& file) {
+ 
+ void WebContentsViewMac::EndDrag(uint32_t drag_operation,
+                                  const gfx::PointF& local_point,
+-                                 const gfx::PointF& screen_point) {
++                                 const gfx::PointF& screen_point,
++                                 bool ended_by_mouse_release) {
+   [drag_dest_
+       endDrag:base::BindOnce(&WebContentsViewMac::PerformEndDrag,
+                              deferred_close_weak_ptr_factory_.GetWeakPtr(),
+-                             drag_operation, local_point, screen_point)];
++                             drag_operation, local_point, screen_point,
++                             ended_by_mouse_release)];
+ }
+ 
+ void WebContentsViewMac::PerformEndDrag(uint32_t drag_operation,
+                                         const gfx::PointF& local_point,
+-                                        const gfx::PointF& screen_point) {
++                                        const gfx::PointF& screen_point,
++                                        bool ended_by_mouse_release) {
+   // Validate internal members are non-null as this method can be called
+   // asynchronously.
+   if (!web_contents_ || !drag_source_start_rwh_) {
+@@ -697,6 +700,12 @@ void SetReadWritePermissionsForFile(base::File& file) {
+       static_cast<ui::mojom::DragOperation>(drag_operation),
+       drag_source_start_rwh_.get());
+ 
++  if (delegate_) {
++    delegate_->WebContentsDragEnded(
++        screen_point, static_cast<ui::mojom::DragOperation>(drag_operation),
++        ended_by_mouse_release);
++  }
++
+   drag_source_start_rwh_.reset();
+ }
+ 
+@@ -783,7 +792,16 @@ void SetReadWritePermissionsForFile(base::File& file) {
  }
  
  void WebContentsViewMac::ViewsHostableDetach() {

@@ -6,7 +6,11 @@
 
 #import <AppKit/AppKit.h>
 
+#include <memory>
+#include <utility>
+
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -23,7 +27,9 @@
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/point_conversions.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace {
@@ -33,6 +39,9 @@ namespace {
 // the transparent DaoEventInterceptor can stay mounted on a window's
 // contentView after a cross-window drag and block later WebContents events.
 void ClearAllDaoEventInterceptors();
+
+class TabDragNativeCompletion;
+std::unique_ptr<TabDragNativeCompletion>& TabDragNativeCompletionStorage();
 
 // Drive DaoSplitView's drop-zone overlay from the native interceptor.
 // Looks up the Browser that owns |window|, converts the Cocoa drag
@@ -122,7 +131,8 @@ bool HandleDaoTabDrop(NSWindow* target_window,
   const std::string text = base::SysNSStringToUTF8(payload);
   int source_sid = 0;
   int tab_index = 0;
-  if (!dao::ParseDaoTabDragPayload(text, &source_sid, &tab_index)) {
+  std::string tab_id;
+  if (!dao::ParseDaoTabDragPayload(text, &source_sid, &tab_index, &tab_id)) {
     LOG(ERROR) << "[Dao-Xwin] HandleDaoTabDrop: malformed payload";
     return false;
   }
@@ -153,7 +163,7 @@ bool HandleDaoTabDrop(NSWindow* target_window,
   const int insert_at = ComputeCrossWindowInsertIndex(
       target_browser, target_window, cursor_in_window_cocoa);
   const bool ok = dao::ExecuteCrossWindowTabMove(target_browser, source_sid,
-                                                 tab_index, insert_at);
+                                                 tab_index, insert_at, tab_id);
   LOG(ERROR) << "[Dao-Xwin] HandleDaoTabDrop: moved tab " << tab_index
              << " from sid=" << source_sid << " (insert_at=" << insert_at
              << ", success=" << ok << ")";
@@ -404,6 +414,74 @@ void HideNativeSplitIndicatorForWindow(NSWindow* window) {
   }
 }
 
+bool IsOutsideEveryBrowserWindow(const gfx::Point& screen_point) {
+  for (BrowserWindowInterface* browser_window :
+       GetAllBrowserWindowInterfaces()) {
+    Browser* browser =
+        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+    if (browser && browser->window() && !browser->window()->IsMinimized() &&
+        browser->window()->IsVisibleOnScreen() &&
+        browser->window()->GetBounds().Contains(screen_point)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+class TabDragNativeCompletion final {
+ public:
+  TabDragNativeCompletion(content::WebContents* source_web_contents,
+                          dao::TabDragTearOffCallback tear_off_callback)
+      : source_web_contents_(source_web_contents),
+        tear_off_callback_(std::move(tear_off_callback)) {}
+
+  void Complete(content::WebContents* source_web_contents,
+                const gfx::PointF& screen_point,
+                ui::mojom::DragOperation operation,
+                bool ended_by_mouse_release) {
+    if (source_web_contents != source_web_contents_) {
+      return;
+    }
+    const gfx::Point rounded_screen_point = gfx::ToRoundedPoint(screen_point);
+    const bool should_tear_off =
+        operation == ui::mojom::DragOperation::kNone &&
+        ended_by_mouse_release &&
+        IsOutsideEveryBrowserWindow(rounded_screen_point);
+    Settle(should_tear_off ? &rounded_screen_point : nullptr);
+  }
+
+  void Cancel(content::WebContents* source_web_contents) {
+    if (source_web_contents == source_web_contents_) {
+      Settle(nullptr);
+    }
+  }
+
+ private:
+  void Settle(const gfx::Point* tear_off_point) {
+    if (settled_) {
+      return;
+    }
+    settled_ = true;
+    source_web_contents_ = nullptr;
+
+    dao::TabDragTearOffCallback callback = std::move(tear_off_callback_);
+    dao::EndTabDragNativeEvents();
+    if (tear_off_point && callback) {
+      std::move(callback).Run(*tear_off_point);
+    }
+  }
+
+  raw_ptr<content::WebContents> source_web_contents_;
+  dao::TabDragTearOffCallback tear_off_callback_;
+  bool settled_ = false;
+};
+
+std::unique_ptr<TabDragNativeCompletion>& TabDragNativeCompletionStorage() {
+  static base::NoDestructor<std::unique_ptr<TabDragNativeCompletion>>
+      completion;
+  return *completion;
+}
+
 NSRect TargetFrameForWebContentsInContentView(NSView* native,
                                               NSView* content_view) {
   if (!native || !content_view) {
@@ -438,6 +516,35 @@ void ClearAllDaoEventInterceptors() {
 }  // namespace
 
 namespace dao {
+
+void ObserveTabDragNativeCompletion(content::WebContents* source_web_contents,
+                                    TabDragTearOffCallback tear_off_callback) {
+  auto& completion = TabDragNativeCompletionStorage();
+  completion.reset();
+  if (!source_web_contents || !tear_off_callback) {
+    return;
+  }
+  completion = std::make_unique<TabDragNativeCompletion>(
+      source_web_contents, std::move(tear_off_callback));
+}
+
+void CompleteTabDragNativeCompletion(content::WebContents* source_web_contents,
+                                     const gfx::PointF& screen_point,
+                                     ui::mojom::DragOperation operation,
+                                     bool ended_by_mouse_release) {
+  auto& completion = TabDragNativeCompletionStorage();
+  if (completion) {
+    completion->Complete(source_web_contents, screen_point, operation,
+                         ended_by_mouse_release);
+  }
+}
+
+void CancelTabDragNativeCompletion(content::WebContents* source_web_contents) {
+  auto& completion = TabDragNativeCompletionStorage();
+  if (completion) {
+    completion->Cancel(source_web_contents);
+  }
+}
 
 void BlockWebContentNativeEvents(content::WebContents* web_contents) {
   if (!web_contents) {

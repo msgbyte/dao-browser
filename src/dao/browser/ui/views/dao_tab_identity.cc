@@ -18,6 +18,7 @@ namespace dao {
 namespace {
 
 const char kDaoSidebarTabIdentityKey = 0;
+const char kDaoSidebarFolderSnapshotKey = 0;
 
 class DaoSidebarTabIdentityData : public base::SupportsUserData::Data {
  public:
@@ -62,6 +63,24 @@ void SetSidebarTabId(content::WebContents* contents, const std::string& id) {
                         std::make_unique<DaoSidebarTabIdentityData>(id));
 }
 
+std::string GetSidebarFolderSnapshotId(content::WebContents* contents) {
+  if (!contents) {
+    return std::string();
+  }
+  auto* snapshot = static_cast<DaoSidebarTabIdentityData*>(
+      contents->GetUserData(&kDaoSidebarFolderSnapshotKey));
+  return snapshot ? snapshot->id() : std::string();
+}
+
+void SetSidebarFolderSnapshotId(content::WebContents* contents,
+                                const std::string& id) {
+  if (!contents || id.empty()) {
+    return;
+  }
+  contents->SetUserData(&kDaoSidebarFolderSnapshotKey,
+                        std::make_unique<DaoSidebarTabIdentityData>(id));
+}
+
 void RepairDuplicateSidebarTabIds(
     const std::vector<content::WebContents*>& contents) {
   std::set<std::string> seen;
@@ -85,6 +104,11 @@ void CopySidebarTabId(content::WebContents* old_contents,
   if (identity) {
     SetSidebarTabId(new_contents, identity->id());
   }
+  const std::string folder_snapshot_id =
+      GetSidebarFolderSnapshotId(old_contents);
+  if (!folder_snapshot_id.empty()) {
+    SetSidebarFolderSnapshotId(new_contents, folder_snapshot_id);
+  }
 }
 
 void PopulateSidebarTabIdentityExtraData(
@@ -94,6 +118,10 @@ void PopulateSidebarTabIdentityExtraData(
     return;
   }
   (*extra_data)[kSidebarTabIdentitySessionKey] = GetSidebarTabId(contents);
+  const std::string folder_snapshot_id = GetSidebarFolderSnapshotId(contents);
+  if (!folder_snapshot_id.empty()) {
+    (*extra_data)[kSidebarFolderSnapshotSessionKey] = folder_snapshot_id;
+  }
 }
 
 void RestoreSidebarTabIdentityFromExtraData(
@@ -102,6 +130,10 @@ void RestoreSidebarTabIdentityFromExtraData(
   auto it = extra_data.find(kSidebarTabIdentitySessionKey);
   if (it != extra_data.end()) {
     SetSidebarTabId(contents, it->second);
+  }
+  it = extra_data.find(kSidebarFolderSnapshotSessionKey);
+  if (it != extra_data.end()) {
+    SetSidebarFolderSnapshotId(contents, it->second);
   }
 }
 

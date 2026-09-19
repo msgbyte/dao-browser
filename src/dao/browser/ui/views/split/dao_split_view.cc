@@ -12,9 +12,9 @@
 
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/task/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
@@ -23,8 +23,8 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -33,6 +33,7 @@
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
+#include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
@@ -1273,21 +1274,10 @@ bool DaoSplitView::ProcessNativeTabDrop(const gfx::Point& location_in_view,
   std::optional<SplitDirection> target_zone =
       DetectDropZone(target_leaf, location_in_view);
 
-  // Parse "dao-tab-drag:<sid>:<idx>".
-  const std::string kPrefix = "dao-tab-drag:";
-  if (payload.size() <= kPrefix.size() ||
-      payload.compare(0, kPrefix.size(), kPrefix) != 0) {
-    return false;
-  }
-  std::string body = payload.substr(kPrefix.size());
-  size_t colon = body.find(':');
-  if (colon == std::string::npos) {
-    return false;
-  }
   int source_sid = 0;
   int tab_index = 0;
-  if (!base::StringToInt(body.substr(0, colon), &source_sid) ||
-      !base::StringToInt(body.substr(colon + 1), &tab_index)) {
+  std::string tab_id;
+  if (!ParseDaoTabDragPayload(payload, &source_sid, &tab_index, &tab_id)) {
     return false;
   }
 
@@ -1304,6 +1294,7 @@ bool DaoSplitView::ProcessNativeTabDrop(const gfx::Point& location_in_view,
   }
 
   TabStripModel* source_model = source_browser->tab_strip_model();
+  tab_index = ResolveDraggedTabIndex(source_browser, tab_index, tab_id);
   if (tab_index < 0 || tab_index >= source_model->count()) {
     return false;
   }
@@ -1324,21 +1315,12 @@ bool DaoSplitView::ProcessNativeTabDrop(const gfx::Point& location_in_view,
     existing_at_target = tab_strip_model_->GetActiveWebContents();
   }
 
-  // Cross-window: detach and insert into our model first.
   if (is_cross_window) {
-    std::unique_ptr<content::WebContents> detached =
-        source_model->DetachWebContentsAtForInsertion(tab_index);
-    if (!detached) {
+    if (!ExecuteCrossWindowTabMove(browser_, source_sid, tab_index,
+                                   tab_strip_model_->count(), tab_id)) {
       return false;
     }
-    dragged_contents = detached.get();
-    tab_strip_model_->InsertWebContentsAt(tab_strip_model_->count(),
-                                          std::move(detached),
-                                          AddTabTypes::ADD_ACTIVE);
     tab_index = tab_strip_model_->GetIndexOfWebContents(dragged_contents);
-    if (source_model->count() == 0 && source_browser->window()) {
-      source_browser->window()->Close();
-    }
   }
 
   if (target_zone.has_value()) {
@@ -1394,135 +1376,24 @@ void DaoSplitView::OnDrop(
     const ui::DropTargetEvent& event,
     ui::mojom::DragOperation& output_drag_op,
     std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner) {
-  LOG(ERROR) << "[Dao-Xwin] DaoSplitView::OnDrop ENTRY at ("
-             << event.location().x() << "," << event.location().y()
-             << ") tab_drag_active=" << tab_drag_active_;
   drop_overlay_->SetVisible(false);
   BlockAllNativeEvents(false);
-
-  DaoSplitLeafNode* target_leaf = FindLeafAtPoint(event.location());
-  std::optional<SplitDirection> target_zone =
-      target_leaf ? DetectDropZone(target_leaf, event.location()) : std::nullopt;
-
-  if (!target_leaf || !tab_strip_model_) {
-    output_drag_op = ui::mojom::DragOperation::kNone;
+  output_drag_op = ui::mojom::DragOperation::kNone;
+  const auto text = event.data().GetString();
+  if (!text.has_value()) {
     return;
   }
-
-  // Parse drag data: "dao-tab-drag:<session_id>:<tab_index>" or legacy
-  // "dao-tab-drag:<tab_index>".
-  auto text = event.data().GetString();
-  if (!text.has_value() || !text->starts_with(u"dao-tab-drag:")) {
-    output_drag_op = ui::mojom::DragOperation::kNone;
-    return;
+  std::string payload = base::UTF16ToUTF8(*text);
+  // Legacy local drags carried only an index.
+  const std::string prefix = kDaoTabDragPrefix;
+  if (payload.starts_with(prefix) &&
+      payload.find(':', prefix.size()) == std::string::npos) {
+    payload = prefix + base::NumberToString(browser_->session_id().id()) + ":" +
+              payload.substr(prefix.size());
   }
-
-  std::u16string payload = text->substr(13);  // len("dao-tab-drag:") = 13
-  int tab_index = 0;
-  bool is_cross_window = false;
-  Browser* source_browser = browser_;
-
-  size_t colon_pos = payload.find(u':');
-  if (colon_pos != std::u16string::npos) {
-    // New format: "<session_id>:<tab_index>"
-    int source_session_id = 0;
-    if (!base::StringToInt(payload.substr(0, colon_pos),
-                           &source_session_id) ||
-        !base::StringToInt(payload.substr(colon_pos + 1), &tab_index)) {
-      output_drag_op = ui::mojom::DragOperation::kNone;
-      return;
-    }
-    if (static_cast<int>(browser_->session_id().id()) !=
-        source_session_id) {
-      is_cross_window = true;
-      source_browser = FindBrowserBySessionId(browser_->profile(),
-                                              source_session_id);
-      if (!source_browser) {
-        output_drag_op = ui::mojom::DragOperation::kNone;
-        return;
-      }
-    }
-  } else {
-    // Legacy format: "<tab_index>"
-    if (!base::StringToInt(payload, &tab_index)) {
-      output_drag_op = ui::mojom::DragOperation::kNone;
-      return;
-    }
+  if (ProcessNativeTabDrop(event.location(), payload)) {
+    output_drag_op = ui::mojom::DragOperation::kMove;
   }
-
-  TabStripModel* source_model = source_browser->tab_strip_model();
-  content::WebContents* dragged_contents =
-      source_model->GetWebContentsAt(tab_index);
-  if (!dragged_contents) {
-    output_drag_op = ui::mojom::DragOperation::kNone;
-    return;
-  }
-
-  // Cross-window: detach from source and insert into local model.
-  if (is_cross_window) {
-    std::unique_ptr<content::WebContents> detached =
-        source_model->DetachWebContentsAtForInsertion(tab_index);
-    if (!detached) {
-      output_drag_op = ui::mojom::DragOperation::kNone;
-      return;
-    }
-    dragged_contents = detached.get();
-    tab_strip_model_->InsertWebContentsAt(
-        tab_strip_model_->count(), std::move(detached),
-        AddTabTypes::ADD_ACTIVE);
-    tab_index = tab_strip_model_->GetIndexOfWebContents(dragged_contents);
-    // Auto-close source window if empty.
-    if (source_model->count() == 0) {
-      source_browser->window()->Close();
-    }
-  }
-
-  if (target_zone.has_value()) {
-    // Split the target pane.
-    content::WebContents* existing = target_leaf->web_contents();
-    if (!existing && !IsSplitActive() && tab_strip_model_) {
-      existing = tab_strip_model_->GetActiveWebContents();
-      target_leaf->set_web_contents(existing);
-    }
-    if (existing && existing != dragged_contents) {
-      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-          FROM_HERE,
-          base::BindOnce(&DaoSplitView::PerformDeferredSplit,
-                         weak_factory_.GetWeakPtr(), existing,
-                         target_zone.value(),
-                         target_zone.value() == SplitDirection::kHorizontal
-                             ? event.location().x() <=
-                                   target_leaf->bounds().CenterPoint().x()
-                             : event.location().y() <=
-                                   target_leaf->bounds().CenterPoint().y(),
-                         dragged_contents),
-          kDeferredDropActionDelay);
-    }
-  } else {
-    // Center drop — just activate the dragged tab in the model.
-    // In single-pane mode this simply switches the active tab.
-    // In split mode it swaps the pane's content.
-    if (IsSplitActive()) {
-      if (content::WebContents* target_contents = target_leaf->web_contents();
-          target_contents && target_contents != dragged_contents) {
-        base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-            FROM_HERE,
-            base::BindOnce(&DaoSplitView::PerformDeferredSwap,
-                           weak_factory_.GetWeakPtr(), target_contents,
-                           dragged_contents),
-            kDeferredDropActionDelay);
-      }
-    } else {
-      // Single-pane: update tree leaf + activate tab, no view rebuild.
-      target_leaf->set_web_contents(dragged_contents);
-      tab_strip_model_->ActivateTabAt(tab_index);
-    }
-  }
-
-  output_drag_op = ui::mojom::DragOperation::kMove;
-  drop_target_leaf_ = nullptr;
-  drop_zone_direction_.reset();
-  SetTabDragActive(false);
 }
 
 // --- Private -----------------------------------------------------------------

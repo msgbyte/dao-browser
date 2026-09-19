@@ -86,6 +86,16 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   // Invalidates folder caches for all sidebar windows of `profile` after a
   // profile-level writer updates dao_folders.json.
   static void NotifyFolderDataChanged(Profile* profile);
+  static bool LoadFolderSnapshotForImport(
+      Profile* profile,
+      const std::vector<std::string>& preferred_ids,
+      const std::set<std::string>& tab_ids,
+      std::string* snapshot_id,
+      std::string* json);
+  static bool PersistImportedFolder(Profile* profile,
+                                    const std::string& snapshot_id,
+                                    std::set<std::string> tab_ids,
+                                    base::DictValue folder);
 
   // content::WebUIMessageHandler:
   void RegisterMessages() override;
@@ -150,6 +160,13 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void SetSessionRestoreCompletedForTesting(bool completed);
   void SetStaleTabIdsForTesting(std::set<std::string> tab_ids);
   int CloseTabsByIdForTesting(const base::ListValue& tab_ids);
+  void LoadFoldersForTesting(const std::string& callback_id);
+  void SaveFoldersForTesting(const std::string& json);
+  static void WaitForFolderFileTasksForTesting();
+  const std::string& folder_snapshot_id_for_testing() const {
+    return folder_snapshot_id_;
+  }
+  const std::string& folder_json_for_testing() const { return folder_json_; }
   views::Widget* ShowDeleteFolderDialogForTesting(
       const std::string& folder_id);
   int CloseDuplicateTabsForTesting();
@@ -183,6 +200,12 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   bool IsPinnedSessionRestoreComplete() const;
   void RegisterPinnedItemsProfileHandler();
   void UnregisterPinnedItemsProfileHandler();
+  bool AdoptFoldersFromProfileState();
+  bool MaybeAdoptRestoredFolderSnapshot();
+  void LoadFoldersForCallback(std::string callback_id);
+  std::set<std::string> GetCurrentFolderTabIds() const;
+  std::vector<std::string> GetCurrentFolderSnapshotIds() const;
+  void PersistFolderSnapshotIdentity();
   bool AdoptPinnedItemsFromProfileState();
   void PublishPinnedItemsToProfileHandlers();
   void SchedulePinnedItemsProfileRefresh();
@@ -238,6 +261,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleCancelDownload(const base::ListValue& args);
   void HandleStartFileDrag(const base::ListValue& args);
   void HandleTabDragActive(const base::ListValue& args);
+  void OnTabDragEnded(std::string tab_id, const gfx::Point& screen_point);
   void HandleMoveTabCrossWindow(const base::ListValue& args);
   void HandleDetachTabToNewWindow(const base::ListValue& args);
   void HandleLoadFolders(const base::ListValue& args);
@@ -304,6 +328,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kFolderRename,
     kFolderUnfolder,
     kFolderDelete,
+    kMoveTabToNewWindow,
   };
 
   raw_ptr<Browser> browser_ = nullptr;
@@ -327,7 +352,11 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   std::set<uint32_t> in_progress_download_ids_;
   std::optional<std::pair<int, gfx::Point>> pending_download_animation_;
   std::vector<base::FilePath> recent_file_paths_;
-  std::string folder_json_;  // Per-window folder data (in-memory)
+  std::string folder_json_;
+  std::string folder_snapshot_id_;
+  bool folders_loaded_ = false;
+  bool folder_snapshot_matched_ = false;
+  uint64_t folder_load_generation_ = 0;
   std::set<std::string> stale_tab_ids_;
   DaoPinnedTabModel pinned_tab_model_;
   bool pinned_items_loaded_ = false;
@@ -345,6 +374,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
 
   // Context menu state.
   int context_menu_tab_index_ = -1;
+  std::string context_menu_tab_id_;
   std::string context_menu_pinned_item_id_;
   std::string context_menu_folder_id_;
   std::set<int> folder_tab_indices_;
@@ -363,6 +393,7 @@ class DaoSidebarUI : public content::WebUIController {
   ~DaoSidebarUI() override;
 
   void SetBrowser(Browser* browser);
+  DaoSidebarUIHandler* handler_for_testing() { return handler_; }
 
  private:
   raw_ptr<DaoSidebarUIHandler> handler_ = nullptr;
