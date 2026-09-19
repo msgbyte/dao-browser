@@ -5,7 +5,9 @@ import WebKit
 struct DownloadRecord: Identifiable, Codable {
     var id = UUID()
     var name = ""
-    var source = ""
+    /// The committed page that started the download. Original requests can be authenticated POSTs
+    /// or blobs, so a transfer that cannot resume sends the user back here instead of replaying them.
+    var page: String?
     var state = "downloading"
     var fraction = 0.0
     var isPrivate = false
@@ -22,7 +24,7 @@ struct DownloadRecord: Identifiable, Codable {
     @ObservationIgnored private var active: [ObjectIdentifier: (WKDownload, UUID)] = [:]
     @ObservationIgnored private var observations: [UUID: NSKeyValueObservation] = [:]
     @ObservationIgnored private var confirmations: [UUID: (String, @escaping (Bool) -> Void) -> Void] = [:]
-    @ObservationIgnored private var resumable: [UUID: Data] = [:]
+    private var resumable: [UUID: Data] = [:]
     @ObservationIgnored private var canSave = true
 
     override init() {
@@ -44,10 +46,10 @@ struct DownloadRecord: Identifiable, Codable {
         }
     }
 
-    func attach(_ download: WKDownload, isPrivate: Bool,
+    func attach(_ download: WKDownload, isPrivate: Bool, page: URL?,
                 confirm: @escaping (String, @escaping (Bool) -> Void) -> Void) {
         var item = DownloadRecord()
-        item.source = download.originalRequest?.url?.absoluteString ?? ""
+        if let page, Address.isWeb(page) { item.page = page.absoluteString }
         item.isPrivate = isPrivate
         items.insert(item, at: 0)
         confirmations[item.id] = confirm
@@ -130,14 +132,13 @@ struct DownloadRecord: Identifiable, Codable {
         persist()
     }
 
-    func retry(_ item: DownloadRecord, webView: WKWebView) {
-        guard items.contains(where: { $0.id == item.id && $0.state != "downloading" && $0.state != "complete" }) else { return }
+    func canResume(_ id: UUID) -> Bool {
         // Without an approved destination the resumed transfer has nowhere to write.
-        guard let data = resumable[item.id], !item.name.isEmpty else {
-            // Original requests can be authenticated POSTs or blobs; do not replay them as anonymous GETs.
-            onError?(L("download_retry_page"))
-            return
-        }
+        resumable[id] != nil && items.contains { $0.id == id && !$0.name.isEmpty && $0.state != "downloading" && $0.state != "complete" }
+    }
+
+    func retry(_ item: DownloadRecord, webView: WKWebView) {
+        guard canResume(item.id), let data = resumable[item.id] else { return }
         update(item.id) { $0.state = "downloading" }
         webView.resumeDownload(fromResumeData: data) { [weak self] download in
             guard let self, self.items.contains(where: { $0.id == item.id && $0.state == "downloading" }) else {

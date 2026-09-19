@@ -59,9 +59,11 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
 - [ ] Bookmark, rename, assign/move folders, search, remove entries, clear history
   and restart; confirm changes persist without resetting unrelated data.
 - [ ] Download an authenticated file and blob, cancel/resume, terminate/relaunch,
-  preview/share/delete; verify failed resumes explain restarting from the page.
+  preview/share/delete; verify unresumable items offer Open download page only
+  when the originating page is known, opening it in a tab of the same privacy.
 - [ ] Test pull refresh, find, JS dialogs, media permission denial, external-app
-  confirmation, certificate information and network/process-termination errors.
+  confirmation, certificate information and network/process-termination errors;
+  retrying a failed link or popup load reopens the failed URL, not the previous page.
 - [ ] Scan a QR code on supported hardware; share and rescan a generated page QR.
 - [ ] Verify theme and search-engine labels remain visible beside their selected
   values. Toggle theme, page scale and private startup; clear website data and verify

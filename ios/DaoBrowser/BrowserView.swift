@@ -103,7 +103,7 @@ struct BrowserView: View {
                             DaoIcon(name: "globe", size: 36)
                             Text(L("page_failed")).font(.headline)
                             Text(error).font(.subheadline).multilineTextAlignment(.center).foregroundStyle(Nova.muted)
-                            Button(L("retry")) { model.navigate(model.selected.record.url) }.buttonStyle(.bordered)
+                            Button(L("retry")) { model.navigate(model.selected.failedURL ?? model.selected.record.url) }.buttonStyle(.bordered)
                         }.padding(24)
                     }
                 }
@@ -127,14 +127,16 @@ struct BrowserView: View {
             }.padding(.horizontal, 8)
             ScrollView {
                 VStack(spacing: 0) {
+                    // Popups can show the browser before they have a web URL to save or encode.
+                    let hasPage = !model.selected.record.url.isEmpty
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
                         Button(action: model.home) { drawerTile("house", "home") }
-                        Button { model.bookmark() } label: { drawerTile("bookmark-plus", "bookmark_page") }
-                        Button { model.bookmark(kind: "readingList") } label: { drawerTile("book-open", "read_later") }
+                        Button { model.bookmark() } label: { drawerTile("bookmark-plus", "bookmark_page") }.disabled(!hasPage)
+                        Button { model.bookmark(kind: "readingList") } label: { drawerTile("book-open", "read_later") }.disabled(!hasPage)
                         if let url = URL(string: model.selected.record.url) {
                             ShareLink(item: url) { drawerTile("share-2", "share") }
                         }
-                        Button { model.drawerOpen = false; showQR = true } label: { drawerTile("qr-code", "qr_code") }
+                        Button { model.drawerOpen = false; showQR = true } label: { drawerTile("qr-code", "qr_code") }.disabled(!hasPage)
                         Button {
                             model.drawerOpen = false
                             model.currentSession?.webView.findInteraction?.presentFindNavigator(showingReplace: false)

@@ -13,6 +13,8 @@ enum BrowserPage: String { case browser, tabs, history, bookmarks, readingList, 
     var canGoForward = false
     var secure = false
     var error: String?
+    /// The web URL to retry while `error` is shown; nil retries the current record URL.
+    var failedURL: String?
     var thumbnail: UIImage?
     // Popups own a live web view before they have a web URL, so they must not show the new-tab page.
     var isPopup = false

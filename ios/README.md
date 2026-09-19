@@ -70,8 +70,9 @@ Normal tabs restore lazily. Private tabs use a nonpersistent WebKit data store;
 their URLs, interaction states, history and screenshots are not archived. Private
 tab thumbnails exist only in memory. Explicitly saved bookmarks and confirmed
 downloads remain on disk. Download resume data is memory-only; an interrupted
-download without resume data must be restarted from its source page, avoiding
-incorrect replay of authenticated requests or POST/blob downloads.
+download without resume data must be restarted from its originating page, which
+Downloads offers to reopen, avoiding incorrect replay of authenticated requests
+or POST/blob downloads.
 
 Deep links use `dao://open?url=<percent-encoded-http-or-https-url>`. Default-browser
 entitlements and universal links are not set up. Distribution signing and

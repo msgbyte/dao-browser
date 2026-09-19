@@ -74,7 +74,7 @@
 "delete_failed" = "无法删除文件。";
 "download_confirm" = "下载文件？";
 "download_disk_notice" = "此文件将保存在设备上，隐私浏览中也一样。";
-"download_retry_page" = "此下载无法恢复，请返回原页面重新下载。";
+"open_download_page" = "打开下载页面";
 "theme" = "主题";
 "system" = "跟随系统";
 "light" = "浅色";

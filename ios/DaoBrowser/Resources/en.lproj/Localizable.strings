@@ -74,7 +74,7 @@
 "delete_failed" = "The file could not be deleted.";
 "download_confirm" = "Download file?";
 "download_disk_notice" = "This file will be saved on this device, including in private browsing.";
-"download_retry_page" = "This download cannot resume. Open the original page and download it again.";
+"open_download_page" = "Open download page";
 "theme" = "Theme";
 "system" = "System";
 "light" = "Light";

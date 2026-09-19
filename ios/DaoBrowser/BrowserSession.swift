@@ -125,12 +125,15 @@ import WebKit
         // WebKitErrorFrameLoadInterruptedByPolicyChange: the navigation became a download, not a failure.
         if error.domain == "WebKitErrorDomain", error.code == 102 { return }
         tab.error = error.localizedDescription
+        // A failed provisional load leaves WebKit on the previous page (or none in a popup), so remember what failed.
+        tab.failedURL = (error.userInfo[NSURLErrorFailingURLErrorKey] as? URL).flatMap { Address.isWeb($0) ? $0.absoluteString : nil }
         webView.scrollView.refreshControl?.endRefreshing()
         update()
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         tab.error = L("page_terminated")
+        tab.failedURL = nil
         update()
     }
 
@@ -145,7 +148,8 @@ import WebKit
     private func accept(_ download: WKDownload) {
         guard let model else { download.cancel(nil); return }
         // Every download asks before writing to Files, including private and script-triggered downloads.
-        model.downloads.attach(download, isPrivate: tab.record.isPrivate) { [weak model] filename, completion in
+        model.downloads.attach(download, isPrivate: tab.record.isPrivate,
+                               page: webView.backForwardList.currentItem?.url) { [weak model] filename, completion in
             guard let model else { completion(false); return }
             model.ask(WebPrompt(title: L("download_confirm"),
                 message: filename + "\n" + L("download_disk_notice")) { accepted, _ in completion(accepted) })

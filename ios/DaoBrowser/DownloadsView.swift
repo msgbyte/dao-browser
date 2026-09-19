@@ -35,8 +35,13 @@ struct DownloadsView: View {
                                                 else { model.notify(L("file_missing")) }
                                             }.frame(minHeight: 44)
                                             ShareLink(item: item.fileURL) { Text(L("share")) }.frame(minHeight: 44)
-                                        } else {
+                                        } else if model.downloads.canResume(item.id) {
                                             Button(L("retry")) { model.retryDownload(item) }.frame(minHeight: 44)
+                                        } else if let page = item.page {
+                                            Button(L("open_download_page")) {
+                                                model.addTab(isPrivate: item.isPrivate)
+                                                model.navigate(page)
+                                            }.frame(minHeight: 44)
                                         }
                                         Spacer()
                                         IconButton(icon: "trash-2", label: "delete") { deleting = item }
