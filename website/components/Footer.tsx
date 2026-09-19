@@ -53,6 +53,11 @@ export function Footer() {
           <h3 className={styles.colTitle}>Resources</h3>
           <ul className={styles.list}>
             <li>
+              <Link className={styles.link} href="/privacy">
+                Privacy Policy
+              </Link>
+            </li>
+            <li>
               <a
                 className={styles.link}
                 href={`${GITHUB_URL}/blob/main/README.md`}

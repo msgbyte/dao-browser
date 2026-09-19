@@ -1,0 +1,120 @@
+.root {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 64px 24px 96px;
+  overflow-wrap: anywhere;
+}
+
+.header {
+  margin-bottom: 32px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.header h1 {
+  margin: 12px 0 20px;
+  font-size: clamp(32px, 6vw, 48px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.dates {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.root p,
+.root li {
+  line-height: 1.8;
+}
+
+.notice {
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+
+.notice h2,
+.contents h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notice p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.contents {
+  margin: 40px 0;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.root ol,
+.root ul {
+  padding-left: 24px;
+}
+
+.contents a,
+.policy a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.contents a:hover,
+.policy a:hover {
+  color: var(--accent-hover);
+}
+
+.contents a:focus-visible,
+.policy a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.policy section {
+  margin-top: 44px;
+  scroll-margin-top: 96px;
+}
+
+.policy h2 {
+  margin: 0 0 20px;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
+.policy h3 {
+  margin: 28px 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.policy p {
+  margin: 0 0 16px;
+}
+
+.policy li + li {
+  margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .root {
+    padding: 40px 20px 64px;
+  }
+
+  .notice {
+    padding: 16px;
+  }
+}

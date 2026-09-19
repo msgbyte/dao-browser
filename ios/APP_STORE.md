@@ -122,18 +122,44 @@ from developer data collection. Do not automatically select "Data Not Collected"
 based only on local storage: first settle the first-party website and service
 practices. See [Apple's privacy details guidance](https://developer.apple.com/app-store/app-privacy-details/).
 
-The public policy still needs the operator name and public contact, an effective
-date, the practices above, service-provider handling, retention/deletion terms,
-and a way to request deletion of support data. Describe clearing website data,
-clearing history, deleting saved pages/downloads, and revoking camera/microphone
-access in iOS Settings. Do not imply that clearing website data removes the
-library, all downloaded files, or copies shared with other apps.
+The maintainer confirmed these details on September 20, 2026:
 
-Publish the policy at a working public HTTPS URL and add a localized, accessible
-entry in the app's About page. Publish a support page with current contact details.
-Neither page nor the policy entry exists in the current tracked sources.
-These are review prerequisites under Apple's [review guidance](https://developer.apple.com/app-store/review/)
-and [privacy guidelines](https://developer.apple.com/app-store/review/guidelines/#privacy).
+- Dao is an open-source, client-side browser without a Dao account, cloud sync,
+  or hosted storage for browsing data.
+- Maintainer and privacy contact: moonrailgun, `moonrailgun@gmail.com`.
+- Tianji operator: msgbyte. Analytics server location: Frankfurt, Germany.
+- Analytics-data and server-log retention periods: unknown.
+
+The policy includes these details and distinguishes the analytics server from
+Cloudflare's global proxy network; Frankfurt does not establish that all
+processing stays in Germany. It also describes local deletion controls. Clearing
+website data does not remove the library, all downloaded files, or copies shared
+with other apps.
+
+An English, cross-platform draft now lives at `website/app/privacy/page.tsx`
+and is linked from the website footer at `/privacy`. It is explicitly marked as
+a draft, uses `noindex`, and is omitted from the sitemap until finalized. This is
+tracked page content, not evidence that the public URL has been deployed.
+
+Before making the draft effective, confirm analytics, server-log, and support
+retention and the handling of deletion requests for information actually received
+by the project or Tianji. Check any regional consent, transfer, rights, and age
+requirements for the intended distribution. Verify the deployed Tianji tracker
+and server configuration; a source audit alone cannot establish live collection
+or retention. Do not infer a no-sale or no-training commitment from missing SDKs.
+
+After completing those details, set the effective date, remove the draft notice,
+and publish the policy at a working public HTTPS URL. Indexing and sitemap
+inclusion can be enabled when finalized; they are not App Store requirements.
+Add a localized, accessible entry in the app's About page and publish a support
+page with current contact details; those remain outstanding. See Apple's
+[review guidance](https://developer.apple.com/app-store/review/) and
+[privacy guidelines](https://developer.apple.com/app-store/review/guidelines/#privacy).
+
+The draft's feature-specific structure was informed by the
+[Firefox Privacy Notice](https://www.mozilla.org/en-US/privacy/firefox/) and
+[Brave Browser Privacy Policy](https://brave.com/privacy/browser/), checked on
+September 19, 2026. Their product-specific commitments do not apply to Dao.
 
 ## Screenshots
 
