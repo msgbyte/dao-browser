@@ -52,7 +52,13 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   the tab count. Pin state is serialized through a shared sequenced writer and
   atomically replaces the previous profile file.
 - **dao_folder_item.ts** / **dao_folder_model.ts** — Folder grouping with
-  profile-path persistence (load/save round-trip). Every folder context menu
+  window-scoped persistence under the profile path. Stable tab identities
+  preserve folder membership across session restore and distinguish tabs with
+  identical URLs. Window snapshots merge in shared profile state and are written
+  atomically so one window cannot overwrite another window's folders. Legacy
+  folder files remain readable. Off-the-record windows keep folder snapshots in
+  isolated memory and never read or write the regular profile's folder file.
+  Every folder context menu
   exposes Unfolder, which removes the folder and releases its child tabs in
   place, and Delete Folder, which uses a Dao native system confirmation dialog
   before closing the folder's currently matched child tabs. The folder is
@@ -72,7 +78,20 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 ### 1.3 Tab System Foundations
 - **DaoTabIdentity** (`dao_tab_identity.h`) — Stable cross-window tab IDs decoupled from `TabStripModel` indices, migrated across WebContents replacement and persisted in session extra data
 - **DaoTabCommands** (`dao_tab_commands.h`) — Tab action vocabulary (duplicate, pin, copy URL, close, etc.)
-- **DaoCrossWindowDrag** (`dao_cross_window_drag.{h,cc}`) — `dao-tab-drag:<session_id>:<tab_index>` pasteboard payload + parser, shared by `dao_tab_item.ts` and the macOS drop handler in `dao_native_util_mac.mm`
+- **DaoCrossWindowDrag** (`dao_cross_window_drag.{h,cc}`) — Shared parsing and
+  tab resolution for `dao-tab-drag:<session_id>:<tab_index>:<tab_id>` payloads;
+  legacy index-only identities remain readable. Stable IDs prevent moving a
+  different tab when the source window reorders during a drag. Existing-window
+  and Split View drops use the same transfer helper.
+- **Move tab to a new window** — The ordinary tab context menu uses Chromium's
+  native move command and localized label. Dragging a tab onto the desktop
+  creates a window before transferring its contents; dragging the only tab
+  moves the existing window. Desktop drop detection and window placement use
+  primary-display global coordinates, including on displays of different sizes.
+  Native drag completion controls tear-off, while
+  successful drops and Escape cancellation only clean up drag state. Cross-window
+  folder drops are rejected; ordinary tab-list drops never remove a destination
+  window's folder membership by interpreting a foreign tab index.
 - **Detach guards** — Prevents accidental reordering while dragging
 - Patches: `tab_strip_model.cc.patch`, `tab_helpers.cc.patch`
 

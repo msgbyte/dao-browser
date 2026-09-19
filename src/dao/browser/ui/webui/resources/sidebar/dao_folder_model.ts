@@ -105,6 +105,7 @@ export class FolderModel {
     if (item.type === 'tab') {
       return {
         type: 'tab',
+        tabId: item.tabId,
         url: item.url,
         title: item.title,
       };
@@ -117,6 +118,7 @@ export class FolderModel {
       collapsed: item.collapsed,
       children: item.children.map(child => ({
         type: 'tab',
+        tabId: child.tabId,
         url: child.url,
         title: child.title,
       })),

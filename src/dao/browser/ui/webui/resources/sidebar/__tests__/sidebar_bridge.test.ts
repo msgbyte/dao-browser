@@ -31,21 +31,22 @@ describe('sidebar_bridge', () => {
       sessionId: 12,
       tabIndex: 3,
     });
+    expect(bridge.parseTabDragData('dao-tab-drag:12:3:tab-a')).toEqual({
+      sessionId: 12,
+      tabIndex: 3,
+      tabId: 'tab-a',
+    });
+    for (const payload of [
+      'dao-tab-drag:12junk:3', 'dao-tab-drag:12:-1',
+      'dao-tab-drag:0:3', 'dao-tab-drag:12:2147483648',
+      'dao-tab-drag:12:3:', 'dao-tab-drag:12:3:tab:a',
+      'dao-tab-drag:12:3:tab a',
+    ]) {
+      expect(bridge.parseTabDragData(payload)).toBeNull();
+    }
     expect(bridge.parseTabDragData('dao-tab-drag:abc:3')).toBeNull();
     expect(bridge.parseTabDragData('dao-tab-drag:12:x')).toBeNull();
     expect(bridge.parseTabDragData('other:12:3')).toBeNull();
-  });
-
-  it('treats drag points at the viewport edge as leaving', async () => {
-    const {bridge} = await loadBridge();
-
-    expect(bridge.isPointOutsideViewport(12, 24, 240, 800)).toBe(false);
-    expect(bridge.isPointOutsideViewport(0, 0, 240, 800)).toBe(false);
-    expect(bridge.isPointOutsideViewport(239, 799, 240, 800)).toBe(false);
-    expect(bridge.isPointOutsideViewport(-1, 24, 240, 800)).toBe(true);
-    expect(bridge.isPointOutsideViewport(12, -1, 240, 800)).toBe(true);
-    expect(bridge.isPointOutsideViewport(240, 24, 240, 800)).toBe(true);
-    expect(bridge.isPointOutsideViewport(12, 800, 240, 800)).toBe(true);
   });
 
   it('dispatches and removes WebUI listeners by event id', async () => {

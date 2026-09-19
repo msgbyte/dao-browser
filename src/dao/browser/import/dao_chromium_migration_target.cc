@@ -21,6 +21,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
+#include "chrome/browser/sessions/session_service.h"
+#include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
@@ -37,8 +39,8 @@
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
-#include "dao/browser/ui/webui/dao_pinned_tab_storage.h"
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_registrar.h"
@@ -60,6 +62,24 @@ std::string JoinPath(const std::vector<std::u16string>& path) {
 
 std::pair<std::string, std::u16string> PasswordKey(const PasswordEntry& entry) {
   return {entry.signon_realm, entry.username};
+}
+
+Browser* FindBrowserBySessionId(Profile* profile, SessionID session_id) {
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile);
+  if (!collection) {
+    return nullptr;
+  }
+  Browser* result = nullptr;
+  collection->ForEach([&](BrowserWindowInterface* browser_window) {
+    Browser* browser = browser_window->GetBrowserForMigrationOnly();
+    if (browser && browser->session_id() == session_id) {
+      result = browser;
+      return false;
+    }
+    return true;
+  });
+  return result;
 }
 
 }  // namespace
@@ -321,13 +341,15 @@ bool DaoChromiumMigrationTarget::AddDormantTab(const TabEntry& entry,
   if (!pending_id || *pending_id != folder_id) {
     return false;
   }
-  BrowserWindowInterface* browser_window =
-      chrome::FindLastActiveWithProfile(profile_);
-  if (!browser_window) {
+  Browser* browser =
+      pending_folder_window_id_
+          ? FindBrowserBySessionId(profile_, *pending_folder_window_id_)
+          : nullptr;
+  if (!browser) {
     return false;
   }
   content::WebContents* contents =
-      chrome::AddAndReturnTabAt(browser_window, entry.url, -1, false);
+      chrome::AddAndReturnTabAt(browser, entry.url, -1, false);
   if (!contents) {
     return false;
   }
@@ -355,18 +377,38 @@ bool DaoChromiumMigrationTarget::FinishImportedTabFolder(
   if (!pending_id || *pending_id != folder_id) {
     return false;
   }
-  bool persisted = false;
-  std::string json;
-  if (base::JSONWriter::WriteWithOptions(
-          folder_data_, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json)) {
-    persisted = WritePinnedTabsFileAtomically(
-        profile_->GetPath().AppendASCII("dao_folders.json"), json);
-    if (persisted) {
-      DaoSidebarUIHandler::NotifyFolderDataChanged(profile_);
-    }
+  Browser* browser =
+      pending_folder_window_id_
+          ? FindBrowserBySessionId(profile_, *pending_folder_window_id_)
+          : nullptr;
+  if (!browser) {
+    return false;
   }
+  std::set<std::string> tab_ids;
+  TabStripModel* tab_strip = browser->tab_strip_model();
+  for (int index = 0; index < tab_strip->count(); ++index) {
+    content::WebContents* contents = tab_strip->GetWebContentsAt(index);
+    tab_ids.insert(GetSidebarTabId(contents));
+  }
+  const bool persisted = DaoSidebarUIHandler::PersistImportedFolder(
+      profile_, folder_snapshot_id_, std::move(tab_ids),
+      pending_folder_->Clone());
   if (persisted) {
+    SessionService* session_service =
+        SessionServiceFactory::GetForProfile(profile_);
+    for (int index = 0; index < tab_strip->count(); ++index) {
+      content::WebContents* contents = tab_strip->GetWebContentsAt(index);
+      SetSidebarFolderSnapshotId(contents, folder_snapshot_id_);
+      sessions::SessionTabHelper* session_tab_helper =
+          sessions::SessionTabHelper::FromWebContents(contents);
+      if (session_service && session_tab_helper) {
+        session_service->AddTabExtraData(
+            session_tab_helper->window_id(), session_tab_helper->session_id(),
+            kSidebarFolderSnapshotSessionKey, folder_snapshot_id_);
+      }
+    }
     pending_folder_ = nullptr;
+    pending_folder_window_id_.reset();
     pending_folder_tab_ids_.clear();
   }
   return persisted;
@@ -382,6 +424,7 @@ void DaoChromiumMigrationTarget::AbortImportedTabFolder(
     });
   }
   pending_folder_ = nullptr;
+  pending_folder_window_id_.reset();
 
   ProfileBrowserCollection* collection =
       ProfileBrowserCollection::GetForProfile(profile_);
@@ -552,20 +595,49 @@ DaoChromiumMigrationTarget::FindOrCreateBookmarkParent(
 }
 
 bool DaoChromiumMigrationTarget::LoadFolderData() {
-  std::string contents;
-  const base::FilePath path =
-      profile_->GetPath().AppendASCII("dao_folders.json");
-  if (base::PathExists(path)) {
-    if (!base::ReadFileToString(path, &contents)) {
-      return false;
+  pending_folder_window_id_.reset();
+  folder_snapshot_id_.clear();
+  folder_data_.clear();
+  folder_items_ = nullptr;
+  pending_folder_ = nullptr;
+  pending_folder_tab_ids_.clear();
+  std::vector<std::string> preferred_ids;
+  std::set<std::string> tab_ids;
+  BrowserWindowInterface* browser_window =
+      chrome::FindLastActiveWithProfile(profile_);
+  if (!browser_window) {
+    return false;
+  }
+  Browser* browser = browser_window->GetBrowserForMigrationOnly();
+  pending_folder_window_id_ = browser->session_id();
+  TabStripModel* tab_strip = browser->tab_strip_model();
+  std::set<std::string> seen_snapshot_ids;
+  for (int index = 0; index < tab_strip->count(); ++index) {
+    content::WebContents* tab = tab_strip->GetWebContentsAt(index);
+    tab_ids.insert(GetSidebarTabId(tab));
+    std::string snapshot_id = GetSidebarFolderSnapshotId(tab);
+    if (!snapshot_id.empty() && seen_snapshot_ids.insert(snapshot_id).second) {
+      preferred_ids.push_back(std::move(snapshot_id));
     }
+  }
+
+  std::string snapshot_json;
+  if (!DaoSidebarUIHandler::LoadFolderSnapshotForImport(
+          profile_, preferred_ids, tab_ids, &folder_snapshot_id_,
+          &snapshot_json)) {
+    return false;
+  }
+  if (!snapshot_json.empty()) {
     std::optional<base::DictValue> parsed =
-        base::JSONReader::ReadDict(contents, base::JSON_PARSE_RFC);
+        base::JSONReader::ReadDict(snapshot_json, base::JSON_PARSE_RFC);
     if (!parsed) {
       return false;
     }
     folder_data_ = std::move(*parsed);
   } else {
+    if (folder_snapshot_id_.empty()) {
+      folder_snapshot_id_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
+    }
     folder_data_.Set("version", 1);
     folder_data_.Set("items", base::ListValue());
   }

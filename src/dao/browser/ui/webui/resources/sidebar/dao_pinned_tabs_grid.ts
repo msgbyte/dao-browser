@@ -17,7 +17,6 @@ import {
   setActivePinnedItemDragId,
   TAB_DRAG_MIME_TYPE,
   TAB_DRAG_PREFIX,
-  isPointOutsideViewport,
   parseTabDragData,
   sendNative,
 } from './sidebar_bridge.js';
@@ -287,12 +286,13 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     setActivePinnedItemDragId(item.id);
     if (e.dataTransfer) {
       e.dataTransfer.setData(PINNED_ITEM_DRAG_MIME_TYPE, item.id);
-      if (item.isOpen && item.openTabIndex >= 0) {
+      if (item.isOpen && item.openTabIndex >= 0 && item.openTabId) {
         const tabPayload =
-            `${TAB_DRAG_PREFIX}${this.sessionId}:${item.openTabIndex}`;
+            `${TAB_DRAG_PREFIX}${this.sessionId}:${item.openTabIndex}:` +
+            item.openTabId;
         e.dataTransfer.setData(TAB_DRAG_MIME_TYPE, tabPayload);
         e.dataTransfer.setData('text/plain', tabPayload);
-        this.activateNativeTabDrag_();
+        this.activateNativeTabDrag_(item.openTabId);
       } else {
         e.dataTransfer.setData('text/plain', item.id);
       }
@@ -378,20 +378,14 @@ export class DaoPinnedTabsGrid extends CrLitElement {
       return;
     }
     this.clearTabDragPlaceholder_();
-
-    if (this.hasTabDrag_(e) &&
-        isPointOutsideViewport(
-            e.clientX, e.clientY, window.innerWidth, window.innerHeight)) {
-      this.activateNativeTabDrag_();
-    }
   }
 
-  private activateNativeTabDrag_() {
+  private activateNativeTabDrag_(tabId: string) {
     if (this.tabDragActivated_) {
       return;
     }
     this.tabDragActivated_ = true;
-    sendNative('tabDragActive', true);
+    sendNative('tabDragActive', true, tabId);
   }
 
   private onGridDrop_(e: DragEvent) {
@@ -403,14 +397,16 @@ export class DaoPinnedTabsGrid extends CrLitElement {
       return;
     }
 
-    const tabIndex = this.getSameWindowDraggedTabIndex_(e);
-    if (tabIndex === null) {
+    const tab = this.getSameWindowDraggedTab_(e);
+    if (!tab) {
       return;
     }
 
     e.preventDefault();
     e.stopPropagation();
-    sendNative('pinTab', tabIndex, this.getPinnedDropIndex_());
+    const args: unknown[] = [tab.tabIndex, this.getPinnedDropIndex_()];
+    if (tab.tabId) args.push(tab.tabId);
+    sendNative('pinTab', ...args);
     this.clearTabDragPlaceholder_();
   }
 
@@ -521,14 +517,14 @@ export class DaoPinnedTabsGrid extends CrLitElement {
     return markedId || getActivePinnedItemDragId();
   }
 
-  private getSameWindowDraggedTabIndex_(e: DragEvent): number|null {
+  private getSameWindowDraggedTab_(e: DragEvent) {
     const dragData = e.dataTransfer?.getData(TAB_DRAG_MIME_TYPE) ||
         e.dataTransfer?.getData('text/plain') || '';
     const parsed = parseTabDragData(dragData);
     if (!parsed || parsed.sessionId !== this.sessionId) {
       return null;
     }
-    return parsed.tabIndex;
+    return parsed;
   }
 
   private hasTabDrag_(e: DragEvent): boolean {

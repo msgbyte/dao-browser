@@ -18,6 +18,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
+#include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
@@ -66,6 +67,7 @@
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
 #include "chrome/browser/ui/startup/startup_types.h"
+#include "chrome/browser/ui/tab_contents/chrome_web_contents_view_delegate.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
@@ -110,6 +112,8 @@
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_view_delegate.h"
+#include "content/public/browser/web_ui.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/download_test_observer.h"
@@ -172,6 +176,7 @@
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "dao/browser/ui/webui/dao_agent_ui.h"
+#include "dao/browser/ui/webui/dao_folder_storage.h"
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "dao/browser/updater/dao_sparkle_update_session_state.h"
 #include "dao/browser/updater/dao_updater_service.h"
@@ -198,6 +203,7 @@
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/clipboard/test/clipboard_test_util.h"
+#include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
@@ -214,6 +220,7 @@
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/range/range.h"
@@ -803,6 +810,26 @@ void AttachSidebarHandlerForTesting(Browser* browser,
                                     DaoSidebarUIHandler* handler) {
   browser->profile()->GetPrefs()->SetBoolean(prefs::kDaoWelcomeShown, true);
   handler->SetBrowser(browser);
+}
+
+DaoSidebarUIHandler* GetLiveSidebarHandlerForTesting(Browser* browser) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+  DaoSidebarView* sidebar = browser_view ? browser_view->dao_sidebar() : nullptr;
+  content::WebContents* contents =
+      sidebar ? sidebar->sidebar_web_contents() : nullptr;
+  content::WebUI* web_ui = contents ? contents->GetWebUI() : nullptr;
+  auto* controller =
+      web_ui ? static_cast<DaoSidebarUI*>(web_ui->GetController()) : nullptr;
+  return controller ? controller->handler_for_testing() : nullptr;
+}
+
+bool DetachLiveSidebarHandlerForTesting(Browser* browser) {
+  DaoSidebarUIHandler* handler = GetLiveSidebarHandlerForTesting(browser);
+  if (!handler) {
+    return false;
+  }
+  handler->SetBrowser(nullptr);
+  return true;
 }
 
 class TestDaoSidebarUIHandler : public DaoSidebarUIHandler {
@@ -6374,6 +6401,235 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   EXPECT_FALSE(base::PathExists(folder_path));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
+                       IncognitoFoldersDoNotChangeRegularProfileFile) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  Profile* profile = browser()->profile();
+  const base::FilePath folder_path =
+      profile->GetPath().AppendASCII("dao_folders.json");
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return DetachLiveSidebarHandlerForTesting(browser()); }));
+  content::TestWebUI regular_web_ui;
+  TestDaoSidebarUIHandler regular_handler;
+  regular_handler.set_web_ui(&regular_web_ui);
+  AttachSidebarHandlerForTesting(browser(), &regular_handler);
+  regular_handler.LoadFoldersForTesting("regularLoad");
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !regular_handler.folder_snapshot_id_for_testing().empty();
+  }));
+  constexpr char kRegularFolders[] =
+      R"({"version":1,"items":[{"type":"folder","id":"regular-folder","name":"Regular","collapsed":false,"children":[]}]})";
+  regular_handler.SaveFoldersForTesting(kRegularFolders);
+  DaoSidebarUIHandler::WaitForFolderFileTasksForTesting();
+
+  std::string regular_disk_contents;
+  ASSERT_TRUE(base::ReadFileToString(folder_path, &regular_disk_contents));
+
+  Browser* incognito_browser = CreateIncognitoBrowser(profile);
+  ASSERT_NE(nullptr, incognito_browser);
+  ASSERT_TRUE(incognito_browser->profile()->IsOffTheRecord());
+  ASSERT_EQ(profile->GetPath(), incognito_browser->profile()->GetPath());
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return DetachLiveSidebarHandlerForTesting(incognito_browser);
+  }));
+  content::TestWebUI incognito_web_ui;
+  TestDaoSidebarUIHandler incognito_handler;
+  incognito_handler.set_web_ui(&incognito_web_ui);
+  AttachSidebarHandlerForTesting(incognito_browser, &incognito_handler);
+  incognito_handler.LoadFoldersForTesting("incognitoLoad");
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !incognito_handler.folder_snapshot_id_for_testing().empty();
+  }));
+  EXPECT_TRUE(incognito_handler.folder_json_for_testing().empty());
+
+  constexpr char kIncognitoFolders[] =
+      R"({"version":1,"items":[{"type":"folder","id":"incognito-folder","name":"Incognito","collapsed":false,"children":[]}]})";
+  incognito_handler.SaveFoldersForTesting(kIncognitoFolders);
+  DaoSidebarUIHandler::WaitForFolderFileTasksForTesting();
+
+  std::string final_disk_contents;
+  ASSERT_TRUE(base::ReadFileToString(folder_path, &final_disk_contents));
+  EXPECT_EQ(regular_disk_contents, final_disk_contents);
+  EXPECT_EQ(kIncognitoFolders, incognito_handler.folder_json_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
+                       ImportPreservesBothWindowSnapshots) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  Profile* profile = browser()->profile();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return DetachLiveSidebarHandlerForTesting(browser()); }));
+  content::TestWebUI first_web_ui;
+  TestDaoSidebarUIHandler first_handler;
+  first_handler.set_web_ui(&first_web_ui);
+  AttachSidebarHandlerForTesting(browser(), &first_handler);
+  first_handler.LoadFoldersForTesting("firstLoad");
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !first_handler.folder_snapshot_id_for_testing().empty();
+  }));
+
+  constexpr char kFirstFolders[] =
+      R"({"version":1,"items":[{"type":"folder","id":"first-folder","name":"First","collapsed":false,"children":[]}]})";
+  first_handler.SaveFoldersForTesting(kFirstFolders);
+
+  Browser* second_browser = CreateBrowser(profile);
+  ASSERT_NE(nullptr, second_browser);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return DetachLiveSidebarHandlerForTesting(second_browser);
+  }));
+  content::TestWebUI second_web_ui;
+  TestDaoSidebarUIHandler second_handler;
+  second_handler.set_web_ui(&second_web_ui);
+  AttachSidebarHandlerForTesting(second_browser, &second_handler);
+  second_handler.LoadFoldersForTesting("secondLoad");
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !second_handler.folder_snapshot_id_for_testing().empty();
+  }));
+
+  const std::string first_snapshot_id =
+      first_handler.folder_snapshot_id_for_testing();
+  const std::string second_snapshot_id =
+      second_handler.folder_snapshot_id_for_testing();
+  ASSERT_FALSE(first_snapshot_id.empty());
+  ASSERT_FALSE(second_snapshot_id.empty());
+  ASSERT_NE(first_snapshot_id, second_snapshot_id);
+
+  second_browser->window()->Activate();
+  base::RunLoop().RunUntilIdle();
+  dao::import::DaoChromiumMigrationTarget target(profile);
+  dao::import::DaoMigrationWriter writer(&target);
+  dao::import::TabEntry tab;
+  tab.url = GURL("https://multi-window-import.example/");
+  tab.title = u"Imported";
+  std::string imported_folder_id;
+  const dao::import::WriteResult result =
+      writer.WriteTabsBatch({tab}, u"Imported tabs", &imported_folder_id);
+  ASSERT_EQ(1u, result.imported);
+  ASSERT_FALSE(imported_folder_id.empty());
+
+  // Changing the active window must not retarget the pending import.
+  browser()->window()->Activate();
+  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(writer.FinishTabs(imported_folder_id));
+
+  // The second window had only a provisional identity and had never saved.
+  // The import must keep that identity so the live handler sees the folder.
+  std::optional<base::DictValue> live_second_folders =
+      base::JSONReader::ReadDict(second_handler.folder_json_for_testing(),
+                                 base::JSON_PARSE_RFC);
+  ASSERT_TRUE(live_second_folders);
+  const base::ListValue* live_second_items =
+      live_second_folders->FindList("items");
+  ASSERT_NE(nullptr, live_second_items);
+  ASSERT_NE(nullptr, FindDictByStringField(*live_second_items, "id",
+                                           imported_folder_id));
+
+  std::string persisted_json;
+  ASSERT_TRUE(base::ReadFileToString(
+      profile->GetPath().AppendASCII("dao_folders.json"), &persisted_json));
+  DaoFolderStorage storage;
+  ASSERT_TRUE(storage.LoadFromJson(persisted_json));
+  const DaoFolderWindowSnapshot* first_snapshot =
+      storage.FindById(first_snapshot_id);
+  ASSERT_NE(nullptr, first_snapshot);
+  EXPECT_EQ(kFirstFolders, first_snapshot->json);
+  const DaoFolderWindowSnapshot* second_snapshot =
+      storage.FindById(second_snapshot_id);
+  ASSERT_NE(nullptr, second_snapshot);
+
+  std::optional<base::DictValue> second_folders =
+      base::JSONReader::ReadDict(second_snapshot->json, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(second_folders);
+  const base::ListValue* items = second_folders->FindList("items");
+  ASSERT_NE(nullptr, items);
+  EXPECT_NE(nullptr, FindDictByStringField(*items, "id", imported_folder_id));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
+                       CrossWindowTransferRebindsFolderSnapshotIdentity) {
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return DetachLiveSidebarHandlerForTesting(browser()); }));
+  content::TestWebUI first_web_ui;
+  TestDaoSidebarUIHandler first_handler;
+  first_handler.set_web_ui(&first_web_ui);
+  AttachSidebarHandlerForTesting(browser(), &first_handler);
+  first_handler.LoadFoldersForTesting("firstLoad");
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !first_handler.folder_snapshot_id_for_testing().empty();
+  }));
+
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  TabStripModel* first_model = browser()->tab_strip_model();
+  content::WebContents* moving = first_model->GetActiveWebContents();
+  ASSERT_NE(nullptr, moving);
+  const std::string moving_tab_id = GetSidebarTabId(moving);
+  constexpr char kFirstFolders[] =
+      R"({"version":1,"items":[{"type":"folder","id":"first-folder","name":"First","collapsed":false,"children":[]}]})";
+  first_handler.SaveFoldersForTesting(kFirstFolders);
+
+  Browser* second_browser = CreateBrowser(browser()->profile());
+  ASSERT_NE(nullptr, second_browser);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return DetachLiveSidebarHandlerForTesting(second_browser);
+  }));
+  content::TestWebUI second_web_ui;
+  TestDaoSidebarUIHandler second_handler;
+  second_handler.set_web_ui(&second_web_ui);
+  AttachSidebarHandlerForTesting(second_browser, &second_handler);
+  second_handler.LoadFoldersForTesting("secondLoad");
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !second_handler.folder_snapshot_id_for_testing().empty();
+  }));
+  ASSERT_TRUE(second_handler.folder_json_for_testing().empty());
+
+  const std::string first_snapshot_id =
+      first_handler.folder_snapshot_id_for_testing();
+  const std::string second_snapshot_id =
+      second_handler.folder_snapshot_id_for_testing();
+  ASSERT_NE(first_snapshot_id, second_snapshot_id);
+  ASSERT_EQ(first_snapshot_id, GetSidebarFolderSnapshotId(moving));
+
+  const int moving_index = first_model->GetIndexOfWebContents(moving);
+  ASSERT_NE(TabStripModel::kNoTab, moving_index);
+  ASSERT_TRUE(ExecuteCrossWindowTabMove(second_browser,
+                                        browser()->session_id().id(),
+                                        moving_index, 0, moving_tab_id));
+  ASSERT_EQ(moving, second_browser->tab_strip_model()->GetWebContentsAt(0));
+  EXPECT_EQ(second_snapshot_id, GetSidebarFolderSnapshotId(moving));
+
+  std::string import_snapshot_id;
+  std::string import_folder_json;
+  ASSERT_TRUE(DaoSidebarUIHandler::LoadFolderSnapshotForImport(
+      browser()->profile(), {second_snapshot_id}, {moving_tab_id},
+      &import_snapshot_id, &import_folder_json));
+  EXPECT_EQ(second_snapshot_id, import_snapshot_id);
+  EXPECT_TRUE(import_folder_json.empty());
+
+  std::map<std::string, std::string> extra_data;
+  PopulateSidebarTabIdentityExtraData(moving, &extra_data);
+  EXPECT_EQ(second_snapshot_id, extra_data[kSidebarFolderSnapshotSessionKey]);
+
+  SessionService* session_service =
+      SessionServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_NE(nullptr, session_service);
+  session_service->ResetFromCurrentBrowsers();
+  SessionServiceTestHelper session_service_helper(session_service);
+  sessions::SessionTabHelper* session_tab_helper =
+      sessions::SessionTabHelper::FromWebContents(moving);
+  ASSERT_NE(nullptr, session_tab_helper);
+  std::unique_ptr<sessions::SessionCommand> expected_command =
+      sessions::CreateAddTabExtraDataCommand(session_tab_helper->session_id(),
+                                             kSidebarFolderSnapshotSessionKey,
+                                             second_snapshot_id);
+  EXPECT_TRUE(std::ranges::any_of(
+      session_service_helper.command_storage_manager()->pending_commands(),
+      [&expected_command](const auto& command) {
+        return command->id() == expected_command->id() &&
+               command->contents() == expected_command->contents();
+      }));
+}
+
 // =============================================================================
 // DaoPipTopBarOverlayBrowserTest
 //
@@ -10582,6 +10838,108 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest, ParsePayload_Valid) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
+                       StableIdentitySurvivesSourceReorder) {
+  int sid = 0;
+  int index = -1;
+  std::string tab_id;
+  ASSERT_TRUE(dao::ParseDaoTabDragPayload("dao-tab-drag:1234:1:dragged-tab",
+                                          &sid, &index, &tab_id));
+  EXPECT_EQ("dragged-tab", tab_id);
+  EXPECT_FALSE(dao::ParseDaoTabDragPayload("dao-tab-drag:1234:-1:tab", &sid,
+                                           &index, &tab_id));
+  EXPECT_FALSE(dao::ParseDaoTabDragPayload("dao-tab-drag:1234:1:", &sid, &index,
+                                           &tab_id));
+  EXPECT_FALSE(dao::ParseDaoTabDragPayload("dao-tab-drag:+1234:1:tab", &sid,
+                                           &index, &tab_id));
+  EXPECT_FALSE(dao::ParseDaoTabDragPayload("dao-tab-drag:1234:+1:tab", &sid,
+                                           &index, &tab_id));
+
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  auto* model = browser()->tab_strip_model();
+  auto* moving = model->GetWebContentsAt(1);
+  dao::SetSidebarTabId(moving, "dragged-tab");
+  model->MoveWebContentsAt(1, 0, true);
+  Browser* target = CreateBrowser(browser()->profile());
+  ASSERT_TRUE(dao::ExecuteCrossWindowTabMove(
+      target, browser()->session_id().id(), 1, 0, "dragged-tab"));
+  EXPECT_EQ(moving, target->tab_strip_model()->GetWebContentsAt(0));
+  EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(
+      target, browser()->session_id().id(), 0, 0, "dragged-tab"));
+  EXPECT_EQ(1, model->count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
+                       TearOffPreservesContentsAndMovesOnlyWindowForLastTab) {
+  auto* model = browser()->tab_strip_model();
+  ASSERT_EQ(1, model->count());
+  auto* original = model->GetWebContentsAt(0);
+  const std::string original_id = dao::GetOrCreateSidebarTabId(original);
+  EXPECT_EQ(browser(), dao::DetachTabToNewWindow(browser(), original_id,
+                                                 gfx::Point(400, 300)));
+  EXPECT_EQ(original, model->GetWebContentsAt(0));
+
+  auto* moving =
+      chrome::AddAndReturnTabAt(browser(), GURL("about:blank"), -1, true);
+  ASSERT_NE(nullptr, moving);
+  ASSERT_NE(original, moving);
+  const std::string moving_id = dao::GetOrCreateSidebarTabId(moving);
+  Browser* target =
+      dao::DetachTabToNewWindow(browser(), moving_id, gfx::Point(500, 300));
+  ASSERT_NE(nullptr, target);
+  ASSERT_NE(browser(), target);
+  EXPECT_EQ(1, model->count());
+  EXPECT_EQ(original, model->GetWebContentsAt(0));
+  EXPECT_EQ(moving, target->tab_strip_model()->GetActiveWebContents());
+  EXPECT_EQ(nullptr, dao::DetachTabToNewWindow(browser(), moving_id,
+                                               gfx::Point(500, 300)));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
+                       NativeCompletionRequiresPhysicalReleaseAndSettlesOnce) {
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(nullptr, web_contents);
+  std::unique_ptr<content::WebContentsViewDelegate> view_delegate =
+      CreateWebContentsViewDelegate(web_contents);
+  ASSERT_TRUE(view_delegate);
+  const gfx::Point outside_point(-10000, -10000);
+  int tear_off_count = 0;
+  gfx::Point tear_off_point;
+
+  auto observe_completion = [&] {
+    dao::ObserveTabDragNativeCompletion(
+        web_contents,
+        base::BindLambdaForTesting([&](const gfx::Point& screen_point) mutable {
+          ++tear_off_count;
+          tear_off_point = screen_point;
+        }));
+  };
+  auto end_drag = [&](bool drop_accepted, bool ended_by_mouse_release) {
+    view_delegate->WebContentsDragEnded(
+        gfx::PointF(outside_point.x(), outside_point.y()),
+        drop_accepted ? ui::mojom::DragOperation::kMove
+                      : ui::mojom::DragOperation::kNone,
+        ended_by_mouse_release);
+  };
+
+  observe_completion();
+  end_drag(/*drop_accepted=*/false, /*ended_by_mouse_release=*/false);
+  end_drag(/*drop_accepted=*/false, /*ended_by_mouse_release=*/true);
+  EXPECT_EQ(0, tear_off_count);
+
+  observe_completion();
+  end_drag(/*drop_accepted=*/true, /*ended_by_mouse_release=*/true);
+  end_drag(/*drop_accepted=*/false, /*ended_by_mouse_release=*/true);
+  EXPECT_EQ(0, tear_off_count);
+
+  observe_completion();
+  end_drag(/*drop_accepted=*/false, /*ended_by_mouse_release=*/true);
+  end_drag(/*drop_accepted=*/false, /*ended_by_mouse_release=*/true);
+  EXPECT_EQ(1, tear_off_count);
+  EXPECT_EQ(outside_point, tear_off_point);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
                        ParsePayload_MissingPrefix) {
   int sid = 0, idx = 0;
   EXPECT_FALSE(dao::ParseDaoTabDragPayload("1234:5", &sid, &idx));
@@ -10673,6 +11031,42 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   EXPECT_TRUE(split_state_changed);
   EXPECT_TRUE(split->IsSplitActive());
   EXPECT_EQ(2, split->PaneCount());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
+                       CrossWindowDropAddsPaneToExistingSplit) {
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+  auto* source_model = browser()->tab_strip_model();
+  auto* moving = source_model->GetWebContentsAt(1);
+  const std::string moving_id = dao::GetOrCreateSidebarTabId(moving);
+
+  Browser* target = CreateBrowser(browser()->profile());
+  chrome::AddTabAt(target, GURL(url::kAboutBlankURL), -1, true);
+  auto* target_model = target->tab_strip_model();
+  auto* first = target_model->GetWebContentsAt(0);
+  auto* second = target_model->GetWebContentsAt(1);
+  target_model->ActivateTabAt(0);
+  BrowserView* target_view = GetBrowserView(target);
+  DaoSplitView* split = target_view->dao_split_view();
+  ASSERT_NE(nullptr, split);
+  ASSERT_TRUE(
+      split->SplitPane(first, SplitDirection::kHorizontal, false, second));
+  target_view->DeprecatedLayoutImmediately();
+
+  const std::string payload = base::StrCat(
+      {dao::kDaoTabDragPrefix,
+       base::NumberToString(browser()->session_id().id()), ":1:", moving_id});
+  ASSERT_TRUE(split->ProcessNativeTabDrop(
+      gfx::Point(split->width() / 4, split->height() / 2), payload));
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return split->IsActiveSplitTab(moving); }));
+
+  EXPECT_EQ(3, split->PaneCount());
+  EXPECT_TRUE(split->IsActiveSplitTab(second));
+  EXPECT_TRUE(split->IsActiveSplitTab(first));
+  EXPECT_EQ(moving, target_model->GetActiveWebContents());
+  EXPECT_EQ(1, source_model->count());
+  EXPECT_EQ(3, target_model->count());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest, NullTargetReturnsFalse) {

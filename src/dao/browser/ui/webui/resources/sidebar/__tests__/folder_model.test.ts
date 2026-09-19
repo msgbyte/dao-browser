@@ -33,7 +33,7 @@ describe('FolderModel', () => {
     });
   });
 
-  it('serializes folders without volatile runtime tab ids', () => {
+  it('serializes folders with stable tab ids', () => {
     const model = new FolderModel();
     const folder = model.addFolder('Research');
 
@@ -43,10 +43,10 @@ describe('FolderModel', () => {
     const persisted = JSON.parse(model.toJson());
     expect(persisted.items[0].children[0]).toEqual({
       type: 'tab',
+      tabId: 'runtime-1',
       url: 'https://example.com/a',
       title: 'A',
     });
-    expect(persisted.items[0].children[0]).not.toHaveProperty('tabId');
   });
 
   it('releases folder children at the folder position when unfoldering', () => {

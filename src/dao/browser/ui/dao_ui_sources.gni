@@ -215,6 +215,8 @@ dao_browser_ui_sources = [
   "//dao/browser/ui/webui/dao_home_ui.h",
   "//dao/browser/ui/webui/dao_import_ui.cc",
   "//dao/browser/ui/webui/dao_import_ui.h",
+  "//dao/browser/ui/webui/dao_folder_storage.cc",
+  "//dao/browser/ui/webui/dao_folder_storage.h",
   "//dao/browser/ui/webui/dao_pinned_tab_model.cc",
   "//dao/browser/ui/webui/dao_pinned_tab_model.h",
   "//dao/browser/ui/webui/dao_pinned_tab_storage.cc",
@@ -269,11 +271,13 @@ dao_browser_ui_test_sources = [
   "//dao/browser/automation/dao_page_tools_browsertest.cc",
   "//dao/browser/automation/dao_tab_tools_browsertest.cc",
   "//dao/browser/ui/views/dao_browser_browsertest.cc",
+  "//dao/browser/ui/webui/dao_folder_storage_unittest.cc",
   "//dao/browser/ui/webui/dao_pinned_tab_model_unittest.cc",
 ]
 
 dao_browser_ui_mac_test_sources = [
   "//dao/browser/mcp/dao_mcp_helper_browsertest.cc",
+  "//dao/browser/ui/views/dao_tab_drag_mac_browsertest.mm",
   "//dao/browser/ui/views/dao_test_init_mac.mm",
 ]
 

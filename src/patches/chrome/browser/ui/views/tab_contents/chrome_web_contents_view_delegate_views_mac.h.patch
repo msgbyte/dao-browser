@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.h b/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.h
+--- a/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.h
++++ b/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.h
+@@ -58,6 +58,10 @@
+   bool TakeFocus(bool reverse) override;
+   void OnPerformingDrop(const content::DropData& drop_data,
+                         DropCompletionCallback callback) override;
++  void WebContentsDragEnded(
++      const gfx::PointF& screen_point,
++      ui::mojom::DragOperation operation,
++      bool ended_by_mouse_release) override;
+ 
+   // ContextMenuDelegate:
+   std::unique_ptr<RenderViewContextMenuBase> BuildMenu(

@@ -9,9 +9,10 @@ import {
   sendNative,
   getActivePinnedItemDragId,
   TAB_DRAG_PREFIX,
+  TAB_DRAG_MIME_TYPE,
+  parseTabDragData,
   FOLDER_MIME_TYPE,
   PINNED_ITEM_DRAG_MIME_TYPE,
-  isPointOutsideViewport,
 } from './sidebar_bridge.js';
 import type {TabData, FolderData, FolderAction} from './sidebar_bridge.js';
 import {createTabRefMatchPool} from './dao_folder_model.js';
@@ -117,7 +118,6 @@ export class DaoTabList extends CrLitElement {
   private dropInsertIndex_: number = -1;
   private dropModelIndex_: number = -1;
   private tabDragActivated_: boolean = false;
-  private draggedTabIndex_: number = -1;
   private previousFlipSnapshot_: FlipMotionSnapshot | null = null;
   private previousFolderChildCounts_: Map<string, number> | null = null;
 
@@ -398,17 +398,13 @@ export class DaoTabList extends CrLitElement {
   }
 
   private onDragStart_(e: DragEvent) {
-    // Capture the dragged tab index from the bubbled event data.
+    // Capture the dragged tab identity from the composed event.
     if (!e.dataTransfer) return;
-    // The data is set by dao-tab-item; extract the tab index from the
-    // composed event. We can't read dataTransfer in dragstart due to
-    // protection, so find the source tab-item element.
     const target = e.composedPath().find(
         el => (el as HTMLElement).tagName === 'DAO-TAB-ITEM') as
         (HTMLElement & {tabData: TabData}) | undefined;
     if (target) {
-      this.draggedTabIndex_ = target.tabData.index;
-      this.activateNativeTabDrag_();
+      this.activateNativeTabDrag_(target.tabData.tabId);
     }
   }
 
@@ -596,70 +592,25 @@ export class DaoTabList extends CrLitElement {
     this.dropInsertIndex_ = -1;
     this.dropModelIndex_ = -1;
     sendNative('setDropInsertIndex', -1);
-
-    // Fallback for tab drags that did not originate from dao-tab-item.
-    if (this.isPointOutsideSidebar_(e.clientX, e.clientY)) {
-      this.activateNativeTabDrag_();
-    }
   }
 
-  private activateNativeTabDrag_() {
-    if (this.tabDragActivated_) {
+  private activateNativeTabDrag_(tabId: string) {
+    if (this.tabDragActivated_ || !tabId) {
       return;
     }
-    console.error('[Dao-Xwin-JS] activating tabDragActive');
     this.tabDragActivated_ = true;
-    sendNative('tabDragActive', true);
+    sendNative('tabDragActive', true, tabId);
   }
 
-  private onDragEnd_(e: DragEvent) {
-    console.error('[Dao-Xwin-JS] onDragEnd_: dropEffect=' +
-        (e.dataTransfer?.dropEffect ?? 'null') +
-        ' tabDragActivated=' + this.tabDragActivated_ +
-        ' draggedTabIndex=' + this.draggedTabIndex_ +
-        ' outside=' + this.isPointOutsideSidebar_(e.clientX, e.clientY));
-    // Defensive cleanup: ensure drag-over state is always cleared
-    // when any drag ends, preventing the sidebar from getting stuck.
+  private onDragEnd_() {
+    // Native completion distinguishes a desktop drop from cancellation.
     this.classList.remove('drag-over');
     this.dropInsertIndex_ = -1;
     this.dropModelIndex_ = -1;
-
-    // If no target accepted the drop, detach to a new window at cursor.
-    // Two guards prevent a fast drag+release inside the sidebar from
-    // being mistaken for a drag-out:
-    //   1. tabDragActivated_ must be true — this is a Dao tab drag.
-    //   2. The release point must be outside the sidebar's viewport —
-    //      if the pointer is still inside, the user was reordering
-    //      within the sidebar and released before any dragover target
-    //      had a chance to preventDefault.
-    if (e.dataTransfer && e.dataTransfer.dropEffect === 'none' &&
-        this.draggedTabIndex_ >= 0 &&
-        this.tabDragActivated_ &&
-        this.isPointOutsideSidebar_(e.clientX, e.clientY)) {
-      // Remove from folder model before detaching so the folder
-      // membership doesn't persist after the tab leaves this window.
-      this.maybeRemoveFromFolder_(this.draggedTabIndex_);
-      sendNative('detachTabToNewWindow', this.draggedTabIndex_,
-          e.screenX, e.screenY);
-    }
-    this.draggedTabIndex_ = -1;
-
     if (this.tabDragActivated_) {
       this.tabDragActivated_ = false;
       sendNative('tabDragActive', false);
     }
-  }
-
-  /**
-   * Returns true if (clientX, clientY) is outside the sidebar
-   * WebContents viewport. A release inside the viewport means the
-   * user did not drag out of the sidebar, so the tab should not be
-   * detached. Negative coordinates indicate the release was outside
-   * the WebContents entirely.
-   */
-  private isPointOutsideSidebar_(clientX: number, clientY: number): boolean {
-    return isPointOutsideViewport(
-        clientX, clientY, window.innerWidth, window.innerHeight);
   }
 
   private onDrop_(e: DragEvent) {
@@ -672,75 +623,39 @@ export class DaoTabList extends CrLitElement {
       if (pinnedItemId) {
         e.preventDefault();
         e.stopPropagation();
-        sendNative('unpinPinnedItem', pinnedItemId, this.dropInsertIndex_);
+        // Native unpin treats -1 as a menu action without a target window move.
+        const targetIndex = this.dropInsertIndex_ >= 0 ? this.dropInsertIndex_ :
+            Math.max(0, ...this.tabs.map(tab => tab.index + 1));
+        sendNative('unpinPinnedItem', pinnedItemId, targetIndex);
         clearActivePinnedItemDragId();
         this.dropInsertIndex_ = -1;
         this.dropModelIndex_ = -1;
         return;
       }
 
-      const data = e.dataTransfer.getData('text/plain');
-      console.error('[Dao-Xwin-JS] onDrop_: data=' + JSON.stringify(data) +
-          ' thisSessionId=' + this.sessionId +
-          ' dropInsertIndex=' + this.dropInsertIndex_);
+      const data = e.dataTransfer.getData(TAB_DRAG_MIME_TYPE) ||
+          e.dataTransfer.getData('text/plain');
       if (data.startsWith(TAB_DRAG_PREFIX)) {
         e.preventDefault();
         e.stopPropagation();
-
-        const useModel = this.folderModel && this.folderModel.hasData();
-
-        const parts = data.substring(TAB_DRAG_PREFIX.length).split(':');
-        console.error('[Dao-Xwin-JS] parts=' + JSON.stringify(parts));
-        if (parts.length === 2) {
-          const sourceSessionId = parseInt(parts[0]!, 10);
-          const fromIndex = parseInt(parts[1]!, 10);
-          console.error('[Dao-Xwin-JS] parsed sourceSessionId=' +
-              sourceSessionId + ' fromIndex=' + fromIndex +
-              ' sameWindow=' + (sourceSessionId === this.sessionId));
-          if (!isNaN(sourceSessionId) && !isNaN(fromIndex) &&
-              this.dropInsertIndex_ >= 0) {
-            // Check if the dragged tab is inside a folder — if so,
-            // remove it from the folder first.
+        const parsed = parseTabDragData(data);
+        if (parsed && parsed.sessionId !== this.sessionId) {
+          // Source indices never describe this window's folder membership.
+          sendNative('moveTabCrossWindow', parsed.sessionId, parsed.tabIndex,
+              this.dropInsertIndex_, parsed.tabId || '');
+        } else if (parsed && this.dropInsertIndex_ >= 0) {
+          const source = this.tabs.find(tab => parsed.tabId ?
+              tab.tabId === parsed.tabId : tab.index === parsed.tabIndex);
+          if (source) {
+            const fromIndex = source.index;
             const wasInFolder = this.maybeRemoveFromFolder_(fromIndex);
-
-            if (sourceSessionId === this.sessionId) {
-              // Same window: reorder in Chromium tab strip
-              let toIndex = this.dropInsertIndex_;
-              if (fromIndex < toIndex) {
-                toIndex--;
-              }
-              if (fromIndex !== toIndex) {
-                sendNative('moveTab', fromIndex, toIndex);
-              }
-
-              // Also reorder in the folder model if active.
-              if (useModel && !wasInFolder && this.dropModelIndex_ >= 0) {
-                this.dispatchModelReorder_(fromIndex, this.dropModelIndex_);
-              }
-            } else {
-              // Cross-window: move tab from source window to this window
-              console.error('[Dao-Xwin-JS] firing moveTabCrossWindow ' +
-                  sourceSessionId + ' ' + fromIndex + ' ' +
-                  this.dropInsertIndex_);
-              sendNative('moveTabCrossWindow', sourceSessionId, fromIndex,
-                  this.dropInsertIndex_);
-            }
-          }
-        } else if (parts.length === 1) {
-          // Legacy format: "<prefix><tabIndex>" (same-window only)
-          const fromIndex = parseInt(parts[0]!, 10);
-          if (!isNaN(fromIndex) && this.dropInsertIndex_ >= 0) {
-            const wasInFolder = this.maybeRemoveFromFolder_(fromIndex);
-
-            let toIndex = this.dropInsertIndex_;
-            if (fromIndex < toIndex) {
-              toIndex--;
-            }
+            const toIndex = this.dropInsertIndex_ -
+                (fromIndex < this.dropInsertIndex_ ? 1 : 0);
             if (fromIndex !== toIndex) {
               sendNative('moveTab', fromIndex, toIndex);
             }
-
-            if (useModel && !wasInFolder && this.dropModelIndex_ >= 0) {
+            if (this.folderModel?.hasData() && !wasInFolder &&
+                this.dropModelIndex_ >= 0) {
               this.dispatchModelReorder_(fromIndex, this.dropModelIndex_);
             }
           }

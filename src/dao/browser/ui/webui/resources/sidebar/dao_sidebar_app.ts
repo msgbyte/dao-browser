@@ -677,8 +677,9 @@ export class DaoSidebarApp extends CrLitElement {
    */
   private resolveTabFromDrag_(dragData: string): TabData | null {
     const parsed = parseTabDragData(dragData);
-    if (!parsed) return null;
-    return this.unpinnedTabs_.find(t => t.index === parsed.tabIndex) || null;
+    if (!parsed || parsed.sessionId !== this.sessionId_) return null;
+    return this.unpinnedTabs_.find(tab => parsed.tabId ?
+        tab.tabId === parsed.tabId : tab.index === parsed.tabIndex) || null;
   }
 
   private findUnpinnedTabById_(tabId: string): TabData | null {

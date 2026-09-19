@@ -181,6 +181,32 @@ describe('dao-sidebar-app', () => {
     delete (globalThis as unknown as {loadTimeData?: unknown}).loadTimeData;
   });
 
+  it('ignores foreign folder drops and resolves local drops by tab identity',
+      async () => {
+        const {el} = await loadApp();
+        const app = el as unknown as SidebarAppInternals;
+        const first = tab({tabId: 'first', index: 0});
+        const second = tab({tabId: 'second', index: 1});
+        fireSidebarStateChanged(sidebarState({unpinnedTabs: [first, second]}));
+        const model = installFolderModel(app, JSON.stringify({
+          version: 1,
+          items: [{
+            type: 'folder', id: 'folder-a', name: 'Work', collapsed: false,
+            children: [],
+          }],
+        }));
+        const drop = (dragData: string) => el.dispatchEvent(new CustomEvent(
+            'folder-action', {
+              detail: {action: 'tabDrop', folderId: 'folder-a', dragData},
+            }));
+
+        drop('dao-tab-drag:8:0');
+        expect(model.findTabFolder(first)).toBeNull();
+        drop('dao-tab-drag:7:0:second');
+        expect(model.findTabFolder(first)).toBeNull();
+        expect(model.findTabFolder(second)).toBe('folder-a');
+      });
+
   it('renders pinned tabs above the new tab button', async () => {
     const {el} = await loadApp();
     el.pinnedItems_ = [pinnedItem()];
