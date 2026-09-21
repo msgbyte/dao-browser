@@ -6,6 +6,7 @@
 #define DAO_BROWSER_UI_WEBUI_DAO_SIDEBAR_UI_H_
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -83,19 +84,13 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   // Set the browser this handler operates on.
   void SetBrowser(Browser* browser);
 
-  // Invalidates folder caches for all sidebar windows of `profile` after a
+  // Refreshes folder data in all sidebar windows of `profile` after a
   // profile-level writer updates dao_folders.json.
   static void NotifyFolderDataChanged(Profile* profile);
-  static bool LoadFolderSnapshotForImport(
-      Profile* profile,
-      const std::vector<std::string>& preferred_ids,
-      const std::set<std::string>& tab_ids,
-      std::string* snapshot_id,
-      std::string* json);
-  static bool PersistImportedFolder(Profile* profile,
-                                    const std::string& snapshot_id,
-                                    std::set<std::string> tab_ids,
-                                    base::DictValue folder);
+  static std::optional<std::string> ReadFolderData(Profile* profile);
+  static bool UpdateFolderData(Profile* profile,
+                               const std::string& base_json,
+                               const std::string& json);
 
   // content::WebUIMessageHandler:
   void RegisterMessages() override;
@@ -159,14 +154,11 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   bool LoadPinnedItemsForTesting(const std::string& json);
   void SetSessionRestoreCompletedForTesting(bool completed);
   void SetStaleTabIdsForTesting(std::set<std::string> tab_ids);
-  int CloseTabsByIdForTesting(const base::ListValue& tab_ids);
   void LoadFoldersForTesting(const std::string& callback_id);
-  void SaveFoldersForTesting(const std::string& json);
+  void SaveFoldersForTesting(const std::string& json,
+                              const std::string& base_json = {});
   static void WaitForFolderFileTasksForTesting();
-  const std::string& folder_snapshot_id_for_testing() const {
-    return folder_snapshot_id_;
-  }
-  const std::string& folder_json_for_testing() const { return folder_json_; }
+  int CloseTabsByIdForTesting(const base::ListValue& tab_ids);
   views::Widget* ShowDeleteFolderDialogForTesting(
       const std::string& folder_id);
   int CloseDuplicateTabsForTesting();
@@ -200,12 +192,6 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   bool IsPinnedSessionRestoreComplete() const;
   void RegisterPinnedItemsProfileHandler();
   void UnregisterPinnedItemsProfileHandler();
-  bool AdoptFoldersFromProfileState();
-  bool MaybeAdoptRestoredFolderSnapshot();
-  void LoadFoldersForCallback(std::string callback_id);
-  std::set<std::string> GetCurrentFolderTabIds() const;
-  std::vector<std::string> GetCurrentFolderSnapshotIds() const;
-  void PersistFolderSnapshotIdentity();
   bool AdoptPinnedItemsFromProfileState();
   void PublishPinnedItemsToProfileHandlers();
   void SchedulePinnedItemsProfileRefresh();
@@ -352,11 +338,6 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   std::set<uint32_t> in_progress_download_ids_;
   std::optional<std::pair<int, gfx::Point>> pending_download_animation_;
   std::vector<base::FilePath> recent_file_paths_;
-  std::string folder_json_;
-  std::string folder_snapshot_id_;
-  bool folders_loaded_ = false;
-  bool folder_snapshot_matched_ = false;
-  uint64_t folder_load_generation_ = 0;
   std::set<std::string> stale_tab_ids_;
   DaoPinnedTabModel pinned_tab_model_;
   bool pinned_items_loaded_ = false;
@@ -367,7 +348,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   bool session_restore_completed_ = false;
   bool saw_web_contents_replacement_ = false;
   std::set<std::string> reopening_pinned_item_ids_;
-  std::set<int> persisted_identity_session_tab_ids_;
+  std::map<int, std::string> persisted_tab_identities_;
   base::CallbackListSubscription session_restored_subscription_;
   base::CallbackListSubscription mcp_service_subscription_;
   std::string pending_scroll_target_tab_id_;

@@ -33,7 +33,36 @@ describe('FolderModel', () => {
     });
   });
 
-  it('serializes folders with stable tab ids', () => {
+  it('preserves both windows and incremental restore across a save/reload', () => {
+    const first = tab('window-a', 'https://a.example', 'A');
+    const second = tab('window-b', 'https://b.example', 'B');
+    const original = new FolderModel();
+    const folder = original.addFolder('Work');
+    original.moveTabToFolder(first, folder.id);
+    const model = new FolderModel();
+    model.loadFromJson(original.toJson());
+    model.reconcile([second]);
+    const restarted = new FolderModel();
+    restarted.loadFromJson(model.toJson());
+    restarted.reconcile([]);
+    restarted.reconcile([first]);
+    expect(restarted.getMatchedTabs(folder.id, [first])).toEqual([first]);
+    expect(restarted.getOrderedItems()).toContainEqual(
+        expect.objectContaining({tabId: second.tabId}));
+  });
+
+  it('does not steal a same-URL tab from another window', () => {
+    const model = new FolderModel();
+    const folder = model.addFolder('Work');
+    model.moveTabToFolder(tab('window-a', 'https://same.example', 'Same'), folder.id);
+    model.reconcile([tab('window-b', 'https://same.example', 'Same')]);
+    expect(model.getFolders()[0]!.children[0]!.tabId).toBe('window-a');
+    expect(model.getMatchedTabs(folder.id, [
+      tab('window-b', 'https://same.example', 'Same'),
+    ])).toEqual([]);
+  });
+
+  it('persists stable tab identities across restart', () => {
     const model = new FolderModel();
     const folder = model.addFolder('Research');
 
@@ -169,7 +198,7 @@ describe('FolderModel', () => {
     expect(reading?.children).toEqual([]);
   });
 
-  it('reconciles stored folders with actual tabs and drops stale refs', () => {
+  it('retains unmatched refs until an explicit tab close', () => {
     const model = new FolderModel();
     model.loadFromJson(JSON.stringify({
       version: 1,
@@ -202,7 +231,10 @@ describe('FolderModel', () => {
       type: 'folder',
       id: 'f1',
       collapsed: true,
-      children: [{type: 'tab', tabId: 'b', title: 'B'}],
+      children: [
+        {type: 'tab', tabId: 'b', title: 'B'},
+        {type: 'tab', tabId: 'stale', title: 'Gone'},
+      ],
     });
   });
 
@@ -235,6 +267,7 @@ describe('FolderModel', () => {
       tab('middle', 'https://middle.example', 'Middle'),
     ]);
 
+    model.forgetTabs(['duplicate-a']);
     model.reconcile([
       tab('duplicate-b', 'https://docs.example', 'Docs'),
       tab('middle', 'https://middle.example', 'Middle'),
@@ -245,7 +278,7 @@ describe('FolderModel', () => {
         .toEqual(['middle', 'duplicate-b']);
   });
 
-  it('keeps a replaced WebContents in its folder', () => {
+  it('keeps a replaced WebContents with its copied stable identity in its folder', () => {
     const model = new FolderModel();
     model.loadFromJson(JSON.stringify({
       version: 1,
@@ -264,13 +297,13 @@ describe('FolderModel', () => {
     }));
 
     model.reconcile([
-      tab('new-contents', 'https://article.example', 'Article'),
+      tab('old-contents', 'https://article.example', 'Updated article'),
     ]);
 
     expect(model.getOrderedItems()).toMatchObject([{
       type: 'folder',
       id: 'reading',
-      children: [{tabId: 'new-contents'}],
+      children: [{tabId: 'old-contents', title: 'Updated article'}],
     }]);
   });
 

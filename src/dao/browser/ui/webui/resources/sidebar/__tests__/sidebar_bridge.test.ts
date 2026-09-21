@@ -84,30 +84,15 @@ describe('sidebar_bridge', () => {
     await expect(promise).resolves.toBe('{"version":1}');
   });
 
-  it('debounces saveFolders so rapid updates only send the latest JSON', async () => {
+  it('sends each folder edit immediately with its base snapshot', async () => {
     const {bridge, send} = await loadBridge();
 
-    bridge.saveFolders('first');
-    bridge.saveFolders('second');
-    vi.advanceTimersByTime(299);
-    expect(send).not.toHaveBeenCalled();
+    bridge.saveFolders('first', 'original');
+    bridge.saveFolders('second', 'first');
 
-    vi.advanceTimersByTime(1);
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send).toHaveBeenCalledWith('saveFolders', ['second']);
+    expect(send.mock.calls).toEqual([
+      ['saveFolders', ['first', 'original']],
+      ['saveFolders', ['second', 'first']],
+    ]);
   });
-
-  it('saves folders immediately and cancels a pending debounced save',
-      async () => {
-        const {bridge, send} = await loadBridge();
-
-        bridge.saveFolders('pending');
-        bridge.saveFoldersImmediately('latest');
-
-        expect(send).toHaveBeenCalledTimes(1);
-        expect(send).toHaveBeenCalledWith('saveFolders', ['latest']);
-
-        vi.advanceTimersByTime(300);
-        expect(send).toHaveBeenCalledTimes(1);
-      });
 });

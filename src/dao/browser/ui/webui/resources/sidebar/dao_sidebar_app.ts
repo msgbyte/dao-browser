@@ -12,7 +12,6 @@ import {
   removeListener,
   loadFolders,
   saveFolders,
-  saveFoldersImmediately,
   parseTabDragData,
 } from './sidebar_bridge.js';
 import type {
@@ -288,6 +287,8 @@ export class DaoSidebarApp extends CrLitElement {
   // install accessors for these.
   private folderModel_ = new FolderModel();
   private foldersLoaded_: boolean = false;
+  private folderBaseJson_: string = '';
+  private folderLoadGeneration_: number = 0;
   private initialStateReceived_: boolean = false;
   private activeTabId_: string = '';
   private pendingActiveFolderTabId_: string = '';
@@ -370,8 +371,7 @@ export class DaoSidebarApp extends CrLitElement {
         this.folderModel_.reconcile(this.unpinnedTabs_);
         const expandedActiveFolder = this.expandPendingActiveTabFolder_();
         if (this.completePendingFolderDeletion_()) {
-          this.folderModelVersion_++;
-          saveFoldersImmediately(this.folderModel_.toJson());
+          this.saveFolders_();
         } else if (expandedActiveFolder) {
           this.saveFolders_();
         } else {
@@ -398,6 +398,12 @@ export class DaoSidebarApp extends CrLitElement {
 
     this.addSidebarListener_(
         'sidebarPointerExited', () => this.clearPointerState_());
+
+    this.addSidebarListener_('folderTabsClosed', (...args: unknown[]) => {
+      if (!this.foldersLoaded_) return;
+      this.folderModel_.forgetTabs(args[0] as string[]);
+      this.saveFolders_();
+    });
 
     this.addSidebarListener_('folderDataChanged', () => {
       void this.reloadFolders_();
@@ -470,44 +476,33 @@ export class DaoSidebarApp extends CrLitElement {
    * Load folder data from C++ and reconcile with current tabs.
    */
   private async initFolders_() {
+    await this.reloadFolders_();
+  }
+
+  private async reloadFolders_() {
+    const generation = ++this.folderLoadGeneration_;
     try {
       const json = await loadFolders();
-      this.folderModel_.loadFromJson(json);
-
-      // Reconcile with actual tabs.
-      if (this.unpinnedTabs_.length > 0) {
-        this.folderModel_.reconcile(this.unpinnedTabs_);
-        this.expandPendingActiveTabFolder_();
-        this.saveFolders_();
-      } else {
-        this.pendingActiveFolderTabId_ = '';
-      }
-
+      if (generation !== this.folderLoadGeneration_) return;
+      const model = new FolderModel();
+      if (json && !model.loadFromJson(json)) return;
+      this.folderBaseJson_ = json;
+      this.folderModel_ = model;
+      this.folderModel_.reconcile(this.unpinnedTabs_);
+      this.expandPendingActiveTabFolder_();
       this.foldersLoaded_ = true;
       this.folderModelVersion_++;
     } catch (e) {
       console.error('DaoSidebarApp: failed to load folders', e);
-      this.foldersLoaded_ = true;
     }
   }
 
-  private async reloadFolders_() {
-    try {
-      const json = await loadFolders();
-      this.folderModel_.loadFromJson(json);
-      this.folderModel_.reconcile(this.unpinnedTabs_);
-      this.foldersLoaded_ = true;
-      this.saveFolders_();
-    } catch (e) {
-      console.error('DaoSidebarApp: failed to reload folders', e);
-    }
-  }
-
-  /**
-   * Save current folder state and trigger re-render.
-   */
+  /** Save only explicit edits, never a window's initial/reloaded projection. */
   private saveFolders_() {
-    saveFolders(this.folderModel_.toJson());
+    const json = this.folderModel_.toJson();
+    ++this.folderLoadGeneration_;
+    saveFolders(json, this.folderBaseJson_);
+    this.folderBaseJson_ = json;
     this.folderModelVersion_++;
   }
 
@@ -546,6 +541,7 @@ export class DaoSidebarApp extends CrLitElement {
    * Handle folder actions dispatched from child components.
    */
   private handleFolderAction_(detail: FolderAction) {
+    if (!this.foldersLoaded_) return;
     switch (detail.action) {
       case 'toggleCollapse':
         this.folderModel_.toggleCollapse(detail.folderId);
@@ -648,7 +644,16 @@ export class DaoSidebarApp extends CrLitElement {
 
     const folder = this.folderModel_.getFolders().find(
         f => f.id === folderId);
-    if (!folder) return;
+    if (!folder || dropIndex < 0) return;
+
+    // The drop indicator counts local children; storage includes other windows.
+    const target = this.folderModel_.getMatchedTabs(
+        folderId, this.unpinnedTabs_)[dropIndex];
+    dropIndex = target ? folder.children.findIndex(
+        c => (c.tabId && c.tabId === target.tabId) ||
+            (!c.tabId && c.url === target.url && c.title === target.title)) :
+        folder.children.length;
+    if (dropIndex < 0) return;
 
     const sourceFolderId = this.folderModel_.findTabFolder(tab);
 
@@ -785,11 +790,11 @@ export class DaoSidebarApp extends CrLitElement {
       return;
     }
 
-    if (!this.folderModel_.deleteFolder(folderId)) {
+    if (folder.children.length > 0 ||
+        !this.folderModel_.deleteFolder(folderId)) {
       return;
     }
-    this.folderModelVersion_++;
-    saveFoldersImmediately(this.folderModel_.toJson());
+    this.saveFolders_();
   }
 
   private completePendingFolderDeletion_(): boolean {
@@ -811,8 +816,7 @@ export class DaoSidebarApp extends CrLitElement {
     const folderExists = this.folderModel_.getFolders().some(
         folder => folder.id === pending.folderId);
     if (!folderExists) {
-      // Reconciliation drops folders after their final child disappears. The
-      // model is already in the desired state; flush that state immediately.
+      // Another window may already have removed this folder.
       this.pendingFolderDeletion_ = null;
       return true;
     }
@@ -827,7 +831,11 @@ export class DaoSidebarApp extends CrLitElement {
     }
 
     this.pendingFolderDeletion_ = null;
-    return this.folderModel_.deleteFolder(pending.folderId);
+    this.folderModel_.forgetTabs([...pending.tabIds]);
+    const folder = this.folderModel_.getFolders().find(
+        item => item.id === pending.folderId);
+    return folder?.children.length === 0 &&
+        this.folderModel_.deleteFolder(pending.folderId);
   }
 
   private onTabSectionScroll_ = () => {
@@ -1058,6 +1066,7 @@ export class DaoSidebarApp extends CrLitElement {
   private async onNewFolder_(e: Event) {
     e.stopPropagation();
     this.closePlusMenu_();
+    if (!this.foldersLoaded_) return;
     const folder = this.folderModel_.addFolder('Untitled');
     this.saveFolders_();
 

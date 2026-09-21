@@ -6,143 +6,119 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao {
+namespace {
 
-TEST(DaoFolderStorageTest, LoadsLegacyFolderFileOnce) {
-  constexpr char kLegacyJson[] =
-      R"({"version":1,"items":[{"type":"tab","tabId":"tab-a","url":"https://a.example","title":"A"}]})";
-  DaoFolderStorage storage;
-  ASSERT_TRUE(storage.LoadFromJson(kLegacyJson));
+constexpr char kFolders[] =
+    R"({"version":1,"items":[{"type":"folder","id":"a","name":"A","collapsed":false,"children":[{"type":"tab","tabId":"tab-a","url":"https://example.com","title":"A"}]}]})";
+constexpr char kOtherFolders[] =
+    R"({"version":1,"items":[{"type":"folder","id":"b","name":"B","collapsed":false,"children":[{"type":"tab","tabId":"tab-b","url":"https://example.com","title":"B"}]}]})";
 
-  const DaoFolderWindowSnapshot* snapshot =
-      storage.FindClaimableSnapshot({}, {}, {});
-  ASSERT_TRUE(snapshot);
-  EXPECT_TRUE(snapshot->legacy);
-  EXPECT_EQ(kLegacyJson, snapshot->json);
-  EXPECT_EQ(std::set<std::string>({"tab-a"}), snapshot->tab_ids);
-
-  EXPECT_FALSE(storage.FindClaimableSnapshot({}, {}, {snapshot->id}));
-
-  DaoFolderStorage restored;
-  ASSERT_TRUE(restored.LoadFromJson(storage.ToJson()));
-  ASSERT_TRUE(restored.FindClaimableSnapshot({}, {}, {}));
-  EXPECT_TRUE(restored.FindClaimableSnapshot({}, {}, {})->legacy);
+std::string WindowSnapshots() {
+  base::ListValue windows;
+  for (const auto* json : {kFolders, kOtherFolders, kFolders}) {
+    base::DictValue window;
+    window.Set("id", std::to_string(windows.size()));
+    window.Set("data", json);
+    windows.Append(std::move(window));
+  }
+  base::DictValue data;
+  data.Set("version", 2);
+  data.Set("windows", std::move(windows));
+  return *base::WriteJson(data);
 }
 
-TEST(DaoFolderStorageTest, PreservesOtherWindowWhenUpdatingOneSnapshot) {
-  DaoFolderStorage storage;
-  storage.UpsertSnapshot("window-a", {"tab-a"}, R"({"items":["a"]})");
-  storage.UpsertSnapshot("window-b", {"tab-b"}, R"({"items":["b"]})");
-  storage.UpsertSnapshot("window-b", {"tab-b2"}, R"({"items":["updated"]})");
+}  // namespace
 
-  DaoFolderStorage restored;
-  ASSERT_TRUE(restored.LoadFromJson(storage.ToJson()));
-  ASSERT_TRUE(restored.FindById("window-a"));
-  EXPECT_EQ(R"({"items":["a"]})", restored.FindById("window-a")->json);
-  ASSERT_TRUE(restored.FindById("window-b"));
-  EXPECT_EQ(std::set<std::string>({"tab-b2"}),
-            restored.FindById("window-b")->tab_ids);
+TEST(DaoFolderStorageTest, StaleWindowSavePreservesOtherFolders) {
+  auto merged = MergeFolderData("", kOtherFolders, kFolders);
+  ASSERT_TRUE(merged);
+  auto data = base::JSONReader::ReadDict(*merged, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data);
+  ASSERT_EQ(2u, data->FindList("items")->size());
+  EXPECT_EQ("b", *(*data->FindList("items"))[0].GetDict().FindString("id"));
+  EXPECT_EQ("a", *(*data->FindList("items"))[1].GetDict().FindString("id"));
 }
 
-TEST(DaoFolderStorageTest, DoesNotGiveNewWindowAnUnclaimedV2Snapshot) {
-  DaoFolderStorage storage;
-  storage.UpsertSnapshot("window-a", {"tab-a"}, R"({"items":[]})");
-
-  EXPECT_FALSE(storage.FindClaimableSnapshot({}, {}, {}));
-  EXPECT_EQ("window-a",
-            storage.FindClaimableSnapshot({"window-a"}, {}, {})->id);
-  EXPECT_FALSE(storage.FindClaimableSnapshot({"window-a"}, {}, {"window-a"}));
+TEST(DaoFolderStorageTest, ConcurrentFieldsMergeWithoutResurrectingDeletion) {
+  auto renamed = base::JSONReader::ReadDict(kFolders, base::JSON_PARSE_RFC);
+  auto collapsed = renamed->Clone();
+  (*renamed->FindList("items"))[0].GetDict().Set("name", "Renamed");
+  (*collapsed.FindList("items"))[0].GetDict().Set("collapsed", true);
+  auto merged = MergeFolderData(kFolders, *base::WriteJson(*renamed),
+                                *base::WriteJson(collapsed));
+  ASSERT_TRUE(merged);
+  auto data = base::JSONReader::ReadDict(*merged, base::JSON_PARSE_RFC);
+  const auto& folder = (*data->FindList("items"))[0].GetDict();
+  EXPECT_EQ("Renamed", *folder.FindString("name"));
+  EXPECT_EQ(true, folder.FindBool("collapsed"));
+  auto deleted = MergeFolderData(kFolders, *merged, "");
+  ASSERT_TRUE(deleted);
+  EXPECT_TRUE(base::JSONReader::ReadDict(*deleted, base::JSON_PARSE_RFC)
+                  ->FindList("items")->empty());
 }
 
-TEST(DaoFolderStorageTest, FallsBackToStableTabIdentityOverlap) {
-  DaoFolderStorage storage;
-  storage.UpsertSnapshot("window-a", {"tab-a", "tab-shared"},
-                         R"({"items":[]})");
-  storage.UpsertSnapshot("window-b", {"tab-b"}, R"({"items":[]})");
-
-  EXPECT_FALSE(
-      storage.FindClaimableSnapshot({"provisional-window"}, {"tab-b"}, {}));
-
-  const DaoFolderWindowSnapshot* snapshot =
-      storage.FindClaimableSnapshot({}, {"tab-b"}, {});
-  ASSERT_TRUE(snapshot);
-  EXPECT_EQ("window-b", snapshot->id);
+TEST(DaoFolderStorageTest, MigratesAllWindowSnapshotsWithoutWritingOnRead) {
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const auto path = temp.GetPath().AppendASCII("folders.json");
+  const std::string snapshots = WindowSnapshots();
+  ASSERT_TRUE(base::WriteFile(path, snapshots));
+  auto loaded = ReadFolderFile(path);
+  ASSERT_TRUE(loaded);
+  auto data = base::JSONReader::ReadDict(*loaded, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data);
+  EXPECT_EQ(1, data->FindInt("version"));
+  const auto* items = data->FindList("items");
+  ASSERT_EQ(2u, items->size());
+  EXPECT_EQ(1u, (*items)[0].GetDict().FindList("children")->size());
+  EXPECT_EQ("tab-a", *(*(*items)[0].GetDict().FindList("children"))[0]
+                         .GetDict().FindString("tabId"));
+  EXPECT_EQ("tab-b", *(*(*items)[1].GetDict().FindList("children"))[0]
+                         .GetDict().FindString("tabId"));
+  std::string disk;
+  ASSERT_TRUE(base::ReadFileToString(path, &disk));
+  EXPECT_EQ(snapshots, disk);
+  ASSERT_TRUE(UpdateFolderFile(path, *loaded, *loaded));
+  ASSERT_TRUE(base::ReadFileToString(path, &disk));
+  EXPECT_EQ(*loaded, disk);
 }
 
-TEST(DaoFolderStorageTest, AtomicWriteReplacesExistingFile) {
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  const base::FilePath path = temp_dir.GetPath().AppendASCII("folders.json");
-  ASSERT_TRUE(base::WriteFile(path, "old"));
-
-  ASSERT_TRUE(WriteFolderFileAtomically(path, "new"));
-
-  std::string contents;
-  ASSERT_TRUE(base::ReadFileToString(path, &contents));
-  EXPECT_EQ("new", contents);
+TEST(DaoFolderStorageTest, InvalidExistingFilesAreNeverOverwritten) {
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const auto path = temp.GetPath().AppendASCII("folders.json");
+  for (const std::string invalid : {
+           "", "broken", R"({"version":1})",
+           R"({"version":2,"windows":[{"id":"a","data":"broken"}]})"}) {
+    ASSERT_TRUE(base::WriteFile(path, invalid));
+    EXPECT_FALSE(ReadFolderFile(path));
+    EXPECT_FALSE(UpdateFolderFile(path, "", kFolders));
+    std::string disk;
+    ASSERT_TRUE(base::ReadFileToString(path, &disk));
+    EXPECT_EQ(invalid, disk);
+  }
 }
 
-TEST(DaoFolderStorageTest, SupersededWriteDoesNotReplaceNewerData) {
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  const base::FilePath path = temp_dir.GetPath().AppendASCII("folders.json");
-  const uint64_t old_generation = ReserveFolderFileWrite(path, "old");
-  const uint64_t new_generation = ReserveFolderFileWrite(path, "new");
-
-  ASSERT_TRUE(WriteReservedFolderFileAtomically(path, "old", old_generation));
-  EXPECT_FALSE(base::PathExists(path));
-  std::string pending_contents;
-  ASSERT_TRUE(ReadFolderFileWithPendingWrite(path, &pending_contents));
-  EXPECT_EQ("new", pending_contents);
-  ASSERT_TRUE(WriteReservedFolderFileAtomically(path, "new", new_generation));
-
-  std::string contents;
-  ASSERT_TRUE(base::ReadFileToString(path, &contents));
-  EXPECT_EQ("new", contents);
-}
-
-TEST(DaoFolderStorageTest, PendingWriteIsReadableBeforeDiskWrite) {
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  const base::FilePath path = temp_dir.GetPath().AppendASCII("folders.json");
-
-  ReserveFolderFileWrite(path, "pending");
-
-  std::string contents;
-  ASSERT_TRUE(ReadFolderFileWithPendingWrite(path, &contents));
-  EXPECT_EQ("pending", contents);
-  EXPECT_FALSE(base::PathExists(path));
-}
-
-TEST(DaoFolderStorageTest, SuccessfulWriteClearsPendingData) {
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  const base::FilePath path = temp_dir.GetPath().AppendASCII("folders.json");
-  const uint64_t generation = ReserveFolderFileWrite(path, "reserved");
-  ASSERT_TRUE(WriteReservedFolderFileAtomically(path, "reserved", generation));
-  ASSERT_TRUE(base::WriteFile(path, "on-disk"));
-
-  std::string contents;
-  ASSERT_TRUE(ReadFolderFileWithPendingWrite(path, &contents));
-  EXPECT_EQ("on-disk", contents);
-}
-
-TEST(DaoFolderStorageTest, FailedSynchronousWritePreservesPendingData) {
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  const base::FilePath not_a_directory =
-      temp_dir.GetPath().AppendASCII("not-a-directory");
-  ASSERT_TRUE(base::WriteFile(not_a_directory, "file"));
-  const base::FilePath path = not_a_directory.AppendASCII("folders.json");
-  ReserveFolderFileWrite(path, "before");
-
-  EXPECT_FALSE(WriteFolderFileAtomically(path, "imported"));
-
-  std::string contents;
-  ASSERT_TRUE(ReadFolderFileWithPendingWrite(path, &contents));
-  EXPECT_EQ("before", contents);
+TEST(DaoFolderStorageTest, FailedWritePreservesExistingData) {
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const auto path = temp.GetPath().AppendASCII("folders.json");
+  ASSERT_TRUE(UpdateFolderFile(path, "", kFolders));
+  auto before = ReadFolderFile(path);
+  ASSERT_TRUE(before);
+  EXPECT_FALSE(UpdateFolderFile(path, *before, "invalid"));
+  EXPECT_EQ(before, ReadFolderFile(path));
+  // A directory at the file path must fail closed as well.
+  const auto directory = temp.GetPath().AppendASCII("directory");
+  ASSERT_TRUE(base::CreateDirectory(directory));
+  EXPECT_FALSE(UpdateFolderFile(directory, "", kFolders));
+  EXPECT_TRUE(base::DirectoryExists(directory));
 }
 
 }  // namespace dao

@@ -10,7 +10,7 @@ index d7454d758f..3110999faf 100644
  #include "build/build_config.h"
  #include "chrome/browser/apps/app_service/launch_utils.h"
  #include "chrome/browser/browser_process.h"
-@@ -608,5 +609,18 @@ void SessionService::BuildCommandsForTab(
+@@ -608,5 +609,10 @@ void SessionService::BuildCommandsForTab(
    sessions::SessionTabHelper* session_tab_helper =
        sessions::SessionTabHelper::FromWebContents(tab);
    SessionID session_id(session_tab_helper->session_id());
@@ -19,13 +19,5 @@ index d7454d758f..3110999faf 100644
 +      sessions::CreateAddTabExtraDataCommand(
 +          session_id, dao::kSidebarTabIdentitySessionKey,
 +          dao::GetSidebarTabId(tab)));
-+  const std::string folder_snapshot_id =
-+      dao::GetSidebarFolderSnapshotId(tab);
-+  if (!folder_snapshot_id.empty()) {
-+    command_storage_manager()->AppendRebuildCommand(
-+        sessions::CreateAddTabExtraDataCommand(
-+            session_id, dao::kSidebarFolderSnapshotSessionKey,
-+            folder_snapshot_id));
-+  }
  
    const blink::UserAgentOverride& ua_override = tab->GetUserAgentOverride();

@@ -19,16 +19,15 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/json/json_reader.h"
-#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/supports_user_data.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "base/uuid.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/devtools_window.h"
@@ -38,8 +37,8 @@
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_restore.h"
-#include "chrome/browser/sessions/session_service.h"
 #include "chrome/browser/sessions/session_service_factory.h"
+#include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/accelerator_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -251,51 +250,32 @@ class DaoDownloadStartedAnimation : public DownloadStartedAnimationViews {
 BEGIN_METADATA(DaoDownloadStartedAnimation)
 END_METADATA
 
+const char kPrivateFolderDataKey = 0;
+
+struct PrivateFolderData : base::SupportsUserData::Data {
+  std::string json;
+};
+
+PrivateFolderData& GetPrivateFolderData(Profile* profile) {
+  auto* data = static_cast<PrivateFolderData*>(
+      profile->GetUserData(&kPrivateFolderDataKey));
+  if (!data) {
+    auto owned = std::make_unique<PrivateFolderData>();
+    data = owned.get();
+    profile->SetUserData(&kPrivateFolderDataKey, std::move(owned));
+  }
+  return *data;
+}
+
 struct PinnedItemsProfileState {
   std::set<DaoSidebarUIHandler*> handlers;
   std::string json;
   bool initialized = false;
-  DaoFolderStorage folder_storage;
-  std::map<std::string, DaoSidebarUIHandler*> folder_claims;
-  bool folder_storage_initialized = false;
-  bool folder_storage_writable = true;
 };
-
-struct FolderFileReadResult {
-  bool success = false;
-  std::string contents;
-};
-
-FolderFileReadResult ReadFolderFile(const base::FilePath& path) {
-  FolderFileReadResult result;
-  result.success = ReadFolderFileWithPendingWrite(path, &result.contents);
-  return result;
-}
 
 std::map<Profile*, PinnedItemsProfileState>& GetPinnedItemsProfileStates() {
   static base::NoDestructor<std::map<Profile*, PinnedItemsProfileState>> states;
   return *states;
-}
-
-PinnedItemsProfileState* GetInitializedFolderProfileState(Profile* profile) {
-  PinnedItemsProfileState& state = GetPinnedItemsProfileStates()[profile];
-  if (state.folder_storage_initialized) {
-    return state.folder_storage_writable ? &state : nullptr;
-  }
-  if (profile->IsOffTheRecord()) {
-    state.folder_storage_initialized = true;
-    return &state;
-  }
-  const FolderFileReadResult result =
-      ReadFolderFile(profile->GetPath().AppendASCII("dao_folders.json"));
-  state.folder_storage_initialized = true;
-  state.folder_storage_writable =
-      result.success && state.folder_storage.LoadFromJson(result.contents);
-  if (!state.folder_storage_writable) {
-    state.folder_storage = DaoFolderStorage();
-    return nullptr;
-  }
-  return &state;
 }
 
 bool IsReplaceableFirstRunWelcomeURL(const GURL& url) {
@@ -634,11 +614,6 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
     UnregisterPinnedItemsProfileHandler();
     weak_factory_.InvalidateWeakPtrs();
     duplicate_tab_close_observers_.clear();
-    ++folder_load_generation_;
-    folder_json_.clear();
-    folder_snapshot_id_.clear();
-    folders_loaded_ = false;
-    folder_snapshot_matched_ = false;
     pinned_tab_model_.LoadFromJson(std::string());
     pinned_items_loaded_ = false;
     pinned_items_load_pending_ = false;
@@ -648,7 +623,7 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
     session_restore_completed_ = false;
     session_restored_subscription_ = {};
     reopening_pinned_item_ids_.clear();
-    persisted_identity_session_tab_ids_.clear();
+    persisted_tab_identities_.clear();
     in_progress_download_ids_.clear();
     pending_download_animation_.reset();
     stale_tab_ids_.clear();
@@ -731,16 +706,7 @@ void DaoSidebarUIHandler::NotifyFolderDataChanged(Profile* profile) {
   if (state_it == GetPinnedItemsProfileStates().end()) {
     return;
   }
-  state_it->second.folder_storage = DaoFolderStorage();
-  state_it->second.folder_claims.clear();
-  state_it->second.folder_storage_initialized = false;
-  state_it->second.folder_storage_writable = true;
   for (DaoSidebarUIHandler* handler : state_it->second.handlers) {
-    ++handler->folder_load_generation_;
-    handler->folder_json_.clear();
-    handler->folder_snapshot_id_.clear();
-    handler->folders_loaded_ = false;
-    handler->folder_snapshot_matched_ = false;
     if (handler->IsJavascriptAllowed()) {
       handler->FireWebUIListener("folderDataChanged");
     }
@@ -748,117 +714,41 @@ void DaoSidebarUIHandler::NotifyFolderDataChanged(Profile* profile) {
 }
 
 // static
-bool DaoSidebarUIHandler::LoadFolderSnapshotForImport(
-    Profile* profile,
-    const std::vector<std::string>& preferred_ids,
-    const std::set<std::string>& tab_ids,
-    std::string* snapshot_id,
-    std::string* json) {
-  PinnedItemsProfileState* state = GetInitializedFolderProfileState(profile);
-  if (!state) {
-    return false;
+std::optional<std::string> DaoSidebarUIHandler::ReadFolderData(Profile* profile) {
+  if (profile->IsOffTheRecord()) {
+    return GetPrivateFolderData(profile).json;
   }
-  const DaoFolderWindowSnapshot* snapshot =
-      state->folder_storage.FindClaimableSnapshot(preferred_ids, tab_ids, {});
-  if (snapshot) {
-    *snapshot_id = snapshot->id;
-    *json = snapshot->json;
-  } else if (!preferred_ids.empty()) {
-    // A sidebar can already have a provisional per-window identity even when
-    // it has not saved its first snapshot. Keep the import associated with
-    // that window so its live handler receives the imported folder.
-    *snapshot_id = preferred_ids.front();
-    json->clear();
-  } else {
-    snapshot_id->clear();
-    json->clear();
-  }
-  return true;
+  return ReadFolderFile(profile->GetPath().AppendASCII("dao_folders.json"));
 }
 
 // static
-bool DaoSidebarUIHandler::PersistImportedFolder(Profile* profile,
-                                                const std::string& snapshot_id,
-                                                std::set<std::string> tab_ids,
-                                                base::DictValue folder) {
-  PinnedItemsProfileState* state = GetInitializedFolderProfileState(profile);
-  if (!state) {
-    return false;
-  }
-
-  DaoFolderStorage updated_storage = state->folder_storage;
-  base::DictValue folder_data;
-  const DaoFolderWindowSnapshot* snapshot =
-      updated_storage.FindById(snapshot_id);
-  if (snapshot) {
-    std::optional<base::DictValue> parsed =
-        base::JSONReader::ReadDict(snapshot->json, base::JSON_PARSE_RFC);
-    if (!parsed || !parsed->FindList("items")) {
+bool DaoSidebarUIHandler::UpdateFolderData(Profile* profile,
+                                           const std::string& base_json,
+                                           const std::string& json) {
+  if (profile->IsOffTheRecord()) {
+    auto& data = GetPrivateFolderData(profile);
+    auto merged = MergeFolderData(base_json, json, data.json);
+    if (!merged) {
       return false;
     }
-    folder_data = std::move(*parsed);
-    tab_ids.insert(snapshot->tab_ids.begin(), snapshot->tab_ids.end());
-  } else {
-    folder_data.Set("version", 1);
-    folder_data.Set("items", base::ListValue());
+    data.json = std::move(*merged);
+    return true;
   }
-
-  const std::string* folder_id = folder.FindString("id");
-  base::ListValue* items = folder_data.FindList("items");
-  if (!folder_id || !items) {
-    return false;
-  }
-  items->EraseIf([folder_id](const base::Value& item) {
-    const base::DictValue* dict = item.GetIfDict();
-    const std::string* id = dict ? dict->FindString("id") : nullptr;
-    return id && *id == *folder_id;
-  });
-  items->Append(std::move(folder));
-
-  std::string json;
-  if (!base::JSONWriter::WriteWithOptions(
-          folder_data, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json)) {
-    return false;
-  }
-  updated_storage.UpsertSnapshot(snapshot_id, std::move(tab_ids), json);
-
-  if (!profile->IsOffTheRecord()) {
-    const base::FilePath folder_path =
-        profile->GetPath().AppendASCII("dao_folders.json");
-    const std::string storage_json = updated_storage.ToJson();
-    if (!WriteFolderFileAtomically(folder_path, storage_json)) {
-      return false;
-    }
-  }
-
-  state->folder_storage = std::move(updated_storage);
-  for (DaoSidebarUIHandler* handler : state->handlers) {
-    if (handler->folder_snapshot_id_ != snapshot_id) {
-      continue;
-    }
-    handler->folder_json_ = json;
-    handler->folder_snapshot_matched_ = true;
-    handler->PersistFolderSnapshotIdentity();
-    if (handler->IsJavascriptAllowed()) {
-      handler->FireWebUIListener("folderDataChanged");
-    }
-  }
-  return true;
+  return UpdateFolderFile(profile->GetPath().AppendASCII("dao_folders.json"),
+                          base_json, json);
 }
 
-base::ListValue DaoSidebarUIHandler::GetPinnedItemsForTesting() {
-  return BuildPinnedItems();
+void DaoSidebarUIHandler::LoadFoldersForTesting(const std::string& callback_id) {
+  base::ListValue args;
+  args.Append(callback_id);
+  HandleLoadFolders(args);
 }
 
-void DaoSidebarUIHandler::LoadFoldersForTesting(
-    const std::string& callback_id) {
-  AllowJavascript();
-  LoadFoldersForCallback(callback_id);
-}
-
-void DaoSidebarUIHandler::SaveFoldersForTesting(const std::string& json) {
+void DaoSidebarUIHandler::SaveFoldersForTesting(const std::string& json,
+                                                const std::string& base_json) {
   base::ListValue args;
   args.Append(json);
+  args.Append(base_json);
   HandleSaveFolders(args);
 }
 
@@ -868,6 +758,10 @@ void DaoSidebarUIHandler::WaitForFolderFileTasksForTesting() {
   GetFolderFileTaskRunner()->PostTaskAndReply(FROM_HERE, base::DoNothing(),
                                               run_loop.QuitClosure());
   run_loop.Run();
+}
+
+base::ListValue DaoSidebarUIHandler::GetPinnedItemsForTesting() {
+  return BuildPinnedItems();
 }
 
 base::DictValue DaoSidebarUIHandler::GetSidebarStateForTesting() {
@@ -1151,9 +1045,12 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
         if (!removed_tab.contents) {
           continue;
         }
+        // Moving WebContents can destroy its TabModel without closing the page.
+        const bool tab_closed =
+            TabRemoveReasonUtils::WillDeleteWebContents(
+                removed_tab.remove_reason);
         if (removed_tab.contents == selection.old_contents &&
-            removed_tab.tab_detach_reason ==
-                tabs::TabInterface::DetachReason::kDelete &&
+            tab_closed &&
             selection.new_contents &&
             !stale_tab_ids_.contains(
                 GetSidebarTabId(selection.old_contents)) &&
@@ -1162,14 +1059,18 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
           stale_tab_selected_after_close =
               GetSidebarTabId(selection.new_contents);
         }
+        if (IsJavascriptAllowed() && tab_closed) {
+          base::ListValue closed_ids;
+          closed_ids.Append(GetSidebarTabId(removed_tab.contents));
+          FireWebUIListener("folderTabsClosed", closed_ids);
+        }
         DaoPinnedTabItem* item = pinned_tab_model_.FindByBackingTabId(
             GetSidebarTabId(removed_tab.contents));
         if (!item) {
           continue;
         }
         const DaoPinnedTabState state =
-            removed_tab.tab_detach_reason ==
-                    tabs::TabInterface::DetachReason::kDelete
+            tab_closed
                 ? DaoPinnedTabState::kDormant
                 : DaoPinnedTabState::kReconciling;
         pinned_state_changed |= pinned_tab_model_.SetState(item->id, state);
@@ -1178,24 +1079,6 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
   }
   if (pinned_state_changed && pinned_items_auto_save_enabled_) {
     SavePinnedItems();
-  }
-  if (change.type() != TabStripModelChange::kSelectionOnly) {
-    const bool adopted_restored_snapshot = MaybeAdoptRestoredFolderSnapshot();
-    bool has_folder_items = false;
-    if (!folder_json_.empty()) {
-      std::optional<base::DictValue> folder_data =
-          base::JSONReader::ReadDict(folder_json_, base::JSON_PARSE_RFC);
-      const base::ListValue* items =
-          folder_data ? folder_data->FindList("items") : nullptr;
-      has_folder_items = items && !items->empty();
-    }
-    // Preserve incoming snapshot IDs while session restore is still adding
-    // tabs. Normal structural changes belong to this live window.
-    if (!adopted_restored_snapshot && folders_loaded_ &&
-        (folder_snapshot_matched_ || has_folder_items ||
-         (browser_ && !SessionRestore::IsRestoring(browser_->profile())))) {
-      PersistFolderSnapshotIdentity();
-    }
   }
 
   if (!stale_tab_selected_after_close.empty()) {
@@ -1365,6 +1248,8 @@ base::DictValue DaoSidebarUIHandler::BuildSidebarState() {
 
     base::DictValue tab;
     const std::string tab_id = GetSidebarTabId(contents);
+    // Folder references need ordinary tab identities in the session log too.
+    PersistBackingIdentity(contents);
     tab.Set("tabId", tab_id);
     tab.Set("index", i);
     tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
@@ -1671,161 +1556,8 @@ void DaoSidebarUIHandler::UnregisterPinnedItemsProfileHandler() {
     return;
   }
   state_it->second.handlers.erase(this);
-  if (!folder_snapshot_id_.empty()) {
-    auto claim_it = state_it->second.folder_claims.find(folder_snapshot_id_);
-    if (claim_it != state_it->second.folder_claims.end() &&
-        claim_it->second == this) {
-      state_it->second.folder_claims.erase(claim_it);
-    }
-  }
-  std::vector<DaoSidebarUIHandler*> remaining_handlers(
-      state_it->second.handlers.begin(), state_it->second.handlers.end());
-  for (DaoSidebarUIHandler* handler : remaining_handlers) {
-    handler->MaybeAdoptRestoredFolderSnapshot();
-  }
   if (state_it->second.handlers.empty()) {
     states.erase(state_it);
-  }
-}
-
-bool DaoSidebarUIHandler::AdoptFoldersFromProfileState() {
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
-  if (!profile) {
-    return false;
-  }
-  auto state_it = GetPinnedItemsProfileStates().find(profile);
-  if (state_it == GetPinnedItemsProfileStates().end() ||
-      !state_it->second.folder_storage_initialized) {
-    return false;
-  }
-
-  PinnedItemsProfileState& state = state_it->second;
-  std::set<std::string> claimed_ids;
-  for (const auto& [id, handler] : state.folder_claims) {
-    if (handler != this) {
-      claimed_ids.insert(id);
-    }
-  }
-  const DaoFolderWindowSnapshot* snapshot =
-      state.folder_storage.FindClaimableSnapshot(
-          GetCurrentFolderSnapshotIds(), GetCurrentFolderTabIds(), claimed_ids);
-  if (snapshot) {
-    folder_snapshot_id_ = snapshot->id;
-    folder_json_ = snapshot->json;
-    folder_snapshot_matched_ = true;
-  } else {
-    folder_snapshot_id_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
-    folder_json_.clear();
-    folder_snapshot_matched_ = false;
-  }
-  state.folder_claims[folder_snapshot_id_] = this;
-  folders_loaded_ = true;
-  PersistFolderSnapshotIdentity();
-  return true;
-}
-
-bool DaoSidebarUIHandler::MaybeAdoptRestoredFolderSnapshot() {
-  if (!folders_loaded_ || folder_snapshot_matched_ || !browser_) {
-    return false;
-  }
-  if (!folder_json_.empty()) {
-    std::optional<base::DictValue> current_data =
-        base::JSONReader::ReadDict(folder_json_, base::JSON_PARSE_RFC);
-    const base::ListValue* current_items =
-        current_data ? current_data->FindList("items") : nullptr;
-    if (!current_items || !current_items->empty()) {
-      return false;
-    }
-  }
-  auto state_it = GetPinnedItemsProfileStates().find(browser_->profile());
-  if (state_it == GetPinnedItemsProfileStates().end() ||
-      !state_it->second.folder_storage_initialized) {
-    return false;
-  }
-
-  PinnedItemsProfileState& state = state_it->second;
-  std::optional<DaoFolderWindowSnapshot> restored_snapshot;
-  for (const std::string& id : GetCurrentFolderSnapshotIds()) {
-    if (id == folder_snapshot_id_) {
-      continue;
-    }
-    const DaoFolderWindowSnapshot* candidate =
-        state.folder_storage.FindById(id);
-    auto claim_it = state.folder_claims.find(id);
-    if (candidate &&
-        (claim_it == state.folder_claims.end() || claim_it->second == this)) {
-      restored_snapshot = *candidate;
-      break;
-    }
-  }
-  if (!restored_snapshot) {
-    return false;
-  }
-
-  auto old_claim_it = state.folder_claims.find(folder_snapshot_id_);
-  if (old_claim_it != state.folder_claims.end() &&
-      old_claim_it->second == this) {
-    state.folder_claims.erase(old_claim_it);
-  }
-  state.folder_storage.RemoveSnapshot(folder_snapshot_id_);
-  folder_snapshot_id_ = restored_snapshot->id;
-  folder_json_ = restored_snapshot->json;
-  folder_snapshot_matched_ = true;
-  state.folder_claims[folder_snapshot_id_] = this;
-  PersistFolderSnapshotIdentity();
-  if (IsJavascriptAllowed()) {
-    FireWebUIListener("folderDataChanged");
-  }
-  return true;
-}
-
-std::set<std::string> DaoSidebarUIHandler::GetCurrentFolderTabIds() const {
-  std::set<std::string> tab_ids;
-  if (!browser_) {
-    return tab_ids;
-  }
-  TabStripModel* tab_strip = browser_->tab_strip_model();
-  for (int index = 0; index < tab_strip->count(); ++index) {
-    tab_ids.insert(GetSidebarTabId(tab_strip->GetWebContentsAt(index)));
-  }
-  return tab_ids;
-}
-
-std::vector<std::string> DaoSidebarUIHandler::GetCurrentFolderSnapshotIds()
-    const {
-  std::vector<std::string> ids;
-  std::set<std::string> seen;
-  if (!browser_) {
-    return ids;
-  }
-  TabStripModel* tab_strip = browser_->tab_strip_model();
-  for (int index = 0; index < tab_strip->count(); ++index) {
-    std::string id =
-        GetSidebarFolderSnapshotId(tab_strip->GetWebContentsAt(index));
-    if (!id.empty() && seen.insert(id).second) {
-      ids.push_back(std::move(id));
-    }
-  }
-  return ids;
-}
-
-void DaoSidebarUIHandler::PersistFolderSnapshotIdentity() {
-  if (!browser_ || folder_snapshot_id_.empty()) {
-    return;
-  }
-  SessionService* session_service =
-      SessionServiceFactory::GetForProfile(browser_->profile());
-  TabStripModel* tab_strip = browser_->tab_strip_model();
-  for (int index = 0; index < tab_strip->count(); ++index) {
-    content::WebContents* contents = tab_strip->GetWebContentsAt(index);
-    SetSidebarFolderSnapshotId(contents, folder_snapshot_id_);
-    sessions::SessionTabHelper* session_tab_helper =
-        sessions::SessionTabHelper::FromWebContents(contents);
-    if (session_service && session_tab_helper) {
-      session_service->AddTabExtraData(
-          session_tab_helper->window_id(), session_tab_helper->session_id(),
-          kSidebarFolderSnapshotSessionKey, folder_snapshot_id_);
-    }
   }
 }
 
@@ -2004,14 +1736,17 @@ void DaoSidebarUIHandler::PersistBackingIdentity(
   if (!session_tab_helper || !session_service) {
     return;
   }
-  if (!persisted_identity_session_tab_ids_
-           .insert(session_tab_helper->session_id().id())
-           .second) {
+  const int session_tab_id = session_tab_helper->session_id().id();
+  const std::string identity = GetSidebarTabId(contents);
+  auto previous = persisted_tab_identities_.find(session_tab_id);
+  if (previous != persisted_tab_identities_.end() &&
+      previous->second == identity) {
     return;
   }
   session_service->AddTabExtraData(
       session_tab_helper->window_id(), session_tab_helper->session_id(),
-      kSidebarTabIdentitySessionKey, GetSidebarTabId(contents));
+      kSidebarTabIdentitySessionKey, identity);
+  persisted_tab_identities_.insert_or_assign(session_tab_id, identity);
 }
 
 void DaoSidebarUIHandler::RecordPinnedActivationResult(
@@ -2965,111 +2700,51 @@ void DaoSidebarUIHandler::HandleLoadFolders(const base::ListValue& args) {
   if (args.size() < 1 || !args[0].is_string()) {
     return;
   }
-  LoadFoldersForCallback(args[0].GetString());
-}
+  const std::string callback_id = args[0].GetString();
 
-void DaoSidebarUIHandler::LoadFoldersForCallback(std::string callback_id) {
-  if (folders_loaded_ || AdoptFoldersFromProfileState()) {
-    FireWebUIListener(callback_id, base::Value(folder_json_));
-    return;
-  }
-
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
-  if (!profile) {
-    FireWebUIListener(callback_id, base::Value(std::string()));
-    return;
-  }
+  Profile* profile = browser_ ? browser_->profile() : Profile::FromWebUI(web_ui());
   if (profile->IsOffTheRecord()) {
-    GetInitializedFolderProfileState(profile);
-    AdoptFoldersFromProfileState();
-    FireWebUIListener(callback_id, base::Value(folder_json_));
+    FireWebUIListener(callback_id, base::Value(*ReadFolderData(profile)));
     return;
   }
-  const uint64_t generation = folder_load_generation_;
+  const base::FilePath path = profile->GetPath().AppendASCII("dao_folders.json");
   GetFolderFileTaskRunner()->PostTaskAndReplyWithResult(
-      FROM_HERE,
-      base::BindOnce(&ReadFolderFile,
-                     profile->GetPath().AppendASCII("dao_folders.json")),
+      FROM_HERE, base::BindOnce(&ReadFolderFile, path),
       base::BindOnce(
           [](base::WeakPtr<DaoSidebarUIHandler> self, std::string callback_id,
-             uint64_t generation, FolderFileReadResult result) {
+             std::optional<std::string> contents) {
             if (!self || !self->IsJavascriptAllowed()) {
               return;
             }
-            if (self->folder_load_generation_ != generation) {
-              self->LoadFoldersForCallback(std::move(callback_id));
-              return;
-            }
-            Profile* profile =
-                self->browser_ ? self->browser_->profile() : nullptr;
-            if (!profile) {
-              self->FireWebUIListener(callback_id, base::Value(std::string()));
-              return;
-            }
-            PinnedItemsProfileState& state =
-                GetPinnedItemsProfileStates()[profile];
-            if (!state.folder_storage_initialized) {
-              state.folder_storage_initialized = true;
-              state.folder_storage_writable =
-                  result.success &&
-                  state.folder_storage.LoadFromJson(result.contents);
-              if (!state.folder_storage_writable) {
-                state.folder_storage = DaoFolderStorage();
-                LOG(ERROR) << "Failed to load Dao folder storage; refusing "
-                              "to overwrite it";
-              }
-            }
-            self->AdoptFoldersFromProfileState();
+            // A failed read must not look like an empty, writable model.
             self->FireWebUIListener(callback_id,
-                                    base::Value(self->folder_json_));
+                                   base::Value(contents.value_or("null")));
           },
-          weak_factory_.GetWeakPtr(), std::move(callback_id), generation));
+          weak_factory_.GetWeakPtr(), callback_id));
 }
 
 void DaoSidebarUIHandler::HandleSaveFolders(const base::ListValue& args) {
-  if (args.empty()) {
+  if (args.size() != 2 || !args[0].is_string() || !args[1].is_string()) {
     return;
   }
-  const std::string* json = args[0].GetIfString();
-  if (!json) {
-    return;
-  }
-
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
-  if (!profile || !folders_loaded_ || folder_snapshot_id_.empty()) {
-    return;
-  }
-  auto state_it = GetPinnedItemsProfileStates().find(profile);
-  if (state_it == GetPinnedItemsProfileStates().end() ||
-      !state_it->second.folder_storage_initialized ||
-      !state_it->second.folder_storage_writable) {
-    return;
-  }
-
-  folder_json_ = *json;
-  PinnedItemsProfileState& state = state_it->second;
-  state.folder_claims[folder_snapshot_id_] = this;
-  state.folder_storage.UpsertSnapshot(folder_snapshot_id_,
-                                      GetCurrentFolderTabIds(), folder_json_);
-  PersistFolderSnapshotIdentity();
-
+  Profile* profile = browser_ ? browser_->profile() : Profile::FromWebUI(web_ui());
   if (profile->IsOffTheRecord()) {
+    UpdateFolderData(profile, args[1].GetString(), args[0].GetString());
+    NotifyFolderDataChanged(profile);
     return;
   }
-
-  const base::FilePath folder_path =
-      profile->GetPath().AppendASCII("dao_folders.json");
-  const std::string storage_json = state.folder_storage.ToJson();
-  const uint64_t write_generation =
-      ReserveFolderFileWrite(folder_path, storage_json);
+  const base::FilePath path = profile->GetPath().AppendASCII("dao_folders.json");
   GetFolderFileTaskRunner()->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&WriteReservedFolderFileAtomically, folder_path,
-                     storage_json, write_generation),
+      base::BindOnce(&UpdateFolderFile, path, args[1].GetString(),
+                     args[0].GetString()),
       base::BindOnce(
           [](base::WeakPtr<DaoSidebarUIHandler> self, bool success) {
-            if (self && !success) {
-              LOG(ERROR) << "Failed to persist Dao folder storage";
+            if (!success) {
+              LOG(ERROR) << "Failed to save Dao folders";
+            }
+            if (self && self->browser_) {
+              NotifyFolderDataChanged(self->browser_->profile());
             }
           },
           weak_factory_.GetWeakPtr()));

@@ -56,12 +56,12 @@ export function createTabRefMatchPool(
   const consume = (ref: SidebarTabRef): TabData | null => {
     let idx = ref.tabId ?
         remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
-    if (idx === -1) {
+    if (idx === -1 && !ref.tabId) {
       idx = remaining.findIndex(
           tab => !reservedTabIds.has(tab.tabId) &&
               tab.url === ref.url && tab.title === ref.title);
     }
-    if (idx === -1) {
+    if (idx === -1 && !ref.tabId) {
       idx = remaining.findIndex(
           tab => !reservedTabIds.has(tab.tabId) && tab.url === ref.url);
     }
@@ -320,13 +320,21 @@ export class FolderModel {
     reorderArray(this.items_, fromIndex, toIndex);
   }
 
+  /** Remove only tabs whose closure was confirmed by the native tab strip. */
+  forgetTabs(tabIds: string[]): void {
+    const closed = new Set(tabIds);
+    this.items_ = this.items_.filter(item => {
+      if (item.type === 'tab') return !closed.has(item.tabId ?? '');
+      item.children = item.children.filter(child =>
+          !closed.has(child.tabId ?? ''));
+      return true;
+    });
+  }
+
   /**
-   * Reconcile stored folder data with actual browser tabs after
-   * session restore. Stable tabId matches are reserved before URL fallback so
-   * a closed tab cannot claim a surviving duplicate. Unreserved tabs may still
-   * match by URL when session restore or WebContents replacement changes the
-   * runtime identity. Unmatched actual tabs become loose tabs appended at the
-   * end. Stored refs with no match are discarded.
+   * Reconcile this window without deleting refs belonging to other windows or
+   * tabs that session restore has not delivered yet. Persisted tab IDs survive
+   * restart; URL fallback is only for legacy refs without an identity.
    */
   reconcile(actualTabs: TabData[]): void {
     const {consume, remaining} =
@@ -340,8 +348,9 @@ export class FolderModel {
         const matched = consume(item);
         if (matched) {
           newItems.push(this.toTabRef_(matched));
+        } else {
+          newItems.push(item);
         }
-        // If no match, discard this stored entry.
       } else if (item.type === 'folder') {
         const folder = item as FolderData;
         const newChildren: SidebarTabRef[] = [];
@@ -349,20 +358,11 @@ export class FolderModel {
           const matched = consume(child);
           if (matched) {
             newChildren.push(this.toTabRef_(matched));
+          } else {
+            newChildren.push(child);
           }
-          // If no match, discard this stored child entry.
         }
-        // Only keep the folder if it still has matched children.
-        // Folders whose children all belong to other windows are dropped.
-        if (newChildren.length > 0) {
-          newItems.push({
-            type: 'folder',
-            id: folder.id,
-            name: folder.name,
-            collapsed: folder.collapsed,
-            children: newChildren,
-          });
-        }
+        newItems.push({...folder, children: newChildren});
       }
     }
 

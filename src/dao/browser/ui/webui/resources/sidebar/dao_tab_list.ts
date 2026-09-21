@@ -191,13 +191,14 @@ export class DaoTabList extends CrLitElement {
     const {consume, remaining} = createTabRefMatchPool(items, this.tabs);
 
     const fragments: unknown[] = [];
-    let splitRun: TabData[] = [];
+    let splitRun: Array<{tab: TabData, modelIndex: number}> = [];
 
     const flushSplitRun = () => {
       if (splitRun.length > 0) {
-        const items = splitRun.map(tab => html`
+        const items = splitRun.map(({tab, modelIndex}) => html`
           <dao-tab-item
             data-tab-id=${this.getTabIdentity_(tab)}
+            data-model-index=${modelIndex}
             .tabData=${tab}
             .sessionId=${this.sessionId}
             .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
@@ -209,14 +210,15 @@ export class DaoTabList extends CrLitElement {
       }
     };
 
-    const pushTab = (tab: TabData) => {
+    const pushTab = (tab: TabData, modelIndex: number) => {
       if (tab.isInSplit) {
-        splitRun.push(tab);
+        splitRun.push({tab, modelIndex});
       } else {
         flushSplitRun();
         fragments.push(html`
           <dao-tab-item
             data-tab-id=${this.getTabIdentity_(tab)}
+            data-model-index=${modelIndex}
             .tabData=${tab}
             .sessionId=${this.sessionId}
             .autoScrollToken=${this.getAutoScrollTokenForTab_(tab)}
@@ -226,11 +228,11 @@ export class DaoTabList extends CrLitElement {
       }
     };
 
-    for (const item of items) {
+    for (const [modelIndex, item] of items.entries()) {
       if (item.type === 'tab') {
         const matched = consume(item);
         if (matched) {
-          pushTab(matched);
+          pushTab(matched, modelIndex);
         }
       } else if (item.type === 'folder') {
         // Folder breaks any active split run — flush first.
@@ -245,9 +247,15 @@ export class DaoTabList extends CrLitElement {
           }
         }
 
+        // Keep foreign/restoring refs in storage, but project only this window.
+        if (folder.children.length > 0 && matchedChildren.length === 0) {
+          continue;
+        }
+
         fragments.push(html`
           <dao-folder-item
             data-folder-id=${folder.id}
+            data-model-index=${modelIndex}
             data-folder-child-count=${matchedChildren.length}
             .folder=${folder}
             .matchedTabs=${matchedChildren}
@@ -263,7 +271,7 @@ export class DaoTabList extends CrLitElement {
     // Any remaining unmatched tabs from the pool — render as loose tabs,
     // still honoring split grouping.
     for (const tab of remaining) {
-      pushTab(tab);
+      pushTab(tab, items.length);
     }
     flushSplitRun();
 
@@ -453,11 +461,10 @@ export class DaoTabList extends CrLitElement {
         'dao-tab-item, dao-folder-item');
     const clientY = e.clientY;
     let indicatorY = 0;
-    let modelIndex = allItems.length;  // default: after last
+    let modelIndex = this.folderModel!.getOrderedItems().length;
 
     if (allItems.length === 0) {
       indicatorY = 0;
-      modelIndex = 0;
     } else {
       let found = false;
       for (let i = 0; i < allItems.length; i++) {
@@ -465,7 +472,7 @@ export class DaoTabList extends CrLitElement {
         const rect = el.getBoundingClientRect();
         if (clientY < rect.top + rect.height / 2) {
           indicatorY = el.offsetTop;
-          modelIndex = i;
+          modelIndex = Number(el.dataset['modelIndex']);
           found = true;
           break;
         }
@@ -473,7 +480,7 @@ export class DaoTabList extends CrLitElement {
       if (!found) {
         const lastEl = allItems[allItems.length - 1] as HTMLElement;
         indicatorY = lastEl.offsetTop + lastEl.offsetHeight;
-        modelIndex = allItems.length;
+        modelIndex = Math.min(Number(lastEl.dataset['modelIndex']) + 1, modelIndex);
       }
     }
 

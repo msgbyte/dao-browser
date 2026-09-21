@@ -113,8 +113,8 @@ class DaoChromiumMigrationTarget
   ItemWriteCallback pending_password_callback_;
   std::map<std::string, raw_ptr<const bookmarks::BookmarkNode>>
       bookmark_folders_;
-  std::string folder_snapshot_id_;
   base::DictValue folder_data_;
+  std::string folder_base_json_;
   raw_ptr<base::ListValue> folder_items_ = nullptr;
   raw_ptr<base::DictValue> pending_folder_ = nullptr;
   std::optional<SessionID> pending_folder_window_id_;

@@ -52,12 +52,18 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   the tab count. Pin state is serialized through a shared sequenced writer and
   atomically replaces the previous profile file.
 - **dao_folder_item.ts** / **dao_folder_model.ts** — Folder grouping with
-  window-scoped persistence under the profile path. Stable tab identities
-  preserve folder membership across session restore and distinguish tabs with
-  identical URLs. Window snapshots merge in shared profile state and are written
-  atomically so one window cannot overwrite another window's folders. Legacy
-  folder files remain readable. Off-the-record windows keep folder snapshots in
-  isolated memory and never read or write the regular profile's folder file.
+  profile-wide persistence and per-window rendering. Ordinary tab identities
+  are recorded in the session log as soon as the sidebar exposes them. Stable
+  session tab IDs preserve membership across window transfers and restart;
+  partial restore and other windows never prune unmatched references. Explicit
+  edits are merged against the latest profile snapshot, written in sequence
+  with atomic file replacement, and propagated to all same-profile windows. Initial loads and
+  refreshes do not rewrite the file. Drag ordering maps visible rows back to
+  stored positions, including when other windows have hidden tabs or folders.
+  Concurrent moves and unfoldering preserve one global membership per tab;
+  stale edits cannot resurrect closed tabs. Legacy window snapshots are merged
+  on read without losing their folders. Off-the-record windows keep folders in
+  profile-owned memory and never access the regular profile's folder file.
   Every folder context menu
   exposes Unfolder, which removes the folder and releases its child tabs in
   place, and Delete Folder, which uses a Dao native system confirmation dialog

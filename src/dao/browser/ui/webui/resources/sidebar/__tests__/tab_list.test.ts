@@ -178,6 +178,59 @@ describe('dao-tab-list', () => {
     });
   }
 
+  it.each([
+    {kind: 'tab', clientY: 90, expectedIndex: 3},
+    {kind: 'tab', clientY: 0, expectedIndex: 1},
+    {kind: 'folder', clientY: 90, expectedIndex: 3},
+    {kind: 'folder', clientY: 0, expectedIndex: 1},
+    {kind: 'split', clientY: 90, expectedIndex: 3},
+  ])('uses stored indices for $kind drops at $clientY with hidden refs',
+      async ({kind, clientY, expectedIndex}) => {
+    const tabs = ['a', 'b'].map((tabId, index) => tab({tabId, index,
+      isInSplit: kind === 'split'}));
+    const ref = (tabId: string) => ({type: 'tab', tabId,
+      url: tabs[0]!.url, title: tabs[0]!.title});
+    const folder = (id: string, child: string) => ({type: 'folder', id,
+      name: id, collapsed: false, children: [ref(child)]});
+    const model = createFolderModel([
+      folder('foreign', 'foreign-tab'),
+      ...(kind === 'folder' ? [folder('a', 'a'), folder('b', 'b')] :
+                             [ref('a'), ref('b')]),
+    ]);
+    const {el} = createModelList(model, tabs);
+    await el.updateComplete;
+    const rows = el.shadowRoot!.querySelectorAll('dao-tab-item, dao-folder-item');
+    expect(rows).toHaveLength(2);
+    rows.forEach((row, index) => setTabItemBounds(row as HTMLElement, index * 40, 36));
+    const action = vi.fn();
+    el.addEventListener('folder-action', action);
+    const transfer = fakeDataTransfer(kind === 'folder' ?
+        {'application/x-dao-folder': 'a'} : {'text/plain': 'dao-tab-drag:7:0'});
+    el.dispatchEvent(dragEvent('dragover', transfer, {clientY}));
+    el.dispatchEvent(dragEvent('drop', transfer, {clientY}));
+    expect(action).toHaveBeenCalledOnce();
+    expect(action.mock.calls[0]![0].detail.toModelIndex).toBe(expectedIndex);
+    model.reorder(1, action.mock.calls[0]![0].detail.toModelIndex);
+    if (clientY === 90) {
+      expect(model.getOrderedItems().map(item => item.type === 'folder' ? item.id : item.tabId))
+          .toEqual(['foreign', 'b', 'a']);
+    }
+  });
+
+  it('renders only local members without stealing a foreign same-URL tab', async () => {
+    const local = tab({tabId: 'local'});
+    const model = createFolderModel([{
+      type: 'folder', id: 'foreign', name: 'Other window', collapsed: false,
+      children: [{type: 'tab', tabId: 'foreign-tab', url: local.url, title: local.title}],
+    }]);
+    model.reconcile([local]);
+    const {el} = createModelList(model, [local]);
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('dao-folder-item')).toBeNull();
+    expect(el.shadowRoot!.querySelectorAll('dao-tab-item')).toHaveLength(1);
+    expect(model.getFolders()[0]!.children[0]!.tabId).toBe('foreign-tab');
+  });
+
   it('animates surviving tabs when a tab is removed', async () => {
     const animate = installAnimateMock();
     const {el} = createList();

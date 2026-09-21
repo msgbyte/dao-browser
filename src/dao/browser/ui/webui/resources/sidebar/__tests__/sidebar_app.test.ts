@@ -363,14 +363,14 @@ describe('dao-sidebar-app', () => {
     }));
     await app.updateComplete;
 
-    expect(model.getFolders()[0]!.collapsed).toBe(false);
+    expect(app.folderModel_.getFolders()[0]!.collapsed).toBe(false);
     expect(el.autoScrollTabId_).toBe(folderTab.tabId);
     expect(el.autoScrollToken_).toBe(previousScrollToken + 1);
     expect(app.folderModelVersion_).toBe(previousVersion + 1);
 
     vi.advanceTimersByTime(300);
     expect(send).toHaveBeenCalledWith(
-        'saveFolders', [expect.stringContaining('"collapsed": false')]);
+        'saveFolders', [expect.stringContaining('"collapsed": false'), expect.any(String)]);
   });
 
   it('expands an active tab folder after folder loading completes', async () => {
@@ -436,6 +436,63 @@ describe('dao-sidebar-app', () => {
     expect(app.folderModel_.getFolders()[0]!.collapsed).toBe(false);
     expect(el.autoScrollTabId_).toBe(folderTab.tabId);
     expect(el.autoScrollToken_).toBe(1);
+  });
+
+  it('does not save on load and ignores a stale reload after a local edit', async () => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    const fire = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, ...args: unknown[]) => void};
+    }).cr.webUIListenerCallback;
+    const json = JSON.stringify({version: 1, items: [{
+      type: 'folder', id: 'remote', name: 'Remote', collapsed: false,
+      children: [{type: 'tab', tabId: 'other-window', url: 'https://other.example', title: 'Other'}],
+    }]});
+    fireSidebarStateChanged(sidebarState({unpinnedTabs: [tab()]}));
+    const callback = send.mock.calls.find(call => call[0] === 'loadFolders')![1][0];
+    fire(callback, json);
+    await Promise.resolve();
+    await app.updateComplete;
+    expect(app.folderModel_.getFolders()[0]!.name).toBe('Remote');
+    expect(didSendNative(send, 'saveFolders')).toBe(false);
+
+    fire('folderDataChanged');
+    const reload = send.mock.calls.filter(call => call[0] === 'loadFolders').at(-1)![1][0];
+    app.dispatchEvent(new CustomEvent('folder-action', {
+      detail: {action: 'rename', folderId: 'remote', name: 'Renamed'},
+      bubbles: true, composed: true,
+    }));
+    fire(reload, json);
+    await Promise.resolve();
+    await app.updateComplete;
+    expect(app.folderModel_.getFolders()[0]!.name).toBe('Renamed');
+    expect(send).toHaveBeenCalledWith('saveFolders', [
+      expect.stringContaining('Renamed'), json,
+    ]);
+  });
+
+  it.each([
+    {source: 'a', dropIndex: 2, order: ['foreign', 'b', 'a']},
+    {source: 'b', dropIndex: 0, order: ['foreign', 'b', 'a']},
+    {source: 'loose', dropIndex: 1, order: ['foreign', 'a', 'loose', 'b']},
+  ])('maps visible folder child drops to stored refs: $source at $dropIndex',
+      async ({source, dropIndex, order}) => {
+    const {el} = await loadApp();
+    const app = el as SidebarAppInternals;
+    const tabs = ['a', 'b', 'loose'].map((tabId, index) => tab({tabId, index}));
+    const ref = (tabId: string) => ({type: 'tab', tabId, url: tabs[0]!.url,
+      title: tabs[0]!.title});
+    const model = installFolderModel(app, JSON.stringify({version: 1, items: [{
+      type: 'folder', id: 'work', name: 'Work', collapsed: false,
+      children: ['foreign', 'a', 'b'].map(ref),
+    }, ref('loose')]}));
+    fireSidebarStateChanged(sidebarState({unpinnedTabs: tabs}));
+    app.dispatchEvent(new CustomEvent('folder-action', {
+      detail: {action: 'childReorder', folderId: 'work',
+        dragData: `dao-tab-drag:7:${tabs.find(t => t.tabId === source)!.index}`, dropIndex},
+      bubbles: true, composed: true,
+    }));
+    expect(model.getFolders()[0]!.children.map(t => t.tabId)).toEqual(order);
   });
 
   it('renders the update button before the plus menu at the toolbar end', async () => {
@@ -753,7 +810,7 @@ describe('dao-sidebar-app', () => {
     const stale = app.folderModel_.findFolderByName('stale');
     expect(stale?.children.map(child => child.tabId)).toEqual(['old']);
     expect(send).toHaveBeenCalledWith(
-        'saveFolders', [expect.stringContaining('"name": "stale"')]);
+        'saveFolders', [expect.stringContaining('"name": "stale"'), expect.any(String)]);
     const toast = el.shadowRoot!.querySelector('.dao-sidebar-toast');
     expect(toast).not.toBeNull();
     expect(toast!.textContent).toContain(ARCHIVED_TOAST_TEXT);
@@ -989,7 +1046,7 @@ describe('dao-sidebar-app', () => {
       item.type === 'tab' ? item.title : item.name))
         .toEqual(['First', 'A', 'B', 'Last']);
     expect(send).toHaveBeenCalledWith(
-        'saveFolders', [expect.not.stringContaining('"name": "Work"')]);
+        'saveFolders', [expect.not.stringContaining('"name": "Work"'), expect.any(String)]);
     expect(didSendNative(send, 'showDeleteFolderDialog')).toBe(false);
     expect(didSendNative(send, 'closeTabsById')).toBe(false);
   });
@@ -1058,7 +1115,7 @@ describe('dao-sidebar-app', () => {
     expect(send.mock.calls.filter(call => call[0] === 'saveFolders'))
         .toHaveLength(1);
     expect(send).toHaveBeenCalledWith(
-        'saveFolders', [expect.not.stringContaining('"name": "Work"')]);
+        'saveFolders', [expect.not.stringContaining('"name": "Work"'), expect.any(String)]);
     expect(app.folderModel_.findFolderByName('Work')).toBeNull();
   });
 
@@ -1273,7 +1330,7 @@ describe('dao-sidebar-app', () => {
         expect(app.folderModel_.findFolderByName('Reading')?.children)
             .toEqual([]);
         expect(send).toHaveBeenCalledWith(
-            'saveFolders', [expect.stringContaining('"id": "stale-folder"')]);
+            'saveFolders', [expect.stringContaining('"id": "stale-folder"'), expect.any(String)]);
       });
 
   it('hides page-level sidebar scrollbars until the page is hovered', () => {

@@ -266,28 +266,10 @@ export function loadFolders(): Promise<string> {
 }
 
 /**
- * Save folder data to dao_folders.json via C++.
- * Debounced to avoid excessive disk I/O during rapid operations
- * (drag-reorder, collapse toggling).
+ * Submit each edit with its base snapshot. Native code merges the delta into
+ * the latest profile file on a sequenced writer. Do not debounce here: another
+ * window's refresh must never replace an edit that has not been submitted.
  */
-let saveFoldersTimer_: ReturnType<typeof setTimeout> | null = null;
-export function saveFolders(json: string): void {
-  if (saveFoldersTimer_ !== null) {
-    clearTimeout(saveFoldersTimer_);
-  }
-  saveFoldersTimer_ = setTimeout(() => {
-    saveFoldersTimer_ = null;
-    sendNative('saveFolders', json);
-  }, 300);
-}
-
-/**
- * Cancel any pending debounced folder save and persist this JSON now.
- */
-export function saveFoldersImmediately(json: string): void {
-  if (saveFoldersTimer_ !== null) {
-    clearTimeout(saveFoldersTimer_);
-    saveFoldersTimer_ = null;
-  }
-  sendNative('saveFolders', json);
+export function saveFolders(json: string, baseJson: string = ''): void {
+  sendNative('saveFolders', json, baseJson);
 }

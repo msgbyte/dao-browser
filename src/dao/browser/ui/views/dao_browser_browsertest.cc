@@ -6407,96 +6407,55 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   Profile* profile = browser()->profile();
   const base::FilePath folder_path =
       profile->GetPath().AppendASCII("dao_folders.json");
-
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return DetachLiveSidebarHandlerForTesting(browser()); }));
-  content::TestWebUI regular_web_ui;
-  TestDaoSidebarUIHandler regular_handler;
-  regular_handler.set_web_ui(&regular_web_ui);
-  AttachSidebarHandlerForTesting(browser(), &regular_handler);
-  regular_handler.LoadFoldersForTesting("regularLoad");
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !regular_handler.folder_snapshot_id_for_testing().empty();
-  }));
   constexpr char kRegularFolders[] =
       R"({"version":1,"items":[{"type":"folder","id":"regular-folder","name":"Regular","collapsed":false,"children":[]}]})";
-  regular_handler.SaveFoldersForTesting(kRegularFolders);
-  DaoSidebarUIHandler::WaitForFolderFileTasksForTesting();
-
+  ASSERT_TRUE(DaoSidebarUIHandler::UpdateFolderData(profile, "", kRegularFolders));
   std::string regular_disk_contents;
   ASSERT_TRUE(base::ReadFileToString(folder_path, &regular_disk_contents));
 
   Browser* incognito_browser = CreateIncognitoBrowser(profile);
   ASSERT_NE(nullptr, incognito_browser);
-  ASSERT_TRUE(incognito_browser->profile()->IsOffTheRecord());
-  ASSERT_EQ(profile->GetPath(), incognito_browser->profile()->GetPath());
+  Profile* private_profile = incognito_browser->profile();
+  ASSERT_TRUE(private_profile->IsOffTheRecord());
+  ASSERT_EQ(profile->GetPath(), private_profile->GetPath());
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return DetachLiveSidebarHandlerForTesting(incognito_browser);
   }));
-  content::TestWebUI incognito_web_ui;
-  TestDaoSidebarUIHandler incognito_handler;
-  incognito_handler.set_web_ui(&incognito_web_ui);
-  AttachSidebarHandlerForTesting(incognito_browser, &incognito_handler);
-  incognito_handler.LoadFoldersForTesting("incognitoLoad");
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !incognito_handler.folder_snapshot_id_for_testing().empty();
-  }));
-  EXPECT_TRUE(incognito_handler.folder_json_for_testing().empty());
-
+  EXPECT_EQ("", DaoSidebarUIHandler::ReadFolderData(private_profile));
   constexpr char kIncognitoFolders[] =
       R"({"version":1,"items":[{"type":"folder","id":"incognito-folder","name":"Incognito","collapsed":false,"children":[]}]})";
-  incognito_handler.SaveFoldersForTesting(kIncognitoFolders);
+  {
+    content::TestWebUI web_ui;
+    TestDaoSidebarUIHandler handler;
+    handler.set_web_ui(&web_ui);
+    AttachSidebarHandlerForTesting(incognito_browser, &handler);
+    handler.LoadFoldersForTesting("privateLoad");
+    handler.SaveFoldersForTesting(kIncognitoFolders);
+  }
   DaoSidebarUIHandler::WaitForFolderFileTasksForTesting();
-
+  // Folder data survives sidebar handler recreation but never touches disk.
+  auto private_json = DaoSidebarUIHandler::ReadFolderData(private_profile);
+  ASSERT_TRUE(private_json);
+  EXPECT_EQ(base::JSONReader::Read(kIncognitoFolders, base::JSON_PARSE_RFC),
+            base::JSONReader::Read(*private_json, base::JSON_PARSE_RFC));
   std::string final_disk_contents;
   ASSERT_TRUE(base::ReadFileToString(folder_path, &final_disk_contents));
   EXPECT_EQ(regular_disk_contents, final_disk_contents);
-  EXPECT_EQ(kIncognitoFolders, incognito_handler.folder_json_for_testing());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
-                       ImportPreservesBothWindowSnapshots) {
+                       ImportPreservesOtherWindowFolders) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   Profile* profile = browser()->profile();
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return DetachLiveSidebarHandlerForTesting(browser()); }));
-  content::TestWebUI first_web_ui;
-  TestDaoSidebarUIHandler first_handler;
-  first_handler.set_web_ui(&first_web_ui);
-  AttachSidebarHandlerForTesting(browser(), &first_handler);
-  first_handler.LoadFoldersForTesting("firstLoad");
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !first_handler.folder_snapshot_id_for_testing().empty();
-  }));
-
   constexpr char kFirstFolders[] =
       R"({"version":1,"items":[{"type":"folder","id":"first-folder","name":"First","collapsed":false,"children":[]}]})";
-  first_handler.SaveFoldersForTesting(kFirstFolders);
-
+  ASSERT_TRUE(DaoSidebarUIHandler::UpdateFolderData(profile, "", kFirstFolders));
   Browser* second_browser = CreateBrowser(profile);
   ASSERT_NE(nullptr, second_browser);
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return DetachLiveSidebarHandlerForTesting(second_browser);
-  }));
-  content::TestWebUI second_web_ui;
-  TestDaoSidebarUIHandler second_handler;
-  second_handler.set_web_ui(&second_web_ui);
-  AttachSidebarHandlerForTesting(second_browser, &second_handler);
-  second_handler.LoadFoldersForTesting("secondLoad");
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !second_handler.folder_snapshot_id_for_testing().empty();
-  }));
-
-  const std::string first_snapshot_id =
-      first_handler.folder_snapshot_id_for_testing();
-  const std::string second_snapshot_id =
-      second_handler.folder_snapshot_id_for_testing();
-  ASSERT_FALSE(first_snapshot_id.empty());
-  ASSERT_FALSE(second_snapshot_id.empty());
-  ASSERT_NE(first_snapshot_id, second_snapshot_id);
-
   second_browser->window()->Activate();
   base::RunLoop().RunUntilIdle();
+  const int first_count = browser()->tab_strip_model()->count();
+  const int second_count = second_browser->tab_strip_model()->count();
   dao::import::DaoChromiumMigrationTarget target(profile);
   dao::import::DaoMigrationWriter writer(&target);
   dao::import::TabEntry tab;
@@ -6512,122 +6471,55 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   browser()->window()->Activate();
   base::RunLoop().RunUntilIdle();
   ASSERT_TRUE(writer.FinishTabs(imported_folder_id));
-
-  // The second window had only a provisional identity and had never saved.
-  // The import must keep that identity so the live handler sees the folder.
-  std::optional<base::DictValue> live_second_folders =
-      base::JSONReader::ReadDict(second_handler.folder_json_for_testing(),
-                                 base::JSON_PARSE_RFC);
-  ASSERT_TRUE(live_second_folders);
-  const base::ListValue* live_second_items =
-      live_second_folders->FindList("items");
-  ASSERT_NE(nullptr, live_second_items);
-  ASSERT_NE(nullptr, FindDictByStringField(*live_second_items, "id",
-                                           imported_folder_id));
-
-  std::string persisted_json;
-  ASSERT_TRUE(base::ReadFileToString(
-      profile->GetPath().AppendASCII("dao_folders.json"), &persisted_json));
-  DaoFolderStorage storage;
-  ASSERT_TRUE(storage.LoadFromJson(persisted_json));
-  const DaoFolderWindowSnapshot* first_snapshot =
-      storage.FindById(first_snapshot_id);
-  ASSERT_NE(nullptr, first_snapshot);
-  EXPECT_EQ(kFirstFolders, first_snapshot->json);
-  const DaoFolderWindowSnapshot* second_snapshot =
-      storage.FindById(second_snapshot_id);
-  ASSERT_NE(nullptr, second_snapshot);
-
-  std::optional<base::DictValue> second_folders =
-      base::JSONReader::ReadDict(second_snapshot->json, base::JSON_PARSE_RFC);
-  ASSERT_TRUE(second_folders);
-  const base::ListValue* items = second_folders->FindList("items");
+  EXPECT_EQ(first_count, browser()->tab_strip_model()->count());
+  EXPECT_EQ(second_count + 1, second_browser->tab_strip_model()->count());
+  auto json = DaoSidebarUIHandler::ReadFolderData(profile);
+  ASSERT_TRUE(json);
+  auto data = base::JSONReader::ReadDict(*json, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data);
+  const base::ListValue* items = data->FindList("items");
   ASSERT_NE(nullptr, items);
+  EXPECT_NE(nullptr, FindDictByStringField(*items, "id", "first-folder"));
   EXPECT_NE(nullptr, FindDictByStringField(*items, "id", imported_folder_id));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
-                       CrossWindowTransferRebindsFolderSnapshotIdentity) {
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return DetachLiveSidebarHandlerForTesting(browser()); }));
-  content::TestWebUI first_web_ui;
-  TestDaoSidebarUIHandler first_handler;
-  first_handler.set_web_ui(&first_web_ui);
-  AttachSidebarHandlerForTesting(browser(), &first_handler);
-  first_handler.LoadFoldersForTesting("firstLoad");
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !first_handler.folder_snapshot_id_for_testing().empty();
-  }));
-
+                       CrossWindowTransferPreservesFolderMembership) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   TabStripModel* first_model = browser()->tab_strip_model();
   content::WebContents* moving = first_model->GetActiveWebContents();
   ASSERT_NE(nullptr, moving);
   const std::string moving_tab_id = GetSidebarTabId(moving);
-  constexpr char kFirstFolders[] =
-      R"({"version":1,"items":[{"type":"folder","id":"first-folder","name":"First","collapsed":false,"children":[]}]})";
-  first_handler.SaveFoldersForTesting(kFirstFolders);
-
+  const std::string folder_json =
+      R"({"version":1,"items":[{"type":"folder","id":"first-folder","name":"First","collapsed":false,"children":[{"type":"tab","url":"about:blank","title":"","tabId":")" +
+      moving_tab_id + R"("}]}]})";
+  ASSERT_TRUE(DaoSidebarUIHandler::UpdateFolderData(
+      browser()->profile(), "", folder_json));
   Browser* second_browser = CreateBrowser(browser()->profile());
   ASSERT_NE(nullptr, second_browser);
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return DetachLiveSidebarHandlerForTesting(second_browser);
-  }));
-  content::TestWebUI second_web_ui;
-  TestDaoSidebarUIHandler second_handler;
-  second_handler.set_web_ui(&second_web_ui);
-  AttachSidebarHandlerForTesting(second_browser, &second_handler);
-  second_handler.LoadFoldersForTesting("secondLoad");
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !second_handler.folder_snapshot_id_for_testing().empty();
-  }));
-  ASSERT_TRUE(second_handler.folder_json_for_testing().empty());
-
-  const std::string first_snapshot_id =
-      first_handler.folder_snapshot_id_for_testing();
-  const std::string second_snapshot_id =
-      second_handler.folder_snapshot_id_for_testing();
-  ASSERT_NE(first_snapshot_id, second_snapshot_id);
-  ASSERT_EQ(first_snapshot_id, GetSidebarFolderSnapshotId(moving));
-
   const int moving_index = first_model->GetIndexOfWebContents(moving);
   ASSERT_NE(TabStripModel::kNoTab, moving_index);
   ASSERT_TRUE(ExecuteCrossWindowTabMove(second_browser,
-                                        browser()->session_id().id(),
-                                        moving_index, 0, moving_tab_id));
+                                      browser()->session_id().id(),
+                                      moving_index, 0, moving_tab_id));
   ASSERT_EQ(moving, second_browser->tab_strip_model()->GetWebContentsAt(0));
-  EXPECT_EQ(second_snapshot_id, GetSidebarFolderSnapshotId(moving));
-
-  std::string import_snapshot_id;
-  std::string import_folder_json;
-  ASSERT_TRUE(DaoSidebarUIHandler::LoadFolderSnapshotForImport(
-      browser()->profile(), {second_snapshot_id}, {moving_tab_id},
-      &import_snapshot_id, &import_folder_json));
-  EXPECT_EQ(second_snapshot_id, import_snapshot_id);
-  EXPECT_TRUE(import_folder_json.empty());
-
+  EXPECT_EQ(moving_tab_id, GetSidebarTabId(moving));
+  DaoSidebarUIHandler::WaitForFolderFileTasksForTesting();
+  auto json = DaoSidebarUIHandler::ReadFolderData(browser()->profile());
+  ASSERT_TRUE(json);
+  auto data = base::JSONReader::ReadDict(*json, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data);
+  const auto* items = data->FindList("items");
+  ASSERT_NE(nullptr, items);
+  const auto* folder = FindDictByStringField(*items, "id", "first-folder");
+  ASSERT_NE(nullptr, folder);
+  ASSERT_NE(nullptr, folder->FindList("children"));
+  EXPECT_NE(nullptr, FindDictByStringField(*folder->FindList("children"),
+                                         "tabId", moving_tab_id));
   std::map<std::string, std::string> extra_data;
   PopulateSidebarTabIdentityExtraData(moving, &extra_data);
-  EXPECT_EQ(second_snapshot_id, extra_data[kSidebarFolderSnapshotSessionKey]);
-
-  SessionService* session_service =
-      SessionServiceFactory::GetForProfile(browser()->profile());
-  ASSERT_NE(nullptr, session_service);
-  session_service->ResetFromCurrentBrowsers();
-  SessionServiceTestHelper session_service_helper(session_service);
-  sessions::SessionTabHelper* session_tab_helper =
-      sessions::SessionTabHelper::FromWebContents(moving);
-  ASSERT_NE(nullptr, session_tab_helper);
-  std::unique_ptr<sessions::SessionCommand> expected_command =
-      sessions::CreateAddTabExtraDataCommand(session_tab_helper->session_id(),
-                                             kSidebarFolderSnapshotSessionKey,
-                                             second_snapshot_id);
-  EXPECT_TRUE(std::ranges::any_of(
-      session_service_helper.command_storage_manager()->pending_commands(),
-      [&expected_command](const auto& command) {
-        return command->id() == expected_command->id() &&
-               command->contents() == expected_command->contents();
-      }));
+  EXPECT_EQ(moving_tab_id, extra_data[kSidebarTabIdentitySessionKey]);
 }
 
 // =============================================================================
