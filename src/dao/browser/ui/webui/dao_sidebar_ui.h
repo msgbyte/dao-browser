@@ -246,6 +246,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleOpenDownload(const base::ListValue& args);
   void HandleCancelDownload(const base::ListValue& args);
   void HandleStartFileDrag(const base::ListValue& args);
+  void HandleStartDownloadDrag(const base::ListValue& args);
   void HandleTabDragActive(const base::ListValue& args);
   void OnTabDragEnded(std::string tab_id, const gfx::Point& screen_point);
   void HandleMoveTabCrossWindow(const base::ListValue& args);

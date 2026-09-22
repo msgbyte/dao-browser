@@ -901,6 +901,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
       base::BindRepeating(&DaoSidebarUIHandler::HandleStartFileDrag,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "startDownloadDrag",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleStartDownloadDrag,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "tabDragActive",
       base::BindRepeating(&DaoSidebarUIHandler::HandleTabDragActive,
                           base::Unretained(this)));
@@ -2623,6 +2627,30 @@ void DaoSidebarUIHandler::HandleStartFileDrag(const base::ListValue& args) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (browser_view && browser_view->dao_sidebar()) {
     browser_view->dao_sidebar()->StartFileDrag(recent_file_paths_[index]);
+  }
+}
+
+void DaoSidebarUIHandler::HandleStartDownloadDrag(const base::ListValue& args) {
+  if (!browser_ || args.empty()) {
+    return;
+  }
+  int id = args[0].GetIfInt().value_or(-1);
+  if (id < 0) {
+    return;
+  }
+
+  auto* profile = browser_->profile();
+  auto* manager = profile ? profile->GetDownloadManager() : nullptr;
+  download::DownloadItem* item =
+      manager ? manager->GetDownload(static_cast<uint32_t>(id)) : nullptr;
+  if (!item || item->GetState() != download::DownloadItem::COMPLETE ||
+      !item->CanOpenDownload() || item->GetTargetFilePath().empty()) {
+    return;
+  }
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (browser_view && browser_view->dao_sidebar()) {
+    browser_view->dao_sidebar()->StartFileDrag(item->GetTargetFilePath());
   }
 }
 

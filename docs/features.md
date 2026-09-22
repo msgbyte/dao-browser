@@ -203,7 +203,14 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **Latest completed download** — The sidebar download button becomes a
   persistent filename label when an observed in-progress download completes.
   Clicking the label opens that file, while its close button only dismisses the
-  label. Hovering opens the existing download list; the label stays visible
+  label. Dragging the label starts a native file copy drag to the desktop,
+  folders, or applications that accept files, then dismisses the label and
+  download list without opening the file. Holding the left mouse button keeps
+  the label alive when leaving its hover area, so outward drags can start even
+  at the label edge; releasing without a drag or losing focus dismisses it.
+  The drag uses the download's actual
+  target path, including custom save locations. Hovering opens the existing
+  download list; the label stays visible
   while moving between both surfaces and is dismissed after leaving their
   shared hover area. It never expires on a timer, and later completions replace
   the displayed item without adding a separate history queue.

@@ -162,6 +162,84 @@ describe('dao-download-button', () => {
     expect(send).toHaveBeenLastCalledWith('hideTabTooltip', []);
   });
 
+  it('keeps the completed drag source when the pointer leaves before dragstart', async () => {
+    const {el, send} = await renderDownloadButton();
+    const notify = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, value: unknown) => void};
+    }).cr.webUIListenerCallback;
+    notify('downloadCompleted', {id: 42, name: 'tiny.txt'});
+    await el.updateComplete;
+
+    const button = el.shadowRoot!.querySelector(
+        '.completed-open') as HTMLButtonElement;
+    expect(button.draggable).toBe(true);
+    expect((el.shadowRoot!.querySelector(
+        '.completed-close') as HTMLButtonElement).draggable).toBe(false);
+
+    const zone = el.shadowRoot!.querySelector('.trigger-zone')!;
+    zone.dispatchEvent(new MouseEvent('mouseenter'));
+    button.dispatchEvent(new MouseEvent('mousedown', {button: 0, buttons: 1}));
+    zone.dispatchEvent(new MouseEvent('mouseleave', {buttons: 1}));
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.completed-open')).toBe(button);
+
+    const drag = new Event('dragstart', {bubbles: true, cancelable: true});
+    button.dispatchEvent(drag);
+    button.click();
+    await el.updateComplete;
+
+    expect(drag.defaultPrevented).toBe(true);
+    expect(send).toHaveBeenCalledWith('startDownloadDrag', [42]);
+    expect(send).not.toHaveBeenCalledWith('openDownload', expect.anything());
+    expect(el.classList.contains('expanded')).toBe(false);
+    expect(el.shadowRoot!.querySelector('.completed-download')).toBeNull();
+  });
+
+  it.each(['mouseup', 'blur'])(
+      'dismisses a pending completed label on %s without opening it', async event => {
+        const {el, send} = await renderDownloadButton();
+        (window as unknown as {
+          cr: {webUIListenerCallback: (event: string, value: unknown) => void};
+        }).cr.webUIListenerCallback('downloadCompleted', {id: 42, name: 'tiny.txt'});
+        await el.updateComplete;
+
+        const zone = el.shadowRoot!.querySelector('.trigger-zone')!;
+        zone.dispatchEvent(new MouseEvent('mouseenter'));
+        el.shadowRoot!.querySelector('.completed-open')!.dispatchEvent(
+            new MouseEvent('mousedown', {button: 0, buttons: 1}));
+        zone.dispatchEvent(new MouseEvent('mouseleave', {buttons: 1}));
+        await el.updateComplete;
+        expect(el.shadowRoot!.querySelector('.completed-download')).not.toBeNull();
+
+        window.dispatchEvent(new Event(event));
+        await el.updateComplete;
+        expect(el.shadowRoot!.querySelector('.completed-download')).toBeNull();
+        expect(el.classList.contains('expanded')).toBe(false);
+        expect(send).not.toHaveBeenCalledWith('openDownload', expect.anything());
+        expect(send).not.toHaveBeenCalledWith('startDownloadDrag', expect.anything());
+      });
+
+  it('preserves clicking after a held pointer leaves and returns', async () => {
+    const {el, send} = await renderDownloadButton();
+    (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, value: unknown) => void};
+    }).cr.webUIListenerCallback('downloadCompleted', {id: 42, name: 'tiny.txt'});
+    await el.updateComplete;
+
+    const zone = el.shadowRoot!.querySelector('.trigger-zone')!;
+    const button = el.shadowRoot!.querySelector('.completed-open') as HTMLButtonElement;
+    zone.dispatchEvent(new MouseEvent('mouseenter'));
+    button.dispatchEvent(new MouseEvent('mousedown', {button: 0, buttons: 1}));
+    zone.dispatchEvent(new MouseEvent('mouseleave', {buttons: 1}));
+    zone.dispatchEvent(new MouseEvent('mouseenter', {buttons: 1}));
+    window.dispatchEvent(new MouseEvent('mouseup'));
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.completed-open')).toBe(button);
+    button.click();
+    expect(send).toHaveBeenCalledWith('openDownload', [42]);
+    expect(send).not.toHaveBeenCalledWith('startDownloadDrag', expect.anything());
+  });
+
   it('keeps a completed download until it is opened, closed, or left after hover', async () => {
     const {el, send} = await renderDownloadButton();
     const notify = (window as unknown as {

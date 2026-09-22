@@ -325,6 +325,12 @@ export class DaoDownloadButton extends CrLitElement {
   private lastMouseX_: number = 0;
   private lastMouseY_: number = 0;
   private completedListOpenedByHover_: boolean = false;
+  private completedLeavePending_: boolean = false;
+  private readonly onCompletedPointerReleased_ = () => {
+    if (this.completedLeavePending_) {
+      this.onMouseLeave_();
+    }
+  };
   private listeners_: Array<ReturnType<typeof addListener>> = [];
   private landingAnimation_: Animation|null = null;
 
@@ -337,6 +343,8 @@ export class DaoDownloadButton extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    window.addEventListener('mouseup', this.onCompletedPointerReleased_);
+    window.addEventListener('blur', this.onCompletedPointerReleased_);
 
     this.listeners_.push(addListener('downloadStateChanged', (...args: unknown[]) => {
       const state = args[0] as DownloadState;
@@ -362,6 +370,9 @@ export class DaoDownloadButton extends CrLitElement {
   }
 
   override disconnectedCallback() {
+    window.removeEventListener('mouseup', this.onCompletedPointerReleased_);
+    window.removeEventListener('blur', this.onCompletedPointerReleased_);
+    this.completedLeavePending_ = false;
     this.listeners_.forEach(removeListener);
     this.listeners_ = [];
     this.landingAnimation_?.cancel();
@@ -411,7 +422,7 @@ export class DaoDownloadButton extends CrLitElement {
       <div class="toolbar-row">
         <div class="trigger-zone"
              @mouseenter=${() => this.onMouseEnter_()}
-             @mouseleave=${() => this.onMouseLeave_()}>
+             @mouseleave=${(e: MouseEvent) => this.onMouseLeave_(e)}>
           <div class="popup-stack">
             <div class="file-list">
               ${this.recentFiles_.map(file => html`
@@ -436,8 +447,9 @@ export class DaoDownloadButton extends CrLitElement {
 
           ${this.completedDownload_ ? html`
             <div class="completed-download">
-              <button class="completed-open"
+              <button class="completed-open" draggable="true"
                       title=${this.completedDownload_.name}
+                      @dragstart=${(e: DragEvent) => this.onCompletedDragStart_(e)}
                       @click=${() => this.onCompletedOpen_()}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2"
@@ -482,6 +494,7 @@ export class DaoDownloadButton extends CrLitElement {
   }
 
   private onMouseEnter_() {
+    this.completedLeavePending_ = false;
     if (this.completedDownload_) {
       this.completedListOpenedByHover_ = true;
     }
@@ -489,11 +502,16 @@ export class DaoDownloadButton extends CrLitElement {
     sendNative('requestDownloadState');
   }
 
-  private onMouseLeave_() {
+  private onMouseLeave_(e?: MouseEvent) {
+    // Mouseleave can precede dragstart; keep its source alive while held.
+    if (this.completedDownload_ && e && (e.buttons & 1)) {
+      this.completedLeavePending_ = true;
+      return;
+    }
+    this.completedLeavePending_ = false;
     this.classList.remove('expanded');
     if (this.completedListOpenedByHover_) {
-      this.completedDownload_ = null;
-      this.completedListOpenedByHover_ = false;
+      this.onCompletedClose_();
     }
   }
 
@@ -506,13 +524,24 @@ export class DaoDownloadButton extends CrLitElement {
       return;
     }
     sendNative('openDownload', this.completedDownload_.id);
+    this.onCompletedClose_();
+  }
+
+  private onCompletedClose_() {
+    this.completedLeavePending_ = false;
     this.completedDownload_ = null;
     this.completedListOpenedByHover_ = false;
   }
 
-  private onCompletedClose_() {
-    this.completedDownload_ = null;
-    this.completedListOpenedByHover_ = false;
+  private onCompletedDragStart_(e: DragEvent) {
+    // Use the native file drag instead of a DOM drag payload.
+    e.preventDefault();
+    if (!this.completedDownload_) {
+      return;
+    }
+    sendNative('startDownloadDrag', this.completedDownload_.id);
+    this.onCompletedClose_();
+    this.classList.remove('expanded');
   }
 
   private onFileMouseDown_(e: MouseEvent, index: number) {
