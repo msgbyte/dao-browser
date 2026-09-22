@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import browserToolCatalog from '../browser_tool_catalog.json';
+import {isPluginTool} from '../agent_plugins.js';
 import {
   TOOL_GROUPS,
   countEnabled,
@@ -26,16 +27,17 @@ afterEach(() => {
 });
 
 describe('tool_catalog: enable/disable semantics', () => {
-  it('keeps the settings browser groups aligned with the Dao Agent catalog', () => {
+  it('keeps built-in browser groups aligned with the catalog and plugins separate', () => {
     const browserGroups = TOOL_GROUPS.filter(
         group => ['page', 'tabs', 'devtools'].includes(group.id));
     const browserTools = browserGroups.flatMap(group => group.toolNames);
     const catalogTools = browserToolCatalog.tools
-        .filter(tool => tool.clients.includes('dao_agent'))
+        .filter(tool => tool.clients.includes('dao_agent') && !isPluginTool(tool.name))
         .map(tool => tool.name);
 
     expect(browserTools.sort()).toEqual(catalogTools.sort());
     expect(browserTools).toContain('resolve_element_context');
+    expect(browserTools).not.toContain('run_browser_task');
   });
 
   it('treats unknown tools as enabled (no migration needed for new tools)', () => {

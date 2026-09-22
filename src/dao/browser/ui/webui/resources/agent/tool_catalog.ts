@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {isPluginEnabled, isPluginTool} from './agent_plugins.js';
+
 // Hardcoded catalog of agent tools, grouped by purpose. The source of truth
 // for tool definitions themselves still lives in agent_bridge.ts — this
 // file only adds category metadata and a persisted enable/disable set so
@@ -147,7 +149,7 @@ function writeDisabled(set: Set<string>) {
 }
 
 export function isToolEnabled(name: string): boolean {
-  return !readDisabled().has(name);
+  return isPluginTool(name) ? isPluginEnabled(name) : !readDisabled().has(name);
 }
 
 export function getDisabledTools(): Set<string> {

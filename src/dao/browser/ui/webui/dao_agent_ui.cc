@@ -55,6 +55,7 @@
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
+#include "dao/browser/agent/dao_agent_plugins.h"
 #include "dao/browser/agent/dao_agent_settings_handler.h"
 #include "dao/browser/agent/dao_agent_skill_service.h"
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
@@ -407,6 +408,14 @@ DaoAgentUIHandler::~DaoAgentUIHandler() {
                                   "Dao Agent UI was destroyed."));
 }
 
+void DaoAgentUIHandler::OnJavascriptDisallowed() {
+  // Cancellation can complete pending tools synchronously after JS is disabled.
+  weak_factory_.InvalidateWeakPtrs();
+  AbortAgentTurn(MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
+                                "Dao Agent UI was unloaded."));
+  native_fetch_inflight_.clear();
+}
+
 void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "beginAgentTurn",
@@ -463,6 +472,10 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "getAccessibilityTree",
       base::BindRepeating(&DaoAgentUIHandler::HandleGetAccessibilityTree,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "runBrowserTask",
+      base::BindRepeating(&DaoAgentUIHandler::HandleRunBrowserTask,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "queryElements",
@@ -740,6 +753,17 @@ void DaoAgentUIHandler::InvalidateHomeMutationLeases() {
 void DaoAgentUIHandler::ExecutePageTool(std::string callback_id,
                                         std::string tool_name,
                                         base::DictValue arguments) {
+  if (const base::Value* plugin = arguments.Find("__daoPlugin")) {
+    if (!plugin->is_dict() || !IsDaoAgentPluginAuthorized(
+            Profile::FromWebUI(web_ui())->GetPrefs()->GetDict(prefs::kDaoAgentSettings),
+            plugin->GetDict(), tool_name)) {
+      ResolvePageToolError(std::move(callback_id), MakeDaoToolError(
+          DaoToolErrorCode::kAuthorizationDenied,
+          "Plugin configuration or tool permission changed."));
+      return;
+    }
+    arguments.Remove("__daoPlugin");
+  }
   bool legacy_ui_one_shot = false;
   if (const base::Value* context = arguments.Find(kAgentExecutionContextKey)) {
     if (!context->is_string() ||
@@ -1564,6 +1588,16 @@ void DaoAgentUIHandler::HandleGetAccessibilityTree(
   }
   ExecutePageTool(
       args[0].GetString(), "get_accessibility_tree",
+      args[1].is_dict() ? args[1].GetDict().Clone() : base::DictValue());
+}
+
+void DaoAgentUIHandler::HandleRunBrowserTask(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string()) {
+    return;
+  }
+  ExecutePageTool(
+      args[0].GetString(), "run_browser_task",
       args[1].is_dict() ? args[1].GetDict().Clone() : base::DictValue());
 }
 

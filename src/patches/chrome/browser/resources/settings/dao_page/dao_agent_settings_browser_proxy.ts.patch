@@ -3,14 +3,20 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_settings_browser_proxy.ts
-@@ -0,0 +1,191 @@
+@@ -0,0 +1,197 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
 +
 +import {sendWithPromise} from 'chrome://resources/js/cr.js';
 +
++export interface DaoAgentPlugin {
++  id: string; name: string; tool: string;
++  enabledKey: string; urlKey: string; tokenKey: string; permissionKey: string;
++}
++
 +export interface DaoAgentSettingsSnapshot {
++  plugins?: DaoAgentPlugin[];
 +  migrationVersion: number;
 +  values: Record<string, string>;
 +  usageStats: DaoAgentUsageStats;

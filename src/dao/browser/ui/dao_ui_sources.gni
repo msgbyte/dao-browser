@@ -58,6 +58,7 @@ dao_browser_ui_sources = [
   "//dao/browser/import/dao_source_adapter.h",
   "//dao/browser/agent/dao_agent_lock_tab_helper.cc",
   "//dao/browser/agent/dao_agent_lock_tab_helper.h",
+  "//dao/browser/agent/dao_agent_plugins.h",
   "//dao/browser/agent/dao_agent_settings_handler.cc",
   "//dao/browser/agent/dao_agent_settings_handler.h",
   "//dao/browser/agent/dao_agent_memory_service.cc",

@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.html
-@@ -0,0 +1,1301 @@
+@@ -0,0 +1,1348 @@
 +<style include="settings-shared">
 +  :host {
 +    --dao-agent-content-inset: 18px;
@@ -134,6 +134,12 @@ index 0000000000..0000000001
 +    line-height: 20px;
 +  }
 +
++  .dao-agent-experimental {
++    border: 1px solid var(--cr-separator-color);
++    border-radius: 4px;
++    font-size: 11px;
++    padding: 2px 6px;
++  }
 +  .dao-agent-tool-details {
 +    border-top: 1px solid var(--dao-settings-border-subtle);
 +    padding-top: 12px;
@@ -561,6 +567,31 @@ index 0000000000..0000000001
 +          </cr-input>
 +        </div>
 +      </div>
++      <template is="dom-repeat" items="[[agentPlugins_]]" as="plugin">
++        <div class="dao-agent-card">
++          <div class="dao-agent-toggle-row">
++            <cr-checkbox checked="[[plugin.enabled]]"
++                data-setting$="[[plugin.enabledKey]]"
++                on-change="onAgentBooleanSettingChange_">
++              [[plugin.configLabel]]
++            </cr-checkbox>
++            <span class="dao-agent-experimental">$i18n{daoAgentPluginExperimental}</span>
++          </div>
++          <template is="dom-if" if="[[plugin.enabled]]">
++            <div class="dao-agent-fields">
++              <cr-input label="$i18n{daoAgentPluginUrl}"
++                  value="[[plugin.url]]" data-setting$="[[plugin.urlKey]]"
++                  on-input="onAgentTextSettingChange_" invalid="[[plugin.urlInvalid]]"
++                  error-message="$i18n{daoAgentPluginUrlError}"></cr-input>
++              <cr-input type="password" label="$i18n{daoAgentPluginToken}"
++                  value="[[plugin.token]]" data-setting$="[[plugin.tokenKey]]"
++                  on-input="onAgentTextSettingChange_" invalid="[[plugin.tokenInvalid]]"
++                  error-message="$i18n{daoAgentPluginTokenError}"></cr-input>
++              <p>$i18n{daoAgentPluginConnectionHint}</p>
++            </div>
++          </template>
++        </div>
++      </template>
 +    </settings-section>
 +
 +    <settings-section id="behaviorAndContext"
@@ -713,6 +744,22 @@ index 0000000000..0000000001
 +              data-tool-group="home" on-change="onAgentToolGroupChange_">
 +          </cr-toggle>
 +        </div>
++        <template is="dom-repeat" items="[[agentPlugins_]]" as="plugin">
++          <div class="dao-agent-toggle-row">
++            <span class="dao-agent-toggle-copy">[[plugin.groupLabel]]
++              <span class="dao-agent-experimental">$i18n{daoAgentPluginExperimental}</span>
++            </span>
++            <cr-toggle checked="[[plugin.permission]]" disabled="[[!plugin.ready]]"
++                aria-label$="[[plugin.groupLabel]]"
++                data-setting$="[[plugin.permissionKey]]"
++                on-change="onAgentBooleanSettingChange_"></cr-toggle>
++          </div>
++          <p hidden="[[plugin.ready]]">$i18n{daoAgentPluginUnavailable}</p>
++          <div hidden="[[!plugin.effective]]">
++            <div>$i18n{daoAgentPluginTaskTitle}</div>
++            <p>$i18n{daoAgentPluginTaskDescription}</p>
++          </div>
++        </template>
 +        <details class="dao-agent-tool-details">
 +          <summary>$i18n{daoAgentIndividualTools}</summary>
 +          <div class="dao-agent-tool-list">

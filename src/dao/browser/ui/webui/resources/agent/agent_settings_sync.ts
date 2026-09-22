@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {syncAgentPlugins} from './agent_plugins.js';
+import type {AgentPlugin} from './agent_plugins.js';
 import type {AgentStats} from './agent_bridge.js';
 
 export interface AgentSettingsSnapshot {
+  plugins?: AgentPlugin[];
   migrationVersion: number;
   values: Record<string, string>;
   usageStats: AgentStats;
@@ -69,6 +72,8 @@ export function applyAgentSettingsSnapshot(
       storage.removeItem(key);
     }
   }
+
+  syncAgentPlugins(snapshot.plugins ?? [], snapshot.values);
 
   // Existing consumers already listen for these same-document events. Keep
   // them as the compatibility boundary while native Profile prefs become the

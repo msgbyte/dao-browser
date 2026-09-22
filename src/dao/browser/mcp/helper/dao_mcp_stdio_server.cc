@@ -683,7 +683,10 @@ base::DictValue DaoMcpStdioServer::AdaptToolList(base::DictValue result) {
 }
 
 base::DictValue DaoMcpStdioServer::AdaptToolResult(base::DictValue result) {
-  if (!result.FindBool("ok").value_or(false)) {
+  const bool ok = result.FindBool("ok").value_or(false);
+  // Bounded tasks can fail with structured partial progress instead of a
+  // transport error. Preserve that outcome for clients deciding what to do next.
+  if (!ok && (result.FindDict("error") || !result.FindDict("data"))) {
     const base::DictValue* error = result.FindDict("error");
     base::DictValue payload =
         error ? error->Clone()
@@ -728,7 +731,7 @@ base::DictValue DaoMcpStdioServer::AdaptToolResult(base::DictValue result) {
   return base::DictValue()
       .Set("content", std::move(content))
       .Set("structuredContent", std::move(structured))
-      .Set("isError", false);
+      .Set("isError", !ok);
 }
 
 std::string DaoMcpStdioServer::IdKey(const base::Value& id) {

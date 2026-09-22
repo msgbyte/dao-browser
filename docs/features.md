@@ -251,8 +251,8 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - **Central external-target eligibility and MCP lifecycle policy** (`automation/dao_browser_target_policy.{h,cc}`, `mcp/dao_mcp_session_lifecycle_monitor.{h,cc}`) — Every MCP target stays pinned to its exact tab in the approved normal Browser and regular Profile, with no eligible-tab or active-tab fallback. HTTP, HTTPS, literal `about:blank`, and web-hosted PDFs are allowed; popup, Incognito, Guest, internal, extension, DevTools, Agent WebUI, file, data, and custom-scheme targets are rejected. Target destruction or forbidden navigation cancels and removes only that tab's work, lock, overlay, and CDP state; losing the last target, the Browser, or the Profile closes only the affected logical connection and releases its leases.
 - **Exact-window approval and control UX** (`dao_mcp_approval_dialog.{h,cc}`, `dao_mcp_control_banner_view.{h,cc}`, `dao_address_bar_view.{h,cc}`, `ui/webui/dao_sidebar_ui.{h,cc}`, `resources/sidebar/dao_tab_item.ts`) — Execution leases display localized, fail-closed Dao system dialogs one at a time in the exact normal Browser selected for approval, with sanitized reported client metadata, the browser-recorded request date/time with time zone, a sanitized reason labeled as client-provided, window, Profile, and current-login warning. Queued prompts preserve their original reason and timestamp, and long reasons scroll within a bounded area. Before showing a prompt, Dao activates that native Browser window so approval requests arriving while Dao is behind another application come to the foreground; unanswered prompts time out after 60 seconds. Allow is intentionally not the default action. A robot button immediately before the URL pill appears only when the active tab is controlled; every controlled tab also shows a quiet robot in its sidebar close-button slot, replaced by the normal close button on pointer hover or keyboard focus. The address-bar popup shows that connection's client, version, current target, latest accepted tool call with live updates, controlled-tab count, and Stop. Stop cancels that connection's external work, releases its leases, and closes it without inserting a control row above page content.
 - **Per-tab peer contention** — The browser-automation lease is exclusive per tab, so different Codex or Dao Agent sessions can operate different tabs concurrently. A second browser-tool session targeting an already controlled tab waits or fails with the stable retryable busy error before CDP execution; chat and non-browser tools remain available.
-- **Native stdio MCP helper** (`mcp/helper/`) — The standalone `dao-mcp` executable speaks newline-delimited JSON-RPC and negotiates MCP `2025-11-25` or `2025-06-18` over stdin/stdout, discovers the authenticated browser endpoint from the active user-data directory, and bridges MCP string or numeric request IDs to bounded browser IPC IDs. Its initialization response opts out of Codex's shared tool-catalog cache and directs MCP clients to prefer Dao tools for Dao Browser work, use `list_tabs` to establish the initial target, preserve that target across follow-ups, and treat ambiguous open/click/select requests as page-local `query_elements` plus guarded `click_by_ref` interactions. `switch_tab` is reserved for explicit browser-tab navigation, while exported tool descriptions retain only the general Dao MCP preference. It maps the 33-tool catalog to MCP annotations, normalized object/scalar/list results to text plus object `structuredContent`, screenshot media to image content with its real MIME type, and tool failures to `isError: true`. Cancellation is forwarded to the browser and late responses are discarded. Stdout remains protocol-only; unavailable-browser diagnostics are deterministic stderr output.
-- **33-tool external scope** — The shared native catalog contains 34 Dao Agent browser tools; MCP exposes 33 and excludes only the Agent-specific `resolve_element_context`. Agent memory, skill, workspace, and web-provider tools are not part of the local MCP server.
+- **Native stdio MCP helper** (`mcp/helper/`) — The standalone `dao-mcp` executable speaks newline-delimited JSON-RPC and negotiates MCP `2025-11-25` or `2025-06-18` over stdin/stdout, discovers the authenticated browser endpoint from the active user-data directory, and bridges MCP string or numeric request IDs to bounded browser IPC IDs. Its initialization response opts out of Codex's shared tool-catalog cache and directs MCP clients to prefer Dao tools for Dao Browser work, use `list_tabs` to establish the initial target, preserve that target across follow-ups, and treat ambiguous open/click/select requests as page-local `query_elements` plus guarded `click_by_ref` interactions. `switch_tab` is reserved for explicit browser-tab navigation, while exported tool descriptions retain only the general Dao MCP preference. It maps the 34-tool catalog to MCP annotations, normalized object/scalar/list results to text plus object `structuredContent`, screenshot media to image content with its real MIME type, and tool failures to `isError: true`. Cancellation is forwarded to the browser and late responses are discarded. Stdout remains protocol-only; unavailable-browser diagnostics are deterministic stderr output.
+- **34-tool external scope** — The shared native catalog contains 35 Dao Agent browser tools; MCP exposes 34 and excludes only the Agent-specific `resolve_element_context`. Agent memory, skill, workspace, and web-provider tools are not part of the local MCP server.
 - **macOS helper packaging** (`mcp/BUILD.gn`, `dao_version.gni`, `chrome/BUILD_mcp_helper.gn.patch`) — The helper is built independently from the browser service, receives the same Dao product-version build argument as the app, and is copied with executable permissions to `Dao.app/Contents/Helpers/dao-mcp`.
 - **Independent execution peer** — MCP owns one isolated automation session, DevTools client, executor, cursor integration, and cancellation state per controlled tab. It reuses the shared native tab/page/DevTools implementations and lease coordinator without depending on the Agent WebUI lifecycle.
 
@@ -302,6 +302,43 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - `tool_catalog.ts` — Tool catalog schema
 
 **Unified Agent settings** (`dao://settings/agent`, overview entry `#agent`)
+- The optional bundled Jev plugin has an experimental, default-off connection
+  checkbox after the main provider settings and a separate default-off global
+  tool permission. Its full HTTP(S) API URL and masked Bearer token persist in
+  Profile settings independently of the main model. Opening or editing settings
+  sends no inference request. Invalid or incomplete configuration is unavailable.
+  MCP discovery lists `run_browser_task` only when the connection and tool
+  permission are enabled with valid configuration; clients must refresh the tool
+  list after settings changes.
+- With both switches enabled, `run_browser_task` delegates a bounded subtask
+  through a shared native executor available to Dao Agent and external MCP.
+  Agent calls retain the existing turn and sequential scheduler; MCP calls
+  retain connection approval and the exact authorized tab lease, and work with
+  the Agent panel closed. Both enforce browser permissions. Jev uses the `jev-latest` choice
+  protocol, selects fill targets and known inputs separately to keep every choice
+  below the service's 255-option limit, accepts only offered actions and known
+  non-sensitive inputs, and verifies all completion predicates locally. Compact viewport snapshots and
+  guarded refs support click, fill, scroll and wait (at most 20 steps / 60 seconds).
+  Native input buttons and ARIA buttons retain their visible names in both
+  observations and action guards. Main-document navigation waits within the task
+  deadline, discards obsolete decisions, and rechecks completion on the new page
+  before choosing another action.
+  This initial snapshot excludes sensitive form controls (links and buttons that
+  merely mention passwords stay clickable), all editable contenteditable
+  forms (empty, `true`, and `plaintext-only`, case-insensitively), their nested
+  controls, iframe and shadow-root contents; unsupported tasks return to the caller,
+  and a non-HTTP(S) target stops with `unsupported_target`.
+- Permission/configuration changes, stopping, cancelling an MCP call, revoking
+  its connection or losing its target cancel pending plugin requests and prevent
+  late responses from acting. Agent-owned tasks also stop when their WebUI unloads.
+  Unloading also invalidates native tool callbacks before cancellation so pending
+  ordinary tools cannot respond into a disabled WebUI; a reloaded Agent can start a new turn.
+  Native checks reject old configuration revisions; credentialed redirects are
+  disabled. Errors retain partial action evidence and timing/count metrics, with
+  bounded stale-ref recovery and no-progress detection. MCP failures retain this
+  structured outcome with `isError: true`. Ordinary browser tools do not invoke
+  Jev automatically. Actual service compatibility and performance require a configured
+  endpoint and representative end-to-end trials; no speedup is assumed.
 - `DaoAgentSettingsHandler` stores durable Agent choices in Profile prefs and
   is shared by the Agent and Settings WebUIs
 - `Agent` remains a compact top-level Dao-exclusive Settings entry beside

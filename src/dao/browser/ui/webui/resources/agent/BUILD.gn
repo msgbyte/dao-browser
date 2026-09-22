@@ -29,6 +29,7 @@ build_webui("build") {
 
   ts_files = [
     "agent.ts",
+    "agent_plugins.ts",
     "agent_bridge.ts",
     "agent_settings_native_bridge.ts",
     "agent_settings_sync.ts",
