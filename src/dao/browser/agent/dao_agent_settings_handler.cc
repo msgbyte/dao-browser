@@ -19,6 +19,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/web_ui.h"
+#include "dao/browser/agent/dao_agent_plugins.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_workspace_service.h"
@@ -306,7 +307,8 @@ bool IsManagedDaoAgentSetting(std::string_view key) {
       return true;
     }
   }
-  return key == kDaoAgentMemoryEnabledSetting ||
+  return IsDaoAgentPluginSetting(key) ||
+         key == kDaoAgentMemoryEnabledSetting ||
          key == kDaoDreamEnabledSetting || key == kDaoDreamDebugSetting ||
          key == kDaoDreamExcludedDomainsSetting;
 }
@@ -326,6 +328,7 @@ base::DictValue BuildDaoAgentSettingsSnapshot(PrefService* prefs) {
              prefs->GetBoolean(prefs::kDaoDreamDebug) ? "true" : "false");
   values.Set(kDaoDreamExcludedDomainsSetting,
              SerializeDreamExcludedDomains(prefs));
+  snapshot.Set("plugins", GetDaoAgentPlugins(&values));
   snapshot.Set("values", std::move(values));
   snapshot.Set("usageStats", BuildDaoAgentUsageStats(prefs));
   return snapshot;

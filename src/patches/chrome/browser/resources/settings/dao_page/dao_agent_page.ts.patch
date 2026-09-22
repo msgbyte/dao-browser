@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
-@@ -0,0 +1,874 @@
+@@ -0,0 +1,907 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -13,6 +13,7 @@ index 0000000000..0000000001
 + * 'settings-dao-agent-page' contains the detailed Dao Agent settings.
 + */
 +import 'chrome://resources/cr_elements/cr_button/cr_button.js';
++import 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
 +import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 +import 'chrome://resources/cr_elements/cr_input/cr_input.js';
 +import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
@@ -36,6 +37,7 @@ index 0000000000..0000000001
 +  isDaoAgentWorkspaceSummary,
 +} from './dao_agent_settings_browser_proxy.js';
 +import type {
++  DaoAgentPlugin,
 +  DaoAgentMemorySummary,
 +  DaoAgentSettingsBrowserProxy,
 +  DaoAgentSettingsSnapshot,
@@ -92,6 +94,7 @@ index 0000000000..0000000001
 +      agentProactiveThreshold_: {type: String, value: 'balanced'},
 +      agentSearchSource_: {type: String, value: 'auto'},
 +      agentJinaApiKey_: {type: String, value: ''},
++      agentPlugins_: {type: Array, value: () => []},
 +      agentDreamExcludedDomains_: {type: String, value: ''},
 +      agentPageToolsEnabled_: {type: Boolean, value: true},
 +      agentTabToolsEnabled_: {type: Boolean, value: true},
@@ -127,6 +130,11 @@ index 0000000000..0000000001
 +  declare prefs: {[key: string]: any};
 +  private agentSettingsBrowserProxy_: DaoAgentSettingsBrowserProxy =
 +      DaoAgentSettingsBrowserProxyImpl.getInstance();
++  declare private agentPlugins_: Array<DaoAgentPlugin & {
++    enabled: boolean; url: string; token: string; permission: boolean;
++    ready: boolean; effective: boolean; urlInvalid: boolean; tokenInvalid: boolean;
++    configLabel: string; groupLabel: string;
++  }>;
 +  private agentSettingsValues_: Record<string, string> = {};
 +  private optimisticDisabledTools_ = new Set<string>();
 +  private disabledToolsWritePromise_: Promise<void> = Promise.resolve();
@@ -634,6 +642,31 @@ index 0000000000..0000000001
 +      ...snapshot.values,
 +      dao_disabled_tools: JSON.stringify([...disabledTools].sort()),
 +    };
++    const rows = (snapshot.plugins || []).map(plugin => {
++      const enabled = snapshot.values[plugin.enabledKey] === 'true';
++      const url = snapshot.values[plugin.urlKey] || '';
++      const token = snapshot.values[plugin.tokenKey] || '';
++      const permission = snapshot.values[plugin.permissionKey] === 'true';
++      let validUrl = false;
++      try {
++        const parsed = new URL(url);
++        validUrl = ['http:', 'https:'].includes(parsed.protocol) &&
++            !parsed.username && !parsed.password && !parsed.href.includes('#');
++      } catch {}
++      const ready = enabled && validUrl && !!token.trim() && !/[\0\r\n]/.test(token);
++      return {...plugin, enabled, url, token, permission, ready,
++        effective: ready && permission, urlInvalid: !validUrl,
++        tokenInvalid: !token.trim() || /[\0\r\n]/.test(token),
++        configLabel: loadTimeData.getStringF('daoAgentPluginEnable', plugin.name),
++        groupLabel: loadTimeData.getStringF('daoAgentPluginGroup', plugin.name)};
++    });
++    if (rows.map(p => p.id).join() !== this.agentPlugins_.map(p => p.id).join()) {
++      this.agentPlugins_ = rows;
++    } else {
++      rows.forEach((row, i) => Object.entries(row).forEach(([key, value]) => {
++        this.set(`agentPlugins_.${i}.${key}`, value);
++      }));
++    }
 +    this.agentActiveProvider_ =
 +        this.agentSettingsValues_['dao_agent_active_provider'] ||
 +        'openai-compatible';

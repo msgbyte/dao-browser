@@ -45,7 +45,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4145,6 +4153,256 @@
+@@ -4145,6 +4153,267 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -139,6 +139,17 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoAgentSearchProvider", IDS_SETTINGS_DAO_AGENT_SEARCH_PROVIDER},
 +      {"daoAgentSearchDuckDuckGo",
 +       IDS_SETTINGS_DAO_AGENT_SEARCH_DUCKDUCKGO},
++      {"daoAgentPluginEnable", IDS_SETTINGS_DAO_AGENT_PLUGIN_ENABLE},
++      {"daoAgentPluginGroup", IDS_SETTINGS_DAO_AGENT_PLUGIN_GROUP},
++      {"daoAgentPluginExperimental", IDS_SETTINGS_DAO_AGENT_PLUGIN_EXPERIMENTAL},
++      {"daoAgentPluginUrl", IDS_SETTINGS_DAO_AGENT_PLUGIN_URL},
++      {"daoAgentPluginToken", IDS_SETTINGS_DAO_AGENT_PLUGIN_TOKEN},
++      {"daoAgentPluginUrlError", IDS_SETTINGS_DAO_AGENT_PLUGIN_URL_ERROR},
++      {"daoAgentPluginTokenError", IDS_SETTINGS_DAO_AGENT_PLUGIN_TOKEN_ERROR},
++      {"daoAgentPluginConnectionHint", IDS_SETTINGS_DAO_AGENT_PLUGIN_CONNECTION_HINT},
++      {"daoAgentPluginUnavailable", IDS_SETTINGS_DAO_AGENT_PLUGIN_UNAVAILABLE},
++      {"daoAgentPluginTaskTitle", IDS_SETTINGS_DAO_AGENT_PLUGIN_TASK_TITLE},
++      {"daoAgentPluginTaskDescription", IDS_SETTINGS_DAO_AGENT_PLUGIN_TASK_DESCRIPTION},
 +      {"daoAgentJinaApiKeyLabel",
 +       IDS_SETTINGS_DAO_AGENT_JINA_API_KEY_LABEL},
 +      {"daoAgentMemoryTitle", IDS_SETTINGS_DAO_AGENT_MEMORY_TITLE},
@@ -302,7 +313,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4294,6 +4541,7 @@
+@@ -4294,6 +4563,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

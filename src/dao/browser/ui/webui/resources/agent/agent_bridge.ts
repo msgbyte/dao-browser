@@ -8,6 +8,7 @@
 import {getReusableElementContexts, makeResolveElementContextScript, type ElementContextCapture} from './dao_element_context.js';
 import {
   getBrowserToolDefinitions,
+  getCatalogEntries,
   initializeBrowserToolCatalog,
 } from './browser_tool_catalog.js';
 import {getActiveLLMConfig} from './llm_config.js';
@@ -45,6 +46,8 @@ export interface ToolCall {
   type: 'function';
   function: {name: string; arguments: string;};
 }
+
+import {getAgentPlugins, isPluginEnabled, isPluginTool} from './agent_plugins.js';
 
 export interface ToolDefinition {
   type: 'function';
@@ -835,7 +838,8 @@ export const agentOnlyTools: ToolDefinition[] = [
 
 export function getAgentToolDefinitions(): ToolDefinition[] {
   return [
-    ...getBrowserToolDefinitions('dao_agent'),
+    ...getBrowserToolDefinitions('dao_agent').filter(
+        tool => !isPluginTool(tool.function.name) || isPluginEnabled(tool.function.name)),
     ...agentOnlyTools,
     ...getHomeToolDefinitions(),
   ];
@@ -1105,6 +1109,20 @@ export async function executeTool(
               } :
           params,
           {signal: options.signal, cancelMethod: 'cancelBrowserTool', timeoutMs});
+  if (isPluginTool(name)) {
+    const plugin = getAgentPlugins().find(p => p.tool === name);
+    if (!plugin || !isPluginEnabled(name)) {
+      return {error: 'Plugin permission is disabled or configuration is incomplete.',
+        code: 'permission_denied', retryable: false};
+    }
+    return callNative('runBrowserTask', {
+      ...args, __daoPlugin: {id: plugin.id, revision: plugin.revision},
+    }, {
+      signal: options.signal,
+      cancelMethod: 'cancelBrowserTool',
+      timeoutMs: getCatalogEntries('dao_agent').find(entry => entry.name === name)?.timeoutMs,
+    });
+  }
   if (isHomeTool(name)) {
     return await callNative('executeHomeTool', {name, arguments: args}, {
       signal: options.signal,
@@ -1305,9 +1323,9 @@ export async function executeTool(
       };
     }
     case 'scroll_down':
-      return await callBrowserNative('scrollPage', {direction: 'down', amount: args['amount'] as number});
+      return await callBrowserNative('scrollPage', {...args, direction: 'down', amount: args['amount'] as number});
     case 'scroll_up':
-      return await callBrowserNative('scrollPage', {direction: 'up', amount: args['amount'] as number});
+      return await callBrowserNative('scrollPage', {...args, direction: 'up', amount: args['amount'] as number});
     case 'scroll_to_element':
       return await callBrowserNative('scrollToElement', {
         selector: getStringArg(args, 'selector'),

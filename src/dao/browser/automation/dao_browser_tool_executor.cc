@@ -17,6 +17,7 @@
 #include "dao/browser/automation/dao_browser_target_policy.h"
 #include "dao/browser/automation/dao_browser_tool_catalog.h"
 #include "dao/browser/automation/dao_devtools_tools.h"
+#include "dao/browser/automation/dao_jev_task.h"
 #include "dao/browser/automation/dao_tab_tools.h"
 #include "dao/browser/automation/dao_tool_schema_validator.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
@@ -75,6 +76,7 @@ struct DaoBrowserToolExecutor::PendingRequest {
   base::OneShotTimer timer;
   ResultCallback callback;
   base::WeakPtr<content::WebContents> target;
+  std::unique_ptr<DaoJevTask> jev_task;
 };
 
 DaoBrowserToolExecutor::DaoBrowserToolExecutor(
@@ -180,6 +182,16 @@ bool DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
                       base::BindOnce(&DaoBrowserToolExecutor::OnDeadline,
                                      weak_this, request_id)));
 
+  if (call.name == "run_browser_task") {
+    auto& pending = *weak_this->pending_.at(request_id);
+    pending.jev_task = std::make_unique<DaoJevTask>(
+        weak_this, session_weak, *target, client, std::move(call.arguments),
+        base::BindOnce(&DaoBrowserToolExecutor::Complete, weak_this, request_id));
+    // A synchronous rejection completes and erases the request; report it
+    // like other pre-dispatch failures so it is not counted as accepted.
+    return pending.jev_task->Start();
+  }
+
   if (DaoTabTools::Handles(call.name)) {
     weak_this->tab_tools_->Execute(
         request_id, session_weak.get(), client, call.name, call.arguments,
@@ -215,6 +227,11 @@ void DaoBrowserToolExecutor::Cancel(std::string_view request_id,
   if (it == pending_.end()) {
     return;
   }
+  if (it->second->jev_task) {
+    it->second->jev_task->Cancel(
+        error.code == DaoToolErrorCode::kToolTimeout ? "timeout" : "cancelled");
+    return;
+  }
   if (tab_tools_->Cancel(request_id, error)) {
     return;
   }
@@ -237,8 +254,14 @@ void DaoBrowserToolExecutor::CancelAll(DaoToolError error) {
   base::WeakPtr<DaoBrowserToolExecutor> weak_this = weak_factory_.GetWeakPtr();
   std::vector<std::string> request_ids;
   request_ids.reserve(pending_.size());
-  for (const auto& [request_id, _] : pending_) {
-    request_ids.push_back(request_id);
+  // Stop task owners before children so cancellation cannot look like a failed
+  // action and start another observation while the executor is shutting down.
+  for (bool tasks_first : {true, false}) {
+    for (const auto& [request_id, request] : pending_) {
+      if (static_cast<bool>(request->jev_task) == tasks_first) {
+        request_ids.push_back(request_id);
+      }
+    }
   }
   for (const std::string& request_id : request_ids) {
     Cancel(request_id, error);

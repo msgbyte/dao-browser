@@ -111,6 +111,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
 
   // content::WebUIMessageHandler:
   void RegisterMessages() override;
+  void OnJavascriptDisallowed() override;
 
   // DaoPageTools::UiDelegate:
   void MoveCursor(content::WebContents* target,
@@ -174,6 +175,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void HandleHighlightElement(const base::ListValue& args);
   void HandleClearHighlight(const base::ListValue& args);
   void HandleGetAccessibilityTree(const base::ListValue& args);
+  void HandleRunBrowserTask(const base::ListValue& args);
   void HandleQueryElements(const base::ListValue& args);
   void HandleClickByRef(const base::ListValue& args);
   void HandleFillByRef(const base::ListValue& args);

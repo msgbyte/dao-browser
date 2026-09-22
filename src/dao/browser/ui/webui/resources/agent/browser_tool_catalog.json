@@ -2,6 +2,93 @@
   "version": 1,
   "tools": [
     {
+      "name": "run_browser_task",
+      "description": "Delegate a bounded browser subtask to the optional Jev service. Uses the current locked tab and existing browser permissions. Provide only known, non-sensitive input values and observable completion criteria. Does not handle passwords, payment details, or verification codes. Read partial progress on failure before continuing with ordinary tools.",
+      "group": "page",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "interaction",
+      "timeoutMs": 65000,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "goal": {
+            "type": "string",
+            "description": "Task goal; 1 to 2000 UTF-8 bytes."
+          },
+          "known_inputs": {
+            "type": "array",
+            "description": "At most 20 non-sensitive input values.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "field",
+                "value"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Field name; 1 to 200 UTF-8 bytes."
+                },
+                "value": {
+                  "type": "string",
+                  "description": "Known value; at most 2000 UTF-8 bytes."
+                }
+              }
+            }
+          },
+          "completion": {
+            "type": "array",
+            "description": "1 to 10 predicates; all must match the locally observed page.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "url",
+                    "text",
+                    "field"
+                  ]
+                },
+                "value": {
+                  "type": "string",
+                  "description": "Expected value; 1 to 2000 UTF-8 bytes. URL and field use exact matches; text uses a substring."
+                },
+                "field": {
+                  "type": "string",
+                  "description": "Required for kind=field: exact accessible field name, 1 to 200 UTF-8 bytes."
+                }
+              }
+            }
+          },
+          "max_steps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 60000
+          }
+        },
+        "required": [
+          "goal",
+          "completion"
+        ]
+      }
+    },
+    {
       "name": "get_page_info",
       "description": "Get the current target page URL, title, and meta description",
       "group": "page",
@@ -70,7 +157,7 @@
         "properties": {
           "filter": {
             "type": "string",
-            "description": "Filter mode: \"interactive\" (only clickable/input elements, default), \"visible\" (viewport only), \"all\" (full page)"
+            "description": "Filter mode: \"interactive\" (only clickable/input elements, default), \"visible\" (viewport only), \"all\" (full page); \"compact\" returns bounded viewport text and element records with atomic refs, excluding sensitive input values."
           }
         },
         "required": []
@@ -405,6 +492,24 @@
               },
               "ancestor_ref": {
                 "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string"
+              },
+              "checked": {
+                "type": "boolean"
+              },
+              "in_viewport": {
+                "type": "boolean"
+              },
+              "sensitive": {
+                "type": "boolean"
               }
             },
             "additionalProperties": false,
@@ -467,6 +572,24 @@
               },
               "ancestor_ref": {
                 "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string"
+              },
+              "checked": {
+                "type": "boolean"
+              },
+              "in_viewport": {
+                "type": "boolean"
+              },
+              "sensitive": {
+                "type": "boolean"
               }
             },
             "additionalProperties": false,
@@ -552,6 +675,14 @@
           "amount": {
             "type": "number",
             "description": "Scroll amount in pixels. Omit to scroll by ~80% of viewport height."
+          },
+          "document_id": {
+            "type": "string",
+            "description": "Optional paired document/snapshot guard; both ids must be supplied together."
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional paired document/snapshot guard; both ids must be supplied together."
           }
         },
         "required": []
@@ -573,6 +704,14 @@
           "amount": {
             "type": "number",
             "description": "Scroll amount in pixels. Omit to scroll by ~80% of viewport height."
+          },
+          "document_id": {
+            "type": "string",
+            "description": "Optional paired document/snapshot guard; both ids must be supplied together."
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional paired document/snapshot guard; both ids must be supplied together."
           }
         },
         "required": []

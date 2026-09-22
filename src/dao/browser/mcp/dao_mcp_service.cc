@@ -41,6 +41,7 @@
 #include "content/public/browser/web_contents.h"
 #include "crypto/secure_util.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
+#include "dao/browser/agent/dao_agent_plugins.h"
 #include "dao/browser/automation/dao_browser_automation_session.h"
 #include "dao/browser/automation/dao_browser_target_policy.h"
 #include "dao/browser/automation/dao_browser_tool_catalog.h"
@@ -1076,9 +1077,35 @@ void DaoMcpService::HandleToolsList(ConnectionState& connection,
     return;
   }
 
+  // Discovery must not acquire a target or prompt for approval. Once bound,
+  // keep using the approved profile even if another window becomes active.
+  const TargetContext* context = GetDefaultTargetContext(connection);
+  BrowserWindowInterface* browser_window =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
+  Browser* browser =
+      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+  Profile* profile = context ? context->session->profile()
+                            : (browser ? browser->profile() : nullptr);
+  const base::DictValue* settings =
+      profile && !profile->IsOffTheRecord() && !profile->IsGuestSession()
+          ? &profile->GetPrefs()->GetDict(prefs::kDaoAgentSettings)
+          : nullptr;
+  const auto plugins = GetDaoAgentPlugins(settings);
   base::ListValue serialized_tools;
   for (const DaoBrowserToolDefinition* definition :
        DaoBrowserToolCatalog::Get()->List(DaoToolClient::kMcp)) {
+    bool available = true;
+    for (const auto& plugin : plugins) {
+      const auto* tool = plugin.GetDict().FindString("tool");
+      if (tool && *tool == definition->name) {
+        available = settings && IsDaoAgentPluginAuthorized(
+                                    *settings, plugin.GetDict(), definition->name);
+        break;
+      }
+    }
+    if (!available) {
+      continue;
+    }
     base::DictValue input_schema = definition->input_schema.Clone();
     base::DictValue* properties = input_schema.FindDict("properties");
     if (!properties) {

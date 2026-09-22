@@ -100,6 +100,38 @@ constexpr char kHighlightInjectScript[] = R"js(
 })()
 )js";
 
+// Shared by the snapshot and ref-action scripts so an observed element's name
+// and sensitivity are judged identically when its guarded action runs.
+constexpr char kSnapshotHelpersScript[] = R"js(
+  function compactName(el, full) {
+    var labelled = (el.getAttribute('aria-labelledby') || '').split(/\s+/)
+        .map(function(id) { return document.getElementById(id); })
+        .filter(Boolean).map(function(node) { return node.textContent || ''; }).join(' ');
+    return (el.getAttribute('aria-label') || labelled ||
+      (el.labels && Array.from(el.labels).map(function(l) { return l.textContent; }).join(' ')) ||
+      el.getAttribute('alt') || el.getAttribute('title') || el.getAttribute('placeholder') ||
+      (el.tagName === 'INPUT' && ['submit','button','reset'].includes(el.type) ? el.value : '') ||
+      ((el.tagName === 'A' || el.tagName === 'BUTTON' || el.getAttribute('role') === 'button') ? el.textContent : '') || '')
+        .replace(/[\n\r\t]+/g, ' ').trim().slice(0, full ? undefined : 80);
+  }
+  // Only form controls carry secret values; a "Forgot password" link does not.
+  // Keep the name pattern in sync with DaoJevTask::Start().
+  function sensitiveField(el) {
+    if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && el.tagName !== 'SELECT') return false;
+    return el.type === 'password' ||
+      /password|one-time-code|cc-/.test(el.autocomplete || '') ||
+      /password|passcode|\bone[ -]?time|verification|credit[ -]?card|\b(otp|pin|cvv|cvc)\b|密码|验证码|银行卡/i
+        .test([compactName(el, true), el.name, el.id].join(' '));
+  }
+)js";
+
+std::string WithSnapshotHelpers(std::string_view script) {
+  // Parenthesized: the script literal starts with a newline, which would
+  // otherwise end the return statement.
+  return "(function(){" + std::string(kSnapshotHelpersScript) + "return (" +
+         std::string(script) + ")})()";
+}
+
 // This intentionally mirrors the Agent accessibility representation. It
 // assigns stable-for-the-current-snapshot data-dao-ref attributes and returns a
 // compact textual tree rather than the very large raw CDP AX payload.
@@ -207,6 +239,50 @@ constexpr char kAccessibilityTreeScript[] = R"js(
 
   function isEnabled(el) {
     return !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+  }
+
+  if (filterMode === 'compact' && !query) {
+    resetRefs();
+    var elements = [];
+    var remainingValueChars = 12000;
+    var walker = document.createTreeWalker(document.body || document.documentElement,
+        NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    var text = '';
+    var visited = 0;
+    while (walker.nextNode() && visited++ < 20000) {
+      var node = walker.currentNode;
+      var el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+      if (!el || SKIP_TAGS[el.tagName] || !isVisible(el) || !isInViewport(el) ||
+          el.closest('script,style,noscript,template,[contenteditable=""],' +
+            '[contenteditable="true" i],[contenteditable="plaintext-only" i]') ||
+          (node.nodeType === Node.TEXT_NODE && el.tagName === 'TEXTAREA')) continue;
+      if (node.nodeType === Node.TEXT_NODE) {
+        if (text.length < 12000) text += ' ' + (node.textContent || '').trim();
+        continue;
+      }
+      if (!isInteractive(el) || elements.length >= 150 || sensitiveField(el)) continue;
+      var editable = !el.readOnly && (el.tagName === 'TEXTAREA' ||
+        (el.tagName === 'INPUT' && ['text','search','tel','url','email'].includes(el.type)));
+      // ponytail: bound total field data; omit oversized fields so action
+      // preconditions still compare exact values instead of truncated prefixes.
+      if (editable && el.value.length > remainingValueChars) continue;
+      var ref = String(++refCounter);
+      el.setAttribute('data-dao-ref', ref);
+      var item = {ref_id: ref, role: getRole(el), name: compactName(el),
+        text: '', enabled: isEnabled(el), editable: editable};
+      if (editable) {
+        item.value = el.value;
+        remainingValueChars -= el.value.length;
+      }
+      if (el.tagName === 'A') item.href = el.href;
+      if (el.type === 'checkbox' || el.type === 'radio') item.checked = el.checked;
+      if (el.hasAttribute('aria-expanded')) item.expanded = el.getAttribute('aria-expanded') === 'true';
+      elements.push(item);
+    }
+    return JSON.stringify({url: location.href, title: document.title,
+      text: text.trim().slice(0, 12000), elements: elements,
+      scrollY: window.scrollY, viewportHeight: window.innerHeight,
+      scrollHeight: document.documentElement.scrollHeight});
   }
 
   if (query) {
@@ -1420,7 +1496,7 @@ void DaoPageTools::ExecuteAccessibilitySnapshot(std::string_view request_id,
   }
   base::DictValue params;
   params.Set("expression",
-             std::string(kAccessibilityTreeScript) + "(" +
+             WithSnapshotHelpers(kAccessibilityTreeScript) + "(" +
                  QuoteForJavaScript(filter) + "," + query_json + "," +
                  QuoteForJavaScript(operation->snapshot_id) + "," +
                  (operation->name == "wait_for_element" ? "true" : "false") +
@@ -1511,7 +1587,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
     base::JSONWriter::Write(base::Value(preconditions->Clone()),
                             &preconditions_json);
   }
-  const std::string script = R"js(
+  const std::string script = WithSnapshotHelpers(R"js(
 (function(refId, snapshotId, preconditions, fill, text) {
   function fail(message) { return JSON.stringify({error: message}); }
   function visible(el) {
@@ -1520,31 +1596,60 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
     return style.display !== 'none' && style.visibility !== 'hidden';
   }
   function role(el) {
-    var explicit = el.getAttribute('role');
-    if (explicit) return explicit;
+    var role = el.getAttribute('role');
+    if (role) return role;
     var tag = el.tagName.toLowerCase();
-    if (tag === 'a') return 'link';
-    if (tag === 'button') return 'button';
-    if (tag === 'select') return 'combobox';
-    if (tag === 'textarea') return 'textbox';
+    var map = {
+      a:'link', button:'button', input:'textbox', select:'combobox',
+      textarea:'textbox', img:'image', nav:'navigation', main:'main',
+      header:'banner', footer:'contentinfo', aside:'complementary',
+      form:'form', table:'table', tr:'row', td:'cell', th:'columnheader',
+      ul:'list', ol:'list', li:'listitem', h1:'heading', h2:'heading',
+      h3:'heading', h4:'heading', h5:'heading', h6:'heading',
+      details:'group', summary:'button', dialog:'dialog',
+      section:'region', article:'article'
+    };
     if (tag === 'input') {
-      var type = (el.type || 'text').toLowerCase();
-      if (type === 'checkbox' || type === 'radio' || type === 'range') {
-        return type === 'range' ? 'slider' : type;
-      }
-      if (type === 'submit' || type === 'button' || type === 'reset') return 'button';
+      var t = (el.type || 'text').toLowerCase();
+      if (t === 'checkbox') return 'checkbox';
+      if (t === 'radio') return 'radio';
+      if (t === 'submit' || t === 'button' || t === 'reset') return 'button';
+      if (t === 'range') return 'slider';
       return 'textbox';
     }
-    return 'generic';
+    return map[tag] || 'generic';
   }
   if (document.documentElement.getAttribute('data-dao-snapshot') !== snapshotId) {
     return fail('The page snapshot is stale.');
   }
-  var el = Array.from(document.querySelectorAll('[data-dao-ref]')).find(function(candidate) {
+  var matches = Array.from(document.querySelectorAll('[data-dao-ref]')).filter(function(candidate) {
     return candidate.getAttribute('data-dao-ref') === refId;
   });
-  if (!el) return fail('The referenced element was not found.');
+  if (matches.length !== 1) return fail('The referenced element is missing or ambiguous.');
+  var el = matches[0];
   function checkPreconditions() {
+    if (preconditions.in_viewport) {
+      var bounds = el.getBoundingClientRect();
+      if (bounds.bottom <= 0 || bounds.top >= innerHeight ||
+          bounds.right <= 0 || bounds.left >= innerWidth) {
+        return fail('The viewport precondition failed.');
+      }
+    }
+    if (preconditions.sensitive === false && sensitiveField(el)) {
+      return fail('The sensitive field precondition failed.');
+    }
+    if (preconditions.name !== undefined && compactName(el) !== preconditions.name) {
+      return fail('The name precondition failed.');
+    }
+    if (preconditions.value !== undefined && el.value !== preconditions.value) {
+      return fail('The value precondition failed.');
+    }
+    if (preconditions.href !== undefined && el.href !== preconditions.href) {
+      return fail('The link precondition failed.');
+    }
+    if (preconditions.checked !== undefined && el.checked !== preconditions.checked) {
+      return fail('The checked precondition failed.');
+    }
     if (preconditions.url !== undefined && location.href !== preconditions.url) {
       return fail('The URL precondition failed.');
     }
@@ -1633,7 +1738,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
   el.click();
   return JSON.stringify({clicked: true, ref_id: refId});
 })
-)js" + std::string("(") + QuoteForJavaScript(*ref_id) +
+)js") + "(" + QuoteForJavaScript(*ref_id) +
                              "," + QuoteForJavaScript(*snapshot_id) + "," +
                              preconditions_json + "," +
                              (fill ? "true" : "false") + "," +
@@ -2088,15 +2193,29 @@ void DaoPageTools::ExecuteHighlightElement(std::string_view request_id) {
 
 void DaoPageTools::ExecuteScroll(std::string_view request_id, bool up) {
   Operation* operation = FindOperation(request_id);
+  const std::string* snapshot_id = operation->arguments.FindString("snapshot_id");
+  const std::string* document_id = operation->arguments.FindString("document_id");
+  if ((snapshot_id || document_id) &&
+      (!snapshot_id || snapshot_id->empty() || !document_id ||
+       *document_id != "document-" + base::NumberToString(operation->document_sequence_number))) {
+    FinishError(request_id, InvalidArgument("The scroll document is stale."));
+    return;
+  }
+  const std::string guard = snapshot_id ?
+      "if(document.documentElement.getAttribute('data-dao-snapshot')!==" +
+      QuoteForJavaScript(*snapshot_id) +
+      ")return JSON.stringify({error:'The scroll snapshot is stale.'});" : "";
   const double amount = operation->arguments.FindDouble("amount").value_or(0.0);
   const std::string amount_expression =
       amount > 0 && std::isfinite(amount)
           ? std::string(up ? "-" : "") + base::NumberToString(amount)
           : std::string(up ? "-" : "") + "Math.round(window.innerHeight * 0.8)";
   const std::string script =
-      "(() => { const amount = " + amount_expression +
-      "; window.scrollBy({top:amount,behavior:'smooth'});"
-      "return JSON.stringify({scrollY:Math.round(window.scrollY+amount),"
+      "(() => { " + guard + "const amount = " + amount_expression +
+      "; window.scrollBy({top:amount,behavior:" +
+      (snapshot_id ? "'instant'" : "'smooth'") + "});"
+      "return JSON.stringify({scrollY:Math.round(window.scrollY" +
+      (snapshot_id ? std::string() : "+amount") + "),"
       "scrollHeight:document.documentElement.scrollHeight,"
       "viewportHeight:window.innerHeight}); })()";
   base::DictValue params;
@@ -2121,6 +2240,10 @@ void DaoPageTools::ExecuteScroll(std::string_view request_id, bool up) {
                     if (!parsed || !parsed->is_dict()) {
                       self->FinishError(request_id,
                                         InternalError("Page scroll failed."));
+                      return;
+                    }
+                    if (const std::string* error = parsed->GetDict().FindString("error")) {
+                      self->FinishError(request_id, InvalidArgument(*error));
                       return;
                     }
                     self->FinishSuccess(request_id, std::move(*parsed));

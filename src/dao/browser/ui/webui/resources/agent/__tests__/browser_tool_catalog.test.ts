@@ -52,15 +52,15 @@ describe('browser_tool_catalog', () => {
     await initializeBrowserToolCatalog();
 
     expect(injectedCatalog.getString).toHaveBeenCalledTimes(2);
-    expect(getBrowserToolDefinitions('mcp')).toHaveLength(33);
+    expect(getBrowserToolDefinitions('mcp')).toHaveLength(34);
   });
 
-  it('exposes exactly 33 browser tools to MCP', async () => {
+  it('exposes exactly 34 browser tools to MCP', async () => {
     await initializeBrowserToolCatalog();
     const names = getBrowserToolDefinitions('mcp').map(
         tool => tool.function.name);
 
-    expect(names).toHaveLength(33);
+    expect(names).toHaveLength(34);
     expect(names).not.toContain('resolve_element_context');
     expect([...names].sort()).toEqual([
       'agent_click',
@@ -88,6 +88,7 @@ describe('browser_tool_catalog', () => {
       'open_tab',
       'press_key_chord',
       'query_elements',
+      'run_browser_task',
       'scroll_down',
       'scroll_to_element',
       'scroll_up',
@@ -100,6 +101,15 @@ describe('browser_tool_catalog', () => {
     expect([...new Set(getCatalogEntries('mcp').map(entry => entry.group))]
                .sort())
         .toEqual(['devtools', 'page', 'tabs']);
+  });
+
+  it('shares the bounded Jev task with Agent and MCP', () => {
+    const task = validateBrowserToolCatalog(loadCatalogResource()).tools.find(
+        entry => entry.name === 'run_browser_task');
+    expect(task?.clients).toEqual(['dao_agent', 'mcp']);
+    expect(task?.timeoutMs).toBe(65000);
+    expect(task?.inputSchema.required).toEqual(['goal', 'completion']);
+    expect(task?.inputSchema.additionalProperties).toBe(false);
   });
 
   it('exposes the safe query-click-wait workflow', () => {
@@ -126,6 +136,13 @@ describe('browser_tool_catalog', () => {
         expect.arrayContaining(['ref_id', 'document_id', 'snapshot_id']));
     expect(click?.inputSchema.properties).toHaveProperty('preconditions');
     expect(click?.inputSchema.properties.preconditions.required).toEqual([]);
+    for (const tool of [click, fill]) {
+      expect(tool?.inputSchema.properties.preconditions.properties).toMatchObject({
+        name: {type: 'string'}, value: {type: 'string'}, href: {type: 'string'},
+        checked: {type: 'boolean'}, in_viewport: {type: 'boolean'},
+        sensitive: {type: 'boolean'},
+      });
+    }
     expect(fill?.inputSchema.required).toEqual(
         expect.arrayContaining(['ref_id', 'document_id', 'snapshot_id', 'text']));
     expect(elementWait?.inputSchema.properties).toHaveProperty('enabled');

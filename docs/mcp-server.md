@@ -99,7 +99,7 @@ scroll within the dialog so the approval controls remain accessible.
 
 ## Tool scope
 
-MCP exposes 31 native browser tools from the same versioned catalog used by Dao
+MCP exposes 34 native browser tools from the same versioned catalog used by Dao
 Agent:
 
 - page information, HTML, accessibility, scoped semantic queries, screenshots,
@@ -107,7 +107,9 @@ Agent:
   interaction;
 - window-scoped tab listing, switching, opening, and closing;
 - network and console capture, including cursor-based response waits;
-- page-resource listing, reading, and search.
+- page-resource listing, reading, and search;
+- bounded Jev browser subtasks through `run_browser_task` (requires explicit
+  Jev configuration and tool permission).
 
 `resolve_element_context` is an additional native Dao Agent browser tool and is
 not exposed to MCP. Agent memory, skills, workspace, and web-provider tools are
@@ -120,6 +122,50 @@ under `src/dao/browser/mcp/`.
 
 The authoritative names and schemas are in
 `src/dao/browser/ui/webui/resources/agent/browser_tool_catalog.json`.
+
+## Use Jev from an MCP client
+
+1. In **Settings → Agent**, enable the experimental **Jev** connection, enter
+   the full compatible Decisions API URL and Bearer token, and enable the
+   separate **run_browser_task** tool permission.
+2. Connect your usual MCP client using **Generic MCP** above. If already
+   connected, refresh its tool list after upgrading Dao or changing Jev settings.
+   `run_browser_task` is listed only with an enabled, valid Jev connection and
+   tool permission. Discovery does not call Jev or request browser control.
+3. Invoke `run_browser_task` on the intended HTTP(S) tab and approve the usual
+   MCP connection dialog. For example, a `tools/call` request can contain:
+
+```json
+{
+  "name": "run_browser_task",
+  "arguments": {
+    "goal": "Fill the name and submit the form",
+    "known_inputs": [{"field": "Name", "value": "Alice"}],
+    "completion": [{"kind": "text", "value": "Submitted successfully"}],
+    "reason": "Complete the form requested by the user"
+  }
+}
+```
+
+Use labels and completion text that match the actual page. Completion conditions
+are checked locally and must all match: `text` requires visible text, `url`
+requires an exact URL, and `field` requires an exact accessible field name and
+value. Supply only non-sensitive known inputs. `max_steps` defaults to 20 (1–20)
+and `timeout_ms` defaults to 60000 (1000–60000).
+
+The client keeps its existing main model. Dao calls the saved Jev endpoint with
+`jev-latest`; credentials are never passed as MCP tool arguments. Execution is
+native and works while the Agent panel is closed. Ordinary `click_by_ref`,
+`fill_by_ref`, and other browser tools continue to execute directly; choose
+`run_browser_task` explicitly when you want Jev to carry out a subtask.
+
+Results include `status`, `progress` (actions and locally verified condition
+indexes), and timing/count `metrics`. An incomplete task has `isError: true`
+while preserving its structured partial result. Review that progress before
+retrying, since some actions may already have completed. Client cancellation,
+connection revocation, target loss, or changing Jev settings stops pending
+requests and prevents late responses from taking actions. The saved configuration
+and permission are shared with Dao Agent.
 
 ## Eligible targets
 

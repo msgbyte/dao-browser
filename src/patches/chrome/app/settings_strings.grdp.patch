@@ -164,7 +164,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -3836,7 +3836,535 @@
+@@ -3836,7 +3836,568 @@
      <!-- Sync / People Page -->
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
@@ -343,6 +343,39 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    <message name="IDS_SETTINGS_DAO_AGENT_SEARCH_DUCKDUCKGO" desc="DuckDuckGo Dao Agent search source option.">
 +      DuckDuckGo
 +    </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_ENABLE" desc="Optional Agent plugin settings: Enable.">
++    Enable <ph name="PLUGIN_NAME">$1<ex>Jev</ex></ph> auxiliary model
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_GROUP" desc="Optional Agent plugin settings: Group.">
++    <ph name="PLUGIN_NAME">$1<ex>Jev</ex></ph> quick actions
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_EXPERIMENTAL" desc="Optional Agent plugin settings: Experimental.">
++    Experimental
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_URL" desc="Optional Agent plugin settings: Url.">
++    API URL
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_TOKEN" desc="Optional Agent plugin settings: Token.">
++    Token
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_URL_ERROR" desc="Optional Agent plugin settings: UrlError.">
++    Enter a complete HTTP or HTTPS API URL without credentials or a fragment.
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_TOKEN_ERROR" desc="Optional Agent plugin settings: TokenError.">
++    Enter a non-empty token.
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_CONNECTION_HINT" desc="Optional Agent plugin settings: ConnectionHint.">
++    The auxiliary model is independent of your main model. Page context is sent only when its tool is called. Enable its permission under Global tools to use it.
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_UNAVAILABLE" desc="Optional Agent plugin settings: Unavailable.">
++    Enable and configure the auxiliary model above before granting tool permission.
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_TASK_TITLE" desc="Optional Agent plugin settings: TaskTitle.">
++    Automatically complete browser subtasks
++  </message>
++  <message name="IDS_SETTINGS_DAO_AGENT_PLUGIN_TASK_DESCRIPTION" desc="Optional Agent plugin settings: TaskDescription.">
++    Complete short browser tasks using page context, known non-sensitive inputs, and locally verified completion conditions. Passwords, payment details, and verification codes are excluded.
++  </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_JINA_API_KEY_LABEL" desc="Label for the Jina API key field.">
 +      Jina API key
 +    </message>
@@ -700,7 +733,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
      <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
        Google Profile photo
      </message>
-@@ -4473,40 +4968,40 @@
+@@ -4473,40 +5034,40 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS_POLICY" desc="Subtitle of the passwords card in SafetyHub when there are no saved passwords and saving of passwords is disabled through enterprise policy. This text is shown below the header 'No saved passwords'. It explains that the SafetyHub features for passwords are not available since the user's organization has a policy in place that prevents the user from saving passwords in Chrome.">
        Your organization turned off saving passwords
      </message>
@@ -753,7 +786,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Go to notification settings
      </message>
      <message name="IDS_SETTINGS_SAFETY_HUB_USER_EDU_INCOGNITO_SUBHEADER" desc="The subheader of the second item in the 'User Education Module' in the Safety Hub page. This item explains Incognito mode.">
-@@ -4516,21 +5011,21 @@
+@@ -4516,21 +5077,21 @@
        Safe Browsing
      </message>
      <if expr="not is_chromeos">
@@ -779,7 +812,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        {NUM_SITES, plural,
         =1 {You can stop this site from sending future notifications.}
         other {You can stop these sites from sending future notifications.}}
-@@ -4558,31 +5053,31 @@
+@@ -4558,31 +5119,31 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MENU_NOTIFICATION" desc="When Safe Browsing is disabled, the proactive Safety Hub feature encourages users to turn on the feature. This label is for the notification in Chrome's three-dot menu.">
        Safe Browsing is off
      </message>
