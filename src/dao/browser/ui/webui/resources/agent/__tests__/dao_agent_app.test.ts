@@ -45,6 +45,7 @@ vi.mock('../dao_chat_view.js', () => {
 });
 
 vi.mock('../dao_dream_dispatcher.js', () => ({}));
+vi.mock('../llm_connection_test.js', () => ({}));
 
 vi.mock('../i18n/i18n.js', () => ({
   initI18n: mocks.initI18n,

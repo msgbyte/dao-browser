@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_settings_browser_proxy.ts
-@@ -0,0 +1,210 @@
+@@ -0,0 +1,231 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -42,6 +42,20 @@ index 0000000000..0000000001
 +  fileCount: number;
 +  fileCountCap: number;
 +  recentActivity: DaoAgentWorkspaceActivity[];
++}
++
++export interface DaoAgentConnectionTestConfig {
++  provider: string;
++  model: string;
++  apiKey: string;
++  baseUrl: string;
++}
++
++export interface DaoAgentConnectionTestResult {
++  ok: boolean;
++  latencyMs?: number;
++  errorCode?: 'provider'|'timeout'|'unavailable';
++  error?: string;
 +}
 +
 +export interface DaoAgentUsageStats {
@@ -103,6 +117,8 @@ index 0000000000..0000000001
 +  startManualDream(): Promise<boolean>;
 +  getUsageStats(): Promise<DaoAgentUsageStats>;
 +  resetUsageStats(): Promise<boolean>;
++  testConnection(config: DaoAgentConnectionTestConfig):
++      Promise<DaoAgentConnectionTestResult>;
 +}
 +
 +export class DaoAgentSettingsBrowserProxyImpl implements
@@ -141,6 +157,11 @@ index 0000000000..0000000001
 +
 +  resetUsageStats(): Promise<boolean> {
 +    return sendWithPromise('resetDaoAgentUsageStats');
++  }
++
++  testConnection(config: DaoAgentConnectionTestConfig):
++      Promise<DaoAgentConnectionTestResult> {
++    return sendWithPromise('testDaoAgentConnection', config);
 +  }
 +
 +  static getInstance(): DaoAgentSettingsBrowserProxy {
@@ -194,6 +215,10 @@ index 0000000000..0000000001
 +    baseUrl: 'https://api.openai.com/v1',
 +    model: 'gpt-5',
 +  },
++  'anthropic-compatible': {
++    baseUrl: 'https://api.anthropic.com',
++    model: 'claude-sonnet-4-5',
++  },
 +  openai: {baseUrl: '', model: 'gpt-5'},
 +  anthropic: {baseUrl: '', model: 'claude-sonnet-4-5'},
 +  google: {baseUrl: '', model: 'gemini-2.5-flash'},
@@ -202,15 +227,11 @@ index 0000000000..0000000001
 +  openrouter: {baseUrl: '', model: 'openrouter/auto'},
 +};
 +
-+// Mirrors pi-ai's catalog endpoints so users can tell whether to add `/v1`:
++// Only API-format providers take a base URL; named providers always use
++// pi-ai's catalog endpoint. The placeholders show whether to include `/v1`:
 +// OpenAI-style SDKs expect it in the base URL, Anthropic's SDK appends
 +// `/v1/messages` itself.
 +export const AGENT_PROVIDER_BASE_URL_PLACEHOLDERS: Record<string, string> = {
 +  'openai-compatible': 'https://api.openai.com/v1',
-+  openai: 'https://api.openai.com/v1',
-+  anthropic: 'https://api.anthropic.com',
-+  google: 'https://generativelanguage.googleapis.com/v1beta',
-+  groq: 'https://api.groq.com/openai/v1',
-+  xai: 'https://api.x.ai/v1',
-+  openrouter: 'https://openrouter.ai/api/v1',
++  'anthropic-compatible': 'https://api.anthropic.com',
 +};

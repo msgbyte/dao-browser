@@ -263,6 +263,15 @@ const daoAgentManagementTranslations = [
   ['DAO_AGENT_MANAGEMENT_WORKSPACE_OPENED', 'daoAgentManagementWorkspaceOpened', '工作区已打开'],
   ['DAO_AGENT_MANAGEMENT_USAGE_RESET', 'daoAgentManagementUsageReset', '用量已重置'],
   ['DAO_AGENT_MANAGEMENT_ACTIVITY_LABEL', 'daoAgentManagementActivityLabel', '操作 <ph name="OPERATION" />，路径 <ph name="PATH" />'],
+  ['DAO_AGENT_PROVIDER_ANTHROPIC_COMPATIBLE', 'daoAgentProviderAnthropicCompatible', 'Anthropic 兼容'],
+  ['DAO_AGENT_PROVIDER_GROUP_API_FORMAT', 'daoAgentProviderGroupApiFormat', 'API 格式'],
+  ['DAO_AGENT_PROVIDER_GROUP_VENDOR', 'daoAgentProviderGroupVendor', '服务商'],
+  ['DAO_AGENT_TEST_CONNECTION', 'daoAgentTestConnection', '测试连接'],
+  ['DAO_AGENT_TEST_CONNECTION_RUNNING', 'daoAgentTestConnectionRunning', '正在测试…'],
+  ['DAO_AGENT_TEST_CONNECTION_SUCCESS', 'daoAgentTestConnectionSuccess', '已连接 <ph name="MODEL" />，耗时 <ph name="DURATION" /> 毫秒'],
+  ['DAO_AGENT_TEST_CONNECTION_FAILED', 'daoAgentTestConnectionFailed', '连接失败：<ph name="ERROR" />'],
+  ['DAO_AGENT_TEST_CONNECTION_TIMEOUT', 'daoAgentTestConnectionTimeout', '请求超时，请检查网络后重试。'],
+  ['DAO_AGENT_TEST_CONNECTION_UNAVAILABLE', 'daoAgentTestConnectionUnavailable', '智能体面板尚未就绪，请几秒后重试。'],
 ] as const;
 
 function escapeRegExp(value: string): string {

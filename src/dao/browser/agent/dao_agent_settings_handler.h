@@ -6,8 +6,11 @@
 #define DAO_BROWSER_AGENT_DAO_AGENT_SETTINGS_HANDLER_H_
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 
+#include "base/containers/flat_map.h"
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -59,6 +62,8 @@ public:
   void OnJavascriptDisallowed() override;
 
 private:
+  using ConnectionTestCallback = base::OnceCallback<void(base::DictValue)>;
+
   void HandleGetSettings(const base::ListValue& args);
   void HandleMigrateLegacySettings(const base::ListValue& args);
   void HandleSetSetting(const base::ListValue& args);
@@ -71,11 +76,22 @@ private:
   void HandleResetUsageStats(const base::ListValue& args);
   void HandleRecordApiUsage(const base::ListValue& args);
   void HandleRecordToolUsage(const base::ListValue& args);
+  // Settings asks a registered dao://agent handler of the same profile to
+  // run the test with pi-ai, then relays the page's result back.
+  void HandleRegisterConnectionTester(const base::ListValue& args);
+  void HandleTestConnection(const base::ListValue& args);
+  void HandleConnectionTestResult(const base::ListValue& args);
+  void StartConnectionTest(base::DictValue config,
+                           ConnectionTestCallback callback);
+  void UnregisterConnectionTester();
   void OnSettingsChanged();
   void OnUsageStatsChanged();
   PrefService* GetPrefs();
 
   PrefChangeRegistrar pref_change_registrar_;
+  base::flat_map<std::string, ConnectionTestCallback>
+      pending_connection_tests_;
+  int next_connection_test_id_ = 0;
   base::WeakPtrFactory<DaoAgentSettingsHandler> weak_factory_{this};
 };
 

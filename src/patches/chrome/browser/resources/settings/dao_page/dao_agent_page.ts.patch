@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
-@@ -0,0 +1,912 @@
+@@ -0,0 +1,974 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -38,6 +38,7 @@ index 0000000000..0000000001
 +  isDaoAgentWorkspaceSummary,
 +} from './dao_agent_settings_browser_proxy.js';
 +import type {
++  DaoAgentConnectionTestResult,
 +  DaoAgentPlugin,
 +  DaoAgentMemorySummary,
 +  DaoAgentSettingsBrowserProxy,
@@ -76,6 +77,9 @@ index 0000000000..0000000001
 +      agentApiKey_: {type: String, value: ''},
 +      agentBaseUrl_: {type: String, value: 'https://api.openai.com/v1'},
 +      agentModel_: {type: String, value: 'gpt-5'},
++      agentConnectionTesting_: {type: Boolean, value: false},
++      agentConnectionTestFailed_: {type: Boolean, value: false},
++      agentConnectionTestMessage_: {type: String, value: ''},
 +      agentSoul_: {type: String, value: ''},
 +      agentSoulResetSucceeded_: {type: Boolean, value: false},
 +      agentSoulResetError_: {type: Boolean, value: false},
@@ -175,6 +179,11 @@ index 0000000000..0000000001
 +  declare private agentApiKey_: string;
 +  declare private agentBaseUrl_: string;
 +  declare private agentModel_: string;
++  declare private agentConnectionTesting_: boolean;
++  declare private agentConnectionTestFailed_: boolean;
++  declare private agentConnectionTestMessage_: string;
++  // Drops results of a test started before the config changed.
++  private agentConnectionTestGeneration_ = 0;
 +  declare private agentSoul_: string;
 +  declare private agentSoulResetSucceeded_: boolean;
 +  declare private agentSoulResetError_: boolean;
@@ -617,6 +626,57 @@ index 0000000000..0000000001
 +    return AGENT_PROVIDER_BASE_URL_PLACEHOLDERS[provider] || '';
 +  }
 +
++  private showAgentBaseUrl_(provider: string): boolean {
++    return provider in AGENT_PROVIDER_BASE_URL_PLACEHOLDERS;
++  }
++
++  private resetAgentConnectionTest_() {
++    this.agentConnectionTestGeneration_++;
++    this.agentConnectionTesting_ = false;
++    this.agentConnectionTestMessage_ = '';
++  }
++
++  private async onTestAgentConnection_(): Promise<void> {
++    this.resetAgentConnectionTest_();
++    const generation = this.agentConnectionTestGeneration_;
++    const model = this.agentModel_;
++    this.agentConnectionTesting_ = true;
++    let result: DaoAgentConnectionTestResult;
++    try {
++      result = await this.agentSettingsBrowserProxy_.testConnection({
++        provider: this.agentActiveProvider_,
++        model,
++        apiKey: this.agentApiKey_,
++        baseUrl: this.agentBaseUrl_,
++      });
++    } catch (error) {
++      result = {
++        ok: false,
++        errorCode: 'provider',
++        error: error instanceof Error ? error.message : String(error),
++      };
++    }
++    if (generation !== this.agentConnectionTestGeneration_) {
++      return;
++    }
++    this.agentConnectionTesting_ = false;
++    this.agentConnectionTestFailed_ = !result.ok;
++    if (result.ok) {
++      this.agentConnectionTestMessage_ = loadTimeData.getStringF(
++          'daoAgentTestConnectionSuccess', model,
++          String(Math.round(result.latencyMs ?? 0)));
++    } else if (result.errorCode === 'timeout') {
++      this.agentConnectionTestMessage_ =
++          loadTimeData.getString('daoAgentTestConnectionTimeout');
++    } else if (result.errorCode === 'unavailable') {
++      this.agentConnectionTestMessage_ =
++          loadTimeData.getString('daoAgentTestConnectionUnavailable');
++    } else {
++      this.agentConnectionTestMessage_ = loadTimeData.getStringF(
++          'daoAgentTestConnectionFailed', result.error || '');
++    }
++  }
++
 +  private parseDisabledTools_(value: string|undefined): Set<string> {
 +    try {
 +      const parsed = JSON.parse(value || '[]');
@@ -802,9 +862,11 @@ index 0000000000..0000000001
 +    void this.setAgentSetting_(
 +        'dao_agent_active_provider', this.agentActiveProvider_);
 +    this.updateActiveAgentProviderFields_();
++    this.resetAgentConnectionTest_();
 +  }
 +
 +  private onAgentProviderFieldChange_() {
++    this.resetAgentConnectionTest_();
 +    const providers = this.getAgentProviders_();
 +    providers[this.agentActiveProvider_] = {
 +      apiKey: this.agentApiKey_,

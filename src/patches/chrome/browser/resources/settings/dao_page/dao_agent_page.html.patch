@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.html
-@@ -0,0 +1,1349 @@
+@@ -0,0 +1,1384 @@
 +<style include="settings-shared">
 +  :host {
 +    --dao-agent-content-inset: 18px;
@@ -210,6 +210,15 @@ index 0000000000..0000000001
 +
 +  .dao-agent-card-feedback .error {
 +    color: var(--dao-settings-text);
++  }
++
++  .dao-agent-connection-feedback {
++    overflow-wrap: anywhere;
++    text-align: start;
++  }
++
++  .dao-agent-connection-feedback[failed] {
++    color: var(--cr-fallback-color-error);
 +  }
 +
 +  .dao-agent-management-group {
@@ -538,19 +547,26 @@ index 0000000000..0000000001
 +            <select id="daoAgentProvider" class="dao-agent-select"
 +                value="{{agentActiveProvider_::change}}"
 +                on-change="onAgentProviderChange_">
-+              <option value="openai-compatible">
-+                $i18n{daoAgentProviderOpenAiCompatible}
-+              </option>
-+              <option value="openai">$i18n{daoAgentProviderOpenAi}</option>
-+              <option value="anthropic">
-+                $i18n{daoAgentProviderAnthropic}
-+              </option>
-+              <option value="google">$i18n{daoAgentProviderGoogle}</option>
-+              <option value="groq">$i18n{daoAgentProviderGroq}</option>
-+              <option value="xai">$i18n{daoAgentProviderXai}</option>
-+              <option value="openrouter">
-+                $i18n{daoAgentProviderOpenRouter}
-+              </option>
++              <optgroup label="$i18n{daoAgentProviderGroupApiFormat}">
++                <option value="openai-compatible">
++                  $i18n{daoAgentProviderOpenAiCompatible}
++                </option>
++                <option value="anthropic-compatible">
++                  $i18n{daoAgentProviderAnthropicCompatible}
++                </option>
++              </optgroup>
++              <optgroup label="$i18n{daoAgentProviderGroupVendor}">
++                <option value="openai">$i18n{daoAgentProviderOpenAi}</option>
++                <option value="anthropic">
++                  $i18n{daoAgentProviderAnthropic}
++                </option>
++                <option value="google">$i18n{daoAgentProviderGoogle}</option>
++                <option value="groq">$i18n{daoAgentProviderGroq}</option>
++                <option value="xai">$i18n{daoAgentProviderXai}</option>
++                <option value="openrouter">
++                  $i18n{daoAgentProviderOpenRouter}
++                </option>
++              </optgroup>
 +            </select>
 +          </label>
 +          <cr-input id="daoAgentModel" label="$i18n{daoAgentModelLabel}"
@@ -561,12 +577,31 @@ index 0000000000..0000000001
 +              label="$i18n{daoAgentApiKeyLabel}" value="{{agentApiKey_}}"
 +              on-change="onAgentProviderFieldChange_">
 +          </cr-input>
-+          <cr-input id="daoAgentBaseUrl" label="$i18n{daoAgentBaseUrlLabel}"
-+              value="{{agentBaseUrl_}}"
-+              placeholder="[[getAgentBaseUrlPlaceholder_(agentActiveProvider_)]]"
-+              on-change="onAgentProviderFieldChange_">
-+          </cr-input>
++          <template is="dom-if"
++              if="[[showAgentBaseUrl_(agentActiveProvider_)]]" restamp>
++            <cr-input id="daoAgentBaseUrl" label="$i18n{daoAgentBaseUrlLabel}"
++                value="{{agentBaseUrl_}}"
++                placeholder="[[getAgentBaseUrlPlaceholder_(agentActiveProvider_)]]"
++                on-change="onAgentProviderFieldChange_">
++            </cr-input>
++          </template>
 +        </div>
++        <div class="dao-agent-card-actions">
++          <cr-button id="testAgentConnectionButton"
++              disabled="[[agentConnectionTesting_]]"
++              on-click="onTestAgentConnection_">
++            <template is="dom-if" if="[[agentConnectionTesting_]]">
++              $i18n{daoAgentTestConnectionRunning}
++            </template>
++            <template is="dom-if" if="[[!agentConnectionTesting_]]">
++              $i18n{daoAgentTestConnection}
++            </template>
++          </cr-button>
++        </div>
++        <div id="agentConnectionTestStatus"
++            class="dao-agent-card-feedback dao-agent-connection-feedback"
++            failed$="[[agentConnectionTestFailed_]]" role="status"
++            aria-live="polite">[[agentConnectionTestMessage_]]</div>
 +      </div>
 +      <template is="dom-repeat" items="[[agentPlugins_]]" as="plugin">
 +        <div class="dao-agent-card">

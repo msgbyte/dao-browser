@@ -164,7 +164,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Sites listed below follow a custom setting instead of the default
      </message>
      <message name="IDS_SETTINGS_SITE_DATA_PAGE_ALLOW_EXCEPTIONS_SUB_HEADING" desc="1 of 3. A label within 'Customized behaviors' that allows for exceptions to the 'On-device site data' setting. This label and the list of sites that can appear beneath it is only relevant if the user has chosen to not allow 'on-device site data' as the default value above.">
-@@ -3836,7 +3836,568 @@
+@@ -3836,7 +3836,595 @@
      <!-- Sync / People Page -->
      <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
        You and Google
@@ -249,6 +249,33 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_OPENROUTER" desc="Name of the OpenRouter model provider option.">
 +      OpenRouter
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_ANTHROPIC_COMPATIBLE" desc="Name of the option for any endpoint that speaks the Anthropic Messages API.">
++      Anthropic-compatible
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_GROUP_API_FORMAT" desc="Group heading in the Dao Agent provider selector for options that take a custom base URL and only fix the API format.">
++      API formats
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_PROVIDER_GROUP_VENDOR" desc="Group heading in the Dao Agent provider selector for named model providers with a built-in endpoint.">
++      Service providers
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TEST_CONNECTION" desc="Button that sends a small request with the Dao Agent model settings to check they work.">
++      Test connection
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TEST_CONNECTION_RUNNING" desc="Button label while the Dao Agent connection test is running.">
++      Testing...
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TEST_CONNECTION_SUCCESS" desc="Shown after the Dao Agent connection test succeeds.">
++      Connected to <ph name="MODEL">$1<ex>claude-sonnet-4-5</ex></ph> in <ph name="DURATION">$2<ex>820</ex></ph> ms
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TEST_CONNECTION_FAILED" desc="Shown when the Dao Agent connection test fails, followed by the provider's error message, which is not translated.">
++      Connection failed: <ph name="ERROR">$1<ex>401 invalid x-api-key</ex></ph>
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TEST_CONNECTION_TIMEOUT" desc="Shown when the Dao Agent connection test gets no response in time.">
++      The request timed out. Check your network and try again.
++    </message>
++    <message name="IDS_SETTINGS_DAO_AGENT_TEST_CONNECTION_UNAVAILABLE" desc="Shown when the Dao Agent panel, which runs the connection test, has not loaded yet.">
++      The agent panel isn't ready yet. Try again in a few seconds.
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_AGENT_MODEL_LABEL" desc="Label for the Dao Agent model name field.">
 +      Model
@@ -733,7 +760,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
      <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
        Google Profile photo
      </message>
-@@ -4473,40 +5034,40 @@
+@@ -4473,40 +5061,40 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_NO_PASSWORDS_POLICY" desc="Subtitle of the passwords card in SafetyHub when there are no saved passwords and saving of passwords is disabled through enterprise policy. This text is shown below the header 'No saved passwords'. It explains that the SafetyHub features for passwords are not available since the user's organization has a policy in place that prevents the user from saving passwords in Chrome.">
        Your organization turned off saving passwords
      </message>
@@ -786,7 +813,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        Go to notification settings
      </message>
      <message name="IDS_SETTINGS_SAFETY_HUB_USER_EDU_INCOGNITO_SUBHEADER" desc="The subheader of the second item in the 'User Education Module' in the Safety Hub page. This item explains Incognito mode.">
-@@ -4516,21 +5077,21 @@
+@@ -4516,21 +5104,21 @@
        Safe Browsing
      </message>
      <if expr="not is_chromeos">
@@ -812,7 +839,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
        {NUM_SITES, plural,
         =1 {You can stop this site from sending future notifications.}
         other {You can stop these sites from sending future notifications.}}
-@@ -4558,31 +5119,31 @@
+@@ -4558,31 +5146,31 @@
      <message name="IDS_SETTINGS_SAFETY_HUB_SAFE_BROWSING_MENU_NOTIFICATION" desc="When Safe Browsing is disabled, the proactive Safety Hub feature encourages users to turn on the feature. This label is for the notification in Chrome's three-dot menu.">
        Safe Browsing is off
      </message>

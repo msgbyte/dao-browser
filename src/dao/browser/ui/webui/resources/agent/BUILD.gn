@@ -53,6 +53,7 @@ build_webui("build") {
     "dao_tool_renderer.ts",
     "llm_cost.ts",
     "llm_config.ts",
+    "llm_connection_test.ts",
     "memory.ts",
     "index.ts",
     "model_capabilities.ts",

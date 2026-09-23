@@ -87,8 +87,8 @@ const piStream = (piAgent as any).stream as
     }) => AsyncIterable<PiEvent> & {abort?: () => void};
 
 export interface LLMProviderConfig {
-  // One of pi-ai's KnownProvider values, or "openai-compatible" to use the
-  // classic endpoint path (baseUrl/v1/chat/completions).
+  // One of pi-ai's KnownProvider values, or an API format
+  // ("openai-compatible" / "anthropic-compatible") on a user base URL.
   provider: string;
   apiKey: string;
   baseUrl?: string;

@@ -35,7 +35,7 @@ import {
   renderShareImage,
 } from './dao_share_image.js';
 import {reportTelemetryEvent} from './dao_telemetry.js';
-import {resolvePiModel} from './pi_model.js';
+import {piProviderId, resolvePiModel} from './pi_model.js';
 import {buildAgentTools, createBrowserToolExecutionHooks} from './pi_tool_adapter.js';
 import {initializeBrowserToolCatalog} from './browser_tool_catalog.js';
 import {toolConfigChannel} from './tool_catalog.js';
@@ -1276,8 +1276,7 @@ export class DaoChatView extends CrLitElement {
         // Always read the latest active config so rotating the key in the
         // settings view takes effect on the next prompt without a reload.
         const c = getActiveLLMConfig();
-        const wanted = c.provider === 'openai-compatible' ? 'openai' : c.provider;
-        return provider === wanted ? c.apiKey : undefined;
+        return provider === piProviderId(c.provider) ? c.apiKey : undefined;
       },
     });
 

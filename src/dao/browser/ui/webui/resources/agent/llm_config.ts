@@ -31,6 +31,14 @@ export const LLM_PROVIDERS: ProviderSpec[] = [
     apiKeyPlaceholder: 'sk-...',
   },
   {
+    id: 'anthropic-compatible',
+    label: 'Anthropic-compatible',
+    needsBaseUrl: true,
+    defaultModel: 'claude-sonnet-4-5',
+    defaultBaseUrl: 'https://api.anthropic.com',
+    apiKeyPlaceholder: 'sk-ant-...',
+  },
+  {
     id: 'openai',
     label: 'OpenAI',
     needsBaseUrl: false,

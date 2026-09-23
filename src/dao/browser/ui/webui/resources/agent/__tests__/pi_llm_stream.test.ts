@@ -163,7 +163,7 @@ describe('callLLMStreamingWithPi', () => {
     });
   });
 
-  it('keeps gateway model ids on the provider API with the user base URL',
+  it('routes anthropic-compatible gateway models to the user base URL',
      async () => {
     piMocks.getModel.mockReturnValue(undefined);
     piMocks.getModels.mockReturnValue([{
@@ -184,7 +184,7 @@ describe('callLLMStreamingWithPi', () => {
 
     await callLLMStreamingWithPi(
         [{role: 'user', content: 'hello'}], [], callbacks(), {
-          provider: 'anthropic',
+          provider: 'anthropic-compatible',
           apiKey: 'key',
           baseUrl: 'https://gateway.example/anthropic/',
           model: 'vendor/claude-custom',

@@ -366,11 +366,18 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - Model/provider credentials, session/display behavior, persona, page and
   conversation context, web search, memory/proactive suggestions, and Dream
   analysis are managed in the Agent Settings section
-- The Base URL field shows a per-provider placeholder mirroring pi-ai's
-  catalog endpoint (OpenAI-style URLs include `/v1`; Anthropic's does not).
-  A non-empty Base URL overrides the endpoint for every provider, and model
-  ids outside pi-ai's catalog (gateway aliases) reuse the provider's native
-  API via `pi_model.ts`
+- The provider selector groups API formats (OpenAI-compatible,
+  Anthropic-compatible) apart from named service providers. Only API formats
+  show the Base URL field; its placeholder shows whether to include `/v1`
+  (OpenAI-style URLs do, Anthropic's does not, and a trailing `/v1` on an
+  Anthropic-compatible URL is dropped). Named providers always use pi-ai's
+  catalog endpoint, and model ids outside the catalog (new releases, gateway
+  aliases) reuse the provider's native API via `pi_model.ts`
+- **Test connection** sends a one-line prompt with the current form values
+  through the preloaded `chrome://agent` page (`llm_connection_test.ts`), so it
+  exercises the same pi-ai path as chat. `DaoAgentSettingsHandler` relays the
+  request between the two pages; the card shows the latency on success, or the
+  provider's raw error, a timeout, or that the agent panel is not ready yet
 - The persona card can restore the runtime default, while the Dream card can
   generate a report immediately when Memory and Dream analysis are enabled and
   keeps the existing Dream report history link available
@@ -420,6 +427,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - `pi_app_storage.ts` — Persistent storage abstraction
 - `pi_llm_stream.ts` — Streaming LLM client
 - `pi_model.ts` — Resolves provider/model/base URL into a pi-ai model
+- `llm_connection_test.ts` — Runs the Settings "Test connection" request
 - `pi_tool_adapter.ts` — Tool adapter
 - `chromium_types.d.ts` — Type bindings for chromium WebUI APIs
 - `readability_bundle.ts` / `turndown_bundle.ts` — Reader-mode + HTML→Markdown bundles

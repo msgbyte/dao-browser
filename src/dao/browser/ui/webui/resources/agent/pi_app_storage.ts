@@ -16,6 +16,7 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as pi from './vendor/pi_runtime_bundle.js';
 import {getActiveLLMConfig, LLM_PROVIDERS} from './llm_config.js';
+import {piProviderId} from './pi_model.js';
 
 interface StorageBackend {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,9 +80,7 @@ async function initOnce(): Promise<AppStorageLike> {
   try {
     for (const spec of LLM_PROVIDERS) {
       // Map Dao's provider id to what pi-ai internally calls `provider`.
-      // For 'openai-compatible' we stash under 'openai' because the model
-      // we construct reports provider='openai'.
-      const mirrorId = spec.id === 'openai-compatible' ? 'openai' : spec.id;
+      const mirrorId = piProviderId(spec.id);
       const active = getActiveLLMConfig();
       if (active.provider === spec.id && active.apiKey) {
         await providerKeys.set(mirrorId, active.apiKey);
@@ -107,8 +106,7 @@ export async function syncActiveKeyToPiStorage(): Promise<void> {
   const storage = await ensurePiAppStorage();
   const active = getActiveLLMConfig();
   if (!active.apiKey) return;
-  const mirrorId =
-      active.provider === 'openai-compatible' ? 'openai' : active.provider;
+  const mirrorId = piProviderId(active.provider);
   try {
     await storage.providerKeys.set(mirrorId, active.apiKey);
   } catch (_) { /* non-fatal */ }

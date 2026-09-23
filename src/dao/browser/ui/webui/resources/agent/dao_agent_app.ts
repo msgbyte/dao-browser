@@ -14,6 +14,7 @@ import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
 import {callNative} from './agent_bridge.js';
 import './dao_chat_view.js';
 import './dao_dream_dispatcher.js';
+import './llm_connection_test.js';
 import type {DaoChatView} from './dao_chat_view.js';
 import {initI18n} from './i18n/i18n.js';
 import {refreshSkillRegistryIfStale} from './skill_registry.js';

@@ -4,6 +4,7 @@
 
 #include "dao/browser/agent/dao_agent_settings_handler.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <set>
@@ -11,9 +12,13 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/adapters.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
@@ -34,6 +39,9 @@ namespace {
 
 constexpr char kSettingsChangedEvent[] = "dao-agent-settings-changed";
 constexpr char kUsageStatsChangedEvent[] = "dao-agent-usage-stats-changed";
+constexpr char kConnectionTestEvent[] = "dao-agent-connection-test";
+// Gateways sometimes answer with a full HTML error page.
+constexpr size_t kMaxConnectionTestErrorBytes = 1024;
 constexpr size_t kMaxSettingValueBytes = 256 * 1024;
 constexpr size_t kMaxSettingsBytes = 512 * 1024;
 
@@ -56,6 +64,20 @@ constexpr std::array<std::string_view, 17> kManagedStringSettings = {
     "dao_proactive_threshold",  "dao_search_source",
     "dao_jina_api_key",
 };
+
+// dao://agent handlers whose page can run a connection test, newest last.
+std::vector<raw_ptr<DaoAgentSettingsHandler>>& ConnectionTesters() {
+  static base::NoDestructor<std::vector<raw_ptr<DaoAgentSettingsHandler>>>
+      testers;
+  return *testers;
+}
+
+base::DictValue ConnectionTestUnavailable() {
+  base::DictValue result;
+  result.Set("ok", false);
+  result.Set("errorCode", "unavailable");
+  return result;
+}
 
 bool ParseBooleanSetting(const base::Value& value, bool* parsed) {
   if (!value.is_string()) {
@@ -490,7 +512,11 @@ MigrateLegacyDaoAgentSettings(PrefService* prefs,
 }
 
 DaoAgentSettingsHandler::DaoAgentSettingsHandler() = default;
-DaoAgentSettingsHandler::~DaoAgentSettingsHandler() = default;
+
+DaoAgentSettingsHandler::~DaoAgentSettingsHandler() {
+  weak_factory_.InvalidateWeakPtrs();
+  UnregisterConnectionTester();
+}
 
 void DaoAgentSettingsHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
@@ -541,6 +567,19 @@ void DaoAgentSettingsHandler::RegisterMessages() {
       "recordDaoAgentToolUsage",
       base::BindRepeating(&DaoAgentSettingsHandler::HandleRecordToolUsage,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "registerDaoAgentConnectionTester",
+      base::BindRepeating(
+          &DaoAgentSettingsHandler::HandleRegisterConnectionTester,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "testDaoAgentConnection",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleTestConnection,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "daoAgentConnectionTestResult",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleConnectionTestResult,
+                          base::Unretained(this)));
 }
 
 void DaoAgentSettingsHandler::OnJavascriptAllowed() {
@@ -567,6 +606,7 @@ void DaoAgentSettingsHandler::OnJavascriptAllowed() {
 void DaoAgentSettingsHandler::OnJavascriptDisallowed() {
   pref_change_registrar_.Reset();
   weak_factory_.InvalidateWeakPtrs();
+  UnregisterConnectionTester();
 }
 
 void DaoAgentSettingsHandler::HandleGetSettings(const base::ListValue& args) {
@@ -801,6 +841,97 @@ void DaoAgentSettingsHandler::HandleRecordToolUsage(
     return;
   }
   RecordDaoAgentToolUsage(GetPrefs(), args[0].GetString());
+}
+
+void DaoAgentSettingsHandler::HandleRegisterConnectionTester(
+    const base::ListValue& args) {
+  AllowJavascript();
+  auto& testers = ConnectionTesters();
+  if (std::ranges::find(testers, this) == testers.end()) {
+    testers.push_back(this);
+  }
+}
+
+void DaoAgentSettingsHandler::HandleTestConnection(
+    const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  base::DictValue config;
+  for (const char* key : {"provider", "model", "apiKey", "baseUrl"}) {
+    const std::string* value = args[1].GetDict().FindString(key);
+    if (!value) {
+      RejectJavascriptCallback(args[0],
+                               base::Value("invalid connection test config"));
+      return;
+    }
+    config.Set(key, *value);
+  }
+  ConnectionTestCallback callback = base::BindOnce(
+      [](base::WeakPtr<DaoAgentSettingsHandler> handler,
+         std::string callback_id, base::DictValue result) {
+        if (handler) {
+          handler->ResolveJavascriptCallback(base::Value(callback_id), result);
+        }
+      },
+      weak_factory_.GetWeakPtr(), args[0].GetString());
+  PrefService* prefs = GetPrefs();
+  for (auto& tester : base::Reversed(ConnectionTesters())) {
+    if (tester->GetPrefs() == prefs) {
+      tester->StartConnectionTest(std::move(config), std::move(callback));
+      return;
+    }
+  }
+  std::move(callback).Run(ConnectionTestUnavailable());
+}
+
+void DaoAgentSettingsHandler::StartConnectionTest(
+    base::DictValue config,
+    ConnectionTestCallback callback) {
+  const std::string request_id =
+      base::NumberToString(++next_connection_test_id_);
+  pending_connection_tests_.emplace(request_id, std::move(callback));
+  config.Set("requestId", request_id);
+  FireWebUIListener(kConnectionTestEvent, config);
+}
+
+void DaoAgentSettingsHandler::HandleConnectionTestResult(
+    const base::ListValue& args) {
+  if (args.size() != 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  auto it = pending_connection_tests_.find(args[0].GetString());
+  if (it == pending_connection_tests_.end()) {
+    return;
+  }
+  ConnectionTestCallback callback = std::move(it->second);
+  pending_connection_tests_.erase(it);
+
+  const base::DictValue& reported = args[1].GetDict();
+  base::DictValue result;
+  result.Set("ok", reported.FindBool("ok").value_or(false));
+  if (std::optional<double> latency = reported.FindDouble("latencyMs")) {
+    result.Set("latencyMs", *latency);
+  }
+  if (const std::string* code = reported.FindString("errorCode")) {
+    result.Set("errorCode", *code);
+  }
+  if (const std::string* error = reported.FindString("error")) {
+    result.Set("error", base::TruncateUTF8ToByteSize(
+                            *error, kMaxConnectionTestErrorBytes));
+  }
+  std::move(callback).Run(std::move(result));
+}
+
+void DaoAgentSettingsHandler::UnregisterConnectionTester() {
+  std::erase(ConnectionTesters(), this);
+  // Tests this page accepted can no longer be answered.
+  auto pending = std::move(pending_connection_tests_);
+  pending_connection_tests_.clear();
+  for (auto& [request_id, callback] : pending) {
+    std::move(callback).Run(ConnectionTestUnavailable());
+  }
 }
 
 void DaoAgentSettingsHandler::OnSettingsChanged() {
