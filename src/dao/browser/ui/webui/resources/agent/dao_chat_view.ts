@@ -29,14 +29,13 @@ import {markdownSections} from './dao_markdown.js';
 import {buildMemoryContextText, hasMemoryContextPayload, type NativeMemoryContext} from './dao_memory_context.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {clearHomeToolContext, getHomeSystemPrompt, setHomeToolContext, type HomeToolContext} from './home_tools.js';
-import {lookupModelCapabilities} from './model_capabilities.js';
 import {buildPageAttachment, buildSelectionAttachment, cancelElementPicker, captureCurrentPageMarkdown, captureElementScreenshotFromPage, clearCurrentSelection, fetchCurrentPageInfo, fetchCurrentSelection, fetchPageProbeState, insertTextIntoFocusedInput, isCapturablePageUrl, startElementPicker, type PageInfo, type PiAttachment, type SelectionCapture} from './dao_page_capture.js';
 import {
   copyPngBlobToClipboard,
   renderShareImage,
 } from './dao_share_image.js';
 import {reportTelemetryEvent} from './dao_telemetry.js';
-import {lookupCostByModelId} from './llm_cost.js';
+import {resolvePiModel} from './pi_model.js';
 import {buildAgentTools, createBrowserToolExecutionHooks} from './pi_tool_adapter.js';
 import {initializeBrowserToolCatalog} from './browser_tool_catalog.js';
 import {toolConfigChannel} from './tool_catalog.js';
@@ -138,44 +137,6 @@ interface PiChatPanel extends HTMLElement {
 interface PiMessageEditor extends HTMLElement {
   attachments?: PiAttachment[];
   requestUpdate?: () => void;
-}
-
-function buildOpenAICompatModel(modelId: string, baseUrl: string) {
-  let base = baseUrl.replace(/\/+$/, '');
-  if (!base.endsWith('/v1')) base += '/v1';
-  const caps = lookupModelCapabilities(modelId);
-  return {
-    id: modelId,
-    name: modelId,
-    api: 'openai-completions',
-    provider: 'openai',
-    baseUrl: base,
-    reasoning: false,
-    input: ['text', 'image'],
-    cost: lookupCostByModelId(modelId),
-    contextWindow: caps.contextWindow,
-    maxTokens: caps.maxTokens,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function resolveModel(config: ReturnType<typeof getActiveLLMConfig>): any {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mod = pi as any;
-  if (config.provider === 'openai-compatible') {
-    return buildOpenAICompatModel(
-        config.model, config.baseUrl || 'https://api.openai.com');
-  }
-  try {
-    return mod.getModel(config.provider, config.model);
-  } catch (_) {
-    // Unknown model id for a known provider — fall back to a minimal
-    // openai-completions shim pointing at the configured baseUrl. The user
-    // still gets a working stream as long as the model name is valid on
-    // their endpoint.
-    return buildOpenAICompatModel(
-        config.model, config.baseUrl || 'https://api.openai.com');
-  }
 }
 
 // Renders the assistant's Markdown answer to a self-contained HTML
@@ -1188,7 +1149,8 @@ export class DaoChatView extends CrLitElement {
     const Agent = mod.Agent as new (opts?: object) => PiAgent;
 
     const config = getActiveLLMConfig();
-    const model = resolveModel(config);
+    const model =
+        resolvePiModel(config.provider, config.model, config.baseUrl);
     const tools = buildAgentTools();
     const thinkingLevel: PiAgent['state']['thinkingLevel'] =
         model.reasoning ? 'medium' : 'off';
@@ -3511,7 +3473,8 @@ export class DaoChatView extends CrLitElement {
   private refreshModel_() {
     if (!this.agent_) return;
     const config = getActiveLLMConfig();
-    const model = resolveModel(config);
+    const model =
+        resolvePiModel(config.provider, config.model, config.baseUrl);
     this.agent_.state.model = model;
     this.agent_.state.thinkingLevel = model.reasoning ? 'medium' : 'off';
     void syncActiveKeyToPiStorage();

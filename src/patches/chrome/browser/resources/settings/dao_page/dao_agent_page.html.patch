@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.html
-@@ -0,0 +1,1348 @@
+@@ -0,0 +1,1349 @@
 +<style include="settings-shared">
 +  :host {
 +    --dao-agent-content-inset: 18px;
@@ -563,6 +563,7 @@ index 0000000000..0000000001
 +          </cr-input>
 +          <cr-input id="daoAgentBaseUrl" label="$i18n{daoAgentBaseUrlLabel}"
 +              value="{{agentBaseUrl_}}"
++              placeholder="[[getAgentBaseUrlPlaceholder_(agentActiveProvider_)]]"
 +              on-change="onAgentProviderFieldChange_">
 +          </cr-input>
 +        </div>

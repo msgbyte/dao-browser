@@ -58,6 +58,7 @@ build_webui("build") {
     "model_capabilities.ts",
     "pi_app_storage.ts",
     "pi_llm_stream.ts",
+    "pi_model.ts",
     "pi_tool_adapter.ts",
     "readability_bundle.ts",
     "dao_telemetry.ts",

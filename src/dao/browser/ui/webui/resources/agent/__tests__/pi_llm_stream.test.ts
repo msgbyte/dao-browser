@@ -7,11 +7,13 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 const piMocks = vi.hoisted(() => ({
   stream: vi.fn(),
   getModel: vi.fn(),
+  getModels: vi.fn(),
 }));
 
 vi.mock('../vendor/pi_runtime_bundle.js', () => ({
   stream: (...args: unknown[]) => piMocks.stream(...args),
   getModel: (...args: unknown[]) => piMocks.getModel(...args),
+  getModels: (...args: unknown[]) => piMocks.getModels(...args),
 }));
 
 import {
@@ -50,6 +52,7 @@ describe('callLLMStreamingWithPi', () => {
   beforeEach(() => {
     piMocks.stream.mockReset();
     piMocks.getModel.mockReset();
+    piMocks.getModels.mockReset();
     localStorage.clear();
   });
 
@@ -157,6 +160,44 @@ describe('callLLMStreamingWithPi', () => {
     expect(options).toMatchObject({
       apiKey: 'key',
       reasoningEffort: 'medium',
+    });
+  });
+
+  it('keeps gateway model ids on the provider API with the user base URL',
+     async () => {
+    piMocks.getModel.mockReturnValue(undefined);
+    piMocks.getModels.mockReturnValue([{
+      id: 'claude-sonnet-4-5',
+      name: 'Claude Sonnet 4.5',
+      api: 'anthropic-messages',
+      provider: 'anthropic',
+      baseUrl: 'https://api.anthropic.com',
+      reasoning: true,
+      input: ['text', 'image'],
+      cost: {input: 3, output: 15, cacheRead: 0, cacheWrite: 0},
+      contextWindow: 200000,
+      maxTokens: 64000,
+    }]);
+    piMocks.stream.mockReturnValue(events([
+      {type: 'done', message: {usage: {input: 1, output: 1}}},
+    ]));
+
+    await callLLMStreamingWithPi(
+        [{role: 'user', content: 'hello'}], [], callbacks(), {
+          provider: 'anthropic',
+          apiKey: 'key',
+          baseUrl: 'https://gateway.example/anthropic/',
+          model: 'vendor/claude-custom',
+        });
+
+    expect(piMocks.getModels).toHaveBeenCalledWith('anthropic');
+    const [model] = piMocks.stream.mock.calls[0];
+    expect(model).toMatchObject({
+      id: 'vendor/claude-custom',
+      api: 'anthropic-messages',
+      provider: 'anthropic',
+      baseUrl: 'https://gateway.example/anthropic',
+      reasoning: false,
     });
   });
 

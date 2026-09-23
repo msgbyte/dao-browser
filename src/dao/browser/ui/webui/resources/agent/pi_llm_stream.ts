@@ -12,8 +12,7 @@
 // the bits we actually use as local structural types to keep the adapter
 // type-safe on the consuming side.
 
-import {lookupModelCapabilities} from './model_capabilities.js';
-import {lookupCostByModelId} from './llm_cost.js';
+import {resolvePiModel, type PiModel} from './pi_model.js';
 import {decideProviderInjection} from './web_search/tier_provider.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import * as piAgent from './vendor/pi_runtime_bundle.js';
@@ -28,19 +27,6 @@ import type {
 
 // ---- Local structural types for pi-ai values imported above ----
 // Kept minimal — only fields the adapter reads or constructs.
-
-interface PiModel {
-  id: string;
-  name: string;
-  api: string;
-  provider: string;
-  baseUrl: string;
-  reasoning: boolean;
-  input: Array<'text'|'image'>;
-  cost: {input: number; output: number; cacheRead: number; cacheWrite: number};
-  contextWindow: number;
-  maxTokens: number;
-}
 
 interface PiTextContent { type: 'text'; text: string; }
 interface PiImageContent { type: 'image'; mimeType: string; data: string; }
@@ -100,10 +86,6 @@ const piStream = (piAgent as any).stream as
       reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
     }) => AsyncIterable<PiEvent> & {abort?: () => void};
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const piGetModel = (piAgent as any).getModel as
-    (provider: string, modelId: string) => PiModel;
-
 export interface LLMProviderConfig {
   // One of pi-ai's KnownProvider values, or "openai-compatible" to use the
   // classic endpoint path (baseUrl/v1/chat/completions).
@@ -112,26 +94,6 @@ export interface LLMProviderConfig {
   baseUrl?: string;
   model: string;
   signal?: AbortSignal;
-}
-
-function buildOpenAICompatModel(modelId: string, baseUrl: string): PiModel {
-  // pi-ai appends `/chat/completions` itself when the API is
-  // `openai-completions`; strip trailing slashes and ensure `/v1`.
-  let base = baseUrl.replace(/\/+$/, '');
-  if (!base.endsWith('/v1')) base += '/v1';
-  const caps = lookupModelCapabilities(modelId);
-  return {
-    id: modelId,
-    name: modelId,
-    api: 'openai-completions',
-    provider: 'openai',
-    baseUrl: base,
-    reasoning: false,
-    input: ['text', 'image'],
-    cost: lookupCostByModelId(modelId),
-    contextWindow: caps.contextWindow,
-    maxTokens: caps.maxTokens,
-  };
 }
 
 function convertTools(tools: ToolDefinition[]):
@@ -242,11 +204,8 @@ function convertMessages(msgs: ChatMessage[]):
 export async function callLLMStreamingWithPi(
     msgs: ChatMessage[], tools: ToolDefinition[],
     callbacks: StreamCallbacks, config: LLMProviderConfig): Promise<void> {
-  const model = config.provider === 'openai-compatible'
-      ? buildOpenAICompatModel(
-          config.model,
-          config.baseUrl ?? 'https://api.openai.com')
-      : piGetModel(config.provider, config.model);
+  const model =
+      resolvePiModel(config.provider, config.model, config.baseUrl ?? '');
 
   const decision = decideProviderInjection(config.provider, config.model);
   let effectiveTools = tools;

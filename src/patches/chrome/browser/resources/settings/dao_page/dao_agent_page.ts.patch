@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
-@@ -0,0 +1,907 @@
+@@ -0,0 +1,912 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -30,6 +30,7 @@ index 0000000000..0000000001
 +import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
 +
 +import {
++  AGENT_PROVIDER_BASE_URL_PLACEHOLDERS,
 +  AGENT_PROVIDER_DEFAULTS,
 +  AGENT_TOOL_GROUPS,
 +  DaoAgentSettingsBrowserProxyImpl,
@@ -610,6 +611,10 @@ index 0000000000..0000000001
 +    this.agentApiKey_ = provider?.apiKey || '';
 +    this.agentBaseUrl_ = provider?.baseUrl || defaults.baseUrl;
 +    this.agentModel_ = provider?.model || defaults.model;
++  }
++
++  private getAgentBaseUrlPlaceholder_(provider: string): string {
++    return AGENT_PROVIDER_BASE_URL_PLACEHOLDERS[provider] || '';
 +  }
 +
 +  private parseDisabledTools_(value: string|undefined): Set<string> {

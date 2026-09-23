@@ -366,6 +366,11 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - Model/provider credentials, session/display behavior, persona, page and
   conversation context, web search, memory/proactive suggestions, and Dream
   analysis are managed in the Agent Settings section
+- The Base URL field shows a per-provider placeholder mirroring pi-ai's
+  catalog endpoint (OpenAI-style URLs include `/v1`; Anthropic's does not).
+  A non-empty Base URL overrides the endpoint for every provider, and model
+  ids outside pi-ai's catalog (gateway aliases) reuse the provider's native
+  API via `pi_model.ts`
 - The persona card can restore the runtime default, while the Dream card can
   generate a report immediately when Memory and Dream analysis are enabled and
   keeps the existing Dream report history link available
@@ -414,6 +419,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - `llm_config.ts` — Model + provider configuration
 - `pi_app_storage.ts` — Persistent storage abstraction
 - `pi_llm_stream.ts` — Streaming LLM client
+- `pi_model.ts` — Resolves provider/model/base URL into a pi-ai model
 - `pi_tool_adapter.ts` — Tool adapter
 - `chromium_types.d.ts` — Type bindings for chromium WebUI APIs
 - `readability_bundle.ts` / `turndown_bundle.ts` — Reader-mode + HTML→Markdown bundles
