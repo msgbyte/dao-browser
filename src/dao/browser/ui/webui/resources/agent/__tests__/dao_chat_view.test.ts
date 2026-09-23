@@ -214,7 +214,9 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
       };
       this.convertToLlm = opts.convertToLlm || ((msgs: any[]) => msgs);
     }
-    subscribe() {
+    listeners: Array<(ev: any) => void> = [];
+    subscribe(listener: (ev: any) => void) {
+      this.listeners.push(listener);
       return () => {};
     }
     abort() {}
@@ -1962,6 +1964,42 @@ describe('dao-chat-view element picker', () => {
           clearTabWatchTimer(view);
         }
       });
+
+  it('keeps an aborted run out of the next session', async () => {
+    const {view} = await mountChatViewWithSend(vi.fn());
+    const chat = view as any;
+    const agent = chat.agent_;
+    // Pi appends the aborted run's final message to whatever transcript is
+    // current, then notifies listeners.
+    const emitRunEnd = () => {
+      const aborted = {
+        role: 'assistant', content: [], stopReason: 'aborted',
+        errorMessage: 'Request was aborted.',
+      };
+      agent.state.messages.push(aborted);
+      agent.listeners.forEach((l: (ev: unknown) => void) =>
+          l({type: 'message_end', message: aborted}));
+      agent.listeners.forEach((l: (ev: unknown) => void) =>
+          l({type: 'agent_end', messages: [aborted]}));
+      return aborted;
+    };
+
+    try {
+      agent.state.messages = [{role: 'user', content: 'stuck', dao: {id: 'u1'}}];
+      agent.state.isStreaming = true;
+      chat.startNewSession();
+      emitRunEnd();
+      expect(agent.state.messages).toEqual([]);
+
+      // A later run's output is kept.
+      agent.listeners.forEach((l: (ev: unknown) => void) =>
+          l({type: 'agent_start'}));
+      const kept = emitRunEnd();
+      expect(agent.state.messages).toEqual([kept]);
+    } finally {
+      clearTabWatchTimer(view);
+    }
+  });
 
   it('finishes native cleanup before starting an edit after abort', async () => {
     let stop!: () => void;

@@ -363,6 +363,11 @@ export class DaoChatView extends CrLitElement {
   private externalSubmitHistoryClaimToken_ = '';
   // Includes native setup and cleanup, beyond Pi's streaming lifetime.
   private agentTurn_: Promise<unknown>|null = null;
+  // Set when the user leaves a conversation (new chat / history switch) while
+  // its run is still unwinding from abort. Pi appends that run's final
+  // messages to whatever transcript is current, so drop them until the next
+  // run starts.
+  private discardRunOutput_ = false;
   // One-shot flag consumed by the monkey-patched sendMessage to skip
   // maybeAttachPage_/maybeAttachSelection_ on the first turn of a Cmd+T
   // session — the user asked a standalone question, not one about the page
@@ -1396,6 +1401,17 @@ export class DaoChatView extends CrLitElement {
     // more `requestUpdate()` on the AgentInterface once `isStreaming` has
     // been cleared.
     this.unsubscribeAgent_ = this.agent_.subscribe((ev) => {
+      if (ev?.type === 'agent_start') {
+        this.discardRunOutput_ = false;
+      }
+      if (ev?.type === 'message_end' && this.discardRunOutput_) {
+        const agent = this.agent_;
+        if (agent) {
+          agent.state.messages =
+              agent.state.messages.filter(msg => msg !== ev.message);
+        }
+        return;
+      }
       if (ev?.type === 'message_end' || ev?.type === 'agent_end') {
         const agent = this.agent_;
         if (!agent) return;
@@ -5109,6 +5125,7 @@ export class DaoChatView extends CrLitElement {
 
   private async loadSession_(id: string) {
     if (!this.agent_) return;
+    this.discardRunOutput_ ||= this.agent_.state.isStreaming;
     try {
       this.agent_.abort();
     } catch (_) { /* ignore */ }
@@ -5267,6 +5284,7 @@ export class DaoChatView extends CrLitElement {
   // on `message_end` and in `compactAgentMessages`).
   startNewSession() {
     if (!this.agent_) return;
+    this.discardRunOutput_ ||= this.agent_.state.isStreaming;
     try {
       this.agent_.abort();
     } catch (_) { /* ignore */ }
