@@ -62,7 +62,10 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   stored positions, including when other windows have hidden tabs or folders.
   Concurrent moves and unfoldering preserve one global membership per tab;
   stale edits cannot resurrect closed tabs. Legacy window snapshots are merged
-  on read without losing their folders. Off-the-record windows keep folders in
+  on read without losing their folders. URL matching for legacy references
+  without a stable ID is restricted to session-restored tabs, so newly opened
+  tabs never inherit an old folder or position merely by visiting the same URL.
+  Off-the-record windows keep folders in
   profile-owned memory and never access the regular profile's folder file.
   Every folder context menu
   exposes Unfolder, which removes the folder and releases its child tabs in
@@ -82,6 +85,11 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **dao_media_control.ts** — Per-tab media playback controls
 
 ### 1.3 Tab System Foundations
+- **New-tab placement** — Ordinary new tabs default to the top of the unpinned
+  list, including foreground/background links and navigation into another
+  window. Link tabs retain their opener without automatically joining its
+  native group. Explicit insertion positions and groups, session restoration,
+  duplication, drag placement, and Split View retain their intended positions.
 - **DaoTabIdentity** (`dao_tab_identity.h`) — Stable cross-window tab IDs decoupled from `TabStripModel` indices, migrated across WebContents replacement and persisted in session extra data
 - **DaoTabCommands** (`dao_tab_commands.h`) — Tab action vocabulary (duplicate, pin, copy URL, close, etc.)
 - **DaoCrossWindowDrag** (`dao_cross_window_drag.{h,cc}`) — Shared parsing and

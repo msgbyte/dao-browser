@@ -19,6 +19,7 @@ inline constexpr char kSidebarTabIdentitySessionKey[] = "dao.sidebar_tab_id";
 
 std::string GetOrCreateSidebarTabId(content::WebContents* contents);
 std::string GetSidebarTabId(content::WebContents* contents);
+bool IsSidebarTabSessionRestored(content::WebContents* contents);
 void SetSidebarTabId(content::WebContents* contents, const std::string& id);
 void RepairDuplicateSidebarTabIds(
     const std::vector<content::WebContents*>& contents);

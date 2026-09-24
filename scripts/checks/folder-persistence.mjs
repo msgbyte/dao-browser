@@ -226,6 +226,46 @@ try {
   assert.equal(folders(await stored()).length, 2, 'Stale creation snapshots merge');
   await expectProjection(connections, plans.map(p => p.tabId));
 
+  // A link opened from a bottom folder must precede that folder, both in the
+  // native strip and the rendered sidebar. Use a real page navigation.
+  const source = await connect(page.webSocketDebuggerUrl);
+  for (const background of [false, true]) {
+    const url = `about:blank#new-link-at-top-${background}`;
+    await browser.send('Target.activateTarget', {targetId: page.id});
+    if (background) {
+      await source('Runtime.evaluate', {expression: `
+        document.body.innerHTML = '<a style="position:fixed;inset:0" href="${url}">Link</a>';
+      `});
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await source('Input.dispatchMouseEvent', {
+          type, x: 20, y: 20, button: 'middle', clickCount: 1,
+        });
+      }
+    } else {
+      await source('Runtime.evaluate', {
+        expression: `window.open(${JSON.stringify(url)}, '_blank')`,
+        userGesture: true,
+      });
+    }
+    const linkOwner = await until(async () => {
+      for (const send of connections) {
+        const tab = await evaluate(send, `return app.unpinnedTabs_.find(
+          t => t.url === ${JSON.stringify(url)});`);
+        if (tab) return {send, tab};
+      }
+    }, 'new link tab');
+    assert.equal(linkOwner.tab.index, 0, 'Link from a folder opens at native index zero');
+    assert.equal(linkOwner.tab.isSessionRestored, false, 'New tabs are not restore candidates');
+    assert.equal(await evaluate(linkOwner.send, `
+      await app.updateComplete;
+      const list = app.shadowRoot.querySelector('dao-tab-list');
+      await list.updateComplete;
+      return list.shadowRoot.querySelector('dao-tab-item, dao-folder-item')?.tabData?.tabId;
+    `), linkOwner.tab.tabId, 'New link renders above the folder');
+    await evaluate(linkOwner.send, `chrome.send('closeTab', [${linkOwner.tab.index}]);`);
+    await expectProjection(connections, plans.map(p => p.tabId));
+  }
+
   const base = await stored();
   const rename = structuredClone(base);
   const collapse = structuredClone(base);
@@ -257,6 +297,10 @@ try {
       'Legacy window snapshots migrate without losing or duplicating tabs');
   await expectProjection(connections, plans.map(p => p.tabId));
   assert.equal(folders(await stored()).length, 2, 'Restart never prunes the other window');
+  for (const send of connections) {
+    assert.equal(await evaluate(send, 'return app.unpinnedTabs_[0].isSessionRestored;'),
+        true, 'Restored tabs remain eligible for legacy folder migration');
+  }
   const {browserContextId} = await browser.send('Target.createBrowserContext');
   await browser.send('Target.createTarget', {
     url: 'about:blank', newWindow: true, browserContextId,
@@ -373,7 +417,7 @@ try {
   await save(connections[0], good, good);
   assert.equal(await readFile(folderPath, 'utf8'), '{corrupt', 'Invalid files are never overwritten');
   await stop(browser);
-  console.log('PASS: legacy migration without load-time writes; incognito isolation and sidebar reload; multiwindow stale saves; concurrent folder fields and membership; per-window rendering; stable identities after restart; cross-window move and detach; reopened pin identity; tab closure; deletion; corrupt-file protection');
+  console.log('PASS: foreground/background links above folders; restore-only legacy matching; legacy migration without load-time writes; incognito isolation and sidebar reload; multiwindow stale saves; concurrent folder fields and membership; per-window rendering; stable identities after restart; cross-window move and detach; reopened pin identity; tab closure; deletion; corrupt-file protection');
 } finally {
   sockets.forEach(socket => socket.close());
   if (child && child.exitCode === null) {

@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/browser_tabstrip.cc b/chrome/browser/ui/browser_tabstrip.cc
+--- a/chrome/browser/ui/browser_tabstrip.cc
++++ b/chrome/browser/ui/browser_tabstrip.cc
+@@ -137,6 +137,8 @@
+ }
+ 
+ void ConfigureTabGroupForNavigation(NavigateParams* nav_params) {
+-  if (!nav_params->source_contents) {
++  // Dao: ordinary new tabs open at the top, outside the source tab's group.
++  // Keep any explicitly requested group and the existing explicit-index path.
++  if (nav_params->tabstrip_index == -1 || !nav_params->source_contents) {
+     return;
+   }

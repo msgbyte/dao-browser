@@ -1255,6 +1255,7 @@ base::DictValue DaoSidebarUIHandler::BuildSidebarState() {
     // Folder references need ordinary tab identities in the session log too.
     PersistBackingIdentity(contents);
     tab.Set("tabId", tab_id);
+    tab.Set("isSessionRestored", IsSidebarTabSessionRestored(contents));
     tab.Set("index", i);
     tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
     tab.Set("url", contents->GetVisibleURL().spec());
@@ -2039,6 +2040,7 @@ base::DictValue DaoSidebarUIHandler::BuildTabUpdate(int index) {
 
   const std::string tab_id = GetSidebarTabId(contents);
   tab.Set("tabId", tab_id);
+  tab.Set("isSessionRestored", IsSidebarTabSessionRestored(contents));
   tab.Set("index", index);
   tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   tab.Set("url", contents->GetVisibleURL().spec());

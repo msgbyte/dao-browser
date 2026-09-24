@@ -24,6 +24,7 @@ class DaoSidebarTabIdentityData : public base::SupportsUserData::Data {
   explicit DaoSidebarTabIdentityData(std::string id) : id_(std::move(id)) {}
 
   const std::string& id() const { return id_; }
+  bool session_restored = false;
 
  private:
   std::string id_;
@@ -52,6 +53,13 @@ std::string GetOrCreateSidebarTabId(content::WebContents* contents) {
 
 std::string GetSidebarTabId(content::WebContents* contents) {
   return GetOrCreateSidebarTabId(contents);
+}
+
+bool IsSidebarTabSessionRestored(content::WebContents* contents) {
+  auto* identity = contents ? static_cast<DaoSidebarTabIdentityData*>(
+                                 contents->GetUserData(&kDaoSidebarTabIdentityKey))
+                           : nullptr;
+  return identity && identity->session_restored;
 }
 
 void SetSidebarTabId(content::WebContents* contents, const std::string& id) {
@@ -83,7 +91,11 @@ void CopySidebarTabId(content::WebContents* old_contents,
   auto* identity = static_cast<DaoSidebarTabIdentityData*>(
       old_contents->GetUserData(&kDaoSidebarTabIdentityKey));
   if (identity) {
+    const bool session_restored = identity->session_restored;
     SetSidebarTabId(new_contents, identity->id());
+    static_cast<DaoSidebarTabIdentityData*>(
+        new_contents->GetUserData(&kDaoSidebarTabIdentityKey))
+        ->session_restored = session_restored;
   }
 }
 
@@ -99,10 +111,18 @@ void PopulateSidebarTabIdentityExtraData(
 void RestoreSidebarTabIdentityFromExtraData(
     content::WebContents* contents,
     const std::map<std::string, std::string>& extra_data) {
+  if (!contents) {
+    return;
+  }
   auto it = extra_data.find(kSidebarTabIdentitySessionKey);
   if (it != extra_data.end()) {
     SetSidebarTabId(contents, it->second);
   }
+  // Legacy sessions have no Dao identity yet, but may still own folder refs.
+  GetOrCreateSidebarTabId(contents);
+  static_cast<DaoSidebarTabIdentityData*>(
+      contents->GetUserData(&kDaoSidebarTabIdentityKey))
+      ->session_restored = true;
 }
 
 }  // namespace dao

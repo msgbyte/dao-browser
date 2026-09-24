@@ -380,7 +380,7 @@ Not in `src/patches/`. Import mechanically rewrites `chrome://`→`dao://` in:
 
 | ✔ | Feature | Patch(es) | Risk | Verify |
 |---|---------|-----------|------|--------|
-| ☐ | New tabs insert at TOP (vertical tabs) | `ui/tabs/tab_strip_model.cc.patch` | 🟡 | Cmd+T / bookmark-opened tabs appear at top; opener tabs still adjacent |
+| ☐ | New tabs insert at TOP (vertical tabs) | `ui/tabs/tab_strip_model.cc.patch`, `ui/navigator/browser_navigator.cc.patch`, `ui/browser_tabstrip.cc.patch`, `dao_tab_identity.*`, `dao_folder_model.ts` | 🟡 | Cmd+T, bookmarks, foreground/background links (including from a bottom folder or native group), and navigation into another window open at the top below pinned tabs. Links retain their opener. Explicit positions/groups, restore, duplicate, drag, and Split View preserve their placement. A new same-URL tab must not match a legacy bottom/folder reference; a session-restored tab can still migrate that reference, including after a sidebar reload. Tests: `DaoTabBrowserTest.ForegroundAndBackgroundLinksOpenAtTop`, `DaoTabBrowserTest.ProfileNavigationDefaultsToTopAndRespectsExplicitIndex`, `folder_model.test.ts`, `scripts/checks/folder-persistence.mjs`. |
 | ☐ | Back-to-opener enabled by default | `ui/tabs/features.cc.patch` (`kBackToOpener` flip) | 🟢 | Feature exists; Back closes opened tab, returns to opener |
 | ☐ | 6 Dao command IDs (34070–34075) | `chrome/app/chrome_command_ids.h.patch` | 🟡 | No numeric collision with new upstream IDs near 34060; all referencing patches resolve |
 | ☐ | IDC_OPEN_FILE permanently disabled | `ui/browser_command_controller.cc.patch` | 🔴 | Open File disabled everywhere |

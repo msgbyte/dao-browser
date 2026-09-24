@@ -61,6 +61,8 @@
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_native_view.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
@@ -5722,6 +5724,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, original);
   const std::string identity = GetSidebarTabId(original);
+  EXPECT_FALSE(IsSidebarTabSessionRestored(original));
   std::map<std::string, std::string> extra_data;
   PopulateSidebarTabIdentityExtraData(original, &extra_data);
 
@@ -5729,6 +5732,17 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
       content::WebContents::CreateParams(browser()->profile()));
   RestoreSidebarTabIdentityFromExtraData(restored.get(), extra_data);
   EXPECT_EQ(identity, GetSidebarTabId(restored.get()));
+  EXPECT_TRUE(IsSidebarTabSessionRestored(restored.get()));
+
+  auto legacy = content::WebContents::Create(
+      content::WebContents::CreateParams(browser()->profile()));
+  RestoreSidebarTabIdentityFromExtraData(legacy.get(), {});
+  EXPECT_TRUE(IsSidebarTabSessionRestored(legacy.get()));
+  auto replacement = content::WebContents::Create(
+      content::WebContents::CreateParams(browser()->profile()));
+  CopySidebarTabId(legacy.get(), replacement.get());
+  EXPECT_EQ(GetSidebarTabId(legacy.get()), GetSidebarTabId(replacement.get()));
+  EXPECT_TRUE(IsSidebarTabSessionRestored(replacement.get()));
 }
 
 // External URL entry points (macOS application:openURLs:, Universal Links,
@@ -5878,6 +5892,53 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   EXPECT_EQ(initial_count + 1, model->count());
   EXPECT_EQ(0, model->active_index());
   EXPECT_EQ(params.url, model->GetWebContentsAt(0)->GetVisibleURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, ForegroundAndBackgroundLinksOpenAtTop) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  model->SetTabPinned(0, true);
+  content::WebContents* opener = model->GetWebContentsAt(1);
+  model->AddToNewGroup({1});
+
+  for (bool foreground : {false, true}) {
+    model->ActivateTabAt(model->GetIndexOfWebContents(opener));
+    NavigateParams params(browser(), GURL("about:blank"),
+                          ui::PAGE_TRANSITION_LINK);
+    params.source_contents = opener;
+    params.disposition = foreground ? WindowOpenDisposition::NEW_FOREGROUND_TAB
+                                    : WindowOpenDisposition::NEW_BACKGROUND_TAB;
+    chrome::ConfigureTabGroupForNavigation(&params);
+    EXPECT_FALSE(params.group.has_value());
+    auto contents = content::WebContents::Create(
+        content::WebContents::CreateParams(browser()->profile()));
+    content::WebContents* added = contents.get();
+    model->AddWebContents(std::move(contents), -1, ui::PAGE_TRANSITION_LINK,
+                          foreground ? AddTabTypes::ADD_ACTIVE
+                                     : AddTabTypes::ADD_NONE,
+                          params.group);
+    EXPECT_EQ(1, model->GetIndexOfWebContents(added));
+    EXPECT_EQ(opener, model->GetOpenerOfWebContentsAt(1));
+    EXPECT_FALSE(model->GetTabGroupForTab(1).has_value());
+    EXPECT_EQ(foreground ? added : opener, model->GetActiveWebContents());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       ProfileNavigationDefaultsToTopAndRespectsExplicitIndex) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  for (int index : {-1, model->count()}) {
+    // No source browser: navigation resolves the existing profile window.
+    NavigateParams params(browser()->profile(),
+                          GURL("data:text/plain,profile-navigation"),
+                          ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+    params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    params.tabstrip_index = index;
+    Navigate(&params);
+    EXPECT_EQ(browser(), params.browser);
+    EXPECT_EQ(index == -1 ? 0 : index, model->active_index());
+  }
 }
 
 // =============================================================================

@@ -1,0 +1,18 @@
+diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/ui/navigator/browser_navigator.cc
+--- a/chrome/browser/ui/navigator/browser_navigator.cc
++++ b/chrome/browser/ui/navigator/browser_navigator.cc
+@@ -871,10 +871,10 @@
+         contents_to_navigate_or_insert, params->transition,
+         params->window_action, user_initiated);
+   } else if (singleton_index == -1) {
+-    if (source_browser != params->browser) {
+-      params->tabstrip_index = params->browser->GetBrowserForMigrationOnly()
+-                                   ->tab_strip_model()
+-                                   ->count();
++    if (source_browser != params->browser && params->tabstrip_index == -1) {
++      // Dao: default to the top in the destination window too. Force the index
++      // so this navigation does not inherit an unrelated destination opener.
++      params->tabstrip_index = 0;
+     }
+ 
+     // If some non-default value is set for the index, we should tell the

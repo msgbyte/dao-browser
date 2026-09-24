@@ -58,12 +58,13 @@ export function createTabRefMatchPool(
         remaining.findIndex(tab => tab.tabId === ref.tabId) : -1;
     if (idx === -1 && !ref.tabId) {
       idx = remaining.findIndex(
-          tab => !reservedTabIds.has(tab.tabId) &&
+          tab => tab.isSessionRestored && !reservedTabIds.has(tab.tabId) &&
               tab.url === ref.url && tab.title === ref.title);
     }
     if (idx === -1 && !ref.tabId) {
       idx = remaining.findIndex(
-          tab => !reservedTabIds.has(tab.tabId) && tab.url === ref.url);
+          tab => tab.isSessionRestored && !reservedTabIds.has(tab.tabId) &&
+              tab.url === ref.url);
     }
     if (idx === -1) {
       return null;
@@ -85,11 +86,12 @@ export class FolderModel {
 
   private matchesTabRef_(
       ref: SidebarTabRef,
-      tab: Pick<TabData, 'tabId'|'url'|'title'>): boolean {
+      tab: Pick<TabData, 'tabId'|'url'|'title'|'isSessionRestored'>): boolean {
     if (ref.tabId && tab.tabId) {
       return ref.tabId === tab.tabId;
     }
-    return ref.url === tab.url && ref.title === tab.title;
+    return !ref.tabId && !!tab.isSessionRestored &&
+        ref.url === tab.url && ref.title === tab.title;
   }
 
   private toTabRef_(tab: Pick<TabData, 'tabId'|'url'|'title'>): SidebarTabRef {
@@ -334,7 +336,7 @@ export class FolderModel {
   /**
    * Reconcile this window without deleting refs belonging to other windows or
    * tabs that session restore has not delivered yet. Persisted tab IDs survive
-   * restart; URL fallback is only for legacy refs without an identity.
+   * restart; only session-restored tabs can match legacy refs by URL.
    */
   reconcile(actualTabs: TabData[]): void {
     const {consume, remaining} =

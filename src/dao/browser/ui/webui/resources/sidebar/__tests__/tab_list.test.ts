@@ -727,12 +727,14 @@ describe('dao-tab-list', () => {
       async () => {
         const send = vi.fn();
         const duplicateA = tab({
+          isSessionRestored: true,
           tabId: 'tab-a',
           index: 0,
           title: 'Docs',
           url: 'https://docs.example/',
         });
         const duplicateB = tab({
+          isSessionRestored: true,
           tabId: 'tab-b',
           index: 1,
           title: 'Docs',

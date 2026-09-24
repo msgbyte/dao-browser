@@ -4,8 +4,8 @@
 
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {FolderModel} from '../dao_folder_model.js';
-import type {TabData} from '../sidebar_bridge.js';
+import {createTabRefMatchPool, FolderModel} from '../dao_folder_model.js';
+import type {SidebarTabRef, TabData} from '../sidebar_bridge.js';
 
 function tab(
     tabId: string, url: string, title: string,
@@ -60,6 +60,52 @@ describe('FolderModel', () => {
     expect(model.getMatchedTabs(folder.id, [
       tab('window-b', 'https://same.example', 'Same'),
     ])).toEqual([]);
+  });
+
+  it.each(['loose', 'folder'])('does not place a new tab in a legacy %s slot', location => {
+    const existing = tab('existing', 'https://existing.example', 'Existing');
+    const fresh = tab('fresh', 'https://same.example', 'Same');
+    const legacy: SidebarTabRef = {type: 'tab', url: fresh.url, title: fresh.title};
+    const model = new FolderModel();
+    model.loadFromJson(JSON.stringify({version: 1, items: [
+      {type: 'tab', ...existing},
+      location === 'loose' ? legacy : {
+        type: 'folder', id: 'legacy', name: 'Legacy', collapsed: false,
+        children: [legacy],
+      },
+    ]}));
+
+    // Rendering and reconciliation must agree before either updates the refs.
+    const pool = createTabRefMatchPool(model.getOrderedItems(), [fresh, existing]);
+    expect(pool.consume(legacy)).toBeNull();
+    model.reconcile([fresh, existing]);
+    expect(model.getOrderedItems()[0]).toMatchObject({tabId: fresh.tabId});
+    expect(model.findTabFolder(fresh)).toBeNull();
+
+    const reloaded = new FolderModel();
+    reloaded.loadFromJson(model.toJson());
+    const restored = tab('restored', fresh.url, fresh.title, {isSessionRestored: true});
+    reloaded.reconcile([fresh, existing, restored]);
+    expect(reloaded.getOrderedItems()[0]).toMatchObject({tabId: fresh.tabId});
+    if (location === 'folder') {
+      expect(reloaded.getMatchedTabs('legacy', [fresh, existing, restored]))
+          .toEqual([restored]);
+    } else {
+      expect(reloaded.getOrderedItems()[2]).toMatchObject({tabId: restored.tabId});
+    }
+  });
+
+  it('places a new index-zero tab above the bottom folder containing its opener', () => {
+    const opener = tab('opener', 'https://opener.example', 'Opener');
+    const existing = tab('existing', 'https://existing.example', 'Existing');
+    const fresh = tab('fresh', 'https://new.example', 'New');
+    const model = new FolderModel();
+    model.reconcile([existing, opener]);
+    const folder = model.addFolder('Bottom');
+    model.moveTabToFolder(opener, folder.id);
+    model.reconcile([fresh, existing, opener]);
+    expect(model.getOrderedItems().map(item => item.type === 'tab' ? item.tabId : item.id))
+        .toEqual(['fresh', 'existing', folder.id]);
   });
 
   it('persists stable tab identities across restart', () => {
@@ -262,9 +308,9 @@ describe('FolderModel', () => {
     }));
 
     model.reconcile([
-      tab('duplicate-a', 'https://docs.example', 'Docs'),
-      tab('duplicate-b', 'https://docs.example', 'Docs'),
-      tab('middle', 'https://middle.example', 'Middle'),
+      tab('duplicate-a', 'https://docs.example', 'Docs', {isSessionRestored: true}),
+      tab('duplicate-b', 'https://docs.example', 'Docs', {isSessionRestored: true}),
+      tab('middle', 'https://middle.example', 'Middle', {isSessionRestored: true}),
     ]);
 
     model.forgetTabs(['duplicate-a']);

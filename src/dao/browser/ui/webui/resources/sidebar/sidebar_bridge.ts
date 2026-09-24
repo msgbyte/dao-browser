@@ -84,6 +84,8 @@ export interface TabData {
   isInSplit?: boolean;
   isFaviconLight?: boolean;
   lastActiveTimeMs?: number;
+  // Only session-restored tabs may claim legacy folder refs without a tabId.
+  isSessionRestored?: boolean;
 }
 
 export type PinnedItemState = 'open'|'dormant'|'reconciling';
