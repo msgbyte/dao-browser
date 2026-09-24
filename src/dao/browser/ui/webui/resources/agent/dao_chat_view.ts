@@ -313,6 +313,7 @@ export class DaoChatView extends CrLitElement {
       dreamReport_: {type: Object, state: true},
       proactiveSuggestion_: {type: Object, state: true},
       proactiveRunning_: {type: Boolean, state: true},
+      agentReady_: {type: Boolean, state: true},
     };
   }
 
@@ -351,6 +352,7 @@ export class DaoChatView extends CrLitElement {
     this.proactiveSuggestion_ = null;
     this.proactiveSuggestionReceivedAtMs_ = 0;
     this.proactiveRunning_ = false;
+    this.agentReady_ = false;
     this.restoreProactiveNeverHereKeys_();
     this.restoreProactiveNotNowSnoozes_();
   }
@@ -389,6 +391,10 @@ export class DaoChatView extends CrLitElement {
   private panel_: PiChatPanel | null = null;
   private mounted_ = false;
   private mountSucceeded_ = false;
+  // True once pi-chat-panel has an agent. Until then the panel shows its
+  // "No agent set" placeholder, so Dao's overlays (empty guide, chip row)
+  // stay hidden instead of floating over it.
+  declare protected agentReady_: boolean;
   // Resolves once mount_() has finished (including maybeResumeLastSession_).
   // Awaited by submitExternalPrompt so the resume probe can't land after a
   // Cmd+L/Cmd+T-driven startNewSession() and re-hydrate the old conversation.
@@ -645,7 +651,7 @@ export class DaoChatView extends CrLitElement {
     let stateClass = 'idle';
     if (ratio >= 0.75) stateClass = 'hot';
     else if (ratio >= 0.5) stateClass = 'warm';
-    const showEmptyGuide =
+    const showEmptyGuide = this.agentReady_ &&
         this.messageCount_ === 0 && !this.isStreaming_ && !this.compacting_;
 
     return html`
@@ -970,6 +976,12 @@ export class DaoChatView extends CrLitElement {
       </dao-chat-history-panel>
       ${this.renderSkillPicker_()}
       ${this.renderUserContextModal_()}
+      ${this.renderPageChipRow_()}`;
+  }
+
+  private renderPageChipRow_() {
+    if (!this.agentReady_) return nothing;
+    return html`
       <div class="dao-page-chip-row">
         <button class=${'dao-element-pick-button' +
             (this.elementPickMode_ === 'context' ? ' active' : '')}
@@ -1323,6 +1335,7 @@ export class DaoChatView extends CrLitElement {
       onApiKeyRequired: this.onApiKeyRequired_.bind(this),
       toolsFactory: () => tools,
     });
+    this.agentReady_ = true;
 
     // ChatPanel.setAgent() force-enables the model selector, attachments,
     // and thinking-level picker on its internal <agent-interface>. Dao

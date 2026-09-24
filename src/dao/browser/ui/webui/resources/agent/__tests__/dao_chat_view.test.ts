@@ -1817,6 +1817,26 @@ describe('dao-chat-view element picker', () => {
        expect(screenshotButton?.nextElementSibling).toBe(sendButton);
      });
 
+  it('hides the empty guide and chip row until the panel has an agent',
+     async () => {
+       const view = document.createElement('dao-chat-view') as HTMLElement & {
+         render: () => unknown;
+       };
+       const before = templateText(view.render());
+       expect(before).not.toContain('class="dao-empty-guide"');
+       expect(before).not.toContain('class="dao-page-chip-row"');
+
+       const {view: mounted} = await mountChatViewWithSend(vi.fn());
+       try {
+         const after = templateText(
+             (mounted as unknown as {render: () => unknown}).render());
+         expect(after).toContain('class="dao-empty-guide"');
+         expect(after).toContain('class="dao-page-chip-row"');
+       } finally {
+         clearTabWatchTimer(mounted);
+       }
+     });
+
   it('sends only the element screenshot image attachment', async () => {
     const originalSend = vi.fn(async () => 'sent');
     const {view, iface} = await mountChatViewWithSend(originalSend);
