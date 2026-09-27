@@ -1,7 +1,6 @@
 is_debug = false
 is_component_build = false
 is_official_build = true
-target_cpu = "arm64"
 
 # No PGO profiles in checkout; required when is_official_build is true.
 chrome_pgo_phase = 0

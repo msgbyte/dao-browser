@@ -9,8 +9,8 @@ import {
   error,
   warn,
   which,
-  run,
   runStreaming,
+  resolveBuildTarget,
 } from "../utils.js";
 
 export const downloadCommand = new Command("download")
@@ -19,6 +19,7 @@ export const downloadCommand = new Command("download")
   .option("--full-history", "Clone with full git history (default is shallow)")
   .action(async (opts: { force?: boolean; fullHistory?: boolean }) => {
     const config = loadConfig();
+    resolveBuildTarget(config);
     const version = config.version.version;
     const shallow = !opts.fullHistory;
 
@@ -89,13 +90,6 @@ See: https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools
 ]
 `
     );
-
-    // Increase git buffer size to reduce connection drops on large repos
-    try {
-      run("git config --global http.postBuffer 524288000", { silent: true });
-    } catch {
-      // non-critical
-    }
 
     const syncArgs = [
       "sync",

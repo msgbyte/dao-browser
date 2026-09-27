@@ -46,7 +46,7 @@ export function buildFixImportPatchesCommand(patchFiles: string[]): string {
                !patchFile.startsWith("src/patches/")) {
       repoRelativePatch = path.join("src", "patches", patchFile);
     }
-    return shellQuote(repoRelativePatch);
+    return shellQuote(repoRelativePatch.split(path.sep).join("/"));
   });
   return ["sh", "scripts/fix-import-patches.sh", ...args].join(" ");
 }
@@ -80,6 +80,8 @@ function validatePatchTargetPath(targetPath: string): void {
   if (
     targetPath.length === 0 ||
     targetPath.includes("\0") ||
+    targetPath.includes("\\") ||
+    targetPath.includes(":") ||
     path.posix.isAbsolute(targetPath) ||
     targetPath.split("/").includes("..") ||
     normalized !== targetPath ||
@@ -270,7 +272,10 @@ export async function repairFailedPatches(
   }
 
   try {
-    execFileSync("sh", [repairScriptPath, ...patchPaths], {
+    const shellPaths = [repairScriptPath, ...patchPaths].map((filePath) =>
+      path.resolve(ROOT_DIR, filePath).split(path.sep).join("/")
+          .replace(/^([a-z]):\//i, (_, drive: string) => `/${drive.toLowerCase()}/`));
+    execFileSync("sh", shellPaths, {
       cwd: ROOT_DIR,
       stdio: "inherit",
     });
@@ -450,10 +455,8 @@ export const importCommand = new Command("import")
     if (unapplied.length > 0) {
       const fullPaths = unapplied.map((p) => path.join(PATCHES_DIR, p));
       try {
-        run(
-          `git apply ${fullPaths.map((p) => `"${p}"`).join(" ")}`,
-          { cwd: srcDir, silent: true }
-        );
+        execFileSync("git", ["apply", ...fullPaths],
+            {cwd: srcDir, stdio: "pipe"});
         for (const p of unapplied) {
           success(`Applied: ${p}`);
         }
@@ -626,7 +629,7 @@ export const importCommand = new Command("import")
       const sparkleSrc = path.join(THIRD_PARTY_DIR, "sparkle");
       const sparkleDest = path.join(srcDir, "third_party", "dao_sparkle");
       const sparkleFwSrc = path.join(sparkleSrc, "Sparkle.framework");
-      if (existsSync(sparkleFwSrc)) {
+      if (process.platform === "darwin" && existsSync(sparkleFwSrc)) {
         log("Mirroring Sparkle framework into engine/src/third_party/dao_sparkle/ ...");
         mkdirSync(sparkleDest, { recursive: true });
         // ditto src dest copies the *contents* of src into dest. We want a
@@ -639,7 +642,7 @@ export const importCommand = new Command("import")
         success(
           "Synced third_party/sparkle/Sparkle.framework -> engine/src/third_party/dao_sparkle/Sparkle.framework"
         );
-      } else {
+      } else if (process.platform === "darwin") {
         warn(
           "Sparkle framework not found at third_party/sparkle/Sparkle.framework. " +
             "Run 'npm run sparkle:fetch' before building, or auto-update will not " +

@@ -13,6 +13,9 @@ import {
   which,
   run,
   runStreaming,
+  resolveBuildTarget,
+  type BuildTarget,
+  type DaoConfig,
 } from "../utils.js";
 
 const DEBUG_BUNDLE_ID_SUFFIX = ".debug";
@@ -27,6 +30,25 @@ export function getAppName(displayName: string, isDebug: boolean): string {
   return isDebug ? `${displayName}${DEBUG_PRODUCT_NAME_SUFFIX}` : displayName;
 }
 
+export function createBuildArgs(
+  config: DaoConfig,
+  target: BuildTarget,
+  debug: boolean,
+  commonArgs: string,
+  platformArgs: string,
+): string {
+  let args = `${commonArgs}\n${platformArgs}\n`;
+  args += `target_os = "${target.os}"\ntarget_cpu = "${target.cpu}"\n`;
+  if (debug) {
+    args += "is_component_build = true\nis_official_build = false\n";
+    if (target.os === "mac") args += "use_lld = false\n";
+  }
+  const parts = config.version.display.split(".").map((part) => part.trim());
+  while (parts.length < 4) parts.push("0");
+  args += `dao_display_version = "${parts.slice(0, 4).join(".")}"\n`;
+  return args;
+}
+
 export const buildCommand = new Command("build")
   .description("Build Dao Browser (gn gen + autoninja)")
   .option("--debug", "Build in debug mode")
@@ -35,6 +57,7 @@ export const buildCommand = new Command("build")
   .option("-j <jobs>", "Number of parallel build jobs")
   .action(async (opts: { debug?: boolean; genOnly?: boolean; target: string; j?: string }) => {
     const config = loadConfig();
+    const target = resolveBuildTarget(config);
     const srcDir = path.join(ENGINE_DIR, "src");
     const outName = opts.debug ? "dao-debug" : "dao";
     const outDir = path.join(srcDir, "out", outName);
@@ -54,34 +77,11 @@ export const buildCommand = new Command("build")
     const commonGn = path.join(CONFIGS_DIR, "common.gn");
     const platformGn = path.join(
       CONFIGS_DIR,
-      `${config.build.target_os === "mac" ? "macos" : config.build.target_os}.gn`
+      `${target.os === "mac" ? "macos" : target.os}.gn`
     );
 
-    let args = "";
-    if (existsSync(commonGn)) {
-      args += readFileSync(commonGn, "utf-8") + "\n";
-    }
-    if (existsSync(platformGn)) {
-      args += readFileSync(platformGn, "utf-8") + "\n";
-    }
-
-    if (opts.debug) {
-      // args += "is_debug = true\n"; // dont use debug mode as too slow.
-      args += "is_component_build = true\n";
-      args += "is_official_build = false\n";
-      args += "use_lld = false\n";
-    }
-
-    // Dao Browser: stamp the display version into Info.plist without touching
-    // chrome/VERSION. tweak_info_plist.py requires exactly 4 numeric segments
-    // (MAJOR.MINOR.BUILD.PATCH); pad 2- or 3-segment display strings with
-    // trailing zeros.
-    {
-      const parts = config.version.display.split(".").map((p) => p.trim());
-      while (parts.length < 4) parts.push("0");
-      const fourPart = parts.slice(0, 4).join(".");
-      args += `dao_display_version = "${fourPart}"\n`;
-    }
+    const args = createBuildArgs(config, target, !!opts.debug,
+        readFileSync(commonGn, "utf-8"), readFileSync(platformGn, "utf-8"));
 
     // Sync Chromium's BRANDING so debug/release builds produce fully isolated
     // app bundles: distinct CFBundleIdentifier *and* distinct PRODUCT_FULLNAME
@@ -89,7 +89,7 @@ export const buildCommand = new Command("build")
     // ~/Library/Application Support/<name>/ user data dir). Done idempotently
     // so alternating debug/release builds without re-import keep the correct
     // values.
-    if (config.build.target_os === "mac") {
+    if (target.os === "mac") {
       syncMacBranding(srcDir, !!opts.debug, config.display_name);
     }
 
@@ -139,7 +139,7 @@ export const buildCommand = new Command("build")
     }
 
     // Post-build: fix lld duplicate dylib issue on macOS component builds
-    if (opts.debug && config.build.target_os === "mac") {
+    if (opts.debug && target.os === "mac") {
       const appName = getAppName(config.display_name, true);
       fixDuplicateDylib(outDir, appName);
     }

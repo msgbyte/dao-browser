@@ -214,7 +214,8 @@ describe('import helpers', () => {
 
     const outsidePath = path.join(outsideDir, 'victim.txt');
     writeFileSync(outsidePath, 'keep me\n');
-    symlinkSync(outsideDir, path.join(repoDir, 'linked'), 'dir');
+    symlinkSync(outsideDir, path.join(repoDir, 'linked'),
+        process.platform === 'win32' ? 'junction' : 'dir');
 
     const patchPath = path.join(tempRoot, 'new-file.patch');
     writeFileSync(patchPath, [
@@ -232,7 +233,8 @@ describe('import helpers', () => {
     expect(readFileSync(outsidePath, 'utf-8')).toBe('keep me\n');
   });
 
-  it('removes a dangling symlink at an exact new-file target', () => {
+  // Creating file symlinks on Windows requires a privilege not needed by import.
+  it.skipIf(process.platform === 'win32')('removes a dangling symlink at an exact new-file target', () => {
     const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
     const repoDir = path.join(tempRoot, 'engine/src');
     mkdirSync(repoDir, {recursive: true});
@@ -921,7 +923,8 @@ describe('import helpers', () => {
 
     const outsidePath = path.join(outsideDir, 'victim.txt');
     writeFileSync(outsidePath, 'keep me\n');
-    symlinkSync(outsideDir, path.join(repoDir, 'linked'), 'dir');
+    symlinkSync(outsideDir, path.join(repoDir, 'linked'),
+        process.platform === 'win32' ? 'junction' : 'dir');
 
     writeFileSync(path.join(patchesDir, 'symlink.patch'), [
       'diff --git a/linked/victim.txt b/linked/victim.txt',

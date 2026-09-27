@@ -75,7 +75,7 @@ def find_violations(path: pathlib.Path) -> list[tuple[int, str, str]]:
     """Return (line_number, field_name, raw_line) for each reactive prop
     that still has a class-field initializer instead of `declare` + ctor.
     """
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     props = gather_reactive_props(text)
     if not props:
         return []

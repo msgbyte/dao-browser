@@ -1,5 +1,6 @@
 import {
   execSync,
+  execFileSync,
   spawn,
   type ChildProcess,
   type SpawnOptions,
@@ -37,6 +38,28 @@ export interface DaoConfig {
 
 export const THIRD_PARTY_DIR = path.join(ROOT_DIR, "third_party");
 
+export interface BuildTarget {
+  os: "mac" | "win";
+  cpu: "arm64" | "x64";
+}
+
+export function resolveBuildTarget(
+  config: DaoConfig,
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch,
+): BuildTarget {
+  if (platform === "win32" && arch === "x64") {
+    return {os: "win", cpu: "x64"};
+  }
+  // Preserve the configured Mac target even when Node runs under Rosetta.
+  if (platform === "darwin" &&
+      config.build.target_os === "mac" && config.build.target_cpu === "arm64") {
+    return {os: "mac", cpu: "arm64"};
+  }
+  throw new Error(`Unsupported development host: ${platform}/${arch}. ` +
+      "Use Windows x64 or macOS arm64.");
+}
+
 export function loadConfig(): DaoConfig {
   const configPath = path.join(ROOT_DIR, "dao.json");
   return JSON.parse(readFileSync(configPath, "utf-8"));
@@ -53,7 +76,7 @@ export function run(
   return execSync(cmd, { cwd, encoding: "utf-8", stdio: "pipe" }).trim();
 }
 
-export function runStreaming(
+export async function runStreaming(
   cmd: string,
   args: string[],
   opts?: {
@@ -70,12 +93,27 @@ export function runStreaming(
     return Promise.reject(createAbortError(opts.signal.reason));
   }
 
+  const env = opts?.env ?? process.env;
   const spawnOpts = createStreamingSpawnOptions(
     cwd,
-    opts?.env ?? process.env,
+    env,
     opts?.signal
   );
-  const child = spawn(cmd, args, spawnOpts);
+  let executable = process.platform === "win32" ? which(cmd, env) ?? cmd : cmd;
+  let commandArgs = args;
+  if (process.platform === "win32" && /\.(cmd|bat)$/i.test(executable)) {
+    // Batch files expand percent/delayed variables even inside quotes. Reject
+    // those inputs instead of silently changing an argument or executing it.
+    const values = [executable, ...args];
+    if (values.some((value) => /["%!\r\n]/.test(value))) {
+      throw new Error("Unsupported quote, variable expansion, or newline in batch arguments.");
+    }
+    const commandLine = values.map((value) => `"${value}"`).join(" ");
+    executable = env.ComSpec ?? env.COMSPEC ?? "cmd.exe";
+    commandArgs = ["/d", "/s", "/v:off", "/c", `"${commandLine}"`];
+    spawnOpts.windowsVerbatimArguments = true;
+  }
+  const child = spawn(executable, commandArgs, spawnOpts);
   return waitForSpawnedProcess(
     child,
     opts?.signal,
@@ -95,7 +133,7 @@ export function createStreamingSpawnOptions(
   const spawnOpts: SpawnOptions = {
     cwd,
     stdio: "inherit",
-    shell: true,
+    shell: false,
     env,
   };
   if (signal && platform !== "win32") {
@@ -314,9 +352,12 @@ function processGroupExists(processGroupId: number): boolean {
   }
 }
 
-export function which(binary: string): string | null {
+export function which(binary: string, env: NodeJS.ProcessEnv = process.env): string | null {
   try {
-    return execSync(`which ${binary}`, { encoding: "utf-8" }).trim();
+    const output = execFileSync(process.platform === "win32" ? "where.exe" : "which",
+        [binary], {encoding: "utf-8", env, stdio: ["ignore", "pipe", "ignore"]});
+    return output.trim().split(/\r?\n/).find((candidate) =>
+      process.platform !== "win32" || /\.(exe|com|cmd|bat)$/i.test(candidate)) ?? null;
   } catch {
     return null;
   }

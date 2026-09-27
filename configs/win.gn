@@ -1,0 +1,2 @@
+# The host target is supplied by scripts/commands/build.ts.
+use_lld = true
