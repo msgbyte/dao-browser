@@ -23,6 +23,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
+#include "build/build_config.h"
 #include "dao/browser/agent/workspace/text_only_filter.h"
 #include "dao/browser/agent/workspace/v4a_patch_applier.h"
 #include "dao/browser/agent/workspace/v4a_patch_parser.h"
@@ -43,6 +44,16 @@ constexpr int64_t kMaxProjectBytes = 20 * 1024 * 1024;
 constexpr int kMaxProjectFiles = 500;
 constexpr int64_t kMaxHistoryBytes = 100 * 1024 * 1024;
 constexpr size_t kMaxImportedVersions = 100;
+
+#if BUILDFLAG(IS_WIN)
+// Windows does not recurse through reparse points. Include directories so
+// junctions are rejected by the same link check as file symlinks.
+constexpr int kProjectFileTypes =
+    base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES;
+#else
+constexpr int kProjectFileTypes =
+    base::FileEnumerator::FILES | base::FileEnumerator::SHOW_SYM_LINKS;
+#endif
 
 bool IsSameSite(const GURL& left, const GURL& right) {
   if (left.host() == right.host()) {
@@ -433,19 +444,21 @@ DaoHomeProjectStore::ListFiles(const std::string& revision) const {
   }
   const base::FilePath revision_root = RevisionPath(revision);
   std::vector<std::string> files;
-  base::FileEnumerator enumerator(
-      revision_root, true,
-      base::FileEnumerator::FILES | base::FileEnumerator::SHOW_SYM_LINKS);
+  base::FileEnumerator enumerator(revision_root, true, kProjectFileTypes);
   for (base::FilePath path = enumerator.Next(); !path.empty();
        path = enumerator.Next()) {
     if (base::IsLink(path)) {
       return base::unexpected(HomeError::kInvalidPath);
     }
+    if (enumerator.GetInfo().IsDirectory()) {
+      continue;
+    }
     base::FilePath relative;
     if (!revision_root.AppendRelativePath(path, &relative)) {
       return base::unexpected(HomeError::kInvalidPath);
     }
-    std::string value = relative.AsUTF8Unsafe();
+    std::string value =
+        relative.NormalizePathSeparatorsTo(FILE_PATH_LITERAL('/')).AsUTF8Unsafe();
     if (!IsValidHomeRelativePath(value)) {
       return base::unexpected(HomeError::kInvalidPath);
     }
@@ -890,17 +903,20 @@ base::expected<HomeManifest, HomeError> DaoHomeProjectStore::ValidateProject(
 
   int file_count = 0;
   int64_t total_bytes = 0;
-  base::FileEnumerator enumerator(
-      project_root, true,
-      base::FileEnumerator::FILES | base::FileEnumerator::SHOW_SYM_LINKS);
+  base::FileEnumerator enumerator(project_root, true, kProjectFileTypes);
   for (base::FilePath path = enumerator.Next(); !path.empty();
        path = enumerator.Next()) {
     if (base::IsLink(path)) {
       return base::unexpected(HomeError::kInvalidPath);
     }
+    if (enumerator.GetInfo().IsDirectory()) {
+      continue;
+    }
     base::FilePath relative;
     if (!project_root.AppendRelativePath(path, &relative) ||
-        !IsValidHomeRelativePath(relative.AsUTF8Unsafe())) {
+        !IsValidHomeRelativePath(
+            relative.NormalizePathSeparatorsTo(FILE_PATH_LITERAL('/'))
+                .AsUTF8Unsafe())) {
       return base::unexpected(HomeError::kInvalidPath);
     }
     std::optional<int64_t> size = base::GetFileSize(path);

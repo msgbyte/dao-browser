@@ -2,15 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# The decoder bridges Chromium (compiled with -fno-exceptions) to ZXing-cpp
+# The decoder bridges Chromium (compiled without exceptions) to ZXing-cpp
 # (which throws). We isolate the bridge in its own source_set so we can flip
 # exceptions on for just this translation unit and catch the std::exception
 # that crosses the boundary, while every other Dao file remains
 # exception-free.
-
-config("decoder_internal_config") {
-  cflags_cc = [ "-fexceptions" ]
-}
 
 source_set("qr_decoder") {
   sources = [
@@ -19,7 +15,7 @@ source_set("qr_decoder") {
     "dao_qr_code_types.h",
   ]
   configs -= [ "//build/config/compiler:no_exceptions" ]
-  configs += [ ":decoder_internal_config" ]
+  configs += [ "//build/config/compiler:exceptions" ]
   public_deps = [
     "//base",
     "//skia",

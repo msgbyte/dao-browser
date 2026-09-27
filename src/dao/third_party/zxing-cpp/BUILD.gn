@@ -18,7 +18,6 @@ config("zxing_external_config") {
 
 config("zxing_internal_config") {
   cflags_cc = [
-    "-fexceptions",
     "-Wno-unused-but-set-variable",
     "-Wno-unused-variable",
     "-Wno-shadow",
@@ -151,10 +150,11 @@ static_library("zxing") {
     "core/src/qrcode/QRWriter.cpp",
   ]
 
-  # Chromium globally enforces -fno-exceptions, but zxing-cpp throws on
+  # Chromium disables exceptions by default, but zxing-cpp throws on
   # invalid input (see ReadBarcode.cpp). Drop the global config and re-enable
   # exceptions on this target only; the rest of the binary stays unchanged.
   configs -= [ "//build/config/compiler:no_exceptions" ]
+  configs += [ "//build/config/compiler:exceptions" ]
   # Third-party code: swap the strict chromium_code warning set for the
   # relaxed no_chromium_code set so zxing-cpp doesn't trip on style warnings
   # like missing-braces, exit-time-destructors, extra-semi, etc.

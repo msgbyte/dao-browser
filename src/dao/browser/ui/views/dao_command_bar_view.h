@@ -14,6 +14,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/task/cancelable_task_tracker.h"
+#include "build/build_config.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "components/favicon_base/favicon_types.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
@@ -259,6 +260,9 @@ class DaoCommandBarView : public views::View,
   bool command_selection_invalidated_ = false;
   bool command_mode_ = false;
   base::WeakPtr<content::WebContents> command_target_;
+#if BUILDFLAG(IS_WIN)
+  base::WeakPtr<content::WebContents> blocked_web_contents_;
+#endif
 
   // When true, we are in "pre-new-tab" mode: no tab has been created yet.
   bool is_new_tab_mode_ = false;

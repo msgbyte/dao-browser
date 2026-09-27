@@ -198,10 +198,11 @@ SnapshotResult DaoProfileSnapshot::CreateOnBlockingThread(
     if (!request.include_sqlite_sidecars || base::DirectoryExists(source)) {
       continue;
     }
-    for (std::string_view suffix : {"-wal", "-shm"}) {
+    for (const auto* suffix : {FILE_PATH_LITERAL("-wal"),
+                               FILE_PATH_LITERAL("-shm")}) {
       outcome = CopyStableFile(
-          base::FilePath(source.value() + std::string(suffix)),
-          base::FilePath(destination.value() + std::string(suffix)),
+          base::FilePath(source.value() + suffix),
+          base::FilePath(destination.value() + suffix),
           request.max_attempts, request.cancellation.get(), false);
       if (outcome != CopyOutcome::kCopied) {
         result.error_code = ErrorCodeForOutcome(outcome);

@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/scoped_observation.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -166,6 +167,7 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
   back_btn->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 12)));
   AddChildView(std::move(back_btn));
 
+#if BUILDFLAG(IS_MAC)
   // Share button
   {
     auto btn = std::make_unique<MenuItemButton>(
@@ -176,6 +178,7 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
     AddChildView(static_cast<views::View*>(btn.release()));
   }
 
+#endif
   // Clear Cache button
   {
     auto btn = std::make_unique<MenuItemButton>(

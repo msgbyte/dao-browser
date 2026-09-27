@@ -309,21 +309,16 @@ std::optional<SkillContent> DaoAgentSkillService::GetSkillContentOnBackground(
     result.metadata.id = skill_id;
 
     // Determine source from path.
-    if (skill_dir.value().find("/builtin/") != std::string::npos) {
+    if (skills_path.AppendASCII("builtin").IsParent(skill_dir)) {
       result.metadata.source = "builtin";
     } else {
       result.metadata.source = "user";
     }
 
     // If under hosts/<host>/, extract the host.
-    std::string path_str = skill_dir.value();
-    std::string hosts_prefix = hosts_dir.value() + "/";
-    if (path_str.find(hosts_prefix) == 0) {
-      std::string remainder = path_str.substr(hosts_prefix.size());
-      size_t slash_pos = remainder.find('/');
-      if (slash_pos != std::string::npos) {
-        result.metadata.hosts.push_back(remainder.substr(0, slash_pos));
-      }
+    if (hosts_dir.IsParent(skill_dir)) {
+      result.metadata.hosts.push_back(
+          skill_dir.DirName().BaseName().AsUTF8Unsafe());
     }
 
     return result;

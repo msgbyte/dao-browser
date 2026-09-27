@@ -322,6 +322,7 @@ void DaoLittleDaoView::Layout(PassKey) {
     GetLayoutManager()->Layout(this);
   }
 
+#if BUILDFLAG(IS_MAC)
   // Reposition traffic lights on every layout pass so macOS cannot reset them.
   if (GetWidget()) {
     constexpr int kTrafficLightX = 13;
@@ -330,6 +331,7 @@ void DaoLittleDaoView::Layout(PassKey) {
                                    kTrafficLightX, kTrafficLightY);
   }
 
+#endif
   // Manually position the shortcut label inside open_button_ since
   // LabelButton's internal layout only handles its own label+image.
   if (shortcut_label_ && open_button_ && open_button_->width() > 0) {

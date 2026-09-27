@@ -13,18 +13,26 @@ namespace dao {
 namespace {
 
 TEST(TextOnlyFilterTest, AcceptsAllowedExtensions) {
-  EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("notes.md")));
-  EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("data.json")));
-  EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("table.csv")));
-  EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("styles.css")));
-  EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("runtime.js")));
-  EXPECT_TRUE(IsTextExtensionAllowed(base::FilePath("Document.TXT")));
+  EXPECT_TRUE(
+      IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("notes.md"))));
+  EXPECT_TRUE(
+      IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("data.json"))));
+  EXPECT_TRUE(
+      IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("table.csv"))));
+  EXPECT_TRUE(
+      IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("styles.css"))));
+  EXPECT_TRUE(
+      IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("runtime.js"))));
+  EXPECT_TRUE(
+      IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("Document.TXT"))));
 }
 
 TEST(TextOnlyFilterTest, RejectsBinaryExtensions) {
-  EXPECT_FALSE(IsTextExtensionAllowed(base::FilePath("image.png")));
-  EXPECT_FALSE(IsTextExtensionAllowed(base::FilePath("archive.zip")));
-  EXPECT_FALSE(IsTextExtensionAllowed(base::FilePath("noext")));
+  EXPECT_FALSE(
+      IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("image.png"))));
+  EXPECT_FALSE(
+      IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("archive.zip"))));
+  EXPECT_FALSE(IsTextExtensionAllowed(base::FilePath(FILE_PATH_LITERAL("noext"))));
 }
 
 TEST(TextOnlyFilterTest, NulByteProbeDetectsBinary) {

@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,706 @@
+@@ -0,0 +1,708 @@
 +<style include="settings-shared">
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
@@ -527,6 +527,7 @@ index 0000000000..0000000001
 +      label="$i18n{enhancedPipEnabledLabel}"
 +      sub-label="$i18n{enhancedPipEnabledSubLabel}">
 +  </settings-toggle-button>
++  <template is="dom-if" if="[[daoMcpSupported_]]">
 +  <div class="dao-mcp-settings">
 +    <settings-toggle-button id="daoMcpServerEnabled"
 +        pref="{{daoMcpEnabledPref_}}"
@@ -638,6 +639,7 @@ index 0000000000..0000000001
 +      </div>
 +    </template>
 +  </div>
++  </template>
 +  <div id="enhancedPipPreview" class="dao-pip-preview" role="group"
 +      aria-label="$i18n{enhancedPipPreviewTitle}">
 +    <div class="dao-pip-preview-title">$i18n{enhancedPipPreviewTitle}</div>

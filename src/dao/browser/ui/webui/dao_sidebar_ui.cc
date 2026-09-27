@@ -473,7 +473,7 @@ ScanResult ScanRecentFiles(base::FilePath download_dir) {
 
     base::DictValue d;
     d.Set("index", i);
-    d.Set("name", entries[i].path.BaseName().value());
+    d.Set("name", entries[i].path.BaseName().AsUTF8Unsafe());
 
     // Try thumbnail first, fall back to file icon.
     gfx::ImageSkia thumb = GetFileThumbnail(entries[i].path, kThumbnailSize);
@@ -2374,7 +2374,7 @@ void DaoSidebarUIHandler::OnDownloadUpdated(content::DownloadManager* manager,
       item->CanOpenDownload() && IsJavascriptAllowed()) {
     base::DictValue completed;
     completed.Set("id", static_cast<int>(id));
-    completed.Set("name", item->GetFileNameToReportUser().BaseName().value());
+    completed.Set("name", item->GetFileNameToReportUser().BaseName().AsUTF8Unsafe());
     FireWebUIListener("downloadCompleted", completed);
   }
   if (IsJavascriptAllowed()) {
@@ -2413,7 +2413,7 @@ base::ListValue DaoSidebarUIHandler::BuildActiveDownloadList() {
     }
     base::DictValue d;
     d.Set("id", static_cast<int>(item->GetId()));
-    d.Set("name", item->GetFileNameToReportUser().BaseName().value());
+    d.Set("name", item->GetFileNameToReportUser().BaseName().AsUTF8Unsafe());
     const int percent = item->PercentComplete();
     d.Set("percent", percent);
     d.Set("speed", FormatSpeed(item->CurrentSpeed()));
@@ -2661,6 +2661,7 @@ void DaoSidebarUIHandler::HandleTabDragActive(const base::ListValue& args) {
     return;
   }
   bool active = args[0].GetIfBool().value_or(false);
+#if BUILDFLAG(IS_MAC)
   if (active && args.size() > 1 && args[1].is_string() &&
       ResolveDraggedTabIndex(browser_, -1, args[1].GetString()) >= 0) {
     ObserveTabDragNativeCompletion(
@@ -2668,6 +2669,7 @@ void DaoSidebarUIHandler::HandleTabDragActive(const base::ListValue& args) {
         base::BindOnce(&DaoSidebarUIHandler::OnTabDragEnded,
                        weak_factory_.GetWeakPtr(), args[1].GetString()));
   }
+#endif
   // Activate/deactivate tab drag on ALL windows' split views so any
   // window can receive the cross-window drop.
   if (ProfileBrowserCollection* collection =
@@ -2860,7 +2862,7 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
   tab_context_menu_model_->AddItem(
       kCopyLink, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_COPY_LINK));
   PrefService* local_state = g_browser_process->local_state();
-  if (local_state &&
+  if (DaoMcpService::IsSupported() && local_state &&
       local_state->GetBoolean(prefs::kDaoMcpServerEnabled) &&
       !browser_->profile()->IsOffTheRecord() &&
       !browser_->profile()->IsGuestSession()) {

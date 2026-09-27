@@ -13,7 +13,7 @@
 
 namespace dao {
 
-// Returns an absolute FilePath under `workspace_root` for `rel_path`, or
+// Returns an absolute FilePath under `workspace_root` for UTF-8 `rel_path`, or
 // WorkspaceError::kInvalidPath if the input is unsafe.
 //
 // Rejects: absolute paths (POSIX and Windows), any ".." segment, any

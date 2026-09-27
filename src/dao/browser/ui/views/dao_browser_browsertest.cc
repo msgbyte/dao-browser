@@ -5782,7 +5782,9 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
                        ExternalUrlMiniDaoStaysWindowedFromFullscreen) {
+#if BUILDFLAG(IS_MAC)
   ui::test::ScopedFakeNSWindowFullscreen fake_fullscreen_window;
+#endif
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
   ASSERT_TRUE(GetBrowserView(browser())->IsFullscreen());
 
@@ -6425,8 +6427,8 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   base::FilePath folder_path =
       profile->GetPath().AppendASCII("dao_folders.json");
   EXPECT_FALSE(folder_path.empty());
-  EXPECT_TRUE(folder_path.value().find("dao_folders.json") !=
-              std::string::npos);
+  EXPECT_EQ(base::FilePath(FILE_PATH_LITERAL("dao_folders.json")),
+            folder_path.BaseName());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
@@ -8505,8 +8507,12 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   ASSERT_TRUE(more_menu->GetVisible());
   views::LabelButton* share_button = FindLabelButtonWithText(
       more_menu, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SHARE));
+#if BUILDFLAG(IS_MAC)
   ASSERT_NE(nullptr, share_button);
   EXPECT_TRUE(share_button->IsDrawn());
+#else
+  EXPECT_EQ(nullptr, share_button);
+#endif
 
   popup->Hide();
 }
@@ -10847,6 +10853,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
                                                gfx::Point(500, 300)));
 }
 
+#if BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
                        NativeCompletionRequiresPhysicalReleaseAndSettlesOnce) {
   content::WebContents* web_contents =
@@ -10891,6 +10898,8 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   EXPECT_EQ(1, tear_off_count);
   EXPECT_EQ(outside_point, tear_off_point);
 }
+
+#endif
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
                        ParsePayload_MissingPrefix) {

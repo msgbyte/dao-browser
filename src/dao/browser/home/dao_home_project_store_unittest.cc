@@ -17,8 +17,13 @@
 #include "base/json/json_writer.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "dao/browser/home/dao_home_manifest.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "base/test/file_path_reparse_point_win.h"
+#endif
 
 namespace dao {
 namespace {
@@ -239,6 +244,57 @@ TEST_F(DaoHomeProjectStoreTest, PublishesValidatedRevisionAtomically) {
   EXPECT_EQ("<!doctype html><main data-dao-node-id=\"main\">Home</main>\n",
             body.value());
 }
+
+TEST_F(DaoHomeProjectStoreTest, ListsNestedFilesWithPortableSeparators) {
+  HomeVersion initial = PublishInitialProject();
+  ASSERT_FALSE(initial.id.empty());
+  auto files = store_->ListFiles(initial.id);
+  ASSERT_TRUE(files.has_value());
+  EXPECT_EQ((std::vector<std::string>{"connectors/feed.js", "dao/node-map.json",
+                                    "index.html", "manifest.json",
+                                    "schemas/feed.json"}),
+            files.value());
+}
+
+#if BUILDFLAG(IS_WIN)
+TEST_F(DaoHomeProjectStoreTest, RejectsDirectoryJunctionWhenListingFiles) {
+  HomeVersion initial = PublishInitialProject();
+  ASSERT_FALSE(initial.id.empty());
+  base::ScopedTempDir outside;
+  ASSERT_TRUE(outside.CreateUniqueTempDir());
+  const auto link = store_->root_for_testing()
+                        .AppendASCII("revisions")
+                        .AppendASCII(initial.id)
+                        .AppendASCII("link");
+  ASSERT_TRUE(base::CreateDirectory(link));
+  auto junction = base::test::FilePathReparsePoint::Create(link, outside.GetPath());
+  ASSERT_TRUE(junction.has_value());
+
+  auto files = store_->ListFiles(initial.id);
+  ASSERT_FALSE(files.has_value());
+  EXPECT_EQ(HomeError::kInvalidPath, files.error());
+}
+
+TEST_F(DaoHomeProjectStoreTest, RejectsDirectoryJunctionWhenPublishing) {
+  auto draft =
+      store_->ApplyPatch(/*base_revision=*/"", kInitialPatch, "Create Home");
+  ASSERT_TRUE(draft.has_value());
+  base::ScopedTempDir outside;
+  ASSERT_TRUE(outside.CreateUniqueTempDir());
+  const auto link = store_->root_for_testing()
+                        .AppendASCII(".tmp")
+                        .AppendASCII(draft->id)
+                        .AppendASCII("link");
+  ASSERT_TRUE(base::CreateDirectory(link));
+  auto junction = base::test::FilePathReparsePoint::Create(link, outside.GetPath());
+  ASSERT_TRUE(junction.has_value());
+
+  auto version = store_->Publish(draft->id, HomeRevisionKind::kInitial, nullptr);
+  ASSERT_FALSE(version.has_value());
+  EXPECT_EQ(HomeError::kInvalidPath, version.error());
+  EXPECT_FALSE(store_->GetSnapshot().has_project);
+}
+#endif
 
 TEST_F(DaoHomeProjectStoreTest, PreparesCanonicalHistoryBootstrapConnectors) {
   auto draft =

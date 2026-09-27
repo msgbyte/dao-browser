@@ -26,7 +26,7 @@ constexpr size_t kNulProbeBytes = 8 * 1024;
 }  // namespace
 
 bool IsTextExtensionAllowed(const base::FilePath& path) {
-  std::string ext = path.Extension();
+  std::string ext = base::FilePath(path.Extension()).AsUTF8Unsafe();
   if (ext.empty()) {
     return false;
   }

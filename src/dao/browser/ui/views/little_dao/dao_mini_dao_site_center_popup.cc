@@ -264,12 +264,14 @@ void DaoMiniDaoSiteCenterPopup::BuildMainPanel() {
           LucideIcon::kShieldCheck,
           base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnPageInfoClicked,
                               base::Unretained(this)))));
+#if BUILDFLAG(IS_MAC)
   main_panel_->AddChildView(CreateActionButtonRow(
       std::make_unique<MiniSiteActionButton>(
           l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_SHARE),
           LucideIcon::kShare,
           base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnShareClicked,
                               base::Unretained(this)))));
+#endif
   main_panel_->AddChildView(CreateActionButtonRow(
       std::make_unique<MiniSiteActionButton>(
           l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_QR_CODE),

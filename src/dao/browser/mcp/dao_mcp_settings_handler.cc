@@ -7,7 +7,10 @@
 #include <string_view>
 #include <utility>
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_MAC)
 #include "base/apple/bundle_locations.h"
+#endif
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
@@ -61,7 +64,7 @@ class DaoMcpSettingsServiceImpl final : public DaoMcpSettingsService {
 
   bool IsEnabled() const override {
     PrefService* local_state = g_browser_process->local_state();
-    return local_state &&
+    return DaoMcpService::IsSupported() && local_state &&
            local_state->GetBoolean(prefs::kDaoMcpServerEnabled);
   }
 
@@ -247,6 +250,9 @@ PrefService* DaoMcpSettingsHandler::GetPrefs() {
 
 std::optional<std::string> DaoMcpSettingsHandler::GetSetupContent(
     std::string_view option_id) const {
+  if (!DaoMcpService::IsSupported()) {
+    return std::nullopt;
+  }
   if (option_id == "generic-mcp") {
     std::optional<base::Value> configuration = base::JSONReader::Read(
         service_->GetMcpConfiguration(), base::JSON_PARSE_RFC);
@@ -261,8 +267,12 @@ std::optional<std::string> DaoMcpSettingsHandler::GetSetupContent(
     }
     return pretty_configuration;
   }
+#if BUILDFLAG(IS_MAC)
   return BuildDaoMcpInstallCommandForBundle(base::apple::OuterBundlePath(),
                                              option_id);
+#else
+  return std::nullopt;
+#endif
 }
 
 base::DictValue DaoMcpSettingsHandler::CreateStatusValue() {

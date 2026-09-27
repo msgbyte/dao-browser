@@ -171,6 +171,11 @@ void DaoControlCenterPopup::OnNativeThemeUpdated(
 }
 
 DaoControlCenterPopup::~DaoControlCenterPopup() {
+#if BUILDFLAG(IS_WIN)
+  if (web_contents()) {
+    UnblockWebContentNativeEvents(web_contents());
+  }
+#endif
   if (browser_ && browser_->tab_strip_model()) {
     browser_->tab_strip_model()->RemoveObserver(this);
   }
@@ -209,11 +214,17 @@ void DaoControlCenterPopup::ShowAt(const gfx::Point& anchor_bottom_right) {
 void DaoControlCenterPopup::Hide() {
   ClearButtonHoverState(card_);
   SetVisible(false);
+#if BUILDFLAG(IS_WIN)
+  // Aura blockers belong to individual WebContents. A tab switch has already
+  // changed the active tab, so release the target observed when ShowAt ran.
+  auto* web_contents = content::WebContentsObserver::web_contents();
+#else
+  auto* web_contents =
+      browser_->tab_strip_model()->GetActiveWebContents();
+#endif
   content::WebContentsObserver::Observe(nullptr);
 
   // Restore web content event processing.
-  auto* web_contents =
-      browser_->tab_strip_model()->GetActiveWebContents();
   if (web_contents) {
     UnblockWebContentNativeEvents(web_contents);
   }

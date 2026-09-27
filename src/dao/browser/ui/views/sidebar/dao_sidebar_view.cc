@@ -554,6 +554,7 @@ gfx::Size DaoSidebarView::CalculatePreferredSize(
 }
 
 void DaoSidebarView::Layout(PassKey) {
+#if BUILDFLAG(IS_MAC)
   // Reposition traffic lights on every layout pass so macOS cannot reset them.
   if (GetWidget()) {
     constexpr int kTrafficLightX = 13;
@@ -562,12 +563,17 @@ void DaoSidebarView::Layout(PassKey) {
                                    kTrafficLightX, kTrafficLightY);
   }
 
-  // Dao: Hide traffic-light spacing in fullscreen (no window controls).
+#endif
+  // Dao: Hide traffic-light spacing outside macOS and in fullscreen.
   if (header_row_) {
-    bool fullscreen = GetWidget() && GetWidget()->IsFullscreen();
+#if BUILDFLAG(IS_MAC)
+    const bool fullscreen = GetWidget() && GetWidget()->IsFullscreen();
+    const int left_inset = fullscreen ? 0 : 70;
+#else
+    constexpr int left_inset = 0;
+#endif
     auto* header_layout = static_cast<views::FlexLayout*>(
         header_row_->GetLayoutManager());
-    int left_inset = fullscreen ? 0 : 70;
     header_layout->SetInteriorMargin(gfx::Insets::TLBR(0, left_inset, 0, 0));
   }
   if (toggle_button_) {

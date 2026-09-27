@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "build/build_config.h"
 
 namespace dao {
 
@@ -50,8 +51,9 @@ base::expected<base::FilePath, WorkspaceError> NormalizePath(
     return base::unexpected(WorkspaceError::kInvalidPath);
   }
 
-  base::FilePath candidate(rel_path);
-  if (candidate.IsAbsolute()) {
+  base::FilePath candidate = base::FilePath::FromUTF8Unsafe(rel_path);
+  if (candidate.empty() || candidate.IsAbsolute() ||
+      base::FilePath::IsSeparator(candidate.value().front())) {
     return base::unexpected(WorkspaceError::kInvalidPath);
   }
 
@@ -74,6 +76,27 @@ base::expected<base::FilePath, WorkspaceError> NormalizePath(
     }
   }
 
+#if BUILDFLAG(IS_WIN)
+  // MakeAbsoluteFilePath does not resolve Windows reparse points. Resolve
+  // each existing component, including ancestors of a not-yet-created file.
+  base::FilePath resolved_root;
+  if (!base::NormalizeFilePath(workspace_root, &resolved_root)) {
+    return base::unexpected(WorkspaceError::kInvalidPath);
+  }
+  base::FilePath resolved = resolved_root;
+  for (const auto& component : components) {
+    resolved = resolved.Append(component);
+    base::FilePath canonical;
+    if (base::NormalizeFilePath(resolved, &canonical)) {
+      resolved = canonical;
+    } else if (base::PathExists(resolved) || base::IsLink(resolved)) {
+      return base::unexpected(WorkspaceError::kInvalidPath);
+    }
+    if (resolved != resolved_root && !resolved_root.IsParent(resolved)) {
+      return base::unexpected(WorkspaceError::kInvalidPath);
+    }
+  }
+#else
   // Resolve symlinks on both sides so prefix checks work consistently on
   // platforms where the temp dir / profile dir contains symlinks (e.g. on
   // macOS where /var/folders is a symlink to /private/var/folders).
@@ -88,6 +111,7 @@ base::expected<base::FilePath, WorkspaceError> NormalizePath(
   if (resolved.empty()) {
     resolved = joined;
   }
+#endif
 
   if (resolved != resolved_root && !resolved_root.IsParent(resolved)) {
     return base::unexpected(WorkspaceError::kInvalidPath);

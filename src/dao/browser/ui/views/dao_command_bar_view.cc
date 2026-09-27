@@ -390,6 +390,9 @@ void DaoCommandBarView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
 }
 
 DaoCommandBarView::~DaoCommandBarView() {
+#if BUILDFLAG(IS_WIN)
+  SetWebContentEventProcessing(true);
+#endif
   if (autocomplete_controller_) {
     autocomplete_controller_->RemoveObserver(this);
   }
@@ -2256,6 +2259,20 @@ void DaoCommandBarView::SetNewTabButtonHighlight(bool highlighted) {
 }
 
 void DaoCommandBarView::SetWebContentEventProcessing(bool enabled) {
+#if BUILDFLAG(IS_WIN)
+  // Release the original Aura target even if the active tab has changed.
+  if (blocked_web_contents_) {
+    UnblockWebContentNativeEvents(blocked_web_contents_.get());
+    blocked_web_contents_.reset();
+  }
+  if (!enabled) {
+    auto* contents = browser_->tab_strip_model()->GetActiveWebContents();
+    if (contents) {
+      BlockWebContentNativeEvents(contents);
+      blocked_web_contents_ = contents->GetWeakPtr();
+    }
+  }
+#else
   auto* web_contents =
       browser_->tab_strip_model()->GetActiveWebContents();
   if (!web_contents) {
@@ -2266,6 +2283,7 @@ void DaoCommandBarView::SetWebContentEventProcessing(bool enabled) {
   } else {
     BlockWebContentNativeEvents(web_contents);
   }
+#endif
 }
 
 // static

@@ -5,9 +5,8 @@
 # -----------------------------------------------------------------------------
 # Public source_set: dao_updater
 #
-# Built only on macOS for now. The cross-platform facade
-# (dao_updater_service.{h,cc}) is here too so non-mac targets can link
-# against it as a no-op once a Windows/Linux backend is added.
+# The cross-platform facade (dao_updater_service.{h,cc}) reports unsupported
+# on non-macOS targets. Only the macOS backend links against Sparkle.
 # -----------------------------------------------------------------------------
 
 if (is_mac) {

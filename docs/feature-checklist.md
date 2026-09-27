@@ -10,6 +10,44 @@
 > rebase) and [`features.md`](features.md) (the prose feature tour). This file is the
 > *checkbox* view.
 
+## Windows desktop development
+
+These are acceptance checks, not a claim that the port has passed them.
+
+- [ ] With Node managed by nvm-windows, run `npm.cmd run setup` twice and check
+  that the pinned checkout and patch state remain usable.
+- [ ] Run `npm.cmd run rebuild`; verify `out/dao-debug/chrome.exe` is produced.
+  Repeat after a small tracked change and confirm incremental cache reuse.
+- [ ] Launch with `npm.cmd run start:debug`; create, navigate, switch, and close
+  tabs. Verify sidebar layout and native minimize/maximize/close controls.
+- [ ] Open and close tab search with Ctrl+Shift+A after the welcome page and in
+  a regular tab; its WebUI must resolve under the Dao scheme without crashing.
+- [ ] Open/close the command bar and site controls; page clicks and typing must
+  work afterward. Cancel a sidebar drag with Escape, release outside the window,
+  and close its source window; no invisible overlay may consume later input.
+- [ ] With two split panes visible, open site controls on A and switch to B.
+  Closing the controls must restore A's input without releasing an independent
+  input blocker on B; repeated close calls must preserve B's blocker.
+- [ ] Open the command bar on A, switch to B, and close it. A must accept input
+  again when reactivated, without depending on site-control cleanup.
+- [ ] Check Windows file icons and filenames with non-ASCII characters. Missing
+  image thumbnails must fall back to a file icon.
+- [ ] Check UTF-8 workspace paths and directory junctions: reject existing and
+  new files reached through a junction outside the workspace; allow junctions
+  that resolve inside it. Reject paths rooted at the current drive.
+- [ ] Publish a Dao Home project with nested files and list its files using
+  forward-slash paths. Directory junctions must make listing or publication fail
+  with an invalid-path error; ordinary subdirectories must remain usable.
+- [ ] Verify MCP setup/copy-ID and native share actions are absent on Windows;
+  an unsupported MCP enable request must never start a listener.
+- [ ] The Windows sidebar update button stays hidden for the unsupported updater
+  state; macOS retains its Sparkle update flow.
+- [ ] Debug/release profiles are distinct and do not touch Chrome's profile.
+  Paths with spaces and URL query metacharacters reach the browser unchanged.
+- [ ] Recheck macOS build arguments, launch aliases, MCP, native sharing, and
+  traffic-light placement on a Mac after changing shared scripts or helpers.
+  x64 Node under Rosetta must retain the configured macOS arm64 target.
+
 ## iOS native browser
 
 The independent `ios/` app uses system WebKit, not Chromium patches. See

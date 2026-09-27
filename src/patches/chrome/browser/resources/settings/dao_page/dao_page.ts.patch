@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,445 @@
+@@ -0,0 +1,450 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -138,6 +138,10 @@ index 0000000000..0000000001
 +          };
 +        },
 +      },
++      daoMcpSupported_: {
++        type: Boolean,
++        value: () => loadTimeData.getBoolean('daoMcpSupported'),
++      },
 +      daoMcpEnabledPref_: {
 +        type: Object,
 +        value() {
@@ -230,6 +234,7 @@ index 0000000000..0000000001
 +  declare prefs: {[key: string]: any};
 +  declare private autoPipEnabledPref_:
 +      chrome.settingsPrivate.PrefObject<boolean>;
++  declare private daoMcpSupported_: boolean;
 +  declare private daoMcpEnabledPref_:
 +      chrome.settingsPrivate.PrefObject<boolean>;
 +  declare private daoMcpStatusText_: string;

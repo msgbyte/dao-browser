@@ -28,11 +28,14 @@
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "dao/browser/automation/dao_agent_lease_manager.h"
 #include "dao/browser/automation/dao_browser_tool_catalog.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
+#if BUILDFLAG(IS_MAC)
 #include "dao/browser/mcp/dao_mcp_transport.h"
+#endif
 
 class Browser;
 class BrowserWindowInterface;
@@ -98,8 +101,10 @@ class DaoMcpApprovalDelegate {
   virtual void CancelApproval(std::string_view) {}
 };
 
+#if BUILDFLAG(IS_MAC)
 std::string BuildDaoMcpConfigurationForBundle(
     const base::FilePath& bundle_path);
+#endif
 base::DictValue BuildDaoMcpUsageStats(PrefService* prefs);
 void ResetDaoMcpUsageStats(PrefService* prefs, base::Time last_reset);
 
@@ -109,6 +114,7 @@ class DaoMcpService {
       base::RepeatingCallback<void(const DaoMcpServiceStatus&)>;
 
   static DaoMcpService* Get();
+  static constexpr bool IsSupported() { return BUILDFLAG(IS_MAC); }
 
   void Initialize(PrefService* local_state, base::FilePath user_data_dir);
   void Shutdown();
@@ -123,6 +129,7 @@ class DaoMcpService {
   void StopControl();
   base::CallbackListSubscription AddObserver(StatusObserver observer);
   void SetApprovalDelegate(DaoMcpApprovalDelegate* delegate);
+#if BUILDFLAG(IS_MAC)
   void SetTimeoutsForTesting(base::TimeDelta hello_timeout,
                              base::TimeDelta approval_timeout);
   void SetDevToolsCommandCallbackForTesting(
@@ -141,9 +148,15 @@ class DaoMcpService {
   }
   bool connection_active_for_testing() const { return !connections_.empty(); }
   size_t connection_count_for_testing() const { return connections_.size(); }
+#endif
 
  private:
   friend class base::NoDestructor<DaoMcpService>;
+
+  DaoMcpService();
+  ~DaoMcpService();
+
+#if BUILDFLAG(IS_MAC)
 
   enum class ApprovalState {
     kNotRequested,
@@ -169,9 +182,6 @@ class DaoMcpService {
 
   struct TargetContext;
   struct ConnectionState;
-
-  DaoMcpService();
-  ~DaoMcpService();
 
   void OnEnabledPrefChanged();
   void StartListening();
@@ -289,6 +299,7 @@ class DaoMcpService {
   bool shutting_down_ = false;
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<DaoMcpService> weak_factory_{this};
+#endif
 };
 
 }  // namespace dao

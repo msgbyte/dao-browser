@@ -4,10 +4,15 @@
 
 #include "dao/browser/mcp/dao_mcp_service.h"
 
-#include <unistd.h>
-
 #include <cmath>
 #include <utility>
+
+#include "base/logging.h"
+#include "components/prefs/pref_service.h"
+#include "dao/browser/dao_pref_names.h"
+
+#if BUILDFLAG(IS_MAC)
+#include <unistd.h>
 #include <vector>
 
 #include "base/apple/bundle_locations.h"
@@ -55,16 +60,19 @@
 #include "dao/browser/ui/views/dao_mcp_approval_dialog.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "net/base/net_errors.h"
+#endif
 
 namespace dao {
 namespace {
 
+#if BUILDFLAG(IS_MAC)
 constexpr size_t kMaxClientLabelBytes = 256;
 constexpr size_t kMaxPendingToolCalls = 64;
 constexpr size_t kMaxPendingToolCallBytes = kDaoMcpMaxLineBytes;
 constexpr base::TimeDelta kHelloTimeout = base::Seconds(5);
 constexpr base::TimeDelta kApprovalTimeout = base::Minutes(1);
 constexpr base::TimeDelta kLeaseRetryDelay = base::Milliseconds(50);
+#endif
 constexpr char kUsageTotalCalls[] = "totalCalls";
 constexpr char kUsageToolCalls[] = "toolCalls";
 constexpr char kUsageLastReset[] = "lastReset";
@@ -89,6 +97,7 @@ base::DictValue NewMcpUsageStats(base::Time last_reset) {
   return stats;
 }
 
+#if BUILDFLAG(IS_MAC)
 void RecordMcpToolUsage(PrefService* prefs, std::string_view tool_name) {
   if (!prefs || tool_name.empty()) {
     return;
@@ -134,6 +143,7 @@ std::string SideEffectName(DaoBrowserToolSideEffect side_effect) {
   return "read";
 }
 
+#endif
 }  // namespace
 
 base::DictValue BuildDaoMcpUsageStats(PrefService* prefs) {
@@ -172,6 +182,7 @@ void ResetDaoMcpUsageStats(PrefService* prefs, base::Time last_reset) {
                  NewMcpUsageStats(last_reset));
 }
 
+#if BUILDFLAG(IS_MAC)
 struct DaoMcpService::TargetContext {
   TargetContext() = default;
   ~TargetContext() = default;
@@ -338,6 +349,8 @@ std::string BuildDaoMcpConfigurationForBundle(
   return base::WriteJson(root).value_or("{}");
 }
 
+#endif
+
 DaoMcpServiceStatus::DaoMcpServiceStatus() = default;
 DaoMcpServiceStatus::~DaoMcpServiceStatus() = default;
 DaoMcpServiceStatus::DaoMcpServiceStatus(const DaoMcpServiceStatus&) = default;
@@ -347,18 +360,19 @@ DaoMcpServiceStatus::DaoMcpServiceStatus(DaoMcpServiceStatus&&) = default;
 DaoMcpServiceStatus& DaoMcpServiceStatus::operator=(DaoMcpServiceStatus&&) =
     default;
 
+// static
+DaoMcpService* DaoMcpService::Get() {
+  static base::NoDestructor<DaoMcpService> instance;
+  return instance.get();
+}
+
+#if BUILDFLAG(IS_MAC)
 DaoMcpService::PendingToolCall::PendingToolCall() = default;
 DaoMcpService::PendingToolCall::~PendingToolCall() = default;
 DaoMcpService::PendingToolCall::PendingToolCall(PendingToolCall&&) noexcept =
     default;
 DaoMcpService::PendingToolCall& DaoMcpService::PendingToolCall::operator=(
     PendingToolCall&&) noexcept = default;
-
-// static
-DaoMcpService* DaoMcpService::Get() {
-  static base::NoDestructor<DaoMcpService> instance;
-  return instance.get();
-}
 
 DaoMcpService::DaoMcpService()
     : hello_timeout_(kHelloTimeout),
@@ -1949,5 +1963,45 @@ void DaoMcpService::UpdateStatus(bool notify_if_unchanged) {
   }
   NotifyStatusObservers();
 }
+
+#else
+
+// No transport is exposed on platforms without authenticated MCP support.
+DaoMcpService::DaoMcpService() = default;
+DaoMcpService::~DaoMcpService() = default;
+
+void DaoMcpService::Initialize(PrefService* local_state,
+                             base::FilePath user_data_dir) {
+  if (local_state) {
+    local_state->SetBoolean(prefs::kDaoMcpServerEnabled, false);
+  }
+}
+
+void DaoMcpService::Shutdown() {}
+
+void DaoMcpService::SetEnabled(bool enabled) {
+  if (enabled) {
+    LOG(WARNING) << "MCP transport is unavailable on this platform";
+  }
+}
+
+DaoMcpServiceStatus DaoMcpService::GetStatus() const { return {}; }
+std::string DaoMcpService::GetMcpConfiguration() const { return {}; }
+Browser* DaoMcpService::GetAuthorizedBrowser() const { return nullptr; }
+content::WebContents* DaoMcpService::GetAuthorizedTarget() const {
+  return nullptr;
+}
+bool DaoMcpService::IsTargetControlled(content::WebContents* target) const {
+  return false;
+}
+size_t DaoMcpService::GetControlledTargetCount() const { return 0; }
+void DaoMcpService::StopControl() {}
+base::CallbackListSubscription DaoMcpService::AddObserver(
+    StatusObserver observer) {
+  return {};
+}
+void DaoMcpService::SetApprovalDelegate(DaoMcpApprovalDelegate* delegate) {}
+
+#endif
 
 }  // namespace dao

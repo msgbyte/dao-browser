@@ -48,17 +48,19 @@ describe('dao-update-button', () => {
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
   });
 
-  it('does not render a button while idle', async () => {
+  it.each(['idle', 'unsupported'] as const)(
+      'does not render a button while %s', async (state) => {
     const {el} = await loadButton();
-    el.updateState = updateState({state: 'idle'});
+    el.updateState = updateState({state});
     await el.updateComplete;
 
     expect(el.shadowRoot!.querySelector('button')).toBeNull();
   });
 
-  it('hides the host while idle', async () => {
+  it.each(['idle', 'unsupported'] as const)(
+      'hides the host while %s', async (state) => {
     const {el} = await loadButton();
-    el.updateState = updateState({state: 'idle'});
+    el.updateState = updateState({state});
     await el.updateComplete;
 
     const ctor = customElements.get('dao-update-button') as

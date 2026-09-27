@@ -10,6 +10,28 @@ The Android shell now uses Android Components `BrowserStore` tabs with regular-s
 real tab thumbnails, plus persistent history and bookmarks, Android system downloads, persistent
 engine preferences, installed-extension state, and QR scanning.
 
+## Desktop platform scope
+
+The development CLI supports native macOS arm64 and an experimental Windows x64 target.
+Windows uses the existing setup/import/rebuild commands, a local `chrome.exe`,
+and separate Dao debug/release profiles. Windows event interception uses Aura
+with restoration on overlay close and drag cancellation. Closing site controls
+or the command bar after switching tabs restores the originally blocked page.
+Download cards use Windows file type icons when an image thumbnail is unavailable.
+Agent workspace paths accept UTF-8 input. On Windows, existing path components
+are resolved through directory junctions before checking workspace containment,
+including ancestors of files that do not yet exist.
+Dao Home project scans use portable forward-slash file names and reject Windows
+directory junctions as well as file symlinks.
+Chromium tab search uses `dao://tab-search.top-chrome/` to match its registered
+WebUI configuration, including when opened with Ctrl+Shift+A on Windows.
+
+The Windows port excludes the macOS MCP transport and its settings/copy-ID
+actions, native share pickers, AppKit drag-to-new-window completion detection,
+ImageIO thumbnails, the external-URL Little Dao launcher, and Sparkle updates.
+Windows installers and release publishing are outside the development scope.
+See [`development.md`](development.md) for setup and verification requirements.
+
 ## 1. Vertical Sidebar
 
 An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the single biggest UI change in Dao Browser. The sidebar is a hybrid: a C++ Views container hosts a Lit/TypeScript WebUI that renders the actual tab list, favorites, and controls.
