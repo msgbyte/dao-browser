@@ -20,6 +20,11 @@ These are acceptance checks, not a claim that the port has passed them.
   Repeat after a small tracked change and confirm incremental cache reuse.
 - [ ] Launch with `npm.cmd run start:debug`; create, navigate, switch, and close
   tabs. Verify sidebar layout and native minimize/maximize/close controls.
+- [ ] In restored, maximized, and fullscreen sidebar windows, verify the native
+  toolbar stays hidden with no navigation/address controls painting over the
+  title bar or caption buttons. Repeat after collapsing/expanding the sidebar
+  and at 100%, 125%, and 150% display scaling. Check title-bar dragging, native
+  window controls, and command-bar navigation/autocomplete still work.
 - [ ] Open and close tab search with Ctrl+Shift+A after the welcome page and in
   a regular tab; its WebUI must resolve under the Dao scheme without crashing.
 - [ ] Open/close the command bar and site controls; page clicks and typing must

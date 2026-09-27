@@ -45,12 +45,19 @@ index bcb1930a86dd2..20acaf3489516 100644
  #if BUILDFLAG(IS_CHROMEOS)
        // Immersive mode allows the toolbar to be shown, so do not show the
        // bubble. However, do show the bubble in a managed guest session (see
-@@ -929,6 +959,105 @@ BrowserView::BrowserView(Browser* browser)
+@@ -929,6 +959,112 @@ BrowserView::BrowserView(Browser* browser)
    contents_container_ = AddChildView(std::move(contents_container));
    set_contents_view(contents_container_);
  
 +  // Dao: Only create sidebar UI for normal browser windows (not popups/devtools)
 +  if (browser_->SupportsWindowFeature(Browser::WindowFeature::kFeatureTabStrip)) {
++    // Clip the parked toolbar's composited children to the top container.
++    // On Windows, y=-height is still inside the window's native title bar,
++    // so unbounded child layers would paint over the caption buttons.
++    top_container_->SetPaintToLayer();
++    top_container_->layer()->SetFillsBoundsOpaquely(false);
++    top_container_->layer()->SetMasksToBounds(true);
++
 +    // Dao: Set frame background color (visible behind sidebar + content insets)
 +    SetBackground(views::CreateSolidBackground(
 +        dao::SidebarBackground(browser_.get())));

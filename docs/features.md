@@ -14,7 +14,10 @@ engine preferences, installed-extension state, and QR scanning.
 
 The development CLI supports native macOS arm64 and an experimental Windows x64 target.
 Windows uses the existing setup/import/rebuild commands, a local `chrome.exe`,
-and separate Dao debug/release profiles. Windows event interception uses Aura
+and separate Dao debug/release profiles. Sidebar windows clip the parked native
+toolbar's composited children to the top container, keeping the Windows title
+bar and minimize/maximize/close buttons free of duplicate navigation controls.
+Windows event interception uses Aura
 with restoration on overlay close and drag cancellation. Closing site controls
 or the command bar after switching tabs restores the originally blocked page.
 Download cards use Windows file type icons when an image thumbnail is unavailable.
