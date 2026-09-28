@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => {
     submitExternalPrompt: vi.fn(),
     prefillExternalPrompt: vi.fn(),
     openExternalSession: vi.fn(),
+    startNewSession: vi.fn(),
+    openHistory: vi.fn(),
     refreshSkillRegistryIfStale: vi.fn(async () => false),
     initI18n: vi.fn(() => i18nPromise),
     resolveI18n: () => resolveI18nPromise(),
@@ -35,8 +37,8 @@ vi.mock('../dao_chat_view.js', () => {
       requestUpdate = mocks.chatRequestUpdate;
       submitExternalPrompt = mocks.submitExternalPrompt;
       focusInput() {}
-      startNewSession() {}
-      openHistory() {}
+      startNewSession = mocks.startNewSession;
+      openHistory = mocks.openHistory;
       prefillExternalPrompt = mocks.prefillExternalPrompt;
       openExternalSession = mocks.openExternalSession;
     });
@@ -78,11 +80,15 @@ describe('dao-agent-app i18n refresh', () => {
     mocks.prefillExternalPrompt.mockReset();
     mocks.openExternalSession.mockReset();
     mocks.refreshSkillRegistryIfStale.mockReset();
+    mocks.startNewSession.mockReset();
+    mocks.openHistory.mockReset();
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
+    delete (navigator as Navigator & {windowControlsOverlay?: unknown})
+        .windowControlsOverlay;
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
     delete (window as unknown as {__daoExternalSubmit?: unknown})
         .__daoExternalSubmit;
@@ -100,6 +106,67 @@ describe('dao-agent-app i18n refresh', () => {
     await el.updateComplete;
 
     expect(mocks.chatRequestUpdate).toHaveBeenCalled();
+  });
+
+  it('switches to compact panel controls when native window controls overlap', async () => {
+    const overlay = Object.assign(new EventTarget(), {
+      visible: false, getTitlebarAreaRect: () => ({width: 200}),
+    });
+    Object.defineProperty(navigator, 'windowControlsOverlay', {
+      configurable: true, value: overlay,
+    });
+    const {el, send} = await loadApp();
+    const root = el.shadowRoot ?? el;
+    expect(root.querySelector('.dao-app-header.compact')).toBeNull();
+
+    overlay.visible = true;
+    overlay.dispatchEvent(new Event('geometrychange'));
+    await el.updateComplete;
+    expect(root.querySelector('.dao-app-header.compact')).not.toBeNull();
+    root.querySelector<HTMLButtonElement>(
+        '[aria-label="app.header.collapse"]')!.click();
+    expect(send).toHaveBeenCalledExactlyOnceWith('closeSidebar');
+
+    overlay.visible = false;
+    overlay.dispatchEvent(new Event('geometrychange'));
+    await el.updateComplete;
+    expect(root.querySelector('.dao-app-header.compact')).toBeNull();
+    expect(root.querySelector('.dao-app-tab-bar')).not.toBeNull();
+  });
+
+  it('keeps new chat, history and settings reachable in the compact header', async () => {
+    const overlay = Object.assign(new EventTarget(), {
+      visible: true, getTitlebarAreaRect: () => ({width: 38}),
+    });
+    Object.defineProperty(navigator, 'windowControlsOverlay', {
+      configurable: true, value: overlay,
+    });
+    mocks.callNative.mockResolvedValue({success: true});
+    const {el, send} = await loadApp();
+    const root = el.shadowRoot ?? el;
+    const menu = root.querySelector<HTMLDetailsElement>('.dao-app-overflow')!;
+    expect(root.querySelector('.compact.narrow')).not.toBeNull();
+    expect(menu).not.toBeNull();
+    menu.open = true;
+    root.querySelector<HTMLButtonElement>('.dao-app-collapse-action')!.click();
+    expect(send).toHaveBeenCalledExactlyOnceWith('closeSidebar');
+    expect(menu.open).toBe(false);
+    send.mockClear();
+    menu.open = true;
+    menu.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+    expect(menu.open).toBe(false);
+    menu.open = true;
+    root.querySelector<HTMLButtonElement>(
+        '[data-action="new-chat"]')!.click();
+    expect(mocks.startNewSession).toHaveBeenCalledOnce();
+    expect(menu.open).toBe(false);
+    root.querySelector<HTMLButtonElement>('[data-action="history"]')!.click();
+    expect(mocks.openHistory).toHaveBeenCalledOnce();
+    root.querySelector<HTMLButtonElement>('[data-action="settings"]')!.click();
+    await vi.waitFor(() => {
+      expect(mocks.callNative).toHaveBeenCalledWith('openAgentSettings');
+    });
+    expect(send).toHaveBeenCalledExactlyOnceWith('closeSidebar');
   });
 
   it('closes the sidebar after unified settings opens', async () => {

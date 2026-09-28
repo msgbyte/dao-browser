@@ -134,6 +134,8 @@ export class CrLitElement extends HTMLElement {
     this.requestUpdate();
   }
 
+  disconnectedCallback() {}
+
   requestUpdate(propertyName?: PropertyKey, oldValue?: unknown) {
     if (propertyName !== undefined &&
         !this.changedProperties_.has(propertyName)) {
@@ -172,7 +174,7 @@ export class CrLitElement extends HTMLElement {
       const node =
           this.shadowRoot.querySelector(`[data-lit-event-${i}]`);
       node?.removeAttribute(`data-lit-event-${i}`);
-      node?.addEventListener(binding.eventName, binding.handler);
+      node?.addEventListener(binding.eventName, binding.handler.bind(this));
     }
     for (let i = 0; i < properties.length; i++) {
       const binding = properties[i]!;

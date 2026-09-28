@@ -166,6 +166,7 @@ class DaoSplitView : public views::View,
 
   // views::View:
   void Layout(PassKey) override;
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   void OnThemeChanged() override;
   void OnPaint(gfx::Canvas* canvas) override;
   bool GetCanProcessEventsWithinSubtree() const override;

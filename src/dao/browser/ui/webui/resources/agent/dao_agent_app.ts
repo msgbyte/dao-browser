@@ -16,7 +16,7 @@ import './dao_chat_view.js';
 import './dao_dream_dispatcher.js';
 import './llm_connection_test.js';
 import type {DaoChatView} from './dao_chat_view.js';
-import {initI18n} from './i18n/i18n.js';
+import {initI18n, t} from './i18n/i18n.js';
 import {refreshSkillRegistryIfStale} from './skill_registry.js';
 
 // Kick off locale loading at module import time so the dictionary is in
@@ -31,12 +31,27 @@ export class DaoAgentApp extends CrLitElement {
       activeTab_: {type: String, state: true},
       toastText_: {type: String, state: true},
       toastVisible_: {type: Boolean, state: true},
+      windowControlsVisible_: {type: Boolean, state: true},
+      windowControlsWidth_: {type: Number, state: true},
     };
   }
 
   declare private activeTab_: string;
   declare private toastText_: string;
   declare private toastVisible_: boolean;
+  declare private windowControlsVisible_: boolean;
+  declare private windowControlsWidth_: number;
+  private readonly windowControls_ = (navigator as Navigator & {
+    windowControlsOverlay?: EventTarget & {
+      visible: boolean;
+      getTitlebarAreaRect(): {width: number};
+    };
+  }).windowControlsOverlay;
+  private readonly onWindowControlsChanged_ = () => {
+    this.windowControlsVisible_ = this.windowControls_?.visible ?? false;
+    this.windowControlsWidth_ =
+        this.windowControls_?.getTitlebarAreaRect().width ?? 0;
+  };
   private toastTimer_ = 0;
 
   constructor() {
@@ -44,6 +59,9 @@ export class DaoAgentApp extends CrLitElement {
     this.activeTab_ = 'chat';
     this.toastText_ = '';
     this.toastVisible_ = false;
+    this.windowControlsVisible_ = this.windowControls_?.visible ?? false;
+    this.windowControlsWidth_ =
+        this.windowControls_?.getTitlebarAreaRect().width ?? 0;
   }
 
 
@@ -53,6 +71,9 @@ export class DaoAgentApp extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    this.onWindowControlsChanged_();
+    this.windowControls_?.addEventListener(
+        'geometrychange', this.onWindowControlsChanged_);
     // WebContents visibility flips when DaoAgentSidebarView toggles SetVisible
     // AND when the browser window itself goes to background / gets minimized.
     // We can't tell those apart from this event alone, so do NOT abort the
@@ -172,6 +193,12 @@ export class DaoAgentApp extends CrLitElement {
     });
   }
 
+  override disconnectedCallback() {
+    this.windowControls_?.removeEventListener(
+        'geometrychange', this.onWindowControlsChanged_);
+    super.disconnectedCallback();
+  }
+
   override render() {
     const newChatIcon = html`<svg width="16" height="16" viewBox="0 0 24 24"
         fill="none" stroke="currentColor" stroke-width="2"
@@ -209,6 +236,7 @@ export class DaoAgentApp extends CrLitElement {
     return html`
       <style>
         dao-agent-app {
+          position: relative;
           display: flex;
           flex-direction: column;
           height: 100%;
@@ -234,6 +262,61 @@ export class DaoAgentApp extends CrLitElement {
           color: var(--text-secondary);
           letter-spacing: 0.2px;
         }
+        .dao-app-header.compact {
+          box-sizing: border-box;
+          width: env(titlebar-area-width, 100%);
+          height: env(titlebar-area-height, 36px);
+          padding: 0 2px;
+          gap: 2px;
+        }
+        .compact .dao-app-header-title {
+          min-width: 0;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .compact .dao-app-tab, .dao-app-overflow { flex-shrink: 0; }
+        .compact .dao-app-tab { width: 24px; height: 28px; }
+        .dao-app-overflow > summary { list-style: none; }
+        .dao-app-overflow > summary::-webkit-details-marker { display: none; }
+        .dao-app-overflow-menu {
+          position: absolute;
+          top: env(titlebar-area-height, 36px);
+          right: 8px;
+          width: min(200px, calc(100% - 16px));
+          box-sizing: border-box;
+          z-index: 100;
+          padding: 4px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: rgb(244,247,251);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+        }
+        .dao-app-overflow-menu button {
+          display: block;
+          width: 100%;
+          padding: 8px;
+          border: 0;
+          border-radius: 4px;
+          background: none;
+          color: var(--text-secondary);
+          text-align: start;
+          font: inherit;
+          cursor: pointer;
+        }
+        .dao-app-overflow-menu button:hover {
+          background: rgba(70,120,190,0.15);
+        }
+        @media (prefers-color-scheme: dark) {
+          .dao-app-overflow-menu { background: rgb(70,76,82); }
+        }
+        .dao-app-overflow-menu .dao-app-collapse-action { display: none; }
+        .compact.no-title .dao-app-header-title { display: none; }
+        .compact.narrow .dao-app-collapse { display: none; }
+        .compact.narrow .dao-app-overflow { flex: 1; min-width: 0; }
+        .compact.narrow .dao-app-overflow > summary { width: 100%; }
+        .compact.narrow .dao-app-collapse-action { display: block; }
         .dao-app-tab-bar { display: flex; gap: 3px; }
         dao-agent-app .dao-app-tab {
           width: 28px; height: 28px;
@@ -265,7 +348,47 @@ export class DaoAgentApp extends CrLitElement {
           to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
       </style>
-      <div class="dao-app-header">
+      <div class="dao-app-header ${this.windowControlsVisible_ ? 'compact' : ''}
+          ${this.windowControlsWidth_ < 100 ? 'no-title' : ''}
+          ${this.windowControlsWidth_ < 56 ? 'narrow' : ''}">
+        ${this.windowControlsVisible_ ? html`
+          <span class="dao-app-header-title">${t('app.header.title')}</span>
+          <button class="dao-app-tab dao-app-collapse"
+              aria-label=${t('app.header.collapse')}
+              title=${t('app.header.collapse')}
+              @click=${() => chrome.send('closeSidebar')}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M15 3v18" />
+              <path d="m8 9 3 3-3 3" />
+            </svg>
+          </button>
+          <details class="dao-app-overflow" @keydown=${this.onOverflowKeydown_}>
+            <summary class="dao-app-tab" aria-label=${t('app.header.more')}
+                title=${t('app.header.more')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="19" cy="12" r="1" />
+                <circle cx="5" cy="12" r="1" />
+              </svg>
+            </summary>
+            <div class="dao-app-overflow-menu" @click=${this.closeOverflow_}>
+              <button class="dao-app-collapse-action"
+                  @click=${() => chrome.send('closeSidebar')}>
+                ${t('app.header.collapse')}</button>
+              <button data-action="new-chat" @click=${this.onNewChatClick_}>
+                ${t('app.header.new_chat')}</button>
+              <button data-action="history" @click=${this.onHistoryClick_}>
+                ${t('app.header.history')}</button>
+              <button data-action="settings" @click=${this.openUnifiedSettings_}>
+                ${t('app.header.settings')}</button>
+            </div>
+          </details>
+        ` : html`
         <div class="dao-app-header-left">
           <span class="dao-app-header-title">Dao Agent</span>
           <button class="dao-app-tab"
@@ -287,6 +410,7 @@ export class DaoAgentApp extends CrLitElement {
             ${settingsIcon}
           </button>
         </div>
+        `}
       </div>
       <dao-chat-view ?hidden=${this.activeTab_ !== 'chat'}></dao-chat-view>
       ${this.toastVisible_ ?
@@ -301,6 +425,20 @@ export class DaoAgentApp extends CrLitElement {
       this.activeTab_ = tab;
     }
   }
+
+  private closeOverflow_ = () => {
+    const menu = (this.shadowRoot ?? this)
+        .querySelector<HTMLDetailsElement>('.dao-app-overflow');
+    if (menu) menu.open = false;
+  };
+
+  private onOverflowKeydown_ = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+    this.closeOverflow_();
+    (this.shadowRoot ?? this)
+        .querySelector<HTMLElement>('.dao-app-overflow > summary')?.focus();
+    event.stopPropagation();
+  };
 
   private async openUnifiedSettings_() {
     try {

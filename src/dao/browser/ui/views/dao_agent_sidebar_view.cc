@@ -15,6 +15,7 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -488,6 +489,21 @@ void DaoAgentSidebarView::Layout(PassKey) {
     web_view_->SetBoundsRect(
         gfx::Rect(kResizeAreaWidth, 0,
                    std::max(0, width() - kResizeAreaWidth), height()));
+    if (auto* contents = web_view_->GetWebContents()) {
+      gfx::Rect titlebar_area;
+      auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+      if (browser_view) {
+        gfx::Rect controls = browser_view->GetDaoWindowControlsBounds();
+        views::View::ConvertRectToTarget(browser_view, web_view_, &controls);
+        if (controls.Intersects(web_view_->GetLocalBounds())) {
+          // Chromium propagates these DIP bounds to the Window Controls
+          // Overlay API and CSS env() values, including renderer zoom changes.
+          titlebar_area = gfx::Rect(
+              0, 0, std::max(1, controls.x()), controls.bottom());
+        }
+      }
+      contents->UpdateWindowControlsOverlay(titlebar_area);
+    }
   }
 }
 

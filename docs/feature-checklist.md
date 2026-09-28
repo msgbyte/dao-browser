@@ -25,6 +25,17 @@ These are acceptance checks, not a claim that the port has passed them.
   title bar or caption buttons. Repeat after collapsing/expanding the sidebar
   and at 100%, 125%, and 150% display scaling. Check title-bar dragging, native
   window controls, and command-bar navigation/autocomplete still work.
+- [ ] Normal Windows windows have one shared address/caption row. Minimize,
+  maximize/restore, and close stay at the absolute top right with Agent open or
+  closed, either sidebar collapsed, and horizontal/vertical split panes. Resize
+  the Agent to its minimum width and check its collapse and overflow actions
+  remain reachable without covering window controls. Repeat with page zoom,
+  light/dark/incognito themes, and 100%, 125%, and 150% display scaling.
+- [ ] Hover maximize for Windows 11 Snap Layouts; minimize/restore and close a
+  test window; verify page leave-confirmation still works. Drag and double-click
+  empty address/sidebar-header space; check top-edge resize. In fullscreen,
+  caption buttons disappear and Agent uses its regular header; restoring brings
+  the compact layout back. Popup/app windows retain their separate frame layout.
 - [ ] Open and close tab search with Ctrl+Shift+A after the welcome page and in
   a regular tab; its WebUI must resolve under the Dao scheme without crashing.
 - [ ] Open/close the command bar and site controls; page clicks and typing must

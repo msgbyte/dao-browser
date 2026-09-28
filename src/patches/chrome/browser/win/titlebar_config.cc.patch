@@ -1,0 +1,15 @@
+diff --git a/chrome/browser/win/titlebar_config.cc b/chrome/browser/win/titlebar_config.cc
+index 7898ea8..0725976 100644
+--- a/chrome/browser/win/titlebar_config.cc
++++ b/chrome/browser/win/titlebar_config.cc
+@@ -11,7 +11,9 @@
+ #include "chrome/browser/win/mica_titlebar.h"
+ 
+ bool ShouldBrowserCustomDrawTitlebar(BrowserView* browser_view) {
+-  return !ShouldDefaultThemeUseMicaTitlebar() ||
++  // Dao normal windows share their navigation row with caption buttons.
++  return browser_view->GetIsNormalType() ||
++         !ShouldDefaultThemeUseMicaTitlebar() ||
+          !ThemeServiceFactory::GetForProfile(browser_view->GetProfile())
+               ->UsingSystemTheme() ||
+          (!browser_view->browser()->is_type_normal() &&

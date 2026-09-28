@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index bb0e0958c9077..2c9fe4166500e 100644
+index bb0e095..df6ea13 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
 @@ -124,6 +124,26 @@ enum class InstallableWebAppCheckResult;
@@ -29,7 +29,7 @@ index bb0e0958c9077..2c9fe4166500e 100644
  class CustomFloatingCorner;
  
  ///////////////////////////////////////////////////////////////////////////////
-@@ -271,6 +292,23 @@ class BrowserView : public BrowserWindow,
+@@ -271,6 +291,26 @@ class BrowserView : public BrowserWindow,
  
    MultiContentsView* multi_contents_view() { return multi_contents_view_; }
  
@@ -50,10 +50,13 @@ index bb0e0958c9077..2c9fe4166500e 100644
 +  dao::DaoTabTooltipView* dao_tab_tooltip() { return dao_tab_tooltip_; }
 +  dao::DaoToastView* dao_toast() { return dao_toast_; }
 +
++  // Windows caption exclusion in BrowserView coordinates; empty elsewhere.
++  gfx::Rect GetDaoWindowControlsBounds() const;
++
    // Returns either the Horizontal or Vertical TabStrip.
    TabStripRegionView* tab_strip_view() const;
  
-@@ -1274,8 +1315,28 @@ class BrowserView : public BrowserWindow,
+@@ -1274,5 +1314,26 @@ class BrowserView : public BrowserWindow,
    // should exist if and only if the side_panel_coordinator is created.
    raw_ptr<SidePanel> side_panel_ = nullptr;
  
@@ -76,9 +79,7 @@ index bb0e0958c9077..2c9fe4166500e 100644
 +  raw_ptr<dao::DaoAgentCursorView> dao_agent_cursor_ = nullptr;
 +  raw_ptr<dao::DaoTabTooltipView> dao_tab_tooltip_ = nullptr;
 +  raw_ptr<dao::DaoToastView> dao_toast_ = nullptr;
++  gfx::Rect dao_window_controls_bounds_;
 +
    // The handler responsible for showing autofill bubbles.
    std::unique_ptr<autofill::AutofillBubbleHandler> autofill_bubble_handler_;
- 
-   // The scrim view that covers the browser window when a window-modal dialog is
-   // showing.

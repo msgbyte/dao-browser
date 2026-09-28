@@ -1102,6 +1102,16 @@ void DaoSplitView::Layout(PassKey) {
   UpdateDividerPositions();
 }
 
+void DaoSplitView::OnBoundsChanged(const gfx::Rect& previous_bounds) {
+  View::OnBoundsChanged(previous_bounds);
+  if (previous_bounds.origin() != bounds().origin()) {
+    for (DaoSplitPaneView* pane : pane_views_) {
+      pane->address_bar()->InvalidateLayout();
+      pane->InvalidateLayout();
+    }
+  }
+}
+
 void DaoSplitView::OnThemeChanged() {
   views::View::OnThemeChanged();
   SchedulePaint();

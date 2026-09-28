@@ -6,6 +6,12 @@ import type { Dictionary } from '../i18n.js';
 
 const dict: Dictionary = {
   ...en,
+  'app.header.title': 'Dao Agent',
+  'app.header.collapse': '收起 Agent 面板',
+  'app.header.more': '更多 Agent 操作',
+  'app.header.new_chat': '新对话',
+  'app.header.history': '历史对话',
+  'app.header.settings': '设置',
   'chat.gauge.tooltip_no_capacity': '预估上下文:{tokens} tokens',
   'chat.gauge.tooltip_with_capacity': '预估上下文:{tokens} tokens / {capacity}({percent}%)',
   'chat.compact.cancel_tooltip': '取消摘要',

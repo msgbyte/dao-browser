@@ -1,0 +1,34 @@
+diff --git a/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc b/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
+index f7f0659..a615747 100644
+--- a/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
++++ b/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
+@@ -137,7 +137,8 @@ int BrowserCaptionButtonContainer::NonClientHitTest(
+ }
+ 
+ void BrowserCaptionButtonContainer::OnWindowControlsOverlayEnabledChanged() {
+-  if (frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
++  if (frame_view_->GetBrowserView()->GetIsNormalType() ||
++      frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
+     SetBackground(
+         views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
+ 
+@@ -152,7 +153,8 @@ void BrowserCaptionButtonContainer::OnWindowControlsOverlayEnabledChanged() {
+ }
+ 
+ void BrowserCaptionButtonContainer::OnThemeChanged() {
+-  if (frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
++  if (frame_view_->GetBrowserView()->GetIsNormalType() ||
++      frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
+     SetBackground(
+         views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
+   }
+@@ -175,7 +177,8 @@ void BrowserCaptionButtonContainer::AddedToWidget() {
+ 
+   UpdateButtons();
+ 
+-  if (frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
++  if (frame_view_->GetBrowserView()->GetIsNormalType() ||
++      frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
+     SetBackground(
+         views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
+     // BrowserView paints to a layer, so this must do the same to ensure that it

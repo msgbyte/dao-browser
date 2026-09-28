@@ -10,6 +10,7 @@
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tab_contents/chrome_web_contents_view_focus_helper.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
@@ -304,15 +305,45 @@ void DaoSplitPaneView::Layout(PassKey) {
   }
 
   if (header_container_) {
+    int header_width = w;
+    if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_)) {
+      gfx::Rect controls = browser_view->GetDaoWindowControlsBounds();
+      views::View::ConvertRectToTarget(browser_view, this, &controls);
+      if (controls.Intersects(gfx::Rect(0, kPaneHeaderTopInset, w,
+                                        kPaneHeaderHeight))) {
+        header_width = std::clamp(controls.x(), 0, w);
+      }
+    }
     const gfx::Size header_size = header_container_->GetPreferredSize();
     header_container_->SetBounds(
-        std::max(0, (w - header_size.width()) / 2), kPaneHeaderTopInset,
-        std::min(w, header_size.width()), kPaneHeaderHeight);
+        std::max(0, (header_width - header_size.width()) / 2), kPaneHeaderTopInset,
+        std::min(header_width, header_size.width()), kPaneHeaderHeight);
   }
 }
 
 void DaoSplitPaneView::OnBoundsChanged(const gfx::Rect& previous_bounds) {
   View::OnBoundsChanged(previous_bounds);
+  if (previous_bounds.origin() != bounds().origin()) {
+    // Same-sized panes can exchange positions without resizing their children.
+    address_bar_->InvalidateLayout();
+    InvalidateLayout();
+  }
+}
+
+bool DaoSplitPaneView::IsPositionInWindowCaption(const gfx::Point& point) const {
+  if (!address_bar_ || !address_bar_->bounds().Contains(point) ||
+      (header_container_ && header_container_->GetVisible() &&
+       header_container_->bounds().Contains(point))) {
+    return false;
+  }
+  gfx::Point local(point);
+  views::View::ConvertPointToTarget(this, address_bar_, &local);
+  for (const auto& rect : address_bar_->interactive_rects()) {
+    if (rect.Contains(local)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool DaoSplitPaneView::OnMousePressed(const ui::MouseEvent& event) {

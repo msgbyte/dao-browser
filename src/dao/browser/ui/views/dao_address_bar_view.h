@@ -115,6 +115,7 @@ class DaoAddressBarView : public views::View,
   std::vector<gfx::Rect> interactive_rects() const;
 
   // views::View:
+  void Layout(PassKey) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
   void OnMouseMoved(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;

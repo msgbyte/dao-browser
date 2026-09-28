@@ -14,9 +14,19 @@ engine preferences, installed-extension state, and QR scanning.
 
 The development CLI supports native macOS arm64 and an experimental Windows x64 target.
 Windows uses the existing setup/import/rebuild commands, a local `chrome.exe`,
-and separate Dao debug/release profiles. Sidebar windows clip the parked native
-toolbar's composited children to the top container, keeping the Windows title
-bar and minimize/maximize/close buttons free of duplicate navigation controls.
+and separate Dao debug/release profiles. Normal Windows browser windows combine
+their address row and native Chromium minimize/maximize/close controls, removing
+the separate title-bar row. Caption buttons stay at the window's top right while
+  either sidebar toggles or split panes resize. Address bars reserve the actual
+  caption bounds, shrink the URL, and hide actions that cannot fit in narrow
+  panes; the Agent uses Chromium's Window Controls Overlay geometry to
+fit its compact header beside them, with a distinct collapse button and an
+overflow menu for new chat, history, and settings. Fullscreen hides the caption
+buttons and restores the regular Agent header. Native caption hit testing
+preserves Snap Layouts, window close handling, and dragging from sidebar-header
+and address-row empty space. Popup and app window frames retain their existing
+layout. Sidebar windows also clip the parked native toolbar's composited children
+to the top container so duplicate navigation controls cannot cover the frame.
 Windows event interception uses Aura
 with restoration on overlay close and drag cancellation. Closing site controls
 or the command bar after switching tabs restores the originally blocked page.

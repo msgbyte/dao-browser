@@ -59,6 +59,9 @@ class DaoSplitPaneView : public views::View,
   void SetHeaderHovered(bool hovered);
   void SetHeaderDragActive(bool active);
 
+  // Empty address-row space can drag the window without stealing pane actions.
+  bool IsPositionInWindowCaption(const gfx::Point& point) const;
+
   // Detach and return the WebContents WITHOUT calling WasHidden().
   // Used when transferring a visible WebContents to the primary
   // ContentsWebView so the renderer avoids a hidden→shown transition

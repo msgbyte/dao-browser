@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -13,6 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -364,6 +366,13 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   layout->SetMainAxisAlignment(views::LayoutAlignment::kStart);
   layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
   layout->SetDefault(views::kMarginsKey, gfx::Insets::VH(0, 1));
+#if BUILDFLAG(IS_WIN)
+  // Narrow split panes must never place an action beneath window controls.
+  layout->SetDefault(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(views::MinimumFlexSizeRule::kPreferredSnapToZero,
+                               views::MaximumFlexSizeRule::kPreferred));
+#endif
 
   gfx::FontList font({"system-ui"}, gfx::Font::NORMAL, kFontSize,
                       gfx::Font::Weight::NORMAL);
@@ -455,6 +464,13 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
 
   // URL pill: wraps host + path labels, sized to content, centered by spacers.
   url_container_ = AddChildView(std::make_unique<views::View>());
+#if BUILDFLAG(IS_WIN)
+  url_container_->SetProperty(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
+                               views::MaximumFlexSizeRule::kPreferred)
+          .WithOrder(2));
+#endif
   auto* url_layout =
       url_container_->SetLayoutManager(std::make_unique<views::FlexLayout>());
   url_layout->SetOrientation(views::LayoutOrientation::kHorizontal);
@@ -628,7 +644,7 @@ void DaoAddressBarView::UpdateSecurityButton() {
 
 bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
   // If the click lands on the control center button, let it handle it
-  if (control_center_button_) {
+  if (control_center_button_ && control_center_button_->GetVisible()) {
     gfx::Point pt = event.location();
     views::View::ConvertPointToTarget(this, control_center_button_, &pt);
     if (control_center_button_->HitTestPoint(pt)) {
@@ -678,7 +694,7 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
 }
 
 void DaoAddressBarView::OnMouseMoved(const ui::MouseEvent& event) {
-  bool over_url = url_container_ &&
+  bool over_url = url_container_ && url_container_->GetVisible() &&
                   url_container_->GetMirroredBounds().Contains(event.location());
   UpdateUrlContainerHover(over_url);
 }
@@ -709,6 +725,24 @@ views::View* DaoAddressBarView::control_center_button() const {
 gfx::Size DaoAddressBarView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
   return gfx::Size(0, kBarHeight);
+}
+
+void DaoAddressBarView::Layout(PassKey) {
+  // All address bars, including split panes, avoid the same window controls.
+  int right_inset = 0;
+  if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_)) {
+    gfx::Rect controls = browser_view->GetDaoWindowControlsBounds();
+    views::View::ConvertRectToTarget(browser_view, this, &controls);
+    if (controls.Intersects(GetLocalBounds())) {
+      right_inset = width() - std::max(0, controls.x());
+    }
+  }
+  auto* layout = static_cast<views::FlexLayout*>(GetLayoutManager());
+  const auto margin = gfx::Insets::TLBR(0, 0, 0, right_inset);
+  if (layout->interior_margin() != margin) {
+    layout->SetInteriorMargin(margin);
+  }
+  LayoutSuperclass<views::View>(this);
 }
 
 void DaoAddressBarView::OnBackgroundColorChanged() {
@@ -831,9 +865,13 @@ void DaoAddressBarView::SetSidebarCollapsed(bool collapsed) {
   UpdateBackgroundColor();
 
   if (traffic_light_spacer_) {
+#if BUILDFLAG(IS_MAC)
     // In fullscreen there are no traffic lights, so never show the spacer.
     bool fullscreen = GetWidget() && GetWidget()->IsFullscreen();
     traffic_light_spacer_->SetVisible(collapsed && !fullscreen);
+#else
+    traffic_light_spacer_->SetVisible(false);
+#endif
   }
   if (left_spacer_) {
     left_spacer_->SetVisible(!collapsed);
@@ -1128,7 +1166,7 @@ DaoAddressBarView::mcp_control_popup_for_testing() {
 std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
   std::vector<gfx::Rect> rects;
   // URL pill
-  if (url_container_) {
+  if (url_container_ && url_container_->GetVisible()) {
     rects.push_back(url_container_->GetMirroredBounds());
   }
   // Navigation buttons
@@ -1153,7 +1191,7 @@ std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
     rects.push_back(sidebar_toggle_button_->GetMirroredBounds());
   }
   // Control center button
-  if (control_center_button_) {
+  if (control_center_button_ && control_center_button_->GetVisible()) {
     rects.push_back(control_center_button_->GetMirroredBounds());
   }
   return rects;

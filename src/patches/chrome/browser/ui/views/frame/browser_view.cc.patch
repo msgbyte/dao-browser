@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index bcb1930a86dd2..20acaf3489516 100644
+index bcb1930..977e1a0 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4,6 +4,27 @@
+@@ -4,6 +4,28 @@
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
  
@@ -25,6 +25,7 @@ index bcb1930a86dd2..20acaf3489516 100644
 +#include "dao/browser/ui/views/sidebar/dao_download_flyout_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 +#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
++#include "dao/browser/ui/views/split/dao_split_pane_view.h"
 +#include "dao/browser/ui/views/split/dao_split_view.h"
 +
  #include <stdint.h>
@@ -244,7 +245,7 @@ index bcb1930a86dd2..20acaf3489516 100644
  }
  
  void BrowserView::OnTabDetached(content::WebContents* contents,
-@@ -2256,6 +2429,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2256,6 +2433,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -263,7 +264,7 @@ index bcb1930a86dd2..20acaf3489516 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3506,6 +3691,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
+@@ -3506,6 +3695,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
                                   TabChangeType change_type) {
    content::WebContents* contents = tab->GetContents();
  
@@ -285,7 +286,43 @@ index bcb1930a86dd2..20acaf3489516 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
-@@ -4706,6 +4906,96 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4529,9 +4733,35 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
+   }
+ }
+ 
++gfx::Rect BrowserView::GetDaoWindowControlsBounds() const {
++#if BUILDFLAG(IS_WIN)
++  if (dao_sidebar_ && GetWidget() && !GetWidget()->IsFullscreen()) {
++    auto* frame = browser_widget_->GetFrameView();
++    const auto params = frame->GetBrowserLayoutParams();
++    const auto size = params.trailing_exclusion.content;
++    if (!size.IsEmpty()) {
++      gfx::Rect bounds = gfx::ToEnclosingRect(gfx::RectF(
++          params.visual_client_area.right() - size.width(),
++          params.visual_client_area.y(), size.width(), size.height()));
++      views::View::ConvertRectToTarget(frame, this, &bounds);
++      return bounds;
++    }
++  }
++#endif
++  return gfx::Rect();
++}
++
+ bool BrowserView::ShouldDescendIntoChildForEventHandling(
+     gfx::NativeView child,
+     const gfx::Point& location) {
++  // Dao: Do not dispatch caption-button events to the Agent renderer.
++  gfx::Point dao_point(location);
++  views::View::ConvertPointToTarget(GetWidget()->GetRootView(), this,
++                                    &dao_point);
++  if (GetDaoWindowControlsBounds().Contains(dao_point)) {
++    return false;
++  }
++
+   // Window for PWAs with window-controls-overlay display override should claim
+   // mouse events that fall within the draggable region.
+   web_app::AppBrowserController* controller = browser()->app_controller();
+@@ -4706,6 +4936,126 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -341,8 +378,28 @@ index bcb1930a86dd2..20acaf3489516 100644
 +      if (btn_bounds.Contains(point_in_browser_view_coords)) {
 +        return HTCLIENT;
 +      }
++#if BUILDFLAG(IS_WIN)
++      return HTCAPTION;
++#else
 +      return HTNOWHERE;
++#endif
 +    }
++
++#if BUILDFLAG(IS_WIN)
++    if (dao_split_view_ && dao_split_view_->GetVisible()) {
++      for (views::View* child : dao_split_view_->children()) {
++        auto* pane = views::AsViewClass<dao::DaoSplitPaneView>(child);
++        if (!pane || !pane->GetVisible()) {
++          continue;
++        }
++        gfx::Point local(point_in_browser_view_coords);
++        views::View::ConvertPointToTarget(this, pane, &local);
++        if (pane->IsPositionInWindowCaption(local)) {
++          return HTCAPTION;
++        }
++      }
++    }
++#endif
 +
 +    const int sidebar_right = dao_sidebar_->bounds().right();
 +    const int content_top = contents_container_->y();
@@ -352,6 +409,16 @@ index bcb1930a86dd2..20acaf3489516 100644
 +      // must remain clickable instead of becoming a window-drag region.
 +      if (dao_address_bar_ && dao_address_bar_->GetVisible() &&
 +          dao_address_bar_->bounds().Contains(point_in_browser_view_coords)) {
++#if BUILDFLAG(IS_WIN)
++        gfx::Point local(point_in_browser_view_coords);
++        views::View::ConvertPointToTarget(this, dao_address_bar_, &local);
++        for (const auto& rect : dao_address_bar_->interactive_rects()) {
++          if (rect.Contains(local)) {
++            return HTCLIENT;
++          }
++        }
++        return HTCAPTION;
++#endif
 +        return HTCLIENT;
 +      }
 +      return HTNOWHERE;
@@ -382,7 +449,35 @@ index bcb1930a86dd2..20acaf3489516 100644
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -5110,6 +5409,20 @@ void BrowserView::OnThemeChanged() {
+@@ -4839,6 +5189,27 @@ void BrowserView::Layout(PassKey) {
+     did_first_layout_while_top_controls_are_sliding_ = false;
+   }
+ 
++  // Dao: Fullscreen and frame changes can move the controls without resizing
++  // child views. Refresh their exclusion areas before laying out the client.
++  const gfx::Rect controls = GetDaoWindowControlsBounds();
++  if (controls != dao_window_controls_bounds_) {
++    dao_window_controls_bounds_ = controls;
++    if (dao_address_bar_) {
++      dao_address_bar_->InvalidateLayout();
++    }
++    if (dao_agent_sidebar_) {
++      dao_agent_sidebar_->InvalidateLayout();
++    }
++    if (dao_split_view_) {
++      for (views::View* child : dao_split_view_->children()) {
++        if (auto* pane = views::AsViewClass<dao::DaoSplitPaneView>(child)) {
++          pane->address_bar()->InvalidateLayout();
++          pane->InvalidateLayout();
++        }
++      }
++    }
++  }
++
+   LayoutSuperclass<views::View>(this);
+ 
+   // TODO(jamescook): Why was this in the middle of layout code?
+@@ -5110,6 +5481,20 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();

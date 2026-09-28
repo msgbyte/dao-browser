@@ -8,6 +8,12 @@
 import type { Dictionary } from '../i18n.js';
 
 const dict: Dictionary = {
+  'app.header.title': 'Dao Agent',
+  'app.header.collapse': 'Collapse Agent panel',
+  'app.header.more': 'More Agent actions',
+  'app.header.new_chat': 'New chat',
+  'app.header.history': 'Chat history',
+  'app.header.settings': 'Settings',
   // -------- chat (dao_chat_view.ts) --------
   // Context size gauge tooltip; {tokens} is current estimated tokens.
   // Variant with capacity is shown when the active model has a known limit.
