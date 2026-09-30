@@ -415,6 +415,11 @@ export class DaoSidebarApp extends CrLitElement {
         });
 
     this.addSidebarListener_(
+        'moveTabToTopRequested', (...args: unknown[]) => {
+          this.moveTabToTop_(args[0] as string);
+        });
+
+    this.addSidebarListener_(
         'folderContextMenuCommand', (...args: unknown[]) => {
           this.handleFolderContextMenuCommand_(
               args[0] as string, args[1] as string);
@@ -632,6 +637,41 @@ export class DaoSidebarApp extends CrLitElement {
 
     this.folderModel_.reorder(fromIndex, toModelIndex);
     this.saveFolders_();
+  }
+
+  private moveTabToTop_(tabId: string) {
+    if (!this.foldersLoaded_) return;
+    const tab = this.findUnpinnedTabById_(tabId);
+    if (!tab) return;
+
+    const folderId = this.folderModel_.findTabFolder(tab);
+    if (folderId) {
+      const folder = this.folderModel_.getFolders().find(f => f.id === folderId)!;
+      const fromIndex = folder.children.findIndex(child => child.tabId === tabId);
+      if (fromIndex <= 0) return;
+      this.folderModel_.reorderWithinFolder(folderId, fromIndex, 0);
+      this.saveFolders_();
+      return;
+    }
+
+    // Match the existing split-run ordering used by FolderModel and the list.
+    let first = this.unpinnedTabs_.indexOf(tab);
+    let end = first + 1;
+    if (tab.isInSplit) {
+      while (first > 0 && this.unpinnedTabs_[first - 1]!.isInSplit) first--;
+      while (end < this.unpinnedTabs_.length &&
+             this.unpinnedTabs_[end]!.isInSplit) end++;
+    }
+    const tabs = this.unpinnedTabs_.slice(first, end);
+    const items = this.folderModel_.getOrderedItems();
+    const refs = tabs.flatMap(member => items.filter(
+        item => item.type === 'tab' && item.tabId === member.tabId));
+    if (refs.every((ref, index) => items[index] === ref)) return;
+    for (const ref of refs.reverse()) {
+      this.folderModel_.reorder(items.indexOf(ref), 0);
+    }
+    this.saveFolders_();
+    sendNative('moveTab', tabs[0]!.index, this.unpinnedTabs_[0]!.index);
   }
 
   /**

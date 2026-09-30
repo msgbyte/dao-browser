@@ -129,6 +129,12 @@ function fireDeleteFolderConfirmed(folderId: string) {
   fireFolderContextMenuCommand(folderId, 'deleteConfirmed');
 }
 
+function fireMoveTabToTopRequested(tabId: string) {
+  (window as unknown as {
+    cr: {webUIListenerCallback: (event: string, tabId: string) => void};
+  }).cr.webUIListenerCallback('moveTabToTopRequested', tabId);
+}
+
 function didSendNative(send: ReturnType<typeof vi.fn>, method: string): boolean {
   return send.mock.calls.some(call => call[0] === method);
 }
@@ -988,6 +994,73 @@ describe('dao-sidebar-app', () => {
     expect(handlerText).toContain('ConfigureDaoSystemDialog');
     expect(handlerText).toContain('CreateBrowserModalDialogViews');
   });
+
+  it.each([false, true])(
+      'moves the exact tab to the top and persists it (in folder: %s)',
+      async (inFolder) => {
+        const {el, send} = await loadApp();
+        const app = el as SidebarAppInternals;
+        // Identical URLs/titles must still target the selected stable ID.
+        const tabs = [tab(), tab({tabId: 'tab-2', index: 2})];
+        const refs = tabs.map(t => ({
+          type: 'tab', tabId: t.tabId, url: t.url, title: t.title,
+        }));
+        const folder = {
+          type: 'folder', id: 'work', name: 'Work', collapsed: false,
+          children: inFolder ? refs : [],
+        };
+        const model = installFolderModel(app, JSON.stringify({
+          version: 1, items: inFolder ? [folder] : [folder, ...refs],
+        }));
+        app.unpinnedTabs_ = tabs;
+        send.mockClear();
+
+        fireMoveTabToTopRequested('tab-2');
+
+        const items = inFolder ? model.getFolders()[0]!.children :
+            model.getOrderedItems();
+        expect(items.map(item => item.type === 'tab' ? item.tabId : item.id))
+            .toEqual(inFolder ? ['tab-2', 'tab-1'] : ['tab-2', 'work', 'tab-1']);
+        expect(model.findTabFolder(tabs[1]!)).toBe(inFolder ? 'work' : null);
+        expect(send).toHaveBeenCalledWith(
+            'saveFolders', [model.toJson(), expect.any(String)]);
+        if (inFolder) {
+          expect(didSendNative(send, 'moveTab')).toBe(false);
+        } else {
+          expect(send).toHaveBeenCalledWith('moveTab', [2, 0]);
+        }
+
+        send.mockClear();
+        fireMoveTabToTopRequested('tab-2');
+        fireMoveTabToTopRequested('closed-tab');
+        app.foldersLoaded_ = false;
+        fireMoveTabToTopRequested('tab-1');
+        expect(didSendNative(send, 'saveFolders')).toBe(false);
+        expect(didSendNative(send, 'moveTab')).toBe(false);
+      });
+
+  it('keeps a split group together when moving its trailing tab to the top',
+      async () => {
+        const {el, send} = await loadApp();
+        const app = el as SidebarAppInternals;
+        const tabs = [
+          tab(), tab({tabId: 'split-1', index: 1, isInSplit: true}),
+          tab({tabId: 'split-2', index: 2, isInSplit: true}),
+        ];
+        const model = installFolderModel(app);
+        model.reconcile(tabs);
+        app.unpinnedTabs_ = tabs;
+
+        fireMoveTabToTopRequested('split-2');
+        model.reconcile(tabs);
+
+        expect(model.getOrderedItems().map(item =>
+          item.type === 'tab' ? item.tabId : item.id))
+            .toEqual(['split-1', 'split-2', 'tab-1']);
+        expect(send).toHaveBeenCalledWith('moveTab', [1, 0]);
+        expect(send).toHaveBeenCalledWith(
+            'saveFolders', [model.toJson(), expect.any(String)]);
+      });
 
   it('starts folder rename when native folder menu selects rename',
       async () => {

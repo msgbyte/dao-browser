@@ -253,6 +253,9 @@
       <message name="IDS_DAO_TAB_CONTEXT_DUPLICATE_TAB" desc="Context menu item that duplicates the selected regular tab in the Dao sidebar.">
         Duplicate Tab
       </message>
+      <message name="IDS_DAO_TAB_CONTEXT_MOVE_TO_TOP" desc="Context menu item that moves the selected regular tab to the top of its current sidebar list or folder.">
+        Move to Top
+      </message>
       <message name="IDS_DAO_TAB_CONTEXT_COPY_LINK" desc="Context menu item that copies the URL of the selected regular tab in the Dao sidebar.">
         Copy Link
       </message>

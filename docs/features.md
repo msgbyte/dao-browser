@@ -58,6 +58,10 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   shortcut labels for Duplicate Tab, Copy Link, and Close Tab. When the local
   MCP server is enabled, regular-profile tabs also expose Copy Tab ID for
   stable MCP targeting. Incognito and Guest windows keep the action hidden.
+- **Move tab to top** — The regular tab context menu moves a tab to the top
+  of the sidebar list, or to the top of its current folder without changing
+  membership. Loose split tabs move together in their existing order. The
+  saved sidebar order survives reloads and session restore.
 - **Close duplicate tabs** — The sidebar context menu keeps the most recently
   active tab for each URL. After all close attempts finish, a localized native
   toast reports how many duplicate tabs actually closed. Pages retain their

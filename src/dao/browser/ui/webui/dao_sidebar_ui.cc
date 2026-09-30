@@ -2859,6 +2859,11 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
   tab_context_menu_model_->AddItem(
       kMoveTabToNewWindow,
       l10n_util::GetStringUTF16(IDS_MOVE_TAB_TO_NEW_WINDOW));
+  if (!model->IsTabPinned(tab_index)) {
+    tab_context_menu_model_->AddItem(
+        kMoveTabToTop,
+        l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_MOVE_TO_TOP));
+  }
   tab_context_menu_model_->AddItem(
       kCopyLink, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_COPY_LINK));
   PrefService* local_state = g_browser_process->local_state();
@@ -3707,6 +3712,11 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   if (!browser_) {
     return false;
   }
+  if (command_id == kMoveTabToTop) {
+    const int index =
+        ResolveDraggedTabIndex(browser_, -1, context_menu_tab_id_);
+    return index >= 0 && !browser_->tab_strip_model()->IsTabPinned(index);
+  }
   if (command_id == kMoveTabToNewWindow) {
     const int index =
         ResolveDraggedTabIndex(browser_, -1, context_menu_tab_id_);
@@ -3822,6 +3832,15 @@ bool DaoSidebarUIHandler::GetAcceleratorForCommandId(
 
 void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
   if (!browser_) {
+    return;
+  }
+
+  if (command_id == kMoveTabToTop) {
+    if (IsJavascriptAllowed() && IsCommandIdEnabled(command_id)) {
+      FireWebUIListener("moveTabToTopRequested",
+                        base::Value(context_menu_tab_id_));
+    }
+    ClearContextMenuState();
     return;
   }
 

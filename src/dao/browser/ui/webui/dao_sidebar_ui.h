@@ -316,6 +316,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kFolderUnfolder,
     kFolderDelete,
     kMoveTabToNewWindow,
+    kMoveTabToTop,
   };
 
   raw_ptr<Browser> browser_ = nullptr;
