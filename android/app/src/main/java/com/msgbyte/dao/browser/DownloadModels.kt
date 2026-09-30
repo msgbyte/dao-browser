@@ -57,7 +57,8 @@ internal data class DownloadGatewayRecord(
 internal interface DownloadGateway {
     fun enqueue(request: DownloadRequestData): Long
     fun query(ids: Set<Long>): List<DownloadGatewayRecord>
-    fun remove(id: Long)
+    /** Removes the task and its file, reporting whether a file existed to delete. */
+    fun remove(id: Long): Boolean
 }
 
 internal interface DownloadMetadataStore {

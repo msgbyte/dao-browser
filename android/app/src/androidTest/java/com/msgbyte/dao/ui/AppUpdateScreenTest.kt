@@ -106,7 +106,7 @@ class AppUpdateScreenTest {
             updateVersion = release.version, updateSha256 = release.sha256)
         val downloads = SystemDownloadRepository(object : DownloadGateway {
             override fun enqueue(request: DownloadRequestData) = error("Must reuse the existing download")
-            override fun remove(id: Long) = Unit
+            override fun remove(id: Long) = false
             override fun query(ids: Set<Long>) = listOf(DownloadGatewayRecord(42,
                 DownloadGatewayStatus.SUCCESSFUL, 123, 123, "content://downloads/all_downloads/42", 0, 1))
         }, object : DownloadMetadataStore {

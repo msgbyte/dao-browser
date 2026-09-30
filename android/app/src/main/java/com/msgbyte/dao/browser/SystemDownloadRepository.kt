@@ -115,16 +115,17 @@ class SystemDownloadRepository internal constructor(
         remove(id)
     }
 
-    suspend fun remove(id: Long) = mutex.withLock {
+    suspend fun remove(id: Long): Boolean = mutex.withLock {
         withContext(ioDispatcher) { removeLocked(id) }
     }
 
-    private fun removeLocked(id: Long) {
-        gateway.remove(id)
+    private fun removeLocked(id: Long): Boolean {
+        val fileDeleted = gateway.remove(id)
         metadata.remove(id)
         lastProgressTimes.remove(id)
         persistMetadata()
         mutableDownloads.value = mutableDownloads.value.filterNot { it.id == id }
+        return fileDeleted
     }
 
     suspend fun retry(id: Long): Long = mutex.withLock {
@@ -174,8 +175,12 @@ private class AndroidDownloadGateway(context: Context) : DownloadGateway {
         }
     }
 
-    override fun remove(id: Long) {
+    override fun remove(id: Long): Boolean {
+        // DownloadManager.remove deletes the file without reporting it, so probe first. The probe
+        // is advisory: any failure counts as "no file" and must never block the removal.
+        val hadFile = runCatching { manager.openDownloadedFile(id).close() }.isSuccess
         manager.remove(id)
+        return hadFile
     }
 
     private fun Cursor.toGatewayRecord(): DownloadGatewayRecord {

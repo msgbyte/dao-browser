@@ -111,7 +111,7 @@ class AppUpdateManagerTest {
             override fun query(ids: Set<Long>) = ids.map {
                 DownloadGatewayRecord(it, DownloadGatewayStatus.PENDING, 0, 123, null, 0, 0)
             }
-            override fun remove(id: Long) = Unit
+            override fun remove(id: Long) = false
         },
         object : DownloadMetadataStore {
             override fun readAll() = emptyMap<Long, DownloadRequestData>()

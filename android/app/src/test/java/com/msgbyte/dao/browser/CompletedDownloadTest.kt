@@ -6,11 +6,15 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.database.MatrixCursor
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import java.io.FileNotFoundException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,6 +57,44 @@ class CompletedDownloadTest {
         repository.refresh()
 
         assertEquals("content://downloads/all_downloads/42", repository.find(42L)?.localUri)
+    }
+
+    @Test
+    fun removingADownloadWhoseFileStillExistsReportsTheFileDeletion() = runBlocking {
+        val manager = mockk<DownloadManager>()
+        every { manager.openDownloadedFile(42L) } returns mockk<ParcelFileDescriptor>(relaxed = true)
+        every { manager.remove(42L) } returns 1
+        val repository = repositoryBackedBy(manager)
+        repository.enqueue(DownloadRequestData("https://example.com/report.pdf", "report.pdf"))
+
+        assertTrue(repository.remove(42L))
+
+        verify { manager.remove(42L) }
+    }
+
+    @Test
+    fun removingADownloadWhoseFileIsGoneStillRemovesTheRecord() = runBlocking {
+        val manager = mockk<DownloadManager>()
+        every { manager.openDownloadedFile(42L) } throws FileNotFoundException("No entry")
+        every { manager.remove(42L) } returns 0
+        val repository = repositoryBackedBy(manager)
+        repository.enqueue(DownloadRequestData("https://example.com/report.pdf", "report.pdf"))
+
+        assertFalse(repository.remove(42L))
+
+        verify { manager.remove(42L) }
+        assertTrue(repository.downloads.value.isEmpty())
+    }
+
+    private fun repositoryBackedBy(manager: DownloadManager): SystemDownloadRepository {
+        val context = mockk<Context>()
+        every { context.applicationContext } returns context
+        every { context.getSystemService(DownloadManager::class.java) } returns manager
+        every { context.getSharedPreferences(any(), any()) } answers {
+            application.getSharedPreferences(firstArg(), secondArg())
+        }
+        every { manager.enqueue(any()) } returns 42L
+        return SystemDownloadRepository(context)
     }
 
     @Test

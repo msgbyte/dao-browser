@@ -784,7 +784,18 @@ fun DownloadsScreen(
     val colors = LocalNovaColors.current
     val downloads by repository.downloads.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var editMode by remember { mutableStateOf(false) }
+    val removeDownload: (Long) -> Unit = { id ->
+        scope.launch {
+            val fileDeleted = repository.remove(id)
+            Toast.makeText(
+                context,
+                if (fileDeleted) R.string.download_deleted_with_file else R.string.download_deleted_record_only,
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
     val active = downloads.filter { it.status != DownloadStatus.SUCCESSFUL }
     val complete = downloads.filter { it.status == DownloadStatus.SUCCESSFUL }
     LaunchedEffect(repository) {
@@ -816,7 +827,7 @@ fun DownloadsScreen(
                                 editMode = editMode,
                                 onCancel = { scope.launch { repository.cancel(download.id) } },
                                 onRetry = { scope.launch { repository.retry(download.id) } },
-                                onRemove = { scope.launch { repository.remove(download.id) } },
+                                onRemove = { removeDownload(download.id) },
                                 onOpen = {},
                             )
                             if (index != active.lastIndex) RowDivider()
@@ -834,7 +845,7 @@ fun DownloadsScreen(
                                 editMode = editMode,
                                 onCancel = {},
                                 onRetry = {},
-                                onRemove = { scope.launch { repository.remove(download.id) } },
+                                onRemove = { removeDownload(download.id) },
                                 onOpen = { onOpenDownload(download) },
                             )
                             if (index != complete.lastIndex) RowDivider()

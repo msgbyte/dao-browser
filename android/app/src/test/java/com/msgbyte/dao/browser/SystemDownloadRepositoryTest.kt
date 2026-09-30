@@ -268,9 +268,9 @@ private class FakeDownloadGateway : DownloadGateway {
         return ids.mapNotNull(records::get)
     }
 
-    override fun remove(id: Long) {
+    override fun remove(id: Long): Boolean {
         removed += id
-        records.remove(id)
+        return records.remove(id) != null
     }
 }
 
