@@ -56,7 +56,7 @@ IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, CaptionButtonsShareAddressRow) {
     EXPECT_EQ(component, frame->NonClientHitTest(point));
   }
   for (auto rect : view->dao_address_bar()->interactive_rects()) {
-    views::View::ConvertRectToTarget(view->dao_address_bar(), view, &rect);
+    rect = views::View::ConvertRectToTarget(view->dao_address_bar(), view, rect);
     EXPECT_FALSE(rect.Intersects(view->GetDaoWindowControlsBounds()));
   }
 }
@@ -76,7 +76,7 @@ IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest,
                          controls.width() + 64, original_bounds.height());
   address_bar->DeprecatedLayoutImmediately();
   for (auto rect : address_bar->interactive_rects()) {
-    views::View::ConvertRectToTarget(address_bar, view, &rect);
+    rect = views::View::ConvertRectToTarget(address_bar, view, rect);
     EXPECT_FALSE(rect.Intersects(controls));
   }
   address_bar->SetBoundsRect(original_bounds);

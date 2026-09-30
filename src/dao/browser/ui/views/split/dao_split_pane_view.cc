@@ -308,7 +308,7 @@ void DaoSplitPaneView::Layout(PassKey) {
     int header_width = w;
     if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_)) {
       gfx::Rect controls = browser_view->GetDaoWindowControlsBounds();
-      views::View::ConvertRectToTarget(browser_view, this, &controls);
+      controls = views::View::ConvertRectToTarget(browser_view, this, controls);
       if (controls.Intersects(gfx::Rect(0, kPaneHeaderTopInset, w,
                                         kPaneHeaderHeight))) {
         header_width = std::clamp(controls.x(), 0, w);

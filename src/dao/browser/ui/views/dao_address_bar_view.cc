@@ -732,7 +732,7 @@ void DaoAddressBarView::Layout(PassKey) {
   int right_inset = 0;
   if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_)) {
     gfx::Rect controls = browser_view->GetDaoWindowControlsBounds();
-    views::View::ConvertRectToTarget(browser_view, this, &controls);
+    controls = views::View::ConvertRectToTarget(browser_view, this, controls);
     if (controls.Intersects(GetLocalBounds())) {
       right_inset = width() - std::max(0, controls.x());
     }

@@ -494,7 +494,8 @@ void DaoAgentSidebarView::Layout(PassKey) {
       auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
       if (browser_view) {
         gfx::Rect controls = browser_view->GetDaoWindowControlsBounds();
-        views::View::ConvertRectToTarget(browser_view, web_view_, &controls);
+        controls = views::View::ConvertRectToTarget(browser_view, web_view_,
+                                                   controls);
         if (controls.Intersects(web_view_->GetLocalBounds())) {
           // Chromium propagates these DIP bounds to the Window Controls
           // Overlay API and CSS env() values, including renderer zoom changes.
