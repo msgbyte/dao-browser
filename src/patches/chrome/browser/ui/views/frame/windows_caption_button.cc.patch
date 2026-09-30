@@ -100,3 +100,22 @@ diff --git a/chrome/browser/ui/views/frame/windows_caption_button.cc b/chrome/br
      // Figure out what portion of the background image to display
      const int button_display_order = GetButtonDisplayOrderIndex();
      const int base_button_width = WindowFrameUtil::kWindowsCaptionButtonWidth;
+@@ -212,7 +266,17 @@
+   const float scale = canvas->UndoDeviceScaleFactor();
+ 
+   const int symbol_size_pixels = base::ClampRound(10 * scale);
+-  gfx::RectF bounds_rect(GetContentsBounds());
++  gfx::Rect symbol_bounds = GetContentsBounds();
++  if (const auto* surface = GetDaoCaptionSurface()) {
++    // Center the glyph in the visible hover area, excluding frame gutters.
++    symbol_bounds.Inset(gfx::Insets::TLBR(0, GetBetweenButtonSpacing(), 0, 0));
++    symbol_bounds.Intersect(views::View::ConvertRectToTarget(
++        surface, this, surface->GetLocalBounds()));
++    if (symbol_bounds.IsEmpty()) {
++      return;
++    }
++  }
++  gfx::RectF bounds_rect(symbol_bounds);
+   bounds_rect.Scale(scale);
+   gfx::Rect symbol_rect(gfx::ToEnclosingRect(bounds_rect));
+   symbol_rect.ClampToCenteredSize(

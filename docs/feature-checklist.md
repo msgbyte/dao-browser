@@ -36,7 +36,8 @@ These are acceptance checks, not a claim that the port has passed them.
   Agent, and resize split panes; verify the glyphs remain readable, including
   inactive windows, and close-button hover retains its native red background.
 - [ ] Hover and press each caption button: its highlight stays out of the top
-  and right content gutters and respects the content corner. With Agent expanded,
+  and right content gutters and respects the content corner. Verify each glyph
+  is centered within its visible highlight. With Agent expanded,
   move across the full minimize/close button areas and verify continuous hover
   and working clicks, without triggering the Agent underneath. Repeat in
   restored/maximized windows and split view.
