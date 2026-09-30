@@ -9,7 +9,32 @@ diff --git a/chrome/browser/ui/views/frame/browser_caption_button_container_win.
  #include "ui/strings/grit/ui_strings.h"
  #include "ui/views/accessibility/view_accessibility.h"
  #include "ui/views/layout/flex_layout.h"
-@@ -137,13 +138,20 @@
+@@ -103,8 +104,8 @@
+   // | Yes | Yes   | Minimize, Close   | HTCLIENT              |
+   // | Yes | Yes   | Maximize, Restore | HTMAXBUTTON           |
+ 
+-  // For views without Window Controls Overlay (WCO) enabled, the original hit
+-  // test result is returned as-is.
++  // Dao normal windows use the same overlay routing as WCO: the Agent's
++  // renderer HWND can cover these native buttons.
+ 
+   // BrowserView covers the frame view when Window Controls Overlay is enabled.
+   // The native window that encompasses Web Contents gets the mouse events meant
+@@ -123,9 +124,11 @@
+     hit_test_result = HTCLOSE;
+   }
+ 
+-  // Return the base component if no button was hit or WCO is disabled.
++  // Use client mouse events for minimize/close above a renderer HWND, while
++  // retaining the Windows 11 maximize hit test needed for Snap Layouts.
+   if (hit_test_result == HTCAPTION ||
+-      !frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
++      (!frame_view_->GetBrowserView()->GetIsNormalType() &&
++       !frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled())) {
+     return hit_test_result;
+   }
+ 
+@@ -137,13 +140,20 @@
  }
  
  void BrowserCaptionButtonContainer::OnWindowControlsOverlayEnabledChanged() {
@@ -33,7 +58,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_caption_button_container_win.
    } else {
      SetBackground(nullptr);
      DestroyLayer();
-@@ -152,9 +160,13 @@
+@@ -152,9 +162,13 @@
  }
  
  void BrowserCaptionButtonContainer::OnThemeChanged() {
@@ -50,7 +75,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_caption_button_container_win.
    }
    views::View::OnThemeChanged();
  }
-@@ -175,11 +187,18 @@
+@@ -175,11 +189,18 @@
  
    UpdateButtons();
  

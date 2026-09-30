@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "base/test/run_until.h"
+#include "base/win/windows_version.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
@@ -105,10 +106,13 @@ IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, CaptionButtonsShareAddressRow) {
   EXPECT_TRUE(controls->GetBoundsInScreen().Intersects(
       view->dao_address_bar()->GetBoundsInScreen()));
 
+  const int maximize_component =
+      base::win::GetVersion() >= base::win::Version::WIN11 ? HTMAXBUTTON
+                                                         : HTCLIENT;
   for (const auto& [id, component] :
-       {std::pair{VIEW_ID_MINIMIZE_BUTTON, HTMINBUTTON},
-        std::pair{VIEW_ID_MAXIMIZE_BUTTON, HTMAXBUTTON},
-        std::pair{VIEW_ID_CLOSE_BUTTON, HTCLOSE}}) {
+       {std::pair{VIEW_ID_MINIMIZE_BUTTON, HTCLIENT},
+        std::pair{VIEW_ID_MAXIMIZE_BUTTON, maximize_component},
+        std::pair{VIEW_ID_CLOSE_BUTTON, HTCLIENT}}) {
     const auto* button = controls->GetViewByID(id);
     ASSERT_TRUE(button);
     gfx::Point point = button->GetBoundsInScreen().CenterPoint();
@@ -118,6 +122,76 @@ IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, CaptionButtonsShareAddressRow) {
   for (auto rect : view->dao_address_bar()->interactive_rects()) {
     rect = views::View::ConvertRectToTarget(view->dao_address_bar(), view, rect);
     EXPECT_FALSE(rect.Intersects(view->GetDaoWindowControlsBounds()));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest,
+                       CaptionHoverStaysWithinRoundedAddressRow) {
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser());
+  view->GetWidget()->Restore();
+  views::test::RunScheduledLayout(view->GetWidget());
+  const auto* address_bar = view->dao_address_bar();
+  for (int id : {VIEW_ID_MINIMIZE_BUTTON, VIEW_ID_MAXIMIZE_BUTTON,
+                 VIEW_ID_CLOSE_BUTTON}) {
+    auto* button = views::AsViewClass<WindowsCaptionButton>(
+        view->GetWidget()->GetRootView()->GetViewByID(id));
+    ASSERT_TRUE(button);
+    const gfx::Rect surface = views::View::ConvertRectToTarget(
+        address_bar, button, address_bar->GetLocalBounds());
+    ASSERT_GT(surface.y(), 0);
+    for (auto state : {views::Button::STATE_HOVERED,
+                       views::Button::STATE_PRESSED}) {
+      // Finish the transition immediately so the hover paint is deterministic.
+      button->SetState(views::Button::STATE_PRESSED);
+      button->SetState(state);
+      gfx::Canvas canvas(button->size(), 1.0f, false);
+      canvas.DrawColor(SK_ColorTRANSPARENT, SkBlendMode::kSrc);
+      button->OnPaintBackground(&canvas);
+      const SkBitmap bitmap = canvas.GetBitmap();
+      EXPECT_EQ(0u, SkColorGetA(bitmap.getColor(button->width() / 2, 0)));
+      EXPECT_GT(SkColorGetA(bitmap.getColor(button->width() / 2,
+                                            button->height() / 2)), 0u);
+      if (id == VIEW_ID_CLOSE_BUTTON) {
+        // Both the outer gutter and the content card's rounded corner stay clear.
+        EXPECT_EQ(0u, SkColorGetA(bitmap.getColor(button->width() - 1,
+                                                 button->height() / 2)));
+        EXPECT_EQ(0u, SkColorGetA(bitmap.getColor(surface.right() - 1,
+                                                 surface.y())));
+      }
+    }
+    button->SetState(views::Button::STATE_NORMAL);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest,
+                       CaptionHoverTargetsNativeButtonsOverAgent) {
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* frame = static_cast<BrowserFrameViewWin*>(
+      view->browser_widget()->GetFrameView());
+  view->GetWidget()->Restore();
+  auto* agent = view->dao_agent_sidebar();
+  agent->Toggle();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    views::test::RunScheduledLayout(view->GetWidget());
+    return agent->width() >= dao::DaoAgentSidebarView::kDefaultWidth;
+  }));
+  auto* root = view->GetWidget()->GetRootView();
+  for (int id : {VIEW_ID_MINIMIZE_BUTTON, VIEW_ID_CLOSE_BUTTON}) {
+    auto* button = root->GetViewByID(id);
+    ASSERT_TRUE(button);
+    ASSERT_TRUE(agent->GetBoundsInScreen().Contains(
+        button->GetBoundsInScreen().CenterPoint()));
+    for (int x : {1, button->width() / 2, button->width() - 2}) {
+      for (int y : {1, button->height() / 2, button->height() - 2}) {
+        const gfx::Point point(x, y);
+        EXPECT_EQ(HTCLIENT, frame->NonClientHitTest(
+                                views::View::ConvertPointToTarget(
+                                    button, frame, point)));
+        EXPECT_EQ(button, root->GetEventHandlerForPoint(
+                              views::View::ConvertPointToTarget(
+                                  button, root, point)));
+      }
+    }
   }
 }
 

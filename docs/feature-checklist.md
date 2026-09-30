@@ -35,6 +35,11 @@ These are acceptance checks, not a claim that the port has passed them.
   or Agent header. Switch between light and dark pages, change tabs, toggle the
   Agent, and resize split panes; verify the glyphs remain readable, including
   inactive windows, and close-button hover retains its native red background.
+- [ ] Hover and press each caption button: its highlight stays out of the top
+  and right content gutters and respects the content corner. With Agent expanded,
+  move across the full minimize/close button areas and verify continuous hover
+  and working clicks, without triggering the Agent underneath. Repeat in
+  restored/maximized windows and split view.
 - [ ] Hover maximize for Windows 11 Snap Layouts; minimize/restore and close a
   test window; verify page leave-confirmation still works. Drag and double-click
   empty address/sidebar-header space; check top-edge resize. In fullscreen,
