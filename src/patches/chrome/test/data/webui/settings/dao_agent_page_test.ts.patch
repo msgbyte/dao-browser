@@ -856,7 +856,7 @@ index 0000000000..0000000001
 +        assertEquals(
 +            loadTimeData.getStringF(
 +                'daoAgentTestConnectionFailed', '401 invalid x-api-key'),
-+            status.textContent!.trim());
++            status.textContent.trim());
 +      });
 +
 +  test('agentSearchOptionsUseRuntimeOverrideValues', function() {
