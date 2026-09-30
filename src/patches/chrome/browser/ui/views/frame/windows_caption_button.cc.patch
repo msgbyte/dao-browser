@@ -1,0 +1,83 @@
+diff --git a/chrome/browser/ui/views/frame/windows_caption_button.cc b/chrome/browser/ui/views/frame/windows_caption_button.cc
+--- a/chrome/browser/ui/views/frame/windows_caption_button.cc
++++ b/chrome/browser/ui/views/frame/windows_caption_button.cc
+@@ -17,6 +17,10 @@
+ #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
+ #include "chrome/browser/ui/views/frame/top_container_view.h"
+ #include "chrome/grit/theme_resources.h"
++#include "dao/browser/ui/views/dao_address_bar_view.h"
++#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
++#include "dao/browser/ui/views/split/dao_split_pane_view.h"
++#include "dao/browser/ui/views/split/dao_split_view.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/theme_provider.h"
+ #include "ui/base/ui_base_features.h"
+@@ -25,6 +29,7 @@
+ #include "ui/gfx/geometry/rect_conversions.h"
+ #include "ui/gfx/geometry/skia_conversions.h"
+ #include "ui/gfx/scoped_canvas.h"
++#include "ui/views/background.h"
+ 
+ WindowsCaptionButton::WindowsCaptionButton(
+     PressedCallback callback,
+@@ -72,7 +77,38 @@
+   return gfx::Size(width, height);
+ }
+ 
++const views::View* WindowsCaptionButton::GetDaoCaptionSurface() const {
++  auto* browser_view = frame_view_->GetBrowserView();
++  if (!browser_view->GetIsNormalType()) {
++    return nullptr;
++  }
++  // Each button can overlap a different surface while the Agent animates.
++  const gfx::Point center = GetBoundsInScreen().CenterPoint();
++  if (auto* agent = browser_view->dao_agent_sidebar();
++      agent && agent->GetVisible() &&
++      agent->GetBoundsInScreen().Contains(center)) {
++    return agent;
++  }
++  if (auto* split = browser_view->dao_split_view();
++      split && split->GetVisible()) {
++    for (views::View* child : split->children()) {
++      if (auto* pane = views::AsViewClass<dao::DaoSplitPaneView>(child);
++          pane && pane->GetVisible() &&
++          pane->address_bar()->GetBoundsInScreen().Contains(center)) {
++        return pane->address_bar();
++      }
++    }
++  }
++  return browser_view->dao_address_bar();
++}
++
+ SkColor WindowsCaptionButton::GetBaseForegroundColor() const {
++  if (const auto* surface = GetDaoCaptionSurface();
++      surface && surface->GetBackground()) {
++    return color_utils::GetColorWithMaxContrast(
++        surface->GetBackground()->color().ResolveToSkColor(
++            surface->GetColorProvider()));
++  }
+   // On Windows, the caption buttons are always on the right. If the horizontal
+   // tab strip isn't rendered, then the caption buttons will always be on the
+   // toolbar.
+@@ -91,8 +127,10 @@
+   // Paint the background of the button (the semi-transparent rectangle that
+   // appears when you hover or press the button).
+   const ui::ThemeProvider* theme_provider = GetThemeProvider();
++  const bool dao_window = frame_view_->GetBrowserView()->GetIsNormalType();
+   const SkColor bg_color =
+-      GetColorProvider()->GetColor(kColorCaptionButtonBackground);
++      dao_window ? SK_ColorTRANSPARENT
++                 : GetColorProvider()->GetColor(kColorCaptionButtonBackground);
+   const SkAlpha theme_alpha = SkColorGetA(bg_color);
+   gfx::Rect bounds = GetContentsBounds();
+   bounds.Inset(gfx::Insets::TLBR(0, GetBetweenButtonSpacing(), 0, 0));
+@@ -105,7 +143,8 @@
+             WindowFrameUtil::CalculateWindowsCaptionButtonBackgroundAlpha(
+                 theme_alpha)));
+   }
+-  if (theme_provider->HasCustomImage(IDR_THEME_WINDOW_CONTROL_BACKGROUND)) {
++  if (!dao_window &&
++      theme_provider->HasCustomImage(IDR_THEME_WINDOW_CONTROL_BACKGROUND)) {
+     // Figure out what portion of the background image to display
+     const int button_display_order = GetButtonDisplayOrderIndex();
+     const int base_button_width = WindowFrameUtil::kWindowsCaptionButtonWidth;

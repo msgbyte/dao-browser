@@ -449,7 +449,7 @@ index bcb1930..977e1a0 100644
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -4839,6 +5189,27 @@ void BrowserView::Layout(PassKey) {
+@@ -4839,6 +5189,37 @@ void BrowserView::Layout(PassKey) {
      did_first_layout_while_top_controls_are_sliding_ = false;
    }
  
@@ -475,9 +475,19 @@ index bcb1930..977e1a0 100644
 +  }
 +
    LayoutSuperclass<views::View>(this);
++
++#if BUILDFLAG(IS_WIN)
++  // The separate caption layer must repaint when Agent or split surfaces move.
++  if (dao_sidebar_ && GetWidget()) {
++    if (auto* button = GetWidget()->GetRootView()->GetViewByID(
++            VIEW_ID_MINIMIZE_BUTTON)) {
++      button->parent()->SchedulePaint();
++    }
++  }
++#endif
  
    // TODO(jamescook): Why was this in the middle of layout code?
-@@ -5110,6 +5481,20 @@ void BrowserView::OnThemeChanged() {
+@@ -5110,6 +5491,20 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();

@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
+#include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
@@ -794,6 +795,15 @@ void DaoAddressBarView::UpdateBackgroundColor() {
 
   UpdateToggleButtonColor();
   UpdateNavButtonColors();
+#if BUILDFLAG(IS_WIN)
+  // Caption glyphs use this surface's contrast, but live in a separate layer.
+  if (GetWidget()) {
+    if (auto* button = GetWidget()->GetRootView()->GetViewByID(
+            VIEW_ID_MINIMIZE_BUTTON)) {
+      button->parent()->SchedulePaint();
+    }
+  }
+#endif
   SchedulePaint();
 }
 

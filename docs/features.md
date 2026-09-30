@@ -25,8 +25,10 @@ overflow menu for new chat, history, and settings. Fullscreen hides the caption
 buttons and restores the regular Agent header. Native caption hit testing
 preserves Snap Layouts, window close handling, and dragging from sidebar-header
 and address-row empty space. Popup and app window frames retain their existing
-layout. Sidebar windows also clip the parked native toolbar's composited children
-to the top container so duplicate navigation controls cannot cover the frame.
+layout. Native caption buttons use a transparent layer over the address row or
+Agent, with glyph contrast following the underlying surface as page colors,
+tabs, split panes, and Agent visibility change. Sidebar windows also clip the parked native toolbar's composited children to the
+top container so duplicate navigation controls cannot cover the frame.
 Windows event interception uses Aura
 with restoration on overlay close and drag cancellation. Closing site controls
 or the command bar after switching tabs restores the originally blocked page.

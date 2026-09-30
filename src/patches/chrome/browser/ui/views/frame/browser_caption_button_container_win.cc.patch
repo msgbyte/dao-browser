@@ -1,34 +1,74 @@
 diff --git a/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc b/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
-index f7f0659..a615747 100644
 --- a/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
-@@ -137,7 +137,8 @@ int BrowserCaptionButtonContainer::NonClientHitTest(
+@@ -17,6 +17,7 @@
+ #include "chrome/grit/generated_resources.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/compositor/layer.h"
+ #include "ui/strings/grit/ui_strings.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/layout/flex_layout.h"
+@@ -137,13 +138,20 @@
  }
  
  void BrowserCaptionButtonContainer::OnWindowControlsOverlayEnabledChanged() {
 -  if (frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
+-    SetBackground(
+-        views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
 +  if (frame_view_->GetBrowserView()->GetIsNormalType() ||
 +      frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
-     SetBackground(
-         views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
++    // Dao overlays the address row or Agent; preserve the surface underneath.
++    SetBackground(frame_view_->GetBrowserView()->GetIsNormalType()
++                      ? nullptr
++                      : views::CreateSolidBackground(
++                            frame_view_->GetTitlebarColor()));
  
-@@ -152,7 +153,8 @@ void BrowserCaptionButtonContainer::OnWindowControlsOverlayEnabledChanged() {
+     // BrowserView paints to a layer, so this view must do the same to ensure
+     // that it paints on top of the BrowserView.
+     SetPaintToLayer();
++    if (frame_view_->GetBrowserView()->GetIsNormalType()) {
++      layer()->SetFillsBoundsOpaquely(false);
++    }
+   } else {
+     SetBackground(nullptr);
+     DestroyLayer();
+@@ -152,9 +160,13 @@
  }
  
  void BrowserCaptionButtonContainer::OnThemeChanged() {
 -  if (frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
+-    SetBackground(
+-        views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
 +  if (frame_view_->GetBrowserView()->GetIsNormalType() ||
 +      frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
-     SetBackground(
-         views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
++    // Dao overlays the address row or Agent; preserve the surface underneath.
++    SetBackground(frame_view_->GetBrowserView()->GetIsNormalType()
++                      ? nullptr
++                      : views::CreateSolidBackground(
++                            frame_view_->GetTitlebarColor()));
    }
-@@ -175,7 +177,8 @@ void BrowserCaptionButtonContainer::AddedToWidget() {
+   views::View::OnThemeChanged();
+ }
+@@ -175,11 +187,18 @@
  
    UpdateButtons();
  
 -  if (frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
+-    SetBackground(
+-        views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
 +  if (frame_view_->GetBrowserView()->GetIsNormalType() ||
 +      frame_view_->GetBrowserView()->IsWindowControlsOverlayEnabled()) {
-     SetBackground(
-         views::CreateSolidBackground(frame_view_->GetTitlebarColor()));
++    // Dao overlays the address row or Agent; preserve the surface underneath.
++    SetBackground(frame_view_->GetBrowserView()->GetIsNormalType()
++                      ? nullptr
++                      : views::CreateSolidBackground(
++                            frame_view_->GetTitlebarColor()));
      // BrowserView paints to a layer, so this must do the same to ensure that it
+     // paints on top of the BrowserView.
+     SetPaintToLayer();
++    if (frame_view_->GetBrowserView()->GetIsNormalType()) {
++      layer()->SetFillsBoundsOpaquely(false);
++    }
+   }
+ }

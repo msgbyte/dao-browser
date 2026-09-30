@@ -31,6 +31,10 @@ These are acceptance checks, not a claim that the port has passed them.
   the Agent to its minimum width and check its collapse and overflow actions
   remain reachable without covering window controls. Repeat with page zoom,
   light/dark/incognito themes, and 100%, 125%, and 150% display scaling.
+- [ ] Caption buttons have no separate solid-color block over the address row
+  or Agent header. Switch between light and dark pages, change tabs, toggle the
+  Agent, and resize split panes; verify the glyphs remain readable, including
+  inactive windows, and close-button hover retains its native red background.
 - [ ] Hover maximize for Windows 11 Snap Layouts; minimize/restore and close a
   test window; verify page leave-confirmation still works. Drag and double-click
   empty address/sidebar-header space; check top-edge resize. In fullscreen,

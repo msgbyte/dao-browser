@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/views/frame/browser_caption_button_container_win.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view_win.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/windows_caption_button.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -28,10 +29,69 @@
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "ui/aura/window.h"
 #include "ui/base/hit_test.h"
+#include "ui/compositor/layer.h"
+#include "ui/gfx/canvas.h"
+#include "ui/gfx/color_utils.h"
+#include "ui/views/background.h"
 #include "ui/views/test/views_test_utils.h"
 #include "url/gurl.h"
 
 using DaoWindowsBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest,
+                       CaptionButtonsBlendWithContentAndAgent) {
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* frame = static_cast<BrowserFrameViewWin*>(
+      view->browser_widget()->GetFrameView());
+  view->GetWidget()->Restore();
+  views::test::RunScheduledLayout(view->GetWidget());
+  const auto* controls = frame->caption_button_container_for_testing();
+  EXPECT_EQ(nullptr, controls->GetBackground());
+  ASSERT_TRUE(controls->layer());
+  EXPECT_FALSE(controls->layer()->fills_bounds_opaquely());
+
+  auto* button = views::AsViewClass<WindowsCaptionButton>(
+      view->GetWidget()->GetRootView()->GetViewByID(VIEW_ID_MINIMIZE_BUTTON));
+  ASSERT_TRUE(button);
+  const auto expect_symbol_color = [&](SkColor background_color) {
+    gfx::Canvas canvas(button->size(), 1.0f, false);
+    canvas.DrawColor(SK_ColorTRANSPARENT, SkBlendMode::kSrc);
+    button->PaintButtonContents(&canvas);
+    const SkBitmap bitmap = canvas.GetBitmap();
+    const SkColor expected =
+        color_utils::GetColorWithMaxContrast(background_color);
+    int painted_pixels = 0;
+    for (int y = 0; y < bitmap.height(); ++y) {
+      for (int x = 0; x < bitmap.width(); ++x) {
+        const SkColor pixel = bitmap.getColor(x, y);
+        if (SkColorGetA(pixel)) {
+          ++painted_pixels;
+          // Inactive-window alpha can round the individual RGB channels.
+          EXPECT_EQ(color_utils::IsDark(expected),
+                    color_utils::IsDark(SkColorSetA(pixel, SK_AlphaOPAQUE)));
+        }
+      }
+    }
+    EXPECT_GT(painted_pixels, 0);
+  };
+
+  for (SkColor color : {SK_ColorBLACK, SK_ColorWHITE}) {
+    view->dao_address_bar()->SetBackground(views::CreateSolidBackground(color));
+    expect_symbol_color(color);
+  }
+
+  auto* agent = view->dao_agent_sidebar();
+  agent->Toggle();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    views::test::RunScheduledLayout(view->GetWidget());
+    return agent->width() >= dao::DaoAgentSidebarView::kDefaultWidth;
+  }));
+  ASSERT_TRUE(agent->GetBoundsInScreen().Contains(
+      button->GetBoundsInScreen().CenterPoint()));
+  EXPECT_EQ(nullptr, controls->GetBackground());
+  expect_symbol_color(agent->GetBackground()->color().ResolveToSkColor(
+      agent->GetColorProvider()));
+}
 
 IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, CaptionButtonsShareAddressRow) {
   auto* view = BrowserView::GetBrowserViewForBrowser(browser());

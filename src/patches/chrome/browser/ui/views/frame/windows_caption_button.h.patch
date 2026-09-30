@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/views/frame/windows_caption_button.h b/chrome/browser/ui/views/frame/windows_caption_button.h
+--- a/chrome/browser/ui/views/frame/windows_caption_button.h
++++ b/chrome/browser/ui/views/frame/windows_caption_button.h
+@@ -51,5 +51,8 @@
+   // the more readable of black and white.
+   SkColor GetBaseForegroundColor() const;
+ 
++  // The Dao address row or Agent currently underneath this button.
++  const views::View* GetDaoCaptionSurface() const;
++
+   // Paints the minimize/maximize/restore/close icon for the button.
+   void PaintSymbol(gfx::Canvas* canvas);
