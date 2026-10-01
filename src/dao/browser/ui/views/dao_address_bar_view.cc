@@ -41,6 +41,7 @@
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/base/menu_source_utils.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/menu_model.h"
@@ -393,7 +394,10 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
       LucideIcon::kPanelLeftOpen,
       l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME));
   toggle_btn->SetTooltipText(
-      l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP));
+      l10n_util::GetStringFUTF16(
+          IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP,
+          ui::Accelerator(ui::VKEY_S, ui::EF_PLATFORM_ACCELERATOR)
+              .GetShortcutText()));
   toggle_btn->SetVisible(false);
   sidebar_toggle_button_ = AddChildView(std::move(toggle_btn));
 
@@ -523,7 +527,10 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
       LucideIcon::kSparkles,
       l10n_util::GetStringUTF16(IDS_DAO_ASSISTANT_TOGGLE_ACCESSIBLE_NAME)));
   chat_button_->SetTooltipText(
-      l10n_util::GetStringUTF16(IDS_DAO_ASSISTANT_TOGGLE_TOOLTIP));
+      l10n_util::GetStringFUTF16(
+          IDS_DAO_ASSISTANT_TOGGLE_TOOLTIP,
+          ui::Accelerator(ui::VKEY_E, ui::EF_PLATFORM_ACCELERATOR)
+              .GetShortcutText()));
 
   // Control center button (fixed at right edge)
   control_center_button_ = AddChildView(

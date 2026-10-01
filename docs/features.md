@@ -999,6 +999,16 @@ Lightweight window form factor for popups / mini-tools.
 
 ## 12. Shortcuts and Menus
 
+- **Dao shortcuts on Windows** — Ctrl+S and Ctrl+Backslash toggle the sidebar,
+  Ctrl+D duplicates the active tab, Ctrl+E toggles Agent, and Ctrl+Shift+C copies
+  the active page URL with Dao toast feedback. Little Dao uses Ctrl+O to move
+  its tab into the main browser. macOS keeps the corresponding Command keys.
+  Duplicate, Agent, and Copy URL take precedence over Chromium's conflicting
+  shortcuts while a page, sidebar, or Agent renderer has focus. Ctrl+S lets
+  the webpage handle the first press; if intercepted, a localized toast offers
+  a second press to toggle the sidebar. Button hints, tab-menu shortcut labels,
+  and the welcome tutorial use platform-appropriate keys. Other Chromium
+  shortcuts keep their native platform mappings.
 - **Google Lens Overlay disabled** — `components/lens/lens_features.cc.patch` permanently disables the overlay capability, removing its toolbar, address-bar, app-menu, and context-menu entry points while preserving ordinary search-provider image search
 - **macOS global shortcuts** — `chrome/browser/global_keyboard_shortcuts_mac.mm.patch`
 - **macOS main menu** — `cocoa/main_menu_builder.mm.patch` + `cocoa/accelerators_cocoa.mm.patch`

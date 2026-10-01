@@ -14,13 +14,13 @@ interface ShortcutStep {
 }
 
 const STEPS: ShortcutStep[] = [
-  {keys: ['\u2318', 'T'], textKey: 'daoWelcomeNewTab', action: 'newTab'},
-  {keys: ['\u2318', 'W'], textKey: 'daoWelcomeCloseTab', action: 'closeTab'},
-  {keys: ['\u2318', 'L'], textKey: 'daoWelcomeCommandBar', action: 'commandBar'},
-  {keys: ['\u2318', 'S'], textKey: 'daoWelcomeToggleSidebar', action: 'toggleSidebar'},
-  {keys: ['\u2318', 'E'], textKey: 'daoWelcomeAgentPanel', action: 'agentPanel'},
-  {keys: ['\u2318', 'D'], textKey: 'daoWelcomeDuplicateTab', action: 'dupTab'},
-  {keys: ['\u2318', '\u21E7', 'C'], textKey: 'daoWelcomeCopyUrl', action: 'copyUrl'},
+  {keys: ['modifier', 'T'], textKey: 'daoWelcomeNewTab', action: 'newTab'},
+  {keys: ['modifier', 'W'], textKey: 'daoWelcomeCloseTab', action: 'closeTab'},
+  {keys: ['modifier', 'L'], textKey: 'daoWelcomeCommandBar', action: 'commandBar'},
+  {keys: ['modifier', 'S'], textKey: 'daoWelcomeToggleSidebar', action: 'toggleSidebar'},
+  {keys: ['modifier', 'E'], textKey: 'daoWelcomeAgentPanel', action: 'agentPanel'},
+  {keys: ['modifier', 'D'], textKey: 'daoWelcomeDuplicateTab', action: 'dupTab'},
+  {keys: ['modifier', 'shift', 'C'], textKey: 'daoWelcomeCopyUrl', action: 'copyUrl'},
 ];
 
 const INTERVAL_MS = 4000;
@@ -703,7 +703,10 @@ export class DaoWelcomeApp extends CrLitElement {
           <div class="shortcut-badge">
             ${step.keys.map((key, i) => html`
               ${i > 0 ? html`<span class="plus">+</span>` : ''}
-              <kbd>${key}</kbd>
+              <kbd>${key === 'modifier' ?
+                  loadTimeData.getString('daoShortcutModifier') :
+                  key === 'shift' ? loadTimeData.getString('daoShortcutShift') :
+                  key}</kbd>
             `)}
           </div>
           <div class="annotation-text">

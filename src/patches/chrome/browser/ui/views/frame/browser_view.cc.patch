@@ -264,7 +264,25 @@ index bcb1930..977e1a0 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3506,6 +3695,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
+@@ -3213,6 +3402,17 @@
+   ui::Accelerator accelerator =
+       ui::GetAcceleratorFromNativeWebKeyboardEvent(event);
+ 
++#if BUILDFLAG(IS_WIN)
++  // Dao shortcuts belong to this window, even while its page has focus.
++  if (dao_sidebar_) {
++    const auto result = dao_sidebar_->PreHandleKeyboardEvent(
++        GetActiveWebContents(), event);
++    if (result != content::KeyboardEventProcessingResult::NOT_HANDLED) {
++      return result;
++    }
++  }
++#endif
++
+   // What we have to do here is as follows:
+   // - If the |browser_| is for an app, do nothing.
+   // - On CrOS if |accelerator| is deprecated, we allow web contents to consume
+@@ -3506,6 +3706,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
                                   TabChangeType change_type) {
    content::WebContents* contents = tab->GetContents();
  
@@ -286,7 +304,7 @@ index bcb1930..977e1a0 100644
    if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
      return;
    }
-@@ -4529,9 +4733,35 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
+@@ -4529,9 +4744,35 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
    }
  }
  
@@ -322,7 +340,7 @@ index bcb1930..977e1a0 100644
    // Window for PWAs with window-controls-overlay display override should claim
    // mouse events that fall within the draggable region.
    web_app::AppBrowserController* controller = browser()->app_controller();
-@@ -4706,6 +4936,126 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4706,6 +4947,126 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -449,7 +467,7 @@ index bcb1930..977e1a0 100644
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -4839,6 +5189,37 @@ void BrowserView::Layout(PassKey) {
+@@ -4839,6 +5200,37 @@ void BrowserView::Layout(PassKey) {
      did_first_layout_while_top_controls_are_sliding_ = false;
    }
  
@@ -487,7 +505,7 @@ index bcb1930..977e1a0 100644
 +#endif
  
    // TODO(jamescook): Why was this in the middle of layout code?
-@@ -5110,6 +5491,20 @@ void BrowserView::OnThemeChanged() {
+@@ -5110,6 +5502,20 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();
@@ -508,3 +526,18 @@ index bcb1930..977e1a0 100644
  }
  
  bool BrowserView::GetDropFormats(
+@@ -5146,6 +5552,14 @@
+ // BrowserView, ui::AcceleratorTarget overrides:
+ 
+ bool BrowserView::AcceleratorPressed(const ui::Accelerator& accelerator) {
++#if BUILDFLAG(IS_WIN)
++  // BrowserView registers after its children. Keep Ctrl+S on Dao's normal-
++  // priority path so an unhandled page shortcut never falls back to Save Page.
++  if (dao_sidebar_ &&
++      accelerator == ui::Accelerator(ui::VKEY_S, ui::EF_CONTROL_DOWN)) {
++    return dao_sidebar_->AcceleratorPressed(accelerator);
++  }
++#endif
+   int command_id;
+   // Though AcceleratorManager should not send unknown |accelerator| to us, it's
+   // still possible the command cannot be executed now.

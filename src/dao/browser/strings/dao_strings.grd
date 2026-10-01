@@ -207,21 +207,21 @@
       </message>
 
       <!-- Sidebar / address bar -->
-      <message name="IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP" desc="Tooltip on the toggle button that hides or shows the Dao sidebar. The keyboard shortcut symbol after the label is the macOS Command key (⌘) followed by 'S'.">
-        Toggle Sidebar (<ph name="SHORTCUT">⌘S</ph>)
+      <message name="IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP" desc="Tooltip on the sidebar toggle button. SHORTCUT is the localized platform shortcut, such as Ctrl+S or Command+S.">
+        Toggle Sidebar (<ph name="SHORTCUT">$1<ex>Ctrl+S</ex></ph>)
       </message>
       <message name="IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME" desc="Accessible name (read aloud by screen readers) for the sidebar toggle button.">
         Toggle Sidebar
       </message>
-      <message name="IDS_DAO_ASSISTANT_TOGGLE_TOOLTIP" desc="Tooltip on the button that opens the assistant. The keyboard shortcut symbol after the label is the macOS Command key (⌘) followed by 'E'.">
-        Open Assistant (<ph name="SHORTCUT">⌘E</ph>)
+      <message name="IDS_DAO_ASSISTANT_TOGGLE_TOOLTIP" desc="Tooltip on the assistant button. SHORTCUT is the localized platform shortcut, such as Ctrl+E or Command+E.">
+        Open Assistant (<ph name="SHORTCUT">$1<ex>Ctrl+E</ex></ph>)
       </message>
       <message name="IDS_DAO_ASSISTANT_TOGGLE_ACCESSIBLE_NAME" desc="Accessible name (read aloud by screen readers) for the button that opens the assistant.">
         Open Assistant
       </message>
       <message name="IDS_DAO_INCOGNITO_SIDEBAR_INDICATOR" desc="Tooltip and accessible name for the shield icon shown in the sidebar header of an Incognito window.">You're browsing in Incognito mode. After you close all Incognito windows, Dao won't keep your browsing history, cookies, or site data. Downloads and bookmarks are kept.</message>
-      <message name="IDS_DAO_SIDEBAR_TOGGLE_RETRY_TOAST" desc="Toast shown when a webpage handles the Command+S sidebar shortcut first. The keyboard shortcut symbol is the macOS Command key (⌘) followed by 'S'.">
-        Press <ph name="SHORTCUT">⌘S</ph> again to toggle sidebar
+      <message name="IDS_DAO_SIDEBAR_TOGGLE_RETRY_TOAST" desc="Toast shown when a webpage handles the sidebar shortcut first. SHORTCUT is the localized platform shortcut, such as Ctrl+S or Command+S.">
+        Press <ph name="SHORTCUT">$1<ex>Ctrl+S</ex></ph> again to toggle sidebar
       </message>
       <message name="IDS_DAO_UPDATE_READY_ACTION" desc="Label and tooltip for the sidebar button that applies a downloaded Dao Browser update.">
         Update

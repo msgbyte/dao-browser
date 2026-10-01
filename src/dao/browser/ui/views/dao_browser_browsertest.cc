@@ -3005,7 +3005,11 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
   views::Button* assistant_button =
       FindButtonWithAccessibleName(address_bar, u"Open Assistant");
   ASSERT_NE(nullptr, assistant_button);
-  EXPECT_EQ(u"Open Assistant (\u2318E)", assistant_button->GetTooltipText());
+  EXPECT_EQ(l10n_util::GetStringFUTF16(
+                IDS_DAO_ASSISTANT_TOGGLE_TOOLTIP,
+                ui::Accelerator(ui::VKEY_E, ui::EF_PLATFORM_ACCELERATOR)
+                    .GetShortcutText()),
+            assistant_button->GetTooltipText());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,

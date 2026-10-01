@@ -17,6 +17,7 @@
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/base/accelerators/accelerator.h"
 
 namespace dao {
 
@@ -61,6 +62,14 @@ DaoWelcomeUI::DaoWelcomeUI(content::WebUI* web_ui)
 
   source->AddResourcePaths(kDaoWelcomeResources);
   source->SetDefaultResource(IDR_DAO_WELCOME_WELCOME_HTML);
+  source->AddString(
+      "daoShortcutModifier",
+      ui::Accelerator(ui::VKEY_T, ui::EF_PLATFORM_ACCELERATOR)
+          .GetShortcutVectorRepresentation().front());
+  source->AddString(
+      "daoShortcutShift",
+      ui::Accelerator(ui::VKEY_T, ui::EF_SHIFT_DOWN)
+          .GetShortcutVectorRepresentation().front());
   source->AddLocalizedStrings({
       {"daoWelcomeTitle", IDS_DAO_WELCOME_TITLE},
       {"daoWelcomeSubtitle", IDS_DAO_WELCOME_SUBTITLE},

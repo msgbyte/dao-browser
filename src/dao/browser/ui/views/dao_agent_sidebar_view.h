@@ -90,6 +90,9 @@ class DaoAgentSidebarView : public views::View,
   void Layout(PassKey) override;
 
   // content::WebContentsDelegate:
+  content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
+      content::WebContents* source,
+      const input::NativeWebKeyboardEvent& event) override;
   bool HandleKeyboardEvent(
       content::WebContents* source,
       const input::NativeWebKeyboardEvent& event) override;

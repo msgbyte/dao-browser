@@ -117,6 +117,9 @@ class DaoSidebarView : public views::View,
   void OnMouseExited(const ui::MouseEvent& event) override;
 
   // content::WebContentsDelegate:
+  content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
+      content::WebContents* source,
+      const input::NativeWebKeyboardEvent& event) override;
   bool HandleKeyboardEvent(
       content::WebContents* source,
       const input::NativeWebKeyboardEvent& event) override;

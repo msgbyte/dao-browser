@@ -48,6 +48,18 @@ These are acceptance checks, not a claim that the port has passed them.
   the compact layout back. Popup/app windows retain their separate frame layout.
 - [ ] Open and close tab search with Ctrl+Shift+A after the welcome page and in
   a regular tab; its WebUI must resolve under the Dao scheme without crashing.
+- [ ] Check Dao shortcuts with focus in a page, sidebar, Agent, and command bar:
+  Ctrl+S / Ctrl+Backslash toggle the sidebar, Ctrl+D duplicates, Ctrl+E toggles
+  Agent, and Ctrl+Shift+C copies the active page URL with Dao toast feedback.
+  On a page that cancels Ctrl+S, the first press shows the retry toast and a
+  second press toggles the sidebar. Little Dao's Ctrl+O transfers its tab to
+  the main browser. Confirm welcome keycaps, button hints, and Duplicate / Copy
+  Link context-menu hints show Ctrl, while macOS retains Command. Verify plain
+  Ctrl+C and the other Chromium shortcuts keep their normal behavior. Cover
+  `DaoWindowsBrowserTest.DaoControlShortcuts` and
+  `DaoWindowsBrowserTest.ControlSInterceptAllowsSecondPressToggle`,
+  `DaoWindowsBrowserTest.LittleDaoControlOTransfersTab`, and the welcome WebUI
+  tests.
 - [ ] Open/close the command bar and site controls; page clicks and typing must
   work afterward. Cancel a sidebar drag with Escape, release outside the window,
   and close its source window; no invisible overlay may consume later input.

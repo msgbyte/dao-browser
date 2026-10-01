@@ -3826,6 +3826,19 @@ bool DaoSidebarUIHandler::GetAcceleratorForCommandId(
 
   ui::AcceleratorProvider* provider =
       AcceleratorProviderForBrowser(browser_);
+#if BUILDFLAG(IS_WIN)
+  // Dao registers these on the sidebar's FocusManager, outside Chromium's
+  // browser-command accelerator table.
+  if (browser_command == IDC_DAO_DUPLICATE_TAB) {
+    *accelerator = ui::Accelerator(ui::VKEY_D, ui::EF_CONTROL_DOWN);
+    return true;
+  }
+  if (browser_command == IDC_DAO_COPY_URL) {
+    *accelerator = ui::Accelerator(
+        ui::VKEY_C, ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN);
+    return true;
+  }
+#endif
   return provider &&
          provider->GetAcceleratorForCommandId(browser_command, accelerator);
 }

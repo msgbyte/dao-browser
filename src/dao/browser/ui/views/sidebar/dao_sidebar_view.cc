@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/functional/bind.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -198,7 +199,10 @@ class DaoToggleButton : public views::Button {
       : Button(std::move(callback)), browser_(browser) {
     SetPreferredSize(gfx::Size(32, 32));
     SetInstallFocusRingOnFocus(false);
-    SetTooltipText(l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP));
+    SetTooltipText(l10n_util::GetStringFUTF16(
+        IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP,
+        ui::Accelerator(ui::VKEY_S, ui::EF_PLATFORM_ACCELERATOR)
+            .GetShortcutText()));
     SetAccessibleName(
         l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_ACCESSIBLE_NAME));
   }
@@ -351,6 +355,42 @@ void DaoSidebarView::EnsureWebUILoaded() {
   }
 }
 
+content::KeyboardEventProcessingResult DaoSidebarView::PreHandleKeyboardEvent(
+    content::WebContents* source,
+    const input::NativeWebKeyboardEvent& event) {
+#if BUILDFLAG(IS_WIN)
+  if (event.GetType() != blink::WebInputEvent::Type::kRawKeyDown ||
+      !GetFocusManager() || GetFocusManager()->shortcut_handling_suspended()) {
+    return content::KeyboardEventProcessingResult::NOT_HANDLED;
+  }
+  const int modifiers = event.GetModifiers();
+  if (!(modifiers & blink::WebInputEvent::kControlKey) ||
+      (modifiers & (blink::WebInputEvent::kAltKey |
+                    blink::WebInputEvent::kMetaKey))) {
+    return content::KeyboardEventProcessingResult::NOT_HANDLED;
+  }
+  const bool shift = modifiers & blink::WebInputEvent::kShiftKey;
+  const auto key = static_cast<ui::KeyboardCode>(event.windows_key_code);
+  if (key == ui::VKEY_S && !shift) {
+    if (MaybeHandleConfirmedCommandSShortcut()) {
+      return content::KeyboardEventProcessingResult::HANDLED;
+    }
+    TrackCommandSShortcutSentToWebContents();
+    return content::KeyboardEventProcessingResult::NOT_HANDLED_IS_SHORTCUT;
+  }
+  // These Dao actions take precedence over Chromium's bookmark, search,
+  // and inspect-element shortcuts, including while a renderer has focus.
+  if ((!shift && (key == ui::VKEY_D || key == ui::VKEY_E)) ||
+      (shift && key == ui::VKEY_C)) {
+    if (GetFocusManager()->ProcessAccelerator(ui::Accelerator(
+            key, ui::EF_CONTROL_DOWN | (shift ? ui::EF_SHIFT_DOWN : 0)))) {
+      return content::KeyboardEventProcessingResult::HANDLED;
+    }
+  }
+#endif
+  return content::KeyboardEventProcessingResult::NOT_HANDLED;
+}
+
 bool DaoSidebarView::HandleKeyboardEvent(
     content::WebContents* source,
     const input::NativeWebKeyboardEvent& event) {
@@ -389,7 +429,10 @@ void DaoSidebarView::ShowCommandSShortcutInterceptedToast() {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (browser_view && browser_view->dao_toast()) {
     browser_view->dao_toast()->ShowToast(
-        l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_TOGGLE_RETRY_TOAST));
+        l10n_util::GetStringFUTF16(
+            IDS_DAO_SIDEBAR_TOGGLE_RETRY_TOAST,
+            ui::Accelerator(ui::VKEY_S, ui::EF_PLATFORM_ACCELERATOR)
+                .GetShortcutText()));
     browser_view->InvalidateLayout();
   }
 
@@ -799,37 +842,52 @@ void DaoSidebarView::AddedToWidget() {
                             base::Unretained(this)));
   }
   if (GetFocusManager()) {
+#if BUILDFLAG(IS_WIN)
     GetFocusManager()->RegisterAccelerator(
-        ui::Accelerator(ui::VKEY_OEM_5, ui::EF_COMMAND_DOWN),
+        ui::Accelerator(ui::VKEY_C,
+                        ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN),
+        ui::AcceleratorManager::kHighPriority, this);
+#endif
+    GetFocusManager()->RegisterAccelerator(
+        ui::Accelerator(ui::VKEY_OEM_5, ui::EF_PLATFORM_ACCELERATOR),
         ui::AcceleratorManager::kNormalPriority, this);
     GetFocusManager()->RegisterAccelerator(
-        ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN),
+        ui::Accelerator(ui::VKEY_S, ui::EF_PLATFORM_ACCELERATOR),
         ui::AcceleratorManager::kNormalPriority, this);
     GetFocusManager()->RegisterAccelerator(
-        ui::Accelerator(ui::VKEY_D, ui::EF_COMMAND_DOWN),
+        ui::Accelerator(ui::VKEY_D, ui::EF_PLATFORM_ACCELERATOR),
         ui::AcceleratorManager::kHighPriority, this);
     GetFocusManager()->RegisterAccelerator(
-        ui::Accelerator(ui::VKEY_E, ui::EF_COMMAND_DOWN),
+        ui::Accelerator(ui::VKEY_E, ui::EF_PLATFORM_ACCELERATOR),
         ui::AcceleratorManager::kHighPriority, this);
   }
 }
 
 void DaoSidebarView::RemovedFromWidget() {
   if (GetFocusManager()) {
+#if BUILDFLAG(IS_WIN)
     GetFocusManager()->UnregisterAccelerator(
-        ui::Accelerator(ui::VKEY_OEM_5, ui::EF_COMMAND_DOWN), this);
+        ui::Accelerator(ui::VKEY_C,
+                        ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN), this);
+#endif
     GetFocusManager()->UnregisterAccelerator(
-        ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN), this);
+        ui::Accelerator(ui::VKEY_OEM_5, ui::EF_PLATFORM_ACCELERATOR), this);
     GetFocusManager()->UnregisterAccelerator(
-        ui::Accelerator(ui::VKEY_D, ui::EF_COMMAND_DOWN), this);
+        ui::Accelerator(ui::VKEY_S, ui::EF_PLATFORM_ACCELERATOR), this);
     GetFocusManager()->UnregisterAccelerator(
-        ui::Accelerator(ui::VKEY_E, ui::EF_COMMAND_DOWN), this);
+        ui::Accelerator(ui::VKEY_D, ui::EF_PLATFORM_ACCELERATOR), this);
+    GetFocusManager()->UnregisterAccelerator(
+        ui::Accelerator(ui::VKEY_E, ui::EF_PLATFORM_ACCELERATOR), this);
   }
   View::RemovedFromWidget();
 }
 
 bool DaoSidebarView::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
+  if (accelerator.key_code() == ui::VKEY_C) {
+    CopyTabUrl(browser_, browser_->tab_strip_model()->GetActiveWebContents());
+    return true;
+  }
   if (accelerator.key_code() == ui::VKEY_D) {
     DuplicateActiveTab(browser_);
     return true;

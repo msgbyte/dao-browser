@@ -20,6 +20,8 @@ const strings = vi.hoisted(() => ({
   daoWelcomeUrlCopied: 'URL copiada al portapapeles',
   daoWelcomeGithubLink: '¿Te gusta Dao? ¡Danos una estrella!',
   daoImportPageTitle: 'Importar datos del navegador',
+  daoShortcutModifier: 'Ctrl',
+  daoShortcutShift: 'Shift',
 }));
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
@@ -78,5 +80,29 @@ it('localizes the page, demo labels, and every tutorial step', async () => {
     await app.updateComplete;
     expect(app.shadowRoot!.querySelector('.annotation-text')!.textContent!.trim())
         .toBe(text);
+  }
+});
+
+it.each([
+  ['Ctrl', 'Shift'],
+  ['\u2318', '\u21e7'],
+])('uses the platform key labels: %s', async (modifier, shift) => {
+  vi.useFakeTimers();
+  strings.daoShortcutModifier = modifier;
+  strings.daoShortcutShift = shift;
+  await import('../welcome.js');
+  const app = document.createElement('dao-welcome-app') as HTMLElement&{
+    updateComplete: Promise<boolean>;
+  };
+  document.body.appendChild(app);
+  await app.updateComplete;
+
+  const keys = ['T', 'W', 'L', 'S', 'E', 'D', 'C'];
+  for (const [index, key] of keys.entries()) {
+    app.shadowRoot!.querySelectorAll<HTMLElement>('.dot')[index]!.click();
+    await app.updateComplete;
+    const labels = Array.from(app.shadowRoot!.querySelectorAll('kbd'),
+        element => element.textContent!.trim());
+    expect(labels).toEqual(index === 6 ? [modifier, shift, key] : [modifier, key]);
   }
 });

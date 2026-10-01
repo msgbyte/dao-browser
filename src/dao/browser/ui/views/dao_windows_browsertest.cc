@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/run_until.h"
 #include "base/win/windows_version.h"
 #include "chrome/browser/profiles/profile.h"
@@ -18,26 +19,125 @@
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "dao/browser/mcp/dao_mcp_service.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_command_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_native_util_mac.h"
+#include "dao/browser/ui/views/dao_toast_view.h"
+#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
 #include "ui/aura/window.h"
+#include "ui/base/clipboard/clipboard.h"
+#include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/hit_test.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/views/background.h"
+#include "ui/views/focus/focus_manager.h"
 #include "ui/views/test/views_test_utils.h"
 #include "url/gurl.h"
 
 using DaoWindowsBrowserTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, DaoControlShortcuts) {
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* sidebar = view->dao_sidebar();
+  ASSERT_TRUE(sidebar);
+  auto* focus_manager = view->GetFocusManager();
+  const auto control_key = [](ui::KeyboardCode key, bool shift = false) {
+    input::NativeWebKeyboardEvent event(
+        blink::WebInputEvent::Type::kRawKeyDown,
+        blink::WebInputEvent::kControlKey |
+            (shift ? blink::WebInputEvent::kShiftKey : 0),
+        base::TimeTicks::Now());
+    event.windows_key_code = key;
+    return event;
+  };
+
+  EXPECT_FALSE(focus_manager->HasPriorityHandler(
+      ui::Accelerator(ui::VKEY_S, ui::EF_CONTROL_DOWN)));
+  EXPECT_TRUE(focus_manager->ProcessAccelerator(
+      ui::Accelerator(ui::VKEY_S, ui::EF_CONTROL_DOWN)));
+  EXPECT_TRUE(sidebar->collapsed());
+  EXPECT_TRUE(focus_manager->ProcessAccelerator(
+      ui::Accelerator(ui::VKEY_OEM_5, ui::EF_CONTROL_DOWN)));
+  EXPECT_FALSE(sidebar->collapsed());
+
+  const int tab_count = browser()->tab_strip_model()->count();
+  EXPECT_EQ(content::KeyboardEventProcessingResult::HANDLED,
+            view->PreHandleKeyboardEvent(control_key(ui::VKEY_D)));
+  EXPECT_EQ(tab_count + 1, browser()->tab_strip_model()->count());
+
+  const bool agent_visible = view->dao_agent_sidebar()->is_expanded();
+  EXPECT_EQ(content::KeyboardEventProcessingResult::HANDLED,
+            view->PreHandleKeyboardEvent(control_key(ui::VKEY_E)));
+  EXPECT_NE(agent_visible, view->dao_agent_sidebar()->is_expanded());
+
+  content::BrowserTestClipboardScope clipboard_scope;
+  EXPECT_EQ(content::KeyboardEventProcessingResult::HANDLED,
+            view->PreHandleKeyboardEvent(control_key(ui::VKEY_C, true)));
+  EXPECT_EQ(base::UTF8ToUTF16(browser()->tab_strip_model()
+                                ->GetActiveWebContents()->GetVisibleURL().spec()),
+            ui::clipboard_test_util::ReadText(
+                ui::Clipboard::GetForCurrentThread(),
+                ui::ClipboardBuffer::kCopyPaste, nullptr));
+
+  // Plain Copy and extended combinations keep their existing owners.
+  EXPECT_EQ(content::KeyboardEventProcessingResult::NOT_HANDLED,
+            sidebar->PreHandleKeyboardEvent(nullptr, control_key(ui::VKEY_C)));
+  EXPECT_EQ(content::KeyboardEventProcessingResult::NOT_HANDLED,
+            sidebar->PreHandleKeyboardEvent(nullptr,
+                                            control_key(ui::VKEY_D, true)));
+  focus_manager->set_shortcut_handling_suspended(true);
+  EXPECT_EQ(content::KeyboardEventProcessingResult::NOT_HANDLED,
+            sidebar->PreHandleKeyboardEvent(nullptr, control_key(ui::VKEY_E)));
+  focus_manager->set_shortcut_handling_suspended(false);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, LittleDaoControlOTransfersTab) {
+  Browser* little = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("about:blank"));
+  ASSERT_TRUE(little);
+  auto* contents = little->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(contents);
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  auto* view = BrowserView::GetBrowserViewForBrowser(little);
+  ASSERT_TRUE(view->dao_little_dao_view());
+  EXPECT_TRUE(view->GetFocusManager()->ProcessAccelerator(
+      ui::Accelerator(ui::VKEY_O, ui::EF_CONTROL_DOWN)));
+  EXPECT_NE(TabStripModel::kNoTab,
+            browser()->tab_strip_model()->GetIndexOfWebContents(contents));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest,
+                       ControlSInterceptAllowsSecondPressToggle) {
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* sidebar = view->dao_sidebar();
+  ASSERT_TRUE(sidebar);
+  input::NativeWebKeyboardEvent event(
+      blink::WebInputEvent::Type::kRawKeyDown,
+      blink::WebInputEvent::kControlKey, base::TimeTicks::Now());
+  event.windows_key_code = ui::VKEY_S;
+  EXPECT_EQ(content::KeyboardEventProcessingResult::NOT_HANDLED_IS_SHORTCUT,
+            view->PreHandleKeyboardEvent(event));
+  EXPECT_FALSE(sidebar->collapsed());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return sidebar->command_s_toggle_confirmation_pending_for_testing();
+  }));
+  EXPECT_TRUE(view->dao_toast()->GetVisible());
+  EXPECT_EQ(content::KeyboardEventProcessingResult::HANDLED,
+            view->PreHandleKeyboardEvent(event));
+  EXPECT_TRUE(sidebar->collapsed());
+  EXPECT_FALSE(sidebar->command_s_toggle_confirmation_pending_for_testing());
+}
 
 IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest,
                        CaptionButtonsBlendWithContentAndAgent) {

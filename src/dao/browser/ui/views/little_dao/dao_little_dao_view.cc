@@ -190,7 +190,7 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   views::InkDrop::Get(url_text_button_)->SetBaseColor(SK_ColorBLACK);
   views::InkDrop::Get(url_text_button_)->SetVisibleOpacity(0.04f);
 
-  // "Open in Dao ⌘O" button
+  // Open in Dao button with a platform-specific shortcut hint.
   std::u16string open_in_dao_label = l10n_util::GetStringUTF16(
       IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME);
   open_button_ = AddChildView(std::make_unique<views::LabelButton>(
@@ -214,7 +214,9 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   // Shortcut hint label — added as child of button, manually positioned
   // in Layout() since LabelButton's internal layout ignores extra children.
   shortcut_label_ =
-      open_button_->AddChildView(std::make_unique<views::Label>(u"\u2318+O"));
+      open_button_->AddChildView(std::make_unique<views::Label>(
+          ui::Accelerator(ui::VKEY_O, ui::EF_PLATFORM_ACCELERATOR)
+              .GetShortcutText()));
   shortcut_label_->SetEnabledColor(TextMuted());
 
   // Expand button preferred size to include room for the shortcut label,
@@ -224,8 +226,7 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
   open_button_->SetPreferredSize(
       gfx::Size(btn_pref.width() + sc_pref.width() + 6, 0));
 
-  // Register Cmd+O accelerator
-  AddAccelerator(ui::Accelerator(ui::VKEY_O, ui::EF_COMMAND_DOWN));
+  AddAccelerator(ui::Accelerator(ui::VKEY_O, ui::EF_PLATFORM_ACCELERATOR));
 
   tab_strip_model_->AddObserver(this);
   ObserveActiveWebContents();
@@ -399,8 +400,8 @@ void DaoLittleDaoView::OpenInDao() {
 
 bool DaoLittleDaoView::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
-  if (accelerator.key_code() == ui::VKEY_O &&
-      accelerator.IsCmdDown()) {
+  if (accelerator ==
+      ui::Accelerator(ui::VKEY_O, ui::EF_PLATFORM_ACCELERATOR)) {
     OpenInDao();
     return true;
   }

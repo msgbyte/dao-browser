@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
+#include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 
 #include <algorithm>
 #include <utility>
@@ -506,6 +507,19 @@ void DaoAgentSidebarView::Layout(PassKey) {
       contents->UpdateWindowControlsOverlay(titlebar_area);
     }
   }
+}
+
+content::KeyboardEventProcessingResult
+DaoAgentSidebarView::PreHandleKeyboardEvent(
+    content::WebContents* source,
+    const input::NativeWebKeyboardEvent& event) {
+#if BUILDFLAG(IS_WIN)
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (view && view->dao_sidebar()) {
+    return view->dao_sidebar()->PreHandleKeyboardEvent(source, event);
+  }
+#endif
+  return content::KeyboardEventProcessingResult::NOT_HANDLED;
 }
 
 bool DaoAgentSidebarView::HandleKeyboardEvent(
