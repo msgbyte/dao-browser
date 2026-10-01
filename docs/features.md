@@ -1028,6 +1028,12 @@ file count.
 - `content/common/url_schemes.cc.patch` — Register `dao://`
 - `chrome/common/url_constants.h.patch`, `chrome/common/webui_url_constants.h.patch`, `content/public/common/url_constants.h.patch` — Constant tables
 - `content/browser/webui/{url_data_manager_backend,web_ui_data_source_impl,web_ui_url_loader_factory}.cc.patch` + `content/public/browser/url_data_source.cc.patch` — Data source / loader factory hooks
+- **Canonical WebUI load-time data** — `dao://resources/js/load_time_data.js`
+  owns the shared data instance. The legacy `chrome://` module re-exports that
+  instance so Chromium components read the same strings and flags initialized
+  by Dao pages. Built-in component extensions such as the PDF viewer retain
+  their existing resource access through the canonical Dao scheme; ordinary
+  extensions and untrusted WebUI resources retain their separate permissions.
 - `chrome/browser/ui/webui/{chrome_web_ui_configs,chrome_web_ui_controller_factory}.cc.patch` — Register Dao WebUI controllers
 - `components/url_formatter/url_fixer.cc.patch` — URL fixer adaptations
 - `chrome/browser/browser_about_handler.cc.patch` — `dao://` about-page routing

@@ -1508,6 +1508,44 @@ class ReentrantApplyObserver : public dao::DaoUpdaterServiceObserver {
 class DaoSidebarBrowserTest : public InProcessBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       SettingsSharesDaoLoadTimeDataWithLegacyModules) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://settings/")));
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+
+  constexpr char kSettingsLoadTimeDataScript[] = R"(
+    (async () => {
+      const dao = await import('dao://resources/js/load_time_data.js');
+      const legacy = await import('chrome://resources/js/load_time_data.js');
+      if (dao.loadTimeData !== legacy.loadTimeData ||
+          !dao.loadTimeData.isInitialized()) {
+        return false;
+      }
+      await import('dao://settings/settings.js');
+      return typeof dao.loadTimeData.getBoolean('isGuest') === 'boolean' &&
+          !!customElements.get('settings-ui') &&
+          !!document.querySelector('settings-ui')?.shadowRoot;
+    })()
+  )";
+  EXPECT_EQ(true, content::EvalJs(web_contents, kSettingsLoadTimeDataScript));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       PdfViewerCanImportCanonicalDaoLoadTimeData) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      GURL("chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html")));
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  constexpr char kPdfLoadTimeDataScript[] = R"(
+    (async () => {
+      const legacy = await import('chrome://resources/js/load_time_data.js');
+      const dao = await import('dao://resources/js/load_time_data.js');
+      return legacy.loadTimeData === dao.loadTimeData;
+    })()
+  )";
+  EXPECT_EQ(true, content::EvalJs(web_contents, kPdfLoadTimeDataScript));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        StaleTabExpirationPrefDefaultsTo24Hours) {
   PrefService* prefs = browser()->profile()->GetPrefs();
   const PrefService::Preference* preference =

@@ -211,6 +211,15 @@ whole cluster of features breaks with it.
 - [ ] **`dao://` scheme** — Dao renames the WebUI scheme from `chrome` to `dao` and keeps
   a `chrome://` compatibility layer. Implemented across ~15 patches (see §7). **A single
   missed spot silently breaks a WebUI page or subresource.**
+  Open `dao://settings/`, downloads, and history after an upgrade; verify there
+  is no `No data` assertion. Imports of `load_time_data.js` through `dao://`
+  and legacy `chrome://` must expose the same initialized Dao instance.
+  Regression: `DaoSidebarBrowserTest.SettingsSharesDaoLoadTimeDataWithLegacyModules`.
+  Open a PDF and verify the built-in viewer can still import its shared data
+  module (`DaoSidebarBrowserTest.PdfViewerCanImportCanonicalDaoLoadTimeData`).
+  The compatibility permission applies only to active built-in components
+  already authorized for the resource host; ordinary extension and sandbox
+  policies remain unchanged.
 - [ ] **`//dao/...` sidecar source tree** — All Dao C++ lives under `engine/src/dao/`
   (copied from `src/dao/`) and is wired into the build via `.gni` source lists + BUILD.gn
   patches (§10). Nearly every C++ patch `#include`s a `dao/browser/...` header; if the
