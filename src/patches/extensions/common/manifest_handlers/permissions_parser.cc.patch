@@ -1,0 +1,14 @@
+diff --git a/extensions/common/manifest_handlers/permissions_parser.cc b/extensions/common/manifest_handlers/permissions_parser.cc
+--- a/extensions/common/manifest_handlers/permissions_parser.cc
++++ b/extensions/common/manifest_handlers/permissions_parser.cc
+@@ -159,6 +159,10 @@ void ParseHostPermissions(
+       }
+ 
++      // Dao: built-in components still declare explicit chrome:// hosts.
++      // Preserve their WebUI scheme bit without changing ordinary extensions.
+       if (pattern.scheme() != content::kChromeUIScheme &&
++          !(pattern.scheme() == "chrome" &&
++            extension->location() == mojom::ManifestLocation::kComponent) &&
+           !all_urls_includes_chrome_urls) {
+         // Keep chrome:// in allowed schemes only if it's explicitly requested
+         // or been granted by extension ID. If the extensions_on_chrome_urls

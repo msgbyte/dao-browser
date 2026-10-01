@@ -69,3 +69,20 @@ index 07cdf7dde6..98b3f8e052 100644
          frame_ancestor.SchemeIs(kChromeUIUntrustedScheme));
    frame_ancestors_.insert(frame_ancestor);
  }
+@@ -511,6 +555,16 @@ void WebUIDataSourceImpl::StartDataRequest(
+     return;
+   }
+ 
++  // Dao owns the loadTimeData singleton. Legacy imports must re-export it,
++  // otherwise strings.m.js initializes a different instance on dao:// pages.
++  if (url.SchemeIs("chrome") && url.host() == kChromeUIResourcesHost &&
++      url.path() == "/js/load_time_data.js") {
++    std::move(callback).Run(base::MakeRefCounted<base::RefCountedString>(
++        "export {loadTimeData} from "
++        "'dao://resources/js/load_time_data.js';\n"));
++    return;
++  }
++
+ #if BUILDFLAG(LOAD_WEBUI_FROM_DISK)
+   if (load_from_disk_) {
+     auto it = idr_to_file_map_.find(resource_id);

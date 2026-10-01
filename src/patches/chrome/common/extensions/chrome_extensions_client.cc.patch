@@ -21,3 +21,21 @@ index e8002e16dd..6021749535 100644
        // chrome://favicon is the only URL for chrome:// scheme that we
        // want to support. We want to deprecate the "chrome" scheme.
        // We should not add any additional "host" here.
+@@ -223,6 +226,17 @@ void ChromeExtensionsClient::AddOriginAccessPermissions(
+   if (extensions::Manifest::IsComponentLocation(extension.location()) &&
+       is_extension_active) {
++    // Existing legacy resource permissions also cover the canonical Dao
++    // modules imported by those resources. Keep ordinary extensions excluded.
++    if (extension.location() == mojom::ManifestLocation::kComponent &&
++        extension.permissions_data()->HasHostPermission(
++            GURL("chrome://resources/"))) {
++      origin_patterns->push_back(network::mojom::CorsOriginPattern::New(
++          content::kChromeUIScheme, content::kChromeUIResourcesHost, /*port=*/0,
++          network::mojom::CorsDomainMatchMode::kDisallowSubdomains,
++          network::mojom::CorsPortMatchMode::kAllowAnyPort,
++          network::mojom::CorsOriginAccessMatchPriority::kDefaultPriority));
++    }
+     origin_patterns->push_back(network::mojom::CorsOriginPattern::New(
+         content::kChromeUIScheme, chrome::kChromeUIThemeHost, /*port=*/0,
+         network::mojom::CorsDomainMatchMode::kDisallowSubdomains,
+         network::mojom::CorsPortMatchMode::kAllowAnyPort,
