@@ -108,6 +108,7 @@ import com.msgbyte.dao.browser.ExtensionPackageException
 import com.msgbyte.dao.browser.ExtensionPackageStager
 import com.msgbyte.dao.browser.InstalledExtension
 import com.msgbyte.dao.browser.SystemDownloadRepository
+import com.msgbyte.dao.ui.theme.LocalDaoDarkTheme
 import com.msgbyte.dao.ui.theme.LocalNovaColors
 import java.net.URI
 import java.time.Instant
@@ -156,7 +157,7 @@ fun SettingsScreen(
                         icon = Lucide.Moon,
                         title = stringResource(R.string.dark_mode),
                         subtitle = stringResource(R.string.dark_mode_summary),
-                    ) { NovaSwitch(preferences.darkTheme, onDarkThemeChange) }
+                    ) { NovaSwitch(LocalDaoDarkTheme.current, onDarkThemeChange) }
                     RowDivider()
                     SettingsRow(icon = Lucide.Type, title = stringResource(R.string.font_size)) {
                         Box(Modifier.width(150.dp)) {

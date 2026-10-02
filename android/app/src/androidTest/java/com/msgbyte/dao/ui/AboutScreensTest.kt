@@ -1,14 +1,11 @@
 package com.msgbyte.dao.ui
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.captureToImage
@@ -59,22 +56,13 @@ class AboutScreensTest {
 
     @Test
     fun aboutScreenUsesLightLogoInDarkTheme() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val nightConfiguration = Configuration(context.resources.configuration).apply {
-            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
-                Configuration.UI_MODE_NIGHT_YES
-        }
-        val nightContext = context.createConfigurationContext(nightConfiguration)
-
         composeRule.setContent {
-            CompositionLocalProvider(LocalContext provides nightContext) {
-                DaoTheme(darkTheme = true) {
-                    AboutScreen(
-                        appInfo = AboutAppInfo("0.1.0", "153.0.2"),
-                        onOpenLicenses = {},
-                        onBack = {},
-                    )
-                }
+            DaoTheme(darkTheme = true) {
+                AboutScreen(
+                    appInfo = AboutAppInfo("0.1.0", "153.0.2"),
+                    onOpenLicenses = {},
+                    onBack = {},
+                )
             }
         }
 

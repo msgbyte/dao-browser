@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -24,7 +25,7 @@ class BrowserPreferencesTest {
         )
 
         val defaults = preferences.state.first()
-        assertFalse(defaults.darkTheme)
+        assertNull(defaults.darkTheme)
         assertEquals(BrowserFontScale.MEDIUM, defaults.fontScale)
         assertEquals(BrowserSearchEngine.GOOGLE, defaults.searchEngine)
         assertTrue(defaults.trackingProtectionEnabled)

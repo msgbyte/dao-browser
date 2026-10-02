@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +48,7 @@ import com.msgbyte.dao.about.AboutAppInfo
 import com.msgbyte.dao.about.BundledLicense
 import com.msgbyte.dao.about.readBundledLicenseText
 import com.msgbyte.dao.ui.theme.LocalNovaColors
+import com.msgbyte.dao.ui.theme.daoBrandLogoPainter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -87,7 +87,7 @@ fun AboutScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
-                    painter = painterResource(R.drawable.dao_brand_logo),
+                    painter = daoBrandLogoPainter(),
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier

@@ -108,7 +108,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -157,7 +156,9 @@ import com.msgbyte.dao.browser.SiteSecurityDetails
 import com.msgbyte.dao.browser.SiteSecurityState
 import com.msgbyte.dao.browser.SystemDownloadRepository
 import com.msgbyte.dao.browser.TabThumbnailRepository
+import com.msgbyte.dao.ui.theme.LocalDaoDarkTheme
 import com.msgbyte.dao.ui.theme.LocalNovaColors
+import com.msgbyte.dao.ui.theme.daoBrandLogoPainter
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
@@ -516,7 +517,7 @@ fun BrowserScreen(
                         tabCount = browserState.tabs.size,
                         thumbnailCapture = thumbnailCapture,
                         library = library,
-                        darkTheme = preferences.darkTheme,
+                        darkTheme = LocalDaoDarkTheme.current,
                         onDarkThemeChange = onDarkThemeChange,
                         onEditAddress = { url ->
                             addressEditUrl = url
@@ -781,7 +782,7 @@ private fun NewTabScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
-                    painter = painterResource(R.drawable.dao_brand_logo),
+                    painter = daoBrandLogoPainter(),
                     contentDescription = stringResource(R.string.dao_logo_content_description),
                     modifier = Modifier
                         .size(64.dp)

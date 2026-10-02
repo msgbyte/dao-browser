@@ -30,7 +30,8 @@ enum class BrowserSearchEngine(val searchUrl: String) {
 }
 
 data class BrowserPreferenceState(
-    val darkTheme: Boolean = false,
+    // Null until the user picks a theme; the UI then follows the system.
+    val darkTheme: Boolean? = null,
     val fontScale: BrowserFontScale = BrowserFontScale.MEDIUM,
     val searchEngine: BrowserSearchEngine = BrowserSearchEngine.GOOGLE,
     val trackingProtectionEnabled: Boolean = true,
@@ -55,7 +56,7 @@ class BrowserPreferences(
         }
         .map { preferences ->
             BrowserPreferenceState(
-                darkTheme = preferences[DarkThemeKey] ?: false,
+                darkTheme = preferences[DarkThemeKey],
                 fontScale = enumValueOrDefault(
                     preferences[FontScaleKey],
                     BrowserFontScale.MEDIUM,

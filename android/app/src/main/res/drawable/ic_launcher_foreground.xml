@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Launcher background is always white, so this must not use the
-     night-qualified dao_brand_logo (white artwork). -->
+<!-- Launcher background is always white, so this must always use the dark
+     artwork, never dao_brand_logo_dark (white artwork). -->
 <inset
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:inset="29%">

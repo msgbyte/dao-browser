@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import com.msgbyte.dao.ui.BrowserScreen
 import com.msgbyte.dao.ui.theme.DaoTheme
 import kotlinx.coroutines.launch
 import mozilla.components.concept.engine.EngineSession
+import mozilla.components.concept.engine.mediaquery.PreferredColorScheme
 
 class MainActivity : FragmentActivity() {
     private val browserSessionViewModel by viewModels<BrowserSessionViewModel>()
@@ -59,6 +61,7 @@ class MainActivity : FragmentActivity() {
             val preferenceState by preferences.state.collectAsStateWithLifecycle(
                 initialValue = BrowserPreferenceState(),
             )
+            val darkTheme = preferenceState.darkTheme ?: isSystemInDarkTheme()
             val browserState by browserSessionViewModel.controller.state.collectAsStateWithLifecycle()
             val resolver = remember(preferenceState.searchEngine) {
                 NavigationTargetResolver(preferenceState.searchEngine.searchUrl)
@@ -90,11 +93,15 @@ class MainActivity : FragmentActivity() {
                     preferenceState.remoteDebuggingEnabled,
                 )
             }
+            LaunchedEffect(darkTheme) {
+                application.browserRuntime.engine.settings.preferredColorScheme =
+                    if (darkTheme) PreferredColorScheme.Dark else PreferredColorScheme.Light
+            }
             SideEffect {
-                darkThemeEnabled = preferenceState.darkTheme
+                darkThemeEnabled = darkTheme
                 window.decorView.post(::updateSystemBarAppearance)
             }
-            DaoTheme(darkTheme = preferenceState.darkTheme) {
+            DaoTheme(darkTheme = darkTheme) {
                 BrowserScreen(
                     engine = application.browserRuntime.engine,
                     controller = browserSessionViewModel.controller,

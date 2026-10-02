@@ -7,6 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
+import com.msgbyte.dao.R
 
 @Immutable
 data class NovaColors(
@@ -59,6 +62,15 @@ val DarkNovaColors = NovaColors(
 
 val LocalNovaColors = staticCompositionLocalOf { LightNovaColors }
 
+val LocalDaoDarkTheme = staticCompositionLocalOf { false }
+
+// Picked from Dao's effective theme rather than a night resource qualifier,
+// which would follow the system even when the user overrides the theme.
+@Composable
+fun daoBrandLogoPainter(): Painter = painterResource(
+    if (LocalDaoDarkTheme.current) R.drawable.dao_brand_logo_dark else R.drawable.dao_brand_logo,
+)
+
 @Composable
 fun DaoTheme(
     darkTheme: Boolean = false,
@@ -91,7 +103,10 @@ fun DaoTheme(
         )
     }
 
-    androidx.compose.runtime.CompositionLocalProvider(LocalNovaColors provides novaColors) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalNovaColors provides novaColors,
+        LocalDaoDarkTheme provides darkTheme,
+    ) {
         MaterialTheme(
             colorScheme = materialColors,
             typography = MaterialTheme.typography,

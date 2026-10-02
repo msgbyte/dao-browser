@@ -55,6 +55,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.first
+import mozilla.components.concept.engine.mediaquery.PreferredColorScheme
 import mozilla.components.concept.engine.webextension.WebExtension
 import org.junit.Assert.assertFalse
 import org.junit.Assert.fail
@@ -673,10 +674,13 @@ class MainActivityTest {
 
     @Test
     fun drawerDarkModeActionDirectlyTogglesThePersistedTheme() {
-        val preferences = (composeRule.activity.application as DaoApplication).browserPreferences
+        val application = composeRule.activity.application as DaoApplication
+        val preferences = application.browserPreferences
+        val engineSettings = application.browserRuntime.engine.settings
         runBlocking { preferences.setDarkTheme(false) }
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            !runBlocking { preferences.state.first().darkTheme }
+            runBlocking { preferences.state.first().darkTheme } == false &&
+                engineSettings.preferredColorScheme == PreferredColorScheme.Light
         }
 
         val addressHint = composeRule.activity.getString(R.string.address_hint)
@@ -689,12 +693,14 @@ class MainActivityTest {
 
         composeRule.onNodeWithText(darkMode).performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            runBlocking { preferences.state.first().darkTheme }
+            runBlocking { preferences.state.first().darkTheme } == true &&
+                engineSettings.preferredColorScheme == PreferredColorScheme.Dark
         }
 
         composeRule.onNodeWithText(darkMode).performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            !runBlocking { preferences.state.first().darkTheme }
+            runBlocking { preferences.state.first().darkTheme } == false &&
+                engineSettings.preferredColorScheme == PreferredColorScheme.Light
         }
     }
 
