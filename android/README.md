@@ -128,7 +128,7 @@ increment plus the next integer. Press Enter to accept either suggestion. Both
 values must increase. It then:
 
 1. Updates those two Gradle values.
-2. Commits only the version file as `chore(android): release <version>`.
+2. Commits only the version file as `release android v<version>`.
 3. Creates `android-v<version>` at the new commit.
 4. Atomically pushes `main` and the tag to `origin`.
 
