@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
+import androidx.core.view.ViewCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import io.mockk.mockk
@@ -160,6 +161,28 @@ class BrowserSurfaceTest {
         assertEquals(0, engineView.destroyCount.get())
     }
 
+    @Test
+    fun attachingTheEngineViewRequestsWindowInsets() {
+        lateinit var engineView: RecordingEngineView
+        val engine = fakeEngine { context ->
+            RecordingEngineView(context).also { engineView = it }
+        }
+        val session = mockk<EngineSession>(relaxed = true)
+        val visible = mutableStateOf(false)
+
+        composeRule.setContent {
+            if (visible.value) BrowserSurface(engine = engine, session = session)
+        }
+        composeRule.waitForIdle()
+
+        // Shown after the first traversal, so nothing but the surface asks for the insets
+        // that Gecko needs to resync the keyboard height its session last saw.
+        composeRule.runOnIdle { visible.value = true }
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) { engineView.rootInsetsCount.get() > 0 }
+    }
+
     private fun fakeEngine(createView: (Context) -> EngineView): Engine = Proxy.newProxyInstance(
         Engine::class.java.classLoader,
         arrayOf(Engine::class.java),
@@ -178,6 +201,16 @@ class BrowserSurfaceTest {
     ) : View(context), EngineView {
         val releaseCount = AtomicInteger()
         val destroyCount = AtomicInteger()
+        val rootInsetsCount = AtomicInteger()
+
+        // Like GeckoView, observe the window insets from the root view only while attached.
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            ViewCompat.setOnApplyWindowInsetsListener(rootView) { root, insets ->
+                rootInsetsCount.incrementAndGet()
+                ViewCompat.onApplyWindowInsets(root, insets)
+            }
+        }
 
         override val verticalScrollPosition: Flow<Float> = MutableStateFlow(scrollPosition)
         override val verticalScrollDelta: Flow<Float> = emptyFlow()

@@ -1,6 +1,12 @@
 package com.msgbyte.dao.ui
 
 import android.view.ViewGroup
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.imeAnimationTarget
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -8,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.doOnAttach
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -15,6 +22,16 @@ import com.msgbyte.dao.R
 import mozilla.components.concept.engine.Engine
 import mozilla.components.concept.engine.EngineSession
 import mozilla.components.concept.engine.EngineView
+
+/**
+ * [WindowInsets.safeDrawing] for screens hosting a Gecko [EngineView], with the keyboard inset
+ * jumping to its settled height instead of following the keyboard animation. Gecko derives its
+ * layout viewport from the view height plus the settled keyboard height, so resizing the view on
+ * every animation frame makes the page reflow and jitter.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+internal val WindowInsets.Companion.engineSafeDrawing: WindowInsets
+    @Composable get() = systemBars.union(imeAnimationTarget).union(displayCutout)
 
 @Composable
 fun BrowserSurface(
@@ -47,6 +64,9 @@ fun BrowserSurface(
             lifecycleBridge.value = EngineViewLifecycle(engineView)
             val hostedView = engineView.asView().apply {
                 id = R.id.browser_engine_view
+                // GeckoView only observes the window insets while attached, so its session may
+                // have missed the keyboard closing. Dispatch them again for it to resync.
+                doOnAttach { it.requestApplyInsets() }
             }
             SwipeRefreshLayout(context).apply {
                 setOnChildScrollUpCallback { _, _ ->

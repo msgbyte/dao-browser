@@ -1,6 +1,7 @@
 package com.msgbyte.dao
 
 import android.content.ClipboardManager
+import android.content.Intent
 import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -40,7 +41,11 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.ViewModelProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import com.msgbyte.dao.ui.NEW_TAB_SCREEN_TEST_TAG
 import com.msgbyte.dao.ui.EDGE_BACK_GESTURE_TEST_TAG
 import com.msgbyte.dao.ui.TAB_GRID_TEST_TAG
@@ -49,12 +54,15 @@ import com.msgbyte.dao.ui.TAB_THUMBNAIL_TEST_TAG_PREFIX
 import com.msgbyte.dao.ui.BOOKMARK_OPTIONS_TEST_TAG_PREFIX
 import com.msgbyte.dao.about.readAboutAppInfo
 import com.msgbyte.dao.browser.BrowserFontScale
+import com.msgbyte.dao.browser.BrowserSessionViewModel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.first
+import mozilla.components.concept.engine.EngineView
 import mozilla.components.concept.engine.mediaquery.PreferredColorScheme
 import mozilla.components.concept.engine.webextension.WebExtension
 import org.junit.Assert.assertFalse
@@ -769,6 +777,160 @@ class MainActivityTest {
         composeRule.onNode(hasSetTextAction()).performTextInput("dao")
         composeRule.onNodeWithContentDescription(closeFind).performClick()
         composeRule.onNodeWithContentDescription(menu).assertIsDisplayed()
+    }
+
+    @Test
+    fun softKeyboardResizesWebContentOnce() {
+        val addressHint = composeRule.activity.getString(R.string.address_hint)
+        val menu = composeRule.activity.getString(R.string.menu)
+        val find = composeRule.activity.getString(R.string.find_in_page)
+        val closeFind = composeRule.activity.getString(R.string.close_find)
+        val contentView = composeRule.activity.findViewById<View>(android.R.id.content)
+        val activeAnimations = AtomicInteger()
+        val keyboardInsets = mutableSetOf<Int>()
+        val heights = mutableListOf<Int>()
+        val awaitKeyboard = { visible: Boolean ->
+            composeRule.waitUntil(timeoutMillis = 10_000) {
+                activeAnimations.get() == 0 &&
+                    ViewCompat.getRootWindowInsets(contentView)
+                        ?.isVisible(WindowInsetsCompat.Type.ime()) == visible
+            }
+        }
+        composeRule.runOnIdle {
+            ViewCompat.setWindowInsetsAnimationCallback(
+                contentView,
+                object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+                    override fun onPrepare(animation: WindowInsetsAnimationCompat) {
+                        activeAnimations.incrementAndGet()
+                    }
+
+                    override fun onProgress(
+                        insets: WindowInsetsCompat,
+                        runningAnimations: MutableList<WindowInsetsAnimationCompat>,
+                    ): WindowInsetsCompat {
+                        keyboardInsets += insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+                        return insets
+                    }
+
+                    override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                        activeAnimations.decrementAndGet()
+                    }
+                },
+            )
+        }
+
+        composeRule.onNodeWithText(addressHint).performClick()
+        composeRule.onNode(hasSetTextAction()).performTextInput("about:blank#keyboard-resize")
+        composeRule.onNode(hasSetTextAction()).performImeAction()
+        composeRule.onNodeWithContentDescription(menu).performClick()
+        composeRule.onNodeWithText(find).performClick()
+        composeRule.onNodeWithContentDescription(closeFind).assertIsDisplayed()
+        awaitKeyboard(false)
+
+        val engineView = composeRule.runOnIdle {
+            composeRule.activity.findViewById<View>(R.id.browser_engine_view).apply {
+                addOnLayoutChangeListener { _, _, top, _, bottom, _, _, _, _ ->
+                    heights += bottom - top
+                }
+            }
+        }
+        // Counts how often the engine view changes height across one keyboard animation.
+        val resizesWhile = { visible: Boolean, toggleKeyboard: () -> Unit ->
+            val startHeight = composeRule.runOnIdle {
+                heights.clear()
+                keyboardInsets.clear()
+                engineView.height
+            }
+            toggleKeyboard()
+            awaitKeyboard(visible)
+            val (frames, resizes) = composeRule.runOnIdle {
+                keyboardInsets.size to
+                    (listOf(startHeight) + heights).zipWithNext().count { (from, to) -> from != to }
+            }
+            // Without intermediate frames a resize per frame is indistinguishable from one.
+            assertTrue("The keyboard must be docked and animated", frames > 2)
+            resizes
+        }
+        val fullHeight = composeRule.runOnIdle { engineView.height }
+
+        // Gecko derives its layout viewport from the view height plus the settled keyboard
+        // height, so a resize on every keyboard animation frame makes the page jitter.
+        assertEquals(
+            "Web content resizes while the keyboard opens",
+            1,
+            resizesWhile(true) { composeRule.onNode(hasSetTextAction()).performClick() },
+        )
+        assertTrue(composeRule.runOnIdle { engineView.height } < fullHeight)
+        assertEquals(
+            "Web content resizes while the keyboard closes",
+            1,
+            resizesWhile(false) {
+                composeRule.runOnIdle {
+                    WindowCompat.getInsetsController(composeRule.activity.window, contentView)
+                        .hide(WindowInsetsCompat.Type.ime())
+                }
+            },
+        )
+        assertEquals(fullHeight, composeRule.runOnIdle { engineView.height })
+    }
+
+    @Test
+    fun externalLinkKeepsGeckoObservingWindowInsets() {
+        val addressHint = composeRule.activity.getString(R.string.address_hint)
+        val tabs = composeRule.activity.getString(R.string.tab_switcher)
+        val tabCard = SemanticsMatcher("BrowserStore tab card") { node ->
+            node.config.contains(SemanticsProperties.TestTag) &&
+                node.config[SemanticsProperties.TestTag].startsWith(TAB_CARD_TEST_TAG_PREFIX)
+        }
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val controller =
+            ViewModelProvider(composeRule.activity)[BrowserSessionViewModel::class.java].controller
+
+        composeRule.onNodeWithText(addressHint).performClick()
+        composeRule.onNode(hasSetTextAction()).performTextInput("about:blank#external-link")
+        composeRule.onNode(hasSetTextAction()).performImeAction()
+        // Returning from the tab grid leaves a browsing destination that differs from the one
+        // an external link navigates to only by its transition.
+        composeRule.onNodeWithContentDescription(tabs).performClick()
+        composeRule.onNode(tabCard).performClick()
+        composeRule.waitForIdle()
+
+        // Hold the frame that re-targets the destination until the new tab has its session, so
+        // a second browsing screen would host an engine view next to the current one.
+        composeRule.mainClock.autoAdvance = false
+        instrumentation.runOnMainSync {
+            val launchIntent = composeRule.activity.intent
+            instrumentation.callActivityOnNewIntent(
+                composeRule.activity,
+                Intent(Intent.ACTION_VIEW, Uri.parse("https://external-${System.nanoTime()}.example")),
+            )
+            // ActivityScenario tracks the activity by its launch intent.
+            composeRule.activity.intent = launchIntent
+        }
+        repeat(10) {
+            if (controller.state.value.tabs.size < 2) composeRule.mainClock.advanceTimeByFrame()
+        }
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            controller.state.value.tabs.size == 2 &&
+                controller.selectedTab()?.engineState?.engineSession != null
+        }
+        composeRule.mainClock.autoAdvance = true
+
+        // Gecko's root insets listener is cleared whenever an engine view detaches, including
+        // the listener of an engine view that attached in the meantime.
+        val insetsDispatched = CountDownLatch(1)
+        composeRule.runOnIdle {
+            val engineView = composeRule.activity.findViewById<View>(R.id.browser_engine_view)
+            (engineView as EngineView).addWindowInsetsListener("test") { _, insets ->
+                insetsDispatched.countDown()
+                insets
+            }
+            engineView.requestApplyInsets()
+        }
+        assertTrue(
+            "Gecko stopped observing window insets, so it no longer learns the keyboard height",
+            insetsDispatched.await(5, TimeUnit.SECONDS),
+        )
     }
 
     @Test

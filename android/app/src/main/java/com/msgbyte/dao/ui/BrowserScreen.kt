@@ -486,6 +486,10 @@ fun BrowserScreen(
             AnimatedContent(
                 targetState = animatedDestination,
                 transitionSpec = { browserContentTransform(targetState.transition) },
+                // Navigating to the current destination only changes the transition. Keep its
+                // screen rather than composing a second one, whose engine view would attach
+                // beside the current one and lose Gecko's window insets listener with it.
+                contentKey = { it.destination },
                 label = "browserDestination",
             ) { targetState ->
                 when (targetState.destination) {
@@ -699,7 +703,7 @@ private fun ExtensionPopupScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.engineSafeDrawing)
             .background(colors.background),
     ) {
         ScreenHeader(stringResource(R.string.extensions), onClose)
@@ -1286,7 +1290,7 @@ private fun BrowsingScreen(
                     Column(
                         Modifier
                             .fillMaxSize()
-                            .windowInsetsPadding(WindowInsets.safeDrawing)
+                            .windowInsetsPadding(WindowInsets.engineSafeDrawing)
                             .background(colors.surface),
                     ) {
                         AddressBar(
