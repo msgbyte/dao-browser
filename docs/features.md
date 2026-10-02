@@ -992,6 +992,14 @@ Lightweight window form factor for popups / mini-tools.
 ## 11. Branding and Visuals
 
 - **Dao brand assets** — Logos / SVGs; product name globally rebranded ("Chromium" → "Dao")
+- **Platform-specific application icons** — macOS uses `branding/mac/app.icns`;
+  Windows maintains its own `branding/win/app.png` master with tighter outer
+  spacing, preserving the Dao mark and white rounded tile at a visual size
+  comparable to neighboring taskbar icons. `scripts/generate-windows-icon.ps1`
+  packages that master into a 16–256px ICO, including intermediate Windows DPI
+  sizes. Import copies `branding/win/dao.ico` into Chromium's shared EXE/DLL
+  icon resource for Explorer, the taskbar, and Alt+Tab. Existing profile
+  shortcut icons regenerate on startup through an icon-version bump.
 - **`chrome://` → `dao://`** — Internal URL schemes rewritten via `content/common/url_schemes.cc.patch`
 - **`chrome_color_mixer.cc.patch`** — Threads `dao_colors` tokens into the global color pipeline
 - **Custom scrollbar** — `third_party/blink/renderer/core/css/css_default_style_sheets.cc.patch` + `html.css.patch` for globally restyled scrollbars

@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/profiles/profile_shortcut_manager_win.cc b/chrome/browser/profiles/profile_shortcut_manager_win.cc
+--- a/chrome/browser/profiles/profile_shortcut_manager_win.cc
++++ b/chrome/browser/profiles/profile_shortcut_manager_win.cc
+@@ -78,7 +78,8 @@
+ // Incrementing this number will cause profile icons to be regenerated on
+ // profile startup (it should be incremented whenever the product/avatar icons
+ // change, etc).
+-const int kCurrentProfileIconVersion = 10;
++// Regenerate profile shortcut icons with Dao's Windows-specific app sizing.
++const int kCurrentProfileIconVersion = 13;
+ 
+ bool disabled_for_unit_tests = false;
+ bool disable_unpinning_for_unit_tests = false;

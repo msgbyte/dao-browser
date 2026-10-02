@@ -671,6 +671,7 @@ export const importCommand = new Command("import")
       "BRANDING": "BRANDING",
       "mac/app.icns": "mac/app.icns",
       "mac/document.icns": "mac/document.icns",
+      "win/dao.ico": "win/chromium.ico",
       "product_logo.svg": "product_logo.svg",
       "product_logo_16.png": "product_logo_16.png",
       "product_logo_24.png": "product_logo_24.png",
