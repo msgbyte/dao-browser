@@ -45,7 +45,7 @@ describe('Android release CLI', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain(`android-v${next.version}`);
     expect(result.stdout).toContain(`versionCode: ${current.versionCode} -> ${next.versionCode}`);
-    expect(result.stdout).toContain(`release android v${next.version}`);
+    expect(result.stdout).toContain(`Commit: chore(android): release android v${next.version}`);
     expect(result.stdout).toContain('git push --atomic');
   });
 
@@ -101,7 +101,7 @@ describe('Android release Git transaction', () => {
     await runAndroidRelease(options, checkout);
     const head = git(checkout, 'rev-parse', 'HEAD');
     expect(head).not.toBe(before);
-    expect(git(checkout, 'log', '-1', '--format=%s')).toBe('release android v0.1.1');
+    expect(git(checkout, 'log', '-1', '--format=%s')).toBe('chore(android): release android v0.1.1');
     expect(git(checkout, 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD')).toBe(gradlePath);
     expect(gradle()).toBe(original.replace('= 1', '= 2').replace('0.1.0', '0.1.1'));
     expect(git(checkout, 'status', '--porcelain')).toBe('');

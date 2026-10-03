@@ -81,7 +81,7 @@ export async function runAndroidRelease(options: ReleaseOptions, root = ROOT_DIR
     terminal?.close();
   }
   const tag = `android-v${next.version}`;
-  const message = `release android v${next.version}`;
+  const message = `chore(android): release android v${next.version}`;
   const push = ["push", "--atomic", "--no-follow-tags", "origin", "refs/heads/main:refs/heads/main", `refs/tags/${tag}:refs/tags/${tag}`];
   const pushCommand = `git ${push.join(" ")}`;
   log(`${VERSION_FILE}: versionName: ${current.version} -> ${next.version}, versionCode: ${current.versionCode} -> ${next.versionCode}`);
