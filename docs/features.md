@@ -50,7 +50,9 @@ WebUI configuration, including when opened with Ctrl+Shift+A on Windows.
 The Windows port excludes the macOS MCP transport and its settings/copy-ID
 actions, native share pickers, AppKit drag-to-new-window completion detection,
 ImageIO thumbnails, the external-URL Little Dao launcher, and Sparkle updates.
-Windows installers and release publishing are outside the development scope.
+Windows native installation uses Dao paths, AppUserModelID/ProgID prefixes,
+and separate COM server identities. Chrome and Chromium installations and
+profiles remain independent.
 See [`development.md`](development.md) for setup and verification requirements.
 
 ## 1. Vertical Sidebar

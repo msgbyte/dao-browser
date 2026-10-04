@@ -1,0 +1,16 @@
+diff --git a/chrome/windows_services/elevated_tracing_service/BUILD.gn b/chrome/windows_services/elevated_tracing_service/BUILD.gn
+--- a/chrome/windows_services/elevated_tracing_service/BUILD.gn
++++ b/chrome/windows_services/elevated_tracing_service/BUILD.gn
+@@ -11,6 +11,12 @@
+   sources = [ "tracing_service_idl.idl" ]
+ 
+   writes_tlb = true
++
++  # Keep Dao COM interfaces independent from Chromium without changing IDL ABI.
++  # MIDL only compiles IID sources; no custom proxy/stub is used.
++  if (!is_chrome_branded && !is_chrome_for_testing_branded) {
++    dynamic_guids = "ignore_proxy_stub,A3FD580A-FFD4-4075-9174-75D0B199D3CB=4BA68542-FD30-5412-B656-B7E6E6795EA7"
++  }
+ }
+ 
+ executable("elevated_tracing_service") {

@@ -1,0 +1,14 @@
+diff --git a/chrome/install_static/user_data_dir_win_unittest.cc b/chrome/install_static/user_data_dir_win_unittest.cc
+--- a/chrome/install_static/user_data_dir_win_unittest.cc
++++ b/chrome/install_static/user_data_dir_win_unittest.cc
+@@ -30,8 +30,8 @@
+ const wchar_t kUserDataDirNameSuffix[] =
+     L"\\Google\\Chrome for Testing\\User Data";
+ #else
+-const wchar_t kPolicyRegistryKey[] = L"SOFTWARE\\Policies\\Chromium";
+-const wchar_t kUserDataDirNameSuffix[] = L"\\Chromium\\User Data";
++const wchar_t kPolicyRegistryKey[] = L"SOFTWARE\\Policies\\Dao";
++const wchar_t kUserDataDirNameSuffix[] = L"\\Dao\\User Data";
+ #endif
+ 
+ const wchar_t kUserDataDirRegistryKey[] = L"UserDataDir";

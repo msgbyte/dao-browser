@@ -95,6 +95,26 @@ and `%LOCALAPPDATA%\Dao\User Data` for release, separate from installed Chrome.
 workflows. The Windows port does not yet provide MCP transport, macOS sharing,
 AppKit tab tear-off detection, ImageIO thumbnails, or Sparkle updates.
 
+### Windows installation identity
+
+Windows uses Chromium's native `mini_installer`, including its installer,
+uninstaller, shortcuts, default-browser registration, and upgrade logic. A
+per-user install lives in `%LOCALAPPDATA%\Dao\Application`; an explicit
+`--system-level` install uses `%ProgramFiles%\Dao\Application` and requires
+elevation. The default profile is `%LOCALAPPDATA%\Dao\User Data`, including
+when launching the installed executable without CLI flags. Browser/HTML/PDF
+registration uses Dao identities. Existing Chromium profiles are not migrated.
+
+Dao's COM GUID substitutions move the MIDL input into `gen/`. The MIDL patch
+aligns only the original IDL path in copied compiler-settings comments; it still
+validates generated interface code and binary type libraries against Chromium's
+baselines. After importing, run this lightweight regression check without
+invoking MIDL or compiling Chromium:
+
+```powershell
+python3 -m unittest scripts.tests.test_windows_midl
+```
+
 ### Setting up depot_tools
 
 [depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up) is a collection of tools built by the Chromium team for managing the Chromium source code. It provides `gclient` (dependency management), `gn` (build file generation), `autoninja` (parallel build), and other utilities required to fetch and build Chromium-based projects.

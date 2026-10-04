@@ -1,0 +1,90 @@
+diff --git a/chrome/install_static/chromium_install_modes.h b/chrome/install_static/chromium_install_modes.h
+--- a/chrome/install_static/chromium_install_modes.h
++++ b/chrome/install_static/chromium_install_modes.h
+@@ -21,7 +21,7 @@
+ 
+ // The brand-specific product name to be included as a component of the install
+ // and user data directory paths.
+-inline constexpr wchar_t kProductPathName[] = L"Chromium";
++inline constexpr wchar_t kProductPathName[] = L"Dao";
+ 
+ // The brand-specific safe browsing client name.
+ inline constexpr char kSafeBrowsingName[] = "chromium";
+@@ -45,47 +45,42 @@
+         .logo_suffix = L"",  // No logo suffix for the primary install mode.
+         .app_guid =
+             L"",  // Empty app_guid since no integration with Google Update.
+-        .base_app_name = L"Chromium",              // A distinct base_app_name.
+-        .base_app_id = L"Chromium",                // A distinct base_app_id.
+-        .browser_prog_id_prefix = L"ChromiumHTM",  // Browser ProgID prefix.
++        .base_app_name = L"Dao",              // A distinct base_app_name.
++        .base_app_id = L"Dao",                // A distinct base_app_id.
++        .browser_prog_id_prefix = L"DaoHTM",  // Browser ProgID prefix.
+         .browser_prog_id_description =
+-            L"Chromium HTML Document",  // Browser ProgID description.
+-        .direct_launch_url_scheme = "chromium",
+-        .pdf_prog_id_prefix = L"ChromiumPDF",  // PDF ProgID prefix.
++            L"Dao HTML Document",  // Browser ProgID description.
++        .direct_launch_url_scheme = "dao-browser",
++        .pdf_prog_id_prefix = L"DaoPDF",  // PDF ProgID prefix.
+         .pdf_prog_id_description =
+-            L"Chromium PDF Document",  // PDF ProgID description.
++            L"Dao PDF Document",  // PDF ProgID description.
+         .active_setup_guid =
+-            L"{7D2B3E1D-D096-4594-9D8F-A6667F12E0AC}",  // Active Setup
++            L"{AB059BF8-9D0B-522B-99FA-D8CB108C4755}",  // Active Setup
+                                                         // GUID.
+         .legacy_command_execute_clsid =
+-            L"{A2DF06F9-A21A-44A8-8A99-8B9C84F29160}",  // CommandExecuteImpl
++            L"{822FB222-C649-5E47-95B4-30B11634A826}",  // CommandExecuteImpl
+                                                         // CLSID.
+-        .toast_activator_clsid = {0x635EFA6F,
+-                                  0x08D6,
+-                                  0x4EC9,
+-                                  {0xBD, 0x14, 0x8A, 0x0F, 0xDE, 0x97, 0x51,
+-                                   0x59}},  // Toast Activator CLSID.
+-        .elevator_clsid = {0xD133B120,
+-                           0x6DB4,
+-                           0x4D6B,
+-                           {0x8B, 0xFE, 0x83, 0xBF, 0x8C, 0xA1, 0xB1,
+-                            0xB0}},  // Elevator CLSID.
+-        .elevator_iid = {0xbb19a0e5,
+-                         0xc6,
+-                         0x4966,
+-                         {0x94, 0xb2, 0x5a, 0xfe, 0xc6, 0xfe, 0xd9,
+-                          0x3a}},  // IElevator IID and TypeLib
+-        // {BB19A0E5-00C6-4966-94B2-5AFEC6FED93A}.
+-        .tracing_service_clsid = {0x83f69367,
+-                                  0x442d,
+-                                  0x447f,
+-                                  {0x8b, 0xcc, 0x0e, 0x3f, 0x97, 0xbe, 0x9c,
+-                                   0xf2}},  // SystemTraceSession CLSID.
+-        .tracing_service_iid = {0xa3fd580a,
+-                                0xffd4,
+-                                0x4075,
+-                                {0x91, 0x74, 0x75, 0xd0, 0xb1, 0x99, 0xd3,
+-                                 0xcb}},  // ISystemTraceSessionChromium IID and
++        .toast_activator_clsid = {0x4786BE41,
++                                 0xAEFB,
++                                 0x5614,
++                                 {0x88, 0xBF, 0xFF, 0x67, 0xA4, 0xEC, 0xAA, 0x5F}},  // Toast Activator CLSID.
++        .elevator_clsid = {0x77C71A69,
++                          0x577A,
++                          0x5A3E,
++                          {0xA0, 0xAE, 0x87, 0xA1, 0x16, 0x4C, 0x18, 0xBD}},  // Elevator CLSID.
++        .elevator_iid = {0x439C6E37,
++                        0xD207,
++                        0x5E80,
++                        {0x91, 0xED, 0x3C, 0xA8, 0xF1, 0x35, 0xA5, 0xF2}},  // IElevator IID and TypeLib
++        // {439C6E37-D207-5E80-91ED-3CA8F135A5F2}.
++        .tracing_service_clsid = {0xBF8C2DC6,
++                                 0x50EE,
++                                 0x5DB5,
++                                 {0xAC, 0x43, 0xC2, 0xF0, 0x87, 0x6E, 0xB3, 0x6B}},  // SystemTraceSession CLSID.
++        .tracing_service_iid = {0x4BA68542,
++                               0xFD30,
++                               0x5412,
++                               {0xB6, 0x56, 0xB7, 0xE6, 0xE6, 0x79, 0x5E, 0xA7}},  // ISystemTraceSessionChromium IID and
+                                           // TypeLib
+         .default_channel_name =
+             L"",  // Empty default channel name since no update integration.

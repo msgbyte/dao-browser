@@ -1,0 +1,25 @@
+diff --git a/build/toolchain/win/midl.py b/build/toolchain/win/midl.py
+--- a/build/toolchain/win/midl.py
++++ b/build/toolchain/win/midl.py
+@@ -415,6 +415,21 @@ def main(arch, gendir, outdir, dynamic_guids, tlb, h, dlldata, iid, proxy,
+         outdir,
+         os.path.splitext(os.path.basename(idl_template))[0] + '.idl')
+ 
++    # Baselines compiled before enabling dynamic GUIDs name the original IDL.
++    # Update only that compiler-settings comment in the copied text outputs;
++    # all generated code and binary type libraries still require an exact match.
++    for name in common_files:
++      if not name.endswith(('.h', '.c')):
++        continue
++      filename = os.path.join(outdir, name)
++      with open(filename, 'rb') as output:
++        contents = output.read()
++      contents = contents.replace(
++          b'/* Compiler settings for ' + idl_template.encode('utf-8') + b':',
++          b'/* Compiler settings for ' + idl.encode('utf-8') + b':', 1)
++      with open(filename, 'wb') as output:
++        output.write(contents)
++
+     # |idl_template| can contain one or more occurrences of guids that are
+     # substituted with |dynamic_guids|, and then MIDL is run on the substituted
+     # IDL file.

@@ -1,0 +1,19 @@
+diff --git a/chrome/installer/mini_installer/mini_installer_constants.cc b/chrome/installer/mini_installer/mini_installer_constants.cc
+--- a/chrome/installer/mini_installer/mini_installer_constants.cc
++++ b/chrome/installer/mini_installer/mini_installer_constants.cc
+@@ -67,12 +67,12 @@
+ #else
+ // The path to the key containing each app's Clients registry key.
+ // No trailing slash on this one because the app's GUID is not appended.
+-const wchar_t kClientsKeyBase[] = L"Software\\Chromium";
++const wchar_t kClientsKeyBase[] = L"Software\\Dao";
+ // The path to the key containing each app's Client State registry key.
+ // No trailing slash on this one because the app's GUID is not appended.
+-const wchar_t kClientStateKeyBase[] = L"Software\\Chromium";
++const wchar_t kClientStateKeyBase[] = L"Software\\Dao";
+ // The path to the key in which kCleanupRegistryValue is found.
+-const wchar_t kCleanupRegistryKey[] = L"Software\\Chromium";
++const wchar_t kCleanupRegistryKey[] = L"Software\\Dao";
+ #endif
+ 
+ }  // namespace mini_installer

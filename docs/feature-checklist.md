@@ -82,6 +82,15 @@ These are acceptance checks, not a claim that the port has passed them.
   state; macOS retains its Sparkle update flow.
 - [ ] Debug/release profiles are distinct and do not touch Chrome's profile.
   Paths with spaces and URL query metacharacters reach the browser unchanged.
+- [ ] Build `mini_installer` through `npm.cmd run rebuild -- -- --target mini_installer`;
+  In a disposable Windows user/VM, install, launch from the shortcut, and check
+  `Dao\Application`, `Dao\User Data`, the Dao icon/name in taskbar and Installed
+  Apps, and Dao HTML/PDF/default-browser registration. Chrome/Chromium entries
+  and profiles must remain independent. Reinstall/upgrade, then uninstall while
+  preserving user data; verify an explicit delete-profile uninstall separately.
+- [ ] After importing, run `python3 -m unittest scripts.tests.test_windows_midl`.
+  MIDL validation must accept IDL path-comment relocation for dynamic COM GUIDs
+  while still rejecting changed GUIDs, compiler settings, and unrelated IDL paths.
 - [ ] Recheck macOS build arguments, launch aliases, MCP, native sharing, and
   traffic-light placement on a Mac after changing shared scripts or helpers.
   x64 Node under Rosetta must retain the configured macOS arm64 target.
