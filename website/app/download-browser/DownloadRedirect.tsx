@@ -8,6 +8,7 @@ import styles from './download.module.css';
 interface PlatformInfo {
   label: string;
   url: string;
+  version?: string;
 }
 
 interface DownloadConfig {
@@ -29,7 +30,7 @@ function detectPlatformKey(config: DownloadConfig): string {
   if (typeof navigator === 'undefined') return config.default;
   const ua = navigator.userAgent.toLowerCase();
   if (ua.includes('mac')) return 'macArm64';
-  // Future platforms (linux, win) can be wired here when we ship them.
+  if (ua.includes('win') && config.platforms.win) return 'win';
   return config.default;
 }
 
@@ -63,7 +64,7 @@ export function DownloadRedirect() {
 
         trackEvent('download_redirect', {
           platform: key,
-          version: cfg.version,
+          version: cfg.platforms[key]?.version ?? cfg.version,
         });
 
         // Redirect on the next tick so the "preparing your download" message
@@ -111,7 +112,7 @@ export function DownloadRedirect() {
             <h1 className={styles.heading}>Your download is starting</h1>
             <span className={styles.platformChip}>
               <LucideIcon name="download" size={14} aria-hidden />
-              Dao Browser v{config.version} ·{' '}
+              Dao Browser v{config.platforms[detectPlatformKey(config)]?.version ?? config.version} ·{' '}
               {config.platforms[detectPlatformKey(config)]?.label ??
                 config.platforms[config.default].label}
             </span>

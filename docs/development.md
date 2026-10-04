@@ -91,11 +91,12 @@ after a restart. See Microsoft's [page-file guidance](https://learn.microsoft.co
 The launch command uses `%LOCALAPPDATA%\Dao Debug\User Data` for development
 and `%LOCALAPPDATA%\Dao\User Data` for release, separate from installed Chrome.
 `start:debug:view` also enables Chromium UI devtools. `start:little`,
-`start:debug:clean`, packaging, signing, and release publishing remain macOS
-workflows. The Windows port does not yet provide MCP transport, macOS sharing,
+`start:debug:clean` and Apple signing remain macOS workflows. Windows packaging
+and publishing use the unsigned Chromium installer described below.
+The Windows port does not yet provide MCP transport, macOS sharing,
 AppKit tab tear-off detection, ImageIO thumbnails, or Sparkle updates.
 
-### Windows installation identity
+### Windows installer and shared desktop releases
 
 Windows uses Chromium's native `mini_installer`, including its installer,
 uninstaller, shortcuts, default-browser registration, and upgrade logic. A
@@ -114,6 +115,76 @@ invoking MIDL or compiling Chromium:
 ```powershell
 python3 -m unittest scripts.tests.test_windows_midl
 ```
+
+For incremental compile verification and an installer for local testing:
+
+```powershell
+npm.cmd run rebuild -- -- --target mini_installer -j 6
+npm.cmd run package -- --debug
+```
+
+This produces `dist/dao-browser-<version>-windows-x64-debug.exe` and a matching
+`.sha256` file. The debug installer uses the same Dao installation identity;
+test it in a disposable Windows user or VM. `start:debug` still explicitly
+selects the separate `Dao Debug` profile. Debug packages cannot be published
+by the release command, which expects the filename without `-debug`.
+
+`build:release` builds the browser target in `out/dao`; it does not create the
+installer, bump the version, tag, or upload. If that build is already complete,
+produce a local release installer:
+
+```powershell
+npm.cmd run release:windows -- --skip-upload
+```
+
+This imports normally, builds the additional `mini_installer`
+target incrementally in the same release output directory, then packages it.
+It performs no Git or publication changes. Once `out/dao/mini_installer.exe`
+exists, `npm.cmd run package` alone copies it into `dist/` with its checksum.
+
+Desktop releases share one `dao.json.version.display` and one GitHub Release
+named `v<version>`. Publish macOS first with the existing `npm run release`
+workflow, then commit/push its metadata and tag as directed. On Windows, sync
+that release's sources and tags before running:
+
+```powershell
+# Preview without building, uploading, changing versions, or creating tags.
+npm.cmd run release:windows -- --dry-run
+# Build an unsigned release installer and append it to the desktop release.
+npm.cmd run release:windows
+# Build/package locally without publishing or changing website metadata.
+npm.cmd run release:windows -- --skip-upload
+```
+
+`release:windows` is `cli release --platform windows`; plain `cli release`
+defaults to `--platform mac`. Windows reuses the current version without a
+bump or new tag, imports normally without `--force`, builds `mini_installer`
+in `out/dao`, and packages `dao-browser-<version>-windows-x64.exe`. It requires
+native Windows x64 build tools and authenticated GitHub CLI (`gh auth login`),
+but no signing credentials, R2 credentials, or Sparkle tools. Unsigned packages
+can display Windows security prompts. Automatic Windows updates are not included.
+
+The GitHub uploader preserves existing macOS assets and rejects a different
+Windows installer for an already published version. A retry can complete a
+missing checksum upload. `--skip-build` reuses the existing release EXE and
+checksum in `dist/`. The tag's sources must match HEAD; release-only changes to
+the display version, appcast, and website metadata are permitted. Code changes
+require a new desktop release. Before building and again before uploading, the
+publisher checks for uncommitted source changes and verifies the tag against
+`origin`; staged and untracked sources also prevent publication.
+The internal Chromium engine version and native
+versioned installation directories remain Chromium-versioned.
+
+Successful Windows publication adds only `platforms.win` to
+`website/public/info.json`; commit/deploy this metadata when ready. Subsequent
+macOS releases preserve that Windows URL until the corresponding Windows
+installer is published. Neither platform's release command commits or pushes
+Git changes automatically. Android retains its independent release command.
+An existing draft desktop release must be published before Windows assets are
+attached. Windows metadata records its own version so download text remains
+accurate when macOS advances first. Standalone packaging and `--skip-build`
+trust the selected build/artifact; filenames and checksums do not prove which
+source commit produced a binary. Use the normal release build for fresh releases.
 
 ### Setting up depot_tools
 

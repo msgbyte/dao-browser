@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import chalk from "chalk";
+import { windowsInstallerName } from "./package-windows.js";
 import {
   ROOT_DIR,
   type DaoConfig,
@@ -28,6 +29,7 @@ import {
 } from "./release-transaction.js";
 
 export interface ReleaseOptions {
+  platform?: "mac" | "windows";
   bump?: "patch" | "minor" | "major";
   bucket?: string;
   prefix?: string;
@@ -117,9 +119,12 @@ const NOTARIZE_TRIPLE_ENV = [
 
 export const releaseCommand = new Command("release")
   .description(
-    "End-to-end release: bump version, import, build, package:release, " +
-      "generate appcast, copy appcast to website/public, upload .dmg to R2."
+    "Release desktop builds: macOS creates a version; Windows attaches an unsigned installer to that version."
   )
+  .option("--platform <platform>", "Desktop release platform: mac | windows", (value: string) => {
+    if (value !== "mac" && value !== "windows") throw new Error(`Invalid --platform: ${value}`);
+    return value;
+  }, "mac")
   .option(
     "--bump <type>",
     "Version bump kind: patch | minor | major",
@@ -133,7 +138,7 @@ export const releaseCommand = new Command("release")
   )
   .option("-b, --bucket <name>", "R2 bucket (or $R2_BUCKET)")
   .option("-p, --prefix <prefix>", "R2 key prefix for the .dmg", "")
-  .option("--skip-upload", "Skip the R2 upload step (still produces artifacts)")
+  .option("--skip-upload", "Skip publishing to R2/GitHub (still produces artifacts)")
   .option("--skip-build", "Skip import + build (use existing dist/ artifact)")
   .option(
     "--no-force-import",
@@ -156,7 +161,7 @@ export const releaseCommand = new Command("release")
   .action(async (options: ReleaseOptions) => {
     try {
       const result = await runReleaseWithSignals(options);
-      printReleaseSuccess(result.newVersion);
+      printReleaseSuccess(result.newVersion, options);
     } catch (cause) {
       const failure = cause instanceof ReleaseError
         ? cause
@@ -171,6 +176,7 @@ export const releaseCommand = new Command("release")
 // ---------------------------------------------------------------------------
 
 export interface ReleaseDependencies {
+  hostPlatform?: NodeJS.Platform;
   rootDir: string;
   env: NodeJS.ProcessEnv;
   now: () => Date;
@@ -223,7 +229,8 @@ function buildReleasePhaseContext(
     oldVersion,
     newVersion,
     releaseHead,
-    dmgPath: path.join(rootDir, "dist", baseName + ".dmg"),
+    dmgPath: path.join(rootDir, "dist", options.platform === "windows"
+      ? windowsInstallerName(newVersion) : baseName + ".dmg"),
     appcastPath: path.join(rootDir, "dist", "appcast.xml"),
     signal,
   };
@@ -274,6 +281,12 @@ export function plannedReleasePhases(
   options: ReleaseOptions
 ): ReleasePhase[] {
   const phases: ReleasePhase[] = [];
+  if (options.platform === "windows") {
+    if (!options.skipBuild) phases.push("import", "build", "package");
+    if (!options.skipUpload) phases.push("upload", "metadata");
+    phases.push("tag");
+    return phases;
+  }
   if (!options.skipBuild && !options.resumeFromStaple) {
     phases.push("import", "build", "package", "notarize", "staple");
   } else if (options.resumeFromStaple) {
@@ -296,6 +309,12 @@ function collectReleasePreflightProblems(
   const bucket = options.bucket || env.R2_BUCKET;
   const problems: string[] = [];
   void config;
+
+  if (options.platform === "windows") {
+    if (options.resumeFromStaple) problems.push("--resume-from-staple is macOS-only.");
+    if (options.bucket || options.prefix) problems.push("Windows releases upload directly to GitHub; R2 options are macOS-only.");
+    return problems;
+  }
 
   if (willBuild) {
     if (!env[SIGN_IDENTITY_ENV]) {
@@ -376,6 +395,63 @@ function collectReleasePreflightProblems(
   return problems;
 }
 
+/** Mac releases commit their version/appcast after tagging the build's sources. */
+export function desktopReleaseSourcesMatch(rootDir: string, tagCommit: string, head: string): boolean {
+  const diff = spawnSync("git", ["diff", "--name-only", tagCommit, head, "--", ".",
+    ":(exclude)dao.json", ":(exclude)website/public/info.json", ":(exclude)website/public/appcast.xml"],
+    {cwd: rootDir, encoding: "utf8"});
+  if (diff.status !== 0 || diff.stdout.trim()) return false;
+  try {
+    const configs = [tagCommit, head].map(ref => {
+      const result = spawnSync("git", ["show", `${ref}:dao.json`], {cwd: rootDir, encoding: "utf8"});
+      if (result.status !== 0) throw new Error("Missing release configuration");
+      const config = JSON.parse(result.stdout);
+      delete config.version.display;
+      return JSON.stringify(config);
+    });
+    return configs[0] === configs[1];
+  } catch {
+    return false;
+  }
+}
+
+export function hasUnreleasedDesktopChanges(rootDir: string): boolean {
+  const options = {cwd: rootDir, encoding: "utf8" as const};
+  const diff = spawnSync("git", ["diff", "--name-only", "HEAD", "--", ".",
+    ":(exclude)dao.json", ":(exclude)website/public/info.json", ":(exclude)website/public/appcast.xml"], options);
+  const untracked = spawnSync("git", ["ls-files", "--others", "--exclude-standard"], options);
+  if (diff.status !== 0 || untracked.status !== 0 || diff.stdout.trim() || untracked.stdout.trim()) return true;
+  try {
+    const head = spawnSync("git", ["show", "HEAD:dao.json"], options);
+    if (head.status !== 0) return true;
+    const committed = JSON.parse(head.stdout);
+    const current = JSON.parse(readFileSync(path.join(rootDir, "dao.json"), "utf8"));
+    delete committed.version.display;
+    delete current.version.display;
+    return JSON.stringify(committed) !== JSON.stringify(current);
+  } catch {
+    return true;
+  }
+}
+
+function verifyWindowsPublicationSources(dependencies: ReleaseDependencies, tagName: string,
+  tag: ReleaseTagState, phase: ReleasePhase): void {
+  if (hasUnreleasedDesktopChanges(dependencies.rootDir)) {
+    throw new ReleaseError(phase, "Uncommitted desktop source changes; commit and include them in a new desktop release before uploading.");
+  }
+  const remote = spawnSync("git", ["ls-remote", "--exit-code", "origin",
+    `refs/tags/${tagName}`, `refs/tags/${tagName}^{}`],
+    {cwd: dependencies.rootDir, encoding: "utf8", timeout: 30_000});
+  const refs = new Map(remote.stdout?.trim().split(/\r?\n/).map(line => {
+    const [sha, ref] = line.split(/\s+/);
+    return [ref, sha];
+  }));
+  const commit = refs.get(`refs/tags/${tagName}^{}`) ?? refs.get(`refs/tags/${tagName}`);
+  if (remote.status !== 0 || !commit || commit !== tag.commit) {
+    throw new ReleaseError(phase, `Remote desktop tag ${tagName} is missing or differs from the local tag. Fetch and use the published desktop sources.`);
+  }
+}
+
 function runReleasePreflight(
   options: ReleaseOptions,
   dependencies: ReleaseDependencies,
@@ -390,10 +466,24 @@ function runReleasePreflight(
     dependencies.env,
     config
   );
+  if (!options.dryRun && dependencies.hostPlatform && !options.skipBuild &&
+      dependencies.hostPlatform !== (options.platform === "windows" ? "win32" : "darwin")) {
+    problems.push(`Build this release on ${options.platform === "windows" ? "Windows x64" : "macOS arm64"}.`);
+  }
+  if (options.platform === "windows" && !options.skipUpload && !tag.exists) {
+    problems.push(`Desktop tag ${tagName} is missing. Publish the macOS release and fetch its tag first.`);
+  }
+  if (options.platform === "windows" && !options.skipUpload && !options.dryRun && dependencies.hostPlatform) {
+    const auth = spawnSync("gh", ["auth", "status"], {encoding: "utf8", stdio: "pipe"});
+    if (auth.status !== 0) problems.push("GitHub CLI authentication is required. Install gh and run gh auth login.");
+    if (tag.exists) verifyWindowsPublicationSources(dependencies, tagName, tag, "preflight");
+  }
   if (!/^[0-9a-f]{40}$/i.test(releaseHead)) {
     problems.push("Could not resolve a valid git HEAD — refusing to release.");
   }
-  if (tag.exists && tag.commit !== releaseHead) {
+  if (tag.exists && tag.commit !== releaseHead &&
+      !(options.platform === "windows" && (options.skipUpload ||
+        desktopReleaseSourcesMatch(dependencies.rootDir, tag.commit!, releaseHead)))) {
     problems.push(
       "Tag " +
         tagName +
@@ -523,6 +613,19 @@ function applyCanonicalPhaseMutation(
   now: Date
 ): void {
   if (context.options.dryRun) return;
+  if (phase === "metadata" && context.options.platform === "windows") {
+    const original = transaction.originalFileContents(infoPath);
+    if (!original) throw new ReleaseError("metadata", "info.json not found");
+    const info = JSON.parse(original.toString("utf8"));
+    info.platforms ??= {};
+    info.platforms.win = {
+      label: "Windows (x64)",
+      version: context.newVersion,
+      url: `https://github.com/msgbyte/dao-browser/releases/download/v${context.newVersion}/${windowsInstallerName(context.newVersion)}`,
+    };
+    transaction.writeFile(infoPath, Buffer.from(JSON.stringify(info, null, 2) + "\n"));
+    return;
+  }
   if (phase === "appcast") {
     transaction.writeFile(publicAppcast, readFileSync(context.appcastPath));
   }
@@ -550,6 +653,9 @@ export async function runRelease(
   options: ReleaseOptions,
   dependencies: ReleaseDependencies = defaultReleaseDependencies
 ): Promise<ReleaseResult> {
+  if (options.platform === "windows") {
+    options = {...options, skipBump: true, forceImport: false};
+  }
   const daoPath = path.join(dependencies.rootDir, "dao.json");
   const publicAppcast = path.join(
     dependencies.rootDir,
@@ -613,11 +719,17 @@ export async function runRelease(
       warn("Skipping build/package (--skip-build)");
     }
     if (options.skipUpload) {
-      warn("Skipping R2 upload (--skip-upload)");
+      warn("Skipping publishing (--skip-upload)");
     }
     for (const phase of plannedReleasePhases(options)) {
       currentPhase = phase;
       throwIfReleaseAborted(dependencies.signal, currentPhase);
+      if (phase === "upload" && options.platform === "windows") {
+        revalidateReleaseProvenance(dependencies, tagName, provenance.releaseHead, provenance.tag);
+        if (!options.dryRun && dependencies.hostPlatform) {
+          verifyWindowsPublicationSources(dependencies, tagName, provenance.tag, "upload");
+        }
+      }
       await dependencies.runPhase(phase, context);
       throwIfReleaseAborted(dependencies.signal, currentPhase);
       applyCanonicalPhaseMutation(
@@ -908,6 +1020,7 @@ export function formatReleaseRetryCommand(
   overrides: {resumeFromStaple?: boolean} = {}
 ): string {
   const args: string[] = [];
+  if (options.platform === "windows") args.push("--platform", "windows");
   if (options.bump && options.bump !== "patch") {
     args.push("--bump", options.bump);
   }
@@ -926,8 +1039,17 @@ export function formatReleaseRetryCommand(
     : "npm run release";
 }
 
-function printReleaseSuccess(newVersion: string): void {
+function printReleaseSuccess(newVersion: string, options: ReleaseOptions): void {
+  if (options.dryRun) {
+    success(`Release ${newVersion} preview complete; no changes were made.`);
+    return;
+  }
   success(`Release ${newVersion} ready.`);
+  if (options.platform === "windows") {
+    log(`Windows uses desktop v${newVersion}; no version bump or new tag.`);
+    log(options.skipUpload ? "Installer ready in dist/; upload skipped." : "Windows installer attached to the shared GitHub Release. Commit website metadata when ready.");
+    return;
+  }
   for (const line of formatReleaseSuccessInstructions(newVersion)) log(line);
 }
 
@@ -970,7 +1092,7 @@ export function buildReleaseApplication(
     context.options.dryRun,
     "Building (release)",
     "npx",
-    ["tsx", "scripts/cli.ts", "build"],
+    ["tsx", "scripts/cli.ts", "build", ...(context.options.platform === "windows" ? ["--target", "mini_installer"] : [])],
     runner,
     context.signal
   );
@@ -983,15 +1105,16 @@ export function packageReleaseArtifact(
   return runReleaseStep(
     "package",
     context.options.dryRun,
-    "Packaging (sign only — notarize handled separately)",
+    context.options.platform === "windows" ? "Packaging unsigned Windows installer" : "Packaging (sign only — notarize handled separately)",
     "npx",
-    ["tsx", "scripts/cli.ts", "package", "--sign-id"],
+    ["tsx", "scripts/cli.ts", "package", ...(context.options.platform === "windows" ? [] : ["--sign-id"])],
     runner,
     context.signal
   );
 }
 
 const defaultReleaseDependencies: ReleaseDependencies = {
+  hostPlatform: process.platform,
   rootDir: ROOT_DIR,
   env: process.env,
   now: () => new Date(),
@@ -1183,7 +1306,8 @@ function updateInfoJsonContents(
   // Replace the old version inside platform URLs only — don't blanket-replace,
   // since the same number could legitimately appear elsewhere later.
   if (parsed.platforms) {
-    for (const platform of Object.values(parsed.platforms)) {
+    for (const [key, platform] of Object.entries(parsed.platforms)) {
+      if (!key.startsWith("mac")) continue;
       const url = platform?.url;
       if (!url || !url.includes(oldVersion)) continue;
       const updatedUrl = url.split(oldVersion).join(update.version);
@@ -1571,6 +1695,13 @@ export async function uploadReleaseArtifacts(
   dependencies: ReleaseDependencies,
   runner: ReleaseCommandRunner = runStreaming
 ): Promise<void> {
+  if (context.options.platform === "windows") {
+    await runReleaseStep("upload", context.options.dryRun,
+      "Attaching Windows installer to the shared desktop GitHub Release", "npx",
+      ["tsx", "scripts/cli.ts", "github-release", "publish", `v${context.newVersion}`,
+        "--platform", "windows", "--asset", context.dmgPath], runner, context.signal);
+    return;
+  }
   const distDir = path.join(dependencies.rootDir, "dist");
   const referencedDeltas = !context.options.dryRun
     ? collectCandidateDeltaBasenames(

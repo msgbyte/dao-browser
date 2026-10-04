@@ -227,7 +227,7 @@ describe('release helpers', () => {
        ), 'detached')).toBe(false);
      });
 
-  it('allows a TERM-handling child to close before kill escalation',
+  it.skipIf(process.platform === 'win32')('allows a TERM-handling child to close before kill escalation',
      async () => {
        const root = mkdtempSync(path.join(os.tmpdir(), 'dao-release-term-'));
        const scriptPath = path.join(root, 'term-handler.cjs');
@@ -256,7 +256,7 @@ describe('release helpers', () => {
        expect(readFileSync(termPath, 'utf-8')).toBe('handled');
      });
 
-  it('escalates to KILL when the process group ignores TERM', async () => {
+  it.skipIf(process.platform === 'win32')('escalates to KILL when the process group ignores TERM', async () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'dao-release-kill-'));
     const scriptPath = path.join(root, 'ignore-term.cjs');
     const readyPath = path.join(root, 'ready');
@@ -306,7 +306,7 @@ describe('release helpers', () => {
     }
   });
 
-  it('surfaces a bounded process-group termination timeout', async () => {
+  it.skipIf(process.platform === 'win32')('surfaces a bounded process-group termination timeout', async () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'dao-release-timeout-'));
     const scriptPath = path.join(root, 'stuck.cjs');
     const readyPath = path.join(root, 'ready');
@@ -355,7 +355,7 @@ describe('release helpers', () => {
     }
   });
 
-  it('lets an outer wrapper exit after abandoning a timed-out group',
+  it.skipIf(process.platform === 'win32')('lets an outer wrapper exit after abandoning a timed-out group',
      async () => {
        const root = mkdtempSync(path.join(os.tmpdir(), 'dao-release-outer-'));
        const innerPath = path.join(root, 'inner.cjs');
@@ -531,6 +531,7 @@ describe('release helpers', () => {
           label: 'Static',
           url: 'https://cdn.example.com/static.dmg',
         },
+        win: {version: '1.0.0', url: 'https://github.com/msgbyte/dao-browser/releases/download/v1.0.0/dao-browser-1.0.0-windows-x64.exe'},
       },
       default: 'macArm64',
     }, null, 2));
@@ -553,6 +554,8 @@ describe('release helpers', () => {
         .toBe('https://cdn.example.com/dao-browser-1.1.0-mac-arm64.dmg');
     expect(updated.platforms.staticUrl.url)
         .toBe('https://cdn.example.com/static.dmg');
+    expect(updated.platforms.win.url).toContain('/v1.0.0/dao-browser-1.0.0-windows-x64.exe');
+    expect(updated.platforms.win.version).toBe('1.0.0');
   });
 
   it('stamps the matching appcast item and preserves unrelated items', () => {
@@ -865,7 +868,7 @@ describe('release helpers', () => {
 });
 
 describe('release orchestration', () => {
-  it('waits for the process group to close before rollback settles',
+  it.skipIf(process.platform === 'win32')('waits for the process group to close before rollback settles',
      async () => {
        const fixture = releaseFixture();
        const processDir = path.join(fixture.root, 'process-fixture');
@@ -929,7 +932,7 @@ describe('release orchestration', () => {
        }
      });
 
-  it('waits for the whole group after the leader exits on TERM', async () => {
+  it.skipIf(process.platform === 'win32')('waits for the whole group after the leader exits on TERM', async () => {
     const fixture = releaseFixture();
     const processDir = path.join(fixture.root, 'leader-exit-fixture');
     mkdirSync(processDir);

@@ -31,6 +31,7 @@ import {
   which,
 } from "../utils.js";
 import { getAppName } from "./build.js";
+import { packageWindowsInstaller } from "./package-windows.js";
 
 const DIST_DIR = path.join(ROOT_DIR, "dist");
 const ENTITLEMENTS = path.join(
@@ -85,7 +86,7 @@ export function assertRequiredEntitlementsPresent(
 }
 
 export const packageCommand = new Command("package")
-  .description("Package Dao Browser into a distributable .dmg or .zip")
+  .description("Package Dao Browser into a macOS .dmg/.zip or Windows installer .exe")
   .option("--zip", "Create a .zip archive instead of .dmg")
   .option("--sign", "Apply ad-hoc code signature (no certificate required)")
   .option(
@@ -113,6 +114,15 @@ export const packageCommand = new Command("package")
     const srcDir = path.join(ENGINE_DIR, "src");
     const outDirName = opts.debug ? "dao-debug" : "dao";
     const outDir = path.join(srcDir, "out", outDirName);
+    if (process.platform === "win32") {
+      if (process.arch !== "x64") throw new Error("Windows packaging requires x64.");
+      if (opts.zip || opts.sign || opts.signId || opts.notarize || opts.staple) {
+        throw new Error("Windows packaging currently produces an unsigned installer; macOS packaging flags are unsupported.");
+      }
+      const artifact = packageWindowsInstaller(outDir, DIST_DIR, version, !!opts.debug);
+      success(`Created: ${artifact}`);
+      return;
+    }
     const appBundle = path.join(outDir, `${appName}.app`);
 
     if (!existsSync(appBundle)) {

@@ -1,5 +1,6 @@
 import { Command } from "commander";
-import { spawn, spawnSync } from "node:child_process";
+import {createHash} from "node:crypto";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
@@ -15,7 +16,9 @@ import {
   log,
   success,
   which,
+  runStreaming,
 } from "../utils.js";
+import {windowsInstallerName} from "./package-windows.js";
 
 const RELEASE_BASE_URL = "https://dao-release.msgbyte.com";
 
@@ -27,18 +30,20 @@ export interface GithubReleasePlan {
 
 interface GithubReleaseOptions {
   dryRun?: boolean;
+  platform?: "mac" | "windows";
+  asset?: string;
 }
 
 interface GithubReleaseBackfillOptions extends GithubReleaseOptions {
   appcast: string;
 }
 
-export function buildGithubReleasePlan(tag: string): GithubReleasePlan {
+export function buildGithubReleasePlan(tag: string, platform: "mac" | "windows" = "mac"): GithubReleasePlan {
   if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
     throw new Error(`Invalid release tag: ${tag}`);
   }
   const version = tag.slice(1);
-  const assetName = `dao-browser-${version}-mac-arm64.dmg`;
+  const assetName = platform === "windows" ? windowsInstallerName(version) : `dao-browser-${version}-mac-arm64.dmg`;
   return {
     tag,
     assetName,
@@ -81,10 +86,18 @@ githubReleaseCommand
   .command("publish")
   .description("Publish one tagged DMG to GitHub Releases")
   .argument("<tag>", "Release tag, for example v1.0.101")
+  .option("--platform <platform>", "Desktop platform: mac | windows", (value: string) => {
+    if (value !== "mac" && value !== "windows") throw new Error(`Invalid --platform: ${value}`);
+    return value;
+  }, "mac")
+  .option("--asset <path>", "Attach a local installer and its SHA-256 checksum")
   .option("--dry-run", "Print the archive operation without running it")
   .action(async (tag: string, options: GithubReleaseOptions) => {
     try {
-      await publishGithubRelease(buildGithubReleasePlan(tag), options);
+      if (options.platform === "windows" && !options.asset) {
+        throw new Error("Windows publishing requires --asset pointing to the packaged installer.");
+      }
+      await publishGithubRelease(buildGithubReleasePlan(tag, options.platform), options);
     } catch (cause) {
       error(cause instanceof Error ? cause.message : String(cause));
       process.exitCode = 1;
@@ -123,6 +136,7 @@ interface GithubReleaseState {
   exists: boolean;
   assetExists: boolean;
   isDraft: boolean;
+  checksumExists?: boolean;
 }
 
 function inspectGithubRelease(plan: GithubReleasePlan): GithubReleaseState {
@@ -139,6 +153,9 @@ function inspectGithubRelease(plan: GithubReleasePlan): GithubReleaseState {
   );
   if (result.error) throw result.error;
   if (result.status !== 0) {
+    if (!/not found|HTTP 404/i.test(result.stderr)) {
+      throw new Error(`Cannot inspect GitHub Release ${plan.tag}: ${result.stderr.trim()}`);
+    }
     return { exists: false, assetExists: false, isDraft: false };
   }
   const release = JSON.parse(result.stdout) as {
@@ -150,31 +167,76 @@ function inspectGithubRelease(plan: GithubReleasePlan): GithubReleaseState {
     assetExists:
       release.assets?.some((asset) => asset.name === plan.assetName) ?? false,
     isDraft: release.isDraft === true,
+    checksumExists: release.assets?.some(asset => asset.name === plan.assetName + ".sha256") ?? false,
   };
 }
 
-function runCommand(command: string, args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: ROOT_DIR,
-      env: process.env,
-      stdio: "inherit",
-    });
-    child.once("error", reject);
-    child.once("close", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`${command} exited with code ${code}`));
+async function runCommand(command: string, args: string[]): Promise<void> {
+  const code = await runStreaming(command, args, {cwd: ROOT_DIR});
+  if (code !== 0) throw new Error(`${command} exited with code ${code}`);
+}
+
+export function validateLocalInstaller(plan: GithubReleasePlan, asset: string): string {
+  const assetPath = path.resolve(asset);
+  if (path.basename(assetPath) !== plan.assetName || !plan.assetName.endsWith(".exe")) {
+    throw new Error(`Expected Windows installer named ${plan.assetName}`);
+  }
+  const checksum = readFileSync(assetPath + ".sha256", "utf8");
+  const digest = createHash("sha256").update(readFileSync(assetPath)).digest("hex");
+  if (checksum !== `${digest}  ${plan.assetName}\n`) {
+    throw new Error("Installer checksum mismatch; package the installer again.");
+  }
+  return assetPath;
+}
+
+async function publishLocalInstaller(plan: GithubReleasePlan, options: GithubReleaseOptions): Promise<void> {
+  if (options.dryRun) {
+    console.log(`[dry-run] Attach ${options.asset} and its .sha256 to desktop GitHub Release ${plan.tag}`);
+    return;
+  }
+  const assetPath = validateLocalInstaller(plan, options.asset!);
+  if (!which("gh")) throw new Error("gh CLI not found; install GitHub CLI and run gh auth login.");
+  const state = inspectGithubRelease(plan);
+  if (state.isDraft) {
+    throw new Error(`Desktop release ${plan.tag} is still a draft. Publish the macOS desktop release before attaching Windows assets.`);
+  }
+  if (state.exists) {
+    // Never replace already published assets, including the macOS DMG.
+    if (state.assetExists || state.checksumExists) {
+      const tempDir = mkdtempSync(path.join(os.tmpdir(), "dao-verify-release-"));
+      try {
+        const remote = path.join(tempDir, "existing");
+        await runCommand("gh", ["release", "download", plan.tag, "--pattern",
+          state.checksumExists ? plan.assetName + ".sha256" : plan.assetName, "--output", remote]);
+        const expected = readFileSync(assetPath + ".sha256", "utf8");
+        const actual = state.checksumExists ? readFileSync(remote, "utf8")
+          : `${createHash("sha256").update(readFileSync(remote)).digest("hex")}  ${plan.assetName}\n`;
+        if (actual !== expected) throw new Error("A different installer is already published for this version; refusing to replace it.");
+      } finally {
+        rmSync(tempDir, {recursive: true, force: true});
       }
-    });
-  });
+    }
+    if (!state.assetExists) {
+      await runCommand("gh", ["release", "upload", plan.tag, assetPath]);
+    }
+    if (!state.checksumExists) {
+      await runCommand("gh", ["release", "upload", plan.tag, assetPath + ".sha256"]);
+    }
+  } else {
+    await runCommand("gh", ["release", "create", plan.tag, assetPath, assetPath + ".sha256",
+      "--verify-tag", "--title", `Dao Browser ${plan.tag}`, "--generate-notes"]);
+  }
+  success(`${plan.tag} contains ${plan.assetName}`);
 }
 
 export async function publishGithubRelease(
   plan: GithubReleasePlan,
   options: GithubReleaseOptions = {}
 ): Promise<void> {
+  if (options.asset) {
+    await publishLocalInstaller(plan, options);
+    return;
+  }
   if (options.dryRun) {
     console.log(`[dry-run] curl ${plan.sourceUrl}`);
     console.log(

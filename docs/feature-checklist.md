@@ -83,6 +83,7 @@ These are acceptance checks, not a claim that the port has passed them.
 - [ ] Debug/release profiles are distinct and do not touch Chrome's profile.
   Paths with spaces and URL query metacharacters reach the browser unchanged.
 - [ ] Build `mini_installer` through `npm.cmd run rebuild -- -- --target mini_installer`;
+  package with `npm.cmd run package -- --debug` and verify the SHA-256 sidecar.
   In a disposable Windows user/VM, install, launch from the shortcut, and check
   `Dao\Application`, `Dao\User Data`, the Dao icon/name in taskbar and Installed
   Apps, and Dao HTML/PDF/default-browser registration. Chrome/Chromium entries
@@ -91,6 +92,13 @@ These are acceptance checks, not a claim that the port has passed them.
 - [ ] After importing, run `python3 -m unittest scripts.tests.test_windows_midl`.
   MIDL validation must accept IDL path-comment relocation for dynamic COM GUIDs
   while still rejecting changed GUIDs, compiler settings, and unrelated IDL paths.
+- [ ] `release --platform windows --dry-run` reuses the desktop version/tag and
+  selects `mini_installer` without signing, notarization, Sparkle, or R2. Publish
+  to a test GitHub release: preserve the macOS DMG, append EXE/checksum, recover
+  an interrupted checksum upload, and reject a different existing installer.
+  Verify missing tags, divergent source commits, bad checksums, and failed
+  uploads fail without changing the version or deleting the desktop tag.
+  A later macOS version bump must preserve the last published Windows URL.
 - [ ] Recheck macOS build arguments, launch aliases, MCP, native sharing, and
   traffic-light placement on a Mac after changing shared scripts or helpers.
   x64 Node under Rosetta must retain the configured macOS arm64 target.
