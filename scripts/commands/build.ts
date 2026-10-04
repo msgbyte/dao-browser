@@ -49,103 +49,131 @@ export function createBuildArgs(
   return args;
 }
 
+interface BuildOptions {
+  debug?: boolean;
+  genOnly?: boolean;
+  target: string[];
+  j?: string;
+}
+
 export const buildCommand = new Command("build")
   .description("Build Dao Browser (gn gen + autoninja)")
   .option("--debug", "Build in debug mode")
   .option("--gen-only", "Only run gn gen, skip compilation")
   .option("--target <targets...>", "Build targets (default: chrome)", ["chrome"])
   .option("-j <jobs>", "Number of parallel build jobs")
-  .action(async (opts: { debug?: boolean; genOnly?: boolean; target: string[]; j?: string }) => {
-    const config = loadConfig();
-    const target = resolveBuildTarget(config);
-    const srcDir = path.join(ENGINE_DIR, "src");
-    const outName = opts.debug ? "dao-debug" : "dao";
-    const outDir = path.join(srcDir, "out", outName);
-
-    if (!existsSync(srcDir)) {
-      error("engine/src not found. Run 'npm run download' first.");
-      process.exit(1);
-    }
-
-    if (!which("gn")) {
-      error("gn not found. Make sure depot_tools is in PATH.");
-      process.exit(1);
-    }
-
-    // Merge GN args from config files
-    log("Preparing build arguments...");
-    const commonGn = path.join(CONFIGS_DIR, "common.gn");
-    const platformGn = path.join(
-      CONFIGS_DIR,
-      `${target.os === "mac" ? "macos" : target.os}.gn`
-    );
-
-    const args = createBuildArgs(config, target, !!opts.debug,
-        readFileSync(commonGn, "utf-8"), readFileSync(platformGn, "utf-8"));
-
-    // Sync Chromium's BRANDING so debug/release builds produce fully isolated
-    // app bundles: distinct CFBundleIdentifier *and* distinct PRODUCT_FULLNAME
-    // (the latter drives app bundle name, helper / framework names, and the
-    // ~/Library/Application Support/<name>/ user data dir). Done idempotently
-    // so alternating debug/release builds without re-import keep the correct
-    // values.
-    if (target.os === "mac") {
-      syncMacBranding(srcDir, !!opts.debug, config.display_name);
-    }
-
-    mkdirSync(outDir, { recursive: true });
-    const argsPath = path.join(outDir, "args.gn");
-    const existing = existsSync(argsPath) ? readFileSync(argsPath, "utf-8") : null;
-    if (existing !== args) {
-      writeFileSync(argsPath, args);
-      success(`Written args.gn to out/${outName}/`);
-    } else {
-      success(`args.gn unchanged, skipping write`);
-    }
-
-    // Run gn gen
-    log("Running gn gen...");
-    const gnCode = await runStreaming("gn", ["gen", `out/${outName}`], { cwd: srcDir });
-
-    if (gnCode !== 0) {
-      error("gn gen failed");
-      process.exit(1);
-    }
-    success("gn gen complete");
-
-    if (opts.genOnly) {
+  .action(async (opts: BuildOptions) => {
+    if (process.platform !== "win32") {
+      // POSIX builds must stay in the outer release/terminal process group.
+      await buildApplication(opts);
       return;
     }
-
-    // Run autoninja
-    log("Building Dao Browser...");
-    const ninjaArgs = ["-C", `out/${outName}`, ...opts.target];
-    if (opts.j) {
-      ninjaArgs.unshift(`-j${opts.j}`);
+    const controller = new AbortController();
+    let interruptedCode = 130;
+    const onSigint = () => { controller.abort(); };
+    const onSigterm = () => { interruptedCode = 143; controller.abort(); };
+    // Keep the handlers until cleanup finishes, including repeated Ctrl+C.
+    process.on("SIGINT", onSigint);
+    process.on("SIGTERM", onSigterm);
+    try {
+      await buildApplication(opts, controller.signal);
+    } catch (cause) {
+      const aborted = cause instanceof Error && cause.name === "AbortError";
+      error(aborted ? "Build cancelled." : String(cause));
+      process.exitCode = aborted ? interruptedCode : 1;
+    } finally {
+      process.off("SIGINT", onSigint);
+      process.off("SIGTERM", onSigterm);
     }
-
-    // Strip AI-agent env vars so depot_tools/siso.py doesn't inject unsupported flags
-    const cleanEnv = { ...process.env };
-    for (const v of ["CURSOR_AGENT", "GEMINI_CLI", "CLAUDECODE", "CODEX_SANDBOX", "AI_AGENT"]) {
-      delete cleanEnv[v];
-    }
-
-    const buildCmd = which("autoninja") ? "autoninja" : "ninja";
-    const ninjaCode = await runStreaming(buildCmd, ninjaArgs, { cwd: srcDir, env: cleanEnv });
-
-    if (ninjaCode !== 0) {
-      error("Build failed");
-      process.exit(1);
-    }
-
-    // Post-build: fix lld duplicate dylib issue on macOS component builds
-    if (opts.debug && target.os === "mac") {
-      const appName = getAppName(config.display_name, true);
-      fixDuplicateDylib(outDir, appName);
-    }
-
-    success(`Build complete! Output: engine/src/out/${outName}/`);
   });
+
+async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promise<void> {
+  const config = loadConfig();
+  const target = resolveBuildTarget(config);
+  const srcDir = path.join(ENGINE_DIR, "src");
+  const outName = opts.debug ? "dao-debug" : "dao";
+  const outDir = path.join(srcDir, "out", outName);
+
+  if (!existsSync(srcDir)) {
+    throw new Error("engine/src not found. Run 'npm run download' first.");
+  }
+
+  if (!which("gn")) {
+    throw new Error("gn not found. Make sure depot_tools is in PATH.");
+  }
+
+  // Merge GN args from config files
+  log("Preparing build arguments...");
+  const commonGn = path.join(CONFIGS_DIR, "common.gn");
+  const platformGn = path.join(
+    CONFIGS_DIR,
+    `${target.os === "mac" ? "macos" : target.os}.gn`
+  );
+
+  const args = createBuildArgs(config, target, !!opts.debug,
+      readFileSync(commonGn, "utf-8"), readFileSync(platformGn, "utf-8"));
+
+  // Sync Chromium's BRANDING so debug/release builds produce fully isolated
+  // app bundles: distinct CFBundleIdentifier *and* distinct PRODUCT_FULLNAME
+  // (the latter drives app bundle name, helper / framework names, and the
+  // ~/Library/Application Support/<name>/ user data dir). Done idempotently
+  // so alternating debug/release builds without re-import keep the correct
+  // values.
+  if (target.os === "mac") {
+    syncMacBranding(srcDir, !!opts.debug, config.display_name);
+  }
+
+  mkdirSync(outDir, { recursive: true });
+  const argsPath = path.join(outDir, "args.gn");
+  const existing = existsSync(argsPath) ? readFileSync(argsPath, "utf-8") : null;
+  if (existing !== args) {
+    writeFileSync(argsPath, args);
+    success(`Written args.gn to out/${outName}/`);
+  } else {
+    success(`args.gn unchanged, skipping write`);
+  }
+
+  // Run gn gen
+  log("Running gn gen...");
+  const gnCode = await runStreaming("gn", ["gen", `out/${outName}`], { cwd: srcDir, signal });
+
+  if (gnCode !== 0) {
+    throw new Error("gn gen failed");
+  }
+  success("gn gen complete");
+
+  if (opts.genOnly) {
+    return;
+  }
+
+  // Run autoninja
+  log("Building Dao Browser...");
+  const ninjaArgs = ["-C", `out/${outName}`, ...opts.target];
+  if (opts.j) {
+    ninjaArgs.unshift(`-j${opts.j}`);
+  }
+
+  // Strip AI-agent env vars so depot_tools/siso.py doesn't inject unsupported flags
+  const cleanEnv = { ...process.env };
+  for (const v of ["CURSOR_AGENT", "GEMINI_CLI", "CLAUDECODE", "CODEX_SANDBOX", "AI_AGENT"]) {
+    delete cleanEnv[v];
+  }
+
+  const buildCmd = which("autoninja") ? "autoninja" : "ninja";
+  const ninjaCode = await runStreaming(buildCmd, ninjaArgs, { cwd: srcDir, env: cleanEnv, signal });
+
+  if (ninjaCode !== 0) {
+    throw new Error("Build failed");
+  }
+
+  // Post-build: fix lld duplicate dylib issue on macOS component builds
+  if (opts.debug && target.os === "mac") {
+    const appName = getAppName(config.display_name, true);
+    fixDuplicateDylib(outDir, appName);
+  }
+
+  success(`Build complete! Output: engine/src/out/${outName}/`);
+}
 
 /**
  * Rewrite identity fields (PRODUCT_FULLNAME, PRODUCT_SHORTNAME,

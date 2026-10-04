@@ -136,8 +136,11 @@ export function createStreamingSpawnOptions(
     shell: false,
     env,
   };
-  if (signal && platform !== "win32") {
+  if (signal) {
+    // Keep console Ctrl+C from killing the batch leader before we can stop its
+    // descendants. The caller owns cancellation for this process group/tree.
     spawnOpts.detached = true;
+    if (platform === "win32") spawnOpts.windowsHide = true;
   }
   return spawnOpts;
 }
@@ -193,7 +196,7 @@ export function waitForSpawnedProcess(
   return new Promise((resolve, reject) => {
     let aborted = false;
     let leaderClosed = false;
-    let groupGone = (lifecycle?.platform ?? process.platform) === "win32";
+    let groupGone = false;
     let termination: ProcessTermination | undefined;
     let settled = false;
     const cleanup = () => {
@@ -273,21 +276,30 @@ function beginProcessTermination(
   const pollMs = options.pollMs ?? PROCESS_TERMINATION_POLL_MS;
   const timeoutMs = options.timeoutMs ?? PROCESS_TERMINATION_TIMEOUT_MS;
   if (platform === "win32") {
-    try {
-      child.kill("SIGTERM");
-    } catch {
-      // The direct child already exited.
-    }
-    const killEscalation = setTimeout(() => {
-      try {
-        child.kill("SIGKILL");
-      } catch {
-        // The direct child exited during the TERM grace period.
-      }
-    }, graceMs);
+    // Stop the tree before its leader exits; killing only cmd.exe or npx
+    // leaves compiler processes behind. Never kill by executable name.
+    const killer = spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"],
+      {windowsHide: true, detached: true, stdio: "ignore"});
+    const failure = (detail: string) => new ProcessTerminationError(
+      child.pid!, child.pid!, `Process tree ${child.pid} may still be running: ${detail}`);
+    let timer: NodeJS.Timeout;
+    const completion = new Promise<void>((resolve, reject) => {
+      killer.once("error", cause => reject(failure(cause.message)));
+      killer.once("close", code => {
+        if (code === 0) resolve();
+        else reject(failure(`taskkill exited with code ${code}`));
+      });
+      timer = setTimeout(() => {
+        killer.kill();
+        reject(failure(`taskkill timed out after ${timeoutMs} ms`));
+      }, timeoutMs);
+    }).finally(() => clearTimeout(timer));
     return {
-      completion: Promise.resolve(),
-      cancel: () => clearTimeout(killEscalation),
+      completion,
+      cancel: () => {
+        clearTimeout(timer);
+        if (killer?.exitCode === null && killer.signalCode === null) killer.kill();
+      },
     };
   }
 

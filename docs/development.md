@@ -93,6 +93,12 @@ and `%LOCALAPPDATA%\Dao\User Data` for release, separate from installed Chrome.
 `start:debug:view` also enables Chromium UI devtools. `start:little`,
 `start:debug:clean` and Apple signing remain macOS workflows. Windows packaging
 and publishing use the unsigned Chromium installer described below.
+Windows build and release commands handle Ctrl+C by stopping the owned process
+tree through `taskkill /PID ... /T /F`, then waiting for cleanup. Repeated Ctrl+C
+does not bypass cleanup. Other terminals' build jobs remain independent.
+If cleanup fails or times out, the command reports uncertain termination.
+The build command exits with status 130 for SIGINT or 143 for SIGTERM after
+successful cancellation; cleanup failures exit with status 1.
 The Windows port does not yet provide MCP transport, macOS sharing,
 AppKit tab tear-off detection, ImageIO thumbnails, or Sparkle updates.
 

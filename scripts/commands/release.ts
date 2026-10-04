@@ -864,8 +864,8 @@ export async function runReleaseWithSignals(
   const onSigterm = () => {
     controller.abort(new Error("Release interrupted by SIGTERM."));
   };
-  process.once("SIGINT", onSigint);
-  process.once("SIGTERM", onSigterm);
+  process.on("SIGINT", onSigint);
+  process.on("SIGTERM", onSigterm);
   try {
     const signal = dependencies.signal
       ? AbortSignal.any([controller.signal, dependencies.signal])

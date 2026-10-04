@@ -210,7 +210,7 @@ describe('release helpers', () => {
     expect(Object.hasOwn(options, 'detached')).toBe(false);
   });
 
-  it('uses a separate POSIX process group only for abort-controlled calls',
+  it('isolates abort-controlled children from console interrupts',
      () => {
        const signal = new AbortController().signal;
        expect(createStreamingSpawnOptions(
@@ -219,12 +219,12 @@ describe('release helpers', () => {
          signal,
          'darwin',
        ).detached).toBe(true);
-       expect(Object.hasOwn(createStreamingSpawnOptions(
+       expect(createStreamingSpawnOptions(
          '/tmp',
          process.env,
          signal,
          'win32',
-       ), 'detached')).toBe(false);
+       )).toMatchObject({detached: true, windowsHide: true});
      });
 
   it.skipIf(process.platform === 'win32')('allows a TERM-handling child to close before kill escalation',

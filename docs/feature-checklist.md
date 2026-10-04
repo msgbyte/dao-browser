@@ -92,6 +92,10 @@ These are acceptance checks, not a claim that the port has passed them.
 - [ ] After importing, run `python3 -m unittest scripts.tests.test_windows_midl`.
   MIDL validation must accept IDL path-comment relocation for dynamic COM GUIDs
   while still rejecting changed GUIDs, compiler settings, and unrelated IDL paths.
+- [ ] Run the focused `windows-cancellation`, `build-cancellation`, and
+  `process-termination` script tests. Cancelling a Windows batch job must stop
+  its descendants before completion, preserve unrelated jobs, report cleanup
+  failures, and handle repeated Ctrl+C during GN/build cleanup.
 - [ ] `release --platform windows --dry-run` reuses the desktop version/tag and
   selects `mini_installer` without signing, notarization, Sparkle, or R2. Publish
   to a test GitHub release: preserve the macOS DMG, append EXE/checksum, recover

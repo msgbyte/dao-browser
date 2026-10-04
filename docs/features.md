@@ -58,6 +58,9 @@ COM server identities. Chrome and Chromium installations remain independent.
 tag and attaches the EXE and its SHA-256 checksum to the shared GitHub Release.
 macOS remains the default release platform and owns desktop version bumps;
 Windows does not use Apple signing, notarization, or Sparkle.
+Windows build/release cancellation stops the owned process tree and waits for
+cleanup; unrelated build jobs remain independent. Failed tree termination is
+reported explicitly instead of claiming successful cancellation.
 See [`development.md`](development.md) for setup and verification requirements.
 
 ## 1. Vertical Sidebar
