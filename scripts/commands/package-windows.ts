@@ -24,19 +24,21 @@ export async function packageWindowsInstaller(
   const setup = path.join(outDir, "setup.exe");
   if (!existsSync(setup) || !readFileSync(setup).includes(Buffer.from("dao-install-dir"))) {
     throw new Error("Native setup lacks custom installation directory support. " +
-      "Run npm run rebuild -- -- --release --target mini_installer, then package again.");
+      "Run npm run rebuild -- -- --release --target mini_installer --platform windows, then package again.");
   }
   if (statSync(source).mtimeMs < statSync(setup).mtimeMs) {
     throw new Error("mini_installer.exe is older than setup.exe. Rebuild the mini_installer target first.");
   }
   const host = getWindowsInstallerHost();
   const html = renderWindowsInstallerHtml();
+  const nativeWindows = process.platform === "win32";
+  const compilerName = nativeWindows ? "makensis.exe" : "makensis";
   const compiler = [
-    process.env.DAO_NSIS_DIR && path.join(process.env.DAO_NSIS_DIR, "makensis.exe"),
+    process.env.DAO_NSIS_DIR && path.join(process.env.DAO_NSIS_DIR, compilerName),
     which("makensis"),
-    path.join(ROOT_DIR, ".dao/tools/nsis-3.13/makensis.exe"),
-    process.env["ProgramFiles(x86)"] && path.join(process.env["ProgramFiles(x86)"]!, "NSIS/makensis.exe"),
-    process.env.ProgramFiles && path.join(process.env.ProgramFiles, "NSIS/makensis.exe"),
+    nativeWindows && path.join(ROOT_DIR, ".dao/tools/nsis-3.13/makensis.exe"),
+    nativeWindows && process.env["ProgramFiles(x86)"] && path.join(process.env["ProgramFiles(x86)"]!, "NSIS/makensis.exe"),
+    nativeWindows && process.env.ProgramFiles && path.join(process.env.ProgramFiles, "NSIS/makensis.exe"),
   ].find(candidate => candidate && existsSync(candidate));
   if (!compiler) {
     throw new Error("NSIS 3 is required to package Windows installers. Install NSIS or set DAO_NSIS_DIR to its directory.");
@@ -48,12 +50,13 @@ export async function packageWindowsInstaller(
     const stagedArtifact = path.join(staging, name);
     const stagedHtml = path.join(staging, "index.html");
     writeFileSync(stagedHtml, html);
+    const option = nativeWindows ? "/" : "-";
     const code = await runStreaming(compiler, [
-      "/V2", "/INPUTCHARSET", "UTF8",
-      `/DPAYLOAD=${path.resolve(source)}`, `/DOUTPUT=${path.resolve(stagedArtifact)}`,
-      `/DVERSION=${version}`, `/DICON=${path.join(ROOT_DIR, "branding/win/dao.ico")}`,
-      `/DWEBVIEW_HOST=${host}`, `/DWEBVIEW_HTML=${stagedHtml}`,
-      `/DWEBVIEW_LICENSE=${path.join(path.dirname(host), "WebView2-LICENSE.txt")}`,
+      `${option}V2`, `${option}INPUTCHARSET`, "UTF8",
+      `${option}DPAYLOAD=${path.resolve(source)}`, `${option}DOUTPUT=${path.resolve(stagedArtifact)}`,
+      `${option}DVERSION=${version}`, `${option}DICON=${path.join(ROOT_DIR, "branding/win/dao.ico")}`,
+      `${option}DWEBVIEW_HOST=${host}`, `${option}DWEBVIEW_HTML=${stagedHtml}`,
+      `${option}DWEBVIEW_LICENSE=${path.join(path.dirname(host), "WebView2-LICENSE.txt")}`,
       path.join(ROOT_DIR, "scripts/windows-installer/installer.nsi"),
     ], {signal});
     signal?.throwIfAborted();

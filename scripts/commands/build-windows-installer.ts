@@ -3,13 +3,15 @@ import {createHash} from "node:crypto";
 import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync} from "node:fs";
 import path from "node:path";
 import {ROOT_DIR, log, runStreaming} from "../utils.js";
+import type {WindowsCrossToolchain} from "../windows-toolchain.js";
 
 const SDK_VERSION = "1.0.4258.31";
 const SDK_SHA256 = "56f7f4b8bf9aee4b8efefbbdd4f67d5f74ebd1b100ed0806da71bf76af481aa9";
-const REBUILD_COMMAND = "npm run rebuild -- -- --release --target dao_installer_ui";
+const REBUILD_COMMAND = "npm run rebuild -- -- --release --target dao_installer_ui --platform windows";
 const NATIVE_KEYS = ["windowTitle", "installingClose", "hostFailed", "hostCompleted", "launchFailed"];
 const HOST_INPUTS = [
   "scripts/commands/build-windows-installer.ts",
+  "scripts/windows-toolchain.ts",
   "scripts/windows-installer/native/host.cc",
   "scripts/windows-installer/native/host.manifest",
   "branding/win/dao.ico",
@@ -127,8 +129,10 @@ async function webViewSdk(signal?: AbortSignal): Promise<string> {
   }
   const sdk = path.join(tools, `webview2-${SDK_VERSION}`);
   const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
-  const code = await runStreaming("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
-    `$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath ${quote(archive)} -DestinationPath ${quote(sdk)} -Force`], {signal});
+  const code = process.platform === "win32"
+    ? await runStreaming("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+      `$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath ${quote(archive)} -DestinationPath ${quote(sdk)} -Force`], {signal})
+    : await runStreaming("unzip", ["-q", "-o", archive, "-d", sdk], {signal});
   if (code !== 0) throw new Error(`WebView2 SDK extraction failed (exit ${code}).`);
   return sdk;
 }
@@ -146,13 +150,34 @@ function nativeStrings(): string {
   return `#pragma once\n#include <cwchar>\nnamespace dao {\ninline const wchar_t* NativeString(const wchar_t* key, bool chinese) {\n${cases.join("\n")}\n  return L"";\n}\n}  // namespace dao\n`;
 }
 
+/** Use Chromium's host tools with the same hermetic Windows SDK as the browser. */
+export function createCrossInstallerBuildCommands(toolchain: WindowsCrossToolchain, sdk: string, staging: string) {
+  const object = path.join(staging, "host.obj");
+  const res = path.join(staging, "host.res");
+  return [
+    {command: "python3", args: [toolchain.rcScript, "/nologo", `/fo${res}`,
+      ...toolchain.includeDirs.map(directory => `-imsvc${directory}`), path.join(staging, "host.rc")]},
+    {command: toolchain.clangCl, args: ["--target=x86_64-pc-windows-msvc", "/nologo", "/c", "/MT", "/std:c++17",
+      "/EHsc", "/utf-8", "/O2", "/W4", "/X", "/DUNICODE", "/D_UNICODE", "/DWIN32_LEAN_AND_MEAN", "/DNOMINMAX",
+      ...toolchain.includeDirs.map(directory => `-imsvc${directory}`), "/I", path.join(staging, "include"),
+      "/I", path.join(sdk, "build/native/include"), path.join(ROOT_DIR, "scripts/windows-installer/native/host.cc"), `/Fo${object}`]},
+    {command: toolchain.lldLink, args: ["/SUBSYSTEM:WINDOWS", "/MACHINE:X64", "/MANIFEST:NO", "/INCREMENTAL:NO",
+      `/OUT:${path.join(staging, "dao-installer-ui.exe")}`, ...toolchain.libDirs.map(directory => `/LIBPATH:${directory}`),
+      object, res, path.join(sdk, "build/native/x64/WebView2LoaderStatic.lib"), "kernel32.lib", "user32.lib", "shell32.lib",
+      "shlwapi.lib", "ole32.lib", "oleaut32.lib", "uuid.lib", "advapi32.lib", "version.lib", "comctl32.lib", "userenv.lib", "dwmapi.lib"]},
+  ];
+}
+
 /** Invoked exclusively by the standalone dao_installer_ui rebuild target. */
 export async function buildWindowsInstallerHost(signal?: AbortSignal): Promise<void> {
   signal?.throwIfAborted();
-  if (process.platform !== "win32" || process.arch !== "x64") {
-    throw new Error("The Windows installer host requires a Windows x64 development host.");
+  const crossCompile = process.platform === "darwin" && ["arm64", "x64"].includes(process.arch);
+  if (!crossCompile && (process.platform !== "win32" || process.arch !== "x64")) {
+    throw new Error("The Windows installer host requires Windows x64 or macOS arm64/x64.");
   }
-  const toolchain = discoverToolchain();
+  const crossToolchain = crossCompile
+    ? await (await import("../windows-toolchain.js")).prepareWindowsCrossToolchain(signal) : undefined;
+  const nativeToolchain = crossCompile ? undefined : discoverToolchain();
   const inputs = inputHashes();
   const sdk = await webViewSdk(signal);
   const output = path.join(ROOT_DIR, ".dao/installer");
@@ -164,19 +189,27 @@ export async function buildWindowsInstallerHost(signal?: AbortSignal): Promise<v
     writeFileSync(path.join(include, "native_strings.h"), nativeStrings());
     const resource = path.join(staging, "host.rc");
     const resourcePath = (file: string) => JSON.stringify(path.join(ROOT_DIR, file).replace(/\\/g, "/"));
-    writeFileSync(resource, `101 ICON ${resourcePath("branding/win/dao.ico")}\n1 24 ${resourcePath("scripts/windows-installer/native/host.manifest")}\n`);
+    writeFileSync(resource, `\uFEFF101 ICON ${resourcePath("branding/win/dao.ico")}\n1 24 ${resourcePath("scripts/windows-installer/native/host.manifest")}\n`, "utf16le");
     const res = path.join(staging, "host.res");
-    if (await runStreaming(toolchain.resources, ["/nologo", "/fo", res, resource],
-      {cwd: staging, env: toolchain.env, signal}) !== 0) throw new Error("Installer resource compilation failed.");
     const executable = path.join(staging, "dao-installer-ui.exe");
-    const code = await runStreaming(toolchain.compiler, ["/nologo", "/MT", "/std:c++17", "/EHsc", "/utf-8", "/O2", "/W4",
-      "/DUNICODE", "/D_UNICODE", "/DWIN32_LEAN_AND_MEAN", "/DNOMINMAX", "/I", include, "/I", path.join(sdk, "build/native/include"),
-      path.join(ROOT_DIR, "scripts/windows-installer/native/host.cc"), `/Fo${path.join(staging, "host.obj")}`, `/Fe${executable}`,
-      "/link", "/SUBSYSTEM:WINDOWS", "/MACHINE:X64", "/MANIFEST:NO", "/INCREMENTAL:NO", res,
-      path.join(sdk, "build/native/x64/WebView2LoaderStatic.lib"), "user32.lib", "shell32.lib", "shlwapi.lib", "ole32.lib",
-      "oleaut32.lib", "uuid.lib", "advapi32.lib", "version.lib", "comctl32.lib", "userenv.lib", "dwmapi.lib"],
-    {cwd: staging, env: toolchain.env, signal});
-    if (code !== 0 || !existsSync(executable)) throw new Error(`Installer host compilation failed (exit ${code}).`);
+    if (crossToolchain) {
+      for (const step of createCrossInstallerBuildCommands(crossToolchain, sdk, staging)) {
+        const code = await runStreaming(step.command, step.args, {cwd: staging, env: crossToolchain.env, signal});
+        if (code !== 0) throw new Error(`Installer cross compilation failed: ${path.basename(step.command)} (exit ${code}).`);
+      }
+    } else if (nativeToolchain) {
+      if (await runStreaming(nativeToolchain.resources, ["/nologo", "/fo", res, resource],
+        {cwd: staging, env: nativeToolchain.env, signal}) !== 0) throw new Error("Installer resource compilation failed.");
+      const code = await runStreaming(nativeToolchain.compiler, ["/nologo", "/MT", "/std:c++17", "/EHsc", "/utf-8", "/O2", "/W4",
+        "/DUNICODE", "/D_UNICODE", "/DWIN32_LEAN_AND_MEAN", "/DNOMINMAX", "/I", include, "/I", path.join(sdk, "build/native/include"),
+        path.join(ROOT_DIR, "scripts/windows-installer/native/host.cc"), `/Fo${path.join(staging, "host.obj")}`, `/Fe${executable}`,
+        "/link", "/SUBSYSTEM:WINDOWS", "/MACHINE:X64", "/MANIFEST:NO", "/INCREMENTAL:NO", res,
+        path.join(sdk, "build/native/x64/WebView2LoaderStatic.lib"), "user32.lib", "shell32.lib", "shlwapi.lib", "ole32.lib",
+        "oleaut32.lib", "uuid.lib", "advapi32.lib", "version.lib", "comctl32.lib", "userenv.lib", "dwmapi.lib"],
+      {cwd: staging, env: nativeToolchain.env, signal});
+      if (code !== 0) throw new Error(`Installer host compilation failed (exit ${code}).`);
+    }
+    if (!existsSync(executable)) throw new Error("Installer compiler did not produce dao-installer-ui.exe.");
     signal?.throwIfAborted();
     if (JSON.stringify(inputs) !== JSON.stringify(inputHashes())) throw new Error("Installer sources changed during compilation; rebuild again.");
     const license = path.join(staging, "WebView2-LICENSE.txt");

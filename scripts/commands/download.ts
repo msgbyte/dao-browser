@@ -1,8 +1,9 @@
 import { Command } from "commander";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   ENGINE_DIR,
+  ROOT_DIR,
   loadConfig,
   log,
   success,
@@ -13,13 +14,42 @@ import {
   resolveBuildTarget,
 } from "../utils.js";
 
+const WINDOWS_CHECKOUT_MARKER = '# Dao: retain Windows dependencies for cross compilation.';
+
+async function syncChromium(args: string[], crossWindows: boolean): Promise<number> {
+  if (crossWindows) {
+    const {getWindowsToolchainEnvironment} = await import('../windows-toolchain.js');
+    getWindowsToolchainEnvironment();
+    const configured = await runStreaming('python3', [
+      path.join(ROOT_DIR, 'scripts', 'configure-windows-checkout.py'),
+      path.join(ENGINE_DIR, '.gclient'),
+    ]);
+    if (configured !== 0) return configured;
+  }
+  const code = await runStreaming('gclient', [
+    ...args, ...(crossWindows ? ['--nohooks'] : []),
+  ], {cwd: ENGINE_DIR});
+  if (code !== 0 || !crossWindows) return code;
+  // Read the pinned SDK hash only after the requested Chromium checkout exists.
+  const {getWindowsToolchainEnvironment} = await import('../windows-toolchain.js');
+  return runStreaming('gclient', ['runhooks'], {
+    cwd: ENGINE_DIR, env: getWindowsToolchainEnvironment(),
+  });
+}
+
 export const downloadCommand = new Command("download")
   .description("Fetch Chromium source at the version specified in dao.json")
+  .option('--platform <platform>', 'Target platform: mac or windows (default: host or DAO_BUILD_PLATFORM)')
   .option("--force", "Re-download even if engine/ already exists")
   .option("--full-history", "Clone with full git history (default is shallow)")
-  .action(async (opts: { force?: boolean; fullHistory?: boolean }) => {
+  .action(async (opts: { force?: boolean; fullHistory?: boolean; platform?: string }) => {
     const config = loadConfig();
-    resolveBuildTarget(config);
+    const target = resolveBuildTarget(config, process.platform, process.arch, opts.platform);
+    const gclientFile = path.join(ENGINE_DIR, '.gclient');
+    // Once this checkout includes Windows, subsequent native Mac syncs must
+    // retain its dependencies and use the same private SDK archive for hooks.
+    const crossWindows = process.platform === 'darwin' && (target.os === 'win' ||
+      (existsSync(gclientFile) && readFileSync(gclientFile, 'utf8').includes(WINDOWS_CHECKOUT_MARKER)));
     const version = config.version.version;
     const shallow = !opts.fullHistory;
 
@@ -40,7 +70,7 @@ See: https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools
       process.exit(1);
     }
 
-    if (existsSync(path.join(ENGINE_DIR, ".gclient")) && !opts.force) {
+    if (existsSync(gclientFile) && !opts.force) {
       warn("engine/ already exists. Use --force to re-download.");
       log("Running gclient sync to update...");
 
@@ -49,7 +79,7 @@ See: https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools
         "--revision", `src@refs/tags/${version}`,
         ...(shallow ? ["--no-history", "--shallow"] : ["--with_branch_heads", "--with_tags"]),
       ];
-      const syncCode = await runStreaming("gclient", syncArgs, { cwd: ENGINE_DIR });
+      const syncCode = await syncChromium(syncArgs, crossWindows);
 
       if (syncCode !== 0) {
         error("gclient sync failed");
@@ -95,7 +125,7 @@ See: https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools
       "sync",
       ...(shallow ? ["--no-history", "--shallow"] : ["--with_branch_heads", "--with_tags"]),
     ];
-    const code = await runStreaming("gclient", syncArgs, { cwd: ENGINE_DIR });
+    const code = await syncChromium(syncArgs, crossWindows);
 
     if (code !== 0) {
       error("Failed to fetch Chromium source");

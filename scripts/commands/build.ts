@@ -14,6 +14,7 @@ import {
   run,
   runStreaming,
   resolveBuildTarget,
+  getBuildOutputName,
   type BuildTarget,
   type DaoConfig,
 } from "../utils.js";
@@ -50,6 +51,7 @@ export function createBuildArgs(
 }
 
 interface BuildOptions {
+  platform?: string;
   debug?: boolean;
   release?: boolean;
   genOnly?: boolean;
@@ -59,6 +61,7 @@ interface BuildOptions {
 
 export const buildCommand = new Command("build")
   .description("Build Dao Browser (gn gen + autoninja)")
+  .option('--platform <platform>', 'Target platform: mac or windows (default: host or DAO_BUILD_PLATFORM)')
   .option("--debug", "Build in debug mode")
   .option("--release", "Use the release cache, overriding --debug (also supported by rebuild)")
   .option("--gen-only", "Only run gn gen, skip compilation")
@@ -91,6 +94,10 @@ export const buildCommand = new Command("build")
 
 async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promise<void> {
   if (opts.target.includes("dao_installer_ui")) {
+    const requestedPlatform = opts.platform ?? process.env.DAO_BUILD_PLATFORM;
+    if (requestedPlatform !== undefined && requestedPlatform !== 'windows') {
+      throw new Error('dao_installer_ui requires --platform windows.');
+    }
     if (opts.target.length !== 1 || opts.genOnly) {
       throw new Error("Build dao_installer_ui separately without --gen-only.");
     }
@@ -100,9 +107,9 @@ async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promi
   }
   opts = {...opts, debug: !!opts.debug && !opts.release};
   const config = loadConfig();
-  const target = resolveBuildTarget(config);
+  const target = resolveBuildTarget(config, process.platform, process.arch, opts.platform);
   const srcDir = path.join(ENGINE_DIR, "src");
-  const outName = opts.debug ? "dao-debug" : "dao";
+  const outName = getBuildOutputName(target, !!opts.debug);
   const outDir = path.join(srcDir, "out", outName);
 
   if (!existsSync(srcDir)) {
@@ -111,6 +118,12 @@ async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promi
 
   if (!which("gn")) {
     throw new Error("gn not found. Make sure depot_tools is in PATH.");
+  }
+
+  let buildEnv = process.env;
+  if (target.os === 'win' && process.platform === 'darwin') {
+    const {prepareWindowsCrossToolchain} = await import('../windows-toolchain.js');
+    buildEnv = (await prepareWindowsCrossToolchain(signal)).env;
   }
 
   // Merge GN args from config files
@@ -146,7 +159,7 @@ async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promi
 
   // Run gn gen
   log("Running gn gen...");
-  const gnCode = await runStreaming("gn", ["gen", `out/${outName}`], { cwd: srcDir, signal });
+  const gnCode = await runStreaming("gn", ["gen", `out/${outName}`], { cwd: srcDir, env: buildEnv, signal });
 
   if (gnCode !== 0) {
     throw new Error("gn gen failed");
@@ -165,7 +178,7 @@ async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promi
   }
 
   // Strip AI-agent env vars so depot_tools/siso.py doesn't inject unsupported flags
-  const cleanEnv = { ...process.env };
+  const cleanEnv = { ...buildEnv };
   for (const v of ["CURSOR_AGENT", "GEMINI_CLI", "CLAUDECODE", "CODEX_SANDBOX", "AI_AGENT"]) {
     delete cleanEnv[v];
   }

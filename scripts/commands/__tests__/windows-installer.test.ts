@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('../../utils.js', async importOriginal => ({
   ...await importOriginal<typeof import('../../utils.js')>(),
@@ -19,13 +19,15 @@ import {getWindowsInstallerHost} from '../build-windows-installer.js';
 import {packageWindowsInstaller} from '../package-windows.js';
 
 const roots: string[] = [];
+beforeEach(() => vi.spyOn(process, 'platform', 'get').mockReturnValue('win32'));
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.resetAllMocks();
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true});
 });
 
-function fixture() {
+function fixture(compilerName = 'makensis.exe') {
   const root = mkdtempSync(path.join(os.tmpdir(), 'dao-installer-'));
   roots.push(root);
   const out = path.join(root, 'out');
@@ -34,7 +36,7 @@ function fixture() {
   mkdirSync(dist);
   writeFileSync(path.join(out, 'setup.exe'), 'dao-install-dir');
   writeFileSync(path.join(out, 'mini_installer.exe'), 'native payload');
-  writeFileSync(path.join(root, 'makensis.exe'), 'compiler fixture');
+  writeFileSync(path.join(root, compilerName), 'compiler fixture');
   const host = path.join(root, 'dao-installer-ui.exe');
   writeFileSync(host, 'native WebView2 host');
   writeFileSync(path.join(root, 'WebView2-LICENSE.txt'), 'SDK license');
@@ -44,6 +46,22 @@ function fixture() {
 }
 
 describe('Windows installation wizard packaging', () => {
+  it('packages on macOS with its native NSIS executable and option syntax', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
+    const {out, dist} = fixture('makensis');
+    vi.mocked(runStreaming).mockImplementation(async (command, args) => {
+      expect(command).toBe(path.join(process.env.DAO_NSIS_DIR!, 'makensis'));
+      expect(args.slice(0, 3)).toEqual(['-V2', '-INPUTCHARSET', 'UTF8']);
+      expect(args).toContain(`-DPAYLOAD=${path.join(out, 'mini_installer.exe')}`);
+      expect(args).toContain('-DVERSION=1.2.3');
+      expect(args.some(arg => arg.startsWith('/D'))).toBe(false);
+      writeFileSync(args.find(arg => arg.startsWith('-DOUTPUT='))!.slice(9), 'cross packaged wizard');
+      return 0;
+    });
+    const artifact = await packageWindowsInstaller(out, dist, '1.2.3');
+    expect(readFileSync(artifact, 'utf8')).toBe('cross packaged wizard');
+  });
+
   it('embeds the native installer and hashes the completed wizard', async () => {
     const {out, dist} = fixture();
     vi.mocked(runStreaming).mockImplementation(async (_command, args) => {

@@ -14,10 +14,11 @@ vi.mock('../../utils.js', async importOriginal => ({
   ...await importOriginal<typeof import('../../utils.js')>(),
   ROOT_DIR: root,
 }));
-import {getWindowsInstallerHost, renderWindowsInstallerHtml} from '../build-windows-installer.js';
+import {createCrossInstallerBuildCommands, getWindowsInstallerHost, renderWindowsInstallerHtml} from '../build-windows-installer.js';
 
 const inputs = [
   'scripts/commands/build-windows-installer.ts',
+  'scripts/windows-toolchain.ts',
   'scripts/windows-installer/native/host.cc',
   'scripts/windows-installer/native/host.manifest',
   'branding/win/dao.ico',
@@ -46,6 +47,34 @@ beforeEach(() => {
 afterAll(() => rmSync(root, {recursive: true, force: true}));
 
 describe('Windows installer host assets', () => {
+  it('cross-compiles resources and native sources with Chromium tools and explicit SDK paths', () => {
+    const sdk = path.join(root, 'WebView SDK');
+    const staging = path.join(root, 'Cross build');
+    const includeDirs = [path.join(root, 'VS/include'), path.join(root, 'SDK/Include/um')];
+    const libDirs = [path.join(root, 'VS/lib/x64'), path.join(root, 'SDK/Lib/um/x64')];
+    const toolchain = {
+      toolchainRoot: path.join(root, 'VS'), sdkDir: path.join(root, 'SDK'), includeDirs, libDirs,
+      clangCl: path.join(root, 'clang-cl'), lldLink: path.join(root, 'lld-link'),
+      rcScript: path.join(root, 'rc.py'), env: {},
+    };
+    const [resources, compile, link] = createCrossInstallerBuildCommands(toolchain, sdk, staging);
+    expect(resources.command).toBe('python3');
+    expect(resources.args).toContain(toolchain.rcScript);
+    expect(resources.args).toContain(`/fo${path.join(staging, 'host.res')}`);
+    expect(resources.args).not.toContain('/fo');
+    expect(resources.args).toContain(`-imsvc${includeDirs[0]}`);
+    expect(compile.command).toBe(toolchain.clangCl);
+    expect(compile.args).toEqual(expect.arrayContaining(['--target=x86_64-pc-windows-msvc', '/c', '/MT', '/X']));
+    expect(compile.args).toContain(`-imsvc${includeDirs[1]}`);
+    expect(compile.args).toContain(path.join(sdk, 'build/native/include'));
+    expect(link.command).toBe(toolchain.lldLink);
+    expect(link.args).toEqual(expect.arrayContaining(['/MACHINE:X64', '/SUBSYSTEM:WINDOWS', 'kernel32.lib']));
+    expect(link.args).toContain(`/LIBPATH:${libDirs[1]}`);
+    expect(link.args).toContain(path.join(sdk, 'build/native/x64/WebView2LoaderStatic.lib'));
+    expect(link.args).toContain(path.join(staging, 'host.obj'));
+    expect(link.args).toContain(`/OUT:${path.join(staging, 'dao-installer-ui.exe')}`);
+  });
+
   it('accepts a matching host and rejects source changes with a rebuild command', () => {
     expect(getWindowsInstallerHost()).toBe(path.join(root, '.dao/installer/dao-installer-ui.exe'));
     write('scripts/windows-installer/native/host.cc', 'changed native source');

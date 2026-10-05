@@ -60,7 +60,11 @@ export const startCommand = new Command("start")
   .argument("[urls...]", "URLs and Chromium switches to pass to the browser")
   .action(async (urls: string[], options: Omit<LaunchOptions, "urls">) => {
     const config = loadConfig();
-    const spec = createLaunchSpec(config, resolveBuildTarget(config),
+    const target = resolveBuildTarget(config);
+    if (target.os === 'win' && process.platform !== 'win32') {
+      throw new Error('Run the Windows build on Windows. Unset DAO_BUILD_PLATFORM to launch the native macOS build.');
+    }
+    const spec = createLaunchSpec(config, target,
         {...options, urls}, ENGINE_DIR, process.env.LOCALAPPDATA);
     const output = spec.command === "open" ? spec.args[spec.args[0] === "-a" ? 1 : 0] : spec.command;
     if (!existsSync(output)) {

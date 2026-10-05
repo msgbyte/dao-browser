@@ -28,6 +28,7 @@ import {
   error,
   run,
   loadConfig,
+  resolveBuildTarget,
 } from "../utils.js";
 import {applyChromiumRewrites} from "../chromium-rewrites.js";
 
@@ -351,6 +352,7 @@ export function validateChromiumVersion(
 
 export const importCommand = new Command("import")
   .description("Apply patches and copy Dao code into the Chromium tree")
+  .option('--platform <platform>', 'Target platform: mac or windows (default: host or DAO_BUILD_PLATFORM)')
   .option("--patches-only", "Only apply patches, skip copying Dao source")
   .option(
     "--repair",
@@ -361,6 +363,7 @@ export const importCommand = new Command("import")
     "Reset tracked files and stale patch-created files before importing"
   )
   .action(async (opts: {
+    platform?: string;
     patchesOnly?: boolean;
     repair?: boolean;
     force?: boolean;
@@ -373,6 +376,10 @@ export const importCommand = new Command("import")
     }
 
     const config = loadConfig();
+    const requestedPlatform = opts.platform ?? process.env.DAO_BUILD_PLATFORM;
+    const target = requestedPlatform === undefined ? undefined :
+        resolveBuildTarget(config, process.platform, process.arch, requestedPlatform);
+    const importSparkle = process.platform === 'darwin' && target?.os !== 'win';
     log(
       `Validating Chromium version against dao.json ` +
         `(${config.version.version})...`
@@ -629,7 +636,7 @@ export const importCommand = new Command("import")
       const sparkleSrc = path.join(THIRD_PARTY_DIR, "sparkle");
       const sparkleDest = path.join(srcDir, "third_party", "dao_sparkle");
       const sparkleFwSrc = path.join(sparkleSrc, "Sparkle.framework");
-      if (process.platform === "darwin" && existsSync(sparkleFwSrc)) {
+      if (importSparkle && existsSync(sparkleFwSrc)) {
         log("Mirroring Sparkle framework into engine/src/third_party/dao_sparkle/ ...");
         mkdirSync(sparkleDest, { recursive: true });
         // ditto src dest copies the *contents* of src into dest. We want a
@@ -642,7 +649,7 @@ export const importCommand = new Command("import")
         success(
           "Synced third_party/sparkle/Sparkle.framework -> engine/src/third_party/dao_sparkle/Sparkle.framework"
         );
-      } else if (process.platform === "darwin") {
+      } else if (importSparkle) {
         warn(
           "Sparkle framework not found at third_party/sparkle/Sparkle.framework. " +
             "Run 'npm run sparkle:fetch' before building, or auto-update will not " +

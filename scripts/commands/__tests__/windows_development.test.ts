@@ -24,6 +24,33 @@ function fixtureDirectory(): string {
 }
 
 describe('native development target', () => {
+  it('selects Windows on either Mac host architecture without changing metadata', () => {
+    const config = utils.loadConfig();
+    for (const arch of ['arm64', 'x64']) {
+      expect(utils.resolveBuildTarget(config, 'darwin', arch, 'windows'))
+          .toEqual({os: 'win', cpu: 'x64'});
+    }
+    expect(() => utils.resolveBuildTarget(config, 'win32', 'x64', 'mac'))
+        .toThrow(/macOS/);
+    expect(() => utils.resolveBuildTarget(config, 'darwin', 'arm64', 'linux'))
+        .toThrow(/platform/);
+    expect(() => utils.resolveBuildTarget(config, 'linux', 'x64', 'windows'))
+        .toThrow(/host/);
+    expect(() => utils.resolveBuildTarget(config, 'darwin', 'ia32', 'windows'))
+        .toThrow(/host/);
+  });
+
+  it('isolates cross output while preserving both native caches', () => {
+    const win = {os: 'win', cpu: 'x64'} as const;
+    const mac = {os: 'mac', cpu: 'arm64'} as const;
+    expect(utils.getBuildOutputName(win, false, 'darwin')).toBe('dao-win-x64');
+    expect(utils.getBuildOutputName(win, true, 'darwin')).toBe('dao-win-x64-debug');
+    expect(utils.getBuildOutputName(win, false, 'win32')).toBe('dao');
+    expect(utils.getBuildOutputName(win, true, 'win32')).toBe('dao-debug');
+    expect(utils.getBuildOutputName(mac, false, 'darwin')).toBe('dao');
+    expect(utils.getBuildOutputName(mac, true, 'darwin')).toBe('dao-debug');
+  });
+
   it('uses the host without rewriting the project configuration', () => {
     const config = utils.loadConfig();
     const original = structuredClone(config);

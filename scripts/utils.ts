@@ -47,8 +47,20 @@ export function resolveBuildTarget(
   config: DaoConfig,
   platform: NodeJS.Platform = process.platform,
   arch: string = process.arch,
+  requestedPlatform: string | undefined = process.env.DAO_BUILD_PLATFORM,
 ): BuildTarget {
-  if (platform === "win32" && arch === "x64") {
+  if (requestedPlatform !== undefined && !['mac', 'windows'].includes(requestedPlatform)) {
+    throw new Error(`Unknown build platform: ${requestedPlatform}. Use mac or windows.`);
+  }
+  if (!((platform === 'win32' && arch === 'x64') ||
+        (platform === 'darwin' && ['arm64', 'x64'].includes(arch)))) {
+    throw new Error(`Unsupported development host: ${platform}/${arch}. ` +
+        'Use Windows x64 or macOS arm64/x64.');
+  }
+  if (requestedPlatform === 'mac' && platform !== 'darwin') {
+    throw new Error('Building macOS requires a macOS host.');
+  }
+  if (requestedPlatform === 'windows' || platform === "win32") {
     return {os: "win", cpu: "x64"};
   }
   // Preserve the configured Mac target even when Node runs under Rosetta.
@@ -58,6 +70,15 @@ export function resolveBuildTarget(
   }
   throw new Error(`Unsupported development host: ${platform}/${arch}. ` +
       "Use Windows x64 or macOS arm64.");
+}
+
+export function getBuildOutputName(
+  target: BuildTarget,
+  debug: boolean,
+  host: NodeJS.Platform = process.platform,
+): string {
+  const name = host === 'darwin' && target.os === 'win' ? 'dao-win-x64' : 'dao';
+  return debug ? `${name}-debug` : name;
 }
 
 export function loadConfig(): DaoConfig {

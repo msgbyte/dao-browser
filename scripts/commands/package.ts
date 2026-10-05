@@ -29,6 +29,8 @@ import {
   run,
   runStreaming,
   which,
+  resolveBuildTarget,
+  getBuildOutputName,
 } from "../utils.js";
 import { getAppName } from "./build.js";
 import { packageWindowsInstaller } from "./package-windows.js";
@@ -58,6 +60,7 @@ const REQUIRED_HELPER_ENTITLEMENTS = [
 ];
 
 interface PackageOptions {
+  platform?: string;
   zip?: boolean;
   sign?: boolean;
   signId?: boolean;
@@ -87,6 +90,7 @@ export function assertRequiredEntitlementsPresent(
 
 export const packageCommand = new Command("package")
   .description("Package Dao Browser into a macOS .dmg/.zip or Windows installer .exe")
+  .option('--platform <platform>', 'Target platform: mac or windows (default: host or DAO_BUILD_PLATFORM)')
   .option("--zip", "Create a .zip archive instead of .dmg")
   .option("--sign", "Apply ad-hoc code signature (no certificate required)")
   .option(
@@ -107,15 +111,15 @@ export const packageCommand = new Command("package")
   )
   .action(async (opts: PackageOptions) => {
     const config = loadConfig();
+    const target = resolveBuildTarget(config, process.platform, process.arch, opts.platform);
     // Debug builds carry a " Debug" suffix in their product/app bundle name
     // (set by syncMacBranding in build.ts) so they can coexist with release.
     const appName = getAppName(config.display_name, !!opts.debug);
     const version = config.version.display;
     const srcDir = path.join(ENGINE_DIR, "src");
-    const outDirName = opts.debug ? "dao-debug" : "dao";
+    const outDirName = getBuildOutputName(target, !!opts.debug);
     const outDir = path.join(srcDir, "out", outDirName);
-    if (process.platform === "win32") {
-      if (process.arch !== "x64") throw new Error("Windows packaging requires x64.");
+    if (target.os === 'win') {
       if (opts.zip || opts.sign || opts.signId || opts.notarize || opts.staple) {
         throw new Error("Windows packaging currently produces an unsigned installer; macOS packaging flags are unsupported.");
       }
