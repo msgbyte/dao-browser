@@ -36,6 +36,7 @@ describe('Windows desktop release', () => {
     await packageReleaseArtifact(context, runner);
     expect(calls).toEqual([
       ['npx', 'tsx', 'scripts/cli.ts', 'build', '--target', 'mini_installer'],
+      ['npx', 'tsx', 'scripts/cli.ts', 'build', '--target', 'dao_installer_ui'],
       ['npx', 'tsx', 'scripts/cli.ts', 'package'],
     ]);
   });

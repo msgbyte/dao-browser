@@ -1083,11 +1083,11 @@ export function importReleaseSources(
   );
 }
 
-export function buildReleaseApplication(
+export async function buildReleaseApplication(
   context: ReleasePhaseContext,
   runner: ReleaseCommandRunner = runStreaming
 ): Promise<void> {
-  return runReleaseStep(
+  await runReleaseStep(
     "build",
     context.options.dryRun,
     "Building (release)",
@@ -1096,6 +1096,10 @@ export function buildReleaseApplication(
     runner,
     context.signal
   );
+  if (context.options.platform === "windows") {
+    await runReleaseStep("build", context.options.dryRun, "Building Windows installer UI", "npx",
+      ["tsx", "scripts/cli.ts", "build", "--target", "dao_installer_ui"], runner, context.signal);
+  }
 }
 
 export function packageReleaseArtifact(

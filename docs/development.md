@@ -234,9 +234,8 @@ produce a local release installer:
 npm.cmd run release:windows -- --skip-upload
 ```
 
-Build `dao_installer_ui` with the standalone rebuild command above before running
-the release command. Release imports normally, builds `mini_installer` in the
-release output directory, and packages it with the prepared host.
+This imports normally, builds `mini_installer` incrementally in the same release
+output directory and the separate `dao_installer_ui` host, then packages both.
 It performs no Git or publication changes. Once `out/dao/mini_installer.exe`
 is current, `npm.cmd run package` compiles the wizard into `dist/` and hashes
 the resulting EXE. To verify native installer changes against an existing
