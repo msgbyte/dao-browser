@@ -112,6 +112,13 @@ elevation. The default profile is `%LOCALAPPDATA%\Dao\User Data`, including
 when launching the installed executable without CLI flags. Browser/HTML/PDF
 registration uses Dao identities. Existing Chromium profiles are not migrated.
 
+Native setup accepts `--dao-install-dir=<product root>` for a fresh per-user
+install or a repair at the registered location. It installs binaries in the
+root's `Application` child and keeps profiles under `%LOCALAPPDATA%\Dao\User Data`.
+The root must be on a local fixed drive and at most 180 characters long.
+System/profile paths, relocation attempts and occupied unowned Application/Temp
+folders are rejected. The switch does not support system-level installation.
+
 Dao's COM GUID substitutions move the MIDL input into `gen/`. The MIDL patch
 aligns only the original IDL path in copied compiler-settings comments; it still
 validates generated interface code and binary type libraries against Chromium's
@@ -147,6 +154,17 @@ This imports normally, builds the additional `mini_installer`
 target incrementally in the same release output directory, then packages it.
 It performs no Git or publication changes. Once `out/dao/mini_installer.exe`
 exists, `npm.cmd run package` alone copies it into `dist/` with its checksum.
+
+For native installer compile verification against the existing release cache:
+
+```powershell
+npm.cmd run rebuild -- -- --release --target mini_installer -j 2
+```
+
+`--release` overrides the debug flag supplied by the `rebuild` npm script.
+Directory regression tests use `installer_util_unittests` with filter
+`*GetChromeInstallPathWithPrefsTest.*`. Verify actual installation/uninstallation
+in a disposable Windows account or VM.
 
 Desktop releases share one `dao.json.version.display` and one GitHub Release
 named `v<version>`. Publish macOS first with the existing `npm run release`

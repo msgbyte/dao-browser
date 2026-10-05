@@ -1,0 +1,14 @@
+diff --git a/chrome/installer/setup/setup_main.cc b/chrome/installer/setup/setup_main.cc
+--- a/chrome/installer/setup/setup_main.cc
++++ b/chrome/installer/setup/setup_main.cc
+@@ -1504,6 +1504,10 @@
+ 
+   InstallerState installer_state;
+   installer_state.Initialize(cmd_line, prefs, original_state);
++  if (installer_state.target_path().empty()) {
++    LOG(ERROR) << "Invalid Dao installation directory or attempted relocation.";
++    return installer::OS_ERROR;
++  }
+ 
+   persistent_histogram_storage.set_storage_base_dir(
+       installer_state.target_path());

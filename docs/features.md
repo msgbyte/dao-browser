@@ -51,7 +51,12 @@ The Windows port excludes the macOS MCP transport and its settings/copy-ID
 actions, native share pickers, AppKit drag-to-new-window completion detection,
 ImageIO thumbnails, the external-URL Little Dao launcher, and Sparkle updates.
 Windows reuses Chromium's `mini_installer` for unsigned x64 installation,
-shortcuts, browser registration, upgrades, and uninstall. Native install and
+shortcuts, browser registration, upgrades, and uninstall. Native setup accepts
+`--dao-install-dir=<product root>` for fresh per-user installations and
+same-path repairs. Binaries go into its `Application` child while profiles
+remain under `%LOCALAPPDATA%\Dao\User Data`. Existing installations cannot
+be relocated through this switch. System/profile folders, non-local paths
+and occupied unowned `Application`/`Temp` folders are rejected. Native install and
 profile paths use `Dao`, with Dao AppUserModelID/ProgID prefixes and separate
 COM server identities. Chrome and Chromium installations remain independent.
 `release --platform windows` reuses `dao.json`'s desktop version and `v<version>`
@@ -61,6 +66,8 @@ Windows does not use Apple signing, notarization, or Sparkle.
 Windows build/release cancellation stops the owned process tree and waits for
 cleanup; unrelated build jobs remain independent. Failed tree termination is
 reported explicitly instead of claiming successful cancellation.
+`rebuild -- -- --release` reuses the release cache for installer verification;
+plain `rebuild` continues to use the debug cache.
 See [`development.md`](development.md) for setup and verification requirements.
 
 ## 1. Vertical Sidebar

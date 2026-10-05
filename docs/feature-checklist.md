@@ -89,6 +89,12 @@ These are acceptance checks, not a claim that the port has passed them.
   Apps, and Dao HTML/PDF/default-browser registration. Chrome/Chromium entries
   and profiles must remain independent. Reinstall/upgrade, then uninstall while
   preserving user data; verify an explicit delete-profile uninstall separately.
+- [ ] Verify native `--dao-install-dir=<root>` with fresh per-user installation,
+  same-path repair, spaces and Unicode. Reject relocation, system/profile
+  folders, network and drive-root paths, and occupied unowned Application/Temp
+  folders without deleting their contents. Run `*GetChromeInstallPathWithPrefsTest.*`
+  in `installer_util_unittests`. Use `npm.cmd run rebuild -- -- --release
+  --target mini_installer -j 2` to retain the release build cache.
 - [ ] After importing, run `python3 -m unittest scripts.tests.test_windows_midl`.
   MIDL validation must accept IDL path-comment relocation for dynamic COM GUIDs
   while still rejecting changed GUIDs, compiler settings, and unrelated IDL paths.

@@ -1,0 +1,22 @@
+diff --git a/chrome/installer/util/helper.h b/chrome/installer/util/helper.h
+--- a/chrome/installer/util/helper.h
++++ b/chrome/installer/util/helper.h
+@@ -17,6 +17,9 @@
+ 
+ class InitialPreferences;
+ 
++// Optional product root for a fresh per-user installation or same-path repair.
++inline constexpr char kDaoInstallDir[] = "dao-install-dir";
++
+ // Returns the install directory for an existing per-user or per-machine
+ // install; or an empty path if Chrome is not installed at the given level. In
+ // particular: if Chrome is installed at the level specified by `system_install`
+@@ -35,6 +38,8 @@
+ // Returns a path to the directory holding chrome.exe for either a system wide
+ // or user specific install. The returned path will be one of:
+ // - The path to the current installation at |system_install|, if there is one.
++// - The Application child of --dao-install-dir for a per-user installation.
++//   Invalid paths or attempts to relocate an existing install return empty.
+ // - The desired path for a new installation based on the "program_files_dir"
+ //   initial preference in the "distribution" dict of |prefs|, if set.
+ // - The default path for a new installation based on the binary's bitness.

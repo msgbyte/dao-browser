@@ -1,0 +1,87 @@
+diff --git a/chrome/installer/util/helper_unittest.cc b/chrome/installer/util/helper_unittest.cc
+--- a/chrome/installer/util/helper_unittest.cc
++++ b/chrome/installer/util/helper_unittest.cc
+@@ -15,6 +15,8 @@
+ #include "base/files/file_util.h"
+ #include "base/files/scoped_temp_dir.h"
+ #include "base/path_service.h"
++#include "base/strings/string_util.h"
++#include "base/test/scoped_command_line.h"
+ #include "base/test/scoped_path_override.h"
+ #include "base/test/test_reg_util_win.h"
+ #include "base/values.h"
+@@ -409,6 +411,54 @@
+   std::optional<base::ScopedPathOverride> local_data_app_override_;
+ };
+ 
++
++TEST_P(GetChromeInstallPathWithPrefsTest, DaoCustomDirectory) {
++  base::test::ScopedCommandLine command_line;
++  const base::FilePath root = random_path().Append(L"Dao custom \u96ea");
++  command_line.GetProcessCommandLine()->AppendSwitchPath(kDaoInstallDir, root);
++  EXPECT_EQ(GetChromeInstallPathWithPrefs(is_system_level(),
++                                        InitialPreferences(prefs_json())),
++            is_system_level() ? base::FilePath()
++                              : root.Append(kInstallBinaryDir));
++}
++
++TEST_P(GetChromeInstallPathWithPrefsTest, DaoInvalidDirectory) {
++  for (const auto& root : {base::FilePath(L"relative"), base::FilePath(L"C:\\"),
++                          base::FilePath(L"C:\\Dao\\..\\Other"),
++                          base::FilePath(L"\\\\server\\share\\Dao"),
++                          base::FilePath(L"C:\\Dao."),
++                          base::FilePath(L"C:\\Dao:stream"),
++                          program_files_path().Append(L"Dao"),
++                          program_files_x86_path().Append(L"Dao"),
++                          base::FilePath(base::ToLowerASCII(
++                              program_files_path().Append(L"Dao").value())),
++                          base::FilePath(base::ToLowerASCII(
++                              local_app_data_path().Append(L"Dao\\User Data\\Other")
++                                  .value())),
++                          local_app_data_path().Append(L"Dao\\User Data")}) {
++    base::test::ScopedCommandLine command_line;
++    command_line.GetProcessCommandLine()->AppendSwitchPath(kDaoInstallDir, root);
++    EXPECT_TRUE(GetChromeInstallPathWithPrefs(is_system_level(),
++                                             InitialPreferences(prefs_json()))
++                    .empty()) << root;
++  }
++}
++
++TEST_P(GetChromeInstallPathWithPrefsTest, DaoPreservesUnrelatedFiles) {
++  const base::FilePath root = random_path().Append(L"Other application");
++  base::test::ScopedCommandLine command_line;
++  command_line.GetProcessCommandLine()->AppendSwitchPath(kDaoInstallDir, root);
++  for (const auto* name : {kInstallBinaryDir, kInstallTempDir}) {
++    const base::FilePath owned = root.Append(name);
++    ASSERT_TRUE(base::CreateDirectory(owned));
++    ASSERT_TRUE(base::WriteFile(owned.Append(L"important.txt"), "keep"));
++    EXPECT_TRUE(GetChromeInstallPathWithPrefs(is_system_level(),
++                                             InitialPreferences(prefs_json()))
++                    .empty());
++    ASSERT_TRUE(base::DeletePathRecursively(owned));
++  }
++}
++
+ TEST_P(GetChromeInstallPathWithPrefsTest, NoRegistryValue) {
+   EXPECT_EQ(GetChromeInstallPathWithPrefs(is_system_level(),
+                                           InitialPreferences(prefs_json())),
+@@ -435,6 +485,19 @@
+   EXPECT_EQ(GetChromeInstallPathWithPrefs(is_system_level(),
+                                           InitialPreferences(prefs_json())),
+             install_path);
++
++  base::test::ScopedCommandLine command_line;
++  command_line.GetProcessCommandLine()->AppendSwitchPath(kDaoInstallDir,
++                                                        install_path.DirName());
++  EXPECT_EQ(GetChromeInstallPathWithPrefs(is_system_level(),
++                                         InitialPreferences(prefs_json())),
++            is_system_level() ? base::FilePath() : install_path);
++  command_line.GetProcessCommandLine()->RemoveSwitch(kDaoInstallDir);
++  command_line.GetProcessCommandLine()->AppendSwitchPath(
++      kDaoInstallDir, random_path().Append(L"Another Dao"));
++  EXPECT_TRUE(GetChromeInstallPathWithPrefs(is_system_level(),
++                                           InitialPreferences(prefs_json()))
++                  .empty());
+ }
+ 
+ TEST_P(GetChromeInstallPathWithPrefsTest, RegistryValueSetWrongScope) {

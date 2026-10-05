@@ -1,0 +1,100 @@
+diff --git a/chrome/installer/util/helper.cc b/chrome/installer/util/helper.cc
+--- a/chrome/installer/util/helper.cc
++++ b/chrome/installer/util/helper.cc
+@@ -9,6 +9,7 @@
+ #include <string_view>
+ 
+ #include "base/check.h"
++#include "base/command_line.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/containers/span.h"
+ #include "base/files/file_util.h"
+@@ -104,6 +105,60 @@
+       .Append(installer::kInstallBinaryDir);
+ }
+ 
++
++bool IsSameOrParentIgnoringCase(const base::FilePath& parent,
++                              base::FilePath child) {
++  for (;;) {
++    if (base::FilePath::CompareEqualIgnoreCase(parent.value(), child.value())) {
++      return true;
++    }
++    const base::FilePath next = child.DirName();
++    if (next == child) {
++      return false;
++    }
++    child = next;
++  }
++}
++
++// The wizard selects a per-user product root; Chromium owns its Application
++// child. Keep it outside system locations because runtime install scope is
++// inferred from Program Files. Never silently fall back after invalid input.
++base::FilePath GetDaoInstallPath(const base::FilePath& requested,
++                               bool system_install) {
++  const base::FilePath root =
++      requested.NormalizePathSeparators().StripTrailingSeparators();
++  const std::wstring& value = root.value();
++  if (system_install || !root.IsAbsolute() || root.ReferencesParent() ||
++      value.size() < 4 || value.size() > 180 || value[1] != L':' ||
++      value[2] != L'\\' || value.substr(3).find_first_of(L":*?\"<>|") !=
++                                std::wstring::npos) {
++    return {};
++  }
++  if (::GetDriveTypeW((value.substr(0, 3)).c_str()) != DRIVE_FIXED) {
++    return {};
++  }
++  for (const auto& component : root.GetComponents()) {
++    if (component == L"." || component.back() == L'.' ||
++        component.back() == L' ') {
++      return {};
++    }
++  }
++  for (int key : {base::DIR_PROGRAM_FILES, base::DIR_PROGRAM_FILESX86,
++                 base::DIR_PROGRAM_FILES6432, base::DIR_WINDOWS}) {
++    base::FilePath reserved;
++    if (base::PathService::Get(key, &reserved) &&
++        IsSameOrParentIgnoringCase(reserved, root)) {
++      return {};
++    }
++  }
++  const base::FilePath profile =
++      GetDefaultChromeInstallPathChecked(false).DirName().Append(L"User Data");
++  if (IsSameOrParentIgnoringCase(profile, root)) {
++    return {};
++  }
++  return root.Append(installer::kInstallBinaryDir);
++}
++
+ // Returns the path to the installation at `system_install` provided that the
+ // browser is installed and its `UninstallString` points into a valid install
+ // directory.
+@@ -179,5 +234,27 @@
+                                              const InitialPreferences& prefs) {
+   base::FilePath install_path =
+       GetCurrentInstallPathFromRegistry(system_install);
++  const auto& command_line = *base::CommandLine::ForCurrentProcess();
++  if (command_line.HasSwitch(kDaoInstallDir)) {
++    const base::FilePath requested = GetDaoInstallPath(
++        command_line.GetSwitchValuePath(kDaoInstallDir), system_install);
++    if (requested.empty() ||
++        (!install_path.empty() &&
++         !base::FilePath::CompareEqualIgnoreCase(requested.value(),
++                                               install_path.value()))) {
++      return {};
++    }
++    if (install_path.empty()) {
++      // Setup and uninstall recursively remove the product's Temp directory.
++      for (const auto& owned :
++           {requested, requested.DirName().Append(kInstallTempDir)}) {
++        if (base::PathExists(owned) &&
++            (!base::DirectoryExists(owned) || !base::IsDirectoryEmpty(owned))) {
++          return {};
++        }
++      }
++    }
++    return requested;
++  }
+   if (!install_path.empty())
+     return install_path;

@@ -24,6 +24,12 @@ const originalExitCode = process.exitCode;
 afterEach(() => { process.exitCode = originalExitCode; });
 
 describe.runIf(process.platform === 'win32')('build cancellation', () => {
+  it('can verify the release installer using the existing release cache', async () => {
+    vi.mocked(runStreaming).mockReset().mockResolvedValue(0);
+    await buildCommand.parseAsync(['node', 'cli', '--debug', '--release', '--target', 'mini_installer', '-j', '2']);
+    expect(runStreaming).toHaveBeenCalledWith('gn', ['gen', 'out/dao'], expect.anything());
+    expect(runStreaming).toHaveBeenCalledWith('autoninja', ['-j2', '-C', 'out/dao', 'mini_installer'], expect.anything());
+  });
   it.each([
     ['SIGINT', 1, 130], ['SIGINT', 2, 130], ['SIGTERM', 2, 143],
   ] as const)('cleans up %s handlers when cancelled in command %i', async (name, phase, code) => {

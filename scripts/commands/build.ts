@@ -51,6 +51,7 @@ export function createBuildArgs(
 
 interface BuildOptions {
   debug?: boolean;
+  release?: boolean;
   genOnly?: boolean;
   target: string[];
   j?: string;
@@ -59,6 +60,7 @@ interface BuildOptions {
 export const buildCommand = new Command("build")
   .description("Build Dao Browser (gn gen + autoninja)")
   .option("--debug", "Build in debug mode")
+  .option("--release", "Use the release cache, overriding --debug (also supported by rebuild)")
   .option("--gen-only", "Only run gn gen, skip compilation")
   .option("--target <targets...>", "Build targets (default: chrome)", ["chrome"])
   .option("-j <jobs>", "Number of parallel build jobs")
@@ -88,6 +90,7 @@ export const buildCommand = new Command("build")
   });
 
 async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promise<void> {
+  opts = {...opts, debug: !!opts.debug && !opts.release};
   const config = loadConfig();
   const target = resolveBuildTarget(config);
   const srcDir = path.join(ENGINE_DIR, "src");
