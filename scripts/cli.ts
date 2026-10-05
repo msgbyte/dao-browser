@@ -13,6 +13,7 @@ import { releaseAndroidCommand } from "./commands/release-android.js";
 import { githubReleaseCommand } from "./commands/github-release.js";
 import { worktreeCommand } from "./commands/worktree.js";
 import { iosCommand } from "./commands/ios.js";
+import { windowsToolchainCommand } from './commands/windows-toolchain.js';
 
 const program = new Command();
 
@@ -36,5 +37,6 @@ program.addCommand(releaseAndroidCommand);
 program.addCommand(githubReleaseCommand);
 program.addCommand(worktreeCommand);
 program.addCommand(iosCommand);
+program.addCommand(windowsToolchainCommand);
 
 program.parse();
