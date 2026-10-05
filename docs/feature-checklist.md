@@ -89,12 +89,46 @@ These are acceptance checks, not a claim that the port has passed them.
   Apps, and Dao HTML/PDF/default-browser registration. Chrome/Chromium entries
   and profiles must remain independent. Reinstall/upgrade, then uninstall while
   preserving user data; verify an explicit delete-profile uninstall separately.
-- [ ] Verify native `--dao-install-dir=<root>` with fresh per-user installation,
-  same-path repair, spaces and Unicode. Reject relocation, system/profile
-  folders, network and drive-root paths, and occupied unowned Application/Temp
-  folders without deleting their contents. Run `*GetChromeInstallPathWithPrefsTest.*`
-  in `installer_util_unittests`. Use `npm.cmd run rebuild -- -- --release
-  --target mini_installer -j 2` to retain the release build cache.
+- [ ] Build the NSIS wizard with `npm.cmd run package` after
+  `npm.cmd run rebuild -- -- --release --target mini_installer -j 2` and
+  `npm.cmd run rebuild -- -- --release --target dao_installer_ui`.
+  Run `npx.cmd tsx scripts/tests/test-webview-installer.ts` against the compiled
+  host. Verify WebView2 in both languages, a missing/broken runtime falling back
+  to native NSIS, `/NATIVE`, and silent `/S` without recursive UI launch. Verify
+  retry after backend errors, repair directory locking, duplicate-submit blocking,
+  external navigation rejection, and close/crash handling during installation
+  without a second installation. Preserve keyboard, high contrast and reduced
+  motion support, and check indeterminate progress without invented percentages.
+  Packaging must reject a stale/missing host and retain previous artifacts on errors.
+  Check English/Chinese opening, progress, failure, and finish pages in light/dark
+  themes. The fixed 560 x 420 DIP window must match the compact design, with its
+  centered 96px logo, ring and custom minimize/close controls. Verify title-bar
+  dragging, minimize/restore, Alt+F4 and the system menu; resizing/maximizing must
+  stay disabled. Minimize remains usable while installation blocks closing.
+  The opening page shows the path summary and install/repair action. Change
+  expands the input; Enter confirms without installing and Escape discards the
+  draft without closing. Browse starts from the edited path's nearest existing
+  parent and appends Dao once. Repairs hide path editing. The completion button
+  launches Dao, while closing leaves the installation complete without launching.
+  Check text/button clipping, icon sharpness, and square logo proportions on the
+  opening and finish pages in both languages at 100%, 125%, 150%, and 200%
+  scaling. Verify readable controls in Windows high-contrast themes. Preserve
+  keyboard navigation, Enter to install, and accessible native
+  directory/browse/launch controls. Opening/cancelling must not create files in
+  the selected directory. Normal progress text must not expose backend commands;
+  the details dialog keeps the error code and selectable log path available for
+  troubleshooting and closes with Escape without closing the installer.
+  In a disposable account/VM, install to a second drive with spaces/non-ASCII
+  characters, then verify shortcuts, registry paths, launch, repair, upgrade,
+  uninstall, and preservation of `%LOCALAPPDATA%\Dao\User Data`.
+  Cancel before installation and verify no installation changes. Existing
+  installs must retain their registered directory; all-users installations must
+  show an actionable message. Reject protected paths in mixed case, network and
+  drive-root paths, unwritable directories, and unrelated `Application`/`Temp`
+  contents. Keep those contents intact after rejection. Check native backend
+  failures never show the success page. Run the focused `windows-installer`
+  script tests, `scripts/tests/test_windows_installer.ps1` for isolated wizard
+  integration checks, and `*GetChromeInstallPathWithPrefsTest.*` native tests.
 - [ ] After importing, run `python3 -m unittest scripts.tests.test_windows_midl`.
   MIDL validation must accept IDL path-comment relocation for dynamic COM GUIDs
   while still rejecting changed GUIDs, compiler settings, and unrelated IDL paths.

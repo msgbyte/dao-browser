@@ -16,14 +16,22 @@ vi.mock('../../utils.js', async (importOriginal) => ({
   runStreaming: vi.fn(),
   log: vi.fn(), success: vi.fn(), error: vi.fn(),
 }));
+vi.mock('../build-windows-installer.js', () => ({buildWindowsInstallerHost: vi.fn().mockResolvedValue(undefined)}));
 
 import {buildCommand} from '../build.js';
+import {buildWindowsInstallerHost} from '../build-windows-installer.js';
 import {createAbortError, runStreaming} from '../../utils.js';
 
 const originalExitCode = process.exitCode;
 afterEach(() => { process.exitCode = originalExitCode; });
 
 describe.runIf(process.platform === 'win32')('build cancellation', () => {
+  it('builds the standalone installer host without touching Chromium build tools', async () => {
+    vi.mocked(runStreaming).mockReset();
+    await buildCommand.parseAsync(['node', 'cli', '--debug', '--release', '--target', 'dao_installer_ui']);
+    expect(buildWindowsInstallerHost).toHaveBeenCalledWith(expect.any(AbortSignal));
+    expect(runStreaming).not.toHaveBeenCalled();
+  });
   it('can verify the release installer using the existing release cache', async () => {
     vi.mocked(runStreaming).mockReset().mockResolvedValue(0);
     await buildCommand.parseAsync(['node', 'cli', '--debug', '--release', '--target', 'mini_installer', '-j', '2']);

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-dao-installer'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title></title>
+  <style>{{STYLE}}</style>
+</head>
+<body>
+  <div class="win" id="installer" hidden>
+    <header class="titlebar">
+      <button id="minimize" class="caption" type="button" data-i18n-label="minimize">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+      </button>
+      <button id="cancel" class="caption close" type="button" data-i18n-label="close">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+      </button>
+    </header>
+    <main>
+      <form id="install-form" class="stage" novalidate>
+        <div class="halo" aria-hidden="true"></div>
+        <div class="emblem">
+          <svg class="ring" viewBox="0 0 160 160" aria-hidden="true">
+            <circle class="track" cx="80" cy="80" r="74" />
+            <circle class="sweep" cx="80" cy="80" r="74" />
+            <circle class="bar" cx="80" cy="80" r="74" />
+          </svg>
+          <img class="brand-icon" src="{{ICON_DATA_URL}}" width="96" height="96" alt="">
+          <div class="badge" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+          </div>
+        </div>
+        <div class="content">
+          <section class="copy" aria-live="polite" aria-atomic="true">
+            <h1 id="headline" tabindex="-1"></h1>
+            <p id="version" class="meta"></p>
+            <p id="description" class="meta" hidden></p>
+            <p id="tip" class="tip meta" aria-live="off" hidden></p>
+          </section>
+          <div class="actions">
+            <button id="primary" type="submit" class="btn btn-primary"></button>
+            <div id="progress" role="progressbar" aria-labelledby="headline" aria-describedby="description" hidden></div>
+            <div id="directory-option">
+              <div id="path-view" class="path">
+                <span class="meta" data-i18n="installTo"></span>
+                <span id="path-text" class="path-text num" dir="ltr"></span>
+                <button id="change-path" class="link" type="button" data-i18n="changePath"></button>
+              </div>
+              <div id="path-edit" class="path-edit" hidden>
+                <input id="directory" class="path-input" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="directory-hint" data-i18n-label="directoryLabel" dir="ltr">
+                <button id="browse" type="button" class="btn btn-ghost btn-small" data-i18n="browse"></button>
+                <button id="confirm-path" type="button" class="btn btn-ghost btn-small" data-i18n="confirmPath"></button>
+              </div>
+              <p id="directory-hint" class="path-note" aria-live="polite"></p>
+            </div>
+            <p id="installing-note" class="meta" data-i18n="installingNote" hidden></p>
+            <button id="error-detail-toggle" class="link" type="button" data-i18n="details" hidden></button>
+          </div>
+        </div>
+      </form>
+    </main>
+    <dialog id="error-details" aria-labelledby="log-label" hidden>
+      <p id="error-code"></p>
+      <div id="log-detail">
+        <h2 id="log-label" data-i18n="logLabel"></h2>
+        <p id="log-path" class="log-path" dir="ltr"></p>
+      </div>
+      <button id="close-details" class="btn btn-ghost btn-small" type="button" data-i18n="close"></button>
+    </dialog>
+  </div>
+  <script type="module" nonce="dao-installer">
+    const locales = {{LOCALES}};
+    {{SCRIPT}}
+    mountInstaller(window.chrome.webview, locales);
+  </script>
+</body>
+</html>

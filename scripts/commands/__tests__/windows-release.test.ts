@@ -11,7 +11,6 @@ import {
   type ReleaseDependencies, type ReleasePhaseContext,
 } from '../release.js';
 import {buildGithubReleasePlan} from '../github-release.js';
-import {validateLocalInstaller} from '../github-release.js';
 
 describe('Windows desktop release', () => {
   it('shares the desktop tag while selecting a Windows installer', () => {
@@ -41,20 +40,16 @@ describe('Windows desktop release', () => {
     ]);
   });
 
-  it('copies the complete installer and writes a checksum, rejecting missing builds', () => {
+  it('rejects a native installer built without custom directory support', async () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'dao-win-package-'));
     const out = path.join(root, 'out');
     const dist = path.join(root, 'dist');
     mkdirSync(out);
-    expect(() => packageWindowsInstaller(out, dist, '1.2.3')).toThrow(/mini_installer/);
+    await expect(async () => packageWindowsInstaller(out, dist, '1.2.3')).rejects.toThrow(/mini_installer/);
     writeFileSync(path.join(out, 'mini_installer.exe'), 'installer fixture');
-    const artifact = packageWindowsInstaller(out, dist, '1.2.3');
-    expect(path.basename(artifact)).toBe('dao-browser-1.2.3-windows-x64.exe');
-    expect(readFileSync(artifact, 'utf8')).toBe('installer fixture');
-    expect(readFileSync(artifact + '.sha256', 'utf8'))
-      .toMatch(/^[a-f0-9]{64}  dao-browser-1\.2\.3-windows-x64\.exe\n$/);
-    const debug = packageWindowsInstaller(out, dist, '1.2.3', true);
-    expect(() => validateLocalInstaller(buildGithubReleasePlan('v1.2.3', 'windows'), debug)).toThrow(/named/);
+    writeFileSync(path.join(out, 'setup.exe'), 'old native setup');
+    await expect(async () => packageWindowsInstaller(out, dist, '1.2.3'))
+      .rejects.toThrow(/custom installation directory/);
   });
 
   it('reuses the desktop version and tag without rewriting macOS metadata', async () => {

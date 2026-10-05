@@ -105,19 +105,102 @@ AppKit tab tear-off detection, ImageIO thumbnails, or Sparkle updates.
 ### Windows installer and shared desktop releases
 
 Windows uses Chromium's native `mini_installer`, including its installer,
-uninstaller, shortcuts, default-browser registration, and upgrade logic. A
-per-user install lives in `%LOCALAPPDATA%\Dao\Application`; an explicit
-`--system-level` install uses `%ProgramFiles%\Dao\Application` and requires
-elevation. The default profile is `%LOCALAPPDATA%\Dao\User Data`, including
+uninstaller, shortcuts, default-browser registration, and upgrade logic.
+The distributed EXE uses NSIS to package a Win32/WebView2 host and the native
+backend. `scripts/windows-installer/native/host.cc` loads the fully inlined local
+HTML from `scripts/windows-installer/web/`; its English and Simplified Chinese
+strings live in `web/locales/`. The frontend sends fixed commands for folder
+selection (`browse:<current path>`), installation, minimizing, closing and launch.
+The host invokes the same outer
+EXE with `/S /D=<root>`, reusing NSIS validation and native installation logic.
+Session configuration uses a UTF-16 INI file to preserve Unicode paths.
+
+The compact UI follows the supplied `dao-installer.html` design: a fixed 560 x 420
+DIP window, custom caption buttons, centered 96px transparent logo, halo, ring,
+inline path editing, and system light/dark themes. The reference logo lives in
+`web/assets/dao-logo.png`; the EXE/taskbar icon still uses the Windows branding ICO.
+WebView2's [non-client region support](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2settings9)
+handles the title-bar drag region; runtimes without that interface use NSIS.
+The folder picker opens at the current input's nearest existing parent and appends
+`Dao` unless the selected folder already has that name. Existing installations
+keep their registered root. The completion button launches Dao; closing exits
+without launching. Version metadata is real; the prototype's sample size and
+simulated percentage are not shown. The backend has no cancellation/progress API,
+so installation uses an indeterminate ring and cannot be interrupted from the UI.
+The per-user wrapper does not elevate or support installation in Program Files.
+
+Missing/unusable WebView2 falls back to the original native NSIS pages without
+downloading a runtime. `/NATIVE` forces this path; `/S` skips both UIs.
+`scripts/windows-installer/theme.nsh` and `locales/` own the native fallback's
+appearance and strings. Once the backend starts, the host waits for completion
+and never opens a second installer on a renderer failure. Diagnostic host events
+are appended to `%TEMP%\dao_installer_ui.log`; native install details remain in
+`%TEMP%\dao_installer.log`.
+The default per-user install is `%LOCALAPPDATA%\Dao\Application`; choosing
+`D:\Apps\Dao` installs binaries into `D:\Apps\Dao\Application`. The wizard
+supports writable local fixed drives, with a product-root limit of 180 characters.
+It rejects Windows/Program Files, network and profile paths, and occupied
+`Application` or `Temp` subdirectories. Do not store unrelated files in these
+two installer-owned subdirectories. Upgrades/repairs lock the directory to the
+registered installation. To move an existing installation, uninstall it while
+keeping browsing data and rerun the wizard. Existing all-users installations
+must be uninstalled before using this per-user wizard.
+
+The internal native `mini_installer.exe --system-level` remains available for
+administrative installs under `%ProgramFiles%\Dao\Application` with elevation;
+the distribution wizard does not forward arbitrary native installer switches.
+The default profile is `%LOCALAPPDATA%\Dao\User Data`, including
 when launching the installed executable without CLI flags. Browser/HTML/PDF
 registration uses Dao identities. Existing Chromium profiles are not migrated.
 
-Native setup accepts `--dao-install-dir=<product root>` for a fresh per-user
-install or a repair at the registered location. It installs binaries in the
-root's `Application` child and keeps profiles under `%LOCALAPPDATA%\Dao\User Data`.
-The root must be on a local fixed drive and at most 180 characters long.
-System/profile paths, relocation attempts and occupied unowned Application/Temp
-folders are rejected. The switch does not support system-level installation.
+Packaging requires [NSIS 3](https://nsis.sourceforge.io/Download) on Windows.
+Install it normally, put `makensis.exe` on PATH, or set `DAO_NSIS_DIR` to an
+extracted portable distribution. A portable NSIS 3.13 extracted into
+`.dao/tools/nsis-3.13/` is also detected. The compiler is only a packaging tool;
+users do not need NSIS installed. Packaging rejects old `setup.exe` builds
+without the `--dao-install-dir` capability and payloads older than `setup.exe`.
+Compiler failures preserve the previous distribution EXE and checksum.
+
+The WebView2 host requires Visual Studio C++ x64 tools and the Windows 10/11 SDK.
+Its standalone target downloads a checksum-pinned Microsoft WebView2 SDK into
+`.dao/tools/` and writes the host plus SDK notices into `.dao/installer/`:
+
+```powershell
+npm.cmd run rebuild -- -- --release --target dao_installer_ui
+```
+
+This target compiles only the small installer host; it does not run GN or touch
+the Chromium build cache. Packaging requires a matching source/output fingerprint
+and fails with that rebuild command if the host is missing or stale. HTML/CSS/JS
+changes require only repackaging; native source and locale changes require the
+host rebuild. SDK runtime binaries are not bundled.
+
+Run the wizard checks without installing Dao or modifying its registration:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test_windows_installer.ps1
+npx.cmd tsx scripts/tests/test-webview-installer.ts
+```
+
+This compiles the actual wizard with a harmless backend and a temporary registry
+namespace. It checks editable fresh-install and locked repair directory pages,
+Unicode/space-containing paths, failures, and preservation of unrelated files.
+It also edits the directory in the actual first-page control and exercises the
+progress/finish flow with the isolated backend. Opening the wizard must not
+write to the selected installation directory. Use `-Language 1033` or
+`-Language 2052` to verify English or Simplified Chinese, and optionally
+`-CaptureDir .dao/installer-preview` to save screenshots of the hidden test
+windows for visual inspection. It never presses the finish-page launch action.
+The default NSIS language follows Windows; new locales belong in separate NSIS
+language resource files. The WebView2 check runs the compiled host with a harmless
+backend and a process-local debugging endpoint. It checks absent-runtime fallback,
+real bridge messages, localized layout, inline path editing, retry, repair locking
+and duplicate-submit protection. Add `--capture` to open the isolated test windows
+visibly and save light/dark, path-edit, progress, error/details and completion
+WebView2 screenshots into `.dao/installer-preview/` (hidden windows do not produce
+compositor frames for screenshot capture).
+These checks do not replace a real native installation and uninstall test in a
+disposable account or VM.
 
 Dao's COM GUID substitutions move the MIDL input into `gen/`. The MIDL patch
 aligns only the original IDL path in copied compiler-settings comments; it still
@@ -132,7 +215,8 @@ python3 -m unittest scripts.tests.test_windows_midl
 For incremental compile verification and an installer for local testing:
 
 ```powershell
-npm.cmd run rebuild -- -- --target mini_installer -j 6
+npm.cmd run rebuild -- -- --target mini_installer -j 2
+npm.cmd run rebuild -- -- --target dao_installer_ui
 npm.cmd run package -- --debug
 ```
 
@@ -150,21 +234,26 @@ produce a local release installer:
 npm.cmd run release:windows -- --skip-upload
 ```
 
-This imports normally, builds the additional `mini_installer`
-target incrementally in the same release output directory, then packages it.
+Build `dao_installer_ui` with the standalone rebuild command above before running
+the release command. Release imports normally, builds `mini_installer` in the
+release output directory, and packages it with the prepared host.
 It performs no Git or publication changes. Once `out/dao/mini_installer.exe`
-exists, `npm.cmd run package` alone copies it into `dist/` with its checksum.
-
-For native installer compile verification against the existing release cache:
+is current, `npm.cmd run package` compiles the wizard into `dist/` and hashes
+the resulting EXE. To verify native installer changes against an existing
+release cache without switching build flavors:
 
 ```powershell
 npm.cmd run rebuild -- -- --release --target mini_installer -j 2
+npm.cmd run rebuild -- -- --release --target dao_installer_ui
+npm.cmd run package
 ```
 
-`--release` overrides the debug flag supplied by the `rebuild` npm script.
-Directory regression tests use `installer_util_unittests` with filter
-`*GetChromeInstallPathWithPrefsTest.*`. Verify actual installation/uninstallation
-in a disposable Windows account or VM.
+`--release` overrides the debug flag supplied by the `rebuild` npm script;
+without it, `rebuild` still targets `out/dao-debug`. Native directory regression
+tests are in `installer_util_unittests` with filter
+`*GetChromeInstallPathWithPrefsTest.*` and can be built with the same rebuild
+command by selecting that target. Test install/uninstall behavior in a disposable
+Windows account or VM, not against a development machine's active Dao profile.
 
 Desktop releases share one `dao.json.version.display` and one GitHub Release
 named `v<version>`. Publish macOS first with the existing `npm run release`

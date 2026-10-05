@@ -90,6 +90,14 @@ export const buildCommand = new Command("build")
   });
 
 async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promise<void> {
+  if (opts.target.includes("dao_installer_ui")) {
+    if (opts.target.length !== 1 || opts.genOnly) {
+      throw new Error("Build dao_installer_ui separately without --gen-only.");
+    }
+    const {buildWindowsInstallerHost} = await import("./build-windows-installer.js");
+    await buildWindowsInstallerHost(signal);
+    return;
+  }
   opts = {...opts, debug: !!opts.debug && !opts.release};
   const config = loadConfig();
   const target = resolveBuildTarget(config);

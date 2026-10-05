@@ -1,9 +1,10 @@
 // @vitest-environment node
-import {mkdtempSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {packageWindowsInstaller} from '../package-windows.js';
+import {windowsInstallerName} from '../package-windows.js';
 import {buildGithubReleasePlan, publishGithubRelease, validateLocalInstaller} from '../github-release.js';
 
 const fake = vi.hoisted(() => ({
@@ -28,10 +29,11 @@ vi.mock('../../utils.js', async importOriginal => ({
 
 function artifact() {
   const root = mkdtempSync(path.join(os.tmpdir(), 'dao-github-windows-'));
-  const out = path.join(root, 'out');
-  mkdirSync(out);
-  writeFileSync(path.join(out, 'mini_installer.exe'), 'complete installer');
-  return packageWindowsInstaller(out, path.join(root, 'dist'), '1.2.3');
+  const artifact = path.join(root, windowsInstallerName('1.2.3'));
+  writeFileSync(artifact, 'complete installer');
+  const digest = createHash('sha256').update('complete installer').digest('hex');
+  writeFileSync(artifact + '.sha256', `${digest}  ${path.basename(artifact)}\n`);
+  return artifact;
 }
 
 describe('shared desktop GitHub release', () => {

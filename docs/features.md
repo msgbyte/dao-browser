@@ -51,12 +51,29 @@ The Windows port excludes the macOS MCP transport and its settings/copy-ID
 actions, native share pickers, AppKit drag-to-new-window completion detection,
 ImageIO thumbnails, the external-URL Little Dao launcher, and Sparkle updates.
 Windows reuses Chromium's `mini_installer` for unsigned x64 installation,
-shortcuts, browser registration, upgrades, and uninstall. Native setup accepts
-`--dao-install-dir=<product root>` for fresh per-user installations and
-same-path repairs. Binaries go into its `Application` child while profiles
-remain under `%LOCALAPPDATA%\Dao\User Data`. Existing installations cannot
-be relocated through this switch. System/profile folders, non-local paths
-and occupied unowned `Application`/`Temp` folders are rejected. Native install and
+shortcuts, browser registration, upgrades, and uninstall. The distributed NSIS
+EXE opens a Win32/WebView2 installer with bundled HTML/CSS in a fixed, DPI-scaled
+560 x 420 window. Its custom title bar supports dragging, minimizing and closing;
+the centered Dao mark, halo and ring follow the supplied compact installer design.
+English and Simplified Chinese, system light/dark themes, keyboard navigation,
+high contrast and reduced motion are supported; logos retain square proportions.
+The installation path expands inline for editing: Enter confirms, Escape cancels
+the edit, and Browse starts from the current path's nearest existing parent.
+The picker appends a Dao product folder unless that folder is already selected.
+Progress remains indeterminate while the native backend runs, with rotating product
+tips. Completion offers an explicit launch button; closing never launches Dao.
+Installation failures retain retry and a dialog with the error code and log location.
+The bridge accepts only fixed installer actions, and external navigation is blocked.
+WebView2 is never downloaded on the user's machine: a missing runtime or startup
+failure opens the native NSIS wizard instead. `/NATIVE` selects that wizard explicitly;
+`/S` bypasses both interfaces. Once installation starts, closing is blocked until
+the backend exits, and a WebView failure cannot start another installation.
+Fresh per-user installations can choose a writable directory on a local fixed
+drive; binaries go into its `Application` child while profiles stay under
+`%LOCALAPPDATA%\Dao\User Data`. Repair and upgrades retain the registered
+location. Moving requires uninstalling while preserving browsing data, then
+installing again. System folders, profile folders, and existing unowned
+`Application`/`Temp` contents are rejected. Native install and
 profile paths use `Dao`, with Dao AppUserModelID/ProgID prefixes and separate
 COM server identities. Chrome and Chromium installations remain independent.
 `release --platform windows` reuses `dao.json`'s desktop version and `v<version>`

@@ -119,7 +119,7 @@ export const packageCommand = new Command("package")
       if (opts.zip || opts.sign || opts.signId || opts.notarize || opts.staple) {
         throw new Error("Windows packaging currently produces an unsigned installer; macOS packaging flags are unsupported.");
       }
-      const artifact = packageWindowsInstaller(outDir, DIST_DIR, version, !!opts.debug);
+      const artifact = await packageWindowsInstaller(outDir, DIST_DIR, version, !!opts.debug);
       success(`Created: ${artifact}`);
       return;
     }
