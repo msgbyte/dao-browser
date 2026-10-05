@@ -50,6 +50,7 @@ struct SourceProfile {
   std::string browser_name;
   std::string profile_name;
   std::vector<DataCategory> supported_categories;
+  bool passwords_use_keychain = false;
 };
 
 struct CategoryResult {

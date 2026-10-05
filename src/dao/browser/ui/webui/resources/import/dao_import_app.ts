@@ -18,20 +18,13 @@ import {
 import type {
   CategoryState,
   MigrationState,
+  SourceBrowser,
   SourceProfile,
   WebUiListener,
 } from './import_bridge.js';
 
 const CATEGORY_ORDER =
     ['bookmarks', 'history', 'passwords', 'tabs', 'extensions'];
-
-const SOURCE_KINDS = [
-  {kind: 'chrome', nameKey: 'daoImportBrowserChrome'},
-  {kind: 'arc', nameKey: 'daoImportBrowserArc'},
-  {kind: 'edge', nameKey: 'daoImportBrowserEdge'},
-  {kind: 'safari', nameKey: 'daoImportBrowserSafari'},
-  {kind: 'firefox', nameKey: 'daoImportBrowserFirefox'},
-] as const;
 
 const TERMINAL_PHASES = new Set(['succeeded', 'failed', 'cancelled']);
 const DAO_LOGO_URL = 'assets/dao.png';
@@ -619,7 +612,8 @@ export class DaoImportApp extends CrLitElement {
 
   private sourceCards_(): SourceCard[] {
     const cards: SourceCard[] = [];
-    for (const definition of SOURCE_KINDS) {
+    const browsers = loadTimeData.getValue('importBrowsers') as SourceBrowser[];
+    for (const definition of browsers) {
       const detected = this.sources_.filter(
           source => source.kind === definition.kind);
       if (detected.length > 0) {
@@ -631,7 +625,7 @@ export class DaoImportApp extends CrLitElement {
       } else {
         cards.push({
           kind: definition.kind,
-          browserName: this.string_(definition.nameKey),
+          browserName: definition.browserName,
         });
       }
     }
@@ -825,7 +819,8 @@ export class DaoImportApp extends CrLitElement {
             <span class="switch" aria-hidden="true"></span>
           </button>`)}
       </div>
-      ${this.selectedCategories_.includes('passwords') ? html`
+      ${this.selectedCategories_.includes('passwords') &&
+              this.selectedSource_()?.passwordsUseKeychain ? html`
         <div class="tip" data-test="password-tip">
           <span class="tip-mark" aria-hidden="true">i</span>
           <div>

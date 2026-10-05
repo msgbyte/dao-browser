@@ -8,21 +8,44 @@
 #include <iterator>
 #include <utility>
 
+#include "base/base_paths.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
+#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "crypto/sha2.h"
+#include "dao/browser/strings/grit/dao_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace dao::import {
 namespace {
 
+constexpr DaoSourceDetector::BrowserDefinition kBrowsers[] = {
+#if BUILDFLAG(IS_WIN)
+    {SourceKind::kChrome, IDS_DAO_IMPORT_BROWSER_CHROME, "Google/Chrome/User Data"},
+    {SourceKind::kArc, IDS_DAO_IMPORT_BROWSER_ARC, "Arc/User Data"},
+    {SourceKind::kEdge, IDS_DAO_IMPORT_BROWSER_EDGE, "Microsoft/Edge/User Data"},
+#elif BUILDFLAG(IS_MAC)
+    {SourceKind::kChrome, IDS_DAO_IMPORT_BROWSER_CHROME, "Google/Chrome"},
+    {SourceKind::kArc, IDS_DAO_IMPORT_BROWSER_ARC, "Arc/User Data"},
+    {SourceKind::kEdge, IDS_DAO_IMPORT_BROWSER_EDGE, "Microsoft Edge"},
+    {SourceKind::kSafari, IDS_DAO_IMPORT_BROWSER_SAFARI, nullptr},
+#endif
+    {SourceKind::kFirefox, IDS_DAO_IMPORT_BROWSER_FIREFOX, nullptr},
+};
+
 std::vector<DataCategory> ChromiumCategories() {
   return {
-      DataCategory::kBookmarks,  DataCategory::kHistory,
-      DataCategory::kPasswords,  DataCategory::kTabs,
+      DataCategory::kBookmarks, DataCategory::kHistory,
+#if BUILDFLAG(IS_MAC)
+      DataCategory::kPasswords,
+#endif
+      DataCategory::kTabs,
       DataCategory::kExtensions,
   };
 }
@@ -69,8 +92,7 @@ void DaoSourceDetector::Detect(DetectCallback callback) {
       FROM_HERE,
       {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::BindOnce(&DaoSourceDetector::DetectFromRoots,
-                     GetDefaultBrowserRoots()),
+      base::BindOnce(&DaoSourceDetector::DetectDefaultRoots),
       base::BindOnce(&DaoSourceDetector::OnDetectionComplete,
                      weak_ptr_factory_.GetWeakPtr(), generation,
                      std::move(callback)));
@@ -83,6 +105,25 @@ std::optional<base::FilePath> DaoSourceDetector::ResolveProfilePath(
     return std::nullopt;
   }
   return it->second;
+}
+
+// static
+base::span<const DaoSourceDetector::BrowserDefinition>
+DaoSourceDetector::GetBrowserDefinitions() {
+  return kBrowsers;
+}
+
+// static
+bool DaoSourceDetector::UsesChromiumProfile(SourceKind kind) {
+  const auto browsers = GetBrowserDefinitions();
+  const auto it = std::ranges::find(browsers, kind, &BrowserDefinition::kind);
+  return it != browsers.end() && it->relative_path;
+}
+
+// static
+DaoSourceDetector::DetectionResult
+DaoSourceDetector::DetectDefaultRootsForTesting() {
+  return DetectDefaultRoots();
 }
 
 // static
@@ -101,16 +142,46 @@ std::string DaoSourceDetector::BuildProfileIdForTesting(
 // static
 std::vector<DaoSourceDetector::BrowserRoot>
 DaoSourceDetector::GetDefaultBrowserRoots() {
-  const base::FilePath application_support = base::GetHomeDir().Append(
-      FILE_PATH_LITERAL("Library/Application Support"));
-  return {
-      {SourceKind::kChrome, "Google Chrome",
-       application_support.AppendASCII("Google/Chrome")},
-      {SourceKind::kArc, "Arc",
-       application_support.AppendASCII("Arc/User Data")},
-      {SourceKind::kEdge, "Microsoft Edge",
-       application_support.AppendASCII("Microsoft Edge")},
-  };
+  std::vector<BrowserRoot> roots;
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  base::FilePath app_data;
+#if BUILDFLAG(IS_WIN)
+  constexpr int kAppDataKey = base::DIR_LOCAL_APP_DATA;
+#else
+  constexpr int kAppDataKey = base::DIR_APP_DATA;
+#endif
+  if (!base::PathService::Get(kAppDataKey, &app_data)) {
+    return roots;
+  }
+  for (const auto& browser : GetBrowserDefinitions()) {
+    if (!browser.relative_path) {
+      continue;
+    }
+    const std::string name = l10n_util::GetStringUTF8(browser.name_message_id);
+    roots.push_back({browser.kind, name,
+                     app_data.AppendASCII(browser.relative_path)});
+#if BUILDFLAG(IS_WIN)
+    if (browser.kind == SourceKind::kArc) {
+      base::FileEnumerator packages(
+          app_data.AppendASCII("Packages"), false,
+          base::FileEnumerator::DIRECTORIES,
+          FILE_PATH_LITERAL("TheBrowserCompany.Arc_*"));
+      for (base::FilePath package = packages.Next(); !package.empty();
+           package = packages.Next()) {
+        roots.push_back(
+            {browser.kind, name,
+             package.AppendASCII("LocalCache/Local/Arc/User Data")});
+      }
+    }
+#endif
+  }
+#endif
+  return roots;
+}
+
+// static
+DaoSourceDetector::DetectionResult DaoSourceDetector::DetectDefaultRoots() {
+  return DetectFromRoots(GetDefaultBrowserRoots());
 }
 
 // static
@@ -156,6 +227,7 @@ DaoSourceDetector::DetectionResult DaoSourceDetector::DetectFromRoots(
                                  ? *display_name
                                  : profile_directory;
       profile.supported_categories = ChromiumCategories();
+      profile.passwords_use_keychain = BUILDFLAG(IS_MAC);
       result.profile_paths.emplace(profile.id, profile_path);
       root_profiles.push_back(std::move(profile));
     }

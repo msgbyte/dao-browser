@@ -8,6 +8,12 @@ export interface SourceProfile {
   browserName: string;
   profileName: string;
   supportedCategories: string[];
+  passwordsUseKeychain: boolean;
+}
+
+export interface SourceBrowser {
+  kind: string;
+  browserName: string;
 }
 
 export interface CategoryState {

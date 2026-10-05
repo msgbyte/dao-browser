@@ -21,6 +21,7 @@
 #include "dao/browser/import/dao_migration_service_factory.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace dao {
 namespace {
@@ -36,6 +37,7 @@ base::DictValue SourceToValue(const import::SourceProfile &source) {
     categories.Append(import::DataCategoryToString(category));
   }
   value.Set("supportedCategories", std::move(categories));
+  value.Set("passwordsUseKeychain", source.passwords_use_keychain);
   return value;
 }
 
@@ -249,6 +251,18 @@ DaoImportUI::DaoImportUI(content::WebUI *web_ui) : WebUIController(web_ui) {
   source->AddResourcePaths(kDaoImportResources);
   source->AddResourcePath("assets/dao.png", IDR_PRODUCT_LOGO_64);
   source->SetDefaultResource(IDR_DAO_IMPORT_IMPORT_HTML);
+  base::ListValue browsers;
+  for (const auto& definition :
+       import::DaoSourceDetector::GetBrowserDefinitions()) {
+    base::DictValue browser;
+    browser.Set("kind", import::SourceKindToString(definition.kind));
+    browser.Set("browserName",
+                l10n_util::GetStringUTF8(definition.name_message_id));
+    browsers.Append(std::move(browser));
+  }
+  base::DictValue catalog;
+  catalog.Set("importBrowsers", std::move(browsers));
+  source->AddLocalizedStrings(catalog);
   source->AddLocalizedStrings({
       {"daoImportPageTitle", IDS_DAO_IMPORT_PAGE_TITLE},
       {"daoImportWizardName", IDS_DAO_IMPORT_WIZARD_NAME},
@@ -258,11 +272,6 @@ DaoImportUI::DaoImportUI(content::WebUI *web_ui) : WebUIController(web_ui) {
       {"daoImportDetectingSources", IDS_DAO_IMPORT_DETECTING_SOURCES},
       {"daoImportNoSources", IDS_DAO_IMPORT_NO_SOURCES},
       {"daoImportScanAgain", IDS_DAO_IMPORT_SCAN_AGAIN},
-      {"daoImportBrowserChrome", IDS_DAO_IMPORT_BROWSER_CHROME},
-      {"daoImportBrowserArc", IDS_DAO_IMPORT_BROWSER_ARC},
-      {"daoImportBrowserEdge", IDS_DAO_IMPORT_BROWSER_EDGE},
-      {"daoImportBrowserSafari", IDS_DAO_IMPORT_BROWSER_SAFARI},
-      {"daoImportBrowserFirefox", IDS_DAO_IMPORT_BROWSER_FIREFOX},
       {"daoImportSourceNotDetected", IDS_DAO_IMPORT_SOURCE_NOT_DETECTED},
       {"daoImportStepData", IDS_DAO_IMPORT_STEP_DATA},
       {"daoImportDataTitle", IDS_DAO_IMPORT_DATA_TITLE},

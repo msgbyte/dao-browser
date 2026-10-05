@@ -948,10 +948,11 @@ macOS-style floating control center panel bundling extensions and utilities.
   with a localized **Import browser data** document title for its browser tab,
   exposed as an explicit **Import browser data** row on the **You and Dao**
   Settings page and from the existing system **Import Bookmarks and Settings…**
-  command instead of Chromium's modal importer. Its source grid always shows
-  Chrome, Arc, Edge, Safari, and Firefox: detected profiles remain individually
-  selectable, while browser kinds without a detected profile appear as disabled
-  cards. The flow lets the user choose supported data categories, reconnects to
+  command instead of Chromium's modal importer. Its source grid uses the native
+  browser catalog: Chrome, Arc, Edge, and Firefox on Windows, plus Safari on
+  macOS. Detected profiles remain individually selectable, while supported
+  browser kinds without a detected profile appear as disabled cards. The flow
+  lets the user choose supported data categories, reconnects to
   an active profile-scoped job after reload, and reports per-category progress
   and retryable partial failures. Stopped jobs retain completed-batch counts and
   are presented as cancelled, not completed. Partial completion identifies the
@@ -969,8 +970,11 @@ macOS-style floating control center panel bundling extensions and utilities.
   imported totals if the source changes or Dao skips conflicts. Legacy Safari
   and Firefox importers report the count as unavailable until migration.
 - **Supported sources** — Chrome, Arc, and Edge profiles use Dao's snapshot
-  adapters; Safari and Firefox profiles use Chromium's sandboxed platform
-  importers for the categories those importers support on macOS.
+  adapters. A shared native catalog supplies localized names, platform roots,
+  and adapter selection. Windows roots use Local AppData, including Arc's
+  packaged LocalCache profile; macOS roots use Application Support. Default
+  root discovery and profile scanning run off the UI thread. Safari and Firefox
+  use Chromium's platform importers and their reported category capabilities.
 - **Safe source reads** — Chromium-family stores are copied to a temporary
   profile snapshot with bounded metadata-stability retries. SQLite sidecars and
   session directories are included, so source browsers can normally remain
@@ -983,10 +987,13 @@ macOS-style floating control center panel bundling extensions and utilities.
   profile History service. History and password counts advance only after the
   destination services confirm the persisted records. No category replaces
   existing Dao data.
-- **Passwords and extensions** — The selection screen warns that password
-  decryption may trigger a macOS Keychain authorization prompt. A denial fails
-  only passwords. Compatible web-store extensions are reinstalled in sequence;
-  extension storage and sign-in state are not copied.
+- **Passwords and extensions** — Chromium-family password import is offered
+  only on macOS, where its source capability enables the Keychain authorization
+  notice. Windows does not offer it until a source password decryptor exists;
+  Firefox retains the capabilities of Chromium's platform importer without a
+  Keychain notice. A denial fails only passwords. Compatible web-store
+  extensions are reinstalled in sequence; extension storage and sign-in state
+  are not copied.
 - **Imported tabs** — Source session tabs retain order, become background
   discarded tabs, and are collected in a collapsed sidebar folder. Tabs are
   created in cancellable batches; a failed folder write rolls back tabs from

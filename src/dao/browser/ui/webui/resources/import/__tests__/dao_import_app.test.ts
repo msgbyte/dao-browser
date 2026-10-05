@@ -15,6 +15,16 @@ const bridge = vi.hoisted(() => ({
   removeListener: vi.fn(),
 }));
 
+const sourceCatalog = vi.hoisted(() => ({
+  browsers: [
+    {kind: 'chrome', browserName: 'Google Chrome'},
+    {kind: 'arc', browserName: 'Arc'},
+    {kind: 'edge', browserName: 'Microsoft Edge'},
+    {kind: 'safari', browserName: 'Safari'},
+    {kind: 'firefox', browserName: 'Mozilla Firefox'},
+  ],
+}));
+
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('../../sidebar/__tests__/lit_test_shim.js');
 });
@@ -24,6 +34,8 @@ vi.mock('//resources/js/load_time_data.js', () => ({
     getString: (key: string) =>
         key === 'daoImportPageTitle' ? 'Import browser data' : key,
     getStringF: (key: string, value: string) => `${key}:${value}`,
+    getValue: (key: string) =>
+        key === 'importBrowsers' ? sourceCatalog.browsers : undefined,
   },
 }));
 
@@ -36,6 +48,7 @@ type ImportApp = HTMLElement&{
     browserName: string;
     profileName: string;
     supportedCategories: string[];
+    passwordsUseKeychain?: boolean;
   }>;
   selectedSourceId_: string;
   selectedCategories_: string[];
@@ -65,6 +78,13 @@ describe('dao-import-app', () => {
     bridge.detectImportSources.mockResolvedValue([]);
     bridge.getImportItemCount.mockResolvedValue(null);
     bridge.getBrowserMigrationState.mockResolvedValue(null);
+    sourceCatalog.browsers = [
+      {kind: 'chrome', browserName: 'Google Chrome'},
+      {kind: 'arc', browserName: 'Arc'},
+      {kind: 'edge', browserName: 'Microsoft Edge'},
+      {kind: 'safari', browserName: 'Safari'},
+      {kind: 'firefox', browserName: 'Mozilla Firefox'},
+    ];
   });
 
   afterEach(() => vi.clearAllMocks());
@@ -139,6 +159,44 @@ describe('dao-import-app', () => {
     expect(app.selectedSourceId_).toBe('chrome-work');
   });
 
+  it('uses the backend catalog for platform availability and browser names',
+     async () => {
+       sourceCatalog.browsers = [
+         {kind: 'edge', browserName: 'Localized Edge'},
+         {kind: 'firefox', browserName: 'Localized Firefox'},
+       ];
+       const app = await createApp();
+       const cards = [...app.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+           '[data-source-kind]')];
+
+       expect(cards.map(card => card.dataset.sourceKind))
+           .toEqual(['edge', 'firefox']);
+       expect(cards[0]!.textContent).toContain('Localized Edge');
+       expect(cards.every(card => card.disabled)).toBe(true);
+     });
+
+  it('offers only categories supplied by the detected source', async () => {
+    bridge.detectImportSources.mockResolvedValue([{
+      id: 'edge-windows',
+      kind: 'edge',
+      browserName: 'Microsoft Edge',
+      profileName: 'Default',
+      supportedCategories: ['bookmarks', 'history', 'tabs', 'extensions'],
+      passwordsUseKeychain: false,
+    }]);
+    const app = await createApp();
+    app.selectedSourceId_ = 'edge-windows';
+    await app.updateComplete;
+    (app.shadowRoot!.querySelector('[data-test="continue"]') as
+     HTMLButtonElement).click();
+    await app.updateComplete;
+
+    expect(app.shadowRoot!.querySelector('[data-category="passwords"]'))
+        .toBeNull();
+    expect(app.selectedCategories_)
+        .toEqual(['bookmarks', 'history', 'tabs', 'extensions']);
+  });
+
   it('disables Continue when the selected profile disappears', async () => {
     const app = await createApp();
     app.sources_ = [{
@@ -195,6 +253,7 @@ describe('dao-import-app', () => {
          browserName: 'Arc',
          profileName: 'Default',
          supportedCategories: ['bookmarks', 'passwords'],
+         passwordsUseKeychain: true,
        }];
        app.selectedSourceId_ = 'arc-default';
        app.selectedCategories_ = ['bookmarks', 'passwords'];
@@ -204,6 +263,25 @@ describe('dao-import-app', () => {
        expect(app.shadowRoot!.querySelector('[data-test="password-tip"]'))
            .not.toBeNull();
      });
+
+  it('does not show a Keychain notice for Firefox password import', async () => {
+    const app = await createApp();
+    app.sources_ = [{
+      id: 'firefox-windows',
+      kind: 'firefox',
+      browserName: 'Mozilla Firefox',
+      profileName: 'Default',
+      supportedCategories: ['bookmarks', 'passwords'],
+      passwordsUseKeychain: false,
+    }];
+    app.selectedSourceId_ = 'firefox-windows';
+    app.selectedCategories_ = ['passwords'];
+    app.step_ = 2;
+    await app.updateComplete;
+
+    expect(app.shadowRoot!.querySelector('[data-test="password-tip"]'))
+        .toBeNull();
+  });
 
   it('shows asynchronously scanned candidate counts by category', async () => {
     bridge.getImportItemCount.mockImplementation(

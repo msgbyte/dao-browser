@@ -616,10 +616,10 @@
       <message name="IDS_DAO_IMPORT_WIZARD_NAME" desc="Name of the standalone browser data migration wizard.">Dao Migration</message>
       <message name="IDS_DAO_IMPORT_STEP_SOURCE" desc="Step label for choosing a source browser profile.">Step 1 of 4 · Choose a source</message>
       <message name="IDS_DAO_IMPORT_SOURCE_TITLE" desc="Heading asking which browser profile to import from.">Where are you moving from?</message>
-      <message name="IDS_DAO_IMPORT_SOURCE_DESCRIPTION" desc="Explanation shown above detected source browser profiles.">Choose a browser profile on this Mac. Each profile is listed separately so you stay in control of what moves.</message>
+      <message name="IDS_DAO_IMPORT_SOURCE_DESCRIPTION" desc="Explanation shown above detected source browser profiles.">Choose a browser profile on this computer. Each profile is listed separately so you stay in control of what moves.</message>
       <message name="IDS_DAO_IMPORT_DETECTING_SOURCES" desc="Status shown while local browser profiles are being detected.">Looking for browser profiles…</message>
-      <message name="IDS_DAO_IMPORT_NO_SOURCES" desc="Empty state shown when no supported browser profiles were found.">No supported browser profiles were found on this Mac.</message>
-      <message name="IDS_DAO_IMPORT_SCAN_AGAIN" desc="Button that scans the Mac again for browser profiles.">Scan again</message>
+      <message name="IDS_DAO_IMPORT_NO_SOURCES" desc="Empty state shown when no supported browser profiles were found.">No supported browser profiles were found on this computer.</message>
+      <message name="IDS_DAO_IMPORT_SCAN_AGAIN" desc="Button that scans this computer again for browser profiles.">Scan again</message>
       <message name="IDS_DAO_IMPORT_BROWSER_CHROME" desc="Name of Google Chrome in an unavailable source browser card.">Google Chrome</message>
       <message name="IDS_DAO_IMPORT_BROWSER_ARC" desc="Name of Arc in an unavailable source browser card.">Arc</message>
       <message name="IDS_DAO_IMPORT_BROWSER_EDGE" desc="Name of Microsoft Edge in an unavailable source browser card.">Microsoft Edge</message>
@@ -640,7 +640,7 @@
       <message name="IDS_DAO_IMPORT_PASSWORD_TIP_TITLE" desc="Title of the password import Keychain authorization notice.">A macOS Keychain prompt may appear</message>
       <message name="IDS_DAO_IMPORT_PASSWORD_TIP_DESCRIPTION" desc="Explains the expected macOS Keychain authorization and denial behavior before password import begins.">Dao needs the selected browser’s Safe Storage key to decrypt saved passwords. If you deny access, only passwords are skipped and the rest of the migration continues.</message>
       <message name="IDS_DAO_IMPORT_EXTENSION_TIP_TITLE" desc="Title of the extension reinstall network notice.">Extensions are reinstalled from their official store</message>
-      <message name="IDS_DAO_IMPORT_EXTENSION_TIP_DESCRIPTION" desc="Explains that extension reinstall is the only migration step that may use the network.">Your browser data stays on this Mac. Reinstalling compatible extensions is the only step that may connect to the internet; extension settings and sign-ins are not copied.</message>
+      <message name="IDS_DAO_IMPORT_EXTENSION_TIP_DESCRIPTION" desc="Explains that extension reinstall is the only migration step that may use the network.">Your browser data stays on this computer. Reinstalling compatible extensions is the only step that may connect to the internet; extension settings and sign-ins are not copied.</message>
       <message name="IDS_DAO_IMPORT_STEP_PROGRESS" desc="Step label shown while migration is running.">Step 3 of 4 · Moving your data</message>
       <message name="IDS_DAO_IMPORT_PROGRESS_TITLE" desc="Heading shown while browser data is being imported.">Moving your data into Dao</message>
       <message name="IDS_DAO_IMPORT_PROGRESS_DESCRIPTION" desc="Explanation that the source browser can remain open during migration.">You can keep using the source browser. If one data type keeps changing, Dao will ask you to close it and retry only that part.</message>
@@ -662,7 +662,7 @@
       <message name="IDS_DAO_IMPORT_CANCELLED_TITLE" desc="Completion heading shown after the user stops a browser migration.">Migration stopped</message>
       <message name="IDS_DAO_IMPORT_CANCELLED_DESCRIPTION" desc="Explanation shown after the user stops a browser migration, including that completed work remains available.">Data imported before you stopped is ready to use. You can start another migration whenever you’re ready.</message>
       <message name="IDS_DAO_IMPORT_MERGE_HINT" desc="Footer reassurance shown before starting browser migration.">Imported items are merged without replacing existing data.</message>
-      <message name="IDS_DAO_IMPORT_LOCAL_HINT" desc="Footer privacy note shown in the browser migration wizard.">Your browser data is processed locally on this Mac.</message>
+      <message name="IDS_DAO_IMPORT_LOCAL_HINT" desc="Footer privacy note shown in the browser migration wizard.">Your browser data is processed locally on this computer.</message>
       <message name="IDS_DAO_IMPORT_BACK" desc="Button returning to the source browser selection step.">Back</message>
       <message name="IDS_DAO_IMPORT_START" desc="Button that starts browser data migration.">Start migration</message>
       <message name="IDS_DAO_IMPORT_CANCEL" desc="Button that requests safe cancellation of a running migration.">Stop migration</message>

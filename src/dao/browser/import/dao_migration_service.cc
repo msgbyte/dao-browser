@@ -36,11 +36,6 @@
 namespace dao::import {
 namespace {
 
-bool SupportsChromiumAdapter(SourceKind kind) {
-  return kind == SourceKind::kChrome || kind == SourceKind::kArc ||
-         kind == SourceKind::kEdge;
-}
-
 std::string LegacySourceId(const user_data_importer::SourceProfile &profile) {
   const std::string identity = base::UTF16ToUTF8(profile.importer_name) + ":" +
                                profile.source_path.AsUTF8Unsafe() + ":" +
@@ -142,7 +137,7 @@ void DaoMigrationService::CountSourceItems(const std::string &source_id,
                                            DataCategory category,
                                            CountCallback callback) {
   const SourceProfile *source = FindDetectedSource(source_id);
-  if (!source || !SupportsChromiumAdapter(source->kind) ||
+  if (!source || !DaoSourceDetector::UsesChromiumProfile(source->kind) ||
       std::ranges::find(source->supported_categories, category) ==
           source->supported_categories.end()) {
     std::move(callback).Run(std::nullopt);
@@ -191,7 +186,7 @@ bool DaoMigrationService::Start(const std::string &source_id,
   }
   std::optional<base::FilePath> chromium_path;
   std::optional<user_data_importer::SourceProfile> legacy_source;
-  if (SupportsChromiumAdapter(source->kind)) {
+  if (DaoSourceDetector::UsesChromiumProfile(source->kind)) {
     chromium_path = detector_.ResolveProfilePath(source_id);
     if (!chromium_path) {
       return false;
@@ -454,7 +449,7 @@ void DaoMigrationService::ProcessNextCategory() {
     return;
   }
   const SourceProfile &selected = job_->source();
-  if (!SupportsChromiumAdapter(selected.kind)) {
+  if (!DaoSourceDetector::UsesChromiumProfile(selected.kind)) {
     ProcessNextLegacyCategory();
     return;
   }

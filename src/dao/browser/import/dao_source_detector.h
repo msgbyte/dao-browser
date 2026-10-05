@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
@@ -20,6 +21,13 @@ namespace dao::import {
 
 class DaoSourceDetector {
  public:
+  struct BrowserDefinition {
+    SourceKind kind;
+    int name_message_id;
+    // Relative to platform application data; nullptr uses Chromium's importer.
+    const char* relative_path;
+  };
+
   struct BrowserRoot {
     SourceKind kind;
     std::string browser_name;
@@ -50,6 +58,9 @@ class DaoSourceDetector {
   std::optional<base::FilePath> ResolveProfilePath(
       const std::string& profile_id) const;
 
+  static base::span<const BrowserDefinition> GetBrowserDefinitions();
+  static bool UsesChromiumProfile(SourceKind kind);
+  static DetectionResult DetectDefaultRootsForTesting();
   static DetectionResult DetectFromRootsForTesting(
       std::vector<BrowserRoot> roots);
   static std::string BuildProfileIdForTesting(
@@ -57,6 +68,7 @@ class DaoSourceDetector {
       const base::FilePath& profile_path);
 
  private:
+  static DetectionResult DetectDefaultRoots();
   static std::vector<BrowserRoot> GetDefaultBrowserRoots();
   static DetectionResult DetectFromRoots(std::vector<BrowserRoot> roots);
   void OnDetectionComplete(uint64_t generation,
