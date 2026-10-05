@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <string_view>
 #include <utility>
 
 #include "base/files/file_util.h"
@@ -273,27 +274,35 @@ ReadBatch<TabEntry> DaoChromiumProfileAdapter::ReadTabs() {
 }
 
 ReadBatch<ExtensionEntry> DaoChromiumProfileAdapter::ReadExtensions() {
-  std::string contents;
-  if (!base::ReadFileToString(profile_path_.AppendASCII("Preferences"),
-                              &contents)) {
-    return ReadFailure<ExtensionEntry>("source_missing");
-  }
-  std::optional<base::DictValue> value =
-      base::JSONReader::ReadDict(contents, base::JSON_PARSE_RFC);
-  if (!value) {
-    return ReadFailure<ExtensionEntry>("invalid_preferences");
-  }
-  const base::DictValue *settings =
-      value->FindDictByDottedPath("extensions.settings");
-  if (!settings) {
-    ReadBatch<ExtensionEntry> empty;
-    empty.success = true;
-    return empty;
+  base::DictValue settings;
+  for (const char* filename : {"Preferences", "Secure Preferences"}) {
+    const base::FilePath path = profile_path_.AppendASCII(filename);
+    std::string contents;
+    if (!base::ReadFileToString(path, &contents)) {
+      if (std::string_view(filename) == "Secure Preferences" &&
+          !base::PathExists(path)) {
+        continue;
+      }
+      return ReadFailure<ExtensionEntry>("source_missing");
+    }
+    std::optional<base::DictValue> value =
+        base::JSONReader::ReadDict(contents, base::JSON_PARSE_RFC);
+    if (!value) {
+      return ReadFailure<ExtensionEntry>("invalid_preferences");
+    }
+    const base::DictValue* entries =
+        value->FindDictByDottedPath("extensions.settings");
+    if (entries) {
+      for (const auto [id, entry] : *entries) {
+        // Protected settings replace the whole entry, including store status.
+        settings.Set(id, entry.Clone());
+      }
+    }
   }
 
   ReadBatch<ExtensionEntry> batch;
   batch.success = true;
-  for (const auto [extension_id, extension_value] : *settings) {
+  for (const auto [extension_id, extension_value] : settings) {
     if (!extension_value.is_dict()) {
       continue;
     }

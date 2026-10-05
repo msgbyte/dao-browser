@@ -44,6 +44,32 @@ TEST_F(DaoProfileSnapshotTest, CopiesStableFileAndSqliteSidecars) {
   EXPECT_TRUE(base::PathExists(result.path.AppendASCII("History-shm")));
 }
 
+TEST_F(DaoProfileSnapshotTest, CopiesOptionalFilesWhenPresent) {
+  base::ScopedTempDir source_dir;
+  ASSERT_TRUE(source_dir.CreateUniqueTempDir());
+  ASSERT_TRUE(base::WriteFile(
+      source_dir.GetPath().AppendASCII("Preferences"), "{}"));
+
+  SnapshotRequest request;
+  request.source_profile = source_dir.GetPath();
+  request.relative_paths = {base::FilePath(FILE_PATH_LITERAL("Preferences"))};
+  request.optional_relative_paths = {
+      base::FilePath(FILE_PATH_LITERAL("Secure Preferences"))};
+  auto without_secure = DaoProfileSnapshot::CreateForTesting(request);
+  ASSERT_TRUE(without_secure.success);
+  EXPECT_FALSE(base::PathExists(
+      without_secure.path.AppendASCII("Secure Preferences")));
+
+  ASSERT_TRUE(base::WriteFile(
+      source_dir.GetPath().AppendASCII("Secure Preferences"), "protected"));
+  auto with_secure = DaoProfileSnapshot::CreateForTesting(request);
+  ASSERT_TRUE(with_secure.success);
+  std::string contents;
+  ASSERT_TRUE(base::ReadFileToString(
+      with_secure.path.AppendASCII("Secure Preferences"), &contents));
+  EXPECT_EQ("protected", contents);
+}
+
 TEST_F(DaoProfileSnapshotTest, ReportsMissingSourceWithoutLeavingSnapshot) {
   base::ScopedTempDir source_dir;
   ASSERT_TRUE(source_dir.CreateUniqueTempDir());

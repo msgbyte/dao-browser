@@ -97,6 +97,54 @@ TEST(DaoChromiumProfileAdapterTest, ReadsExtensionEnabledState) {
   EXPECT_EQ(2u, adapter.CountCandidates(DataCategory::kExtensions));
 }
 
+TEST(DaoChromiumProfileAdapterTest, ReadsProtectedExtensionsAndOverridesById) {
+  base::ScopedTempDir profile_dir;
+  ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
+  ASSERT_TRUE(base::WriteFile(
+      profile_dir.GetPath().AppendASCII("Preferences"),
+      R"({"extensions":{"settings":{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa":{"state":1,"from_webstore":true},"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb":{"state":1,"from_webstore":true}}}})"));
+  ASSERT_TRUE(base::WriteFile(
+      profile_dir.GetPath().AppendASCII("Secure Preferences"),
+      R"({"extensions":{"settings":{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa":{"state":0,"from_webstore":true},"cccccccccccccccccccccccccccccccc":{"state":1,"from_webstore":true}}}})"));
+
+  DaoChromiumProfileAdapter adapter(profile_dir.GetPath());
+  const auto batch = adapter.ReadExtensions();
+
+  ASSERT_TRUE(batch.success);
+  ASSERT_EQ(3u, batch.records.size());
+  EXPECT_EQ("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", batch.records[0].id);
+  EXPECT_FALSE(batch.records[0].enabled);
+  EXPECT_TRUE(batch.records[1].enabled);
+  EXPECT_TRUE(batch.records[2].enabled);
+  EXPECT_EQ(3u, adapter.CountCandidates(DataCategory::kExtensions));
+}
+
+TEST(DaoChromiumProfileAdapterTest, ReadsExtensionsOnlyInSecurePreferences) {
+  base::ScopedTempDir profile_dir;
+  ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
+  ASSERT_TRUE(base::WriteFile(
+      profile_dir.GetPath().AppendASCII("Preferences"), "{}"));
+  ASSERT_TRUE(base::WriteFile(
+      profile_dir.GetPath().AppendASCII("Secure Preferences"),
+      R"({"extensions":{"settings":{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa":{"state":1,"from_webstore":true}}}})"));
+
+  DaoChromiumProfileAdapter adapter(profile_dir.GetPath());
+  EXPECT_EQ(1u, adapter.CountCandidates(DataCategory::kExtensions));
+}
+
+TEST(DaoChromiumProfileAdapterTest, RejectsCorruptSecurePreferences) {
+  base::ScopedTempDir profile_dir;
+  ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
+  ASSERT_TRUE(base::WriteFile(
+      profile_dir.GetPath().AppendASCII("Preferences"), "{}"));
+  ASSERT_TRUE(base::WriteFile(
+      profile_dir.GetPath().AppendASCII("Secure Preferences"), "{"));
+
+  DaoChromiumProfileAdapter adapter(profile_dir.GetPath());
+  EXPECT_FALSE(adapter.ReadExtensions().success);
+  EXPECT_FALSE(adapter.CountCandidates(DataCategory::kExtensions).has_value());
+}
+
 TEST(DaoChromiumProfileAdapterTest, ReadsPasswordMetadataWithDecryptor) {
   base::ScopedTempDir profile_dir;
   ASSERT_TRUE(profile_dir.CreateUniqueTempDir());

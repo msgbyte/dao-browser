@@ -175,7 +175,11 @@ SnapshotResult DaoProfileSnapshot::CreateOnBlockingThread(
     return result;
   }
 
-  for (const base::FilePath& relative_path : request.relative_paths) {
+  std::vector<base::FilePath> paths = request.relative_paths;
+  paths.insert(paths.end(), request.optional_relative_paths.begin(),
+               request.optional_relative_paths.end());
+  for (size_t index = 0; index < paths.size(); ++index) {
+    const base::FilePath& relative_path = paths[index];
     if (relative_path.IsAbsolute() || relative_path.ReferencesParent()) {
       result.error_code = "copy_failed";
       return result;
@@ -189,7 +193,8 @@ SnapshotResult DaoProfileSnapshot::CreateOnBlockingThread(
             ? CopyStableDirectory(source, destination, request.max_attempts,
                                   request.cancellation.get())
             : CopyStableFile(source, destination, request.max_attempts,
-                             request.cancellation.get(), true);
+                             request.cancellation.get(),
+                             index < request.relative_paths.size());
     if (outcome != CopyOutcome::kCopied) {
       result.error_code = ErrorCodeForOutcome(outcome);
       return result;

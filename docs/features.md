@@ -991,9 +991,10 @@ macOS-style floating control center panel bundling extensions and utilities.
   only on macOS, where its source capability enables the Keychain authorization
   notice. Windows does not offer it until a source password decryptor exists;
   Firefox retains the capabilities of Chromium's platform importer without a
-  Keychain notice. A denial fails only passwords. Compatible web-store
-  extensions are reinstalled in sequence; extension storage and sign-in state
-  are not copied.
+  Keychain notice. A denial fails only passwords. Extension scans and snapshots
+  include optional `Secure Preferences`; protected entries override ordinary
+  `Preferences` entries by extension ID. Compatible web-store extensions are
+  reinstalled in sequence; extension storage and sign-in state are not copied.
 - **Imported tabs** — Source session tabs retain order, become background
   discarded tabs, and are collected in a collapsed sidebar folder. Tabs are
   created in cancellable batches; a failed folder write rolls back tabs from

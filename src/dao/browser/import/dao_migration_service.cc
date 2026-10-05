@@ -438,6 +438,8 @@ DaoMigrationService::BuildSnapshotRequest(DataCategory category,
     break;
   case DataCategory::kExtensions:
     request.relative_paths = {base::FilePath(FILE_PATH_LITERAL("Preferences"))};
+    request.optional_relative_paths = {
+        base::FilePath(FILE_PATH_LITERAL("Secure Preferences"))};
     break;
   }
   return request;

@@ -41,6 +41,8 @@ struct SnapshotRequest {
 
   base::FilePath source_profile;
   std::vector<base::FilePath> relative_paths;
+  // Missing optional files are skipped; existing files must still copy safely.
+  std::vector<base::FilePath> optional_relative_paths;
   scoped_refptr<SnapshotCancellationFlag> cancellation;
   bool include_sqlite_sidecars = false;
   int max_attempts = 3;
