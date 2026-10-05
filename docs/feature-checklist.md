@@ -136,6 +136,15 @@ These are acceptance checks, not a claim that the port has passed them.
   `process-termination` script tests. Cancelling a Windows batch job must stop
   its descendants before completion, preserve unrelated jobs, report cleanup
   failures, and handle repeated Ctrl+C during GN/build cleanup.
+- [ ] On macOS, configure a matching private Windows SDK archive, run
+  `download --platform windows`, and verify Windows dependencies are retained in
+  an existing Mac checkout. Through `npm run rebuild`, compile `mini_installer`
+  and `dao_installer_ui` with `DAO_BUILD_PLATFORM=windows`; package with
+  `--platform windows`. Confirm `dao-win-x64[-debug]` is used and native Mac
+  caches are preserved. Missing/wrong SDK archives or host tools must fail
+  before compilation. Check the EXE on a disposable Windows account/VM for
+  launch, custom-directory install, repair, upgrade, fallback UI and uninstall.
+  Run the focused cross-build/toolchain/installer/release script tests.
 - [ ] `release --platform windows --dry-run` reuses the desktop version/tag and
   selects `mini_installer` without signing, notarization, Sparkle, or R2. Publish
   to a test GitHub release: preserve the macOS DMG, append EXE/checksum, recover

@@ -177,6 +177,7 @@ export const releaseCommand = new Command("release")
 
 export interface ReleaseDependencies {
   hostPlatform?: NodeJS.Platform;
+  hostArch?: string;
   rootDir: string;
   env: NodeJS.ProcessEnv;
   now: () => Date;
@@ -466,9 +467,15 @@ function runReleasePreflight(
     dependencies.env,
     config
   );
-  if (!options.dryRun && dependencies.hostPlatform && !options.skipBuild &&
-      dependencies.hostPlatform !== (options.platform === "windows" ? "win32" : "darwin")) {
-    problems.push(`Build this release on ${options.platform === "windows" ? "Windows x64" : "macOS arm64"}.`);
+  if (!options.dryRun && dependencies.hostPlatform && !options.skipBuild) {
+    const {hostPlatform, hostArch} = dependencies;
+    const macHost = hostPlatform === "darwin" &&
+      (!hostArch || hostArch === "arm64" || hostArch === "x64");
+    const windowsHost = hostPlatform === "win32" && (!hostArch || hostArch === "x64");
+    if (!(options.platform === "windows" ? macHost || windowsHost : macHost)) {
+      problems.push(`Build this release on ${options.platform === "windows"
+        ? "Windows x64 or macOS (Apple Silicon or Intel)" : "macOS (Apple Silicon or Intel)"}.`);
+    }
   }
   if (options.platform === "windows" && !options.skipUpload && !tag.exists) {
     problems.push(`Desktop tag ${tagName} is missing. Publish the macOS release and fetch its tag first.`);
@@ -1070,7 +1077,7 @@ export function importReleaseSources(
   runner: ReleaseCommandRunner = runStreaming
 ): Promise<void> {
   const forceImport = context.options.forceImport !== false;
-  const args = ["tsx", "scripts/cli.ts", "import"];
+  const args = ["tsx", "scripts/cli.ts", "import", "--platform", context.options.platform ?? "mac"];
   if (forceImport) args.push("--force");
   return runReleaseStep(
     "import",
@@ -1092,13 +1099,14 @@ export async function buildReleaseApplication(
     context.options.dryRun,
     "Building (release)",
     "npx",
-    ["tsx", "scripts/cli.ts", "build", ...(context.options.platform === "windows" ? ["--target", "mini_installer"] : [])],
+    ["tsx", "scripts/cli.ts", "build", "--platform", context.options.platform ?? "mac",
+      ...(context.options.platform === "windows" ? ["--target", "mini_installer"] : [])],
     runner,
     context.signal
   );
   if (context.options.platform === "windows") {
     await runReleaseStep("build", context.options.dryRun, "Building Windows installer UI", "npx",
-      ["tsx", "scripts/cli.ts", "build", "--target", "dao_installer_ui"], runner, context.signal);
+      ["tsx", "scripts/cli.ts", "build", "--platform", "windows", "--target", "dao_installer_ui"], runner, context.signal);
   }
 }
 
@@ -1111,7 +1119,8 @@ export function packageReleaseArtifact(
     context.options.dryRun,
     context.options.platform === "windows" ? "Packaging unsigned Windows installer" : "Packaging (sign only — notarize handled separately)",
     "npx",
-    ["tsx", "scripts/cli.ts", "package", ...(context.options.platform === "windows" ? [] : ["--sign-id"])],
+    ["tsx", "scripts/cli.ts", "package", "--platform", context.options.platform ?? "mac",
+      ...(context.options.platform === "windows" ? [] : ["--sign-id"])],
     runner,
     context.signal
   );
@@ -1119,6 +1128,7 @@ export function packageReleaseArtifact(
 
 const defaultReleaseDependencies: ReleaseDependencies = {
   hostPlatform: process.platform,
+  hostArch: process.arch,
   rootDir: ROOT_DIR,
   env: process.env,
   now: () => new Date(),

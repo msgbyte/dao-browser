@@ -80,6 +80,13 @@ COM server identities. Chrome and Chromium installations remain independent.
 tag and attaches the EXE and its SHA-256 checksum to the shared GitHub Release.
 macOS remains the default release platform and owns desktop version bumps;
 Windows does not use Apple signing, notarization, or Sparkle.
+macOS hosts can select `--platform windows` to cross-compile the browser and
+WebView2 installer host from source and package the NSIS EXE locally. The
+pipeline reuses Chromium's hermetic Windows SDK and bundled host tools, keeps
+the cross build in `out/dao-win-x64[-debug]`, and preserves native Mac caches.
+`windows-toolchain configure/setup/export` manages the one-time private SDK
+archive setup; native Mac remains the default target. Both hosts publish
+Windows assets under the same existing desktop version/tag.
 Windows build/release cancellation stops the owned process tree and waits for
 cleanup; unrelated build jobs remain independent. Failed tree termination is
 reported explicitly instead of claiming successful cancellation.

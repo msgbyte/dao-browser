@@ -17,8 +17,8 @@ Use a native Windows checkout on a local disk. Node.js is managed by
 [nvm-windows](https://github.com/coreybutler/nvm-windows); this environment uses
 Node.js 22.23.3. Use `npm.cmd` in PowerShell if its execution policy blocks
 `npm.ps1`. The CLI selects `win/x64` on Windows and keeps `dao.json`'s macOS
-release metadata unchanged. Windows arm64 targets and cross-platform builds are
-not supported by this development entry point. On macOS, the configured arm64
+release metadata unchanged. Windows arm64 targets are not supported. macOS can
+cross-compile Windows x64 as described below. On macOS, the configured arm64
 target is retained even when Node runs as x64 under Rosetta.
 
 The prepared machine retains these installation paths:
@@ -102,6 +102,89 @@ successful cancellation; cleanup failures exit with status 1.
 The Windows port does not yet provide MCP transport, macOS sharing,
 AppKit tab tear-off detection, ImageIO thumbnails, or Sparkle updates.
 
+### Cross-compiling the complete Windows installer on macOS
+
+The CLI can build the Windows x64 browser, native WebView2 host, and unsigned
+NSIS installer on an Apple Silicon or Intel Mac. It uses Chromium's bundled
+Clang/lld/resource compiler and its hermetic MSVC/Windows SDK archive. Compilation
+and packaging run on the Mac; no Windows VM, Wine, or remote builder is used.
+See the [upstream cross-compilation instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/149.0.7827.201/docs/win_cross.md).
+
+**Prepare the SDK once.** The Google-hosted SDK archive is not public. Supply a
+compatible private archive, or export one from a Windows installation using:
+
+```powershell
+npx.cmd tsx scripts/cli.ts windows-toolchain export --output C:\dao-sdk-export
+```
+
+The exporter delegates to depot_tools' `package_from_installed.py` and requires
+an empty destination. For Chromium 149.0.7827.201, its hermetic toolchain expects
+Visual Studio 2026 and Windows SDK 10.0.26100.0. Install the C++ desktop workload,
+ATL/MFC, ARM64 tools and SDK Debugging Tools required by that upstream packager.
+The existing native VS2022 development environment is not a compatible archive
+for this hermetic configuration. No application binaries are compiled during
+SDK export. Copy the resulting `<hash>.zip` to a private directory on the Mac;
+the hash is the ten-character archive filename without `.zip`.
+
+Use a case-insensitive macOS volume for depot_tools and its SDK cache. Keep the
+normal macOS build prerequisites and allow extra space for a separate Windows
+build. Install the native [NSIS compiler](https://formulae.brew.sh/formula/makensis),
+configure the archive, and sync the Windows dependencies:
+
+```bash
+brew install makensis
+npx tsx scripts/cli.ts windows-toolchain configure \
+  --base-url "$HOME/dao-sdk" --hash <hash>
+npm run download -- --platform windows
+npx tsx scripts/cli.ts windows-toolchain setup
+```
+
+`--base-url` also accepts a private HTTP(S) directory URL containing the archive.
+Configuration is stored in ignored `.dao/windows-toolchain.json`; SDK contents
+are managed by Chromium/depot_tools. Standard
+`DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL` and `GYP_MSVS_HASH_<upstream-hash>` overrides
+are also supported. The CLI selects `DEPOT_TOOLS_WIN_TOOLCHAIN=1` for cross
+builds even if the native Windows environment used `0`. Upgrading Chromium may
+require exporting a new compatible SDK archive.
+
+Download preserves existing `.gclient` settings, adds the Windows target, then
+runs hooks with the configured SDK. This fetches Windows runtime libraries,
+resource tools and the native archive tools required by `mini_installer`.
+Do not skip this sync just because a Mac build already exists.
+
+For local compile verification and packaging:
+
+```bash
+DAO_BUILD_PLATFORM=windows npm run rebuild -- -- --release --target mini_installer -j 4
+DAO_BUILD_PLATFORM=windows npm run rebuild -- -- --release --target dao_installer_ui
+npm run package -- --platform windows
+```
+
+Both `--` separators forward arguments through the nested npm script. The
+environment variable also selects the target during source import; individual
+CLI commands accept `--platform mac|windows`, which takes precedence. The cross
+release cache is `engine/src/out/dao-win-x64`; debug uses `dao-win-x64-debug`.
+Native `dao` and `dao-debug` caches retain their existing names. Run Mac and
+Windows builds sequentially because the imported Chromium sources are shared.
+Unset `DAO_BUILD_PLATFORM` to return to native Mac development; `start` cannot
+execute Windows binaries on macOS.
+
+The output is `dist/dao-browser-<version>-windows-x64.exe` plus its SHA-256 file.
+After the normal Mac release has created the shared desktop tag, use:
+
+```bash
+npm run release:windows -- --dry-run
+npm run release:windows
+```
+
+The second command builds and publishes Windows assets under the existing tag.
+Use `--skip-upload` for build/package only, or `--skip-build` to publish a
+previously verified EXE/checksum. The Windows release does not bump the desktop
+version and keeps macOS assets. Signing remains disabled. Script tests cover
+cross-platform routing and tool invocation; a real Mac compilation and a
+Windows install/launch/upgrade/uninstall test are still required before treating
+the cross-produced artifact as release-verified.
+
 ### Windows installer and shared desktop releases
 
 Windows uses Chromium's native `mini_installer`, including its installer,
@@ -153,7 +236,8 @@ The default profile is `%LOCALAPPDATA%\Dao\User Data`, including
 when launching the installed executable without CLI flags. Browser/HTML/PDF
 registration uses Dao identities. Existing Chromium profiles are not migrated.
 
-Packaging requires [NSIS 3](https://nsis.sourceforge.io/Download) on Windows.
+Packaging requires [NSIS 3](https://nsis.sourceforge.io/Download) on the build host.
+For a Mac host, use `brew install makensis` as described above. On Windows,
 Install it normally, put `makensis.exe` on PATH, or set `DAO_NSIS_DIR` to an
 extracted portable distribution. A portable NSIS 3.13 extracted into
 `.dao/tools/nsis-3.13/` is also detected. The compiler is only a packaging tool;
@@ -271,8 +355,9 @@ npm.cmd run release:windows -- --skip-upload
 `release:windows` is `cli release --platform windows`; plain `cli release`
 defaults to `--platform mac`. Windows reuses the current version without a
 bump or new tag, imports normally without `--force`, builds `mini_installer`
-in `out/dao`, and packages `dao-browser-<version>-windows-x64.exe`. It requires
-native Windows x64 build tools and authenticated GitHub CLI (`gh auth login`),
+in `out/dao` on Windows or `out/dao-win-x64` on Mac, and packages
+`dao-browser-<version>-windows-x64.exe`. It requires native Windows x64 tools or
+the configured Mac cross toolchain, and authenticated GitHub CLI (`gh auth login`),
 but no signing credentials, R2 credentials, or Sparkle tools. Unsigned packages
 can display Windows security prompts. Automatic Windows updates are not included.
 

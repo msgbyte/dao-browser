@@ -668,12 +668,12 @@ describe('release helpers', () => {
     await packageReleaseArtifact(fixtureContext(fixture), runner);
 
     expect(calls).toEqual([
-      {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'import', '--force']},
-      {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'import']},
-      {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'build']},
+      {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'import', '--platform', 'mac', '--force']},
+      {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'import', '--platform', 'mac']},
+      {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'build', '--platform', 'mac']},
       {
         cmd: 'npx',
-        args: ['tsx', 'scripts/cli.ts', 'package', '--sign-id'],
+        args: ['tsx', 'scripts/cli.ts', 'package', '--platform', 'mac', '--sign-id'],
       },
     ]);
   });
